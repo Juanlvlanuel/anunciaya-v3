@@ -192,28 +192,45 @@ export interface VendedorEnFeed {
     avatarUrl: string | null;
 }
 
-/** Pregunta+respuesta inline en la card del feed (top-2 más recientes). */
+/**
+ * Pregunta inline en la card del feed.
+ * Si `respuesta` y `respondidaAt` son null → pregunta pendiente (visible
+ * públicamente con indicador "Pendiente de respuesta").
+ * Si `editadaAt` != null → la pregunta fue editada por el comprador, mostrar
+ * marca "(editada)" junto al nombre.
+ */
 export interface PreguntaInlineFeed {
     id: string;
     pregunta: string;
-    respuesta: string;
-    respondidaAt: string;
+    respuesta: string | null;
+    respondidaAt: string | null;
+    editadaAt: string | null;
+    createdAt: string;
     comprador: {
         id: string;
         nombre: string;
+        apellidos: string;
         avatarUrl: string | null;
     };
 }
 
 /**
  * Artículo del feed infinito — extiende `ArticuloFeed` con los datos del
- * vendedor y top-2 preguntas respondidas para evitar requests adicionales
- * al renderizar la card tipo Facebook.
+ * vendedor y todas las preguntas del artículo (respondidas + pendientes),
+ * respondidas primero, sin límite.
  */
 export interface ArticuloFeedInfinito extends ArticuloFeed {
     vendedor: VendedorEnFeed;
-    /** Top 2 preguntas respondidas más recientes. Vacío si el artículo no tiene. */
+    /**
+     * Todas las preguntas del artículo, respondidas primero. Pendientes con
+     * `respuesta=null`. Vacío si el artículo no tiene preguntas.
+     */
     topPreguntas: PreguntaInlineFeed[];
+    /**
+     * Si el usuario actual tiene este artículo en sus guardados. False si no
+     * hay sesión. Permite que el corazón se vea relleno al cargar la página.
+     */
+    guardado: boolean;
 }
 
 /** Filtros disponibles en el feed infinito. */

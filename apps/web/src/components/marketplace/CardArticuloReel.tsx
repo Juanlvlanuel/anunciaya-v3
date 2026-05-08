@@ -49,7 +49,7 @@ export function CardArticuloReel({ articulo }: CardArticuloReelProps) {
             type="button"
             data-testid={`card-reel-${articulo.id}`}
             onClick={() => navigate(`/marketplace/articulo/${articulo.id}`)}
-            className="group relative block aspect-[4/5] w-44 shrink-0 overflow-hidden rounded-xl bg-slate-200 shadow-sm transition-transform hover:scale-[1.02] lg:w-52 lg:cursor-pointer"
+            className="group relative block aspect-[4/5] w-44 shrink-0 snap-start overflow-hidden rounded-xl bg-slate-200 shadow-sm transition-transform hover:scale-[1.02] lg:w-52 lg:cursor-pointer"
         >
             {/* Foto portada */}
             {fotoPortada ? (
@@ -94,7 +94,7 @@ export function CardArticuloReel({ articulo }: CardArticuloReelProps) {
                 <div className="text-base font-extrabold text-white drop-shadow-md">
                     {formatearPrecio(articulo.precio)}
                 </div>
-                <div className="line-clamp-1 text-[11px] font-medium text-white/90 drop-shadow-md">
+                <div className="line-clamp-1 text-sm font-medium text-white/90 drop-shadow-md">
                     {articulo.titulo}
                 </div>
             </div>

@@ -33,10 +33,11 @@ import { useMarketplaceFeed, useFeedInfinitoMarketplace } from '../../../hooks/q
 import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFeed';
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
+import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArticuloDetalle';
 import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
-import type { OrdenFeedInfinito } from '../../../types/marketplace';
+import type { OrdenFeedInfinito, ArticuloFeedInfinito } from '../../../types/marketplace';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
@@ -60,6 +61,13 @@ export function PaginaMarketplace() {
     // Notificaciones — botón Bell en el header móvil (entre buscar y menú).
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
+
+    // Modal de detalle del artículo (overlay tipo Facebook). Se abre al
+    // hacer click en "Ver N preguntas más" desde la card del feed. Guardamos
+    // el artículo completo (no solo el id) para reusarlo dentro del modal sin
+    // refetch.
+    const [articuloModal, setArticuloModal] = useState<ArticuloFeedInfinito | null>(null);
+    const handleCerrarModal = useCallback(() => setArticuloModal(null), []);
 
     // ─── React Query ───────────────────────────────────────────────────────────
 
@@ -106,12 +114,12 @@ export function PaginaMarketplace() {
         [orden, articulosFeed]
     );
 
-    // Las cards del feed grande NO deben repetir las cards del reel (los 12
-    // primeros si orden=recientes), para evitar la sensación de duplicado.
-    const articulosFeedSinReel = useMemo(
-        () => (orden === 'recientes' ? articulosFeed.slice(12) : articulosFeed),
-        [orden, articulosFeed]
-    );
+    // El feed grande muestra TODOS los artículos, incluso los que están en el
+    // reel. El reel es un "highlight" rotativo de los más recientes (igual que
+    // Stories vs Feed en Instagram); no se considera duplicado — son contextos
+    // distintos. Sin esto, la mayoría del catálogo quedaba atrapado en el reel
+    // y el feed grande se sentía vacío después de pocas cards.
+    const articulosFeedSinReel = articulosFeed;
 
     // ─── Handlers ──────────────────────────────────────────────────────────────
     const navigate = useNavigate();
@@ -462,22 +470,9 @@ export function PaginaMarketplace() {
                                                 </span>
                                             </div>
                                         )}
-                                        {/* Publicar — botón vertical: círculo "+" + label "Publicar" debajo.
-                                            Separación extra a la izquierda (ml-3 lg:ml-5) para que el círculo
-                                            destaque visualmente del bloque chips+KPI. */}
-                                        <button
-                                            data-testid="btn-publicar-desktop"
-                                            onClick={handlePublicar}
-                                            aria-label="Publicar artículo"
-                                            className="group ml-3 lg:ml-5 flex shrink-0 flex-col items-center gap-1 cursor-pointer transition-transform hover:scale-[1.04]"
-                                        >
-                                            <span className="flex h-11 w-11 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-md shadow-teal-500/30 ring-2 ring-teal-300/30 transition-shadow group-hover:shadow-lg group-hover:shadow-teal-500/40">
-                                                <Plus className="h-6 w-6" strokeWidth={2.75} />
-                                            </span>
-                                            <span className="text-xs lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-teal-400/90 group-hover:text-teal-300">
-                                                Publicar
-                                            </span>
-                                        </button>
+                                        {/* Botón Publicar movido a FAB flotante — ver bloque al final
+                                            del componente. FAB visible en móvil y desktop con animación
+                                            rotate-pulse del icono "+" y color teal. */}
                                     </div>
                                 </div>
                             </div>
@@ -515,7 +510,7 @@ export function PaginaMarketplace() {
                                 <button
                                     data-testid="btn-seleccionar-ciudad"
                                     onClick={abrirModalUbicacion}
-                                    className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm transition-colors hover:bg-amber-700"
+                                    className="mt-2.5 inline-flex cursor-pointer items-center gap-1.5 rounded-lg bg-amber-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm lg:hover:bg-amber-700"
                                 >
                                     <MapPin className="h-3.5 w-3.5" strokeWidth={2.5} />
                                     Elegir ciudad
@@ -608,7 +603,7 @@ export function PaginaMarketplace() {
                                 <button
                                     data-testid="btn-reintentar-feed"
                                     onClick={() => refetch()}
-                                    className="mt-2.5 inline-flex cursor-pointer items-center rounded-lg bg-rose-600 px-3 py-1.5 text-xs font-semibold text-white shadow-sm hover:bg-rose-700"
+                                    className="mt-2.5 inline-flex cursor-pointer items-center rounded-lg bg-rose-600 px-3 py-1.5 text-sm font-semibold text-white shadow-sm lg:hover:bg-rose-700"
                                 >
                                     Reintentar
                                 </button>
@@ -637,7 +632,11 @@ export function PaginaMarketplace() {
                             Desktop → columna centrada ~920px con gap y bordes. */}
                         <div className="mx-auto max-w-full lg:max-w-[920px] space-y-2 lg:space-y-4 lg:px-4 lg:py-2">
                             {articulosFeedSinReel.map((articulo) => (
-                                <CardArticuloFeed key={articulo.id} articulo={articulo} />
+                                <CardArticuloFeed
+                                    key={articulo.id}
+                                    articulo={articulo}
+                                    onAbrirDetalle={() => setArticuloModal(articulo)}
+                                />
                             ))}
 
                             {/* Sentinel para IntersectionObserver — dispara
@@ -649,7 +648,7 @@ export function PaginaMarketplace() {
                                 >
                                     {isFetchingNextPage ? (
                                         <Loader2
-                                            className="h-6 w-6 animate-spin text-slate-400"
+                                            className="h-6 w-6 animate-spin text-slate-500"
                                             strokeWidth={2}
                                         />
                                     ) : (
@@ -659,7 +658,7 @@ export function PaginaMarketplace() {
                             )}
 
                             {!hasNextPage && articulosFeedSinReel.length > 0 && (
-                                <p className="py-6 text-center text-xs text-slate-400">
+                                <p className="py-6 text-center text-sm font-medium text-slate-600">
                                     No hay más publicaciones
                                 </p>
                             )}
@@ -744,7 +743,7 @@ export function PaginaMarketplace() {
                             className="pointer-events-none fixed bottom-36 right-3 z-20 flex flex-col items-end gap-1 lg:hidden"
                             style={{ animation: 'mp-arrow-bounce 1.4s ease-in-out infinite' }}
                         >
-                            <span className="rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-3 py-1.5 text-xs font-bold text-white shadow-lg whitespace-nowrap">
+                            <span className="rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-3 py-1.5 text-sm font-bold text-white shadow-lg whitespace-nowrap">
                                 ¡Publica aquí!
                             </span>
                             <CornerRightDown
@@ -764,21 +763,25 @@ export function PaginaMarketplace() {
             </div>
 
             {/* ════════════════════════════════════════════════════════════════
-                FAB "+ Publicar" — solo móvil, sobre BottomNav
+                FAB "+ Publicar" — visible en móvil y desktop. En móvil baja a
+                bottom-4 cuando el BottomNav se oculta, sube a bottom-20 cuando
+                reaparece. En desktop queda fijo en bottom-6. Color teal de la
+                marca MP, icono con animación rotate-pulse cada 2.4s.
             ════════════════════════════════════════════════════════════════ */}
             <button
-                data-testid="fab-publicar-mobile"
+                data-testid="fab-publicar"
                 onClick={handlePublicar}
                 aria-label="Publicar artículo"
                 style={{
-                    bottom: bottomNavVisible ? '5rem' : '1rem',
                     transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
-                className="fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg hover:scale-105 lg:hidden"
+                className={`fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30 hover:scale-105 lg:bottom-6 lg:right-6 ${
+                    bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                }`}
             >
                 <Plus
                     className="h-6 w-6"
-                    strokeWidth={2.5}
+                    strokeWidth={2.75}
                     style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
                 />
                 <style>{`
@@ -791,6 +794,13 @@ export function PaginaMarketplace() {
 
             {/* Overlay del buscador (anclado al useSearchStore global) */}
             <OverlayBuscadorMarketplace />
+
+            {/* Modal de detalle del artículo (estilo Facebook) — se abre al
+                hacer click en "Ver N preguntas más" desde la card del feed. */}
+            <ModalArticuloDetalle
+                articulo={articuloModal}
+                onClose={handleCerrarModal}
+            />
         </div>
     );
 }

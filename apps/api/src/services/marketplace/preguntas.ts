@@ -167,12 +167,57 @@ export async function crearPregunta(
 
         return { success: true, message: 'Pregunta enviada', data: { id: nueva.id } };
     } catch (error: unknown) {
-        const pgError = error as { code?: string; cause?: { code?: string } };
-        if (pgError?.code === '23505' || pgError?.cause?.code === '23505') {
-            return { success: false, message: 'Ya tienes una pregunta en esta publicación' };
-        }
+        // Constraint único eliminado el 07-may-2026 — ahora un comprador puede
+        // hacer múltiples preguntas. Si llega un 23505 sería de otro origen.
         throw error;
     }
+}
+
+// =============================================================================
+// EDITAR PREGUNTA PROPIA (solo si pendiente)
+// =============================================================================
+
+/**
+ * El comprador edita el texto de su propia pregunta. Solo permitido si la
+ * pregunta NO ha sido respondida todavía. Después de responder, queda inmutable
+ * para preservar el contexto del Q&A público.
+ */
+export async function editarPreguntaPropia(
+    preguntaId: string,
+    compradorId: string,
+    nuevoTexto: string
+): Promise<{ success: boolean; message: string }> {
+    const pregunta = await obtenerPreguntaConArticulo(preguntaId);
+    if (!pregunta) {
+        return { success: false, message: 'Pregunta no encontrada' };
+    }
+    if (pregunta.compradorId !== compradorId) {
+        return { success: false, message: 'No puedes editar esta pregunta' };
+    }
+    if (pregunta.respondidaAt !== null) {
+        return {
+            success: false,
+            message: 'No puedes editar una pregunta que ya fue respondida',
+        };
+    }
+
+    // Moderación — mismo criterio que crearPregunta
+    const validacion = validarTextoPublicacion(nuevoTexto, '');
+    if (!validacion.valido && validacion.severidad === 'rechazo') {
+        return { success: false, message: validacion.mensaje };
+    }
+
+    await db.execute(sql`
+        UPDATE marketplace_preguntas
+        SET pregunta = ${nuevoTexto},
+            editada_at = NOW()
+        WHERE id = ${preguntaId}
+          AND comprador_id = ${compradorId}
+          AND respondida_at IS NULL
+          AND deleted_at IS NULL
+    `);
+
+    return { success: true, message: 'Pregunta actualizada' };
 }
 
 // =============================================================================

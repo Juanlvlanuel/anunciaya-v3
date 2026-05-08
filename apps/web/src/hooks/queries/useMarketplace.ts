@@ -827,6 +827,39 @@ export function useEliminarPreguntaMia() {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
             });
+            // El feed v1.2 trae las preguntas inline, también invalidar.
+            queryClient.invalidateQueries({
+                queryKey: ['marketplace', 'feed-infinito'],
+            });
+        },
+    });
+}
+
+/**
+ * El comprador edita el texto de su propia pregunta. Solo permitido si
+ * sigue pendiente (sin respuesta).
+ */
+export function useEditarPreguntaPropia() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message: string },
+        unknown,
+        { preguntaId: string; articuloId: string; pregunta: string }
+    >({
+        mutationFn: async ({ preguntaId, pregunta }) => {
+            const response = await api.put(
+                `/marketplace/preguntas/${preguntaId}/mia`,
+                { pregunta }
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+            queryClient.invalidateQueries({
+                queryKey: ['marketplace', 'feed-infinito'],
+            });
         },
     });
 }

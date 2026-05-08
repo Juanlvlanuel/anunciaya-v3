@@ -148,7 +148,7 @@ export function ReelMarketplace({
                 onMouseUp={finalizarDrag}
                 onTouchStart={onTouchStart}
                 onTouchEnd={onTouchEnd}
-                className="flex gap-3 overflow-x-auto scroll-smooth px-4 py-2 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
+                className="flex gap-3 overflow-x-auto scroll-smooth snap-x snap-mandatory px-4 py-2 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]"
                 style={{
                     cursor: dragRef.current.activo ? 'grabbing' : 'grab',
                 }}
@@ -164,7 +164,7 @@ export function ReelMarketplace({
                 data-testid="reel-flecha-izq"
                 onClick={() => navegarManual('izquierda')}
                 aria-label="Anterior"
-                className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-200 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
+                className="absolute left-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-300 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
             >
                 <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
             </button>
@@ -175,7 +175,7 @@ export function ReelMarketplace({
                 data-testid="reel-flecha-der"
                 onClick={() => navegarManual('derecha')}
                 aria-label="Siguiente"
-                className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-200 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
+                className="absolute right-2 top-1/2 hidden h-10 w-10 -translate-y-1/2 items-center justify-center rounded-full bg-white/95 text-slate-800 shadow-lg ring-1 ring-slate-300 opacity-0 transition-all group-hover/reel:opacity-100 hover:scale-110 lg:flex lg:cursor-pointer"
             >
                 <ChevronRight className="h-5 w-5" strokeWidth={2.5} />
             </button>

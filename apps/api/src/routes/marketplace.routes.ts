@@ -54,6 +54,7 @@ import {
     postReactivarArticulo,
     getPreguntasArticulo,
     postCrearPregunta,
+    putEditarPreguntaPropia,
     postResponderPregunta,
     postDerivarPreguntaAChat,
     deletePreguntaVendedor,
@@ -266,6 +267,17 @@ router.post(
     verificarToken,
     requiereModoPersonal,
     postDerivarPreguntaAChat
+);
+
+/**
+ * PUT /api/marketplace/preguntas/:id/mia
+ * El comprador edita el texto de su propia pregunta (solo si pendiente).
+ */
+router.put(
+    '/preguntas/:id/mia',
+    verificarToken,
+    requiereModoPersonal,
+    putEditarPreguntaPropia
 );
 
 /**

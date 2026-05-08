@@ -7,6 +7,71 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [07 Mayo 2026] - MarketPlace v1.3 — Q&A público + polish del feed + bugs de persistencia 💬❤️
+
+Iteración de pulido sobre el feed v1.2 del MarketPlace. Se hicieron públicas las preguntas pendientes (no solo las respondidas), se agregó edición/borrado de la pregunta propia, se levantó el límite de 1 pregunta por usuario por artículo, se cerró un set de bugs de persistencia del corazón "Guardado" y se completó el polish visual de la card.
+
+**Q&A público + edición:**
+- Migración SQL: drop del constraint `preguntas_unique_comprador` — un comprador puede hacer múltiples preguntas por artículo.
+- Migración SQL: nueva columna `marketplace_preguntas.editada_at TIMESTAMPTZ` — registra última edición.
+- Service `editarPreguntaPropia` — solo si pendiente; valida ownership + moderación; setea `editada_at = NOW()`. Después de respondida queda inmutable.
+- Endpoint nuevo: `PUT /api/marketplace/preguntas/:id/mia`.
+- Feed query devuelve **todas** las preguntas inline (respondidas primero, luego pendientes por `created_at DESC`). Sin LIMIT.
+- Frontend `CardArticuloFeed`: pendientes con marca `"Pendiente de respuesta"`; marca `(editada)` cuando aplique; botones inline `Editar · Borrar` para preguntas propias pendientes; modo edición inline con textarea + Guardar/Cancelar; optimistic UI para edición y eliminación. Card "Pregunta enviada" eliminada — la confirmación es ver tu pregunta inline.
+
+**Bugs de persistencia del corazón:**
+- `validEntityTypes` en `guardados.controller` rechazaba `'articulo_marketplace'` con 400 (las 3 funciones tenían `['oferta', 'servicio']` desactualizado). Resultado: el guardado del MP nunca se persistía. Fix: lista correcta + casts TS extendidos.
+- `agregarGuardado` / `quitarGuardado` no actualizaban `articulos_marketplace.total_guardados`. Fix: UPDATE del contador denormalizado con `GREATEST(... - 1, 0)` para evitar negativos. SQL one-shot para reconciliar artículos pre-existentes.
+- `obtenerFeedInfinito` ahora acepta `usuarioId?` y agrega `EXISTS(...)` por artículo → devuelve `guardado: boolean`. `useGuardados` recibe `initialGuardado: articulo.guardado` para que el corazón salga relleno desde el primer render tras refresh.
+
+**Card visual polish (cierra Fase 2 v1.2 + auditoría tokens):**
+- Layout móvil full-width: cards sin `rounded/border/shadow` en móvil; desktop intacto. Separación con `space-y-2`.
+- Aspect responsive `aspect-[4/3]` móvil + `lg:aspect-[2/1]` desktop.
+- Swipe móvil para cambiar imagen (umbral 50px, bloquea click si fue swipe).
+- Heart con animación (`feedHeartBounce`, `feedHeartRingPulse` 1 pasada, popup flotante "¡Gracias!" / "¡Oh no!" con `createPortal` anclado al borde derecho del botón). Mismo patrón que `CardNegocio`.
+- Heart count en tiempo real (delta optimista). Threshold del corazón social `>= 5` → `>= 1`.
+- Footer: distancia · preguntas · vistas siempre visibles. Señal social ya NO reemplaza a vistas, solo se agrega cuando aplica. Guardados se renderiza solo como icono rojo + número (sin texto).
+- Solo el título es link al detalle (antes lo era todo el bloque precio + título + descripción).
+- Token compliance: descripción `font-medium text-base`, borde de cards `border-2 border-slate-300`, hovers con `lg:hover:` (evita velo en móvil), `transition-all` removido de chips (toggle instantáneo), iconos del footer `h-4`, avatar fallback del comprador con gradient azul T2 + `shadow-md`.
+
+**Conexión usuario↔usuario via comentarios:**
+- Nuevo componente `BotonComentarista` en `apps/web/src/components/marketplace/`. Click en el nombre de cualquier comentarista (comprador o vendedor) → navega a `/marketplace/vendedor/:id`.
+- Hover desktop sobre el nombre → mini-card flotante 240px con avatar + nombre completo + botones `💬 Enviar mensaje` (abre ChatYA temporal) y `👤 Ver perfil`. Patrón LinkedIn / Slack.
+- Móvil sin popup (no hay hover en touch). El tap directo va al perfil que ya tiene CTA de ChatYA.
+- Backend feed query incluye `comprador.apellidos` (necesario para abrir ChatYA temporal). Sin migración — la columna ya existía.
+- Bubble de respuesta del vendedor ahora tiene su propio avatar (h-7 w-7) — gradient teal con iniciales si no tiene foto. Eliminada la palabra "respondió" — el color teal del bubble + el avatar comunican que es la respuesta.
+
+**Q&A "Top N + Ver más" (patrón Facebook):**
+- Default visible: top 2 respondidas + top 2 pendientes (max 4 inline).
+- Si hay más, botón `Ver N preguntas más` expande inline (no navega). Botón `Ver menos` para colapsar.
+- Auto-expande al enviar pregunta para que el usuario vea su propia pregunta sin clicks extra.
+
+**Modal de detalle estilo Facebook (overlay):**
+- Nuevo componente `ModalArticuloDetalle`. Click en "Ver N preguntas más" en el feed → abre modal centrado con la misma card del feed (sin refetch). Backdrop oscuro con blur, X flotante fuera del card en la esquina superior del viewport, native back del celular cierra el modal vía `history.pushState` + `popstate`.
+- Prop nuevo `modoModal` en `CardArticuloFeed`: reorganiza la card para vivir dentro del modal — article `flex h-full flex-col`, lista de preguntas `flex-1 overflow-y-auto` (única zona scrolleable), input + aviso comercial fijos al fondo. Imagen compacta `h-56 lg:h-64`, descripción y thumbnails laterales ocultos para priorizar el espacio de mensajes. Preguntas pre-expandidas (no más botón "Ver más" dentro del modal).
+- Modal reusa la card del feed completa (sin duplicar lógica de Q&A, optimistic UI, edición/borrado, swipe, popup BotonComentarista).
+
+**Galería con swipe moderno (translateX):**
+- Reescrita la galería del `CardArticuloFeed` para mostrar transición en vivo al hacer swipe. Renderiza 3 imágenes en posición absoluta (anterior/actual/siguiente) y translada con `translateX` siguiendo al dedo. Al soltar, snap back si `|delta| < 60px` o transición animada hasta la siguiente/anterior si pasa el umbral. Loop infinito.
+
+**`BotonComentarista`: hover → click derecho:**
+- El hover resultaba molesto. Ahora el popup "Ver perfil / Enviar mensaje" se abre con `onContextMenu` (click derecho) anclado al cursor. Cierra al click fuera o Escape. z-index `[10010]` para aparecer sobre el modal del detalle.
+
+**Notificaciones (utils/notificaciones.tsx) — rediseño alineado a Token 13:**
+- Duración 4000ms → 2500ms. Animación 0.3s → 0.2s.
+- Iconos planos (sin círculo pastel + sombra). Accent bar lateral 4px en color semántico (estilo Linear/Stripe).
+- Border `border-2 slate-200` → `border slate-300`. Sombra reducida.
+- Botón X como pill circular. Tipografía `text-sm font-semibold`. Padding más compacto. Progress bar más sutil.
+
+**Doc actualizada:** `docs/arquitectura/MarketPlace.md` v1.3.0.
+
+**Migraciones a correr en BD:**
+- `docs/migraciones/2026-05-07-marketplace-preguntas-sin-limite.sql`
+- `docs/migraciones/2026-05-07-marketplace-preguntas-editada-at.sql`
+- One-shot reconciliación de `total_guardados` (ver MarketPlace.md §v1.3 → "Bug 2").
+
+---
+
 ## [06 Mayo 2026] - Rediseño cross-secciones: Headers unificados + filtros temáticos + Feed Facebook MP 🎨
 
 Rediseño visual transversal de las 3 secciones públicas para coherencia entre módulos. Cada sección mantiene su identidad temática (teal MP, amber Ofertas, blue Negocios) pero los patrones estructurales son idénticos.

@@ -86,6 +86,16 @@ export async function agregarGuardado(params: AgregarGuardadoParams) {
             })
             .returning();
 
+        // Incrementar el contador denormalizado del artículo de MarketPlace.
+        // Las ofertas y servicios tienen sus propios contadores manejados
+        // en otros services — solo articulo_marketplace requiere update aquí.
+        if (entityType === 'articulo_marketplace') {
+            await db
+                .update(articulosMarketplace)
+                .set({ totalGuardados: sql`${articulosMarketplace.totalGuardados} + 1` })
+                .where(eq(articulosMarketplace.id, entityId));
+        }
+
         return {
             success: true,
             message: '¡Guardado!',
@@ -140,6 +150,17 @@ export async function quitarGuardado(
         await db
             .delete(guardados)
             .where(eq(guardados.id, guardadoExistente.id));
+
+        // Decrementar el contador denormalizado del artículo de MarketPlace.
+        // GREATEST evita valores negativos si el contador queda desfasado.
+        if (entityType === 'articulo_marketplace') {
+            await db
+                .update(articulosMarketplace)
+                .set({
+                    totalGuardados: sql`GREATEST(${articulosMarketplace.totalGuardados} - 1, 0)`,
+                })
+                .where(eq(articulosMarketplace.id, entityId));
+        }
 
         return {
             success: true,

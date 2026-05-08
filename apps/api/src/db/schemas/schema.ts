@@ -2308,10 +2308,13 @@ export const marketplacePreguntas = pgTable("marketplace_preguntas", {
 	pregunta: varchar({ length: 200 }).notNull(),
 	respuesta: varchar({ length: 500 }),
 	respondidaAt: timestamp("respondida_at", { withTimezone: true, mode: 'string' }),
+	editadaAt: timestamp("editada_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	unique("preguntas_unique_comprador").on(table.articuloId, table.compradorId),
+	// Constraint único eliminado (07-may-2026): un comprador puede hacer
+	// múltiples preguntas en el mismo artículo. Ver migración
+	// 2026-05-07-marketplace-preguntas-sin-limite.sql.
 	index("idx_preguntas_articulo").using("btree", table.articuloId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
 	index("idx_preguntas_respondidas").using("btree", table.articuloId.asc().nullsLast(), table.respondidaAt.asc().nullsLast()).where(sql`respondida_at IS NOT NULL AND deleted_at IS NULL`),
 ]);

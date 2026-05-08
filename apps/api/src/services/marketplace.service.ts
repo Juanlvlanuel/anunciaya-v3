@@ -653,18 +653,31 @@ export interface ArticuloFeedInfinitoRow extends ArticuloFeedRow {
         apellidos: string;
         avatarUrl: string | null;
     };
-    /** Top 2 preguntas respondidas más recientes (si las hay). */
+    /**
+     * Todas las preguntas del artículo (respondidas + pendientes), ordenadas
+     * con respondidas primero, luego pendientes por created_at DESC.
+     * Sin LIMIT — el cliente renderiza todas inline.
+     */
     topPreguntas: Array<{
         id: string;
         pregunta: string;
-        respuesta: string;
-        respondidaAt: string;
+        respuesta: string | null;
+        respondidaAt: string | null;
+        /** Si != null, el comprador editó la pregunta. Mostrar "(editada)". */
+        editadaAt: string | null;
+        createdAt: string;
         comprador: {
             id: string;
             nombre: string;
+            apellidos: string;
             avatarUrl: string | null;
         };
     }>;
+    /**
+     * Si el usuario actual (token opcional) tiene este artículo en sus
+     * guardados. Siempre false cuando no hay sesión.
+     */
+    guardado: boolean;
 }
 
 interface OpcionesFeedInfinito {
@@ -680,6 +693,12 @@ interface OpcionesFeedInfinito {
     /** Filtros opcionales de precio. */
     precioMin?: number;
     precioMax?: number;
+    /**
+     * ID del usuario logueado (opcional). Si se provee, cada artículo trae
+     * `guardado` indicando si este usuario tiene el artículo en su lista
+     * de guardados. Si es null/undefined, `guardado` viene siempre false.
+     */
+    usuarioId?: string | null;
 }
 
 /**
@@ -741,27 +760,40 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 COALESCE(pq.total, 0) AS total_preguntas_respondidas,
                 COALESCE(
                     (
-                        SELECT json_agg(p ORDER BY p.respondida_at DESC)
+                        SELECT json_agg(
+                            p ORDER BY
+                                CASE WHEN p.respondida_at IS NULL THEN 1 ELSE 0 END,
+                                p.respondida_at DESC NULLS LAST,
+                                p.created_at DESC
+                        )
                         FROM (
                             SELECT
                                 mp.id,
                                 mp.pregunta,
                                 mp.respuesta,
                                 mp.respondida_at,
+                                mp.editada_at,
+                                mp.created_at,
                                 uc.id AS comprador_id,
                                 uc.nombre AS comprador_nombre,
+                                uc.apellidos AS comprador_apellidos,
                                 uc.avatar_url AS comprador_avatar
                             FROM marketplace_preguntas mp
                             INNER JOIN usuarios uc ON uc.id = mp.comprador_id
                             WHERE mp.articulo_id = a.id
-                              AND mp.respondida_at IS NOT NULL
                               AND mp.deleted_at IS NULL
-                            ORDER BY mp.respondida_at DESC
-                            LIMIT 2
                         ) p
                     ),
                     '[]'::json
-                ) AS top_preguntas
+                ) AS top_preguntas,
+                ${opciones.usuarioId
+                    ? sql`EXISTS (
+                            SELECT 1 FROM guardados g
+                            WHERE g.usuario_id = ${opciones.usuarioId}
+                              AND g.entity_type = 'articulo_marketplace'
+                              AND g.entity_id = a.id
+                          )`
+                    : sql`FALSE`} AS usuario_guardo
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             LEFT JOIN (
@@ -784,10 +816,17 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
         type RawTopPregunta = {
             id: string;
             pregunta: string;
-            respuesta: string;
-            respondida_at: string;
+            // Pendientes pueden venir sin respuesta — el cliente decide cómo
+            // mostrarlas (07-may-2026: respondidas primero, pendientes con
+            // indicador "Pendiente de respuesta").
+            respuesta: string | null;
+            respondida_at: string | null;
+            // Si != null, el comprador editó la pregunta — UI muestra "(editada)".
+            editada_at: string | null;
+            created_at: string;
             comprador_id: string;
             comprador_nombre: string;
+            comprador_apellidos: string;
             comprador_avatar: string | null;
         };
 
@@ -799,6 +838,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             vendedor_avatar: string | null;
             total_preguntas_respondidas: number;
             top_preguntas: RawTopPregunta[] | null;
+            usuario_guardo: boolean;
         };
 
         const filas = resultado.rows as unknown as RawFeedInfinitoRow[];
@@ -833,12 +873,16 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                         pregunta: p.pregunta,
                         respuesta: p.respuesta,
                         respondidaAt: p.respondida_at,
+                        editadaAt: p.editada_at,
+                        createdAt: p.created_at,
                         comprador: {
                             id: p.comprador_id,
                             nombre: p.comprador_nombre,
+                            apellidos: p.comprador_apellidos,
                             avatarUrl: p.comprador_avatar,
                         },
                     })),
+                    guardado: row.usuario_guardo === true,
                 };
             })
         );

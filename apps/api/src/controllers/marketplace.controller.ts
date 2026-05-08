@@ -47,11 +47,13 @@ import {
     popularesQuerySchema,
     buscarQuerySchema,
     crearPreguntaSchema,
+    editarPreguntaSchema,
     responderPreguntaSchema,
     formatearErroresZod,
 } from '../validations/marketplace.schema.js';
 import {
     crearPregunta,
+    editarPreguntaPropia,
     obtenerPreguntasPublicas,
     obtenerPreguntasParaVendedor,
     obtenerMiPreguntaPendiente,
@@ -128,7 +130,10 @@ export async function getFeedInfinito(req: Request, res: Response) {
             });
         }
 
-        const resultado = await obtenerFeedInfinito(validacion.data);
+        // Token opcional — si hay usuario logueado, el feed devuelve `guardado`
+        // por artículo (true si lo tiene en su lista de guardados).
+        const usuarioId = obtenerUsuarioId(req);
+        const resultado = await obtenerFeedInfinito({ ...validacion.data, usuarioId });
         return res.json(resultado);
     } catch (error) {
         console.error('Error en getFeedInfinito:', error);
@@ -733,6 +738,55 @@ export async function postCrearPregunta(req: Request, res: Response) {
     } catch (error) {
         console.error('Error en postCrearPregunta:', error);
         return res.status(500).json({ success: false, message: 'Error al enviar la pregunta' });
+    }
+}
+
+/**
+ * PUT /api/marketplace/preguntas/:id/mia
+ * El comprador edita el texto de su propia pregunta. Solo permitido si la
+ * pregunta sigue pendiente (sin respuesta del vendedor).
+ */
+export async function putEditarPreguntaPropia(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+        if (!UUID_REGEX.test(id)) {
+            return res.status(400).json({ success: false, message: 'ID de pregunta inválido' });
+        }
+
+        const usuarioId = obtenerUsuarioId(req);
+        if (!usuarioId) {
+            return res.status(401).json({ success: false, message: 'No autenticado' });
+        }
+
+        const validacion = editarPreguntaSchema.safeParse(req.body);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+
+        const resultado = await editarPreguntaPropia(id, usuarioId, validacion.data.pregunta);
+
+        if (!resultado.success) {
+            const esForbidden = resultado.message.includes('No puedes editar');
+            const esNotFound = resultado.message.includes('no encontrada');
+            const esModeracion = resultado.message.includes('moderación') ||
+                                 resultado.message.includes('prohibid') ||
+                                 resultado.message.includes('permitid');
+            const esConflicto = resultado.message.includes('ya fue respondida');
+            if (esConflicto) return res.status(409).json(resultado);
+            if (esForbidden) return res.status(403).json(resultado);
+            if (esModeracion) return res.status(422).json(resultado);
+            if (esNotFound) return res.status(404).json(resultado);
+            return res.status(400).json(resultado);
+        }
+
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en putEditarPreguntaPropia:', error);
+        return res.status(500).json({ success: false, message: 'Error al editar la pregunta' });
     }
 }
 

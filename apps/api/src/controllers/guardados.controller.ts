@@ -51,7 +51,7 @@ export async function agregarGuardadoController(req: Request, res: Response) {
             });
         }
 
-        const validEntityTypes = ['oferta', 'servicio'];
+        const validEntityTypes = ['oferta', 'servicio', 'articulo_marketplace'];
         if (!validEntityTypes.includes(entityType)) {
             return res.status(400).json({
                 success: false,
@@ -109,7 +109,7 @@ export async function quitarGuardadoController(req: Request, res: Response) {
             });
         }
 
-        const validEntityTypes = ['oferta', 'servicio'];
+        const validEntityTypes = ['oferta', 'servicio', 'articulo_marketplace'];
         if (!validEntityTypes.includes(entityType)) {
             return res.status(400).json({
                 success: false,
@@ -120,7 +120,7 @@ export async function quitarGuardadoController(req: Request, res: Response) {
         // Quitar de guardados
         const resultado = await quitarGuardado(
             userId,
-            entityType as 'oferta' | 'servicio',
+            entityType as 'oferta' | 'servicio' | 'articulo_marketplace',
             entityId
         );
 
@@ -171,7 +171,7 @@ export async function obtenerGuardadosController(req: Request, res: Response) {
 
         // Validar entityType si se proporciona
         if (entityType) {
-            const validEntityTypes = ['oferta', 'servicio'];
+            const validEntityTypes = ['oferta', 'servicio', 'articulo_marketplace'];
             if (!validEntityTypes.includes(entityType)) {
                 return res.status(400).json({
                     success: false,
@@ -182,7 +182,7 @@ export async function obtenerGuardadosController(req: Request, res: Response) {
 
         const resultado = await obtenerGuardados(
             userId,
-            entityType as 'oferta' | 'servicio' | undefined,
+            entityType as 'oferta' | 'servicio' | 'articulo_marketplace' | undefined,
             pagina,
             limite
         );

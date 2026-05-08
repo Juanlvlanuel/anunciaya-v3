@@ -75,11 +75,11 @@ export function ChipsFiltrosFeed({
                 const clasesDisabled =
                     variant === 'dark'
                         ? 'border-white/10 bg-white/5 text-white/30 cursor-not-allowed'
-                        : 'border-slate-200 bg-slate-50 text-slate-400 cursor-not-allowed';
+                        : 'border-slate-300 bg-slate-100 text-slate-600 opacity-60 cursor-not-allowed';
                 const clasesInactivo =
                     variant === 'dark'
-                        ? 'border-white/15 bg-white/5 text-slate-200 hover:border-teal-400/60 hover:bg-white/10 hover:text-white'
-                        : 'border-slate-300 bg-white text-slate-700 hover:border-teal-400 hover:text-teal-700';
+                        ? 'border-white/15 bg-white/5 text-slate-200 lg:hover:border-teal-400/60 lg:hover:bg-white/10 lg:hover:text-white'
+                        : 'border-slate-300 bg-white text-slate-700 lg:hover:border-teal-400 lg:hover:text-teal-700';
 
                 return (
                     <button
@@ -89,7 +89,7 @@ export function ChipsFiltrosFeed({
                         onClick={() => !disabled && onCambio(opcion.valor)}
                         disabled={disabled}
                         aria-pressed={activo}
-                        className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all lg:cursor-pointer ${activo ? clasesActivo : disabled ? clasesDisabled : clasesInactivo
+                        className={`flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold lg:cursor-pointer ${activo ? clasesActivo : disabled ? clasesDisabled : clasesInactivo
                             }`}
                     >
                         {opcion.icono}

@@ -1,13 +1,289 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 06 Mayo 2026
-> **Estado:** ✅ v1 + v1.1 + **v1.2 (rediseño feed estilo Facebook)** completados y desplegados en producción.
-> **Versión:** 1.2.0
+> **Última actualización:** 07 Mayo 2026
+> **Estado:** ✅ v1 + v1.1 + v1.2 + **v1.3 (Q&A público + polish del feed)** completados y desplegados en producción.
+> **Versión:** 1.3.0
 > **Pendientes opcionales:**
 >  - Sistema de Niveles del Vendedor (separado de v1.2)
->  - Fase 2 del rediseño: layout móvil full-width
 >  - Fase 3: stories de contactos arriba del feed
 >  - Fase 4: sistema de contactos ChatYA desde perfil del vendedor
+
+## 🆕 v1.3 — Q&A público + polish del feed (07 May 2026)
+
+Iteración de pulido sobre el feed v1.2: se hicieron públicas las preguntas
+pendientes (no solo las respondidas), se permite editar/borrar la pregunta
+propia mientras siga sin respuesta, se levantó el límite de 1 pregunta por
+usuario por artículo, y se cerró un set de bugs de persistencia + polish
+visual completo de la card.
+
+### Q&A público + edición
+
+**Backend:**
+- Migración `2026-05-07-marketplace-preguntas-sin-limite.sql` — drop del
+  constraint `preguntas_unique_comprador`. Un comprador puede hacer
+  múltiples preguntas en el mismo artículo.
+- Migración `2026-05-07-marketplace-preguntas-editada-at.sql` — nueva
+  columna `editada_at TIMESTAMPTZ` en `marketplace_preguntas`. NULL si
+  nunca se editó.
+- Service `editarPreguntaPropia(preguntaId, compradorId, nuevoTexto)`:
+  valida ownership + estado pendiente (`respondida_at IS NULL`) +
+  moderación. UPDATE setea `editada_at = NOW()`. Después de respondida,
+  la pregunta es inmutable (preserva contexto del Q&A público).
+- Endpoint nuevo: `PUT /api/marketplace/preguntas/:id/mia` con schema
+  Zod `editarPreguntaSchema` (idéntico a crear: 10-200 chars).
+- Feed query (`GET /feed/infinito`) ahora trae **todas** las preguntas
+  inline (respondidas + pendientes), ordenadas con respondidas primero
+  → pendientes por `created_at DESC`. Sin LIMIT (antes era top 2).
+- Tipo `RawTopPregunta`: `respuesta` y `respondida_at` ahora nullable.
+  Nuevos campos `editada_at` y `created_at`.
+
+**Frontend:**
+- Tipo `PreguntaInlineFeed` con `respuesta: string | null`,
+  `respondidaAt: string | null`, `editadaAt: string | null`, `createdAt`.
+- Hook nuevo `useEditarPreguntaPropia` en `useMarketplace.ts` con
+  invalidación del feed v1.2.
+- `useEliminarPreguntaMia` también invalida el feed v1.2.
+- En `CardArticuloFeed`:
+  - Pendientes se renderizan con marca `Pendiente de respuesta` en italic
+    slate-500 (sin bubble del vendedor).
+  - Marca `(editada)` en italic gris junto al nombre cuando `editadaAt != null`.
+  - Para mi propia pregunta pendiente, botones inline `Editar · Borrar`.
+  - Modo edición: textarea inline con borde teal en focus, botones
+    `Guardar` / `Cancelar`, contador de caracteres, error inline.
+  - Optimistic UI: edición y eliminación se aplican localmente antes
+    del refetch; `edicionesOptimistas` y `eliminadasOptimistas` mergean
+    con el feed.
+  - La card "Pregunta enviada" se eliminó — la confirmación es ver tu
+    propia pregunta pendiente inline. El toast "Pregunta enviada al
+    vendedor" se mantiene.
+  - **Top N + "Ver más" (patrón Facebook)**: en preview se muestran solo
+    las primeras 2 respondidas + 2 pendientes (max 4 visibles). Si hay
+    más, aparece botón `Ver N preguntas más` que expande inline (no
+    navega al detalle). Cuando está expandido aparece `Ver menos` para
+    colapsar de vuelta. Al enviar una pregunta nueva, la lista se
+    auto-expande para que el usuario vea su propia pregunta sin clicks
+    extra.
+
+### Conexión usuario↔usuario vía comentarios
+
+El nombre de cualquier comentarista (comprador o vendedor) en el bubble
+de Q&A es ahora un acceso directo al perfil del usuario y a un chat
+con él.
+
+**Componente nuevo `BotonComentarista`**
+(`apps/web/src/components/marketplace/BotonComentarista.tsx`):
+- **Click (todas las plataformas)** → navega a
+  `/marketplace/vendedor/:usuarioId`. La P3 ya soporta usuarios con 0
+  artículos (empty state). Branding pendiente — ver Pendientes.md.
+- **Hover (solo desktop, `lg:`)** → mini-card flotante con `createPortal`
+  al body, ancho 240px, anclada **debajo del nombre** (`top: rect.bottom + 8`),
+  alineada al inicio del nombre (`left: rect.left`) con clamp para no
+  salirse de la pantalla. Contiene avatar grande (foto o gradient azul
+  T2 con iniciales) + nombre completo + 2 acciones:
+  - `💬 Enviar mensaje` → `useChatYAStore.abrirChatTemporal(...)` con
+    `participante2Modo: 'personal'` y `contextoTipo: 'vendedor_marketplace'`.
+    Auth gate: si no hay sesión, toast advertencia. Si es uno mismo,
+    toast info.
+  - `👤 Ver perfil` → cierra popup y navega.
+- Delay de 200ms en `mouseleave` para dar tiempo de mover el mouse hacia
+  los botones del popup sin que se cierre. `mouseenter` en el popup
+  cancela el cierre.
+- En móvil el popup NO se renderiza (`hidden lg:block`) — el tap directo
+  va al perfil que ya tiene su botón ChatYA.
+- Prop `displayName` opcional: muestra otro texto en el botón pero
+  mantiene el `nombre` completo en el popup (ej. "Juan respondió" usa
+  `displayName="Juan"` pero el popup muestra "Juan Manuel Valenzuela
+  Jabalera").
+- Prop `editado` opcional: agrega marca `(editada)` al lado del nombre.
+
+**Cambios en CardArticuloFeed:**
+- El bubble del vendedor ahora tiene su propio **avatar** (h-7 w-7) al
+  lado izquierdo, igual que el comprador. Sin avatar usa gradient teal
+  con iniciales (para diferenciarse del azul del comprador).
+- Se eliminó la palabra **"respondió"** del bubble del vendedor — el
+  color teal-100 del bubble + el avatar del vendedor ya comunican
+  visualmente que es la respuesta.
+- El nombre del comprador y del vendedor son ambos `BotonComentarista`.
+
+**Backend:**
+- El feed query ahora incluye `comprador.apellidos` en el JSON aggregate
+  de `top_preguntas` (necesario para `abrirChatTemporal` que requiere el
+  nombre completo). No se necesita migración — la columna `apellidos`
+  ya existe en `usuarios`.
+
+### Modal de detalle estilo Facebook
+
+Al hacer click en "Ver N preguntas más" en una card del feed, en lugar
+de expandir inline, se abre un **modal overlay** que muestra la misma
+card del feed centrada sobre el contenido — patrón Facebook clásico.
+
+**Componente nuevo `ModalArticuloDetalle`**
+(`apps/web/src/components/marketplace/ModalArticuloDetalle.tsx`):
+- Backdrop oscuro con `backdrop-blur-sm`. Click en backdrop cierra.
+- Card centrada `max-w-[620px]` con altura `calc(100vh - 3rem)` y cap
+  `lg:max-h-[900px]`.
+- X flotante en la esquina superior derecha del viewport, *fuera* del
+  card (estilo Facebook) — `fixed top-3 right-3`.
+- **Native back support**: `history.pushState({modalArticulo: id})` al
+  abrir; listener de `popstate` cierra. El cleanup hace `history.back()`
+  si el state aún tiene el modal pusheado, así un back posterior no
+  re-abre el modal. La referencia a `onClose` se captura en un `useRef`
+  para que el `useEffect` no se re-ejecute si el padre re-renderiza.
+- Tecla **Escape** también cierra.
+- Lock del scroll del body mientras el modal esté abierto.
+
+**Prop nuevo `modoModal` en `CardArticuloFeed`**:
+La misma card se reusa adentro del modal (sin duplicar lógica) pero con
+otra disposición. Cuando `modoModal=true`:
+- Article se vuelve `flex h-full flex-col` para llenar la altura del
+  modal.
+- Header / cuerpo / galería / footer son `shrink-0`.
+- La **lista de preguntas** se vuelve `flex-1 min-h-0 overflow-y-auto` —
+  única zona con scroll interno.
+- El **input** "Hacer una pregunta" + aviso comercial bloqueado se
+  separan en su propio container `shrink-0 border-t bg-white` que queda
+  fijo al fondo.
+- Imagen más compacta: `h-56 lg:h-64` fijo (en lugar de `aspect-[4/3]`)
+  para no robarle espacio a los mensajes.
+- **Descripción oculta** (el usuario abrió el modal para ver mensajes,
+  no descripción). Si la quiere completa, navega a P2.
+- **Thumbnails laterales desktop ocultos** (mismo motivo).
+- **Header / cuerpo / footer** con `py-2` en lugar de `py-3` para más
+  densidad.
+- **Preguntas pre-expandidas**: `useState(modoModal)` arranca en `true`
+  porque el usuario ya hizo click en "Ver más" para llegar al modal —
+  no tiene sentido pedirle otra vez.
+- Los botones "Ver N preguntas más" y "Ver menos" se ocultan en modal
+  (redundantes con la vista expandida).
+
+**Integración en `PaginaMarketplace`:**
+- Estado: `articuloModal: ArticuloFeedInfinito | null`. Guardamos el
+  artículo completo (no solo el id) para reusarlo dentro del modal sin
+  refetch.
+- Pasa `onAbrirDetalle={() => setArticuloModal(articulo)}` a cada
+  `CardArticuloFeed` del feed.
+- Renderiza `<ModalArticuloDetalle articulo={articuloModal} onClose={...}/>`
+  al final del árbol.
+
+**Galería con swipe moderno (translateX)**:
+Mejora aplicada al `CardArticuloFeed` — beneficia tanto al feed como
+al modal. Antes el swipe móvil era snap puro (sin transición visible
+durante el drag). Ahora se renderizan 3 imágenes en posición absoluta
+con translateX en vivo:
+- Anterior: `translateX(calc(-100% + offsetPx))` — asoma desde la
+  izquierda al swipear hacia la derecha.
+- Actual: `translateX(offsetPx)` — sigue al dedo.
+- Siguiente: `translateX(calc(100% + offsetPx))` — asoma desde la
+  derecha al swipear hacia la izquierda.
+
+Mientras el usuario arrastra `enTransicion=false` (sigue al dedo). Al
+soltar:
+- `|delta| < 60px` → snap back con animación 220ms ease-out.
+- `|delta| ≥ 60px` → anima hasta `±ancho` y luego cambia índice +
+  resetea offset (sin animación) para evitar el "salto".
+
+Loop infinito (al final → primera, al inicio → última).
+
+### `BotonComentarista` cambió de hover → click derecho
+
+El popup de "Ver perfil / Enviar mensaje" antes se abría con hover en
+desktop. Hover resultó molesto por aparecer al pasar el mouse. Cambió
+a **click derecho** (`onContextMenu` con `preventDefault`):
+- El popup se ancla a la posición del cursor (estilo context menu nativo).
+- Cierra al click fuera o tecla Escape.
+- z-index `[10010]` para aparecer encima del modal del detalle del
+  artículo (que vive en z-10000/10001).
+- Tooltip nativo en el botón: *"Click para ver perfil · Click derecho
+  para más opciones"* — para descubrir el atajo.
+
+### Persistencia del corazón (guardado tras refresh)
+
+**Bug 1 — `validEntityTypes` desactualizado en `guardados.controller`:**
+- Las 3 funciones (`agregar`, `quitar`, `obtener`) validaban contra
+  `['oferta', 'servicio']` y rechazaban `articulo_marketplace` con 400.
+  Resultado: el guardado del MP nunca se persistía en la BD aunque la
+  UI mostrara optimistic. Al refrescar, todo se perdía.
+- Fix: `['oferta', 'servicio', 'articulo_marketplace']` en las 3 listas
+  + casts `as` extendidos al nuevo tipo.
+
+**Bug 2 — Contador denormalizado sin actualizar:**
+- `agregarGuardado` / `quitarGuardado` solo escribían en la tabla
+  `guardados`, sin tocar `articulos_marketplace.total_guardados`. El
+  contador del feed quedaba congelado.
+- Fix: cuando `entityType === 'articulo_marketplace'`, el service hace
+  `UPDATE articulos_marketplace SET total_guardados = total_guardados +/- 1`
+  con `GREATEST(... - 1, 0)` para evitar negativos.
+- One-shot SQL para reconciliar artículos pre-existentes:
+  ```sql
+  UPDATE articulos_marketplace a
+  SET total_guardados = (
+    SELECT COUNT(*)::int FROM guardados g
+    WHERE g.entity_type = 'articulo_marketplace' AND g.entity_id = a.id
+  );
+  ```
+
+**Backend feed devuelve `guardado` por artículo:**
+- `obtenerFeedInfinito` ahora acepta `usuarioId?: string | null` y, si
+  está presente, agrega un `EXISTS(...)` por artículo que devuelve
+  `usuario_guardo` (mapeado a `guardado: boolean`). Sin sesión → false
+  siempre.
+- `getFeedInfinito` controller (con `verificarTokenOpcional`) extrae
+  `usuarioId` y lo pasa al service.
+- `useGuardados` ahora recibe `initialGuardado: articulo.guardado` para
+  que el corazón salga relleno en el primer render si el usuario ya lo
+  tenía guardado.
+
+### Card visual polish (auditoría completa de tokens)
+
+- **Layout móvil full-width** (cierra Fase 2 de v1.2): cards sin
+  `rounded-xl border shadow` en móvil, separación entre cards con
+  `space-y-2`. Desktop conserva `lg:rounded-xl lg:border-2 lg:border-slate-300 lg:shadow-sm`.
+- **Aspect responsive**: `aspect-[4/3]` móvil + `lg:aspect-[2/1]` desktop.
+- **Swipe móvil**: handlers `onTouchStart/Move/End` con umbral 50px.
+  Bloquea el `onClick` posterior si fue swipe (no abre detalle por
+  accidente).
+- **Heart con animación** (mismo patrón que `CardNegocio`):
+  keyframes `feedHeartBounce`, `feedHeartRingPulse`, `feedFloatUp`.
+  Pulse ring 1 sola pasada al click (no continuo). Popup flotante
+  `createPortal` con `Smile` "¡Gracias!" (verde) o `Frown` "¡Oh no!"
+  (rojo), anclado al borde derecho del botón con
+  `left: rect.right - 130` para no salirse de la pantalla.
+- **Heart count en tiempo real**: `guardadoInicialRef` captura el estado
+  inicial; `delta = current - inicial`; `totalGuardadosLocal =
+  articulo.totalGuardados + delta`. Threshold del corazón social bajado
+  a `>= 1` (antes 5).
+- **Footer reorganizado**: distancia · preguntas · vistas siempre
+  visibles a la izquierda. La señal social (viendo / vistas24h /
+  guardados) ya NO reemplaza a vistas, solo se agrega a la derecha
+  cuando aplica. El `guardados` se renderiza como corazón rojo lleno
+  + número, sin texto "X personas lo guardaron".
+- **Solo el título es link al detalle**: antes el bloque entero
+  precio + chips + título + descripción era un `<button>` gigante.
+  Ahora solo el `<h3>` interno tiene click → `lg:hover:underline`.
+  El precio y chips son info pasiva; la descripción solo expande.
+- **Token compliance**: descripción `font-medium text-base` (antes
+  sin peso explícito), border de cards `border-2 border-slate-300`
+  (antes `border slate-200`), rings y separadores subidos a -200/-300,
+  hovers con prefijo `lg:hover:` para evitar velo en móvil, animaciones
+  de chip removidas (`transition-all` → instantáneo). Iconos del
+  footer `h-3.5` → `h-4`. Bubble del comprador con avatar fallback
+  gradient azul T2 + `text-white shadow-md`.
+
+### Notificaciones (utils/notificaciones.tsx)
+
+Rediseño alineado a Token 13 (B2B profesional), fuera del scope de MP
+pero impacta directamente la UX de guardar:
+- Duración 4000ms → **2500ms**.
+- Animación entrada/salida 0.3s → 0.2s.
+- Iconos planos coloreados (sin círculo pastel + sombra). Línea con
+  Linear/Stripe.
+- Accent bar lateral izquierdo de 4px en color semántico.
+- Border `border-2 slate-200` → `border slate-300` (1px).
+- Botón X como pill circular `w-7 h-7 bg-slate-100 hover:bg-slate-200`.
+- Tipografía `text-base` → `text-sm font-semibold`.
+- Padding `px-4 py-3.5` → `px-3.5 py-3`.
+- Progress bar más sutil (opacidad 0.4, fondo 0.15 del color).
+- Sombra reducida (`0 4px 16px` en lugar de `0 8px 30px`).
 
 ## 🆕 v1.2 — Rediseño feed estilo Facebook (06 May 2026)
 

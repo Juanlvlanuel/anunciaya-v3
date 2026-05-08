@@ -46,60 +46,47 @@ interface ConfirmacionOptions {
 // CONFIGURACIÓN VISUAL POR TIPO
 // =============================================================================
 
-const TOAST_DURATION = 4000;
+const TOAST_DURATION = 2500;
 
+// Icono plano coloreado (sin círculo pastel — alineado a Token 13 B2B).
+// El color semántico también se usa para el accent bar lateral izquierdo
+// y la progress bar. Estilo Linear/Stripe.
 const configTipo: Record<TipoNotificacion, {
   color: string;
-  bg: string;
-  border: string;
   icon: React.ReactNode;
 }> = {
   exito: {
     color: '#059669',
-    bg: '#ffffff',
-    border: '#e2e8f0',
     icon: (
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #a7f3d0, #6ee7b7)', boxShadow: '0 2px 6px rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
-          <path d="M6 10.5L8.5 13L14 7.5" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
-      </div>
+      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
+        <path d="M6 10.5L8.5 13L14 7.5" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      </svg>
     ),
   },
   error: {
     color: '#dc2626',
-    bg: '#ffffff',
-    border: '#e2e8f0',
     icon: (
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 2px 6px rgba(220,38,38,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
-          <path d="M7 7L13 13M13 7L7 13" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      </div>
+      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
+        <path d="M7 7L13 13M13 7L7 13" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
     ),
   },
   advertencia: {
     color: '#d97706',
-    bg: '#ffffff',
-    border: '#e2e8f0',
     icon: (
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #fde68a, #fcd34d)', boxShadow: '0 2px 6px rgba(202,138,4,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
-          <path d="M10 6V11M10 13.5V14" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      </div>
+      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="8" stroke="#d97706" strokeWidth="2.5" />
+        <path d="M10 6V11M10 13.5V14" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
     ),
   },
   info: {
     color: '#2563eb',
-    bg: '#ffffff',
-    border: '#e2e8f0',
     icon: (
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg, #bfdbfe, #93c5fd)', boxShadow: '0 2px 6px rgba(37,99,235,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <svg width="16" height="16" fill="none" viewBox="0 0 20 20">
-          <path d="M10 9V14M10 6.5V7" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" />
-        </svg>
-      </div>
+      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
+        <circle cx="10" cy="10" r="8" stroke="#2563eb" strokeWidth="2.5" />
+        <path d="M10 9V14M10 6.5V7" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" />
+      </svg>
     ),
   },
 };
@@ -179,7 +166,7 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
   const cerrar = useCallback(() => {
     setEstado('saliendo');
     if (timerRef.current) clearInterval(timerRef.current);
-    setTimeout(() => onClose(notificacion.id), 300);
+    setTimeout(() => onClose(notificacion.id), 200);
   }, [notificacion.id, onClose]);
 
   const esVisible = estado === 'visible';
@@ -192,36 +179,40 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
       style={{
         transform: `translateY(${esVisible ? '0' : '-14px'}) scale(${esVisible ? 1 : 0.97})`,
         opacity: esVisible ? 1 : 0,
-        transition: 'all 0.3s cubic-bezier(0.22, 1, 0.36, 1)',
+        transition: 'all 0.2s cubic-bezier(0.22, 1, 0.36, 1)',
       }}
     >
       <div
-        className="relative overflow-hidden rounded-xl"
+        className="relative overflow-hidden rounded-xl bg-white"
         style={{
-          background: config.bg,
-          border: `2px solid ${config.border}`,
-          boxShadow: '0 8px 30px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
-          maxWidth: 'min(420px, calc(100vw - 32px))',
-          minWidth: 'min(300px, calc(100vw - 32px))',
-          width: 'fit-content',
+          border: '1px solid #cbd5e1', // slate-300
+          boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.04)',
+          width: 'min(420px, calc(100vw - 32px))',
         }}
       >
+        {/* Accent bar lateral izquierdo de 4px (color semántico). Estilo Linear/Stripe. */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-1"
+          style={{ background: config.color }}
+          aria-hidden="true"
+        />
+
         {/* Contenido */}
-        <div className="flex items-center gap-3 px-4 py-3.5">
-          {/* Icono */}
+        <div className="flex items-center gap-3 px-3.5 py-3 pl-4">
+          {/* Icono plano */}
           <div className="shrink-0">
             {config.icon}
           </div>
 
-          {/* Texto */}
-          <div className="min-w-0">
+          {/* Texto — flex-1 para empujar la X al borde derecho */}
+          <div className="min-w-0 flex-1">
             {notificacion.titulo && (
-              <p className="text-base font-bold text-slate-800 leading-tight">
+              <p className="text-sm font-bold text-slate-800 leading-tight">
                 {notificacion.titulo}
               </p>
             )}
             <p
-              className={`text-base leading-snug line-clamp-2 ${
+              className={`text-sm leading-snug line-clamp-2 ${
                 notificacion.titulo ? 'text-slate-600 font-medium mt-0.5' : 'text-slate-700 font-semibold'
               }`}
             >
@@ -229,23 +220,24 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
             </p>
           </div>
 
-          {/* Cerrar */}
+          {/* Cerrar — círculo gris discreto */}
           <button
             onClick={cerrar}
-            className="shrink-0 p-1 rounded-md text-slate-600 hover:text-slate-800"
+            aria-label="Cerrar notificación"
+            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors lg:cursor-pointer lg:hover:bg-slate-200"
           >
-            <X className="w-4.5 h-4.5" strokeWidth={2.5} />
+            <X className="w-4 h-4" strokeWidth={2.5} />
           </button>
         </div>
 
-        {/* Barra de progreso */}
-        <div className="h-1 w-full" style={{ background: `${config.color}20` }}>
+        {/* Barra de progreso (más sutil, opacidad 0.4) */}
+        <div className="h-1 w-full" style={{ background: `${config.color}15` }}>
           <div
-            className="h-full rounded-full"
+            className="h-full"
             style={{
               width: `${progreso}%`,
               background: config.color,
-              opacity: 0.6,
+              opacity: 0.4,
               transition: 'width 0.05s linear',
             }}
           />

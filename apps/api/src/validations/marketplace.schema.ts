@@ -338,6 +338,10 @@ export const crearPreguntaSchema = z.object({
 
 export type CrearPreguntaInput = z.infer<typeof crearPreguntaSchema>;
 
+/** Misma validación que crearPregunta — el comprador edita su pregunta pendiente. */
+export const editarPreguntaSchema = crearPreguntaSchema;
+export type EditarPreguntaInput = z.infer<typeof editarPreguntaSchema>;
+
 export const responderPreguntaSchema = z.object({
     respuesta: z
         .string()
