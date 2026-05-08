@@ -28,6 +28,7 @@ import { MenuContextualMensaje } from './MenuContextualMensaje';
 import { BarraBusquedaChat } from './BarraBusquedaChat';
 import { PanelInfoContacto, cachéNegocio, cachéCliente, invalidarCachéArchivos } from './PanelInfoContacto';
 import { determinarMiLado } from './utils/lado';
+import { conversacionBloqueada } from '../../utils/bloqueos';
 import { ModalReenviar } from './ModalReenviar';
 import { VisorImagenesChat } from './VisorImagenesChat';
 import { TexturaDoodle } from './TexturaDoodle';
@@ -581,7 +582,11 @@ function VentanaChatInner() {
       : '?';
   const esNegocio = !esMisNotas && !!otro?.negocioNombre;
   // miId y modoActivo ya derivados de useChatYASession arriba
-  const esBloqueado = !esMisNotas && !esTemporal && bloqueados.some((b) => b.bloqueadoId === otro?.id);
+  // Bloqueo discriminado: persona ↔ persona y persona ↔ sucursal son entradas
+  // independientes en BD. El helper detecta el tipo y consulta la correcta.
+  const esBloqueado =
+    !esMisNotas && !esTemporal && !!conversacion &&
+    conversacionBloqueada(conversacion, miId, bloqueados);
 
   // Derivar sucursalId del otro participante
   // Usa tupla (miId, miSucursalId) para soportar chats inter-sucursal del mismo negocio.

@@ -4,9 +4,9 @@
  * Botón con el nombre de un usuario que comentó/preguntó en el feed.
  *
  *  - Click (todas las plataformas) → navega al perfil del usuario
- *    (`/marketplace/vendedor/:id`). El perfil maneja el caso "0 artículos"
- *    con un empty state, así que funciona aunque el usuario no haya
- *    publicado nada todavía.
+ *    (`/marketplace/usuario/:id`). El perfil maneja el caso "0 artículos"
+ *    con un perfil minimalista (solo identidad + Miembro desde), así que
+ *    funciona aunque el usuario no haya publicado nada todavía.
  *  - Hover (solo desktop) → muestra un popup flotante con avatar +
  *    nombre completo + botón "Enviar mensaje" (abre ChatYA con el usuario
  *    como participante) + link "Ver perfil". En móvil NO se renderiza
@@ -61,7 +61,7 @@ export function BotonComentarista({
     const [popupPos, setPopupPos] = useState({ top: 0, left: 0 });
 
     const irAPerfil = useCallback(() => {
-        navigate(`/marketplace/vendedor/${usuarioId}`);
+        navigate(`/marketplace/usuario/${usuarioId}`);
     }, [navigate, usuarioId]);
 
     const enviarMensaje = useCallback(() => {

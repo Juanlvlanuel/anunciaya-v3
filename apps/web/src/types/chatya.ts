@@ -313,26 +313,47 @@ export interface Contacto {
 // =============================================================================
 
 /**
- * Body para POST /api/chatya/bloqueados
+ * Body para POST /api/chatya/bloqueados.
+ * Discriminado por `tipo`. Bloqueo persona ↔ persona y bloqueo persona ↔
+ * sucursal son mutuamente excluyentes (diferentes filas en BD).
  */
-export interface BloquearUsuarioInput {
-  bloqueadoId: string;
-  motivo?: string | null;
-}
+export type BloquearUsuarioInput =
+  | {
+      tipo: 'usuario';
+      bloqueadoId: string;
+      motivo?: string | null;
+    }
+  | {
+      tipo: 'sucursal';
+      sucursalId: string;
+      motivo?: string | null;
+    };
 
 /**
- * Usuario bloqueado retornado por GET /api/chatya/bloqueados
+ * Item devuelto por GET /api/chatya/bloqueados.
+ * Discriminado por `tipo`. Datos varían: persona vs negocio.
  */
-export interface UsuarioBloqueado {
-  id: string;
-  bloqueadoId: string;
-  motivo: string | null;
-  createdAt: string;
-  /** Datos del bloqueado (joins del backend) */
-  nombre: string;
-  apellidos: string;
-  avatarUrl: string | null;
-}
+export type UsuarioBloqueado =
+  | {
+      id: string;
+      tipo: 'usuario';
+      bloqueadoId: string;
+      motivo: string | null;
+      createdAt: string;
+      nombre: string;
+      apellidos: string;
+      avatarUrl: string | null;
+    }
+  | {
+      id: string;
+      tipo: 'sucursal';
+      sucursalId: string;
+      motivo: string | null;
+      createdAt: string;
+      sucursalNombre: string | null;
+      negocioNombre: string;
+      negocioLogoUrl: string | null;
+    };
 
 // =============================================================================
 // REACCIONES

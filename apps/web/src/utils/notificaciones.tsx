@@ -183,36 +183,34 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
       }}
     >
       <div
-        className="relative overflow-hidden rounded-xl bg-white"
+        className="relative overflow-hidden rounded-full bg-white/70 backdrop-blur-xl"
         style={{
-          border: '1px solid #cbd5e1', // slate-300
-          boxShadow: '0 4px 16px rgba(0,0,0,0.10), 0 1px 4px rgba(0,0,0,0.04)',
-          width: 'min(420px, calc(100vw - 32px))',
+          border: '1px solid rgba(255,255,255,0.6)',
+          boxShadow:
+            '0 10px 30px rgba(15, 23, 42, 0.15), 0 2px 6px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.8)',
+          width: 'min(440px, calc(100vw - 32px))',
         }}
       >
-        {/* Accent bar lateral izquierdo de 4px (color semántico). Estilo Linear/Stripe. */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-1"
-          style={{ background: config.color }}
-          aria-hidden="true"
-        />
-
-        {/* Contenido */}
-        <div className="flex items-center gap-3 px-3.5 py-3 pl-4">
-          {/* Icono plano */}
-          <div className="shrink-0">
+        {/* Contenido — padding lateral generoso para respetar el rounded-full */}
+        <div className="flex items-center gap-3 px-5 py-3">
+          {/* Icono plano dentro de halo de color semántico */}
+          <div
+            className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full"
+            style={{ background: `${config.color}1A` /* 10% alpha */ }}
+            aria-hidden="true"
+          >
             {config.icon}
           </div>
 
           {/* Texto — flex-1 para empujar la X al borde derecho */}
           <div className="min-w-0 flex-1">
             {notificacion.titulo && (
-              <p className="text-sm font-bold text-slate-800 leading-tight">
+              <p className="text-[15px] font-bold text-slate-800 leading-tight">
                 {notificacion.titulo}
               </p>
             )}
             <p
-              className={`text-sm leading-snug line-clamp-2 ${
+              className={`text-[15px] leading-snug line-clamp-2 ${
                 notificacion.titulo ? 'text-slate-600 font-medium mt-0.5' : 'text-slate-700 font-semibold'
               }`}
             >
@@ -224,20 +222,25 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
           <button
             onClick={cerrar}
             aria-label="Cerrar notificación"
-            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-slate-100 text-slate-600 transition-colors lg:cursor-pointer lg:hover:bg-slate-200"
+            className="shrink-0 flex h-7 w-7 items-center justify-center rounded-full bg-slate-200/70 text-slate-600 backdrop-blur-sm transition-colors lg:cursor-pointer lg:hover:bg-slate-300/80"
           >
             <X className="w-4 h-4" strokeWidth={2.5} />
           </button>
         </div>
 
-        {/* Barra de progreso (más sutil, opacidad 0.4) */}
-        <div className="h-1 w-full" style={{ background: `${config.color}15` }}>
+        {/* Barra de progreso — fina, en la base. Recortada por el rounded-full
+            en los extremos pero visible en el centro: sutil y elegante. */}
+        <div
+          className="absolute bottom-0 left-0 h-[3px] w-full"
+          style={{ background: `${config.color}10` }}
+          aria-hidden="true"
+        >
           <div
             className="h-full"
             style={{
               width: `${progreso}%`,
               background: config.color,
-              opacity: 0.4,
+              opacity: 0.5,
               transition: 'width 0.05s linear',
             }}
           />

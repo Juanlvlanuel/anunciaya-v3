@@ -138,21 +138,94 @@ async function limpiarUrlR2DeMensajeHuerfana(
 }
 
 /**
- * Verifica si existe un bloqueo entre dos usuarios (en cualquier dirección).
+ * Lado de una conversación: persona o sucursal (negocio).
+ * Si modo='comercial' y hay sucursalId, el lado es sucursal. Si no, persona.
  */
-async function existeBloqueo(usuarioA: string, usuarioB: string): Promise<boolean> {
-    const [bloqueo] = await db
-        .select({ id: chatBloqueados.id })
-        .from(chatBloqueados)
-        .where(
-            or(
-                and(eq(chatBloqueados.usuarioId, usuarioA), eq(chatBloqueados.bloqueadoId, usuarioB)),
-                and(eq(chatBloqueados.usuarioId, usuarioB), eq(chatBloqueados.bloqueadoId, usuarioA))
-            )
-        )
-        .limit(1);
+type LadoConversacion =
+    | { tipo: 'persona'; usuarioId: string }
+    | { tipo: 'sucursal'; sucursalId: string };
 
-    return !!bloqueo;
+function determinarLado(
+    usuarioId: string,
+    modo: ModoChatYA,
+    sucursalId: string | null | undefined
+): LadoConversacion {
+    if (modo === 'comercial' && sucursalId) {
+        return { tipo: 'sucursal', sucursalId };
+    }
+    return { tipo: 'persona', usuarioId };
+}
+
+/**
+ * Verifica si existe un bloqueo entre dos lados de una conversación.
+ *
+ * Reglas:
+ *  - Persona ↔ persona: bloqueo bidireccional (cualquier dirección lo aplica).
+ *  - Persona ↔ sucursal: bloqueo unidireccional (solo persona bloquea sucursal).
+ *    Si A (persona) bloqueó la sucursal X, ni A puede mensajear a X ni X puede
+ *    mensajear a A (la sucursal nunca tiene la capacidad de bloquear).
+ *  - Sucursal ↔ sucursal: no aplica (escenario inexistente en la app).
+ *
+ * Bloquear persona ≠ bloquear sucursal: son entradas independientes en BD,
+ * mutuamente excluyentes (constraint chat_bloqueados_uno_de_dos).
+ */
+async function existeBloqueo(
+    ladoA: LadoConversacion,
+    ladoB: LadoConversacion
+): Promise<boolean> {
+    // Caso 1: persona ↔ persona (bidireccional)
+    if (ladoA.tipo === 'persona' && ladoB.tipo === 'persona') {
+        const [bloqueo] = await db
+            .select({ id: chatBloqueados.id })
+            .from(chatBloqueados)
+            .where(
+                or(
+                    and(
+                        eq(chatBloqueados.usuarioId, ladoA.usuarioId),
+                        eq(chatBloqueados.bloqueadoId, ladoB.usuarioId)
+                    ),
+                    and(
+                        eq(chatBloqueados.usuarioId, ladoB.usuarioId),
+                        eq(chatBloqueados.bloqueadoId, ladoA.usuarioId)
+                    )
+                )
+            )
+            .limit(1);
+        return !!bloqueo;
+    }
+
+    // Caso 2: persona → sucursal (chequea si la persona bloqueó la sucursal)
+    if (ladoA.tipo === 'persona' && ladoB.tipo === 'sucursal') {
+        const [bloqueo] = await db
+            .select({ id: chatBloqueados.id })
+            .from(chatBloqueados)
+            .where(
+                and(
+                    eq(chatBloqueados.usuarioId, ladoA.usuarioId),
+                    eq(chatBloqueados.bloqueadaSucursalId, ladoB.sucursalId)
+                )
+            )
+            .limit(1);
+        return !!bloqueo;
+    }
+
+    // Caso 3: sucursal → persona (mismo check, orden invertido)
+    if (ladoA.tipo === 'sucursal' && ladoB.tipo === 'persona') {
+        const [bloqueo] = await db
+            .select({ id: chatBloqueados.id })
+            .from(chatBloqueados)
+            .where(
+                and(
+                    eq(chatBloqueados.usuarioId, ladoB.usuarioId),
+                    eq(chatBloqueados.bloqueadaSucursalId, ladoA.sucursalId)
+                )
+            )
+            .limit(1);
+        return !!bloqueo;
+    }
+
+    // Caso 4: sucursal ↔ sucursal — no aplica.
+    return false;
 }
 
 /**
@@ -510,8 +583,10 @@ export async function crearObtenerConversacion(
     usuarioId: string
 ): Promise<RespuestaServicio<ConversacionResponse>> {
     try {
-        // Verificar bloqueo
-        const bloqueado = await existeBloqueo(usuarioId, input.participante2Id);
+        // Verificar bloqueo según el tipo de cada lado (persona vs sucursal)
+        const ladoYo = determinarLado(usuarioId, input.participante1Modo, input.participante1SucursalId);
+        const ladoOtro = determinarLado(input.participante2Id, input.participante2Modo, input.participante2SucursalId);
+        const bloqueado = await existeBloqueo(ladoYo, ladoOtro);
         if (bloqueado) {
             return { success: false, message: 'No puedes iniciar conversación con este usuario', code: 403 };
         }
@@ -1150,9 +1225,13 @@ export async function enviarMensaje(
             return { success: false, message: 'No tienes acceso a esta conversación', code: 403 };
         }
 
-        // Verificar bloqueo
+        // Verificar bloqueo según el tipo de cada lado (persona vs sucursal)
         const otroId = pos === 'p1' ? conv.participante2Id : conv.participante1Id;
-        const bloqueado = await existeBloqueo(input.emisorId, otroId);
+        const otroModo = (pos === 'p1' ? conv.participante2Modo : conv.participante1Modo) as ModoChatYA;
+        const otroSucursalId = pos === 'p1' ? conv.participante2SucursalId : conv.participante1SucursalId;
+        const ladoEmisor = determinarLado(input.emisorId, input.emisorModo, input.emisorSucursalId);
+        const ladoOtro = determinarLado(otroId, otroModo, otroSucursalId);
+        const bloqueado = await existeBloqueo(ladoEmisor, ladoOtro);
         if (bloqueado) {
             return { success: false, message: 'No puedes enviar mensajes en esta conversación', code: 403 };
         }
@@ -2018,7 +2097,8 @@ export async function listarBloqueados(
     usuarioId: string
 ): Promise<RespuestaServicio<BloqueoResponse[]>> {
     try {
-        const bloqueados = await db
+        // Bloqueos de personas (chat_bloqueados.bloqueadoId poblado)
+        const bloqPersonas = await db
             .select({
                 id: chatBloqueados.id,
                 bloqueadoId: chatBloqueados.bloqueadoId,
@@ -2030,18 +2110,63 @@ export async function listarBloqueados(
             })
             .from(chatBloqueados)
             .innerJoin(usuarios, eq(chatBloqueados.bloqueadoId, usuarios.id))
-            .where(eq(chatBloqueados.usuarioId, usuarioId))
+            .where(
+                and(
+                    eq(chatBloqueados.usuarioId, usuarioId),
+                    sql`${chatBloqueados.bloqueadoId} IS NOT NULL`
+                )
+            )
             .orderBy(desc(chatBloqueados.createdAt));
 
-        const items: BloqueoResponse[] = bloqueados.map((b) => ({
-            id: b.id,
-            bloqueadoId: b.bloqueadoId,
-            motivo: b.motivo,
-            createdAt: b.createdAt ?? '',
-            nombre: b.nombre,
-            apellidos: b.apellidos,
-            avatarUrl: b.avatarUrl,
-        }));
+        // Bloqueos de sucursales (chat_bloqueados.bloqueadaSucursalId poblado)
+        // Incluye datos del negocio padre para mostrar contexto en UI.
+        const bloqSucursales = await db.execute(sql`
+            SELECT
+                cb.id,
+                cb.bloqueada_sucursal_id     AS sucursal_id,
+                cb.motivo,
+                cb.created_at                AS created_at,
+                s.nombre                     AS sucursal_nombre,
+                n.nombre                     AS negocio_nombre,
+                n.logo_url                   AS negocio_logo_url
+            FROM chat_bloqueados cb
+            INNER JOIN negocio_sucursales s ON s.id = cb.bloqueada_sucursal_id
+            INNER JOIN negocios          n ON n.id = s.negocio_id
+            WHERE cb.usuario_id = ${usuarioId}
+              AND cb.bloqueada_sucursal_id IS NOT NULL
+            ORDER BY cb.created_at DESC
+        `);
+
+        const items: BloqueoResponse[] = [
+            ...bloqPersonas.map<BloqueoResponse>((b) => ({
+                id: b.id,
+                tipo: 'usuario' as const,
+                bloqueadoId: b.bloqueadoId as string,
+                motivo: b.motivo,
+                createdAt: b.createdAt ?? '',
+                nombre: b.nombre,
+                apellidos: b.apellidos,
+                avatarUrl: b.avatarUrl,
+            })),
+            ...(bloqSucursales.rows as Array<{
+                id: string;
+                sucursal_id: string;
+                motivo: string | null;
+                created_at: string;
+                sucursal_nombre: string | null;
+                negocio_nombre: string;
+                negocio_logo_url: string | null;
+            }>).map<BloqueoResponse>((b) => ({
+                id: b.id,
+                tipo: 'sucursal' as const,
+                sucursalId: b.sucursal_id,
+                motivo: b.motivo,
+                createdAt: b.created_at ?? '',
+                sucursalNombre: b.sucursal_nombre,
+                negocioNombre: b.negocio_nombre,
+                negocioLogoUrl: b.negocio_logo_url,
+            })),
+        ];
 
         return { success: true, message: 'Bloqueados obtenidos', data: items };
     } catch (error) {
@@ -2059,39 +2184,69 @@ export async function bloquearUsuario(
     input: BloqueoInput
 ): Promise<RespuestaServicio<{ id: string }>> {
     try {
-        if (input.bloqueadoId === usuarioId) {
-            return { success: false, message: 'No puedes bloquearte a ti mismo', code: 400 };
+        if (input.tipo === 'usuario') {
+            if (input.bloqueadoId === usuarioId) {
+                return { success: false, message: 'No puedes bloquearte a ti mismo', code: 400 };
+            }
+
+            // Verificar duplicado persona-persona
+            const [existente] = await db
+                .select({ id: chatBloqueados.id })
+                .from(chatBloqueados)
+                .where(
+                    and(
+                        eq(chatBloqueados.usuarioId, usuarioId),
+                        eq(chatBloqueados.bloqueadoId, input.bloqueadoId)
+                    )
+                )
+                .limit(1);
+
+            if (existente) {
+                return { success: false, message: 'El usuario ya está bloqueado', code: 409 };
+            }
+
+            const [nuevo] = await db
+                .insert(chatBloqueados)
+                .values({
+                    usuarioId,
+                    bloqueadoId: input.bloqueadoId,
+                    motivo: input.motivo ?? null,
+                })
+                .returning({ id: chatBloqueados.id });
+
+            return { success: true, message: 'Usuario bloqueado', data: { id: nuevo.id } };
         }
 
-        // Verificar duplicado
-        const [existente] = await db
+        // tipo === 'sucursal' — bloqueo de negocio (mutuamente excluyente
+        // con bloqueo de la persona dueña del negocio).
+        const [existenteSuc] = await db
             .select({ id: chatBloqueados.id })
             .from(chatBloqueados)
             .where(
                 and(
                     eq(chatBloqueados.usuarioId, usuarioId),
-                    eq(chatBloqueados.bloqueadoId, input.bloqueadoId)
+                    eq(chatBloqueados.bloqueadaSucursalId, input.sucursalId)
                 )
             )
             .limit(1);
 
-        if (existente) {
-            return { success: false, message: 'El usuario ya está bloqueado', code: 409 };
+        if (existenteSuc) {
+            return { success: false, message: 'El negocio ya está bloqueado', code: 409 };
         }
 
-        const [nuevo] = await db
+        const [nuevoSuc] = await db
             .insert(chatBloqueados)
             .values({
                 usuarioId,
-                bloqueadoId: input.bloqueadoId,
+                bloqueadaSucursalId: input.sucursalId,
                 motivo: input.motivo ?? null,
             })
             .returning({ id: chatBloqueados.id });
 
-        return { success: true, message: 'Usuario bloqueado', data: { id: nuevo.id } };
+        return { success: true, message: 'Negocio bloqueado', data: { id: nuevoSuc.id } };
     } catch (error) {
         console.error('Error en bloquearUsuario:', error);
-        return { success: false, message: 'Error al bloquear usuario', code: 500 };
+        return { success: false, message: 'Error al bloquear', code: 500 };
     }
 }
 
@@ -2116,6 +2271,31 @@ export async function desbloquearUsuario(
         return { success: true, message: 'Usuario desbloqueado' };
     } catch (error) {
         console.error('Error en desbloquearUsuario:', error);
+        return { success: false, message: 'Error al desbloquear', code: 500 };
+    }
+}
+
+/**
+ * Desbloquear sucursal (negocio). Mutuamente excluyente con desbloquear
+ * usuario — operan sobre filas distintas de chat_bloqueados.
+ */
+export async function desbloquearSucursal(
+    sucursalId: string,
+    usuarioId: string
+): Promise<RespuestaServicio> {
+    try {
+        await db
+            .delete(chatBloqueados)
+            .where(
+                and(
+                    eq(chatBloqueados.usuarioId, usuarioId),
+                    eq(chatBloqueados.bloqueadaSucursalId, sucursalId)
+                )
+            );
+
+        return { success: true, message: 'Negocio desbloqueado' };
+    } catch (error) {
+        console.error('Error en desbloquearSucursal:', error);
         return { success: false, message: 'Error al desbloquear', code: 500 };
     }
 }

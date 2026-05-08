@@ -30,6 +30,7 @@ import {
   listarBloqueados,
   bloquearUsuario,
   desbloquearUsuario,
+  desbloquearSucursal,
   toggleReaccion,
   obtenerReacciones,
   fijarMensaje,
@@ -741,18 +742,36 @@ export async function listarBloqueadosController(req: Request, res: Response) {
 
 /**
  * POST /api/chatya/bloqueados
- * Body: { bloqueadoId, motivo? }
+ *
+ * Body discriminado por tipo:
+ *  - { tipo: 'usuario',  bloqueadoId, motivo? }
+ *  - { tipo: 'sucursal', sucursalId,  motivo? }
+ *
+ * Compat: si no se envía `tipo`, se asume 'usuario' (comportamiento legacy).
  */
 export async function bloquearUsuarioController(req: Request, res: Response) {
   try {
     const usuarioId = obtenerUsuarioId(req);
-    const { bloqueadoId, motivo = null } = req.body;
+    const { tipo, bloqueadoId, sucursalId, motivo = null } = req.body;
+
+    const tipoEfectivo = tipo ?? 'usuario';
+
+    if (tipoEfectivo === 'sucursal') {
+      if (!sucursalId) {
+        return res.status(400).json({ success: false, message: 'sucursalId es requerido para bloquear un negocio' });
+      }
+      const resultado = await bloquearUsuario(usuarioId, { tipo: 'sucursal', sucursalId, motivo });
+      if (!resultado.success) {
+        return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+      }
+      return res.status(201).json({ success: true, message: resultado.message, data: resultado.data });
+    }
 
     if (!bloqueadoId) {
       return res.status(400).json({ success: false, message: 'bloqueadoId es requerido' });
     }
 
-    const resultado = await bloquearUsuario(usuarioId, { bloqueadoId, motivo });
+    const resultado = await bloquearUsuario(usuarioId, { tipo: 'usuario', bloqueadoId, motivo });
 
     if (!resultado.success) {
       return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
@@ -767,6 +786,8 @@ export async function bloquearUsuarioController(req: Request, res: Response) {
 
 /**
  * DELETE /api/chatya/bloqueados/:id
+ *
+ * Desbloquear usuario (persona). El `:id` es el `bloqueadoId` (uuid del usuario).
  */
 export async function desbloquearUsuarioController(req: Request, res: Response) {
   try {
@@ -782,6 +803,34 @@ export async function desbloquearUsuarioController(req: Request, res: Response) 
     return res.status(200).json({ success: true, message: resultado.message });
   } catch (error) {
     console.error('Error en desbloquearUsuarioController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+/**
+ * DELETE /api/chatya/bloqueados/sucursal/:sucursalId
+ *
+ * Desbloquear negocio (sucursal). Mutuamente excluyente con desbloquear
+ * persona — operan sobre filas distintas de chat_bloqueados.
+ */
+export async function desbloquearSucursalController(req: Request, res: Response) {
+  try {
+    const usuarioId = obtenerUsuarioId(req);
+    const sucursalId = req.params.sucursalId;
+
+    if (!sucursalId) {
+      return res.status(400).json({ success: false, message: 'sucursalId es requerido' });
+    }
+
+    const resultado = await desbloquearSucursal(sucursalId, usuarioId);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+    }
+
+    return res.status(200).json({ success: true, message: resultado.message });
+  } catch (error) {
+    console.error('Error en desbloquearSucursalController:', error);
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }

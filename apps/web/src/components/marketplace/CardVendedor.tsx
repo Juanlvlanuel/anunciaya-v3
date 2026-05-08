@@ -23,7 +23,7 @@ interface CardVendedorProps {
 export function CardVendedor({ vendedor }: CardVendedorProps) {
     const navigate = useNavigate();
     const handleVerPerfil = () => {
-        navigate(`/marketplace/vendedor/${vendedor.id}`);
+        navigate(`/marketplace/usuario/${vendedor.id}`);
     };
 
     const iniciales = obtenerIniciales(vendedor.nombre, vendedor.apellidos);

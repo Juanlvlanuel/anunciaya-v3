@@ -1,11 +1,51 @@
 # 🏷️ Ofertas — Sección Pública
 
-**Última actualización:** 06 Mayo 2026
-**Versión:** 1.5
+**Última actualización:** 08 Mayo 2026
+**Versión:** 1.6
 **Estado:** ✅ Operacional (Backend + Frontend Editorial completo)
 **Ruta:** `/ofertas`
 
-## 🆕 v1.5 — Header unificado + chips amber con border-2 (06 May 2026)
+## 🆕 v1.6 — Carrusel rotativo migrado a Embla (08 May 2026)
+
+El par superior del feed editorial (cards "Hoy te recomendamos" y "Destacado") usaba un carrusel **hand-rolled** con Touch/Pointer Events, transform DOM directo, click guards y `requestAnimationFrame` batching. Tras 9 iteraciones siguió sintiéndose rígido en móvil — había que mover el dedo con fuerza para que el slide arrancara y el snap a medio camino lucía abrupto. Causa raíz: el "scroll-slop" interno del browser (~10–15 px de detección antes de ceder el gesto al JS) no es resoluble sin un engine que separe pointer input del rendering y mantenga velocity entre frames.
+
+### Cambios
+
+- **Dependencias agregadas** (`apps/web/package.json`):
+  - `embla-carousel-react` — wrapper React oficial de Embla Carousel.
+  - `embla-carousel-autoplay` — plugin oficial para los 7 s de rotación con pausa en hover/touch.
+- **Hook `useCarruselRotativo` reescrito** (`apps/web/src/hooks/useCarruselRotativo.ts`) como wrapper sobre `useEmblaCarousel`. Mantiene la firma pública (`actual`, `index`, `total`, `siguiente`, `anterior`, `pausarHover`) y agrega `emblaRef` (para el viewport) y `emblaApi` (para satélites como los dots).
+- **`CarruselRotativoSwipe` refactorizado** (`PaginaOfertas.tsx`) al patrón Embla nativo: viewport con `overflow-hidden` (`emblaRef`) → container `flex` → un slide por oferta con `min-w-0 shrink-0 grow-0 basis-full`. Renderiza **todos** los items con `key={ofertaId}` para que las imágenes ya cargadas no se redescarguen al cambiar de slide.
+- **`IndicadoresRotacion` desacoplado**: recibe `emblaApi` directo y se suscribe al evento `select` con su propio `useState`. Su re-render queda contenido en los dots, no llega al árbol del carrusel.
+
+### Decisiones técnicas no obvias
+
+1. **Opciones y plugins de Embla memoizados con `useMemo`.** Pasar `{ loop, duration, ... }` o `[autoplayPlugin]` inline crea referencias nuevas en cada render → Embla detecta "options cambiaron" → reinicializa el carrusel → cancela la animación de snap a medio camino → la card "salta". Este fue el bug que causaba la sensación de "se queda pegada un momento y luego cambia de golpe" al soltar el dedo a media transición.
+2. **`setIndex` se suscribe a `settle`, no a `select`.** `setIndex` re-renderiza al consumidor del hook, que aquí es la página entera con varios carruseles auto, mapas y feeds. Un re-render mid-animación bloquea el thread y el rAF interno de Embla pierde frames. `settle` dispara cuando la animación termina, así no interrumpe nada.
+3. **Los dots usan `select` directamente vía `emblaApi`.** Esperar a `settle` para los dots los dejaba rezagados ~300 ms. La separación da lo mejor de los dos mundos: carrusel fluido + dots sincronizados al instante.
+4. **`duration: 30` (≈300 ms)**, no 22 (≈220 ms del patrón anterior). A 220 ms el snap se siente "instantáneo" — el ojo no alcanza a ver la transición y luce abrupto.
+5. **`dragThreshold: 4`** (default Embla = 10). Con 4 px el dedo arranca la transición casi al instante; con 10 px el toque se siente "rígido".
+6. **Callbacks de click memoizados por slide** (`callbacks[i]` con `useMemo([items])` + `onClickRef`). Sin esto, cada render del padre crearía nuevas funciones inline y rompería el `React.memo` de `CardOfertaHero`.
+
+### Comportamiento que sigue cubierto
+
+- Loop infinito (`loop: true` cuando hay >1 oferta).
+- Autoplay 7 s con pausa al hover en desktop y al touch en móvil (plugin oficial).
+- Click en card abre modal de detalle, swipe NO lo abre (Embla cancela el click sintético cuando detecta drag).
+- Click en flechas funciona — viven fuera del viewport de Embla.
+- Sin flash al cambiar (slides montados con keys estables, imágenes en cache).
+- Respeto a `prefers-reduced-motion`: detiene el autoplay; el swipe manual sigue activo.
+- Scroll vertical de la página no es atrapado por el carrusel (Embla aplica `touch-action: pan-y` al viewport automáticamente).
+
+### Archivos tocados
+
+- `apps/web/package.json` y `pnpm-lock.yaml` — nuevas deps.
+- `apps/web/src/hooks/useCarruselRotativo.ts` — reescrito.
+- `apps/web/src/pages/private/ofertas/PaginaOfertas.tsx` — `CarruselRotativoSwipe` refactorizado al patrón Embla, `IndicadoresRotacion` desacoplado vía `emblaApi`.
+
+---
+
+## v1.5 — Header unificado + chips amber con border-2 (06 May 2026)
 
 Cambios alineados al rediseño cross-secciones (MarketPlace, Ofertas, Negocios):
 
@@ -623,7 +663,7 @@ El interceptor sigue respetando `if (!config.params.sucursalId)`: si un caller (
 | `CardOfertaCarrusel.tsx` | Card chica `w-[200px] lg:w-[220px] 2xl:w-[240px]`: cinta ámbar superior, pill descuento sobre foto, **logo circular flotante** entre foto y panel, eyebrow ámbar bold. Footer en una línea: distancia con `MapPin` ámbar a la izquierda + **pill ámbar de vistas con `Eye` filled a la derecha**. Acepta microseñal flotante "NUEVA" / "POPULAR" (ámbar). | — |
 | `CardOfertaLista.tsx` | Fila densa horizontal: foto cuadrada + nombre + título. **Badge descuento en esquina sup-derecha** + **pill ámbar de vistas en esquina inf-derecha** (ambos absolutos sobre la fila). | — |
 | `BloqueCarruselAuto.tsx` | Wrapper de carrusel autoplay (CSS animation **40s**, pausa al hover/touch, loop sin corte vía duplicación). Respeta `prefers-reduced-motion`. Acepta `anchoUnderline` que propaga a `TituloDeBloque`. | — |
-| `CarruselRotativoSwipe` (en `PaginaOfertas.tsx`) | Wrapper del par superior (Hoy te recomendamos / Destacado). Renderiza 3 cards en paralelo (anterior / actual / siguiente) y las desplaza con `translateX` durante el drag. **Swipe horizontal** en móvil (umbral 60px) y **flechas Chevron** en desktop con hover sutil (opacity-0 → group-hover/swipe:opacity-100). Mismo patrón visual que `VisorImagenesChat`. | — |
+| `CarruselRotativoSwipe` (en `PaginaOfertas.tsx`) | Wrapper del par superior (Hoy te recomendamos / Destacado). Construido sobre **Embla Carousel** (`useEmblaCarousel` + plugin Autoplay). Estructura nativa: viewport (`overflow-hidden` + `emblaRef`) → container `flex` → un slide por oferta con `basis-full` (1 a la vez). **Swipe horizontal** táctil en móvil + drag con mouse en desktop (engine de Embla con velocity y pointer separation, fluido como Instagram/TikTok). **Flechas Chevron** en desktop con hover sutil (opacity-0 → group-hover/swipe:opacity-100), viven fuera del viewport para que su click no se confunda con drag. Ver §v1.6 al inicio del doc para detalles técnicos. | — |
 | `TickerOfertas.tsx` | Banner premium **sin contenedor**: solo logos circulares con ring ámbar + nombre del negocio, flotando sobre el gradient azul del MainLayout. Deduplicado por negocio. **Velocidad 38s**. Fuente: feed principal completo (no mix de carruseles). Padding mínimo de 10 items para que el loop no se vea repetido. | — |
 
 ### 6.1 Detalles de `CardOfertaHero` variante `destacado`
@@ -924,7 +964,7 @@ Componente `HeaderOfertas`:
 | Hover card carrusel | `CardOfertaCarrusel` | `hover:shadow-lg hover:shadow-amber-500/10`, imagen scale 1.04. |
 | Rotación par superior | `useCarruselRotativo` + `oferta-rotativa-fade` | Cambia oferta cada 7000ms. Al cambiar, la nueva card hace fade-in (`opacity 0 + translateY(6px) → opacity 1 + translateY(0)` en 450ms). Pausa al hover. Respeta `prefers-reduced-motion`. |
 | Indicadores tipo dots | `IndicadoresRotacion` | Pill ámbar `w-5 h-1.5` para el dot activo, `w-1.5 h-1.5` para los demás (gris `#d6d2c8`). Transición 300ms entre estados. |
-| Swipe drag-en-vivo | `CarruselRotativoSwipe` + `useCarruselRotativo` | Durante el drag horizontal, las 3 cards (prev / actual / next) se desplazan con `translateX(offsetPx)`. Sin transición CSS durante el drag (sería lag), `transition: transform 220ms ease-out` solo durante el snap (después de `touchEnd`). El offset se actualiza con `requestAnimationFrame` batching para no saturar React con setState a 60fps. |
+| Swipe drag-en-vivo | `CarruselRotativoSwipe` + `useCarruselRotativo` | Embla Carousel maneja el drag con su engine interno: el container `flex` sigue al dedo a 1:1 durante el touch/mouse drag, y al soltar anima al slide más cercano en **300 ms** (`duration: 30` en unidades Embla). `dragThreshold: 4` para que el dedo arranque la transición casi al instante. La animación corre con `requestAnimationFrame` sobre el transform del container, no con CSS transitions. |
 | Flechas desktop | `CarruselRotativoSwipe` | `ChevronLeft` y `ChevronRight` absolute al `top-[30%]` (centrado vertical sobre la imagen, no sobre el card completo). Solo visibles en `lg+`. Aparecen al hover del wrapper (`opacity-0 group-hover/swipe:opacity-100`). Rounded `bg-white/80 hover:bg-white shadow-md`. |
 
 ---

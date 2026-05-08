@@ -338,28 +338,34 @@ export async function getBloqueados() {
 }
 
 /**
- * 18. Bloquear un usuario.
+ * 18. Bloquear (persona o sucursal).
  * POST /api/chatya/bloqueados
  *
- * Bloqueo bidireccional: ni tú ni el bloqueado pueden enviarse mensajes.
- * Valida auto-bloqueo y duplicados.
- *
- * @param datos - ID del usuario a bloquear y motivo opcional
+ * Discriminado por `tipo`:
+ *  - 'usuario'  → bloqueo persona ↔ persona, bidireccional.
+ *  - 'sucursal' → bloqueo de un negocio específico (mutuamente excluyente
+ *    con bloqueo de la persona dueña — son entradas independientes).
  */
 export async function bloquearUsuario(datos: BloquearUsuarioInput) {
   return post<UsuarioBloqueado>('/chatya/bloqueados', datos);
 }
 
 /**
- * 19. Desbloquear un usuario.
+ * 19. Desbloquear persona.
  * DELETE /api/chatya/bloqueados/:id
  *
  * El :id es el UUID del usuario bloqueado (no del registro).
- *
- * @param bloqueadoId - UUID del usuario a desbloquear
  */
 export async function desbloquearUsuario(bloqueadoId: string) {
   return del<void>(`/chatya/bloqueados/${bloqueadoId}`);
+}
+
+/**
+ * 19b. Desbloquear sucursal (negocio).
+ * DELETE /api/chatya/bloqueados/sucursal/:sucursalId
+ */
+export async function desbloquearSucursal(sucursalId: string) {
+  return del<void>(`/chatya/bloqueados/sucursal/${sucursalId}`);
 }
 
 // =============================================================================

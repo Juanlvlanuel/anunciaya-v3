@@ -25,7 +25,7 @@
  * Ubicación: apps/web/src/pages/private/ofertas/PaginaOfertas.tsx
  */
 
-import { Fragment, useEffect, useMemo, useState, type CSSProperties } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Tag,
   Loader2,
@@ -347,7 +347,7 @@ export default function PaginaOfertas() {
                   onClick={(o) => setOfertaSeleccionada(o)}
                 />
                 {rotHoy.total > 1 && (
-                  <IndicadoresRotacion total={rotHoy.total} actual={rotHoy.index} />
+                  <IndicadoresRotacion total={rotHoy.total} emblaApi={rotHoy.emblaApi} />
                 )}
               </section>
             )}
@@ -364,7 +364,7 @@ export default function PaginaOfertas() {
                   onClick={(o) => setOfertaSeleccionada(o)}
                 />
                 {rotDestacado.total > 1 && (
-                  <IndicadoresRotacion total={rotDestacado.total} actual={rotDestacado.index} />
+                  <IndicadoresRotacion total={rotDestacado.total} emblaApi={rotDestacado.emblaApi} />
                 )}
               </section>
             )}
@@ -724,17 +724,25 @@ function CollageItem({
 }
 
 /**
- * Carrusel rotativo con efecto de swipe en vivo. Renderiza 3 cards en
- * paralelo (anterior | actual | siguiente) y las desplaza con
- * `translateX(offsetPx)` mientras el usuario arrastra. Al soltar, la
- * card siguiente o anterior queda en pantalla con un snap animado.
+ * Carrusel rotativo construido sobre **Embla Carousel**.
  *
- * Mismo patrón que el visor de imágenes de ChatYA. La animación solo
- * se aplica cuando `enTransicion` es true (snap), no durante el drag
- * en vivo (para evitar lag).
+ * Estructura nativa de Embla: viewport (overflow-hidden, recibe el ref de
+ * Embla) + container (flex) + slides (cada uno `basis-full` para verse 1
+ * a la vez). Embla maneja el drag/swipe con su engine de pointer + velocity
+ * — el resultado es la fluidez de Instagram/TikTok que el hand-rolled
+ * anterior no podía conseguir contra el scroll-slop interno del browser.
+ *
+ * Detalles importantes:
+ *  - `key={oferta.ofertaId}` en cada slide: si `items` cambia (nueva data),
+ *    los slides ya montados se conservan y sus imágenes no se redescargan.
+ *  - Callbacks de click memoizados por slide (`callbacks[i]`) para no
+ *    romper el `React.memo` de `CardOfertaHero` en cada re-render del
+ *    padre cuando solo cambia el `index` activo.
+ *  - Embla cancela el click sintético cuando detecta drag — un swipe
+ *    sobre la card no abre el modal por accidente.
+ *  - Las flechas viven FUERA del viewport de Embla (en el wrapper
+ *    exterior) para que sus clicks lleguen sin interceptación.
  */
-const NOOP = () => { /* placeholder click — swipe lo maneja el wrapper */ };
-
 function CarruselRotativoSwipe({
   rot,
   onClick,
@@ -742,72 +750,51 @@ function CarruselRotativoSwipe({
   rot: ReturnType<typeof useCarruselRotativo<OfertaFeed>>;
   onClick: (oferta: OfertaFeed) => void;
 }) {
-  const {
-    actual, anteriorItem, siguienteItem,
-    offsetPx, enTransicion, setWrapperRef, swipeHandlers,
-    siguiente, anterior, total,
-  } = rot;
+  const { items, emblaRef, siguiente, anterior, total, index } = rot;
 
-  // onClick estable para evitar re-renders de CardOfertaHero durante el drag
-  const handleClick = useMemo(() => {
-    return actual ? () => onClick(actual) : NOOP;
-  }, [actual, onClick]);
+  // Capturamos `onClick` en un ref para que `callbacks` solo dependa de
+  // `items`. Si `onClick` se recrea cada render del padre (típico con
+  // arrow functions inline), no queremos invalidar los callbacks de los
+  // slides — eso rompería el `memo` de CardOfertaHero.
+  const onClickRef = useRef(onClick);
+  useEffect(() => {
+    onClickRef.current = onClick;
+  }, [onClick]);
 
-  if (!actual) return null;
+  const callbacks = useMemo(
+    () => items.map((oferta) => () => onClickRef.current(oferta)),
+    [items],
+  );
 
-  const transicion = enTransicion ? 'transform 220ms ease-out' : 'none';
-  const styleActual: CSSProperties = {
-    transform: `translateX(${offsetPx}px)`,
-    transition: transicion,
-    willChange: 'transform',
-  };
-  const stylePrev: CSSProperties = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    transform: `translateX(calc(-100% + ${offsetPx}px))`,
-    transition: transicion,
-    willChange: 'transform',
-  };
-  const styleNext: CSSProperties = {
-    position: 'absolute',
-    top: 0,
-    left: 0,
-    width: '100%',
-    transform: `translateX(calc(100% + ${offsetPx}px))`,
-    transition: transicion,
-    willChange: 'transform',
-  };
+  if (items.length === 0) return null;
 
   return (
-    <div
-      ref={setWrapperRef as (el: HTMLDivElement | null) => void}
-      {...swipeHandlers}
-      className="group/swipe relative overflow-hidden"
-      style={{ touchAction: 'pan-y' }}
-    >
-      {/* Card actual — natural height (define el alto del wrapper) */}
-      <div style={styleActual}>
-        <CardOfertaHero oferta={actual} onClick={handleClick} variante="destacado" />
+    <div className="group/swipe relative">
+      {/* Viewport: el ref de Embla va aquí. `overflow-hidden` esconde los
+          slides que no son el actual. */}
+      <div ref={emblaRef} className="overflow-hidden">
+        {/* Container: layout flex que aloja todos los slides. */}
+        <div className="flex">
+          {items.map((oferta, i) => (
+            <div
+              key={oferta.ofertaId}
+              className="min-w-0 shrink-0 grow-0 basis-full"
+              aria-hidden={i !== index ? true : undefined}
+            >
+              <CardOfertaHero
+                oferta={oferta}
+                onClick={callbacks[i]}
+                variante="destacado"
+              />
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* Card anterior — fuera de pantalla a la izquierda */}
-      {anteriorItem && (
-        <div style={stylePrev} aria-hidden="true">
-          <CardOfertaHero oferta={anteriorItem} onClick={NOOP} variante="destacado" />
-        </div>
-      )}
-
-      {/* Card siguiente — fuera de pantalla a la derecha */}
-      {siguienteItem && (
-        <div style={styleNext} aria-hidden="true">
-          <CardOfertaHero oferta={siguienteItem} onClick={NOOP} variante="destacado" />
-        </div>
-      )}
-
       {/* Flechas sutiles solo en desktop (lg+). Aparecen al hover del
-          wrapper (`group/swipe`). En móvil el usuario hace swipe directo. */}
+          wrapper (`group/swipe`). En móvil el usuario hace swipe directo.
+          Están FUERA del viewport de Embla para que el click no se
+          confunda con un drag. */}
       {total > 1 && (
         <>
           <button
@@ -837,19 +824,42 @@ function CarruselRotativoSwipe({
  * carrusel rotativo del par superior. Pequeños, ámbar el activo, gris
  * los demás. Se ocultan automáticamente cuando solo hay 1 oferta (el
  * caller debe verificar `total > 1` antes de renderizar).
+ *
+ * Recibe la **instancia de Embla** y se suscribe directo a su evento
+ * `select` con su propio `useState` local. Así el re-render por cambio
+ * de slide queda contenido en este componente (3-5 spans) y no llega
+ * al consumidor pesado del carrusel — que mantiene su `index` con el
+ * evento `settle` del hook para que su re-render no interrumpa la
+ * animación de snap.
  */
-function IndicadoresRotacion({ total, actual }: { total: number; actual: number }) {
+type EmblaApi = ReturnType<typeof useCarruselRotativo<OfertaFeed>>['emblaApi'];
+
+function IndicadoresRotacion({ total, emblaApi }: { total: number; emblaApi: EmblaApi }) {
+  const [activo, setActivo] = useState(0);
+
+  useEffect(() => {
+    if (!emblaApi) return;
+    const sincronizar = () => setActivo(emblaApi.selectedScrollSnap());
+    sincronizar();
+    emblaApi.on('select', sincronizar);
+    emblaApi.on('reInit', sincronizar);
+    return () => {
+      emblaApi.off('select', sincronizar);
+      emblaApi.off('reInit', sincronizar);
+    };
+  }, [emblaApi]);
+
   return (
     <div
       className="flex items-center justify-center gap-1.5 mt-2.5"
-      aria-label={`Oferta ${actual + 1} de ${total}`}
+      aria-label={`Oferta ${activo + 1} de ${total}`}
     >
       {Array.from({ length: total }).map((_, i) => (
         <span
           key={i}
           className={[
             'rounded-full transition-all duration-300',
-            i === actual
+            i === activo
               ? 'w-5 h-1.5 bg-amber-500'
               : 'w-1.5 h-1.5 bg-[#d6d2c8]',
           ].join(' ')}

@@ -15,7 +15,7 @@
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import {
   X, Store, Star, Clock, ExternalLink, Bell, BellOff,
-  ShieldBan, Trash2, ChevronRight, Award, Coins, Calendar, User, UserPlus, UserMinus, ArrowLeft,
+  ShieldBan, ShieldOff, Trash2, ChevronRight, Award, Coins, Calendar, User, UserPlus, UserMinus, ArrowLeft,
   FileText, ArrowUpRight, MapPin,
 } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
@@ -26,6 +26,11 @@ import { getDetalleCliente } from '../../services/clientesService';
 import { getConteoArchivosCompartidos, getArchivosCompartidos } from '../../services/chatyaService';
 import type { Conversacion, ConteoArchivosCompartidos, ArchivoCompartido, ContenidoImagen } from '../../types/chatya';
 import { determinarMiLado } from './utils/lado';
+import {
+  conversacionBloqueada,
+  esConversacionConNegocio,
+  obtenerSucursalIdDelOtro,
+} from '../../utils/bloqueos';
 import type { NegocioCompleto } from '../../types/negocios';
 import type { ClienteDetalle } from '../../types/clientes';
 import { notificar } from '../../utils/notificaciones';
@@ -158,6 +163,9 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const toggleSilenciar = useChatYAStore((s) => s.toggleSilenciar);
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
   const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
+  const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+  const desbloquearSucursal = useChatYAStore((s) => s.desbloquearSucursal);
+  const bloqueados = useChatYAStore((s) => s.bloqueados);
   const contactos = useChatYAStore((s) => s.contactos);
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
@@ -170,6 +178,14 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const esNegocio = !!otro?.negocioNombre;
   const esModoComercial = modoActivo === 'comercial';
   const estadoOtro = otro?.id ? estadosUsuarios[otro.id] : null;
+
+  // Estado de bloqueo: discriminado entre persona ↔ persona y persona ↔ sucursal.
+  // Se actualiza reactivamente cuando cambia `bloqueados` en el store, por lo
+  // que si el usuario bloqueó/desbloqueó desde otro flujo (menú contextual,
+  // perfil, etc.), aquí se refleja al instante.
+  const esChatConNegocio = esConversacionConNegocio(conversacion, miId);
+  const sucursalIdOtro = obtenerSucursalIdDelOtro(conversacion, miId);
+  const esBloqueado = conversacionBloqueada(conversacion, miId, bloqueados);
 
   // Tipo de vista según contexto
   const tipoVista: 'usuario' | 'negocio' | 'cliente' =
@@ -352,8 +368,23 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
 
   const handleBloquear = async () => {
     if (!otro) return;
-    bloquearUsuario({ bloqueadoId: otro.id });
-    onCerrar();
+    // Toggle según estado actual + tipo de chat. NO cerramos el panel — el
+    // usuario sigue viendo el contacto y el botón cambia a "Desbloquear" /
+    // "Bloquear" reactivamente al actualizarse `bloqueados` en el store.
+    if (esChatConNegocio) {
+      if (!sucursalIdOtro) return;
+      if (esBloqueado) {
+        await desbloquearSucursal(sucursalIdOtro);
+      } else {
+        await bloquearUsuario({ tipo: 'sucursal', sucursalId: sucursalIdOtro });
+      }
+    } else {
+      if (esBloqueado) {
+        await desbloquearUsuario(otro.id);
+      } else {
+        await bloquearUsuario({ tipo: 'usuario', bloqueadoId: otro.id });
+      }
+    }
   };
 
   const handleEliminar = async () => {
@@ -781,8 +812,22 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
             onClick={handleBloquear}
             className="flex flex-col items-center justify-center gap-1.5 flex-1 px-2 py-3 lg:py-4 cursor-pointer group"
           >
-            <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-400 lg:text-red-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
-            <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-400 lg:text-red-600">Bloquear</span>
+            {esBloqueado ? (
+              <ShieldOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-400 lg:text-emerald-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
+            ) : (
+              <ShieldBan className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-400 lg:text-red-600 shrink-0 group-hover:animate-[sacudir_0.4s_ease-in-out]" />
+            )}
+            <span
+              className={`text-sm lg:text-[11px] 2xl:text-sm font-medium ${
+                esBloqueado
+                  ? 'text-emerald-400 lg:text-emerald-600'
+                  : 'text-red-400 lg:text-red-600'
+              }`}
+            >
+              {esBloqueado
+                ? (esChatConNegocio ? 'Desbloquear' : 'Desbloquear')
+                : (esChatConNegocio ? 'Bloquear' : 'Bloquear')}
+            </span>
           </button>
 
           <button

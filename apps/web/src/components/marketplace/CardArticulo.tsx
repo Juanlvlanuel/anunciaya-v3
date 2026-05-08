@@ -34,9 +34,15 @@ import type { ArticuloFeed } from '../../types/marketplace';
 
 interface CardArticuloProps {
     articulo: ArticuloFeed;
+    /**
+     * Variante de altura. Por defecto 'feed' (aspect 1:1). En contextos
+     * donde se necesita una grilla más densa con menos altura por card
+     * (perfil de usuario, módulos de listado), usar 'compacta' (aspect 4:3).
+     */
+    variant?: 'feed' | 'compacta';
 }
 
-export function CardArticulo({ articulo }: CardArticuloProps) {
+export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) {
     const navigate = useNavigate();
     const { guardado, loading, toggleGuardado } = useGuardados({
         entityType: 'articulo_marketplace',
@@ -91,19 +97,29 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
         <article
             data-testid={`card-articulo-${articulo.id}`}
             onClick={handleClickCard}
-            className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md transition-shadow hover:shadow-lg"
+            className={`group min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md transition-shadow hover:shadow-lg ${
+                variant === 'compacta' ? 'flex' : 'flex h-full'
+            }`}
         >
-            {/* ── Imagen portada (aspect 1:1) ────────────────────────────── */}
-            <div className="relative aspect-square w-full bg-slate-100">
+            {/* ── Imagen portada — aspect según variant.
+                Imagen con `absolute inset-0` para que NO esté en el flujo
+                y la altura intrínseca de fotos verticales NO empuje al
+                contenedor. El padre tiene `aspect-ratio` fijo + `overflow-hidden`
+                — la imagen se ajusta dentro vía `object-cover`. ──────── */}
+            <div
+                className={`relative w-full overflow-hidden bg-slate-100 ${
+                    variant === 'compacta' ? 'aspect-[3/2]' : 'aspect-square'
+                }`}
+            >
                 {fotoPortada ? (
                     <img
                         src={fotoPortada}
                         alt={articulo.titulo}
-                        className="h-full w-full object-cover"
+                        className="absolute inset-0 h-full w-full object-cover"
                         loading="lazy"
                     />
                 ) : (
-                    <div className="flex h-full w-full items-center justify-center text-slate-400">
+                    <div className="absolute inset-0 flex items-center justify-center text-slate-400">
                         <ImageOff className="h-10 w-10" strokeWidth={1.5} />
                     </div>
                 )}
@@ -138,8 +154,17 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                 </button>
             </div>
 
-            {/* ── Bloque blanco abajo (altura uniforme entre cards) ───────── */}
-            <div className="flex flex-1 flex-col gap-1 px-3 py-2.5">
+            {/* ── Bloque blanco abajo. En 'feed' usa flex-1 para igualar
+                altura cuando la grilla estira; en 'compacta' tiene altura
+                natural (no estira) para evitar bloque blanco al final.
+                `min-w-0` asegura que el `truncate` del título funcione: sin
+                él, los grid items por default tienen `min-width: auto` y un
+                título largo puede empujar el ancho de la columna. ── */}
+            <div
+                className={`flex min-w-0 flex-col gap-1 px-3 py-2.5 ${
+                    variant === 'compacta' ? '' : 'flex-1'
+                }`}
+            >
                 {/* Precio */}
                 <div className="text-xl font-bold leading-tight text-slate-900">
                     {formatearPrecio(articulo.precio)}
@@ -162,23 +187,25 @@ export function CardArticulo({ articulo }: CardArticuloProps) {
                     <span>{tiempo}</span>
                 </div>
 
-                {/* Señal de actividad — slot reservado siempre para que las
-                    cards conserven la misma altura aunque algunas no tengan
-                    indicador. Si no hay señal, se renderiza un placeholder
-                    invisible (&nbsp;) con la misma altura visual. */}
-                <div
-                    data-testid={`actividad-${articulo.id}`}
-                    className="flex min-h-[1.125rem] items-center gap-1 text-xs text-slate-500"
-                >
-                    {senalActividad ? (
-                        <>
-                            {senalActividad.icono}
-                            <span>{senalActividad.texto}</span>
-                        </>
-                    ) : (
-                        <span aria-hidden>&nbsp;</span>
-                    )}
-                </div>
+                {/* Señal de actividad — solo en variant 'feed'. En 'compacta'
+                    (perfil de usuario) la omitimos para igualar altura entre
+                    cards: en grilla densa la señal de "X personas guardaron"
+                    aporta poco y desbalancea las alturas. */}
+                {variant === 'feed' && (
+                    <div
+                        data-testid={`actividad-${articulo.id}`}
+                        className="flex min-h-[1.125rem] items-center gap-1 text-xs text-slate-500"
+                    >
+                        {senalActividad ? (
+                            <>
+                                {senalActividad.icono}
+                                <span>{senalActividad.texto}</span>
+                            </>
+                        ) : (
+                            <span aria-hidden>&nbsp;</span>
+                        )}
+                    </div>
+                )}
             </div>
         </article>
     );

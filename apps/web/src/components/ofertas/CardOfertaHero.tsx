@@ -22,7 +22,7 @@
  * Ubicación: apps/web/src/components/ofertas/CardOfertaHero.tsx
  */
 
-import { useEffect, useId, useRef } from 'react';
+import { memo, useEffect, useId, useRef } from 'react';
 import { Tag, Clock, ArrowRight, Store, MapPin, Eye } from 'lucide-react';
 import { useViewTracker } from '@/hooks/useViewTracker';
 import { registrarVistaOferta } from '@/services/ofertasService';
@@ -237,7 +237,7 @@ const STYLES_CSS = `
 // COMPONENTE
 // =============================================================================
 
-export default function CardOfertaHero({
+function CardOfertaHeroBase({
   oferta,
   onClick,
   variante = 'normal',
@@ -473,3 +473,12 @@ export default function CardOfertaHero({
     </button>
   );
 }
+
+// Memoización: durante el swipe del carrusel rotativo (PaginaOfertas), el
+// padre actualiza `offsetPx` y re-renderiza. Sin memo, los subárboles pesados
+// (SVG flame con gradient, animaciones, useViewTracker) se reconcilian en
+// cada touchmove → swipe rígido. Con memo, las cards solo se re-renderizan
+// cuando cambia la oferta (no por cambios del wrapper).
+const CardOfertaHero = memo(CardOfertaHeroBase);
+
+export default CardOfertaHero;

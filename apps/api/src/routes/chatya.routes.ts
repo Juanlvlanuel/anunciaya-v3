@@ -51,6 +51,7 @@ import {
   listarBloqueadosController,
   bloquearUsuarioController,
   desbloquearUsuarioController,
+  desbloquearSucursalController,
   toggleReaccionController,
   obtenerReaccionesController,
   fijarMensajeController,
@@ -193,6 +194,9 @@ router.get('/bloqueados', listarBloqueadosController);
 
 /** POST /api/chatya/bloqueados */
 router.post('/bloqueados', bloquearUsuarioController);
+
+/** DELETE /api/chatya/bloqueados/sucursal/:sucursalId (desbloquear negocio) */
+router.delete('/bloqueados/sucursal/:sucursalId', desbloquearSucursalController);
 
 /** DELETE /api/chatya/bloqueados/:id (id = uuid del usuario bloqueado) */
 router.delete('/bloqueados/:id', desbloquearUsuarioController);

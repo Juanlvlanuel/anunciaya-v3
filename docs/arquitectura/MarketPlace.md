@@ -73,8 +73,9 @@ con él.
 **Componente nuevo `BotonComentarista`**
 (`apps/web/src/components/marketplace/BotonComentarista.tsx`):
 - **Click (todas las plataformas)** → navega a
-  `/marketplace/vendedor/:usuarioId`. La P3 ya soporta usuarios con 0
-  artículos (empty state). Branding pendiente — ver Pendientes.md.
+  `/marketplace/usuario/:usuarioId` (P3 — Perfil de Usuario, ver §8).
+  La P3 detecta automáticamente si la persona es vendedor o solo
+  comentarista y adapta el UI (KPIs/tabs/grid solo si vendedor).
 - **Hover (solo desktop, `lg:`)** → mini-card flotante con `createPortal`
   al body, ancho 240px, anclada **debajo del nombre** (`top: rect.bottom + 8`),
   alineada al inicio del nombre (`left: rect.left`) con clamp para no
@@ -381,7 +382,7 @@ El feed del MarketPlace fue **rediseñado por completo** desde el patrón "carru
 8. [Pantallas](#pantallas)
    - [P1 — Feed](#p1--feed-de-marketplace)
    - [P2 — Detalle del Artículo](#p2--detalle-del-artículo)
-   - [P3 — Perfil del Vendedor](#p3--perfil-del-vendedor)
+   - [P3 — Perfil de Usuario](#p3--perfil-de-usuario)
    - [P4 — Wizard de Publicar / Editar](#p4--wizard-de-publicar--editar)
    - [P5 — Buscador Potenciado](#p5--buscador-potenciado)
    - [P6 — Página Pública Compartible](#p6--página-pública-compartible)
@@ -944,39 +945,52 @@ Scroll vertical continuo, no estático. Invita a explorar.
 
 ---
 
-### P3 — Perfil del Vendedor
+### P3 — Perfil de Usuario
 
-**Ruta:** `/marketplace/vendedor/:usuarioId`
+**Ruta canónica:** `/marketplace/usuario/:usuarioId`
+**Ruta legacy:** `/marketplace/vendedor/:usuarioId` → redirige a la canónica (`<Navigate replace />` en `router/index.tsx`)
 **Archivo:** `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx`
+
+> Refactor v2 (Bucket C.3, 07-may-2026): la pantalla se renombró de "Perfil del Vendedor" a "Perfil de Usuario". Detonado por la feature de "Conexión usuario↔usuario vía comentarios" (v1.3, ver §v1.3 al inicio del documento) que abrió esta pantalla a usuarios que solo comentaron en el feed — el branding "Vendedor" sonaba sesgado para alguien que nunca publicó nada.
+
+#### Modo de visualización (vendedor vs comprador/comentarista)
+
+El UI se adapta automáticamente al rol de la persona perfilada:
+
+| Caso | Detección | Qué se muestra |
+|------|-----------|-----------------|
+| **Vendedor** | `publicacionesActivas > 0 \|\| vendidos > 0` | Hero completo + KPIs + tabs + grid |
+| **Comentarista/comprador** | sin publicaciones | Hero minimalista (avatar + identidad + miembro desde) + botones de contacto. **Sin KPIs vacíos, sin tabs "Publicaciones (0) / Vendidos (0)"** que se sentirían huecos. |
 
 #### Estructura (móvil + desktop)
 
-- Header transparente flotante (← atrás, ⋯ menú con "Bloquear usuario" placeholder)
-- **Sin portada decorativa** (decisión consciente — banner teal o imagen genérica se ven como publicidad)
-- Avatar circular grande (96px) centrado en bloque blanco limpio
-- Nombre completo + ciudad + "Miembro desde [Mes Año]"
-- 3 KPIs en fila inline (sin pastel, sin emojis, sin saltos tipográficos):
-  - **Publicaciones activas** — `COUNT(*) WHERE estado='activa'`
-  - **Vendidos** — `COUNT(*) WHERE estado='vendida'`
-  - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
-- Botones de contacto (ocultos si visitas tu propio perfil):
-  - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) — solo aparece si el vendedor tiene teléfono registrado. Mensaje precargado: `"Hola {nombre}, vi tu perfil en AnunciaYA"`. El backend `getVendedorMarketplace` devuelve `telefono` en el perfil; el tipo `PerfilVendedorMarketplace` incluye `telefono: string | null`.
-  - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='vendedor_marketplace'`.
-  - **Seguir vendedor** (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`
-- Tabs: **Publicaciones (X)** | **Vendidos (X)** con subrayado teal en activa
-- Grid de cards estilo B (reusa `CardArticulo`)
-- En tab "Vendidos": cada card envuelta en wrapper con overlay slate translúcido + texto "VENDIDO"
+- **Sin fondo propio** — la página hereda el degradado azul global del `MainLayout` (`linear-gradient(to left, #b1c6dd, #eff6ff, #eff6ff, #b1c6dd)`).
+- Header glass flotante translúcido (`bg-white/70 backdrop-blur`): ← atrás · "Perfil" · ⋯ menú con "Bloquear usuario" (placeholder)
+- **Hero como card flotante centrada** (`max-w-2xl`, `bg-white/95 backdrop-blur`, `rounded-3xl`, `shadow-lg`, `ring-1`) — no banda blanca full-width. El degradado se ve a los lados.
+- Dentro de la card:
+  - Avatar circular grande (96px móvil, 112px laptop+) con borde blanco + ring sutil
+  - Nombre completo + ciudad + "Miembro desde [Mes Año]"
+  - **KPIs (solo si vendedor)** — fila inline con divisores sutiles `divide-x divide-slate-200/80`, sin border-2 ni cuadro pesado:
+    - **Publicaciones activas** — `COUNT(*) WHERE estado='activa'`
+    - **Vendidos** — `COUNT(*) WHERE estado='vendida'`
+    - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
+  - **Botones de contacto** (ocultos si visitas tu propio perfil):
+    - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) — solo aparece si el usuario tiene teléfono registrado. Mensaje precargado: `"Hola {nombre}, vi tu perfil en AnunciaYA"`. El backend `getVendedorMarketplace` devuelve `telefono` en el perfil; el tipo `PerfilVendedorMarketplace` incluye `telefono: string | null`.
+    - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='vendedor_marketplace'`.
+    - **Seguir** (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`. **Sin efecto visible aún — ver D.3 en `docs/reportes/MarketPlace/Pendientes.md`**.
+- **Tabs (solo si vendedor)** — banda translúcida `bg-white/85 backdrop-blur rounded-2xl`: Publicaciones (X) | Vendidos (X), subrayado teal en activa
+- **Grid (solo si vendedor)** — cards estilo B (reusa `CardArticulo`). En tab "Vendidos" cada card lleva overlay slate translúcido + texto "VENDIDO".
 
 #### Datos del servidor
 
-- `useVendedorMarketplace(usuarioId)` — perfil + KPIs (staleTime 2 min)
-- `useVendedorPublicaciones(usuarioId, estado)` — lista paginada por estado
-- Si el vendedor bloqueó al usuario actual → 404 sin revelar el motivo
-- Si visitas tu propio perfil → botones Mensaje/Seguir ocultos
+- `useVendedorMarketplace(usuarioId)` — perfil + KPIs (staleTime 2 min). Se ejecuta siempre (necesitamos saber si la persona es vendedor o no).
+- `useVendedorPublicaciones(usuarioId, estado)` — lista paginada por estado. **Solo se ejecuta si la persona es vendedor** (el hook recibe `usuarioId=undefined` cuando no, y queda deshabilitado por `enabled: !!usuarioId`).
+- Si el usuario bloqueó al actual → 404 sin revelar el motivo.
+- Si visitas tu propio perfil → botones de contacto + Seguir ocultos.
 
-#### Notas sobre "Seguir vendedor" en v1
+#### Endpoints API (sin cambios)
 
-El botón funciona y registra el voto correctamente, pero **no aparece en ningún lado del UI** más allá del estado del propio botón. La lista de seguidos se materializará cuando se cree la tab "Vendedores" en Mis Guardados (v1.1+).
+Las URLs del backend siguen siendo `GET /api/marketplace/vendedor/:usuarioId` y `GET /api/marketplace/vendedor/:usuarioId/publicaciones` — solo cambia la URL del frontend. Renombrar el endpoint backend implicaría migrar también la columna/tabla relacionadas y no aporta valor — los endpoints son detalle de implementación que el usuario nunca ve.
 
 ---
 

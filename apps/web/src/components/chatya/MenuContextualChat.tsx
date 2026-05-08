@@ -16,6 +16,10 @@ import { Pin, BellOff, Bell, Archive, ArchiveRestore, ShieldBan, Trash2, PinOff,
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import type { Conversacion } from '../../types/chatya';
+import {
+    conversacionBloqueada,
+    esConversacionConNegocio,
+} from '../../utils/bloqueos';
 
 // =============================================================================
 // TIPOS
@@ -41,6 +45,7 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
     const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
     const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
     const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+    const desbloquearSucursal = useChatYAStore((s) => s.desbloquearSucursal);
     const bloqueados = useChatYAStore((s) => s.bloqueados);
     const volverALista = useChatYAStore((s) => s.volverALista);
     const contactos = useChatYAStore((s) => s.contactos);
@@ -50,7 +55,10 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
     const { miId, modo: modoActivo } = useChatYASession();
 
     const otroId = conversacion.otroParticipante?.id;
-    const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otroId);
+    // Discriminado: persona ↔ persona vs persona ↔ sucursal. El bloqueo aplica
+    // a ambos casos pero contra entradas distintas en BD.
+    const esChatConNegocio = esConversacionConNegocio(conversacion, miId);
+    const esBloqueado = conversacionBloqueada(conversacion, miId, bloqueados);
 
     // Derivar sucursalId del otro participante
     const otroSucursalId = conversacion.participante1Id === miId
@@ -129,11 +137,22 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
 
     const handleBloquear = async () => {
         onCerrar();
-        if (!otroId) return;
-        if (esBloqueado) {
-            await desbloquearUsuario(otroId);
+        if (esChatConNegocio) {
+            // Bloqueo / desbloqueo de sucursal
+            if (!otroSucursalId) return;
+            if (esBloqueado) {
+                await desbloquearSucursal(otroSucursalId);
+            } else {
+                await bloquearUsuario({ tipo: 'sucursal', sucursalId: otroSucursalId });
+            }
         } else {
-            await bloquearUsuario({ bloqueadoId: otroId });
+            // Bloqueo / desbloqueo persona ↔ persona
+            if (!otroId) return;
+            if (esBloqueado) {
+                await desbloquearUsuario(otroId);
+            } else {
+                await bloquearUsuario({ tipo: 'usuario', bloqueadoId: otroId });
+            }
         }
     };
 
@@ -205,9 +224,14 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
             destructivo: false,
             colorIcono: 'text-emerald-400 lg:text-emerald-500',
         },
+        // Bloquear — disponible en ambos tipos de chat (persona o negocio).
+        // Si es chat con negocio bloquea/desbloquea la sucursal específica;
+        // si es persona ↔ persona, bloquea/desbloquea a la persona.
         {
             icono: ShieldBan,
-            texto: esBloqueado ? 'Desbloquear' : 'Bloquear',
+            texto: esBloqueado
+                ? (esChatConNegocio ? 'Desbloquear negocio' : 'Desbloquear')
+                : (esChatConNegocio ? 'Bloquear negocio' : 'Bloquear'),
             onClick: handleBloquear,
             destructivo: !esBloqueado,
             colorIcono: esBloqueado ? 'text-emerald-400 lg:text-emerald-500' : 'text-red-400 lg:text-red-500',

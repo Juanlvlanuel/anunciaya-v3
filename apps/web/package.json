@@ -17,6 +17,8 @@
     "@tanstack/react-query": "^5.90.11",
     "axios": "^1.13.2",
     "date-fns": "^4.1.0",
+    "embla-carousel-autoplay": "^8.6.0",
+    "embla-carousel-react": "^8.6.0",
     "emoji-picker-react": "^4.18.0",
     "framer-motion": "^12.23.25",
     "howler": "^2.2.4",

@@ -124,7 +124,21 @@ export function MainLayout() {
     document.body.style.background = '#000000';
     const meta = document.querySelector('meta[name="theme-color"]');
     if (meta) meta.setAttribute('content', '#000000');
+
+    // Defensa: si el HTML cacheado en el celular no incluye el meta
+    // color-scheme (porque el navegador sirve una versión vieja en cache),
+    // lo creamos/actualizamos en runtime y aplicamos color-scheme: dark
+    // directo al <html> para que Chrome Android use scrim oscuro.
+    let metaCs = document.querySelector('meta[name="color-scheme"]');
+    if (!metaCs) {
+      metaCs = document.createElement('meta');
+      metaCs.setAttribute('name', 'color-scheme');
+      document.head.appendChild(metaCs);
+    }
+    metaCs.setAttribute('content', 'dark');
+    document.documentElement.style.colorScheme = 'dark';
   }, []);
+
 
   // ---------------------------------------------------------------------------
   // Detectar cambio de tamaño de pantalla

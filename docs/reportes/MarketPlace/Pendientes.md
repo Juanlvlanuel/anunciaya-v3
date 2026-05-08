@@ -1,6 +1,6 @@
 # Pendientes en MarketPlace
 
-**Última actualización:** 2026-05-07 (noche — modal detalle + swipe moderno)
+**Última actualización:** 2026-05-07 (P3 → Perfil de Usuario neutral + fondo degradado)
 
 Documento maestro de pendientes del módulo MarketPlace. Consolidado tras el rediseño cross-secciones (headers/tabs/iconos estandarizados en las 6 secciones del 06-may-2026).
 
@@ -91,6 +91,23 @@ Pantallas y resoluciones por revisar:
 ## D. Bugs funcionales abiertos
 
 _(Sin bugs abiertos. D.1 y D.2 ya cerrados — ver D.cerrados abajo.)_
+
+### D.3 — Botón "Seguir vendedor" sin efecto funcional
+
+**Estado actual:** El botón "Seguir" en P3 (Perfil de Usuario) registra correctamente el voto en BD (`votos` con `entity_type='usuario'`, `tipo_accion='follow'`) pero **no detona ningún efecto visible**:
+
+- ❌ No genera notificación al usuario seguido.
+- ❌ No aparece en ningún feed/timeline del seguidor.
+- ❌ No se materializa en `PaginaGuardados` — los tabs son `ofertas | negocios | marketplace | servicios`, no hay tab "Vendedores/Usuarios".
+- ❌ El endpoint `GET /api/seguidos?entityType=usuario` devuelve data cruda (sin JOIN para resolver datos del usuario).
+
+**Pendiente decidir:** qué efecto debe tener seguir a alguien. Opciones:
+1. **Tab "Vendedores" en Mis Guardados** — listar usuarios seguidos con avatar + nombre + chip "X publicaciones activas" + acceso al perfil. Requiere JOIN nuevo en `obtenerSeguidos` para `entityType='usuario'`.
+2. **Stories de actividad reciente** (Bucket B Fase 3) — mostrar arriba del feed cuando un seguido publica algo nuevo.
+3. **Notificación al seguido** — opcional; depende de si lo queremos sigiloso (sin notificar) o tipo Twitter (sí notifica).
+4. **Sistema de contactos ChatYA** (Bucket B Fase 4) — convertir "Seguir" en "Agregar a contactos" y que aparezca en lista fija de ChatYA.
+
+**Bloqueante:** El botón vive en P3 desde Sprint 5 pero no hace nada útil — confunde al usuario que lo presiona y no observa cambio.
 
 ### D.cerrados — Bugs ya resueltos
 

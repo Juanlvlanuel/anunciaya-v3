@@ -220,6 +220,7 @@ interface ChatYAState {
   cargarBloqueados: () => Promise<void>;
   bloquearUsuario: (datos: BloquearUsuarioInput) => Promise<boolean>;
   desbloquearUsuario: (bloqueadoId: string) => Promise<boolean>;
+  desbloquearSucursal: (sucursalId: string) => Promise<boolean>;
 
   // ─── ACCIONES: Reacciones (Sprint 5) ──────────────────────────────────
   toggleReaccion: (mensajeId: string, emoji: string) => Promise<void>;
@@ -1292,16 +1293,30 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
   bloquearUsuario: async (datos: BloquearUsuarioInput) => {
     const { bloqueados } = get();
 
-    // Optimista: agregar inmediatamente con datos mínimos para que esBloqueado sea true
-    const entradaOptimista: UsuarioBloqueado = {
-      id: `opt_${Date.now()}`,
-      bloqueadoId: datos.bloqueadoId,
-      motivo: datos.motivo || null,
-      createdAt: new Date().toISOString(),
-      nombre: '',
-      apellidos: '',
-      avatarUrl: '',
-    };
+    // Optimista: agregar inmediatamente con datos mínimos. Discriminado
+    // por `tipo` — persona vs sucursal son entradas distintas.
+    const entradaOptimista: UsuarioBloqueado =
+      datos.tipo === 'sucursal'
+        ? {
+            id: `opt_${Date.now()}`,
+            tipo: 'sucursal',
+            sucursalId: datos.sucursalId,
+            motivo: datos.motivo || null,
+            createdAt: new Date().toISOString(),
+            sucursalNombre: '',
+            negocioNombre: '',
+            negocioLogoUrl: null,
+          }
+        : {
+            id: `opt_${Date.now()}`,
+            tipo: 'usuario',
+            bloqueadoId: datos.bloqueadoId,
+            motivo: datos.motivo || null,
+            createdAt: new Date().toISOString(),
+            nombre: '',
+            apellidos: '',
+            avatarUrl: null,
+          };
     set({ bloqueados: [...bloqueados, entradaOptimista] });
 
     try {
@@ -1320,7 +1335,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       return false;
     } catch {
       set({ bloqueados }); // revertir
-      notificar.error('Error al bloquear usuario');
+      notificar.error('Error al bloquear');
       return false;
     }
   },
@@ -1329,11 +1344,39 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     const { bloqueados } = get();
     const bloqueadosAnterior = [...bloqueados];
 
-    // Optimista
-    set({ bloqueados: bloqueados.filter((b) => b.bloqueadoId !== bloqueadoId) });
+    // Optimista — solo entradas de tipo 'usuario' con ese bloqueadoId
+    set({
+      bloqueados: bloqueados.filter(
+        (b) => !(b.tipo === 'usuario' && b.bloqueadoId === bloqueadoId)
+      ),
+    });
 
     try {
       const respuesta = await chatyaService.desbloquearUsuario(bloqueadoId);
+      if (respuesta.success) {
+        return true;
+      }
+      set({ bloqueados: bloqueadosAnterior });
+      return false;
+    } catch {
+      set({ bloqueados: bloqueadosAnterior });
+      return false;
+    }
+  },
+
+  desbloquearSucursal: async (sucursalId: string) => {
+    const { bloqueados } = get();
+    const bloqueadosAnterior = [...bloqueados];
+
+    // Optimista — solo entradas de tipo 'sucursal' con ese sucursalId
+    set({
+      bloqueados: bloqueados.filter(
+        (b) => !(b.tipo === 'sucursal' && b.sucursalId === sucursalId)
+      ),
+    });
+
+    try {
+      const respuesta = await chatyaService.desbloquearSucursal(sucursalId);
       if (respuesta.success) {
         return true;
       }

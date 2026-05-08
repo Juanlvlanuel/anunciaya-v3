@@ -14,7 +14,7 @@
  * Ubicación: apps/web/src/router/index.tsx
  */
 
-import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import { createBrowserRouter, Navigate, RouterProvider, useParams } from 'react-router-dom';
 import { RutaPrivada } from './RutaPrivada';
 import { ModoGuard, MatrizGuard } from './guards';
 import { ModoPersonalEstrictoGuard } from './guards/ModoPersonalEstrictoGuard';
@@ -111,6 +111,22 @@ const NoEncontrada = () => (
     </div>
   </div>
 );
+
+// =============================================================================
+// REDIRECTS (compatibilidad con URLs antiguas)
+// =============================================================================
+
+/**
+ * /marketplace/vendedor/:usuarioId  →  /marketplace/usuario/:usuarioId
+ *
+ * La P3 se renombró a "Perfil de Usuario" (neutral para vendedor y comprador).
+ * Mantenemos la URL antigua activa con redirect para no romper enlaces ya
+ * compartidos/copiados.
+ */
+function RedirectVendedorAUsuario() {
+  const { usuarioId } = useParams<{ usuarioId: string }>();
+  return <Navigate to={`/marketplace/usuario/${usuarioId}`} replace />;
+}
 
 // =============================================================================
 // DEFINICIÓN DE RUTAS
@@ -276,12 +292,18 @@ const router = createBrowserRouter([
             ),
           },
           {
-            path: '/marketplace/vendedor/:usuarioId',
+            path: '/marketplace/usuario/:usuarioId',
             element: (
               <ModoPersonalEstrictoGuard>
                 <PaginaPerfilVendedor />
               </ModoPersonalEstrictoGuard>
             ),
+          },
+          {
+            // Compatibilidad con enlaces existentes a la URL antigua.
+            // Ruta canónica nueva: /marketplace/usuario/:usuarioId.
+            path: '/marketplace/vendedor/:usuarioId',
+            element: <RedirectVendedorAUsuario />,
           },
           {
             path: '/marketplace/buscar',

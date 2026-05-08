@@ -28,6 +28,11 @@ import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useTransaccionesStore } from '../../stores/useTransaccionesStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useChatYASession } from '../../hooks/useChatYASession';
+import {
+  conversacionBloqueada,
+  esConversacionConNegocio,
+  obtenerSucursalIdDelOtro,
+} from '../../utils/bloqueos';
 
 // Componentes del chat
 import { ListaConversaciones } from '../chatya/ListaConversaciones';
@@ -108,6 +113,7 @@ export function ChatOverlay() {
   const eliminarConversacion = useChatYAStore((s) => s.eliminarConversacion);
   const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
   const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
+  const desbloquearSucursal = useChatYAStore((s) => s.desbloquearSucursal);
   const visorAbierto = useChatYAStore((s) => s.visorAbierto);
   const setVisorAbierto = useChatYAStore((s) => s.setVisorAbierto);
   const panelInfoAbierto = useChatYAStore((s) => s.panelInfoAbierto);
@@ -144,7 +150,12 @@ export function ChatOverlay() {
 
   const primerOtroId = primeraSeleccionada?.otroParticipante?.id;
   const yaEsContacto = !!(primerOtroId && contactos.find((c) => c.contactoId === primerOtroId && c.tipo === modoActivo));
-  const yaEstaBloqueado = !!(primerOtroId && bloqueados.some((b) => b.bloqueadoId === primerOtroId));
+  // El bloqueo aplica tanto a chats persona↔persona como a chats con negocios,
+  // pero contra entradas distintas (UsuarioBloqueado tipo 'usuario' vs 'sucursal').
+  const yaEstaBloqueado = !!(
+    primeraSeleccionada &&
+    conversacionBloqueada(primeraSeleccionada, sesion.miId, bloqueados)
+  );
 
   // Limpiar selección al cerrar ChatYA o al abrir un chat
   useEffect(() => {
@@ -186,10 +197,20 @@ export function ChatOverlay() {
         case 'archivar': await toggleArchivar(id); break;
         case 'eliminar': await eliminarConversacion(id); break;
         case 'bloquear': {
-          if (!otroId) break;
-          const estaBloqueado = bloqueados.some((b) => b.bloqueadoId === otroId);
-          if (estaBloqueado) await desbloquearUsuario(otroId);
-          else await bloquearUsuario({ bloqueadoId: otroId });
+          if (!conv) break;
+          const yaBloqueada = conversacionBloqueada(conv, sesion.miId, bloqueados);
+          if (esConversacionConNegocio(conv, sesion.miId)) {
+            // Bloqueo / desbloqueo de sucursal
+            const sucId = obtenerSucursalIdDelOtro(conv, sesion.miId);
+            if (!sucId) break;
+            if (yaBloqueada) await desbloquearSucursal(sucId);
+            else await bloquearUsuario({ tipo: 'sucursal', sucursalId: sucId });
+          } else {
+            // Bloqueo / desbloqueo persona ↔ persona
+            if (!otroId) break;
+            if (yaBloqueada) await desbloquearUsuario(otroId);
+            else await bloquearUsuario({ tipo: 'usuario', bloqueadoId: otroId });
+          }
           break;
         }
         case 'contacto': {
@@ -204,7 +225,7 @@ export function ChatOverlay() {
         }
       }
     }
-  }, [seleccionadas, cancelarSeleccion, conversaciones, bloqueados, contactos, modoActivo, toggleFijar, toggleSilenciar, toggleArchivar, eliminarConversacion, bloquearUsuario, desbloquearUsuario, agregarContactoStore, eliminarContactoStore]);
+  }, [seleccionadas, cancelarSeleccion, conversaciones, bloqueados, contactos, modoActivo, sesion.miId, toggleFijar, toggleSilenciar, toggleArchivar, eliminarConversacion, bloquearUsuario, desbloquearUsuario, desbloquearSucursal, agregarContactoStore, eliminarContactoStore]);
 
   // ---------------------------------------------------------------------------
   // Effect: Cerrar ChatYA automáticamente al cerrar sesión

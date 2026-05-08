@@ -2191,11 +2191,17 @@ export const chatContactos = pgTable("chat_contactos", {
 export const chatBloqueados = pgTable("chat_bloqueados", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
-	bloqueadoId: uuid("bloqueado_id").notNull(),
+	// Bloqueo de persona: poblado solo cuando es persona ↔ persona.
+	bloqueadoId: uuid("bloqueado_id"),
+	// Bloqueo de sucursal/negocio: poblado solo cuando se bloquea un negocio.
+	// Mutuamente excluyente con bloqueadoId — el constraint
+	// `chat_bloqueados_uno_de_dos` exige exactamente uno de los dos.
+	bloqueadaSucursalId: uuid("bloqueada_sucursal_id"),
 	motivo: varchar({ length: 200 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_chat_bloqueados_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_chat_bloqueados_sucursal").using("btree", table.bloqueadaSucursalId.asc().nullsLast()),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
@@ -2206,8 +2212,15 @@ export const chatBloqueados = pgTable("chat_bloqueados", {
 		foreignColumns: [usuarios.id],
 		name: "fk_chat_bloqueados_bloqueado"
 	}).onDelete("cascade"),
-	unique("chat_bloqueados_unique").on(table.usuarioId, table.bloqueadoId),
+	foreignKey({
+		columns: [table.bloqueadaSucursalId],
+		foreignColumns: [negocioSucursales.id],
+		name: "fk_chat_bloqueados_sucursal"
+	}).onDelete("cascade"),
+	unique("chat_bloqueados_unique_usuario").on(table.usuarioId, table.bloqueadoId),
+	unique("chat_bloqueados_unique_sucursal").on(table.usuarioId, table.bloqueadaSucursalId),
 	check("chat_bloqueados_no_auto", sql`usuario_id != bloqueado_id`),
+	check("chat_bloqueados_uno_de_dos", sql`(bloqueado_id IS NOT NULL AND bloqueada_sucursal_id IS NULL) OR (bloqueado_id IS NULL AND bloqueada_sucursal_id IS NOT NULL)`),
 ]);
 
 

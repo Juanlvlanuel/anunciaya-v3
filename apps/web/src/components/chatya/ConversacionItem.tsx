@@ -15,6 +15,7 @@ import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import { TextoConEmojis } from './TextoConEmojis';
 import { determinarMiLado } from './utils/lado';
+import { conversacionBloqueada } from '../../utils/bloqueos';
 
 // =============================================================================
 // TIPOS
@@ -99,8 +100,10 @@ export const ConversacionItem = memo(function ConversacionItem({ conversacion, a
   const contactos = useChatYAStore((s) => s.contactos);
   const escribiendo = useChatYAStore((s) => s.escribiendo);
   const borrador = borradores[conversacion.id] || null;
-  const esBloqueado = bloqueados.some((b) => b.bloqueadoId === otro?.id);
   const { miId, modo: modoActivo, sucursalId: miSucursalId } = useChatYASession();
+  // Bloqueo persona↔persona y bloqueo persona↔sucursal son independientes.
+  // El helper detecta el tipo de chat y consulta la entrada correspondiente.
+  const esBloqueado = conversacionBloqueada(conversacion, miId, bloqueados);
 
   // ¿El último mensaje es mío? → mostrar palomitas
   const ultimoEsMio = !!miId && conversacion.ultimoMensajeEmisorId === miId;

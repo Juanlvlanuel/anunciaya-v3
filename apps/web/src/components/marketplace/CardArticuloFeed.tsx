@@ -294,7 +294,7 @@ export function CardArticuloFeed({
 
     // ─── Handlers ────────────────────────────────────────────────────────────
     const irAlPerfilVendedor = useCallback(() => {
-        navigate(`/marketplace/vendedor/${articulo.vendedor.id}`);
+        navigate(`/marketplace/usuario/${articulo.vendedor.id}`);
     }, [navigate, articulo.vendedor.id]);
 
     const irAlDetalle = useCallback(() => {
@@ -726,52 +726,51 @@ export function CardArticuloFeed({
                             <ImageOff className="h-12 w-12" strokeWidth={1.5} />
                         </div>
                     ) : (
+                        // Renderizamos prev/curr/next con KEYS ESTABLES por índice
+                        // de foto (no por rol). Al avanzar indiceFoto, la imagen
+                        // que era 'next' se promueve a 'curr' sin desmontar — solo
+                        // cambia su transform. Esto elimina el flash de carga al
+                        // hacer swipe, porque el navegador NO re-decodifica la
+                        // imagen ya pintada (problema clásico de carruseles
+                        // construidos con keys por rol).
                         <>
-                            {/* Imagen ANTERIOR — asoma desde la izquierda al swipear → */}
-                            {tieneMultiples && (
-                                <img
-                                    key={`prev-${indiceAnterior}`}
-                                    src={fotos[indiceAnterior]}
-                                    alt=""
-                                    aria-hidden="true"
-                                    draggable={false}
-                                    className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
-                                    style={{
-                                        transform: `translateX(calc(-100% + ${offsetPx}px))`,
-                                        transition: enTransicion ? 'transform 220ms ease-out' : 'none',
-                                        willChange: 'transform',
-                                    }}
-                                />
-                            )}
-                            {/* Imagen ACTUAL — sigue al dedo */}
-                            <img
-                                key={`curr-${indiceFoto}`}
-                                src={fotos[indiceFoto]}
-                                alt={`${articulo.titulo} — foto ${indiceFoto + 1}`}
-                                draggable={false}
-                                className="absolute inset-0 h-full w-full select-none object-cover"
-                                style={{
-                                    transform: `translateX(${offsetPx}px)`,
-                                    transition: enTransicion ? 'transform 220ms ease-out' : 'none',
-                                    willChange: 'transform',
-                                }}
-                            />
-                            {/* Imagen SIGUIENTE — asoma desde la derecha al swipear ← */}
-                            {tieneMultiples && (
-                                <img
-                                    key={`next-${indiceSiguiente}`}
-                                    src={fotos[indiceSiguiente]}
-                                    alt=""
-                                    aria-hidden="true"
-                                    draggable={false}
-                                    className="pointer-events-none absolute inset-0 h-full w-full select-none object-cover"
-                                    style={{
-                                        transform: `translateX(calc(100% + ${offsetPx}px))`,
-                                        transition: enTransicion ? 'transform 220ms ease-out' : 'none',
-                                        willChange: 'transform',
-                                    }}
-                                />
-                            )}
+                            {fotos.map((foto, i) => {
+                                if (!tieneMultiples && i !== indiceFoto) return null;
+
+                                // Distancia mínima en cualquiera de las dos direcciones
+                                // alrededor del carrusel (loop).
+                                const distAtras = (indiceFoto - i + fotos.length) % fotos.length;
+                                const distAdelante = (i - indiceFoto + fotos.length) % fotos.length;
+
+                                let rol: 'prev' | 'curr' | 'next' | null = null;
+                                if (i === indiceFoto) rol = 'curr';
+                                else if (distAtras === 1) rol = 'prev';
+                                else if (distAdelante === 1) rol = 'next';
+
+                                if (!rol) return null;
+
+                                const baseTransform = rol === 'prev' ? '-100%' : rol === 'next' ? '100%' : '0%';
+                                const esCurr = rol === 'curr';
+
+                                return (
+                                    <img
+                                        key={i}
+                                        src={foto}
+                                        alt={esCurr ? `${articulo.titulo} — foto ${i + 1}` : ''}
+                                        aria-hidden={esCurr ? undefined : true}
+                                        draggable={false}
+                                        decoding="async"
+                                        className={`absolute inset-0 h-full w-full select-none object-cover ${
+                                            esCurr ? '' : 'pointer-events-none'
+                                        }`}
+                                        style={{
+                                            transform: `translateX(calc(${baseTransform} + ${offsetPx}px))`,
+                                            transition: enTransicion ? 'transform 220ms ease-out' : 'none',
+                                            willChange: 'transform',
+                                        }}
+                                    />
+                                );
+                            })}
                         </>
                     )}
 
@@ -1110,20 +1109,19 @@ export function CardArticuloFeed({
                     <form
                         onSubmit={handleEnviarPregunta}
                     >
-                        <div className="flex items-center gap-2.5 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-1 pr-1.5 transition-all focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-500/20">
-                            {/* Avatar prefix — usuario actual (FB pattern). Si no hay sesión,
-                                se muestra el icono de chat genérico. */}
+                        <div className="flex items-center gap-2.5">
+                            {/* Avatar usuario actual — fuera del input pill */}
                             {usuario ? (
                                 usuario.avatarUrl ? (
                                     <img
                                         src={usuario.avatarUrl}
                                         alt=""
                                         aria-hidden="true"
-                                        className="h-7 w-7 shrink-0 rounded-full object-cover"
+                                        className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
                                     />
                                 ) : (
                                     <div
-                                        className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-md"
+                                        className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-md ring-2 ring-slate-200"
                                         style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
                                         aria-hidden="true"
                                     >
@@ -1132,43 +1130,47 @@ export function CardArticuloFeed({
                                     </div>
                                 )
                             ) : (
-                                <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-slate-200 text-slate-500 ring-2 ring-slate-200">
                                     <MessageCircle className="h-4 w-4" strokeWidth={2} />
                                 </div>
                             )}
-                            <input
-                                type="text"
-                                data-testid={`card-feed-input-pregunta-${articulo.id}`}
-                                value={textoPregunta}
-                                onChange={(e) => {
-                                    setTextoPregunta(e.target.value);
-                                    if (errorPregunta) setErrorPregunta(null);
-                                }}
-                                placeholder="Hacer una pregunta..."
-                                maxLength={PREGUNTA_MAX}
-                                disabled={crearPregunta.isPending}
-                                className="flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
-                            />
-                            <button
-                                type="submit"
-                                data-testid={`card-feed-enviar-pregunta-${articulo.id}`}
-                                disabled={
-                                    crearPregunta.isPending ||
-                                    textoPregunta.trim().length < PREGUNTA_MIN
-                                }
-                                aria-label="Enviar pregunta"
-                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed lg:cursor-pointer ${
-                                    textoPregunta.trim().length >= PREGUNTA_MIN && !crearPregunta.isPending
-                                        ? 'bg-teal-600 text-white shadow-sm lg:hover:bg-teal-700'
-                                        : 'bg-transparent text-slate-400'
-                                }`}
-                            >
-                                {crearPregunta.isPending ? (
-                                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
-                                ) : (
-                                    <Send className="h-4 w-4" strokeWidth={2.5} />
-                                )}
-                            </button>
+
+                            {/* Input pill — contiene solo el input + botón enviar */}
+                            <div className="flex flex-1 items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-teal-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-teal-500/20">
+                                <input
+                                    type="text"
+                                    data-testid={`card-feed-input-pregunta-${articulo.id}`}
+                                    value={textoPregunta}
+                                    onChange={(e) => {
+                                        setTextoPregunta(e.target.value);
+                                        if (errorPregunta) setErrorPregunta(null);
+                                    }}
+                                    placeholder="Hacer una pregunta..."
+                                    maxLength={PREGUNTA_MAX}
+                                    disabled={crearPregunta.isPending}
+                                    className="flex-1 bg-transparent py-1.5 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                                />
+                                <button
+                                    type="submit"
+                                    data-testid={`card-feed-enviar-pregunta-${articulo.id}`}
+                                    disabled={
+                                        crearPregunta.isPending ||
+                                        textoPregunta.trim().length < PREGUNTA_MIN
+                                    }
+                                    aria-label="Enviar pregunta"
+                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed lg:cursor-pointer ${
+                                        textoPregunta.trim().length >= PREGUNTA_MIN && !crearPregunta.isPending
+                                            ? 'bg-teal-600 text-white shadow-sm lg:hover:bg-teal-700'
+                                            : 'bg-transparent text-slate-400'
+                                    }`}
+                                >
+                                    {crearPregunta.isPending ? (
+                                        <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+                                    ) : (
+                                        <Send className="h-4 w-4" strokeWidth={2.5} />
+                                    )}
+                                </button>
+                            </div>
                         </div>
 
                         {/* Estado: contador + error */}
