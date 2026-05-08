@@ -54,7 +54,7 @@ export function ModalArticuloDetalle({ articulo, onClose }: ModalArticuloDetalle
                 window.history.back();
             }
         };
-    }, [articulo]);
+    }, [articulo?.id]);
 
     // Escape cierra
     useEffect(() => {
@@ -64,7 +64,7 @@ export function ModalArticuloDetalle({ articulo, onClose }: ModalArticuloDetalle
         };
         document.addEventListener('keydown', onKey);
         return () => document.removeEventListener('keydown', onKey);
-    }, [articulo]);
+    }, [articulo?.id]);
 
     // Lock del scroll del body
     useEffect(() => {
@@ -74,7 +74,7 @@ export function ModalArticuloDetalle({ articulo, onClose }: ModalArticuloDetalle
         return () => {
             document.body.style.overflow = prev;
         };
-    }, [articulo]);
+    }, [articulo?.id]);
 
     const handleCerrar = useCallback(() => {
         onClose();

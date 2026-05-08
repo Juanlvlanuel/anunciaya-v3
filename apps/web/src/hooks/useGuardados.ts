@@ -35,9 +35,17 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, type QueryClient, type InfiniteData } from '@tanstack/react-query';
 import { api } from '../services/api';
 import { notificar } from '../utils/notificaciones';
+import { queryKeys } from '../config/queryKeys';
+import type {
+  ArticuloFeedInfinito,
+  RespuestaFeedInfinito,
+  ArticuloMarketplaceDetalle,
+  PublicacionesDeVendedor,
+  ArticuloMarketplace,
+} from '../types/marketplace';
 
 // =============================================================================
 // TIPOS
@@ -94,6 +102,83 @@ interface UseGuardadosResult {
    * Función manual para quitar de guardados
    */
   quitarGuardado: () => Promise<void>;
+}
+
+// =============================================================================
+// HELPERS — SINCRONIZACIÓN DE CACHE (articulo_marketplace)
+// =============================================================================
+
+/**
+ * Optimistic update del cache de React Query cuando un artículo del marketplace
+ * cambia su estado de guardado. Mantiene en sync el feed infinito (todos los
+ * filtros/órdenes), el detalle del artículo y las publicaciones de vendedor.
+ *
+ * Sin esto, el `<CardArticuloFeed modoModal />` que vive dentro del modal de
+ * detalle (Facebook style) arranca con `articulo.guardado` y
+ * `articulo.totalGuardados` stale porque su snapshot viene del cache del feed.
+ */
+function aplicarCambioGuardadoEnCache(
+  qc: QueryClient,
+  articuloId: string,
+  guardadoNuevo: boolean,
+  delta: 1 | -1,
+): void {
+  // Feed infinito — todas las queries con prefix `['marketplace', 'feed-infinito']`.
+  // Siempre devolvemos un objeto nuevo para forzar que TanStack Query notifique
+  // a los observers, incluso si el artículo está en una página y no en otra.
+  qc.setQueriesData<InfiniteData<RespuestaFeedInfinito>>(
+    { queryKey: ['marketplace', 'feed-infinito'] },
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        pages: old.pages.map((page) => ({
+          ...page,
+          articulos: page.articulos.map((a): ArticuloFeedInfinito =>
+            a.id === articuloId
+              ? {
+                  ...a,
+                  guardado: guardadoNuevo,
+                  totalGuardados: Math.max(0, a.totalGuardados + delta),
+                }
+              : a
+          ),
+        })),
+      };
+    },
+  );
+
+  // Detalle del artículo — exact match.
+  qc.setQueryData<ArticuloMarketplaceDetalle | null>(
+    queryKeys.marketplace.articulo(articuloId),
+    (old) => {
+      if (!old) return old;
+      return {
+        ...old,
+        totalGuardados: Math.max(0, old.totalGuardados + delta),
+      };
+    },
+  );
+
+  // Publicaciones del vendedor — todas las queries con prefix
+  // `['marketplace', 'vendedor', ..., 'publicaciones', ...]`.
+  qc.setQueriesData<PublicacionesDeVendedor>(
+    { queryKey: ['marketplace', 'vendedor'] },
+    (old) => {
+      if (!old || !Array.isArray(old.data)) return old;
+      return {
+        ...old,
+        data: old.data.map((a): ArticuloMarketplace =>
+          a.id === articuloId
+            ? {
+                ...a,
+                totalGuardados: Math.max(0, a.totalGuardados + delta),
+              }
+            : a
+        ),
+      };
+    },
+  );
 }
 
 // =============================================================================
@@ -178,6 +263,9 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
     const estadoAnterior = guardado;
     setGuardado(true);
     onGuardadoChange?.(true);
+    if (entityType === 'articulo_marketplace') {
+      aplicarCambioGuardadoEnCache(qc, entityId, true, +1);
+    }
 
     try {
       setLoading(true);
@@ -192,11 +280,14 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
 
     } catch (error: unknown) {
       console.error('❌ Error al agregar a guardados:', error);
-      
+
       // Reversión: volver al estado anterior
       setGuardado(estadoAnterior);
       onGuardadoChange?.(estadoAnterior);
-      
+      if (entityType === 'articulo_marketplace') {
+        aplicarCambioGuardadoEnCache(qc, entityId, estadoAnterior, -1);
+      }
+
       // Notificar error
       const axiosError = error as { response?: { status?: number } };
       if (axiosError.response?.status === 400) {
@@ -219,6 +310,9 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
     const estadoAnterior = guardado;
     setGuardado(false);
     onGuardadoChange?.(false);
+    if (entityType === 'articulo_marketplace') {
+      aplicarCambioGuardadoEnCache(qc, entityId, false, -1);
+    }
 
     try {
       setLoading(true);
@@ -230,11 +324,14 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
 
     } catch (error: unknown) {
       console.error('❌ Error al quitar de guardados:', error);
-      
+
       // Reversión: volver al estado anterior
       setGuardado(estadoAnterior);
       onGuardadoChange?.(estadoAnterior);
-      
+      if (entityType === 'articulo_marketplace') {
+        aplicarCambioGuardadoEnCache(qc, entityId, estadoAnterior, +1);
+      }
+
       // Notificar error
       const axiosError = error as { response?: { status?: number } };
       if (axiosError.response?.status === 404) {

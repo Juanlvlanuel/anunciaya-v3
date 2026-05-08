@@ -37,7 +37,7 @@ import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArtic
 import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
-import type { OrdenFeedInfinito, ArticuloFeedInfinito } from '../../../types/marketplace';
+import type { OrdenFeedInfinito } from '../../../types/marketplace';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
@@ -64,10 +64,12 @@ export function PaginaMarketplace() {
 
     // Modal de detalle del artículo (overlay tipo Facebook). Se abre al
     // hacer click en "Ver N preguntas más" desde la card del feed. Guardamos
-    // el artículo completo (no solo el id) para reusarlo dentro del modal sin
-    // refetch.
-    const [articuloModal, setArticuloModal] = useState<ArticuloFeedInfinito | null>(null);
-    const handleCerrarModal = useCallback(() => setArticuloModal(null), []);
+    // SOLO el id (no el snapshot) para que el modal derive el artículo desde
+    // el cache de React Query en cada render — así el corazón y el
+    // `totalGuardados` se mantienen sincronizados con el feed cuando el
+    // usuario hace toggle de guardado en cualquiera de los dos lados.
+    const [articuloModalId, setArticuloModalId] = useState<string | null>(null);
+    const handleCerrarModal = useCallback(() => setArticuloModalId(null), []);
 
     // ─── React Query ───────────────────────────────────────────────────────────
 
@@ -104,6 +106,18 @@ export function PaginaMarketplace() {
     const articulosFeed = useMemo(
         () => dataFeedInfinito?.pages.flatMap((p) => p.articulos) ?? [],
         [dataFeedInfinito]
+    );
+
+    // Artículo del modal — derivado del cache, no de un snapshot. Esto
+    // garantiza que cualquier optimistic update del feed (ej. toggle de
+    // guardado desde la card o desde dentro del modal) se refleja al
+    // instante en ambos lados.
+    const articuloModal = useMemo(
+        () =>
+            articuloModalId
+                ? articulosFeed.find((a) => a.id === articuloModalId) ?? null
+                : null,
+        [articuloModalId, articulosFeed]
     );
 
     // Reel: usa los primeros ~12 artículos recientes del feed infinito SOLO
@@ -635,7 +649,7 @@ export function PaginaMarketplace() {
                                 <CardArticuloFeed
                                     key={articulo.id}
                                     articulo={articulo}
-                                    onAbrirDetalle={() => setArticuloModal(articulo)}
+                                    onAbrirDetalle={() => setArticuloModalId(articulo.id)}
                                 />
                             ))}
 
@@ -775,15 +789,18 @@ export function PaginaMarketplace() {
                 style={{
                     transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
-                className={`fixed right-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30 hover:scale-105 lg:bottom-6 lg:right-6 ${
+                className={`fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 lg:bottom-6 lg:right-[330px] 2xl:right-[394px] ${
                     bottomNavVisible ? 'bottom-20' : 'bottom-4'
                 }`}
             >
-                <Plus
-                    className="h-6 w-6"
-                    strokeWidth={2.75}
-                    style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
-                />
+                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30 transition-transform hover:scale-105">
+                    <Plus
+                        className="h-6 w-6"
+                        strokeWidth={2.75}
+                        style={{ animation: 'fab-publicar-pulse 2.4s ease-in-out infinite' }}
+                    />
+                </span>
+                <span className="hidden lg:inline text-base font-bold text-slate-700">Publicar</span>
                 <style>{`
                     @keyframes fab-publicar-pulse {
                         0%, 100% { transform: rotate(0deg) scale(1); }

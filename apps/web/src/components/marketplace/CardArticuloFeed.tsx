@@ -146,13 +146,11 @@ export function CardArticuloFeed({
         initialGuardado: articulo.guardado,
     });
 
-    // Captura el estado inicial de `guardado` para calcular el delta cuando
-    // el usuario alterna en esta sesión. Así la métrica social de "guardaron"
-    // se actualiza en tiempo real sin esperar al refetch del feed.
-    const guardadoInicialRef = useRef(guardado);
-    const deltaGuardados =
-        (guardado ? 1 : 0) - (guardadoInicialRef.current ? 1 : 0);
-    const totalGuardadosLocal = Math.max(0, articulo.totalGuardados + deltaGuardados);
+    // `articulo.totalGuardados` ya viene actualizado del cache de React Query:
+    // `useGuardados` aplica el optimistic update sobre el feed/detalle/perfil
+    // del vendedor, así que cualquier render derivado (incluido el modal
+    // estilo Facebook) ve el conteo correcto sin lógica local de delta.
+    const totalGuardadosLocal = articulo.totalGuardados;
 
     const crearPregunta = useCrearPregunta();
     const editarPregunta = useEditarPreguntaPropia();
