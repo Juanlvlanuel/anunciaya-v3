@@ -26,6 +26,7 @@ import { ReactNode, useEffect, useCallback, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 import { usePortalTarget } from '../../hooks/usePortalTarget';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 // =============================================================================
 // TIPOS
@@ -129,6 +130,17 @@ export function Modal({
       onCerrar();
     }, 200);
   }, [onCerrar]);
+
+  // Back nativo del celular / swipe iOS / flecha atrás del navegador.
+  // El hook empuja una entrada al history al abrir y la consume al
+  // cerrar, llamando a `handleCerrar` (con animación) cuando el usuario
+  // hace back. Discriminador `'_modalUI'` para no chocar con otros
+  // overlays anidados (ChatYA, ScanYA, modales especiales).
+  useBackNativo({
+    abierto: abierto && !cerrando,
+    onCerrar: handleCerrar,
+    discriminador: '_modalUI',
+  });
 
   // Manejar tecla Escape
   const handleEscape = useCallback(

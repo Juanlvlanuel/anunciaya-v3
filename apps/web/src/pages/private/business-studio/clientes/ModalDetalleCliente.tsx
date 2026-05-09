@@ -12,7 +12,7 @@
  *   - Últimas transacciones: 5 más recientes + botón "Ver historial completo"
  */
 
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../../../hooks/useNavegarASeccion';
 import {
   User,
   Phone,
@@ -196,7 +196,10 @@ export default function ModalDetalleCliente({
   clienteId: string | null;
   onVerHistorial?: (nombre: string) => void;
 }) {
-  const navigate = useNavigate();
+  // Para "Ver historial completo" → /business-studio/transacciones:
+  // detecta el salto entre módulos hermanos de BS y aplica replace, así
+  // el back nativo desde /transacciones regresa a /inicio (no a /clientes).
+  const navegarASeccion = useNavegarASeccion();
 
   // ─── Queries — React Query fetcha automáticamente al cambiar clienteId ────
   const detalleQuery = useClienteDetalle(clienteId);
@@ -217,14 +220,19 @@ export default function ModalDetalleCliente({
     onCerrar();
   };
 
-  // Navegar a transacciones filtradas
+  // Navegar a transacciones filtradas.
+  // `handleCerrar` hace `history.back()` síncrono (limpia la entrada
+  // empujada por ModalBottom), y luego `navegarASeccion` detecta el salto
+  // entre módulos hermanos de BS (/clientes → /transacciones) y aplica
+  // replace. Resultado: stack queda `[/inicio, /transacciones]` y el back
+  // nativo del celular regresa a /inicio en lugar de a /clientes.
   const handleVerHistorial = () => {
     if (clienteDetalle?.nombre) {
       if (onVerHistorial) {
         onVerHistorial(clienteDetalle.nombre);
       } else {
         handleCerrar();
-        navigate(`/business-studio/transacciones?busqueda=${encodeURIComponent(clienteDetalle.nombre)}`);
+        navegarASeccion(`/business-studio/transacciones?busqueda=${encodeURIComponent(clienteDetalle.nombre)}`);
       }
     }
   };

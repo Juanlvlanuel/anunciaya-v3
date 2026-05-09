@@ -774,6 +774,12 @@ async function insertarMensajeContextoMarketplace(
                 precio: art.precio,
                 condicion: art.condicion,
                 fotoUrl,
+                // `iniciadorId` permite al frontend alinear la card del lado
+                // de quien inició el contexto: a la derecha si soy yo (igual
+                // que mis propios mensajes), a la izquierda si fue el otro.
+                // Sin esto el render queda centrado por defecto (datos viejos
+                // de antes del 8 mayo 2026).
+                iniciadorId,
             });
             previewTexto = `Sobre: ${art.titulo}`.substring(0, 100);
         } else if (contextoTipo === 'vendedor_marketplace') {
@@ -787,6 +793,7 @@ async function insertarMensajeContextoMarketplace(
             contenido = JSON.stringify({
                 subtipo: 'contacto_perfil',
                 iniciadorNombre: nombreIniciador,
+                iniciadorId,
             });
             previewTexto = 'Conversación iniciada desde el perfil';
         }

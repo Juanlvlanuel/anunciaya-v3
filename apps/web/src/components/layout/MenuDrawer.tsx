@@ -21,6 +21,7 @@
  */
 
 import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useEffect } from 'react';
 import {
   X,
@@ -67,6 +68,9 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // Hooks
   // ---------------------------------------------------------------------------
   const navigate = useNavigate();
+  // Para navegación entre secciones top-level (replace cuando NO venimos
+  // de /inicio para evitar acumular historial entre hermanas).
+  const navegarASeccion = useNavegarASeccion();
 
   // ---------------------------------------------------------------------------
   // Effect: Bloquear scroll del body cuando el drawer está abierto
@@ -104,7 +108,10 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // Handlers
   // ---------------------------------------------------------------------------
   const handleNavegar = (ruta: string) => {
-    navigate(ruta);
+    // Usa el hook para que las secciones top-level (negocios, ofertas,
+    // cardya, etc.) hagan replace en lugar de push y el back regrese a
+    // /inicio. Subrutas y otras navegaciones siguen con push normal.
+    navegarASeccion(ruta);
     onClose();
   };
 

@@ -14,6 +14,7 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
   Search,
   MapPin,
@@ -224,6 +225,9 @@ function DropdownItem({
 export const Navbar = () => {
   const location = useLocation();
   const navigate = useNavigate();
+  // Navegación entre secciones top-level: usa replace cuando NO venimos
+  // de /inicio para evitar acumular historial entre secciones hermanas.
+  const navegarASeccion = useNavegarASeccion();
 
   // ─────────────────────────────────────────────────────────────────────────────
   // ESTADO LOCAL Y REFS
@@ -354,14 +358,16 @@ export const Navbar = () => {
   const navegarModuloAnterior = () => {
     const indiceActual = obtenerIndiceModuloActual();
     if (indiceActual > 0) {
-      navigate(modulosNavegables[indiceActual - 1].ruta);
+      // Replace entre módulos hermanos de BS para que el back nativo
+      // regrese a /inicio en lugar de saltar al módulo previo.
+      navegarASeccion(modulosNavegables[indiceActual - 1].ruta);
     }
   };
 
   const navegarModuloSiguiente = () => {
     const indiceActual = obtenerIndiceModuloActual();
     if (indiceActual >= 0 && indiceActual < modulosNavegables.length - 1) {
-      navigate(modulosNavegables[indiceActual + 1].ruta);
+      navegarASeccion(modulosNavegables[indiceActual + 1].ruta);
     }
   };
 
@@ -490,8 +496,11 @@ export const Navbar = () => {
         >
           <div className="flex items-center justify-between h-full gap-3">
 
-            {/* ===== LOGO ===== */}
-            <Link to="/inicio" className="flex items-center shrink-0 relative group">
+            {/* ===== LOGO =====
+                replace cuando NO venimos de /inicio: el logo es atajo al
+                home, no debe acumular historial entre secciones. Si el user
+                ya está en /inicio, el replace es no-op. */}
+            <Link to="/inicio" replace={location.pathname !== '/inicio'} className="flex items-center shrink-0 relative group">
               <img
                 src="/logo-anunciaya-azul.webp"
                 alt="AnunciaYA"
@@ -689,6 +698,11 @@ export const Navbar = () => {
 
                         <Link
                           to={item.path}
+                          // Tabs del navbar son secciones top-level: replace
+                          // cuando NO venimos de /inicio, así el back desde
+                          // cualquier sección regresa al inicio en lugar de
+                          // navegar entre hermanas. Ver useNavegarASeccion.
+                          replace={location.pathname !== '/inicio'}
                           onMouseEnter={item.id === 'negocios' ? prefetchListaNegocios : undefined}
                           className={`
                             flex items-center gap-1 lg:gap-1.5 2xl:gap-2
@@ -1028,7 +1042,7 @@ export const Navbar = () => {
                             iconColor="text-white"
                             hoverGradient="hover:from-purple-50"
                             onClick={() => {
-                              navigate('/mis-publicaciones');
+                              navegarASeccion('/mis-publicaciones');
                               setDropdownAbierto(false);
                             }}
                           />
@@ -1044,7 +1058,7 @@ export const Navbar = () => {
                         iconColor="text-white"
                         hoverGradient="hover:from-pink-50"
                         onClick={() => {
-                          navigate('/guardados');
+                          navegarASeccion('/guardados');
                           setDropdownAbierto(false);
                         }}
                       />
@@ -1058,7 +1072,7 @@ export const Navbar = () => {
                         iconColor="text-white"
                         hoverGradient="hover:from-blue-50"
                         onClick={() => {
-                          navigate('/perfil');
+                          navegarASeccion('/perfil');
                           setDropdownAbierto(false);
                         }}
                       />

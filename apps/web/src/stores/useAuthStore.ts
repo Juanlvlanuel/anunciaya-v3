@@ -1058,10 +1058,27 @@ export function iniciarSincronizacionTokens(): () => void {
       const nuevoRefreshToken = obtenerDeStorage(STORAGE_KEYS.refreshToken);
       const nuevoUsuarioStr = obtenerDeStorage(STORAGE_KEYS.usuario);
 
-      // Si se borraron los tokens (logout en otra pestaña)
+      // Si se borraron los tokens (logout en otra pestaña).
+      //
+      // SOLO desloguear si esta pestaña YA tenía sesión activa. Sin esta
+      // guarda, se dispara un ciclo destructivo cuando hay 2 pestañas
+      // abiertas en `/` (sin sesión) y una hace login:
+      //
+      //  1. Pestaña A escribe `ay_access_token` → storage event en B.
+      //  2. Pestaña B lee `ay_refresh_token` → todavía no escrito → null.
+      //  3. Pestaña B (sin sesión) interpreta "logout en otra pestaña"
+      //     y dispara `logout()` que BORRA los tokens recién escritos.
+      //  4. Pestaña A recibe el event de borrado → también logout.
+      //  5. Ambas terminan sin sesión.
+      //
+      // Con la guarda, una pestaña que NO estaba logueada ignora el event
+      // (no hay sesión que cerrar), y cuando llega el segundo event con
+      // ambos tokens completos sincroniza correctamente.
       if (!nuevoAccessToken || !nuevoRefreshToken) {
-        console.log('🚪 Logout detectado en otra pestaña');
-        state.logout('sesion_expirada');
+        if (state.usuario || state.accessToken) {
+          console.log('🚪 Logout detectado en otra pestaña');
+          state.logout('sesion_expirada');
+        }
         return;
       }
 

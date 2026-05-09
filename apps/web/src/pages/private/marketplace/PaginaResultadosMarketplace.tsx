@@ -25,6 +25,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { ChevronLeft, SlidersHorizontal, X, Search, ChevronDown } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
@@ -48,6 +49,8 @@ const ORDENES = [
 
 export function PaginaResultadosMarketplace() {
     const navigate = useNavigate();
+    // Botón ← respeta historial (flecha nativa móvil) con fallback a /marketplace.
+    const handleVolver = useVolverAtras('/marketplace');
     const ciudad = useGpsStore((s) => s.ciudad?.nombre ?? null);
     const lat = useGpsStore((s) => s.latitud);
     const lng = useGpsStore((s) => s.longitud);
@@ -155,7 +158,7 @@ export function PaginaResultadosMarketplace() {
                     <div className="flex items-center gap-2 px-3 py-3">
                         <button
                             data-testid="btn-volver-resultados"
-                            onClick={() => navigate('/marketplace')}
+                            onClick={handleVolver}
                             aria-label="Volver al MarketPlace"
                             className="flex h-10 w-10 cursor-pointer shrink-0 items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
                         >

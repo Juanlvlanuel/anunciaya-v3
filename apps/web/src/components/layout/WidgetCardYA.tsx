@@ -12,6 +12,7 @@
 
 import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { Wallet } from 'lucide-react';
 import { useCardYABilleteras } from '../../hooks/queries/useCardYA';
 
@@ -189,6 +190,8 @@ interface WidgetCardYAProps {
 
 export function WidgetCardYA({ dark = false }: WidgetCardYAProps) {
   const navigate = useNavigate();
+  // Para "Ver mis billeteras" → /cardya: replace si NO venimos de /inicio.
+  const navegarASeccion = useNavegarASeccion();
 
   const { data: billeteras = [] } = useCardYABilleteras();
   const negociosActivos = billeteras.length;
@@ -222,7 +225,7 @@ export function WidgetCardYA({ dark = false }: WidgetCardYAProps) {
   }, []);
 
   const handleVerBilleteras = () => {
-    navigate('/cardya');
+    navegarASeccion('/cardya');
   };
 
   const bubbleClass = dark ? 'cardya-bubble-dark' : 'cardya-bubble-light';

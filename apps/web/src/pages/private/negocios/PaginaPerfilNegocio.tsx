@@ -16,6 +16,7 @@
  */
 
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useRef, useState, useEffect } from 'react';
 import {
     ArrowLeft,
@@ -767,7 +768,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     // HANDLERS
     // =============================================================================
 
-    const handleVolver = () => navigate('/negocios');
+    // Botón ← respeta historial (flecha nativa móvil) con fallback a /negocios.
+    const handleVolver = useVolverAtras('/negocios');
 
     const handleWhatsApp = () => {
         if (negocio?.whatsapp) {

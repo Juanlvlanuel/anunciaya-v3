@@ -28,6 +28,7 @@ import {
 } from 'lucide-react';
 import type { LucideIcon } from 'lucide-react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -162,6 +163,9 @@ export function MobileHeader() {
   // Location
   const location = useLocation();
   const navigate = useNavigate();
+  // Navegación entre módulos hermanos de BS: replace para que back
+  // nativo regrese a /inicio.
+  const navegarASeccion = useNavegarASeccion();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
   const seccionActiva = detectarSeccion(location.pathname);
 
@@ -247,14 +251,15 @@ export function MobileHeader() {
   const navegarModuloAnterior = () => {
     const indiceActual = obtenerIndiceModuloActual();
     if (indiceActual > 0) {
-      navigate(modulosFiltrados[indiceActual - 1].ruta);
+      // Replace entre módulos hermanos de BS — back nativo va a /inicio.
+      navegarASeccion(modulosFiltrados[indiceActual - 1].ruta);
     }
   };
 
   const navegarModuloSiguiente = () => {
     const indiceActual = obtenerIndiceModuloActual();
     if (indiceActual >= 0 && indiceActual < modulosFiltrados.length - 1) {
-      navigate(modulosFiltrados[indiceActual + 1].ruta);
+      navegarASeccion(modulosFiltrados[indiceActual + 1].ruta);
     }
   };
 
@@ -352,7 +357,9 @@ export function MobileHeader() {
               {/* ===== MODO NORMAL: Logo + Iconos ===== */}
               {/* === Lado Izquierdo: Logo === */}
               <div className="flex items-center">
-                <Link to="/inicio" className="flex items-center shrink-0">
+                {/* replace cuando NO venimos de /inicio: el logo es atajo
+                    al home, no debe acumular historial entre secciones. */}
+                <Link to="/inicio" replace={location.pathname !== '/inicio'} className="flex items-center shrink-0">
                   <img
                     src="/logo-anunciaya-azul.webp"
                     alt="AnunciaYA"

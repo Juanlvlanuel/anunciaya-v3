@@ -25,6 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { ShoppingCart, Plus, MapPin, AlertCircle, ChevronLeft, Search, Menu, X, Sparkles, CornerRightDown, Loader2, Bell } from 'lucide-react';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
@@ -153,7 +154,8 @@ export function PaginaMarketplace() {
     const handlePublicar = () => {
         navigate('/marketplace/publicar');
     };
-    const handleVolver = () => navigate('/inicio');
+    // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
+    const handleVolver = useVolverAtras('/inicio');
     const handleAbrirBuscadorMovil = () => {
         // No llamar a abrirBuscador() aquí: el overlay del store debe aparecer
         // solo cuando el usuario empiece a escribir (query.length >= 1).
@@ -432,8 +434,17 @@ export function PaginaMarketplace() {
                                 centro · KPI compacto + Publicar derecha. */}
                             <div className="hidden lg:block">
                                 <div className="flex items-center justify-between gap-4 px-6 py-4 2xl:px-8 2xl:py-5">
-                                    {/* Izquierda: Logo + título */}
+                                    {/* Izquierda: flecha + logo + título (agrupados) */}
                                     <div className="flex shrink-0 items-center gap-3">
+                                        {/* Flecha ← regresar al inicio (solo desktop) */}
+                                        <button
+                                            data-testid="btn-volver-marketplace-desktop"
+                                            onClick={handleVolver}
+                                            aria-label="Volver al inicio"
+                                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-white/50 hover:bg-white/10 hover:text-white cursor-pointer"
+                                        >
+                                            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                        </button>
                                         <div
                                             className="flex h-11 w-11 items-center justify-center rounded-lg 2xl:h-12 2xl:w-12"
                                             style={{

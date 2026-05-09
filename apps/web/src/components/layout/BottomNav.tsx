@@ -160,8 +160,12 @@ export function BottomNav() {
           <div className="relative px-1 pt-0 -mb-1">
             <div className="flex justify-around items-center">
               {/* Items izquierda */}
+              {/* Todos los destinos del BottomNav son secciones top-level.
+                  Aplicamos `replace` cuando NO venimos de `/inicio` para que
+                  el back siempre regrese al inicio en lugar de ir saltando
+                  entre secciones hermanas. Ver `useNavegarASeccion`. */}
               {(esComercial ? NAV_ITEMS_LEFT_COMERCIAL : NAV_ITEMS_LEFT_PERSONAL).map((item) => (
-                <NavButton key={item.to} item={item} />
+                <NavButton key={item.to} item={item} replace={location.pathname !== '/inicio'} />
               ))}
 
               {/* Botón central: ChatYA (menos elevado para no cortarse) */}
@@ -195,9 +199,9 @@ export function BottomNav() {
                 </button>
               </div>
 
-              {/* Items derecha */}
+              {/* Items derecha — mismo patrón replace que items izquierda. */}
               {(esComercial ? NAV_ITEMS_RIGHT_COMERCIAL : NAV_ITEMS_RIGHT_PERSONAL).map((item) => (
-                <NavButton key={item.to} item={item} />
+                <NavButton key={item.to} item={item} replace={location.pathname !== '/inicio'} />
               ))}
             </div>
           </div>
@@ -213,12 +217,17 @@ export function BottomNav() {
 
 interface NavButtonProps {
   item: NavItem;
+  /** Si `true`, NavLink usa `history.replace` en lugar de `push` — evita
+   *  acumular historial entre secciones top-level (todas hermanas en
+   *  jerarquía conceptual). Calculado por el padre según `pathname`. */
+  replace?: boolean;
 }
 
-function NavButton({ item }: NavButtonProps) {
+function NavButton({ item, replace = false }: NavButtonProps) {
   return (
     <NavLink
       to={item.to}
+      replace={replace}
       className={({ isActive }) =>
         `relative flex flex-col items-center gap-0 px-3 py-1.5 rounded-lg transition-all duration-200 active:scale-90 ${isActive
           ? 'text-white'

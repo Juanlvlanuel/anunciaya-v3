@@ -90,6 +90,9 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                 precio: articulo.precio,
                 condicion: articulo.condicion,
                 fotoUrl,
+                // Permite al render alinear la card del lado del iniciador
+                // (yo, en este caso). Ver `MensajeSistema` en BurbujaMensaje.
+                iniciadorId: usuarioActual.id,
             }),
             estado: 'enviado',
             editado: false,

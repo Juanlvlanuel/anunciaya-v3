@@ -33,6 +33,8 @@ import {
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { useNavigate } from 'react-router-dom';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
 import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado';
 import { useQueryClient } from '@tanstack/react-query';
@@ -95,6 +97,8 @@ interface NegocioSeguido {
 
 export function PaginaGuardados() {
     const navigate = useNavigate();
+    // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
+    const handleVolver = useVolverAtras('/inicio');
     const qc = useQueryClient();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
@@ -365,7 +369,7 @@ export function PaginaGuardados() {
                                     <div className="flex items-center gap-1.5 shrink-0">
                                         <button
                                             data-testid="btn-volver-guardados"
-                                            onClick={() => navigate('/inicio')}
+                                            onClick={handleVolver}
                                             className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
                                         >
                                             <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
@@ -422,8 +426,18 @@ export function PaginaGuardados() {
                             {/* ══ DESKTOP HEADER ══ */}
                             <div className="hidden lg:block">
                                 <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
-                                    {/* Logo */}
+                                    {/* Bloque izquierdo: flecha + logo + título (agrupados) */}
                                     <div className="flex items-center gap-3 shrink-0">
+                                        {/* Flecha ← regresar al inicio (solo desktop) */}
+                                        <button
+                                            data-testid="btn-volver-guardados-desktop"
+                                            onClick={handleVolver}
+                                            aria-label="Volver al inicio"
+                                            className="w-9 h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                                        >
+                                            <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                                        </button>
+                                        {/* Logo */}
                                         <div
                                             className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
                                             style={{ background: 'linear-gradient(135deg, #f43f5e, #e11d48)' }}
@@ -686,6 +700,9 @@ function ContenidoOfertas({
     idsSeleccionados,
 }: ContenidoOfertasProps) {
     const navigate = useNavigate();
+    // CTA del empty state lleva a /ofertas (sección top-level): replace si
+    // NO venimos de /inicio para no acumular historial.
+    const navegarASeccion = useNavegarASeccion();
 
     // Empty state (solo si no está cargando O si terminó de cargar y está vacío)
     if (!loading && ofertas.length === 0) {
@@ -704,7 +721,7 @@ function ContenidoOfertas({
                 </p>
 
                 <button
-                    onClick={() => navigate('/ofertas')}
+                    onClick={() => navegarASeccion('/ofertas')}
                     className="inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Ver Ofertas
@@ -776,6 +793,9 @@ function ContenidoNegocios({
     idsSeleccionados,
 }: ContenidoNegociosProps) {
     const navigate = useNavigate();
+    // CTA del empty state lleva a /negocios (sección top-level): replace
+    // si NO venimos de /inicio para no acumular historial.
+    const navegarASeccion = useNavegarASeccion();
 
     // Empty state (solo si no está cargando O si terminó de cargar y está vacío)
     if (!loading && negocios.length === 0) {
@@ -794,7 +814,7 @@ function ContenidoNegocios({
                 </p>
 
                 <button
-                    onClick={() => navigate('/negocios')}
+                    onClick={() => navegarASeccion('/negocios')}
                     className="inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Explorar Negocios

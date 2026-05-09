@@ -15,6 +15,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
   LayoutDashboard,
   User,
@@ -103,6 +104,10 @@ const opcionesMenu = [
 export function MenuBusinessStudio() {
   const location = useLocation();
   const navigate = useNavigate();
+  // Navegación entre módulos hermanos de BS: aplica replace para que el
+  // back nativo desde cualquier módulo regrese a /inicio (no a otro
+  // módulo). Ver useNavegarASeccion.
+  const navegarASeccion = useNavegarASeccion();
 
   // Detectar si es gerente
   const usuario = useAuthStore((s) => s.usuario);
@@ -190,7 +195,7 @@ export function MenuBusinessStudio() {
         case 'Enter':
           if (indiceFocused >= 0) {
             e.preventDefault();
-            navigate(opcionesFiltradas[indiceFocused].ruta);
+            navegarASeccion(opcionesFiltradas[indiceFocused].ruta);
           }
           break;
       }
@@ -198,7 +203,7 @@ export function MenuBusinessStudio() {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [indiceFocused, navigate, indiceActivo]);
+  }, [indiceFocused, navegarASeccion, indiceActivo]);
 
   // Resetear foco cuando cambia la ruta
   useEffect(() => {
@@ -218,7 +223,7 @@ export function MenuBusinessStudio() {
             <button
               key={opcion.id}
               ref={(el) => { botonesRef.current[index] = el; }}
-              onClick={() => navigate(opcion.ruta)}
+              onClick={() => navegarASeccion(opcion.ruta)}
               onFocus={() => setIndiceFocused(index)}
               onMouseEnter={() => setIndiceFocused(index)}
               role="menuitem"

@@ -12,6 +12,7 @@
 import { useEffect, useRef, useCallback } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
+import { useNavegarASeccion } from './useNavegarASeccion';
 
 // =============================================================================
 // MÓDULOS BS (mismo orden que MobileHeader)
@@ -49,6 +50,9 @@ const BOUNCE_DURATION = 300;     // ms de la animación bounce
 export function useSwipeNavegacionBS(elementRef: React.RefObject<HTMLElement | null>) {
   const location = useLocation();
   const navigate = useNavigate();
+  // Swipe entre módulos hermanos de BS: replace para que back nativo
+  // regrese a /inicio en lugar de saltar al módulo previo.
+  const navegarASeccion = useNavegarASeccion();
 
   const usuario = useAuthStore((s) => s.usuario);
   const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
@@ -154,14 +158,14 @@ export function useSwipeNavegacionBS(elementRef: React.RefObject<HTMLElement | n
       if (deltaX < 0) {
         // Swipe izquierda → módulo siguiente
         if (indice < modulosFiltrados.length - 1) {
-          navigate(modulosFiltrados[indice + 1].ruta);
+          navegarASeccion(modulosFiltrados[indice + 1].ruta);
         } else {
           aplicarBounce('izquierda');
         }
       } else {
         // Swipe derecha → módulo anterior
         if (indice > 0) {
-          navigate(modulosFiltrados[indice - 1].ruta);
+          navegarASeccion(modulosFiltrados[indice - 1].ruta);
         } else {
           aplicarBounce('derecha');
         }
@@ -181,5 +185,5 @@ export function useSwipeNavegacionBS(elementRef: React.RefObject<HTMLElement | n
       el.removeEventListener('touchend', onTouchEnd);
       el.removeEventListener('touchcancel', onTouchCancel);
     };
-  }, [elementRef, esBusinessStudio, modulosFiltrados, obtenerIndice, navigate, aplicarBounce]);
+  }, [elementRef, esBusinessStudio, modulosFiltrados, obtenerIndice, navegarASeccion, aplicarBounce]);
 }

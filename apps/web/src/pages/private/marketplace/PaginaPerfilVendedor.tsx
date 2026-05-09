@@ -42,7 +42,8 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate, useParams, useLocation } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import {
     ChevronLeft,
     UserPlus,
@@ -118,7 +119,6 @@ function aFeed(a: ArticuloMarketplace): ArticuloFeed {
 export function PaginaPerfilVendedor() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
-    const location = useLocation();
     const usuarioActual = useAuthStore((s) => s.usuario);
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
     const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
@@ -181,20 +181,10 @@ export function PaginaPerfilVendedor() {
             (b) => b.tipo === 'usuario' && b.bloqueadoId === usuarioId,
         );
 
-    // El botón ← respeta el historial real del browser (igual que la flecha
-    // nativa del celular y el gesto de swipe iOS). Solo cuando NO hay historial
-    // interno (entrada por URL directa, refresh, link compartido), cae a un
-    // fallback explícito al feed del marketplace.
-    //
-    // `location.key === 'default'` detecta la primera location de la sesión:
-    // las navegaciones internas posteriores generan keys únicos.
-    const handleVolver = () => {
-        if (location.key !== 'default') {
-            navigate(-1);
-        } else {
-            navigate('/marketplace');
-        }
-    };
+    // Botón ← centralizado en el hook `useVolverAtras` — respeta historial
+    // interno (idéntico a flecha nativa) con fallback a `/marketplace`
+    // cuando se entra por URL directa.
+    const handleVolver = useVolverAtras('/marketplace');
 
     const handleToggleBloqueo = async () => {
         if (!perfil || !usuarioActual || accionBloqueoEnCurso) return;

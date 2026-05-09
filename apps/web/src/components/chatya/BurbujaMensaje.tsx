@@ -129,6 +129,15 @@ const iconoPinBurbuja = L.divIcon({
 
 interface MensajeSistemaProps {
   contenidoRaw: string;
+  /**
+   * Id del usuario actual. Cuando coincide con `iniciadorId` del JSON, la
+   * card/pill se alinea a la derecha en desktop (igual que mis propios
+   * mensajes). Si no, se alinea a la izquierda (lado del otro). En móvil
+   * siempre va centrada — más legible en pantallas pequeñas.
+   * Si falta `iniciadorId` (datos de antes del 8 mayo 2026 que no lo
+   * incluían), se mantiene centrado en todas las resoluciones.
+   */
+  miId?: string | null;
 }
 
 interface SistemaArticuloMP {
@@ -138,11 +147,13 @@ interface SistemaArticuloMP {
   precio: string | number;
   condicion: string;
   fotoUrl: string | null;
+  iniciadorId?: string;
 }
 
 interface SistemaContactoPerfil {
   subtipo: 'contacto_perfil';
   iniciadorNombre: string;
+  iniciadorId?: string;
 }
 
 type DatosSistema = SistemaArticuloMP | SistemaContactoPerfil | { subtipo?: string };
@@ -177,8 +188,22 @@ function formatearPrecioMP(valor: string | number): string {
   }).format(num);
 }
 
-function MensajeSistema({ contenidoRaw }: MensajeSistemaProps) {
+function MensajeSistema({ contenidoRaw, miId }: MensajeSistemaProps) {
   const datos = parsearContenidoSistema(contenidoRaw);
+
+  // Alineación según iniciador del contexto:
+  //  - Móvil: siempre centrado.
+  //  - Desktop: derecha si yo inicié (igual que mis mensajes propios),
+  //    izquierda si fue el otro (igual que mensajes recibidos), centrado
+  //    si el JSON no trae `iniciadorId` (mensajes legacy de antes del
+  //    8 mayo 2026).
+  const iniciadorId = (datos as { iniciadorId?: string } | null)?.iniciadorId;
+  const justify =
+    !iniciadorId
+      ? 'justify-center'
+      : iniciadorId === miId
+        ? 'justify-center lg:justify-end'
+        : 'justify-center lg:justify-start';
 
   // ── Subtipo: card de artículo de MarketPlace ─────────────────────────────
   if (datos && (datos as SistemaArticuloMP).subtipo === 'articulo_marketplace') {
@@ -205,7 +230,7 @@ function MensajeSistema({ contenidoRaw }: MensajeSistemaProps) {
       );
     };
     return (
-      <div className="flex w-full justify-center my-1">
+      <div className={`flex w-full my-1 ${justify}`}>
         <button
           type="button"
           data-testid={`mensaje-sistema-articulo-${d.articuloId}`}
@@ -254,7 +279,7 @@ function MensajeSistema({ contenidoRaw }: MensajeSistemaProps) {
   if (datos && (datos as SistemaContactoPerfil).subtipo === 'contacto_perfil') {
     const d = datos as SistemaContactoPerfil;
     return (
-      <div className="flex w-full justify-center my-1">
+      <div className={`flex w-full my-1 ${justify}`}>
         <span className="rounded-full bg-white/85 px-3 py-1 text-sm font-semibold text-slate-700 shadow-sm backdrop-blur-sm">
           {d.iniciadorNombre} inició la conversación desde tu perfil
         </span>
@@ -1208,16 +1233,18 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
   }
 
   // ── Mensajes del sistema (contexto de MarketPlace, etc.) ──────────────────
-  // Render dedicado: centrado, sin avatar, sin reacciones, sin menú
-  // contextual, sin swipe-to-reply. El `MensajeSistema` parsea el JSON de
-  // `contenido` y elige el render según `subtipo`.
+  // Render dedicado: sin avatar, sin reacciones, sin menú contextual, sin
+  // swipe-to-reply. El `MensajeSistema` parsea el JSON de `contenido` y
+  // elige el render según `subtipo`. Se le pasa `miId` para que pueda
+  // alinear la card del lado del iniciador del contexto en desktop
+  // (derecha si yo, izquierda si el otro).
   if (mensaje.tipo === 'sistema') {
     return (
       <div
         data-testid={`mensaje-${mensaje.id}`}
         className="w-full"
       >
-        <MensajeSistema contenidoRaw={mensaje.contenido} />
+        <MensajeSistema contenidoRaw={mensaje.contenido} miId={miId} />
       </div>
     );
   }

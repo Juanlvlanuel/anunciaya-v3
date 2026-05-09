@@ -740,6 +740,9 @@ function FooterLanding() {
 export default function PaginaLanding() {
     const navigate = useNavigate();
     const { loginExitoso, setDatosGooglePendiente } = useAuthStore();
+    const usuarioAutenticado = useAuthStore((s) => s.usuario);
+    const accessTokenAutenticado = useAuthStore((s) => s.accessToken);
+    const hidratado = useAuthStore((s) => s.hidratado);
     const { cerrarModalLogin, abrirModal2FA, abrirModalLogin } = useUiStore();
 
     // Altura visible real del viewport (descuenta barra del navegador en móvil)
@@ -747,6 +750,23 @@ export default function PaginaLanding() {
         document.documentElement.style.setProperty('--altura-visible', `${window.innerHeight}px`);
         return () => { document.documentElement.style.removeProperty('--altura-visible'); };
     }, []);
+
+    // Redirigir a /inicio si ya hay sesión activa.
+    //
+    // Cubre dos escenarios:
+    //  1. Login en otra pestaña → storage event sincroniza tokens en esta
+    //     pestaña → este effect detecta `usuario && accessToken` y redirige.
+    //  2. Refresh en pestaña con tokens en localStorage → hidratarAuth
+    //     reconstruye el state → este effect redirige a /inicio.
+    //
+    // Sin esto, una pestaña secundaria que recibe la sincronización de
+    // sesión queda mostrando la landing pública aunque internamente sí
+    // está autenticada.
+    useEffect(() => {
+        if (hidratado && usuarioAutenticado && accessTokenAutenticado) {
+            navigate('/inicio', { replace: true });
+        }
+    }, [hidratado, usuarioAutenticado, accessTokenAutenticado, navigate]);
 
     // =========================================================================
     // GOOGLE OAUTH — Flujo completo (3 casos)

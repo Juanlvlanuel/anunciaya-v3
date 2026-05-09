@@ -10,6 +10,7 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { Ticket, Store, Calendar, Gift, Timer, ChevronRight } from 'lucide-react';
 import { useMisCuponesLista } from '../../hooks/queries/useMisCupones';
 import type { TemaColumna } from './ColumnaIzquierda';
@@ -70,6 +71,9 @@ function textoTiempo(dias: number): string {
 export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
     const location = useLocation();
     const navigate = useNavigate();
+    // Para navegar a /mis-cupones (sección top-level): replace si NO
+    // venimos de /inicio (en /inicio el push es OK).
+    const navegarASeccion = useNavegarASeccion();
     const { data: cupones = [] } = useMisCuponesLista();
     const scrollRef = useRef<HTMLDivElement>(null);
     const [, setIndiceActivo] = useState(0);
@@ -97,7 +101,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
             {/* Botón Mis Cupones — siempre visible */}
             <button
                 data-testid="btn-mis-cupones"
-                onClick={() => navigate('/mis-cupones')}
+                onClick={() => navegarASeccion('/mis-cupones')}
                 className={`w-full flex items-center gap-3 px-4 py-3 lg:py-2.5 2xl:py-3 cursor-pointer
                          border-l-4 border-l-transparent ${tema.listHoverBg} ${tema.listHoverBorder}`}
             >
@@ -131,7 +135,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
                                 <div key={cupon.cuponId} className="w-full shrink-0 snap-center">
                                     <button
                                         data-testid={`carousel-cupon-${cupon.cuponId}`}
-                                        onClick={() => navigate('/mis-cupones')}
+                                        onClick={() => navegarASeccion('/mis-cupones')}
                                         className="w-full bg-white rounded-xl overflow-hidden flex flex-col cursor-pointer shadow-md"
                                         style={{ border: '1px solid #e2e8f0' }}
                                     >

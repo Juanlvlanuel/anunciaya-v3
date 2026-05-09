@@ -13,6 +13,7 @@
 
 import { createPortal } from 'react-dom';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
     X,
     LayoutDashboard,
@@ -85,6 +86,9 @@ const opcionesMenu = [
 export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudioProps) {
     const location = useLocation();
     const navigate = useNavigate();
+    // Navegación entre módulos hermanos de BS: replace para que el back
+    // nativo regrese a /inicio en lugar de saltar entre módulos.
+    const navegarASeccion = useNavegarASeccion();
 
     // Detectar si es gerente
     const usuario = useAuthStore((s) => s.usuario);
@@ -107,7 +111,7 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
 
     // Handler de navegación
     const handleNavegar = (ruta: string) => {
-        navigate(ruta);
+        navegarASeccion(ruta);
         onCerrar();
     };
 

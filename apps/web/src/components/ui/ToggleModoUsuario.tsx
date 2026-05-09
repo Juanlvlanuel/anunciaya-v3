@@ -23,6 +23,7 @@
 
 import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { User, Store } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
@@ -46,6 +47,9 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
     // ---------------------------------------------------------------------------
     const navigate = useNavigate();
     const location = useLocation();
+    // Para redirección a /inicio al cambiar modo cuando estamos en ruta
+    // exclusiva del modo viejo: replace si NO venimos ya de /inicio.
+    const navegarASeccion = useNavegarASeccion();
 
     // ---------------------------------------------------------------------------
     // Store
@@ -89,7 +93,7 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
             (modoActivo === 'personal' && nuevoModo === 'comercial' && estaEnRutaExclusivaPersonal);
 
         if (debeRedirigir) {
-            navigate('/inicio');
+            navegarASeccion('/inicio');
             // Pequeño delay para que la navegación inicie
             await new Promise(resolve => setTimeout(resolve, 100));
         }
