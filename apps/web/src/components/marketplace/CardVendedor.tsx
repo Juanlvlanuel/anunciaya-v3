@@ -19,9 +19,12 @@ import { formatearUltimaConexion } from '../../utils/marketplace';
 
 interface CardVendedorProps {
     vendedor: VendedorArticulo;
+    /** Clases adicionales — útil para sobrescribir padding desde la página
+     *  pública del MarketPlace que usa cards con `p-5` para más aire. */
+    className?: string;
 }
 
-export function CardVendedor({ vendedor }: CardVendedorProps) {
+export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
     const navigate = useNavigate();
     const handleVerPerfil = () => {
         navigate(`/marketplace/usuario/${vendedor.id}`);
@@ -40,7 +43,7 @@ export function CardVendedor({ vendedor }: CardVendedorProps) {
         // gatillar navegación accidental.
         <div
             data-testid="card-vendedor"
-            className="flex w-full flex-col gap-1.5 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md lg:gap-2"
+            className={`flex w-full flex-col gap-1.5 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md lg:gap-2 ${className}`}
         >
             {/* Línea 1: avatar + nombre + verification + CTA */}
             <div className="flex items-center gap-2">
@@ -79,7 +82,7 @@ export function CardVendedor({ vendedor }: CardVendedorProps) {
                         />
                     </div>
                     {vendedor.ciudad && (
-                        <div className="truncate text-sm font-medium text-slate-600 lg:text-[13px] 2xl:text-sm">
+                        <div className="truncate text-sm font-medium text-slate-600">
                             {vendedor.ciudad}
                         </div>
                     )}

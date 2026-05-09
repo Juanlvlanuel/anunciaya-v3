@@ -22,9 +22,13 @@
  *  - Hero card horizontal full-width:
  *      · Línea de acento brand (4px) superior (gradient teal→blue).
  *      · Avatar con RING GRADIENT brand (Instagram-style, p-[3px]) +
- *        status dot online en tiempo real (top-right) + FAB Seguir
- *        circular flotante (bottom-right) cuando NO es uno mismo.
+ *        status dot online en tiempo real (bottom-right, empalmado al
+ *        círculo del avatar).
  *      · Verification check (BadgeCheck) al lado del nombre si vendedor.
+ *      · Botón "Agregar a contactos" circular (solo icono UserPlus →
+ *        UserCheck cuando ya es contacto) al lado derecho del nombre
+ *        cuando NO es uno mismo. Persiste en `chat_contactos` y se
+ *        sincroniza con la agenda del chat. Tooltip solo lg+ (TC-19).
  *      · KPIs en 2 LÍNEAS: icono+valor inline arriba, label debajo.
  *      · Botones de contacto APILADOS verticalmente:
  *          - WhatsApp con logo oficial (/whatsapp.webp) + verde brand.
@@ -47,7 +51,7 @@ import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import {
     ChevronLeft,
     UserPlus,
-    Check,
+    UserCheck,
     AlertCircle,
     PackageX,
     Zap,
@@ -63,7 +67,6 @@ import {
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useUiStore } from '../../../stores/useUiStore';
-import { useVotos } from '../../../hooks/useVotos';
 import {
     useVendedorMarketplace,
     useVendedorPublicaciones,
@@ -134,8 +137,19 @@ export function PaginaPerfilVendedor() {
     const bloquearUsuario = useChatYAStore((s) => s.bloquearUsuario);
     const desbloquearUsuario = useChatYAStore((s) => s.desbloquearUsuario);
 
+    // ─── Contactos (sistema de agenda persistente de ChatYA) ──────────────────
+    // Antes esto era un "follow social" via useVotos — quedó deprecado porque
+    // no tenía efecto real en la UX (no aparecía en la agenda del chat). Ahora
+    // se conecta al sistema real de `chat_contactos`: agregar/quitar persiste
+    // en BD y aparece de inmediato en la lista de contactos del chat.
+    const contactos = useChatYAStore((s) => s.contactos);
+    const cargarContactos = useChatYAStore((s) => s.cargarContactos);
+    const agregarContacto = useChatYAStore((s) => s.agregarContacto);
+    const eliminarContacto = useChatYAStore((s) => s.eliminarContacto);
+
     const [tabActiva, setTabActiva] = useState<'activa' | 'vendida'>('activa');
     const [accionBloqueoEnCurso, setAccionBloqueoEnCurso] = useState(false);
+    const [accionContactoEnCurso, setAccionContactoEnCurso] = useState(false);
 
     const { data: perfil, isLoading: cargandoPerfil, isError } =
         useVendedorMarketplace(usuarioId);
@@ -146,11 +160,6 @@ export function PaginaPerfilVendedor() {
 
     const { data: publicaciones, isFetching: cargandoPublicaciones } =
         useVendedorPublicaciones(esVendedor ? usuarioId : undefined, tabActiva);
-
-    const { followed, loading: cargandoSeguir, toggleFollow } = useVotos({
-        entityType: 'usuario',
-        entityId: usuarioId ?? '',
-    });
 
     // ─── Estado online REAL via Socket.io (patrón ChatYA) ─────────────────────
     // Pide al servidor el estado actual del usuario perfilado y queda suscrito
@@ -173,6 +182,14 @@ export function PaginaPerfilVendedor() {
         cargarBloqueados();
     }, [usuarioActual, cargarBloqueados]);
 
+    // ─── Cargar lista de contactos personales al montar ──────────────────────
+    // Necesario para saber si el perfilado ya está en la agenda del usuario
+    // actual (define el estado del botón "Agregar a contactos").
+    useEffect(() => {
+        if (!usuarioActual) return;
+        cargarContactos('personal');
+    }, [usuarioActual, cargarContactos]);
+
     // Si el usuario perfilado está bloqueado por el actual. La P3 siempre
     // perfila a una persona — usamos el discriminador 'usuario' del bloqueo.
     const estaBloqueado =
@@ -180,6 +197,19 @@ export function PaginaPerfilVendedor() {
         bloqueados.some(
             (b) => b.tipo === 'usuario' && b.bloqueadoId === usuarioId,
         );
+
+    // Si el usuario perfilado ya es contacto del actual (agenda personal).
+    // La P3 siempre perfila a una persona en modo personal — sin sucursal.
+    const contactoExistente =
+        usuarioId
+            ? contactos.find(
+                  (c) =>
+                      c.contactoId === usuarioId &&
+                      c.tipo === 'personal' &&
+                      c.sucursalId === null,
+              )
+            : undefined;
+    const esContacto = !!contactoExistente;
 
     // Botón ← centralizado en el hook `useVolverAtras` — respeta historial
     // interno (idéntico a flecha nativa) con fallback a `/marketplace`
@@ -211,6 +241,47 @@ export function PaginaPerfilVendedor() {
             }
         } finally {
             setAccionBloqueoEnCurso(false);
+        }
+    };
+
+    // ─── Toggle agregar/quitar de contactos (sistema real de ChatYA) ─────────
+    // Mismo patrón que `PanelInfoContacto` y `VentanaChat`: pasa display
+    // (nombre/avatar) para que la actualización optimista del store muestre
+    // los datos correctos antes de que llegue la respuesta del backend.
+    const handleToggleContacto = async () => {
+        if (!perfil || !usuarioActual || accionContactoEnCurso) return;
+        if (usuarioActual.id === perfil.id) return;
+        setAccionContactoEnCurso(true);
+        try {
+            if (contactoExistente) {
+                const ok = await eliminarContacto(contactoExistente.id);
+                if (ok) {
+                    notificar.exito(`${perfil.nombre} ya no está en tus contactos`);
+                } else {
+                    notificar.error('No se pudo quitar el contacto. Intenta de nuevo.');
+                }
+            } else {
+                const creado = await agregarContacto(
+                    {
+                        contactoId: perfil.id,
+                        tipo: 'personal',
+                        sucursalId: null,
+                        negocioId: null,
+                    },
+                    {
+                        nombre: perfil.nombre,
+                        apellidos: perfil.apellidos,
+                        avatarUrl: perfil.avatarUrl,
+                    },
+                );
+                if (creado) {
+                    notificar.exito(`${perfil.nombre} agregado a tus contactos`);
+                } else {
+                    notificar.error('No se pudo agregar el contacto. Intenta de nuevo.');
+                }
+            }
+        } finally {
+            setAccionContactoEnCurso(false);
         }
     };
 
@@ -427,9 +498,9 @@ export function PaginaPerfilVendedor() {
                         estadoPresencia={estadoPresencia}
                         totalActivos={totalActivos}
                         totalVendidos={totalVendidos}
-                        followed={followed}
-                        cargandoSeguir={cargandoSeguir}
-                        onToggleFollow={toggleFollow}
+                        esContacto={esContacto}
+                        accionContactoEnCurso={accionContactoEnCurso}
+                        onToggleContacto={handleToggleContacto}
                         onWhatsApp={handleWhatsApp}
                         onEnviarMensaje={handleEnviarMensaje}
                     />
@@ -511,9 +582,9 @@ interface HeroCardProps {
     estadoPresencia: 'conectado' | 'ausente' | 'desconectado' | undefined;
     totalActivos: number;
     totalVendidos: number;
-    followed: boolean;
-    cargandoSeguir: boolean;
-    onToggleFollow: () => void;
+    esContacto: boolean;
+    accionContactoEnCurso: boolean;
+    onToggleContacto: () => void;
     onWhatsApp: () => void;
     onEnviarMensaje: () => void;
 }
@@ -527,9 +598,9 @@ function HeroCard({
     estadoPresencia,
     totalActivos,
     totalVendidos,
-    followed,
-    cargandoSeguir,
-    onToggleFollow,
+    esContacto,
+    accionContactoEnCurso,
+    onToggleContacto,
     onWhatsApp,
     onEnviarMensaje,
 }: HeroCardProps) {
@@ -540,19 +611,15 @@ function HeroCard({
 
             <div className="flex flex-col items-center gap-3.5 p-4 text-center lg:flex-row lg:items-center lg:gap-6 lg:p-6 lg:text-left">
 
-                {/* ─── Avatar con ring gradient + status dot + FAB Seguir ──── */}
+                {/* ─── Avatar con ring gradient + status dot bottom-right ──── */}
                 <AvatarConAdornos
                     perfil={perfil}
-                    esUnoMismo={esUnoMismo}
                     estadoPresencia={estadoPresencia}
-                    followed={followed}
-                    cargandoSeguir={cargandoSeguir}
-                    onToggleFollow={onToggleFollow}
                 />
 
                 {/* ─── Identidad ───────────────────────────────────────────── */}
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center justify-center gap-1.5 lg:justify-start">
+                    <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
                         <h1
                             data-testid="nombre-vendedor"
                             className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-xl 2xl:text-2xl"
@@ -565,6 +632,39 @@ function HeroCard({
                                 strokeWidth={2.5}
                                 aria-label="Vendedor con publicaciones"
                             />
+                        )}
+                        {/* Botón Agregar/Quitar contacto — botón circular
+                            solo icono al lado del nombre (estética coherente
+                            con el botón Bloquear del header). El estado se
+                            calcula contra `chat_contactos` (sistema real de
+                            agenda de ChatYA — antes era un follow social
+                            fantasma vía useVotos que no tenía efecto en UX).
+                            Tooltip solo lg+ por la regla TC-19. */}
+                        {!esUnoMismo && (
+                            <Tooltip
+                                text={esContacto ? 'Quitar de contactos' : 'Agregar a contactos'}
+                                position="bottom"
+                                className="hidden lg:block"
+                            >
+                                <button
+                                    data-testid="btn-agregar-contacto"
+                                    onClick={onToggleContacto}
+                                    disabled={accionContactoEnCurso}
+                                    aria-pressed={esContacto}
+                                    aria-label={esContacto ? 'Quitar de contactos' : 'Agregar a contactos'}
+                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-transform disabled:opacity-60 lg:h-9 lg:w-9 lg:cursor-pointer lg:hover:scale-105 lg:active:scale-95 ${
+                                        esContacto
+                                            ? 'bg-emerald-500'
+                                            : 'bg-blue-600'
+                                    }`}
+                                >
+                                    {esContacto ? (
+                                        <UserCheck className="h-[18px] w-[18px] shrink-0" strokeWidth={2.5} />
+                                    ) : (
+                                        <UserPlus className="h-[18px] w-[18px] shrink-0" strokeWidth={2.5} />
+                                    )}
+                                </button>
+                            </Tooltip>
                         )}
                     </div>
 
@@ -656,25 +756,17 @@ function HeroCard({
 }
 
 // =============================================================================
-// AVATAR CON ADORNOS — ring gradient + status dot + FAB Seguir
+// AVATAR CON ADORNOS — ring gradient + status dot
 // =============================================================================
 
 interface AvatarConAdornosProps {
     perfil: HeroCardProps['perfil'];
-    esUnoMismo: boolean;
     estadoPresencia: 'conectado' | 'ausente' | 'desconectado' | undefined;
-    followed: boolean;
-    cargandoSeguir: boolean;
-    onToggleFollow: () => void;
 }
 
 function AvatarConAdornos({
     perfil,
-    esUnoMismo,
     estadoPresencia,
-    followed,
-    cargandoSeguir,
-    onToggleFollow,
 }: AvatarConAdornosProps) {
     const iniciales = obtenerIniciales(perfil.nombre, perfil.apellidos);
 
@@ -720,7 +812,9 @@ function AvatarConAdornos({
                 </div>
             </div>
 
-            {/* Status dot — top-right, encima del ring gradient */}
+            {/* Status dot — bottom-right, ligeramente empalmado sobre el
+                círculo del avatar. El FAB Seguir se movió al lado del
+                nombre, por eso esta esquina queda libre. */}
             {dotColor && (
                 <span
                     aria-label={
@@ -733,33 +827,8 @@ function AvatarConAdornos({
                             ? 'En línea'
                             : 'Ausente'
                     }
-                    className={`absolute right-0 top-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-4 lg:w-4 ${dotColor}`}
+                    className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-4 lg:w-4 lg:bottom-1.5 lg:right-1.5 ${dotColor}`}
                 />
-            )}
-
-            {/* FAB Seguir — bottom-right del avatar.
-                Glassmorphism: bg-white/40 + backdrop-blur, border blanco/60.
-                Hover: scale 110 + rotate 6° con transición suave. */}
-            {!esUnoMismo && (
-                <button
-                    data-testid="btn-seguir-vendedor"
-                    onClick={onToggleFollow}
-                    disabled={cargandoSeguir}
-                    aria-pressed={followed}
-                    aria-label={followed ? 'Dejar de seguir' : 'Seguir usuario'}
-                    title={followed ? 'Dejar de seguir' : 'Seguir usuario'}
-                    className={`absolute -bottom-1 -right-1 flex h-9 w-9 items-center justify-center rounded-full border-2 border-white/70 shadow-lg backdrop-blur-md transition-transform duration-300 ease-out disabled:opacity-60 lg:h-10 lg:w-10 lg:cursor-pointer lg:hover:scale-110 lg:hover:rotate-6 lg:active:scale-95 ${
-                        followed
-                            ? 'bg-emerald-500/80 text-white'
-                            : 'bg-white/40 text-blue-600'
-                    }`}
-                >
-                    {followed ? (
-                        <Check className="h-4 w-4 lg:h-5 lg:w-5" strokeWidth={3} />
-                    ) : (
-                        <UserPlus className="h-4 w-4 lg:h-5 lg:w-5" strokeWidth={2.5} />
-                    )}
-                </button>
             )}
         </div>
     );
@@ -811,16 +880,20 @@ interface KpiProps {
 
 function Kpi({ icono, label, valor }: KpiProps) {
     return (
-        <div className="flex-1 px-5 py-2.5 text-center lg:min-w-[112px] lg:px-6">
+        // En móvil: padding ajustado y tamaños ligeramente menores para que
+        // los 3 KPIs (Publicaciones / Vendidos / Respuesta) quepan en el
+        // ancho del celular sin cortar la palabra más larga ("Publicaciones").
+        // En desktop se conservan los tamaños originales.
+        <div className="min-w-0 flex-1 px-2 py-2.5 text-center lg:min-w-[112px] lg:px-6">
             {/* Línea 1: icono + valor inline */}
-            <div className="flex items-center justify-center gap-1.5 text-slate-800">
+            <div className="flex items-center justify-center gap-1 text-slate-800 lg:gap-1.5">
                 <span className="text-slate-500">{icono}</span>
-                <span className="text-xl font-bold lg:text-lg 2xl:text-xl">
+                <span className="text-lg font-bold lg:text-lg 2xl:text-xl">
                     {valor}
                 </span>
             </div>
             {/* Línea 2: label */}
-            <div className="mt-0.5 text-sm font-semibold text-slate-600 lg:text-[11px] 2xl:text-sm">
+            <div className="mt-0.5 truncate text-[13px] font-semibold text-slate-600 lg:text-[11px] 2xl:text-sm">
                 {label}
             </div>
         </div>

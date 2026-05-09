@@ -36,6 +36,7 @@
 
 import { useNavigate } from 'react-router-dom';
 import { Gift, Coins, Award } from 'lucide-react';
+import { FooterPublico } from '../public/FooterPublico';
 
 // =============================================================================
 // TIPOS
@@ -74,174 +75,76 @@ export function LayoutPublico({
     // @container: establece este layout como el container para los container queries
     // (@5xl:, @[96rem]:) que usan PaginaPerfilNegocio y sus componentes hijos.
     // Así los refinamientos responden al ancho del viewport real, no al max-w del main.
-    <div className="@container min-h-screen bg-slate-50 flex flex-col">
+    <div className="@container h-screen bg-app-degradado flex flex-col">
       {/* ================================================================
-          HEADER
+          HEADER — gradient azul + shine line igual al Navbar autenticado
           ================================================================ */}
-      <header className="bg-white/95 backdrop-blur-sm border-b border-slate-200 px-4 lg:px-6 py-2.5 sticky top-0 z-50 shadow-sm">
-        <div className="max-w-6xl mx-auto flex items-center justify-between">
-          {/* Logo con hover */}
-          <button 
-            onClick={irALanding}
-            className="cursor-pointer transition-transform hover:scale-105"
-          >
-            <img 
-              src="/logo-anunciaya.webp" 
-              alt="AnunciaYA" 
-              className="h-9 lg:h-11"
-            />
-          </button>
+      <div className="sticky top-0 z-50">
+        <header className="bg-header-app px-4 lg:px-4 2xl:px-8 py-2.5 lg:py-3 2xl:py-4 shadow-lg">
+          <div className="flex items-center justify-between gap-3">
+            <button
+              onClick={irALanding}
+              className="flex items-center shrink-0 cursor-pointer transition-transform hover:scale-110"
+            >
+              <img
+                src="/logo-anunciaya-azul.webp"
+                alt="AnunciaYA"
+                className="h-8 lg:h-9 2xl:h-11 w-auto object-contain"
+              />
+            </button>
 
-          {/* Beneficios centrados */}
-          <div className="hidden lg:flex items-center gap-5">
-            <div className="flex items-center gap-2 text-amber-600">
-              <Gift className="w-5 h-5" />
-              <span className="text-base font-bold">¡Únete gratis!</span>
+            {/* Beneficios — iconos en tonos claros sobre azul, texto blanco. */}
+            <div className="hidden lg:flex items-center gap-5">
+              <div className="flex items-center gap-2 text-white">
+                <Gift className="w-5 h-5 text-amber-300" />
+                <span className="text-base font-bold">¡Únete gratis!</span>
+              </div>
+              <span className="text-white/60 text-xl font-bold">·</span>
+              <div className="flex items-center gap-2 text-white">
+                <Coins className="w-5 h-5 text-blue-200" />
+                <span className="text-base font-semibold">Acumula puntos comprando</span>
+              </div>
+              <span className="text-white/60 text-xl font-bold">·</span>
+              <div className="flex items-center gap-2 text-white">
+                <Award className="w-5 h-5 text-green-300" />
+                <span className="text-base font-bold">Canjea por recompensas</span>
+              </div>
             </div>
-            <span className="text-slate-300 text-xl font-light">·</span>
-            <div className="flex items-center gap-2 text-blue-600">
-              <Coins className="w-5 h-5" />
-              <span className="text-base font-semibold">Acumula puntos comprando</span>
-            </div>
-            <span className="text-slate-300 text-xl font-light">·</span>
-            <div className="flex items-center gap-2 text-green-600">
-              <Award className="w-5 h-5" />
-              <span className="text-base font-bold">Canjea por recompensas</span>
-            </div>
+
+            {/* Botón Registrarse — pill blanco prominente (estilo tab activo). */}
+            <button
+              onClick={irARegistro}
+              className="bg-white hover:bg-blue-50 hover:scale-105 text-blue-700 px-5 py-2 rounded-full font-bold text-sm cursor-pointer transition-all shadow-md shrink-0"
+            >
+              Registrarse
+            </button>
           </div>
+        </header>
 
-          {/* Botón Registrarse */}
-          <button
-            onClick={irARegistro}
-            className="bg-blue-600 hover:bg-blue-700 hover:scale-105 text-white px-5 py-2 rounded-lg font-semibold text-sm cursor-pointer transition-all shadow-md shadow-blue-500/20"
-          >
-            Registrarse
-          </button>
-        </div>
-      </header>
+        {/* Línea brillante inferior — mismo efecto del Navbar. */}
+        <div className="header-app-shine" />
+      </div>
 
       {/* ================================================================
-          CONTENIDO PRINCIPAL - CON ALTURA FIJA PARA SCROLL INDEPENDIENTE
+          CONTENIDO PRINCIPAL — flex-1 para que se ajuste automáticamente
+          a la altura del header (que cambia por breakpoint con el nuevo
+          padding del header tipo Navbar) sin necesidad de calc fijo.
           ================================================================ */}
-      <main 
-        className="overflow-y-auto"
+      <main
+        className="flex-1 min-h-0 overflow-y-auto"
         style={{
-          height: 'calc(100vh - 67px)', // Header (67px) + Footer se ajusta automático
           WebkitOverflowScrolling: 'touch',
         }}
       >
         <div className="max-w-7xl mx-auto px-4 lg:px-6 2xl:px-8 py-4 lg:py-6 2xl:py-8">
           {children}
         </div>
+
+      {/* Footer unificado con todas las páginas públicas — estilo del
+          FooterLanding: bg-black + logo azul + redes + "Volver arriba".
+          Vive DENTRO del main para que scrollee con el contenido. */}
+      <FooterPublico />
       </main>
-
-      {/* ================================================================
-          FOOTER MINIMALISTA
-          ================================================================ */}
-      <footer className="bg-slate-900 text-white">
-        <div className="max-w-6xl mx-auto px-4 lg:px-6 py-4">
-          {/* Desktop: 3 columnas en una fila */}
-          <div className="hidden md:flex items-center justify-between">
-            {/* Logo y slogan */}
-            <div className="flex flex-col items-start gap-1">
-              <img 
-                src="/logo-anunciaya.webp" 
-                alt="AnunciaYA" 
-                className="h-8 lg:h-9"
-              />
-              <p className="text-slate-400 text-xs italic">
-                "Tus compras ahora valen más."
-              </p>
-            </div>
-            
-            {/* Copyright */}
-            <p className="text-slate-500 text-xs">
-              © 2026 AnunciaYA. Todos los derechos reservados.
-            </p>
-            
-            {/* Redes sociales */}
-            <div className="flex items-center gap-2">
-              <span className="text-slate-400 text-xs mr-1">¡Síguenos!</span>
-              <a 
-                href="https://facebook.com/anunciaya" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full overflow-hidden hover:scale-110 transition-transform"
-              >
-                <img 
-                  src="/facebook.webp" 
-                  alt="Facebook" 
-                  className="w-full h-full object-cover"
-                />
-              </a>
-              <a 
-                href="https://wa.me/526621234567" 
-                target="_blank" 
-                rel="noopener noreferrer"
-                className="w-8 h-8 rounded-full overflow-hidden hover:scale-110 transition-transform"
-              >
-                <img 
-                  src="/whatsapp.webp" 
-                  alt="WhatsApp" 
-                  className="w-full h-full object-cover"
-                />
-              </a>
-            </div>
-          </div>
-
-          {/* Móvil: 2 líneas */}
-          <div className="flex flex-col gap-3 md:hidden">
-            {/* Línea 1: Logo izquierda + Redes derecha */}
-            <div className="flex items-center justify-between">
-              {/* Logo y slogan */}
-              <div className="flex flex-col items-start gap-0.5">
-                <img 
-                  src="/logo-anunciaya.webp" 
-                  alt="AnunciaYA" 
-                  className="h-8"
-                />
-                <p className="text-slate-400 text-[10px] italic">
-                  "Tus compras ahora valen más."
-                </p>
-              </div>
-              
-              {/* Redes sociales */}
-              <div className="flex items-center gap-2">
-                <span className="text-slate-400 text-xs">¡Síguenos!</span>
-                <a 
-                  href="https://facebook.com/anunciaya" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-full overflow-hidden"
-                >
-                  <img 
-                    src="/facebook.webp" 
-                    alt="Facebook" 
-                    className="w-full h-full object-cover"
-                  />
-                </a>
-                <a 
-                  href="https://wa.me/526621234567" 
-                  target="_blank" 
-                  rel="noopener noreferrer"
-                  className="w-8 h-8 rounded-full overflow-hidden"
-                >
-                  <img 
-                    src="/whatsapp.webp" 
-                    alt="WhatsApp" 
-                    className="w-full h-full object-cover"
-                  />
-                </a>
-              </div>
-            </div>
-
-            {/* Línea 2: Copyright centrado */}
-            <p className="text-slate-500 text-xs text-center">
-              © 2026 AnunciaYA. Todos los derechos reservados.
-            </p>
-          </div>
-        </div>
-      </footer>
     </div>
   );
 }

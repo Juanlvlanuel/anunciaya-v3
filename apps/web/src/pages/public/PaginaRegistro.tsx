@@ -548,7 +548,7 @@ export function PaginaRegistro() {
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="min-h-screen bg-slate-200 lg:bg-white">
+    <div className="min-h-screen bg-app-degradado lg:bg-white">
       {/* Layout desktop: 2 columnas */}
       <div className="lg:grid lg:grid-cols-2 lg:h-screen">
         {/* Columna izquierda: Branding (solo desktop) */}

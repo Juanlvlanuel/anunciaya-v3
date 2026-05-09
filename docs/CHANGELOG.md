@@ -7,6 +7,110 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [09 Mayo 2026] - Rediseño cross-cutting de páginas públicas + Navbar glass + MarketPlace P3 🎨🌐
+
+Sesión grande dividida en 3 frentes: (1) **P3 perfil del usuario** del MarketPlace con botón Agregar contacto real conectado a ChatYA + status dot reubicado + KPIs móvil; (2) **rediseño completo de las 4 páginas públicas de compartir** (`/p/articulo`, `/p/oferta`, `/p/articulo-marketplace`, `/p/negocio`) con header gradient azul tipo Navbar + cards bordeadas + CTA personalizado por módulo + fondo degradado de app; (3) **Navbar autenticado** con lenguaje glass unificado en tabs, selector ciudad, buscador, notif y perfil.
+
+### Páginas públicas — chrome unificado tipo app autenticada
+
+**`HeaderPublico` y `LayoutPublico` rediseñados al estilo del Navbar de la app:**
+- Background: `bg-white/95` translúcido → `bg-header-app` (gradient azul `linear-gradient(90deg, #1e3a8a, #2563eb)` igual al Navbar autenticado).
+- Logo: `/logo-anunciaya.webp` → `/logo-anunciaya-azul.webp` (mismo del Navbar).
+- Padding alineado al Navbar: `px-4 lg:px-4 2xl:px-8 py-2.5 lg:py-3 2xl:py-4`.
+- Wrapper interno sin `max-w-6xl` — contenido full width como en el Navbar autenticado.
+- Beneficios (`¡Únete gratis!`, `Acumula puntos`, `Canjea`): texto blanco + iconos en tonos claros (amber-300, blue-200, green-300) para contraste sobre azul. Separadores `text-white/60 font-bold`.
+- Botón "Registrarse": `bg-blue-600` → `bg-white text-blue-700 rounded-full font-bold` (estilo "tab activo" del Navbar — pill blanco prominente).
+- Wrapper sticky con `<div className="header-app-shine" />` debajo (línea brillante animada igual al Navbar).
+- `LayoutPublico` ahora reusa `<FooterPublico />` (eliminada la duplicación de ~110 líneas).
+
+**`FooterPublico` rediseñado al estilo `FooterLanding`:**
+- `bg-slate-900` → `bg-black` con logo azul + copyright + redes sociales.
+- Botón flotante "Volver arriba" condicional al scroll (`scrollTop > 100px` del `<main>` ancestro). Fade `opacity-0 → opacity-100` con `transition-opacity duration-300`.
+- Layout responsive: 1 fila desktop / 2 líneas móvil.
+
+**Utility classes nuevas en `index.css`:**
+- `.bg-app-degradado` — gradient azul `linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)` (mismo que `MainLayout`). Centralizado para evitar duplicación inline.
+- `.bg-header-app` + `.header-app-shine` + `@keyframes headerAppShine` — gradient header + línea brillante animada (mismo que Navbar autenticado).
+
+**`PaginaArticuloMarketplacePublico` rediseño v2:**
+- Layout 2-col `[3fr_2fr]` con cards bordeadas `border-2 border-slate-300 bg-white shadow-md` (igual a la privada).
+- Sub-componentes portados de la privada: `BloqueInfo`, `CaracteristicasTabla`, `CardCompraSegura`, `ChipCondicion`. `CardVendedor` ahora acepta prop `className` opcional.
+- Panel sticky desktop con 4 cards (info+CTA, vendedor, características, compra segura) + `sticky top-24` + `lg:-mt-12` (sube 48px sobre el TOP del row).
+- Padding `p-4` unificado en todas las cards del panel.
+- Imagen `aspect-[4/3]` móvil / `aspect-[3/2]` desktop.
+- CTA "Únete gratis a AnunciaYA" personalizado con identidad **teal** del MP: gradient sutil `from-teal-50 via-white to-blue-50` + icono `ShoppingCart` blanco sobre cuadro gradient teal del módulo + headline con `articulo.ciudad` + 3 chips (Hiperlocal · Sin comisiones · Sin spam) + botón sólido `bg-teal-600`.
+- `bg-app-degradado` en root (estados loading/error/render).
+- Subtítulo del CTA con primera frase resaltada: *"**Únete gratis a AnunciaYA.** Publica en MarketPlace lo que vendes o encuentra lo que buscas, directo entre vecinos."*
+- `MensajeEstadoNoActiva` con `bg-slate-50` → `bg-white border-slate-300 shadow-md` para destacar como card sobre el degradado.
+
+**`PaginaOfertaPublico` rediseño v2:**
+- Misma estructura que el MP público: layout 2-col, cards bordeadas, panel sticky desktop, CTA con identidad amber.
+- Sub-componentes nuevos: `BloqueInfoOferta` (con prop compacto), `CardNegocioOferta`, `BotonWhatsappOferta`, `BotonVerNegocioOferta`.
+- CTA "Únete gratis a AnunciaYA" con gradient amber `from-amber-50 via-white to-orange-50` + icono `Tag` blanco + 3 chips (Hiperlocal · 100% gratis · Acumula puntos) + botón `bg-amber-600`.
+- `bg-app-degradado` en root.
+- `break-words` en `<p>` de descripción + `min-w-0` en grid items para prevenir desborde con cadenas largas sin espacios.
+- `<main className="flex flex-1 flex-col overflow-y-auto">` con `<FooterPublico />` adentro — footer scrollea con el contenido.
+- `<main>` con `flex flex-1 items-center` para centrar el contenido verticalmente cuando es corto.
+
+**`PaginaArticuloPublico` rediseño v2:**
+- Misma estructura unificada. Sub-componentes nuevos: `BloqueInfoArticulo`, `CardNegocioArticulo`, `BotonWhatsappArticulo`, `BotonVerNegocioArticulo`.
+- CTA con identidad **blue** del módulo Negocios: gradient `from-blue-50 via-white to-indigo-50` + icono `Store` blanco + 3 chips (Hiperlocal · Verificados · Sin spam).
+- `bg-app-degradado` en root.
+
+**`PaginaPerfilNegocio` (vía `LayoutPublico`):**
+- `LayoutPublico` ahora `h-screen` con `<main className="flex-1 min-h-0 overflow-y-auto">` — fix para que el scroll funcione en `/p/negocio/...` (el `body` tiene `overflow:hidden` desde lg+).
+
+**`PaginaRegistro` móvil:**
+- `bg-slate-200 lg:bg-white` → `bg-app-degradado lg:bg-white` (uniformidad cross-pantalla).
+
+### Navbar autenticado — lenguaje glass unificado
+
+`Navbar.tsx` ahora con **glass pills coherentes** en todos los elementos:
+- 4 tabs (Negocios, Ofertas, MarketPlace, Servicios): `rounded-lg` → `rounded-full` + `bg-white/10 backdrop-blur-md` (estado glass) / `bg-white text-blue-700` (estado activo). Patrón estilo botón "Vista previa" del BS pero adaptado a 4 tabs.
+- Selector ciudad: `rounded-lg + text-blue-100` → `rounded-full + bg-white/10 backdrop-blur-md + text-white`.
+- Buscador: wrapper sin glass (es la excepción funcional con input expansible). Pill blanco al expandir.
+- Notificaciones: `bg-white/20 border-2 border-white/40` → `bg-white/10 backdrop-blur-md` (sin border).
+- Avatar perfil: mismo cambio que notificaciones.
+- ChatYA: se mantiene icono plano (excepción de marca por el rojo distintivo).
+
+### Detalle del MarketPlace privado y público — padding unificado
+
+`PaginaArticuloMarketplace` (privada) y `PaginaArticuloMarketplacePublico` ahora con `p-4` unificado en todas las cards del panel sticky derecho (antes una con `p-3`, otra con `p-5`). `mt-2.5 pt-2.5` → `mt-3 pt-3` consistente. `CardVendedor` acepta prop `className="p-4"` desde fuera.
+
+### MarketPlace P3 — botón "Agregar a contactos" real + KPIs móvil + status dot reubicado 👥📱
+
+**Botón "Agregar a contactos" — nuevo punto de entrada al sistema de contactos de ChatYA:**
+- `PaginaPerfilVendedor.tsx` ahora lee `useChatYAStore.contactos` y llama `agregarContacto`/`eliminarContacto` directos. Carga `cargarContactos('personal')` al montar para que el estado inicial del botón sea correcto.
+- Botón circular solo icono al lado del nombre (después del `BadgeCheck` del vendedor). `h-8 w-8` móvil / `h-9 w-9` desktop. `UserPlus` azul brand → `UserCheck` emerald cuando ya es contacto. Tooltip lg+ con texto *"Agregar a contactos"* / *"Quitar de contactos"* (TC-19).
+- Antes era un FAB circular en la esquina del avatar; se movió arriba para liberar la esquina inferior derecha del avatar y dejar lugar al status dot.
+- **Sincronización en tiempo real con las otras 4 superficies de contactos del chat** (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`) — el optimistic update del store hace su trabajo, agregar/quitar desde cualquier punto se refleja al instante en los demás.
+- `data-testid` renombrado: `btn-seguir-vendedor` → `btn-agregar-contacto`. Sin tests E2E que rompan (no había ninguno referenciándolo).
+- Notificaciones `notificar.exito('X agregado a tus contactos')` / `notificar.error(...)` siguiendo el patrón de `handleToggleBloqueo`.
+
+**Status dot del avatar — bottom-right empalmado:**
+- Reposicionado de `top-right` (`right-0 top-1`) a `bottom-right` (`bottom-1 right-1` móvil, `bottom-1.5 right-1.5` desktop) — ligeramente sobre el círculo del avatar para que se lea como dot de presencia y no como badge separado.
+- La esquina quedó libre porque el FAB Seguir se movió al lado del nombre.
+
+**KPIs en móvil — los 3 caben sin truncar:**
+- `KpiFila` con padding lateral `px-5` → `px-2` (libera ~36px entre las 3 columnas).
+- Valor `text-xl` → `text-lg`, gap línea 1 `gap-1.5` → `gap-1`, label `text-sm` → `text-[13px]`.
+- `min-w-0` + `truncate` en el label como red de seguridad. Desktop sin cambios.
+
+**Limpieza del sistema viejo `votos.follow` con `entity_type='usuario'`:**
+- El follow social usuario↔usuario solo se usaba en P3, sin efecto visible en ningún feed. El follow de negocios (`entity_type='sucursal'`) se conserva intacto — es feature distinta.
+- Migración SQL `docs/migraciones/2026-05-08-limpiar-votos-follow-usuario.sql`: `DELETE FROM votos WHERE entity_type='usuario' AND tipo_accion='follow'` + `DROP/ADD` del CHECK retirando `'usuario'`.
+- Drizzle `schema.ts` línea 997 sincronizado con el cambio del CHECK.
+
+**Doc actualizada / nueva:**
+- `docs/arquitectura/MarketPlace.md` (sección P3 + Sistema de Votos → Sistema de Contactos, nota de hooks).
+- `docs/arquitectura/ChatYA.md` §4.9 (5to punto de entrada al sistema de contactos).
+- `docs/arquitectura/Paginas_Publicas.md` **(nuevo)** — sistema unificado de las 4 páginas públicas: chrome (header gradient + footer + bg-app-degradado), layout 2-col con cards bordeadas, panel sticky desktop, CTA personalizado por módulo, restricciones de privacidad heredadas.
+
+**Migración a correr en BD:**
+- `docs/migraciones/2026-05-08-limpiar-votos-follow-usuario.sql`
+
+---
+
 ## [08 Mayo 2026] - Sistema de Back Unificado + Cards de contexto en ChatYA + UX modales 🎯💬
 
 Sesión grande de pulido cross-cutting: se consolidó el sistema de navegación back nativo, se extendió el contexto persistente de ChatYA a ofertas y artículos de catálogo (paralelo a marketplace), se rediseñaron las cards de oferta para móvil y se cerraron varios bugs de modales anidados.

@@ -434,7 +434,7 @@ El feed del MarketPlace fue **rediseñado por completo** desde el patrón "carru
 > **DATOS DEL SERVIDOR (React Query):**
 > - Hooks principales: `apps/web/src/hooks/queries/useMarketplace.ts`
 > - Sistema de guardados existente: `useArticulosMarketplaceGuardados` con `entity_type='articulo_marketplace'`
-> - Sistema de votos existente: `useVotos` con `entity_type='usuario'` (botón "Seguir vendedor")
+> - Sistema de contactos de ChatYA: `useChatYAStore.contactos` con `tipo='personal'` (botón "Agregar a contactos" en P3 — ver §P3 y §Sistema de Contactos)
 
 > **Identidad visual:** Verde teal — Header dark sticky estilo CardYA / Cupones / Guardados
 > **Política de visibilidad:** Solo modo Personal. Modo Comercial bloqueado por completo.
@@ -1048,7 +1048,7 @@ El UI se adapta automáticamente al rol de la persona perfilada:
   - **Botones de contacto** (ocultos si visitas tu propio perfil):
     - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) — solo aparece si el usuario tiene teléfono registrado. Mensaje precargado: `"Hola {nombre}, vi tu perfil en AnunciaYA"`. El backend `getVendedorMarketplace` devuelve `telefono` en el perfil; el tipo `PerfilVendedorMarketplace` incluye `telefono: string | null`.
     - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='vendedor_marketplace'`.
-    - **Seguir** (blanco con borde) → `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`. **Sin efecto visible aún — ver D.3 en `docs/reportes/MarketPlace/Pendientes.md`**.
+    - **Agregar a contactos** (botón circular solo icono al lado del nombre, `h-8 w-8` móvil / `h-9 w-9` desktop) → `useChatYAStore.agregarContacto`/`eliminarContacto`. Estado leído de `contactos` filtrando por `(contactoId, tipo='personal', sucursalId=null)`. `UserPlus` azul brand → `UserCheck` emerald. Tooltip lg+ (TC-19). Es uno de los 5 puntos de entrada al sistema de contactos de ChatYA — sincroniza en tiempo real con los otros 4 dentro del chat (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`). Antes era un FAB circular "Seguir vendedor" en la esquina del avatar conectado a `useVotos` (follow social fantasma sin efecto visible) — deprecado el 09-may-2026.
 - **Tabs (solo si vendedor)** — banda translúcida `bg-white/85 backdrop-blur rounded-2xl`: Publicaciones (X) | Vendidos (X), subrayado teal en activa
 - **Grid (solo si vendedor)** — cards estilo B (reusa `CardArticulo`). En tab "Vendidos" cada card lleva overlay slate translúcido + texto "VENDIDO".
 
@@ -1318,10 +1318,12 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 - MarketPlace requiere usuario autenticado en modo Personal.
 - Página pública (`/p/articulo-marketplace/:id`) es visible sin auth pero el botón de mensaje muestra `ModalAuthRequerido`.
 
-### Sistema de Votos (`useVotos`)
+### Sistema de Contactos (`useChatYAStore`)
 
-- Botón "Seguir vendedor" en P3 reusa `useVotos` con `entity_type='usuario'`, `tipo_accion='follow'`.
-- Migración del Sprint 5 agregó `'usuario'` al check `votos_entity_type_check`.
+- Botón "Agregar a contactos" en P3 (`PaginaPerfilVendedor.tsx`) lee `useChatYAStore.contactos` y llama `agregarContacto`/`eliminarContacto`. El estado se calcula filtrando por `(contactoId, tipo='personal', sucursalId=null)`. Carga `cargarContactos('personal')` al montar.
+- Persiste en `chat_contactos` (sistema real de agenda persistente del chat — ver `docs/arquitectura/ChatYA.md` §4.9). 5to punto de entrada que se sincroniza con las otras 4 superficies dentro del chat.
+- Sistema viejo `useVotos` con `entity_type='usuario'`/`tipo_accion='follow'` (era un follow social fantasma sin efecto visible) deprecado el 09-may-2026. Migración `2026-05-08-limpiar-votos-follow-usuario.sql` borra los huérfanos y retira `'usuario'` del check `votos_entity_type_check`.
+- El follow de negocios (`entity_type='sucursal'`) en `PaginaPerfilNegocio.tsx` se conserva intacto — es feature distinta.
 
 ---
 

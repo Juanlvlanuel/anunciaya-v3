@@ -89,6 +89,55 @@ body {
 }
 
 /* ============================================= */
+/* FONDO DEGRADADO GLOBAL DE LA APP              */
+/* ============================================= */
+/* Mismo degradado que aplica MainLayout.tsx (rutas privadas).
+   Centralizado aquí para que las páginas públicas de compartir
+   (`/p/articulo`, `/p/oferta`, `/p/articulo-marketplace`) usen
+   exactamente el mismo fondo y se sientan parte de la misma app
+   cuando un usuario abre un link compartido sin sesión. */
+.bg-app-degradado {
+  background: linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%);
+}
+
+/* ============================================= */
+/* HEADER GRADIENT (igual al Navbar autenticado) */
+/* ============================================= */
+/* Mismo gradient que `Navbar.header-gradient-animated`. Se centra
+   aquí para que `HeaderPublico` y `LayoutPublico` (páginas sin
+   sesión) usen exactamente el mismo header visual que la app
+   autenticada. Línea brillante animada opcional debajo del header. */
+.bg-header-app {
+  background: linear-gradient(90deg, #1e3a8a, #2563eb);
+}
+
+@keyframes headerAppShine {
+  0% { transform: translateX(-100%); opacity: 0; }
+  20% { opacity: 1; }
+  80% { opacity: 1; }
+  100% { transform: translateX(300%); opacity: 0; }
+}
+
+.header-app-shine {
+  position: relative;
+  height: 5px;
+  background: linear-gradient(90deg, #1e3a8a, #3b82f6, #60a5fa, #3b82f6, #1e3a8a);
+  overflow: hidden;
+}
+
+.header-app-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 40%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.8), transparent);
+  animation: headerAppShine 2.5s ease-in-out infinite;
+  will-change: transform;
+}
+
+/* ============================================= */
 /* SWEETALERT2 - Toasts Responsive               */
 /* ============================================= */
 

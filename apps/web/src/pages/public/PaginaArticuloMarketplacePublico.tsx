@@ -6,23 +6,23 @@
  *
  * Ruta: `/p/articulo-marketplace/:articuloId`
  *
- * Diferencias con la versión privada (`PaginaArticuloMarketplace`):
- *  - Sin layout privado (no envuelta en `MainLayout`). Usa `HeaderPublico` y
- *    `FooterPublico` compartidos con las otras páginas públicas (artículo de
- *    catálogo, oferta).
- *  - Mete OG tags vía `useOpenGraph` para previews en WhatsApp/FB/Twitter.
- *  - NO muestra el botón WhatsApp directamente (privacidad — evita scrapers
- *    que recolecten teléfonos de vendedores). Solo "Enviar mensaje" que
- *    abre `ModalAuthRequerido` cuando el visitante no está logueado.
- *  - NO muestra "Ver perfil del vendedor" (ese flujo es solo para usuarios
- *    logueados que pueden interactuar después).
- *  - Footer con CTA "Descubre más en AnunciaYA →" → landing.
+ * Layout (09-may-2026): comparte estructura visual con la versión privada
+ * (`PaginaArticuloMarketplace`) — layout 2-col 3fr/2fr en desktop con cards
+ * bordeadas, Bloque info / Descripción / Características / Mapa / Card
+ * vendedor / Compra segura. Lo que cambia es el chrome de auth:
+ *  - HeaderPublico arriba (marca AnunciaYA + CTA "Registrarse") en lugar
+ *    del header dark del módulo. FooterPublico al final.
+ *  - SIN botón WhatsApp (privacidad — evita scrapers de teléfonos).
+ *  - SIN botón guardar/heart (requiere login).
+ *  - SIN sección Q&A (preguntar requiere login).
+ *  - Botón único "Enviar mensaje al vendedor" → `ModalAuthRequerido`.
+ *  - OG tags vía `useOpenGraph` para previews en WhatsApp/FB/Twitter.
+ *  - CTA "Descubre más en AnunciaYA →" entre contenido y FooterPublico.
  *
  * Estados especiales:
  *  - `eliminada` → 404 amigable (el artículo no existe).
  *  - `vendida` → mensaje "Este artículo ya fue vendido", sin contacto.
- *  - `pausada` → mensaje "Esta publicación está pausada por el vendedor",
- *    sin contacto (pero sin sugerir que es definitivo).
+ *  - `pausada` → mensaje "Esta publicación está pausada por el vendedor".
  *
  * Doc maestro: docs/arquitectura/MarketPlace.md (§11 Sistema de Compartir)
  * Sprint:      docs/prompts Marketplace/Sprint-7-Polish.md
@@ -37,6 +37,14 @@ import {
     PauseCircle,
     AlertCircle,
     MessageSquare,
+    MapPin,
+    Eye,
+    ShieldCheck,
+    UserCheck,
+    Flag,
+    ShoppingCart,
+    ArrowRight,
+    Check,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useArticuloMarketplace } from '../../hooks/queries/useMarketplace';
@@ -99,7 +107,7 @@ export function PaginaArticuloMarketplacePublico() {
 
     if (isLoading) {
         return (
-            <div className="flex min-h-screen items-center justify-center bg-white">
+            <div className="bg-app-degradado flex min-h-screen items-center justify-center">
                 <Spinner tamanio="lg" />
             </div>
         );
@@ -131,98 +139,223 @@ export function PaginaArticuloMarketplacePublico() {
     };
 
     return (
+        // El scroll vive dentro de `<main className="overflow-y-auto">` igual
+        // que en MainLayout — necesario porque el CSS global aplica
+        // `overflow:hidden` en `body` desde lg+ (index.css:79-83). Sin esto,
+        // en desktop la página queda atrapada en 100vh sin poder scrollear.
         <div
             data-testid="pagina-articulo-marketplace-publico"
-            className={`min-h-screen bg-white flex flex-col ${!noActiva ? 'pb-[72px] lg:pb-0' : ''}`}
+            className="bg-app-degradado flex h-screen flex-col"
         >
             <HeaderPublico />
 
-            {/* Contenido — layout 2 cols 60/40 en lg+ */}
-            <div className="flex-1 mx-auto w-full max-w-5xl px-4 py-6">
-                <div className="lg:grid lg:grid-cols-[60%_40%] lg:gap-6">
-                    {/* Columna izquierda */}
-                    <div className="space-y-5">
-                        <div className="relative">
-                            <GaleriaArticulo
-                                fotos={articulo.fotos}
-                                titulo={articulo.titulo}
-                                fotoPortadaIndex={articulo.fotoPortadaIndex}
-                            />
-                            {estadoNoActivo && <OverlayEstadoNoActiva estado={estadoNoActivo} />}
-                        </div>
-
-                        {/* Bloque info — solo móvil */}
-                        <div className="lg:hidden">
-                            <BloqueInfoPublico articulo={articulo} />
-                        </div>
-
-                        <div>
-                            <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
-                                Descripción
-                            </h2>
-                            <p className="whitespace-pre-line text-sm leading-relaxed text-slate-700">
-                                {articulo.descripcion}
-                            </p>
-                        </div>
-
-                        <div className="lg:hidden">
-                            <CardVendedor vendedor={articulo.vendedor} />
-                        </div>
-
-                        <div>
-                            <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
-                                Ubicación aproximada
-                            </h2>
-                            <MapaUbicacion
-                                lat={articulo.ubicacionAproximada.lat}
-                                lng={articulo.ubicacionAproximada.lng}
-                                zonaAproximada={articulo.zonaAproximada}
-                            />
-                        </div>
-
-                        {/* Mensaje según estado (en móvil, abajo del resumen) */}
-                        {noActiva && (
-                            <div className="lg:hidden">
-                                {estadoNoActivo && <MensajeEstadoNoActiva estado={estadoNoActivo} />}
+            <main
+                className={`flex-1 overflow-y-auto ${
+                    !noActiva ? 'pb-20 lg:pb-0' : ''
+                }`}
+            >
+                {/* Wrapper único `max-w-7xl` — mismo layout que la versión
+                    privada pero sin header dark del módulo (HeaderPublico
+                    arriba ya da el contexto de marca). */}
+                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                    <div className="pb-5 lg:pb-8 lg:pt-2">
+                    {/* DESKTOP: 2 columnas 3fr/2fr (mismas fr de la privada para
+                        evitar overflow horizontal del grid sobre su contenedor
+                        cuando se aplica gap). */}
+                    <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
+                        {/* ─── COLUMNA IZQUIERDA (full width móvil) ─────── */}
+                        <div className="space-y-5 lg:mt-8 lg:space-y-6">
+                            {/* Galería */}
+                            <div className="relative">
+                                <GaleriaArticulo
+                                    fotos={articulo.fotos}
+                                    titulo={articulo.titulo}
+                                    fotoPortadaIndex={articulo.fotoPortadaIndex}
+                                />
+                                {estadoNoActivo && <OverlayEstadoNoActiva estado={estadoNoActivo} />}
                             </div>
-                        )}
-                    </div>
 
-                    {/* Columna derecha — solo desktop, sticky */}
-                    <div className="hidden lg:block">
-                        <div className="sticky top-24 space-y-4">
-                            <BloqueInfoPublico articulo={articulo} />
-                            <CardVendedor vendedor={articulo.vendedor} />
-                            {!estadoNoActivo ? (
-                                <BotonContactoPublico onClick={handleEnviarMensaje} />
-                            ) : (
-                                <MensajeEstadoNoActiva estado={estadoNoActivo} />
+                            {/* Bloque info — SOLO móvil. En desktop va en col-derecha */}
+                            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:hidden">
+                                <BloqueInfo articulo={articulo} />
+                            </div>
+
+                            {/* Descripción */}
+                            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                                <h2 className="mb-2 text-base font-bold text-slate-900">
+                                    Descripción
+                                </h2>
+                                <p
+                                    data-testid="descripcion"
+                                    className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700"
+                                >
+                                    {articulo.descripcion}
+                                </p>
+                            </div>
+
+                            {/* Características — SOLO móvil. En desktop va en panel sticky */}
+                            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md lg:hidden">
+                                <h2 className="mb-3 text-base font-bold text-slate-900">
+                                    Características
+                                </h2>
+                                <CaracteristicasTabla articulo={articulo} />
+                            </div>
+
+                            {/* Card vendedor — SOLO móvil. En desktop va en col-derecha */}
+                            <div className="px-3 lg:hidden">
+                                <CardVendedor vendedor={articulo.vendedor} />
+                            </div>
+
+                            {/* Mapa */}
+                            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                                <h2 className="mb-2 text-base font-bold text-slate-900">
+                                    Ubicación aproximada
+                                </h2>
+                                <MapaUbicacion
+                                    lat={articulo.ubicacionAproximada.lat}
+                                    lng={articulo.ubicacionAproximada.lng}
+                                    zonaAproximada={articulo.zonaAproximada}
+                                />
+                            </div>
+
+                            {/* Mensaje de estado no-activo — solo móvil cuando aplica.
+                                En desktop el mensaje vive en el panel sticky derecho. */}
+                            {noActiva && estadoNoActivo && (
+                                <div className="mx-3 lg:hidden">
+                                    <MensajeEstadoNoActiva estado={estadoNoActivo} />
+                                </div>
                             )}
                         </div>
-                    </div>
-                </div>
 
-                {/* Footer con CTA */}
-                <div className="mt-12 rounded-xl border-2 border-slate-200 bg-slate-50 p-5 text-center">
-                    <p className="text-sm font-semibold text-slate-900">
-                        ¿Te gustó este artículo?
-                    </p>
-                    <p className="mt-1 text-xs text-slate-600">
-                        Descubre más en AnunciaYA — la app de comercio local de tu ciudad.
-                    </p>
-                    <button
-                        data-testid="cta-conocer-anunciaya"
-                        onClick={() => navigate('/')}
-                        className="mt-3 inline-flex items-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-md hover:scale-[1.02]"
-                    >
-                        Descubre más en AnunciaYA →
-                    </button>
+                        {/* ─── COLUMNA DERECHA — solo desktop. El item del
+                            grid se estira al alto del row (= galería del
+                            lado izquierdo) gracias al stretch default. Con
+                            `lg:justify-center` el contenido (panel sticky)
+                            queda centrado verticalmente. El sticky funciona
+                            porque el padre tiene espacio para que el panel
+                            se "mueva" al hacer scroll del main. ─── */}
+                        <div className="hidden lg:-mt-12 lg:flex lg:flex-col">
+                            <div className="sticky top-10 flex flex-col gap-2">
+                                {/* Card consolidada: info + CTA pública.
+                                    Si el artículo está vendido/pausado se
+                                    reemplaza el botón por mensaje de estado.
+                                    Padding aumentado (`p-5`) para dar más
+                                    aire alrededor del contenido. */}
+                                <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+                                    <BloqueInfo articulo={articulo} compacto />
+
+                                    <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
+                                        {!estadoNoActivo ? (
+                                            <BotonContactoPublico onClick={handleEnviarMensaje} />
+                                        ) : (
+                                            <MensajeEstadoNoActiva estado={estadoNoActivo} />
+                                        )}
+                                    </div>
+                                </div>
+
+                                {/* Card vendedor — padding aumentado para
+                                    coincidir con las demás cards del panel. */}
+                                <CardVendedor vendedor={articulo.vendedor} className="p-4" />
+
+                                {/* Características compactas — padding aumentado
+                                    para mantener consistencia con la card de
+                                    info y dar más aire al contenido. */}
+                                <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+                                    <h2 className="mb-1.5 text-base font-bold text-slate-900">
+                                        Características
+                                    </h2>
+                                    <CaracteristicasTabla articulo={articulo} compacto />
+                                </div>
+
+                                {/* Compra segura */}
+                                {/* Compra segura — altura natural (compacta) */}
+                                <CardCompraSegura />
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* CTA personalizado de marca — gancho para no logueados.
+                        Gradient sutil teal→blue + icono ShoppingCart con
+                        gradient del módulo + headline con la ciudad del
+                        artículo (cuando existe) + 3 trust chips + botón
+                        accionable. Reemplaza el bloque genérico anterior. */}
+                    <div className="mx-3 mt-12 overflow-hidden rounded-2xl border-2 border-teal-200 bg-linear-to-br from-teal-50 via-white to-blue-50 p-5 shadow-md lg:mx-0 lg:p-7">
+                        {/* Layout: icono | contenido | botón en una sola fila
+                            (desktop). En móvil apila vertical: icono → contenido
+                            → botón. El botón vive como tercera columna al lado
+                            del contenido — ya no debajo de los chips. */}
+                        <div className="flex flex-col items-center gap-4 text-center lg:flex-row lg:items-center lg:gap-6 lg:text-left">
+                            {/* Icono prominente con gradient teal del módulo
+                                — mismo lenguaje visual que el header dark
+                                del detalle privado y la P3 perfil vendedor. */}
+                            <div
+                                className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl shadow-lg lg:h-20 lg:w-20"
+                                style={{
+                                    background:
+                                        'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                }}
+                            >
+                                <ShoppingCart
+                                    className="h-8 w-8 text-white lg:h-10 lg:w-10"
+                                    strokeWidth={2.5}
+                                />
+                            </div>
+
+                            <div className="min-w-0 flex-1">
+                                <h2 className="text-lg font-extrabold tracking-tight text-slate-900 lg:text-xl">
+                                    {articulo.ciudad
+                                        ? `Más artículos a la venta en ${articulo.ciudad}`
+                                        : 'Compra y vende en MarketPlace'}
+                                </h2>
+                                <p className="mt-1.5 text-sm font-medium text-slate-600">
+                                    <span className="font-bold text-slate-900">
+                                        Únete gratis a AnunciaYA.
+                                    </span>{' '}
+                                    Publica tus artículos en MarketPlace o descubre lo que ofrecen vendedores cerca de ti.
+                                </p>
+
+                                {/* Trust chips — pills blancos con check teal */}
+                                <div className="mt-3 flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
+                                    {['Hiperlocal', 'Sin comisiones', 'Sin spam'].map((etiqueta) => (
+                                        <span
+                                            key={etiqueta}
+                                            className="inline-flex items-center gap-1 rounded-full bg-white px-2.5 py-1 text-xs font-semibold text-slate-700 shadow-sm ring-1 ring-slate-200"
+                                        >
+                                            <Check
+                                                className="h-3 w-3 text-teal-600"
+                                                strokeWidth={3}
+                                            />
+                                            {etiqueta}
+                                        </span>
+                                    ))}
+                                </div>
+                            </div>
+
+                            {/* Botón teal sólido (un solo color) — anclado
+                                al lado derecho del contenido en desktop, al
+                                final del stack en móvil. */}
+                            <button
+                                data-testid="cta-conocer-anunciaya"
+                                onClick={() => navigate('/registro')}
+                                className="inline-flex shrink-0 items-center gap-2 rounded-lg bg-teal-600 px-5 py-2.5 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.02] lg:cursor-pointer lg:hover:bg-teal-700"
+                            >
+                                Únete gratis
+                                <ArrowRight className="h-4 w-4" strokeWidth={2.5} />
+                            </button>
+                        </div>
+                    </div>
                 </div>
             </div>
 
-            <FooterPublico />
+                {/* FooterPublico vive dentro del main para que aparezca al
+                    final del scroll interno (no como bloque fijo separado). */}
+                <FooterPublico />
+            </main>
 
-            {/* Barra de contacto fija inferior — solo móvil + activa */}
+            {/* Barra fija inferior — solo móvil cuando el artículo está activo.
+                Fuera del main para que quede pegada al viewport y no scrollee
+                con el contenido. z-20 para quedar sobre el contenido pero
+                debajo del HeaderPublico sticky (que es z-50). */}
             {!noActiva && (
                 <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white p-3 lg:hidden">
                     <BotonContactoPublico onClick={handleEnviarMensaje} />
@@ -243,35 +376,193 @@ export function PaginaArticuloMarketplacePublico() {
 // SUB-COMPONENTES
 // =============================================================================
 
-interface BloqueInfoPublicoProps {
+interface BloqueInfoProps {
     articulo: NonNullable<ReturnType<typeof useArticuloMarketplace>['data']>;
+    /** Si true, reduce paddings y tamaños de texto para caber en el panel
+     *  sticky desktop sin requerir scroll. Default false (vista mobile). */
+    compacto?: boolean;
 }
 
-function BloqueInfoPublico({ articulo }: BloqueInfoPublicoProps) {
+/**
+ * Bloque info portado desde `PaginaArticuloMarketplace` (privada). Mismo
+ * estilo Mercado Libre: eyebrow MarketPlace · Ciudad / título / precio
+ * gigante / chips de condición + acepta ofertas / tiempo + vistas.
+ */
+function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
     return (
-        <div className="space-y-2">
-            <div className="text-3xl font-extrabold leading-tight text-slate-900 lg:text-4xl">
-                {formatearPrecio(articulo.precio)}
-            </div>
-            <h1 className="text-lg font-semibold leading-snug text-slate-900 lg:text-xl">
+        <div className={compacto ? 'space-y-1.5' : 'space-y-3 lg:space-y-4'}>
+            {/* Eyebrow MarketPlace · Ciudad */}
+            <p
+                className={`flex flex-wrap items-center gap-1.5 font-bold uppercase tracking-wide ${
+                    compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'
+                }`}
+            >
+                <span className="text-teal-700">MarketPlace</span>
+                {articulo.ciudad && (
+                    <>
+                        <span aria-hidden className="text-slate-400">·</span>
+                        <span className="inline-flex items-center gap-1 text-slate-700">
+                            <MapPin
+                                className="h-3.5 w-3.5 shrink-0 text-slate-500"
+                                strokeWidth={2.5}
+                            />
+                            {articulo.ciudad}
+                        </span>
+                    </>
+                )}
+            </p>
+
+            {/* Título */}
+            <h1
+                data-testid="titulo"
+                className={
+                    compacto
+                        ? 'text-sm font-bold leading-tight text-slate-900 2xl:text-base'
+                        : 'text-xl font-bold leading-tight text-slate-900 lg:text-2xl 2xl:text-3xl'
+                }
+            >
                 {articulo.titulo}
             </h1>
-            <div className="flex flex-wrap items-center gap-1.5">
-                <Chip>{ETIQUETA_CONDICION[articulo.condicion]}</Chip>
-                {articulo.aceptaOfertas && <Chip>Acepta ofertas</Chip>}
+
+            {/* Precio gigante */}
+            <div
+                data-testid="precio"
+                className={
+                    compacto
+                        ? 'text-2xl font-extrabold leading-none tracking-tight text-slate-900 2xl:text-3xl'
+                        : 'text-4xl font-extrabold leading-none tracking-tight text-slate-900 lg:text-5xl'
+                }
+            >
+                {formatearPrecio(articulo.precio)}
             </div>
-            <p className="text-xs text-slate-500">
-                {formatearTiempoRelativo(articulo.createdAt)}
-            </p>
+
+            {/* Chips: condición (semántico) + acepta ofertas */}
+            <div className="flex flex-wrap items-center gap-1.5">
+                <ChipCondicion condicion={articulo.condicion} />
+                {articulo.aceptaOfertas && (
+                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">
+                        Acepta ofertas
+                    </span>
+                )}
+            </div>
+
+            {/* Tiempo + vistas (sutil) */}
+            <div className={`flex items-center gap-2 font-medium text-slate-600 ${compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'}`}>
+                <span>{formatearTiempoRelativo(articulo.createdAt)}</span>
+                <span aria-hidden className="text-slate-400">·</span>
+                <span className="flex items-center gap-1">
+                    <Eye className="h-3.5 w-3.5" strokeWidth={2} />
+                    {articulo.totalVistas} {articulo.totalVistas === 1 ? 'vista' : 'vistas'}
+                </span>
+            </div>
         </div>
     );
 }
 
-function Chip({ children }: { children: React.ReactNode }) {
+/**
+ * Chip de condición con color semántico:
+ *  - Nuevo → emerald, Seminuevo → blue, Usado → slate, Para reparar → amber.
+ */
+function ChipCondicion({ condicion }: { condicion: CondicionArticulo }) {
+    const config = {
+        nuevo: { label: 'Nuevo', clases: 'bg-emerald-100 text-emerald-700' },
+        seminuevo: { label: 'Seminuevo', clases: 'bg-blue-100 text-blue-700' },
+        usado: { label: 'Usado', clases: 'bg-slate-200 text-slate-700' },
+        para_reparar: { label: 'Para reparar', clases: 'bg-amber-100 text-amber-700' },
+    }[condicion];
     return (
-        <span className="inline-flex items-center rounded-md border border-slate-300 bg-slate-50 px-2 py-0.5 text-xs font-medium text-slate-700">
-            {children}
+        <span
+            className={`inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1 text-sm font-semibold ${config.clases}`}
+        >
+            {config.label}
         </span>
+    );
+}
+
+/**
+ * Tabla de características key-value densa (estilo Mercado Libre).
+ * `compacto` reduce padding vertical para caber en el panel sticky desktop.
+ */
+function CaracteristicasTabla({
+    articulo,
+    compacto = false,
+}: {
+    articulo: NonNullable<ReturnType<typeof useArticuloMarketplace>['data']>;
+    compacto?: boolean;
+}) {
+    const filas: Array<{ label: string; valor: React.ReactNode }> = [
+        {
+            label: 'Condición',
+            valor: ETIQUETA_CONDICION[articulo.condicion],
+        },
+        {
+            label: 'Acepta ofertas',
+            valor: articulo.aceptaOfertas ? 'Sí' : 'No',
+        },
+        ...(articulo.ciudad
+            ? [{ label: 'Ciudad', valor: articulo.ciudad }]
+            : []),
+        ...(articulo.zonaAproximada
+            ? [{ label: 'Zona', valor: articulo.zonaAproximada }]
+            : []),
+        {
+            label: 'Publicado',
+            valor: formatearTiempoRelativo(articulo.createdAt),
+        },
+    ];
+    const filaPadding = compacto ? 'py-1' : 'py-2';
+    // Tamaño uniforme `text-sm` — alineado a la jerarquía global del detalle.
+    const filaTexto = 'text-sm';
+    return (
+        <dl className="divide-y divide-slate-200">
+            {filas.map((fila) => (
+                <div
+                    key={fila.label}
+                    className={`flex items-baseline justify-between gap-3 ${filaPadding} ${filaTexto}`}
+                >
+                    <dt className="font-semibold text-slate-600">{fila.label}</dt>
+                    <dd className="text-right font-medium text-slate-900">{fila.valor}</dd>
+                </div>
+            ))}
+        </dl>
+    );
+}
+
+/**
+ * Card de tips de seguridad estilo Mercado Libre "Compra Protegida".
+ * Refuerza confianza con lineamientos básicos. Genérico — el contenido es
+ * el mismo para todos los artículos.
+ */
+function CardCompraSegura({ className = '' }: { className?: string }) {
+    const tips: Array<{ icono: React.ComponentType<{ className?: string; strokeWidth?: number }>; texto: string }> = [
+        { icono: MapPin, texto: 'Acuerda el punto de encuentro en un lugar público' },
+        { icono: UserCheck, texto: 'Verifica el producto antes de pagar' },
+        { icono: ShieldCheck, texto: 'Lleva acompañante o avísale a alguien' },
+        { icono: Flag, texto: 'Reporta cualquier comportamiento sospechoso' },
+    ];
+    return (
+        <div className={`rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4 shadow-md ${className}`}>
+            <div className="mb-1.5 flex items-center gap-1.5">
+                <ShieldCheck className="h-4 w-4 text-emerald-700" strokeWidth={2.5} />
+                <h2 className="text-base font-bold text-emerald-900">
+                    Compra segura
+                </h2>
+            </div>
+            <ul className="space-y-1.5">
+                {tips.map(({ icono: Icono, texto }) => (
+                    <li
+                        key={texto}
+                        className="flex items-start gap-1.5 text-sm font-medium leading-snug text-emerald-900"
+                    >
+                        <Icono
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700"
+                            strokeWidth={2.5}
+                        />
+                        <span>{texto}</span>
+                    </li>
+                ))}
+            </ul>
+        </div>
     );
 }
 
@@ -284,7 +575,7 @@ function BotonContactoPublico({ onClick }: BotonContactoProps) {
         <button
             data-testid="btn-enviar-mensaje-publico"
             onClick={onClick}
-            className="flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
+            className="flex w-full items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:cursor-pointer"
         >
             <MessageSquare className="h-4 w-4" strokeWidth={2.5} />
             Enviar mensaje al vendedor
@@ -335,7 +626,7 @@ function MensajeEstadoNoActiva({ estado }: MensajeEstadoProps) {
     return (
         <div
             data-testid={`mensaje-estado-${estado}`}
-            className="rounded-xl border-2 border-slate-200 bg-slate-50 p-4 text-sm"
+            className="rounded-xl border-2 border-slate-300 bg-white p-4 text-sm shadow-md"
         >
             <strong className="block font-semibold text-slate-900">{titulo}</strong>
             <p className="mt-0.5 text-slate-600">{cuerpo}</p>
@@ -349,7 +640,7 @@ interface Estado404Props {
 
 function Estado404Publico({ onVolver }: Estado404Props) {
     return (
-        <div className="flex min-h-screen items-center justify-center bg-white px-6">
+        <div className="bg-app-degradado flex min-h-screen items-center justify-center px-6">
             <div className="flex max-w-md flex-col items-center text-center">
                 <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-slate-100">
                     <AlertCircle className="h-8 w-8 text-slate-400" strokeWidth={1.5} />
@@ -362,7 +653,7 @@ function Estado404Publico({ onVolver }: Estado404Props) {
                 </p>
                 <button
                     onClick={onVolver}
-                    className="inline-flex items-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-md"
+                    className="inline-flex items-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-5 py-2.5 text-sm font-bold text-white shadow-md lg:cursor-pointer"
                 >
                     Conocer AnunciaYA
                 </button>

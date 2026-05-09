@@ -517,16 +517,17 @@ export const Navbar = () => {
             {/* ===== UBICACIÓN + BUSCADOR + NAVEGACIÓN (ocultos en Business Studio) ===== */}
             {!esBusinessStudio ? (
               <>
-                {/* ===== UBICACIÓN ===== */}
+                {/* ===== UBICACIÓN — pill glass igual a los tabs ===== */}
                 <button
                   onClick={abrirModalUbicacion}
                   className="
-                    flex items-center gap-1 lg:gap-1 2xl:gap-2 
-                    px-2 lg:px-2.5 2xl:px-3 
-                    py-1 lg:py-1.5 2xl:py-2 
-                    text-blue-100 
-                    hover:text-white hover:bg-white/10 
-                    rounded-lg 
+                    flex items-center gap-1 lg:gap-1 2xl:gap-2
+                    px-3 lg:px-3 2xl:px-4
+                    py-1.5 lg:py-1.5 2xl:py-2
+                    text-white
+                    bg-white/10 hover:bg-white/20
+                    backdrop-blur-md
+                    rounded-full
                     transition-colors
                     cursor-pointer
                     shrink-0
@@ -539,7 +540,10 @@ export const Navbar = () => {
                   <ChevronDown className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-300" />
                 </button>
 
-                {/* ===== BUSCADOR EXPANDIBLE - Lupa flotante ===== */}
+                {/* ===== BUSCADOR — Lupa afuera + pill glass interior.
+                    El pill (que envuelve solo placeholder/input) es glass
+                    cuando colapsado y blanco cuando expandido. La lupa
+                    queda fuera del pill como elemento independiente. ===== */}
                 <div
                   ref={buscadorRef}
                   className="relative flex items-center"
@@ -549,11 +553,11 @@ export const Navbar = () => {
                     }
                   }}
                 >
-                  {/* Lupa siempre visible - toggle con click */}
+                  {/* Lupa afuera del pill — color blanco siempre. */}
                   <Search
                     className={`
-                      w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 
-                      text-blue-100 
+                      w-5 h-5 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6
+                      text-blue-100
                       cursor-pointer
                       transition-all
                       z-10
@@ -577,15 +581,25 @@ export const Navbar = () => {
                     }}
                   />
 
-                  {/* Contenedor con ancho fijo para evitar re-ajustes */}
-                  <div className="relative ml-2 w-64 lg:w-56 2xl:w-80">
+                  {/* Contenedor pill — glass cuando colapsado, blanco al
+                      expandir. Solo envuelve placeholder + input (la lupa
+                      queda fuera). Width dinámico animado: compacto para el
+                      placeholder, wide para la query. */}
+                  <div className={`relative ml-2 px-4 py-1.5 rounded-full backdrop-blur-md transition-all duration-300 ease-out ${
+                    buscadorExpandido
+                      ? 'bg-white shadow-md w-64 lg:w-56 2xl:w-80'
+                      : 'bg-white/10 hover:bg-white/20 cursor-pointer w-40 lg:w-40 2xl:w-48'
+                  }`}>
 
-                    {/* Texto - siempre presente, solo cambia opacidad */}
+                    {/* Texto placeholder — `left-4 right-4` para respetar
+                        el `px-4` del padre (CSS absolute se posiciona desde
+                        padding-box, NO content-box). Tipografía alineada al
+                        selector de ciudad: text-xs + font-medium. */}
                     <span
                       className={`
-                          absolute left-0 top-1/2 -translate-y-1/2
-                          text-sm lg:text-xs 2xl:text-sm text-blue-100 
-                          cursor-pointer select-none
+                          absolute left-4 right-4 top-1/2 -translate-y-1/2
+                          text-xs lg:text-xs 2xl:text-sm font-medium text-white/80
+                          cursor-pointer select-none truncate
                           hover:text-white
                           transition-opacity duration-300 ease-out
                           ${!buscadorExpandido && !inputVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
@@ -644,17 +658,13 @@ export const Navbar = () => {
                         autoCapitalize="off"
                         spellCheck="false"
                         className="
-                            w-64 lg:w-56 2xl:w-80
-                            px-4 lg:px-3 2xl:px-5 
-                            py-1.5 lg:py-1.5 2xl:py-2
-                            pr-10 lg:pr-9 2xl:pr-12
-                            bg-white
-                            rounded-full
+                            w-full
+                            pr-6
+                            bg-transparent
                             text-xs lg:text-xs 2xl:text-sm
                             text-gray-800
                             placeholder:text-gray-400
                             focus:outline-none
-                            shadow-lg
                           "
                       />
 
@@ -704,17 +714,22 @@ export const Navbar = () => {
                           // navegar entre hermanas. Ver useNavegarASeccion.
                           replace={location.pathname !== '/inicio'}
                           onMouseEnter={item.id === 'negocios' ? prefetchListaNegocios : undefined}
+                          // Estilo glass sin border (más limpio para 4 tabs
+                          // lado a lado). Pill rounded-full + bg-white/10 +
+                          // backdrop-blur. Activo sólido (bg-white) para
+                          // preservar la jerarquía del tab seleccionado.
                           className={`
                             flex items-center gap-1 lg:gap-1.5 2xl:gap-2
-                            px-2 lg:px-3 2xl:px-4
-                            py-1.5 lg:py-1.5 2xl:py-2.5
-                            rounded-lg lg:rounded-lg 2xl:rounded-xl
+                            px-3 lg:px-3 2xl:px-4
+                            py-1.5 lg:py-1.5 2xl:py-2
+                            rounded-full
                             text-xs lg:text-xs 2xl:text-sm
-                            font-medium
-                            transition-all
+                            font-semibold
+                            backdrop-blur-md
+                            transition-all duration-200
                             ${active
                               ? 'bg-white text-blue-700 shadow-md'
-                              : 'text-blue-100 hover:bg-white/15 hover:text-white'
+                              : 'bg-white/10 text-white hover:bg-white/20'
                             }
                           `}
                         >
@@ -884,15 +899,15 @@ export const Navbar = () => {
                 )}
               </button>
 
-              {/* Notificaciones */}
+              {/* Notificaciones — círculo glass alineado con el resto del navbar */}
               <button
                 onClick={togglePanel}
                 data-notificaciones-boton="true"
                 className="
                     relative
                     w-7 h-7 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10
-                    bg-white/20 hover:bg-white/30
-                    border-2 border-white/40
+                    bg-white/10 hover:bg-white/20
+                    backdrop-blur-md
                     rounded-full
                     flex items-center justify-center
                     text-white
@@ -922,20 +937,19 @@ export const Navbar = () => {
                 )}
               </button>
 
-              {/* Avatar con Dropdown */}
+              {/* Avatar con Dropdown — círculo glass alineado con el resto */}
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setDropdownAbierto(!dropdownAbierto)}
                   className="
                     w-7 h-7 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10
-                    bg-white/20 hover:bg-white/30
-                    border-2 border-white/40
+                    bg-white/10 hover:bg-white/20
+                    backdrop-blur-md
                     rounded-full
                     flex items-center justify-center
                     text-white
                     text-xs lg:text-sm 2xl:text-base
                     font-semibold
-                    shadow-sm
                     transition-transform
                     hover:scale-110
                     overflow-hidden

@@ -340,11 +340,12 @@ Contactos se guardan a nivel **sucursal**, no por negocio. Un usuario puede tene
 - ✅ Agregar usuarios a lista de contactos personales
 - ✅ Guardar negocios en lista de contactos comerciales (separada, por sucursal)
 - ✅ Iniciar conversación desde lista de contactos (detecta conversación existente antes de crear nueva)
-- ✅ Agregar/quitar desde 4 ubicaciones sincronizadas:
+- ✅ Agregar/quitar desde 5 ubicaciones sincronizadas:
   - Resultados de búsqueda (UserPlus/UserMinus) — `ListaConversaciones.tsx`
   - Header del chat (botón entre lupa y ⋮) — `VentanaChat.tsx`
   - Panel lateral info (botón con texto debajo del avatar) — `PanelInfoContacto.tsx`
   - Menú contextual ⋮ (opción entre Archivar y Bloquear) — `MenuContextualChat.tsx`
+  - Perfil del usuario en MarketPlace P3 (botón circular al lado del nombre) — `PaginaPerfilVendedor.tsx` (09-may-2026, ver `MarketPlace.md` §P3)
 - ✅ Optimistic UI bidireccional con `ContactoDisplay` (temp id → real id, rollback en error)
 - ✅ El `tipo` del contacto refleja el modo activo del usuario al guardar, no el tipo de entidad
 - ✅ Detección negocio por `!!contacto.negocioId` (no por `tipo === 'comercial'`)

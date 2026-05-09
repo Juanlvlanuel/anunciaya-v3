@@ -350,12 +350,12 @@ export function PaginaArticuloMarketplace() {
 
                         {/* Descripción — card propia tipo Mercado Libre */}
                         <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                            <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
+                            <h2 className="mb-2 text-base font-bold text-slate-900">
                                 Descripción
                             </h2>
                             <p
                                 data-testid="descripcion"
-                                className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700 lg:text-base"
+                                className="whitespace-pre-line text-sm font-medium leading-relaxed text-slate-700"
                             >
                                 {articulo.descripcion}
                             </p>
@@ -378,7 +378,7 @@ export function PaginaArticuloMarketplace() {
 
                         {/* Mapa — card propia */}
                         <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                            <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
+                            <h2 className="mb-2 text-base font-bold text-slate-900">
                                 Ubicación aproximada
                             </h2>
                             <MapaUbicacion
@@ -412,11 +412,12 @@ export function PaginaArticuloMarketplace() {
                             style={{ maxHeight: 'calc(100vh - 7rem)' }}
                         >
                             {/* Card consolidada: info + CTAs (estilo MercadoLibre).
-                                Tamaños compactos para que entre en el viewport. */}
-                            <div className="rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md">
+                                Padding `p-4` unificado en todas las cards del
+                                panel sticky (mismo patrón en la pública). */}
+                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
                                 <BloqueInfo articulo={articulo} compacto />
 
-                                <div className="mt-2.5 space-y-1.5 border-t-2 border-slate-200 pt-2.5">
+                                <div className="mt-3 space-y-1.5 border-t-2 border-slate-200 pt-3">
                                     {/*
                                       Si el visitante es el dueño Y el artículo está
                                       pausado, mostramos botón Reactivar EN LUGAR de
@@ -444,13 +445,13 @@ export function PaginaArticuloMarketplace() {
                                 </div>
                             </div>
 
-                            {/* Card vendedor separada con trust badges */}
-                            <CardVendedor vendedor={articulo.vendedor} />
+                            {/* Card vendedor — padding unificado con el resto. */}
+                            <CardVendedor vendedor={articulo.vendedor} className="p-4" />
 
                             {/* Características — solo desktop, debajo del
-                                card vendedor (estilo Mercado Libre). Compacto. */}
-                            <div className="rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md">
-                                <h2 className="mb-1.5 text-sm font-bold text-slate-900">
+                                card vendedor. Padding `p-4` consistente. */}
+                            <div className="rounded-xl border-2 border-slate-300 bg-white p-4 shadow-md">
+                                <h2 className="mb-1.5 text-base font-bold text-slate-900">
                                     Características
                                 </h2>
                                 <CaracteristicasTabla articulo={articulo} compacto />
@@ -621,10 +622,10 @@ function CardCompraSegura() {
         { icono: Flag, texto: 'Reporta cualquier comportamiento sospechoso' },
     ];
     return (
-        <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-3 shadow-md">
+        <div className="rounded-xl border-2 border-emerald-200 bg-emerald-50 p-4 shadow-md">
             <div className="mb-1.5 flex items-center gap-1.5">
                 <ShieldCheck className="h-4 w-4 text-emerald-700" strokeWidth={2.5} />
-                <h2 className="text-sm font-bold text-emerald-900">
+                <h2 className="text-base font-bold text-emerald-900">
                     Compra segura
                 </h2>
             </div>
@@ -632,7 +633,7 @@ function CardCompraSegura() {
                 {tips.map(({ icono: Icono, texto }) => (
                     <li
                         key={texto}
-                        className="flex items-start gap-1.5 text-sm font-medium leading-snug text-emerald-900 lg:text-xs 2xl:text-sm"
+                        className="flex items-start gap-1.5 text-sm font-medium leading-snug text-emerald-900"
                     >
                         <Icono
                             className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-700"
@@ -679,10 +680,11 @@ function CaracteristicasTabla({
         },
     ];
     const filaPadding = compacto ? 'py-1' : 'py-2';
-    // Compacto vive en panel sticky desktop (lg+), pero el tamaño base
-    // móvil debe cumplir `text-sm` aunque no se vea, por consistencia con
-    // tokens globales. Laptop reduce a 12px; desktop restaura a sm.
-    const filaTexto = compacto ? 'text-sm lg:text-[12px] 2xl:text-sm' : 'text-sm lg:text-[15px]';
+    // Tamaño uniforme `text-sm` en todos los breakpoints — alineado a la
+    // jerarquía global del detalle (cuerpo y filas comparten tamaño base
+    // para que la columna izquierda y el panel sticky derecho se sientan
+    // del mismo módulo, no de dos componentes con escalas distintas).
+    const filaTexto = 'text-sm';
     return (
         <dl className="divide-y divide-slate-200">
             {filas.map((fila) => (

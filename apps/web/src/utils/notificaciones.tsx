@@ -7,7 +7,7 @@
 
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { createRoot } from 'react-dom/client';
-import { X, Lock } from 'lucide-react';
+import { X } from 'lucide-react';
 import i18n from '../config/i18n';
 
 // =============================================================================
@@ -363,35 +363,52 @@ const ModalSesionExpirada: React.FC<ModalSesionExpiradaProps> = ({ onConfirm }) 
   return (
     <div
       className="fixed inset-0 z-10000 flex items-center justify-center p-4 animate-[fadeIn_0.2s_ease-out]"
-      style={{ backgroundColor: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)' }}
+      style={{ backgroundColor: 'rgba(15,23,42,0.55)', backdropFilter: 'blur(6px)' }}
     >
-      <div
-        className="w-full max-w-sm lg:max-w-md overflow-hidden rounded-2xl border-2 border-slate-300 shadow-lg animate-[scaleIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]"
-        style={{ background: '#fff' }}
-      >
-        <div className="p-6 pb-4">
-          <div className="flex items-start gap-4">
-            <div className="shrink-0 flex items-center justify-center w-11 h-11 rounded-xl bg-amber-100">
-              <Lock className="w-5 h-5 text-amber-600" strokeWidth={2} />
-            </div>
-            <div className="flex-1">
-              <h3 className="text-slate-800 font-bold text-base lg:text-lg leading-tight mb-1.5">
-                Sesión expirada
-              </h3>
-              <p className="text-slate-600 text-sm font-medium leading-relaxed">
-                Tu sesión ha expirado por inactividad.
-                <br />
-                Por favor, inicia sesión nuevamente.
-              </p>
-            </div>
-          </div>
+      <div className="w-full max-w-sm lg:max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl flex animate-[scaleIn_0.3s_cubic-bezier(0.34,1.56,0.64,1)]">
+        <div
+          className="shrink-0 w-24 lg:w-28 bg-slate-50 border-r border-slate-200 flex items-center justify-center"
+          style={{ perspective: '200px' }}
+        >
+          <svg
+            className="w-12 h-12 lg:w-14 lg:h-14 text-slate-700"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+            style={{ overflow: 'visible' }}
+          >
+            <rect x="3" y="11" width="18" height="11" rx="2" />
+            <g style={{
+              animation: 'candadoBisagra 3000ms ease-in-out 250ms infinite',
+              transformOrigin: '0 100%',
+              transformBox: 'fill-box',
+              transformStyle: 'preserve-3d',
+            }}>
+              <path d="M7 11 V7 a5 5 0 0 1 10 0 V11" />
+            </g>
+          </svg>
         </div>
 
-        <div className="p-6 pt-2">
+        <div className="flex-1 min-w-0 p-5 flex flex-col gap-4">
+          <div>
+            <h3 className="text-slate-900 font-bold text-base lg:text-lg leading-tight mb-1">
+              Sesión expirada
+            </h3>
+            <p className="text-slate-600 text-sm font-medium leading-relaxed">
+              Tu sesión ha expirado por inactividad. Por favor, inicia sesión nuevamente.
+            </p>
+          </div>
           <button
             onClick={onConfirm}
-            className="w-full py-3 px-4 rounded-xl text-sm lg:text-base font-bold text-white shadow-lg shadow-slate-700/30 active:scale-[0.98] lg:cursor-pointer"
-            style={{ background: 'linear-gradient(135deg, #334155, #1e293b)' }}
+            className="w-full py-2.5 px-4 rounded-xl text-sm lg:text-base font-bold text-white active:scale-[0.98] lg:cursor-pointer"
+            style={{
+              background: 'linear-gradient(135deg, #1e293b, #334155)',
+              boxShadow: '0 3px 10px rgba(30, 41, 59, 0.35)',
+            }}
           >
             Ir al login
           </button>
@@ -481,6 +498,11 @@ export const NotificacionesProvider: React.FC<{ children: React.ReactNode }> = (
             transform: scale(1);
             opacity: 1;
           }
+        }
+        @keyframes candadoBisagra {
+          0%, 18% { transform: rotateY(0deg); }
+          50% { transform: rotateY(180deg); }
+          82%, 100% { transform: rotateY(0deg); }
         }
       `}</style>
     </NotificacionesContext.Provider>

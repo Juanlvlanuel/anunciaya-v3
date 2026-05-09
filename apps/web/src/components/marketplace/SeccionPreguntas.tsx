@@ -215,10 +215,10 @@ function VistaVisitante({
     return (
         <div data-testid="seccion-preguntas-visitante" className="space-y-4">
             <div className="flex items-center justify-between gap-2">
-                <h2 className="text-base font-bold text-slate-900 lg:text-lg">
+                <h2 className="text-base font-bold text-slate-900">
                     Preguntas sobre este artículo
                     {preguntas.length > 0 && (
-                        <span className="ml-1.5 text-sm font-normal text-slate-500">
+                        <span className="ml-1.5 text-xs font-medium text-slate-500">
                             ({preguntas.length})
                         </span>
                     )}
@@ -390,10 +390,10 @@ function VistaDueno({ articuloId, vendedor, pendientes, respondidas, total }: Vi
 
     return (
         <div data-testid="seccion-preguntas-dueno" className="space-y-5">
-            <h2 className="text-base font-bold text-slate-900 lg:text-lg">
+            <h2 className="text-base font-bold text-slate-900">
                 Preguntas sobre tu artículo
                 {total > 0 && (
-                    <span className="ml-1.5 text-sm font-normal text-slate-500">
+                    <span className="ml-1.5 text-xs font-medium text-slate-500">
                         ({total})
                     </span>
                 )}
@@ -555,12 +555,12 @@ function FilaPregunta({
 }: FilaPreguntaProps) {
     const respondida = !!pregunta.respuesta;
     return (
-        <div data-testid={`pregunta-${pregunta.id}`} className="text-base">
+        <div data-testid={`pregunta-${pregunta.id}`} className="text-sm">
             {/* Bloque pregunta */}
             <div className="flex gap-2">
                 <AvatarComprador pregunta={pregunta} />
                 <div className="flex-1 rounded-2xl bg-slate-200 px-3 py-2">
-                    <p className="text-base font-bold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-900">
                         <BotonComentarista
                             usuarioId={pregunta.compradorId}
                             nombre={pregunta.compradorNombre}
@@ -588,7 +588,7 @@ function FilaPregunta({
                             )}
                         </div>
                     ) : (
-                        <p className="text-base text-slate-700">{pregunta.pregunta}</p>
+                        <p className="text-sm font-medium text-slate-700">{pregunta.pregunta}</p>
                     )}
                 </div>
             </div>
@@ -597,8 +597,8 @@ function FilaPregunta({
             {respondida && !enEdicion && (
                 <div className="mt-1.5 ml-9 flex gap-2">
                     <AvatarVendedor vendedor={vendedor} />
-                    <div className="flex-1 rounded-2xl bg-teal-100 px-3 py-2 text-base text-slate-800">
-                        <p className="text-base font-bold text-teal-700">
+                    <div className="flex-1 rounded-2xl bg-teal-100 px-3 py-2 text-sm text-slate-800">
+                        <p className="text-sm font-semibold text-teal-700">
                             <BotonComentarista
                                 usuarioId={vendedor.id}
                                 nombre={vendedor.nombre}
@@ -621,7 +621,7 @@ function FilaPregunta({
 
             {/* Acciones inline para mi propia pregunta pendiente */}
             {puedeGestionar && !enEdicion && (
-                <div className="mt-1 ml-9 flex items-center gap-3 text-xs font-semibold">
+                <div className="mt-1 ml-9 flex items-center gap-3 text-sm font-semibold">
                     <button
                         type="button"
                         data-testid={`btn-editar-pregunta-${pregunta.id}`}
@@ -645,7 +645,7 @@ function FilaPregunta({
 
             {/* Acciones inline durante edición */}
             {enEdicion && (
-                <div className="mt-1 ml-9 flex items-center gap-3 text-xs font-semibold">
+                <div className="mt-1 ml-9 flex items-center gap-3 text-sm font-semibold">
                     <button
                         type="button"
                         data-testid={`btn-guardar-edicion-${pregunta.id}`}
@@ -700,12 +700,12 @@ function FilaPreguntaDueno({
 }: FilaPreguntaDuenoProps) {
     const respondida = !!pregunta.respuesta;
     return (
-        <div data-testid={`pregunta-dueno-${pregunta.id}`} className="text-base">
+        <div data-testid={`pregunta-dueno-${pregunta.id}`} className="text-sm">
             {/* Bloque pregunta */}
             <div className="flex gap-2">
                 <AvatarComprador pregunta={pregunta} />
                 <div className="flex-1 rounded-2xl bg-slate-200 px-3 py-2">
-                    <p className="text-base font-bold text-slate-900">
+                    <p className="text-sm font-semibold text-slate-900">
                         <BotonComentarista
                             usuarioId={pregunta.compradorId}
                             nombre={pregunta.compradorNombre}
@@ -714,7 +714,7 @@ function FilaPreguntaDueno({
                             editado={!!pregunta.editadaAt}
                         />
                     </p>
-                    <p className="text-base text-slate-700">{pregunta.pregunta}</p>
+                    <p className="text-sm font-medium text-slate-700">{pregunta.pregunta}</p>
                 </div>
             </div>
 
@@ -722,8 +722,8 @@ function FilaPreguntaDueno({
             {respondida && (
                 <div className="mt-1.5 ml-9 flex gap-2">
                     <AvatarVendedor vendedor={vendedor} />
-                    <div className="flex-1 rounded-2xl bg-teal-100 px-3 py-2 text-base text-slate-800">
-                        <p className="text-base font-bold text-teal-700">
+                    <div className="flex-1 rounded-2xl bg-teal-100 px-3 py-2 text-sm text-slate-800">
+                        <p className="text-sm font-semibold text-teal-700">
                             <BotonComentarista
                                 usuarioId={vendedor.id}
                                 nombre={vendedor.nombre}
@@ -738,7 +738,7 @@ function FilaPreguntaDueno({
             )}
 
             {/* Acciones administrativas */}
-            <div className="mt-1.5 ml-9 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs font-semibold">
+            <div className="mt-1.5 ml-9 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold">
                 <span className="font-medium text-slate-500">
                     {formatearTiempoRelativo(pregunta.createdAt)}
                 </span>
