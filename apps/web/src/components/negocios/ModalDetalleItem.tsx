@@ -20,6 +20,8 @@ import Tooltip from '../ui/Tooltip';
 import api from '../../services/api';
 import { useChatYAStore } from '@/stores/useChatYAStore';
 import { useUiStore } from '@/stores/useUiStore';
+import { useAuthStore } from '@/stores/useAuthStore';
+import type { Mensaje } from '@/types/chatya';
 
 // =============================================================================
 // TIPOS
@@ -46,6 +48,10 @@ interface ModalDetalleItemProps {
     negocioUsuarioId?: string | null;
     sucursalId?: string | null;
     negocioNombre?: string | null;
+    /** Logo/foto de perfil del negocio. Se pasa al chat temporal como
+     *  avatar y `negocioLogo` para que el header + lista del ChatYA
+     *  muestren la imagen correcta en lugar de iniciales. */
+    logoUrl?: string | null;
     onClose: () => void;
     openedFromModal?: boolean;
 }
@@ -54,9 +60,10 @@ interface ModalDetalleItemProps {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
+export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
     const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const usuario = useAuthStore((s) => s.usuario);
     // Registrar vista del artículo (con filtro de cooldown)
     useEffect(() => {
         if (!item) return;
@@ -109,6 +116,7 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
 
     const handleChatYA = () => {
         if (!negocioUsuarioId) return;
+        if (!item) return;
 
         // Limpiar entrada huérfana de ModalBottom en el historial
         if (history.state?._modalBottom) {
@@ -117,20 +125,74 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
             history.replaceState(estado, '');
         }
 
+        const idTemp = `temp_articulo_${item.id}_${Date.now()}`;
+
+        // Mensaje sistema OPTIMISTA con la card del artículo. Mismo
+        // patrón que `ModalOfertaDetalle` y `BarraContacto` (marketplace):
+        // se inserta en la ventana del chat ANTES del primer mensaje
+        // para dar contexto inmediato al abrir.
+        const optimistaSistema: Mensaje = {
+            id: `temp_sistema_${item.id}`,
+            conversacionId: idTemp,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: JSON.stringify({
+                subtipo: 'articulo_negocio',
+                articuloId: item.id,
+                sucursalId: sucursalId ?? '',
+                nombre: item.nombre,
+                precio: item.precioBase,
+                tipo: item.tipo,
+                fotoUrl: item.imagenPrincipal ?? null,
+                iniciadorId: usuario?.id,
+            }),
+            estado: 'enviado',
+            editado: false,
+            editadoAt: null,
+            eliminado: false,
+            eliminadoAt: null,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: new Date().toISOString(),
+            entregadoAt: null,
+            leidoAt: null,
+        };
+
         abrirChatTemporal({
-            id: `temp_${Date.now()}`,
+            id: idTemp,
             otroParticipante: {
                 id: negocioUsuarioId,
                 nombre: negocioNombre ?? '',
                 apellidos: '',
-                avatarUrl: null,
+                // El avatar del chat (header + lista de conversaciones) usa
+                // `negocioLogo || avatarUrl`. Pasamos el logo del negocio en
+                // ambos para que se muestre correctamente — antes quedaba
+                // como iniciales por `avatarUrl: null`.
+                avatarUrl: logoUrl ?? null,
+                negocioNombre: negocioNombre ?? undefined,
+                negocioLogo: logoUrl ?? undefined,
             },
             datosCreacion: {
                 participante2Id: negocioUsuarioId,
                 participante2Modo: 'comercial',
-                participante2SucursalId: sucursalId ?? '',
-                contextoTipo: 'negocio',
+                // Pasar `null` (no `''`) cuando no hay sucursal: el backend
+                // intenta insertar el valor en una columna UUID, y `''`
+                // dispara "invalid input syntax for type uuid" → la
+                // creación de conversación falla y el primer mensaje no
+                // llega a enviarse.
+                participante2SucursalId: sucursalId ?? null,
+                // `contextoTipo: 'articulo_negocio'` + `contextoReferenciaId`
+                // permite al backend hacer JOIN con `articulos` y auto-
+                // insertar el mensaje sistema con la card del producto
+                // (subtipo `articulo_negocio`) al crear la conversación.
+                contextoTipo: 'articulo_negocio',
+                contextoReferenciaId: item.id,
             },
+            mensajeContextoOptimista: optimistaSistema,
+            borradorInicial: `Hola, me interesa: "${item.nombre}". `,
         });
         abrirChatYA();
         onClose();
@@ -144,6 +206,11 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
             paddingContenido="none"
             ancho="sm"
             zIndice="z-75"
+            // Discriminador propio: este modal se abre sobre ModalCatalogo
+            // (que también usa Modal en desktop). Compartir el default
+            // `_modalUI` causaba que al cerrar el detalle también se
+            // cerrara el listado por colisión de marcas en el state.
+            discriminador="_modalDetalleItem"
             className="min-w-[330px] max-w-[80vw] lg:max-w-xs 2xl:max-w-sm"
         >
             {/* Imagen Hero con overlay */}
@@ -234,13 +301,18 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                         </div>
                         {/* Contacto — iconos */}
                         <div className="flex items-center gap-3">
-                            <button
-                                onClick={handleChatYA}
-                                disabled={!negocioUsuarioId}
-                                className={`cursor-pointer ${negocioUsuarioId ? 'hover:scale-110' : 'opacity-50 cursor-not-allowed'}`}
-                            >
-                                <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
-                            </button>
+                            {/* Ocultar el botón ChatYA cuando el modal se abre desde DENTRO del
+                                chat (caso `chatya:abrir-detalle-articulo` en ChatOverlay → pasa
+                                `negocioUsuarioId={null}`). El usuario ya está en una conversación
+                                con este mismo negocio; no tiene sentido ofrecerle abrir otro chat. */}
+                            {negocioUsuarioId && (
+                                <button
+                                    onClick={handleChatYA}
+                                    className="cursor-pointer hover:scale-110"
+                                >
+                                    <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
+                                </button>
+                            )}
                             {whatsapp && (
                                 <button
                                     onClick={abrirWhatsApp}

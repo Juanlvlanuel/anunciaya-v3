@@ -152,6 +152,28 @@ export function ModalBottom({
     }, DURACION_ANIMACION);
   }, [onCerrar]);
 
+  // Cerrar este bottom-sheet cuando se abre ChatYA, SIN animación. En
+  // móvil el ModalBottom (z-52) tapa al ChatYA (z-50), así que si lo
+  // dejáramos animarse 300ms el usuario vería el bottom-sheet sobre el
+  // chat durante ese tiempo. Cerrar instantáneamente con `onCerrar`
+  // del padre evita la superposición visual. Saltamos `historyPushedRef`
+  // porque `useUiStore.abrirChatYA` ya hizo `replaceState` para borrar
+  // la marca del state actual; un `history.back()` aquí sería un back
+  // duplicado que rompe el conteo de fantasmas en ChatOverlay.
+  useEffect(() => {
+    if (!abierto) return;
+    const handler = () => {
+      historyPushedRef.current = false;
+      if (popStateHandlerRef.current) {
+        window.removeEventListener('popstate', popStateHandlerRef.current);
+        popStateHandlerRef.current = null;
+      }
+      onCerrar();
+    };
+    window.addEventListener('chatya:cerrar-modales', handler);
+    return () => window.removeEventListener('chatya:cerrar-modales', handler);
+  }, [abierto, onCerrar]);
+
   // Tecla Escape
   const handleEscape = useCallback(
     (e: KeyboardEvent) => {

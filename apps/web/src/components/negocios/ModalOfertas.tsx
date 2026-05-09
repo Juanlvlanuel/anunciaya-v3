@@ -73,15 +73,17 @@ const ContenidoOfertas = ({ ofertas, onClickOferta, esMobile }: ContenidoOfertas
     }
 
     // Grid condicional por hook (respeta BreakpointOverride del preview):
-    //   - Mobile / preview embebido: 1 columna (cards horizontales dentro del OfertaCard).
-    //   - Desktop real: 2 columnas (cards verticales cómodas).
+    //   - Mobile / preview embebido: 2 columnas con cards verticales (más ofertas
+    //     visibles a la vez, mejor relación visual que 1 horizontal por fila).
+    //   - Desktop real: 2 columnas con cards verticales.
     return (
-        <div className={esMobile ? 'grid grid-cols-1 gap-3' : 'grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-3 2xl:gap-4'}>
+        <div className={esMobile ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-3 2xl:gap-4'}>
             {ofertas.map((oferta) => (
                 <OfertaCard
                     key={getId(oferta)}
                     oferta={oferta}
                     size="compact"
+                    orientacion={esMobile ? 'vertical' : 'auto'}
                     className="w-full cursor-pointer"
                     inModal={true}
                     onClick={() => onClickOferta(oferta)}

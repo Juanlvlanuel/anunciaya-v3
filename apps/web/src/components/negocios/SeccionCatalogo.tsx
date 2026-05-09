@@ -53,6 +53,9 @@ interface SeccionCatalogoProps {
   negocioUsuarioId?: string | null;
   sucursalId?: string | null;
   negocioNombre?: string | null;
+  /** Logo/foto de perfil del negocio. Se propaga a ModalCatalogo y
+   *  ModalDetalleItem para que el chat temporal muestre el avatar. */
+  logoUrl?: string | null;
 }
 
 // =============================================================================
@@ -75,6 +78,7 @@ export function SeccionCatalogo({
   negocioUsuarioId,
   sucursalId,
   negocioNombre,
+  logoUrl,
 }: SeccionCatalogoProps) {
   // ---------------------------------------------------------------------------
   // ESTADOS
@@ -212,7 +216,7 @@ export function SeccionCatalogo({
             ).map((item, index) => {
               const esUltimoDesktop = !esMobile && index === itemsPreview.length - 1 && totalItems > itemsPreview.length;
               return (
-                <div key={item.id} className="shrink-0 w-[45%] @5xl:w-auto relative">
+                <div key={item.id} className="shrink-0 w-[180px] @5xl:w-auto relative">
                   <CardPreview
                     item={item}
                     index={index}
@@ -233,7 +237,7 @@ export function SeccionCatalogo({
             })}
             {/* Botón "Ver todos" al final del scroll en mobile */}
             {esMobile && catalogo.length > 10 && (
-              <div className="shrink-0 w-[45%] flex items-center justify-center">
+              <div className="shrink-0 w-[180px] flex items-center justify-center">
                 <button
                   onClick={handleAbrirModal}
                   className="w-full h-full min-h-[120px] rounded-xl border-2 border-slate-300 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95"
@@ -258,6 +262,7 @@ export function SeccionCatalogo({
         negocioUsuarioId={negocioUsuarioId}
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}
+        logoUrl={logoUrl}
       />
 
       {/* ============ MODAL DETALLE ITEM ============ */}
@@ -268,6 +273,7 @@ export function SeccionCatalogo({
         negocioUsuarioId={negocioUsuarioId}
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}
+        logoUrl={logoUrl}
       />
     </>
   );
@@ -302,9 +308,9 @@ function CardPreview({
         className={`group relative bg-white rounded-2xl @5xl:rounded-xl @[96rem]:rounded-2xl shadow-md overflow-hidden border-2 border-amber-300 cursor-pointer hover:shadow-lg hover:-translate-y-1 transition-all ${clasesVisibilidad}`}
         onClick={(e) => onItemClick?.(item, e)}
       >
-        {/* Badge con animación - MÁS GRANDE */}
-        <div className="absolute top-2 left-2 @5xl:top-1.5 @5xl:left-1.5 @[96rem]:top-2 @[96rem]:left-2 z-10 bg-amber-500 text-white p-2 @5xl:p-1.5 @[96rem]:p-2 rounded-xl @5xl:rounded-lg @[96rem]:rounded-xl shadow-lg animate-badgeBounce">
-          <Star className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 fill-current animate-starSpin" />
+        {/* Badge con animación */}
+        <div className="absolute top-2 left-2 @5xl:top-1.5 @5xl:left-1.5 @[96rem]:top-2 @[96rem]:left-2 z-10 bg-amber-500 text-white p-1.5 @5xl:p-1 @[96rem]:p-1.5 rounded-lg @5xl:rounded-md @[96rem]:rounded-lg shadow-lg animate-badgeBounce">
+          <Star className="w-3.5 h-3.5 @5xl:w-3 @5xl:h-3 @[96rem]:w-3.5 @[96rem]:h-3.5 fill-current animate-starSpin" />
         </div>
 
         {/* Imagen con zoom hover y efecto shine */}

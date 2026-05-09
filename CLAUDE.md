@@ -270,6 +270,7 @@ docs/
 │   ├── Patron_Scroll_Lateral.md
 │   ├── Sistema_Transformacion_snake_camelCase.md
 │   ├── PATRON_REACT_QUERY.md      ← estándar para datos del servidor
+│   ├── Sistema_Navegacion_Back.md ← hooks de back/regresar y jerarquía de navegación
 │   └── LECCIONES_TECNICAS.md
 ├── arquitectura/               → Referencia técnica por módulo
 │   ├── Sistema.md

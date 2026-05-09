@@ -7,6 +7,57 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [08 Mayo 2026] - Sistema de Back Unificado + Cards de contexto en ChatYA + UX modales 🎯💬
+
+Sesión grande de pulido cross-cutting: se consolidó el sistema de navegación back nativo, se extendió el contexto persistente de ChatYA a ofertas y artículos de catálogo (paralelo a marketplace), se rediseñaron las cards de oferta para móvil y se cerraron varios bugs de modales anidados.
+
+**Sistema de Back Nativo unificado:**
+- 3 hooks centralizados: `useVolverAtras` (flecha header con fallback), `useNavegarASeccion` (replace lógico entre top-levels y módulos BS), `useBackNativo` (modales con `pushState`/`popstate`).
+- Fix D8 (cleanup en desmontaje directo) + StrictMode dev guard con `setTimeout(0)`.
+- Buffer fantasma SPA en `/inicio` para que back nativo nunca desloguee.
+- Sincronización auth multi-pestaña sin ciclo destructivo.
+- `Modal` con prop opcional `discriminador` para anidar 2 modales del mismo tipo (ej. `ModalOfertas` listado + `ModalOfertaDetalle` encima en PC).
+- `ModalImagenes` y `DropdownCompartir` migrados a `useBackNativo`.
+- Conteo dinámico de fantasmas + `go(-(1+N))` con guard defensivo `setTimeout(50)` para móviles que procesan parcialmente `go(-N)`.
+- `Tooltip` solo en PC (≥1024px) — no se renderiza en móvil porque el touch deja tooltips colgados tapando controles.
+- Documentación: `Sistema_Navegacion_Back.md` (700+ líneas) con principios, hooks, recetas, matriz de tests A-G + BS + D + E + F, anti-patrones y decisiones arquitectónicas.
+
+**Cards de contexto persistente en ChatYA (paralelo a MarketPlace):**
+- 2 nuevos subtipos `tipo='sistema'` con render dedicado en `BurbujaMensaje`: `oferta_negocio` (card amber con foto + título + badge) y `articulo_negocio` (card blue con foto + nombre + precio + tipo producto/servicio).
+- Backend: nueva función `insertarMensajeContextoNegocio` análoga a `insertarMensajeContextoMarketplace`. Hace JOIN con `ofertas` o `articulos` por `contextoReferenciaId`, genera snapshot, persiste en `chat_mensajes` con `emisorId=NULL` y emite por Socket.io a ambos participantes.
+- Frontend: `ModalOfertaDetalle` y `ModalDetalleItem` ahora pasan `contextoTipo='oferta'`/`'articulo_negocio'` + `contextoReferenciaId` al abrir ChatYA, y siembran `mensajeContextoOptimista` + `borradorInicial` igual que `BarraContacto` (marketplace).
+- Logo del negocio (`logoUrl`) propagado desde `PaginaPerfilNegocio` → `SeccionCatalogo` → `ModalCatalogo` → `ModalDetalleItem` para que el chat temporal muestre avatar correcto en lugar de iniciales.
+- Card `articulo_marketplace` mantiene su comportamiento (navegar al detalle público).
+
+**Click en card del chat — UX por contexto:**
+- Marketplace (`articulo_marketplace`): navega al detalle público cerrando ChatYA con `flushSync(navigate) + setTimeout(200ms)` — feed exploratorio donde el usuario quiere "salir" al detalle.
+- Negocio (`oferta_negocio` / `articulo_negocio`): NO navega. Despacha evento custom (`chatya:abrir-detalle-oferta` / `chatya:abrir-detalle-articulo`); `ChatOverlay` hace fetch del detalle y monta `ModalOfertaDetalle` / `ModalDetalleItem` SOBRE el chat (z-75 vs z-50/z-41) sin cambiar de ruta. Conserva el contexto de la conversación.
+- Modal montado desde el chat oculta el botón "ChatYA" interno (`negocioUsuarioId={null}`) — el usuario ya está en una conversación con ese negocio, no tiene sentido abrir otra.
+
+**Bug fixes ChatYA:**
+- **Reuso de conversación persona ↔ negocio**: `crearObtenerConversacion` ahora ignora `participante2SucursalId` cuando es chat `personal ↔ comercial`. Antes abrir ChatYA desde 2 ofertas de distintas sucursales del mismo negocio creaba 2 conversaciones duplicadas. Para chats `comercial ↔ comercial` (inter-sucursal) se mantiene el filtro estricto. `orderBy(updatedAt DESC)` agregado para reusar el más reciente cuando hay duplicados de antes del fix.
+- **Sonido de notificación excluido para mensajes sistema**: `useChatYAStore` filtra con `mensaje.tipo === 'sistema'` antes de llamar `reproducirSonidoNotificacion`. Antes el iniciador escuchaba "tin" al enviar su primer mensaje porque el backend devuelve el sistema con `emisorId=null` y el frontend lo trataba como "recibido". Cubre los 4 subtipos automáticamente.
+- **`participante2SucursalId: ''` → `null`** en 4 archivos (`ModalOfertaDetalle`, `ModalDetalleItem`, `ModalDetalleBilletera`, `CardBilletera`). Postgres rechazaba `''` como UUID inválido y `crearConversacion` devolvía 400 → el primer mensaje no se enviaba.
+
+**Bottom-sheet padre tapando ChatYA en móvil:**
+- Evento `chatya:cerrar-modales` despachado desde `useUiStore.abrirChatYA`. `Modal` y `ModalBottom` lo escuchan y se cierran (Modal con animación, ModalBottom instantáneo porque su z-52 tapa al chat z-50 si animara durante 300ms).
+- Conteo dinámico de marcas modal en el state (`fantasmasModalCount`) + `chatAbiertoDesdeModal` para que `ChatOverlay` salte overlay + N fantasmas con `history.go(-(1+N))` al cerrar el chat.
+
+**OfertaCard — prop `orientacion` + ajustes visuales móvil:**
+- Nueva prop `orientacion?: 'auto' | 'vertical' | 'horizontal'` (default `'auto'`). Permite a `SeccionOfertas` y `ModalOfertas` mostrar cards verticales en móvil (carrusel angosto + grid 2 columnas) en vez del layout horizontal default.
+- Cards solo muestran título (descripción removida; sigue visible en el modal de detalle).
+- Padding interno reducido + altura del título aumentada para llenar el espacio.
+- Badge de vistas (pill negro con Eye) reducido: `gap-2 px-3 py-1.5 text-sm` → `gap-1.5 px-2 py-1 text-xs`.
+- Badge de urgencia (pill colorido con Flame/Clock) reducido: `border-2` → `border`, padding más compacto. Texto subido +1 punto a `text-xs lg:text-sm` tras feedback.
+- Cards de catálogo ahora con ancho `w-[180px]` (igual que ofertas) en carrusel móvil; star del badge "Top" reducida.
+
+**Documentación actualizada:**
+- `docs/estandares/Sistema_Navegacion_Back.md` — Sistema completo (nuevo).
+- `docs/arquitectura/ChatYA.md` §4.6, §4.13.1 — 4 subtipos (incluyendo nuevos) con su comportamiento; reuso persona↔negocio; modal sobre chat; sonido excluyendo sistema.
+- `docs/estandares/TOKENS_COMPONENTES.md` §19 Tooltip — regla "solo PC".
+
+---
+
 ## [08 Mayo 2026] - MarketPlace v1.4 — UX polish P2/P3 + contexto ChatYA + auditoría de tokens 🎨💬
 
 Iteración de pulido sobre el detalle del artículo (P2) y el perfil del vendedor (P3), más una funcionalidad nueva importante: **mensaje contextual al iniciar conversación de ChatYA** desde MarketPlace. El chat ya nace con la card del artículo embebida o con un aviso "X te contactó desde tu perfil" según el origen — no más chat vacío sin contexto.

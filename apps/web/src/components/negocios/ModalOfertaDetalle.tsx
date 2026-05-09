@@ -37,6 +37,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useChatYAStore } from '@/stores/useChatYAStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { notificar } from '@/utils/notificaciones';
+import type { Mensaje } from '@/types/chatya';
 
 // =============================================================================
 // TIPOS
@@ -390,21 +391,79 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
             history.replaceState(estado, '');
         }
 
+        const idTemp = `temp_oferta_${getId(oferta)}_${Date.now()}`;
+
+        // Mensaje sistema OPTIMISTA con la card de la oferta. Se inserta
+        // en la ventana del chat ANTES de que el usuario envíe nada,
+        // dándole contexto inmediato al abrir. Cuando se materialice la
+        // conversación real, `cargarMensajes` lo reemplazará por el
+        // mensaje sistema del backend (cuando exista soporte).
+        const optimistaSistema: Mensaje = {
+            id: `temp_sistema_${getId(oferta)}`,
+            conversacionId: idTemp,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: JSON.stringify({
+                subtipo: 'oferta_negocio',
+                ofertaId: getId(oferta),
+                sucursalId: oferta.sucursalId ?? '',
+                titulo: oferta.titulo,
+                badgeTexto,
+                fotoUrl: oferta.imagen ?? null,
+                fechaFin: oferta.fechaFin ?? null,
+                // Permite al render alinear la card del lado del iniciador
+                // (yo). Ver `MensajeSistema` en BurbujaMensaje.
+                iniciadorId: usuario.id,
+            }),
+            estado: 'enviado',
+            editado: false,
+            editadoAt: null,
+            eliminado: false,
+            eliminadoAt: null,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: new Date().toISOString(),
+            entregadoAt: null,
+            leidoAt: null,
+        };
+
         abrirChatTemporal({
-            id: `temp_${Date.now()}`,
+            id: idTemp,
             otroParticipante: {
                 id: negocioUsuarioId,
                 nombre: negocioNombre || 'Negocio',
                 apellidos: '',
-                avatarUrl: null,
+                // El avatar del chat (header + lista de conversaciones) usa
+                // `negocioLogo || avatarUrl`. Pasamos el logo del negocio en
+                // ambos para que se muestre correctamente — antes quedaba
+                // como iniciales por `avatarUrl: null`.
+                avatarUrl: oferta.logoUrl ?? null,
                 negocioNombre: negocioNombre,
+                negocioLogo: oferta.logoUrl ?? undefined,
             },
             datosCreacion: {
                 participante2Id: negocioUsuarioId,
                 participante2Modo: 'comercial',
-                participante2SucursalId: oferta.sucursalId ?? '',
-                contextoTipo: 'negocio',
+                // Pasar `null` (no `''`) cuando no hay sucursal: el backend
+                // intenta insertar el valor en una columna UUID, y `''`
+                // dispara "invalid input syntax for type uuid" → la
+                // creación de conversación falla y el primer mensaje no
+                // llega a enviarse.
+                participante2SucursalId: oferta.sucursalId ?? null,
+                // `contextoTipo: 'oferta'` + `contextoReferenciaId: ofertaId`
+                // permite al backend hacer JOIN con la tabla `ofertas` y
+                // auto-insertar el mensaje sistema con la card de contexto
+                // (subtipo `oferta_negocio`) al crear la conversación. Así
+                // la card persiste en BD y se ve al refrescar / para el
+                // receptor — análogo al patrón `'marketplace'`.
+                contextoTipo: 'oferta',
+                contextoReferenciaId: getId(oferta),
             },
+            mensajeContextoOptimista: optimistaSistema,
+            borradorInicial: `Hola, me interesa esta oferta: "${oferta.titulo}". `,
         });
         abrirChatYA();
         onClose();
@@ -449,6 +508,11 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                 paddingContenido="none"
                 ancho="sm"
                 zIndice="z-75"
+                // Discriminador propio: este modal puede abrirse sobre otro
+                // Modal (ej. ModalOfertas) y ambos compartirían el default
+                // `_modalUI`, lo que confunde a `useBackNativo` al cerrar
+                // el detalle (cierra también el listado).
+                discriminador="_modalOfertaDetalle"
                 className="min-w-[330px] max-w-[80vw] lg:min-w-[306px] lg:max-w-[408px] 2xl:min-w-[357px] 2xl:max-w-[476px] overflow-visible!"
             >
                 {/* Badge principal - FUERA del contenedor blanco */}
@@ -598,7 +662,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                             </div>
                                         )}
                                         {sucursalLabelModal && (
-                                            <div className="text-white/60 text-[12px] lg:text-[13px] font-medium truncate">
+                                            <div className="text-white/60 text-sm lg:text-[15px] font-medium truncate">
                                                 {sucursalLabelModal}
                                             </div>
                                         )}
@@ -726,12 +790,19 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
 
                                     {/* Derecha: Iconos de contacto */}
                                     <div className="flex items-center gap-3 shrink-0">
-                                        <button
-                                            onClick={handleChatYA}
-                                            className="cursor-pointer hover:scale-110"
-                                        >
-                                            <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
-                                        </button>
+                                        {/* Ocultar el botón ChatYA cuando el modal se abre desde
+                                            DENTRO del chat (caso `chatya:abrir-detalle-oferta` en
+                                            ChatOverlay → pasa `negocioUsuarioId={null}`). El usuario
+                                            ya está en una conversación con este mismo negocio, no
+                                            tiene sentido ofrecerle abrir otro chat. */}
+                                        {negocioUsuarioId && (
+                                            <button
+                                                onClick={handleChatYA}
+                                                className="cursor-pointer hover:scale-110"
+                                            >
+                                                <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
+                                            </button>
+                                        )}
                                         <button
                                             onClick={handleWhatsApp}
                                             className="w-10 h-10 rounded-full bg-green-500 flex items-center justify-center cursor-pointer hover:scale-110 p-[6px]"

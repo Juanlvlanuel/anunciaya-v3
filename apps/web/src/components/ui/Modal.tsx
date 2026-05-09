@@ -59,6 +59,17 @@ interface ModalProps {
   className?: string;
   /** Clase de z-index para el wrapper (default: 'z-50'). Usar z-90 para modales sobre ChatYA */
   zIndice?: string;
+  /**
+   * Discriminador único en el state del history para `useBackNativo`.
+   * Default: `'_modalUI'`. Pasar un valor distinto cuando este Modal se
+   * anide sobre otro Modal (ej. modal de detalle abierto desde un modal
+   * de listado): si ambos compartieran el mismo discriminador, el push
+   * del segundo sobrescribiría la marca del primero en el state actual,
+   * y al cerrar el segundo el listener del primero podría confundirse.
+   * Discriminadores distintos garantizan que cada modal solo reaccione
+   * a su propia entrada del history.
+   */
+  discriminador?: string;
 }
 
 // =============================================================================
@@ -105,6 +116,7 @@ export function Modal({
   paddingContenido = 'md',
   className = '',
   zIndice = 'z-50',
+  discriminador = '_modalUI',
 }: ModalProps) {
   // ---------------------------------------------------------------------------
   // Portal target: document.body (default) o un contenedor del preview/ChatYA
@@ -134,13 +146,29 @@ export function Modal({
   // Back nativo del celular / swipe iOS / flecha atrás del navegador.
   // El hook empuja una entrada al history al abrir y la consume al
   // cerrar, llamando a `handleCerrar` (con animación) cuando el usuario
-  // hace back. Discriminador `'_modalUI'` para no chocar con otros
-  // overlays anidados (ChatYA, ScanYA, modales especiales).
+  // hace back. Discriminador default `'_modalUI'`; el consumidor puede
+  // pasar uno propio para evitar choques cuando se anidan modales del
+  // mismo tipo (ej. modal de detalle dentro de modal de listado).
   useBackNativo({
     abierto: abierto && !cerrando,
     onCerrar: handleCerrar,
-    discriminador: '_modalUI',
+    discriminador,
   });
+
+  // Cerrar este modal cuando se abre ChatYA. Sin esto, modales que
+  // estén apilados (ej. bottom-sheet de ofertas + modal de detalle
+  // encima) se quedan visibles tapando el chat al abrirlo desde un
+  // botón interno. `useUiStore.abrirChatYA` dispara este evento tras
+  // hacer `replaceState` para limpiar las marcas del state, así que
+  // el cleanup de `useBackNativo` no ejecutará un back duplicado.
+  useEffect(() => {
+    if (!abierto) return;
+    const handler = () => {
+      if (!cerrando) handleCerrar();
+    };
+    window.addEventListener('chatya:cerrar-modales', handler);
+    return () => window.removeEventListener('chatya:cerrar-modales', handler);
+  }, [abierto, cerrando, handleCerrar]);
 
   // Manejar tecla Escape
   const handleEscape = useCallback(

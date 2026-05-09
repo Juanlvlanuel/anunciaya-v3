@@ -86,7 +86,9 @@ export default function ModalDetalleBilletera({
       datosCreacion: {
         participante2Id: billetera.negocioUsuarioId,
         participante2Modo: 'comercial',
-        participante2SucursalId: billetera.negocioSucursalId ?? '',
+        // `null` en vez de `''`: el backend trata `''` como UUID inválido
+        // y rechaza la creación de la conversación.
+        participante2SucursalId: billetera.negocioSucursalId ?? null,
         contextoTipo: 'negocio',
       },
     });

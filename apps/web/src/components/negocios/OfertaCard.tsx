@@ -67,6 +67,14 @@ interface OfertaCardProps {
     esNueva?: boolean;
     /** Microseñal: si la oferta es popular esta semana (top por vistas) */
     esPopular?: boolean;
+    /**
+     * Orientación de la card.
+     * - `'auto'` (default): horizontal en móvil, vertical en desktop.
+     * - `'vertical'`: siempre vertical (imagen arriba, panel abajo). Útil
+     *   en grids de 2+ columnas en móvil donde el horizontal queda raro.
+     * - `'horizontal'`: siempre horizontal.
+     */
+    orientacion?: 'auto' | 'vertical' | 'horizontal';
 }
 
 // =============================================================================
@@ -456,11 +464,18 @@ export default function OfertaCard({
     aceptaCardya = false,
     esNueva = false,
     esPopular = false,
+    orientacion = 'auto',
 }: OfertaCardProps) {
     // Si coinciden, prevalece "Popular" (tiene mayor valor informativo).
     const microsenalVariante: 'popular' | 'nueva' | null =
         esPopular ? 'popular' : esNueva ? 'nueva' : null;
     const { esMobile } = useBreakpoint();
+    // Layout efectivo: horizontal solo si la prop lo pide explícitamente,
+    // o si es 'auto' Y estamos en móvil. 'vertical' fuerza el layout
+    // estilo desktop (imagen arriba, panel abajo) incluso en móvil.
+    const usarLayoutHorizontal =
+        orientacion === 'horizontal' ||
+        (orientacion === 'auto' && esMobile);
 
     // Tracking de vista (impression): cuando ≥50% de la card es visible
     // por ≥1s, registramos vista. Funciona tanto para las ofertas que se
@@ -487,12 +502,19 @@ export default function OfertaCard({
     const badgeUrgencia = diasRestantes !== null ? getBadgeUrgenciaConfig(diasRestantes) : null;
     const panelGradient = getPanelGradient(oferta.tipo);
 
+    // En layout vertical mobile (carrusel de SeccionOfertas o grid de
+    // ModalOfertas), las cards son angostas (~180px) y necesitan un
+    // título más compacto. Mismo trato que `inModal` para dar el mismo
+    // tamaño visual entre sección y modal en móvil.
+    const usarTituloCompacto = !usarLayoutHorizontal && (inModal || esMobile);
     // Hook para ajustar automáticamente el tamaño del título
-    // En modal usamos valores más conservadores para desktop, más generosos para móvil
+    // El layout horizontal (mobile sin orientacion='vertical') usa
+    // títulos más grandes que el vertical (donde la imagen ocupa la
+    // mitad superior y deja menos espacio al panel).
     const { fontSize, containerRef } = useAutoFitText({
         text: oferta.titulo,
-        minFontSize: esMobile ? 14 : (inModal ? 11 : 12),
-        maxFontSize: esMobile ? 24 : (inModal ? 20 : 26),
+        minFontSize: usarLayoutHorizontal ? 14 : (usarTituloCompacto ? 11 : 12),
+        maxFontSize: usarLayoutHorizontal ? 24 : (usarTituloCompacto ? 20 : 26),
         maxLines: 2,
         fontWeight: 900,
     });
@@ -508,11 +530,13 @@ export default function OfertaCard({
     }, []);
 
     // Tamaños según size prop
+    // El panel padding (py/px) se redujo para dar más espacio al título
+    // ahora que la descripción no se renderiza en la card.
     const sizes = {
         normal: {
             card: 'w-full h-[340px] @5xl:h-[320px] @[96rem]:h-[360px]',
             imagen: 'h-[60%]',
-            panel: 'h-[40%] py-3 px-3 @5xl:py-3 @5xl:px-3 @[96rem]:py-4 @[96rem]:px-4',
+            panel: 'h-[40%] py-2 px-2 @5xl:py-2 @5xl:px-2 @[96rem]:py-2.5 @[96rem]:px-2.5',
             titulo: 'text-2xl @5xl:text-xl @[96rem]:text-3xl',
             descripcion: 'text-sm',
             gradiente: 'w-2 @5xl:w-1.5 @[96rem]:w-2',
@@ -520,7 +544,7 @@ export default function OfertaCard({
         compact: {
             card: 'w-full h-[280px] @5xl:h-[250px] @[96rem]:h-[290px]',
             imagen: 'h-[60%]',
-            panel: 'h-[40%] py-3 px-2.5 @5xl:py-2.5 @5xl:px-2 @[96rem]:py-3 @[96rem]:px-2.5',
+            panel: 'h-[40%] py-2 px-2 @5xl:py-1.5 @5xl:px-1.5 @[96rem]:py-2 @[96rem]:px-2',
             titulo: 'text-base @5xl:text-sm @[96rem]:text-base',
             descripcion: 'text-sm',
             gradiente: 'w-1.5 @5xl:w-1 @[96rem]:w-1.5',
@@ -528,7 +552,7 @@ export default function OfertaCard({
         zoom: {
             card: 'w-[380px] h-[480px]',
             imagen: 'h-[60%]',
-            panel: 'h-[40%] py-5 px-4',
+            panel: 'h-[40%] py-3 px-3',
             titulo: 'text-2xl',
             descripcion: 'text-base',
             gradiente: 'w-2',
@@ -540,7 +564,7 @@ export default function OfertaCard({
         normal: {
             card: 'w-full h-[160px]',
             imagen: 'w-[45%]',
-            panel: 'w-[55%] py-2 px-3',
+            panel: 'w-[55%] py-1.5 px-2',
             titulo: 'text-xl',
             descripcion: 'text-sm',
             gradiente: 'w-1.5',
@@ -548,7 +572,7 @@ export default function OfertaCard({
         compact: {
             card: 'w-full h-[160px]',
             imagen: 'w-[45%]',
-            panel: 'w-[55%] py-2.5 px-2.5',
+            panel: 'w-[55%] py-2 px-2',
             titulo: 'text-base',
             descripcion: 'text-sm',
             gradiente: 'w-1',
@@ -556,14 +580,14 @@ export default function OfertaCard({
         zoom: {
             card: 'w-full h-[180px]',
             imagen: 'w-[45%]',
-            panel: 'w-[55%] py-4 px-4',
+            panel: 'w-[55%] py-3 px-3',
             titulo: 'text-base',
             descripcion: 'text-sm',
             gradiente: 'w-1.5',
         },
     };
 
-    const s = esMobile ? sizesMobile[size] : sizes[size];
+    const s = usarLayoutHorizontal ? sizesMobile[size] : sizes[size];
 
     // Renderizar badge según configuración
     const renderBadge = () => {
@@ -596,8 +620,8 @@ export default function OfertaCard({
         );
     };
 
-    // LAYOUT MÓVIL: Horizontal
-    if (esMobile) {
+    // LAYOUT HORIZONTAL: imagen izquierda, panel derecha
+    if (usarLayoutHorizontal) {
         return (
             <div ref={refCard} className={`@container ${s.card} group cursor-pointer ${className}`} onClick={onClick}>
                 <div className={`relative h-full flex flex-row overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
@@ -627,11 +651,11 @@ export default function OfertaCard({
                             patrón que el modal: views-left, urgencia-right. */}
                         {typeof oferta.totalVistas === 'number' && (
                             <span
-                                className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm lg:text-base font-bold tabular-nums leading-none shadow-md"
+                                className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs lg:text-sm font-bold tabular-nums leading-none shadow-md"
                                 title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
                             >
                                 <Eye
-                                    className="w-4 h-4 lg:w-[18px] lg:h-[18px] shrink-0"
+                                    className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0"
                                     strokeWidth={2.5}
                                     fill="currentColor"
                                     fillOpacity={0.25}
@@ -644,11 +668,11 @@ export default function OfertaCard({
                             Mismas proporciones que el modal de detalle. */}
                         {badgeUrgencia && (
                             <div className="absolute bottom-2 right-2 z-10">
-                                <div className={`px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
+                                <div className={`px-2 py-0.5 lg:px-2.5 lg:py-0.5 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1 animate-pulseScale`}>
                                     {badgeUrgencia.icono === "flame" ? (
-                                        <Flame className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
+                                        <Flame className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
                                     ) : (
-                                        <Clock className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
+                                        <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
                                     )}
                                     <span>{badgeUrgencia.texto}</span>
                                 </div>
@@ -669,12 +693,12 @@ export default function OfertaCard({
                             </div>
                         )}
 
-                        {/* Contenido: Título + Separador Dinámico + Descripción */}
-                        <div className="w-full pl-3 pr-3 space-y-1">
-                            {/* Título - Auto-fit dinámico */}
+                        {/* Contenido: solo Título (descripción se ve en el modal de detalle) */}
+                        <div className="w-full pl-2 pr-2 space-y-1">
+                            {/* Título - Auto-fit dinámico, ocupa toda la altura disponible */}
                             <div
                                 ref={containerRef}
-                                className="w-full h-[50px] flex items-center justify-center overflow-hidden"
+                                className="w-full h-[70px] flex items-center justify-center overflow-hidden"
                             >
                                 <h4
                                     className="font-black text-white leading-tight text-center w-full tracking-tight drop-shadow-lg"
@@ -691,13 +715,6 @@ export default function OfertaCard({
 
                             {/* Separador dinámico según tipo de oferta */}
                             <SeparadorTipo tipo={oferta.tipo} barColor={config.barColor} />
-
-                            {/* Descripción - MÁXIMO 2 LÍNEAS */}
-                            {oferta.descripcion && (
-                                <p className={`${s.descripcion} text-white/80 text-left line-clamp-2 leading-relaxed font-medium`}>
-                                    {oferta.descripcion}
-                                </p>
-                            )}
                         </div>
                     </div>
                 </div>
@@ -736,11 +753,11 @@ export default function OfertaCard({
                     {badgeUrgencia && (
                         <div className="absolute bottom-0 left-0 right-0 h-14 flex items-center justify-end pr-3 lg:pr-4 z-10"
                             style={{ background: "linear-gradient(to top, rgba(0,0,0,0.8) 0%, transparent 100%)" }}>
-                            <div className={`px-2.5 py-1 lg:px-3 lg:py-1 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border-2 ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1.5 animate-pulseScale`}>
+                            <div className={`px-2 py-0.5 lg:px-2.5 lg:py-0.5 rounded-full bg-linear-to-r ${badgeUrgencia.gradient} border ${badgeUrgencia.border} text-white font-bold text-xs lg:text-sm shadow-lg flex items-center gap-1 animate-pulseScale`}>
                                 {badgeUrgencia.icono === "flame" ? (
-                                    <Flame className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
+                                    <Flame className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
                                 ) : (
-                                    <Clock className="h-3.5 w-3.5 lg:h-4 lg:w-4 shrink-0" />
+                                    <Clock className="h-3 w-3 lg:h-3.5 lg:w-3.5 shrink-0" />
                                 )}
                                 <span>{badgeUrgencia.texto}</span>
                             </div>
@@ -751,11 +768,11 @@ export default function OfertaCard({
                         se vea sobre el overlay de urgencia). */}
                     {typeof oferta.totalVistas === 'number' && (
                         <span
-                            className="absolute bottom-2 left-2 z-20 inline-flex items-center gap-2 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur-sm text-white text-sm lg:text-base font-bold tabular-nums leading-none shadow-md"
+                            className="absolute bottom-2 left-2 z-20 inline-flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 backdrop-blur-sm text-white text-xs lg:text-sm font-bold tabular-nums leading-none shadow-md"
                             title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
                         >
                             <Eye
-                                className="w-4 h-4 lg:w-[18px] lg:h-[18px] shrink-0"
+                                className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0"
                                 strokeWidth={2.5}
                                 fill="currentColor"
                                 fillOpacity={0.25}
@@ -778,16 +795,16 @@ export default function OfertaCard({
                         </div>
                     )}
 
-                    {/* Contenido: Título + Separador Dinámico + Descripción */}
-                    <div className="w-full pl-3 pr-3 space-y-1">
-                        {/* Título - Auto-fit dinámico */}
-                        <div 
+                    {/* Contenido: solo Título (descripción se ve en el modal de detalle) */}
+                    <div className="w-full pl-2 pr-2 space-y-1">
+                        {/* Título - Auto-fit dinámico, ocupa toda la altura disponible */}
+                        <div
                             ref={containerRef}
-                            className={`w-full flex items-center justify-center overflow-hidden ${inModal ? 'h-12 @5xl:h-11 @[96rem]:h-[52px]' : 'h-16 @5xl:h-[54px] @[96rem]:h-[72px]'}`}
+                            className={`w-full flex items-center justify-center overflow-hidden ${usarTituloCompacto ? 'h-16 @5xl:h-14 @[96rem]:h-[64px]' : 'h-20 @5xl:h-[68px] @[96rem]:h-[88px]'}`}
                         >
-                            <h4 
+                            <h4
                                 className="font-black text-white leading-tight text-center w-full tracking-tight drop-shadow-lg"
-                                style={{ 
+                                style={{
                                     fontSize: `${fontSize}px`,
                                     textShadow: '0 2px 8px rgba(0,0,0,0.5)',
                                     lineHeight: 1.1,
@@ -800,13 +817,6 @@ export default function OfertaCard({
 
                         {/* Separador dinámico según tipo de oferta */}
                         <SeparadorTipo tipo={oferta.tipo} barColor={config.barColor} />
-
-                        {/* Descripción - MÁXIMO 2 LÍNEAS */}
-                        {oferta.descripcion && (
-                            <p className={`${s.descripcion} text-white/80 text-left line-clamp-2 leading-relaxed font-medium`}>
-                                {oferta.descripcion}
-                            </p>
-                        )}
                     </div>
                 </div>
             </div>

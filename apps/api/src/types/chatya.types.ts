@@ -36,6 +36,7 @@ export type ContextoTipo =
   | 'marketplace'
   | 'vendedor_marketplace'
   | 'oferta'
+  | 'articulo_negocio'
   | 'servicio'
   | 'directo'
   | 'notas';

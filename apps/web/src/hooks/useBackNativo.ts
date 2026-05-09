@@ -19,8 +19,15 @@
  *    el modal se cierra.
  *  - Si el usuario cierra el modal por otro camino (X, ESC, backdrop),
  *    el consumidor pone `abierto: false` directamente. El hook detecta
- *    el cambio y ejecuta `history.back()` para limpiar la entrada que
- *    nosotros pusheamos. Esto evita "entradas fantasma" en el stack.
+ *    el cambio y ejecuta `history.back()` (en el cleanup del effect)
+ *    para limpiar la entrada que nosotros pusheamos. Esto evita
+ *    "entradas fantasma" en el stack.
+ *  - Si el padre desmonta el componente directamente (típico patrón
+ *    `{condicion && <Modal/>}` → condicion=false), el cleanup del
+ *    effect TAMBIÉN se ejecuta y limpia la entrada del history. Esto
+ *    cubre el caso D8: modal cerrado con X custom que llama `onClose`
+ *    del padre, donde el padre desmonta el modal sin pasar por el
+ *    ciclo `abierto: false`.
  *  - Modales anidados (modal B sobre modal A) funcionan correctamente
  *    porque cada uno tiene su propio `id` único; el back cierra el
  *    último abierto sin afectar a los anteriores.
@@ -90,30 +97,10 @@ export function useBackNativo({
     onCerrarRef.current = onCerrar;
 
     useEffect(() => {
-        // ── Cierre por cambio de prop (X, ESC, backdrop, etc.) ──────────
-        if (!abierto) {
-            if (historyPushedRef.current) {
-                historyPushedRef.current = false;
-                // Remover listener ANTES del history.back para que el
-                // popstate que disparamos nosotros no llegue al handler
-                // (lo que duplicaría el cierre o lanzaría onCerrar).
-                if (popStateHandlerRef.current) {
-                    window.removeEventListener('popstate', popStateHandlerRef.current);
-                    popStateHandlerRef.current = null;
-                }
-                // Solo hacer back si nuestra entrada SIGUE siendo la actual.
-                // Si entre el push y este cleanup alguien hizo `navigate(...)`
-                // (típico flujo "login → cerrar modal → navegar a /inicio"),
-                // nuestra entrada ya quedó enterrada en el stack — un `back`
-                // aquí retrocedería la navegación posterior y dejaría al
-                // usuario en la URL del modal en lugar del destino.
-                const stateActual = window.history.state as Record<string, unknown> | null;
-                if (stateActual?.[discriminador] === idRef.current) {
-                    window.history.back();
-                }
-            }
-            return;
-        }
+        // Si no está abierto, no hacemos nada en este effect — la limpieza
+        // (back + remove listener) la maneja el cleanup del effect previo
+        // que sí pusheó.
+        if (!abierto) return;
 
         const id = idRef.current;
 
@@ -144,9 +131,43 @@ export function useBackNativo({
 
         popStateHandlerRef.current = handler;
         window.addEventListener('popstate', handler);
+
+        // ── Cleanup: única ruta de limpieza ─────────────────────────────
+        // Se ejecuta cuando:
+        //   (a) `abierto` pasa a false (X, ESC, backdrop, programático)
+        //   (b) el componente se desmonta directamente sin pasar por
+        //       `abierto: false` (típico cuando el padre hace
+        //       `{condicion && <Modal/>}` y pone condicion=false).
+        //   (c) StrictMode dev (mount → unmount → remount).
+        // Antes esta lógica vivía dentro del bloque `if (!abierto)` del
+        // mismo effect, lo que la dejaba inerte en el caso (b) — el modal
+        // pusheaba una entrada al history y al desmontarse no la limpiaba,
+        // dejando un fantasma que el siguiente back nativo consumía sin
+        // navegar. Ese era el bug D8 (modal cerrado con X custom).
         return () => {
+            // Remover listener ANTES del history.back para que el popstate
+            // que disparamos nosotros no llegue al handler (duplicaría el
+            // cierre o lanzaría onCerrar).
             window.removeEventListener('popstate', handler);
             popStateHandlerRef.current = null;
+            if (!historyPushedRef.current) return;
+            historyPushedRef.current = false;
+            const stateAlCleanup = window.history.state as Record<string, unknown> | null;
+            if (stateAlCleanup?.[discriminador] !== id) return;
+            // Diferir el back con `setTimeout(0)` para sobrevivir el ciclo
+            // mount → cleanup → remount de React.StrictMode (dev). Si el
+            // remount ocurre antes del próximo macrotask, va a pushear su
+            // propia entrada al history y el state actual ya no será el
+            // nuestro — saltamos el back y evitamos cerrar el modal recién
+            // re-montado. En producción (sin StrictMode) o cuando el padre
+            // realmente desmonta el componente (caso D8), no hay remount y
+            // el back se ejecuta normalmente.
+            setTimeout(() => {
+                const stateAhora = window.history.state as Record<string, unknown> | null;
+                if (stateAhora?.[discriminador] === id) {
+                    window.history.back();
+                }
+            }, 0);
         };
     }, [abierto, discriminador]);
 }

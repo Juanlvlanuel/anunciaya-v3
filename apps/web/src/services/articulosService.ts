@@ -132,9 +132,9 @@ export async function obtenerCatalogoPublico(negocioId: string, sucursalId?: str
 /**
  * Obtiene un artículo público para enlaces compartidos
  * GET /api/articulos/publico/:articuloId
- * 
+ *
  * @param articuloId - UUID del artículo
- * 
+ *
  * ⚡ Ya viene en camelCase gracias al middleware del backend
  */
 export async function obtenerArticuloPublico(articuloId: string) {
@@ -146,6 +146,42 @@ export async function obtenerArticuloPublico(articuloId: string) {
       logoUrl: string | null;
     };
   }>(`/articulos/publico/${articuloId}`);
+}
+
+/**
+ * Obtiene el detalle completo de un artículo (item de catálogo) con
+ * datos del negocio y sucursal principal — útil para abrir el modal
+ * `ModalDetalleItem` desde contextos donde solo se tiene el `articuloId`
+ * (ej. card del chat con subtipo `articulo_negocio`).
+ *
+ * GET /api/articulos/detalle/:articuloId
+ */
+export async function obtenerDetalleArticulo(articuloId: string) {
+  return get<{
+    id: string;
+    tipo: string;
+    nombre: string;
+    descripcion: string | null;
+    categoria: string | null;
+    precioBase: string;
+    precioDesde: boolean | null;
+    imagenPrincipal: string | null;
+    disponible: boolean;
+    destacado: boolean;
+    requiereCita: boolean | null;
+    duracionEstimada: number | null;
+    negocio: {
+      id: string;
+      nombre: string;
+      logoUrl: string | null;
+      sitioWeb: string | null;
+      sucursalId: string | null;
+      sucursalNombre: string | null;
+      ciudad: string | null;
+      direccion: string | null;
+      whatsapp: string | null;
+    };
+  }>(`/articulos/detalle/${articuloId}`);
 }
 
 // =============================================================================

@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { usePortalTarget } from '../../hooks/usePortalTarget';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 interface ModalImagenesProps {
   /** Array de URLs de imágenes */
@@ -26,9 +27,6 @@ export const ModalImagenes = ({
   // Portal target: document.body (default) o un contenedor del preview/ChatYA
   const portalTarget = usePortalTarget();
   const esContenido = portalTarget !== document.body;
-  const historyPushedRef = useRef(false);
-  const popStateHandlerRef = useRef<(() => void) | null>(null);
-  const modalIdRef = useRef(`_mi_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`);
 
   // Touch/swipe
   const touchStartX = useRef(0);
@@ -39,14 +37,6 @@ export const ModalImagenes = ({
   /** Cerrar con animación de salida — todos los puntos de cierre pasan por aquí */
   const cerrarConAnimacion = useCallback(() => {
     if (cerrando) return;
-    if (historyPushedRef.current) {
-      historyPushedRef.current = false;
-      if (popStateHandlerRef.current) {
-        window.removeEventListener('popstate', popStateHandlerRef.current);
-        popStateHandlerRef.current = null;
-      }
-      history.back();
-    }
     setCerrando(true);
     setTimeout(() => {
       setCerrando(false);
@@ -54,52 +44,26 @@ export const ModalImagenes = ({
     }, 180);
   }, [cerrando, onClose]);
 
+  // Back nativo del celular / swipe iOS / flecha atrás del navegador.
+  // Discriminador `_modalImagenes` para que pueda anidarse sobre otros
+  // modales (ej. ModalArticuloDetalle) sin que el back los confunda.
+  // `abierto: isOpen && !cerrando` — al iniciar la animación de cierre
+  // (cerrando=true) el hook detecta que ya no está abierto y limpia la
+  // entrada del history en su cleanup, antes de que el padre desmonte
+  // este componente. Esto cubre los 3 caminos de cierre: X, backdrop y
+  // back nativo, todos terminan llamando `cerrarConAnimacion`.
+  useBackNativo({
+    abierto: isOpen && !cerrando,
+    onCerrar: cerrarConAnimacion,
+    discriminador: '_modalImagenes',
+  });
+
   // Sincronizar índice actual cuando cambia initialIndex
   useEffect(() => {
     if (isOpen) {
       setIndiceActual(initialIndex);
     }
   }, [initialIndex, isOpen]);
-
-  // Botón atrás nativo: cerrar modal
-  const cerrarConAnimacionRef = useRef(cerrarConAnimacion);
-  cerrarConAnimacionRef.current = cerrarConAnimacion;
-
-  useEffect(() => {
-    if (!isOpen) {
-      historyPushedRef.current = false;
-      popStateHandlerRef.current = null;
-      return;
-    }
-
-    const id = modalIdRef.current;
-
-    if (!historyPushedRef.current) {
-      const prevState = history.state ?? {};
-      history.pushState({ ...prevState, _modalImagenes: id }, '', window.location.href);
-      historyPushedRef.current = true;
-    }
-
-    const onPopState = () => {
-      if (!historyPushedRef.current) return;
-      if (history.state?._modalImagenes !== id) {
-        historyPushedRef.current = false;
-        popStateHandlerRef.current = null;
-        setCerrando(true);
-        setTimeout(() => {
-          setCerrando(false);
-          onClose();
-        }, 180);
-      }
-    };
-
-    popStateHandlerRef.current = onPopState;
-    window.addEventListener('popstate', onPopState);
-    return () => {
-      window.removeEventListener('popstate', onPopState);
-      popStateHandlerRef.current = null;
-    };
-  }, [isOpen, onClose]);
 
   // Bloquear scroll del body solo cuando el modal es fullscreen (portal a body).
   // En modo contenido (preview/ChatYA) no bloqueamos el scroll del documento principal.

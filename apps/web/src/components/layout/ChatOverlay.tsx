@@ -39,6 +39,41 @@ import {
 import { ListaConversaciones } from '../chatya/ListaConversaciones';
 import { VentanaChat } from '../chatya/VentanaChat';
 import ModalDetalleCliente from '../../pages/private/business-studio/clientes/ModalDetalleCliente';
+import ModalOfertaDetalle from '../negocios/ModalOfertaDetalle';
+import { ModalDetalleItem } from '../negocios/ModalDetalleItem';
+import type { Oferta } from '../negocios/OfertaCard';
+import { obtenerDetalleOferta } from '../../services/ofertasService';
+import { obtenerDetalleArticulo } from '../../services/articulosService';
+
+// Tipo del item que ModalDetalleItem espera (subset)
+interface ItemDetalle {
+  id: string;
+  tipo: string;
+  nombre: string;
+  descripcion?: string | null;
+  categoria?: string | null;
+  precioBase: string;
+  precioDesde?: boolean | null;
+  imagenPrincipal?: string | null;
+  requiereCita?: boolean | null;
+  duracionEstimada?: number | null;
+  disponible?: boolean | null;
+  destacado?: boolean | null;
+}
+
+interface DetalleOfertaEnChat {
+  oferta: Oferta;
+  whatsapp: string | null;
+  negocioNombre: string;
+}
+
+interface DetalleArticuloEnChat {
+  item: ItemDetalle;
+  whatsapp: string | null;
+  sucursalId: string | null;
+  negocioNombre: string;
+  logoUrl: string | null;
+}
 
 // =============================================================================
 // CONSTANTES
@@ -105,6 +140,87 @@ export function ChatOverlay() {
     };
     window.addEventListener('chatya:ver-cliente', handler);
     return () => window.removeEventListener('chatya:ver-cliente', handler);
+  }, []);
+
+  // Modales de detalle abiertos SOBRE el chat — activados por click en
+  // las cards de mensaje sistema (subtipos `oferta_negocio` y
+  // `articulo_negocio`). El modal queda con z-index superior al chat
+  // para que el usuario re-vea el detalle sin cerrar la conversación.
+  const [detalleOferta, setDetalleOferta] = useState<DetalleOfertaEnChat | null>(null);
+  const [detalleArticulo, setDetalleArticulo] = useState<DetalleArticuloEnChat | null>(null);
+
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const ofertaId = (e as CustomEvent<{ ofertaId: string }>).detail?.ofertaId;
+      if (!ofertaId) return;
+      try {
+        const respuesta = await obtenerDetalleOferta(ofertaId);
+        if (!respuesta.success || !respuesta.data) return;
+        const o = respuesta.data;
+        setDetalleOferta({
+          oferta: {
+            id: o.ofertaId,
+            ofertaId: o.ofertaId,
+            sucursalId: o.sucursalId,
+            titulo: o.titulo,
+            descripcion: o.descripcion,
+            imagen: o.imagen,
+            tipo: o.tipo,
+            valor: o.valor,
+            fechaInicio: o.fechaInicio,
+            fechaFin: o.fechaFin,
+            compraMinima: o.compraMinima,
+            limiteUsos: o.limiteUsos,
+            usosActuales: o.usosActuales,
+            activo: o.activo,
+            logoUrl: o.logoUrl,
+            sucursalNombre: o.sucursalNombre,
+          } as Oferta,
+          whatsapp: o.whatsapp ?? null,
+          negocioNombre: o.negocioNombre,
+        });
+      } catch (error) {
+        console.error('[ChatOverlay] Error fetch detalle oferta:', error);
+      }
+    };
+    window.addEventListener('chatya:abrir-detalle-oferta', handler);
+    return () => window.removeEventListener('chatya:abrir-detalle-oferta', handler);
+  }, []);
+
+  useEffect(() => {
+    const handler = async (e: Event) => {
+      const articuloId = (e as CustomEvent<{ articuloId: string }>).detail?.articuloId;
+      if (!articuloId) return;
+      try {
+        const respuesta = await obtenerDetalleArticulo(articuloId);
+        if (!respuesta.success || !respuesta.data) return;
+        const a = respuesta.data;
+        setDetalleArticulo({
+          item: {
+            id: a.id,
+            tipo: a.tipo,
+            nombre: a.nombre,
+            descripcion: a.descripcion,
+            categoria: a.categoria,
+            precioBase: a.precioBase,
+            precioDesde: a.precioDesde,
+            imagenPrincipal: a.imagenPrincipal,
+            requiereCita: a.requiereCita,
+            duracionEstimada: a.duracionEstimada,
+            disponible: a.disponible,
+            destacado: a.destacado,
+          },
+          whatsapp: a.negocio?.whatsapp ?? null,
+          sucursalId: a.negocio?.sucursalId ?? null,
+          negocioNombre: a.negocio?.nombre ?? '',
+          logoUrl: a.negocio?.logoUrl ?? null,
+        });
+      } catch (error) {
+        console.error('[ChatOverlay] Error fetch detalle articulo:', error);
+      }
+    };
+    window.addEventListener('chatya:abrir-detalle-articulo', handler);
+    return () => window.removeEventListener('chatya:abrir-detalle-articulo', handler);
   }, []);
 
   // Store actions para acciones en lote
@@ -484,7 +600,40 @@ export function ChatOverlay() {
           location.pathname === overlayPathnameRef.current &&
           !stateActual?.scanyaModal
         ) {
-          history.back();
+          // Si el chat fue abierto desde modal(es), hay N entradas
+          // fantasma en el stack (una por cada marca de modal que
+          // `abrirChatYA` borró con `replaceState`, sin consumir la
+          // entrada). Saltar overlay + N fantasmas con `go(-(1+N))`
+          // para que el usuario regrese directo a la ruta original.
+          // N=1 cubre un modal directo; N=2 cubre bottom-sheet + modal
+          // anidado encima, etc.
+          const ui = useUiStore.getState();
+          if (ui.chatAbiertoDesdeModal) {
+            history.go(-(1 + ui.fantasmasModalCount));
+            useUiStore.setState({
+              chatAbiertoDesdeModal: false,
+              fantasmasModalCount: 0,
+            });
+            // Defensivo: si tras el `go` quedó alguna marca de modal en
+            // el state actual (ej. el navegador móvil no procesó todos
+            // los saltos, o nuestro conteo se quedó corto por timing),
+            // consumir la entrada residual con un `back` adicional.
+            setTimeout(() => {
+              const stateAhora = (history.state ?? {}) as Record<string, unknown>;
+              if (
+                '_modalUI' in stateAhora ||
+                '_modalBottom' in stateAhora ||
+                '_modalImagenes' in stateAhora ||
+                '_dropdownCompartir' in stateAhora ||
+                '_modalOfertaDetalle' in stateAhora ||
+                '_modalDetalleItem' in stateAhora
+              ) {
+                history.back();
+              }
+            }, 50);
+          } else {
+            history.back();
+          }
         }
       }
       return;
@@ -504,6 +653,35 @@ export function ChatOverlay() {
       if (history.state?.chatyaOverlay || history.state?.chatya || history.state?.panelInfo || history.state?.visorImagenes || history.state?._vistaPerfilChat || history.state?._modalBottom || history.state?._modalImagenes || history.state?._previewNegocio) return;
       overlayHistoryRef.current = false;
       overlayHandlerRef.current = null;
+      // Si el chat fue abierto desde modal(es), saltar las N entradas
+      // fantasma que `abrirChatYA` dejó en el stack. El back nativo del
+      // usuario ya consumió el overlay (1), aquí consumimos las N
+      // restantes con `go(-N)`. Sin esto, el siguiente back del usuario
+      // cae en pantallas "muertas" del fantasma y obliga a backs extras.
+      const ui = useUiStore.getState();
+      if (ui.chatAbiertoDesdeModal && ui.fantasmasModalCount > 0) {
+        history.go(-ui.fantasmasModalCount);
+        useUiStore.setState({
+          chatAbiertoDesdeModal: false,
+          fantasmasModalCount: 0,
+        });
+        // Defensivo: ver comentario homólogo en el cleanup del effect.
+        // En navegadores móviles, `go(-N)` puede no consumir todas las
+        // entradas si hay algún listener intermedio o timing irregular.
+        // Verificar y limpiar la marca residual asegura que el usuario
+        // no quede en una pantalla "muerta".
+        setTimeout(() => {
+          const stateAhora = (history.state ?? {}) as Record<string, unknown>;
+          if (
+            '_modalUI' in stateAhora ||
+            '_modalBottom' in stateAhora ||
+            '_modalImagenes' in stateAhora ||
+            '_dropdownCompartir' in stateAhora
+          ) {
+            history.back();
+          }
+        }, 50);
+      }
       cerrarChatYA();
     };
 
@@ -931,6 +1109,34 @@ export function ChatOverlay() {
           );
         }}
       />
+
+      {/* Modal detalle de oferta — disparado desde card del chat
+          (subtipo `oferta_negocio`). Se monta SOBRE el chat con z-75.
+          NO pasamos `negocioUsuarioId` porque no queremos que el botón
+          ChatYA del modal abra otro chat — el usuario ya está en uno. */}
+      {detalleOferta && (
+        <ModalOfertaDetalle
+          oferta={detalleOferta.oferta}
+          whatsapp={detalleOferta.whatsapp}
+          negocioNombre={detalleOferta.negocioNombre}
+          negocioUsuarioId={null}
+          onClose={() => setDetalleOferta(null)}
+        />
+      )}
+
+      {/* Modal detalle de artículo — disparado desde card del chat
+          (subtipo `articulo_negocio`). Mismo patrón que oferta. */}
+      {detalleArticulo && (
+        <ModalDetalleItem
+          item={detalleArticulo.item}
+          whatsapp={detalleArticulo.whatsapp}
+          negocioUsuarioId={null}
+          sucursalId={detalleArticulo.sucursalId}
+          negocioNombre={detalleArticulo.negocioNombre}
+          logoUrl={detalleArticulo.logoUrl}
+          onClose={() => setDetalleArticulo(null)}
+        />
+      )}
     </>
   );
 }

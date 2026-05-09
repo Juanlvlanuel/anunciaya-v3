@@ -19,10 +19,11 @@
  * CREADO: Fase 5.3.1 - Sistema Universal de Compartir
  */
 
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { Share2, Link2 } from 'lucide-react';
 import { notificar } from '../../utils/notificaciones';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 // =============================================================================
 // TIPOS
@@ -101,7 +102,18 @@ export function DropdownCompartir({
         setAbierto(!abierto);
     };
 
-    const cerrar = () => setAbierto(false);
+    const cerrar = useCallback(() => setAbierto(false), []);
+
+    // Back nativo del celular / swipe iOS / flecha atrás del navegador.
+    // Discriminador propio `_dropdownCompartir` (distinto del `_modalUI`
+    // del Modal que lo contiene) para que el back consuma primero la
+    // entrada del dropdown y deje el modal padre abierto. Sin esto, el
+    // back saltaba el dropdown y cerraba el modal directamente.
+    useBackNativo({
+        abierto,
+        onCerrar: cerrar,
+        discriminador: '_dropdownCompartir',
+    });
 
     const compartirWhatsApp = () => {
         const mensaje = `${texto}\n\n${url}`;

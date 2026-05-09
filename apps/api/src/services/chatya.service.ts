@@ -19,6 +19,7 @@ import {
     chatMensajesFijados,
     chatContactos,
     ofertas,
+    articulos,
     articulosMarketplace,
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
@@ -592,8 +593,23 @@ export async function crearObtenerConversacion(
             return { success: false, message: 'No puedes iniciar conversación con este usuario', code: 403 };
         }
 
-        // Buscar conversación existente (en cualquier dirección)
-        // Incluye sucursalId para diferenciar chats con distintas sucursales del mismo negocio
+        // Buscar conversación existente (en cualquier dirección).
+        //
+        // Para chats inter-sucursal (comercial ↔ comercial) sí diferenciamos
+        // por sucursal de cada lado: son entidades operativas independientes
+        // y necesitan hilos separados.
+        //
+        // Para chat persona ↔ negocio (personal vs comercial) IGNORAMOS la
+        // sucursal del lado comercial: un cliente espera UN solo chat con
+        // cada negocio sin importar de qué sucursal le llegó la oferta o
+        // artículo. Sin esto, abrir chat desde dos ofertas de distintas
+        // sucursales del MISMO negocio crea 2 conversaciones duplicadas en
+        // la lista del cliente. Si hay múltiples existentes (por chats
+        // creados antes de este fix), tomamos el más reciente con `orderBy`.
+        const esChatPersonaConNegocio =
+            (input.participante1Modo === 'personal' && input.participante2Modo === 'comercial') ||
+            (input.participante1Modo === 'comercial' && input.participante2Modo === 'personal');
+
         const [existente] = await db
             .select()
             .from(chatConversaciones)
@@ -604,27 +620,39 @@ export async function crearObtenerConversacion(
                         eq(chatConversaciones.participante2Id, input.participante2Id),
                         eq(chatConversaciones.participante1Modo, input.participante1Modo),
                         eq(chatConversaciones.participante2Modo, input.participante2Modo),
-                        input.participante1SucursalId
-                            ? eq(chatConversaciones.participante1SucursalId, input.participante1SucursalId)
-                            : sql`${chatConversaciones.participante1SucursalId} IS NULL`,
-                        input.participante2SucursalId
-                            ? eq(chatConversaciones.participante2SucursalId, input.participante2SucursalId)
-                            : sql`${chatConversaciones.participante2SucursalId} IS NULL`
+                        // Sucursal del lado personal: siempre debe ser NULL.
+                        input.participante1Modo === 'personal' || !input.participante1SucursalId
+                            ? sql`${chatConversaciones.participante1SucursalId} IS NULL`
+                            : eq(chatConversaciones.participante1SucursalId, input.participante1SucursalId),
+                        // Sucursal del lado comercial: en persona↔negocio se
+                        // ignora; en comercial↔comercial sí se filtra.
+                        esChatPersonaConNegocio
+                            ? sql`TRUE`
+                            : (input.participante2SucursalId
+                                ? eq(chatConversaciones.participante2SucursalId, input.participante2SucursalId)
+                                : sql`${chatConversaciones.participante2SucursalId} IS NULL`)
                     ),
                     and(
                         eq(chatConversaciones.participante1Id, input.participante2Id),
                         eq(chatConversaciones.participante2Id, usuarioId),
                         eq(chatConversaciones.participante1Modo, input.participante2Modo),
                         eq(chatConversaciones.participante2Modo, input.participante1Modo),
-                        input.participante2SucursalId
-                            ? eq(chatConversaciones.participante1SucursalId, input.participante2SucursalId)
-                            : sql`${chatConversaciones.participante1SucursalId} IS NULL`,
-                        input.participante1SucursalId
-                            ? eq(chatConversaciones.participante2SucursalId, input.participante1SucursalId)
-                            : sql`${chatConversaciones.participante2SucursalId} IS NULL`
+                        // En esta dirección invertida, P1 de la BD es el otro
+                        // (su modo es input.participante2Modo) y P2 soy yo.
+                        // El lado personal va con NULL, el comercial se ignora
+                        // si es chat persona↔negocio.
+                        esChatPersonaConNegocio
+                            ? sql`TRUE`
+                            : (input.participante2SucursalId
+                                ? eq(chatConversaciones.participante1SucursalId, input.participante2SucursalId)
+                                : sql`${chatConversaciones.participante1SucursalId} IS NULL`),
+                        input.participante1Modo === 'personal' || !input.participante1SucursalId
+                            ? sql`${chatConversaciones.participante2SucursalId} IS NULL`
+                            : eq(chatConversaciones.participante2SucursalId, input.participante1SucursalId)
                     )
                 )
             )
+            .orderBy(desc(chatConversaciones.updatedAt))
             .limit(1);
 
         if (existente) {
@@ -657,6 +685,22 @@ export async function crearObtenerConversacion(
                     existente.id,
                     'marketplace',
                     input.articuloMarketplaceId,
+                    usuarioId,
+                    input.participante2Id,
+                );
+            } else if (
+                (input.contextoTipo === 'oferta' || input.contextoTipo === 'articulo_negocio') &&
+                input.contextoReferenciaId
+            ) {
+                // Mismo patrón que marketplace: si la conversación ya existe
+                // y se abre ChatYA desde OTRA oferta/artículo del mismo
+                // negocio, insertar la card del nuevo contexto. No duplicamos
+                // si fuera el mismo (pero el chequeo de duplicado lo hace
+                // implícitamente cada call, queda como diseño aceptable).
+                await insertarMensajeContextoNegocio(
+                    existente.id,
+                    input.contextoTipo,
+                    input.contextoReferenciaId,
                     usuarioId,
                     input.participante2Id,
                 );
@@ -699,6 +743,21 @@ export async function crearObtenerConversacion(
                 nueva.id,
                 'vendedor_marketplace',
                 null,
+                usuarioId,
+                input.participante2Id,
+            );
+        } else if (
+            (input.contextoTipo === 'oferta' || input.contextoTipo === 'articulo_negocio') &&
+            input.contextoReferenciaId
+        ) {
+            // ChatYA abierto desde el modal de detalle de una oferta o de un
+            // artículo del catálogo de un negocio. Se inserta el mensaje
+            // sistema con la card de contexto para que persista en BD y
+            // ambos participantes la vean al refrescar.
+            await insertarMensajeContextoNegocio(
+                nueva.id,
+                input.contextoTipo,
+                input.contextoReferenciaId,
                 usuarioId,
                 input.participante2Id,
             );
@@ -858,6 +917,182 @@ async function insertarMensajeContextoMarketplace(
         // el mensaje de contexto — peor caso, la conversación queda sin la
         // card y el usuario igual puede chatear normal.
         console.error('Error en insertarMensajeContextoMarketplace:', error);
+    }
+}
+
+/**
+ * Helper: arma el texto del badge de una oferta a partir de tipo + valor.
+ * Replica la lógica del frontend (`getBadgeTexto` en OfertaCard) para que
+ * el snapshot persistido tenga el mismo string que veía el usuario al
+ * abrir la card en el feed.
+ */
+function armarBadgeTextoOferta(tipo: string, valor: string | null): string {
+    const numerico = valor != null && !isNaN(Number(valor)) ? Number(valor) : null;
+    switch (tipo) {
+        case 'porcentaje':
+            return `${numerico ?? 0}% OFF`;
+        case 'monto_fijo':
+            return `$${numerico ?? 0}`;
+        case '2x1':
+            return '2x1';
+        case '3x2':
+            return '3x2';
+        case 'envio_gratis':
+            return 'Envío Gratis';
+        case 'otro':
+            return valor && isNaN(Number(valor)) ? valor : 'OFERTA';
+        default:
+            return 'OFERTA';
+    }
+}
+
+/**
+ * Auto-inserta un mensaje sistema con la card de contexto (oferta o
+ * artículo del catálogo de un negocio) al crear conversación nueva.
+ *
+ * Análogo a `insertarMensajeContextoMarketplace` pero para los flujos
+ * de "ChatYA" desde modal de oferta o detalle de item de catálogo. El
+ * mensaje persiste en BD para que la card siga visible al refrescar y
+ * a ambos participantes.
+ *
+ * Subtipos generados (consumidos por `MensajeSistema` en BurbujaMensaje):
+ *  - `'oferta_negocio'` → card con foto + título + badge + CTA Ver.
+ *  - `'articulo_negocio'` → card con foto + nombre + precio + tipo.
+ *
+ * Si la oferta/artículo ya no existe (404), no inserta nada — no se
+ * rompe el flujo principal de creación de conversación.
+ */
+async function insertarMensajeContextoNegocio(
+    conversacionId: string,
+    contextoTipo: 'oferta' | 'articulo_negocio',
+    referenciaId: string | null,
+    iniciadorId: string,
+    receptorId: string,
+): Promise<void> {
+    try {
+        if (!referenciaId) return;
+        let contenido: string | null = null;
+        let previewTexto: string | null = null;
+
+        if (contextoTipo === 'oferta') {
+            const [of] = await db
+                .select({
+                    id: ofertas.id,
+                    sucursalId: ofertas.sucursalId,
+                    titulo: ofertas.titulo,
+                    imagen: ofertas.imagen,
+                    tipo: ofertas.tipo,
+                    valor: ofertas.valor,
+                    fechaFin: ofertas.fechaFin,
+                })
+                .from(ofertas)
+                .where(eq(ofertas.id, referenciaId))
+                .limit(1);
+
+            if (!of) return;
+
+            contenido = JSON.stringify({
+                subtipo: 'oferta_negocio',
+                ofertaId: of.id,
+                sucursalId: of.sucursalId ?? '',
+                titulo: of.titulo,
+                badgeTexto: armarBadgeTextoOferta(of.tipo, of.valor ?? null),
+                fotoUrl: of.imagen ?? null,
+                fechaFin: of.fechaFin ?? null,
+                iniciadorId,
+            });
+            previewTexto = `Sobre: ${of.titulo}`.substring(0, 100);
+        } else if (contextoTipo === 'articulo_negocio') {
+            const [art] = await db
+                .select({
+                    id: articulos.id,
+                    nombre: articulos.nombre,
+                    tipo: articulos.tipo,
+                    precioBase: articulos.precioBase,
+                    imagenPrincipal: articulos.imagenPrincipal,
+                    negocioId: articulos.negocioId,
+                })
+                .from(articulos)
+                .where(eq(articulos.id, referenciaId))
+                .limit(1);
+
+            if (!art) return;
+
+            // El `articulos` no tiene `sucursalId` directo: el frontend lo
+            // envió en `participante2SucursalId` de la conversación. Lo
+            // tomamos de ahí para que la card pueda navegar al perfil.
+            const [conv] = await db
+                .select({ sucursalId: chatConversaciones.participante2SucursalId })
+                .from(chatConversaciones)
+                .where(eq(chatConversaciones.id, conversacionId))
+                .limit(1);
+
+            contenido = JSON.stringify({
+                subtipo: 'articulo_negocio',
+                articuloId: art.id,
+                sucursalId: conv?.sucursalId ?? '',
+                nombre: art.nombre,
+                precio: art.precioBase,
+                tipo: art.tipo,
+                fotoUrl: art.imagenPrincipal ?? null,
+                iniciadorId,
+            });
+            previewTexto = `Sobre: ${art.nombre}`.substring(0, 100);
+        }
+
+        if (!contenido || !previewTexto) return;
+
+        const [msg] = await db
+            .insert(chatMensajes)
+            .values({
+                conversacionId,
+                emisorId: null,
+                emisorModo: null,
+                emisorSucursalId: null,
+                tipo: 'sistema',
+                contenido,
+                estado: 'enviado',
+            })
+            .returning();
+
+        const ahora = new Date().toISOString();
+        await db
+            .update(chatConversaciones)
+            .set({
+                ultimoMensajeTexto: previewTexto,
+                ultimoMensajeFecha: ahora,
+                ultimoMensajeTipo: 'sistema',
+                ultimoMensajeEstado: 'enviado',
+                ultimoMensajeEmisorId: null,
+                updatedAt: ahora,
+            })
+            .where(eq(chatConversaciones.id, conversacionId));
+
+        const mensajeResponse: MensajeResponse = {
+            id: msg.id,
+            conversacionId: msg.conversacionId,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: msg.contenido,
+            estado: msg.estado as EstadoMensaje,
+            editado: msg.editado,
+            editadoAt: msg.editadoAt,
+            eliminado: msg.eliminado,
+            eliminadoAt: msg.eliminadoAt,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: msg.createdAt ?? '',
+            entregadoAt: msg.entregadoAt,
+            leidoAt: msg.leidoAt,
+        };
+
+        emitirAUsuario(iniciadorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+        emitirAUsuario(receptorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+    } catch (error) {
+        console.error('Error en insertarMensajeContextoNegocio:', error);
     }
 }
 

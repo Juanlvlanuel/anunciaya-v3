@@ -120,6 +120,20 @@ const iconoPinBurbuja = L.divIcon({
 //     Lo emite el backend al crear conversación desde el detalle de un
 //     artículo de MarketPlace.
 //
+//  - `subtipo: 'oferta_negocio'` → card con foto + título + badge de la
+//     oferta + botón "Ver". Se inserta como mensaje optimista al abrir
+//     ChatYA desde `ModalOfertaDetalle` (perfil del negocio o feed
+//     `/ofertas`). Click despacha `chatya:abrir-detalle-oferta` que
+//     `ChatOverlay` maneja: hace fetch del detalle y monta el modal
+//     SOBRE el chat (z-index superior) sin cambiar de ruta — el usuario
+//     conserva el contexto de la conversación.
+//
+//  - `subtipo: 'articulo_negocio'` → card con foto + nombre + precio +
+//     etiqueta producto/servicio. Se inserta como mensaje optimista al
+//     abrir ChatYA desde `ModalDetalleItem` (catálogo de un negocio).
+//     Click despacha `chatya:abrir-detalle-articulo` con mismo patrón
+//     que `oferta_negocio` (modal sobre el chat, sin navegar).
+//
 //  - `subtipo: 'contacto_perfil'` → texto centrado "X inició la conversación
 //     desde tu perfil". Lo emite el backend al crear conversación desde el
 //     perfil del vendedor (sin artículo específico).
@@ -156,7 +170,39 @@ interface SistemaContactoPerfil {
   iniciadorId?: string;
 }
 
-type DatosSistema = SistemaArticuloMP | SistemaContactoPerfil | { subtipo?: string };
+interface SistemaOfertaNegocio {
+  subtipo: 'oferta_negocio';
+  ofertaId: string;
+  /** Para construir la ruta de navegación al perfil del negocio. */
+  sucursalId: string;
+  titulo: string;
+  /** Texto pre-formateado del badge (ej: "30% OFF", "2x1", "Envío Gratis"). */
+  badgeTexto: string;
+  fotoUrl: string | null;
+  /** Fecha de vencimiento ISO. Opcional, solo si la oferta tiene fechaFin. */
+  fechaFin?: string | null;
+  iniciadorId?: string;
+}
+
+interface SistemaArticuloNegocio {
+  subtipo: 'articulo_negocio';
+  articuloId: string;
+  /** Para construir la ruta de navegación al perfil del negocio. */
+  sucursalId: string;
+  nombre: string;
+  precio: string | number;
+  /** `'producto'` o `'servicio'`. */
+  tipo: string;
+  fotoUrl: string | null;
+  iniciadorId?: string;
+}
+
+type DatosSistema =
+  | SistemaArticuloMP
+  | SistemaContactoPerfil
+  | SistemaOfertaNegocio
+  | SistemaArticuloNegocio
+  | { subtipo?: string };
 
 function parsearContenidoSistema(raw: string): DatosSistema | null {
   try {
@@ -265,6 +311,136 @@ function MensajeSistema({ contenidoRaw, miId }: MensajeSistemaProps) {
                 {formatearPrecioMP(d.precio)}
               </span>
               <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-teal-700 lg:group-hover:text-teal-900">
+                Ver
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Subtipo: oferta del perfil de un negocio ─────────────────────────────
+  if (datos && (datos as SistemaOfertaNegocio).subtipo === 'oferta_negocio') {
+    const d = datos as SistemaOfertaNegocio;
+    const irAOferta = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!d.ofertaId) return;
+      // Abrir modal de detalle SOBRE el chat (sin cerrar el chat ni
+      // cambiar de ruta). `ChatOverlay` escucha este evento, hace fetch
+      // del detalle completo de la oferta y monta `ModalOfertaDetalle`
+      // con z-index superior al chat. Patrón distinto a marketplace —
+      // donde sí navegamos al detalle público — porque en chat con
+      // negocio el usuario ya está en una conversación específica y no
+      // quiere perder el contexto solo para re-ver la oferta.
+      window.dispatchEvent(
+        new CustomEvent('chatya:abrir-detalle-oferta', {
+          detail: { ofertaId: d.ofertaId },
+        }),
+      );
+    };
+    return (
+      <div className={`flex w-full my-1 ${justify}`}>
+        <button
+          type="button"
+          data-testid={`mensaje-sistema-oferta-${d.ofertaId}`}
+          onClick={irAOferta}
+          className="group flex w-full max-w-sm cursor-pointer items-stretch overflow-hidden rounded-xl border-2 border-slate-300 bg-white text-left shadow-md lg:hover:border-amber-500"
+        >
+          {/* Foto cuadrada izquierda */}
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden bg-slate-200">
+            {d.fotoUrl ? (
+              <img
+                src={d.fotoUrl}
+                alt={d.titulo}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <ImageOff className="h-8 w-8 text-slate-500" strokeWidth={1.5} />
+            )}
+          </div>
+          {/* Contenido */}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold uppercase tracking-wide text-amber-700">
+                Oferta
+              </p>
+              <p className="line-clamp-2 text-sm font-bold leading-tight text-slate-900">
+                {d.titulo}
+              </p>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="shrink-0 rounded-md bg-amber-100 px-2 py-0.5 text-sm font-extrabold text-amber-800">
+                {d.badgeTexto}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-amber-700 lg:group-hover:text-amber-900">
+                Ver
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Subtipo: artículo del catálogo de un negocio ─────────────────────────
+  if (datos && (datos as SistemaArticuloNegocio).subtipo === 'articulo_negocio') {
+    const d = datos as SistemaArticuloNegocio;
+    const irAlNegocio = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!d.articuloId) return;
+      // Abrir modal de detalle SOBRE el chat (sin cerrar el chat ni
+      // cambiar de ruta). Mismo patrón que `oferta_negocio` arriba —
+      // ver comentario allí para el razonamiento.
+      window.dispatchEvent(
+        new CustomEvent('chatya:abrir-detalle-articulo', {
+          detail: { articuloId: d.articuloId },
+        }),
+      );
+    };
+    const esServicio = d.tipo === 'servicio';
+    const labelTipo = esServicio ? 'Servicio' : 'Producto';
+    return (
+      <div className={`flex w-full my-1 ${justify}`}>
+        <button
+          type="button"
+          data-testid={`mensaje-sistema-articulo-negocio-${d.articuloId}`}
+          onClick={irAlNegocio}
+          className="group flex w-full max-w-sm cursor-pointer items-stretch overflow-hidden rounded-xl border-2 border-slate-300 bg-white text-left shadow-md lg:hover:border-blue-500"
+        >
+          {/* Foto cuadrada izquierda */}
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden bg-slate-200">
+            {d.fotoUrl ? (
+              <img
+                src={d.fotoUrl}
+                alt={d.nombre}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <ImageOff className="h-8 w-8 text-slate-500" strokeWidth={1.5} />
+            )}
+          </div>
+          {/* Contenido */}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold uppercase tracking-wide text-blue-700">
+                {labelTipo}
+              </p>
+              <p className="line-clamp-2 text-sm font-bold leading-tight text-slate-900">
+                {d.nombre}
+              </p>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="shrink-0 text-base font-extrabold text-slate-900">
+                {formatearPrecioMP(d.precio)}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-blue-700 lg:group-hover:text-blue-900">
                 Ver
                 <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
               </span>

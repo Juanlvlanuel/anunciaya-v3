@@ -216,14 +216,14 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                 <div className="relative">
                     {/*
                         Grid RESPONSIVO:
-                        - Móvil: 1 columna (cards horizontales)
-                        - Desktop: 3 columnas (cards verticales)
+                        - Móvil: scroll horizontal con cards verticales (~180px de ancho)
+                        - Desktop: 2-3 columnas (cards verticales)
                     */}
                     {/* Fade borde derecho: indicador de scroll horizontal en mobile/preview.
                         Oscuro + z-50 para cubrir el badge "HAPPY HOUR" que se proyecta fuera del card.
                         Altura acotada con top-4 bottom-4 (coincide con pt-4 pb-4 del scroll). */}
                     <div className="pointer-events-none absolute top-4 bottom-4 right-0 w-12 bg-gradient-to-l from-black/90 via-black/50 to-transparent @5xl:hidden z-50" />
-                    {/* Mobile: scroll horizontal | Desktop: grid
+                    {/* Mobile: scroll horizontal con cards verticales angostas | Desktop: grid
                         [&_*]:cursor-grab fuerza cursor en descendientes (cards tienen cursor-pointer propio). */}
                     <div
                         ref={refScroll}
@@ -232,9 +232,13 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                         {(esMobile ? ofertasOrdenadas.slice(0, 10) : ofertasVisibles).map((oferta, index) => {
                             const esUltimoDesktop = !esMobile && index === ofertasVisibles.length - 1 && tienemasOfertas;
                             return (
-                                <div key={getId(oferta)} className="shrink-0 w-full @5xl:w-auto relative">
+                                <div key={getId(oferta)} className="shrink-0 w-[180px] @5xl:w-auto relative">
                                     <div onClick={() => esUltimoDesktop ? setModalAbierto(true) : handleClickOferta(oferta)} className="cursor-pointer">
-                                        <OfertaCard oferta={oferta} size="normal" />
+                                        <OfertaCard
+                                            oferta={oferta}
+                                            size={esMobile ? 'compact' : 'normal'}
+                                            orientacion={esMobile ? 'vertical' : 'auto'}
+                                        />
                                     </div>
                                     {/* Overlay "Ver todas" en el último item desktop */}
                                     {esUltimoDesktop && (
@@ -251,10 +255,10 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
                         })}
                         {/* Botón "Ver todas" al final del scroll en mobile */}
                         {esMobile && ofertasOrdenadas.length > 10 && (
-                            <div className="shrink-0 w-full flex items-center justify-center">
+                            <div className="shrink-0 w-[180px] flex items-center justify-center">
                                 <button
                                     onClick={() => setModalAbierto(true)}
-                                    className="w-full h-full min-h-[120px] rounded-xl border-2 border-slate-300 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95"
+                                    className="w-full h-[280px] rounded-xl border-2 border-slate-300 flex flex-col items-center justify-center gap-2 cursor-pointer active:scale-95"
                                     style={{ background: 'linear-gradient(135deg, #1e293b, #0f172a)' }}
                                 >
                                     <span className="text-2xl font-bold text-white">+{ofertasOrdenadas.length - 10}</span>

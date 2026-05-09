@@ -1344,6 +1344,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     negocioUsuarioId={negocio?.usuarioId}
                                     sucursalId={sucursalId}
                                     negocioNombre={negocio?.negocioNombre}
+                                    logoUrl={negocio?.logoUrl}
                                 />
                             </div>
                         )}

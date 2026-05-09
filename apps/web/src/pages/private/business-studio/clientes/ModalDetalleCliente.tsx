@@ -221,11 +221,18 @@ export default function ModalDetalleCliente({
   };
 
   // Navegar a transacciones filtradas.
-  // `handleCerrar` hace `history.back()` síncrono (limpia la entrada
-  // empujada por ModalBottom), y luego `navegarASeccion` detecta el salto
-  // entre módulos hermanos de BS (/clientes → /transacciones) y aplica
-  // replace. Resultado: stack queda `[/inicio, /transacciones]` y el back
-  // nativo del celular regresa a /inicio en lugar de a /clientes.
+  //
+  // Trade-off conocido: el back nativo desde /transacciones regresa
+  // primero a /clientes (la entrada del módulo padre que abrió el modal)
+  // y luego a /inicio. Es decir, requiere 2 backs en lugar de 1. Aceptado
+  // como UX viable porque:
+  //  - Es un flujo edge poco frecuente (solo desde "Ver historial completo"
+  //    estando dentro de un modal de cliente).
+  //  - La navegación "esperada" intuitivamente desde /transacciones también
+  //    podría ser regresar a /clientes (donde estaba el modal abierto).
+  //  - Solucionarlo robustamente requiere coordinar el cleanup del modal
+  //    con el navigate posterior — implementaciones intentadas con
+  //    setTimeout / requestAnimationFrame no funcionaron consistente.
   const handleVerHistorial = () => {
     if (clienteDetalle?.nombre) {
       if (onVerHistorial) {

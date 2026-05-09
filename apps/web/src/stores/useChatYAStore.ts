@@ -927,10 +927,18 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         const conv = await get().crearConversacion(datosCreacion);
         if (!conv) return null;
         get().transicionarAConversacionReal(conv.id);
-        const esContextoMarketplace =
+        // Después de materializar, sincronizar mensajes desde backend en
+        // todos los contextos donde el backend auto-inserta una card de
+        // contexto (`tipo='sistema'`). Sin esto, el optimista sembrado en
+        // `abrirChatTemporal` queda colgado con `conversacionId=temp_*` y
+        // al refrescar desaparece — además los datos del backend (con id
+        // real, snapshot validado) son la fuente de verdad.
+        const esContextoConCardBackend =
           datosCreacion.contextoTipo === 'marketplace' ||
-          datosCreacion.contextoTipo === 'vendedor_marketplace';
-        if (esContextoMarketplace) {
+          datosCreacion.contextoTipo === 'vendedor_marketplace' ||
+          datosCreacion.contextoTipo === 'oferta' ||
+          datosCreacion.contextoTipo === 'articulo_negocio';
+        if (esContextoConCardBackend) {
           await get().cargarMensajes(conv.id);
         }
       }
@@ -1883,7 +1891,16 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
   // En inter-sucursal, un mismo usuarioId comparte socket room entre sesiones,
   // así que el dueño podría recibir el mensaje-nuevo del gerente a un tercero
   // y dispararía sonido por algo que no le corresponde.
-  if (!esMensajePropio && esConversacionConocida) {
+  //
+  // Los mensajes `tipo='sistema'` (cards de contexto: marketplace, oferta,
+  // articulo_negocio, contacto_perfil) tienen `emisorId=null` y se emiten a
+  // AMBOS participantes al crear conversación. Sin esta exclusión, el
+  // iniciador escuchaba el sonido de notificación al enviar su primer
+  // mensaje (el sistema es triggered por la materialización), confundiendo
+  // "envié algo" con "recibí algo". Tampoco generan badge en backend, así
+  // que silenciar el sonido es consistente.
+  const esMensajeSistema = mensaje.tipo === 'sistema';
+  if (!esMensajePropio && !esMensajeSistema && esConversacionConocida) {
     const esActiva = state.conversacionActivaId === conversacionId && pestanaVisible;
     const convSilenciada = [...state.conversaciones, ...state.conversacionesArchivadas]
       .find((c) => c.id === conversacionId)?.silenciada;

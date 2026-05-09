@@ -1614,7 +1614,7 @@ El hook respeta la misma lógica de filtrado de módulos que `MobileHeader` — 
 
 ## 19. Tooltip
 
-Componente de tooltip con portal — nunca recortado por `overflow:hidden`. Soporta mouse y touch.
+Componente de tooltip con portal — nunca recortado por `overflow:hidden`. **Solo se renderiza en escritorio (>= 1024px).** En móvil es no-op: envuelve `children` sin handlers ni portal.
 
 **Ubicación:** `apps/web/src/components/ui/Tooltip.tsx`
 
@@ -1624,17 +1624,17 @@ Componente de tooltip con portal — nunca recortado por `overflow:hidden`. Sopo
 |------|------|---------|-------------|
 | `text` | `string` | — | Texto del tooltip (requerido) |
 | `position` | `'top' \| 'bottom' \| 'left' \| 'right'` | `'bottom'` | Posición relativa al trigger |
-| `autoHide` | `number` | — | Ms para auto-cerrar. Usar en botones icono donde `onMouseLeave` es poco confiable |
+| `autoHide` | `number` | — | Ms para auto-cerrar (útil cuando `onMouseLeave` es poco confiable, ej. tras un click que abre un popup) |
 | `className` | `string` | — | Clases aplicadas al wrapper del trigger. Útil para ocultar con breakpoints: `"2xl:hidden"` |
 | `triggerOnClick` | `boolean` | `false` | Si `true`, abre/cierra al hacer click en lugar de hover |
 
 ### Reglas de uso
 
+**Solo en PC (>= 1024px)** — el componente usa `useBreakpoint()`; cuando `esMobile` es true, retorna `<>{children}</>` sin registrar handlers ni montar el portal. **No es necesario** envolver tooltips en `lg:` ni hacer breakpoint manual en el caller — el componente ya filtra. Esta regla se decidió porque en táctil no hay hover y los tooltips por touch quedan colgados tapando controles cercanos (ej. botones del modal).
+
 **Texto siempre `text-sm`** — nunca usar `text-xs`. El componente lo aplica internamente; no sobreescribir.
 
-**`autoHide` en botones icono** — cuando el tooltip se activa con `onTouchStart` en móvil, no hay evento `onMouseLeave` para cerrarlo. Usar `autoHide={1500}` para que se cierre automáticamente.
-
-**Touch en móvil** — el componente escucha `onTouchStart` además de `onMouseEnter`, por lo que funciona sin configuración extra en dispositivos táctiles.
+**`autoHide` en botones icono** — útil en escritorio cuando un click abre un popup que tapa el trigger y cancela el `onMouseLeave`. Usar `autoHide={1500}` para que se cierre automáticamente. (Ya no es necesario por el caso móvil — ese caso desapareció con la regla "solo en PC".)
 
 **Portal a `document.body`** — usa `createPortal` con `z-index: 99999`. Nunca quedará recortado por un padre con `overflow:hidden` o `transform`.
 

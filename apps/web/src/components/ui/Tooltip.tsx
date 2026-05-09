@@ -4,12 +4,18 @@
  * Componente de tooltip personalizado con estilo negro y flechita.
  * Usa createPortal para renderizar fuera del DOM padre,
  * evitando recortes por overflow:hidden en contenedores.
- * 
+ *
+ * Solo se renderiza en escritorio (>= 1024px). En móvil es no-op:
+ * envuelve `children` sin handlers ni portal, para evitar tooltips
+ * "atascados" al touch que tapan controles del modal y porque en
+ * móvil no existe hover real.
+ *
  * UBICACIÓN: apps/web/src/components/ui/Tooltip.tsx
  */
 
 import { ReactNode, useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
+import { useBreakpoint } from '../../hooks/useBreakpoint';
 
 // =============================================================================
 // TIPOS
@@ -32,6 +38,7 @@ interface TooltipProps {
 // =============================================================================
 
 export default function Tooltip({ children, text, position = 'bottom', autoHide, className = '', triggerOnClick = false }: TooltipProps) {
+  const { esMobile } = useBreakpoint();
   const [visible, setVisible] = useState(false);
   const [coords, setCoords] = useState({ top: 0, left: 0 });
   const triggerRef = useRef<HTMLDivElement>(null);
@@ -143,6 +150,15 @@ export default function Tooltip({ children, text, position = 'bottom', autoHide,
     calcularPosicion();
     setVisible(true);
   };
+
+  // En móvil el tooltip es no-op: solo renderizamos `children` sin
+  // handlers ni portal. Hover no existe en táctil y los tooltips por
+  // touch quedan "colgados" hasta que el usuario hace tap fuera, lo
+  // que en modales es molesto y tapa botones cercanos. La regla
+  // global es: tooltips solo en >= lg (1024px).
+  if (esMobile) {
+    return <>{children}</>;
+  }
 
   return (
     <div

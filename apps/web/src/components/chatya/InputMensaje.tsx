@@ -635,12 +635,26 @@ export function InputMensaje({
 
     // ── CHAT TEMPORAL: crear conversación real primero, luego enviar ──
     if (chatTemporal && conversacionActivaId?.startsWith('temp_')) {
-      const conv = await crearConversacion(chatTemporal.datosCreacion);
+      const datosCreacion = chatTemporal.datosCreacion;
+      const conv = await crearConversacion(datosCreacion);
       if (!conv) {
         setTexto(contenido);
         return;
       }
       transicionarAConversacionReal(conv.id);
+      // En contextos donde el backend auto-inserta una card de sistema
+      // (marketplace, oferta, articulo_negocio), sincronizar mensajes
+      // desde el backend para reemplazar el optimista temporal con el
+      // mensaje real persistido. Sin esto la card desaparece al refrescar
+      // y el receptor nunca la ve.
+      const esContextoConCardBackend =
+        datosCreacion.contextoTipo === 'marketplace' ||
+        datosCreacion.contextoTipo === 'vendedor_marketplace' ||
+        datosCreacion.contextoTipo === 'oferta' ||
+        datosCreacion.contextoTipo === 'articulo_negocio';
+      if (esContextoConCardBackend) {
+        await useChatYAStore.getState().cargarMensajes(conv.id);
+      }
       await enviarMensaje({ contenido, tipo: 'texto' });
       inputRef.current?.focus();
       return;

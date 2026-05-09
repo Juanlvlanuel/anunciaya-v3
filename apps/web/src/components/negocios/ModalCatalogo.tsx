@@ -71,6 +71,9 @@ interface ModalCatalogoProps {
   sucursalId?: string | null;
   /** Nombre del negocio para el chat temporal (para ChatYA) */
   negocioNombre?: string | null;
+  /** Logo/foto de perfil del negocio. Se propaga al ModalDetalleItem
+   *  para que el chat temporal muestre el avatar del negocio. */
+  logoUrl?: string | null;
 }
 
 // =============================================================================
@@ -94,9 +97,9 @@ function CardCatalogoVertical({ item, onItemClick }: CardCatalogoVerticalProps) 
         onClick={() => onItemClick?.(item)}
       >
         {/* Badge destacado */}
-        <div className="absolute top-2 left-2 lg:top-1 lg:left-1 2xl:top-1.5 2xl:left-1.5 z-10 bg-amber-500 text-white px-2 py-1 lg:px-1.5 lg:py-0.5 2xl:px-1.5 2xl:py-0.5 rounded-lg flex items-center gap-1 lg:gap-0.5 2xl:gap-0.5">
-          <Star className="w-3 h-3 lg:w-2.5 lg:h-2.5 2xl:w-2.5 2xl:h-2.5 fill-current" />
-          <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold">Top</span>
+        <div className="absolute top-2 left-2 lg:top-1 lg:left-1 2xl:top-1.5 2xl:left-1.5 z-10 bg-amber-500 text-white px-1.5 py-0.5 lg:px-1.5 lg:py-0.5 2xl:px-1.5 2xl:py-0.5 rounded-lg flex items-center gap-1 lg:gap-0.5 2xl:gap-0.5">
+          <Star className="w-2.5 h-2.5 lg:w-2 lg:h-2 2xl:w-2 2xl:h-2 fill-current" />
+          <span className="text-xs lg:text-[10px] 2xl:text-xs font-bold">Top</span>
         </div>
 
         {/* Imagen */}
@@ -451,7 +454,7 @@ function ContenidoCatalogo({
       {/* ============ GRID DE PRODUCTOS ============ */}
       <div className="flex-1 overflow-y-auto min-h-0 p-2 lg:p-1.5 2xl:p-2 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         {itemsOrdenados.length > 0 ? (
-          <div className={esMobile ? 'grid grid-cols-2 gap-2' : 'grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2'}>
+          <div className={esMobile ? 'grid grid-cols-2 gap-3' : 'grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-3 gap-2 lg:gap-1.5 2xl:gap-2'}>
             {itemsOrdenados.map((item) => (
               <CardCatalogoVertical
                 key={item.id}
@@ -492,6 +495,7 @@ export function ModalCatalogo({
   negocioUsuarioId,
   sucursalId,
   negocioNombre,
+  logoUrl,
 }: ModalCatalogoProps) {
   const { esMobile } = useBreakpoint();
 
@@ -647,6 +651,7 @@ export function ModalCatalogo({
           negocioUsuarioId={negocioUsuarioId}
           sucursalId={sucursalId}
           negocioNombre={negocioNombre}
+          logoUrl={logoUrl}
           onClose={() => setItemSeleccionado(null)}
           openedFromModal={true}
         />
@@ -710,6 +715,7 @@ export function ModalCatalogo({
         negocioUsuarioId={negocioUsuarioId}
         sucursalId={sucursalId}
         negocioNombre={negocioNombre}
+        logoUrl={logoUrl}
         onClose={() => setItemSeleccionado(null)}
         openedFromModal={true}
       />
