@@ -7,6 +7,48 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [09 Mayo 2026 — madrugada] - Limpieza: pendientes resueltos (sucursalId en ofertas + retiro total de `vendedor_marketplace`) 🧽
+
+Los dos pendientes que quedaron del commit anterior:
+
+### 1) `oferta.sucursalId` se propagaba como `null` al chat
+
+**Diagnóstico**: el chat persona↔negocio se guardaba con `participante2_sucursal_id = NULL` aunque la oferta sí tenía sucursal. Causa: en `apps/web/src/pages/private/negocios/PaginaPerfilNegocio.tsx` (línea 571), el `.map()` que normaliza las ofertas del backend al tipo local `Oferta` **omitía el campo `sucursalId`**. La interfaz local tampoco lo declaraba. Como el `ModalOfertaDetalle` recibía la oferta sin ese campo, mandaba `null` al backend al crear la conv.
+
+**Fix**:
+- Agregado `sucursalId` a la interfaz local `Oferta` de `PaginaPerfilNegocio.tsx`.
+- Agregado `sucursalId: typeof o.sucursalId === 'string' ? o.sucursalId : undefined` al `.map()`.
+- Agregado `sucursalId?: string | null` a la interfaz exportada de `OfertaCard.tsx` para coherencia con otros consumers (`SeccionOfertas`, `ModalOfertas`).
+
+Resultado: convs nuevas iniciadas desde el perfil de un negocio ahora se guardan con `participante2_sucursal_id` correcto. El fix anterior del filtro permisivo en backend (`listarConversaciones`/`contarTotalNoLeidos`) sigue siendo defensa válida para datos legacy.
+
+### 2) `'vendedor_marketplace'` y subtipo `'contacto_perfil'` retirados totalmente
+
+Antes quedaban como literales legacy en los enums + render fallback. Con el proyecto en staging y solo 2 convs en BD local con ese contexto, se aplicó limpieza total:
+
+**Migración SQL** — `docs/migraciones/2026-05-09-retirar-vendedor-marketplace.sql`:
+```sql
+UPDATE chat_conversaciones SET contexto_tipo = 'directo' WHERE contexto_tipo = 'vendedor_marketplace';
+ALTER TABLE chat_conversaciones DROP CONSTRAINT chat_conv_contexto_tipo_check;
+ALTER TABLE chat_conversaciones ADD CONSTRAINT chat_conv_contexto_tipo_check
+  CHECK ((contexto_tipo)::text = ANY (ARRAY[
+    'negocio', 'marketplace', 'oferta', 'articulo_negocio',
+    'servicio', 'directo', 'notas'
+  ]::text[]));
+```
+
+**Frontend y backend:**
+- `apps/api/src/types/chatya.types.ts`: `'vendedor_marketplace'` eliminado del enum `ContextoTipo`.
+- `apps/web/src/types/chatya.ts`: igual.
+- `apps/api/src/db/schemas/schema.ts`: CHECK constraint actualizado (incluye `'articulo_negocio'` que faltaba en el snapshot del schema).
+- Documentos `ChatYA.md` y `MarketPlace.md` actualizados (versión bumped a v7.4 en `ChatYA.md`).
+
+El render fallback de `subtipo: 'contacto_perfil'` en `BurbujaMensaje.tsx` se mantiene como ultima defensa por si llegara a quedar un mensaje sistema legacy en algún ambiente no migrado.
+
+**Aplicación a producción/staging**: cuando se despliegue el siguiente backend, hay que correr la migración SQL **antes** que el deploy del backend (o como parte del deploy), porque el código nuevo solo emite valores permitidos por el CHECK actualizado. En local ya quedó aplicada.
+
+---
+
 ## [09 Mayo 2026 — noche] - ChatYA: preview de contexto en input + reuso de chat existente + fix filtro sucursal 🎯
 
 Iteración grande sobre el flujo de "iniciar chat desde un recurso" (oferta, artículo de catálogo, artículo de MarketPlace). Tres frentes consolidados:

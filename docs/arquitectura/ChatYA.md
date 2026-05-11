@@ -1,13 +1,20 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.3 — Actualizado 2026-05-09 — **MÓDULO COMPLETADO ✅**
+> **Versión:** v7.4 — Actualizado 2026-05-09 — **MÓDULO COMPLETADO ✅**
 >
-> **Cambios v7.3 (09 May 2026):** se retiró el mensaje contextual `'contacto_perfil'` — la card "Vienes del perfil de X" no aportaba valor real al receptor ni al iniciador, así que se eliminó del flujo. Las cards de contexto ahora solo cubren artículos/ofertas específicas (`articulo_marketplace`, `oferta_negocio`, `articulo_negocio`). El contexto `'vendedor_marketplace'` queda como literal legacy en BD pero el código activo ya no lo emite (los chats nuevos desde el perfil usan `'directo'`).
+> **Cambios v7.4 (09 May 2026 — noche):**
+> - **Preview de contexto en input** — la card del recurso aparece arriba del input como mini-card "tipo attachment" + borrador pre-cargado; se persiste en BD solo al enviar. Reemplazó el patrón previo de `mensajeContextoOptimista` en el chat. Ver §4.13.1.
+> - **Receptor descubre chat nuevo en tiempo real** — handler de socket hace fetch de convs desconocidas y las agrega. `esMensajePropio` considera `emisorModo` para no descartar eventos de self-chat persona↔mi-negocio.
+> - **Filtro de sucursal permisivo en chats persona↔negocio** — `listarConversaciones` + `contarTotalNoLeidos` ignoran sucursal del lado comercial (coherente con `crearObtenerConversacion`). Arregla "el chat aparece y desaparece" y "el badge se va a 0 solo".
+> - **`'vendedor_marketplace'` retirado por completo** — eliminado del enum, del CHECK constraint y migrado a `'directo'` en BD vía `docs/migraciones/2026-05-09-retirar-vendedor-marketplace.sql`.
+> - **`oferta.sucursalId` se propaga correctamente al chat** — `PaginaPerfilNegocio` ya no descarta el campo en el `.map()` que normaliza ofertas; las convs persona↔negocio ahora se guardan con `participante2_sucursal_id` correcto.
+>
+> **Cambios v7.3 (09 May 2026 — tarde):** retiro de la card "Vienes del perfil" (subtipo `contacto_perfil`).
 >
 > **Cambios v7.2 (mayo 2026):** mensaje contextual de MarketPlace (§4.6, §4.13.1), columna `articulo_marketplace_id`, borrador inicial en chats temporales (§4.23), patrón "navegar desde overlay sin flash" (ver `LECCIONES_TECNICAS.md`).
 
 **Fecha:** 09 Mayo 2026
-**Versión:** 7.3
+**Versión:** 7.4
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.
@@ -99,7 +106,7 @@ _Ninguna pendiente._
 | participante2_id | UUID FK → usuarios | ON DELETE CASCADE |
 | participante2_modo | VARCHAR(15) | 'personal' \| 'comercial' |
 | participante2_sucursal_id | UUID FK → negocio_sucursales | Nullable, ON DELETE SET NULL |
-| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' (`'vendedor_marketplace'` permitido por el CHECK pero ya no se emite — legacy de mayo 2026) |
+| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'articulo_negocio' \| 'servicio' \| 'directo' \| 'notas' |
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
 | articulo_marketplace_id | UUID FK → articulos_marketplace | Nullable, ON DELETE SET NULL. FK directa al artículo cuando la conversación se inicia desde el detalle de una publicación de MarketPlace. Permite snapshot eficiente vía JOIN sin parsear `contexto_referencia_id`. Índice parcial cuando IS NOT NULL |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
@@ -122,9 +129,9 @@ _Ninguna pendiente._
 | created_at | TIMESTAMPTZ | |
 | updated_at | TIMESTAMPTZ | Se actualiza con cada mensaje. TTL se basa en este campo |
 
-**CHECK constraints:** modos válidos, contexto_tipo válido (`'negocio' | 'marketplace' | 'vendedor_marketplace' | 'oferta' | 'servicio' | 'directo' | 'notas'`), no auto-chat excepto cuando `contexto_tipo = 'notas'` (Mis Notas permite p1 = p2).
+**CHECK constraints:** modos válidos, contexto_tipo válido (`'negocio' | 'marketplace' | 'oferta' | 'articulo_negocio' | 'servicio' | 'directo' | 'notas'`), no auto-chat excepto cuando `contexto_tipo = 'notas'` (Mis Notas permite p1 = p2).
 
-> **`'vendedor_marketplace'` (legacy):** se introdujo en mayo 2026 para conversaciones iniciadas desde el perfil del vendedor (P3) en MarketPlace sin artículo específico. **Retirado el 09 May 2026** porque la card "Vienes del perfil de X" no aportaba valor — los chats nuevos desde el perfil usan `'directo'` y el backend ya no inserta mensaje sistema en ese caso. El literal sigue permitido por el CHECK para no invalidar conversaciones legacy en BD.
+> **`'vendedor_marketplace'` (retirado 09 May 2026):** se introdujo en mayo 2026 para conversaciones iniciadas desde el perfil del vendedor (P3). Se retiró del enum, del CHECK constraint y de la BD vía migración `docs/migraciones/2026-05-09-retirar-vendedor-marketplace.sql` (`UPDATE` de conv legacy a `'directo'` + `ALTER TABLE` del CHECK). Los chats nuevos desde el perfil usan `'directo'` sin card.
 
 ### 3.2 `chat_mensajes`
 

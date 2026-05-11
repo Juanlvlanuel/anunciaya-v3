@@ -33,6 +33,9 @@ import { registrarVistaOferta } from '@/services/ofertasService';
 export interface Oferta {
     id?: string;
     ofertaId?: string;
+    /** UUID de la sucursal de la oferta. Se propaga al `ModalOfertaDetalle`
+     *  y al chat iniciado desde la oferta (`participante2SucursalId`). */
+    sucursalId?: string | null;
     titulo: string;
     descripcion?: string | null;
     imagen?: string | null;

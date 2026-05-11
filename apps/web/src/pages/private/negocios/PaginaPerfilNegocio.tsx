@@ -120,6 +120,15 @@ interface Oferta {
     tipo: 'porcentaje' | 'monto_fijo' | '2x1' | '3x2' | 'envio_gratis' | 'regalo' | 'otro';
     valor?: number | string;
     fechaFin?: string;
+    /** UUID de la sucursal a la que pertenece la oferta. Necesario para que
+     *  `ModalOfertaDetalle` lo propague al chat con `participante2SucursalId`,
+     *  sin esto la conv se guardaba con sucursal null y rompía la lista del
+     *  dueño. */
+    sucursalId?: string;
+    totalVistas?: number;
+    totalSucursales?: number;
+    logoUrl?: string;
+    sucursalNombre?: string;
 }
 
 interface MetodoPago {
@@ -576,6 +585,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         tipo: o.tipo as Oferta['tipo'],
         valor: o.valor != null ? (isNaN(Number(o.valor)) ? o.valor : Number(o.valor)) as Oferta['valor'] : undefined,
         fechaFin: o.fechaFin as string | undefined,
+        // `sucursalId` se propaga al `ModalOfertaDetalle` para que el chat
+        // iniciado desde la oferta lleve `participante2SucursalId` correcto.
+        // Sin esto, la conv se guardaba con sucursal null y rompía la lista
+        // del dueño del negocio (no aparecía o desaparecía al refrescar).
+        sucursalId: typeof o.sucursalId === 'string' ? o.sucursalId : undefined,
         // `totalVistas` propaga la métrica al pill "live count" en
         // OfertaCard y ModalOfertaDetalle (consistente con el feed público).
         totalVistas: typeof o.totalVistas === 'number' ? o.totalVistas : undefined,

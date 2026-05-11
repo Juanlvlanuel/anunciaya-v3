@@ -2028,7 +2028,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	}).onDelete("set null"),
 	check("chat_conv_modo_p1_check", sql`(participante1_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("chat_conv_modo_p2_check", sql`(participante2_modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'vendedor_marketplace'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
+	check("chat_conv_contexto_tipo_check", sql`(contexto_tipo)::text = ANY ((ARRAY['negocio'::character varying, 'marketplace'::character varying, 'oferta'::character varying, 'articulo_negocio'::character varying, 'servicio'::character varying, 'directo'::character varying, 'notas'::character varying])::text[])`),
 	check("chat_conv_no_auto_chat", sql`participante1_id != participante2_id OR contexto_tipo = 'notas' OR (participante1_sucursal_id IS NOT NULL AND participante2_sucursal_id IS NOT NULL AND participante1_sucursal_id <> participante2_sucursal_id)`),
 ]);
 

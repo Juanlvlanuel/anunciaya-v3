@@ -1278,7 +1278,7 @@ Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con
 ### ChatYA
 
 - Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` cuando viene del detalle de un artículo (genera card de contexto).
-- Para chats desde el perfil del vendedor (P3) o desde el popup del comentarista (`BotonComentarista`) usa `contextoTipo='directo'` sin card. El literal `'vendedor_marketplace'` quedó como legacy en BD pero ya no se emite.
+- Para chats desde el perfil del vendedor (P3) o desde el popup del comentarista (`BotonComentarista`) usa `contextoTipo='directo'` sin card. El literal `'vendedor_marketplace'` (introducido mayo 2026) fue retirado por completo el 09 May 2026 vía migración SQL.
 - La columna específica `chat_conversaciones.articulo_marketplace_id` existe en BD desde Sprint 1 pero no se llena vía el endpoint actual de `abrirChatTemporal`. Quedará para una iteración futura cuando se necesite.
 
 ### Mis Guardados

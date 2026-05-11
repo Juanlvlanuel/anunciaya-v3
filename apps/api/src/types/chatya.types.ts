@@ -28,16 +28,15 @@ export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 // descartadas) y 'empleo' renombrado a 'servicio' (sección pública unificada).
 // CHECK constraint de chat_conv.contexto_tipo en BD ya sincronizado en Fase D.
 //
-// 'vendedor_marketplace' (LEGACY mayo 2026 → 09 May 2026): se usaba para
-// conversaciones iniciadas desde el perfil del vendedor en MarketPlace.
-// Retirado porque la card "Vienes del perfil de X" no aportaba valor real.
-// Los chats nuevos desde el perfil usan 'directo'. El literal se mantiene en
-// el enum porque el CHECK constraint de BD lo permite y existen registros
-// legacy con este valor.
+// Retirado 09 May 2026: `'vendedor_marketplace'` (introducido mayo 2026)
+// fue eliminado del enum, del CHECK constraint y de la BD vía migración
+// `docs/migraciones/2026-05-09-retirar-vendedor-marketplace.sql`. Razón:
+// la card "Vienes del perfil de X" no aportaba valor real. Los chats nuevos
+// desde el perfil del vendedor (P3) o el popup del comentarista usan
+// `'directo'` sin contexto.
 export type ContextoTipo =
   | 'negocio'
   | 'marketplace'
-  | 'vendedor_marketplace'
   | 'oferta'
   | 'articulo_negocio'
   | 'servicio'

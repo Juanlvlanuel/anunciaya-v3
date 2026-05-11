@@ -40,16 +40,15 @@ export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 
 /** Desde dónde se inició la conversación.
  *
- *  `vendedor_marketplace` (LEGACY mayo 2026 → 09 May 2026): se usaba para
- *  chats iniciados desde el perfil del vendedor (P3) sin artículo específico.
- *  Retirado porque el contexto "Vienes del perfil de X" no aportaba valor.
- *  Los chats nuevos desde el perfil usan `'directo'`. El literal se mantiene
- *  en el enum porque hay conversaciones legacy en BD con este valor — al
- *  cargarlas el frontend solo necesita reconocer el tipo, no emitirlo. */
+ *  Retirado 09 May 2026: `'vendedor_marketplace'` (introducido mayo 2026)
+ *  fue eliminado del enum, del CHECK constraint de BD y migrado a
+ *  `'directo'` vía `docs/migraciones/2026-05-09-retirar-vendedor-marketplace.sql`.
+ *  Razón: el contexto "Vienes del perfil de X" no aportaba valor real al
+ *  receptor ni al iniciador. Los chats nuevos desde el perfil del vendedor
+ *  (P3) o el popup del comentarista usan `'directo'`. */
 export type ContextoTipo =
   | 'negocio'
   | 'marketplace'
-  | 'vendedor_marketplace'
   | 'oferta'
   | 'articulo_negocio'
   | 'servicio'
