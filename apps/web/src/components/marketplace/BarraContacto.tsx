@@ -26,7 +26,6 @@ import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
 import type { ArticuloMarketplaceDetalle } from '../../types/marketplace';
-import type { Mensaje } from '../../types/chatya';
 
 interface BarraContactoProps {
     articulo: ArticuloMarketplaceDetalle;
@@ -36,6 +35,7 @@ interface BarraContactoProps {
 export function BarraContacto({ articulo, variante }: BarraContactoProps) {
     const usuarioActual = useAuthStore((s) => s.usuario);
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const setContextoPendiente = useChatYAStore((s) => s.setContextoPendiente);
     const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     const { vendedor, titulo, id } = articulo;
@@ -64,46 +64,33 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
         }
         const idTemp = `temp_marketplace_${id}_${Date.now()}`;
 
-        // ── Mensaje sistema OPTIMISTA con la card del artículo ──
-        // Se inserta en la ventana del chat ANTES de que el usuario envíe
-        // nada, dándole contexto inmediato al abrir. Lleva un id `temp_*`
-        // para que `cargarMensajes` lo reemplace por el real (con UUID del
-        // backend) cuando se materialice la conversación.
+        // Foto principal del artículo para el preview.
         const fotos = articulo.fotos ?? [];
         const idxPortada = Math.max(
             0,
             Math.min(articulo.fotoPortadaIndex ?? 0, fotos.length - 1),
         );
         const fotoUrl = fotos[idxPortada] ?? fotos[0] ?? null;
-        const optimistaSistema: Mensaje = {
-            id: `temp_sistema_${id}`,
-            conversacionId: idTemp,
-            emisorId: null,
-            emisorModo: null,
-            emisorSucursalId: null,
-            empleadoId: null,
-            tipo: 'sistema',
-            contenido: JSON.stringify({
-                subtipo: 'articulo_marketplace',
-                articuloId: id,
-                titulo,
-                precio: articulo.precio,
-                condicion: articulo.condicion,
-                fotoUrl,
-                // Permite al render alinear la card del lado del iniciador
-                // (yo, en este caso). Ver `MensajeSistema` en BurbujaMensaje.
-                iniciadorId: usuarioActual.id,
-            }),
-            estado: 'enviado',
-            editado: false,
-            editadoAt: null,
-            eliminado: false,
-            eliminadoAt: null,
-            respuestaAId: null,
-            reenviadoDeId: null,
-            createdAt: new Date().toISOString(),
-            entregadoAt: null,
-            leidoAt: null,
+
+        // Datos para insertar la card al enviar el primer mensaje.
+        const datosCreacion = {
+            participante2Id: vendedor.id,
+            participante2Modo: 'personal' as const,
+            contextoTipo: 'marketplace' as const,
+            contextoReferenciaId: id,
+            // FK al artículo: el backend hace JOIN para snapshot y emite
+            // el mensaje sistema vía Socket.io a ambos participantes al
+            // materializar la conv.
+            articuloMarketplaceId: id,
+        };
+
+        // Datos para el preview encima del input.
+        const cardData = {
+            subtipo: 'articulo_marketplace' as const,
+            titulo,
+            imagen: fotoUrl,
+            precio: articulo.precio,
+            condicion: articulo.condicion,
         };
 
         abrirChatTemporal({
@@ -114,20 +101,13 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
                 apellidos: vendedor.apellidos,
                 avatarUrl: vendedor.avatarUrl,
             },
-            datosCreacion: {
-                participante2Id: vendedor.id,
-                participante2Modo: 'personal',
-                contextoTipo: 'marketplace',
-                contextoReferenciaId: id,
-                // Activa el mensaje sistema con la card del artículo en el
-                // primer render del chat. El backend hace JOIN para obtener
-                // el snapshot (foto/título/precio) y emite el mensaje vía
-                // Socket.io a ambos participantes.
-                articuloMarketplaceId: id,
-            },
-            mensajeContextoOptimista: optimistaSistema,
+            datosCreacion,
             borradorInicial: `Hola, me interesa tu publicación de "${titulo}". `,
         });
+        // Preview del recurso encima del input. La card NO se persiste
+        // hasta que el usuario envíe; al hacerlo, la materialización con
+        // `articuloMarketplaceId` la insertará en BD.
+        setContextoPendiente({ datosCreacion, cardData });
         abrirChatYA();
     };
 

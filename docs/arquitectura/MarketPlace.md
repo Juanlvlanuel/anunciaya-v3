@@ -153,9 +153,9 @@ con él.
   salirse de la pantalla. Contiene avatar grande (foto o gradient azul
   T2 con iniciales) + nombre completo + 2 acciones:
   - `💬 Enviar mensaje` → `useChatYAStore.abrirChatTemporal(...)` con
-    `participante2Modo: 'personal'` y `contextoTipo: 'vendedor_marketplace'`.
-    Auth gate: si no hay sesión, toast advertencia. Si es uno mismo,
-    toast info.
+    `participante2Modo: 'personal'` y `contextoTipo: 'directo'` (sin
+    card de contexto — el chat se abre limpio). Auth gate: si no hay
+    sesión, toast advertencia. Si es uno mismo, toast info.
   - `👤 Ver perfil` → cierra popup y navega.
 - Delay de 200ms en `mouseleave` para dar tiempo de mover el mouse hacia
   los botones del popup sin que se cierre. `mouseenter` en el popup
@@ -1047,7 +1047,7 @@ El UI se adapta automáticamente al rol de la persona perfilada:
     - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
   - **Botones de contacto** (ocultos si visitas tu propio perfil):
     - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) — solo aparece si el usuario tiene teléfono registrado. Mensaje precargado: `"Hola {nombre}, vi tu perfil en AnunciaYA"`. El backend `getVendedorMarketplace` devuelve `telefono` en el perfil; el tipo `PerfilVendedorMarketplace` incluye `telefono: string | null`.
-    - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='vendedor_marketplace'`.
+    - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='directo'` (sin card de contexto — se decidió 09 May 2026 que el contexto "vine desde tu perfil" no aporta valor real).
     - **Agregar a contactos** (botón circular solo icono al lado del nombre, `h-8 w-8` móvil / `h-9 w-9` desktop) → `useChatYAStore.agregarContacto`/`eliminarContacto`. Estado leído de `contactos` filtrando por `(contactoId, tipo='personal', sucursalId=null)`. `UserPlus` azul brand → `UserCheck` emerald. Tooltip lg+ (TC-19). Es uno de los 5 puntos de entrada al sistema de contactos de ChatYA — sincroniza en tiempo real con los otros 4 dentro del chat (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`). Antes era un FAB circular "Seguir vendedor" en la esquina del avatar conectado a `useVotos` (follow social fantasma sin efecto visible) — deprecado el 09-may-2026.
 - **Tabs (solo si vendedor)** — banda translúcida `bg-white/85 backdrop-blur rounded-2xl`: Publicaciones (X) | Vendidos (X), subrayado teal en activa
 - **Grid (solo si vendedor)** — cards estilo B (reusa `CardArticulo`). En tab "Vendidos" cada card lleva overlay slate translúcido + texto "VENDIDO".
@@ -1277,8 +1277,8 @@ Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con
 
 ### ChatYA
 
-- Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` (campo genérico).
-- También usa `contextoTipo='vendedor_marketplace'` para mensajes desde el perfil sin artículo específico.
+- Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` cuando viene del detalle de un artículo (genera card de contexto).
+- Para chats desde el perfil del vendedor (P3) o desde el popup del comentarista (`BotonComentarista`) usa `contextoTipo='directo'` sin card. El literal `'vendedor_marketplace'` quedó como legacy en BD pero ya no se emite.
 - La columna específica `chat_conversaciones.articulo_marketplace_id` existe en BD desde Sprint 1 pero no se llena vía el endpoint actual de `abrirChatTemporal`. Quedará para una iteración futura cuando se necesite.
 
 ### Mis Guardados

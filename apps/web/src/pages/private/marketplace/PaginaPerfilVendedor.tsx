@@ -321,8 +321,12 @@ export function PaginaPerfilVendedor() {
             // Ya existía: abrir esa conversación (con su historial).
             abrirConversacion(convExistente.id);
         } else {
-            // Primer contacto: abrir chat temporal. El backend creará la
-            // conversación al enviar el primer mensaje vía crearConversacion.
+            // Primer contacto: abrir chat temporal sin contexto. La conversación
+            // se materializa al enviar el primer mensaje. No sembramos card de
+            // "Vienes del perfil de X" — se decidió que ese contexto no aporta
+            // valor real (el iniciador ya sabe de dónde viene; el receptor no
+            // gana nada con saber el medio). Las cards de contexto solo aplican
+            // a artículos/ofertas específicas, no a contacto desde perfil.
             abrirChatTemporal({
                 id: `temp_vendedor_${perfil.id}_${Date.now()}`,
                 otroParticipante: {
@@ -334,7 +338,7 @@ export function PaginaPerfilVendedor() {
                 datosCreacion: {
                     participante2Id: perfil.id,
                     participante2Modo: 'personal',
-                    contextoTipo: 'vendedor_marketplace',
+                    contextoTipo: 'directo',
                 },
             });
         }

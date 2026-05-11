@@ -38,10 +38,14 @@ export type TipoMensaje =
 /** Estados de entrega del mensaje (palomitas) */
 export type EstadoMensaje = 'enviado' | 'entregado' | 'leido' | 'fallido';
 
-/** Desde dónde se inició la conversación. `vendedor_marketplace` agregado en
- *  Sprint 5 del MarketPlace para chats iniciados desde el perfil del vendedor
- *  (sin artículo específico). El check de BD ya soporta este valor desde la
- *  migración del Sprint 1. */
+/** Desde dónde se inició la conversación.
+ *
+ *  `vendedor_marketplace` (LEGACY mayo 2026 → 09 May 2026): se usaba para
+ *  chats iniciados desde el perfil del vendedor (P3) sin artículo específico.
+ *  Retirado porque el contexto "Vienes del perfil de X" no aportaba valor.
+ *  Los chats nuevos desde el perfil usan `'directo'`. El literal se mantiene
+ *  en el enum porque hay conversaciones legacy en BD con este valor — al
+ *  cargarlas el frontend solo necesita reconocer el tipo, no emitirlo. */
 export type ContextoTipo =
   | 'negocio'
   | 'marketplace'
@@ -241,8 +245,9 @@ export interface CrearConversacionInput {
    * insertar un mensaje `tipo='sistema'` con la card del artículo embebida
    * al inicio de la conversación.
    *
-   * Solo aplica con `contextoTipo === 'marketplace'`. Para
-   * `'vendedor_marketplace'` (contacto desde el perfil) se omite.
+   * Solo aplica con `contextoTipo === 'marketplace'`. Los chats directos
+   * desde el perfil del vendedor (`contextoTipo: 'directo'`) se abren sin
+   * card de contexto.
    */
   articuloMarketplaceId?: string | null;
 }

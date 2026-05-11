@@ -17,6 +17,7 @@ import { ModalUbicacionChat } from './ModalUbicacionChat';
 import { SelectorEmojis } from './SelectorEmojis';
 import { TextoConEmojis } from './TextoConEmojis';
 import { useChatYAStore } from '../../stores/useChatYAStore';
+import { PreviewContextoInput } from './PreviewContextoInput';
 import { emitirEvento } from '../../services/socketService';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
 import { useImagenChat } from '../../hooks/useImagenChat';
@@ -179,6 +180,8 @@ export function InputMensaje({
   const borradores = useChatYAStore((s) => s.borradores);
   const guardarBorrador = useChatYAStore((s) => s.guardarBorrador);
   const limpiarBorrador = useChatYAStore((s) => s.limpiarBorrador);
+  const contextoPendiente = useChatYAStore((s) => s.contextoPendiente);
+  const setContextoPendiente = useChatYAStore((s) => s.setContextoPendiente);
 
   const [texto, setTexto] = useState('');
   const [errorUpload, setErrorUpload] = useState<string | null>(null);
@@ -649,12 +652,16 @@ export function InputMensaje({
       // y el receptor nunca la ve.
       const esContextoConCardBackend =
         datosCreacion.contextoTipo === 'marketplace' ||
-        datosCreacion.contextoTipo === 'vendedor_marketplace' ||
         datosCreacion.contextoTipo === 'oferta' ||
         datosCreacion.contextoTipo === 'articulo_negocio';
       if (esContextoConCardBackend) {
         await useChatYAStore.getState().cargarMensajes(conv.id);
       }
+      // Consumir el preview de contexto pendiente (si lo hay) — la card
+      // ya quedó persistida vía la materialización con `datosCreacion`.
+      // Sin esto, `enviarMensaje` del store volvería a llamar a
+      // `crearConversacion` y duplicaría la card.
+      useChatYAStore.getState().setContextoPendiente(null);
       await enviarMensaje({ contenido, tipo: 'texto' });
       inputRef.current?.focus();
       return;
@@ -955,6 +962,17 @@ export function InputMensaje({
             <span className="text-sm font-medium text-blue-600">Suelta archivos aquí</span>
           </div>
         </div>
+      )}
+
+      {/* ── Preview de contexto pendiente (oferta / artículo / MP) ──
+          Solo se muestra cuando el usuario inició el chat desde un recurso
+          y aún no ha enviado el primer mensaje. La X descarta el preview
+          sin tocar BD. Al enviar, el flujo persiste card + mensaje en BD. */}
+      {contextoPendiente && (
+        <PreviewContextoInput
+          contexto={contextoPendiente}
+          onDescartar={() => setContextoPendiente(null)}
+        />
       )}
 
       {/* ── Error de imagen ── */}

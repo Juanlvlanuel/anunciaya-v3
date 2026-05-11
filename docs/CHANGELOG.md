@@ -7,6 +7,138 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [09 Mayo 2026 — noche] - ChatYA: preview de contexto en input + reuso de chat existente + fix filtro sucursal 🎯
+
+Iteración grande sobre el flujo de "iniciar chat desde un recurso" (oferta, artículo de catálogo, artículo de MarketPlace). Tres frentes consolidados:
+
+### Frente 1 — Preview de contexto encima del input (en lugar de card en el chat)
+
+**Decisión UX**: la card del recurso ya NO se persiste en BD apenas el usuario hace click "ChatYA". Aparece como **mini-card preview "tipo attachment"** arriba del input, junto con un borrador "Hola, me interesa: …" pre-cargado. La card se persiste **solo cuando el usuario envía el mensaje**. Si descarta el preview con la X o cierra el chat sin enviar, no queda rastro en BD. Patrón inspirado en WhatsApp/Telegram con attachments previewing.
+
+**Frontend nuevo:**
+- `apps/web/src/components/chatya/PreviewContextoInput.tsx` — mini-card 14×14 con foto + eyebrow del módulo (Oferta amber / Producto-Servicio blue / MarketPlace teal) + título + extras (badge, precio, condición) + botón X. Patrón visual coherente con cards sistema existentes.
+
+**Store extendido** (`useChatYAStore.ts`):
+- Nuevos tipos `ContextoPendiente` y `ContextoPendienteCardData` (subtipos `oferta`/`articulo_negocio`/`articulo_marketplace`).
+- Nuevo estado `contextoPendiente: ContextoPendiente | null`.
+- Nueva acción `setContextoPendiente(ctx)`. Cuando se llama con `null` en un chat temporal con contexto, también degrada `chatTemporal.datosCreacion.contextoTipo` a `'directo'` — así si descartas el preview, al enviar el primer mensaje NO se inserta la card.
+- Limpieza automática en `abrirConversacion`, `abrirChatTemporal`, `volverALista`.
+
+**Flujo de envío extendido** (`enviarMensaje` del store + fast path en `InputMensaje`):
+- Si chat temporal: materializa con `chatTemporal.datosCreacion`; backend inserta la card al crear nueva conv.
+- Si **conv existente CON `contextoPendiente`**: llama `crearObtenerConversacion(contextoPendiente.datosCreacion)` ANTES de enviar el mensaje real — backend reusa la conv e inserta la card sistema. Limpia `contextoPendiente`.
+- Si **conv existente SIN `contextoPendiente`**: envío normal sin card.
+
+**Entry points modificados:**
+- `apps/web/src/components/negocios/ModalOfertaDetalle.tsx` — `handleChatYA` ya no siembra `mensajeContextoOptimista`. Si existe conv previa: `abrirConversacion(conv.id)` + `setContextoPendiente({datosCreacion, cardData})` + `guardarBorrador(conv.id, borrador)`. Si no existe: chat temporal SIN optimista, con preview.
+- `apps/web/src/components/negocios/ModalDetalleItem.tsx` — mismo patrón con `subtipo: 'articulo_negocio'`.
+- `apps/web/src/components/marketplace/BarraContacto.tsx` — mismo patrón con `subtipo: 'articulo_marketplace'` (siempre chat temporal en MP).
+
+### Frente 2 — Receptor ve el chat nuevo en tiempo real
+
+**Bug previo**: cuando un cliente iniciaba chat con un negocio nuevo (sin conv previa), el dueño en modo comercial **nunca veía la conv aparecer en su lista** hasta que recargara la página. El handler de `chatya:mensaje-nuevo` descartaba eventos de convs desconocidas con un comentario "es de otra sucursal".
+
+**Fix** (`useChatYAStore.ts` handler de socket):
+- Cuando llega un mensaje no propio y `!esConversacionConocida`, ahora hace `chatyaService.getConversacion(conversacionId)`.
+- Calcula a qué modos del usuario aplica (P1, P2 o ambos en self-chat).
+- Si aplica al modo activo + sucursal activa, agrega la conv a `state.conversaciones` y a `state.conversacionesPorModo[modo]`.
+- Agenda `cargarNoLeidos` para refrescar el badge.
+
+**Fix relacionado** — `esMensajePropio` ahora considera `emisorModo`:
+- Antes: `mensaje.emisorId === miId` → propio. Eso fallaba en self-chat (Juan personal → Juan comercial-su-negocio): ambos lados comparten `usuarioId`, así que un mensaje del modo personal se marcaba como propio en el modo comercial y se descartaba.
+- Ahora: también requiere `!emisorModo || emisorModo === modoActivo`. Un mensaje emitido desde 'personal' visto desde el modo 'comercial' YA NO es propio.
+
+### Frente 3 — Filtro de sucursal estricto causaba "aparece y desaparece"
+
+**Bug previo**: al listar conversaciones del modo comercial, el backend filtraba **estricto por sucursal activa**:
+```ts
+if (sucursalId) {
+    condicionesP1.push(eq(participante1SucursalId, sucursalId));
+    condicionesP2.push(eq(participante2SucursalId, sucursalId));
+}
+```
+
+Si el chat se creaba con `participante2_sucursal_id = NULL` (porque la oferta no tenía sucursal poblada en algunos paths), o la sucursal del chat no coincidía con la activa del dueño, la conv se excluía. Resultado visible: la conv "aparecía" cuando el handler de socket la agregaba localmente, y "desaparecía" cuando `cargarConversaciones('comercial')` la reemplazaba con la lista filtrada del backend. El badge del navbar también se iba a 0 por la misma razón (`contarTotalNoLeidos` tenía el mismo filtro estricto).
+
+**Fix** (`apps/api/src/services/chatya.service.ts`):
+
+Aplicado en `listarConversaciones` (línea 418) y `contarTotalNoLeidos` (línea 3289). El filtro de sucursal ahora ignora la sucursal del lado comercial cuando es chat persona↔negocio — coherente con la regla ya aplicada en `crearObtenerConversacion` desde mayo 2026:
+
+```ts
+if (sucursalId) {
+    condicionesP1.push(
+        or(
+            eq(participante1SucursalId, sucursalId),
+            eq(participante2Modo, 'personal'), // yo soy negocio P1, otro es persona P2 → ignoro mi sucursal
+        )!,
+    );
+    condicionesP2.push(
+        or(
+            eq(participante2SucursalId, sucursalId),
+            eq(participante1Modo, 'personal'),
+        )!,
+    );
+}
+```
+
+Resultado: chats `personal ↔ comercial` (persona ↔ negocio) aparecen siempre en la lista del dueño sin importar su sucursal activa. Chats inter-sucursal `comercial ↔ comercial` siguen filtrando por sucursal.
+
+### Patrón retirado
+
+El intento previo de "reusar chat existente con `crearConversacion(datosCreacion)` en background" fue reemplazado por el patrón `contextoPendiente` (Frente 1). El reuso del hilo sigue ocurriendo (cuando hay conv previa se abre directo), pero la inserción de la card se difiere al envío del mensaje en lugar de pasar siempre. Los efectos secundarios indeseables (parpadeo por `cargarMensajes`, auto-envío percibido al insertar card sin acción del usuario, duplicación de cards al abrir 2 veces el mismo modal) quedaron resueltos.
+
+### Pendiente detectado
+
+El chat se guarda con `participante2_sucursal_id = NULL` aunque la oferta tiene `sucursal_id`. El fix del filtro lo hace tolerable a nivel UI, pero el dato es inconsistente. Probable: el objeto `oferta` que llega a `ModalOfertaDetalle` no trae `sucursalId` poblado por todas las rutas de entrada (feed vs perfil de negocio vs deep link). Queda para iteración futura.
+
+### Archivos modificados
+
+**Frontend:**
+- `apps/web/src/components/chatya/PreviewContextoInput.tsx` (nuevo)
+- `apps/web/src/components/chatya/InputMensaje.tsx` (renderiza preview + limpia contextoPendiente en fast path)
+- `apps/web/src/stores/useChatYAStore.ts` (tipos + estado `contextoPendiente` + handler de socket extendido)
+- `apps/web/src/components/negocios/ModalOfertaDetalle.tsx` (usa `setContextoPendiente`)
+- `apps/web/src/components/negocios/ModalDetalleItem.tsx` (usa `setContextoPendiente`)
+- `apps/web/src/components/marketplace/BarraContacto.tsx` (usa `setContextoPendiente`)
+
+**Backend:**
+- `apps/api/src/services/chatya.service.ts` — `listarConversaciones` + `contarTotalNoLeidos` con filtro permisivo en chats persona↔negocio. `insertarMensajeContextoNegocio` con check anti-duplicado (no inserta nueva card si la última es del mismo recurso).
+
+**Documentación:**
+- `docs/arquitectura/ChatYA.md` — §4.13.1 actualizada con el patrón `contextoPendiente` y la regla del filtro de sucursal.
+
+---
+
+## [09 Mayo 2026 — tarde] - Limpieza: retiro de la card "Vienes del perfil" en ChatYA 🧹
+
+Decisión UX: el contexto **"X inició la conversación desde tu perfil"** (subtipo `contacto_perfil`) que se generaba al iniciar chat desde el perfil del vendedor (P3) o desde el popup del comentarista (`BotonComentarista`) **no aporta valor real** — el iniciador ya sabe de dónde viene y el receptor no gana información útil con saber el medio. Patrón coherente con WhatsApp/Instagram/LinkedIn que tampoco muestran "contexto del medio". Las cards de contexto solo se mantienen cuando hay un recurso específico que sí enriquece la conversación (artículo, oferta, item de catálogo).
+
+Durante el día se había intentado primero **rediseñar la card** (avatar + chip "Perfil · MarketPlace" + botón "Ver perfil") con snapshot bidireccional iniciador/receptor, y luego **agregar un fallback** en el frontend para preservar el optimista cuando el backend no devolvía el sistema. Ambos enfoques se descartaron al cuestionar si el contexto siquiera tenía sentido.
+
+**Frontend retirado:**
+- `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx` — `handleEnviarMensaje` ya no siembra `mensajeContextoOptimista` ni manda `contextoTipo: 'vendedor_marketplace'`. Ahora abre chat con `contextoTipo: 'directo'`.
+- `apps/web/src/components/marketplace/BotonComentarista.tsx` — mismo cambio, sin optimista, `'directo'`.
+- `apps/web/src/stores/useChatYAStore.ts` — `enviarMensaje` ya no incluye `'vendedor_marketplace'` en `esContextoConCardBackend`. Quitado el fallback "preservar optimista" que se había agregado.
+- `apps/web/src/components/chatya/InputMensaje.tsx` — mismo cambio en su lista de contextos con card backend.
+- `apps/web/src/components/chatya/BurbujaMensaje.tsx` — revertida la card visual con snapshot bidireccional. El subtipo `contacto_perfil` queda solo como **fallback pill legacy** para mensajes viejos en BD (chats de mayo 2026 → 09 May 2026 antes de retirar). El interface `SistemaContactoPerfil` vuelve a tener solo `iniciadorNombre` + `iniciadorId`.
+
+**Backend retirado:**
+- `apps/api/src/services/chatya.service.ts` — `crearObtenerConversacion` ya no llama `insertarMensajeContextoMarketplace` para `'vendedor_marketplace'` (rama eliminada del if/else). El helper `insertarMensajeContextoMarketplace` se simplificó: parámetro `contextoTipo` removido (solo manejaba `'marketplace' | 'vendedor_marketplace'`), `articuloMarketplaceId` ya no es nullable, eliminada toda la rama `vendedor_marketplace` y su lookup de `usuarios` con `inArray`. Quitado import de `inArray`.
+
+**Tipos legacy mantenidos (NO se elimina):**
+- `apps/api/src/types/chatya.types.ts` y `apps/web/src/types/chatya.ts` — `'vendedor_marketplace'` sigue en el enum `ContextoTipo`. Hay registros legacy en `chat_conversaciones` con ese valor; al cargarlas el frontend solo necesita reconocer el tipo (no emitirlo).
+- `apps/api/src/db/schemas/schema.ts` — el `CHECK constraint chat_conv_contexto_tipo_check` sigue permitiendo `'vendedor_marketplace'`. Tocarlo requeriría una migración SQL para reescribir registros existentes que no aporta valor.
+- `apps/web/src/components/chatya/BurbujaMensaje.tsx` — el render del subtipo `contacto_perfil` (pill centrado tipo WhatsApp) se conserva como fallback legacy.
+
+**Documentación actualizada:**
+- `docs/arquitectura/ChatYA.md` — versión a v7.3, header con changelog del 09 May 2026, tabla de subtipos sistema marca `contacto_perfil` como (legacy), tabla de puntos de entrada pasa de 4 a 3 (sin perfil), §4.13.1 documenta que el perfil del vendedor y `BotonComentarista` ahora abren chat directo sin card.
+- `docs/arquitectura/MarketPlace.md` — secciones de `BotonComentarista` y P3 actualizadas a `contextoTipo: 'directo'`. Nota explícita en "Integraciones con ChatYA" sobre el legacy.
+- `docs/estandares/Sistema_Navegacion_Back.md` — F8 actualizado de "4 subtipos" a "3 subtipos activos" + nota sobre `contacto_perfil` legacy.
+
+**Resultado:** el chat se abre vacío al contactar a alguien desde su perfil de MarketPlace o desde el popup de un comentarista. Las cards de contexto siguen funcionando idénticas para artículos/ofertas específicas (`articulo_marketplace`, `oferta_negocio`, `articulo_negocio`). Cero ruido visual cuando el contexto no aporta.
+
+---
+
 ## [09 Mayo 2026] - Rediseño cross-cutting de páginas públicas + Navbar glass + MarketPlace P3 🎨🌐
 
 Sesión grande dividida en 3 frentes: (1) **P3 perfil del usuario** del MarketPlace con botón Agregar contacto real conectado a ChatYA + status dot reubicado + KPIs móvil; (2) **rediseño completo de las 4 páginas públicas de compartir** (`/p/articulo`, `/p/oferta`, `/p/articulo-marketplace`, `/p/negocio`) con header gradient azul tipo Navbar + cards bordeadas + CTA personalizado por módulo + fondo degradado de app; (3) **Navbar autenticado** con lenguaje glass unificado en tabs, selector ciudad, buscador, notif y perfil.

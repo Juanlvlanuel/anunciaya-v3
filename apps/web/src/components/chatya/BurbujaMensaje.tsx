@@ -451,7 +451,13 @@ function MensajeSistema({ contenidoRaw, miId }: MensajeSistemaProps) {
     );
   }
 
-  // ── Subtipo: contacto desde el perfil ────────────────────────────────────
+  // ── Subtipo: contacto desde el perfil (LEGACY) ───────────────────────────
+  // Solo se conserva como fallback para chats antiguos cuya BD aún tiene
+  // mensajes con `subtipo: 'contacto_perfil'`. Desde el 09 May 2026 ya no se
+  // generan mensajes nuevos de este tipo — se decidió que el contexto "vine
+  // desde el perfil" no aporta valor (ni al iniciador, que ya sabe de dónde
+  // viene, ni al receptor, que no gana información útil). Las cards de
+  // contexto solo se mantienen para artículos/ofertas específicas.
   if (datos && (datos as SistemaContactoPerfil).subtipo === 'contacto_perfil') {
     const d = datos as SistemaContactoPerfil;
     return (

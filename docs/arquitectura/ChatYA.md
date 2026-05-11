@@ -1,11 +1,13 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.2 — Actualizado 2026-05-08 — **MÓDULO COMPLETADO ✅**
+> **Versión:** v7.3 — Actualizado 2026-05-09 — **MÓDULO COMPLETADO ✅**
 >
-> **Cambios v7.2 (mayo 2026):** mensaje contextual de MarketPlace (§4.6, §4.13.1), columna `articulo_marketplace_id`, contexto `'vendedor_marketplace'`, borrador inicial en chats temporales (§4.23), patrón "navegar desde overlay sin flash" (ver `LECCIONES_TECNICAS.md`).
+> **Cambios v7.3 (09 May 2026):** se retiró el mensaje contextual `'contacto_perfil'` — la card "Vienes del perfil de X" no aportaba valor real al receptor ni al iniciador, así que se eliminó del flujo. Las cards de contexto ahora solo cubren artículos/ofertas específicas (`articulo_marketplace`, `oferta_negocio`, `articulo_negocio`). El contexto `'vendedor_marketplace'` queda como literal legacy en BD pero el código activo ya no lo emite (los chats nuevos desde el perfil usan `'directo'`).
+>
+> **Cambios v7.2 (mayo 2026):** mensaje contextual de MarketPlace (§4.6, §4.13.1), columna `articulo_marketplace_id`, borrador inicial en chats temporales (§4.23), patrón "navegar desde overlay sin flash" (ver `LECCIONES_TECNICAS.md`).
 
-**Fecha:** 08 Mayo 2026
-**Versión:** 7.2
+**Fecha:** 09 Mayo 2026
+**Versión:** 7.3
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.
@@ -97,7 +99,7 @@ _Ninguna pendiente._
 | participante2_id | UUID FK → usuarios | ON DELETE CASCADE |
 | participante2_modo | VARCHAR(15) | 'personal' \| 'comercial' |
 | participante2_sucursal_id | UUID FK → negocio_sucursales | Nullable, ON DELETE SET NULL |
-| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'vendedor_marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' |
+| contexto_tipo | VARCHAR(20) | 'negocio' \| 'marketplace' \| 'oferta' \| 'servicio' \| 'directo' \| 'notas' (`'vendedor_marketplace'` permitido por el CHECK pero ya no se emite — legacy de mayo 2026) |
 | contexto_referencia_id | UUID | Nullable. ID del recurso de origen |
 | articulo_marketplace_id | UUID FK → articulos_marketplace | Nullable, ON DELETE SET NULL. FK directa al artículo cuando la conversación se inicia desde el detalle de una publicación de MarketPlace. Permite snapshot eficiente vía JOIN sin parsear `contexto_referencia_id`. Índice parcial cuando IS NOT NULL |
 | ultimo_mensaje_texto | VARCHAR(100) | Preview truncado del último mensaje |
@@ -122,7 +124,7 @@ _Ninguna pendiente._
 
 **CHECK constraints:** modos válidos, contexto_tipo válido (`'negocio' | 'marketplace' | 'vendedor_marketplace' | 'oferta' | 'servicio' | 'directo' | 'notas'`), no auto-chat excepto cuando `contexto_tipo = 'notas'` (Mis Notas permite p1 = p2).
 
-> **`'vendedor_marketplace'` (Sprint 9.x, mayo 2026):** conversaciones iniciadas desde el **perfil del vendedor** (P3) en MarketPlace, sin un artículo específico de referencia. Distinto de `'marketplace'` que sí lleva `articulo_marketplace_id`. Ver §4.13.1.
+> **`'vendedor_marketplace'` (legacy):** se introdujo en mayo 2026 para conversaciones iniciadas desde el perfil del vendedor (P3) en MarketPlace sin artículo específico. **Retirado el 09 May 2026** porque la card "Vienes del perfil de X" no aportaba valor — los chats nuevos desde el perfil usan `'directo'` y el backend ya no inserta mensaje sistema en ese caso. El literal sigue permitido por el CHECK para no invalidar conversaciones legacy en BD.
 
 ### 3.2 `chat_mensajes`
 
@@ -292,7 +294,7 @@ Lógica nombres: Respuesta → "Tú" (si `emisorId === miId`) o nombre del conta
   | `subtipo` | Cuándo se inserta | Render frontend |
   |-----------|-------------------|-----------------|
   | `articulo_marketplace` | Al crear/contactar conversación desde el **detalle de un artículo** de MarketPlace. Snapshot incluye `articuloId`, `titulo`, `precio`, `condicion`, `fotoUrl` | Card embebida (foto izq + eyebrow MARKETPLACE teal + título + precio + chip "Ver →"). Click despacha `chatya:navegar-externo` → cierra ChatYA y navega al detalle público del artículo (sin flash visual) |
-  | `contacto_perfil` | Al crear conversación desde el **perfil del vendedor** (sin artículo). Incluye `iniciadorNombre` | Pill centrado tipo WhatsApp: "Juan inició la conversación desde tu perfil" |
+  | `contacto_perfil` (legacy) | Solo presente en chats viejos creados antes del 09 May 2026 cuando se contactaba desde el perfil del vendedor sin artículo específico. Incluye `iniciadorNombre` | Pill centrado tipo WhatsApp: "Juan inició la conversación desde tu perfil". Ya no se generan mensajes nuevos de este subtipo — los chats nuevos desde el perfil usan `contextoTipo: 'directo'` sin card |
   | `oferta_negocio` | Al crear/contactar conversación desde el **modal de detalle de una oferta** (perfil de negocio o feed `/ofertas`). Snapshot incluye `ofertaId`, `sucursalId`, `titulo`, `badgeTexto` (ej. "30% OFF"), `fotoUrl`, `fechaFin` | Card embebida (foto + eyebrow OFERTA amber + título + badge + chip "Ver →"). Click despacha `chatya:abrir-detalle-oferta` → `ChatOverlay` hace fetch del detalle y monta `ModalOfertaDetalle` SOBRE el chat (sin cerrarlo, sin cambiar de ruta) |
   | `articulo_negocio` | Al crear/contactar conversación desde el **modal de detalle de un item de catálogo** (perfil de negocio). Snapshot incluye `articuloId`, `sucursalId`, `nombre`, `precio`, `tipo` ('producto'/'servicio'), `fotoUrl` | Card embebida (foto + eyebrow PRODUCTO/SERVICIO blue + nombre + precio + chip "Ver →"). Click despacha `chatya:abrir-detalle-articulo` → `ChatOverlay` hace fetch y monta `ModalDetalleItem` SOBRE el chat |
   | (subtipo desconocido) | Fallback futuro | Texto plano centrado (mantiene compat con nuevos subtipos) |
@@ -416,29 +418,30 @@ El backend resuelve el nombre del recurso de origen (JOIN/lookup) y lo envía co
 
 **Ubicación UI:** Header de VentanaChat (subtítulo inline: `🟢 En línea · Desde: Tu perfil`).
 
-### 4.13.1 Mensaje contextual al iniciar conversación (mayo 2026)
+### 4.13.1 Mensaje contextual al iniciar conversación (mayo 2026, refactor 09 May 2026)
 
-Cuando se inicia una conversación desde un punto con contexto (artículo de MarketPlace, perfil de vendedor, oferta de negocio, item de catálogo), el chat **NO empieza vacío** — el sistema siembra contexto inmediato visible para ambos participantes. Patrón paralelo al "contexto de origen" (§4.13) pero más rico visualmente: en lugar de un subtítulo en el header, es una card del recurso (o un pill informativo) embebida como primer mensaje del hilo.
+Cuando se inicia una conversación desde un punto con contexto (artículo de MarketPlace, oferta de negocio, item de catálogo), el chat se abre con un **preview tipo "attachment"** del recurso encima del input, junto con un borrador inicial pre-cargado. La card **NO se persiste en BD** hasta que el usuario envía el primer mensaje. Si descarta el preview con la X o cierra el chat sin enviar, no queda rastro.
 
-**Cuatro puntos de entrada cubiertos:**
+> **Patrón anterior (mayo 2026 hasta 09 May 2026):** la card se sembraba como `mensajeContextoOptimista` dentro de la ventana del chat al hacer click "ChatYA", y se materializaba en BD junto con el envío. Se cambió a "preview en input" porque persistir la card sin acción del usuario sentía que "se auto-enviaba el sistema" — el patrón actual es coherente con el preview de attachments de WhatsApp/Telegram.
+
+**Tres puntos de entrada cubiertos:**
 
 | Origen | Botón en frontend | `contextoTipo` | Mensaje sistema generado |
 |--------|-------------------|----------------|--------------------------|
 | Detalle del artículo MarketPlace (P2) | `BarraContacto.tsx` → "ChatYA" | `'marketplace'` + `articuloMarketplaceId` | Card del artículo (subtipo `articulo_marketplace`) |
-| Perfil del vendedor MarketPlace (P3) | `PaginaPerfilVendedor.tsx` → "ChatYA" | `'vendedor_marketplace'` (sin id) | Pill "X inició desde tu perfil" (subtipo `contacto_perfil`) |
 | Modal de detalle de oferta de negocio | `ModalOfertaDetalle.tsx` → "ChatYA" | `'oferta'` + `contextoReferenciaId` (ofertaId) | Card de la oferta (subtipo `oferta_negocio`) |
 | Modal de detalle de item de catálogo | `ModalDetalleItem.tsx` → "ChatYA" | `'articulo_negocio'` + `contextoReferenciaId` (articuloId) | Card del artículo (subtipo `articulo_negocio`) |
 
 > **No aplica desde "Hacer una pregunta" en P2 Q&A** — esa sección tiene su propio flujo público y NO genera mensaje contextual.
+>
+> **Tampoco aplica desde el perfil del vendedor (P3) ni desde el popup del comentarista** — esos chats nacen con `contextoTipo: 'directo'` sin card. Antes (mayo 2026 hasta 09 May 2026) generaban una card "X inició la conversación desde tu perfil" con `contextoTipo: 'vendedor_marketplace'` + `subtipo: 'contacto_perfil'`, pero se retiró: no aportaba valor real al receptor ni al iniciador y solo agregaba ruido visual. El render del `subtipo: 'contacto_perfil'` se conserva como fallback pill por mensajes legacy en BD.
 
 #### Flujo backend — `crearObtenerConversacion`
 
 1. El frontend envía el id de referencia (`articuloMarketplaceId` o `contextoReferenciaId`) en el body junto con `contextoTipo`.
 2. Para marketplace, el service persiste en la columna FK `chat_conversaciones.articulo_marketplace_id`. Para `'oferta'` y `'articulo_negocio'`, se reusa la columna existente `contexto_referencia_id` (no requiere migración del schema).
 3. Al crear NUEVA conversación O al reusar una existente desde detalle (ver "Política de duplicación" abajo), llama a uno de dos helpers según el contexto:
-   - **`insertarMensajeContextoMarketplace`** (para `'marketplace'` y `'vendedor_marketplace'`):
-     - `'marketplace'` con `articuloMarketplaceId`: `SELECT` al artículo, snapshot, JSON `{ subtipo: 'articulo_marketplace', articuloId, titulo, precio, condicion, fotoUrl }`.
-     - `'vendedor_marketplace'`: lookup nombre del iniciador, JSON `{ subtipo: 'contacto_perfil', iniciadorNombre }`.
+   - **`insertarMensajeContextoMarketplace`** (solo para `'marketplace'` con `articuloMarketplaceId`): `SELECT` al artículo, snapshot, JSON `{ subtipo: 'articulo_marketplace', articuloId, titulo, precio, condicion, fotoUrl, iniciadorId }`.
    - **`insertarMensajeContextoNegocio`** (para `'oferta'` y `'articulo_negocio'`):
      - `'oferta'`: `SELECT` a `ofertas` por `contextoReferenciaId`, snapshot con `ofertaId`, `sucursalId`, `titulo`, `badgeTexto` (vía helper `armarBadgeTextoOferta` que replica la lógica de `getBadgeTexto` del frontend), `fotoUrl`, `fechaFin`.
      - `'articulo_negocio'`: `SELECT` a `articulos` por id, snapshot con `articuloId`, `nombre`, `tipo`, `precio`, `fotoUrl`. El `sucursalId` se toma de `chat_conversaciones.participante2_sucursal_id` (la tabla `articulos` no tiene sucursal directa).
@@ -447,28 +450,101 @@ Cuando se inicia una conversación desde un punto con contexto (artículo de Mar
 
 #### Política de duplicación cuando la conversación ya existe
 
-| Caso | Política | Razón |
-|------|----------|-------|
-| Detalle del artículo MarketPlace (`'marketplace'`) | **Siempre se inserta nueva card**, aunque la convo exista | El comprador puede preguntar por artículos distintos del mismo vendedor en momentos distintos. Cada card delimita el contexto del nuevo interés |
-| Perfil del vendedor (`'vendedor_marketplace'`) | **NO se duplica** si la convo existe | El "te contactó desde el perfil" no aporta repetido. Convo existente = ya hay historia previa |
-| Oferta o item de negocio (`'oferta'` / `'articulo_negocio'`) | **Siempre se inserta nueva card** (mismo patrón que marketplace) | Cliente puede mostrar interés en distintas ofertas/items del mismo negocio en momentos distintos. Cada card delimita el nuevo contexto |
+| Caso | Política backend | Política frontend (09 May 2026) | Razón |
+|------|------------------|---------------------------------|-------|
+| Detalle del artículo MarketPlace (`'marketplace'`) | **Siempre inserta nueva card** aunque la convo exista (con anti-duplicado: si la última card del chat es del mismo artículo, no duplica) | `BarraContacto` siempre abre chat temporal con preview del artículo. El flujo de envío materializa con la convo existente vía `crearObtenerConversacion` y persiste la card | El comprador puede preguntar por artículos distintos del mismo vendedor en momentos distintos. Cada card delimita el contexto del nuevo interés |
+| Oferta de negocio (`'oferta'`) | **Siempre inserta nueva card** (con anti-duplicado) | `ModalOfertaDetalle` busca conv existente: si la hay → `abrirConversacion(conv.id)` + `setContextoPendiente({datosCreacion, cardData})` + `guardarBorrador()`. Si no → chat temporal con preview. La card solo se persiste al enviar el primer mensaje | Cliente que ya tiene chat con el negocio NO debe ver una conversación nueva, solo la nueva card de oferta agregada al hilo existente cuando decide enviar |
+| Item del catálogo de negocio (`'articulo_negocio'`) | **Siempre inserta nueva card** (con anti-duplicado) | `ModalDetalleItem` mismo patrón que `'oferta'` | Igual razón que ofertas |
+| Perfil del vendedor MarketPlace o popup de comentarista | (sin card — `contextoTipo: 'directo'`) | `PaginaPerfilVendedor` y `BotonComentarista` abren chat existente directo o chat temporal sin preview | El contexto "vine desde tu perfil" se retiró el 09 May 2026 — no aportaba valor. Ver entrada del CHANGELOG |
 
 #### Reutilización de conversación persona ↔ negocio (sin diferenciar sucursal)
 
-Para chats `personal ↔ comercial` (cliente con negocio), la búsqueda de conversación existente **ignora la sucursal del lado comercial**:
+Para chats `personal ↔ comercial` (cliente con negocio), las queries del backend **ignoran la sucursal del lado comercial** en tres lugares (regla coherente aplicada 09 May 2026):
+
+1. **`crearObtenerConversacion`** — al buscar conv existente para evitar duplicados.
+2. **`listarConversaciones`** — al listar los chats del modo comercial del dueño.
+3. **`contarTotalNoLeidos`** — al calcular el badge del navbar.
+
+Patrón aplicado (línea 418, 3289 del service):
 
 ```ts
-const esChatPersonaConNegocio =
-    (input.participante1Modo === 'personal' && input.participante2Modo === 'comercial') ||
-    (input.participante1Modo === 'comercial' && input.participante2Modo === 'personal');
-
-// En el WHERE: si es chat persona↔negocio, sustituye el match estricto
-// `eq(chatConversaciones.participante2SucursalId, ...)` por `sql\`TRUE\``.
+if (sucursalId) {
+    condicionesP1.push(
+        or(
+            eq(participante1SucursalId, sucursalId),
+            eq(participante2Modo, 'personal'), // soy negocio P1 + otro es persona → ignoro mi sucursal
+        )!,
+    );
+    condicionesP2.push(
+        or(
+            eq(participante2SucursalId, sucursalId),
+            eq(participante1Modo, 'personal'),
+        )!,
+    );
+}
 ```
 
-Razón: un cliente espera UN solo chat con cada dueño/negocio sin importar de qué sucursal le llegó la oferta o artículo. Sin esta excepción, abrir ChatYA desde 2 ofertas de distintas sucursales del MISMO negocio creaba 2 conversaciones duplicadas en la lista del cliente. Para chats inter-sucursal `comercial ↔ comercial` el filtro estricto se mantiene — sucursales operativas distintas necesitan hilos separados.
+**Razón:** un cliente espera UN solo chat con cada dueño/negocio sin importar de qué sucursal le llegó la oferta o artículo. Antes del fix:
+- Abrir ChatYA desde 2 ofertas de distintas sucursales del MISMO negocio creaba 2 conversaciones duplicadas en la lista del cliente.
+- Del lado del dueño, el chat creado con `participante2_sucursal_id = X` desaparecía de su lista cuando estaba parado en la sucursal Y (o cuando el chat se guardaba con NULL por timing).
+- El badge del navbar caía a 0 a los segundos de llegar un mensaje porque el filtro estricto excluía estos chats al sumar `no_leidos`.
+
+Para chats inter-sucursal `comercial ↔ comercial` el filtro estricto se mantiene — sucursales operativas distintas necesitan hilos separados.
 
 `orderBy(desc(updatedAt))` se aplica para que, si quedaran chats duplicados de antes del fix, se reuse el más reciente.
+
+#### Frontend — Receptor descubre chat nuevo en tiempo real
+
+El handler de `chatya:mensaje-nuevo` (en `useChatYAStore.ts`) tiene un branch dedicado para `!esConversacionConocida && !esMensajePropio`:
+
+1. Hace `chatyaService.getConversacion(conversacionId)` para obtener los datos de la conv recién creada.
+2. Calcula a qué modos del usuario aplica (P1, P2 o ambos en self-chat persona↔mi-negocio).
+3. Para cada modo aplicable evalúa la sucursal: personal aplica siempre; comercial aplica si la sucursal del lado coincide con la sucursal activa o si el lado no tiene sucursal.
+4. Agrega la conv al cache `conversacionesPorModo[modo]` y, si aplica al modo activo, también a la lista visible `state.conversaciones`.
+5. Agenda `cargarNoLeidos` con timer (800ms) para refrescar el badge.
+
+Sin este branch, los chats iniciados por un cliente nuevo nunca aparecían en la lista del dueño hasta refrescar manualmente.
+
+**`esMensajePropio` ahora considera el modo:**
+
+```ts
+const esMensajePropio =
+    mensaje.emisorId === miId &&
+    (!mensaje.emisorModo || mensaje.emisorModo === modoActivo) &&
+    (!mensaje.emisorSucursalId || mensaje.emisorSucursalId === miSucursalId);
+```
+
+Sin el check de `emisorModo`, un mensaje enviado desde el modo personal del mismo usuario hacia su propio negocio (modo comercial) se marcaba como "propio" del lado del receptor y se descartaba — el chat nunca aparecía en la lista comercial.
+
+#### Preview de contexto en input — `ContextoPendiente`
+
+El estado `contextoPendiente` (en `useChatYAStore`) modela el "recurso del que vengo" mientras el usuario decide si enviar el mensaje:
+
+```ts
+export interface ContextoPendienteCardData {
+  subtipo: 'oferta' | 'articulo_negocio' | 'articulo_marketplace';
+  titulo: string;
+  imagen: string | null;
+  badgeTexto?: string;            // oferta
+  precio?: string | number;        // artículos
+  tipoArticulo?: 'producto' | 'servicio';
+  condicion?: string;              // articulo_marketplace
+}
+
+export interface ContextoPendiente {
+  datosCreacion: CrearConversacionInput; // para crear/insertar card al enviar
+  cardData: ContextoPendienteCardData;   // para renderizar el preview
+}
+```
+
+**`setContextoPendiente(ctx)`** lo asigna o limpia. Al limpiarlo con `null` en chat temporal con contexto, también degrada `chatTemporal.datosCreacion.contextoTipo` a `'directo'` — evita que el envío posterior persista la card que el usuario descartó.
+
+**Render:** `PreviewContextoInput.tsx` montado dentro de `InputMensaje` arriba del input. Mini-card 14×14 con foto + eyebrow del módulo + título + extras + botón X.
+
+**Persistencia diferida:**
+- Chat temporal: al enviar el primer mensaje, `chatTemporal.datosCreacion` se manda a `crearObtenerConversacion` y el backend inserta la card al crear la conv nueva.
+- Conv existente con `contextoPendiente`: el flujo del store llama `crearObtenerConversacion(contextoPendiente.datosCreacion)` ANTES del envío real → backend reusa la conv e inserta la card sistema. Después limpia `contextoPendiente`.
+- Si el usuario descarta el preview con la X o cambia de conv: `contextoPendiente` se limpia, no se persiste nada.
 
 #### Frontend — Mensaje sistema OPTIMISTA al abrir chat temporal
 

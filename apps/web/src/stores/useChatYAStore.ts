@@ -72,6 +72,48 @@ import type {
 // =============================================================================
 
 // =============================================================================
+// CONTEXTO PENDIENTE (preview en input — preview-style)
+// Se usa cuando el usuario hace click "ChatYA" desde un recurso (oferta,
+// artículo de catálogo, artículo de MarketPlace). Muestra una mini-card
+// arriba del input + borrador pre-cargado. La card NO se persiste en BD
+// hasta que el usuario envía el mensaje. Si descarta el preview o cambia
+// de conversación sin enviar, no queda rastro en BD.
+// =============================================================================
+
+export type ContextoPendienteSubtipo =
+  | 'oferta'
+  | 'articulo_negocio'
+  | 'articulo_marketplace';
+
+export interface ContextoPendienteCardData {
+  subtipo: ContextoPendienteSubtipo;
+  /** Título del recurso. Para artículo del catálogo de negocio: el `nombre`. */
+  titulo: string;
+  /** URL de la imagen principal. */
+  imagen: string | null;
+  /** Para `oferta`: badge formateado (ej. "20% OFF", "2x1"). */
+  badgeTexto?: string;
+  /** Para artículos: precio numérico o string. */
+  precio?: string | number;
+  /** Para `articulo_negocio`: distinguir producto vs servicio. */
+  tipoArticulo?: 'producto' | 'servicio';
+  /** Para `articulo_marketplace`: condición (nuevo, seminuevo, usado, para_reparar). */
+  condicion?: string;
+}
+
+export interface ContextoPendiente {
+  /**
+   * Datos para llamar al backend cuando el usuario envía el primer mensaje.
+   * Si la conversación ya existe en BD, `crearObtenerConversacion` reusa la
+   * conv y dispara la inserción de la card. Si es chat temporal, el flujo
+   * de materialización ya cubre este input vía `chatTemporal.datosCreacion`.
+   */
+  datosCreacion: CrearConversacionInput;
+  /** Datos para renderizar la mini-card del preview. */
+  cardData: ContextoPendienteCardData;
+}
+
+// =============================================================================
 // CHAT TEMPORAL (lazy creation)
 // El chat se muestra antes de existir en el backend.
 // La conversación real se crea solo al enviar el primer mensaje.
@@ -179,6 +221,12 @@ interface ChatYAState {
   // ─── Chat Temporal (lazy creation) ───────────────────────────────────
   chatTemporal: ChatTemporal | null;
 
+  // ─── Contexto pendiente (preview sobre input) ────────────────────────
+  // Card "tipo attachment" arriba del input. Solo se persiste en BD al
+  // enviar el primer mensaje. Se limpia al cambiar de conversación, al
+  // volver a la lista, o cuando el usuario lo descarta con la X.
+  contextoPendiente: ContextoPendiente | null;
+
   // ─── Enviando ─────────────────────────────────────────────────────────
   enviandoMensaje: boolean;
 
@@ -191,6 +239,8 @@ interface ChatYAState {
   abrirChatTemporal: (datos: ChatTemporal) => void;
   transicionarAConversacionReal: (conversacionId: string) => void;
   volverALista: () => void;
+  /** Setea o limpia (con `null`) la card de contexto encima del input. */
+  setContextoPendiente: (ctx: ContextoPendiente | null) => void;
   setVisorAbierto: (abierto: boolean) => void;
   setPanelInfoAbierto: (abierto: boolean) => void;
 
@@ -327,6 +377,7 @@ const ESTADO_INICIAL = {
   borradores: {} as Record<string, string>,
   enviandoMensaje: false,
   chatTemporal: null as ChatTemporal | null,
+  contextoPendiente: null as ContextoPendiente | null,
   error: null as string | null,
   cacheMensajes: {} as Record<string, Mensaje[]>,
   cacheTotalMensajes: {} as Record<string, number>,
@@ -404,6 +455,10 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       vistaActiva: 'chat' as const,
       conversacionActivaId: conversacionId,
       chatTemporal: null,
+      // Limpiar el contexto pendiente del chat anterior. El nuevo entry-
+      // point (modal de oferta/artículo) lo reasigna inmediatamente con
+      // `setContextoPendiente` después de llamar a `abrirConversacion`.
+      contextoPendiente: null,
       mensajes: mensajesIniciales,
       totalMensajes: tieneCache ? (cacheTotal || 0) : 0,
       hayMasMensajes: tieneCache ? (cacheTieneMas || cacheHayMas || false) : false,
@@ -467,6 +522,10 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     // Si vienen datos de contexto, sembrar el chat con el mensaje sistema
     // optimista para que el usuario vea la card (artículo de MarketPlace,
     // etc.) inmediatamente al abrir, sin tener que enviar primero.
+    // Nota: el patrón actualizado (09 May 2026) prefiere mostrar la card
+    // como `contextoPendiente` arriba del input en lugar de en el chat,
+    // pero `mensajeContextoOptimista` se mantiene como mecanismo válido
+    // para callers que lo prefieran.
     const mensajesIniciales = datos.mensajeContextoOptimista
       ? [datos.mensajeContextoOptimista]
       : [];
@@ -474,6 +533,9 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       vistaActiva: 'chat',
       conversacionActivaId: datos.id,
       chatTemporal: datos,
+      // Limpiar el contexto pendiente del chat anterior (si lo había). El
+      // caller puede setear uno nuevo después con `setContextoPendiente`.
+      contextoPendiente: null,
       mensajes: mensajesIniciales,
       totalMensajes: mensajesIniciales.length,
       hayMasMensajes: false,
@@ -488,6 +550,33 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     }
   },
 
+  setContextoPendiente: (ctx: ContextoPendiente | null) => {
+    // Cuando el usuario DESCARTA el preview (`ctx === null`) en un chat
+    // temporal con contexto, también degradamos `chatTemporal.datosCreacion`
+    // a un chat 'directo'. Sin esto, al enviar el primer mensaje el backend
+    // recibiría `contextoTipo: 'oferta'` (o equivalente) y aún insertaría la
+    // card aunque el usuario hubiera dicho "no, gracias" al preview.
+    if (ctx === null) {
+      const { chatTemporal } = get();
+      if (chatTemporal && chatTemporal.datosCreacion.contextoTipo !== 'directo') {
+        set({
+          contextoPendiente: null,
+          chatTemporal: {
+            ...chatTemporal,
+            datosCreacion: {
+              ...chatTemporal.datosCreacion,
+              contextoTipo: 'directo',
+              contextoReferenciaId: null,
+              articuloMarketplaceId: null,
+            },
+          },
+        });
+        return;
+      }
+    }
+    set({ contextoPendiente: ctx });
+  },
+
   /** Vuelve a la lista de conversaciones, guardando mensajes y fijados en caché */
   volverALista: () => {
     const { conversacionActivaId, mensajes, totalMensajes, hayMasMensajes, mensajesFijados } = get();
@@ -498,6 +587,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         vistaActiva: 'lista' as const,
         conversacionActivaId: null,
         chatTemporal: null,
+        contextoPendiente: null,
         mensajes: [],
         totalMensajes: 0,
         hayMasMensajes: false,
@@ -515,6 +605,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         vistaActiva: 'lista',
         conversacionActivaId: null,
         chatTemporal: null,
+        contextoPendiente: null,
         mensajes: [],
         totalMensajes: 0,
         hayMasMensajes: false,
@@ -921,7 +1012,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     // el handler de socket lo descarta. El GET de mensajes garantiza que el
     // mensaje sistema aparezca en la ventana del chat para el iniciador.
     {
-      const { conversacionActivaId: idActual, chatTemporal } = get();
+      const { conversacionActivaId: idActual, chatTemporal, contextoPendiente } = get();
       if (idActual?.startsWith('temp_') && chatTemporal) {
         const datosCreacion = chatTemporal.datosCreacion;
         const conv = await get().crearConversacion(datosCreacion);
@@ -935,12 +1026,22 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         // real, snapshot validado) son la fuente de verdad.
         const esContextoConCardBackend =
           datosCreacion.contextoTipo === 'marketplace' ||
-          datosCreacion.contextoTipo === 'vendedor_marketplace' ||
           datosCreacion.contextoTipo === 'oferta' ||
           datosCreacion.contextoTipo === 'articulo_negocio';
         if (esContextoConCardBackend) {
           await get().cargarMensajes(conv.id);
         }
+        // El contexto pendiente queda implícito en `chatTemporal.datosCreacion`
+        // — al materializar arriba ya se persistió la card. Limpiar el preview.
+        if (contextoPendiente) set({ contextoPendiente: null });
+      } else if (contextoPendiente && idActual && !idActual.startsWith('temp_')) {
+        // Conversación EXISTENTE con preview de contexto pendiente. Llamar
+        // a `crearObtenerConversacion` con los `datosCreacion` del preview
+        // dispara la inserción de la card sistema en BD (el backend reusa
+        // la conv y agrega el mensaje sistema con anti-duplicado). Después
+        // limpiamos el preview — el envío del mensaje real procede normal.
+        await get().crearConversacion(contextoPendiente.datosCreacion);
+        set({ contextoPendiente: null });
       }
     }
 
@@ -1882,8 +1983,14 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
   const pestanaVisible = typeof document !== 'undefined' && document.visibilityState === 'visible';
   // En chat inter-sucursal, un mensaje de "otro yo" (mismo usuarioId, distinta sucursal)
   // NO es propio desde la perspectiva de esta sesión — debe sonar, marcar no-leído, etc.
+  // Análogo: en chat persona↔su propio negocio (Juan personal → Juan comercial-Zapatería),
+  // ambos lados comparten `usuarioId` pero el `emisorModo` distingue: un mensaje
+  // emitido desde 'personal' visto desde el modo 'comercial' NO es propio del
+  // negocio. Sin esta condición, los chats nuevos persona↔mi-negocio no aparecen
+  // en la lista del comercial porque el handler los descarta como "eco propio".
   const esMensajePropio =
     mensaje.emisorId === miId &&
+    (!mensaje.emisorModo || mensaje.emisorModo === modoActivo) &&
     (!mensaje.emisorSucursalId || mensaje.emisorSucursalId === miSucursalId);
 
   // ── Sonido de notificación ──
@@ -1957,8 +2064,104 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
       const modo = obtenerModoChatYA();
       useChatYAStore.getState().cargarNoLeidos(modo);
     }, 3000));
+  } else if (!esConversacionConocida && !esMensajePropio) {
+    // CONVERSACIÓN NUEVA — el receptor aún no tiene esta conv en su lista
+    // local porque acaba de crearse. Hacer fetch y, si el usuario es
+    // participante en algún modo (puede ser ambos en chat persona↔mi-negocio),
+    // agregar al cache del/los modos correspondientes.
+    void chatyaService
+      .getConversacion(conversacionId)
+      .then((respuesta) => {
+        if (!respuesta.success || !respuesta.data) return;
+        const nueva = respuesta.data;
+        const modoActual = obtenerModoChatYA();
+        const sucursalActual = obtenerSucursalChatYA();
+
+        // El usuario puede ser P1, P2 o AMBOS (caso self-chat persona↔
+        // mi-negocio donde el dueño del negocio también inicia desde su
+        // perfil personal). Para cada lado donde aparece, computamos el
+        // modo y la sucursal de ese lado. Después decidimos a qué cache(s)
+        // agregar la conv y si aplica al modo activo.
+        type Aplicacion = { modo: 'personal' | 'comercial'; sucursalId: string | null };
+        const aplicaciones: Aplicacion[] = [];
+        if (nueva.participante1Id === miId) {
+          aplicaciones.push({
+            modo: nueva.participante1Modo,
+            sucursalId: nueva.participante1SucursalId,
+          });
+        }
+        if (nueva.participante2Id === miId) {
+          aplicaciones.push({
+            modo: nueva.participante2Modo,
+            sucursalId: nueva.participante2SucursalId,
+          });
+        }
+        if (aplicaciones.length === 0) return;
+
+        // Filtro de sucursal en modo comercial: la conv pertenece a este
+        // modo solo si el usuario está parado en la sucursal correcta.
+        // Para modo personal no aplica filtro de sucursal.
+        const aplicaAlModo = (a: Aplicacion): boolean => {
+          if (a.modo === 'personal') return true;
+          if (!a.sucursalId) return true; // chat sin sucursal — visible en cualquier sucursal
+          return a.sucursalId === sucursalActual;
+        };
+
+        useChatYAStore.setState((prev) => {
+          const updates: Partial<typeof prev> = {};
+          const cachePorModoNuevo = { ...prev.conversacionesPorModo };
+          let actualizado = false;
+
+          for (const ap of aplicaciones) {
+            if (!aplicaAlModo(ap)) continue;
+            const cacheModo = cachePorModoNuevo[ap.modo];
+            // Solo agregamos al cache si ya estaba inicializado (no null).
+            // Si está null significa que ese modo aún no se cargó — la
+            // primera carga traerá la conv del backend si aplica.
+            if (cacheModo && !cacheModo.some((c) => c.id === nueva.id)) {
+              cachePorModoNuevo[ap.modo] = [nueva, ...cacheModo];
+              actualizado = true;
+            }
+          }
+
+          if (actualizado) {
+            updates.conversacionesPorModo = cachePorModoNuevo;
+          }
+
+          // Lista visible (modo activo): solo agregar si la conv aplica al
+          // modo + sucursal activos del usuario.
+          const aplicaActiva = aplicaciones.some(
+            (a) => a.modo === modoActual && aplicaAlModo(a),
+          );
+          if (aplicaActiva && !prev.conversaciones.some((c) => c.id === nueva.id)) {
+            updates.conversaciones = [nueva, ...prev.conversaciones];
+            updates.totalConversaciones = prev.totalConversaciones + 1;
+          }
+
+          return updates;
+        });
+
+        // Agendar consulta de badge si la conv aplica al modo activo.
+        const aplicaActiva = aplicaciones.some(
+          (a) => a.modo === modoActual && aplicaAlModo(a),
+        );
+        if (aplicaActiva) {
+          const timerAnterior = badgeTimersPendientes.get(conversacionId);
+          if (timerAnterior) clearTimeout(timerAnterior);
+          badgeTimersPendientes.set(
+            conversacionId,
+            setTimeout(() => {
+              badgeTimersPendientes.delete(conversacionId);
+              useChatYAStore.getState().cargarNoLeidos(modoActual);
+            }, 800),
+          );
+        }
+      })
+      .catch(() => {
+        // Silencioso — si el fetch falla, peor caso es que el receptor
+        // tenga que refrescar manualmente para ver el chat nuevo.
+      });
   }
-  // Si NO es conocida y es modo comercial → es de otra sucursal, no incrementar badge
 
   // ✅ Actualizar caché si la conversación NO está activa pero sí cacheada
   if (state.conversacionActivaId !== conversacionId) {

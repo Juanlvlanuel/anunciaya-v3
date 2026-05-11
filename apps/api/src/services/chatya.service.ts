@@ -414,10 +414,32 @@ export async function listarConversaciones(
             ne(chatConversaciones.contextoTipo, 'notas'),
         ];
 
-        // En modo comercial: filtrar por sucursal activa
+        // En modo comercial: filtrar por sucursal activa SOLO en chats
+        // inter-sucursal (comercial↔comercial). Para chats persona↔negocio
+        // ignoramos la sucursal del lado comercial — coherente con la regla
+        // de creación (`crearObtenerConversacion`): el cliente espera UN
+        // solo hilo con el negocio sin importar de qué sucursal le llegó la
+        // oferta o artículo. Sin esta excepción, un chat creado con
+        // `participante2SucursalId = X` desaparece cuando el dueño está en
+        // la sucursal Y o cuando la conv quedó con NULL por timing al
+        // crearse desde un recurso sin sucursal específica.
         if (sucursalId) {
-            condicionesP1.push(eq(chatConversaciones.participante1SucursalId, sucursalId));
-            condicionesP2.push(eq(chatConversaciones.participante2SucursalId, sucursalId));
+            condicionesP1.push(
+                or(
+                    eq(chatConversaciones.participante1SucursalId, sucursalId),
+                    // P1 comercial + P2 personal = chat persona↔negocio donde
+                    // YO soy el negocio (P1). Ignorar mi sucursal.
+                    eq(chatConversaciones.participante2Modo, 'personal'),
+                )!,
+            );
+            condicionesP2.push(
+                or(
+                    eq(chatConversaciones.participante2SucursalId, sucursalId),
+                    // P2 comercial + P1 personal = chat persona↔negocio donde
+                    // YO soy el negocio (P2). Ignorar mi sucursal.
+                    eq(chatConversaciones.participante1Modo, 'personal'),
+                )!,
+            );
         }
 
         const whereClause = or(and(...condicionesP1), and(...condicionesP2));
@@ -673,17 +695,15 @@ export async function crearObtenerConversacion(
 
             // Caso "convo ya existe": SOLO se inserta una nueva card de
             // contexto cuando vienen del DETALLE de un artículo (marketplace +
-            // articuloMarketplaceId). Para el caso del PERFIL (vendedor_
-            // marketplace) no se duplica — el comprador y el vendedor ya
-            // tienen historia previa y no aporta repetir el "te contactó desde
-            // el perfil".
+            // articuloMarketplaceId) o del DETALLE de una oferta/artículo de
+            // un negocio. El chat directo (sin contexto específico) nunca
+            // inserta card.
             if (
                 input.contextoTipo === 'marketplace' &&
                 input.articuloMarketplaceId
             ) {
                 await insertarMensajeContextoMarketplace(
                     existente.id,
-                    'marketplace',
                     input.articuloMarketplaceId,
                     usuarioId,
                     input.participante2Id,
@@ -725,24 +745,15 @@ export async function crearObtenerConversacion(
             })
             .returning();
 
-        // Auto-insertar mensaje contextual al crear NUEVA conversación de
-        // MarketPlace. Cubre los dos puntos de entrada:
-        //   - 'marketplace' + articuloMarketplaceId → card de la publicación
-        //   - 'vendedor_marketplace' (sin artículo) → texto sistema "X te
-        //     contactó desde tu perfil"
+        // Auto-insertar card de contexto al crear NUEVA conversación de
+        // MarketPlace cuando viene del DETALLE de un artículo (la card del
+        // artículo da contexto útil a ambos lados). Para chat directo desde
+        // el perfil del vendedor (`directo`) NO se inserta nada — se decidió
+        // el 09 May 2026 que ese contexto no aporta valor.
         if (input.contextoTipo === 'marketplace' && input.articuloMarketplaceId) {
             await insertarMensajeContextoMarketplace(
                 nueva.id,
-                'marketplace',
                 input.articuloMarketplaceId,
-                usuarioId,
-                input.participante2Id,
-            );
-        } else if (input.contextoTipo === 'vendedor_marketplace') {
-            await insertarMensajeContextoMarketplace(
-                nueva.id,
-                'vendedor_marketplace',
-                null,
                 usuarioId,
                 input.participante2Id,
             );
@@ -778,13 +789,10 @@ export async function crearObtenerConversacion(
  * Inserta un mensaje `tipo='sistema'` con JSON discriminado para dar
  * contexto al inicio de una conversación de MarketPlace.
  *
- * Subtipos:
+ * Subtipo único:
  *  - `articulo_marketplace`: el comprador contactó desde el detalle del
  *    artículo. JSON contiene snapshot (titulo, precio, condicion, fotoUrl,
  *    articuloId) que el frontend renderiza como card embebida.
- *  - `contacto_perfil`: el comprador contactó desde el perfil del vendedor
- *    sin un artículo específico. JSON contiene el nombre del iniciador para
- *    el texto "X te contactó desde tu perfil".
  *
  * El mensaje:
  *  - Tiene `emisorId = NULL` (es del sistema, no de un usuario).
@@ -797,67 +805,45 @@ export async function crearObtenerConversacion(
  */
 async function insertarMensajeContextoMarketplace(
     conversacionId: string,
-    contextoTipo: 'marketplace' | 'vendedor_marketplace',
-    articuloMarketplaceId: string | null,
+    articuloMarketplaceId: string,
     iniciadorId: string,
     receptorId: string,
 ): Promise<void> {
     try {
-        let contenido: string | null = null;
-        let previewTexto: string | null = null;
+        const [art] = await db
+            .select({
+                id: articulosMarketplace.id,
+                titulo: articulosMarketplace.titulo,
+                precio: articulosMarketplace.precio,
+                condicion: articulosMarketplace.condicion,
+                fotos: articulosMarketplace.fotos,
+                fotoPortadaIndex: articulosMarketplace.fotoPortadaIndex,
+            })
+            .from(articulosMarketplace)
+            .where(eq(articulosMarketplace.id, articuloMarketplaceId))
+            .limit(1);
 
-        if (contextoTipo === 'marketplace' && articuloMarketplaceId) {
-            const [art] = await db
-                .select({
-                    id: articulosMarketplace.id,
-                    titulo: articulosMarketplace.titulo,
-                    precio: articulosMarketplace.precio,
-                    condicion: articulosMarketplace.condicion,
-                    fotos: articulosMarketplace.fotos,
-                    fotoPortadaIndex: articulosMarketplace.fotoPortadaIndex,
-                })
-                .from(articulosMarketplace)
-                .where(eq(articulosMarketplace.id, articuloMarketplaceId))
-                .limit(1);
+        if (!art) return;
 
-            if (!art) return;
+        const fotos = (art.fotos as string[] | null) ?? [];
+        const idx = Math.max(0, Math.min(art.fotoPortadaIndex ?? 0, fotos.length - 1));
+        const fotoUrl = fotos[idx] ?? null;
 
-            const fotos = (art.fotos as string[] | null) ?? [];
-            const idx = Math.max(0, Math.min(art.fotoPortadaIndex ?? 0, fotos.length - 1));
-            const fotoUrl = fotos[idx] ?? null;
-
-            contenido = JSON.stringify({
-                subtipo: 'articulo_marketplace',
-                articuloId: art.id,
-                titulo: art.titulo,
-                precio: art.precio,
-                condicion: art.condicion,
-                fotoUrl,
-                // `iniciadorId` permite al frontend alinear la card del lado
-                // de quien inició el contexto: a la derecha si soy yo (igual
-                // que mis propios mensajes), a la izquierda si fue el otro.
-                // Sin esto el render queda centrado por defecto (datos viejos
-                // de antes del 8 mayo 2026).
-                iniciadorId,
-            });
-            previewTexto = `Sobre: ${art.titulo}`.substring(0, 100);
-        } else if (contextoTipo === 'vendedor_marketplace') {
-            const [u] = await db
-                .select({ nombre: usuarios.nombre, apellidos: usuarios.apellidos })
-                .from(usuarios)
-                .where(eq(usuarios.id, iniciadorId))
-                .limit(1);
-            if (!u) return;
-            const nombreIniciador = `${u.nombre ?? ''} ${u.apellidos ?? ''}`.trim() || 'Alguien';
-            contenido = JSON.stringify({
-                subtipo: 'contacto_perfil',
-                iniciadorNombre: nombreIniciador,
-                iniciadorId,
-            });
-            previewTexto = 'Conversación iniciada desde el perfil';
-        }
-
-        if (!contenido || !previewTexto) return;
+        const contenido = JSON.stringify({
+            subtipo: 'articulo_marketplace',
+            articuloId: art.id,
+            titulo: art.titulo,
+            precio: art.precio,
+            condicion: art.condicion,
+            fotoUrl,
+            // `iniciadorId` permite al frontend alinear la card del lado
+            // de quien inició el contexto: a la derecha si soy yo (igual
+            // que mis propios mensajes), a la izquierda si fue el otro.
+            // Sin esto el render queda centrado por defecto (datos viejos
+            // de antes del 8 mayo 2026).
+            iniciadorId,
+        });
+        const previewTexto = `Sobre: ${art.titulo}`.substring(0, 100);
 
         const [msg] = await db
             .insert(chatMensajes)
@@ -971,6 +957,43 @@ async function insertarMensajeContextoNegocio(
 ): Promise<void> {
     try {
         if (!referenciaId) return;
+
+        // Anti-duplicado: si el ÚLTIMO mensaje del chat es una card del
+        // MISMO recurso (misma oferta o mismo artículo), no insertamos otra.
+        // Esto evita el spam visual cuando el usuario abre el mismo modal
+        // varias veces sin enviar mensaje entre medio (ej. cierra y reabre
+        // por error, prueba el botón). Si entre tanto envió un mensaje
+        // real, el último ya no es la card y sí insertamos — interpretamos
+        // que el usuario quiere "marcar" de nuevo el contexto.
+        const subtipoEsperado =
+            contextoTipo === 'oferta' ? 'oferta_negocio' : 'articulo_negocio';
+        const idEsperado =
+            contextoTipo === 'oferta' ? 'ofertaId' : 'articuloId';
+        const [ultimo] = await db
+            .select({ tipo: chatMensajes.tipo, contenido: chatMensajes.contenido })
+            .from(chatMensajes)
+            .where(
+                and(
+                    eq(chatMensajes.conversacionId, conversacionId),
+                    eq(chatMensajes.eliminado, false),
+                ),
+            )
+            .orderBy(desc(chatMensajes.createdAt))
+            .limit(1);
+        if (ultimo && ultimo.tipo === 'sistema') {
+            try {
+                const datos = JSON.parse(ultimo.contenido) as Record<string, unknown>;
+                if (
+                    datos.subtipo === subtipoEsperado &&
+                    datos[idEsperado] === referenciaId
+                ) {
+                    return;
+                }
+            } catch {
+                // JSON inválido — tratar como mensaje no-sistema y seguir.
+            }
+        }
+
         let contenido: string | null = null;
         let previewTexto: string | null = null;
 
@@ -3259,10 +3282,26 @@ export async function contarTotalNoLeidos(
             eq(chatConversaciones.eliminadaPorP2, false),
         ];
 
-        // En modo comercial: filtrar por sucursal activa
+        // En modo comercial: filtrar por sucursal activa SOLO en chats
+        // inter-sucursal (comercial↔comercial). Para chats persona↔negocio
+        // ignoramos la sucursal del lado comercial — coherente con la regla
+        // ya aplicada en `listarConversaciones`. Sin esto, los badges de no-
+        // leídos del icono ChatYA bajan a 0 segundos después de llegar un
+        // mensaje porque el filtro estricto excluye chats donde
+        // `participante_sucursal_id` no coincide con la sucursal activa.
         if (sucursalId) {
-            condicionesP1.push(eq(chatConversaciones.participante1SucursalId, sucursalId));
-            condicionesP2.push(eq(chatConversaciones.participante2SucursalId, sucursalId));
+            condicionesP1.push(
+                or(
+                    eq(chatConversaciones.participante1SucursalId, sucursalId),
+                    eq(chatConversaciones.participante2Modo, 'personal'),
+                )!,
+            );
+            condicionesP2.push(
+                or(
+                    eq(chatConversaciones.participante2SucursalId, sucursalId),
+                    eq(chatConversaciones.participante1Modo, 'personal'),
+                )!,
+            );
         }
 
         const [resultP1] = await db

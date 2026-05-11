@@ -73,6 +73,9 @@ export function BotonComentarista({
             notificar.info('No puedes enviarte un mensaje a ti mismo');
             return;
         }
+        // Chat directo sin card de contexto. Las cards solo aplican a
+        // artículos/ofertas específicas — abrir un chat con un comentarista
+        // del feed no requiere card "Vienes del perfil de X".
         abrirChatTemporal({
             id: `temp_comentarista_${usuarioId}_${Date.now()}`,
             otroParticipante: {
@@ -84,7 +87,7 @@ export function BotonComentarista({
             datosCreacion: {
                 participante2Id: usuarioId,
                 participante2Modo: 'personal',
-                contextoTipo: 'vendedor_marketplace',
+                contextoTipo: 'directo',
             },
         });
         abrirChatYA();
