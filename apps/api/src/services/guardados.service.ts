@@ -347,6 +347,12 @@ export async function obtenerGuardados(
                 WHERE g.usuario_id = ${userId}
                   AND g.entity_type = 'articulo_marketplace'
                   AND a.deleted_at IS NULL
+                  -- Solo mostrar artículos activos. Si el vendedor lo marcó
+                  -- como vendido, lo pausó, o el cron de expiración lo movió a
+                  -- 'pausada', desaparece automáticamente de Mis Guardados del
+                  -- cliente. La fila en la tabla guardados se conserva en BD
+                  -- por si el artículo regresa a estado 'activa' después.
+                  AND a.estado = 'activa'
                 ORDER BY g.created_at DESC
                 LIMIT ${limite}
                 OFFSET ${offsetSql}

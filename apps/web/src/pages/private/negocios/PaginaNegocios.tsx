@@ -521,6 +521,12 @@ export function PaginaNegocios() {
 
   const handleChatPopup = useCallback((negocio: NegocioResumen) => {
     if (!negocio.usuarioId) return;
+    // Sufijo de sucursal coherente con el resto del UI: solo si >1 sucursales,
+    // y para la principal usar "Matriz" en lugar del nombre (duplicado).
+    const sucursalParaHeader =
+      negocio.totalSucursales > 1
+        ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
+        : undefined;
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
@@ -530,7 +536,7 @@ export function PaginaNegocios() {
         avatarUrl: negocio.logoUrl,
         negocioNombre: negocio.negocioNombre,
         negocioLogo: negocio.logoUrl || undefined,
-        sucursalNombre: negocio.sucursalNombre || undefined,
+        sucursalNombre: sucursalParaHeader || undefined,
       },
       datosCreacion: {
         participante2Id: negocio.usuarioId,

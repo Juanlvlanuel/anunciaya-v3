@@ -326,18 +326,22 @@ async function obtenerDatosParticipante(
             if (sucursal) {
                 datos.negocioLogo = sucursal.fotoPerfil ?? undefined;
 
-                // Solo mostrar nombre de sucursal si (1) el negocio tiene más de una
-                // Y (2) esta sucursal NO es la Matriz. La matriz se identifica con
-                // solo el nombre del negocio.
-                if (!sucursal.esPrincipal) {
-                    const [{ total }] = await db
-                        .select({ total: count() })
-                        .from(negocioSucursales)
-                        .where(eq(negocioSucursales.negocioId, usuario.negocioId!));
+                // Sufijo de sucursal en el header del chat — coherente con el
+                // resto del UI (perfil del negocio, etc.): SOLO se muestra
+                // cuando el negocio tiene más de una sucursal. Para la
+                // principal se usa la etiqueta "Matriz" en lugar del nombre
+                // (que sería idéntico al del negocio y haría que el header
+                // dijera "Imprenta FindUS · Imprenta FindUS"). Para otras
+                // sucursales se usa su nombre real ("Sucursal Norte", etc.).
+                const [{ total }] = await db
+                    .select({ total: count() })
+                    .from(negocioSucursales)
+                    .where(eq(negocioSucursales.negocioId, usuario.negocioId!));
 
-                    if (total > 1) {
-                        datos.sucursalNombre = sucursal.nombre;
-                    }
+                if (total > 1) {
+                    datos.sucursalNombre = sucursal.esPrincipal
+                        ? 'Matriz'
+                        : sucursal.nombre;
                 }
             }
         }
@@ -2370,6 +2374,7 @@ export async function listarContactos(
                         .select({
                             nombre: negocioSucursales.nombre,
                             fotoPerfil: negocioSucursales.fotoPerfil,
+                            esPrincipal: negocioSucursales.esPrincipal,
                         })
                         .from(negocioSucursales)
                         .where(sucursalCondicion)
@@ -2380,7 +2385,10 @@ export async function listarContactos(
                             resp.negocioLogo = sucursal.fotoPerfil;
                         }
 
-                        // Solo mostrar nombre de sucursal si el negocio tiene más de una
+                        // Sufijo de sucursal — mismo criterio que el header de chat
+                        // (`obtenerDatosParticipante`): solo si >1 sucursales, y para
+                        // la principal usar "Matriz" para no duplicar el nombre del
+                        // negocio.
                         if (c.negocioId) {
                             const [{ total }] = await db
                                 .select({ total: count() })
@@ -2388,7 +2396,9 @@ export async function listarContactos(
                                 .where(eq(negocioSucursales.negocioId, c.negocioId));
 
                             if (total > 1) {
-                                resp.sucursalNombre = sucursal.nombre;
+                                resp.sucursalNombre = sucursal.esPrincipal
+                                    ? 'Matriz'
+                                    : sucursal.nombre;
                             }
                         }
                     }

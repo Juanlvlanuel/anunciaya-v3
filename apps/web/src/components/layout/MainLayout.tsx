@@ -37,6 +37,8 @@ import { ColumnaIzquierda } from './ColumnaIzquierda';
 import { ColumnaDerecha } from './ColumnaDerecha';
 import { PanelNotificaciones } from './PanelNotificaciones';
 import { PanelPreviewNegocio } from './PanelPreviewNegocio';
+import { OverlayBuscadorMarketplace } from '../marketplace/OverlayBuscadorMarketplace';
+import { detectarSeccion } from '../../stores/useSearchStore';
 import { BannerRateLimit } from '../ui/Banner429';
 import { useSwipeNavegacionBS } from '../../hooks/useSwipeNavegacionBS';
 
@@ -408,6 +410,18 @@ export function MainLayout() {
 
           <ChatOverlay />
           <PanelNotificaciones />
+
+          {/* ===== OVERLAY BUSCADOR MARKETPLACE (global en `/marketplace/*`) =====
+              Antes vivía dentro de `PaginaMarketplace.tsx` y `PaginaResultadosMarketplace.tsx`,
+              entonces el buscador del Navbar (siempre visible en desktop) no
+              funcionaba al hacer focus desde sub-rutas como `/marketplace/articulo/:id`
+              o `/marketplace/usuario/:id` — el overlay no estaba montado.
+              Montarlo aquí lo hace funcionar en cualquier sub-ruta de MP. El
+              propio overlay se auto-oculta cuando `buscadorAbierto=false` Y
+              `query=''`, así que no estorba al estar inactivo. */}
+          {detectarSeccion(location.pathname) === 'marketplace' && (
+            <OverlayBuscadorMarketplace />
+          )}
         </>
       )}
     </div>

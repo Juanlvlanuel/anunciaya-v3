@@ -36,7 +36,6 @@ import {
 import { useFiltrosBuscadorUrl } from '../../../hooks/useFiltrosBuscadorUrl';
 import { CardArticulo } from '../../../components/marketplace/CardArticulo';
 import { FiltrosBuscador } from '../../../components/marketplace/FiltrosBuscador';
-import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import type { ArticuloFeed } from '../../../types/marketplace';
 
@@ -340,8 +339,8 @@ export function PaginaResultadosMarketplace() {
                 tieneGps={lat !== null && lng !== null}
             />
 
-            {/* Overlay del buscador (para hacer otra búsqueda desde aquí) */}
-            <OverlayBuscadorMarketplace />
+            {/* Overlay del buscador: montado globalmente en `MainLayout` para
+                cualquier ruta `/marketplace/*`. Ya no necesita montaje local. */}
         </div>
     );
 }

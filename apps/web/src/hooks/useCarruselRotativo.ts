@@ -149,7 +149,23 @@ export function useCarruselRotativo<T>(
     [total],
   );
 
-  const emblaPlugins = useMemo(() => [autoplayPlugin], [autoplayPlugin]);
+  // Guard contra <=1 slides: el plugin Autoplay de Embla (v8.6.0) sale
+  // temprano de su `init()` cuando hay 0 o 1 snaps:
+  //   if (emblaApi.scrollSnapList().length <= 1) return;
+  // PERO no inicializa la variable interna `delay`. Si después se llama
+  // `plugin.play()` (que nuestro effect de prefers-reduced-motion hace al
+  // montar), el `setTimer` interno accede a `delay[selectedScrollSnap]` →
+  // `delay` es undefined → `TypeError: Cannot read properties of undefined
+  // (reading '0')` y el ErrorBoundary del router pinta pantalla blanca.
+  //
+  // Solo incluimos el plugin cuando ya hay ≥2 slides — además es semántico:
+  // con 1 slide el autoplay no tiene sentido (no hay a dónde saltar). Si los
+  // items aumentan después, `emblaPlugins` cambia de referencia → embla
+  // reInit → plugin se agrega y arranca normal.
+  const emblaPlugins = useMemo(
+    () => (total > 1 ? [autoplayPlugin] : []),
+    [autoplayPlugin, total],
+  );
 
   const [emblaRef, emblaApi] = useEmblaCarousel(emblaOptions, emblaPlugins);
 

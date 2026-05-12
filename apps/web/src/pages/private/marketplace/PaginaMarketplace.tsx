@@ -35,7 +35,6 @@ import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFe
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArticuloDetalle';
-import { OverlayBuscadorMarketplace } from '../../../components/marketplace/OverlayBuscadorMarketplace';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito } from '../../../types/marketplace';
@@ -826,8 +825,9 @@ export function PaginaMarketplace() {
                 `}</style>
             </button>
 
-            {/* Overlay del buscador (anclado al useSearchStore global) */}
-            <OverlayBuscadorMarketplace />
+            {/* Overlay del buscador: ahora se monta GLOBALMENTE en `MainLayout`
+                cuando la sección activa es `/marketplace/*`. Antes vivía aquí
+                y entonces no funcionaba en sub-rutas como articulo/usuario. */}
 
             {/* Modal de detalle del artículo (estilo Facebook) — se abre al
                 hacer click en "Ver N preguntas más" desde la card del feed. */}

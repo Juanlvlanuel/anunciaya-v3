@@ -807,6 +807,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
             return;
         }
         if (!negocio) return;
+        // Sucursal en el header del chat — mismo criterio que el resto del UI
+        // del perfil (línea ~402): solo se muestra cuando el negocio tiene más
+        // de UNA sucursal. Para la principal se usa la etiqueta "Matriz" en
+        // lugar del nombre (que sería idéntico al del negocio y haría que el
+        // header dijera "Imprenta FindUS · Imprenta FindUS"). Si solo hay 1
+        // sucursal no se muestra nada — el `negocioNombre` ya basta.
+        const sucursalParaHeader =
+            negocio.totalSucursales > 1
+                ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
+                : undefined;
         abrirChatTemporal({
             id: `temp_${Date.now()}`,
             otroParticipante: {
@@ -816,7 +826,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 avatarUrl: negocio.logoUrl,
                 negocioNombre: negocio.negocioNombre,
                 negocioLogo: negocio.logoUrl || undefined,
-                sucursalNombre: negocio.sucursalNombre || undefined,
+                sucursalNombre: sucursalParaHeader || undefined,
             },
             datosCreacion: {
                 participante2Id: negocio.usuarioId,
@@ -990,22 +1000,11 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 <div className="absolute inset-0 bg-black/20 pointer-events-none rounded-b-3xl @5xl:rounded-b-none @5xl:rounded-br-[3rem]" />
 
                 {/* MÉTRICAS GLASSMORPHISM - Solo móvil */}
+                {/* Nota: el badge "Abierto/Cerrado" se retiró de aquí
+                    intencionalmente — su lugar natural ahora es la barra
+                    grande de "Horario de comida · Regresa 4:00 PM" debajo
+                    del header (más prominente y con info accionable). */}
                 <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-4 py-2.5 px-3 bg-white/60 backdrop-blur-md @5xl:hidden">
-                    {negocio.horarios && negocio.horarios.length > 0 && (() => {
-                        const info = calcularEstadoNegocio(negocio.horarios, negocio.zonaHoraria);
-                        const abierto = info.estado === 'abierto';
-                        return (
-                            <>
-                                <div className="flex items-center gap-1.5">
-                                    <span className={`w-2 h-2 rounded-full ${abierto ? 'bg-green-500' : 'bg-red-500'}`} />
-                                    <span className={`text-sm font-bold ${abierto ? 'text-green-600' : 'text-red-500'}`}>
-                                        {abierto ? 'Abierto' : 'Cerrado'}
-                                    </span>
-                                </div>
-                                <div className="h-5 w-px bg-slate-400/50" />
-                            </>
-                        );
-                    })()}
                     <div className="flex items-center gap-1.5">
                         <Heart className="w-5 h-5 text-red-500 fill-current" />
                         <span className="text-sm font-bold text-slate-700">{totalLikes ?? 0}</span>
@@ -1096,19 +1095,25 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                         {/* Nombre + Badges envío discretos */}
                         <div className="flex-1 min-w-0 -mt-2 overflow-hidden max-w-[220px]">
-                            <p className="text-2xl font-bold text-slate-900 mb-1 wrap-break-word">
+                            <p className="text-2xl font-bold text-slate-900 leading-tight wrap-break-word">
                                 {negocio.negocioNombre}
-                                {negocio.aceptaCardya && (
-                                    <>
-                                        {' '}
-                                        <CreditCard className="w-7 h-7 text-amber-500 animate-bounce" style={{ animationDuration: '2s', display: 'inline', verticalAlign: 'middle' }} />
-                                    </>
-                                )}
                             </p>
+                            {/* Sucursal (gris) + indicador "Acepta CardYA" inline.
+                                El icono `<CreditCard>` que antes iba al lado del
+                                nombre del negocio se movió a la línea de la sucursal
+                                — más discreto y libera la línea del nombre. */}
                             {negocio.totalSucursales > 1 && (
-                                <p className="text-sm font-bold text-blue-600 mb-1 truncate">
-                                    {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
-                                </p>
+                                <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                                    <span className="text-lg font-medium text-slate-500 leading-tight truncate">
+                                        {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
+                                    </span>
+                                    {negocio.aceptaCardya && (
+                                        <CreditCard
+                                            className="w-7 h-7 text-amber-500 animate-bounce shrink-0"
+                                            style={{ animationDuration: '2s' }}
+                                        />
+                                    )}
+                                </div>
                             )}
 
                         </div>
@@ -1135,22 +1140,28 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             <div className="flex items-start justify-between gap-4 w-full">
                                 {/* IZQUIERDA: Nombre, Sucursal, Descripción */}
                                 <div className="flex-1 min-w-0">
-                                    <div className="flex items-center gap-3">
-                                        <h1 className="@5xl:text-2xl @[96rem]:text-4xl font-bold text-slate-900 truncate">{negocio.negocioNombre}</h1>
-                                        {negocio.aceptaCardya && (
-                                            <Tooltip text="Acepta CardYA" position="bottom">
-                                                <div className="cursor-pointer shrink-0">
-                                                    <CreditCard className="@5xl:w-6 @5xl:h-6 @[96rem]:w-8 @[96rem]:h-8 text-amber-500 animate-bounce" style={{ animationDuration: '2s' }} />
-                                                </div>
-                                            </Tooltip>
-                                        )}
-                                    </div>
+                                    <h1 className="@5xl:text-2xl @[96rem]:text-4xl font-bold text-slate-900 leading-tight truncate">{negocio.negocioNombre}</h1>
 
-                                    {/* Sucursal */}
+                                    {/* Sucursal (gris) + indicador "Acepta CardYA" inline.
+                                        Mismo patrón que la vista móvil: el icono
+                                        `<CreditCard>` se movió de la línea del nombre
+                                        a la línea de la sucursal, y el color del texto
+                                        pasó de azul-bold a gris-medium para reducir
+                                        ruido visual. */}
                                     {negocio.totalSucursales > 1 && (
-                                        <p className="@5xl:text-base @[96rem]:text-lg font-semibold text-blue-600 mt-1">
-                                            {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
-                                        </p>
+                                        <div className="flex items-center gap-2 mt-0.5 min-w-0">
+                                            <span className="@5xl:text-lg @[96rem]:text-xl font-medium text-slate-500 leading-tight truncate">
+                                                {negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre}
+                                            </span>
+                                            {negocio.aceptaCardya && (
+                                                <Tooltip text="Acepta CardYA" position="bottom">
+                                                    <CreditCard
+                                                        className="@5xl:w-6 @5xl:h-6 @[96rem]:w-8 @[96rem]:h-8 text-amber-500 animate-bounce cursor-pointer shrink-0"
+                                                        style={{ animationDuration: '2s' }}
+                                                    />
+                                                </Tooltip>
+                                            )}
+                                        </div>
                                     )}
 
                                     {/* Descripción */}
@@ -1161,8 +1172,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                                 {/* DERECHA: Métricas + Badges en columna */}
                                 <div className="flex flex-col items-end gap-2 shrink-0">
-                                    {/* MÉTRICAS */}
-                                    <div className="flex items-center bg-slate-50 rounded-xl @5xl:px-2 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2">
+                                    {/* MÉTRICAS — fondo transparente, los separadores `bg-slate-300`
+                                        entre KPIs siguen visibles sobre el degradado de la página. */}
+                                    <div className="flex items-center @5xl:px-2 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2">
                                         <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:pr-2 @[96rem]:pr-4">
                                             <Heart className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-red-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
                                             <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} likes</span>

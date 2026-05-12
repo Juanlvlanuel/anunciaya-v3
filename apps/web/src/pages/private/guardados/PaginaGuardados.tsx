@@ -333,6 +333,7 @@ export function PaginaGuardados() {
     const badgePorTab = (id: TabGuardado) => {
         if (id === 'ofertas') return ofertas.length;
         if (id === 'negocios') return negocios.length;
+        if (id === 'marketplace') return articulosMarketplace.length;
         return 0;
     };
 
@@ -476,26 +477,11 @@ export function PaginaGuardados() {
                                         </div>
                                     </div>
 
-                                    {/* KPIs */}
-                                    <div className="flex items-center gap-3 shrink-0">
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-rose-400 leading-none">
-                                                {ofertas.length}
-                                            </span>
-                                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
-                                                Ofertas
-                                            </span>
-                                        </div>
-                                        <div className="w-1 h-16 rounded-full" style={{ background: 'linear-gradient(to bottom, transparent, rgba(255,255,255,0.25) 30%, rgba(255,255,255,0.25) 70%, transparent)' }} />
-                                        <div className="flex flex-col items-center">
-                                            <span className="text-2xl 2xl:text-3xl font-extrabold text-white leading-none">
-                                                {negocios.length}
-                                            </span>
-                                            <span className="text-xs 2xl:text-sm font-semibold text-white/40 uppercase tracking-wider mt-1">
-                                                Negocios
-                                            </span>
-                                        </div>
-                                    </div>
+                                    {/* KPIs eliminados — la info de conteo ya vive en los
+                                        badges de cada tab justo abajo ("Negocios 1",
+                                        "Ofertas 3", "Marketplace 2"). Duplicarla aquí era
+                                        ruido y al agregar MarketPlace (palabra larga) el
+                                        subtítulo central se truncaba. */}
                                 </div>
                             </div>
 

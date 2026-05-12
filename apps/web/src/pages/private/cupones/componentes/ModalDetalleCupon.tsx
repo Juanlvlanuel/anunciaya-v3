@@ -136,6 +136,17 @@ export default function ModalDetalleCupon({
 
         handleCerrar();
         setTimeout(() => {
+            // Defensa contra duplicación en header del chat: si la sucursal
+            // se llama igual que el negocio (caso típico de la sucursal
+            // principal en negocios de 1 sola sucursal), no la propagamos.
+            // El backend `obtenerMisCupones` no normaliza a "Matriz" como sí
+            // lo hacen otros endpoints (chatya `buscarNegocios`, `listarContactos`,
+            // `obtenerDatosParticipante`). Patrón coherente con línea 213
+            // del mismo componente que ya hace este check al renderizar.
+            const sucursalParaHeader =
+                datos.sucursalNombre && datos.sucursalNombre !== datos.nombre
+                    ? datos.sucursalNombre
+                    : undefined;
             abrirChatTemporal({
                 id: `temp_${Date.now()}`,
                 otroParticipante: {
@@ -145,7 +156,7 @@ export default function ModalDetalleCupon({
                     avatarUrl: datos.logo,
                     negocioNombre: datos.nombre,
                     negocioLogo: datos.logo || undefined,
-                    sucursalNombre: datos.sucursalNombre || undefined,
+                    sucursalNombre: sucursalParaHeader,
                 },
                 datosCreacion: {
                     participante2Id: datos.id,

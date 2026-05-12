@@ -289,6 +289,13 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       return;
     }
     console.log('✅ Abriendo chat con:', negocio.negocioNombre);
+    // Sufijo de sucursal — mismo criterio del header del chat: solo si >1
+    // sucursales, y para la principal usar "Matriz" en lugar del nombre del
+    // negocio (que sería duplicado en el header).
+    const sucursalParaHeader =
+      negocio.totalSucursales > 1
+        ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
+        : undefined;
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
@@ -298,7 +305,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
         avatarUrl: negocio.logoUrl,
         negocioNombre: negocio.negocioNombre,
         negocioLogo: negocio.logoUrl || undefined,
-        sucursalNombre: negocio.sucursalNombre || undefined,
+        sucursalNombre: sucursalParaHeader || undefined,
       },
       datosCreacion: {
         participante2Id: negocio.usuarioId,
