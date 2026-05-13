@@ -1,6 +1,6 @@
 # Pendientes en MarketPlace
 
-**Última actualización:** 2026-05-12 (rediseño visual P4 Wizard alineado a P1/P2/P3 + subida múltiple de fotos paralelas + selección manual de portada + cleanup R2 con reference-count contra `IMAGE_REGISTRY` + auto-save en localStorage cross-sesión)
+**Última actualización:** 2026-05-13 (rediseño visual P3 Perfil + galería P2 con flechas overlay + cierre de E.2 al confirmar que el filtro permisivo del backend ya cubre los chats legacy)
 
 Documento maestro de pendientes del módulo MarketPlace. Lista lo que falta implementar, ordenado por prioridad de impacto. Items cerrados se conservan al final como historial.
 
@@ -116,10 +116,6 @@ El botón Search en el header de Ofertas dispara `useSearchStore.abrirBuscador()
 - Montar el overlay en `PaginaOfertas.tsx`
 
 Sprint propio (estimado similar al Sprint 6 del MarketPlace).
-
-### E.2 — Inconsistencia `participante2_sucursal_id = NULL` en chats legacy
-
-Hay 1 conv en BD local (probablemente más en staging) con `participante2_sucursal_id = NULL` aunque la oferta de origen tenía `sucursal_id` válido. Quedaron de antes del fix D.4. El filtro permisivo del backend (`listarConversaciones` + `contarTotalNoLeidos`) las hace visibles igual. **Limpieza opcional:** UPDATE de esos chats para que tengan el `participante2_sucursal_id` derivado del artículo/oferta de contexto.
 
 ---
 
