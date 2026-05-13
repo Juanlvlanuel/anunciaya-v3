@@ -40,9 +40,30 @@ interface CardArticuloProps {
      * (perfil de usuario, módulos de listado), usar 'compacta' (aspect 4:3).
      */
     variant?: 'feed' | 'compacta';
+    /**
+     * Clases Tailwind opcionales para fijar la altura total del card (ej.
+     * `h-[280px] lg:h-[340px]`). Cuando se pasa, el componente abandona el
+     * `aspect-*` de la imagen y reparte el espacio en 60% imagen / 40%
+     * panel — útil para que la card coincida en altura con otras cards
+     * vecinas (Mis Guardados, donde MarketPlace convive con OfertaCard).
+     */
+    altoFijo?: string;
+    /**
+     * Si true, se omite el botón flotante de "guardar" (corazón sup-der)
+     * que renderiza la card por defecto. Se usa cuando la vista padre
+     * sobrepone su propio control — ej. Mis Guardados, donde el corazón
+     * externo entra en modo selección múltiple en lugar de toggle
+     * individual.
+     */
+    ocultarBotonGuardar?: boolean;
 }
 
-export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) {
+export function CardArticulo({
+    articulo,
+    variant = 'feed',
+    altoFijo,
+    ocultarBotonGuardar,
+}: CardArticuloProps) {
     const navigate = useNavigate();
     const { guardado, loading, toggleGuardado } = useGuardados({
         entityType: 'articulo_marketplace',
@@ -58,26 +79,26 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
     const senalActividad: { icono: React.ReactNode; texto: string } | null = (() => {
         if ((articulo.viendo ?? 0) >= 3) {
             return {
-                icono: <Users className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                icono: <Users className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />,
                 texto: `${articulo.viendo} personas viendo ahora`,
             };
         }
         if (articulo.totalGuardados >= 5) {
             return {
-                icono: <Heart className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                icono: <Heart className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />,
                 texto: `${articulo.totalGuardados} personas lo guardaron`,
             };
         }
         const nPreguntas = articulo.totalPreguntasRespondidas ?? 0;
         if (nPreguntas >= 1) {
             return {
-                icono: <MessageCircle className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                icono: <MessageCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />,
                 texto: `${nPreguntas} pregunta${nPreguntas > 1 ? 's' : ''} respondida${nPreguntas > 1 ? 's' : ''}`,
             };
         }
         if ((articulo.vistas24h ?? 0) >= 20) {
             return {
-                icono: <Eye className="h-3 w-3 shrink-0" strokeWidth={2} />,
+                icono: <Eye className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />,
                 texto: `Visto ${articulo.vistas24h} veces hoy`,
             };
         }
@@ -97,8 +118,12 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
         <article
             data-testid={`card-articulo-${articulo.id}`}
             onClick={handleClickCard}
-            className={`group min-w-0 cursor-pointer flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md transition-shadow hover:shadow-lg ${
-                variant === 'compacta' ? 'flex' : 'flex h-full'
+            className={`group min-w-0 cursor-pointer flex flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md ${
+                altoFijo
+                    ? altoFijo
+                    : variant === 'compacta'
+                    ? ''
+                    : 'h-full'
             }`}
         >
             {/* ── Imagen portada — aspect según variant.
@@ -107,8 +132,12 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
                 contenedor. El padre tiene `aspect-ratio` fijo + `overflow-hidden`
                 — la imagen se ajusta dentro vía `object-cover`. ──────── */}
             <div
-                className={`relative w-full overflow-hidden bg-slate-100 ${
-                    variant === 'compacta' ? 'aspect-[3/2]' : 'aspect-square'
+                className={`relative w-full overflow-hidden bg-slate-200 ${
+                    altoFijo
+                        ? 'h-[60%] shrink-0'
+                        : variant === 'compacta'
+                        ? 'aspect-[3/2]'
+                        : 'aspect-square'
                 }`}
             >
                 {fotoPortada ? (
@@ -130,28 +159,32 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
                 {esNuevo && (
                     <span
                         data-testid={`badge-recien-${articulo.id}`}
-                        className="absolute left-2 top-2 inline-flex items-center rounded-md bg-teal-500 px-2 py-1 text-[10px] font-bold uppercase tracking-wider text-white shadow-sm"
+                        className="absolute left-2 top-2 inline-flex items-center rounded-md bg-teal-500 px-2 py-1 text-sm lg:text-xs 2xl:text-sm font-bold uppercase tracking-wider text-white shadow-sm"
                     >
                         Recién
                     </span>
                 )}
 
-                {/* Botón ❤️ guardar ─ esquina sup-der */}
-                <button
-                    data-testid={`btn-guardar-${articulo.id}`}
-                    onClick={handleClickGuardar}
-                    disabled={loading}
-                    aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
-                    aria-pressed={guardado}
-                    className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md transition-colors hover:bg-white hover:text-rose-500 disabled:opacity-50"
-                >
-                    <Heart
-                        className="h-4 w-4"
-                        strokeWidth={2.5}
-                        fill={guardado ? 'currentColor' : 'none'}
-                        color={guardado ? '#f43f5e' : 'currentColor'}
-                    />
-                </button>
+                {/* Botón ❤️ guardar ─ esquina sup-der. Se oculta cuando la
+                    vista padre sobrepone su propio control de selección
+                    (ej. Mis Guardados con modo selección múltiple). */}
+                {!ocultarBotonGuardar && (
+                    <button
+                        data-testid={`btn-guardar-${articulo.id}`}
+                        onClick={handleClickGuardar}
+                        disabled={loading}
+                        aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
+                        aria-pressed={guardado}
+                        className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md hover:bg-white hover:text-rose-500 disabled:opacity-50"
+                    >
+                        <Heart
+                            className="h-4 w-4"
+                            strokeWidth={2.5}
+                            fill={guardado ? 'currentColor' : 'none'}
+                            color={guardado ? '#f43f5e' : 'currentColor'}
+                        />
+                    </button>
+                )}
             </div>
 
             {/* ── Bloque blanco abajo. En 'feed' usa flex-1 para igualar
@@ -162,7 +195,7 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
                 título largo puede empujar el ancho de la columna. ── */}
             <div
                 className={`flex min-w-0 flex-col gap-1 px-3 py-2.5 ${
-                    variant === 'compacta' ? '' : 'flex-1'
+                    altoFijo || variant !== 'compacta' ? 'flex-1' : ''
                 }`}
             >
                 {/* Precio */}
@@ -176,7 +209,7 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
                 </div>
 
                 {/* Distancia + tiempo (gris) */}
-                <div className="flex items-center gap-1.5 text-xs text-slate-500">
+                <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">
                     {distancia && (
                         <>
                             <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />
@@ -194,7 +227,7 @@ export function CardArticulo({ articulo, variant = 'feed' }: CardArticuloProps) 
                 {variant === 'feed' && (
                     <div
                         data-testid={`actividad-${articulo.id}`}
-                        className="flex min-h-[1.125rem] items-center gap-1 text-xs text-slate-500"
+                        className="flex min-h-[1.125rem] items-center gap-1 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600"
                     >
                         {senalActividad ? (
                             <>

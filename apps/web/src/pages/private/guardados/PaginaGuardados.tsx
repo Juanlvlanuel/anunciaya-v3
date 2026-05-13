@@ -37,6 +37,7 @@ import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
 import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
 import api from '@/services/api';
@@ -107,7 +108,7 @@ export function PaginaGuardados() {
     // ---------------------------------------------------------------------------
     // State
     // ---------------------------------------------------------------------------
-    const [tabActivo, setTabActivo] = useState<TabGuardado>('ofertas');
+    const [tabActivo, setTabActivo] = useState<TabGuardado>('negocios');
     const [ordenamiento, setOrdenamiento] = useState<Ordenamiento>('recientes');
     const [modoSeleccion, setModoSeleccion] = useState(false);
     const [idsSeleccionados, setIdsSeleccionados] = useState<Set<string>>(new Set());
@@ -214,6 +215,8 @@ export function PaginaGuardados() {
             setIdsSeleccionados(new Set(ofertas.map((o) => o.id)));
         } else if (tabActivo === 'negocios') {
             setIdsSeleccionados(new Set(negocios.map((n) => n.id)));
+        } else if (tabActivo === 'marketplace') {
+            setIdsSeleccionados(new Set(articulosMarketplace.map((a) => a.id)));
         }
     };
 
@@ -228,6 +231,7 @@ export function PaginaGuardados() {
         const idsAEliminar = Array.from(idsSeleccionados);
         const ofertasOriginales = [...ofertas];
         const negociosOriginales = [...negocios];
+        const articulosOriginales = [...articulosMarketplace];
 
         try {
             // Eliminación: se refresca después del delete
@@ -259,6 +263,13 @@ export function PaginaGuardados() {
                         }
                         return api.delete(`votos/sucursal/${negocio.sucursalId}/follow`, { params });
                     }
+                } else if (tabActivo === 'marketplace') {
+                    // Mismo endpoint genérico `/guardados/:entityType/:entityId`
+                    // que ofertas, cambiando el entityType.
+                    const item = articulosOriginales.find(a => a.id === guardadoId);
+                    if (item) {
+                        return api.delete(`guardados/articulo_marketplace/${item.entityId}`);
+                    }
                 }
                 return Promise.resolve(); // Si no se encuentra, resolver vacío
             });
@@ -289,8 +300,14 @@ export function PaginaGuardados() {
     // ---------------------------------------------------------------------------
     // Computed Values
     // ---------------------------------------------------------------------------
-    const totalGuardados = tabActivo === 'ofertas' ? ofertas.length : negocios.length;
-    const loading = tabActivo === 'ofertas' ? loadingOfertas : loadingNegocios;
+    const totalGuardados =
+        tabActivo === 'ofertas' ? ofertas.length :
+        tabActivo === 'negocios' ? negocios.length :
+        tabActivo === 'marketplace' ? articulosMarketplace.length : 0;
+    const loading =
+        tabActivo === 'ofertas' ? loadingOfertas :
+        tabActivo === 'negocios' ? loadingNegocios :
+        tabActivo === 'marketplace' ? loadingArticulosMarketplace : false;
 
     // Ordenar items según selección
     const ofertasOrdenadas = [...ofertas].sort((a, b) => {
@@ -549,8 +566,11 @@ export function PaginaGuardados() {
                 </div>
             </div>
 
-            {/* Contenedor del contenido */}
-            <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
+            {/* Contenedor del contenido. `overflow-x-hidden` contiene las
+                animaciones del badge de OfertaCard (animate-float con rotate
+                5° + ripple scale 2x) que sobresalen del card y, en móvil con
+                cards al borde, generaban scroll horizontal del viewport. */}
+            <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto overflow-x-hidden">
                     {/* Contenido según tab activo */}
                     {tabActivo === 'ofertas' && (
                         <div className="animate-fade-in">
@@ -583,6 +603,9 @@ export function PaginaGuardados() {
                             <ContenidoMarketplace
                                 items={articulosMarketplace}
                                 loading={loadingArticulosMarketplace}
+                                onClickBookmark={handleClickBookmark}
+                                modoSeleccion={modoSeleccion}
+                                idsSeleccionados={idsSeleccionados}
                             />
                         </div>
                     )}
@@ -665,6 +688,62 @@ export function PaginaGuardados() {
 }
 
 // =============================================================================
+// SUBCOMPONENTE: BookmarkGlass
+// =============================================================================
+//
+// Botón flotante de selección/bookmark usado en las cards de Ofertas y
+// Marketplace dentro de Mis Guardados. Replica el lenguaje glass del card
+// de Negocios (CardNegocioDetallado): fondo `bg-black/25 backdrop-blur` con
+// borde blanco semi y, en seleccionado, círculo rojo sólido con check
+// blanco. Mantiene el mismo SVG del corazón rojo con borde blanco para que
+// los 3 tabs (Negocios, Ofertas, Marketplace) compartan estética.
+
+interface BookmarkGlassProps {
+    seleccionado: boolean;
+    onClick: (e: React.MouseEvent) => void;
+}
+
+function BookmarkGlass({ seleccionado, onClick }: BookmarkGlassProps) {
+    return (
+        <div className="absolute top-2 left-2 z-10">
+            <button
+                onClick={onClick}
+                className={`w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${
+                    seleccionado
+                        ? 'bg-red-500 border-2 border-red-500'
+                        : 'bg-black/25 backdrop-blur-[10px] border border-white/10'
+                }`}
+            >
+                {seleccionado ? (
+                    <svg
+                        className="w-5 h-5 text-white"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        strokeWidth="3"
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                    >
+                        <polyline points="20 6 9 17 4 12" />
+                    </svg>
+                ) : (
+                    <svg className="w-5 h-5" viewBox="0 0 24 24">
+                        <path
+                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+                            fill="#ef4444"
+                            stroke="white"
+                            strokeWidth="2"
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                        />
+                    </svg>
+                )}
+            </button>
+        </div>
+    );
+}
+
+// =============================================================================
 // SUBCOMPONENTE: ContenidoOfertas
 // =============================================================================
 
@@ -689,6 +768,10 @@ function ContenidoOfertas({
     // CTA del empty state lleva a /ofertas (sección top-level): replace si
     // NO venimos de /inicio para no acumular historial.
     const navegarASeccion = useNavegarASeccion();
+    // Mismo patrón que SeccionOfertas (perfil del negocio): vertical en
+    // móvil para que la card se vea estilo cupón (imagen arriba, panel
+    // oscuro abajo) en lugar del layout horizontal.
+    const { esMobile } = useBreakpoint();
 
     // Empty state (solo si no está cargando O si terminó de cargar y está vacío)
     if (!loading && ofertas.length === 0) {
@@ -717,39 +800,34 @@ function ContenidoOfertas({
         );
     }
 
-    // Con datos - Grid responsive con patrón 3 niveles
-    // Muestra lo que hay aunque esté cargando (actualización optimista)
+    // Con datos - Grid responsive.
+    // Móvil: 2 columnas porque la card es vertical (angosta + alta) — una
+    // sola columna ancha haría que las cards quedaran desproporcionadas.
+    // Muestra lo que hay aunque esté cargando (actualización optimista).
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-3 2xl:grid-cols-4 gap-6 lg:gap-4 2xl:gap-6">
+        <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6">
             {ofertas.map((guardado) => (
                 <div
                     key={guardado.id}
-                    className="relative max-w-[340px] lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                    className="relative lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
                 >
-                    {/* Icono de bookmark clickeable */}
-                    <div className="absolute top-2 left-2 z-10">
-                        <button
-                            onClick={(e) => onClickBookmark(guardado.id, e)}
-                            className={`w-8 h-8 rounded-full flex items-center justify-center transition-all lg:cursor-pointer ${
-                                modoSeleccion && idsSeleccionados.has(guardado.id)
-                                    ? 'bg-rose-500 border-2 border-rose-500'
-                                    : 'bg-white/90 backdrop-blur border-2 border-white hover:bg-rose-50'
-                            }`}
-                        >
-                            {modoSeleccion && idsSeleccionados.has(guardado.id) ? (
-                                <Check className="w-4 h-4 text-white" />
-                            ) : (
-                                <Heart className="w-4 h-4 text-rose-500 fill-rose-500" />
-                            )}
-                        </button>
-                    </div>
+                    {/* Bookmark con estilo glass (unificado con Negocios). */}
+                    <BookmarkGlass
+                        seleccionado={modoSeleccion && idsSeleccionados.has(guardado.id)}
+                        onClick={(e) => onClickBookmark(guardado.id, e)}
+                    />
 
-                    {/* Card de oferta */}
-                    <div 
+                    {/* Card de oferta — vertical en móvil (igual que perfil
+                        del negocio: imagen arriba, panel oscuro abajo). */}
+                    <div
                         onClick={() => onClickOferta(guardado)}
                         className="cursor-pointer"
                     >
-                        <OfertaCard oferta={guardado.oferta} />
+                        <OfertaCard
+                            oferta={guardado.oferta}
+                            size={esMobile ? 'compact' : 'normal'}
+                            orientacion={esMobile ? 'vertical' : 'auto'}
+                        />
                     </div>
                 </div>
             ))}
@@ -885,9 +963,18 @@ interface ItemMarketplaceGuardado {
 interface ContenidoMarketplaceProps {
     items: ItemMarketplaceGuardado[];
     loading: boolean;
+    onClickBookmark: (id: string, e: React.MouseEvent) => void;
+    modoSeleccion: boolean;
+    idsSeleccionados: Set<string>;
 }
 
-function ContenidoMarketplace({ items, loading }: ContenidoMarketplaceProps) {
+function ContenidoMarketplace({
+    items,
+    loading,
+    onClickBookmark,
+    modoSeleccion,
+    idsSeleccionados,
+}: ContenidoMarketplaceProps) {
     if (loading) {
         return (
             <div className="flex min-h-40 items-center justify-center">
@@ -913,16 +1000,40 @@ function ContenidoMarketplace({ items, loading }: ContenidoMarketplaceProps) {
         );
     }
 
+    // Grid alineado al de ContenidoOfertas: mismas columnas + gaps + wrapper
+    // con `max-w` y `mx-auto` para que las cards de Marketplace coincidan
+    // en ancho con las de Ofertas y se vean uniformes al cambiar de tab.
     return (
         <div
             data-testid="grid-articulos-marketplace-guardados"
-            className="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4"
+            className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6"
         >
             {items.map((item) => (
-                <CardArticulo
+                <div
                     key={item.id}
-                    articulo={{ ...item.articulo, distanciaMetros: null } as ArticuloFeed}
-                />
+                    className="relative lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                >
+                    {/* Bookmark con estilo glass (unificado con Negocios).
+                        Reemplaza el corazón interno de CardArticulo
+                        (ocultarBotonGuardar). */}
+                    <BookmarkGlass
+                        seleccionado={modoSeleccion && idsSeleccionados.has(item.id)}
+                        onClick={(e) => onClickBookmark(item.id, e)}
+                    />
+
+                    {/* `altoFijo` iguala la altura con la de OfertaCard que
+                        renderiza el tab Ofertas: compact vertical en mobile
+                        (`h-[280px]`) y normal vertical en lg/2xl (`h-[340px]`).
+                        `variant='compacta'` omite la señal de actividad
+                        ("X personas lo guardaron") — en Mis Guardados el
+                        panel se queda con precio + título + tiempo. */}
+                    <CardArticulo
+                        articulo={{ ...item.articulo, distanciaMetros: null } as ArticuloFeed}
+                        variant="compacta"
+                        altoFijo="h-[280px] lg:h-[340px] 2xl:h-[340px]"
+                        ocultarBotonGuardar
+                    />
+                </div>
             ))}
         </div>
     );

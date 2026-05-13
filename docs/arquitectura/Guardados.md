@@ -10,12 +10,12 @@
 
 ---
 
-**Última actualización:** 7 Abril 2026
-**Estado:** ✅ 100% Operacional
+**Última actualización:** 13 Mayo 2026
+**Estado:** ✅ 100% Operacional (Negocios, Ofertas, Marketplace)
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - `hooks/queries/useMisGuardados.ts`
-> - Hooks: `useOfertasGuardadas()`, `useNegociosSeguidos()` (con GPS en query key)
+> - Hooks: `useOfertasGuardadas()`, `useNegociosSeguidos()` (con GPS en query key), `useArticulosMarketplaceGuardados()`
 > - Eliminación de guardados usa `invalidateQueries` para refrescar
 
 **Identidad visual:** Rose (rosa) — Header dark estilo CardYA
@@ -159,30 +159,11 @@ La página usa el mismo patrón visual que CardYA y Mis Cupones:
 
 ## 🗂️ Sistema de Tabs
 
-La página tiene 4 tabs: **Ofertas**, **Negocios**, **Servicios**, **Artículos**. Los dos últimos muestran estado "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
+La página tiene 4 tabs en orden B2C → P2P: **Negocios**, **Ofertas**, **Marketplace**, **Servicios**. Los 3 primeros son funcionales; el último muestra "Próximamente disponible" con estilo rose unificado. Los tabs usan el patrón CardYA: fondo negro, tab activo en rose (`#fb7185`), badges de conteo en `bg-rose-500`.
 
-### Tab 1: Ofertas
+**Tab inicial al entrar:** Negocios (`useState<TabGuardado>('negocios')`). Si se quiere otro default, cambiar el estado inicial.
 
-**Contador:** Muestra número total `Ofertas (5)`
-
-**Contenido:**
-- Lista de ofertas guardadas
-- Ordenadas por fecha de guardado (más reciente primero)
-- Soporta ordenamiento: Recientes | Antiguos | A-Z | Z-A
-
-**Query backend:**
-```typescript
-GET /api/guardados?entityType=oferta&pagina=1&limite=50
-```
-
-**Acciones por tarjeta:**
-- Click en card → Abre `ModalOfertaDetalle` con detalles completos
-- Bookmark (🔖) → Activa modo selección múltiple
-- Eliminar seleccionados → `DELETE /api/guardados/oferta/{entityId}` por cada uno
-
----
-
-### Tab 2: Negocios
+### Tab 1: Negocios
 
 **Contador:** Muestra número total `Negocios (3)`
 
@@ -199,20 +180,80 @@ GET /api/seguidos?entityType=sucursal&pagina=1&limite=50&latitud={lat}&longitud=
 **Acciones por tarjeta:**
 - Ver Perfil → Navega al perfil del negocio
 - ChatYA → Abre conversación directa con el negocio
-- Bookmark (🔖) → Activa modo selección múltiple
+- Bookmark glass (🔖) → Activa modo selección múltiple
 - Eliminar seleccionados → `DELETE /api/votos/sucursal/{sucursalId}/follow` por cada uno, con `votanteSucursalId` o `__skipVotante` según corresponda
 
 ---
 
-### Tab 3: Servicios *(próximamente)*
+### Tab 2: Ofertas
+
+**Contador:** Muestra número total `Ofertas (5)`
+
+**Contenido:**
+- Lista de ofertas guardadas
+- Ordenadas por fecha de guardado (más reciente primero)
+- Soporta ordenamiento: Recientes | Antiguos | A-Z | Z-A
+- Móvil: grid 2 columnas con cards verticales tipo cupón (imagen 60% arriba + panel oscuro 40% abajo). `OfertaCard` recibe `orientacion='vertical' size='compact'` en mobile, mismo patrón que `SeccionOfertas` del perfil del negocio.
+- Desktop: grid 3 cols (lg) / 4 cols (2xl) con `OfertaCard` `size='normal' orientacion='auto'` (también vertical).
+
+**Query backend:**
+```typescript
+GET /api/guardados?entityType=oferta&pagina=1&limite=50
+```
+
+**Acciones por tarjeta:**
+- Click en card → Abre `ModalOfertaDetalle` con detalles completos
+- Bookmark glass (🔖) → Activa modo selección múltiple
+- Eliminar seleccionados → `DELETE /api/guardados/oferta/{entityId}` por cada uno
+
+---
+
+### Tab 3: Marketplace
+
+**Contador:** Muestra número total `Marketplace (2)`
+
+**Contenido:**
+- Lista de artículos del MarketPlace guardados (entityType `'articulo_marketplace'`)
+- Cards `CardArticulo` con `variant='compacta'` (omite la señal "X personas lo guardaron" — info de feed público, ruido en colección personal) y `altoFijo="h-[280px] lg:h-[340px] 2xl:h-[340px]"` para coincidir exactamente en altura con `OfertaCard` del tab Ofertas.
+- Panel inferior queda con: precio + título + tiempo.
+
+**Query backend:**
+```typescript
+GET /api/guardados?entityType=articulo_marketplace&pagina=1&limite=50
+```
+
+**Acciones por tarjeta:**
+- Click en card → Navega a `/marketplace/articulo/{id}` (detalle completo)
+- Bookmark glass (🔖) → Activa modo selección múltiple
+- Eliminar seleccionados → `DELETE /api/guardados/articulo_marketplace/{entityId}` por cada uno
+
+---
+
+### Tab 4: Servicios *(próximamente)*
 
 Estado visual "Próximamente disponible". Sin funcionalidad activa. Cubrirá los guardados de la sección pública Servicios (servicios e intangibles, incluye empleos). El `entityType` del endpoint es `'servicio'` (alineado con el CHECK constraint de BD).
 
 ---
 
-### Tab 4: Artículos *(próximamente)*
+## 🎨 Patrón visual unificado de cards
 
-Estado visual "Próximamente disponible". Sin funcionalidad activa.
+Las 3 colecciones (Negocios, Ofertas, Marketplace) comparten lenguaje visual a pesar de usar componentes distintos:
+
+### Geometría
+- **Ofertas (`OfertaCard`)** y **Marketplace (`CardArticulo` con `altoFijo`)** comparten exactamente la misma altura por breakpoint: 280px en móvil, 340px en lg/2xl. La proporción es 60% imagen / 40% panel.
+- **Negocios (`CardNegocioDetallado`)** usa diseño full-bleed (foto cubre la card, contenido sobre overlay glass).
+
+### Bookmark / Selección múltiple
+- Sub-componente local `BookmarkGlass` en `PaginaGuardados.tsx` encapsula el patrón usado en Ofertas y Marketplace.
+- Estilo idéntico al de `CardNegocioDetallado` (Negocios): `bg-black/25 backdrop-blur-[10px] border border-white/10`, tamaño `w-[38px] h-[38px]`, SVG corazón rojo `#ef4444` con borde blanco.
+- En estado seleccionado: `bg-red-500 border-2 border-red-500` con check blanco `strokeWidth={3}`.
+- Posición en Ofertas/Marketplace: `top-2 left-2`. En Negocios: `top-1.5 right-1.5` (no unificada por decisión de UX del card de Negocios).
+
+### Comportamiento compartido
+- Primer click en bookmark → `setModoSeleccion(true)` + selección del item.
+- Resto de clicks → toggle de selección.
+- Barra flotante inferior `1 / Todos / Limpiar / Eliminar` aparece cuando `idsSeleccionados.size > 0`.
+- `eliminarSeleccionados` despacha el `DELETE` correcto según el tab activo (ofertas / negocios / marketplace).
 
 ---
 
@@ -567,8 +608,9 @@ pages/private/guardados/
 - Tipo `NegocioSeguido` incluye `usuarioId` del negocio (necesario para abrir ChatYA)
 - Fetch de negocios usa `/seguidos` con coordenadas GPS y sin `incluirTodosModos` — el interceptor agrega `votanteSucursalId` automáticamente
 - DELETE envía el `votanteSucursalId` almacenado en el registro original (no el del modo activo)
-- Ambos fetches (negocios y ofertas) se ejecutan en paralelo al montar el componente
+- 3 fetches (negocios, ofertas, marketplace) se ejecutan en paralelo al montar el componente vía hooks de React Query
 - MobileHeader oculto — usa header propio con ChevronLeft + Menu
+- Sub-componente local `BookmarkGlass` para el botón flotante de selección — compartido entre `ContenidoOfertas` y `ContenidoMarketplace`. Replica el estilo de `CardNegocioDetallado` (glass + SVG corazón rojo con borde blanco) para unificar los 3 tabs.
 
 #### Componentes Reutilizados
 
@@ -577,13 +619,29 @@ components/negocios/
 ├── CardNegocioDetallado.tsx           (Card de negocio guardado)
 ├── ModalOfertaDetalle.tsx             (Modal detalle oferta)
 └── OfertaCard.tsx                     (Card de oferta guardada)
+
+components/marketplace/
+└── CardArticulo.tsx                   (Card de artículo guardado del Marketplace)
 ```
 
 **`CardNegocioDetallado.tsx`:**
-- Diseño glassmorphism
+- Diseño glassmorphism (foto full-bleed + overlay glass)
 - Muestra imagen, nombre, categoría, badge abierto/cerrado, distancia, rating
 - Botón ChatYA funcional — requiere `usuarioId` del negocio para iniciar conversación
 - El card completo no es clickeable, solo actúan los botones explícitos
+- Bookmark glass propio integrado (`top-1.5 right-1.5`)
+
+**`OfertaCard.tsx`:**
+- En `Mis Guardados` se renderiza con `size={esMobile ? 'compact' : 'normal'}` y `orientacion={esMobile ? 'vertical' : 'auto'}`.
+- En móvil queda con `h-[280px]` (compact vertical); en lg/2xl `h-[340px]` (normal vertical).
+- El bookmark va sobrepuesto desde `PaginaGuardados` mediante `BookmarkGlass` (no es interno del componente).
+
+**`CardArticulo.tsx`:**
+- Acepta 3 props opcionales relevantes a Mis Guardados:
+    - `variant='compacta'` → omite la señal de actividad ("X personas lo guardaron"). Panel queda con precio + título + tiempo.
+    - `altoFijo?: string` → abandona el `aspect-*` de la imagen y reparte 60% imagen / 40% panel. Permite que la card coincida en altura con `OfertaCard` (`h-[280px] lg:h-[340px] 2xl:h-[340px]`).
+    - `ocultarBotonGuardar?: boolean` → suprime el corazón interno de la card cuando la vista padre (Mis Guardados) sobrepone su propio control de selección (`BookmarkGlass`).
+- Cuando no se pasan estas props, el componente se comporta como en el feed público de Marketplace.
 
 #### Hooks relacionados
 
@@ -750,6 +808,9 @@ En background, por cada item:
   SI es OFERTA:
     DELETE /api/guardados/oferta/{entityId}
 
+  SI es ARTÍCULO DE MARKETPLACE:
+    DELETE /api/guardados/articulo_marketplace/{entityId}
+
   SI es NEGOCIO seguido en modo COMERCIAL:
     DELETE /api/votos/sucursal/{sucursalId}/follow?votanteSucursalId={uuid}
 
@@ -816,7 +877,7 @@ Lista se reordena instantáneamente
 
 ---
 
-**Última actualización:** 7 Abril 2026
+**Última actualización:** 13 Mayo 2026
 **Autor:** Equipo AnunciaYA
 
-**Próximo hito:** Expansión de tabs a las secciones públicas pendientes (Servicios, Artículos del MarketPlace).
+**Próximo hito:** Habilitar el tab Servicios cuando la sección pública Servicios esté funcional.

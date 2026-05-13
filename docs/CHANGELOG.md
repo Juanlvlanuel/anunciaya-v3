@@ -7,6 +7,59 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [13 Mayo 2026] - Mis Guardados: Marketplace funcional + unificación visual de cards 🎨
+
+Iteración completa sobre `Mis Guardados` enfocada en consistencia visual y funcional entre los tres tipos de contenido (Negocios, Ofertas, Marketplace).
+
+### Tab Marketplace ahora es funcional
+
+Antes mostraba "Próximamente disponible". Ahora:
+- Lista los artículos del MarketPlace que el usuario guardó con el corazón.
+- Soporta modo selección múltiple + eliminación batch (`DELETE /api/guardados/articulo_marketplace/:entityId`).
+- Aparece en `seleccionarTodos`, `totalGuardados` y `loading` igual que Ofertas y Negocios.
+
+### Cards de Ofertas en formato vertical (móvil)
+
+Antes el grid mostraba 1 columna con cards horizontales (imagen izquierda + panel derecho). Ahora el grid es 2 columnas con cards verticales tipo cupón (imagen 60% arriba + panel oscuro 40% abajo) — mismo patrón que `SeccionOfertas` del perfil del negocio.
+
+Implementación en `ContenidoOfertas`: `OfertaCard` recibe `orientacion={esMobile ? 'vertical' : 'auto'}` + `size={esMobile ? 'compact' : 'normal'}`.
+
+Fix asociado: `overflow-x-hidden` al contenedor de contenido para contener las animaciones del badge (`animate-float` rota 5° + ripple `scale(2)`) que sobresalen del card y generaban scroll horizontal del viewport.
+
+### Cards de Marketplace alineadas en tamaño con Ofertas
+
+Antes la card de MP era `aspect-square` natural — quedaba visiblemente más alta que la de Ofertas en el mismo grid. Ahora coinciden exactamente en altura: 280px en mobile, 340px en lg/2xl.
+
+Nuevo prop en `CardArticulo`: `altoFijo?: string`. Cuando se pasa, el componente abandona el `aspect-*` de la imagen y reparte 60% imagen / 40% panel — coincide con la geometría de `OfertaCard`.
+
+### Contenido reducido en cards MP de Mis Guardados
+
+El tab Marketplace pasa `variant="compacta"` para que el panel quede con: precio + título + tiempo. Omite la señal de actividad ("X personas lo guardaron") — esa info es ruido en una colección personal.
+
+### Bookmark unificado con estilo glass en los 3 tabs
+
+Antes el corazón tenía dos estilos distintos:
+- Negocios (`CardNegocioDetallado`): glass — `bg-black/25 backdrop-blur` + SVG corazón rojo con borde blanco.
+- Ofertas y Marketplace: blanco sólido — `bg-white/90 border-2 border-white` + `<Heart>` de Lucide.
+
+Ahora los 3 tabs comparten el lenguaje glass de Negocios. Nuevo sub-componente local `BookmarkGlass` en `PaginaGuardados.tsx` encapsula el botón. `CardArticulo` recibe `ocultarBotonGuardar?: boolean` para suprimir su corazón interno cuando la vista padre sobrepone su propio control de selección.
+
+### Tab inicial: Negocios (antes Ofertas)
+
+`useState<TabGuardado>('negocios')` al primer load.
+
+### Tokens corregidos en CardArticulo
+
+Auditoría contra `TOKENS_GLOBALES.md`:
+- `transition-shadow hover:shadow-lg` eliminado (TG-7: cards sin hover de sombra).
+- `text-[10px]` en badge "RECIÉN" → `text-sm lg:text-xs 2xl:text-sm` (TG-1: mínimo móvil text-sm).
+- `transition-colors` del botón guardar eliminado (TG-10: hovers instantáneos).
+- `text-xs text-slate-500` → `text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600` en distancia/tiempo/actividad (TG-1, TG-2, TG-3, TG-4).
+- Iconos de señal de actividad `h-3 w-3` → `h-3.5 w-3.5` (TG-13: iconos pequeños 14-16px).
+- Placeholder de imagen `bg-slate-100` → `bg-slate-200` (TG-2: mínimo bg-slate-200).
+
+---
+
 ## [09 Mayo 2026 — madrugada] - Limpieza: pendientes resueltos (sucursalId en ofertas + retiro total de `vendedor_marketplace`) 🧽
 
 Los dos pendientes que quedaron del commit anterior:
