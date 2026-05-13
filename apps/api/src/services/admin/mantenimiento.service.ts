@@ -138,6 +138,76 @@ async function registrarEnLog(datos: {
 // =============================================================================
 
 /**
+ * Verifica si una URL R2 sigue siendo referenciada por ALGUNA fila de
+ * ALGUNA tabla del `IMAGE_REGISTRY` en la BD principal. Hace queries
+ * indexed-friendly (uno por tabla/columna) con LIMIT 1 — corto-circuita
+ * al primer match para ser O(1) en el caso común.
+ *
+ * Usado por el endpoint `DELETE /api/r2/imagen` como defensa en
+ * profundidad antes de borrar. Si por bug del frontend (o futuro código)
+ * se llama con una URL en uso, este check evita romper el artículo /
+ * negocio / perfil que la sigue referenciando.
+ *
+ * NOTA: a diferencia de `listarUrlsEnUso`, este helper consulta SOLO la BD
+ * principal — no multi-ambiente. Para un check puntual durante un DELETE
+ * inmediato eso es suficiente; el reconcile periódico cubre cross-BD.
+ *
+ * @param url - URL R2 completa a verificar
+ * @returns true si la URL aparece en al menos una fila de IMAGE_REGISTRY
+ */
+export async function urlEstaEnUso(url: string): Promise<boolean> {
+    for (const campo of IMAGE_REGISTRY) {
+        try {
+            let resultado;
+            if (campo.tipo === 'url') {
+                resultado = await db.execute(sql`
+                    SELECT 1
+                    FROM ${sql.identifier(campo.tabla)}
+                    WHERE ${sql.identifier(campo.columna)} = ${url}
+                    LIMIT 1
+                `);
+            } else if (campo.tipo === 'array') {
+                resultado = await db.execute(sql`
+                    SELECT 1
+                    FROM ${sql.identifier(campo.tabla)}
+                    WHERE ${url} = ANY(${sql.identifier(campo.columna)})
+                    LIMIT 1
+                `);
+            } else if (campo.tipo === 'text-scan-urls') {
+                // `LIKE` con la URL completa entre wildcards cubre tanto:
+                //   - JSONB array de URLs (articulos_marketplace.fotos)
+                //   - Texto plano con URLs embebidas (chat_mensajes.contenido)
+                //   - JSON con la URL en cualquier campo
+                // Patrón seguro: la URL incluye dominio R2 + path único, no
+                // hay falsos positivos por substring.
+                const patron = `%${url}%`;
+                resultado = await db.execute(sql`
+                    SELECT 1
+                    FROM ${sql.identifier(campo.tabla)}
+                    WHERE ${sql.identifier(campo.columna)}::text LIKE ${patron}
+                    LIMIT 1
+                `);
+            } else {
+                continue;
+            }
+            if (resultado.rows.length > 0) {
+                return true;
+            }
+        } catch (err) {
+            console.error(
+                `[urlEstaEnUso] Error consultando ${campo.tabla}.${campo.columna}:`,
+                err
+            );
+            // Ante error de query, ser conservadores: asumir que SÍ está en
+            // uso para no borrar por accidente. El usuario / reconcile
+            // global decidirán después.
+            return true;
+        }
+    }
+    return false;
+}
+
+/**
  * Recorre el IMAGE_REGISTRY consultando cada tabla/columna en TODAS las
  * conexiones de BD disponibles (local + producción cuando aplique) y arma el
  * set UNION de URLs referenciadas por cualquier registro de cualquier ambiente.

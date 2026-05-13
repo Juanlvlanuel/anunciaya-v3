@@ -1,6 +1,6 @@
 # Pendientes en MarketPlace
 
-**Última actualización:** 2026-05-11 (audit tras: limpieza vendedor_marketplace + filtros sucursal persona↔negocio + preview contexto chat + fix duplicación sucursalNombre + fix oferta.sucursalId propagado + KPI MarketPlace en Mis Guardados + filtro de estado en Mis Guardados)
+**Última actualización:** 2026-05-12 (rediseño visual P4 Wizard alineado a P1/P2/P3 + subida múltiple de fotos paralelas + selección manual de portada + cleanup R2 con reference-count contra `IMAGE_REGISTRY` + auto-save en localStorage cross-sesión)
 
 Documento maestro de pendientes del módulo MarketPlace. Lista lo que falta implementar, ordenado por prioridad de impacto. Items cerrados se conservan al final como historial.
 
@@ -80,7 +80,7 @@ Pantallas y resoluciones por revisar:
 
 - ✅ P2 Detalle del Artículo — móvil + laptop + desktop (cerrado 11-may-2026, ver C.1)
 - ✅ P3 Perfil del Usuario — móvil + laptop + desktop (cerrado 11-may-2026; refactor a perfil neutral, KPIs visibles solo si es vendedor, botón "Agregar a contactos", tabs Publicaciones/Vendidos)
-- ⏳ P4 Wizard Publicar — móvil 375 + laptop 1366 + desktop 1920
+- ✅ P4 Wizard Publicar — móvil 375 + laptop 1366 + desktop 1920 (cerrado 12-may-2026; rediseño alineado a P1/P2/P3 con header dark + glow teal, grid `3fr_2fr` desktop, cards bordeadas por bloque, vista previa en vivo con `<CardArticuloFeed>` real, tips contextuales por paso, subida múltiple paralela hasta 8 fotos, selección manual de portada con icono `Star`, auto-save en `localStorage` cross-sesión, cleanup R2 con reference-count contra `IMAGE_REGISTRY`)
 - ⏳ P5 Buscador y resultados — móvil 375 + laptop 1366 + desktop 1920
 - ✅ P6 Página Pública compartible — móvil + laptop + desktop (cerrado en sesión cross-cutting del 09-may-2026, ver C.1 y `docs/arquitectura/Paginas_Publicas.md`)
 
@@ -129,6 +129,6 @@ Por orden de impacto:
 
 1. **C.2 — Mis Publicaciones (Prioridad ALTA)** — desbloquea E2E del vendedor y permite probar el filtro de Mis Guardados con flujo real.
 2. **A — E2E del comprador** — los flujos están listos, solo falta validación manual o tests automatizados.
-3. **C.4 — Fase C visual restante** — P3 Perfil, P4 Wizard Publicar, P5 Buscador (P2 y P6 ya cerrados).
+3. **C.4 — Fase C visual restante** — solo P5 Buscador queda pendiente (P2, P3, P4 y P6 ya cerrados).
 4. **B.3 — Stories de actividad** — feature de descubrimiento (requiere diseño + backend).
 5. **E.1 — OverlayBuscadorOfertas** — sprint independiente.

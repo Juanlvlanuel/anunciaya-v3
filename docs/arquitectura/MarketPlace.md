@@ -1,435 +1,11 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 08 Mayo 2026
-> **Estado:** ✅ v1 + v1.1 + v1.2 + v1.3 + **v1.4 (UX polish P2/P3 + contexto ChatYA)** completados y desplegados en producción.
-> **Versión:** 1.4.0
+> **Última actualización:** 13 Mayo 2026
+> **Estado:** ✅ En producción.
+> **Versión:** 1.5.1
 > **Pendientes opcionales:**
->  - Sistema de Niveles del Vendedor (separado de v1.2)
->  - Fase 3: stories de contactos arriba del feed
->  - Fase 4: sistema de contactos ChatYA desde perfil del vendedor
-
-## 🆕 v1.4 — UX polish P2/P3 + contexto ChatYA (08 May 2026)
-
-Iteración de pulido sobre el detalle del artículo (P2) y el perfil del vendedor (P3), más una funcionalidad nueva importante: cuando un comprador inicia una conversación de ChatYA desde MarketPlace, el chat ya nace con **contexto claro** (card del artículo embebida o aviso "X te contactó desde tu perfil") en lugar de quedar vacío.
-
-### Header del Detalle (P2) — limpieza
-
-- **Quitado** el menú "⋯" de 3 puntitos del header (sólo tenía un placeholder "Bloquear vendedor"). Header ahora es solo back + título + share + ❤️.
-- **Tooltips solo en desktop** (`<Tooltip className="hidden lg:block">`) en los botones de share y guardar — patrón consistente con P3 y los tokens de tooltip responsivo (TC-16).
-- Ícono **share** en variante `'dark'` (`DropdownCompartir`) ahora hereda el color del padre (`text-white/50` igual que el ❤️). Antes tenía `text-slate-700` hardcodeado y se veía más oscuro que los demás botones del header.
-
-### Botón ← regresar (P2 y P3) con fallback explícito
-
-`PaginaArticuloMarketplace` y `PaginaPerfilVendedor` ahora detectan si hay historial interno con `location.key !== 'default'`:
-- Hay historial → `navigate(-1)` (idéntico a la flecha nativa Android / gesto swipe iOS).
-- Entrada directa (URL compartida, recarga, link OG) → fallback a `/marketplace`.
-
-Beneficio: si entras al perfil desde el detalle del artículo desde el feed, la flecha respeta esa jerarquía. Si abres un link compartido del perfil, no te saca fuera del sitio. Patrón documentado en `LECCIONES_TECNICAS.md` ("Patrón navegar atrás con fallback explícito").
-
-### Layout del Detalle (móvil)
-
-- **Bloque info** (eyebrow MarketPlace · Ciudad / título / precio / chips / "hace Xd · vistas") ahora envuelto en card propio — antes flotaba sin contenedor entre la galería y la descripción.
-- **Galería pegada al header** en móvil: el wrapper del contenido pasó de `py-5 lg:py-8` a `pb-5 lg:py-8` (sin padding-top en móvil) para eliminar la franja de fondo azul entre el header negro y la primera foto.
-
-### Auditoría de tokens (16 violaciones corregidas)
-
-Pasada de tokens globales sobre el detalle, card del vendedor y mapa de ubicación. Resumen ejecutivo:
-
-| Archivo | Tipo de violación | Cantidad |
-|---------|-------------------|----------|
-| `PaginaArticuloMarketplace.tsx` | Tamaño mínimo móvil (`text-xs` → `text-sm`) | 6 |
-| `PaginaArticuloMarketplace.tsx` | Peso explícito (`font-medium` mínimo) | 2 |
-| `PaginaArticuloMarketplace.tsx` | Tono / borde (`bg-slate-100` → `bg-slate-200`, `border-slate-200` → `border-slate-300`) | 1 |
-| `CardVendedor.tsx` | Tamaño + padding del patrón TC-6 | 3 |
-| `MapaUbicacion.tsx` | Tonos del borde/fondo + texto privacidad | 4 |
-
-Chips ahora siguen el patrón TC-6 ("Badges informativos en contenido"): `inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-sm font-semibold`.
-
-### Mensaje contextual de ChatYA al iniciar conversación
-
-**Funcionalidad nueva.** Cuando el comprador hace click en el botón "ChatYA" desde el detalle del artículo o desde el perfil del vendedor, el chat NO empieza vacío — siembra contexto inmediato:
-
-| Origen | Botón | Mensaje sistema visible para ambos |
-|--------|-------|------------------------------------|
-| Detalle del artículo (P2) | `BarraContacto` → ChatYA | Card embebida (foto + título + precio + chip "Ver →") clickeable → navega al detalle |
-| Perfil del vendedor (P3) | `PaginaPerfilVendedor` → ChatYA | Pill centrado: "Juan inició la conversación desde tu perfil" |
-
-Además:
-- **Mensaje optimista al abrir el chat** — la card aparece en la ventana del chat ANTES de que el usuario envíe nada (no hay que esperar a materializar la conversación).
-- **Borrador inicial pre-cargado** — el input arranca con `Hola, me interesa tu publicación de "[título]". ` que el usuario puede editar o enviar tal cual.
-- **No incrementa el contador de no leídos** — el mensaje sistema solo actualiza el preview de la conversación; el badge de "X mensajes nuevos" del vendedor solo cuenta mensajes humanos.
-
-Implementación detallada en `docs/arquitectura/ChatYA.md` §4.6 + §4.13.1 + §4.23.
-
-**Sin migración SQL** — la columna `chat_conversaciones.articulo_marketplace_id` y el `tipo='sistema'` ya estaban en la BD desde el Sprint 1.
-
-### Click en card de ChatYA → detalle del artículo (sin flash visual)
-
-Cuando el comprador o el vendedor hace click en la card del artículo dentro del chat:
-1. Se navega al detalle del artículo (`/marketplace/articulo/:id`).
-2. Se cierra el ChatOverlay sin que se vea un flash de la ruta donde estaba abierto el chat.
-
-Patrón con `flushSync(navigate) + setTimeout(200ms, cerrarChatYA)` + flag `navegandoExternoRef` para que los `useEffect` de history del overlay no hagan `history.back()` durante la navegación externa. Documentado en `LECCIONES_TECNICAS.md` ("Navegación desde un overlay sin flash visual").
-
-### Otros cambios menores
-
-- **FAB "Publicar" móvil** — ahora muestra el label "Publicar" debajo del círculo `+` (antes era `hidden lg:inline`). En móvil va dentro de un chip blanco translúcido con `backdrop-blur` y `shadow-md` para legibilidad sobre fotos del feed.
-- **Modal de imágenes** — badge "X/Y" unificado al estilo del carousel del detalle (`rounded-full bg-black/60 px-3 py-1 text-sm font-semibold backdrop-blur-sm`). Subido de `text-xs` → `text-sm` (cumple tokens). Botón verde de descargar pasó de `green-500` (brillante) a `emerald-600` (color semántico de "éxito" según tokens).
-- **Toggle Mapa/Lista (Negocios)** — z-index bajado de `z-50` a `z-40` para quedar debajo del ChatOverlay (`z-41`). Antes el toggle se veía por encima del chat al abrirlo. Actualizada la jerarquía en `TOKENS_GLOBALES.md` §11.
-
----
-
-## 🆕 v1.3 — Q&A público + polish del feed (07 May 2026)
-
-Iteración de pulido sobre el feed v1.2: se hicieron públicas las preguntas
-pendientes (no solo las respondidas), se permite editar/borrar la pregunta
-propia mientras siga sin respuesta, se levantó el límite de 1 pregunta por
-usuario por artículo, y se cerró un set de bugs de persistencia + polish
-visual completo de la card.
-
-### Q&A público + edición
-
-**Backend:**
-- Migración `2026-05-07-marketplace-preguntas-sin-limite.sql` — drop del
-  constraint `preguntas_unique_comprador`. Un comprador puede hacer
-  múltiples preguntas en el mismo artículo.
-- Migración `2026-05-07-marketplace-preguntas-editada-at.sql` — nueva
-  columna `editada_at TIMESTAMPTZ` en `marketplace_preguntas`. NULL si
-  nunca se editó.
-- Service `editarPreguntaPropia(preguntaId, compradorId, nuevoTexto)`:
-  valida ownership + estado pendiente (`respondida_at IS NULL`) +
-  moderación. UPDATE setea `editada_at = NOW()`. Después de respondida,
-  la pregunta es inmutable (preserva contexto del Q&A público).
-- Endpoint nuevo: `PUT /api/marketplace/preguntas/:id/mia` con schema
-  Zod `editarPreguntaSchema` (idéntico a crear: 10-200 chars).
-- Feed query (`GET /feed/infinito`) ahora trae **todas** las preguntas
-  inline (respondidas + pendientes), ordenadas con respondidas primero
-  → pendientes por `created_at DESC`. Sin LIMIT (antes era top 2).
-- Tipo `RawTopPregunta`: `respuesta` y `respondida_at` ahora nullable.
-  Nuevos campos `editada_at` y `created_at`.
-
-**Frontend:**
-- Tipo `PreguntaInlineFeed` con `respuesta: string | null`,
-  `respondidaAt: string | null`, `editadaAt: string | null`, `createdAt`.
-- Hook nuevo `useEditarPreguntaPropia` en `useMarketplace.ts` con
-  invalidación del feed v1.2.
-- `useEliminarPreguntaMia` también invalida el feed v1.2.
-- En `CardArticuloFeed`:
-  - Pendientes se renderizan con marca `Pendiente de respuesta` en italic
-    slate-500 (sin bubble del vendedor).
-  - Marca `(editada)` en italic gris junto al nombre cuando `editadaAt != null`.
-  - Para mi propia pregunta pendiente, botones inline `Editar · Borrar`.
-  - Modo edición: textarea inline con borde teal en focus, botones
-    `Guardar` / `Cancelar`, contador de caracteres, error inline.
-  - Optimistic UI: edición y eliminación se aplican localmente antes
-    del refetch; `edicionesOptimistas` y `eliminadasOptimistas` mergean
-    con el feed.
-  - La card "Pregunta enviada" se eliminó — la confirmación es ver tu
-    propia pregunta pendiente inline. El toast "Pregunta enviada al
-    vendedor" se mantiene.
-  - **Top N + "Ver más" (patrón Facebook)**: en preview se muestran solo
-    las primeras 2 respondidas + 2 pendientes (max 4 visibles). Si hay
-    más, aparece botón `Ver N preguntas más` que expande inline (no
-    navega al detalle). Cuando está expandido aparece `Ver menos` para
-    colapsar de vuelta. Al enviar una pregunta nueva, la lista se
-    auto-expande para que el usuario vea su propia pregunta sin clicks
-    extra.
-
-### Conexión usuario↔usuario vía comentarios
-
-El nombre de cualquier comentarista (comprador o vendedor) en el bubble
-de Q&A es ahora un acceso directo al perfil del usuario y a un chat
-con él.
-
-**Componente nuevo `BotonComentarista`**
-(`apps/web/src/components/marketplace/BotonComentarista.tsx`):
-- **Click (todas las plataformas)** → navega a
-  `/marketplace/usuario/:usuarioId` (P3 — Perfil de Usuario, ver §8).
-  La P3 detecta automáticamente si la persona es vendedor o solo
-  comentarista y adapta el UI (KPIs/tabs/grid solo si vendedor).
-- **Hover (solo desktop, `lg:`)** → mini-card flotante con `createPortal`
-  al body, ancho 240px, anclada **debajo del nombre** (`top: rect.bottom + 8`),
-  alineada al inicio del nombre (`left: rect.left`) con clamp para no
-  salirse de la pantalla. Contiene avatar grande (foto o gradient azul
-  T2 con iniciales) + nombre completo + 2 acciones:
-  - `💬 Enviar mensaje` → `useChatYAStore.abrirChatTemporal(...)` con
-    `participante2Modo: 'personal'` y `contextoTipo: 'directo'` (sin
-    card de contexto — el chat se abre limpio). Auth gate: si no hay
-    sesión, toast advertencia. Si es uno mismo, toast info.
-  - `👤 Ver perfil` → cierra popup y navega.
-- Delay de 200ms en `mouseleave` para dar tiempo de mover el mouse hacia
-  los botones del popup sin que se cierre. `mouseenter` en el popup
-  cancela el cierre.
-- En móvil el popup NO se renderiza (`hidden lg:block`) — el tap directo
-  va al perfil que ya tiene su botón ChatYA.
-- Prop `displayName` opcional: muestra otro texto en el botón pero
-  mantiene el `nombre` completo en el popup (ej. "Juan respondió" usa
-  `displayName="Juan"` pero el popup muestra "Juan Manuel Valenzuela
-  Jabalera").
-- Prop `editado` opcional: agrega marca `(editada)` al lado del nombre.
-
-**Cambios en CardArticuloFeed:**
-- El bubble del vendedor ahora tiene su propio **avatar** (h-7 w-7) al
-  lado izquierdo, igual que el comprador. Sin avatar usa gradient teal
-  con iniciales (para diferenciarse del azul del comprador).
-- Se eliminó la palabra **"respondió"** del bubble del vendedor — el
-  color teal-100 del bubble + el avatar del vendedor ya comunican
-  visualmente que es la respuesta.
-- El nombre del comprador y del vendedor son ambos `BotonComentarista`.
-
-**Backend:**
-- El feed query ahora incluye `comprador.apellidos` en el JSON aggregate
-  de `top_preguntas` (necesario para `abrirChatTemporal` que requiere el
-  nombre completo). No se necesita migración — la columna `apellidos`
-  ya existe en `usuarios`.
-
-### Modal de detalle estilo Facebook
-
-Al hacer click en "Ver N preguntas más" en una card del feed, en lugar
-de expandir inline, se abre un **modal overlay** que muestra la misma
-card del feed centrada sobre el contenido — patrón Facebook clásico.
-
-**Componente nuevo `ModalArticuloDetalle`**
-(`apps/web/src/components/marketplace/ModalArticuloDetalle.tsx`):
-- Backdrop oscuro con `backdrop-blur-sm`. Click en backdrop cierra.
-- Card centrada `max-w-[620px]` con altura `calc(100vh - 3rem)` y cap
-  `lg:max-h-[900px]`.
-- X flotante en la esquina superior derecha del viewport, *fuera* del
-  card (estilo Facebook) — `fixed top-3 right-3`.
-- **Native back support**: `history.pushState({modalArticulo: id})` al
-  abrir; listener de `popstate` cierra. El cleanup hace `history.back()`
-  si el state aún tiene el modal pusheado, así un back posterior no
-  re-abre el modal. La referencia a `onClose` se captura en un `useRef`
-  para que el `useEffect` no se re-ejecute si el padre re-renderiza.
-- Tecla **Escape** también cierra.
-- Lock del scroll del body mientras el modal esté abierto.
-
-**Prop nuevo `modoModal` en `CardArticuloFeed`**:
-La misma card se reusa adentro del modal (sin duplicar lógica) pero con
-otra disposición. Cuando `modoModal=true`:
-- Article se vuelve `flex h-full flex-col` para llenar la altura del
-  modal.
-- Header / cuerpo / galería / footer son `shrink-0`.
-- La **lista de preguntas** se vuelve `flex-1 min-h-0 overflow-y-auto` —
-  única zona con scroll interno.
-- El **input** "Hacer una pregunta" + aviso comercial bloqueado se
-  separan en su propio container `shrink-0 border-t bg-white` que queda
-  fijo al fondo.
-- Imagen más compacta: `h-56 lg:h-64` fijo (en lugar de `aspect-[4/3]`)
-  para no robarle espacio a los mensajes.
-- **Descripción oculta** (el usuario abrió el modal para ver mensajes,
-  no descripción). Si la quiere completa, navega a P2.
-- **Thumbnails laterales desktop ocultos** (mismo motivo).
-- **Header / cuerpo / footer** con `py-2` en lugar de `py-3` para más
-  densidad.
-- **Preguntas pre-expandidas**: `useState(modoModal)` arranca en `true`
-  porque el usuario ya hizo click en "Ver más" para llegar al modal —
-  no tiene sentido pedirle otra vez.
-- Los botones "Ver N preguntas más" y "Ver menos" se ocultan en modal
-  (redundantes con la vista expandida).
-
-**Integración en `PaginaMarketplace`:**
-- Estado: `articuloModal: ArticuloFeedInfinito | null`. Guardamos el
-  artículo completo (no solo el id) para reusarlo dentro del modal sin
-  refetch.
-- Pasa `onAbrirDetalle={() => setArticuloModal(articulo)}` a cada
-  `CardArticuloFeed` del feed.
-- Renderiza `<ModalArticuloDetalle articulo={articuloModal} onClose={...}/>`
-  al final del árbol.
-
-**Galería con swipe moderno (translateX)**:
-Mejora aplicada al `CardArticuloFeed` — beneficia tanto al feed como
-al modal. Antes el swipe móvil era snap puro (sin transición visible
-durante el drag). Ahora se renderizan 3 imágenes en posición absoluta
-con translateX en vivo:
-- Anterior: `translateX(calc(-100% + offsetPx))` — asoma desde la
-  izquierda al swipear hacia la derecha.
-- Actual: `translateX(offsetPx)` — sigue al dedo.
-- Siguiente: `translateX(calc(100% + offsetPx))` — asoma desde la
-  derecha al swipear hacia la izquierda.
-
-Mientras el usuario arrastra `enTransicion=false` (sigue al dedo). Al
-soltar:
-- `|delta| < 60px` → snap back con animación 220ms ease-out.
-- `|delta| ≥ 60px` → anima hasta `±ancho` y luego cambia índice +
-  resetea offset (sin animación) para evitar el "salto".
-
-Loop infinito (al final → primera, al inicio → última).
-
-### `BotonComentarista` cambió de hover → click derecho
-
-El popup de "Ver perfil / Enviar mensaje" antes se abría con hover en
-desktop. Hover resultó molesto por aparecer al pasar el mouse. Cambió
-a **click derecho** (`onContextMenu` con `preventDefault`):
-- El popup se ancla a la posición del cursor (estilo context menu nativo).
-- Cierra al click fuera o tecla Escape.
-- z-index `[10010]` para aparecer encima del modal del detalle del
-  artículo (que vive en z-10000/10001).
-- Tooltip nativo en el botón: *"Click para ver perfil · Click derecho
-  para más opciones"* — para descubrir el atajo.
-
-### Persistencia del corazón (guardado tras refresh)
-
-**Bug 1 — `validEntityTypes` desactualizado en `guardados.controller`:**
-- Las 3 funciones (`agregar`, `quitar`, `obtener`) validaban contra
-  `['oferta', 'servicio']` y rechazaban `articulo_marketplace` con 400.
-  Resultado: el guardado del MP nunca se persistía en la BD aunque la
-  UI mostrara optimistic. Al refrescar, todo se perdía.
-- Fix: `['oferta', 'servicio', 'articulo_marketplace']` en las 3 listas
-  + casts `as` extendidos al nuevo tipo.
-
-**Bug 2 — Contador denormalizado sin actualizar:**
-- `agregarGuardado` / `quitarGuardado` solo escribían en la tabla
-  `guardados`, sin tocar `articulos_marketplace.total_guardados`. El
-  contador del feed quedaba congelado.
-- Fix: cuando `entityType === 'articulo_marketplace'`, el service hace
-  `UPDATE articulos_marketplace SET total_guardados = total_guardados +/- 1`
-  con `GREATEST(... - 1, 0)` para evitar negativos.
-- One-shot SQL para reconciliar artículos pre-existentes:
-  ```sql
-  UPDATE articulos_marketplace a
-  SET total_guardados = (
-    SELECT COUNT(*)::int FROM guardados g
-    WHERE g.entity_type = 'articulo_marketplace' AND g.entity_id = a.id
-  );
-  ```
-
-**Backend feed devuelve `guardado` por artículo:**
-- `obtenerFeedInfinito` ahora acepta `usuarioId?: string | null` y, si
-  está presente, agrega un `EXISTS(...)` por artículo que devuelve
-  `usuario_guardo` (mapeado a `guardado: boolean`). Sin sesión → false
-  siempre.
-- `getFeedInfinito` controller (con `verificarTokenOpcional`) extrae
-  `usuarioId` y lo pasa al service.
-- `useGuardados` ahora recibe `initialGuardado: articulo.guardado` para
-  que el corazón salga relleno en el primer render si el usuario ya lo
-  tenía guardado.
-
-### Card visual polish (auditoría completa de tokens)
-
-- **Layout móvil full-width** (cierra Fase 2 de v1.2): cards sin
-  `rounded-xl border shadow` en móvil, separación entre cards con
-  `space-y-2`. Desktop conserva `lg:rounded-xl lg:border-2 lg:border-slate-300 lg:shadow-sm`.
-- **Aspect responsive**: `aspect-[4/3]` móvil + `lg:aspect-[2/1]` desktop.
-- **Swipe móvil**: handlers `onTouchStart/Move/End` con umbral 50px.
-  Bloquea el `onClick` posterior si fue swipe (no abre detalle por
-  accidente).
-- **Heart con animación** (mismo patrón que `CardNegocio`):
-  keyframes `feedHeartBounce`, `feedHeartRingPulse`, `feedFloatUp`.
-  Pulse ring 1 sola pasada al click (no continuo). Popup flotante
-  `createPortal` con `Smile` "¡Gracias!" (verde) o `Frown` "¡Oh no!"
-  (rojo), anclado al borde derecho del botón con
-  `left: rect.right - 130` para no salirse de la pantalla.
-- **Heart count en tiempo real**: `guardadoInicialRef` captura el estado
-  inicial; `delta = current - inicial`; `totalGuardadosLocal =
-  articulo.totalGuardados + delta`. Threshold del corazón social bajado
-  a `>= 1` (antes 5).
-- **Footer reorganizado**: distancia · preguntas · vistas siempre
-  visibles a la izquierda. La señal social (viendo / vistas24h /
-  guardados) ya NO reemplaza a vistas, solo se agrega a la derecha
-  cuando aplica. El `guardados` se renderiza como corazón rojo lleno
-  + número, sin texto "X personas lo guardaron".
-- **Solo el título es link al detalle**: antes el bloque entero
-  precio + chips + título + descripción era un `<button>` gigante.
-  Ahora solo el `<h3>` interno tiene click → `lg:hover:underline`.
-  El precio y chips son info pasiva; la descripción solo expande.
-- **Token compliance**: descripción `font-medium text-base` (antes
-  sin peso explícito), border de cards `border-2 border-slate-300`
-  (antes `border slate-200`), rings y separadores subidos a -200/-300,
-  hovers con prefijo `lg:hover:` para evitar velo en móvil, animaciones
-  de chip removidas (`transition-all` → instantáneo). Iconos del
-  footer `h-3.5` → `h-4`. Bubble del comprador con avatar fallback
-  gradient azul T2 + `text-white shadow-md`.
-
-### Notificaciones (utils/notificaciones.tsx)
-
-Rediseño alineado a Token 13 (B2B profesional), fuera del scope de MP
-pero impacta directamente la UX de guardar:
-- Duración 4000ms → **2500ms**.
-- Animación entrada/salida 0.3s → 0.2s.
-- Iconos planos coloreados (sin círculo pastel + sombra). Línea con
-  Linear/Stripe.
-- Accent bar lateral izquierdo de 4px en color semántico.
-- Border `border-2 slate-200` → `border slate-300` (1px).
-- Botón X como pill circular `w-7 h-7 bg-slate-100 hover:bg-slate-200`.
-- Tipografía `text-base` → `text-sm font-semibold`.
-- Padding `px-4 py-3.5` → `px-3.5 py-3`.
-- Progress bar más sutil (opacidad 0.4, fondo 0.15 del color).
-- Sombra reducida (`0 4px 16px` en lugar de `0 8px 30px`).
-
-## 🆕 v1.2 — Rediseño feed estilo Facebook (06 May 2026)
-
-El feed del MarketPlace fue **rediseñado por completo** desde el patrón "carruseles
-+ grid Mercado Libre" hacia un patrón **feed social estilo Facebook**.
-
-### Lo que cambió
-
-**Backend nuevo:**
-- `GET /api/marketplace/feed/infinito` — endpoint con paginación offset-based
-  (10 items/página) que devuelve cada artículo enriquecido con datos del
-  vendedor (`{id, nombre, apellidos, avatarUrl}`) y top 2 preguntas respondidas
-  más recientes para evitar requests adicionales al renderizar la card.
-- Filtros del nuevo feed: `orden=recientes|vistos|cerca`, `precioMin`,
-  `precioMax`. La paginación devuelve `{articulos, pagina, limite, hayMas}`.
-
-**Frontend nuevo (4 componentes en `apps/web/src/components/marketplace/`):**
-- `CardArticuloFeed` — card grande estilo Facebook: header con avatar +
-  nombre + ciudad + tiempo, cuerpo con título + precio + descripción,
-  galería principal **16:9** con thumbnails laterales en desktop
-  (`w-24` con scroll vertical), comentarios inline (top 2 preguntas
-  respondidas) e **input funcional para hacer preguntas sin salir del feed**
-  (con auth gate, validación 5-200 chars, mutation con feedback inline).
-  Click avatar → ModalImagenes; click nombre → P3 perfil del vendedor.
-- `CardArticuloReel` — card compacta para el carrusel: aspect 4:5, foto
-  portada con overlays (avatar+nombre arriba, precio+título abajo), ancho
-  fijo `w-44 lg:w-52`.
-- `ReelMarketplace` — carrusel auto-scroll cada 4s, pausa en hover
-  (desktop) / touch (móvil), drag manual, loop infinito, **flechas de
-  navegación manual** que aparecen en hover sobre el reel (desktop).
-- `ChipsFiltrosFeed` — chips Recientes / Más vistos / Cerca de ti con
-  variantes `light` y `dark` para usarse sobre fondo claro u oscuro.
-
-**Hook nuevo:**
-- `useFeedInfinitoMarketplace` con `useInfiniteQuery` de TanStack Query.
-- Tipos: `ArticuloFeedInfinito`, `OrdenFeedInfinito`, `RespuestaFeedInfinito`,
-  `VendedorEnFeed`, `PreguntaInlineFeed` en `apps/web/src/types/marketplace.ts`.
-
-**Página principal `/marketplace`:**
-- Header dark de **una sola fila** integrada (logo + chips dark variant +
-  KPI dos líneas + botón Publicar gradient teal). Misma altura que los
-  headers de Negocios y Ofertas.
-- Reel auto-scroll arriba (visible solo cuando filtro = `recientes`).
-- Chips de filtro sticky en el header dark.
-- Feed infinito en **columna centrada `max-w-[920px]`** con cards
-  estilo Facebook apiladas.
-- **Scroll infinito automático** con `IntersectionObserver` (rootMargin
-  600px) — al acercarse al fondo dispara `fetchNextPage`.
-
-### Lo que se eliminó (código muerto post-v1.2)
-
-| Componente / función | Razón |
-|---|---|
-| Sección "Recién publicado" (carrusel) | Reemplazada por `ReelMarketplace` con cards compactas |
-| Sección "Lo más visto hoy" (trending) | Eliminada — el reel ya cubre la función de "lo nuevo destacado" |
-| Sección "Cerca de ti" (grid) | Reemplazada por feed infinito con orden `cerca` |
-| `useTrendingMarketplace` (hook) | Sin callers |
-| `obtenerTrending` + `getTrendingFeed` (backend) | Sin uso |
-| Ruta `GET /feed/trending` | Eliminada |
-| `queryKeys.marketplace.trending` | Sin uso |
-| `useDragScroll` (hook) — referencia local | Solo lo usaban los 3 carruseles eliminados |
-| `PaginaFeedPreview.tsx` (temporal) | Era checkpoint visual durante diseño |
-| Subcomponentes `SeccionRecientes`, `SeccionTrending`, `SeccionCercanos` | Reemplazados por feed infinito |
-
-### Lo que se conserva
-
-- `obtenerFeed` + `useMarketplaceFeed`: usados solo para calcular el contador
-  `totalArticulos` del KPI del header. Se puede eliminar en una iteración
-  futura agregando `total` a la respuesta de `obtenerFeedInfinito`.
-- `CardArticulo` (legacy): usado en `PaginaGuardados`, `PaginaResultadosMarketplace`,
-  `PaginaPublicarArticulo` (preview wizard) y `PaginaPerfilVendedor`. Solo
-  el feed principal migró a la card grande nueva.
-
-
+>  - Sistema de Niveles del Vendedor (ver §Niveles)
+>  - Stories de contactos arriba del feed
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - Hooks principales: `apps/web/src/hooks/queries/useMarketplace.ts`
@@ -445,7 +21,7 @@ El feed del MarketPlace fue **rediseñado por completo** desde el patrón "carru
 
 1. [¿Qué es MarketPlace?](#qué-es-marketplace)
 2. [Filosofía y Tono del Módulo](#filosofía-y-tono-del-módulo)
-3. [Alcance v1](#alcance-v1)
+3. [Alcance](#alcance)
 4. [Política de Visibilidad por Modo](#política-de-visibilidad-por-modo)
 5. [Estados del Artículo](#estados-del-artículo)
 6. [Moderación Autónoma](#moderación-autónoma)
@@ -462,7 +38,7 @@ El feed del MarketPlace fue **rediseñado por completo** desde el patrón "carru
 11. [Base de Datos — Tablas en Producción](#base-de-datos--tablas-en-producción)
 12. [Cron Jobs en Producción](#cron-jobs-en-producción)
 13. [Decisiones Rechazadas](#decisiones-rechazadas)
-14. [v1.2 Pendiente — Sistema de Niveles del Vendedor](#v12-pendiente--sistema-de-niveles-del-vendedor)
+14. [Sistema de Niveles del Vendedor (Pendiente)](#sistema-de-niveles-del-vendedor-pendiente)
 
 ---
 
@@ -559,7 +135,7 @@ Si la respuesta a cualquiera es "no", la decisión se rechaza.
 
 ---
 
-## 🎯 Alcance v1
+## 🎯 Alcance
 
 ### Funciones del Comprador
 
@@ -581,7 +157,7 @@ Si la respuesta a cualquiera es "no", la decisión se rechaza.
 - Ver métricas básicas por publicación: vistas, mensajes, guardados
 - Recibir notificaciones automáticas de próxima expiración (3 días antes) y expiración
 
-### Tabla resumen v1
+### Tabla resumen
 
 | Función | Comprador | Vendedor |
 |---------|-----------|----------|
@@ -722,7 +298,7 @@ Cuando el texto sugiere un servicio en lugar de un objeto físico, el wizard mue
 - "Editar mi publicación" → cierra modal, vuelve al paso correspondiente.
 - "Continuar de todos modos" → reenvía al backend con `confirmadoPorUsuario: true` y publica.
 
-> **Nota:** se omitió el botón "Llevar a Servicios" porque la sección `/servicios` aún no existe. Se agregará cuando se implemente.
+> **Nota:** el botón "Llevar a Servicios" se mantiene fuera del modal porque la sección `/servicios` aún no existe. Se agregará cuando se implemente.
 
 #### 1.4 — Detección de búsquedas (SUGERENCIA SUAVE)
 
@@ -751,7 +327,7 @@ Ambas notificaciones son **idempotentes** (verifica `WHERE referencia_id+tipo` a
 - ❌ **Bloqueo automático de usuarios reincidentes** — sin reportes, no hay forma justa de medir reincidencia.
 - ❌ **Panel admin de moderación** — sin tiempo para atenderlo, sería un backlog que crece sin parar.
 - ❌ **Aprobación manual antes de publicar** — no escala con un solo operador.
-- ❌ **Detección con IA / análisis de imágenes** — costo y complejidad desproporcionados al alcance v1.
+- ❌ **Detección con IA / análisis de imágenes** — costo y complejidad desproporcionados al alcance del módulo.
 
 ### Lo que pasa con publicaciones que se cuelan
 
@@ -795,11 +371,11 @@ Verde brand con gradiente: `bg-linear-to-br from-[#22C55E] to-[#15803D]`. NO usa
 
 ### ChatYA (CTA de contacto privado)
 
-Botón con **logo oficial de ChatYA** (`/ChatYA.webp`) sin texto. Fondo Dark Gradient de Marca (`bg-linear-to-br from-slate-800 to-slate-950`). Convive con WhatsApp en barra de contacto y perfil del vendedor:
+El CTA de ChatYA adopta dos variantes visuales según la pantalla:
 
-- En **P2 Detalle**: WhatsApp + ChatYA lado a lado (ambas variantes mobile/desktop).
-- En **P3 Perfil del vendedor**: solo ChatYA + Seguir vendedor (WhatsApp queda como pendiente para próximo sprint, ver Pendientes-Fase-C-Revision-Visual §6).
-- El click llama `useChatYAStore.abrirChatTemporal({...})` **+ `useUiStore.abrirChatYA()`** — ambas son obligatorias; si solo se llama `abrirChatTemporal` el panel de ChatYA no se abre y el botón parece roto.
+- En **P2 Detalle**: botón con **logo oficial de ChatYA** (`/ChatYA.webp`) sin texto sobre Dark Gradient de Marca (`bg-linear-to-br from-slate-800 to-slate-950`). Convive con WhatsApp lado a lado en la barra de contacto, mismas medidas en mobile/desktop.
+- En **P3 Perfil del usuario**: botón inline tipo "link grande con icono" — icono `MessageSquare h-5 w-5 text-blue-700` + texto `"ChatYA"`, sin fondo ni ring (`text-slate-900` sobre el card blanco del HeroCard), hover `bg-emerald-100`. Convive con WhatsApp (icono `MessageCircle text-emerald-700`) y con "Agregar contacto" (`UserPlus`/`UserCheck text-emerald-700`) en la misma fila de acciones del HeroCard.
+- En ambas variantes, el click llama `useChatYAStore.abrirChatTemporal({...})` **+ `useUiStore.abrirChatYA()`** — ambas son obligatorias; si solo se llama `abrirChatTemporal` el panel de ChatYA no se abre y el botón parece roto.
 
 ### Header de página
 
@@ -826,15 +402,15 @@ Imagen arriba + bloque blanco abajo. Distinto del glassmorphism inmersivo de Car
 - Color neutro slate + acento teal como único color de marca
 - Bordes `border-2 border-slate-300` en cards, sombras `shadow-md` sin hover de elevación
 
-### Decisiones visuales específicas tomadas durante implementación
+### Decisiones visuales específicas del módulo
 
 - **Perfil del vendedor sin portada decorativa** — un banner teal full-width o imagen genérica se ve como publicidad. Solo avatar grande centrado en bloque blanco.
-- **Sin badge "✓ Verificado"** — todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vendrá con el sistema de niveles (v1.2).
+- **Sin badge "✓ Verificado"** — todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vive en el sistema de niveles del vendedor (ver §Sistema de Niveles).
 - **Buscador físico**:
   - **Desktop:** input vive en el Navbar global (siempre visible). Al enfocar dispara `useSearchStore.abrirBuscador()` y se muestra el overlay.
   - **Móvil:** patrón inmersivo (sin Navbar global). El input vive **dentro del header del MarketPlace** y se expande al pulsar la lupa, igual que en Negocios. El input móvil escribe al mismo `useSearchStore.query` para que el overlay reuse toda su lógica (sugerencias, populares, recientes).
 - **Patrón inmersivo móvil** — `/marketplace`, `/marketplace/articulo/:id`, `/marketplace/publicar`, `/marketplace/vendedor/:id`, `/marketplace/buscar`, `/negocios/:id` y `/ofertas` ocultan el Navbar global (banda azul "AnunciaYA Tu Comunidad Local") en móvil. La lógica vive en `MainLayout.tsx → esPaginaConHeaderPropio`. En desktop el Navbar siempre se mantiene (mismo patrón que CardYA / Mis Guardados).
-- **Badge `RECIÉN`** en CardArticulo — antes decía `NUEVO` pero generaba confusión con la condición `nuevo` del artículo. Cambiado a `RECIÉN` el 2026-05-05. Indica publicación con `<24h` desde `created_at`.
+- **Badge `RECIÉN`** en CardArticulo — indica publicación con `<24h` desde `created_at`. Se usa la palabra "RECIÉN" en lugar de "NUEVO" para evitar confusión con la condición `nuevo` del artículo.
 
 
 ---
@@ -970,9 +546,11 @@ Scroll vertical continuo, no estático. Invita a explorar.
 #### Componentes
 
 - **Galería:** `apps/web/src/components/marketplace/GaleriaArticulo.tsx`
-  - Móvil: swipe horizontal con `scroll-snap-x mandatory` + indicador `1/8` dinámico
-  - Desktop: thumbnails verticales 88px + imagen principal grande
-  - Tap en imagen → abre `ModalImagenes` (lightbox fullscreen reusado)
+  - **Móvil:** carrusel horizontal de la foto principal con `scroll-snap-x mandatory` + swipe nativo. Indicador `X/N` flotante en la esquina bottom-right de la foto principal, `bg-black/60 backdrop-blur` + texto blanco.
+  - **Desktop:** foto principal full-width arriba con `max-h-[480px] 2xl:max-h-[560px]` y `object-contain` sobre fondo slate-100. **Dos flechas overlay** (`ChevronLeft` y `ChevronRight`) circulares `h-11 w-11` con `bg-white/90 backdrop-blur shadow-lg` posicionadas a los lados de la imagen para navegar prev/next entre fotos con loop infinito (al llegar a la última vuelve a la primera, al inicio salta a la última). Las flechas son `position: absolute` siblings del `<button>` de la imagen (no anidadas), de modo que su click no propaga al wrapper que abre el lightbox.
+  - **Tira horizontal de thumbnails debajo de la foto principal** (móvil + desktop). Cada miniatura es `h-16 w-16` en móvil y `h-20 w-20` en desktop, `rounded-lg border-2`. La inactiva va al 70% de opacidad con `border-slate-200`; la activa lleva `border-teal-500 ring-2 ring-teal-300`. Scroll horizontal nativo con `overflow-x-auto scroll-smooth [scrollbar-width:none]`. Cuando cambia `indiceActual`, la thumbnail activa se centra automáticamente con `scrollTo({ behavior: 'smooth' })` calculando `thumb.offsetLeft - tira.clientWidth/2 + thumb.clientWidth/2`.
+  - **Click en una thumbnail** cambia la foto principal y sincroniza el carrusel móvil con `scrollTo` al ancho correspondiente.
+  - **Click en la foto principal** abre `ModalImagenes` (lightbox fullscreen reusado).
 
 - **Card vendedor:** `apps/web/src/components/marketplace/CardVendedor.tsx`
   - Avatar circular 48px (con fallback a iniciales)
@@ -1003,7 +581,7 @@ Scroll vertical continuo, no estático. Invita a explorar.
 
 - Al montar la página: incrementa `total_vistas` (solo si NO eres el dueño + dedupe por `sessionStorage`)
 - **Tap en compartir (↑)** → copia link `/p/articulo-marketplace/:id` al portapapeles
-- **Tap en ⋯** → menú con opción "Bloquear vendedor" (placeholder hasta v1.1+)
+- **Tap en ⋯** → menú con opción "Bloquear vendedor" (placeholder pendiente)
 - **Tap en "Ver perfil →"** → navega a P3
 - **Estado pausada (público):** overlay informativo "Esta publicación está pausada por el vendedor"
 - **Estado vendida (público):** overlay informativo "Este artículo ya fue vendido"
@@ -1019,10 +597,10 @@ Scroll vertical continuo, no estático. Invita a explorar.
 ### P3 — Perfil de Usuario
 
 **Ruta canónica:** `/marketplace/usuario/:usuarioId`
-**Ruta legacy:** `/marketplace/vendedor/:usuarioId` → redirige a la canónica (`<Navigate replace />` en `router/index.tsx`)
+**Ruta alterna:** `/marketplace/vendedor/:usuarioId` → redirige a la canónica (`<Navigate replace />` en `router/index.tsx`) para que los enlaces antiguos en producción sigan funcionando.
 **Archivo:** `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx`
 
-> Refactor v2 (Bucket C.3, 07-may-2026): la pantalla se renombró de "Perfil del Vendedor" a "Perfil de Usuario". Detonado por la feature de "Conexión usuario↔usuario vía comentarios" (v1.3, ver §v1.3 al inicio del documento) que abrió esta pantalla a usuarios que solo comentaron en el feed — el branding "Vendedor" sonaba sesgado para alguien que nunca publicó nada.
+> Esta pantalla se llama "Perfil de Usuario" porque la abren tanto vendedores como compradores que solo comentan en el feed. El UI detecta automáticamente el rol y adapta lo que muestra (KPIs, tabs y grid de publicaciones solo si la persona es vendedor).
 
 #### Modo de visualización (vendedor vs comprador/comentarista)
 
@@ -1030,38 +608,92 @@ El UI se adapta automáticamente al rol de la persona perfilada:
 
 | Caso | Detección | Qué se muestra |
 |------|-----------|-----------------|
-| **Vendedor** | `publicacionesActivas > 0 \|\| vendidos > 0` | Hero completo + KPIs + tabs + grid |
-| **Comentarista/comprador** | sin publicaciones | Hero minimalista (avatar + identidad + miembro desde) + botones de contacto. **Sin KPIs vacíos, sin tabs "Publicaciones (0) / Vendidos (0)"** que se sentirían huecos. |
+| **Vendedor** | `publicacionesActivas > 0 \|\| vendidos > 0` | HeroCard con KPIs + acciones de contacto + tabs + grid |
+| **Comentarista/comprador** | sin publicaciones | HeroCard minimalista (identidad + acciones de contacto, sin KPIs ni tabs) |
 
-#### Estructura (móvil + desktop)
+#### Header de la página
 
-- **Sin fondo propio** — la página hereda el degradado azul global del `MainLayout` (`linear-gradient(to left, #b1c6dd, #eff6ff, #eff6ff, #b1c6dd)`).
-- Header glass flotante translúcido (`bg-white/70 backdrop-blur`): ← atrás · "Perfil" · ⋯ menú con "Bloquear usuario" (placeholder)
-- **Hero como card flotante centrada** (`max-w-2xl`, `bg-white/95 backdrop-blur`, `rounded-3xl`, `shadow-lg`, `ring-1`) — no banda blanca full-width. El degradado se ve a los lados.
-- Dentro de la card:
-  - Avatar circular grande (96px móvil, 112px laptop+) con borde blanco + ring sutil
-  - Nombre completo + ciudad + "Miembro desde [Mes Año]"
-  - **KPIs (solo si vendedor)** — fila inline con divisores sutiles `divide-x divide-slate-200/80`, sin border-2 ni cuadro pesado:
-    - **Publicaciones activas** — `COUNT(*) WHERE estado='activa'`
-    - **Vendidos** — `COUNT(*) WHERE estado='vendida'`
-    - **Tiempo de respuesta** — promedio de minutos entre primer mensaje del comprador y primera respuesta del vendedor en últimos 30 días, **sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo)
-  - **Botones de contacto** (ocultos si visitas tu propio perfil):
-    - **WhatsApp** (gradiente verde brand `from-[#22C55E] to-[#15803D]`) — solo aparece si el usuario tiene teléfono registrado. Mensaje precargado: `"Hola {nombre}, vi tu perfil en AnunciaYA"`. El backend `getVendedorMarketplace` devuelve `telefono` en el perfil; el tipo `PerfilVendedorMarketplace` incluye `telefono: string | null`.
-    - **ChatYA** (Dark Gradient negro) — botón con logo oficial `/ChatYA.webp` sin texto. Llama `useChatYAStore.abrirChatTemporal({...})` + `useUiStore.abrirChatYA()` con `contextoTipo='directo'` (sin card de contexto — se decidió 09 May 2026 que el contexto "vine desde tu perfil" no aporta valor real).
-    - **Agregar a contactos** (botón circular solo icono al lado del nombre, `h-8 w-8` móvil / `h-9 w-9` desktop) → `useChatYAStore.agregarContacto`/`eliminarContacto`. Estado leído de `contactos` filtrando por `(contactoId, tipo='personal', sucursalId=null)`. `UserPlus` azul brand → `UserCheck` emerald. Tooltip lg+ (TC-19). Es uno de los 5 puntos de entrada al sistema de contactos de ChatYA — sincroniza en tiempo real con los otros 4 dentro del chat (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`). Antes era un FAB circular "Seguir vendedor" en la esquina del avatar conectado a `useVotos` (follow social fantasma sin efecto visible) — deprecado el 09-may-2026.
-- **Tabs (solo si vendedor)** — banda translúcida `bg-white/85 backdrop-blur rounded-2xl`: Publicaciones (X) | Vendidos (X), subrayado teal en activa
-- **Grid (solo si vendedor)** — cards estilo B (reusa `CardArticulo`). En tab "Vendidos" cada card lleva overlay slate translúcido + texto "VENDIDO".
+Header dark sticky con identidad teal MP, idéntico al patrón de P1 y P2 del módulo:
+
+- Fondo `#000000`, glow teal radial sutil arriba-derecha (`rgba(20,184,166,0.07)`) y grid pattern white opacity 0.08.
+- Bloque izquierdo: botón `←` volver (centralizado en `useVolverAtras` con fallback a `/marketplace`), icono cuadrado 36×36 con gradient teal `#2dd4bf → #0d9488` con `BadgeCheck` adentro, título `Perfil` en blanco completo (no bicolor), separador vertical `1.5px bg-white/50` y subtítulo `text-sm/85% blanco` con el nombre completo del usuario (`{nombre} {apellidos}`).
+- `lg:rounded-b-3xl` en desktop, sin rounded en móvil (full-width).
+- Bloque derecho: botón Bloquear/Desbloquear inline solo en lg+ con tooltip TC-19 (`Ban` slate blanco para bloquear, `ShieldOff` rojo cuando ya está bloqueado). Se oculta cuando el perfil es el del usuario actual.
+
+#### HeroCard
+
+Card bordeado `overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md`. Layout 2 columnas en desktop, apilado vertical en móvil:
+
+```
+wrapper: lg:grid lg:grid-cols-2 lg:items-stretch
+```
+
+**Columna izquierda — identidad**
+
+`flex flex-col items-center gap-4 p-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:border-r-2 lg:border-slate-300 lg:text-left`. Apilada vertical centrada en móvil; horizontal con avatar izquierda + texto derecha en desktop. Contiene:
+
+- **Avatar** 80×80 móvil / 96×96 desktop dentro de `AvatarConAdornos`. Ring gradient brand (`teal → blue diagonal`) con `p-[3px]` estilo Instagram + anillo blanco interior `p-[2px]` que separa el gradient del avatar. Status dot online (verde emerald `conectado`, ámbar `ausente`, sin dot `desconectado`) anclado en bottom-right empalmado al círculo del avatar, con `ring-2 ring-white`. La presencia llega vía Socket.io: la página emite `chatya:consultar-estado` al montar y lee `useChatYAStore.estadosUsuarios[usuarioId]`.
+- **Nombre completo** en `text-xl lg:text-2xl font-extrabold tracking-tight text-slate-900`, seguido de `BadgeCheck h-5 w-5 text-blue-600` cuando la persona es vendedor.
+- **Ciudad** en su propia línea: `mt-1.5 inline-flex items-center gap-1.5 text-base font-semibold text-slate-700` con icono `MapPin h-4 w-4 text-slate-600` a la izquierda.
+- **Miembro desde** en `mt-0.5 text-sm font-medium text-slate-600` con formato `"Miembro desde {Mes} {Año}"` calculado con `MESES_ES` en español.
+
+**Columna derecha — KPIs + acciones**
+
+`flex flex-col border-t-2 border-slate-300 lg:border-t-0` (la border-t crea separación visual en móvil al apilar; en desktop la columna izquierda ya separa con `border-r-2`).
+
+**Sub-bloque de KPIs (solo si la persona es vendedor):**
+
+- Grid 3 columnas con divisores verticales: `grid grid-cols-3 divide-x-2 divide-slate-300 bg-slate-200`.
+- Cada bloque KPI (`KpiBlock`) lleva:
+  - Número grande arriba: `text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900`.
+  - Label inline debajo: `inline-flex items-center gap-1 text-[11px] lg:text-xs font-bold uppercase tracking-wider text-slate-600` con icono `h-3.5 w-3.5 text-slate-600` a la izquierda.
+- Los 3 KPIs son:
+  - **Publicaciones** — `COUNT(*) WHERE estado='activa'` para el usuario.
+  - **Vendidos** — `COUNT(*) WHERE estado='vendida'` para el usuario.
+  - **Responde** — promedio del tiempo de respuesta del vendedor en los últimos 30 días. Si no hay datos suficientes muestra `—`. **Sin filtro de `contexto_tipo`** (es característica de la persona, no del módulo).
+
+**Sub-bloque de acciones de contacto:**
+
+- Wrapper `flex flex-1 flex-wrap items-center justify-center gap-2 p-4 lg:gap-3`. Cuando hay KPIs arriba, agrega `border-t-2 border-slate-300` para separarlo del bloque de números.
+- Se oculta por completo cuando la persona perfilada es uno mismo o cuando hay relación de bloqueo bidireccional.
+- 3 botones inline tipo "link grande con icono" — sin fondo ni ring en estado default; el color brand vive en el icono y en el hover. Todos comparten `inline-flex h-12 items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors active:scale-[0.97]`:
+  - **WhatsApp** — icono `MessageCircle h-5 w-5 text-emerald-700`. Hover `bg-emerald-100`. Solo aparece si `perfil.telefono` está presente. Abre `https://wa.me/{numero}?text={mensaje}` con mensaje precargado `"Hola {nombre}, vi tu perfil en AnunciaYA"`.
+  - **ChatYA** — icono `MessageSquare h-5 w-5 text-blue-700`. Hover `bg-blue-100`. Llama `useChatYAStore.abrirChatTemporal` con `contextoTipo='directo'` (sin card de contexto — el chat abre limpio) **+** `useUiStore.abrirChatYA()` (las dos son obligatorias). Antes de abrir un chat temporal busca si ya existe una conversación con esa persona en modo personal sin negocio asociado; si existe, abre esa conversación con su historial.
+  - **Agregar contacto / En contactos** — icono `UserPlus h-5 w-5 text-emerald-700` cuando no es contacto, `UserCheck h-5 w-5 text-emerald-700` cuando ya lo es. Hover `bg-emerald-100`. Texto cambia entre `"Agregar contacto"` y `"En contactos"`. Llama `useChatYAStore.agregarContacto`/`eliminarContacto` sincronizando con la agenda real (`chat_contactos`). Estado leído filtrando `contactos` por `(contactoId, tipo='personal', sucursalId=null)`. Es uno de los 5 puntos de entrada al sistema de contactos de ChatYA — sincroniza en tiempo real con los otros 4 dentro del chat (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`).
+
+**Banner de bloqueado (estado especial):**
+
+- Cuando hay bloqueo bidireccional, sustituye al sub-bloque de acciones por un banner full-width abajo del grid: `flex items-center gap-3 border-t-2 border-red-300 bg-red-100 px-5 py-3 lg:px-6` con icono `Ban h-5 w-5 text-red-700` + texto explicativo `"Has bloqueado a este usuario. No podrán enviarse mensajes mutuamente."`.
+
+#### Tabs Publicaciones / Vendidos
+
+Solo cuando la persona es vendedor. Underline minimalista estilo Linear/Stripe/Notion:
+
+- Tablist: `flex gap-8 border-b-2 border-slate-300`.
+- Cada tab (`TabUnderline`):
+  - `relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base lg:text-lg font-bold transition-colors`.
+  - Activa: `border-teal-500 text-teal-700`.
+  - Inactiva: `border-transparent text-slate-600 hover:text-slate-800`.
+  - Icono `h-5 w-5 strokeWidth=2.5` (`Package` para Publicaciones, `ShoppingBag` para Vendidos).
+  - Counter inline: `text-sm font-bold tabular-nums` color `text-teal-700` cuando la tab está activa, `text-slate-500` cuando está inactiva.
+
+#### Grid de publicaciones
+
+- Solo cuando la persona es vendedor.
+- Grid responsive `grid grid-cols-2 items-start gap-3 lg:grid-cols-4 lg:gap-4 2xl:grid-cols-5` con `CardArticulo variant="compacta"` (aspect 4:3).
+- Tab "Vendidos": cada card va envuelta en `CardConOverlayVendido` que superpone `bg-slate-900/60` con icono `PackageX h-8 w-8` blanco + texto `"VENDIDO"` en `text-base font-extrabold tracking-wider`.
+- Estado vacío (`EstadoVacio`) cuando el tab no tiene resultados: icono dentro de círculo `h-24 w-24` con gradient teal `#2dd4bf → #0d9488`, halos `animate-ping` concéntricos, sparkles decorativos arriba, título extrabold + cuerpo medio en slate-600. Los copys cambian según `esUnoMismo` y `tabActiva`.
 
 #### Datos del servidor
 
 - `useVendedorMarketplace(usuarioId)` — perfil + KPIs (staleTime 2 min). Se ejecuta siempre (necesitamos saber si la persona es vendedor o no).
 - `useVendedorPublicaciones(usuarioId, estado)` — lista paginada por estado. **Solo se ejecuta si la persona es vendedor** (el hook recibe `usuarioId=undefined` cuando no, y queda deshabilitado por `enabled: !!usuarioId`).
 - Si el usuario bloqueó al actual → 404 sin revelar el motivo.
-- Si visitas tu propio perfil → botones de contacto + Seguir ocultos.
+- Si visitas tu propio perfil → todos los botones de contacto (WhatsApp, ChatYA, Agregar contacto) quedan ocultos.
 
-#### Endpoints API (sin cambios)
+#### Endpoints API
 
-Las URLs del backend siguen siendo `GET /api/marketplace/vendedor/:usuarioId` y `GET /api/marketplace/vendedor/:usuarioId/publicaciones` — solo cambia la URL del frontend. Renombrar el endpoint backend implicaría migrar también la columna/tabla relacionadas y no aporta valor — los endpoints son detalle de implementación que el usuario nunca ve.
+Las URLs del backend son `GET /api/marketplace/vendedor/:usuarioId` y `GET /api/marketplace/vendedor/:usuarioId/publicaciones`. La URL del frontend usa `/marketplace/usuario/:usuarioId` mientras que los endpoints conservan `/vendedor/` como detalle de implementación que el usuario nunca ve.
 
 ---
 
@@ -1082,88 +714,122 @@ Las URLs del backend siguen siendo `GET /api/marketplace/vendedor/:usuarioId` y 
 
 En modo edición:
 - Datos precargados de la publicación existente
-- El paso 3 (ubicación) es modificable pero el checklist NO se vuelve a mostrar
+- El paso 3 (ubicación) es modificable; el checklist final NO se muestra
 - `expira_at` NO se modifica (solo el endpoint "Reactivar" lo extiende)
 
-#### Estructura general (móvil)
+#### Estructura visual (todas las resoluciones)
+
+El wizard sigue el mismo patrón visual que P1, P2 y P3 del módulo:
+
+- **Header sticky dark `#000`** con glow teal radial + grid pattern sutil (mismo patrón que P1/P2/P3).
+  - Icono cuadrado 36×36 con gradient teal `#2dd4bf → #0d9488` con `Plus` adentro.
+  - Título "Nueva publi**cación**" o "Edi**tar**" con la segunda mitad en `text-teal-400`.
+  - Desktop: separador vertical + subtítulo "Paso N de 3" en la zona izquierda.
+  - Móvil: chip "Paso N/3" en el bloque derecho.
+- **Barra de progreso integrada al final del header negro**: 3 segmentos `h-1.5` con `bg-teal-400` para los pasos completados y `bg-white/15` para los pendientes.
+- **Grid desktop** `lg:grid-cols-[3fr_2fr] lg:gap-8` con wrapper `lg:max-w-7xl lg:px-6 2xl:px-8`. La columna izquierda contiene los bloques del paso activo y la derecha la vista previa sticky.
+- **Cada bloque del paso vive en una card** `mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4`.
+- **Headings de bloque**: `text-base lg:text-lg font-bold text-slate-900` con subtítulo `text-sm font-medium text-slate-600`.
+- **Wrapper raíz** con `pb-40 lg:pb-12` para reservar espacio bajo el contenido en móvil (los FABs flotantes y el BottomNav no deben tapar la última card del paso).
+
+**Botones de navegación — desktop**
+
+Los botones "Anterior/Salir" y "Continuar/Publicar" viven en el bloque derecho del header dark del wizard (no hay footer fijo en desktop). Outline `border-2 border-white/25 bg-transparent text-white/85` para el secundario, gradient `bg-linear-to-br from-teal-500 to-teal-700` para el primario. El texto del primario muestra según contexto: `"Continuar"` en pasos 1-2, `"Publicar ahora"` en el paso 3 modo crear, `"Guardar cambios"` en modo editar, `"Subiendo fotos…"` con `Loader2` spinning cuando hay batch activo.
+
+**FABs flotantes — móvil**
+
+Dos FABs flotantes que usan `useHideOnScroll` para sincronizarse con el BottomNav:
+
+- **FAB izquierdo** (Salir/Anterior): icono `ChevronLeft h-6 w-6` en círculo `h-14 w-14 rounded-full border-2 border-slate-300 bg-white shadow-lg` con `box-shadow: 0 6px 20px rgba(15,23,42,0.18)`. Esquina `fixed left-4`. Posición vertical: `bottom-20` cuando el BottomNav está visible (sobre él), `bottom-4` cuando el BottomNav se oculta al scroll. Transición `bottom 300ms cubic-bezier(0.4,0,0.2,1)`.
+- **FAB derecho** (Continuar/Publicar): pill con texto dinámico y `bg-linear-to-br from-teal-500 to-teal-700`. Texto: `"Continuar"` en pasos 1-2 (con icono `ArrowRight` a la derecha), `"Publicar ahora"` o `"Guardar cambios"` en el paso 3 (con icono `Check` a la izquierda), `"Subiendo fotos…"` con `Loader2` cuando hay batch activo. Esquina `fixed right-4`. Misma sincronización con `useHideOnScroll`: `bottom-20` → `bottom-4`. Mismo patrón que el FAB "Publicar" del feed.
 
 ```
 ┌──────────────────────────────────────┐
-│ [←]    Paso X de 3                   │
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     │  ← barra progreso (3 segmentos)
-│   [contenido del paso actual]        │
+│ [▣ teal] Nueva Publicación  [Paso 1/3]│  ← header dark sticky (móvil)
+│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     │  ← barra progreso 3 segmentos
+├──────────────────────────────────────┤
+│   [contenido del paso en cards]      │
 └──────────────────────────────────────┘
-┌──────────────────────────────────────┐  ← barra fija inferior
-│ [← Anterior]    [Continuar →]        │
-└──────────────────────────────────────┘
+ [←]                          [Continuar →]   ← FABs flotantes sobre BottomNav
 ```
 
-#### Paso 1 — Fotos y Título
+#### Paso 1 — Fotos + Título
 
-- Grid de 8 slots (tap → `<input type="file">`). Upload directo a R2 con `useSubirFotoMarketplace` (presigned URL, prefijo `marketplace/`)
-- Primera foto se marca como "Portada" automáticamente (badge teal)
-- Cada foto con botón X
-- Input "Título" (10-80 caracteres, contador visible)
-- Drag & drop reorden de fotos: pendiente para v1.1
+- **Subida múltiple**: el input `<input type="file" multiple>` permite seleccionar hasta 8 fotos al mismo tiempo. El upload corre en paralelo con `Promise.all`. Si el usuario selecciona más fotos que el espacio disponible, se toman las primeras y se notifica.
+- **Selección manual de portada**: cada foto que NO es la portada actual muestra un botón circular con icono `Star` (h-6 w-6, fondo `bg-white/90`, color `amber-500`) en la esquina inferior derecha. Al tocarlo, esa foto se vuelve portada. El array de fotos NO se reordena — la portada es solo un índice (`fotoPortadaIndex`) que apunta a la foto deseada.
+- **Foto-portada actual**: muestra badge "PORTADA" con icono `Star` filled en la esquina superior izquierda + ring `ring-teal-500` + `border-teal-500` (en lugar de `border-slate-300`).
+- **Placeholders fantasma durante el batch**: por cada foto pendiente se renderiza un slot con `Loader2` spinning + borde teal-dashed + `animate-pulse` + fondo `bg-teal-50`. El slot "Agregar" desaparece mientras hay batch activo.
+- **Counter `N/8`** visible en la esquina superior derecha de la card (`rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold`).
+- **Título**: input 10-80 caracteres con contador visible, validación inline de palabras prohibidas.
+- **Card de Tips contextuales** al final del paso con icono `Lightbulb` amber y 4 bullets teal sobre fotos y título.
 
-#### Paso 2 — Precio y Detalles
+#### Paso 2 — Precio + Detalles
 
-- Input precio grande con `$` y `MXN`
-- 4 chips de condición (Nuevo / Seminuevo / Usado / Para reparar) — selección única
-- Toggle "Acepta ofertas" (default `true`)
-- Textarea descripción (50-1000 caracteres, contador)
-- Si precio < $10 → modal de advertencia antes de avanzar
+- **Card "Precio"**: input grande con `$` y `MXN` a los lados. Valida > 0 y < $999,999. Si < $10 → modal de advertencia antes de avanzar.
+- **Card "Condición + Acepta ofertas"**: 4 chips (Nuevo / Seminuevo / Usado / Para reparar), selección única; toggle "Acepta ofertas" (default `true`) separado con `border-t-2 border-slate-200 pt-3`.
+- **Card "Descripción"**: textarea 50-1000 caracteres con contador, validación inline de palabras prohibidas.
+- **Card de Tips contextuales** al final con consejos sobre precio competitivo, honestidad con la condición y nivel de detalle.
 
-#### Paso 3 — Ubicación y Confirmación
+#### Paso 3 — Ubicación + Resumen + Checklist
 
-- Mapa Leaflet no interactivo con `<Circle radius={500}>` alrededor de GPS o coordenada de ciudad
-- Texto: "Mostraremos un círculo de 500m, no tu dirección exacta."
-- Si no hay GPS ni coordenada de ciudad → banner amarillo pidiendo activar ubicación (no permite avanzar)
-- "Cambiar ubicación" omitido en v1 (mapa interactivo con marker arrastrable se evalúa para v1.1)
-- Resumen compacto: foto portada + título + precio + condición
-- Checklist obligatorio (3 checkboxes, solo en modo crear):
+- **Card "Zona aproximada"**: mapa Leaflet no interactivo (zoom/dragging/touchZoom/doubleClickZoom desactivados, `pointerEvents: none`) con `<Circle radius={500}>` con stroke teal y fill teal/15%. El mapa vive dentro de un wrapper `relative z-0 mt-3 overflow-hidden rounded-xl border-2 border-slate-200 isolate` — el combo `relative z-0 isolate` crea un stacking context propio que mantiene contenidos los z-index 400+ de Leaflet (capas tile, overlay, popup), evitando que escapen y se monten sobre el header sticky del wizard, el BottomNav u otros elementos fijos. Mismo patrón aplicado en `MapaUbicacion.tsx` de P2 Detalle. Si no hay GPS ni coordenada de ciudad → banner amarillo pidiendo activar ubicación (no permite avanzar). Texto explicativo de privacidad debajo del mapa.
+- **Card "Resumen de tu publicación"**: vista compacta con foto portada + título + precio destacado en `text-teal-700 text-xl extrabold` + condición + flag "Acepta ofertas".
+- **Card "Antes de publicar"** (solo modo crear): 3 checkboxes:
   - "No vendo artículos prohibidos por las reglas"
   - "Las fotos son del artículo real, sin retoque"
   - "Acepto que mi publicación se mostrará 30 días"
-- Botón "Publicar ahora" / "Guardar cambios" — deshabilitado hasta cumplir todo
+  - Cuando los 3 están marcados, el card cambia a `border-teal-300 bg-teal-50` para feedback visual.
+- **Card de Tips contextuales** al final con consejos de seguridad (encuentros en lugares públicos, cobra antes de entregar).
 
-#### Vista previa en vivo (solo desktop)
+#### Vista previa en vivo (solo desktop, `lg+`)
 
-- Layout 2 columnas (`lg:grid-cols-[60%_40%]`)
-- Columna derecha sticky con instancia de `<CardArticulo>` actualizada en tiempo real
-- Texto debajo: "Tip: Las publicaciones con buenas fotos y precio competitivo se venden en promedio 3 días más rápido."
-- En móvil: NO hay vista previa (no cabe)
+- Panel sticky derecho `sticky top-28` con scrollbar oculta (`[scrollbar-width:none]`), altura limitada a `calc(100vh - 8rem)`.
+- Renderiza `<CardArticuloFeed>` (la card real del feed, no una versión simplificada) envuelta en `<div aria-hidden style={{ pointerEvents: 'none' }}>` para bloquear interacciones porque el artículo aún no existe en BD.
+- Usa la prop `claseAspectoGaleria="aspect-[4/3] lg:aspect-square"` para que la galería del preview sea más cuadrada que la del feed real (`aspect-[4/3] lg:aspect-[2/1]`), permitiendo que el sidebar de thumbnails laterales entre completo sin scroll vertical.
+- El label rotulado **"Vista previa — así se verá en el feed"** va **debajo** de la card (no arriba) para que el borde superior del preview se alinee exactamente con la columna izquierda (Fotos). Compone pill `h-1.5 w-1.5 rounded-full bg-teal-500` + título `text-base font-bold text-slate-700` "Vista previa" + texto medio slate-500 "— así se verá en el feed".
+- Se actualiza en tiempo real con `useMemo` que depende de `datos` y `articuloId`.
+- En móvil no hay vista previa (no cabe).
 
 #### Manejo de moderación
 
-- **Validación inline (cliente)** — el wizard no espera al submit final: `apps/web/src/utils/moderacionMarketplace.ts` detecta palabras prohibidas mientras el usuario escribe en `título` (paso 1) y `descripción` (paso 2). Si hay match, muestra el mensaje de la categoría rojo bajo el input y deshabilita el botón "Continuar". Cuando el texto se corrige, el botón se vuelve a habilitar.
+- **Validación inline (cliente)** en `título` (paso 1) y `descripción` (paso 2) vía `apps/web/src/utils/moderacionMarketplace.ts`. Si hay match, muestra mensaje rojo bajo el input y deshabilita "Continuar". Cuando el texto se corrige, el botón se vuelve a habilitar.
 - **Robustez contra evasión** (frontend + backend, lógica equivalente):
-  - **Leetspeak** — sustituciones aplicadas en `normalizar()`: `0→o`, `1→i`, `3→e`, `4→a`, `5→s`, `7→t`, `8→b`, `9→g`, `@→a`, `$→s`, `€→e`, `!→i`, `|→i`. Así "s0rt30" o "r1f@" matchean "sorteo" / "rifa".
-  - **Separadores entre letras** — `construirRegex` permite cualquier carácter no-alfanumérico entre las letras del término (`r.i.f.a`, `r i f a`, `r-i-f-a`, `r_i_f_a` matchean `rifa`).
+  - **Leetspeak** — sustituciones en `normalizar()`: `0→o`, `1→i`, `3→e`, `4→a`, `5→s`, `7→t`, `8→b`, `9→g`, `@→a`, `$→s`, `€→e`, `!→i`, `|→i`. Así "s0rt30" o "r1f@" matchean "sorteo" / "rifa".
+  - **Separadores entre letras** — `construirRegex` permite cualquier carácter no-alfanumérico entre las letras (`r.i.f.a`, `r i f a`, `r-i-f-a`, `r_i_f_a` matchean `rifa`).
   - **Boundary robusto** — lookarounds `(?<![a-z0-9])` y `(?![a-z0-9])` en lugar de `\b`, para evitar que "deriva" matchee "rifa" o que "soporte" matchee "sorte".
-  - **Variantes truncadas** — la lista incluye truncamientos comunes (`sorte`, `sortes`, `rife`, `rifen`, `cachit`, `subastar`, `rematando`, etc.) por si el usuario corta la palabra para evadir.
-- **Rechazo duro (HTTP 422)** del backend → modal inline con palabra detectada visible. No permite continuar.
-- **Sugerencia suave (HTTP 200 con `warning`)** → `ModalSugerenciaModeracion.tsx` con 2 botones:
-  - "Editar mi publicación" → cierra modal, vuelve al paso correspondiente
-  - "Continuar de todos modos" → reenvía con `confirmadoPorUsuario: true`
-- Botón "Llevar a Servicios" omitido hasta que la sección `/servicios` exista
+  - **Variantes truncadas** — la lista incluye truncamientos comunes (`sorte`, `sortes`, `rife`, `rifen`, `cachit`, `subastar`, `rematando`, etc.).
+- **Rechazo duro (HTTP 422)** del backend → `ModalAdaptativo` con header gradient rose (`#be123c → #881337`), patrón TC-6A. Muestra mensaje + palabra detectada + CTA teal "Editar mi publicación".
+- **Sugerencia suave (HTTP 200 con `moderacion.severidad='sugerencia'`)** → `ModalSugerenciaModeracion` con 2 botones:
+  - "Editar mi publicación" → cierra modal, vuelve al paso correspondiente.
+  - "Continuar de todos modos" → reenvía con `confirmadoPorUsuario: true`.
+- Botón "Llevar a Servicios" omitido hasta que la sección `/servicios` exista.
 
 #### Auto-save (borrador local por usuario)
 
-- **Storage key:** `wizard_marketplace_${usuarioId}_${articuloId ?? 'nuevo'}` — incluye `usuarioId` para que cada cuenta tenga su propio borrador en el mismo navegador. Si cambias de cuenta NO ves el borrador del usuario anterior.
-- **Mecánica:** `sessionStorage` debounced 500ms.
-- **Modo crear vs modo editar** tienen keys separadas (no se contaminan).
-- **Salida del wizard:**
+- **Storage**: `localStorage` con key `wizard_marketplace_${usuarioId ?? 'anon'}_${articuloId ?? 'nuevo'}`. Debounced 500ms desde el cambio del state.
+- **Persistencia entre sesiones**: el borrador sobrevive al cierre del navegador, recargas, logout y login posterior. Cuando el autor vuelve a loguearse, el wizard hidrata el borrador y retoma exactamente donde quedó (texto + fotos).
+- **Aislamiento cross-usuario**: el `usuarioId` en el storageKey impide que otro usuario que se loguee en el mismo dispositivo vea el borrador. Cada cuenta tiene su propio storage independiente.
+- **Modo crear vs modo edición** tienen keys separadas (no se contaminan).
+- **Salida del wizard**:
   - Si el usuario no escribió nada (sin fotos, título, descripción, precio) → sale directo a `/marketplace` sin preguntar.
-  - Si tiene cambios → modal **"¿Salir sin publicar?"** (estilo `ModalAdaptativo` con header gradiente teal y patrón TC-6A) con 3 opciones en una fila:
-    - **Seguir editando** (icono `Pencil`) — cierra el modal.
-    - **Descartar** (icono `XCircle`) — limpia `sessionStorage` y elimina de R2 las fotos subidas en la sesión actual (las preexistentes en modo edición se respetan).
-    - **Guardar borrador** (icono `BookmarkPlus`) — fuerza `sessionStorage.setItem` con el state actual y navega a `/marketplace`.
+  - Si tiene cambios → `ModalAdaptativo` "¿Salir sin publicar?" con header gradient teal (TC-6A) y 3 opciones inline:
+    - **Seguir** (icono `Pencil`) — cierra el modal y permanece editando.
+    - **Descartar** (icono `XCircle`) — limpia `localStorage` + dispara `DELETE /api/r2/imagen` por cada foto huérfana (modo crear: todas las del state; modo edición: solo las subidas en esta sesión, distinguidas vía `urlsSubidasEnSesion` ref) + navega a `/marketplace`.
+    - **Guardar** (icono `BookmarkPlus`) — fuerza `localStorage.setItem` con el state actual y navega a `/marketplace`.
+- **`beforeunload` warning**: cuando hay cambios sin guardar (`tieneCambios && !guardando`), el navegador muestra su diálogo nativo "¿Salir? Tus cambios no se guardaron" si el usuario intenta cerrar la pestaña. No borra fotos automáticamente (sería peligroso ante cierres accidentales) — el reconcile global de R2 limpia las huérfanas eventualmente.
 
-#### Subida de fotos a R2 (optimizada)
+#### Subida de fotos a R2 (optimización + cleanup)
 
-- **Optimización cliente-side antes de subir** — el helper `apps/web/src/utils/optimizarImagen.ts` (compartido con `useR2Upload`) redimensiona a `maxWidth: 1920` y comprime a WebP `quality: 0.85`. Reduce 70-90% el peso de fotos de cámara móvil (5-10MB → ~500KB). Llamado por `useSubirFotoMarketplace` antes del PUT a R2.
-- **Limpieza al quitar foto** — el wizard mantiene un `useRef<Set<string>>` con las URLs subidas en la sesión actual. Al quitar una foto, si la URL está en ese set, dispara `DELETE /api/r2/imagen` (fire-and-forget). Las fotos preexistentes (modo edición) NO se borran al quitarlas — el reference count del helper `eliminarImagenSiHuerfana` del backend se encarga al guardar el artículo.
+- **Optimización cliente-side antes de subir**: `apps/web/src/utils/optimizarImagen.ts` (helper compartido con `useR2Upload` de ChatYA y BS) redimensiona a `maxWidth: 1920` y comprime a WebP `quality: 0.85`. Reduce 70-90% el peso de fotos de cámara móvil (5-10 MB → ~500 KB).
+- **Flujo del upload**: `useSubirFotoMarketplace` pide presigned URL al backend (`POST /marketplace/upload-imagen`), hace PUT directo a R2 con el blob WebP optimizado, y devuelve la URL pública.
+- **Cleanup R2 al quitar foto (botón X)**:
+  - Modo crear: borra siempre. Todas las fotos del state son efímeras (el artículo no existe en BD aún), incluyendo las hidratadas desde un borrador en localStorage.
+  - Modo edición: borra solo las subidas en la sesión actual (rastreadas en `urlsSubidasEnSesion` ref). Las preexistentes del artículo guardado las maneja el backend con `eliminarFotoMarketplaceSiHuerfana` al hacer submit (diff de fotos viejas vs nuevas en `actualizarArticulo`).
+- **Cleanup R2 al descartar borrador** (`handleDescartarYSalir`):
+  - Modo crear: itera `datos.fotos` completo y dispara `DELETE /api/r2/imagen` por cada URL.
+  - Modo edición: itera el set `urlsSubidasEnSesion` (solo las nuevas de esta sesión).
+- **Defensa en profundidad en el endpoint backend**: `DELETE /api/r2/imagen` verifica con `urlEstaEnUso(url)` contra `IMAGE_REGISTRY` antes de borrar. Si la URL sigue referenciada por alguna fila de alguna tabla (artículos, sucursales, chat, ofertas, etc.), conserva el archivo y responde con `{ success: true, enUso: true }`. Esto protege contra bugs futuros que pudieran llamar el endpoint con URLs en uso.
+- **Bloqueo de navegación durante batch**: mientras un upload paralelo está en curso (`pendientesUpload > 0`), los botones "Anterior/Salir" y "Continuar/Publicar" se deshabilitan con tooltip "Espera a que terminen de subirse las fotos". El texto del botón principal cambia a "Subiendo fotos…" con `Loader2` spinning. Esto evita que el usuario navegue afuera o publique antes de que las fotos lleguen al state — sin este guard, las URLs quedarían huérfanas en R2.
 
 ---
 
@@ -1200,7 +866,7 @@ En modo edición:
   - Ícono `ArrowUpRight` a la derecha
 - **Click en card** → navega directo a `/marketplace/articulo/:id` (NO va al listado de resultados, salta directo al detalle)
 - **Botón "Ver todos los resultados de '[query]'"** al final del listado → navega a `/marketplace/buscar?q=...` (mantiene el flujo del listado completo cuando el comprador quiere ver más opciones)
-- Fuente: top 5 artículos completos (FTS `to_tsvector('spanish', titulo+descripcion) @@ plainto_tsquery(...)`). Endpoint `GET /marketplace/buscar/sugerencias` devuelve `{ id, titulo, precio, condicion, fotoPortada, ciudad }[]` (antes solo títulos).
+- Fuente: top 5 artículos completos (FTS `to_tsvector('spanish', titulo+descripcion) @@ plainto_tsquery(...)`). Endpoint `GET /marketplace/buscar/sugerencias` devuelve `{ id, titulo, precio, condicion, fotoPortada, ciudad }[]`.
 - Solo dispara si `query.length >= 2`
 
 #### Vista de resultados (después de Enter o tap en sugerencia)
@@ -1220,7 +886,7 @@ Bottom sheet en móvil, sidebar fija en desktop:
 | Precio | Slider con presets | <$500, $500-1k, $1k-5k, $5k+ y min/max manual |
 | Condición | Chips múltiples | Nuevo, Seminuevo, Usado, Para reparar |
 
-> **Filtro "Acepta ofertas" omitido en v1** — el default es `true`, por lo que el filtro siempre devolvería casi todo. Se evaluará si en v1.1 los vendedores empiezan a desactivar el toggle.
+> **Filtro "Acepta ofertas" no incluido** — el default es `true`, por lo que el filtro siempre devolvería casi todo. Se evaluará agregarlo si los vendedores empiezan a desactivar el toggle en cantidad significativa.
 
 #### Ordenar (dropdown)
 
@@ -1275,17 +941,26 @@ Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con
 
 ## 🔗 Integraciones con Otros Módulos
 
+### Componente `CardArticuloFeed` — props de presentación
+
+`apps/web/src/components/marketplace/CardArticuloFeed.tsx` es la card grande del feed (estilo Facebook) y también es la que se reusa como vista previa en el wizard de publicar. Expone dos props opcionales para adaptar su layout cuando se monta en contenedores distintos al feed:
+
+- **`ocultarThumbnailsLaterales?: boolean`** (default `false`) — cuando es `true`, no renderiza el sidebar de thumbnails laterales en desktop ni reserva el espacio `lg:mr-24` para él dentro de la galería. Útil para contenedores estrechos donde el sidebar no caben los 24 px laterales.
+- **`claseAspectoGaleria?: string`** (default `aspect-[4/3] lg:aspect-[2/1]`) — sobrescribe las clases de aspecto/altura de la galería principal. Útil en previsualizaciones que necesitan más altura vertical para que las miniaturas entren completas (p. ej. el wizard P4 usa `aspect-[4/3] lg:aspect-square`).
+
+El sidebar de thumbnails laterales del feed real (cuando `tieneMultiples && !modoModal && !ocultarThumbnailsLaterales`) usa `absolute top-0 right-0 bottom-0 hidden w-24 flex-col gap-2 overflow-y-auto bg-slate-200 p-2 lg:flex` para tomar el alto exacto del wrapper relative (= alto de la galería principal). Si las miniaturas exceden ese alto, scrollean internamente con `overflow-y-auto`.
+
 ### ChatYA
 
-- Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` cuando viene del detalle de un artículo (genera card de contexto).
-- Para chats desde el perfil del vendedor (P3) o desde el popup del comentarista (`BotonComentarista`) usa `contextoTipo='directo'` sin card. El literal `'vendedor_marketplace'` (introducido mayo 2026) fue retirado por completo el 09 May 2026 vía migración SQL.
-- La columna específica `chat_conversaciones.articulo_marketplace_id` existe en BD desde Sprint 1 pero no se llena vía el endpoint actual de `abrirChatTemporal`. Quedará para una iteración futura cuando se necesite.
+- Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` cuando viene del detalle de un artículo (genera card de contexto embebida del artículo).
+- Para chats desde el perfil del usuario (P3) o desde el popup del comentarista (`BotonComentarista`) usa `contextoTipo='directo'` sin card.
+- La columna específica `chat_conversaciones.articulo_marketplace_id` existe en BD pero no se llena vía el endpoint actual de `abrirChatTemporal`. Queda para una iteración futura cuando se necesite.
 
 ### Mis Guardados
 
 - Los artículos de MarketPlace se guardan con `entity_type='articulo_marketplace'` en la tabla `guardados`.
 - Tab "Artículos" en `PaginaGuardados.tsx` activa con render de `<CardArticulo>`.
-- Hook nuevo paralelo `useArticulosMarketplaceGuardados` (no se modificó `useMisGuardados` polimórfico para no romper Ofertas/Negocios).
+- Hook dedicado `useArticulosMarketplaceGuardados` paralelo a `useMisGuardados` (polimórfico para Ofertas/Negocios), para mantener las superficies independientes.
 
 ### Mis Publicaciones (`/mis-publicaciones`)
 
@@ -1304,12 +979,12 @@ Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con
 
 ### PanelNotificaciones (campanita global)
 
-Eventos del MarketPlace que disparan notificaciones (ya implementados):
+Eventos del MarketPlace que disparan notificaciones:
 - **`marketplace_proxima_expirar`** — 3 días antes de expirar
 - **`marketplace_expirada`** — al auto-pausar por TTL
 - **`marketplace_nuevo_mensaje`** — reservado (lo dispara ChatYA cuando aplica)
-- **`marketplace_nueva_pregunta`** — al vendedor cuando un comprador pregunta (Sprint 9.2)
-- **`marketplace_pregunta_respondida`** — al comprador cuando el vendedor responde (Sprint 9.2)
+- **`marketplace_nueva_pregunta`** — al vendedor cuando un comprador pregunta
+- **`marketplace_pregunta_respondida`** — al comprador cuando el vendedor responde
 
 **Click en notificación → navega al artículo:** `PanelNotificaciones.tsx → obtenerRutaDestino()` mapea cualquier notificación con `referenciaTipo === 'marketplace'` a `/marketplace/articulo/${referenciaId}`. Cubre los 5 tipos `marketplace_*` arriba — la `referenciaId` siempre es el UUID del artículo.
 
@@ -1322,8 +997,7 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 
 - Botón "Agregar a contactos" en P3 (`PaginaPerfilVendedor.tsx`) lee `useChatYAStore.contactos` y llama `agregarContacto`/`eliminarContacto`. El estado se calcula filtrando por `(contactoId, tipo='personal', sucursalId=null)`. Carga `cargarContactos('personal')` al montar.
 - Persiste en `chat_contactos` (sistema real de agenda persistente del chat — ver `docs/arquitectura/ChatYA.md` §4.9). 5to punto de entrada que se sincroniza con las otras 4 superficies dentro del chat.
-- Sistema viejo `useVotos` con `entity_type='usuario'`/`tipo_accion='follow'` (era un follow social fantasma sin efecto visible) deprecado el 09-may-2026. Migración `2026-05-08-limpiar-votos-follow-usuario.sql` borra los huérfanos y retira `'usuario'` del check `votos_entity_type_check`.
-- El follow de negocios (`entity_type='sucursal'`) en `PaginaPerfilNegocio.tsx` se conserva intacto — es feature distinta.
+- El follow de negocios (`entity_type='sucursal'`) en `PaginaPerfilNegocio.tsx` es una feature distinta y vive en la tabla `votos`. El check `votos_entity_type_check` solo acepta `'sucursal'` para esa relación; MarketPlace no usa `votos` para conexiones entre personas.
 
 ---
 
@@ -1334,10 +1008,10 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
 | GET | `/api/marketplace/feed` | Feed inicial (recientes + cercanos) por ciudad y GPS |
-| GET | `/api/marketplace/feed/trending` | "Lo más visto hoy" — top por actividad 24h (Sprint 9.1) |
+| GET | `/api/marketplace/feed/trending` | "Lo más visto hoy" — top por actividad 24h |
 | GET | `/api/marketplace/articulos/:id` | Detalle público de un artículo |
 | POST | `/api/marketplace/articulos/:id/vista` | Registrar vista (incrementa contador) |
-| POST | `/api/marketplace/articulos/:id/heartbeat` | Heartbeat "viendo ahora" (Redis sorted set TTL 2min, Sprint 9.1) |
+| POST | `/api/marketplace/articulos/:id/heartbeat` | Heartbeat "viendo ahora" (Redis sorted set TTL 2min) |
 | GET | `/api/marketplace/articulos/:id/preguntas` | Q&A público. Visitante autenticado: `{ data: respondidas[], miPreguntaPendiente }`. Dueño: `{ data: { pendientes, respondidas } }`. |
 | GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo con preview (top 5 con `id, titulo, precio, condicion, fotoPortada, ciudad`) |
 | GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad (cache Redis 1h) |
@@ -1356,9 +1030,10 @@ Eventos del MarketPlace que disparan notificaciones (ya implementados):
 | DELETE | `/api/marketplace/articulos/:id` | Eliminar (soft delete, solo dueño) |
 | GET | `/api/marketplace/mis-articulos` | Lista paginada de artículos del usuario actual |
 | POST | `/api/marketplace/upload-imagen` | Presigned URL para subir foto a R2 (prefijo `marketplace/`) |
-| POST | `/api/marketplace/articulos/:id/preguntas` | Comprador hace pregunta pública (Sprint 9.2) |
-| POST | `/api/marketplace/preguntas/:id/responder` | Vendedor responde una pregunta pendiente (Sprint 9.2) |
-| POST | `/api/marketplace/preguntas/:id/derivar-a-chat` | Vendedor abre ChatYA con el comprador. **NO** elimina la pregunta pública (cambio post-Sprint 9.2: el flag de soft delete original se quitó porque confundía al usuario al perder la pregunta sin avisar) |
+| POST | `/api/marketplace/articulos/:id/preguntas` | Comprador hace pregunta pública |
+| POST | `/api/marketplace/preguntas/:id/responder` | Vendedor responde una pregunta pendiente |
+| PUT | `/api/marketplace/preguntas/:id/mia` | Comprador edita su pregunta pendiente (10-200 chars) — solo si `respondida_at IS NULL`. Setea `editada_at = NOW()`. |
+| POST | `/api/marketplace/preguntas/:id/derivar-a-chat` | Vendedor abre ChatYA con el comprador. **NO** elimina la pregunta pública — derivar a chat solo abre el canal privado y la pregunta sigue visible en el Q&A público. |
 | DELETE | `/api/marketplace/preguntas/:id` | Vendedor elimina pregunta de su artículo (soft delete) |
 | DELETE | `/api/marketplace/preguntas/:id/mia` | Comprador retira su pregunta — solo si `respondida_at IS NULL` (409 si ya hay respuesta) |
 
@@ -1447,7 +1122,7 @@ CREATE TABLE marketplace_busquedas_log (
   id BIGSERIAL PRIMARY KEY,
   ciudad VARCHAR(100) NOT NULL,
   termino VARCHAR(100) NOT NULL,
-  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,  -- siempre NULL en v1 por privacidad
+  usuario_id UUID REFERENCES usuarios(id) ON DELETE SET NULL,  -- siempre NULL por privacidad
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
@@ -1456,22 +1131,22 @@ CREATE INDEX idx_busquedas_ciudad_fecha ON marketplace_busquedas_log(ciudad, cre
 
 ### Cambios a tablas existentes
 
-**`chat_conversaciones`** — agregada en Sprint 1:
-- Columna `articulo_marketplace_id UUID REFERENCES articulos_marketplace(id) ON DELETE SET NULL`
-- Check `contexto_tipo` ampliado con `'vendedor_marketplace'`
-- Índice parcial `idx_chat_conv_articulo_marketplace`
+**`chat_conversaciones`**:
+- Columna `articulo_marketplace_id UUID REFERENCES articulos_marketplace(id) ON DELETE SET NULL`.
+- Check `contexto_tipo` incluye los valores que usa MarketPlace (`'marketplace'` y `'directo'`).
+- Índice parcial `idx_chat_conv_articulo_marketplace`.
 
-**`guardados`** — agregada en Sprint 1:
-- Check `entity_type` ampliado con `'articulo_marketplace'`
+**`guardados`**:
+- Check `entity_type` incluye `'articulo_marketplace'`.
 
-**`votos`** — agregada en Sprint 5:
-- Check `entity_type` ampliado con `'usuario'`
+**`votos`**:
+- Check `entity_type` incluye `'sucursal'` para el follow de negocios. MarketPlace no usa esta tabla para conexiones entre personas (esas viven en `chat_contactos`).
 
-**`notificaciones`** — agregada en Sprint 1, ampliada en Sprint 9.2:
-- Check `tipo` ampliado con `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`, `'marketplace_nueva_pregunta'`, `'marketplace_pregunta_respondida'`
-- **Columna `tipo`:** ampliada a `VARCHAR(50)` (antes `VARCHAR(30)`). El tipo `marketplace_pregunta_respondida` mide 31 caracteres y excedía el límite, lo que hacía que el INSERT fallara silenciosamente por el `.catch(() => {})` del service y la notificación al comprador nunca se guardaba. Migración: `docs/migraciones/2026-05-05-notificaciones-tipo-varchar50.sql`.
+**`notificaciones`**:
+- Check `tipo` incluye `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`, `'marketplace_nueva_pregunta'`, `'marketplace_pregunta_respondida'`.
+- **Columna `tipo`:** `VARCHAR(50)`. El tipo `marketplace_pregunta_respondida` mide 31 caracteres y necesita este ancho para que el INSERT no falle silenciosamente por el `.catch(() => {})` del service. Migración aplicada: `docs/migraciones/2026-05-05-notificaciones-tipo-varchar50.sql`.
 
-**`marketplace_preguntas`** — agregada en Sprint 9.2:
+**`marketplace_preguntas`**:
 ```sql
 CREATE TABLE marketplace_preguntas (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
@@ -1498,7 +1173,7 @@ CREATE INDEX idx_preguntas_respondidas
 
 **Vista visitante autenticado — su propia pregunta pendiente:** además del array de respondidas, el endpoint `GET /articulos/:id/preguntas` devuelve `miPreguntaPendiente: { id, pregunta, createdAt } | null` cuando el caller no es el dueño y tiene una pregunta sin responder en ese artículo. El frontend (`SeccionPreguntas.tsx`) renderiza un bloque amber **"Tu pregunta está pendiente"** con la pregunta + tiempo relativo + botón "Retirar pregunta" (usa `DELETE /preguntas/:id/mia`). El botón "Hacer una pregunta" se oculta automáticamente cuando ya hay pendiente, evitando que el usuario reciba un 409 del UNIQUE constraint.
 
-**Botón "Mensaje privado" (vista dueño):** anteriormente etiquetado como "Por chat", se renombró para reflejar mejor su función. Mantiene el mismo handler (`derivarPreguntaAChat`) que abre ChatYA con datos del comprador, **pero ya no hace soft delete de la pregunta** — la pregunta pública se conserva visible. Tiene `title` con tooltip explicativo: *"Abre un chat privado con el comprador. La pregunta sigue visible públicamente."*
+**Botón "Mensaje privado" (vista dueño):** abre ChatYA con datos del comprador (handler `derivarPreguntaAChat`) y **no hace soft delete de la pregunta** — la pregunta pública se conserva visible. Tiene `title` con tooltip explicativo: *"Abre un chat privado con el comprador. La pregunta sigue visible públicamente."*
 
 ---
 
@@ -1541,7 +1216,7 @@ CREATE INDEX idx_preguntas_respondidas
 
 - **Qué era:** grid de categorías (Segunda mano, Hecho a mano, Hogar, Electrónicos, etc.) como destino navegable en el feed.
 - **Por qué se descarta:** el comportamiento real del usuario es buscar directo por nombre del artículo. Mantener categorías obliga a clasificar al publicar (alarga el wizard) sin aportar al descubrimiento. Facebook Marketplace y OLX han reducido el peso de categorías por la misma razón.
-- **Solución:** se potencia el buscador (sugerencias, populares, recientes) y se eliminan las categorías. El artículo NO requiere categoría al publicar.
+- **Solución:** el buscador (sugerencias, populares, recientes) cubre el descubrimiento. El artículo NO requiere categoría al publicar.
 
 ### Integración con CardYA
 
@@ -1551,23 +1226,18 @@ CREATE INDEX idx_preguntas_respondidas
 ### "Buen precio" automático y "Buen título" feedback
 
 - **Qué era:** sugerencias inteligentes al publicar comparando con artículos similares en la ciudad.
-- **Por qué se descarta para v1:** requiere histórico de ventas y data suficiente. En beta no habrá datos para que la sugerencia sea confiable.
+- **Por qué se descarta:** requiere histórico de ventas y data suficiente. En beta no habrá datos para que la sugerencia sea confiable.
 - **Cuándo retomar:** cuando haya 200+ artículos publicados y ventas confirmadas en el sistema.
-
-### Borradores de publicaciones
-
-- **Qué era:** guardar una publicación incompleta para terminar después.
-- **Por qué se descarta para v1:** suma complejidad de UX y backend (estado adicional, lista de borradores, recuperación). Si el usuario abandona el wizard a medio publicar, vuelve a empezar. Hay auto-save en sessionStorage que cubre el caso de recarga accidental.
 
 ### "Acepta trueque" como toggle al publicar
 
 - **Qué era:** marcar la publicación como dispuesta a intercambiar por otro artículo.
-- **Por qué se descarta para v1:** caso de uso de nicho. Si el comprador quiere proponer trueque, lo hace por ChatYA.
+- **Por qué se descarta:** caso de uso de nicho. Si el comprador quiere proponer trueque, lo hace por ChatYA.
 
 ### "Hacer oferta" como botón aparte en el detalle
 
 - **Qué era:** botón formal "Hacer oferta $XXX" separado del botón de mensaje, con flujo de ofertas y contraofertas dentro de la app.
-- **Por qué se descarta para v1:** el botón "Enviar mensaje" ya cubre la negociación. Diferenciar "ofertas formales" agrega complejidad de backend sin valor claro mientras la transacción siga siendo offline.
+- **Por qué se descarta:** el botón "Enviar mensaje" ya cubre la negociación. Diferenciar "ofertas formales" agrega complejidad de backend sin valor claro mientras la transacción siga siendo offline.
 
 ### Importar lote (carga masiva)
 
@@ -1602,7 +1272,7 @@ CREATE INDEX idx_preguntas_respondidas
 ### Filtro "Acepta ofertas" en buscador
 
 - **Qué era:** toggle para filtrar solo publicaciones que aceptan ofertas.
-- **Por qué se descarta para v1:** como `aceptaOfertas` default es `true`, el filtro siempre devolvería casi todo. Si en v1.1 los vendedores empiezan a desactivar el toggle, se agrega.
+- **Por qué se descarta:** como `aceptaOfertas` default es `true`, el filtro siempre devolvería casi todo. Si los vendedores empiezan a desactivar el toggle en cantidad significativa, se agrega.
 
 ### Buscador local en MarketPlace
 
@@ -1613,7 +1283,7 @@ CREATE INDEX idx_preguntas_respondidas
 ### "Cambiar ubicación" con input lat/lng manual
 
 - **Qué era:** botón en el wizard de publicar para cambiar la ubicación del artículo introduciendo coordenadas manualmente.
-- **Por qué se descarta:** ningún usuario sabe sus coordenadas. En v1 se usa solo GPS del usuario o coordenada de la ciudad activa por defecto. Si en v1.1 los usuarios lo piden, se agrega un mapa interactivo con marker arrastrable.
+- **Por qué se descarta:** ningún usuario sabe sus coordenadas. Se usa solo GPS del usuario o coordenada de la ciudad activa por defecto. Si los usuarios lo piden con frecuencia, se evaluará agregar un mapa interactivo con marker arrastrable.
 
 ### Botón "Llevar a Servicios" en modal de sugerencia
 
@@ -1623,12 +1293,12 @@ CREATE INDEX idx_preguntas_respondidas
 ### Portada decorativa en perfil del vendedor
 
 - **Qué era:** banner teal sólido o imagen genérica en la parte superior del perfil del vendedor.
-- **Por qué se descarta:** se ve como banner publicitario raro. Solo avatar grande centrado en bloque blanco limpio. Si los usuarios suben portadas reales en v1.1, se agrega.
+- **Por qué se descarta:** se ve como banner publicitario raro. Solo avatar grande centrado en bloque blanco limpio. Si los usuarios piden poder subir su propia portada, se evaluará agregar.
 
 ### Badge "✓ Verificado" en perfil
 
 - **Qué era:** badge azul al lado del nombre del vendedor si tiene correo verificado.
-- **Por qué se descarta:** todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vendrá con el sistema de niveles del vendedor (v1.1).
+- **Por qué se descarta:** todos los usuarios tienen correo verificado (es requisito de login), por lo que el badge no diferencia a nadie. La diferenciación real vive en el sistema de niveles del vendedor (ver §Sistema de Niveles).
 
 ### Filtrar tiempo de respuesta por `contexto_tipo`
 
@@ -1644,18 +1314,18 @@ CREATE INDEX idx_preguntas_respondidas
 ### Persistir `usuario_id` en `marketplace_busquedas_log`
 
 - **Qué era:** guardar quién hizo cada búsqueda para "mis búsquedas frecuentes" personalizadas.
-- **Por qué se descarta para v1:** principio de privacidad. Solo se necesita `ciudad + termino + created_at` para calcular populares. Si en v2 se quiere personalizar, hay localStorage para eso.
+- **Por qué se descarta:** principio de privacidad. Solo se necesita `ciudad + termino + created_at` para calcular populares. Si en el futuro se quiere personalizar, hay localStorage para eso.
 - **Implementación:** `usuario_id = NULL` siempre en `marketplace_busquedas_log`, aunque el endpoint sea autenticado.
 
 
 ---
 
-## 🏆 v1.2 Pendiente — Sistema de Niveles del Vendedor
+## 🏆 Sistema de Niveles del Vendedor (Pendiente)
 
 > **Estado:** ⏸ Pendiente — diseñado pero no implementado
 > **Recomendación:** implementar después de tener data real de la beta (mínimo 2-3 meses de uso o 50+ ventas confirmadas). Los umbrales de cada nivel son adivinanzas hasta validarse con comportamiento real de usuarios.
 >
-> El módulo MarketPlace v1 funciona perfectamente sin este sistema.
+> El módulo MarketPlace funciona perfectamente sin este sistema.
 
 ### Inspiración
 
@@ -1790,7 +1460,7 @@ ALTER TABLE articulos_marketplace
 | POST | `/api/marketplace/articulos/:id/confirmar-compra` | Comprador confirma `{ confirma: boolean }` |
 | GET | `/api/marketplace/usuarios/:id/nivel` | Detalles del nivel actual del usuario para tooltips |
 
-### Decisiones explícitas para v1.1
+### Decisiones explícitas del sistema
 
 - **Sin calificación numérica (4.5 estrellas, etc.)** — las reseñas requieren acción del comprador y son fáciles de manipular. Los niveles basados en comportamiento son más justos.
 - **Sin penalización por bajada** — si un vendedor baja de Confiable a Frecuente porque no respondió rápido este mes, no se le humilla. El sistema solo actualiza el badge en silencio.
@@ -1798,7 +1468,7 @@ ALTER TABLE articulos_marketplace
 
 ### Acoplamiento con ChatYA
 
-El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` para detectar el tipo `'confirmacion_compra_marketplace'` y renderizar botones interactivos. Esto **acopla ChatYA con MarketPlace** — si esto es problema, considerar API de slots configurables en ChatYA. Para v1.1 puede acoplarse y documentarse como deuda técnica.
+El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` para detectar el tipo `'confirmacion_compra_marketplace'` y renderizar botones interactivos. Esto **acopla ChatYA con MarketPlace** — si esto es problema, considerar API de slots configurables en ChatYA. La opción razonable es acoplarlo y documentarlo como deuda técnica.
 
 ---
 
@@ -1821,7 +1491,7 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - Sprint 4 — Wizard de Publicar + Moderación
 - Sprint 5 — Perfil del Vendedor
 - Sprint 6 — Buscador Potenciado
-- Sprint 7 — Polish + Crons + Página Pública (cierre v1)
+- Sprint 7 — Polish + Crons + Página Pública
 
 ### Archivos del módulo
 
@@ -1835,14 +1505,25 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/api/src/validations/marketplace.schema.ts` — Schemas Zod
 - `apps/api/src/cron/marketplace-expiracion.cron.ts` — Crons
 
-**Frontend:**
+**Frontend — Páginas:**
 - `apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx` — P1 Feed
 - `apps/web/src/pages/private/marketplace/PaginaArticuloMarketplace.tsx` — P2 Detalle
-- `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx` — P3 Perfil
+- `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx` — P3 Perfil de Usuario
 - `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx` — P4 Wizard
 - `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx` — P5 Resultados
 - `apps/web/src/pages/public/PaginaArticuloMarketplacePublico.tsx` — P6 Pública
-- `apps/web/src/components/marketplace/CardArticulo.tsx`
+
+**Frontend — Componentes del feed (cards estilo Facebook):**
+- `apps/web/src/components/marketplace/CardArticuloFeed.tsx` — card grande del feed
+- `apps/web/src/components/marketplace/CardArticuloReel.tsx` — card compacta del carrusel
+- `apps/web/src/components/marketplace/ReelMarketplace.tsx` — carrusel auto-scroll
+- `apps/web/src/components/marketplace/ChipsFiltrosFeed.tsx` — chips de filtro
+- `apps/web/src/components/marketplace/ModalArticuloDetalle.tsx` — modal overlay del detalle
+- `apps/web/src/components/marketplace/SeccionPreguntas.tsx` — Q&A público
+- `apps/web/src/components/marketplace/BotonComentarista.tsx` — botón con context menu
+
+**Frontend — Componentes generales:**
+- `apps/web/src/components/marketplace/CardArticulo.tsx` — card compacta (usada en Guardados, Resultados de búsqueda y grid del Perfil del usuario)
 - `apps/web/src/components/marketplace/GaleriaArticulo.tsx`
 - `apps/web/src/components/marketplace/CardVendedor.tsx`
 - `apps/web/src/components/marketplace/MapaUbicacion.tsx`
@@ -1850,14 +1531,19 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
 - `apps/web/src/components/marketplace/FiltrosBuscador.tsx`
 - `apps/web/src/components/marketplace/ModalSugerenciaModeracion.tsx`
+
+**Frontend — Hooks, guards, utils:**
 - `apps/web/src/router/guards/ModoPersonalEstrictoGuard.tsx`
-- `apps/web/src/hooks/queries/useMarketplace.ts`
+- `apps/web/src/hooks/queries/useMarketplace.ts` — hooks de mutación + perfil + KPIs
+- `apps/web/src/hooks/queries/useFeedInfinitoMarketplace.ts` — `useInfiniteQuery` del feed
 - `apps/web/src/hooks/useFiltrosBuscadorUrl.ts`
 - `apps/web/src/utils/busquedasRecientes.ts`
+- `apps/web/src/utils/moderacionMarketplace.ts` — validación inline cliente
+- `apps/web/src/utils/optimizarImagen.ts` — redimensión + compresión WebP
 - `apps/web/src/types/marketplace.ts`
 
 ---
 
-**Última actualización:** 04 Mayo 2026
-**Estado del módulo:** ✅ v1 completado y desplegado
-**Próximo paso:** evaluar Sprint 8 (Sistema de Niveles) después de tener data de beta
+**Última actualización:** 13 Mayo 2026
+**Estado del módulo:** ✅ En producción (versión 1.5.1)
+**Próximo paso:** evaluar Sistema de Niveles del Vendedor cuando haya data real de la beta (mínimo 2-3 meses de uso o 50+ ventas confirmadas)

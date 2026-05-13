@@ -11,9 +11,17 @@
  *  2. Precio + Condición + Acepta ofertas + Descripción (50-1000 chars).
  *  3. Mapa con círculo 500m + Resumen + Checklist (solo modo crear).
  *
- * Auto-save: cada vez que cambia el estado, se guarda en sessionStorage
- * bajo `wizard_marketplace_${articuloId ?? 'nuevo'}`. Si el usuario recarga
- * la página, se recupera lo último.
+ * Auto-save: cada vez que cambia el estado, se guarda en localStorage
+ * bajo `wizard_marketplace_${usuarioId}_${articuloId ?? 'nuevo'}`. Si el
+ * usuario cierra el navegador o hace logout y vuelve a loguearse, se
+ * recupera el borrador exactamente como lo dejó (incluidas las fotos
+ * subidas a R2).
+ *
+ * Privacidad cross-usuario: el `usuarioId` en el storageKey garantiza
+ * que cuando otra persona se loguea en el mismo dispositivo, el wizard
+ * construye una key distinta y nunca lee el borrador ajeno — el feed
+ * arranca limpio para el otro usuario. NO se hace cleanup al logout
+ * porque el autor debe poder recuperar su trabajo cuando vuelva.
  *
  * Vista previa en vivo: solo en `lg:`+ aparece a la derecha una instancia
  * de `<CardArticulo>` actualizada con los datos del wizard.
@@ -43,11 +51,18 @@ import {
     Pencil,
     DoorOpen,
     FileQuestion,
+    Plus,
+    Lightbulb,
+    Star,
+    Trash2,
+    ArrowRight,
+    Check,
 } from 'lucide-react';
 import { MapContainer, TileLayer, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import {
     useArticuloMarketplace,
     useCrearArticulo,
@@ -56,15 +71,16 @@ import {
     type CrearArticuloPayload,
     type RespuestaModeracion,
 } from '../../../hooks/queries/useMarketplace';
-import { CardArticulo } from '../../../components/marketplace/CardArticulo';
+import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFeed';
 import { ModalSugerenciaModeracion } from '../../../components/marketplace/ModalSugerenciaModeracion';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
+import { ModalImagenes } from '../../../components/ui/ModalImagenes';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
 import { detectarPalabraProhibida } from '../../../utils/moderacionMarketplace';
 import { api } from '../../../services/api';
 import type {
-    ArticuloFeed,
+    ArticuloFeedInfinito,
     CondicionArticulo,
     EstadoArticulo,
 } from '../../../types/marketplace';
@@ -88,6 +104,39 @@ const CONDICIONES: { valor: CondicionArticulo; etiqueta: string }[] = [
     { valor: 'usado', etiqueta: 'Usado' },
     { valor: 'para_reparar', etiqueta: 'Para reparar' },
 ];
+
+// Tips contextuales por paso — se muestran como card al final de la columna
+// izquierda. Reemplazan la card de tips genéricos que vivía en el panel sticky
+// derecho y llenan el vacío vertical que dejaba la `CardArticuloFeed` alta.
+const TIPS_POR_PASO: Record<1 | 2 | 3, { titulo: string; tips: string[]; cierre?: string }> = {
+    1: {
+        titulo: 'Tips para fotos y título',
+        tips: [
+            'Buena luz natural y fondo limpio venden 3 veces más.',
+            'La primera foto es la portada — escoge la que mejor muestre el artículo.',
+            'Título claro: marca, modelo y estado en pocas palabras.',
+            'Sé específico: "Bicicleta Rinos vintage restaurada" mejor que "Bici".',
+        ],
+    },
+    2: {
+        titulo: 'Tips para precio y descripción',
+        tips: [
+            'Revisa anuncios similares para fijar un precio competitivo.',
+            'Sé honesto con la condición — los compradores valoran la transparencia.',
+            'Describe medidas, fallas y accesorios incluidos.',
+            'Mientras más detalles, menos preguntas innecesarias por chat.',
+        ],
+    },
+    3: {
+        titulo: 'Tips de seguridad al vender',
+        tips: [
+            'Tu ubicación NO se muestra exacta — solo un círculo de 500m.',
+            'Reúnete en lugares públicos y de día para entregar el artículo.',
+            'Cobra antes de entregar o usa pago contra entrega.',
+            'Revisa el resumen — una vez publicado, todos podrán verlo.',
+        ],
+    },
+};
 
 // =============================================================================
 // TIPOS
@@ -138,6 +187,12 @@ export function PaginaPublicarArticulo() {
     const lngGps = useGpsStore((s) => s.longitud);
     const usuarioId = useAuthStore((s) => s.usuario?.id ?? null);
 
+    // BottomNav auto-hide tracker (móvil) — los FABs flotantes bajan a
+    // `bottom-4` cuando el BottomNav se oculta al hacer scroll, y vuelven
+    // a `bottom-20` cuando reaparece. Mismo patrón que el FAB "Publicar"
+    // del feed (PaginaMarketplace).
+    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
+
     // Storage key del borrador — incluye usuarioId para que cada cuenta tenga
     // su propio borrador en el mismo navegador. Si no hay usuario (ruta sin
     // auth, raro), cae a 'anon' como salvaguarda. Cambiar de cuenta NO debe
@@ -151,6 +206,25 @@ export function PaginaPublicarArticulo() {
     const [errores, setErrores] = useState<Record<string, string>>({});
     const [confirmacionPrecioBajo, setConfirmacionPrecioBajo] = useState(false);
     const [modalSalirAbierto, setModalSalirAbierto] = useState(false);
+
+    // URLs de fotos subidas a R2 durante ESTA sesión del wizard. Vive en el
+    // padre (no en Paso1) porque `handleDescartarYSalir` necesita iterarlas
+    // para limpiar R2 en MODO EDICIÓN — en ese modo `datos.fotos` mezcla
+    // fotos preexistentes del artículo (NO borrables) con las nuevas
+    // (borrables), y este set las distingue. En MODO CREAR no se consulta:
+    // todas las fotos del state son efímeras y se borran iterando `datos.fotos`.
+    const urlsSubidasEnSesion = useRef<Set<string>>(new Set<string>());
+
+    // Contador de fotos en upload simultáneo (batch del Paso 1). Vive aquí
+    // (no en Paso1) por dos razones:
+    //  1. Paso1 puede desmontarse mientras el batch sigue corriendo (si el
+    //     usuario hace "Continuar" entre pasos); si `setPendientes` viviera
+    //     en Paso1 daría warning de React "update on unmounted component".
+    //  2. `handleContinuar` y el botón "Publicar" deben bloquearse hasta
+    //     que termine el batch — si no, las fotos del batch se subirían a
+    //     R2 sin asociarse al artículo creado (quedan huérfanas).
+    const [pendientesUpload, setPendientesUpload] = useState(0);
+    const subiendoBatch = pendientesUpload > 0;
     const [moderacionSugerencia, setModeracionSugerencia] = useState<{
         categoria: 'servicio' | 'busqueda';
         mensaje: string;
@@ -162,7 +236,7 @@ export function PaginaPublicarArticulo() {
     } | null>(null);
 
     // ─── Hidratación inicial ──────────────────────────────────────────────────
-    // Modo crear: lee sessionStorage. Modo editar: precarga del backend.
+    // Modo crear: lee localStorage. Modo editar: precarga del backend.
     const articuloQuery = useArticuloMarketplace(articuloId);
 
     useEffect(() => {
@@ -191,9 +265,9 @@ export function PaginaPublicarArticulo() {
                 setHidratado(true);
             }
         } else {
-            // Modo crear: intentar leer sessionStorage
+            // Modo crear: intentar leer localStorage
             try {
-                const raw = sessionStorage.getItem(storageKey);
+                const raw = localStorage.getItem(storageKey);
                 if (raw) {
                     const parsed = JSON.parse(raw) as DatosWizard;
                     setDatos((prev) => ({ ...prev, ...parsed }));
@@ -235,7 +309,7 @@ export function PaginaPublicarArticulo() {
         if (autoSaveTimeoutRef.current) clearTimeout(autoSaveTimeoutRef.current);
         autoSaveTimeoutRef.current = setTimeout(() => {
             try {
-                sessionStorage.setItem(storageKey, JSON.stringify(datos));
+                localStorage.setItem(storageKey, JSON.stringify(datos));
             } catch {
                 /* ignora QuotaExceeded */
             }
@@ -299,18 +373,55 @@ export function PaginaPublicarArticulo() {
     }, [datos.latitud, datos.longitud, datos.checklist, esModoEdicion]);
 
     const puedeAvanzar =
-        (pasoActual === 1 && Object.keys(erroresPaso1).length === 0) ||
-        (pasoActual === 2 && Object.keys(erroresPaso2).length === 0) ||
-        (pasoActual === 3 && Object.keys(erroresPaso3).length === 0);
+        !subiendoBatch &&
+        ((pasoActual === 1 && Object.keys(erroresPaso1).length === 0) ||
+            (pasoActual === 2 && Object.keys(erroresPaso2).length === 0) ||
+            (pasoActual === 3 && Object.keys(erroresPaso3).length === 0));
 
     // ─── Handlers ─────────────────────────────────────────────────────────────
     const tieneCambios =
         datos.fotos.length > 0 ||
         datos.titulo.trim().length > 0 ||
         datos.descripcion.trim().length > 0 ||
-        datos.precio.length > 0;
+        datos.precio.length > 0 ||
+        // Si hay un batch de fotos subiéndose pero aún no aterrizaron en
+        // `datos.fotos`, también contamos como "hay cambios" — para que el
+        // beforeunload warning evite que el usuario cierre la pestaña y
+        // pierda las URLs en vuelo (que quedarían huérfanas en R2).
+        subiendoBatch;
+
+    // ─── Warning del navegador al cerrar pestaña con cambios sin guardar ───
+    // Si el usuario cierra la pestaña, refresca o navega fuera con el botón
+    // del navegador (NO con `navigate()` interno) mientras tiene fotos
+    // subidas o texto escrito, el navegador muestra su diálogo nativo
+    // "¿Salir? Tus cambios no se guardaron".
+    //
+    // No borra fotos automáticamente — sería peligroso si el usuario cierra
+    // por error. El reconcile global de R2 limpiará las que queden
+    // huérfanas eventualmente. Los flujos internos del wizard
+    // (handleDescartarYSalir, handleGuardarBorradorYSalir) usan `navigate()`
+    // que NO dispara `beforeunload`, así que no hay conflicto.
+    useEffect(() => {
+        if (!tieneCambios || guardando) return;
+        const handler = (e: BeforeUnloadEvent) => {
+            e.preventDefault();
+            // Chrome / Edge requieren setear `returnValue`. El texto se
+            // ignora desde 2016 — el navegador muestra su mensaje genérico.
+            e.returnValue = '';
+        };
+        window.addEventListener('beforeunload', handler);
+        return () => window.removeEventListener('beforeunload', handler);
+    }, [tieneCambios, guardando]);
 
     const handleAtras = () => {
+        // Guard defensivo: si por race condition el handler se dispara
+        // entre el momento en que el batch arrancó y el render que
+        // deshabilita el botón, abortar. El usuario debe esperar a que
+        // las fotos terminen de subirse antes de poder salir.
+        if (subiendoBatch) {
+            notificar.advertencia('Espera a que terminen de subirse las fotos');
+            return;
+        }
         if (pasoActual === 1) {
             // Si no escribió nada, salir directo sin preguntar.
             if (!tieneCambios) {
@@ -324,10 +435,10 @@ export function PaginaPublicarArticulo() {
     };
 
     const handleGuardarBorradorYSalir = () => {
-        // El auto-save ya guardó el state en sessionStorage (debounced 500ms),
+        // El auto-save ya guardó el state en localStorage (debounced 500ms),
         // pero forzamos un save inmediato por si el usuario sale antes.
         try {
-            sessionStorage.setItem(storageKey, JSON.stringify(datos));
+            localStorage.setItem(storageKey, JSON.stringify(datos));
         } catch {
             /* QuotaExceeded — fallback al cron del browser */
         }
@@ -336,14 +447,29 @@ export function PaginaPublicarArticulo() {
     };
 
     const handleDescartarYSalir = () => {
-        // Borrar fotos subidas en esta sesión que aún no son parte de un artículo.
-        // Las fotos preexistentes (modo edición) NO se tocan — el reference
-        // count del backend las preserva.
-        if (!esModoEdicion) {
-            datos.fotos.forEach((url) => {
-                api.delete('/r2/imagen', { data: { url } }).catch(() => undefined);
-            });
-        }
+        // Borrar fotos huérfanas de R2 según el modo:
+        //
+        // - MODO CREAR: todas las fotos del state son efímeras (el artículo
+        //   no existe en BD). Se borran todas iterando `datos.fotos` — esto
+        //   cubre tanto las subidas en esta sesión como las hidratadas
+        //   desde un borrador en localStorage.
+        //
+        // - MODO EDICIÓN: el state mezcla fotos preexistentes del artículo
+        //   guardado (NO deben tocarse — el endpoint del backend las
+        //   conserva con reference count) con las nuevas subidas en esta
+        //   sesión (sí deben borrarse porque nunca llegarán al backend).
+        //   El set `urlsSubidasEnSesion` distingue ambas.
+        //
+        // Defensa en profundidad: el endpoint `DELETE /api/r2/imagen` hace
+        // reference count contra IMAGE_REGISTRY, así que incluso si por
+        // bug pasamos una URL en uso, NO se borraría.
+        const urlsABorrar = esModoEdicion
+            ? Array.from(urlsSubidasEnSesion.current)
+            : datos.fotos;
+        urlsABorrar.forEach((url) => {
+            api.delete('/r2/imagen', { data: { url } }).catch(() => undefined);
+        });
+        urlsSubidasEnSesion.current.clear();
         limpiarStorage();
         setModalSalirAbierto(false);
         navigate('/marketplace');
@@ -462,19 +588,28 @@ export function PaginaPublicarArticulo() {
 
     const limpiarStorage = () => {
         try {
-            sessionStorage.removeItem(storageKey);
+            localStorage.removeItem(storageKey);
         } catch {
             /* noop */
         }
     };
 
     // ─── Vista previa en vivo (desktop) ───────────────────────────────────────
-    const articuloPreview: ArticuloFeed = useMemo(
-        () => ({
+    // El preview usa `CardArticuloFeed` (la card real del feed estilo Facebook)
+    // para que el usuario vea EXACTAMENTE como se verá su publicación una vez
+    // publicada. Por eso se construye un `ArticuloFeedInfinito` completo con
+    // el vendedor (= usuario actual) y `topPreguntas: []` (artículo nuevo).
+    //
+    // Las interacciones (heart, hacer pregunta) se bloquean con
+    // `pointer-events: none` en el wrapper — es solo preview, las acciones
+    // no aplican porque el artículo aún no existe en BD.
+    const articuloPreview: ArticuloFeedInfinito = useMemo(() => {
+        const usuario = useAuthStore.getState().usuario;
+        return {
             id: articuloId ?? 'preview',
-            usuarioId: useAuthStore.getState().usuario?.id ?? '',
+            usuarioId: usuario?.id ?? '',
             titulo: datos.titulo || 'Título del artículo',
-            descripcion: datos.descripcion || '',
+            descripcion: datos.descripcion || 'Descripción de tu artículo…',
             precio: datos.precio ? `${parseInt(datos.precio, 10) || 0}.00` : '0.00',
             condicion: (datos.condicion ?? 'usado') as CondicionArticulo,
             aceptaOfertas: datos.aceptaOfertas,
@@ -495,9 +630,17 @@ export function PaginaPublicarArticulo() {
             updatedAt: new Date().toISOString(),
             vendidaAt: null,
             distanciaMetros: null,
-        }),
-        [datos, articuloId]
-    );
+            // Datos específicos de `ArticuloFeedInfinito` ─────────────────────
+            vendedor: {
+                id: usuario?.id ?? '',
+                nombre: usuario?.nombre ?? 'Tú',
+                apellidos: usuario?.apellidos ?? '',
+                avatarUrl: usuario?.avatarUrl ?? null,
+            },
+            topPreguntas: [],
+            guardado: false,
+        };
+    }, [datos, articuloId]);
 
     // ─── Render ───────────────────────────────────────────────────────────────
 
@@ -510,52 +653,174 @@ export function PaginaPublicarArticulo() {
     }
 
     return (
-        <div data-testid="pagina-publicar-articulo" className="min-h-full bg-transparent pb-24">
-            {/* ─── Header con back + progreso ──────────────────────── */}
-            <div className="sticky top-0 z-20 border-b border-slate-200 bg-white">
+        <div data-testid="pagina-publicar-articulo" className="min-h-full bg-transparent pb-40 lg:pb-12">
+            {/* ════════════════════════════════════════════════════════════════
+                HEADER DARK STICKY — Identidad teal del MarketPlace.
+                Mismo patrón que PaginaMarketplace (P1), PaginaArticuloMarketplace
+                (P2) y PaginaPerfilVendedor (P3): fondo negro + glow teal
+                radial + grid pattern. El icono Plus en gradient teal refuerza
+                la continuidad con el FAB "+" del feed (entras al wizard desde
+                ese botón y ves el mismo + arriba).
+                La barra de progreso va INTEGRADA al final del header negro
+                (sobre fondo dark) en lugar de en una banda blanca aparte.
+            ════════════════════════════════════════════════════════════════ */}
+            <div className="sticky top-0 z-30">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
-                    <div className="flex items-center gap-3 px-3 py-3">
-                        <button
-                            data-testid="btn-atras-wizard"
-                            onClick={handleAtras}
-                            aria-label="Volver"
-                            className="flex h-10 w-10 cursor-pointer items-center justify-center rounded-lg text-slate-700 hover:bg-slate-100"
-                        >
-                            <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
-                        </button>
-                        <div className="flex-1 text-center">
-                            <div className="text-sm font-semibold text-slate-900">
-                                {esModoEdicion ? 'Editar publicación' : 'Nueva publicación'}
+                    <div
+                        className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                        style={{ background: '#000000' }}
+                    >
+                        {/* Glow sutil teal arriba-derecha */}
+                        <div
+                            className="pointer-events-none absolute inset-0"
+                            style={{
+                                background:
+                                    'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.07) 0%, transparent 50%)',
+                            }}
+                        />
+                        {/* Grid pattern sutil */}
+                        <div
+                            className="pointer-events-none absolute inset-0"
+                            style={{
+                                opacity: 0.08,
+                                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                            }}
+                        />
+
+                        {/* Contenido del header */}
+                        <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5">
+                            {/* Bloque izquierdo: ← + icono teal + "Nueva publicación" | Paso N de 3 */}
+                            <div className="flex min-w-0 items-center gap-1.5">
+                                <button
+                                    data-testid="btn-atras-wizard"
+                                    onClick={handleAtras}
+                                    aria-label="Volver"
+                                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white"
+                                >
+                                    <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                                </button>
+                                <div
+                                    className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                    style={{
+                                        background:
+                                            'linear-gradient(135deg, #2dd4bf, #0d9488)',
+                                    }}
+                                >
+                                    <Plus
+                                        className="h-[18px] w-[18px] text-black"
+                                        strokeWidth={2.75}
+                                    />
+                                </div>
+                                <span className="ml-1.5 shrink-0 text-xl font-extrabold tracking-tight text-white lg:text-2xl">
+                                    {esModoEdicion ? (
+                                        <>Editar <span className="text-teal-400">Publicación</span></>
+                                    ) : (
+                                        <>Nueva <span className="text-teal-400">Publicación</span></>
+                                    )}
+                                </span>
+
+                                {/* Separador vertical — solo aparece cuando hay
+                                    espacio suficiente para no cortar el título. */}
+                                <span
+                                    aria-hidden
+                                    className="ml-2 hidden h-7 w-[1.5px] shrink-0 rounded-full bg-white/50 lg:block"
+                                />
+
+                                {/* Subtítulo "Paso N de 3" — visible solo en lg+,
+                                    en móvil esa info ya la transmite la barra
+                                    de progreso debajo. */}
+                                <span className="ml-1 hidden min-w-0 shrink-0 text-sm font-semibold text-white/85 lg:inline lg:text-base">
+                                    Paso {pasoActual} de 3
+                                </span>
                             </div>
-                            <div className="text-xs text-slate-500">
-                                Paso {pasoActual} de 3
+
+                            {/* Bloque derecho —
+                                · Móvil: chip "Paso N/3" (el footer fijo del
+                                  bottom aloja los botones de navegación).
+                                · Desktop: botones de navegación inline
+                                  (Anterior/Salir + Continuar/Publicar) — en
+                                  desktop hay espacio de sobra y se ven mejor
+                                  arriba que en una barra fija inferior. */}
+                            <div className="flex shrink-0 items-center gap-1 lg:hidden">
+                                <span className="rounded-full bg-white/10 px-2.5 py-1 text-[11px] font-bold uppercase tracking-wider text-white/80">
+                                    Paso {pasoActual}/3
+                                </span>
+                            </div>
+                            <div className="hidden shrink-0 items-center gap-2 lg:flex">
+                                <button
+                                    data-testid="btn-paso-anterior-header"
+                                    onClick={handleAtras}
+                                    disabled={guardando || subiendoBatch}
+                                    title={
+                                        subiendoBatch
+                                            ? 'Espera a que terminen de subirse las fotos'
+                                            : undefined
+                                    }
+                                    className="cursor-pointer rounded-lg border-2 border-white/25 bg-transparent px-4 py-1.5 text-sm font-bold text-white/85 transition-colors hover:border-white/40 hover:bg-white/10 hover:text-white disabled:cursor-not-allowed disabled:opacity-40"
+                                >
+                                    {pasoActual === 1 ? 'Salir' : 'Anterior'}
+                                </button>
+                                <button
+                                    data-testid="btn-paso-continuar-header"
+                                    onClick={handleContinuar}
+                                    disabled={!puedeAvanzar || guardando}
+                                    title={
+                                        subiendoBatch
+                                            ? 'Espera a que terminen de subirse las fotos'
+                                            : undefined
+                                    }
+                                    className="flex cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-teal-500 to-teal-700 px-5 py-1.5 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.02] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
+                                >
+                                    {(guardando || subiendoBatch) && (
+                                        <Loader2 className="h-4 w-4 animate-spin" />
+                                    )}
+                                    {subiendoBatch
+                                        ? 'Subiendo fotos…'
+                                        : pasoActual < 3
+                                            ? 'Continuar'
+                                            : esModoEdicion
+                                                ? 'Guardar cambios'
+                                                : 'Publicar ahora'}
+                                </button>
                             </div>
                         </div>
-                        <div className="w-10" />
-                    </div>
-                    {/* Barra de progreso */}
-                    <div className="flex gap-1 px-3 pb-2">
-                        {[1, 2, 3].map((p) => (
-                            <div
-                                key={p}
-                                className={`h-1.5 flex-1 rounded-full transition-colors ${
-                                    p <= pasoActual ? 'bg-teal-500' : 'bg-slate-200'
-                                }`}
-                            />
-                        ))}
+
+                        {/* Barra de progreso integrada — sobre fondo negro,
+                            con segmentos teal-400 (más brillante para
+                            destacar sobre el dark) y track white/20. */}
+                        <div className="relative z-10 flex gap-1 px-3 pb-3 lg:pb-4">
+                            {[1, 2, 3].map((p) => (
+                                <div
+                                    key={p}
+                                    className={`h-1.5 flex-1 rounded-full transition-colors ${
+                                        p <= pasoActual ? 'bg-teal-400' : 'bg-white/15'
+                                    }`}
+                                />
+                            ))}
+                        </div>
                     </div>
                 </div>
             </div>
 
-            {/* ─── Contenido (con vista previa en lg+) ──────────────── */}
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 lg:py-6 2xl:px-8">
-                <div className="lg:grid lg:grid-cols-[60%_40%] lg:gap-8">
-                    <div className="px-3 py-4 lg:px-0 lg:py-0">
+            {/* ════════════════════════════════════════════════════════════════
+                CONTENIDO — wrapper único max-w-7xl, mismo ancho que el header.
+                Grid desktop 3fr/2fr (no 60%/40%) para que el gap no produzca
+                overflow horizontal — patrón establecido en P2 Detalle.
+            ════════════════════════════════════════════════════════════════ */}
+            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 lg:py-8 2xl:px-8">
+                <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
+                    {/* ─── COLUMNA IZQUIERDA (full width en móvil) ───────── */}
+                    <div className="space-y-5 py-4 lg:space-y-6 lg:py-0">
                         {pasoActual === 1 && (
                             <Paso1
                                 datos={datos}
                                 setDatos={setDatos}
                                 errores={erroresPaso1}
+                                esModoEdicion={esModoEdicion}
+                                urlsSubidasEnSesion={urlsSubidasEnSesion}
+                                setPendientesUpload={setPendientesUpload}
+                                pendientesUpload={pendientesUpload}
                             />
                         )}
                         {pasoActual === 2 && (
@@ -563,6 +828,9 @@ export function PaginaPublicarArticulo() {
                                 datos={datos}
                                 setDatos={setDatos}
                                 errores={erroresPaso2}
+                                esModoEdicion={esModoEdicion}
+                                urlsSubidasEnSesion={urlsSubidasEnSesion}
+                                setPendientesUpload={setPendientesUpload}
                             />
                         )}
                         {pasoActual === 3 && (
@@ -571,56 +839,145 @@ export function PaginaPublicarArticulo() {
                                 setDatos={setDatos}
                                 errores={erroresPaso3}
                                 esModoEdicion={esModoEdicion}
+                                urlsSubidasEnSesion={urlsSubidasEnSesion}
+                                setPendientesUpload={setPendientesUpload}
                             />
                         )}
                     </div>
 
-                    {/* Vista previa en vivo (solo desktop) */}
+                    {/* ─── COLUMNA DERECHA — solo desktop, sticky.
+                        Card "Vista previa" con la CardArticulo adentro +
+                        card de tips, ambas con el patrón rounded-xl border-2
+                        slate-300 bg-white shadow-md de P2. ──────────────── */}
                     <div className="hidden lg:block">
-                        <div className="sticky top-32">
-                            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                                Vista previa
-                            </p>
-                            <div className="max-w-xs">
-                                <CardArticulo articulo={articuloPreview} />
+                        <div
+                            className="sticky top-28 space-y-3 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+                            style={{ maxHeight: 'calc(100vh - 8rem)' }}
+                        >
+                            {/* Vista previa — usa la MISMA CardArticuloFeed del
+                                feed real para que el vendedor vea con fidelidad
+                                cómo lucirá su publicación. La card ya trae sus
+                                propios bordes en lg+ (rounded-xl border-2
+                                slate-300), por eso el wrapper exterior NO lleva
+                                border ni shadow (evita doble caja). El label
+                                "Vista previa" va arriba como rotulado discreto.
+                                `pointer-events: none` bloquea interacciones
+                                (heart, preguntas) porque el artículo aún no
+                                existe en BD.
+                                Los tips se movieron a la columna izquierda
+                                (dentro de cada paso) para llenar el vacío de
+                                altura: la card del feed es alta y la columna
+                                izquierda solía verse vacía abajo. ────────── */}
+                            <div className="space-y-2">
+                                {/* Card del preview va PRIMERO para que su
+                                    borde superior se alinee con el primer
+                                    bloque de la columna izquierda (Fotos).
+                                    El label rotulado va debajo como pie de
+                                    foto, sin desalinear la cuadrícula. */}
+                                <div
+                                    aria-hidden
+                                    className="select-none"
+                                    style={{ pointerEvents: 'none' }}
+                                >
+                                    {/* `claseAspectoGaleria` hace la galería
+                                        más alta en el preview para que el
+                                        sidebar de thumbnails muestre más
+                                        miniaturas sin scroll. El feed real
+                                        sigue usando el default 4:3 / 2:1. */}
+                                    <CardArticuloFeed
+                                        articulo={articuloPreview}
+                                        claseAspectoGaleria="aspect-[4/3] lg:aspect-square"
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2 px-1">
+                                    <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-teal-500" aria-hidden />
+                                    <h2 className="text-base font-bold text-slate-700">
+                                        Vista previa
+                                    </h2>
+                                    <span className="text-sm font-medium text-slate-500">
+                                        — así se verá en el feed
+                                    </span>
+                                </div>
                             </div>
-                            <p className="mt-3 text-xs leading-relaxed text-slate-500">
-                                Tip: Las publicaciones con buenas fotos y precio competitivo
-                                se venden en promedio 3 días más rápido.
-                            </p>
                         </div>
                     </div>
                 </div>
             </div>
 
-            {/* ─── Footer fijo con botones de navegación ───────────── */}
-            <div className="fixed inset-x-0 bottom-0 z-20 border-t border-slate-200 bg-white">
-                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
-                    <div className="flex gap-2 px-3 py-3 lg:max-w-3xl">
-                        <button
-                            data-testid="btn-paso-anterior"
-                            onClick={handleAtras}
-                            disabled={guardando}
-                            className="cursor-pointer rounded-lg border-2 border-slate-300 bg-white px-4 py-3 text-sm font-semibold text-slate-700 transition-colors hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                            {pasoActual === 1 ? 'Salir' : 'Anterior'}
-                        </button>
-                        <button
-                            data-testid="btn-paso-continuar"
-                            onClick={handleContinuar}
-                            disabled={!puedeAvanzar || guardando}
-                            className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100"
-                        >
-                            {guardando && <Loader2 className="h-4 w-4 animate-spin" />}
-                            {pasoActual < 3
-                                ? 'Continuar'
-                                : esModoEdicion
-                                    ? 'Guardar cambios'
-                                    : 'Publicar ahora'}
-                        </button>
-                    </div>
-                </div>
-            </div>
+            {/* ════════════════════════════════════════════════════════════════
+                FABs FLOTANTES — solo móvil. En desktop los botones viven
+                en el bloque derecho del header dark.
+                · FAB izquierdo (Salir/Anterior): circular pequeño, fondo
+                  blanco con borde, esquina inferior izquierda.
+                · FAB derecho (Continuar/Publicar): pill con texto + icono,
+                  gradient teal, esquina inferior derecha — visualmente
+                  prominente como acción principal.
+                Ambos posicionados a `bottom-20` para flotar sobre el
+                BottomNav (h-16) con respiro de 16px. En el último paso,
+                el FAB derecho se ensancha con un icono `Check` para
+                comunicar "publicar/guardar".
+            ════════════════════════════════════════════════════════════════ */}
+            <button
+                type="button"
+                data-testid="btn-paso-anterior"
+                onClick={handleAtras}
+                disabled={guardando || subiendoBatch}
+                aria-label={pasoActual === 1 ? 'Salir' : 'Anterior'}
+                title={
+                    subiendoBatch
+                        ? 'Espera a que terminen de subirse las fotos'
+                        : pasoActual === 1
+                            ? 'Salir'
+                            : 'Anterior'
+                }
+                style={{
+                    boxShadow: '0 6px 20px rgba(15, 23, 42, 0.18)',
+                    transition:
+                        'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+                }}
+                className={`fixed left-4 z-30 flex h-14 w-14 cursor-pointer items-center justify-center rounded-full border-2 border-slate-300 bg-white text-slate-700 shadow-lg hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-50 lg:hidden ${
+                    bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                }`}
+            >
+                <ChevronLeft className="h-6 w-6" strokeWidth={2.5} />
+            </button>
+            <button
+                type="button"
+                data-testid="btn-paso-continuar"
+                onClick={handleContinuar}
+                disabled={!puedeAvanzar || guardando}
+                title={
+                    subiendoBatch
+                        ? 'Espera a que terminen de subirse las fotos'
+                        : undefined
+                }
+                style={{
+                    boxShadow: '0 6px 24px rgba(13, 148, 136, 0.45)',
+                    transition:
+                        'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+                }}
+                className={`fixed right-4 z-30 flex h-14 cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-teal-500 to-teal-700 px-6 text-sm font-bold text-white shadow-lg hover:scale-[1.03] active:scale-95 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:scale-100 lg:hidden ${
+                    bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                }`}
+            >
+                {guardando || subiendoBatch ? (
+                    <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2.5} />
+                ) : pasoActual === 3 ? (
+                    <Check className="h-5 w-5" strokeWidth={2.75} />
+                ) : null}
+                <span>
+                    {subiendoBatch
+                        ? 'Subiendo fotos…'
+                        : pasoActual < 3
+                            ? 'Continuar'
+                            : esModoEdicion
+                                ? 'Guardar cambios'
+                                : 'Publicar ahora'}
+                </span>
+                {pasoActual < 3 && !guardando && !subiendoBatch && (
+                    <ArrowRight className="h-5 w-5" strokeWidth={2.5} />
+                )}
+            </button>
 
             {/* ─── Modal de sugerencia (servicio/búsqueda) ─────────── */}
             <ModalSugerenciaModeracion
@@ -729,52 +1086,84 @@ export function PaginaPublicarArticulo() {
                 </div>
             </ModalAdaptativo>
 
-            {/* ─── Modal de rechazo duro (palabra prohibida) ───────── */}
-            {moderacionRechazo && (
-                <div
-                    data-testid="modal-rechazo-moderacion"
-                    className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 p-4"
-                    role="dialog"
-                    aria-modal="true"
-                >
-                    <div className="w-full max-w-md overflow-hidden rounded-2xl bg-white shadow-2xl">
-                        <div className="flex flex-col items-center gap-3 p-6 text-center">
-                            <div className="flex h-14 w-14 items-center justify-center rounded-full bg-rose-100">
-                                <AlertCircle
-                                    className="h-7 w-7 text-rose-600"
-                                    strokeWidth={2}
-                                />
+            {/* ─── Modal de rechazo duro (palabra prohibida) — patrón TC-6A
+                con header gradiente rose (acción negativa), mismo modelo que
+                "Salir sin publicar" pero con tonos rojos en lugar de teal. ── */}
+            <ModalAdaptativo
+                abierto={!!moderacionRechazo}
+                onCerrar={() => {
+                    setModeracionRechazo(null);
+                    setPasoActual(1);
+                }}
+                ancho="md"
+                mostrarHeader={false}
+                paddingContenido="none"
+                sinScrollInterno
+                headerOscuro
+                className="lg:max-w-sm 2xl:max-w-md"
+            >
+                {moderacionRechazo && (
+                    <div data-testid="modal-rechazo-moderacion">
+                        {/* Header gradiente rose */}
+                        <div
+                            className="relative overflow-hidden px-4 pt-6 pb-3 lg:px-3 lg:py-3 2xl:px-4 2xl:py-4 lg:rounded-t-2xl"
+                            style={{
+                                background:
+                                    'linear-gradient(135deg, #be123c 0%, #881337 100%)',
+                                boxShadow: '0 4px 16px rgba(190, 18, 60, 0.35)',
+                            }}
+                        >
+                            <div className="relative flex items-center gap-2.5">
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-white/15">
+                                    <AlertCircle className="h-4 w-4 text-white" strokeWidth={2.25} />
+                                </div>
+                                <div className="min-w-0 flex-1">
+                                    <h2 className="text-base font-bold text-white leading-tight 2xl:text-lg">
+                                        No podemos publicar este contenido
+                                    </h2>
+                                    <p className="mt-0.5 text-sm font-medium text-white/80">
+                                        Necesitamos que ajustes tu publicación
+                                    </p>
+                                </div>
                             </div>
-                            <h2 className="text-lg font-semibold text-slate-900">
-                                No podemos publicar este contenido
-                            </h2>
-                            <p className="text-sm leading-relaxed text-slate-600">
+                        </div>
+
+                        {/* Cuerpo */}
+                        <div className="px-4 py-4 lg:px-3 lg:py-3 2xl:px-4 2xl:py-4">
+                            <p className="text-center text-sm font-medium leading-relaxed text-slate-700 lg:text-sm 2xl:text-base">
                                 {moderacionRechazo.mensaje}
                             </p>
+
                             {moderacionRechazo.palabraDetectada && (
-                                <p className="text-xs text-slate-500">
-                                    Palabra detectada:{' '}
-                                    <span className="font-mono font-semibold">
-                                        {moderacionRechazo.palabraDetectada}
-                                    </span>
-                                </p>
+                                <div className="mt-3 rounded-lg border-2 border-rose-200 bg-rose-50 px-3 py-2">
+                                    <p className="text-xs font-medium text-rose-900">
+                                        Palabra detectada:{' '}
+                                        <span className="font-mono font-bold">
+                                            {moderacionRechazo.palabraDetectada}
+                                        </span>
+                                    </p>
+                                </div>
                             )}
-                        </div>
-                        <div className="border-t border-slate-200 bg-slate-50 px-4 py-3">
+
                             <button
                                 data-testid="btn-cerrar-rechazo"
                                 onClick={() => {
                                     setModeracionRechazo(null);
                                     setPasoActual(1);
                                 }}
-                                className="w-full cursor-pointer rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-2.5 text-sm font-semibold text-white shadow-md hover:scale-[1.01] transition-transform"
+                                className="mt-4 inline-flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl px-3 py-2.5 text-sm font-bold text-white transition-all duration-150 active:scale-[0.98] lg:text-xs lg:py-1.5 2xl:text-sm 2xl:py-2.5"
+                                style={{
+                                    background: 'linear-gradient(to right, #0d9488, #115e59)',
+                                    boxShadow: '0 4px 12px rgba(13, 148, 136, 0.3)',
+                                }}
                             >
+                                <Pencil className="h-3.5 w-3.5" strokeWidth={2.5} />
                                 Editar mi publicación
                             </button>
                         </div>
                     </div>
-                </div>
-            )}
+                )}
+            </ModalAdaptativo>
         </div>
     );
 }
@@ -787,45 +1176,146 @@ interface PasoProps {
     datos: DatosWizard;
     setDatos: React.Dispatch<React.SetStateAction<DatosWizard>>;
     errores: Record<string, string>;
+    /**
+     * Si el wizard está en modo edición (URL trae `:articuloId`). Necesario
+     * para el cleanup de R2: en modo crear, todas las fotos del state son
+     * efímeras y se borran de R2 al quitarlas; en modo edición, las fotos
+     * preexistentes pertenecen al artículo guardado y NO deben tocarse — el
+     * backend hace el diff al guardar.
+     */
+    esModoEdicion: boolean;
+    /**
+     * Set compartido con el padre que rastrea las URLs subidas a R2 durante
+     * ESTA sesión del wizard. El padre lo usa en `handleDescartarYSalir`
+     * para limpiar R2 en modo edición. Vive en el padre porque persiste
+     * cuando el usuario navega entre pasos (Paso1/Paso2/Paso3 se desmontan
+     * pero el padre no).
+     */
+    urlsSubidasEnSesion: React.MutableRefObject<Set<string>>;
+    /**
+     * Setter del contador de uploads pendientes. Solo Paso1 lo modifica,
+     * pero vive en el padre para que (a) el botón "Continuar" se bloquee
+     * cuando hay batch en curso y (b) React no advierta de setState en
+     * componente desmontado si Paso1 desaparece mientras el batch corre.
+     */
+    setPendientesUpload: React.Dispatch<React.SetStateAction<number>>;
+}
+
+/** Props extra que solo recibe Paso1 (lectura del contador de uploads). */
+interface Paso1Props extends PasoProps {
+    pendientesUpload: number;
 }
 
 // ─── PASO 1 — Fotos + Título ───────────────────────────────────────────────
 
-function Paso1({ datos, setDatos, errores }: PasoProps) {
+function Paso1({
+    datos,
+    setDatos,
+    errores,
+    esModoEdicion,
+    urlsSubidasEnSesion,
+    pendientesUpload,
+    setPendientesUpload,
+}: Paso1Props) {
     const upload = useSubirFotoMarketplace();
-    // URLs subidas EN esta sesión del wizard (NO las preexistentes que vienen
-    // del artículo en modo edición). Solo estas se pueden borrar de R2 al
-    // quitar — las preexistentes pertenecen a un artículo guardado y se
-    // manejan al guardar (con reference count del backend).
-    const urlsSubidasEnSesion = useRef<Set<string>>(new Set<string>());
 
-    const handleAgregarFoto = async (file: File) => {
-        if (datos.fotos.length >= MAX_FOTOS) {
-            notificar.advertencia(`Máximo ${MAX_FOTOS} fotos`);
+    // Estado del ModalImagenes (lightbox al hacer click en una foto del grid).
+    // null = cerrado. número = índice de la foto a mostrar como inicial.
+    const [modalImagenIdx, setModalImagenIdx] = useState<number | null>(null);
+    // El set `urlsSubidasEnSesion` viene del padre — persiste entre pasos
+    // (Paso1 se desmonta cuando el usuario va al paso 2, pero el ref vive
+    // arriba). Solo se consulta en MODO EDICIÓN para diferenciar fotos
+    // nuevas (borrables) de las preexistentes del artículo guardado.
+    // En MODO CREAR todas las fotos del state son efímeras: el botón X
+    // y el descartar borran TODO, incluyendo las hidratadas desde un
+    // borrador en localStorage.
+
+    // El contador `pendientesUpload` también vive en el padre: así (1) el
+    // botón "Continuar" del footer se bloquea cuando hay batch en curso,
+    // y (2) si Paso1 se desmonta mientras un batch sigue corriendo, el
+    // setter sigue siendo válido (el padre no se desmontó), evitando el
+    // warning de React "update on unmounted component".
+    const subiendoBatch = pendientesUpload > 0;
+
+    const handleAgregarFotos = async (files: File[]) => {
+        if (files.length === 0) return;
+
+        const espacioRestante = MAX_FOTOS - datos.fotos.length;
+        if (espacioRestante <= 0) {
+            notificar.advertencia(`Ya tienes el máximo de ${MAX_FOTOS} fotos`);
             return;
         }
-        const url = await upload.subir(file);
-        if (!url) {
-            notificar.error(upload.error ?? 'No se pudo subir la foto');
-            return;
+
+        // Si seleccionaron más fotos que el espacio disponible, tomar las
+        // primeras y avisar.
+        const filesAProcesar = files.slice(0, espacioRestante);
+        if (files.length > espacioRestante) {
+            notificar.advertencia(
+                `Solo se pueden agregar ${espacioRestante} foto${espacioRestante === 1 ? '' : 's'} más (máx. ${MAX_FOTOS})`
+            );
         }
-        urlsSubidasEnSesion.current.add(url);
-        setDatos((d) => ({ ...d, fotos: [...d.fotos, url] }));
+
+        setPendientesUpload((p) => p + filesAProcesar.length);
+
+        // Subir en paralelo — el hook maneja optimización a WebP + presigned
+        // URL + PUT a R2 por archivo. Promise.all permite que todas corran
+        // concurrentemente; el navegador limita conexiones HTTP de todas
+        // formas (~6 por dominio), así que no satura el backend.
+        const resultados = await Promise.all(
+            filesAProcesar.map((file) => upload.subir(file).catch(() => null))
+        );
+
+        setPendientesUpload((p) => Math.max(0, p - filesAProcesar.length));
+
+        const urlsExitosas = resultados.filter((url): url is string => !!url);
+        const fallidas = filesAProcesar.length - urlsExitosas.length;
+
+        if (urlsExitosas.length > 0) {
+            urlsExitosas.forEach((url) => urlsSubidasEnSesion.current.add(url));
+            setDatos((d) => ({ ...d, fotos: [...d.fotos, ...urlsExitosas] }));
+        }
+
+        // Feedback al usuario según el resultado.
+        if (fallidas > 0 && urlsExitosas.length === 0) {
+            notificar.error('No se pudo subir ninguna foto. Intenta de nuevo.');
+        } else if (fallidas > 0) {
+            notificar.advertencia(
+                `Se subieron ${urlsExitosas.length} foto${urlsExitosas.length === 1 ? '' : 's'}, ${fallidas} fallaron`
+            );
+        } else if (urlsExitosas.length > 1) {
+            notificar.exito(`${urlsExitosas.length} fotos agregadas`);
+        }
     };
 
     const handleQuitarFoto = (idx: number) => {
-        // Si la URL fue subida en esta sesión (no es preexistente de un
-        // artículo guardado), borrarla de R2 fire-and-forget. Si falla, el
-        // Recolector de Basura del backend la limpiará después.
         const urlAQuitar = datos.fotos[idx];
-        if (urlAQuitar && urlsSubidasEnSesion.current.has(urlAQuitar)) {
-            urlsSubidasEnSesion.current.delete(urlAQuitar);
-            api.delete('/r2/imagen', { data: { url: urlAQuitar } }).catch(() => {
-                // Silencioso: el reconcile periódico la limpiará si falló.
-            });
+        if (urlAQuitar) {
+            // Decidir si borrar de R2:
+            // - Modo CREAR: borrar SIEMPRE. Todas las fotos del state son
+            //   efímeras (el artículo no existe en BD) — incluso las que
+            //   vienen de un borrador hidratado deben borrarse al quitarlas.
+            // - Modo EDICIÓN: borrar SOLO las subidas en esta sesión. Las
+            //   preexistentes del artículo guardado las maneja el backend
+            //   con `eliminarFotoMarketplaceSiHuerfana` al hacer submit
+            //   (diff de fotos viejas vs nuevas en `actualizarArticulo`).
+            const subidaEnSesion = urlsSubidasEnSesion.current.has(urlAQuitar);
+            const debeBorrarse = !esModoEdicion || subidaEnSesion;
+
+            if (debeBorrarse) {
+                if (subidaEnSesion) urlsSubidasEnSesion.current.delete(urlAQuitar);
+                // Fire-and-forget — el endpoint del backend valida con
+                // reference count contra IMAGE_REGISTRY (defensa en
+                // profundidad: si por bug la URL sigue en uso, no se borra).
+                api.delete('/r2/imagen', { data: { url: urlAQuitar } }).catch(() => {
+                    // Silencioso: el reconcile periódico la limpiará si falló.
+                });
+            }
         }
         setDatos((d) => {
             const fotos = d.fotos.filter((_, i) => i !== idx);
+            // Si quitamos la portada, la primera del array queda como portada
+            // por default. Si quitamos una anterior a la portada, ajustamos
+            // el índice para que apunte a la misma foto.
             const fotoPortadaIndex =
                 idx === d.fotoPortadaIndex
                     ? 0
@@ -836,72 +1326,30 @@ function Paso1({ datos, setDatos, errores }: PasoProps) {
         });
     };
 
-    return (
-        <div className="space-y-5">
-            <div>
-                <h2 className="text-lg font-bold text-slate-900">Fotos · hasta {MAX_FOTOS}</h2>
-                <p className="mt-0.5 text-sm text-slate-600">
-                    La primera foto será la portada. Buena luz natural y fondo limpio venden más.
-                </p>
-                {errores.fotos && (
-                    <p className="mt-1 text-xs text-rose-600">{errores.fotos}</p>
-                )}
-                <div className="mt-3 grid grid-cols-3 gap-2 lg:grid-cols-4">
-                    {datos.fotos.map((url, idx) => (
-                        <div
-                            key={url}
-                            data-testid={`slot-foto-${idx}`}
-                            className="relative aspect-square overflow-hidden rounded-lg border-2 border-slate-300 bg-slate-100"
-                        >
-                            <img src={url} alt={`Foto ${idx + 1}`} className="h-full w-full object-cover" />
-                            {idx === 0 && (
-                                <span className="absolute left-1.5 top-1.5 rounded bg-teal-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white">
-                                    Portada
-                                </span>
-                            )}
-                            <button
-                                data-testid={`btn-quitar-foto-${idx}`}
-                                onClick={() => handleQuitarFoto(idx)}
-                                aria-label="Quitar foto"
-                                className="absolute right-1 top-1 flex h-6 w-6 cursor-pointer items-center justify-center rounded-full bg-black/70 text-white hover:bg-rose-500"
-                            >
-                                <X className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            </button>
-                        </div>
-                    ))}
-                    {datos.fotos.length < MAX_FOTOS && (
-                        <label
-                            data-testid="slot-agregar-foto"
-                            className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-lg border-2 border-dashed border-slate-300 bg-white text-slate-400 hover:border-teal-400 hover:text-teal-600"
-                        >
-                            <input
-                                type="file"
-                                accept="image/jpeg,image/png,image/webp"
-                                className="hidden"
-                                disabled={upload.isUploading}
-                                onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (file) handleAgregarFoto(file);
-                                    e.target.value = '';
-                                }}
-                            />
-                            {upload.isUploading ? (
-                                <Loader2 className="h-6 w-6 animate-spin" />
-                            ) : (
-                                <>
-                                    <ImagePlus className="h-6 w-6" strokeWidth={1.5} />
-                                    <span className="mt-1 text-xs">Agregar</span>
-                                </>
-                            )}
-                        </label>
-                    )}
-                </div>
-            </div>
+    // Cambia la portada al índice indicado. No reordena el array —
+    // simplemente apunta `fotoPortadaIndex` a la foto seleccionada. Así el
+    // usuario puede subir 8 fotos en cualquier orden y luego decidir cuál es
+    // la portada sin re-arrastrar nada.
+    const handleHacerPortada = (idx: number) => {
+        if (idx === datos.fotoPortadaIndex) return;
+        setDatos((d) => ({ ...d, fotoPortadaIndex: idx }));
+        notificar.exito('Portada actualizada');
+    };
 
-            <div>
-                <label className="block text-sm font-semibold text-slate-900">
+    const espacioRestante = MAX_FOTOS - datos.fotos.length;
+
+    const puedeAgregarMas = espacioRestante > 0 && !subiendoBatch;
+
+    return (
+        <div className="space-y-4 lg:space-y-5">
+            {/* Card: Título — arriba, ocupando el ancho completo del paso. */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                <label className="block text-base font-bold text-slate-900 lg:text-lg">
                     Título de tu publicación
                 </label>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
+                    Marca, modelo y estado en pocas palabras.
+                </p>
                 <input
                     data-testid="input-titulo"
                     type="text"
@@ -910,9 +1358,9 @@ function Paso1({ datos, setDatos, errores }: PasoProps) {
                         setDatos((d) => ({ ...d, titulo: e.target.value.slice(0, TITULO_MAX) }))
                     }
                     placeholder="Bicicleta vintage Rinos restaurada"
-                    className="mt-1 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-teal-500 focus:outline-none"
+                    className="mt-2 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none"
                 />
-                <div className="mt-1 flex justify-between text-xs text-slate-500">
+                <div className="mt-1.5 flex justify-between text-sm font-medium text-slate-500">
                     <span className={errores.titulo ? 'text-rose-600' : ''}>
                         {errores.titulo ?? `Mínimo ${TITULO_MIN} caracteres`}
                     </span>
@@ -921,6 +1369,232 @@ function Paso1({ datos, setDatos, errores }: PasoProps) {
                     </span>
                 </div>
             </div>
+
+            {/* Card: Fotos — header simple del wizard + grid con patrón
+                visual heredado de BS Mi Perfil (Galería de Fotos): cada
+                slot trae hover-zoom de la imagen y bottom bar con gradient
+                oscuro que aloja los botones Star (hacer portada) y Trash2
+                (eliminar). Click en la imagen abre `ModalImagenes` para
+                verla a tamaño completo. */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                    <div className="flex items-start justify-between gap-3">
+                        <div className="min-w-0 flex-1">
+                            <h2 className="text-base font-bold text-slate-900 lg:text-lg">
+                                Fotos
+                            </h2>
+                        <p className="mt-0.5 text-sm font-medium text-slate-600">
+                            Sube hasta {MAX_FOTOS} fotos al mismo tiempo. Toca{' '}
+                            <Star
+                                className="inline h-3.5 w-3.5 text-amber-500"
+                                strokeWidth={2.5}
+                                fill="currentColor"
+                            />{' '}
+                            en cualquier foto para marcarla como portada.
+                        </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-600">
+                        {datos.fotos.length}/{MAX_FOTOS}
+                    </span>
+                </div>
+                {errores.fotos && (
+                    <p className="mt-1.5 text-xs font-medium text-rose-600">
+                        {errores.fotos}
+                    </p>
+                )}
+
+                {/* Estado vacío — invita a agregar fotos con un slot
+                    grande clickeable. Aparece cuando no hay fotos subidas
+                    y no hay batch en curso. */}
+                {datos.fotos.length === 0 && !subiendoBatch ? (
+                    <label
+                        data-testid="slot-agregar-foto"
+                        className="mt-3 flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 p-8 text-center transition-colors hover:border-teal-400 hover:bg-teal-50"
+                    >
+                        <input
+                            type="file"
+                            accept="image/jpeg,image/png,image/webp"
+                            multiple
+                            className="hidden"
+                            onChange={(e) => {
+                                const files = Array.from(e.target.files ?? []);
+                                if (files.length > 0) {
+                                    void handleAgregarFotos(files);
+                                }
+                                e.target.value = '';
+                            }}
+                        />
+                        <ImagePlus
+                            className="h-10 w-10 text-slate-400"
+                            strokeWidth={1.5}
+                        />
+                        <p className="mt-2 text-sm font-bold text-slate-700">
+                            Agrega tus primeras fotos
+                        </p>
+                        <p className="mt-0.5 text-xs font-medium text-slate-500">
+                            Hasta {MAX_FOTOS} al mismo tiempo · JPG / PNG / WebP
+                        </p>
+                    </label>
+                ) : (
+                    <div className="mt-3 grid grid-cols-3 gap-2 lg:grid-cols-4">
+                        {datos.fotos.map((url, idx) => {
+                            const esPortada = idx === datos.fotoPortadaIndex;
+                            return (
+                                <div
+                                    key={url}
+                                    data-testid={`slot-foto-${idx}`}
+                                    className={`group relative aspect-square cursor-zoom-in overflow-hidden rounded-xl border-2 bg-white shadow-sm transition-all ${
+                                        esPortada
+                                            ? 'border-teal-500 ring-2 ring-teal-300'
+                                            : 'border-slate-300'
+                                    }`}
+                                    onClick={() => setModalImagenIdx(idx)}
+                                    role="button"
+                                    tabIndex={0}
+                                    aria-label={`Ver foto ${idx + 1} en tamaño completo`}
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' || e.key === ' ') {
+                                            e.preventDefault();
+                                            setModalImagenIdx(idx);
+                                        }
+                                    }}
+                                >
+                                    <img
+                                        src={url}
+                                        alt={`Foto ${idx + 1}`}
+                                        className="absolute inset-0 h-full w-full object-cover transition-transform duration-200 group-hover:scale-110"
+                                    />
+
+                                    {/* Badge PORTADA — esquina superior izq. */}
+                                    {esPortada && (
+                                        <span className="absolute left-2 top-2 z-10 inline-flex items-center gap-1 rounded bg-teal-500 px-1.5 py-0.5 text-[9px] font-bold uppercase tracking-wider text-white shadow-sm">
+                                            <Star
+                                                className="h-2.5 w-2.5"
+                                                strokeWidth={3}
+                                                fill="currentColor"
+                                            />
+                                            Portada
+                                        </span>
+                                    )}
+
+                                    {/* Bottom bar con gradient oscuro y botones
+                                        de acción (patrón heredado de BS Mi
+                                        Perfil). Los clicks en estos botones
+                                        NO deben propagar al wrapper que abre
+                                        el ModalImagenes — por eso usamos
+                                        `stopPropagation`. */}
+                                    <div
+                                        className="absolute inset-x-0 bottom-0 flex items-center justify-between gap-2 px-2 py-2"
+                                        style={{
+                                            background:
+                                                'linear-gradient(to top, rgba(0,0,0,0.82), transparent)',
+                                        }}
+                                        onClick={(e) => e.stopPropagation()}
+                                    >
+                                        {/* Hacer portada — solo si NO es la actual */}
+                                        {!esPortada ? (
+                                            <button
+                                                type="button"
+                                                data-testid={`btn-hacer-portada-${idx}`}
+                                                onClick={(e) => {
+                                                    e.stopPropagation();
+                                                    handleHacerPortada(idx);
+                                                }}
+                                                aria-label="Marcar como portada"
+                                                title="Marcar como portada"
+                                                className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-amber-500 active:scale-95"
+                                            >
+                                                <Star
+                                                    className="h-4 w-4"
+                                                    strokeWidth={2.5}
+                                                />
+                                            </button>
+                                        ) : (
+                                            <span />
+                                        )}
+
+                                        {/* Eliminar foto */}
+                                        <button
+                                            type="button"
+                                            data-testid={`btn-quitar-foto-${idx}`}
+                                            onClick={(e) => {
+                                                e.stopPropagation();
+                                                handleQuitarFoto(idx);
+                                            }}
+                                            aria-label="Quitar foto"
+                                            title="Quitar foto"
+                                            className="flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-black/30 text-white transition-colors hover:bg-red-600 active:scale-95"
+                                        >
+                                            <Trash2
+                                                className="h-4 w-4"
+                                                strokeWidth={2.25}
+                                            />
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+
+                        {/* Placeholders fantasma — estilo BS Mi Perfil:
+                            fondo slate-800 + blur + spinner. Uno por cada
+                            foto pendiente del batch en curso. */}
+                        {subiendoBatch &&
+                            Array.from({ length: pendientesUpload }).map((_, i) => (
+                                <div
+                                    key={`pending-${i}`}
+                                    className="relative aspect-square overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-800 shadow-sm"
+                                >
+                                    <div className="absolute inset-0 flex items-center justify-center bg-black/25">
+                                        <Loader2
+                                            className="h-8 w-8 animate-spin text-white drop-shadow-lg"
+                                            strokeWidth={2}
+                                        />
+                                    </div>
+                                </div>
+                            ))}
+
+                        {/* Slot "Agregar más" — siempre disponible mientras
+                            queda espacio y no haya batch en curso. Comparte
+                            estética de slot dashed para indicar que es una
+                            acción de agregar, no una foto subida. */}
+                        {puedeAgregarMas && (
+                            <label
+                                data-testid="slot-agregar-foto"
+                                className="flex aspect-square cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-slate-300 bg-slate-50 text-slate-400 transition-colors hover:border-teal-400 hover:bg-teal-50 hover:text-teal-600"
+                            >
+                                <input
+                                    type="file"
+                                    accept="image/jpeg,image/png,image/webp"
+                                    multiple
+                                    className="hidden"
+                                    onChange={(e) => {
+                                        const files = Array.from(e.target.files ?? []);
+                                        if (files.length > 0) {
+                                            void handleAgregarFotos(files);
+                                        }
+                                        e.target.value = '';
+                                    }}
+                                />
+                                <ImagePlus className="h-6 w-6" strokeWidth={1.5} />
+                                <span className="mt-1 text-xs font-medium">
+                                    Agregar más
+                                </span>
+                            </label>
+                        )}
+                    </div>
+                )}
+            </div>
+
+            {/* Tips contextuales del paso */}
+            <TipsPaso paso={1} />
+
+            {/* Lightbox — se abre al hacer click en una foto del grid.
+                Usa portal a document.body. */}
+            <ModalImagenes
+                images={datos.fotos}
+                initialIndex={modalImagenIdx ?? 0}
+                isOpen={modalImagenIdx !== null}
+                onClose={() => setModalImagenIdx(null)}
+            />
         </div>
     );
 }
@@ -929,10 +1603,16 @@ function Paso1({ datos, setDatos, errores }: PasoProps) {
 
 function Paso2({ datos, setDatos, errores }: PasoProps) {
     return (
-        <div className="space-y-5">
-            <div>
-                <label className="block text-sm font-semibold text-slate-900">Precio</label>
-                <div className="mt-1 flex items-center rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 focus-within:border-teal-500">
+        <div className="space-y-4 lg:space-y-5">
+            {/* Card: Precio */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                    Precio
+                </label>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
+                    Compara con anuncios similares para fijar uno competitivo.
+                </p>
+                <div className="mt-2 flex items-center rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 focus-within:border-teal-500">
                     <span className="text-2xl font-bold text-slate-400">$</span>
                     <input
                         data-testid="input-precio"
@@ -953,20 +1633,26 @@ function Paso2({ datos, setDatos, errores }: PasoProps) {
                     <span className="text-sm font-semibold text-slate-500">MXN</span>
                 </div>
                 {errores.precio && (
-                    <p className="mt-1 text-xs text-rose-600">{errores.precio}</p>
+                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.precio}</p>
                 )}
             </div>
 
-            <div>
-                <label className="block text-sm font-semibold text-slate-900">Condición</label>
-                <div className="mt-2 flex flex-wrap gap-2">
+            {/* Card: Condición + Acepta ofertas */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                    Condición
+                </label>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
+                    Sé honesto: los compradores valoran la transparencia.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
                     {CONDICIONES.map((c) => (
                         <button
                             key={c.valor}
                             data-testid={`chip-condicion-${c.valor}`}
                             onClick={() => setDatos((d) => ({ ...d, condicion: c.valor }))}
                             aria-pressed={datos.condicion === c.valor}
-                            className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-medium transition-colors ${
+                            className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-colors ${
                                 datos.condicion === c.valor
                                     ? 'border-teal-500 bg-teal-50 text-teal-900'
                                     : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
@@ -977,38 +1663,45 @@ function Paso2({ datos, setDatos, errores }: PasoProps) {
                     ))}
                 </div>
                 {errores.condicion && (
-                    <p className="mt-1 text-xs text-rose-600">{errores.condicion}</p>
+                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.condicion}</p>
                 )}
-            </div>
 
-            <div className="flex items-center justify-between rounded-lg border-2 border-slate-200 bg-white px-3 py-2.5">
-                <div>
-                    <div className="text-sm font-semibold text-slate-900">Acepta ofertas</div>
-                    <div className="text-xs text-slate-500">
-                        El comprador podrá negociar el precio por chat.
+                {/* Toggle Acepta ofertas — separado con border-t */}
+                <div className="mt-3 flex items-center justify-between border-t-2 border-slate-200 pt-3">
+                    <div className="min-w-0 flex-1 pr-3">
+                        <div className="text-sm font-bold text-slate-900">¿Acepta ofertas?</div>
+                        <div className="mt-0.5 text-xs font-medium text-slate-500">
+                            El comprador podrá negociar por chat.
+                        </div>
                     </div>
-                </div>
-                <button
-                    data-testid="toggle-acepta-ofertas"
-                    onClick={() =>
-                        setDatos((d) => ({ ...d, aceptaOfertas: !d.aceptaOfertas }))
-                    }
-                    role="switch"
-                    aria-checked={datos.aceptaOfertas}
-                    className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
-                        datos.aceptaOfertas ? 'bg-teal-500' : 'bg-slate-300'
-                    }`}
-                >
-                    <span
-                        className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                            datos.aceptaOfertas ? 'left-5' : 'left-0.5'
+                    <button
+                        data-testid="toggle-acepta-ofertas"
+                        onClick={() =>
+                            setDatos((d) => ({ ...d, aceptaOfertas: !d.aceptaOfertas }))
+                        }
+                        role="switch"
+                        aria-checked={datos.aceptaOfertas}
+                        className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
+                            datos.aceptaOfertas ? 'bg-teal-500' : 'bg-slate-300'
                         }`}
-                    />
-                </button>
+                    >
+                        <span
+                            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
+                                datos.aceptaOfertas ? 'left-5' : 'left-0.5'
+                            }`}
+                        />
+                    </button>
+                </div>
             </div>
 
-            <div>
-                <label className="block text-sm font-semibold text-slate-900">Descripción</label>
+            {/* Card: Descripción */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                    Descripción
+                </label>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
+                    Detalles que ayuden al comprador: medidas, fallas, accesorios incluidos.
+                </p>
                 <textarea
                     data-testid="input-descripcion"
                     value={datos.descripcion}
@@ -1018,11 +1711,11 @@ function Paso2({ datos, setDatos, errores }: PasoProps) {
                             descripcion: e.target.value.slice(0, DESCRIPCION_MAX),
                         }))
                     }
-                    rows={6}
+                    rows={5}
                     placeholder="Bicicleta restaurada con piezas originales Shimano…"
-                    className="mt-1 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm focus:border-teal-500 focus:outline-none"
+                    className="mt-2 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none"
                 />
-                <div className="mt-1 flex justify-between text-xs text-slate-500">
+                <div className="mt-1.5 flex justify-between text-sm font-medium text-slate-500">
                     <span className={errores.descripcion ? 'text-rose-600' : ''}>
                         {errores.descripcion ?? `Mínimo ${DESCRIPCION_MIN} caracteres`}
                     </span>
@@ -1031,33 +1724,35 @@ function Paso2({ datos, setDatos, errores }: PasoProps) {
                     </span>
                 </div>
             </div>
+
+            {/* Tips contextuales del paso */}
+            <TipsPaso paso={2} />
         </div>
     );
 }
 
 // ─── PASO 3 — Ubicación + Confirmación ────────────────────────────────────
 
-interface Paso3Props extends PasoProps {
-    esModoEdicion: boolean;
-}
-
-function Paso3({ datos, setDatos, errores, esModoEdicion }: Paso3Props) {
+function Paso3({ datos, setDatos, errores, esModoEdicion }: PasoProps) {
     const tieneUbicacion = datos.latitud != null && datos.longitud != null;
 
     return (
-        <div className="space-y-5">
-            <div>
-                <h2 className="text-lg font-bold text-slate-900">Zona aproximada</h2>
-                <p className="mt-0.5 text-sm text-slate-600">
+        <div className="space-y-4 lg:space-y-5">
+            {/* Card: Zona aproximada (mapa). */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                <h2 className="text-base font-bold text-slate-900 lg:text-lg">
+                    Zona aproximada
+                </h2>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
                     Mostraremos un círculo de 500m, no tu dirección exacta.
                 </p>
                 {!tieneUbicacion ? (
-                    <div className="mt-3 rounded-xl border-2 border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
+                    <div className="mt-3 rounded-xl border-2 border-amber-200 bg-amber-50 p-3 text-sm text-amber-900 lg:p-4">
                         <div className="flex items-start gap-2.5">
                             <AlertCircle className="h-5 w-5 shrink-0 text-amber-600" strokeWidth={2} />
                             <div>
-                                <strong className="font-semibold">Necesitamos tu ubicación</strong>
-                                <p className="mt-0.5">
+                                <strong className="font-bold">Necesitamos tu ubicación</strong>
+                                <p className="mt-0.5 text-sm font-medium">
                                     Activa el GPS de tu dispositivo o selecciona tu ciudad
                                     desde el navegador superior para continuar.
                                 </p>
@@ -1065,7 +1760,13 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: Paso3Props) {
                         </div>
                     </div>
                 ) : (
-                    <div className="mt-3 overflow-hidden rounded-xl border-2 border-slate-200">
+                    // `relative z-0 isolate` crea un stacking context propio
+                    // para que los z-index internos de Leaflet (capas tile,
+                    // overlay, popup ~400+) no escapen y se monten encima del
+                    // header sticky del wizard, el BottomNav u otros elementos
+                    // fijos. Mismo patrón aplicado en `MapaUbicacion.tsx` de
+                    // P2 Detalle del Artículo.
+                    <div className="relative z-0 mt-3 overflow-hidden rounded-xl border-2 border-slate-200 isolate">
                         <MapContainer
                             center={[datos.latitud as number, datos.longitud as number]}
                             zoom={15}
@@ -1076,7 +1777,7 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: Paso3Props) {
                             keyboard={false}
                             zoomControl={false}
                             attributionControl={false}
-                            className="h-56 w-full"
+                            className="h-48 w-full lg:h-72"
                             style={{ pointerEvents: 'none' }}
                         >
                             <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
@@ -1094,50 +1795,56 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: Paso3Props) {
                     </div>
                 )}
                 {datos.zonaAproximada && tieneUbicacion && (
-                    <p className="mt-2 text-sm font-medium text-slate-700">
+                    <p className="mt-2 text-sm font-bold text-slate-700">
                         📍 {datos.zonaAproximada}
                     </p>
                 )}
                 {errores.ubicacion && (
-                    <p className="mt-1 text-xs text-rose-600">{errores.ubicacion}</p>
+                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.ubicacion}</p>
                 )}
             </div>
 
-            {/* Resumen */}
-            <div className="rounded-xl border-2 border-slate-200 bg-white p-3">
-                <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
-                    Resumen
-                </p>
-                <div className="flex gap-3">
-                    {datos.fotos[0] ? (
-                        <img
-                            src={datos.fotos[0]}
-                            alt="Portada"
-                            className="h-20 w-20 shrink-0 rounded-lg object-cover"
-                        />
-                    ) : (
-                        <div className="h-20 w-20 shrink-0 rounded-lg bg-slate-100" />
-                    )}
-                    <div className="min-w-0 flex-1">
-                        <div className="truncate text-sm font-semibold text-slate-900">
-                            {datos.titulo || 'Sin título'}
-                        </div>
-                        <div className="text-base font-bold text-slate-900">
-                            ${parseInt(datos.precio || '0', 10).toLocaleString('es-MX')}
-                        </div>
-                        <div className="text-xs text-slate-500">
-                            {datos.aceptaOfertas ? 'Acepta ofertas · ' : ''}
-                            {CONDICIONES.find((c) => c.valor === datos.condicion)?.etiqueta ?? ''}
+            {/* Card: Resumen — vista rápida antes de publicar */}
+                <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                    <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
+                        Resumen
+                    </h2>
+                    <div className="flex gap-3 rounded-lg border-2 border-slate-200 bg-slate-50 p-2.5 lg:p-3">
+                        {datos.fotos[0] ? (
+                            <img
+                                src={datos.fotos[0]}
+                                alt="Portada"
+                                className="h-20 w-20 shrink-0 rounded-lg border-2 border-white object-cover shadow-sm lg:h-20 lg:w-20"
+                            />
+                        ) : (
+                            <div className="h-20 w-20 shrink-0 rounded-lg border-2 border-white bg-slate-200 lg:h-20 lg:w-20" />
+                        )}
+                        <div className="min-w-0 flex-1">
+                            <div className="truncate text-sm font-bold text-slate-900 lg:text-base">
+                                {datos.titulo || 'Sin título'}
+                            </div>
+                            <div className="mt-0.5 text-lg font-extrabold text-teal-700 lg:text-xl">
+                                ${parseInt(datos.precio || '0', 10).toLocaleString('es-MX')}
+                                <span className="ml-1 text-xs font-bold text-slate-500">MXN</span>
+                            </div>
+                            <div className="mt-0.5 text-xs font-medium text-slate-500">
+                                {datos.aceptaOfertas ? 'Acepta ofertas · ' : ''}
+                                {CONDICIONES.find((c) => c.valor === datos.condicion)?.etiqueta ?? ''}
+                            </div>
                         </div>
                     </div>
                 </div>
-            </div>
 
-            {/* Checklist (solo modo crear) */}
+            {/* Card: Checklist (solo modo crear) */}
             {!esModoEdicion && (
-                <div>
-                    <h3 className="text-sm font-bold text-slate-900">Antes de publicar</h3>
-                    <div className="mt-2 space-y-2">
+                <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                    <h3 className="text-base font-bold text-slate-900 lg:text-lg">
+                        Antes de publicar
+                    </h3>
+                    <p className="mt-0.5 text-sm font-medium text-slate-600">
+                        Confirma estos 3 puntos para activar el botón "Publicar".
+                    </p>
+                    <div className="mt-3 space-y-2">
                         {[
                             { key: 'prohibidos' as const, label: 'No vendo artículos prohibidos por las reglas' },
                             { key: 'fotosReales' as const, label: 'Las fotos son del artículo real, sin retoque' },
@@ -1149,7 +1856,11 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: Paso3Props) {
                             <label
                                 key={item.key}
                                 data-testid={`checkbox-${item.key}`}
-                                className="flex cursor-pointer items-start gap-3 rounded-lg border-2 border-slate-200 bg-white p-3 hover:bg-slate-50"
+                                className={`flex cursor-pointer items-start gap-3 rounded-lg border-2 p-3 transition-colors ${
+                                    datos.checklist[item.key]
+                                        ? 'border-teal-300 bg-teal-50'
+                                        : 'border-slate-200 bg-white hover:bg-slate-50'
+                                }`}
                             >
                                 <input
                                     type="checkbox"
@@ -1165,14 +1876,60 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: Paso3Props) {
                                     }
                                     className="mt-0.5 h-4 w-4 shrink-0 cursor-pointer accent-teal-500"
                                 />
-                                <span className="text-sm text-slate-700">{item.label}</span>
+                                <span className="text-sm font-medium text-slate-700">{item.label}</span>
                             </label>
                         ))}
                     </div>
                     {errores.checklist && (
-                        <p className="mt-1 text-xs text-rose-600">{errores.checklist}</p>
+                        <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.checklist}</p>
                     )}
                 </div>
+            )}
+
+            {/* Tips contextuales del paso */}
+            <TipsPaso paso={3} />
+        </div>
+    );
+}
+
+// =============================================================================
+// SUB-COMPONENTE — TipsPaso
+// =============================================================================
+
+/**
+ * Card de tips contextuales que aparece al final de cada paso del wizard.
+ * Reemplaza la card de tips genéricos que vivía en el panel sticky derecho.
+ * Sirve para llenar el vacío vertical de la columna izquierda (la card del
+ * feed en el panel derecho es alta y la izquierda solía quedar corta).
+ *
+ * Mismo patrón visual que las cards del paso: mx-3 lg:mx-0 rounded-xl border-2
+ * border-slate-300 shadow-md. Icono Lightbulb amber + bullets teal.
+ */
+function TipsPaso({ paso }: { paso: 1 | 2 | 3 }) {
+    const { titulo, tips, cierre } = TIPS_POR_PASO[paso];
+    return (
+        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+            <div className="flex items-center gap-2">
+                <Lightbulb
+                    className="h-4 w-4 shrink-0 text-amber-500"
+                    strokeWidth={2.5}
+                />
+                <h2 className="text-base font-bold text-slate-900 lg:text-lg">
+                    {titulo}
+                </h2>
+            </div>
+            <ul className="mt-2 space-y-1 text-sm font-medium leading-relaxed text-slate-700 lg:space-y-1.5">
+                {tips.map((tip, idx) => (
+                    <li key={idx} className="flex gap-2">
+                        <span className="shrink-0 text-teal-600">•</span>
+                        <span>{tip}</span>
+                    </li>
+                ))}
+            </ul>
+            {cierre && (
+                <p className="mt-3 border-t-2 border-slate-200 pt-2.5 text-sm font-medium leading-relaxed text-slate-500">
+                    {cierre}
+                </p>
             )}
         </div>
     );

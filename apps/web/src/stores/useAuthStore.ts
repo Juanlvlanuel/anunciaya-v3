@@ -584,6 +584,25 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Limpiar timers
     get()._limpiarTimers();
 
+    // NOTA sobre borradores del wizard MarketPlace (y futuros wizards):
+    //
+    // NO se limpian al hacer logout intencionalmente. La razón es que el
+    // autor debe poder recuperar su borrador (con sus fotos) cuando vuelva
+    // a loguearse en este mismo dispositivo.
+    //
+    // El aislamiento cross-usuario ya está garantizado por el `storageKey`
+    // que incluye el `usuarioId` del autor:
+    //   `wizard_marketplace_${usuarioId}_${articuloId ?? 'nuevo'}`
+    //
+    // Si user B se loguea con su cuenta en el mismo dispositivo, el wizard
+    // construye un storageKey distinto (con SU userId) y nunca lee el
+    // borrador de A — el feed empieza limpio para B. El borrador de A
+    // queda en localStorage del dispositivo hasta que A vuelva y lo
+    // descarte/publique, o limpie el caché del navegador manualmente.
+    //
+    // (Las fotos huérfanas que el reconcile global de R2 detecte se
+    // limpiarán por su cuenta sin afectar borradores activos del autor.)
+
     // Limpiar localStorage
     limpiarStorageAuth();
 

@@ -17,7 +17,7 @@
  * Ubicación: apps/web/src/components/marketplace/CardArticuloFeed.tsx
  */
 
-import { useState, useCallback, useMemo, useRef } from 'react';
+import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
@@ -77,6 +77,23 @@ interface CardArticuloFeedProps {
      * (sin altura fija, sin scroll interno).
      */
     modoModal?: boolean;
+    /**
+     * Cuando true, NO se renderiza el sidebar de thumbnails laterales en
+     * desktop, ni se reserva el espacio `lg:mr-24` para él en la galería
+     * principal. Útil para previsualizaciones en contenedores estrechos
+     * (vista previa del wizard de publicar P4) donde el sidebar
+     * generaría scroll feo. El feed real lo deja en false para conservar
+     * la navegación rápida por miniaturas.
+     */
+    ocultarThumbnailsLaterales?: boolean;
+    /**
+     * Sobreescribe las clases que definen el aspecto/altura de la galería
+     * principal. Default: `aspect-[4/3] lg:aspect-[2/1]`. Útil en
+     * previsualizaciones donde el card es angosto y se necesita más
+     * altura vertical para que el sidebar de thumbnails muestre más
+     * miniaturas sin scroll (ej. `lg:aspect-[4/3]`).
+     */
+    claseAspectoGaleria?: string;
 }
 
 // =============================================================================
@@ -133,6 +150,8 @@ export function CardArticuloFeed({
     onAuthRequerido,
     onAbrirDetalle,
     modoModal = false,
+    ocultarThumbnailsLaterales = false,
+    claseAspectoGaleria,
 }: CardArticuloFeedProps) {
     const navigate = useNavigate();
     const usuario = useAuthStore((s) => s.usuario);
@@ -158,6 +177,21 @@ export function CardArticuloFeed({
 
     // ─── Estado local ────────────────────────────────────────────────────────
     const [indiceFoto, setIndiceFoto] = useState(articulo.fotoPortadaIndex ?? 0);
+
+    // Sincroniza el índice mostrado con el `fotoPortadaIndex` del artículo
+    // cuando éste cambia desde afuera. Caso típico: la vista previa en vivo
+    // del wizard de publicar (P4) — el usuario cambia la portada con el
+    // botón estrella y el padre re-renderiza con un `articulo` nuevo cuyo
+    // `fotoPortadaIndex` ya apunta a la foto seleccionada. Sin este efecto
+    // el state interno se queda con el valor inicial del mount y la card
+    // no refleja la portada nueva.
+    //
+    // En el feed real el prop no cambia entre renders, por lo que este
+    // efecto no se dispara y el swipe local del usuario sigue siendo la
+    // única fuente de cambios de `indiceFoto`.
+    useEffect(() => {
+        setIndiceFoto(articulo.fotoPortadaIndex ?? 0);
+    }, [articulo.fotoPortadaIndex]);
     const [modalAvatarAbierto, setModalAvatarAbierto] = useState(false);
     const [descripcionExpandida, setDescripcionExpandida] = useState(false);
     const [textoPregunta, setTextoPregunta] = useState('');
@@ -711,11 +745,23 @@ export function CardArticuloFeed({
                 )}
             </div>
 
-            {/* ─── GALERÍA + THUMBNAILS LATERALES (lg+) ───────────────────── */}
-            <div className="flex">
-                {/* Galería principal — proporción 16:9 horizontal */}
+            {/* ─── GALERÍA + THUMBNAILS LATERALES (lg+) ───────────────────────
+                La galería principal define la altura del bloque vía
+                `aspect-ratio` y reserva 96px a su derecha en desktop
+                (`lg:mr-24`) para el sidebar de thumbnails. El sidebar usa
+                `position: absolute` anclado a top/right/bottom del wrapper
+                relative — así toma exactamente la altura de la galería y,
+                si las miniaturas exceden ese alto, scrollea internamente
+                con `overflow-y-auto`. Esto evita que el sidebar imponga su
+                altura natural al contenedor en cards angostas (preview del
+                wizard P4), donde la galería se veía estirada o el card
+                quedaba con espacio blanco abajo.
+            ───────────────────────────────────────────────────────────── */}
+            <div className="relative">
+                {/* Galería principal — proporción 4:3 móvil / 2:1 desktop.
+                    `mr-24` en lg+ reserva espacio para el sidebar absolute. */}
                 <div
-                    className={`group/galeria relative ${modoModal ? 'h-56 lg:h-64' : 'aspect-[4/3] lg:aspect-[2/1]'} flex-1 overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y`}
+                    className={`group/galeria relative ${modoModal ? 'h-56 lg:h-64' : (claseAspectoGaleria ?? 'aspect-[4/3] lg:aspect-[2/1]')} overflow-hidden bg-slate-100 lg:cursor-pointer touch-pan-y ${tieneMultiples && !modoModal && !ocultarThumbnailsLaterales ? 'lg:mr-24' : ''}`}
                     onClick={handleClickGaleria}
                     onTouchStart={handleTouchStart}
                     onTouchMove={handleTouchMove}
@@ -817,9 +863,13 @@ export function CardArticuloFeed({
 
                 {/* Thumbnails laterales (solo desktop con multi-imagen).
                     Ocultos en modoModal — el modal prioriza el espacio
-                    para mensajes; el usuario navega imágenes con swipe o flechas. */}
-                {tieneMultiples && !modoModal && (
-                    <div className="hidden w-24 shrink-0 flex-col gap-2 overflow-y-auto bg-slate-200 p-2 lg:flex">
+                    para mensajes; el usuario navega imágenes con swipe o flechas.
+                    Posicionado `absolute` para tomar el alto del wrapper
+                    relative (= alto de la galería). Si las miniaturas
+                    exceden ese alto, scrollean internamente con
+                    `overflow-y-auto`. */}
+                {tieneMultiples && !modoModal && !ocultarThumbnailsLaterales && (
+                    <div className="absolute top-0 right-0 bottom-0 hidden w-24 flex-col gap-2 overflow-y-auto bg-slate-200 p-2 lg:flex">
                         {fotos.map((url, i) => (
                             <button
                                 type="button"

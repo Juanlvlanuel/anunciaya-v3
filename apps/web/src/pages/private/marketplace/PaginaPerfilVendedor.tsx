@@ -54,7 +54,6 @@ import {
     UserCheck,
     AlertCircle,
     PackageX,
-    Zap,
     Package,
     ShoppingBag,
     Clock,
@@ -63,6 +62,8 @@ import {
     Ban,
     ShieldOff,
     MessageCircle,
+    MessageSquare,
+    MapPin,
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
@@ -89,7 +90,6 @@ const MESES_ES = [
 ];
 
 const DARK_GRADIENT = 'linear-gradient(135deg, #1e293b, #334155)';
-const BRAND_ACCENT = 'linear-gradient(90deg, #14b8a6 0%, #2563eb 100%)';
 const BRAND_ACCENT_DIAGONAL = 'linear-gradient(135deg, #14b8a6 0%, #2563eb 100%)';
 // Azul brand de ChatYA — color sólido (mismo tono del header de VentanaChat).
 // Usado en el botón ChatYA del perfil.
@@ -362,7 +362,6 @@ export function PaginaPerfilVendedor() {
     const totalActivos = perfil.kpis.publicacionesActivas;
     const totalVendidos = perfil.kpis.vendidos;
     const totalPublicacionesTab = tabActiva === 'activa' ? totalActivos : totalVendidos;
-    const respondeRapido = perfil.kpis.tiempoRespuesta === '<1h';
 
     // Estado de presencia: 'conectado' | 'ausente' | 'desconectado' | undefined
     const estadoPresencia = estadoUsuario?.estado;
@@ -427,7 +426,7 @@ export function PaginaPerfilVendedor() {
                                     />
                                 </div>
                                 <span className="ml-1.5 shrink-0 text-2xl font-extrabold tracking-tight text-white">
-                                    Per<span className="text-teal-400">fil</span>
+                                    Perfil
                                 </span>
 
                                 {/* Separador vertical */}
@@ -498,7 +497,6 @@ export function PaginaPerfilVendedor() {
                         esVendedor={esVendedor}
                         esUnoMismo={esUnoMismo}
                         estaBloqueado={estaBloqueado}
-                        respondeRapido={respondeRapido}
                         estadoPresencia={estadoPresencia}
                         totalActivos={totalActivos}
                         totalVendidos={totalVendidos}
@@ -582,7 +580,6 @@ interface HeroCardProps {
     esVendedor: boolean;
     esUnoMismo: boolean;
     estaBloqueado: boolean;
-    respondeRapido: boolean;
     estadoPresencia: 'conectado' | 'ausente' | 'desconectado' | undefined;
     totalActivos: number;
     totalVendidos: number;
@@ -598,7 +595,6 @@ function HeroCard({
     esVendedor,
     esUnoMismo,
     estaBloqueado,
-    respondeRapido,
     estadoPresencia,
     totalActivos,
     totalVendidos,
@@ -608,153 +604,184 @@ function HeroCard({
     onWhatsApp,
     onEnviarMensaje,
 }: HeroCardProps) {
+    const hayAccionesContacto = !esUnoMismo && !estaBloqueado;
     return (
-        <div className="overflow-hidden rounded-2xl border-2 border-slate-300 bg-linear-to-b from-white to-slate-300 shadow-md">
-            {/* Línea de acento brand superior (4px) */}
-            <div className="h-1" style={{ background: BRAND_ACCENT }} />
-
-            <div className="flex flex-col items-center gap-3.5 p-4 text-center lg:flex-row lg:items-center lg:gap-6 lg:p-6 lg:text-left">
-
-                {/* ─── Avatar con ring gradient + status dot bottom-right ──── */}
-                <AvatarConAdornos
-                    perfil={perfil}
-                    estadoPresencia={estadoPresencia}
-                />
-
-                {/* ─── Identidad ───────────────────────────────────────────── */}
-                <div className="min-w-0 flex-1">
-                    <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
-                        <h1
-                            data-testid="nombre-vendedor"
-                            className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-xl 2xl:text-2xl"
-                        >
-                            {perfil.nombre} {perfil.apellidos}
-                        </h1>
-                        {esVendedor && (
-                            <BadgeCheck
-                                className="h-5 w-5 shrink-0 text-blue-600"
-                                strokeWidth={2.5}
-                                aria-label="Vendedor con publicaciones"
-                            />
-                        )}
-                        {/* Botón Agregar/Quitar contacto — botón circular
-                            solo icono al lado del nombre (estética coherente
-                            con el botón Bloquear del header). El estado se
-                            calcula contra `chat_contactos` (sistema real de
-                            agenda de ChatYA — antes era un follow social
-                            fantasma vía useVotos que no tenía efecto en UX).
-                            Tooltip solo lg+ por la regla TC-19. */}
-                        {!esUnoMismo && (
-                            <Tooltip
-                                text={esContacto ? 'Quitar de contactos' : 'Agregar a contactos'}
-                                position="bottom"
-                                className="hidden lg:block"
+        <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md">
+            {/* ═══════════════════════════════════════════════════════════════
+                Layout 2 columnas en desktop:
+                  · Col izquierda: identidad (avatar + nombre + ciudad + miembro)
+                  · Col derecha:  KPIs + botones de contacto juntos
+                En móvil se apila vertical: identidad → KPIs → botones.
+                Las columnas se separan con un divisor vertical sutil en lg+.
+            ═══════════════════════════════════════════════════════════════ */}
+            <div className="lg:grid lg:grid-cols-2 lg:items-stretch">
+                {/* ── Columna izquierda: identidad ─────────────────────────── */}
+                <div className="flex flex-col items-center gap-4 p-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:border-r-2 lg:border-slate-300 lg:text-left">
+                    <AvatarConAdornos
+                        perfil={perfil}
+                        estadoPresencia={estadoPresencia}
+                    />
+                    <div className="min-w-0 flex-1">
+                        <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
+                            <h1
+                                data-testid="nombre-vendedor"
+                                className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-2xl"
                             >
-                                <button
-                                    data-testid="btn-agregar-contacto"
-                                    onClick={onToggleContacto}
-                                    disabled={accionContactoEnCurso}
-                                    aria-pressed={esContacto}
-                                    aria-label={esContacto ? 'Quitar de contactos' : 'Agregar a contactos'}
-                                    className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-white shadow-sm transition-transform disabled:opacity-60 lg:h-9 lg:w-9 lg:cursor-pointer lg:hover:scale-105 lg:active:scale-95 ${
-                                        esContacto
-                                            ? 'bg-emerald-500'
-                                            : 'bg-blue-600'
-                                    }`}
-                                >
-                                    {esContacto ? (
-                                        <UserCheck className="h-[18px] w-[18px] shrink-0" strokeWidth={2.5} />
-                                    ) : (
-                                        <UserPlus className="h-[18px] w-[18px] shrink-0" strokeWidth={2.5} />
-                                    )}
-                                </button>
-                            </Tooltip>
-                        )}
-                    </div>
-
-                    <p className="mt-1.5 flex flex-wrap items-center justify-center gap-x-2 gap-y-0.5 text-base font-medium text-slate-600 lg:justify-start lg:text-sm 2xl:text-base">
+                                {perfil.nombre} {perfil.apellidos}
+                            </h1>
+                            {esVendedor && (
+                                <BadgeCheck
+                                    className="h-5 w-5 shrink-0 text-blue-600"
+                                    strokeWidth={2.5}
+                                    aria-label="Vendedor con publicaciones"
+                                />
+                            )}
+                        </div>
                         {perfil.ciudad && (
-                            <>
-                                <span className="font-semibold">{perfil.ciudad}</span>
-                                <span className="h-1 w-1 shrink-0 rounded-full bg-slate-400" aria-hidden />
-                            </>
+                            <p className="mt-1.5 inline-flex items-center gap-1.5 text-base font-semibold text-slate-700">
+                                <MapPin
+                                    className="h-4 w-4 shrink-0 text-slate-600"
+                                    strokeWidth={2.25}
+                                />
+                                {perfil.ciudad}
+                            </p>
                         )}
-                        <span>{formatearMiembroDesde(perfil.miembroDesde)}</span>
-                    </p>
+                        <p className="mt-0.5 text-sm font-medium text-slate-600">
+                            {formatearMiembroDesde(perfil.miembroDesde)}
+                        </p>
+                    </div>
+                </div>
 
-                    {esVendedor && respondeRapido && (
-                        <div className="mt-2.5 flex justify-center lg:justify-start">
-                            <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1 text-sm font-bold text-emerald-700 lg:text-xs 2xl:text-sm">
-                                <Zap className="h-4 w-4" strokeWidth={2.5} />
-                                Suele responder rápido
-                            </span>
+                {/* ── Columna derecha: KPIs + botones ──────────────────────── */}
+                <div className="flex flex-col border-t-2 border-slate-300 lg:border-t-0">
+                    {esVendedor && (
+                        <div
+                            data-testid="kpis-vendedor"
+                            className="grid grid-cols-3 divide-x-2 divide-slate-300 bg-slate-200"
+                        >
+                            <KpiBlock
+                                icono={<Package className="h-3.5 w-3.5" strokeWidth={2.25} />}
+                                valor={totalActivos.toString()}
+                                label="Publicaciones"
+                            />
+                            <KpiBlock
+                                icono={<ShoppingBag className="h-3.5 w-3.5" strokeWidth={2.25} />}
+                                valor={totalVendidos.toString()}
+                                label="Vendidos"
+                            />
+                            <KpiBlock
+                                icono={<Clock className="h-3.5 w-3.5" strokeWidth={2.25} />}
+                                valor={perfil.kpis.tiempoRespuesta || '—'}
+                                label="Responde"
+                            />
+                        </div>
+                    )}
+
+                    {hayAccionesContacto && (
+                        <div
+                            className={`flex flex-1 flex-wrap items-center justify-center gap-2 p-4 lg:gap-3 ${
+                                esVendedor ? 'border-t-2 border-slate-300' : ''
+                            }`}
+                        >
+                            {perfil.telefono && (
+                                <button
+                                    type="button"
+                                    data-testid="btn-whatsapp-vendedor"
+                                    onClick={onWhatsApp}
+                                    aria-label="Contactar por WhatsApp"
+                                    className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors hover:bg-emerald-100 active:scale-[0.97]"
+                                >
+                                    <MessageCircle
+                                        className="h-5 w-5 shrink-0 text-emerald-700"
+                                        strokeWidth={2.5}
+                                    />
+                                    WhatsApp
+                                </button>
+                            )}
+                            <button
+                                type="button"
+                                data-testid="btn-chatya-vendedor"
+                                onClick={onEnviarMensaje}
+                                aria-label="Enviar mensaje por ChatYA"
+                                className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors hover:bg-blue-100 active:scale-[0.97]"
+                            >
+                                <MessageSquare
+                                    className="h-5 w-5 shrink-0 text-blue-700"
+                                    strokeWidth={2.5}
+                                />
+                                ChatYA
+                            </button>
+                            <button
+                                type="button"
+                                data-testid="btn-agregar-contacto"
+                                onClick={onToggleContacto}
+                                disabled={accionContactoEnCurso}
+                                aria-pressed={esContacto}
+                                aria-label={
+                                    esContacto ? 'Quitar de contactos' : 'Agregar a contactos'
+                                }
+                                className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors hover:bg-emerald-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+                            >
+                                {esContacto ? (
+                                    <>
+                                        <UserCheck
+                                            className="h-5 w-5 shrink-0 text-emerald-700"
+                                            strokeWidth={2.5}
+                                        />
+                                        En contactos
+                                    </>
+                                ) : (
+                                    <>
+                                        <UserPlus
+                                            className="h-5 w-5 shrink-0 text-emerald-700"
+                                            strokeWidth={2.5}
+                                        />
+                                        Agregar contacto
+                                    </>
+                                )}
+                            </button>
                         </div>
                     )}
                 </div>
-
-                {/* ─── KPIs (2 líneas) ─────────────────────────────────────── */}
-                {esVendedor && (
-                    <KpiFila
-                        activas={totalActivos}
-                        vendidos={totalVendidos}
-                        tiempoRespuesta={perfil.kpis.tiempoRespuesta}
-                    />
-                )}
-
-                {/* ─── Botones contacto apilados verticalmente ─────────────── */}
-                {/* Cuando hay bloqueo, ocultamos los botones de contacto (el
-                    bloqueo es bidireccional en backend: tampoco enviarías
-                    mensajes). El banner inferior explica el estado. */}
-                {!esUnoMismo && !estaBloqueado && (
-                    <div className="flex w-full flex-row gap-2 lg:w-auto lg:shrink-0 lg:flex-col">
-                        {/* Mismo estilo que BarraContacto (P2 detalle):
-                            WhatsApp con MessageCircle icon en gradient brand
-                            (#22C55E → #15803D) y ChatYA con Dark Gradient
-                            slate + logo oficial. Coherencia visual entre P2
-                            y perfil del vendedor. */}
-                        {perfil.telefono && (
-                            <button
-                                data-testid="btn-whatsapp-vendedor"
-                                onClick={onWhatsApp}
-                                aria-label="Contactar por WhatsApp"
-                                className="flex h-10 flex-1 items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#22C55E] to-[#15803D] px-3 text-sm font-bold text-white shadow-md transition-transform hover:scale-[1.01] lg:h-11 lg:flex-none lg:gap-2.5 lg:px-4 lg:cursor-pointer lg:min-w-[180px]"
-                            >
-                                <MessageCircle className="h-5 w-5 shrink-0 lg:h-6 lg:w-6" strokeWidth={2.5} />
-                                WhatsApp
-                            </button>
-                        )}
-                        <button
-                            data-testid="btn-chatya-vendedor"
-                            onClick={onEnviarMensaje}
-                            aria-label="Contactar por ChatYA"
-                            className="flex h-10 flex-1 items-center justify-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-3 text-white shadow-md transition-transform hover:scale-[1.01] lg:h-11 lg:flex-none lg:px-4 lg:cursor-pointer lg:min-w-[180px]"
-                        >
-                            <img
-                                src="/ChatYA.webp"
-                                alt="ChatYA"
-                                className="h-7 w-auto shrink-0 object-contain lg:h-9"
-                            />
-                        </button>
-                    </div>
-                )}
             </div>
 
-            {/* Banner de bloqueado — se muestra cuando hay relación de bloqueo.
-                Explica el estado y por qué no aparecen los botones de chat. */}
+            {/* Banner de bloqueado — full width abajo del grid si aplica. */}
             {!esUnoMismo && estaBloqueado && (
                 <div
                     data-testid="banner-usuario-bloqueado"
-                    className="flex items-center gap-3 border-t-2 border-red-200 bg-red-50 px-5 py-3 lg:px-6"
+                    className="flex items-center gap-3 border-t-2 border-red-300 bg-red-100 px-5 py-3 lg:px-6"
                 >
-                    <Ban className="h-5 w-5 shrink-0 text-red-600" strokeWidth={2.5} />
-                    <p className="text-sm font-semibold text-red-700 lg:text-[13px] 2xl:text-sm">
+                    <Ban className="h-5 w-5 shrink-0 text-red-700" strokeWidth={2.5} />
+                    <p className="text-sm font-semibold text-red-800 lg:text-[13px] 2xl:text-sm">
                         Has bloqueado a este usuario.{' '}
-                        <span className="font-medium text-red-600">
+                        <span className="font-medium text-red-700">
                             No podrán enviarse mensajes mutuamente.
                         </span>
                     </p>
                 </div>
             )}
+        </div>
+    );
+}
+
+// ─── Bloque de KPI (sección 2 del HeroCard) ───────────────────────────────
+
+interface KpiBlockProps {
+    icono: React.ReactNode;
+    valor: string;
+    label: string;
+}
+
+function KpiBlock({ icono, valor, label }: KpiBlockProps) {
+    return (
+        <div className="flex flex-col items-center gap-0.5 px-2 py-3 lg:py-4">
+            <div className="text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+                {valor}
+            </div>
+            <div className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 lg:text-xs">
+                <span className="text-slate-600">{icono}</span>
+                {label}
+            </div>
         </div>
     );
 }
@@ -794,7 +821,7 @@ function AvatarConAdornos({
             >
                 {/* Anillo blanco interior — separación visual entre gradient y avatar */}
                 <div className="rounded-full bg-white p-[2px]">
-                    <div className="h-[64px] w-[64px] overflow-hidden rounded-full bg-white lg:h-[84px] lg:w-[84px]">
+                    <div className="h-[80px] w-[80px] overflow-hidden rounded-full bg-white lg:h-[96px] lg:w-[96px]">
                         {perfil.avatarUrl ? (
                             <img
                                 src={perfil.avatarUrl}
@@ -839,72 +866,6 @@ function AvatarConAdornos({
 }
 
 // =============================================================================
-// KPI FILA — 2 líneas (icono+valor inline arriba, label debajo)
-// =============================================================================
-
-interface KpiFilaProps {
-    activas: number;
-    vendidos: number;
-    tiempoRespuesta: string;
-}
-
-function KpiFila({ activas, vendidos, tiempoRespuesta }: KpiFilaProps) {
-    return (
-        // Glassmorphism: fondo blanco translúcido + backdrop-blur + borde claro.
-        // Sobre el gradient del Hero (blanco→slate-100), el glass se nota:
-        // los KPIs flotan visualmente con un acabado más rico.
-        <div
-            data-testid="kpis-vendedor"
-            className="flex w-full shrink-0 divide-x divide-white/50 overflow-hidden rounded-xl border-2 border-white/70 bg-white/50 shadow-sm backdrop-blur-md lg:w-auto"
-        >
-            <Kpi
-                icono={<Package className="h-5 w-5 shrink-0" strokeWidth={2} />}
-                label="Publicaciones"
-                valor={activas.toString()}
-            />
-            <Kpi
-                icono={<ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2} />}
-                label="Vendidos"
-                valor={vendidos.toString()}
-            />
-            <Kpi
-                icono={<Clock className="h-5 w-5 shrink-0" strokeWidth={2} />}
-                label="Respuesta"
-                valor={tiempoRespuesta}
-            />
-        </div>
-    );
-}
-
-interface KpiProps {
-    icono: React.ReactNode;
-    label: string;
-    valor: string;
-}
-
-function Kpi({ icono, label, valor }: KpiProps) {
-    return (
-        // En móvil: padding ajustado y tamaños ligeramente menores para que
-        // los 3 KPIs (Publicaciones / Vendidos / Respuesta) quepan en el
-        // ancho del celular sin cortar la palabra más larga ("Publicaciones").
-        // En desktop se conservan los tamaños originales.
-        <div className="min-w-0 flex-1 px-2 py-2.5 text-center lg:min-w-[112px] lg:px-6">
-            {/* Línea 1: icono + valor inline */}
-            <div className="flex items-center justify-center gap-1 text-slate-800 lg:gap-1.5">
-                <span className="text-slate-500">{icono}</span>
-                <span className="text-lg font-bold lg:text-lg 2xl:text-xl">
-                    {valor}
-                </span>
-            </div>
-            {/* Línea 2: label */}
-            <div className="mt-0.5 truncate text-[13px] font-semibold text-slate-600 lg:text-[11px] 2xl:text-sm">
-                {label}
-            </div>
-        </div>
-    );
-}
-
-// =============================================================================
 // TABS — segmented control con Dark Gradient (TC-7), counter círculo
 // =============================================================================
 
@@ -924,19 +885,19 @@ function TabsSegmented({
     return (
         <div
             role="tablist"
-            className="flex gap-1 rounded-xl border-2 border-slate-300 bg-slate-200 p-1 shadow-sm"
+            className="flex gap-8 border-b-2 border-slate-300"
         >
-            <TabPill
+            <TabUnderline
                 activa={tabActiva === 'activa'}
-                icono={<Package className="h-4 w-4 shrink-0" strokeWidth={2.5} />}
+                icono={<Package className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
                 label="Publicaciones"
                 count={totalActivos}
                 onClick={() => onChange('activa')}
                 testId="tab-publicaciones"
             />
-            <TabPill
+            <TabUnderline
                 activa={tabActiva === 'vendida'}
-                icono={<ShoppingBag className="h-4 w-4 shrink-0" strokeWidth={2.5} />}
+                icono={<ShoppingBag className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
                 label="Vendidos"
                 count={totalVendidos}
                 onClick={() => onChange('vendida')}
@@ -946,7 +907,7 @@ function TabsSegmented({
     );
 }
 
-interface TabPillProps {
+interface TabUnderlineProps {
     activa: boolean;
     icono: React.ReactNode;
     label: string;
@@ -955,28 +916,31 @@ interface TabPillProps {
     testId: string;
 }
 
-function TabPill({ activa, icono, label, count, onClick, testId }: TabPillProps) {
+/**
+ * Tab underline minimalista: texto + counter inline, sin contenedor de fondo.
+ * Tab activa lleva texto teal-700 + underline teal-500 (4px) absoluto al
+ * fondo, posicionado sobre el `border-b-2 slate-200` del tablist para tapar
+ * esa zona. Tab inactiva en slate-500 con hover slate-700.
+ * Patrón B2B clásico (Linear/Stripe/Notion).
+ */
+function TabUnderline({ activa, icono, label, count, onClick, testId }: TabUnderlineProps) {
     return (
         <button
             data-testid={testId}
             onClick={onClick}
             role="tab"
             aria-selected={activa}
-            className={`flex h-10 flex-1 items-center justify-center gap-2 rounded-lg text-sm font-bold lg:cursor-pointer lg:text-[13px] 2xl:text-sm ${
+            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:text-lg ${
                 activa
-                    ? 'text-white shadow-md'
-                    : 'text-slate-700 lg:hover:bg-slate-300'
+                    ? 'border-teal-500 text-teal-700'
+                    : 'border-transparent text-slate-600 hover:text-slate-800'
             }`}
-            style={activa ? { background: DARK_GRADIENT } : undefined}
         >
             {icono}
-            {label}
-            {/* Counter como círculo full-rounded */}
+            <span>{label}</span>
             <span
-                className={`inline-flex h-6 min-w-[24px] items-center justify-center rounded-full px-1.5 text-xs font-bold ${
-                    activa
-                        ? 'bg-white/20 text-white'
-                        : 'bg-slate-300 text-slate-700'
+                className={`text-sm font-bold tabular-nums ${
+                    activa ? 'text-teal-700' : 'text-slate-500'
                 }`}
             >
                 {count}

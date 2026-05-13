@@ -246,7 +246,7 @@ export function PaginaArticuloMarketplace() {
                                     />
                                 </div>
                                 <span className="ml-1.5 shrink-0 text-2xl font-extrabold tracking-tight text-white">
-                                    De<span className="text-teal-400">talle</span>
+                                    Detalle
                                 </span>
 
                                 {/* Separador vertical */}
