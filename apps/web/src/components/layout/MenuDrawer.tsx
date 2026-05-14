@@ -30,7 +30,7 @@ import {
   Wallet,
   ChevronRight,
   Heart,
-  FileText,
+  Package,
   MapPin,
   Lock,
   Ticket,
@@ -347,11 +347,11 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
               {/* Mis Publicaciones */}
               <MenuDrawerItem
-                icon={FileText}
+                icon={Package}
                 label="Mis Publicaciones"
-                bgColor="bg-gradient-to-br from-purple-400 to-purple-600"
+                bgColor="bg-gradient-to-br from-cyan-400 to-cyan-600"
                 iconColor="text-white"
-                hoverGradient="hover:from-purple-50"
+                hoverGradient="hover:from-cyan-50"
                 onClick={() => handleNavegar('/mis-publicaciones')}
               />
 

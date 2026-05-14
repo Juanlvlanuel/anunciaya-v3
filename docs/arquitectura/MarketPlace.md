@@ -964,9 +964,38 @@ El sidebar de thumbnails laterales del feed real (cuando `tieneMultiples && !mod
 
 ### Mis Publicaciones (`/mis-publicaciones`)
 
-- **Página global del modo Personal**, fuera del módulo MarketPlace.
-- Su diseño definitivo se aterriza en otro documento (`MisPublicaciones.md`) cuando se decida cómo encajan los Servicios.
-- MarketPlace expone `GET /api/marketplace/mis-articulos` para que esa página lo consuma cuando se construya.
+Panel del vendedor implementado en `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx`. Identidad visual: header dark sticky con acento **cyan** (`#22d3ee → #0891b2`, glow `rgba(6,182,212,0.07)`, icono `Package`) — replica el patrón estandarizado de CardYA/Cupones/Guardados/MarketPlace pero con paleta propia para distinguir el panel del vendedor del feed teal del comprador.
+
+> **Decisión arquitectural (pendiente de aplicar cuando llegue Servicios):** cuando exista el sprint de Servicios y los usuarios puedan publicar tanto artículos (MarketPlace) como servicios/empleos (Servicios), `/mis-publicaciones` se mantiene como **punto único de entrada** y se agrega un **selector top-level "MarketPlace / Servicios"** que cambia el contexto completo (tabs, ícono, card, estados). Cada sub-sección conserva su ciclo de vida independiente: MP usa Activas/Pausadas/Vendidas con `CardArticuloMio`; Servicios usará sus propios estados (Activos/Pausados/Cerrados o similar) con `CardServicioMio`. Mezclar ambos tipos en los mismos tabs forzaría taxonomía artificial (un servicio no se "vende"). Referencia UX: MercadoLibre "Mis publicaciones" único con filtro de tipo arriba.
+
+**Estructura:**
+
+- 3 tabs (chips estilo CardYA): **Activas / Pausadas / Vendidas**. El conteo del tab activo aparece como pill blanca dentro del chip. La columna `eliminada` queda fuera (soft delete; el endpoint la filtra de raíz).
+- Banner condicional **"Tienes un borrador sin publicar"** — aparece solo si existe la key `wizard_marketplace_${usuarioId}_nuevo` en localStorage con contenido válido (título o al menos una foto). Click → navega a `/marketplace/publicar`, que hidrata el borrador automáticamente. Si no hay borrador, el banner no se renderiza.
+- Listado responsive de `CardArticuloMio` (1 col móvil · 2 col laptop · 3 col 2xl) con foto cuadrada + título + precio + pill de estado + KPIs reales (`👁 vistas · 💬 mensajes · ♡ guardados · ⏱ días restantes`). Click en card → detalle público P2 (`/marketplace/articulos/:id`). Menú "⋯" → acciones contextuales según estado.
+- Estado vacío por tab con CTA "Publicar artículo" (solo en tab Activas; los otros tabs tienen mensaje contextual sin CTA).
+- FAB "+" en móvil (esquina inferior derecha, encima del BottomNav) para publicar rápido; CTA "Publicar" en el header lado derecho en desktop.
+
+**Acciones del menú "⋯" por estado:**
+
+| Estado | Acciones |
+|--------|----------|
+| `activa` | Editar · Pausar · Marcar vendido · (sep) · Eliminar |
+| `pausada` | Editar · Reactivar (+30 días) · Marcar vendido · (sep) · Eliminar |
+| `vendida` | Eliminar (estado terminal; no se puede reabrir) |
+
+Acciones reversibles (Pausar / Reactivar) ejecutan directo con `notificar.exito/error`. Acciones destructivas (Marcar vendido / Eliminar) abren `ModalAdaptativo` de confirmación con descripción del impacto antes de disparar la mutation.
+
+**Datos del servidor (React Query):**
+
+- `useMisArticulosMarketplace(estado, paginacion)` — `GET /api/marketplace/mis-articulos?estado=&limit=&offset=` con `placeholderData: keepPreviousData` (regla del proyecto, evita temblor visual al cambiar de tab).
+- `useCambiarEstadoArticuloMarketplace()` — `PATCH /articulos/:id/estado` con body `{estado: 'activa'|'pausada'|'vendida'}`. Reglas de transición aplicadas en backend.
+- `useEliminarArticuloMarketplace()` — `DELETE /articulos/:id` (soft delete con cleanup R2 vía reference counting).
+- `useReactivarArticulo()` — `POST /articulos/:id/reactivar` (extiende `expira_at +30d` + estado=activa). Reutilizado del sprint anterior.
+
+Todas las mutations invalidan `marketplace.all()` para que el cambio se refleje en feed público, perfil del vendedor (P3) y Mis Guardados de otros usuarios (estos últimos vía refetch — el filtro server-side en `guardados.service.ts` ya excluye `vendida/pausada/eliminada`). El detalle individual (`marketplace.articulo(id)`) también se invalida puntualmente.
+
+**Query key:** `['marketplace', 'mis-articulos', estado ?? 'todos', paginacion]` — registrada en `apps/web/src/config/queryKeys.ts` bajo `marketplace.misArticulos`.
 
 ### ModoPersonalEstrictoGuard
 

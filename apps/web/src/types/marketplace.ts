@@ -38,8 +38,23 @@ export interface ArticuloMarketplace {
     descripcion: string;
     /** NUMERIC(10,2) viene como string del backend */
     precio: string;
-    condicion: CondicionArticulo;
-    aceptaOfertas: boolean;
+    /**
+     * Condición opcional desde 2026-05-13. NULL = no aplica (productos
+     * consumibles, hechos a mano nuevos, etc.). Cuando es NULL, ni el card
+     * ni el detalle muestran ninguna etiqueta de condición.
+     */
+    condicion: CondicionArticulo | null;
+    /**
+     * "Acepta ofertas" opcional desde 2026-05-13. NULL = no especificado
+     * (no se muestra nada). true/false = decisión explícita del vendedor.
+     */
+    aceptaOfertas: boolean | null;
+    /**
+     * Unidad de venta opcional (c/u, por kg, por docena, por litro, por
+     * metro, por porción, texto libre). Cuando existe, el card y el detalle
+     * muestran "$15 c/u" en lugar de solo "$15".
+     */
+    unidadVenta: string | null;
     fotos: string[];
     fotoPortadaIndex: number;
     ubicacionAproximada: { lat: number; lng: number };
@@ -53,6 +68,12 @@ export interface ArticuloMarketplace {
     createdAt: string;
     updatedAt: string;
     vendidaAt: string | null;
+    /**
+     * True si el usuario autenticado tiene este artículo en Mis Guardados.
+     * El backend lo agrega cuando el endpoint corre con sesión válida
+     * (feed infinito, publicaciones del vendedor). Sin sesión = false.
+     */
+    guardado?: boolean;
 }
 
 /**

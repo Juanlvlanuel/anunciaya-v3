@@ -2251,8 +2251,22 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	titulo: varchar({ length: 80 }).notNull(),
 	descripcion: text().notNull(),
 	precio: numeric({ precision: 10, scale: 2 }).notNull(),
-	condicion: varchar({ length: 20 }).notNull(),
-	aceptaOfertas: boolean("acepta_ofertas").default(true).notNull(),
+	// Condición y aceptaOfertas son opcionales: no aplican a productos
+	// consumibles/comestibles, hechos a mano nuevos, etc. (mig. 2026-05-13).
+	condicion: varchar({ length: 20 }),
+	aceptaOfertas: boolean("acepta_ofertas").default(true),
+	// Unidad de venta opcional (c/u, por kg, por docena, por litro, por
+	// metro, por porción, o texto libre). Permite mostrar "$15 c/u" en lugar
+	// de solo "$15" para productos vendidos por unidad/peso/etc.
+	unidadVenta: varchar("unidad_venta", { length: 30 }),
+
+	// Confirmaciones del checklist legal del wizard de publicar (Paso 3).
+	// Snapshot inmutable de lo que aceptó el vendedor al publicar:
+	//   { licito, enPoder, honesto, seguro, version, aceptadasAt }
+	// Sirve como evidencia ante denuncias (artículo robado, falsificado, etc).
+	// Solo se INSERTA al crear; al editar NO se modifica. NULL para artículos
+	// legacy creados antes de 2026-05-13.
+	confirmaciones: jsonb("confirmaciones"),
 
 	// Fotos (JSONB array de URLs en R2; min 1, max 8 — validado en Zod)
 	fotos: jsonb().default(sql`'[]'::jsonb`).notNull(),
@@ -2289,7 +2303,7 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	// Índices GIST (ubicacion_aproximada) y GIN (FTS) viven solo en SQL —
 	// Drizzle no soporta declarar GIST/GIN sobre columnas custom geography ni
 	// sobre to_tsvector(). La migración SQL los crea y la BD los mantiene.
-	check("articulos_marketplace_condicion_check", sql`(condicion)::text = ANY ((ARRAY['nuevo'::character varying, 'seminuevo'::character varying, 'usado'::character varying, 'para_reparar'::character varying])::text[])`),
+	check("articulos_marketplace_condicion_check", sql`condicion IS NULL OR (condicion)::text = ANY ((ARRAY['nuevo'::character varying, 'seminuevo'::character varying, 'usado'::character varying, 'para_reparar'::character varying])::text[])`),
 	check("articulos_marketplace_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'vendida'::character varying, 'eliminada'::character varying])::text[])`),
 ]);
 

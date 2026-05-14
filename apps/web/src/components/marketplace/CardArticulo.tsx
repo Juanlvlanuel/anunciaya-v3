@@ -65,9 +65,14 @@ export function CardArticulo({
     ocultarBotonGuardar,
 }: CardArticuloProps) {
     const navigate = useNavigate();
+    // `articulo.guardado` viene del backend cuando el visitante está
+    // autenticado (feed infinito + publicaciones del vendedor). Lo pasamos
+    // como `initialGuardado` para que el corazón se vea correcto desde el
+    // primer render, sin esperar fetch adicional.
     const { guardado, loading, toggleGuardado } = useGuardados({
         entityType: 'articulo_marketplace',
         entityId: articulo.id,
+        initialGuardado: articulo.guardado,
     });
 
     const fotoPortada = obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex);
@@ -153,21 +158,29 @@ export function CardArticulo({
                     </div>
                 )}
 
-                {/* Badge "RECIÉN" (publicación <24h) ─ esquina sup-izq.
+                {/* Badge "RECIÉN" (publicación <24h). Posición dinámica:
+                      - Sup-IZQ por default (el corazón propio vive en sup-der).
+                      - Sup-DER cuando `ocultarBotonGuardar=true` (Mis Guardados
+                        pone su `BookmarkGlass` en sup-izq, así no se empalman).
                     Texto distinto de "Nuevo" para no chocar con la condición
-                    "nuevo" del artículo (decisión post-pulido visual). */}
+                    "nuevo" del artículo. */}
                 {esNuevo && (
                     <span
                         data-testid={`badge-recien-${articulo.id}`}
-                        className="absolute left-2 top-2 inline-flex items-center rounded-md bg-teal-500 px-2 py-1 text-sm lg:text-xs 2xl:text-sm font-bold uppercase tracking-wider text-white shadow-sm"
+                        className={`absolute top-2 inline-flex items-center rounded-md bg-teal-500 px-1.5 py-0.5 text-[10px] 2xl:text-xs font-bold uppercase tracking-wide text-white shadow-sm ${
+                            ocultarBotonGuardar ? 'right-2' : 'left-2'
+                        }`}
                     >
                         Recién
                     </span>
                 )}
 
-                {/* Botón ❤️ guardar ─ esquina sup-der. Se oculta cuando la
-                    vista padre sobrepone su propio control de selección
-                    (ej. Mis Guardados con modo selección múltiple). */}
+                {/* Botón ❤️ guardar ─ esquina sup-der. Estilo glass oscuro
+                    (mismo patrón que `BookmarkGlass` de Mis Guardados): el
+                    corazón rojo sobre vidrio translúcido se lee bien sobre
+                    fotos claras y oscuras. Se oculta cuando la vista padre
+                    sobrepone su propio control de selección (ej. Mis
+                    Guardados con modo selección múltiple). */}
                 {!ocultarBotonGuardar && (
                     <button
                         data-testid={`btn-guardar-${articulo.id}`}
@@ -175,13 +188,13 @@ export function CardArticulo({
                         disabled={loading}
                         aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
                         aria-pressed={guardado}
-                        className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-slate-600 shadow-md hover:bg-white hover:text-rose-500 disabled:opacity-50"
+                        className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/25 backdrop-blur-[10px] disabled:opacity-50"
                     >
                         <Heart
-                            className="h-4 w-4"
-                            strokeWidth={2.5}
-                            fill={guardado ? 'currentColor' : 'none'}
-                            color={guardado ? '#f43f5e' : 'currentColor'}
+                            className="h-5 w-5"
+                            strokeWidth={2}
+                            fill={guardado ? '#ef4444' : 'none'}
+                            stroke="white"
                         />
                     </button>
                 )}
@@ -198,18 +211,35 @@ export function CardArticulo({
                     altoFijo || variant !== 'compacta' ? 'flex-1' : ''
                 }`}
             >
-                {/* Precio */}
-                <div className="text-xl font-bold leading-tight text-slate-900">
-                    {formatearPrecio(articulo.precio)}
-                </div>
+                {/* Orden de información idéntico al feed público
+                    (CardArticuloFeed): título → precio → descripción.
+                    Mantiene el ojo del comprador en "qué es" antes que "cuánto cuesta". */}
 
-                {/* Título 1 línea truncada */}
-                <div className="truncate text-sm font-medium text-slate-700">
+                {/* Título (truncate 1 línea en compacta para densidad) */}
+                <div className="truncate text-base font-bold leading-snug text-slate-900">
                     {articulo.titulo}
                 </div>
 
-                {/* Distancia + tiempo (gris) */}
-                <div className="flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">
+                {/* Precio + unidad de venta opcional ($15 c/u).
+                    Color teal-700 — identidad visual del precio en el módulo. */}
+                <div className="text-lg font-bold leading-tight text-teal-700">
+                    {formatearPrecio(articulo.precio)}
+                    {articulo.unidadVenta && (
+                        <span className="ml-1 text-sm font-medium text-teal-700/80">
+                            {articulo.unidadVenta}
+                        </span>
+                    )}
+                </div>
+
+                {/* Descripción — siempre reserva 2 líneas de altura aunque
+                    el texto sea corto, para que todos los cards del grid
+                    midan lo mismo sin importar la longitud de su descripción. */}
+                <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-slate-700">
+                    {articulo.descripcion}
+                </p>
+
+                {/* Distancia + tiempo (gris, más sutil) */}
+                <div className="flex items-center gap-1.5 text-xs font-medium text-slate-500">
                     {distancia && (
                         <>
                             <MapPin className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />

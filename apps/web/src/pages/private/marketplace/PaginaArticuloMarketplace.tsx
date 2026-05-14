@@ -584,9 +584,22 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 }
             >
                 {formatearPrecio(articulo.precio)}
+                {articulo.unidadVenta && (
+                    <span
+                        className={
+                            compacto
+                                ? 'ml-1.5 text-lg font-semibold text-slate-600 2xl:text-xl'
+                                : 'ml-2 text-2xl font-semibold text-slate-600 lg:text-3xl'
+                        }
+                    >
+                        {articulo.unidadVenta}
+                    </span>
+                )}
             </div>
 
-            {/* Chips: condición (semántico) + acepta ofertas */}
+            {/* Chips: condición (semántico) + acepta ofertas. Ambos son
+                opcionales desde 2026-05-13 — el contenedor solo renderiza
+                los chips relevantes. */}
             <div className="flex flex-wrap items-center gap-1.5">
                 <ChipCondicion condicion={articulo.condicion} />
                 {articulo.aceptaOfertas && (
@@ -660,14 +673,15 @@ function CaracteristicasTabla({
     compacto?: boolean;
 }) {
     const filas: Array<{ label: string; valor: React.ReactNode }> = [
-        {
-            label: 'Condición',
-            valor: ETIQUETA_CONDICION[articulo.condicion],
-        },
-        {
-            label: 'Acepta ofertas',
-            valor: articulo.aceptaOfertas ? 'Sí' : 'No',
-        },
+        // Campos opcionales (2026-05-13): solo se listan si tienen valor.
+        // La unidad de venta NO se lista aquí porque ya aparece junto al
+        // precio en el header ("$15 c/u") — duplicarla en la tabla es ruido.
+        ...(articulo.condicion
+            ? [{ label: 'Condición', valor: ETIQUETA_CONDICION[articulo.condicion] }]
+            : []),
+        ...(articulo.aceptaOfertas !== null && articulo.aceptaOfertas !== undefined
+            ? [{ label: 'Acepta ofertas', valor: articulo.aceptaOfertas ? 'Sí' : 'No' }]
+            : []),
         ...(articulo.ciudad
             ? [{ label: 'Ciudad', valor: articulo.ciudad }]
             : []),
@@ -707,7 +721,9 @@ function CaracteristicasTabla({
  *  - Usado → slate (neutral)
  *  - Para reparar → amber (advertencia)
  */
-function ChipCondicion({ condicion }: { condicion: CondicionArticulo }) {
+function ChipCondicion({ condicion }: { condicion: CondicionArticulo | null }) {
+    // Condición opcional desde 2026-05-13: si no aplica, no mostramos chip.
+    if (!condicion) return null;
     const config = {
         nuevo: { label: 'Nuevo', clases: 'bg-emerald-100 text-emerald-700' },
         seminuevo: { label: 'Seminuevo', clases: 'bg-blue-100 text-blue-700' },

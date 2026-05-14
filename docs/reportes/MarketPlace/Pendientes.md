@@ -1,6 +1,6 @@
 # Pendientes en MarketPlace
 
-**Última actualización:** 2026-05-13 (rediseño visual P3 Perfil + galería P2 con flechas overlay + cierre de E.2 al confirmar que el filtro permisivo del backend ya cubre los chats legacy)
+**Última actualización:** 2026-05-13 (segunda sesión del día — refinamientos UI sobre C.2: card en 2 columnas móvil, dropdown compacto, toggle MarketPlace/Servicios con UI de Servicios pre-cableada, layout desktop reorganizado con toggles izquierda y tabs centro alineados al mismo nivel vertical, "Reabrir publicación" → "Re-Activar". Doc nuevo de arquitectura `docs/arquitectura/MisPublicaciones.md`. Bugs D.8–D.11 cerrados.)
 
 Documento maestro de pendientes del módulo MarketPlace. Lista lo que falta implementar, ordenado por prioridad de impacto. Items cerrados se conservan al final como historial.
 
@@ -12,7 +12,7 @@ Cerrar estos flujos antes de pasar a auditoría visual restante.
 
 - ⏳ **Comprador end-to-end** — descubrimiento → detalle → Q&A → contacto (chat/WhatsApp) → guardado → chat se abre con preview de oferta encima del input (nuevo flujo del 09-may-2026).
 - ⏳ **Vendedor end-to-end** — wizard publicar → moderación → recibir pregunta → responder → editar/pausar/marcar vendido → ver KPIs en perfil.
-  - **Bloqueado por C.2** (Mis Publicaciones sigue siendo placeholder, sin UI para acciones del vendedor sobre sus propios artículos).
+  - **Desbloqueado** (C.2 cerrado): el panel `/mis-publicaciones` ya expone Editar / Pausar / Reactivar / Marcar vendido / Eliminar con KPIs por publicación.
 - ✅ ~~Compartir artículo P6~~ (cerrado: header público compartido + footer + autoComplete + CTA login).
 
 ---
@@ -36,35 +36,51 @@ Cerrar estos flujos antes de pasar a auditoría visual restante.
 
 Adicionalmente cerrada la **Página pública compartible** del detalle del artículo (`/p/articulo-marketplace/:articuloId`) — la URL que se comparte por link desde la app y se ve sin sesión. Header gradient azul tipo Navbar + footer estilo home + fondo degradado + cards bordeadas + CTA "Únete gratis" personalizado teal con headline contextualizado por ciudad. Ver `docs/arquitectura/Paginas_Publicas.md`.
 
-### C.2 — Sección "Mis Publicaciones" (PRIORIDAD ALTA)
+### C.2 — Sección "Mis Publicaciones"
 
-**Estado:** ruta y archivo `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx` existen pero están como **placeholder "Próximamente"** — solo tabs visuales (activas/borradores/expiradas) y CTA. **Falta toda la implementación funcional.**
+✅ **Cerrado** (sesión 13-may-2026). Panel del vendedor implementado con identidad cyan en `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx`.
 
-**Bloquea:**
-- E2E del vendedor (sin esta sección no hay forma de validar todo el ciclo).
-- Validación del filtro nuevo de "Mis Guardados" (los items se filtran cuando un artículo cambia a `vendida`/`pausada`/`eliminada`, pero el vendedor no tiene UI para disparar esos cambios).
+**Lo que entregó la sesión:**
 
-**Funcionalidad faltante:**
+| Capa | Entregable | Ubicación |
+|------|------------|-----------|
+| **Backend** | Endpoint ya existía: `GET /api/marketplace/mis-articulos?estado=&limit=&offset=` (no `/articulos/mios` como decía la nota original) | `apps/api/src/routes/marketplace.routes.ts:168` |
+| **Hooks React Query** | `useMisArticulosMarketplace(estado, paginacion)` con `keepPreviousData` | `useMarketplace.ts` |
+| | `useCambiarEstadoArticuloMarketplace()` (PATCH a `/articulos/:id/estado`) | `useMarketplace.ts` |
+| | `useEliminarArticuloMarketplace()` (DELETE a `/articulos/:id`) | `useMarketplace.ts` |
+| | `useReactivarArticulo()` reutilizado | `useMarketplace.ts:358` |
+| **Query key** | `marketplace.misArticulos(estado, paginacion)` | `apps/web/src/config/queryKeys.ts` |
+| **Componente** | `CardArticuloMio` — card densa B2B con foto + título + precio + pill estado + KPIs inline (vistas/mensajes/guardados/días) + menú "⋯" contextual | `apps/web/src/components/marketplace/CardArticuloMio.tsx` |
+| **Página** | Header dark cyan (icono `Package`, glow `rgba(6,182,212,0.07)`), 3 tabs (Activas/Pausadas/Vendidas), banner condicional de borrador (lee `wizard_marketplace_${usuarioId}_nuevo` en localStorage), grid responsivo, FAB móvil, CTA desktop, modales de confirmación para Marcar vendido y Eliminar | `apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx` |
 
-| Capa | Item | Estado |
-|------|------|--------|
-| **Backend endpoints** | `PATCH /api/marketplace/articulos/:id/estado` para `vendida`/`pausada`/`activa` | ✅ Implementado, sin UI que lo consuma |
-| | `POST /api/marketplace/articulos/:id/reactivar` (extiende `expira_at` +30d) | ✅ Implementado |
-| | `GET /marketplace/articulos/mios?estado=...` (listar artículos del vendedor) | ⏳ Verificar si existe; si no, crearlo |
-| **Hooks React Query** | `useMisArticulosMarketplace(estado)` | ⏳ |
-| | `useCambiarEstadoArticulo(id, estado)` mutation | ⏳ |
-| | `useReactivarArticulo(id)` | ✅ Existe (`useMarketplace.ts:358`) |
-| **UI** | Listado de artículos del usuario filtrado por tab (activas/pausadas/vendidas/expiradas/borradores) | ⏳ |
-| | Card variant con acciones inline: editar / pausar / marcar vendido / eliminar / reactivar | ⏳ |
-| | KPIs por artículo (vistas, mensajes, guardados, días restantes) | ⏳ |
-| | Estado vacío por tab con CTA "Publicar artículo" | ⏳ |
-| **Cron auto-pausar** | Pausa artículos cuando `NOW() > expira_at` cada 6h | ✅ Corriendo (`marketplace-expiracion.cron.ts`) |
-| **Botón Reactivar** | UI en `PaginaArticuloMarketplace` cuando `estado='pausada'` | ✅ Visible al dueño cuando ve su propio artículo pausado |
+**Comportamientos validados al implementar:**
+- `vendida` → desaparece del feed público, desaparece de Mis Guardados de otros usuarios (filtro en `guardados.service.ts`), permanece en BD para historial del vendedor.
+- `pausada` → mismo comportamiento que vendida pero reversible vía "Re-Activar" (+30 días).
+- `eliminada` → soft delete (`deleted_at=NOW()`) + cleanup R2 con reference counting; ya filtrado en feed y Guardados.
+- Re-Activar usa el endpoint específico `POST /articulos/:id/reactivar` (no el PATCH de estado) porque también extiende `expira_at +30d` y resetea `vendida_at=NULL`; cubre los casos `pausada → activa` Y `vendida → activa` (vendedor que marcó vendido por error o cuya venta se cayó).
 
-**Comportamientos del estado del artículo (validar al implementar):**
-- `vendida` → desaparece del feed público, desaparece de Mis Guardados de otros usuarios (filtro nuevo en `guardados.service.ts`), permanece en BD para historial del vendedor.
-- `pausada` → mismo comportamiento que vendida pero reversible vía "Reactivar".
-- `eliminada` → soft delete (`deleted_at=NOW()`); ya filtrado en feed y Mis Guardados.
+**Refinamientos UI agregados en la 2da sesión del 13-may-2026:**
+
+| Aspecto | Cambio |
+|---------|--------|
+| Grid móvil | `grid-cols-1` → `grid-cols-2 gap-2.5` (dos cards por fila estilo Facebook Marketplace) |
+| Card móvil | Padding y typography compactados (`p-2.5`, título `text-sm`, precio `text-base`); precio + unidad + condición con `flex-wrap` para que la condición baje a otra línea si el precio es largo |
+| Card KPIs | `flex-nowrap` → `flex-wrap` para que los chips bajen a 2 líneas en cards de ~180px |
+| Overlay de estado | `vendida` y `pausada` ahora muestran overlay `bg-slate-900/55 backdrop-blur-[1px]` sobre la foto con icono + texto centrado ("VENDIDO" / "PAUSADO"); el pill de estado en la esquina fue retirado (el overlay lo reemplaza) |
+| Menú "⋯" dropdown | Compactado en móvil (`w-44`, items `px-3 py-2 gap-2.5 h-4`); `lg:` conserva `w-56` `px-3.5 py-2.5 gap-3 h-5`. Retirado `overflow-hidden` del `<article>` para que el dropdown no se recorte (la foto preserva el rounded con `rounded-t-xl`) |
+| Etiqueta del menú | "Reabrir publicación" → "Re-Activar" (más corto y consistente con la acción de `pausada`) |
+| Toggle MarketPlace/Servicios | Top-level en el header con gradient teal (MP) / sky (Servicios). Móvil: icon-only `h-9 w-9 border-2 rounded-full` fijo a la izquierda + divider `h-7 w-px bg-white/20` + tabs scrollables a la derecha. Desktop: bloque izquierda en flex-col con título arriba + toggles abajo; bloque centro en flex-col con subtítulo arriba + tabs `self-end` abajo; flex padre con `items-end` para alinear toggles y tabs al mismo nivel vertical |
+| UI de Servicios | Pre-cableada — `TABS_POR_TIPO` con 2 tabs (`activa` + `pausada`) para Servicios; el body sigue mostrando empty "Próximamente" con paleta sky. `useEffect` autocorrige `tabActivo` si no aplica al tipo (ej. cambiar de `vendida` MP a Servicios → resetea a `activa`) |
+| Wizard | Pasos reorganizados (Fotos → Título → Descripción primero; Condición → Precio → Unidad → Acepta ofertas después). Campos opcionales con UX tristate (clickear chip activo lo deselecciona). 4 confirmaciones legales firmadas (`licito`, `enPoder`, `honesto`, `seguro`) persistidas como JSONB con `version` (`CHECKLIST_VERSION`) y `aceptadasAt` (inyectado por backend) |
+
+**Migraciones SQL aplicadas:**
+- `docs/migraciones/2026-05-13-marketplace-condicion-opcional-unidad-venta.sql` — permite NULL en `condicion` y `acepta_ofertas`, agrega `unidad_venta VARCHAR(30)`.
+- `docs/migraciones/2026-05-13-marketplace-confirmaciones.sql` — agrega `confirmaciones JSONB` para evidencia legal.
+
+**Decisión arquitectural deferida al sprint de Servicios:**
+- Servicios tendrá solo 2 estados (`activa` + `pausada`), no replica el `vendida` del MarketPlace. Razón: un servicio no se "vende y desaparece" — es recurrente. Cuando el vendedor ya no lo ofrece, lo elimina directamente. Guardado en memoria como `project_servicios_estados.md` para el sprint futuro.
+
+Ver detalle de la sección en `docs/arquitectura/MisPublicaciones.md` (doc atemporal de referencia con anatomía móvil/desktop, contrato con el wizard, política de modo Personal, schema de BD relevante, jobs cron de auto-expiración y 8 decisiones arquitectónicas).
 
 ### C.3 — Refactor "Perfil de Usuario" neutral
 
@@ -88,7 +104,7 @@ Pantallas y resoluciones por revisar:
 
 ## D. Bugs funcionales abiertos
 
-_(Sin bugs abiertos. D.1, D.2, D.3 ya cerrados — ver D.cerrados abajo.)_
+_(Sin bugs abiertos. D.1 – D.11 ya cerrados — ver D.cerrados abajo.)_
 
 ### D.cerrados — Bugs ya resueltos
 
@@ -99,6 +115,10 @@ _(Sin bugs abiertos. D.1, D.2, D.3 ya cerrados — ver D.cerrados abajo.)_
 - ✅ **D.5 — "Imprenta FindUS · Imprenta FindUS" duplicado en header de chat / popup de negocio / panel info** — backend `obtenerDatosParticipante` y `listarContactos` normalizan a `'Matriz'`/`null`/nombre; frontend `CardNegocio` / `PaginaNegocios` / `PaginaPerfilNegocio` siembran con verificación de `esPrincipal` + `totalSucursales > 1` (sesión del 11-may-2026).
 - ✅ **D.6 — Mis Guardados mostraba artículos MP vendidos/pausados/expirados** — filtro `estado='activa'` agregado a `guardados.service.ts` (11-may-2026).
 - ✅ **D.7 — Carrusel embla autoplay rompía con ≤1 slides** — guard en `useCarruselRotativo.ts` solo incluye el plugin cuando `total > 1`.
+- ✅ **D.8 — Corazón no marcaba como guardado en perfil del vendedor** — `obtenerArticulosDeVendedor()` no devolvía el flag `guardado` en las publicaciones del perfil público. Ahora acepta `visitanteId` y hace `EXISTS` contra `guardados` con `entity_type='articulo_marketplace'` (13-may-2026).
+- ✅ **D.9 — Card del vendedor "resucitaba" como guardada al regresar** — `aplicarCambioGuardadoEnCache` solo actualizaba `totalGuardados` en el cache de publicaciones de vendedor, no el flag `guardado`. Sin esto, al navegar fuera del perfil y volver, el cache stale mostraba el corazón marcado aunque el usuario lo hubiera quitado. Ahora actualiza ambos campos (13-may-2026).
+- ✅ **D.10 — `unidadVenta` perdida en Mis Guardados** — el `SELECT` de `guardados.service.ts` no incluía `a.unidad_venta`. Agregado como `articuloUnidadVenta` + mapeo a `unidadVenta` en la respuesta (13-may-2026).
+- ✅ **D.11 — Eliminar guardados en batch desde Mis Guardados no sincronizaba el corazón en feed/perfil** — `PaginaGuardados.eliminarSeleccionados` solo invalidaba `['guardados']`. Ahora llama a `aplicarCambioGuardadoEnCache` por cada item marketplace; la función se exportó desde `useGuardados.ts` para ese uso (13-may-2026).
 
 ---
 
@@ -123,7 +143,7 @@ Sprint propio (estimado similar al Sprint 6 del MarketPlace).
 
 Por orden de impacto:
 
-1. **C.2 — Mis Publicaciones (Prioridad ALTA)** — desbloquea E2E del vendedor y permite probar el filtro de Mis Guardados con flujo real.
+1. **A — E2E del vendedor** (desbloqueado por C.2) — probar wizard publicar → recibir pregunta → responder → pausar/marcar vendido/eliminar desde el nuevo panel `/mis-publicaciones`. Validar que `vendida/pausada/eliminada` desaparecen de Mis Guardados de otros usuarios.
 2. **A — E2E del comprador** — los flujos están listos, solo falta validación manual o tests automatizados.
 3. **C.4 — Fase C visual restante** — solo P5 Buscador queda pendiente (P2, P3, P4 y P6 ya cerrados).
 4. **B.3 — Stories de actividad** — feature de descubrimiento (requiere diseño + backend).

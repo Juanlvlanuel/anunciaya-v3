@@ -205,6 +205,16 @@ export const queryKeys = {
       paginacion: { limit: number; offset: number }
     ) =>
       ['marketplace', 'vendedor', usuarioId, 'publicaciones', estado, paginacion] as const,
+    /**
+     * Mis publicaciones — listado paginado del dueño filtrado por estado.
+     * `estado=undefined` significa "todos los no-eliminados". El sufijo
+     * 'todos' en la key evita colisión con queries por estado específico.
+     */
+    misArticulos: (
+      estado: 'activa' | 'pausada' | 'vendida' | undefined,
+      paginacion: { limit: number; offset: number }
+    ) =>
+      ['marketplace', 'mis-articulos', estado ?? 'todos', paginacion] as const,
     sugerencias: (q: string, ciudad: string) =>
       ['marketplace', 'buscar', 'sugerencias', q, ciudad] as const,
     populares: (ciudad: string) =>

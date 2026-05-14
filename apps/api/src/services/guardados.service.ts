@@ -328,6 +328,7 @@ export async function obtenerGuardados(
                     a.precio AS "articuloPrecio",
                     a.condicion AS "articuloCondicion",
                     a.acepta_ofertas AS "articuloAceptaOfertas",
+                    a.unidad_venta AS "articuloUnidadVenta",
                     a.fotos AS "articuloFotos",
                     a.foto_portada_index AS "articuloFotoPortadaIndex",
                     ST_Y(a.ubicacion_aproximada::geometry) AS "articuloLat",
@@ -368,8 +369,11 @@ export async function obtenerGuardados(
                 articuloTitulo: string;
                 articuloDescripcion: string;
                 articuloPrecio: string;
-                articuloCondicion: string;
-                articuloAceptaOfertas: boolean;
+                // condicion, aceptaOfertas y unidadVenta son opcionales
+                // desde 2026-05-13 (productos consumibles, hechos a mano).
+                articuloCondicion: string | null;
+                articuloAceptaOfertas: boolean | null;
+                articuloUnidadVenta: string | null;
                 articuloFotos: string[];
                 articuloFotoPortadaIndex: number;
                 articuloLat: number;
@@ -400,6 +404,7 @@ export async function obtenerGuardados(
                         precio: r.articuloPrecio,
                         condicion: r.articuloCondicion,
                         aceptaOfertas: r.articuloAceptaOfertas,
+                        unidadVenta: r.articuloUnidadVenta,
                         fotos: r.articuloFotos,
                         fotoPortadaIndex: r.articuloFotoPortadaIndex,
                         ubicacionAproximada: { lat: r.articuloLat, lng: r.articuloLng },

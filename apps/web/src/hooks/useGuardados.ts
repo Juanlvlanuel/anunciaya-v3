@@ -116,8 +116,13 @@ interface UseGuardadosResult {
  * Sin esto, el `<CardArticuloFeed modoModal />` que vive dentro del modal de
  * detalle (Facebook style) arranca con `articulo.guardado` y
  * `articulo.totalGuardados` stale porque su snapshot viene del cache del feed.
+ *
+ * Exportado para que vistas que eliminan guardados POR FUERA del hook
+ * (ej. `PaginaGuardados.eliminarSeleccionados`, que usa `api.delete` directo
+ * en batch) puedan sincronizar el cache de feed/vendedor sin tener que pasar
+ * por el hook por cada item.
  */
-function aplicarCambioGuardadoEnCache(
+export function aplicarCambioGuardadoEnCache(
   qc: QueryClient,
   articuloId: string,
   guardadoNuevo: boolean,
@@ -162,6 +167,10 @@ function aplicarCambioGuardadoEnCache(
 
   // Publicaciones del vendedor — todas las queries con prefix
   // `['marketplace', 'vendedor', ..., 'publicaciones', ...]`.
+  // IMPORTANTE: actualizar también el flag `guardado` (no solo el contador).
+  // Sin esto, al navegar fuera del perfil y volver, el cache aún tiene
+  // `guardado=true` y el corazón se ve marcado aunque el usuario lo haya
+  // quitado en otra parte.
   qc.setQueriesData<PublicacionesDeVendedor>(
     { queryKey: ['marketplace', 'vendedor'] },
     (old) => {
@@ -172,6 +181,7 @@ function aplicarCambioGuardadoEnCache(
           a.id === articuloId
             ? {
                 ...a,
+                guardado: guardadoNuevo,
                 totalGuardados: Math.max(0, a.totalGuardados + delta),
               }
             : a

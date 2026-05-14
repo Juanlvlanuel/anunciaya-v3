@@ -92,7 +92,7 @@ import type {
 const MAX_FOTOS = 8;
 const TITULO_MIN = 10;
 const TITULO_MAX = 80;
-const DESCRIPCION_MIN = 50;
+const DESCRIPCION_MIN = 20;
 const DESCRIPCION_MAX = 1000;
 const PRECIO_MAX = 999_999;
 const PRECIO_ADVERTENCIA = 10;
@@ -110,21 +110,21 @@ const CONDICIONES: { valor: CondicionArticulo; etiqueta: string }[] = [
 // derecho y llenan el vacío vertical que dejaba la `CardArticuloFeed` alta.
 const TIPS_POR_PASO: Record<1 | 2 | 3, { titulo: string; tips: string[]; cierre?: string }> = {
     1: {
-        titulo: 'Tips para fotos y título',
+        titulo: 'Tips para fotos, título y descripción',
         tips: [
             'Buena luz natural y fondo limpio venden 3 veces más.',
             'La primera foto es la portada — escoge la que mejor muestre el artículo.',
             'Título claro: marca, modelo y estado en pocas palabras.',
-            'Sé específico: "Bicicleta Rinos vintage restaurada" mejor que "Bici".',
+            'Describe medidas, fallas y accesorios para evitar preguntas innecesarias.',
         ],
     },
     2: {
-        titulo: 'Tips para precio y descripción',
+        titulo: 'Tips para precio y condiciones de venta',
         tips: [
             'Revisa anuncios similares para fijar un precio competitivo.',
             'Sé honesto con la condición — los compradores valoran la transparencia.',
-            'Describe medidas, fallas y accesorios incluidos.',
-            'Mientras más detalles, menos preguntas innecesarias por chat.',
+            'Especifica la unidad de venta cuando vendas por unidad, peso o cantidad.',
+            'Acepta ofertas si tu precio tiene margen de negociación.',
         ],
     },
     3: {
@@ -147,14 +147,27 @@ interface DatosWizard {
     fotoPortadaIndex: number;
     titulo: string;
     precio: string; // string para input controlado, se castea a number al enviar
+    /** Opcional desde 2026-05-13. No aplica a productos consumibles/hechos a mano. */
     condicion: CondicionArticulo | null;
-    aceptaOfertas: boolean;
+    /** Opcional desde 2026-05-13. null = no especificado (no se muestra). */
+    aceptaOfertas: boolean | null;
+    /** Opcional. Sugerencias: c/u, por kg, por docena, por litro, por metro, por porción, o texto libre. */
+    unidadVenta: string | null;
     descripcion: string;
     latitud: number | null;
     longitud: number | null;
     ciudad: string;
     zonaAproximada: string;
-    checklist: { prohibidos: boolean; fotosReales: boolean; treintaDias: boolean };
+    checklist: {
+        /** El artículo es de mi propiedad y de procedencia lícita (no robado/falsificado). */
+        licito: boolean;
+        /** Lo tengo en mi poder, listo para entregar. */
+        enPoder: boolean;
+        /** Las fotos, la descripción y el precio reflejan honestamente el artículo. */
+        honesto: boolean;
+        /** Acordaré la entrega y el pago en un lugar público y seguro. */
+        seguro: boolean;
+    };
 }
 
 const DATOS_INICIALES: DatosWizard = {
@@ -163,14 +176,28 @@ const DATOS_INICIALES: DatosWizard = {
     titulo: '',
     precio: '',
     condicion: null,
-    aceptaOfertas: true,
+    aceptaOfertas: null,
+    unidadVenta: null,
     descripcion: '',
     latitud: null,
     longitud: null,
     ciudad: '',
     zonaAproximada: '',
-    checklist: { prohibidos: false, fotosReales: false, treintaDias: false },
+    checklist: { licito: false, enPoder: false, honesto: false, seguro: false },
 };
+
+/** Sugerencias rápidas para el campo opcional "Unidad de venta". */
+const UNIDADES_VENTA = ['c/u', 'por kg', 'por docena', 'por litro', 'por metro', 'por porción'] as const;
+
+/**
+ * Versión del texto del checklist legal del Paso 3. Si los compromisos
+ * cambian (se reformulan, se agrega/quita uno), incrementar el número y
+ * actualizar la fecha. Esto permite auditar a qué redacción aceptó cada
+ * vendedor (la columna `confirmaciones.version` queda inmutable por artículo).
+ *
+ * Formato: `v<n>-YYYY-MM-DD`.
+ */
+const CHECKLIST_VERSION = 'v1-2026-05-13';
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -254,13 +281,14 @@ export function PaginaPublicarArticulo() {
                     precio: String(Math.round(parseFloat(a.precio))),
                     condicion: a.condicion,
                     aceptaOfertas: a.aceptaOfertas,
+                    unidadVenta: a.unidadVenta,
                     descripcion: a.descripcion,
                     latitud: a.ubicacionAproximada.lat,
                     longitud: a.ubicacionAproximada.lng,
                     ciudad: a.ciudad,
                     zonaAproximada: a.zonaAproximada,
                     // Checklist se omite en edición (no se vuelve a mostrar)
-                    checklist: { prohibidos: true, fotosReales: true, treintaDias: true },
+                    checklist: { licito: true, enPoder: true, honesto: true, seguro: true },
                 });
                 setHidratado(true);
             }
@@ -336,16 +364,10 @@ export function PaginaPublicarArticulo() {
             const prohibido = detectarPalabraProhibida(datos.titulo);
             if (prohibido) e.titulo = prohibido.mensaje;
         }
-        return e;
-    }, [datos.fotos.length, datos.titulo]);
-
-    const erroresPaso2 = useMemo(() => {
-        const e: Record<string, string> = {};
-        const precio = parseInt(datos.precio, 10);
-        if (!datos.precio || isNaN(precio) || precio <= 0)
-            e.precio = 'El precio debe ser mayor a cero';
-        else if (precio > PRECIO_MAX) e.precio = `Máximo $${PRECIO_MAX.toLocaleString('es-MX')}`;
-        if (!datos.condicion) e.condicion = 'Selecciona la condición';
+        // Descripción vive en el Paso 1 junto a fotos/título — todo el "qué
+        // es el artículo" se valida en el mismo paso, así el vendedor edita
+        // sin volver atrás cuando moderación detecta una palabra prohibida
+        // en cualquiera de los dos textos.
         if (datos.descripcion.length < DESCRIPCION_MIN)
             e.descripcion = `Mínimo ${DESCRIPCION_MIN} caracteres`;
         else if (datos.descripcion.length > DESCRIPCION_MAX)
@@ -355,7 +377,18 @@ export function PaginaPublicarArticulo() {
             if (prohibido) e.descripcion = prohibido.mensaje;
         }
         return e;
-    }, [datos.precio, datos.condicion, datos.descripcion]);
+    }, [datos.fotos.length, datos.titulo, datos.descripcion]);
+
+    const erroresPaso2 = useMemo(() => {
+        const e: Record<string, string> = {};
+        const precio = parseInt(datos.precio, 10);
+        if (!datos.precio || isNaN(precio) || precio <= 0)
+            e.precio = 'El precio debe ser mayor a cero';
+        else if (precio > PRECIO_MAX) e.precio = `Máximo $${PRECIO_MAX.toLocaleString('es-MX')}`;
+        // condicion, aceptaOfertas y unidadVenta son opcionales — no se
+        // valida required. Descripción se valida en el Paso 1 ahora.
+        return e;
+    }, [datos.precio]);
 
     const erroresPaso3 = useMemo(() => {
         const e: Record<string, string> = {};
@@ -364,10 +397,11 @@ export function PaginaPublicarArticulo() {
                 'Necesitamos tu ubicación. Activa el GPS o selecciona tu ciudad desde el navegador superior.';
         if (!esModoEdicion) {
             const todoMarcado =
-                datos.checklist.prohibidos &&
-                datos.checklist.fotosReales &&
-                datos.checklist.treintaDias;
-            if (!todoMarcado) e.checklist = 'Marca las 3 confirmaciones para publicar';
+                datos.checklist.licito &&
+                datos.checklist.enPoder &&
+                datos.checklist.honesto &&
+                datos.checklist.seguro;
+            if (!todoMarcado) e.checklist = 'Marca las 4 confirmaciones para publicar';
         }
         return e;
     }, [datos.latitud, datos.longitud, datos.checklist, esModoEdicion]);
@@ -515,14 +549,32 @@ export function PaginaPublicarArticulo() {
             titulo: datos.titulo,
             descripcion: datos.descripcion,
             precio: parseInt(datos.precio, 10),
-            condicion: datos.condicion as CondicionArticulo,
-            aceptaOfertas: datos.aceptaOfertas,
+            // Campos opcionales: pasamos `undefined` cuando el usuario no
+            // tocó la condición / oferta / unidad. El backend acepta `null`
+            // explícito también, pero `undefined` reduce payload.
+            condicion: datos.condicion ?? undefined,
+            aceptaOfertas: datos.aceptaOfertas ?? undefined,
+            unidadVenta: datos.unidadVenta?.trim() || undefined,
             fotos: datos.fotos,
             fotoPortadaIndex: datos.fotoPortadaIndex,
             latitud: datos.latitud as number,
             longitud: datos.longitud as number,
             ciudad: datos.ciudad,
             zonaAproximada: datos.zonaAproximada,
+            // Las confirmaciones del checklist legal solo se envían al CREAR
+            // (en edición no se vuelve a mostrar el checklist, así que el
+            // valor original persiste intacto en BD).
+            ...(esModoEdicion
+                ? {}
+                : {
+                      confirmaciones: {
+                          licito: datos.checklist.licito,
+                          enPoder: datos.checklist.enPoder,
+                          honesto: datos.checklist.honesto,
+                          seguro: datos.checklist.seguro,
+                          version: CHECKLIST_VERSION,
+                      },
+                  }),
             confirmadoPorUsuario,
         };
 
@@ -611,8 +663,9 @@ export function PaginaPublicarArticulo() {
             titulo: datos.titulo || 'Título del artículo',
             descripcion: datos.descripcion || 'Descripción de tu artículo…',
             precio: datos.precio ? `${parseInt(datos.precio, 10) || 0}.00` : '0.00',
-            condicion: (datos.condicion ?? 'usado') as CondicionArticulo,
+            condicion: datos.condicion,
             aceptaOfertas: datos.aceptaOfertas,
+            unidadVenta: datos.unidadVenta,
             fotos: datos.fotos.length > 0 ? datos.fotos : [],
             fotoPortadaIndex: datos.fotoPortadaIndex,
             ubicacionAproximada: {
@@ -895,7 +948,7 @@ export function PaginaPublicarArticulo() {
                                         Vista previa
                                     </h2>
                                     <span className="text-sm font-medium text-slate-500">
-                                        — así se verá en el feed
+                                        — así se verá tu publicación
                                     </span>
                                 </div>
                             </div>
@@ -1326,13 +1379,23 @@ function Paso1({
         });
     };
 
-    // Cambia la portada al índice indicado. No reordena el array —
-    // simplemente apunta `fotoPortadaIndex` a la foto seleccionada. Así el
-    // usuario puede subir 8 fotos en cualquier orden y luego decidir cuál es
-    // la portada sin re-arrastrar nada.
+    // Marca una foto como portada Y la mueve al primer spot del grid.
+    // Patrón estándar de marketplaces P2P: la portada siempre es la primera
+    // foto del array — el comprador ve esa foto en el feed y la espera
+    // como "principal" al abrir el detalle. Reordenar al marcar evita
+    // confusión visual entre "Portada" (estrella) y la posición real.
     const handleHacerPortada = (idx: number) => {
         if (idx === datos.fotoPortadaIndex) return;
-        setDatos((d) => ({ ...d, fotoPortadaIndex: idx }));
+        setDatos((d) => {
+            const fotoSeleccionada = d.fotos[idx];
+            if (!fotoSeleccionada) return d;
+            const restantes = d.fotos.filter((_, i) => i !== idx);
+            return {
+                ...d,
+                fotos: [fotoSeleccionada, ...restantes],
+                fotoPortadaIndex: 0,
+            };
+        });
         notificar.exito('Portada actualizada');
     };
 
@@ -1342,34 +1405,6 @@ function Paso1({
 
     return (
         <div className="space-y-4 lg:space-y-5">
-            {/* Card: Título — arriba, ocupando el ancho completo del paso. */}
-            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                <label className="block text-base font-bold text-slate-900 lg:text-lg">
-                    Título de tu publicación
-                </label>
-                <p className="mt-0.5 text-sm font-medium text-slate-600">
-                    Marca, modelo y estado en pocas palabras.
-                </p>
-                <input
-                    data-testid="input-titulo"
-                    type="text"
-                    value={datos.titulo}
-                    onChange={(e) =>
-                        setDatos((d) => ({ ...d, titulo: e.target.value.slice(0, TITULO_MAX) }))
-                    }
-                    placeholder="Bicicleta vintage Rinos restaurada"
-                    className="mt-2 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none"
-                />
-                <div className="mt-1.5 flex justify-between text-sm font-medium text-slate-500">
-                    <span className={errores.titulo ? 'text-rose-600' : ''}>
-                        {errores.titulo ?? `Mínimo ${TITULO_MIN} caracteres`}
-                    </span>
-                    <span>
-                        {datos.titulo.length}/{TITULO_MAX}
-                    </span>
-                </div>
-            </div>
-
             {/* Card: Fotos — header simple del wizard + grid con patrón
                 visual heredado de BS Mi Perfil (Galería de Fotos): cada
                 slot trae hover-zoom de la imagen y bottom bar con gradient
@@ -1584,117 +1619,41 @@ function Paso1({
                 )}
             </div>
 
-            {/* Tips contextuales del paso */}
-            <TipsPaso paso={1} />
-
-            {/* Lightbox — se abre al hacer click en una foto del grid.
-                Usa portal a document.body. */}
-            <ModalImagenes
-                images={datos.fotos}
-                initialIndex={modalImagenIdx ?? 0}
-                isOpen={modalImagenIdx !== null}
-                onClose={() => setModalImagenIdx(null)}
-            />
-        </div>
-    );
-}
-
-// ─── PASO 2 — Precio + Detalles ────────────────────────────────────────────
-
-function Paso2({ datos, setDatos, errores }: PasoProps) {
-    return (
-        <div className="space-y-4 lg:space-y-5">
-            {/* Card: Precio */}
+            {/* Card: Título — entre Fotos y Descripción. Una vez que el
+                vendedor ya subió la(s) foto(s), escribir el título mirando
+                la imagen es más fácil ("¿qué es esto?"). */}
             <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
                 <label className="block text-base font-bold text-slate-900 lg:text-lg">
-                    Precio
+                    Título de tu publicación
                 </label>
                 <p className="mt-0.5 text-sm font-medium text-slate-600">
-                    Compara con anuncios similares para fijar uno competitivo.
+                    Marca, modelo y estado en pocas palabras.
                 </p>
-                <div className="mt-2 flex items-center rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 focus-within:border-teal-500">
-                    <span className="text-2xl font-bold text-slate-400">$</span>
-                    <input
-                        data-testid="input-precio"
-                        type="number"
-                        inputMode="numeric"
-                        min={1}
-                        max={PRECIO_MAX}
-                        value={datos.precio}
-                        onChange={(e) =>
-                            setDatos((d) => ({
-                                ...d,
-                                precio: e.target.value.replace(/[^\d]/g, '').slice(0, 6),
-                            }))
-                        }
-                        placeholder="2800"
-                        className="ml-2 flex-1 bg-transparent text-2xl font-bold text-slate-900 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-                    />
-                    <span className="text-sm font-semibold text-slate-500">MXN</span>
-                </div>
-                {errores.precio && (
-                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.precio}</p>
-                )}
-            </div>
-
-            {/* Card: Condición + Acepta ofertas */}
-            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                <label className="block text-base font-bold text-slate-900 lg:text-lg">
-                    Condición
-                </label>
-                <p className="mt-0.5 text-sm font-medium text-slate-600">
-                    Sé honesto: los compradores valoran la transparencia.
-                </p>
-                <div className="mt-3 flex flex-wrap gap-2">
-                    {CONDICIONES.map((c) => (
-                        <button
-                            key={c.valor}
-                            data-testid={`chip-condicion-${c.valor}`}
-                            onClick={() => setDatos((d) => ({ ...d, condicion: c.valor }))}
-                            aria-pressed={datos.condicion === c.valor}
-                            className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-bold transition-colors ${
-                                datos.condicion === c.valor
-                                    ? 'border-teal-500 bg-teal-50 text-teal-900'
-                                    : 'border-slate-300 bg-white text-slate-700 hover:bg-slate-50'
-                            }`}
-                        >
-                            {c.etiqueta}
-                        </button>
-                    ))}
-                </div>
-                {errores.condicion && (
-                    <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.condicion}</p>
-                )}
-
-                {/* Toggle Acepta ofertas — separado con border-t */}
-                <div className="mt-3 flex items-center justify-between border-t-2 border-slate-200 pt-3">
-                    <div className="min-w-0 flex-1 pr-3">
-                        <div className="text-sm font-bold text-slate-900">¿Acepta ofertas?</div>
-                        <div className="mt-0.5 text-xs font-medium text-slate-500">
-                            El comprador podrá negociar por chat.
-                        </div>
-                    </div>
-                    <button
-                        data-testid="toggle-acepta-ofertas"
-                        onClick={() =>
-                            setDatos((d) => ({ ...d, aceptaOfertas: !d.aceptaOfertas }))
-                        }
-                        role="switch"
-                        aria-checked={datos.aceptaOfertas}
-                        className={`relative h-6 w-11 shrink-0 cursor-pointer rounded-full transition-colors ${
-                            datos.aceptaOfertas ? 'bg-teal-500' : 'bg-slate-300'
-                        }`}
-                    >
-                        <span
-                            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${
-                                datos.aceptaOfertas ? 'left-5' : 'left-0.5'
-                            }`}
-                        />
-                    </button>
+                <input
+                    data-testid="input-titulo"
+                    type="text"
+                    value={datos.titulo}
+                    onChange={(e) =>
+                        setDatos((d) => ({ ...d, titulo: e.target.value.slice(0, TITULO_MAX) }))
+                    }
+                    placeholder="Bicicleta vintage Rinos restaurada"
+                    className="mt-2 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 text-sm font-medium text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none"
+                />
+                <div className="mt-1.5 flex justify-between text-sm font-medium text-slate-500">
+                    <span className={errores.titulo ? 'text-rose-600' : ''}>
+                        {errores.titulo ?? `Mínimo ${TITULO_MIN} caracteres`}
+                    </span>
+                    <span>
+                        {datos.titulo.length}/{TITULO_MAX}
+                    </span>
                 </div>
             </div>
 
-            {/* Card: Descripción */}
+            {/* Card: Descripción — vive en el Paso 1 junto a fotos/título
+                porque es información sobre QUÉ es el artículo (no sobre cómo
+                se vende). Agruparla aquí mantiene título+descripción cerca
+                para la moderación de palabras prohibidas y deja el Paso 2
+                enfocado solo en decisiones comerciales. */}
             <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
                 <label className="block text-base font-bold text-slate-900 lg:text-lg">
                     Descripción
@@ -1722,6 +1681,216 @@ function Paso2({ datos, setDatos, errores }: PasoProps) {
                     <span>
                         {datos.descripcion.length}/{DESCRIPCION_MAX}
                     </span>
+                </div>
+            </div>
+
+            {/* Tips contextuales del paso */}
+            <TipsPaso paso={1} />
+
+            {/* Lightbox — se abre al hacer click en una foto del grid.
+                Usa portal a document.body. */}
+            <ModalImagenes
+                images={datos.fotos}
+                initialIndex={modalImagenIdx ?? 0}
+                isOpen={modalImagenIdx !== null}
+                onClose={() => setModalImagenIdx(null)}
+            />
+        </div>
+    );
+}
+
+// ─── PASO 2 — Precio + Detalles ────────────────────────────────────────────
+
+function Paso2({ datos, setDatos, errores }: PasoProps) {
+    // Detecta si `unidadVenta` no coincide con ninguna sugerencia rápida
+    // (incluido vacío). Útil para abrir/cerrar el input "Otro…" en la card.
+    const unidadEsCustom =
+        datos.unidadVenta !== null &&
+        !(UNIDADES_VENTA as readonly string[]).includes(datos.unidadVenta);
+
+    return (
+        <div className="space-y-4 lg:space-y-5">
+            {/* Card: Condición + Unidad de venta + Precio + Acepta ofertas.
+                Orden lógico para el vendedor: metadatos del producto primero
+                (condición, unidad), luego el precio que depende de ambos, y
+                finalmente la decisión sobre ese precio (¿negociable?). Los
+                3 opcionales aceptan tristate — click en chip activo lo
+                des-selecciona. Cualquier campo en null = no aplica al
+                artículo (ej. pan dulce a $15 c/u no necesita condición ni
+                "acepta ofertas"). */}
+            <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                {/* Condición (opcional) */}
+                <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                    Condición{' '}
+                    <span className="text-sm font-medium text-slate-500">(opcional)</span>
+                </label>
+                <p className="mt-0.5 text-sm font-medium text-slate-600">
+                    Si aplica. Omítela en productos consumibles o hechos a mano nuevos.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-2">
+                    {CONDICIONES.map((c) => (
+                        <button
+                            key={c.valor}
+                            data-testid={`chip-condicion-${c.valor}`}
+                            onClick={() =>
+                                setDatos((d) => ({
+                                    ...d,
+                                    condicion: d.condicion === c.valor ? null : c.valor,
+                                }))
+                            }
+                            aria-pressed={datos.condicion === c.valor}
+                            className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-bold ${
+                                datos.condicion === c.valor
+                                    ? 'border-teal-500 bg-teal-50 text-teal-900'
+                                    : 'border-slate-300 bg-white text-slate-700 lg:hover:bg-slate-100'
+                            }`}
+                        >
+                            {c.etiqueta}
+                        </button>
+                    ))}
+                </div>
+
+                {/* Precio */}
+                <div className="mt-3 border-t-2 border-slate-200 pt-3">
+                    <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                        Precio
+                    </label>
+                    <p className="mt-0.5 text-sm font-medium text-slate-600">
+                        Compara con anuncios similares para fijar uno competitivo.
+                    </p>
+                    <div className="mt-2 flex items-center rounded-lg border-2 border-slate-300 bg-white px-3 py-2.5 focus-within:border-teal-500">
+                        <span className="text-2xl font-bold text-slate-400">$</span>
+                        <input
+                            data-testid="input-precio"
+                            type="number"
+                            inputMode="numeric"
+                            min={1}
+                            max={PRECIO_MAX}
+                            value={datos.precio}
+                            onChange={(e) =>
+                                setDatos((d) => ({
+                                    ...d,
+                                    precio: e.target.value.replace(/[^\d]/g, '').slice(0, 6),
+                                }))
+                            }
+                            placeholder="2800"
+                            className="ml-2 flex-1 bg-transparent text-2xl font-bold text-slate-900 focus:outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
+                        />
+                        <span className="text-sm font-semibold text-slate-500">MXN</span>
+                    </div>
+                    {errores.precio && (
+                        <p className="mt-1.5 text-xs font-medium text-rose-600">{errores.precio}</p>
+                    )}
+                </div>
+
+                {/* Unidad de venta (opcional) — vive justo bajo el precio
+                    porque modifica cómo se interpreta ("$15 c/u" vs "$15"). */}
+                <div className="mt-3 border-t-2 border-slate-200 pt-3">
+                    <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                        Unidad de venta{' '}
+                        <span className="text-sm font-medium text-slate-500">(opcional)</span>
+                    </label>
+                    <p className="mt-0.5 text-sm font-medium text-slate-600">
+                        Aparece junto al precio: "$15 c/u". Útil cuando vendes por unidad,
+                        peso o cantidad.
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {UNIDADES_VENTA.map((u) => (
+                            <button
+                                key={u}
+                                data-testid={`chip-unidad-${u.replace(/\s+/g, '-')}`}
+                                onClick={() =>
+                                    setDatos((d) => ({
+                                        ...d,
+                                        unidadVenta: d.unidadVenta === u ? null : u,
+                                    }))
+                                }
+                                aria-pressed={datos.unidadVenta === u}
+                                className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-bold ${
+                                    datos.unidadVenta === u
+                                        ? 'border-teal-500 bg-teal-50 text-teal-900'
+                                        : 'border-slate-300 bg-white text-slate-700 lg:hover:bg-slate-100'
+                                }`}
+                            >
+                                {u}
+                            </button>
+                        ))}
+                        <button
+                            data-testid="chip-unidad-otro"
+                            onClick={() =>
+                                setDatos((d) => ({
+                                    ...d,
+                                    unidadVenta: unidadEsCustom ? null : '',
+                                }))
+                            }
+                            aria-pressed={unidadEsCustom}
+                            className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-bold ${
+                                unidadEsCustom
+                                    ? 'border-teal-500 bg-teal-50 text-teal-900'
+                                    : 'border-slate-300 bg-white text-slate-700 lg:hover:bg-slate-100'
+                            }`}
+                        >
+                            Otro…
+                        </button>
+                    </div>
+                    {unidadEsCustom && (
+                        <input
+                            data-testid="input-unidad-otro"
+                            type="text"
+                            value={datos.unidadVenta ?? ''}
+                            onChange={(e) =>
+                                setDatos((d) => ({
+                                    ...d,
+                                    unidadVenta: e.target.value.slice(0, 30),
+                                }))
+                            }
+                            placeholder="Ej: por bolsa, por par, por charola…"
+                            maxLength={30}
+                            className="mt-2 w-full rounded-lg border-2 border-slate-300 bg-white px-3 py-2 text-base font-medium text-slate-900 placeholder-slate-400 focus:border-teal-500 focus:outline-none lg:text-sm 2xl:text-base"
+                            autoFocus
+                        />
+                    )}
+                </div>
+
+                {/* ¿Acepta ofertas? (opcional) — decisión sobre el precio
+                    recién fijado. Layout vertical idéntico al resto de
+                    secciones (label arriba, chips abajo). 2 chips con
+                    tristate: click en chip activo des-selecciona y vuelve a
+                    null. */}
+                <div className="mt-3 border-t-2 border-slate-200 pt-3">
+                    <label className="block text-base font-bold text-slate-900 lg:text-lg">
+                        ¿Acepta ofertas?{' '}
+                        <span className="text-sm font-medium text-slate-500">(opcional)</span>
+                    </label>
+                    <p className="mt-0.5 text-sm font-medium text-slate-600">
+                        ¿El comprador puede negociar por chat?
+                    </p>
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {[
+                            { valor: true, etiqueta: 'Sí' },
+                            { valor: false, etiqueta: 'No' },
+                        ].map((opt) => (
+                            <button
+                                key={String(opt.valor)}
+                                data-testid={`chip-acepta-${opt.valor ? 'si' : 'no'}`}
+                                onClick={() =>
+                                    setDatos((d) => ({
+                                        ...d,
+                                        aceptaOfertas:
+                                            d.aceptaOfertas === opt.valor ? null : opt.valor,
+                                    }))
+                                }
+                                aria-pressed={datos.aceptaOfertas === opt.valor}
+                                className={`cursor-pointer rounded-lg border-2 px-3 py-1.5 text-sm font-bold ${
+                                    datos.aceptaOfertas === opt.valor
+                                        ? 'border-teal-500 bg-teal-50 text-teal-900'
+                                        : 'border-slate-300 bg-white text-slate-700 lg:hover:bg-slate-100'
+                                }`}
+                            >
+                                {opt.etiqueta}
+                            </button>
+                        ))}
+                    </div>
                 </div>
             </div>
 
@@ -1804,37 +1973,6 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: PasoProps) {
                 )}
             </div>
 
-            {/* Card: Resumen — vista rápida antes de publicar */}
-                <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                    <h2 className="mb-2 text-base font-bold text-slate-900 lg:text-lg">
-                        Resumen
-                    </h2>
-                    <div className="flex gap-3 rounded-lg border-2 border-slate-200 bg-slate-50 p-2.5 lg:p-3">
-                        {datos.fotos[0] ? (
-                            <img
-                                src={datos.fotos[0]}
-                                alt="Portada"
-                                className="h-20 w-20 shrink-0 rounded-lg border-2 border-white object-cover shadow-sm lg:h-20 lg:w-20"
-                            />
-                        ) : (
-                            <div className="h-20 w-20 shrink-0 rounded-lg border-2 border-white bg-slate-200 lg:h-20 lg:w-20" />
-                        )}
-                        <div className="min-w-0 flex-1">
-                            <div className="truncate text-sm font-bold text-slate-900 lg:text-base">
-                                {datos.titulo || 'Sin título'}
-                            </div>
-                            <div className="mt-0.5 text-lg font-extrabold text-teal-700 lg:text-xl">
-                                ${parseInt(datos.precio || '0', 10).toLocaleString('es-MX')}
-                                <span className="ml-1 text-xs font-bold text-slate-500">MXN</span>
-                            </div>
-                            <div className="mt-0.5 text-xs font-medium text-slate-500">
-                                {datos.aceptaOfertas ? 'Acepta ofertas · ' : ''}
-                                {CONDICIONES.find((c) => c.valor === datos.condicion)?.etiqueta ?? ''}
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
             {/* Card: Checklist (solo modo crear) */}
             {!esModoEdicion && (
                 <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
@@ -1842,15 +1980,25 @@ function Paso3({ datos, setDatos, errores, esModoEdicion }: PasoProps) {
                         Antes de publicar
                     </h3>
                     <p className="mt-0.5 text-sm font-medium text-slate-600">
-                        Confirma estos 3 puntos para activar el botón "Publicar".
+                        Confirma estos 4 puntos para activar el botón "Publicar".
                     </p>
                     <div className="mt-3 space-y-2">
                         {[
-                            { key: 'prohibidos' as const, label: 'No vendo artículos prohibidos por las reglas' },
-                            { key: 'fotosReales' as const, label: 'Las fotos son del artículo real, sin retoque' },
                             {
-                                key: 'treintaDias' as const,
-                                label: 'Acepto que mi publicación se mostrará 30 días',
+                                key: 'licito' as const,
+                                label: 'El artículo es de mi propiedad y de procedencia lícita (no robado, no falsificado).',
+                            },
+                            {
+                                key: 'enPoder' as const,
+                                label: 'Lo tengo en mi poder y está disponible para entregar.',
+                            },
+                            {
+                                key: 'honesto' as const,
+                                label: 'Las fotos, la descripción y el precio reflejan honestamente el artículo.',
+                            },
+                            {
+                                key: 'seguro' as const,
+                                label: 'Coordinaré la entrega y el pago con el comprador en un lugar público y seguro.',
                             },
                         ].map((item) => (
                             <label

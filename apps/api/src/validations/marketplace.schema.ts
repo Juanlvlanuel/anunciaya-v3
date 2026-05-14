@@ -28,7 +28,7 @@ const campoTitulo = z
 const campoDescripcion = z
     .string()
     .trim()
-    .min(50, 'La descripción debe tener al menos 50 caracteres')
+    .min(20, 'La descripción debe tener al menos 20 caracteres')
     .max(1000, 'La descripción no puede exceder 1000 caracteres');
 
 const campoPrecio = z
@@ -40,6 +40,43 @@ const campoPrecio = z
 const campoCondicion = z.enum(['nuevo', 'seminuevo', 'usado', 'para_reparar'], {
     message: 'La condición debe ser nuevo, seminuevo, usado o para_reparar',
 });
+
+/**
+ * Unidad de venta opcional. El wizard sugiere chips (c/u, por kg, por docena,
+ * por litro, por metro, por porción) pero también acepta texto libre para
+ * casos no cubiertos por la lista. Validamos solo la longitud máxima.
+ */
+const campoUnidadVenta = z
+    .string()
+    .trim()
+    .min(1, 'La unidad de venta no puede estar vacía')
+    .max(30, 'La unidad de venta no puede exceder 30 caracteres');
+
+/**
+ * Confirmaciones del checklist legal del wizard de publicar (Paso 3).
+ * Se persisten como JSONB en `articulos_marketplace.confirmaciones` para
+ * servir de evidencia ante denuncias (artículo robado, falsificado, fraude).
+ *
+ * - `licito`:   El artículo es de mi propiedad y de procedencia lícita.
+ * - `enPoder`:  Lo tengo en mi poder y está disponible para entregar.
+ * - `honesto`:  Las fotos, la descripción y el precio reflejan honestamente.
+ * - `seguro`:   Coordinaré la entrega y el pago en un lugar público y seguro.
+ * - `version`:  Identifica la versión del texto del checklist. Si los
+ *               compromisos cambian, sabremos a qué redacción aceptó el
+ *               vendedor. Formato: `v<n>-YYYY-MM-DD`.
+ *
+ * `aceptadasAt` lo agrega el backend al insertar (no lo manda el cliente)
+ * para tener un timestamp confiable y no manipulable.
+ */
+const campoConfirmaciones = z.object({
+    licito: z.boolean(),
+    enPoder: z.boolean(),
+    honesto: z.boolean(),
+    seguro: z.boolean(),
+    version: z.string().trim().min(1).max(50),
+});
+
+export type ConfirmacionesInput = z.infer<typeof campoConfirmaciones>;
 
 const campoFotos = z
     .array(z.string().url('Cada foto debe ser una URL válida'))
@@ -91,8 +128,30 @@ export const crearArticuloSchema = z
         titulo: campoTitulo,
         descripcion: campoDescripcion,
         precio: campoPrecio,
-        condicion: campoCondicion,
-        aceptaOfertas: z.boolean().optional().default(true),
+        /**
+         * Condición opcional desde 2026-05-13. No aplica a productos
+         * consumibles, hechos a mano nuevos, etc. Si se omite o se manda
+         * null, el detalle y el card no muestran ninguna etiqueta de
+         * condición.
+         */
+        condicion: campoCondicion.nullish(),
+        /**
+         * "Acepta ofertas" opcional desde 2026-05-13. NULL = no especificado
+         * (no se muestra nada en el card). true/false = decisión explícita
+         * del vendedor.
+         */
+        aceptaOfertas: z.boolean().nullish(),
+        /**
+         * Unidad de venta opcional (c/u, por kg, por docena, etc.). El card
+         * y el detalle muestran "$15 c/u" cuando existe, "$15" cuando no.
+         */
+        unidadVenta: campoUnidadVenta.nullish(),
+        /**
+         * Confirmaciones del checklist legal (opcional para retrocompat con
+         * clientes legacy que no las envíen, pero el wizard nuevo siempre
+         * las manda). Se persisten como evidencia.
+         */
+        confirmaciones: campoConfirmaciones.optional(),
         fotos: campoFotos,
         fotoPortadaIndex: campoFotoPortadaIndex.optional().default(0),
         latitud: campoLatitud,
@@ -127,8 +186,11 @@ export const actualizarArticuloSchema = z
         titulo: campoTitulo.optional(),
         descripcion: campoDescripcion.optional(),
         precio: campoPrecio.optional(),
-        condicion: campoCondicion.optional(),
-        aceptaOfertas: z.boolean().optional(),
+        // Permitimos `null` para que el editor pueda LIMPIAR el valor
+        // (ej. cambiar un artículo que tenía condición a no tener).
+        condicion: campoCondicion.nullish(),
+        aceptaOfertas: z.boolean().nullish(),
+        unidadVenta: campoUnidadVenta.nullish(),
         fotos: campoFotos.optional(),
         fotoPortadaIndex: campoFotoPortadaIndex.optional(),
         latitud: campoLatitud.optional(),

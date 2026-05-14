@@ -235,9 +235,26 @@ export async function notificarProximaExpiracion(): Promise<ResultadoProximaExpi
 // =============================================================================
 
 /**
- * El dueño reactiva un artículo `pausada`. Se valida que sea el dueño y que
- * el estado actual sea `pausada`. Extiende `expira_at = NOW() + 30 días` y
- * vuelve a `estado='activa'`.
+ * El dueño reactiva una publicación `pausada` o `vendida`. Se valida dueño
+ * y estado válido. La acción:
+ *   - Pone `estado='activa'`.
+ *   - Extiende `expira_at = NOW() + 30 días` (en `vendida` la fecha original
+ *     probablemente ya pasó, así que reactivar sin extender la dejaría
+ *     inmediatamente expirada).
+ *   - Si venía de `vendida`, resetea `vendida_at = NULL` (el ciclo de venta
+ *     se reabre).
+ *
+ * Casos de uso:
+ *   - `pausada → activa`: el cron auto-pausó o el vendedor pausó manualmente
+ *     y quiere volver a publicar.
+ *   - `vendida → activa`: el vendedor marcó vendido por error, o la venta
+ *     se cayó (comprador se arrepintió, no llegó al punto de entrega, etc).
+ *
+ * Métricas (`total_vistas`, `total_mensajes`, `total_guardados`) se MANTIENEN
+ * intactas — son historial real del artículo, no se resetean al reactivar.
+ *
+ * Chats y preguntas Q&A existentes se conservan automáticamente (viven en
+ * tablas separadas y no dependen del `estado` del artículo).
  */
 export async function reactivarArticulo(articuloId: string, usuarioId: string) {
     try {
@@ -263,25 +280,34 @@ export async function reactivarArticulo(articuloId: string, usuarioId: string) {
             };
         }
 
-        if (actual.estado !== 'pausada') {
+        if (actual.estado !== 'pausada' && actual.estado !== 'vendida') {
             return {
                 success: false,
-                message: `Solo puedes reactivar artículos pausados (estado actual: ${actual.estado})`,
+                message: `Solo puedes reactivar artículos pausados o vendidos (estado actual: ${actual.estado})`,
                 code: 409,
             };
         }
 
+        // `vendida_at = NULL` cubre el caso `vendida → activa` (en `pausada`
+        // ese campo ya era NULL, así que el UPDATE es idempotente sin efectos
+        // secundarios).
         await db.execute(sql`
             UPDATE articulos_marketplace
             SET estado = 'activa',
+                vendida_at = NULL,
                 expira_at = NOW() + INTERVAL '30 days',
                 updated_at = NOW()
             WHERE id = ${articuloId}
         `);
 
+        const mensaje =
+            actual.estado === 'vendida'
+                ? 'Publicación reabierta. Vuelve a estar visible y expira en 30 días.'
+                : 'Tu publicación está activa de nuevo. Expira en 30 días.';
+
         return {
             success: true,
-            message: 'Tu publicación está activa de nuevo. Expira en 30 días.',
+            message: mensaje,
             data: { estado: 'activa' as const },
         };
     } catch (error) {

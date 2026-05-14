@@ -278,8 +278,35 @@ export interface CrearArticuloPayload {
     titulo: string;
     descripcion: string;
     precio: number;
-    condicion: CondicionArticulo;
-    aceptaOfertas: boolean;
+    /**
+     * Opcional desde 2026-05-13. NULL/undefined = no aplica (productos
+     * consumibles, hechos a mano nuevos, etc.).
+     */
+    condicion?: CondicionArticulo | null;
+    /**
+     * Opcional desde 2026-05-13. NULL/undefined = no especificado
+     * (no se muestra mención en el card).
+     */
+    aceptaOfertas?: boolean | null;
+    /**
+     * Unidad de venta opcional (c/u, por kg, por docena, etc.). Cuando
+     * existe, el card muestra "$15 c/u" en lugar de solo "$15".
+     */
+    unidadVenta?: string | null;
+    /**
+     * Snapshot del checklist legal del Paso 3 del wizard. Se persiste en
+     * BD como evidencia inmutable de los compromisos que aceptó el vendedor
+     * al publicar. El `aceptadasAt` lo agrega el backend al insertar
+     * (timestamp confiable, no manipulable por el cliente).
+     */
+    confirmaciones?: {
+        licito: boolean;
+        enPoder: boolean;
+        honesto: boolean;
+        seguro: boolean;
+        /** Identifica la versión del texto del checklist. Formato: `v<n>-YYYY-MM-DD`. */
+        version: string;
+    };
     fotos: string[];
     fotoPortadaIndex: number;
     latitud: number;
@@ -889,6 +916,138 @@ export function useDerivarPreguntaAChat() {
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
                 queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+            });
+        },
+    });
+}
+
+// =============================================================================
+// MIS PUBLICACIONES (C.2 — panel de gestión del vendedor)
+// =============================================================================
+
+/**
+ * Lista paginada de los artículos del usuario autenticado, filtrada por estado.
+ * Si `estado=undefined`, devuelve todos los no-eliminados (activa+pausada+vendida).
+ *
+ * El endpoint es `GET /api/marketplace/mis-articulos?estado=&limit=&offset=`
+ * (ojo: NO es `/articulos/mios` — ver `marketplace.routes.ts`). El backend
+ * excluye automáticamente `eliminada` y los soft-deletes (`deleted_at IS NOT
+ * NULL`), así que el cliente no necesita filtrar.
+ *
+ * Decisiones:
+ * - `staleTime: 1 min` — los KPIs (vistas/mensajes/guardados/expiraAt) cambian
+ *   con frecuencia y queremos que el panel los muestre razonablemente al día.
+ * - `placeholderData: keepPreviousData` por la regla obligatoria del proyecto
+ *   (evita temblor visual al cambiar de tab Activas → Pausadas → Vendidas).
+ */
+export function useMisArticulosMarketplace(
+    estado: 'activa' | 'pausada' | 'vendida' | undefined,
+    paginacion: { limit: number; offset: number } = { limit: 20, offset: 0 }
+) {
+    return useQuery({
+        queryKey: queryKeys.marketplace.misArticulos(estado, paginacion),
+        queryFn: async (): Promise<PublicacionesDeVendedor> => {
+            const response = await api.get<{
+                success: boolean;
+                data?: ArticuloMarketplace[];
+                paginacion?: PublicacionesDeVendedor['paginacion'];
+            }>('/marketplace/mis-articulos', {
+                params: {
+                    ...(estado ? { estado } : {}),
+                    limit: paginacion.limit,
+                    offset: paginacion.offset,
+                },
+            });
+            return {
+                data: response.data.data ?? [],
+                paginacion: response.data.paginacion ?? {
+                    total: 0,
+                    limit: paginacion.limit,
+                    offset: paginacion.offset,
+                },
+            };
+        },
+        staleTime: 60 * 1000,
+        placeholderData: keepPreviousData,
+    });
+}
+
+/**
+ * Cambia el estado de un artículo del usuario (activa | pausada | vendida).
+ * `eliminada` NO entra aquí — para eso `useEliminarArticuloMarketplace`.
+ *
+ * Reglas de transición que aplica el backend (`cambiarEstado` service):
+ *  - activa  ↔ pausada
+ *  - activa  → vendida
+ *  - pausada → vendida
+ *  - vendida → (terminal)
+ *
+ * Para reactivar una `pausada` desde el panel de Mis Publicaciones, conviene
+ * usar `useReactivarArticulo` en su lugar — extiende `expira_at` +30 días
+ * además de poner `estado='activa'`. Este hook solo cambia el estado.
+ *
+ * Invalida el detalle del artículo y `marketplace.all()` (cubre el listado de
+ * mis publicaciones, el feed público, el perfil del vendedor y las queries
+ * del buscador — todos esos espacios deben reflejar el cambio).
+ */
+export function useCambiarEstadoArticuloMarketplace() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        {
+            success: boolean;
+            message?: string;
+            data?: { estado: 'activa' | 'pausada' | 'vendida' };
+        },
+        unknown,
+        { articuloId: string; estado: 'activa' | 'pausada' | 'vendida' }
+    >({
+        mutationFn: async ({ articuloId, estado }) => {
+            const response = await api.patch(
+                `/marketplace/articulos/${articuloId}/estado`,
+                { estado }
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.articulo(variables.articuloId),
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.all(),
+            });
+        },
+    });
+}
+
+/**
+ * Elimina (soft delete) un artículo del usuario. El backend marca
+ * `estado='eliminada'` + `deleted_at=NOW()` y limpia las fotos huérfanas en
+ * R2 con reference counting (`eliminarFotoMarketplaceSiHuerfana`).
+ *
+ * Invalida `marketplace.all()` para que desaparezca del listado de Mis
+ * Publicaciones, del feed público, del perfil del vendedor y de Mis
+ * Guardados de otros usuarios (estos últimos lo filtran server-side al
+ * refetchear, no hay que invalidar `guardados` aquí).
+ */
+export function useEliminarArticuloMarketplace() {
+    const queryClient = useQueryClient();
+    return useMutation<
+        { success: boolean; message?: string },
+        unknown,
+        { articuloId: string }
+    >({
+        mutationFn: async ({ articuloId }) => {
+            const response = await api.delete(
+                `/marketplace/articulos/${articuloId}`
+            );
+            return response.data;
+        },
+        onSuccess: (_data, variables) => {
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.articulo(variables.articuloId),
+            });
+            queryClient.invalidateQueries({
+                queryKey: queryKeys.marketplace.all(),
             });
         },
     });

@@ -45,8 +45,15 @@ interface ArticuloRow {
     titulo: string;
     descripcion: string;
     precio: string;
-    condicion: string;
-    aceptaOfertas: boolean;
+    // `condicion` y `aceptaOfertas` son opcionales desde 2026-05-13. NULL =
+    // "no aplica / no especificado" (el card y el detalle no muestran nada).
+    condicion: string | null;
+    aceptaOfertas: boolean | null;
+    /**
+     * Unidad de venta opcional (c/u, por kg, por docena, etc.). Cuando existe,
+     * el card muestra "$15 c/u" en lugar de solo "$15".
+     */
+    unidadVenta: string | null;
     fotos: string[];
     fotoPortadaIndex: number;
     ubicacionAproximada: { lat: number; lng: number };
@@ -188,8 +195,9 @@ interface RawArticuloDb {
     titulo: string;
     descripcion: string;
     precio: string;
-    condicion: string;
-    acepta_ofertas: boolean;
+    condicion: string | null;
+    acepta_ofertas: boolean | null;
+    unidad_venta: string | null;
     fotos: string[];
     foto_portada_index: number;
     lat: number;
@@ -215,6 +223,7 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
         precio: row.precio,
         condicion: row.condicion,
         aceptaOfertas: row.acepta_ofertas,
+        unidadVenta: row.unidad_venta,
         fotos: row.fotos,
         fotoPortadaIndex: row.foto_portada_index,
         ubicacionAproximada: { lat: row.lat, lng: row.lng },
@@ -324,9 +333,21 @@ export async function crearArticulo(
 
         const aprox = aleatorizarCoordenada(datos.latitud, datos.longitud);
 
+        // Las confirmaciones del checklist legal (Paso 3 del wizard) se
+        // persisten como evidencia inmutable. El `aceptadasAt` lo agrega
+        // el backend (no el cliente) para tener un timestamp confiable.
+        const confirmacionesJson = datos.confirmaciones
+            ? JSON.stringify({
+                  ...datos.confirmaciones,
+                  aceptadasAt: new Date().toISOString(),
+              })
+            : null;
+
         const resultado = await db.execute(sql`
             INSERT INTO articulos_marketplace (
                 usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,
+                unidad_venta,
+                confirmaciones,
                 fotos, foto_portada_index,
                 ubicacion, ubicacion_aproximada,
                 ciudad, zona_aproximada,
@@ -336,8 +357,10 @@ export async function crearArticulo(
                 ${datos.titulo},
                 ${datos.descripcion},
                 ${datos.precio},
-                ${datos.condicion},
-                ${datos.aceptaOfertas},
+                ${datos.condicion ?? null},
+                ${datos.aceptaOfertas ?? null},
+                ${datos.unidadVenta ?? null},
+                ${confirmacionesJson}::jsonb,
                 ${JSON.stringify(datos.fotos)}::jsonb,
                 ${datos.fotoPortadaIndex},
                 ST_SetSRID(ST_MakePoint(${datos.longitud}, ${datos.latitud}), 4326)::geography,
@@ -348,6 +371,7 @@ export async function crearArticulo(
             )
             RETURNING
                 id, usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,
+                unidad_venta,
                 fotos, foto_portada_index,
                 ST_Y(ubicacion_aproximada::geometry) AS lat,
                 ST_X(ubicacion_aproximada::geometry) AS lng,
@@ -453,7 +477,7 @@ export async function obtenerArticuloPorId(articuloId: string) {
         const resultado = await db.execute(sql`
             SELECT
                 a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
-                a.condicion, a.acepta_ofertas,
+                a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
@@ -542,7 +566,7 @@ export async function obtenerFeed(
         const recientesResultado = await db.execute(sql`
             SELECT
                 a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
-                a.condicion, a.acepta_ofertas,
+                a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
@@ -572,7 +596,7 @@ export async function obtenerFeed(
         const cercanosResultado = await db.execute(sql`
             SELECT
                 a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
-                a.condicion, a.acepta_ofertas,
+                a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
@@ -742,7 +766,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
         const resultado = await db.execute(sql`
             SELECT
                 a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
-                a.condicion, a.acepta_ofertas,
+                a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
@@ -929,7 +953,7 @@ export async function obtenerMisArticulos(
         const resultado = await db.execute(sql`
             SELECT
                 a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
-                a.condicion, a.acepta_ofertas,
+                a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
@@ -1052,8 +1076,11 @@ export async function actualizarArticulo(
         if (datos.titulo !== undefined) sets.push(sql`titulo = ${datos.titulo}`);
         if (datos.descripcion !== undefined) sets.push(sql`descripcion = ${datos.descripcion}`);
         if (datos.precio !== undefined) sets.push(sql`precio = ${datos.precio}`);
+        // condicion/aceptaOfertas aceptan null (editor que limpia el valor) y
+        // valores explícitos. `undefined` significa "no tocar este campo".
         if (datos.condicion !== undefined) sets.push(sql`condicion = ${datos.condicion}`);
         if (datos.aceptaOfertas !== undefined) sets.push(sql`acepta_ofertas = ${datos.aceptaOfertas}`);
+        if (datos.unidadVenta !== undefined) sets.push(sql`unidad_venta = ${datos.unidadVenta}`);
         if (datos.fotos !== undefined) sets.push(sql`fotos = ${JSON.stringify(datos.fotos)}::jsonb`);
         if (datos.fotoPortadaIndex !== undefined) sets.push(sql`foto_portada_index = ${datos.fotoPortadaIndex}`);
         if (datos.ciudad !== undefined) sets.push(sql`ciudad = ${datos.ciudad}`);
@@ -1426,23 +1453,41 @@ export async function obtenerVendedorPorId(
  * Lista pública paginada de artículos de un vendedor por estado. Distinto de
  * `obtenerMisArticulos` (que toma usuario del token) porque acá el caller es
  * cualquier visitante que ve el perfil del vendedor.
+ *
+ * Si el visitante está autenticado (`visitanteId` no null), cada artículo
+ * incluye `guardado: boolean` indicando si el visitante lo tiene en Mis
+ * Guardados. Esto permite que el corazón de la card refleje el estado real
+ * desde el primer render (sin esperar fetch adicional).
  */
 export async function obtenerArticulosDeVendedor(
     vendedorId: string,
     estado: 'activa' | 'vendida',
-    paginacion: { limit: number; offset: number }
+    paginacion: { limit: number; offset: number },
+    visitanteId: string | null = null
 ) {
     try {
+        // Si hay visitante autenticado, agregamos un subquery EXISTS para
+        // saber si guardó cada artículo. Si no, devolvemos FALSE para todos.
+        const guardadoExpr = visitanteId
+            ? sql`EXISTS (
+                    SELECT 1 FROM guardados g
+                    WHERE g.usuario_id = ${visitanteId}
+                      AND g.entity_type = 'articulo_marketplace'
+                      AND g.entity_id = a.id
+                  ) AS usuario_guardo`
+            : sql`FALSE AS usuario_guardo`;
+
         const resultado = await db.execute(sql`
             SELECT
                 a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
-                a.condicion, a.acepta_ofertas,
+                a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
                 a.ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
-                a.expira_at, a.created_at, a.updated_at, a.vendida_at
+                a.expira_at, a.created_at, a.updated_at, a.vendida_at,
+                ${guardadoExpr}
             FROM articulos_marketplace a
             WHERE a.usuario_id = ${vendedorId}
               AND a.estado = ${estado}
@@ -1461,7 +1506,12 @@ export async function obtenerArticulosDeVendedor(
         `);
 
         const total = (totalResultado.rows[0] as { total: number }).total;
-        const data = (resultado.rows as unknown as RawArticuloDb[]).map(mapearArticulo);
+        const data = (
+            resultado.rows as unknown as Array<RawArticuloDb & { usuario_guardo: boolean }>
+        ).map((row) => ({
+            ...mapearArticulo(row),
+            guardado: row.usuario_guardo,
+        }));
 
         return {
             success: true,

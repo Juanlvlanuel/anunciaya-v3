@@ -46,6 +46,7 @@ import {
     useNegociosSeguidos,
     useArticulosMarketplaceGuardados,
 } from '@/hooks/queries/useMisGuardados';
+import { aplicarCambioGuardadoEnCache } from '@/hooks/useGuardados';
 import notificar from '@/utils/notificaciones';
 import { CardArticulo } from '@/components/marketplace/CardArticulo';
 import type { Oferta } from '@/types/ofertas';
@@ -285,6 +286,17 @@ export function PaginaGuardados() {
                     .filter(n => idsAEliminar.includes(n.id))
                     .forEach(n => {
                         qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(n.sucursalId) });
+                    });
+            }
+            // Sincronizar cache del MarketPlace (feed infinito + perfil del
+            // vendedor + detalle) cuando se eliminan artículos guardados.
+            // Sin esto, el corazón seguiría rojo al volver al feed o al
+            // perfil del vendedor porque el cache aún tiene `guardado: true`.
+            if (tabActivo === 'marketplace') {
+                articulosOriginales
+                    .filter(a => idsAEliminar.includes(a.id))
+                    .forEach(a => {
+                        aplicarCambioGuardadoEnCache(qc, a.entityId, false, -1);
                     });
             }
         } catch (error) {
@@ -776,22 +788,22 @@ function ContenidoOfertas({
     // Empty state (solo si no está cargando O si terminó de cargar y está vacío)
     if (!loading && ofertas.length === 0) {
         return (
-            <div className="text-center py-12 lg:py-16">
-                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
-                    <Tag className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />
+            <div className="flex flex-col items-center justify-center py-20">
+                {/* Patrón estándar idéntico a Cupones/CardYA */}
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-rose-50 flex items-center justify-center ring-8 ring-rose-50 mb-6">
+                    <Tag className="w-12 h-12 lg:w-16 lg:h-16 text-rose-400" />
                 </div>
 
-                <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
-                    No tienes ofertas guardadas
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                    Sin ofertas guardadas
                 </h3>
-                <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
-                    Explora ofertas increíbles de negocios locales y guarda tus favoritas para no
-                    perderlas
+                <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                    Guarda tus ofertas favoritas para encontrarlas aquí.
                 </p>
 
                 <button
                     onClick={() => navegarASeccion('/ofertas')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Ver Ofertas
                     <ChevronRight className="w-5 h-5" />
@@ -864,22 +876,22 @@ function ContenidoNegocios({
     // Empty state (solo si no está cargando O si terminó de cargar y está vacío)
     if (!loading && negocios.length === 0) {
         return (
-            <div className="text-center py-12 lg:py-16">
-                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
-                    <Store className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />
+            <div className="flex flex-col items-center justify-center py-20">
+                {/* Patrón estándar idéntico a Cupones/CardYA */}
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-rose-50 flex items-center justify-center ring-8 ring-rose-50 mb-6">
+                    <Store className="w-12 h-12 lg:w-16 lg:h-16 text-rose-400" />
                 </div>
 
-                <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
-                    No sigues ningún negocio
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                    Sin negocios seguidos
                 </h3>
-                <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
-                    Descubre negocios locales increíbles y síguelos para estar al tanto de sus
-                    novedades
+                <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                    Sigue un negocio para verlo aquí.
                 </p>
 
                 <button
                     onClick={() => navegarASeccion('/negocios')}
-                    className="inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-rose-500 hover:bg-rose-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
                     Explorar Negocios
                     <ChevronRight className="w-5 h-5" />
@@ -985,16 +997,16 @@ function ContenidoMarketplace({
 
     if (items.length === 0) {
         return (
-            <div className="text-center py-12 lg:py-16">
-                <div className="w-24 h-24 lg:w-32 lg:h-32 mx-auto mb-6 bg-linear-to-br from-rose-100 to-rose-50 rounded-full flex items-center justify-center ring-8 ring-rose-50">
-                    <ShoppingCart className="w-12 h-12 lg:w-16 lg:h-16 text-rose-500" />
+            <div className="flex flex-col items-center justify-center py-20">
+                {/* Patrón estándar idéntico a Cupones/CardYA */}
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-rose-50 flex items-center justify-center ring-8 ring-rose-50 mb-6">
+                    <ShoppingCart className="w-12 h-12 lg:w-16 lg:h-16 text-rose-400" />
                 </div>
-                <h3 className="text-xl lg:text-2xl font-bold text-gray-900 mb-3">
-                    Aún no guardas artículos
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                    Sin artículos guardados
                 </h3>
-                <p className="text-base lg:text-lg font-medium text-gray-600 mb-6 max-w-md mx-auto">
-                    Cuando guardes artículos del Marketplace con el ❤️, aparecerán aquí
-                    para verlos después.
+                <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                    Toca el ❤️ en un artículo para guardarlo aquí.
                 </p>
             </div>
         );

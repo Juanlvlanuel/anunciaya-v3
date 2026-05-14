@@ -239,7 +239,10 @@ export function CardArticuloFeed({
     const tieneMultiples = fotos.length > 1;
     const distancia = formatearDistancia(articulo.distanciaMetros);
     const tiempo = formatearTiempoRelativo(articulo.createdAt);
-    const condicionLabel = ETIQUETA_CONDICION[articulo.condicion] ?? articulo.condicion;
+    // `condicion` es opcional desde 2026-05-13. Si es null, no mostramos chip.
+    const condicionLabel = articulo.condicion
+        ? (ETIQUETA_CONDICION[articulo.condicion] ?? articulo.condicion)
+        : null;
 
     const nombreVendedor = useMemo(
         () => `${articulo.vendedor.nombre} ${articulo.vendedor.apellidos}`.trim(),
@@ -710,20 +713,9 @@ export function CardArticuloFeed({
             {/* Solo el título es link al detalle. Precio/chips son info,        */}
             {/* descripción es texto plano que expande/colapsa con click.        */}
             <div className={`px-4 ${modoModal ? 'pb-2' : 'pb-3'}`}>
-                <div className="flex items-baseline gap-2">
-                    <span className="text-2xl font-extrabold text-slate-900">
-                        {formatearPrecio(articulo.precio)}
-                    </span>
-                    {articulo.aceptaOfertas && (
-                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
-                            Acepta ofertas
-                        </span>
-                    )}
-                    <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
-                        {condicionLabel}
-                    </span>
-                </div>
-                <h3 className="mt-1.5">
+                {/* Título primero — es lo que ancla al lector ("¿qué es esto?").
+                    El precio queda debajo como el dato comercial principal. */}
+                <h3>
                     <button
                         type="button"
                         data-testid={`card-feed-titulo-${articulo.id}`}
@@ -733,6 +725,30 @@ export function CardArticuloFeed({
                         {articulo.titulo}
                     </button>
                 </h3>
+                {/* Precio + chips (unidad de venta, acepta ofertas, condición).
+                    El precio usa `text-teal-700` — color de marca del MarketPlace,
+                    diferenciado del negro del título pero sin caer en verde
+                    "oferta/descuento" payaso. */}
+                <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
+                    <span className="text-2xl font-extrabold text-teal-700">
+                        {formatearPrecio(articulo.precio)}
+                    </span>
+                    {articulo.unidadVenta && (
+                        <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
+                            {articulo.unidadVenta}
+                        </span>
+                    )}
+                    {articulo.aceptaOfertas && (
+                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
+                            Acepta ofertas
+                        </span>
+                    )}
+                    {condicionLabel && (
+                        <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                            {condicionLabel}
+                        </span>
+                    )}
+                </div>
                 {articulo.descripcion && !modoModal && (
                     <p
                         className={`mt-1.5 text-base font-medium leading-relaxed text-slate-600 ${

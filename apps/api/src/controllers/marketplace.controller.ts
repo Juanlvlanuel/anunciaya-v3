@@ -480,10 +480,19 @@ export async function getPublicacionesDeVendedor(req: Request, res: Response) {
         );
         const offset = Math.max(parseInt((req.query.offset as string) ?? '0', 10) || 0, 0);
 
-        const resultado = await obtenerArticulosDeVendedor(usuarioId, estadoParam, {
-            limit,
-            offset,
-        });
+        // Visitante autenticado (puede ser null si entra sin sesión —
+        // el route usa `verificarTokenOpcional`). Pasarlo al service hace
+        // que cada artículo devuelva `guardado: true|false` para que el
+        // corazón de la card refleje el estado correcto desde el primer
+        // render, sin requerir fetch adicional en el frontend.
+        const visitanteId = obtenerUsuarioId(req);
+
+        const resultado = await obtenerArticulosDeVendedor(
+            usuarioId,
+            estadoParam,
+            { limit, offset },
+            visitanteId
+        );
         return res.json(resultado);
     } catch (error) {
         console.error('Error en getPublicacionesDeVendedor:', error);

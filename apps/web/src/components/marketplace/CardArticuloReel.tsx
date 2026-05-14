@@ -93,6 +93,11 @@ export function CardArticuloReel({ articulo }: CardArticuloReelProps) {
             <div className="absolute inset-x-0 bottom-0 p-2.5">
                 <div className="text-base font-extrabold text-white drop-shadow-md">
                     {formatearPrecio(articulo.precio)}
+                    {articulo.unidadVenta && (
+                        <span className="ml-1 text-xs font-medium text-white/90">
+                            {articulo.unidadVenta}
+                        </span>
+                    )}
                 </div>
                 <div className="line-clamp-1 text-sm font-medium text-white/90 drop-shadow-md">
                     {articulo.titulo}

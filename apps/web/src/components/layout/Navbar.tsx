@@ -31,7 +31,7 @@ import {
   Eye,
   X,
   Heart,
-  FileText,
+  Package,
 } from 'lucide-react';
 
 // Stores
@@ -1050,11 +1050,11 @@ export const Navbar = () => {
                       {!esComercial && (
                         <>
                           <DropdownItem
-                            icon={FileText}
+                            icon={Package}
                             label="Mis Publicaciones"
-                            bgColor="bg-gradient-to-br from-purple-400 to-purple-600"
+                            bgColor="bg-gradient-to-br from-cyan-400 to-cyan-600"
                             iconColor="text-white"
-                            hoverGradient="hover:from-purple-50"
+                            hoverGradient="hover:from-cyan-50"
                             onClick={() => {
                               navegarASeccion('/mis-publicaciones');
                               setDropdownAbierto(false);
