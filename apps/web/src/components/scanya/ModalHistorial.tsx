@@ -26,20 +26,25 @@ import {
   RefreshCw,
   ChevronDown,
   Check,
-  Phone,
   Coins,
   Banknote,
-  CreditCard,
   Smartphone,
-  Clock,
   Ticket,
   Camera,
-  MapPin,
   Shield,
   ShieldCheck,
   Users,
-  Award,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import scanyaService, { type PeriodoHistorial } from '@/services/scanyaService';
 import type { TransaccionScanYA } from '@/types/scanya';

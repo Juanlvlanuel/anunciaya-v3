@@ -16,7 +16,13 @@
  */
 
 import { useState } from 'react';
-import { Star } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+
 import { Modal } from '../ui/Modal';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';

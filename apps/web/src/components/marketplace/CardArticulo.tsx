@@ -21,7 +21,16 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Heart, MapPin, ImageOff, Users, Eye, MessageCircle } from 'lucide-react';
+import { ImageOff, Users } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 import { useGuardados } from '../../hooks/useGuardados';
 import {
     formatearDistancia,
@@ -90,7 +99,7 @@ export function CardArticulo({
         }
         if (articulo.totalGuardados >= 5) {
             return {
-                icono: <Heart className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />,
+                icono: <Icon icon={ICONOS.guardar} className="h-3.5 w-3.5 shrink-0" />,
                 texto: `${articulo.totalGuardados} personas lo guardaron`,
             };
         }
@@ -188,13 +197,16 @@ export function CardArticulo({
                         disabled={loading}
                         aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
                         aria-pressed={guardado}
-                        className="absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full border border-white/10 bg-black/25 backdrop-blur-[10px] disabled:opacity-50"
+                        className={`absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full backdrop-blur-[10px] disabled:opacity-50 ${
+                            guardado
+                                ? 'border-2 border-amber-500 bg-white'
+                                : 'border border-white/10 bg-black/25'
+                        }`}
                     >
-                        <Heart
+                        <Icon
+                            icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
                             className="h-5 w-5"
-                            strokeWidth={2}
-                            fill={guardado ? '#ef4444' : 'none'}
-                            stroke="white"
+                            style={{ color: guardado ? '#f59e0b' : 'white' }}
                         />
                     </button>
                 )}

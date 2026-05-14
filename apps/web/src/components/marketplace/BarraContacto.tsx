@@ -20,8 +20,13 @@
  * Ubicación: apps/web/src/components/marketplace/BarraContacto.tsx
  */
 
-import { MessageCircle } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import { useChatYAStore } from '../../stores/useChatYAStore';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';

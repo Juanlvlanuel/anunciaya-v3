@@ -31,13 +31,9 @@ import { useState, useMemo, useEffect, useCallback, useRef } from 'react';
 import {
     Plus,
     Search,
-    Package,
     ShoppingBag,
-    Wrench,
     CheckCircle,
     XCircle,
-    Star,
-    Eye,
     EyeOff,
     Trash2,
     Tag,
@@ -48,6 +44,15 @@ import {
     Inbox,
     X,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import {
     useArticulosLista,

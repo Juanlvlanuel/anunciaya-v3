@@ -11,10 +11,18 @@
 import { useState, useRef, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import {
-	Building2, Save, MapPin, Clock, CreditCard,
+	Building2, Save,
 	Image as ImageIcon, CheckCircle2, PackageOpen,
 	Maximize2, X, Tag,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';

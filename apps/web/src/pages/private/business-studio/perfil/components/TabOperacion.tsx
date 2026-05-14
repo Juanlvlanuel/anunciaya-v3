@@ -4,7 +4,14 @@
  * ============================================================================
  */
 
-import { Banknote, CreditCard, ArrowLeftRight, Truck, Home, Info, AlertTriangle } from 'lucide-react';
+import { Banknote, ArrowLeftRight, Home, Info, AlertTriangle } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 import type { DatosOperacion } from '../hooks/usePerfil';
 
 interface TabOperacionProps {

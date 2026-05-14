@@ -9,8 +9,17 @@
 
 import { useState } from 'react';
 import {
-    Ticket, Store, Calendar, Lock, Eye, EyeOff, Copy, CheckCircle, XCircle, Clock, AlertTriangle, Gift, DollarSign,
+    Ticket, Store, Lock, Eye, EyeOff, Copy, CheckCircle, XCircle, AlertTriangle,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { Spinner } from '../../../../components/ui/Spinner';

@@ -18,7 +18,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Gift, ImagePlus, Trash2, Loader2, Repeat } from 'lucide-react';
+import { ImagePlus, Trash2, Loader2, Repeat } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 import { useR2Upload } from '../../../../../hooks/useR2Upload';
 import { generarUrlUploadImagenRecompensa } from '../../../../../services/puntosService';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';

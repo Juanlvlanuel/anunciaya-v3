@@ -7,7 +7,13 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { Building2, AlignLeft, Tag, MapPin, ChevronDown, Check } from 'lucide-react';
+import { Building2, AlignLeft, Tag, ChevronDown, Check } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { usePerfilCategorias, usePerfilSubcategorias } from '../../../../../hooks/queries/usePerfil';
 import CardYA from './CardYA';
 import SelectorCategoria from './SelectorCategoria';

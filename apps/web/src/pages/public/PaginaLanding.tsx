@@ -21,11 +21,22 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import {
-    MapPin, Tag, MessageCircle, ShoppingCart, Store, ArrowRight,
-    Star, Wrench, Mail, Users, ChevronDown,
+    Tag, ShoppingCart, Store, ArrowRight,
+    Users, ChevronDown,
     CheckCircle2, Globe,
-    type LucideIcon,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+
+type LucideIcon = React.ComponentType<{ className?: string; strokeWidth?: number }>;
 import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
 import authService from '../../services/authService';

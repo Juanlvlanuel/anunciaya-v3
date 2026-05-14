@@ -11,7 +11,17 @@
  */
 
 import { useState, Fragment } from 'react';
-import { TrendingUp, TrendingDown, Gift, Store, Calendar, Clock, Inbox, ArrowUpDown, ChevronUp, ChevronDown, Ticket } from 'lucide-react';
+import { Store, Inbox, ArrowUpDown, ChevronUp, ChevronDown, Ticket } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const TrendingDown = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaBajada} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 // ArrowUpDown, ChevronUp, ChevronDown se usan en los headers de tabla para ordenamiento
 import type { Transaccion, TipoTransaccion } from '../../../../types/cardya';
 

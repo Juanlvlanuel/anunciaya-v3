@@ -19,7 +19,6 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import {
   X,
   ArrowLeft,
-  Star,
   Loader2,
   AlertCircle,
   RefreshCw,
@@ -27,6 +26,12 @@ import {
   MessageSquare,
   Pencil,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import scanyaService from '@/services/scanyaService';
 import type { ResenaNegocio } from '@/types/scanya';

@@ -25,10 +25,7 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import {
-	Bell,
 	Shield,
-	Wrench,
-	TrendingUp,
 	Heart,
 	Search,
 	Settings,
@@ -38,12 +35,20 @@ import {
 	ChevronDown,
 	Check,
 	Inbox,
-	Clock,
 	X,
 	Trash2,
 	Layers,
 	Gauge,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { useAlertasStore } from '../../../../stores/useAlertasStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import {

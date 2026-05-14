@@ -29,7 +29,14 @@
 
 import { useState, useEffect } from 'react';
 import type { ReactNode } from 'react';
-import { Star, Award, Gift } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 
 // =============================================================================
 // TIPOS EXPORTADOS

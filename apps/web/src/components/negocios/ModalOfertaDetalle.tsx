@@ -20,8 +20,20 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { X, MessageCircle, Heart, Truck, Flame, Clock, Eye, MapPin, Phone, Store } from 'lucide-react';
+import { X, Flame, Store } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
 import { useNavigate } from 'react-router-dom';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 import { useGuardados } from '@/hooks/useGuardados';
 import {
   registrarClickOferta,
@@ -573,9 +585,9 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                             <Tooltip text={guardado ? 'Quitar de guardados' : 'Guardar'} position="bottom">
                                 <button
                                     onClick={handleGuardar}
-                                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer"
+                                    className={`w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 cursor-pointer ${guardado ? 'border-amber-500' : 'border-white'}`}
                                 >
-                                    <Heart className={`w-5 h-5 ${guardado ? 'text-red-500 fill-current' : 'text-slate-700'}`} />
+                                    <Icon icon={guardado ? ICONOS.guardar : 'ph:archive-box'} className={`w-5 h-5 ${guardado ? 'text-amber-500' : 'text-slate-700'}`} />
                                 </button>
                             </Tooltip>
                             <Tooltip text="Cerrar" position="bottom">

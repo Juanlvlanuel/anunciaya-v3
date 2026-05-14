@@ -17,17 +17,22 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { useState, useEffect } from 'react';
 import {
     Loader2,
-    Clock,
     CheckCircle,
     XCircle,
     ShoppingBag,
-    Wrench,
-    MapPin,
     ExternalLink,
     Store,
     ArrowRight,
     Check,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import api from '../../services/api';
 import { useOpenGraph } from '../../hooks/useOpenGraph';
 import { useAuthStore } from '../../stores/useAuthStore';

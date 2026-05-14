@@ -18,7 +18,14 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import { MapPin, Navigation, Send, Loader, AlertCircle } from 'lucide-react';
+import { Send, Loader, AlertCircle } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Navigation = (p: IconoWrapperProps) => <Icon icon={ICONOS.distancia} {...p} />;
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 
 // =============================================================================

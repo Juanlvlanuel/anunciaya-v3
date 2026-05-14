@@ -16,8 +16,15 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
 import {
-    MapPin, Navigation, Loader2, Search, Maximize2, X
+    Loader2, Search, Maximize2, X
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Navigation = (p: IconoWrapperProps) => <Icon icon={ICONOS.distancia} {...p} />;
 import L from 'leaflet';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useGpsStore } from '@/stores/useGpsStore';

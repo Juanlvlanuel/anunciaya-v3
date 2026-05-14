@@ -10,7 +10,16 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
-import { Wallet, Gift, Clock, Ticket, ChevronLeft, Bell } from 'lucide-react';
+import { Ticket, ChevronLeft } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
@@ -69,7 +78,7 @@ const ESTILO_CAROUSEL = `
 // CONFIGURACIÓN DE TABS
 // =============================================================================
 
-const TABS_CONFIG: { id: TabCardYA; label: string; Icono: typeof Wallet }[] = [
+const TABS_CONFIG: { id: TabCardYA; label: string; Icono: React.ComponentType<{ className?: string; strokeWidth?: number }> }[] = [
     { id: 'billeteras', label: 'Billeteras', Icono: Wallet },
     { id: 'recompensas', label: 'Recompensas', Icono: Gift },
     { id: 'vouchers', label: 'Vouchers', Icono: Ticket },

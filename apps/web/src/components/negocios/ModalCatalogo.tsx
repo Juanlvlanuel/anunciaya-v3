@@ -21,15 +21,20 @@
 import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import {
   ShoppingBag,
-  Wrench,
   Search,
-  Clock,
   ImageIcon,
-  Star,
   X,
   ChevronDown,
   Check,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { Modal } from '../ui/Modal';
 import { ModalBottom } from '../ui/ModalBottom';
 import { ModalDetalleItem } from './ModalDetalleItem';

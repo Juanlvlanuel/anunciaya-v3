@@ -17,7 +17,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Edit2, Trash2, Copy, Loader2, Package, Scissors } from 'lucide-react';
+import { ShoppingCart, Plus, Edit2, Trash2, Copy, Loader2, Scissors } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { ModalArticulo } from '@/pages/private/business-studio/catalogo/ModalArticulo';

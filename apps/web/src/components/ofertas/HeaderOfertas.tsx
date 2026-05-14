@@ -20,21 +20,27 @@
 
 import { useRef, useState } from 'react';
 import {
-  Bell,
   ChevronLeft,
-  Clock,
   Menu,
   Search,
   Tag,
   X,
-  Eye,
-  Calendar,
   CalendarDays,
   Locate,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
-import type { LucideIcon } from 'lucide-react';
+// El tipo aceptable abarca tanto LucideIcon como los wrappers de Iconify.
+type IconoComponente = React.ComponentType<{ className?: string; strokeWidth?: number; fill?: string }>;
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../hooks/useVolverAtras';
 import { useSearchStore } from '@/stores/useSearchStore';
@@ -52,7 +58,7 @@ interface HeaderOfertasProps {
 // Chips situacionales visibles (orden alineado a MarketPlace y Negocios).
 // Default activo: 'recientes'. El chip 'mas_vistas' antes era un CTA blanco
 // destacado; ahora es un chip más en la fila para mantener uniformidad.
-const CHIPS: { id: ChipSituacional; label: string; icono?: LucideIcon }[] = [
+const CHIPS: { id: ChipSituacional; label: string; icono?: IconoComponente }[] = [
   { id: 'recientes', label: 'Recientes', icono: Clock },
   { id: 'mas_vistas', label: 'Más vistos', icono: Eye },
   { id: 'cerca', label: 'Cerca de ti', icono: Locate },

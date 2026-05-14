@@ -24,7 +24,13 @@
 
 import { useState, useEffect, useRef, useId } from 'react';
 import { createPortal } from 'react-dom';
-import { Clock, Coffee, Copy, Loader2, Check, X, ChevronDown } from 'lucide-react';
+import { Coffee, Copy, Loader2, Check, X, ChevronDown } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';

@@ -20,13 +20,18 @@
 import { useState, useEffect } from 'react';
 import {
   Building2,
-  MapPin,
-  Package,
-  Wrench,
   CheckCircle,
   AlertCircle,
   Copy,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Boton } from '../../../../components/ui/Boton';
 import { Spinner } from '../../../../components/ui/Spinner';

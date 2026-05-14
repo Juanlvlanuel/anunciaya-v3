@@ -20,16 +20,7 @@ import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useRef, useState, useEffect } from 'react';
 import {
     ArrowLeft,
-    Heart,
-    Star,
-    MapPin,
-    Clock,
-    CreditCard,
-    Navigation,
     AlertCircle,
-    Bell,
-    Eye,
-    Mail,
     ChevronRight,
     ChevronDown,
     Image as ImageIcon,
@@ -37,8 +28,6 @@ import {
     Send,
     UtensilsCrossed,
     Link2,
-    Phone,
-    Truck,
     Home,
     Maximize2,
     Plus,
@@ -46,6 +35,23 @@ import {
     Crosshair,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+// Los nombres coinciden con los de lucide para que el JSX existente siga funcionando.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Navigation = (p: IconoWrapperProps) => <Icon icon={ICONOS.distancia} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
+const ThumbsUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.like} {...p} />;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../config/queryKeys';
 import { useNegocioPerfil, useNegocioOfertas, useNegocioCatalogo, useNegocioResenas } from '../../../hooks/queries/useNegocios';
@@ -1006,7 +1012,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     del header (más prominente y con info accionable). */}
                 <div className="absolute top-0 left-0 right-0 flex items-center justify-center gap-4 py-2.5 px-3 bg-white/60 backdrop-blur-md @5xl:hidden">
                     <div className="flex items-center gap-1.5">
-                        <Heart className="w-5 h-5 text-red-500 fill-current" />
+                        <ThumbsUp className="w-5 h-5 text-blue-500 fill-current" />
                         <span className="text-sm font-bold text-slate-700">{totalLikes ?? 0}</span>
                     </div>
                     <div className="h-5 w-px bg-slate-400/50" />
@@ -1048,16 +1054,16 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         )}
 
                         <div className="absolute top-14 @5xl:top-4 right-5 @[96rem]:right-7.5 flex gap-2 pointer-events-auto">
-                            {/* Botón Like */}
-                            <Tooltip text={liked ? 'Quitar like' : 'Like'} position="bottom">
-                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${liked ? 'bg-red-50 border-red-500 text-red-500' : 'bg-white/90 border-white text-slate-700'}`}>
-                                    <Heart className={`w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 ${liked ? 'fill-current' : ''}`} />
+                            {/* Botón Me gusta */}
+                            <Tooltip text={liked ? 'Quitar me gusta' : 'Me gusta'} position="bottom">
+                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${liked ? 'bg-white border-blue-500 text-blue-500' : 'bg-white/90 border-white text-slate-700'}`}>
+                                    <Icon icon={liked ? ICONOS.like : 'material-symbols:thumb-up-outline-rounded'} className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                 </button>
                             </Tooltip>
-                            {/* Botón Seguir */}
-                            <Tooltip text={followed ? 'Dejar de seguir' : 'Seguir'} position="bottom">
-                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${followed ? 'bg-blue-50 border-blue-500 text-blue-600' : 'bg-white/90 border-white text-slate-700'}`}>
-                                    <Bell className={`w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5 ${followed ? 'fill-current' : ''}`} />
+                            {/* Botón Guardar */}
+                            <Tooltip text={followed ? 'Quitar de guardados' : 'Guardar'} position="bottom">
+                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${followed ? 'bg-white border-amber-500 text-amber-500' : 'bg-white/90 border-white text-slate-700'}`}>
+                                    <Icon icon={followed ? ICONOS.guardar : 'ph:archive-box'} className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
                                 </button>
                             </Tooltip>
                             {/* Botón Compartir */}
@@ -1176,8 +1182,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         entre KPIs siguen visibles sobre el degradado de la página. */}
                                     <div className="flex items-center @5xl:px-2 @5xl:py-1.5 @[96rem]:px-4 @[96rem]:py-2">
                                         <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:pr-2 @[96rem]:pr-4">
-                                            <Heart className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-red-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
-                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} likes</span>
+                                            <ThumbsUp className="@5xl:w-5 @5xl:h-5 @[96rem]:w-7 @[96rem]:h-7 text-blue-500 fill-current animate-bounce" style={{ animationDuration: '2s' }} />
+                                            <span className="@5xl:text-sm @[96rem]:text-lg font-semibold text-slate-700">{totalLikes ?? 0} me gusta</span>
                                         </div>
                                         <div className="@5xl:h-5 @[96rem]:h-7 w-0.5 bg-slate-300 rounded-full" />
                                         <div className="flex items-center @5xl:gap-1 @[96rem]:gap-2 @5xl:px-2 @[96rem]:px-4">

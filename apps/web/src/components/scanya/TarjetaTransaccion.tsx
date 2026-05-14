@@ -11,11 +11,16 @@
  */
 
 import {
-  Clock,
   Ticket,
   XCircle,
   ChevronRight,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import type { TransaccionScanYA } from '@/types/scanya';
 import { obtenerIniciales } from '../../utils/obtenerIniciales';
 

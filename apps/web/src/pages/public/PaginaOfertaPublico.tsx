@@ -18,16 +18,21 @@ import { useParams, useNavigate } from 'react-router-dom';
 import {
     Loader2,
     Tag,
-    MapPin,
-    Clock,
     Flame,
-    Truck,
     ExternalLink,
     Store,
     ShoppingCart,
     ArrowRight,
     Check,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 import { useOpenGraph } from '../../hooks/useOpenGraph';
 import { useAuthStore } from '../../stores/useAuthStore';
 import api from '../../services/api';

@@ -18,7 +18,13 @@
  * Ubicación: apps/web/src/components/scanya/IndicadoresRapidos.tsx
  */
 
-import { Star, WifiOff, Ticket, History } from 'lucide-react';
+import { WifiOff, Ticket, History } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 
 // =============================================================================
 // INTERFACES

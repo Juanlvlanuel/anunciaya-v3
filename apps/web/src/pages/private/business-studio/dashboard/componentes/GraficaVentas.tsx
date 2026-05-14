@@ -16,8 +16,16 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, TrendingDown, Calendar, BarChart3 } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
 import type { VentasData } from '../../../../../services/dashboardService';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const TrendingDown = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaBajada} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 
 // =============================================================================
 // TIPOS

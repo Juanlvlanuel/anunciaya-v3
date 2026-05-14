@@ -15,20 +15,25 @@
 import { useNavegarASeccion } from '../../../../hooks/useNavegarASeccion';
 import {
   User,
-  Phone,
-  Mail,
-  Crown,
   Medal,
   Shield,
-  TrendingUp,
   ShoppingBag,
-  DollarSign,
   Ticket,
-  Clock,
-  Calendar,
   ChevronRight,
   Loader2,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Crown = (p: IconoWrapperProps) => <Icon icon={ICONOS.vip} {...p} />;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useClienteDetalle, useClienteHistorial } from '../../../../hooks/queries/useClientes';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';

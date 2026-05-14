@@ -16,7 +16,17 @@
  * - ALTURA FIJA: El contenedor mantiene el mismo tamaño con 8 pasos
  */
 
-import { Check, Home, MapPin, Phone, Clock, Image as ImageIcon, CreditCard, Star, ShoppingCart } from 'lucide-react';
+import { Check, Home, Image as ImageIcon, ShoppingCart } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useState } from 'react';
 

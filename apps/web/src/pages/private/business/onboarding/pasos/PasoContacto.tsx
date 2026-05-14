@@ -24,7 +24,15 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Mail, Globe, MessageCircle, Phone, Loader2, Info } from 'lucide-react';
+import { Globe, Loader2, Info } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';

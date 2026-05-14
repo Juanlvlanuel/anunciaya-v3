@@ -7,7 +7,16 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/ModalDetalleBilletera.tsx
  */
 
-import { Store, TrendingUp, TrendingDown, Award, Clock, ChevronRight, Zap } from 'lucide-react';
+import { Store, ChevronRight, Zap } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const TrendingDown = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaBajada} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import type { DetalleNegocioBilletera } from '../../../../types/cardya';

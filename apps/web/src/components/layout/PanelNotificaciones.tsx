@@ -19,25 +19,30 @@ import { useEffect, useRef, useState, type ComponentType } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   X,
-  Bell,
-  Sparkles,
   Coins,
   Ticket,
   Tag,
-  Gift,
   UserPlus,
   AlertTriangle,
-  Star,
   Settings,
   Trash2,
   ShoppingBag,
-  Trophy,
   Ban,
-  Clock,
-  Briefcase,
   Zap,
   type LucideProps,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Trophy = (p: IconoWrapperProps) => <Icon icon={ICONOS.trofeo} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
@@ -66,7 +71,7 @@ const formatearFechaRelativa = (fecha: string): string => {
 };
 
 interface ConfigTipo {
-  icono: ComponentType<LucideProps>;
+  icono: ComponentType<LucideProps> | ComponentType<{ className?: string }>;
   gradiente: string;
 }
 

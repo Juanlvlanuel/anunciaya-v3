@@ -34,8 +34,6 @@ import { useSearchParams } from 'react-router-dom';
 import {
     MessageSquare,
     Search,
-    Star,
-    Clock,
     CheckCircle2,
     AlertCircle,
     PencilLine,
@@ -43,6 +41,13 @@ import {
     Check,
     Inbox,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { useResenasLista, useResenasKPIs, useResponderResena } from '../../../../hooks/queries/useResenas';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';

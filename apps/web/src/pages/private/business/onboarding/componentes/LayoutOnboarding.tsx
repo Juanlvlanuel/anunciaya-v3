@@ -13,7 +13,17 @@
  */
 
 import { ReactNode, useState, useRef, useEffect } from 'react';
-import { Clock, Home, MapPin, Phone, Image as ImageIcon, CreditCard, Star, ShoppingCart, LogOut } from 'lucide-react';
+import { Home, Image as ImageIcon, ShoppingCart, LogOut } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { Link, useNavigate } from 'react-router-dom';
 import { IndicadorPasos } from './IndicadorPasos';
 import { BotonesNavegacion } from './BotonesNavegacion';

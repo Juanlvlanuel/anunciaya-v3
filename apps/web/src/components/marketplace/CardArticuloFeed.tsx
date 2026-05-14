@@ -21,11 +21,7 @@ import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
-    Heart,
-    MapPin,
-    Eye,
     Users,
-    MessageCircle,
     ChevronLeft,
     ChevronRight,
     ImageOff,
@@ -35,6 +31,15 @@ import {
     Smile,
     Frown,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 import { useGuardados } from '../../hooks/useGuardados';
 import {
     useCrearPregunta,
@@ -684,8 +689,8 @@ export function CardArticuloFeed({
                     disabled={loading}
                     aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
                     className={`relative shrink-0 rounded-full p-2 lg:cursor-pointer ${guardado
-                            ? 'text-red-500 lg:hover:bg-red-100'
-                            : 'text-slate-500 lg:hover:bg-slate-200 lg:hover:text-red-500'
+                            ? 'text-amber-500 lg:hover:bg-amber-50'
+                            : 'text-slate-500 lg:hover:bg-slate-200 lg:hover:text-amber-500'
                         }`}
                     style={{
                         animation: heartBounce
@@ -696,15 +701,14 @@ export function CardArticuloFeed({
                     {/* Pulse ring de 1 sola pasada al momento del click */}
                     {heartBounce && (
                         <span
-                            className="pointer-events-none absolute inset-1 rounded-full border-2 border-red-500/50"
+                            className="pointer-events-none absolute inset-1 rounded-full border-2 border-amber-500/40"
                             style={{ animation: 'feedHeartRingPulse 0.6s ease-out' }}
                             aria-hidden="true"
                         />
                     )}
-                    <Heart
+                    <Icon
+                        icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
                         className="h-7 w-7"
-                        strokeWidth={2}
-                        fill={guardado ? 'currentColor' : 'none'}
                     />
                 </button>
             </header>
@@ -939,8 +943,8 @@ export function CardArticuloFeed({
                     </span>
                 </div>
                 {senalActividad && senalActividad.tipo === 'guardados' && (
-                    <span className="flex items-center gap-1.5 font-semibold text-red-600">
-                        <Heart className="h-5 w-5 shrink-0" strokeWidth={2.5} fill="currentColor" />
+                    <span className="flex items-center gap-1.5 font-semibold text-amber-500">
+                        <Bookmark className="h-5 w-5 shrink-0" strokeWidth={2.5} fill="currentColor" />
                         {senalActividad.total}
                     </span>
                 )}

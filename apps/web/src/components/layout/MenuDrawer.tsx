@@ -27,14 +27,19 @@ import {
   X,
   User,
   LogOut,
-  Wallet,
   ChevronRight,
-  Heart,
-  Package,
-  MapPin,
   Lock,
   Ticket,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useUiStore } from '../../stores/useUiStore';
@@ -303,7 +308,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
               {/* Mis Guardados */}
               <MenuDrawerItem
-                icon={Heart}
+                icon={Bookmark}
                 label="Mis Guardados"
                 bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
                 iconColor="text-white"
@@ -357,7 +362,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
               {/* Mis Guardados */}
               <MenuDrawerItem
-                icon={Heart}
+                icon={Bookmark}
                 label="Mis Guardados"
                 bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
                 iconColor="text-white"

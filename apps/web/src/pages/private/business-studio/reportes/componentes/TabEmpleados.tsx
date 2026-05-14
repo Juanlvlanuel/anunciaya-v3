@@ -4,7 +4,14 @@
 
 import { useState, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { UserCog, AlertTriangle, ArrowUp, ArrowDown, Users, DollarSign, Trophy, ShieldAlert } from 'lucide-react';
+import { UserCog, AlertTriangle, ArrowUp, ArrowDown, Users, ShieldAlert } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const Trophy = (p: IconoWrapperProps) => <Icon icon={ICONOS.trofeo} {...p} />;
 import { useReporteEmpleados } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { obtenerIniciales } from '../../../../../utils/obtenerIniciales';

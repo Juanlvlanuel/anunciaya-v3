@@ -10,15 +10,20 @@
 import { useNavigate } from 'react-router-dom';
 import {
 	Shield,
-	Wrench,
-	TrendingUp,
 	Heart,
 	Lightbulb,
-	Clock,
 	BarChart3,
 	FileText,
 	ExternalLink,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import type { AlertaCompleta, CategoriaAlerta, SeveridadAlerta, TipoAlerta } from '../../../../types/alertas';
 

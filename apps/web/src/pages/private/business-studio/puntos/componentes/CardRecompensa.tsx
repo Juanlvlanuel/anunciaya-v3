@@ -9,7 +9,15 @@
  */
 
 import { useState } from 'react';
-import { Gift, Edit2, Trash2, AlertCircle, Package, Sparkles, Repeat, Ticket, Users } from 'lucide-react';
+import { Edit2, Trash2, AlertCircle, Repeat, Ticket, Users } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 import { ModalImagenes } from '../../../../../components/ui/ModalImagenes';
 import type { Recompensa } from '../../../../../types/puntos';
 

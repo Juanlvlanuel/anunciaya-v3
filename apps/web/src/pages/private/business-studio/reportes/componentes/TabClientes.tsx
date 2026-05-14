@@ -4,7 +4,14 @@
 
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, TrendingUp, Crown, ShoppingBag, AlertTriangle, UserX } from 'lucide-react';
+import { Users, ShoppingBag, AlertTriangle, UserX } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const Crown = (p: IconoWrapperProps) => <Icon icon={ICONOS.vip} {...p} />;
 import { useReporteClientes } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { obtenerIniciales } from '../../../../../utils/obtenerIniciales';

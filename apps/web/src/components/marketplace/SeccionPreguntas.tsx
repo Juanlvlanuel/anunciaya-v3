@@ -26,13 +26,18 @@
 
 import { useState } from 'react';
 import {
-    MessageCircle,
-    Clock,
     CheckCircle2,
     Trash2,
     MessageSquare,
     AlertCircle,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import {
     usePreguntasArticulo,
     useResponderPregunta,

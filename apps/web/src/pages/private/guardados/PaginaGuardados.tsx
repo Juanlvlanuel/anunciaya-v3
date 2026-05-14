@@ -18,7 +18,6 @@ import { useState, useEffect } from 'react';
 // GPS manejado internamente por useNegociosSeguidos
 import { useUiStore } from '@/stores/useUiStore';
 import {
-    Heart,
     Store,
     Tag,
     ChevronRight,
@@ -26,10 +25,16 @@ import {
     Trash2,
     X,
     Check,
-    Briefcase,
     ShoppingCart,
-    Bell,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { useNavigate } from 'react-router-dom';
@@ -408,7 +413,7 @@ export function PaginaGuardados() {
                                             className="w-9 h-9 rounded-lg flex items-center justify-center"
                                             style={{ background: 'linear-gradient(135deg, #f43f5e, #e11d48)' }}
                                         >
-                                            <Heart className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                                            <Bookmark className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
                                         </div>
                                         <span className="text-2xl font-extrabold text-white tracking-tight">
                                             Mis <span className="text-rose-400">Guardados</span>
@@ -472,7 +477,7 @@ export function PaginaGuardados() {
                                             className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
                                             style={{ background: 'linear-gradient(135deg, #f43f5e, #e11d48)' }}
                                         >
-                                            <Heart className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                                            <Bookmark className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
                                         </div>
                                         <div className="flex items-baseline">
                                             <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">
@@ -723,7 +728,7 @@ function BookmarkGlass({ seleccionado, onClick }: BookmarkGlassProps) {
                 className={`w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${
                     seleccionado
                         ? 'bg-red-500 border-2 border-red-500'
-                        : 'bg-black/25 backdrop-blur-[10px] border border-white/10'
+                        : 'bg-white border-2 border-amber-500 backdrop-blur-[10px]'
                 }`}
             >
                 {seleccionado ? (
@@ -739,16 +744,11 @@ function BookmarkGlass({ seleccionado, onClick }: BookmarkGlassProps) {
                         <polyline points="20 6 9 17 4 12" />
                     </svg>
                 ) : (
-                    <svg className="w-5 h-5" viewBox="0 0 24 24">
-                        <path
-                            d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-                            fill="#ef4444"
-                            stroke="white"
-                            strokeWidth="2"
-                            strokeLinecap="round"
-                            strokeLinejoin="round"
-                        />
-                    </svg>
+                    <Icon
+                        icon={ICONOS.guardar}
+                        className="w-5 h-5"
+                        style={{ color: '#f59e0b' }}
+                    />
                 )}
             </button>
         </div>

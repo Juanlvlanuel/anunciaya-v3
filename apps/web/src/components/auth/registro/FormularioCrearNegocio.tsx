@@ -9,7 +9,13 @@
 
 import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Check, ChevronLeft, Sparkles } from 'lucide-react';
+import { Building2, Check, ChevronLeft } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 
 // =============================================================================
 // TIPOS

@@ -338,23 +338,23 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
         votanteSucursalId: sucursalActiva || null,
       });
 
-      notificar.exito('¡Siguiendo!');
+      notificar.exito('¡Guardado!');
       invalidarCaches();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
-      console.error('❌ Error al seguir:', error);
-      
+      console.error('❌ Error al guardar:', error);
+
       // Reversión: volver al estado anterior
       setFollowed(estadoAnterior);
       onFollowChange?.(estadoAnterior);
-      
+
       // Notificar error
       if (error.response?.status === 400) {
-        notificar.info('Ya sigues este negocio');
+        notificar.info('Ya tienes este negocio guardado');
       } else if (error.response?.status === 401) {
-        notificar.error('Debes iniciar sesión para seguir');
+        notificar.error('Debes iniciar sesión para guardar');
       } else {
-        notificar.error('Error al seguir');
+        notificar.error('Error al guardar');
       }
     } finally {
       setLoading(false);
@@ -376,23 +376,23 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       // votanteSucursalId se agrega automáticamente por el interceptor en modo comercial
       await api.delete(`/votos/${entityType}/${entityId}/follow`);
 
-      notificar.info('Dejaste de seguir');
+      notificar.info('Quitado de guardados');
       invalidarCaches();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
       console.error('❌ Error al quitar de guardados:', error);
-      
+
       // Reversión: volver al estado anterior
       setFollowed(estadoAnterior);
       onFollowChange?.(estadoAnterior);
-      
+
       // Notificar error
       if (error.response?.status === 404) {
-        notificar.info('No está en seguidos');
+        notificar.info('No está en guardados');
       } else if (error.response?.status === 401) {
         notificar.error('Debes iniciar sesión');
       } else {
-        notificar.error('Error al quitar de seguidos');
+        notificar.error('Error al quitar de guardados');
       }
     } finally {
       setLoading(false);

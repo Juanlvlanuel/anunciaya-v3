@@ -7,7 +7,14 @@
  * Ubicación: apps/web/src/components/auth/registro/ModalBienvenida.tsx
  */
 
-import { Check, Edit3, TrendingUp, ArrowRight, Home, Search, Tag, MapPin } from 'lucide-react';
+import { Check, Edit3, ArrowRight, Home, Search, Tag } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 
 // =============================================================================
 // TIPOS

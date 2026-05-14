@@ -15,7 +15,13 @@
  */
 
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
-import { X, Loader2, Store, CreditCard, User } from 'lucide-react';
+import { X, Loader2, Store, User } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { PortalTargetProvider } from '../../hooks/usePortalTarget';

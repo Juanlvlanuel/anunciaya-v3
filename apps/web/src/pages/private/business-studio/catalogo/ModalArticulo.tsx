@@ -18,17 +18,22 @@ import { useState, useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import {
   Trash2,
-  Package,
-  Wrench,
   ImagePlus,
-  Eye,
   EyeOff,
-  Star,
   Tag,
   ChevronDown,
   Plus,
   Check,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 import { useR2Upload } from '../../../../hooks/useR2Upload';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { ModalImagenes } from '../../../../components/ui';

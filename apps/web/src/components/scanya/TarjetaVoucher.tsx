@@ -10,13 +10,18 @@
  */
 
 import {
-  Gift,
-  Clock,
   CheckCircle,
   XCircle,
   Ban,
   ChevronRight,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import type { VoucherPendiente, VoucherCompleto } from '@/types/scanya';
 import { obtenerIniciales } from '../../utils/obtenerIniciales';
 

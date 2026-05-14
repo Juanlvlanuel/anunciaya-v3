@@ -17,22 +17,27 @@ import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
   Search,
-  MapPin,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
-  Bell,
   Store,
   ShoppingCart,
   Tag,
-  Wrench,
   User,
   LogOut,
-  Eye,
   X,
-  Heart,
-  Package,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} hFlip {...p} />;
 
 // Stores
 import { useAuthStore } from '../../stores/useAuthStore';
@@ -1066,7 +1071,7 @@ export const Navbar = () => {
 
                       {/* Opciones comunes */}
                       <DropdownItem
-                        icon={Heart}
+                        icon={Bookmark}
                         label="Mis Guardados"
                         bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
                         iconColor="text-white"

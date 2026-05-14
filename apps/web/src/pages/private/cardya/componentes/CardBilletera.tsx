@@ -9,7 +9,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Store, TrendingUp, ChevronRight } from 'lucide-react';
+import { Store, ChevronRight } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 import type { BilleteraNegocio } from '../../../../types/cardya';
 import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import { useUiStore } from '../../../../stores/useUiStore';

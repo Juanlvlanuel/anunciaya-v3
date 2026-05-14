@@ -38,14 +38,19 @@ import {
     PlayCircle,
     CheckCircle,
     Trash2,
-    Eye,
-    MessageCircle,
-    Heart,
-    Clock,
     ImageOff,
     PackageX,
     type LucideIcon,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import {
     formatearPrecio,
     formatearTiempoRelativo,
@@ -274,9 +279,10 @@ export function CardArticuloMio({
                         label={`${articulo.totalMensajes} mensajes`}
                     />
                     <KpiChip
-                        icono={Heart}
+                        icono={Bookmark}
                         valor={articulo.totalGuardados}
                         label={`${articulo.totalGuardados} guardados`}
+                        acento="amber"
                     />
                     {dias !== null && (
                         <KpiChip
@@ -394,22 +400,24 @@ export function CardArticuloMio({
 // =============================================================================
 
 interface KpiChipProps {
-    icono: LucideIcon;
+    // Aceptamos LucideIcon o cualquier componente con className (wrappers Iconify)
+    icono: LucideIcon | React.ComponentType<{ className?: string; strokeWidth?: number; fill?: string }>;
     valor: number | string;
     label: string;
     urgente?: boolean;
+    acento?: 'amber';
 }
 
-function KpiChip({ icono: Icon, valor, label, urgente }: KpiChipProps) {
-    const bgClasses = urgente ? 'bg-amber-100' : 'bg-slate-200';
-    const textClasses = urgente ? 'text-amber-700' : 'text-slate-700';
-    const iconClasses = urgente ? 'text-amber-600' : 'text-slate-600';
+function KpiChip({ icono: IconoChip, valor, label, urgente, acento }: KpiChipProps) {
+    const bgClasses = acento === 'amber' || urgente ? 'bg-amber-100' : 'bg-slate-200';
+    const textClasses = acento === 'amber' || urgente ? 'text-amber-700' : 'text-slate-700';
+    const iconClasses = acento === 'amber' ? 'text-amber-500' : urgente ? 'text-amber-600' : 'text-slate-600';
     return (
         <span
             className={`inline-flex shrink-0 items-center gap-0.5 rounded-full ${bgClasses} px-1.5 py-0.5 text-xs font-semibold ${textClasses}`}
             title={label}
         >
-            <Icon className={`h-3 w-3 ${iconClasses}`} strokeWidth={2.5} />
+            <IconoChip className={`h-3 w-3 ${iconClasses}`} strokeWidth={2.5} fill={acento === 'amber' ? 'currentColor' : 'none'} />
             {valor}
         </span>
     );

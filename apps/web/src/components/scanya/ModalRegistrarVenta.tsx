@@ -17,28 +17,33 @@ import {
     X,
     ArrowLeft,
     User,
-    DollarSign,
-    CreditCard,
     Camera,
     Ticket,
     ChevronDown,
     ChevronRight,
     Check,
     Loader2,
-    Trophy,
     Coins,
     Banknote,
     Smartphone,
     Shuffle,
     Edit3,
-    Sparkles,
     CheckCircle,
     UserPlus,
     AlertCircle,
     ShoppingBag,
     Repeat,
-    Gift,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Trophy = (p: IconoWrapperProps) => <Icon icon={ICONOS.trofeo} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 import { notificar } from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';
 import type { TarjetaSellos } from '@/services/scanyaService';

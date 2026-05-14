@@ -23,8 +23,16 @@
  */
 
 import { memo, useEffect, useId, useRef } from 'react';
-import { Tag, Clock, ArrowRight, Store, MapPin, Eye } from 'lucide-react';
+import { Tag, ArrowRight, Store } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
 import { useViewTracker } from '@/hooks/useViewTracker';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 import { registrarVistaOferta } from '@/services/ofertasService';
 import type { OfertaFeed } from '@/types/ofertas';
 

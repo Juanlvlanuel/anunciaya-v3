@@ -14,8 +14,14 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { Store, ChevronRight, Star } from 'lucide-react';
+import { Store, ChevronRight } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { ModalHorarios } from './ModalHorarios';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useChatYAStore } from '../../stores/useChatYAStore';

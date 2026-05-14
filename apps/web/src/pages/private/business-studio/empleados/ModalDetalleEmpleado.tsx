@@ -9,23 +9,28 @@
 import {
 	Edit3,
 	ShoppingCart,
-	Gift,
-	Eye,
 	MessageSquare,
-	Star,
-	Clock,
 	Zap,
-	Award,
-	Calendar,
 	Power,
 	Trash2,
 	LogOut,
 	CheckCircle2,
 	XCircle,
-	Phone,
-	Mail,
-	Briefcase,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { useToggleEmpleadoActivo, useEliminarEmpleado, useRevocarSesion } from '../../../../hooks/queries/useEmpleados';

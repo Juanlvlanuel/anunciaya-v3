@@ -21,8 +21,14 @@
 
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
-import { Share2, Link2 } from 'lucide-react';
+import { Link2 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import { notificar } from '../../utils/notificaciones';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Share2 = (p: IconoWrapperProps) => <Icon icon={ICONOS.compartir} {...p} />;
 import { useBackNativo } from '../../hooks/useBackNativo';
 
 // =============================================================================

@@ -19,7 +19,13 @@
 
 import { useEffect, useState, useCallback, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import { Store, Star, Check, X, Loader2 } from 'lucide-react';
+import { Store, Check, X, Loader2 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { useScanYAStore } from '../../stores/useScanYAStore';
 import scanyaService from '../../services/scanyaService';
 import { notificar } from '../../utils/notificaciones';

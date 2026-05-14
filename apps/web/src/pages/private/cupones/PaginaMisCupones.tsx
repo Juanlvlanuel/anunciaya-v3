@@ -12,7 +12,14 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
-import { Ticket, Gift, CheckCircle, ChevronLeft, Bell } from 'lucide-react';
+import { Ticket, CheckCircle, ChevronLeft } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { Spinner } from '../../../components/ui/Spinner';

@@ -12,12 +12,20 @@
 
 import { useState, useEffect, useRef } from 'react';
 import {
-    Utensils, HeartPulse, Wrench, ShoppingBag, GraduationCap,
-    Sparkles, Car, Theater,
+    Utensils, HeartPulse, ShoppingBag, GraduationCap,
+    Car, Theater,
     Pencil, Info, Loader2, Check, ChevronDown,
-    Store, Briefcase,
+    Store,
     PawPrint, Plane
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';

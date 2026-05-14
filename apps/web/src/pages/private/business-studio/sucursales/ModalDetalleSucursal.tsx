@@ -15,16 +15,21 @@
 import { useState } from 'react';
 import {
 	Building2,
-	MapPin,
-	Phone,
-	Mail,
-	Star,
 	UserPlus,
 	UserCheck,
 	KeyRound,
 	UserMinus,
 	Pencil,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { InputCorreoValidado, type ResultadoValidacionCorreo } from '../../../../components/ui/InputCorreoValidado';

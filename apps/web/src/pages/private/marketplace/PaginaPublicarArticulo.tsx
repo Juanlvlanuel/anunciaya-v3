@@ -53,11 +53,16 @@ import {
     FileQuestion,
     Plus,
     Lightbulb,
-    Star,
     Trash2,
     ArrowRight,
     Check,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { MapContainer, TileLayer, Circle } from 'react-leaflet';
 import 'leaflet/dist/leaflet.css';
 import { useAuthStore } from '../../../stores/useAuthStore';

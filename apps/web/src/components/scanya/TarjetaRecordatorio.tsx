@@ -16,13 +16,9 @@
  */
 
 import {
-  Phone,
   Coins,
   Banknote,
-  CreditCard,
   Smartphone,
-  Clock,
-  MapPin,
   User,
   FileText,
   CheckCircle,
@@ -30,6 +26,15 @@ import {
   Shuffle,
   Pencil,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import type { RecordatorioScanYA } from '@/types/scanya';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 

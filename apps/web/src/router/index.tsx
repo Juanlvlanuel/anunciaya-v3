@@ -34,6 +34,10 @@ import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMark
 
 // Páginas privadas
 import PaginaInicio from '../pages/private/PaginaInicio';
+// TEMPORAL — galería de íconos. Mantener mientras se itera. BORRAR cuando todo esté final.
+import TestIconos from '../pages/private/TestIconos';
+// TEMPORAL — comparación de diseños para ModalInactividad. BORRAR cuando se elija.
+import TestModalSesion from '../pages/private/TestModalSesion';
 
 // Páginas de usuario (nuevas - Fase 4)
 import PaginaGuardados from '../pages/private/guardados/PaginaGuardados';
@@ -338,6 +342,16 @@ const router = createBrowserRouter([
           {
             path: '/guardados',
             element: <PaginaGuardados />,
+          },
+          // TEMPORAL — galería de íconos. BORRAR cuando se complete la iteración.
+          {
+            path: '/test-iconos',
+            element: <TestIconos />,
+          },
+          // TEMPORAL — comparación de diseños para ModalInactividad. BORRAR cuando se elija.
+          {
+            path: '/test-modal-sesion',
+            element: <TestModalSesion />,
           },
           {
             path: '/mis-publicaciones',

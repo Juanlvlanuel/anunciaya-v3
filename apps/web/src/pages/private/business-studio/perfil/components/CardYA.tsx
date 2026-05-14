@@ -11,7 +11,13 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Wallet, Check, ChevronRight, Settings2 } from 'lucide-react';
+import { Check, ChevronRight, Settings2 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
 import { useAuthStore } from '../../../../../stores/useAuthStore';
 
 interface CardYAProps {

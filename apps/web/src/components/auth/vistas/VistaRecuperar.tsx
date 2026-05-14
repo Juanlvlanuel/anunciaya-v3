@@ -8,7 +8,13 @@
 
 import { useState, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
-import { Mail, Hash, Lock, Eye, EyeOff, Check, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Hash, Lock, Eye, EyeOff, Check, RefreshCw, ArrowLeft } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 import { notificar } from '../../../utils/notificaciones';
 import authService from '../../../services/authService';
 import type { VistaAuth, DatosAuth } from '../ModalLogin';

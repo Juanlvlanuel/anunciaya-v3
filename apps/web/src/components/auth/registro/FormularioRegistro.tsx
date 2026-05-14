@@ -11,7 +11,6 @@ import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   User,
-  Mail,
   Lock,
   Building2,
   Eye,
@@ -21,6 +20,12 @@ import {
   ChevronDown,
   X,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 import type { RegistroInput, DatosGoogleNuevo } from '@/services/authService';
 
 // =============================================================================

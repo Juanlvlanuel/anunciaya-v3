@@ -13,17 +13,22 @@ import { createPortal } from 'react-dom';
 import {
   ChevronDown,
   Layers,
-  TrendingUp,
-  Gift,
-  Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Filter,
   Ticket,
   Repeat,
-  Sparkles,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 import type { TabCardYA } from '../../../../types/cardya';
 
 // =============================================================================
@@ -33,7 +38,7 @@ import type { TabCardYA } from '../../../../types/cardya';
 interface OpcionFiltro {
   id: string;
   label: string;
-  icono: typeof Layers;
+  icono: React.ComponentType<{ className?: string; strokeWidth?: number }>;
 }
 
 const FILTROS_HISTORIAL: OpcionFiltro[] = [

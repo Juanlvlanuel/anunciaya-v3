@@ -19,17 +19,22 @@ import {
 	Building2,
 	Search,
 	Plus,
-	MapPin,
-	Eye,
 	Pencil,
 	Trash2,
-	Star,
 	Power,
 	X,
 	User,
-	Phone,
 	Lock,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 import Tooltip from '../../../../components/ui/Tooltip';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import {

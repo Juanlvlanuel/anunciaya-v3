@@ -17,7 +17,13 @@
  */
 
 import { useEffect, useState } from 'react';
-import { X, Clock } from 'lucide-react';
+import { X } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 
 // Clave compartida en localStorage
 export const RATE_LIMIT_KEY = 'ay_rate_limit_hasta';

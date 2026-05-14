@@ -15,10 +15,19 @@
 
 import { useState, useLayoutEffect, useEffect } from 'react';
 import {
-    Eye, EyeOff,
-    Gift, Truck, Percent, DollarSign, ShoppingBag, Tag,
+    EyeOff,
+    Percent, ShoppingBag, Tag,
     FileText, Users, Settings, Ban, Copy,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
 import { useR2Upload } from '../../../../hooks/useR2Upload';
 import { generarUrlUploadImagenOferta } from '../../../../services/ofertasService';
 import { ModalImagenes } from '../../../../components/ui';

@@ -11,7 +11,14 @@
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
-import { Ticket, Store, Calendar, Gift, Timer, ChevronRight } from 'lucide-react';
+import { Ticket, Store, Timer, ChevronRight } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 import { useMisCuponesLista } from '../../hooks/queries/useMisCupones';
 import type { TemaColumna } from './ColumnaIzquierda';
 

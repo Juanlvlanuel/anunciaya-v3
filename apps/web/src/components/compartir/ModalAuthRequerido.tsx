@@ -14,8 +14,16 @@
  */
 
 import { useNavigate } from 'react-router-dom';
-import { Lock, Heart, Bookmark, MessageCircle, LogIn, UserPlus } from 'lucide-react';
+import { Lock, LogIn, UserPlus } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import { Modal } from '../ui/Modal';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const ThumbsUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.like} {...p} />;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 
 // =============================================================================
 // TIPOS
@@ -41,11 +49,11 @@ interface ModalAuthRequeridoProps {
 
 const CONFIG = {
     like: {
-        icon: Heart,
+        icon: ThumbsUp,
         titulo: '¿Te gusta este negocio?',
-        descripcion: 'Inicia sesión para dar like y guardar tus favoritos.',
-        colorIcono: 'text-rose-500',
-        bgIcono: 'bg-rose-50',
+        descripcion: 'Inicia sesión para dar tu me gusta.',
+        colorIcono: 'text-blue-500',
+        bgIcono: 'bg-blue-50',
     },
     save: {
         icon: Bookmark,

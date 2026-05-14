@@ -14,7 +14,15 @@
  */
 
 import { useState } from 'react';
-import { X, Clock, CreditCard, Star, ChevronRight, Check } from 'lucide-react';
+import { X, ChevronRight, Check } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import type { TurnoScanYA } from '@/types/scanya';
 
 // =============================================================================

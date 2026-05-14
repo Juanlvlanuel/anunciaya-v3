@@ -14,10 +14,21 @@
 
 import { useEffect, useState, useRef, useCallback, lazy, Suspense } from 'react';
 import {
-  X, Store, Star, Clock, ExternalLink, Bell, BellOff,
-  ShieldBan, ShieldOff, Trash2, ChevronRight, Award, Coins, Calendar, User, UserPlus, UserMinus, ArrowLeft,
-  FileText, ArrowUpRight, MapPin,
+  X, Store, ExternalLink, BellOff,
+  ShieldBan, ShieldOff, Trash2, ChevronRight, Coins, User, UserPlus, UserMinus, ArrowLeft,
+  FileText, ArrowUpRight,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import { usePuntosConfiguracion } from '../../hooks/queries/usePuntos';

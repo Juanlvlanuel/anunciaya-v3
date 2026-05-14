@@ -12,10 +12,21 @@
  * - Botón "Ver más" si hay más de 3
  */
 
-import { useState, useRef } from 'react';
+import { useState, useRef, type ComponentType } from 'react';
 import { createPortal } from 'react-dom';
-import { Tag, Eye, MousePointer, Share2, Clock, Percent, DollarSign, Gift, Truck } from 'lucide-react';
+import { Tag, MousePointer, Percent } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
 import type { Campana } from '../../../../../services/dashboardService';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Share2 = (p: IconoWrapperProps) => <Icon icon={ICONOS.compartir} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 
 // =============================================================================
 // CONSTANTES
@@ -24,7 +35,7 @@ import type { Campana } from '../../../../../services/dashboardService';
 const MAX_CAMPANAS_VISIBLES = 3;
 
 // Configuración de placeholders por tipo de oferta (mismo mapeo que ModalOferta)
-const PLACEHOLDER_CONFIG: Record<string, { gradient: string; icono: typeof Tag }> = {
+const PLACEHOLDER_CONFIG: Record<string, { gradient: string; icono: ComponentType<{ className?: string }> }> = {
   porcentaje: { gradient: 'from-red-400 to-rose-600', icono: Percent },
   monto_fijo: { gradient: 'from-green-400 to-emerald-600', icono: DollarSign },
   '2x1': { gradient: 'from-orange-400 to-amber-600', icono: Gift },
@@ -88,7 +99,7 @@ function TooltipPortal({ texto, visible, posicion }: TooltipPortalProps) {
 // =============================================================================
 
 interface MetricaConTooltipProps {
-  icono: typeof Eye;
+  icono: ComponentType<{ className?: string }>;
   valor: string;
   tooltip: string;
   urgente?: boolean;

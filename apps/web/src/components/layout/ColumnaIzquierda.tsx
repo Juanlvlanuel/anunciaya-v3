@@ -23,12 +23,17 @@ import {
   ChevronLeft,
   Store,
   ArrowRight,
-  TrendingUp,
   Users,
   Receipt,
   Lock,
-  MapPin,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 import { useAuthStore } from '../../stores/useAuthStore';
 import { obtenerSucursalesNegocio } from '../../services/negociosService';
 import { WidgetCardYA } from './WidgetCardYA';

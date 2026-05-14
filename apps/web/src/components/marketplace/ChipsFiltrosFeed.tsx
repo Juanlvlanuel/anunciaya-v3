@@ -16,8 +16,15 @@
  * Ubicación: apps/web/src/components/marketplace/ChipsFiltrosFeed.tsx
  */
 
-import { Clock, Eye, MapPin } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import type { OrdenFeedInfinito } from '../../types/marketplace';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 
 interface ChipsFiltrosFeedProps {
     valor: OrdenFeedInfinito;

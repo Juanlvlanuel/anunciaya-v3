@@ -20,7 +20,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Banknote, CreditCard, ArrowLeftRight, Loader2, Wallet } from 'lucide-react';
+import { Banknote, ArrowLeftRight, Loader2 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';

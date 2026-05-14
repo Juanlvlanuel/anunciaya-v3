@@ -247,8 +247,11 @@ Ejemplos: `chat-input`, `chat-enviar`, `conversacion-${id}`, `mensaje-${id}`, `m
   - ⚠️ **Regla 13 — Estética Profesional vs Caricaturesca:** AnunciaYA es herramienta B2B (Linear, Stripe, Notion). NO generar diseños tipo videojuego: nada de iconos en círculos pastel, emojis como datos (🥉🥈🥇), saltos tipográficos exagerados, bordes ≥2px, colores pastel saturados. Usar listas densas inline, iconos 14–16px sin círculo, jerarquía por peso (no tamaño), color neutro + 1 acento. Variantes móvil/desktop explícitas cuando el contenedor padre tenga fondos distintos por breakpoint (ej: glass translúcido sobre azul oscuro en móvil, card blanca sobre slate-100 en desktop).
 - `docs/estandares/TOKENS_COMPONENTES.md` — 22 patrones de componentes (toggles, dropdowns, modales, tablas, cards, chips, drawers, carousels, listas, rounded, swipe)
 - `docs/estandares/Guia_Responsive_Laptop_AnunciaYA.md` — tablas completas del patrón `base lg:laptop 2xl:desktop`
+- `docs/estandares/SISTEMA_ICONOS.md` — íconos semánticos centralizados en `apps/web/src/config/iconos.ts` (Iconify) + utilitarios con lucide
 
 Consultar antes de modificar UI. Breakpoints: solo `lg:` y `2xl:`. SIEMPRE incluir `2xl:` — sin él, laptop afecta a PC.
+
+**Íconos:** Los íconos con "personalidad de marca" (Guardar, Like, Rating, Ubicación, etc. — 27 conceptos) viven en `apps/web/src/config/iconos.ts`. Cambiar un ícono en TODA la app = editar 1 línea ahí. Utilitarios (X, Check, Chevron, Loader) siguen con `lucide-react` directo. Ver `docs/estandares/SISTEMA_ICONOS.md`.
 
 ---
 
@@ -271,6 +274,7 @@ docs/
 │   ├── Sistema_Transformacion_snake_camelCase.md
 │   ├── PATRON_REACT_QUERY.md      ← estándar para datos del servidor
 │   ├── Sistema_Navegacion_Back.md ← hooks de back/regresar y jerarquía de navegación
+│   ├── SISTEMA_ICONOS.md          ← íconos semánticos (Iconify) + utilitarios (lucide)
 │   └── LECCIONES_TECNICAS.md
 ├── arquitectura/               → Referencia técnica por módulo
 │   ├── Sistema.md

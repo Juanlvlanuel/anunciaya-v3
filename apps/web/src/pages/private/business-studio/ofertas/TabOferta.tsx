@@ -12,10 +12,17 @@
 
 import {
     Trash2, ImagePlus,
-    Gift, Truck, Tag,
+    Tag,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
 import { DatePicker } from '../../../../components/ui';
 import type { TipoOferta } from '../../../../types/ofertas';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 
 // =============================================================================
 // TIPOS
@@ -98,7 +105,7 @@ export function TabOferta({ formulario, setFormulario, errores, guardando, image
     );
 
     const renderTipoOferta = () => {
-        const tiposConfig: Array<{ tipo: TipoOferta; label: string; icono: typeof Gift | null; activo: string; inactivo: string }> = [
+        const tiposConfig: Array<{ tipo: TipoOferta; label: string; icono: React.ComponentType<{ className?: string }> | null; activo: string; inactivo: string }> = [
             { tipo: '2x1',          label: '2x1',     icono: Gift, activo: 'bg-orange-500 text-white border-orange-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50' },
             { tipo: '3x2',          label: '3x2',     icono: Gift, activo: 'bg-orange-500 text-white border-orange-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-orange-400 hover:bg-orange-50' },
             { tipo: 'envio_gratis', label: 'Envío',   icono: Truck, activo: 'bg-blue-500 text-white border-blue-500 shadow-md', inactivo: 'bg-white text-slate-700 border-slate-300 hover:border-blue-400 hover:bg-blue-50' },

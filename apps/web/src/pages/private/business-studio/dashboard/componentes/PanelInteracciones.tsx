@@ -16,7 +16,9 @@
  * - compartido: Alguien compartió el negocio
  */
 
-import { Users, ShoppingCart, Ticket, Heart, Bell, Share2, Star } from 'lucide-react';
+import { Users, ShoppingCart, Ticket } from 'lucide-react';
+import { Icon } from '@iconify/react';
+import { ICONOS } from '../../../../../config/iconos';
 import type { Interaccion } from '../../../../../services/dashboardService';
 
 // =============================================================================
@@ -62,54 +64,62 @@ function obtenerIniciales(nombre: string): string {
 }
 
 type EstiloTipo = {
-  icon: typeof ShoppingCart;
+  icon: string; // nombre Iconify
   gradiente: string;
   gradienteBadge: string;
+  colorIcono: string;
 };
 
 function getEstiloTipo(tipo: Interaccion['tipo']): EstiloTipo {
   switch (tipo) {
     case 'venta':
       return {
-        icon: ShoppingCart,
+        icon: 'lucide:shopping-cart', // Carrito se mantiene en estilo lucide
         gradiente: 'linear-gradient(135deg, #34d399, #059669)',
         gradienteBadge: 'linear-gradient(135deg, #059669, #047857)',
+        colorIcono: '#059669',
       };
     case 'cupon_canjeado':
       return {
-        icon: Ticket,
+        icon: 'lucide:ticket', // Ticket se mantiene en estilo lucide
         gradiente: 'linear-gradient(135deg, #f472b6, #db2777)',
         gradienteBadge: 'linear-gradient(135deg, #db2777, #be185d)',
+        colorIcono: '#db2777',
       };
     case 'like':
       return {
-        icon: Heart,
-        gradiente: 'linear-gradient(135deg, #fb7185, #e11d48)',
-        gradienteBadge: 'linear-gradient(135deg, #e11d48, #be123c)',
+        icon: ICONOS.like,
+        gradiente: 'linear-gradient(135deg, #60a5fa, #2563eb)',
+        gradienteBadge: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+        colorIcono: '#2563eb',
       };
     case 'nuevo_seguidor':
       return {
-        icon: Bell,
-        gradiente: 'linear-gradient(135deg, #60a5fa, #2563eb)',
-        gradienteBadge: 'linear-gradient(135deg, #2563eb, #1d4ed8)',
+        icon: ICONOS.guardar,
+        gradiente: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
+        gradienteBadge: 'linear-gradient(135deg, #f59e0b, #d97706)',
+        colorIcono: '#f59e0b',
       };
     case 'resena':
       return {
-        icon: Star,
+        icon: ICONOS.rating,
         gradiente: 'linear-gradient(135deg, #fbbf24, #f59e0b)',
         gradienteBadge: 'linear-gradient(135deg, #f59e0b, #b45309)',
+        colorIcono: '#f59e0b',
       };
     case 'compartido':
       return {
-        icon: Share2,
+        icon: ICONOS.compartir,
         gradiente: 'linear-gradient(135deg, #a78bfa, #7c3aed)',
         gradienteBadge: 'linear-gradient(135deg, #7c3aed, #6d28d9)',
+        colorIcono: '#7c3aed',
       };
     default:
       return {
-        icon: Users,
+        icon: 'lucide:users',
         gradiente: 'linear-gradient(135deg, #94a3b8, #475569)',
         gradienteBadge: 'linear-gradient(135deg, #475569, #334155)',
+        colorIcono: '#475569',
       };
   }
 }
@@ -138,7 +148,6 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
         {interacciones.length > 0 ? (
           interacciones.slice(0, 20).map((interaccion, index) => {
             const estilo = getEstiloTipo(interaccion.tipo);
-            const Icono = estilo.icon;
             const esResena = interaccion.tipo === 'resena';
             const rating = interaccion.rating ?? null;
             const detalle = interaccion.detalle ?? null;
@@ -164,10 +173,13 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
                     )}
                   </div>
                   <div
-                    className="absolute -bottom-1 -right-1 w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm"
-                    style={{ background: estilo.gradienteBadge }}
+                    className="absolute -bottom-1 -right-1 w-7 h-7 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-full flex items-center justify-center border-2 border-white shadow-sm bg-white"
                   >
-                    <Icono className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" strokeWidth={2.5} />
+                    <Icon
+                      icon={estilo.icon}
+                      className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5"
+                      style={{ color: estilo.colorIcono }}
+                    />
                   </div>
                 </div>
 
@@ -186,12 +198,12 @@ export default function PanelInteracciones({ interacciones, vistaMobil = false }
                     {esResena && rating != null && rating > 0 && (
                       <div className="flex items-center gap-px shrink-0">
                         {[1, 2, 3, 4, 5].map((n) => (
-                          <Star
+                          <Icon
                             key={n}
+                            icon={ICONOS.rating}
                             className={`w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 ${
-                              n <= rating ? 'fill-amber-400 text-amber-400' : 'fill-slate-200 text-slate-200'
+                              n <= rating ? 'text-amber-400' : 'text-slate-200'
                             }`}
-                            strokeWidth={0}
                           />
                         ))}
                       </div>

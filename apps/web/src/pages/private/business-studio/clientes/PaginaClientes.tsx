@@ -32,16 +32,21 @@ import {
   ArrowUpDown,
   UserPlus,
   UserMinus,
-  Crown,
   Medal,
-  Award,
   Shield,
   Inbox,
-  Clock,
-  Phone,
   Download,
   X,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Crown = (p: IconoWrapperProps) => <Icon icon={ICONOS.vip} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useClientesKPIs, useClientesLista } from '../../../../hooks/queries/useClientes';

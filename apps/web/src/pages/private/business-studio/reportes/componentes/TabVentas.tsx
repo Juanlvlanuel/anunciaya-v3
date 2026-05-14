@@ -2,7 +2,16 @@
  * TabVentas.tsx — Pestaña de Ventas del módulo Reportes BS
  */
 
-import { Clock, Calendar, Wallet, DollarSign, ShoppingBag, Receipt, XCircle } from 'lucide-react';
+import { ShoppingBag, Receipt, XCircle } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
 import { useReporteVentas } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';

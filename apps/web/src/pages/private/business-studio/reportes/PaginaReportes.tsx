@@ -10,7 +10,14 @@
  */
 
 import { useEffect, useState } from 'react';
-import { BarChart3, Download, Loader2, DollarSign, Users, UserCog, Tag, Star } from 'lucide-react';
+import { BarChart3, Download, Loader2, Users, UserCog, Tag } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { DatePicker } from '../../../../components/ui/DatePicker';
 import { useReportesStore } from '../../../../stores/useReportesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';

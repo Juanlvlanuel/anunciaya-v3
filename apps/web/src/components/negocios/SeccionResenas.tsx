@@ -11,11 +11,17 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import {
-  Star,
   ChevronRight,
   Plus,
   User,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+
 import { ModalResenas } from './ModalResenas';
 import { ModalEscribirResena } from './ModalEscribirResena';
 

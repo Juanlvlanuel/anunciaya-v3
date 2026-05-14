@@ -10,7 +10,13 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Users, ChevronDown, Check, CheckCircle, XCircle, Clock, AlertTriangle } from 'lucide-react';
+import { Search, Users, ChevronDown, Check, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { Spinner } from '../../../../components/ui/Spinner';
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import type { ClienteAsignado } from '../../../../services/ofertasService';

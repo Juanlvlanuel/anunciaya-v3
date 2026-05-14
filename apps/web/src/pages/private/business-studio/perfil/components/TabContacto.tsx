@@ -6,7 +6,16 @@
  * UBICACIÓN: apps/web/src/pages/private/business-studio/perfil/components/TabContacto.tsx
  */
 
-import { Phone, Mail, Globe, Share2, MapPin } from 'lucide-react';
+import { Globe } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Share2 = (p: IconoWrapperProps) => <Icon icon={ICONOS.compartir} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import type { DatosContacto, DatosInformacion } from '../hooks/usePerfil';
 
 interface TabContactoProps {

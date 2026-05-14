@@ -3,7 +3,14 @@
  */
 
 import { useState } from 'react';
-import { Tag, Gift, Award, Percent, CalendarClock, Flame, Megaphone } from 'lucide-react';
+import { Tag, Percent, CalendarClock, Flame, Megaphone } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
 import type { PromocionResumen, TipoDetallePromocion } from '../../../../../services/reportesService';
 import { useReportePromociones } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';

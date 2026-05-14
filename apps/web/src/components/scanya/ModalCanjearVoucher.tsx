@@ -15,7 +15,6 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   X,
-  Gift,
   CheckCircle,
   Loader2,
   AlertCircle,
@@ -24,6 +23,12 @@ import {
   ArrowLeft,
   CameraOff,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 import axios from 'axios';
 import notificar from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';

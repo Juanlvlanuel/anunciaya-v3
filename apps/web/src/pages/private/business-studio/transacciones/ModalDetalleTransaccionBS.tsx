@@ -19,21 +19,26 @@
 import { useState, useRef, useEffect } from 'react';
 import {
   User,
-  DollarSign,
-  Star,
-  Clock,
   AlertTriangle,
   XCircle,
   CheckCircle,
   Loader2,
   Banknote,
-  CreditCard,
   ArrowRightLeft,
   Image,
   StickyNote,
-  MapPin,
   Ticket,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../../utils/notificaciones';
 import { useRevocarTransaccion } from '../../../../hooks/queries/useTransacciones';

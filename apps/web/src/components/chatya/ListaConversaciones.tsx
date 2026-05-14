@@ -18,7 +18,14 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, X, MessageSquarePlus, Store, Star, MapPin, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
+import { Search, X, MessageSquarePlus, Store, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession, obtenerMiIdChatYA } from '../../hooks/useChatYASession';
 import { useGpsStore } from '../../stores/useGpsStore';

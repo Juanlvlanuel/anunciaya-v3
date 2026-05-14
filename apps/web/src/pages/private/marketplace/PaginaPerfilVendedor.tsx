@@ -54,17 +54,22 @@ import {
     UserCheck,
     AlertCircle,
     PackageX,
-    Package,
     ShoppingBag,
-    Clock,
     BadgeCheck,
-    Sparkles,
     Ban,
     ShieldOff,
-    MessageCircle,
     MessageSquare,
-    MapPin,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useUiStore } from '../../../stores/useUiStore';

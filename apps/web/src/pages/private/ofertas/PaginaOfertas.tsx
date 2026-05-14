@@ -29,15 +29,20 @@ import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } fr
 import {
   Tag,
   Loader2,
-  MapPin,
   RefreshCw,
-  Star,
   Flame,
-  Sparkles,
-  TrendingUp,
   ChevronLeft,
   ChevronRight,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 
 import ModalOfertaDetalle from '@/components/negocios/ModalOfertaDetalle';
 import HeaderOfertas from '@/components/ofertas/HeaderOfertas';

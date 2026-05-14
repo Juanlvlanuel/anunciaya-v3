@@ -12,7 +12,13 @@
 
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { Send, X, Pencil, Smile, Paperclip, Camera, Image as ImageIcon, FileText, Mic, Trash2, Reply, MapPin } from 'lucide-react';
+import { Send, X, Pencil, Smile, Paperclip, Camera, Image as ImageIcon, FileText, Mic, Trash2, Reply } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { ModalUbicacionChat } from './ModalUbicacionChat';
 import { SelectorEmojis } from './SelectorEmojis';
 import { TextoConEmojis } from './TextoConEmojis';

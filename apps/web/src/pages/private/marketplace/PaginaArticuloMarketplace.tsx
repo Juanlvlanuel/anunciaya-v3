@@ -35,19 +35,24 @@ import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import {
     ChevronLeft,
-    Heart,
-    Eye,
     AlertCircle,
     ShoppingCart,
     PackageX,
     PauseCircle,
     PlayCircle,
-    MessageCircle,
     ShieldCheck,
-    MapPin,
     UserCheck,
     Flag,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useAuthStore } from '../../../stores/useAuthStore';
 import {
     useArticuloMarketplace,
@@ -299,13 +304,12 @@ export function PaginaArticuloMarketplace() {
                                         }
                                         aria-pressed={guardado}
                                         className={`flex h-10 w-10 items-center justify-center rounded-lg disabled:opacity-50 lg:cursor-pointer lg:hover:bg-white/10 ${
-                                            guardado ? 'text-rose-400' : 'text-white/50 lg:hover:text-white'
+                                            guardado ? 'text-amber-400' : 'text-white/50 lg:hover:text-white'
                                         }`}
                                     >
-                                        <Heart
+                                        <Icon
+                                            icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
                                             className="h-5 w-5"
-                                            strokeWidth={2.5}
-                                            fill={guardado ? '#fb7185' : 'none'}
                                         />
                                     </button>
                                 </Tooltip>

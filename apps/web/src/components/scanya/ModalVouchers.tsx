@@ -30,13 +30,11 @@ import {
     ArrowLeft,
     Search,
     User,
-    Gift,
     Loader2,
     AlertCircle,
     ChevronDown,
     ChevronUp,
     CheckCircle,
-    Clock,
     XCircle,
     Ban,
     ChevronLeft,
@@ -50,7 +48,17 @@ import { useChatYAStore } from '@/stores/useChatYAStore';
 import { useUiStore } from '@/stores/useUiStore';
 import { TarjetaVoucher } from './TarjetaVoucher';
 import type { VoucherCompleto, ClienteConVouchers } from '@/types/scanya';
-import { Phone, MapPin, Coins, Calendar } from 'lucide-react';
+import { Coins } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 
 // =============================================================================
 // TIPOS
@@ -69,7 +77,7 @@ type EstadoVoucher = 'pendiente' | 'usado' | 'expirado' | 'cancelado';
 interface TabConfig {
     id: EstadoVoucher;
     label: string;
-    icono: typeof Gift;
+    icono: React.ComponentType<{ className?: string; strokeWidth?: number }>;
     color: string;
     bgColor: string;
     borderColor: string;

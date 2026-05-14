@@ -11,7 +11,13 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Building2, Check, Sparkles, ArrowRight } from 'lucide-react';
+import { Building2, Check, ArrowRight } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 import { useAuthStore } from '@/stores/useAuthStore';
 import pagoService from '@/services/pagoService';
 import { notificar } from '@/utils/notificaciones';

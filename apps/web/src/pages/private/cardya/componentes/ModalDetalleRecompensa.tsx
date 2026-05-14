@@ -8,7 +8,14 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/ModalDetalleRecompensa.tsx
  */
 
-import { Gift, Store, Sparkles, Lock, AlertCircle, ArrowRight, Repeat } from 'lucide-react';
+import { Store, Lock, AlertCircle, ArrowRight, Repeat } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import type { RecompensaDisponible } from '../../../../types/cardya';
 

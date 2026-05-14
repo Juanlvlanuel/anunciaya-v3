@@ -15,7 +15,13 @@
  */
 
 import { useState, useEffect } from 'react';
-import { MessageSquare, Send, Star, Quote } from 'lucide-react';
+import { MessageSquare, Send, Quote } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../components/ui/Spinner';

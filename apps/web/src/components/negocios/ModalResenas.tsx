@@ -12,7 +12,13 @@
  */
 
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { Star, X, Pencil, PencilLine, ArrowUpDown, ChevronDown, Check } from 'lucide-react';
+import { X, Pencil, PencilLine, ArrowUpDown, ChevronDown, Check } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { Modal } from '../ui/Modal';
 import { ModalBottom } from '../ui/ModalBottom';
 import { useBreakpoint } from '../../hooks/useBreakpoint';

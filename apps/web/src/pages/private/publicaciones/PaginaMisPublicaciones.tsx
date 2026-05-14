@@ -25,9 +25,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-    Package,
     ChevronLeft,
-    Bell,
     Plus,
     FileEdit,
     ArrowRight,
@@ -35,10 +33,17 @@ import {
     PauseCircle,
     ShoppingBag,
     ShoppingCart,
-    Briefcase,
     AlertTriangle,
     Trash2,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';

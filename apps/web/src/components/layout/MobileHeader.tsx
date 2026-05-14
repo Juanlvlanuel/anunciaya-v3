@@ -21,12 +21,18 @@
 
 import { useEffect, useState, useRef } from 'react';
 import {
-  Bell, Menu, Search, Eye, X, ChevronRight, ChevronLeft,
+  Menu, Search, Eye, X, ChevronRight, ChevronLeft,
   LayoutDashboard, Receipt, Users, MessageSquare, ShoppingBag, Tag,
-  UserCheck, Briefcase, BarChart3, MapPin,
+  UserCheck, Briefcase, BarChart3,
   User, CircleDollarSign, Building2, Save,
 } from 'lucide-react';
-import type { LucideIcon } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useUiStore } from '../../stores/useUiStore';
@@ -87,7 +93,9 @@ const animationStyles = `
 // ICONO Y GRADIENTE POR MÓDULO DE BUSINESS STUDIO
 // =============================================================================
 
-function obtenerIconoModulo(pathname: string): LucideIcon {
+type ModuloIcono = React.ComponentType<{ className?: string; strokeWidth?: number; fill?: string }>;
+
+function obtenerIconoModulo(pathname: string): ModuloIcono {
   if (pathname.includes('/transacciones')) return Receipt;
   if (pathname.includes('/clientes')) return Users;
   if (pathname.includes('/opiniones')) return MessageSquare;

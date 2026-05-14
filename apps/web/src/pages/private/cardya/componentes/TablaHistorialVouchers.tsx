@@ -11,18 +11,23 @@
 import { useState } from 'react';
 import {
   Ticket,
-  Clock,
   CheckCircle,
   XCircle,
   AlertTriangle,
   Store,
-  Gift,
   ChevronRight,
   Inbox,
   ArrowUpDown,
   ChevronUp,
   ChevronDown,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 import type { Voucher, EstadoVoucher } from '../../../../types/cardya';
 
 // =============================================================================
@@ -43,7 +48,7 @@ interface EstadoOrden {
 
 const ESTADO_CONFIG: Record<
   EstadoVoucher,
-  { label: string; clases: string; icono: typeof Clock }
+  { label: string; clases: string; icono: React.ComponentType<{ className?: string; strokeWidth?: number }> }
 > = {
   pendiente: {
     label: 'Pendiente',

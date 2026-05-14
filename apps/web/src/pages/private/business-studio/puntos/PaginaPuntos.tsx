@@ -30,9 +30,19 @@ import { useState, useEffect, useLayoutEffect, useCallback, useRef, useMemo } fr
 import { useSearchParams } from 'react-router-dom';
 import { createPortal } from 'react-dom';
 import {
-  Star, Ticket, Clock, Users, Settings, Lock, Save,
-  Gift, Plus, Award, CircleDollarSign, Sparkles, Repeat, ChevronDown,
+  Ticket, Users, Settings, Lock, Save,
+  Plus, CircleDollarSign, Repeat, ChevronDown,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { usePuntosStore } from '../../../../stores/usePuntosStore';

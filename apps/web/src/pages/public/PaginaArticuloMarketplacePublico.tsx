@@ -37,8 +37,6 @@ import {
     PauseCircle,
     AlertCircle,
     MessageSquare,
-    MapPin,
-    Eye,
     ShieldCheck,
     UserCheck,
     Flag,
@@ -46,6 +44,13 @@ import {
     ArrowRight,
     Check,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useArticuloMarketplace } from '../../hooks/queries/useMarketplace';
 import { useOpenGraph } from '../../hooks/useOpenGraph';

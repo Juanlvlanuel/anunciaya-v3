@@ -20,7 +20,18 @@
  */
 
 import React, { useRef } from 'react';
-import { Tag, Truck, Clock, Flame, CreditCard, Sparkles, TrendingUp, Eye } from 'lucide-react';
+import { Tag, Flame } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useAutoFitText } from '@/hooks/useAutoFitText';
 import { useViewTracker } from '@/hooks/useViewTracker';

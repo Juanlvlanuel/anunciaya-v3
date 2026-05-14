@@ -10,7 +10,15 @@
  * UBICACIÓN: apps/web/src/pages/private/cupones/componentes/CardCupon.tsx
  */
 
-import { Ticket, Store, CheckCircle, XCircle, Clock, AlertTriangle, Calendar, Gift } from 'lucide-react';
+import { Ticket, Store, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 import type { CuponCliente } from '../../../../services/misCuponesService';
 
 // =============================================================================

@@ -12,8 +12,14 @@
  * Ubicación: apps/web/src/components/marketplace/CardVendedor.tsx
  */
 
-import { ChevronRight, BadgeCheck, Zap, Clock } from 'lucide-react';
+import { ChevronRight, BadgeCheck, Zap } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import { useNavigate } from 'react-router-dom';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import type { VendedorArticulo } from '../../types/marketplace';
 import { formatearUltimaConexion } from '../../utils/marketplace';
 

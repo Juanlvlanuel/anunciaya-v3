@@ -27,11 +27,16 @@ import {
   FileBarChart,
   Building2,
   Coins,
-  Briefcase,
-  Bell,
   ChevronRight,
   MessageSquare,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useAlertasKPIs, useAlertasRealtimeSync } from '../../hooks/queries/useAlertas';
 import { useResenasKPIs } from '../../hooks/queries/useResenas';

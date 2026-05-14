@@ -44,17 +44,22 @@ import { ModalArticulo } from '../catalogo/ModalArticulo';
 
 // Iconos
 import {
-  DollarSign,
   Users,
-  CreditCard,
-  Heart,
-  Star,
-  Eye,
   UserPlus,
   RefreshCw,
   Loader2,
   LayoutDashboard,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
+const ThumbsUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.like} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 
 // =============================================================================
 // COMPONENTE
@@ -378,13 +383,13 @@ export default function PaginaDashboard() {
                 <span className="font-bold text-base text-blue-700">{kpis?.followers ?? 0}</span>
               </div>
             </Tooltip>
-            <Tooltip text="Likes" position="bottom" triggerOnClick autoHide={2000}>
+            <Tooltip text="Me gusta" position="bottom" triggerOnClick autoHide={2000}>
               <div className="flex items-center justify-center gap-1.5 cursor-pointer" onClick={() => animarStat('likes')}>
-                <Heart
-                  className={`w-6 h-6 text-pink-500 shrink-0 ${animandoStat === 'likes' ? 'anim-heart' : 'anim-idle-heart'}`}
+                <ThumbsUp
+                  className={`w-6 h-6 text-blue-500 shrink-0 ${animandoStat === 'likes' ? 'anim-heart' : 'anim-idle-heart'}`}
                   onAnimationEnd={animandoStat === 'likes' ? () => setAnimandoStat(null) : undefined}
                 />
-                <span className="font-bold text-base text-pink-700">{kpis?.likes.valor ?? 0}</span>
+                <span className="font-bold text-base text-blue-700">{kpis?.likes.valor ?? 0}</span>
               </div>
             </Tooltip>
             <Tooltip text="Rating" position="bottom" triggerOnClick autoHide={2000}>
@@ -480,13 +485,13 @@ export default function PaginaDashboard() {
                   <span className="font-bold text-sm 2xl:text-base text-blue-700">{kpis?.followers ?? 0}</span>
                 </div>
               </Tooltip>
-              <Tooltip text="Likes" position="bottom">
+              <Tooltip text="Me gusta" position="bottom">
                 <div className="flex items-center gap-2 2xl:gap-2.5 cursor-pointer" onClick={() => animarStat('likes')}>
-                  <Heart
-                    className={`w-7 h-7 2xl:w-8 2xl:h-8 text-pink-500 shrink-0 ${animandoStat === 'likes' ? 'anim-heart' : 'anim-idle-heart'}`}
+                  <ThumbsUp
+                    className={`w-7 h-7 2xl:w-8 2xl:h-8 text-blue-500 shrink-0 ${animandoStat === 'likes' ? 'anim-heart' : 'anim-idle-heart'}`}
                     onAnimationEnd={animandoStat === 'likes' ? () => setAnimandoStat(null) : undefined}
                   />
-                  <span className="font-bold text-sm 2xl:text-base text-pink-700">{kpis?.likes.valor ?? 0}</span>
+                  <span className="font-bold text-sm 2xl:text-base text-blue-700">{kpis?.likes.valor ?? 0}</span>
                 </div>
               </Tooltip>
               <Tooltip text="Rating" position="bottom">

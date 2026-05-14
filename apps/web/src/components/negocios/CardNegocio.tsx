@@ -37,10 +37,11 @@ import { useNavigate } from 'react-router-dom';
 import {
   Smile,
   Frown,
-  Star,
   Store,
   ChevronRight,
 } from 'lucide-react';
+import { Icon } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { useVotos } from '../../hooks/useVotos';
@@ -317,13 +318,18 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     abrirChatYA();
   };
 
-  const { liked, toggleLike } = useVotos({
+  const { liked, followed, toggleLike, toggleFollow } = useVotos({
     entityType: 'sucursal',
     entityId: negocio.sucursalId,
     initialLiked: negocio.liked,
+    initialFollowed: negocio.followed,
   });
 
   const [likeAnimation, setLikeAnimation] = useState<'like' | 'unlike' | null>(null);
+  const [saveAnimation, setSaveAnimation] = useState<'save' | 'unsave' | null>(null);
+  const [savePosition, setSavePosition] = useState({ top: 0, left: 0 });
+  const [saveBounce, setSaveBounce] = useState(false);
+  const saveButtonRef = useRef<HTMLButtonElement>(null);
 
   const handleLikeClick = (e: React.MouseEvent) => {
     e.stopPropagation();
@@ -336,6 +342,19 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     toggleLike();
     setTimeout(() => setHeartBounce(false), 500);
     setTimeout(() => setLikeAnimation(null), 2000);
+  };
+
+  const handleSaveClick = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (saveButtonRef.current) {
+      const rect = saveButtonRef.current.getBoundingClientRect();
+      setSavePosition({ top: rect.top - 50, left: rect.left - 30 });
+    }
+    setSaveAnimation(followed ? 'unsave' : 'save');
+    setSaveBounce(true);
+    toggleFollow();
+    setTimeout(() => setSaveBounce(false), 500);
+    setTimeout(() => setSaveAnimation(null), 2000);
   };
 
   // ── Datos derivados ──
@@ -455,14 +474,15 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   };
 
   // =========================================================================
-  // RENDER: Heart button con pulse ring (compartido)
+  // RENDER: Like button (ThumbsUp azul) con pulse ring
   // =========================================================================
-  const renderHeartButton = (sizeClass: string, iconSize: string) => (
+  const renderLikeButton = (sizeClass: string, iconSize: string) => (
     <button
       ref={likeButtonRef}
       onClick={handleLikeClick}
-      className={`absolute z-15 bg-black/25 backdrop-blur-[10px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${sizeClass} ${
-        liked ? 'bg-red-500/25 border border-red-500/30' : 'border border-white/10'
+      aria-label={liked ? 'Quitar me gusta' : 'Me gusta'}
+      className={`absolute z-15 backdrop-blur-[10px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${sizeClass} ${
+        liked ? 'bg-white border-2 border-blue-500' : 'bg-black/25 border border-white/10'
       }`}
       style={{
         animation: heartBounce ? 'cardHeartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)' : undefined,
@@ -471,20 +491,45 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       {/* Pulse ring cuando liked */}
       {liked && (
         <span
-          className="absolute -inset-1 rounded-full border-2 border-red-500/35 pointer-events-none"
+          className="absolute -inset-1 rounded-full border-2 border-blue-500/40 pointer-events-none"
           style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite', animationPlayState: esVisible ? 'running' : 'paused' }}
         />
       )}
-      <svg className={iconSize} viewBox="0 0 24 24">
-        <path
-          d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-          fill={liked ? '#ef4444' : 'rgba(255,255,255,0.7)'}
-          stroke={liked ? 'white' : 'rgba(255,255,255,0.9)'}
-          strokeWidth="2"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      <Icon
+        icon={liked ? ICONOS.like : 'material-symbols:thumb-up-outline-rounded'}
+        className={iconSize}
+        style={{ color: liked ? '#3b82f6' : 'rgba(255,255,255,0.9)' }}
+      />
+    </button>
+  );
+
+  // =========================================================================
+  // RENDER: Bookmark button (slate) con pulse ring
+  // =========================================================================
+  const renderBookmarkButton = (sizeClass: string, iconSize: string) => (
+    <button
+      ref={saveButtonRef}
+      onClick={handleSaveClick}
+      aria-label={followed ? 'Quitar de guardados' : 'Guardar'}
+      className={`absolute z-15 backdrop-blur-[10px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${sizeClass} ${
+        followed ? 'bg-white border-2 border-amber-500' : 'bg-black/25 border border-white/10'
+      }`}
+      style={{
+        animation: saveBounce ? 'cardHeartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)' : undefined,
+      }}
+    >
+      {/* Pulse ring cuando guardado */}
+      {followed && (
+        <span
+          className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+          style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite', animationPlayState: esVisible ? 'running' : 'paused' }}
         />
-      </svg>
+      )}
+      <Icon
+        icon={followed ? ICONOS.guardar : 'ph:archive-box'}
+        className={iconSize}
+        style={{ color: followed ? '#f59e0b' : 'rgba(255,255,255,0.9)' }}
+      />
     </button>
   );
 
@@ -511,6 +556,33 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
         ) : (
           <><Frown className="w-5 h-5" /><span className="text-sm font-medium">¡Oh no!</span></>
         )}
+      </div>,
+      document.body
+    );
+  };
+
+  // =========================================================================
+  // RENDER: Save animation portal
+  // =========================================================================
+  const renderSaveAnimation = () => {
+    if (!saveAnimation) return null;
+    return createPortal(
+      <div
+        className={`fixed flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap shadow-lg ${
+          saveAnimation === 'save' ? 'bg-amber-500 text-white' : 'bg-slate-100 text-slate-700'
+        }`}
+        style={{
+          top: savePosition.top,
+          left: savePosition.left,
+          zIndex: 99999,
+          pointerEvents: 'none',
+          animation: 'cardFloatUp 1.5s ease-out forwards',
+        }}
+      >
+        <Icon icon={ICONOS.guardar} className="w-5 h-5" />
+        <span className="text-sm font-medium">
+          {saveAnimation === 'save' ? '¡Guardado!' : 'Quitado'}
+        </span>
       </div>,
       document.body
     );
@@ -560,8 +632,11 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       {/* Status pill — pegado a esquina superior izquierda */}
       {renderStatusPill('top-2 left-2 gap-[6px] px-3 py-[5px] text-[13px]')}
 
-      {/* Heart button — pegado a esquina superior derecha */}
-      {renderHeartButton('top-1.5 right-1.5 w-[38px] h-[38px]', 'w-5 h-5')}
+      {/* Like button (ThumbsUp) — pegado a esquina superior derecha */}
+      {renderLikeButton('top-1.5 right-1.5 w-[38px] h-[38px]', 'w-5 h-5')}
+
+      {/* Bookmark button — a la izquierda del like */}
+      {renderBookmarkButton('top-1.5 right-[52px] w-[38px] h-[38px]', 'w-5 h-5')}
       </div>{/* fin wrapper overflow-hidden */}
 
       {/* Bottom content */}
@@ -603,7 +678,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
               </span>
               {tieneResenas && (
                 <span className="flex items-center gap-0.5 shrink-0">
-                  <Star className="w-3.5 h-3.5 text-amber-400 fill-amber-400" />
+                  <Icon icon={ICONOS.rating} className="w-3.5 h-3.5" style={{ color: '#fbbf24' }} />
                   <span className="text-[13px] font-extrabold text-white"
                     style={{ WebkitTextStroke: '1.2px rgba(0,0,0,1)', paintOrder: 'stroke fill', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000' }}
                   >{calificacion.toFixed(1)}</span>
@@ -615,10 +690,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
           {/* Distancia resaltada */}
           {distanciaTexto && (
             <div className="flex items-center gap-1 shrink-0 bg-black/40 backdrop-blur-sm rounded-[10px] px-2.5 py-1">
-              <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="white" stroke="rgba(0,0,0,0.4)" strokeWidth="1.5">
-                <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-                <circle cx="12" cy="10" r="3" fill="rgba(0,0,0,0.4)" stroke="none" />
-              </svg>
+              <Icon icon={ICONOS.distancia} className="w-3.5 h-3.5" style={{ color: 'white' }} />
               <span className="text-[13px] font-bold text-white">{distanciaTexto}</span>
             </div>
           )}
@@ -681,6 +753,9 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
 
       {/* Like animation portal */}
       {renderLikeAnimation()}
+
+      {/* Save animation portal */}
+      {renderSaveAnimation()}
 
       {/* Modal de horarios */}
       {modalHorariosAbierto && horarios && (

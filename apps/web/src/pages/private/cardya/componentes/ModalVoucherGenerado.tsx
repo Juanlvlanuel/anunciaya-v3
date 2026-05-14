@@ -8,7 +8,14 @@
  */
 
 import { useState } from 'react';
-import { Gift, Calendar, Store, CheckCircle, Copy, Check, Info } from 'lucide-react';
+import { Store, CheckCircle, Copy, Check, Info } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { QRCodeSVG } from 'qrcode.react';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import type { Voucher } from '../../../../types/cardya';

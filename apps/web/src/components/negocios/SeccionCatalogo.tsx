@@ -19,9 +19,14 @@ import {
   ShoppingBag,
   ChevronRight,
   ImageIcon,
-  Wrench,
-  Star,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useDragScroll } from '@/hooks/useDragScroll';
 import { ModalCatalogo } from './ModalCatalogo';

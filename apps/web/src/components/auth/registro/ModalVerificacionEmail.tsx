@@ -8,7 +8,13 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { X, Mail, RefreshCw } from 'lucide-react';
+import { X, RefreshCw } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 
 // =============================================================================
 // TIPOS

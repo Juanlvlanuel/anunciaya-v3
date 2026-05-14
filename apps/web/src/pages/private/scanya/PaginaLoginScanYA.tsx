@@ -17,7 +17,14 @@
 
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Mail, Lock, User, UserCircle, Briefcase, Download } from 'lucide-react';
+import { Lock, User, UserCircle, Download } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 import { Input } from '../../../components/ui/Input';
 import { Boton } from '../../../components/ui/Boton';
 import { SplashScreenScanYA } from '../../../components/scanya/SplashScreenScanYA';

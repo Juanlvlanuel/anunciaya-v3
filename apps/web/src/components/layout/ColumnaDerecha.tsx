@@ -15,15 +15,20 @@
 
 import { useState, useEffect } from 'react';
 import {
-  Star,
-  Sparkles,
-  Crown,
   Megaphone,
-  Trophy,
   ChevronLeft,
   ChevronRight,
   Store,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '../../config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const Crown = (p: IconoWrapperProps) => <Icon icon={ICONOS.vip} {...p} />;
+const Trophy = (p: IconoWrapperProps) => <Icon icon={ICONOS.trofeo} {...p} />;
 
 // =============================================================================
 // DATOS DE EJEMPLO

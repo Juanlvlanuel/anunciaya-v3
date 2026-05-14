@@ -5,7 +5,16 @@
  * Cada card es clickeable y navega al módulo Clientes filtrado por ese cliente.
  */
 
-import { AlertTriangle, UserX, Phone, Mail, Clock, User, ChevronRight, Calendar } from 'lucide-react';
+import { AlertTriangle, UserX, User, ChevronRight } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
+const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { useNavigate } from 'react-router-dom';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../../components/ui/Spinner';

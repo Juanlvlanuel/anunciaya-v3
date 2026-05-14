@@ -32,18 +32,9 @@ import {
     Search,
     Tag,
     X,
-    TrendingUp,
-    Calendar,
-    Clock,
     Percent,
-    DollarSign,
-    Gift,
-    Truck,
-    Sparkles,
     PauseCircle,
-    Eye,
     EyeOff,
-    Share2,
     MousePointerClick,
     Trash2,
     Copy,
@@ -60,6 +51,20 @@ import {
     RefreshCw,
     CheckCircle2,
 } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
+import { ICONOS } from '@/config/iconos';
+
+// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
+const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
+const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
+const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
+const Share2 = (p: IconoWrapperProps) => <Icon icon={ICONOS.compartir} {...p} />;
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../../config/queryKeys';
 import { useAuthStore } from '../../../../stores/useAuthStore';
