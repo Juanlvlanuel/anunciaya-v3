@@ -41,7 +41,7 @@ import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
-import { CardNegocioDetallado } from '@/components/negocios/CardNegocioDetallado';
+import { CardNegocioCompacto } from '@/components/negocios/CardNegocioCompacto';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
@@ -725,7 +725,7 @@ function BookmarkGlass({ seleccionado, onClick }: BookmarkGlassProps) {
         <div className="absolute top-2 left-2 z-10">
             <button
                 onClick={onClick}
-                className={`w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible ${
+                className={`w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible transition-transform duration-200 lg:hover:scale-110 ${
                     seleccionado
                         ? 'bg-red-500 border-2 border-red-500'
                         : 'bg-white border-2 border-amber-500 backdrop-blur-[10px]'
@@ -900,19 +900,29 @@ function ContenidoNegocios({
         );
     }
 
-    // Con datos - Grid responsive
-    // Muestra lo que hay aunque esté cargando (actualización optimista)
+    // Con datos - Grid responsive unificado con tabs Ofertas y Marketplace.
+    // Patrón: 2 / lg:3 / 2xl:4 con `max-w-[270px]` por card. Usa
+    // `CardNegocioCompacto` (vertical, foto arriba + info abajo) en lugar de
+    // `CardNegocioDetallado` (horizontal) para uniformidad cross-tab.
     return (
-        <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-6 lg:gap-3 2xl:gap-4">
+        <div
+            data-testid="grid-negocios-guardados"
+            className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6"
+        >
             {negocios.map((negocio) => (
-                <CardNegocioDetallado
+                <div
                     key={negocio.id}
-                    negocio={negocio}
-                    onClick={() => onClickNegocio(negocio)}
-                    showBookmark={true}
-                    onClickBookmark={(e) => onClickBookmark(negocio.id, e)}
-                    bookmarkSelected={modoSeleccion && idsSeleccionados.has(negocio.id)}
-                />
+                    className="relative lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                >
+                    <BookmarkGlass
+                        seleccionado={modoSeleccion && idsSeleccionados.has(negocio.id)}
+                        onClick={(e) => onClickBookmark(negocio.id, e)}
+                    />
+                    <CardNegocioCompacto
+                        negocio={negocio}
+                        onClick={() => onClickNegocio(negocio)}
+                    />
+                </div>
             ))}
         </div>
     );

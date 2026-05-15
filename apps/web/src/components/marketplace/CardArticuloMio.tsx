@@ -117,16 +117,23 @@ export function CardArticuloMio({
     const menuRef = useRef<HTMLDivElement>(null);
 
     // Cerrar menú al click afuera (mismo patrón que dropdowns de BS).
+    // Ignora clicks en el botón "⋯" porque `mousedown` se dispara antes que
+    // `click`: sin el guard, mousedown cerraría el menú y el click siguiente
+    // (handleMenuToggle con `!v`) lo reabriría → el usuario percibe "no se
+    // cierra". El `data-menu-toggle-articulo` identifica los 2 botones
+    // (móvil + desktop) de esta card específica sin colisionar con otras.
     useEffect(() => {
         if (!menuAbierto) return;
         const handler = (e: MouseEvent) => {
-            if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+            const target = e.target as HTMLElement;
+            if (target.closest(`[data-menu-toggle-articulo="${articulo.id}"]`)) return;
+            if (menuRef.current && !menuRef.current.contains(target)) {
                 setMenuAbierto(false);
             }
         };
         document.addEventListener('mousedown', handler);
         return () => document.removeEventListener('mousedown', handler);
-    }, [menuAbierto]);
+    }, [menuAbierto, articulo.id]);
 
     const foto = obtenerFotoPortada(articulo.fotos, articulo.fotoPortadaIndex);
     // Vendidas no muestran días restantes — el ciclo terminó.
@@ -154,15 +161,14 @@ export function CardArticuloMio({
         <article
             data-testid={`card-articulo-mio-${articulo.id}`}
             onClick={handleClickCard}
-            className="group relative flex cursor-pointer flex-col rounded-xl border border-slate-300 bg-white lg:flex-row lg:gap-4 lg:overflow-hidden lg:p-4 lg:hover:border-cyan-400 lg:hover:shadow-md"
+            className="group relative flex cursor-pointer flex-col rounded-xl border border-slate-300 bg-white lg:hover:border-cyan-400 lg:hover:shadow-md"
         >
             {/* ── Foto portada ─────────────────────────────────────────────────
-                Móvil: fullbleed con aspect 4:3 (sin padding, ancho total). El
-                rounded-t-xl en la foto reemplaza al overflow-hidden del article
-                — sin él, el dropdown del menú quedaba recortado en cards de 2
-                columnas. Desktop: cuadrada 144×144 con borde sutil y rounded.
+                Layout vertical unificado (móvil + desktop): foto fullbleed
+                arriba con aspect 4:3 y `rounded-t-xl`. El menú "⋯" flota sobre
+                la foto en ambos viewports — patrón consistente.
             ────────────────────────────────────────────────────────────────── */}
-            <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-t-xl bg-slate-200 lg:aspect-square lg:h-36 lg:w-36 lg:rounded-xl lg:border lg:border-slate-200">
+            <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-t-xl bg-slate-200">
                 {foto ? (
                     <img
                         src={foto}
@@ -187,8 +193,8 @@ export function CardArticuloMio({
                         className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/55 backdrop-blur-[1px]"
                     >
                         <div className="flex flex-col items-center gap-0.5 text-white">
-                            <PackageX className="h-9 w-9 drop-shadow lg:h-10 lg:w-10" strokeWidth={2} />
-                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-xl">
+                            <PackageX className="h-9 w-9 drop-shadow lg:h-12 lg:w-12" strokeWidth={2} />
+                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-2xl">
                                 Vendido
                             </span>
                         </div>
@@ -200,74 +206,82 @@ export function CardArticuloMio({
                         className="absolute inset-0 z-[5] flex items-center justify-center bg-slate-900/55 backdrop-blur-[1px]"
                     >
                         <div className="flex flex-col items-center gap-0.5 text-white">
-                            <PauseCircle className="h-9 w-9 drop-shadow lg:h-10 lg:w-10" strokeWidth={2} />
-                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-xl">
+                            <PauseCircle className="h-9 w-9 drop-shadow lg:h-12 lg:w-12" strokeWidth={2} />
+                            <span className="text-lg font-extrabold uppercase tracking-wider drop-shadow-md lg:text-2xl">
                                 Pausado
                             </span>
                         </div>
                     </div>
                 )}
 
-                {/* Menú "⋯" flotante sobre la foto — solo móvil. En desktop
-                    aparece en la esquina superior derecha del contenido. */}
+                {/* Menú "⋯" flotante sobre la foto — móvil + desktop. */}
                 <button
                     data-testid={`btn-menu-articulo-mio-${articulo.id}`}
+                    data-menu-toggle-articulo={articulo.id}
                     onClick={handleMenuToggle}
                     aria-label="Acciones de la publicación"
                     aria-expanded={menuAbierto}
-                    className="absolute right-2 top-2 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-md backdrop-blur-sm lg:hidden"
+                    className="absolute right-2 top-2 z-10 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full bg-white/95 text-slate-700 shadow-md backdrop-blur-sm lg:h-10 lg:w-10"
                 >
-                    <MoreVertical className="h-5 w-5" strokeWidth={2.5} />
+                    <MoreVertical className="h-5 w-5 lg:h-5 lg:w-5" strokeWidth={2.5} />
                 </button>
+
+                {/* Badge de expiración flotante — solo móvil. En desktop el
+                    chip vive en el row de KPIs (hay espacio sobrado). En móvil
+                    lo movemos a la foto para liberar el row de KPIs y que los
+                    3 chips restantes (vistas/mensajes/guardados) puedan ser
+                    más grandes sin desbordar. Cuando es urgente (≤3 días)
+                    cambia a fondo ámbar para llamar la atención. */}
+                {dias !== null && (
+                    <div
+                        data-testid={`badge-expira-${articulo.id}`}
+                        className={`absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-1 text-xs font-bold shadow-md backdrop-blur lg:hidden ${
+                            diasUrgente ? 'bg-amber-500 text-white' : 'bg-slate-900/70 text-white'
+                        }`}
+                        title={dias === 0 ? 'Expira hoy' : `Expira en ${dias} días`}
+                    >
+                        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        <span>{dias === 0 ? 'Hoy' : `${dias}d`}</span>
+                    </div>
+                )}
             </div>
 
             {/* ── Contenido ──────────────────────────────────────────────────── */}
-            <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-2.5 lg:gap-2 lg:p-0">
-                {/* Fila 1: título + menú desktop */}
-                <div className="flex items-start justify-between gap-2">
-                    <h3 className="min-w-0 flex-1 truncate text-sm font-semibold text-slate-900 lg:text-lg">
-                        {articulo.titulo}
-                    </h3>
-                    {/* Menú "⋯" desktop — oculto en móvil porque ya está sobre la foto. */}
-                    <button
-                        data-testid={`btn-menu-articulo-mio-desktop-${articulo.id}`}
-                        onClick={handleMenuToggle}
-                        aria-label="Acciones de la publicación"
-                        aria-expanded={menuAbierto}
-                        className="hidden h-8 w-8 shrink-0 cursor-pointer items-center justify-center rounded-lg text-slate-600 lg:flex lg:hover:bg-slate-200 lg:hover:text-slate-800"
-                    >
-                        <MoreVertical className="h-4 w-4" strokeWidth={2.5} />
-                    </button>
-                </div>
+            <div className="flex min-w-0 flex-1 flex-col gap-1.5 p-2.5 lg:gap-2 lg:p-3.5">
+                {/* Fila 1: título — el menú "⋯" vive sobre la foto, no aquí. */}
+                <h3 className="truncate text-sm font-semibold text-slate-900 lg:text-base">
+                    {articulo.titulo}
+                </h3>
 
-                {/* Fila 2: precio destacado con color de marca + condición.
-                    En móvil el ancho es ~mitad de pantalla; usamos `flex-wrap`
-                    para que la unidad/condición bajen a otra línea si el precio
-                    es largo, en vez de truncarse. */}
-                <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-base font-bold text-cyan-700 lg:text-xl">
+                {/* Fila 2: precio destacado con color de marca + unidad + condición.
+                    `flex-wrap` para que la unidad/condición bajen a otra línea
+                    si el precio es largo, en vez de truncarse. */}
+                <p className="flex flex-wrap items-baseline gap-x-1.5 gap-y-0.5 text-base font-bold text-cyan-700 lg:text-lg">
                     <span>{formatearPrecio(articulo.precio)}</span>
                     {articulo.unidadVenta && (
-                        <span className="text-sm font-medium text-cyan-700 lg:text-xs 2xl:text-sm">
+                        <span className="text-sm font-medium text-cyan-700">
                             {articulo.unidadVenta}
                         </span>
                     )}
                     {articulo.condicion && (
-                        <span className="text-sm font-medium text-slate-600 lg:text-xs 2xl:text-sm">
+                        <span className="text-sm font-medium text-slate-600">
                             {ETIQUETA_CONDICION[articulo.condicion]}
                         </span>
                     )}
                 </p>
 
-                {/* Fila 3: solo tiempo publicado. El pill de estado vive flotando
-                    sobre la foto (esquina superior izquierda). */}
-                <span className="truncate text-sm font-medium text-slate-600 lg:text-[11px] 2xl:text-sm">
+                {/* Fila 3: solo tiempo publicado. El estado vive como overlay
+                    sobre la foto. */}
+                <span className="truncate text-sm font-medium text-slate-600">
                     Publicado {formatearTiempoRelativo(articulo.createdAt)}
                 </span>
 
-                {/* Fila 4: KPIs como mini-chips. En móvil con 2 cards por fila
-                    el ancho disponible es estrecho — usamos `flex-wrap` para que
-                    bajen a 2 líneas en vez de desbordar/recortar. */}
-                <div className="flex flex-wrap items-center gap-1">
+                {/* Fila 4: KPIs como mini-chips. En móvil son solo 3
+                    (vistas/mensajes/guardados) — el chip de expiración vive
+                    como badge flotante sobre la foto para liberar espacio.
+                    En lg+ aparecen los 4. `flex-wrap` por seguridad cuando
+                    los valores son grandes (5+ dígitos en cada KPI). */}
+                <div className="flex flex-wrap items-center gap-1.5">
                     <KpiChip
                         icono={Eye}
                         valor={articulo.totalVistas}
@@ -290,6 +304,7 @@ export function CardArticuloMio({
                             valor={dias === 0 ? 'Hoy' : `${dias}d`}
                             label={dias === 0 ? 'Expira hoy' : `Expira en ${dias} días`}
                             urgente={diasUrgente}
+                            className="!hidden lg:!inline-flex"
                         />
                     )}
                 </div>
@@ -406,18 +421,20 @@ interface KpiChipProps {
     label: string;
     urgente?: boolean;
     acento?: 'amber';
+    /** Clases extra para esconder/mostrar el chip por viewport. */
+    className?: string;
 }
 
-function KpiChip({ icono: IconoChip, valor, label, urgente, acento }: KpiChipProps) {
+function KpiChip({ icono: IconoChip, valor, label, urgente, acento, className }: KpiChipProps) {
     const bgClasses = acento === 'amber' || urgente ? 'bg-amber-100' : 'bg-slate-200';
     const textClasses = acento === 'amber' || urgente ? 'text-amber-700' : 'text-slate-700';
     const iconClasses = acento === 'amber' ? 'text-amber-500' : urgente ? 'text-amber-600' : 'text-slate-600';
     return (
         <span
-            className={`inline-flex shrink-0 items-center gap-0.5 rounded-full ${bgClasses} px-1.5 py-0.5 text-xs font-semibold ${textClasses}`}
+            className={`inline-flex shrink-0 items-center gap-1 rounded-full ${bgClasses} px-2 py-1 text-sm font-semibold ${textClasses} lg:px-2.5 ${className ?? ''}`}
             title={label}
         >
-            <IconoChip className={`h-3 w-3 ${iconClasses}`} strokeWidth={2.5} fill={acento === 'amber' ? 'currentColor' : 'none'} />
+            <IconoChip className={`h-3.5 w-3.5 ${iconClasses} lg:h-4 lg:w-4`} strokeWidth={2.5} fill={acento === 'amber' ? 'currentColor' : 'none'} />
             {valor}
         </span>
     );

@@ -30,6 +30,8 @@ import {
     Trash2,
     MessageSquare,
     AlertCircle,
+    Send,
+    Loader2,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
@@ -49,7 +51,6 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useUiStore } from '../../stores/useUiStore';
-import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { BotonComentarista } from './BotonComentarista';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
@@ -412,21 +413,38 @@ function VistaDueno({ articuloId, vendedor, pendientes, respondidas, total }: Vi
                         Pendientes de responder ({pendientes.length})
                     </p>
                     <div className="space-y-4">
-                        {pendientes.map((p) => (
-                            <FilaPreguntaDueno
-                                key={p.id}
-                                pregunta={p}
-                                vendedor={vendedor}
-                                onResponder={() => {
-                                    setPreguntaRespondiendo(p);
-                                    setTextoRespuesta('');
-                                    setErrorRespuesta(null);
-                                }}
-                                onDerivar={() => handleDerivarAChat(p)}
-                                onEliminar={() => handleEliminar(p.id)}
-                                cargandoDerivar={derivarMutation.isPending}
-                            />
-                        ))}
+                        {pendientes.map((p) => {
+                            const enRespuesta = preguntaRespondiendo?.id === p.id;
+                            return (
+                                <FilaPreguntaDueno
+                                    key={p.id}
+                                    pregunta={p}
+                                    vendedor={vendedor}
+                                    onResponder={() => {
+                                        setPreguntaRespondiendo(p);
+                                        setTextoRespuesta('');
+                                        setErrorRespuesta(null);
+                                    }}
+                                    onDerivar={() => handleDerivarAChat(p)}
+                                    onEliminar={() => handleEliminar(p.id)}
+                                    cargandoDerivar={derivarMutation.isPending}
+                                    enRespuesta={enRespuesta}
+                                    textoRespuesta={enRespuesta ? textoRespuesta : ''}
+                                    errorRespuesta={enRespuesta ? errorRespuesta : null}
+                                    enviandoRespuesta={responderMutation.isPending}
+                                    onChangeTextoRespuesta={(t) => {
+                                        setTextoRespuesta(t);
+                                        if (errorRespuesta) setErrorRespuesta(null);
+                                    }}
+                                    onPublicarRespuesta={handleResponder}
+                                    onCancelarRespuesta={() => {
+                                        setPreguntaRespondiendo(null);
+                                        setTextoRespuesta('');
+                                        setErrorRespuesta(null);
+                                    }}
+                                />
+                            );
+                        })}
                     </div>
                 </div>
             )}
@@ -455,69 +473,6 @@ function VistaDueno({ articuloId, vendedor, pendientes, respondidas, total }: Vi
                 <p className="text-sm font-medium text-slate-600">
                     Aún no hay preguntas sobre este artículo.
                 </p>
-            )}
-
-            {/* Modal responder (inline) */}
-            {preguntaRespondiendo && (
-                <ModalAdaptativo
-                    abierto
-                    onCerrar={() => setPreguntaRespondiendo(null)}
-                    titulo="Responder pregunta"
-                    ancho="md"
-                >
-                    <div data-testid="modal-responder-pregunta" className="space-y-4">
-                        <div className="rounded-lg border-2 border-slate-300 bg-slate-100 px-3 py-2">
-                            <p className="text-xs font-semibold text-slate-600">
-                                Pregunta de {preguntaRespondiendo.compradorNombre} {preguntaRespondiendo.compradorApellidos}
-                            </p>
-                            <p className="mt-1 text-sm font-medium text-slate-800">
-                                {preguntaRespondiendo.pregunta}
-                            </p>
-                        </div>
-
-                        <div className="space-y-1">
-                            <textarea
-                                data-testid="textarea-respuesta"
-                                value={textoRespuesta}
-                                onChange={(e) => setTextoRespuesta(e.target.value)}
-                                placeholder="Escribe tu respuesta..."
-                                maxLength={500}
-                                rows={4}
-                                className="w-full resize-none rounded-lg border-2 border-slate-300 px-3 py-2 text-sm font-medium text-slate-900 placeholder-slate-500 outline-none transition-colors focus:border-teal-500 focus:ring-2 focus:ring-teal-500/20"
-                            />
-                            <div className="flex items-center justify-between">
-                                {errorRespuesta ? (
-                                    <p className="text-xs font-semibold text-rose-600">{errorRespuesta}</p>
-                                ) : (
-                                    <span />
-                                )}
-                                <span className="text-xs font-medium text-slate-500">
-                                    {textoRespuesta.length}/500
-                                </span>
-                            </div>
-                        </div>
-
-                        <div className="flex justify-end gap-2">
-                            <button
-                                onClick={() => setPreguntaRespondiendo(null)}
-                                className="cursor-pointer rounded-lg border-2 border-slate-300 px-4 py-2 text-sm font-semibold text-slate-700 lg:hover:bg-slate-200"
-                            >
-                                Cancelar
-                            </button>
-                            <button
-                                data-testid="btn-publicar-respuesta"
-                                onClick={handleResponder}
-                                disabled={
-                                    textoRespuesta.trim().length < 5 ||
-                                    responderMutation.isPending
-                                }
-                                className="cursor-pointer rounded-lg bg-linear-to-br from-teal-600 to-teal-800 px-4 py-2 text-sm font-bold text-white shadow-md disabled:opacity-50 lg:hover:brightness-110"
-                            >
-                                {responderMutation.isPending ? 'Publicando…' : 'Publicar respuesta'}
-                            </button>
-                        </div>
-                    </div>
-                </ModalAdaptativo>
             )}
         </div>
     );
@@ -693,6 +648,14 @@ interface FilaPreguntaDuenoProps {
     onDerivar?: () => void;
     onEliminar: () => void;
     cargandoDerivar?: boolean;
+    /** Si esta fila está en modo respuesta inline (textarea expandido). */
+    enRespuesta?: boolean;
+    textoRespuesta?: string;
+    errorRespuesta?: string | null;
+    enviandoRespuesta?: boolean;
+    onChangeTextoRespuesta?: (texto: string) => void;
+    onPublicarRespuesta?: () => void;
+    onCancelarRespuesta?: () => void;
 }
 
 function FilaPreguntaDueno({
@@ -702,8 +665,17 @@ function FilaPreguntaDueno({
     onDerivar,
     onEliminar,
     cargandoDerivar,
+    enRespuesta = false,
+    textoRespuesta = '',
+    errorRespuesta = null,
+    enviandoRespuesta = false,
+    onChangeTextoRespuesta,
+    onPublicarRespuesta,
+    onCancelarRespuesta,
 }: FilaPreguntaDuenoProps) {
     const respondida = !!pregunta.respuesta;
+    const RESPUESTA_MIN = 5;
+    const RESPUESTA_MAX = 500;
     return (
         <div data-testid={`pregunta-dueno-${pregunta.id}`} className="text-sm">
             {/* Bloque pregunta */}
@@ -742,50 +714,123 @@ function FilaPreguntaDueno({
                 </div>
             )}
 
-            {/* Acciones administrativas */}
-            <div className="mt-1.5 ml-9 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold">
-                <span className="font-medium text-slate-500">
-                    {formatearTiempoRelativo(pregunta.createdAt)}
-                </span>
-
-                {!respondida && onResponder && (
-                    <>
-                        <span aria-hidden className="text-slate-400">·</span>
-                        <button
-                            data-testid={`btn-responder-${pregunta.id}`}
-                            onClick={onResponder}
-                            className="text-teal-700 lg:cursor-pointer lg:hover:text-teal-900 lg:hover:underline"
-                        >
-                            Responder
-                        </button>
-                        {onDerivar && (
-                            <>
-                                <span aria-hidden className="text-slate-400">·</span>
+            {/* Respuesta inline — bubble teal estilo "preview de cómo se verá tu
+                respuesta una vez publicada". Solo aparece si el vendedor clickeó
+                "Responder" en esta pregunta. */}
+            {enRespuesta && !respondida && (
+                <div className="mt-1.5 ml-9 flex gap-2">
+                    <AvatarVendedor vendedor={vendedor} />
+                    <div className="flex-1 rounded-2xl bg-teal-50 px-3 py-2 ring-2 ring-teal-200 focus-within:ring-teal-500">
+                        <p className="text-sm font-semibold text-teal-700">
+                            {vendedor.nombre.split(' ')[0]}
+                        </p>
+                        <textarea
+                            data-testid="textarea-respuesta"
+                            value={textoRespuesta}
+                            onChange={(e) => onChangeTextoRespuesta?.(e.target.value)}
+                            placeholder="Escribe tu respuesta..."
+                            maxLength={RESPUESTA_MAX}
+                            rows={3}
+                            autoFocus
+                            disabled={enviandoRespuesta}
+                            className="mt-0.5 w-full resize-none bg-transparent text-sm font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                        />
+                        <div className="mt-1.5 flex items-center justify-between gap-2 border-t border-teal-200 pt-1.5">
+                            {errorRespuesta ? (
+                                <p className="flex items-center gap-1 text-xs font-semibold text-rose-600">
+                                    <AlertCircle className="h-3 w-3" strokeWidth={2.5} />
+                                    {errorRespuesta}
+                                </p>
+                            ) : (
+                                <span className="text-xs font-medium text-slate-500">
+                                    {textoRespuesta.length}/{RESPUESTA_MAX}
+                                </span>
+                            )}
+                            <div className="flex items-center gap-1.5">
                                 <button
-                                    data-testid={`btn-derivar-${pregunta.id}`}
-                                    onClick={onDerivar}
-                                    disabled={cargandoDerivar}
-                                    title="Abre un chat privado con el comprador. La pregunta sigue visible públicamente."
-                                    className="flex items-center gap-1 text-slate-700 disabled:opacity-50 lg:cursor-pointer lg:hover:text-slate-900 lg:hover:underline"
+                                    type="button"
+                                    data-testid={`btn-cancelar-respuesta-${pregunta.id}`}
+                                    onClick={onCancelarRespuesta}
+                                    disabled={enviandoRespuesta}
+                                    className="rounded-full px-3 py-1 text-xs font-semibold text-slate-600 disabled:opacity-50 lg:cursor-pointer lg:hover:bg-slate-200"
                                 >
-                                    <MessageSquare className="h-3 w-3" strokeWidth={2.5} />
-                                    Mensaje privado
+                                    Cancelar
                                 </button>
-                            </>
-                        )}
-                    </>
-                )}
+                                <button
+                                    type="button"
+                                    data-testid={`btn-publicar-respuesta-${pregunta.id}`}
+                                    onClick={onPublicarRespuesta}
+                                    disabled={
+                                        enviandoRespuesta ||
+                                        textoRespuesta.trim().length < RESPUESTA_MIN
+                                    }
+                                    className="flex items-center gap-1.5 rounded-full bg-teal-600 px-3 py-1 text-xs font-bold text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-50 lg:cursor-pointer lg:hover:bg-teal-700"
+                                >
+                                    {enviandoRespuesta ? (
+                                        <>
+                                            <Loader2 className="h-3 w-3 animate-spin" strokeWidth={2.5} />
+                                            Publicando…
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Send className="h-3 w-3" strokeWidth={2.5} />
+                                            Publicar
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
 
-                <span aria-hidden className="text-slate-400">·</span>
-                <button
-                    data-testid={`btn-eliminar-pregunta-${pregunta.id}`}
-                    onClick={onEliminar}
-                    className="flex items-center gap-1 text-rose-600 lg:cursor-pointer lg:hover:text-rose-700 lg:hover:underline"
-                >
-                    <Trash2 className="h-3 w-3" strokeWidth={2.5} />
-                    Eliminar
-                </button>
-            </div>
+            {/* Acciones administrativas — ocultas mientras se responde para
+                mantener el foco en el textarea. */}
+            {!enRespuesta && (
+                <div className="mt-1.5 ml-9 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold">
+                    <span className="font-medium text-slate-500">
+                        {formatearTiempoRelativo(pregunta.createdAt)}
+                    </span>
+
+                    {!respondida && onResponder && (
+                        <>
+                            <span aria-hidden className="text-slate-400">·</span>
+                            <button
+                                data-testid={`btn-responder-${pregunta.id}`}
+                                onClick={onResponder}
+                                className="text-teal-700 lg:cursor-pointer lg:hover:text-teal-900 lg:hover:underline"
+                            >
+                                Responder
+                            </button>
+                            {onDerivar && (
+                                <>
+                                    <span aria-hidden className="text-slate-400">·</span>
+                                    <button
+                                        data-testid={`btn-derivar-${pregunta.id}`}
+                                        onClick={onDerivar}
+                                        disabled={cargandoDerivar}
+                                        title="Abre un chat privado con el comprador. La pregunta sigue visible públicamente."
+                                        className="flex items-center gap-1 text-slate-700 disabled:opacity-50 lg:cursor-pointer lg:hover:text-slate-900 lg:hover:underline"
+                                    >
+                                        <MessageSquare className="h-3 w-3" strokeWidth={2.5} />
+                                        Mensaje privado
+                                    </button>
+                                </>
+                            )}
+                        </>
+                    )}
+
+                    <span aria-hidden className="text-slate-400">·</span>
+                    <button
+                        data-testid={`btn-eliminar-pregunta-${pregunta.id}`}
+                        onClick={onEliminar}
+                        className="flex items-center gap-1 text-rose-600 lg:cursor-pointer lg:hover:text-rose-700 lg:hover:underline"
+                    >
+                        <Trash2 className="h-3 w-3" strokeWidth={2.5} />
+                        Eliminar
+                    </button>
+                </div>
+            )}
         </div>
     );
 }

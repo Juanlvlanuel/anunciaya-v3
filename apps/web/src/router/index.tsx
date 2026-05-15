@@ -57,6 +57,7 @@ import PaginaCrearNegocioExito from '../pages/private/PaginaCrearNegocioExito';
 // Páginas de Business Studio (Fase 5.4)
 import PaginaDashboard from '../pages/private/business-studio/dashboard/PaginaDashboard';
 import PaginaPerfil from '../pages/private/business-studio/perfil/PaginaPerfil';
+import PaginaMockupMenu from '../pages/private/dev/PaginaMockupMenu';
 import PaginaCatalogo from '../pages/private/business-studio/catalogo/PaginaCatalogo';
 import BSPaginaOfertas from '../pages/private/business-studio/ofertas/PaginaOfertas';
 import PaginaOfertas from '../pages/private/ofertas/PaginaOfertas';
@@ -329,6 +330,11 @@ const router = createBrowserRouter([
           {
             path: '/perfil',
             element: <PaginaPerfil />,
+          },
+          // Página de prueba/mockup (solo para revisar visualmente cambios de UI)
+          {
+            path: '/dev/menu-mockup',
+            element: <PaginaMockupMenu />,
           },
           {
             path: '/guardados',

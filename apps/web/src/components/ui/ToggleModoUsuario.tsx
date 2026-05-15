@@ -35,13 +35,26 @@ import { notificar } from '../../utils/notificaciones';
 interface ToggleModoUsuarioProps {
     grande?: boolean; // Versión más grande para MenuDrawer
     onModoChanged?: () => void; // Callback después de cambiar modo (cierra modals)
+    /** Variante visual sobre fondo oscuro (dropdown del Navbar y MenuDrawer
+     *  con header dark). Cambia el container de gris claro a `bg-white/5`
+     *  con borde sutil y los botones inactivos a `text-slate-200`. */
+    dark?: boolean;
+    /** Variante de layout. Default 'toggle' (botón blanco activo dentro de
+     *  un container compartido — estilo iOS). 'pill' renderiza dos pills
+     *  separadas estilo `border-2 rounded-full` como en Mis Publicaciones. */
+    variante?: 'toggle' | 'pill';
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoUsuarioProps) {
+export function ToggleModoUsuario({
+    grande = false,
+    onModoChanged,
+    dark = false,
+    variante = 'toggle',
+}: ToggleModoUsuarioProps) {
     // ---------------------------------------------------------------------------
     // Hooks
     // ---------------------------------------------------------------------------
@@ -169,10 +182,75 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
     }
 
     // ---------------------------------------------------------------------------
-    // Render: Usuario con AMBOS modos (toggle interactivo)
+    // Render: Usuario con AMBOS modos — variante PILL
     // ---------------------------------------------------------------------------
+    // Pills `border-2 rounded-full` separados (mismo lenguaje que el toggle
+    // MarketPlace/Servicios en Mis Publicaciones). Pensado para headers
+    // pequeños donde el toggle clásico se siente saturado.
+    if (variante === 'pill') {
+        const pillBase =
+            'inline-flex h-9 items-center gap-1.5 rounded-full border-2 px-4 text-sm font-bold transition-colors';
+        const personalActivo = dark
+            ? 'border-blue-400 bg-blue-500 text-white shadow-md shadow-blue-500/30'
+            : 'border-blue-500 bg-blue-500 text-white shadow-md shadow-blue-500/20';
+        const personalInactivo = dark
+            ? 'border-white/15 bg-white/5 text-slate-200 hover:bg-white/10'
+            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50';
+        const comercialActivo = dark
+            ? 'border-orange-400 bg-orange-500 text-white shadow-md shadow-orange-500/30'
+            : 'border-orange-500 bg-orange-500 text-white shadow-md shadow-orange-500/20';
+        const comercialInactivo = dark
+            ? 'border-white/15 bg-white/5 text-slate-200 hover:bg-white/10'
+            : 'border-slate-300 bg-white text-slate-600 hover:bg-slate-50';
+
+        return (
+            <div className="flex items-center gap-2">
+                <button
+                    onClick={() => handleCambiarModo('personal')}
+                    disabled={cambiando}
+                    className={`${pillBase} ${
+                        modoActivo === 'personal' ? personalActivo : personalInactivo
+                    } ${cambiando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                    <User className="h-4 w-4" strokeWidth={2.5} />
+                    Personal
+                </button>
+                <button
+                    onClick={() => handleCambiarModo('comercial')}
+                    disabled={cambiando}
+                    className={`${pillBase} ${
+                        modoActivo === 'comercial' ? comercialActivo : comercialInactivo
+                    } ${cambiando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}`}
+                >
+                    <Store className="h-4 w-4" strokeWidth={2.5} />
+                    Comercial
+                </button>
+            </div>
+        );
+    }
+
+    // ---------------------------------------------------------------------------
+    // Render: Usuario con AMBOS modos — variante TOGGLE (default)
+    // ---------------------------------------------------------------------------
+    // Clases por variante (light vs dark sobre header del menú).
+    const containerCls = dark
+        ? 'flex bg-white/5 border border-white/10 rounded-lg'
+        : 'flex bg-gray-100 rounded-lg shadow-inner';
+    const personalActivoCls = dark
+        ? 'bg-white text-blue-600 shadow-sm'
+        : 'bg-white text-blue-600 shadow-sm';
+    const personalInactivoCls = dark
+        ? 'text-slate-200 hover:text-white'
+        : 'text-gray-500 hover:text-gray-700';
+    const comercialActivoCls = dark
+        ? 'bg-white text-orange-600 shadow-sm'
+        : 'bg-white text-orange-600 shadow-sm';
+    const comercialInactivoCls = dark
+        ? 'text-slate-200 hover:text-white'
+        : 'text-gray-500 hover:text-gray-700';
+
     return (
-        <div className={`flex bg-gray-100 rounded-lg ${clases.toggleContainer} shadow-inner`}>
+        <div className={`${containerCls} ${clases.toggleContainer}`}>
             {/* Botón Personal */}
             <button
                 onClick={() => handleCambiarModo('personal')}
@@ -181,10 +259,7 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
           relative flex items-center justify-center ${clases.boton}
           rounded-md font-semibold
           transition-colors duration-150
-          ${modoActivo === 'personal'
-                        ? 'bg-white text-blue-600 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }
+          ${modoActivo === 'personal' ? personalActivoCls : personalInactivoCls}
           ${cambiando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
             >
@@ -205,10 +280,7 @@ export function ToggleModoUsuario({ grande = false, onModoChanged }: ToggleModoU
           relative flex items-center justify-center ${clases.boton}
           rounded-md font-semibold
           transition-colors duration-150
-          ${modoActivo === 'comercial'
-                        ? 'bg-white text-orange-600 shadow-sm'
-                        : 'text-gray-500 hover:text-gray-700'
-                    }
+          ${modoActivo === 'comercial' ? comercialActivoCls : comercialInactivoCls}
           ${cambiando ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer'}
         `}
             >

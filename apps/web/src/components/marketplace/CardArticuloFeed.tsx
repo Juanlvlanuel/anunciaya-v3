@@ -53,6 +53,7 @@ import {
     formatearPrecio,
 } from '../../utils/marketplace';
 import { ModalImagenes } from '../ui/ModalImagenes';
+import Tooltip from '../ui/Tooltip';
 import { BotonComentarista } from './BotonComentarista';
 import { notificar } from '../../utils/notificaciones';
 import type { ArticuloFeedInfinito } from '../../types/marketplace';
@@ -681,36 +682,42 @@ export function CardArticuloFeed({
                     </p>
                 </div>
 
-                <button
-                    ref={heartButtonRef}
-                    type="button"
-                    data-testid={`card-feed-guardar-${articulo.id}`}
-                    onClick={handleToggleGuardado}
-                    disabled={loading}
-                    aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
-                    className={`relative shrink-0 rounded-full p-2 lg:cursor-pointer ${guardado
-                            ? 'text-amber-500 lg:hover:bg-amber-50'
-                            : 'text-slate-500 lg:hover:bg-slate-200 lg:hover:text-amber-500'
-                        }`}
-                    style={{
-                        animation: heartBounce
-                            ? 'feedHeartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)'
-                            : undefined,
-                    }}
+                <Tooltip
+                    text={guardado ? 'Quitar de guardados' : 'Guardar publicación'}
+                    position="bottom"
+                    className="hidden lg:block"
                 >
-                    {/* Pulse ring de 1 sola pasada al momento del click */}
-                    {heartBounce && (
-                        <span
-                            className="pointer-events-none absolute inset-1 rounded-full border-2 border-amber-500/40"
-                            style={{ animation: 'feedHeartRingPulse 0.6s ease-out' }}
-                            aria-hidden="true"
+                    <button
+                        ref={heartButtonRef}
+                        type="button"
+                        data-testid={`card-feed-guardar-${articulo.id}`}
+                        onClick={handleToggleGuardado}
+                        disabled={loading}
+                        aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
+                        className={`relative shrink-0 rounded-full p-2 lg:cursor-pointer ${guardado
+                                ? 'text-teal-600 lg:hover:bg-teal-50'
+                                : 'text-slate-500 lg:hover:bg-slate-200 lg:hover:text-teal-600'
+                            }`}
+                        style={{
+                            animation: heartBounce
+                                ? 'feedHeartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)'
+                                : undefined,
+                        }}
+                    >
+                        {/* Pulse ring de 1 sola pasada al momento del click */}
+                        {heartBounce && (
+                            <span
+                                className="pointer-events-none absolute inset-1 rounded-full border-2 border-teal-600/40"
+                                style={{ animation: 'feedHeartRingPulse 0.6s ease-out' }}
+                                aria-hidden="true"
+                            />
+                        )}
+                        <Icon
+                            icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
+                            className="h-7 w-7"
                         />
-                    )}
-                    <Icon
-                        icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
-                        className="h-7 w-7"
-                    />
-                </button>
+                    </button>
+                </Tooltip>
             </header>
 
             {/* ─── CUERPO: título + precio + descripción ──────────────────── */}
@@ -921,7 +928,7 @@ export function CardArticuloFeed({
                 <div className="flex items-center gap-3">
                     {distancia && (
                         <span className="flex items-center gap-1.5">
-                            <MapPin className="h-4 w-4 shrink-0" strokeWidth={2} />
+                            <MapPin className="h-5 w-5 shrink-0" strokeWidth={2} />
                             {distancia}
                         </span>
                     )}
@@ -929,7 +936,7 @@ export function CardArticuloFeed({
                         <>
                             {distancia && <span className="text-slate-400" aria-hidden>·</span>}
                             <span className="flex items-center gap-1.5">
-                                <MessageCircle className="h-4 w-4 shrink-0" strokeWidth={2} />
+                                <MessageCircle className="h-5 w-5 shrink-0" strokeWidth={2} />
                                 {articulo.totalPreguntasRespondidas}
                             </span>
                         </>
@@ -938,12 +945,12 @@ export function CardArticuloFeed({
                         <span className="text-slate-400" aria-hidden>·</span>
                     )}
                     <span className="flex items-center gap-1.5">
-                        <Eye className="h-4 w-4 shrink-0" strokeWidth={2} />
+                        <Eye className="h-5 w-5 shrink-0" strokeWidth={2} />
                         {articulo.totalVistas}
                     </span>
                 </div>
                 {senalActividad && senalActividad.tipo === 'guardados' && (
-                    <span className="flex items-center gap-1.5 font-semibold text-amber-500">
+                    <span className="flex items-center gap-1.5 font-semibold text-slate-600">
                         <Bookmark className="h-5 w-5 shrink-0" strokeWidth={2.5} fill="currentColor" />
                         {senalActividad.total}
                     </span>

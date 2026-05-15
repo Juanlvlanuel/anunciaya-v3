@@ -729,17 +729,25 @@ export function PaginaMisPublicaciones() {
                 ) : articulos.length === 0 ? (
                     <EstadoVacio tab={tabActivo} onPublicar={irAPublicar} />
                 ) : (
-                    <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-2 lg:gap-4 2xl:grid-cols-3">
+                    // Grid unificado con las cards de Mis Guardados (tabs
+                    // Ofertas y Marketplace): 2 / lg:3 / 2xl:4 con
+                    // `max-w-[270px]` por card. Cada `CardArticuloMio` mantiene
+                    // su layout vertical interno (foto + KPIs + menú "⋯").
+                    <div className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6">
                         {articulos.map((articulo) => (
-                            <CardArticuloMio
+                            <div
                                 key={articulo.id}
-                                articulo={articulo}
-                                onEditar={handleEditar}
-                                onPausar={handlePausar}
-                                onReactivar={handleReactivar}
-                                onMarcarVendido={handleAbrirMarcarVendido}
-                                onEliminar={handleAbrirEliminar}
-                            />
+                                className="lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                            >
+                                <CardArticuloMio
+                                    articulo={articulo}
+                                    onEditar={handleEditar}
+                                    onPausar={handlePausar}
+                                    onReactivar={handleReactivar}
+                                    onMarcarVendido={handleAbrirMarcarVendido}
+                                    onEliminar={handleAbrirEliminar}
+                                />
+                            </div>
                         ))}
                     </div>
                 )}
