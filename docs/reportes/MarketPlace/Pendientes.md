@@ -1,6 +1,6 @@
 # Pendientes en MarketPlace
 
-**Última actualización:** 2026-05-14 (overlays de buscador para Ofertas y Negocios — sprint cross-cutting, ver entrada del CHANGELOG. Cierra E.1.)
+**Última actualización:** 2026-05-14 — segunda sesión (auditoría cross-sección de los 3 buscadores: cobertura completa de campos, accent-insensitive con `unaccent` BE + `normalize('NFD')` FE, prefix matching en MP, performance al borrar con `useDeferredValue` + debounce, etiqueta "Matriz" en sucursales, click → perfil del negocio. Limpieza: eliminado el botón "Ver todos los resultados" en los 3 overlays + página dedicada de resultados de MP. Patrón consolidado en `docs/estandares/PATRON_BUSCADOR_SECCION.md`. Cierra C.4 (P5) y E.1.)
 
 Documento maestro de pendientes del módulo MarketPlace. Lista lo que falta implementar, ordenado por prioridad de impacto. Items cerrados se conservan al final como historial.
 
@@ -97,7 +97,7 @@ Pantallas y resoluciones por revisar:
 - ✅ P2 Detalle del Artículo — móvil + laptop + desktop (cerrado 11-may-2026, ver C.1)
 - ✅ P3 Perfil del Usuario — móvil + laptop + desktop (cerrado 11-may-2026; refactor a perfil neutral, KPIs visibles solo si es vendedor, botón "Agregar a contactos", tabs Publicaciones/Vendidos)
 - ✅ P4 Wizard Publicar — móvil 375 + laptop 1366 + desktop 1920 (cerrado 12-may-2026; rediseño alineado a P1/P2/P3 con header dark + glow teal, grid `3fr_2fr` desktop, cards bordeadas por bloque, vista previa en vivo con `<CardArticuloFeed>` real, tips contextuales por paso, subida múltiple paralela hasta 8 fotos, selección manual de portada con icono `Star`, auto-save en `localStorage` cross-sesión, cleanup R2 con reference-count contra `IMAGE_REGISTRY`)
-- ⏳ P5 Buscador y resultados — móvil 375 + laptop 1366 + desktop 1920
+- ✅ P5 Buscador — cerrado 14-may-2026 con la auditoría cross-sección. Ya no existe "P5 Resultados" como pantalla aparte: la página dedicada `/marketplace/buscar?q=` se eliminó (sobre-ingeniería para el dataset piloto) y todo el flujo vive en el overlay. El patrón está consolidado en `docs/estandares/PATRON_BUSCADOR_SECCION.md` (3 secciones siguen el mismo estándar). Endpoint backend `buscarArticulos` se conservó por si la página completa se reabre cuando el volumen lo justifique.
 - ✅ P6 Página Pública compartible — móvil + laptop + desktop (cerrado en sesión cross-cutting del 09-may-2026, ver C.1 y `docs/arquitectura/Paginas_Publicas.md`)
 
 ---
@@ -126,13 +126,27 @@ _(Sin bugs abiertos. D.1 – D.11 ya cerrados — ver D.cerrados abajo.)_
 
 ### E.1 — OverlayBuscadorOfertas (módulo Ofertas)
 
-✅ **Cerrado** (sesión 14-may-2026, ver entrada del CHANGELOG). Implementación sobria del patrón canónico:
+✅ **Cerrado** (sesión 14-may-2026 — primera mitad). Implementación sobria del patrón canónico:
 
 - Overlay con sugerencias en vivo + búsquedas recientes (sin populares ni log).
 - Endpoint backend `GET /api/ofertas/buscar/sugerencias` con ILIKE simple sobre título + descripción + nombre del negocio (sin FTS pesado — el dataset por ciudad es chico).
 - Click en sugerencia → `navigate('/ofertas?oferta=:id')` y `PaginaOfertas` abre `ModalOfertaDetalle`. Sin página de resultados dedicada — el feed in-page ya filtra por `useSearchStore.query`.
 - Helper `busquedasRecientes.ts` generalizado para soportar 3 secciones (`marketplace`/`ofertas`/`negocios`) con clave de localStorage por sección.
 - Mismo sprint cerró el equivalente para Negocios (filtro in-memory contra `useNegociosLista()`, sin endpoint nuevo).
+
+### E.2 — Auditoría cross-sección de los 3 buscadores
+
+✅ **Cerrado** (sesión 14-may-2026 — segunda mitad). Auditoría completa que llevó al patrón consolidado en `docs/estandares/PATRON_BUSCADOR_SECCION.md`:
+
+- **Cobertura de campos extendida**: Negocios backend ahora filtra también por categoría/subcategoría/dirección/ciudad (antes solo nombre del negocio + sucursal). Ofertas backend ahora también por categoría/subcategoría del negocio.
+- **Accent-insensitive en backend**: `unaccent()` en los 3 services (Negocios, Ofertas, MarketPlace). Migración `docs/migraciones/2026-05-14-extension-unaccent.sql`.
+- **Accent-insensitive en frontend**: helper `normalizarTexto.ts` (NFD + `\p{Diacritic}`) para filtros in-memory de Negocios.
+- **Prefix matching en MarketPlace**: FTS español combinado con OR `ILIKE` para que "bici" encuentre "bicicleta" sin perder el ranking del FTS.
+- **Performance al borrar con Backspace**: `useDeferredValue` en PaginaNegocios, debounce 250ms del query en `useOfertasFeedCerca`.
+- **Etiqueta "Matriz" en sucursales** del overlay de Negocios — mismo patrón de `CardNegocio` / `PaginaPerfilNegocio`.
+- **Click en sugerencia de Negocios → perfil completo** (`/negocios/:sucursalId`).
+- **Limpieza**: eliminado el botón "Ver todos los resultados" en los 3 overlays + página dedicada de resultados de MP (`PaginaResultadosMarketplace`, `FiltrosBuscador`, `useFiltrosBuscadorUrl`, `useBuscadorResultados`, ruta `/marketplace/buscar`, query key `marketplace.resultadosBusqueda`). Endpoint backend `buscarArticulos` conservado.
+- **Lecciones técnicas** registradas en `docs/estandares/LECCIONES_TECNICAS.md` sección "Buscadores y FTS" (9 puntos).
 
 ---
 
@@ -142,6 +156,4 @@ Por orden de impacto:
 
 1. **A — E2E del vendedor** (desbloqueado por C.2) — probar wizard publicar → recibir pregunta → responder → pausar/marcar vendido/eliminar desde el nuevo panel `/mis-publicaciones`. Validar que `vendida/pausada/eliminada` desaparecen de Mis Guardados de otros usuarios.
 2. **A — E2E del comprador** — los flujos están listos, solo falta validación manual o tests automatizados.
-3. **C.4 — Fase C visual restante** — solo P5 Buscador queda pendiente (P2, P3, P4 y P6 ya cerrados).
-4. **B.3 — Stories de actividad** — feature de descubrimiento (requiere diseño + backend).
-5. **E.1 — OverlayBuscadorOfertas** — sprint independiente.
+3. **B.3 — Stories de actividad** — feature de descubrimiento (requiere diseño + backend). Único pendiente UI/feature del módulo.
