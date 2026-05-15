@@ -290,11 +290,13 @@ docs/
 │   ├── Sucursales.md
 │   ├── Empleados.md
 │   ├── Promociones.md
-│   ├── Notificaciones.md
+│   ├── Notificaciones.md       ← backend (Socket.io + BD)
+│   ├── PanelNotificaciones.md  ← componente UI (popover desktop + side sheet móvil)
 │   ├── Alertas.md
 │   ├── Reportes.md
 │   ├── Clientes_Transacciones.md
 │   ├── Guardados.md
+│   ├── MenuDrawer.md           ← drawer de perfil del usuario (desktop + móvil) + adaptaciones del handoff
 │   ├── Panel_Admin.md          ← infraestructura admin del sistema
 │   └── Mantenimiento_R2.md     ← reconcile de imágenes huérfanas (sub-sección Mantenimiento del Panel Admin)
 ├── migraciones/                → SQL one-shot que debe ejecutarse manualmente (ej. tabla r2_reconcile_log)

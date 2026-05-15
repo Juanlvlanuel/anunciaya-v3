@@ -48,44 +48,42 @@ interface ConfirmacionOptions {
 
 const TOAST_DURATION = 2500;
 
-// Icono plano coloreado (sin círculo pastel — alineado a Token 13 B2B).
-// El color semántico también se usa para el accent bar lateral izquierdo
-// y la progress bar. Estilo Linear/Stripe.
+// Ícono dentro de círculo sólido del color semántico, glifo blanco —
+// estilo alineado al handoff design_handoff_menu_drawer (toast pill glass).
+// El color sigue usándose para la barra de progreso inferior.
 const configTipo: Record<TipoNotificacion, {
   color: string;
   icon: React.ReactNode;
 }> = {
   exito: {
-    color: '#059669',
+    color: '#2D9C5F',
     icon: (
-      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
-        <path d="M6 10.5L8.5 13L14 7.5" stroke="#059669" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+        <path d="m5 12 5 5 9-11" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   error: {
     color: '#dc2626',
     icon: (
-      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
-        <path d="M7 7L13 13M13 7L7 13" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+        <path d="M6 6l12 12M18 6 6 18" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   advertencia: {
     color: '#d97706',
     icon: (
-      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="8" stroke="#d97706" strokeWidth="2.5" />
-        <path d="M10 6V11M10 13.5V14" stroke="#d97706" strokeWidth="2.5" strokeLinecap="round" />
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+        <path d="M12 8v5M12 16v.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
   info: {
     color: '#2563eb',
     icon: (
-      <svg width="22" height="22" fill="none" viewBox="0 0 20 20">
-        <circle cx="10" cy="10" r="8" stroke="#2563eb" strokeWidth="2.5" />
-        <path d="M10 9V14M10 6.5V7" stroke="#2563eb" strokeWidth="2.5" strokeLinecap="round" />
+      <svg width="13" height="13" fill="none" viewBox="0 0 24 24">
+        <path d="M12 11v6M12 7.5v.5" stroke="#fff" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" />
       </svg>
     ),
   },
@@ -193,10 +191,11 @@ const NotificacionToast: React.FC<NotificacionToastProps> = ({ notificacion, onC
       >
         {/* Contenido — padding lateral generoso para respetar el rounded-full */}
         <div className="flex items-center gap-3 px-5 py-3">
-          {/* Icono plano dentro de halo de color semántico */}
+          {/* Ícono blanco dentro de círculo sólido del color semántico
+              (estilo handoff design_handoff_menu_drawer). */}
           <div
             className="shrink-0 flex h-8 w-8 items-center justify-center rounded-full"
-            style={{ background: `${config.color}1A` /* 10% alpha */ }}
+            style={{ background: config.color }}
             aria-hidden="true"
           >
             {config.icon}

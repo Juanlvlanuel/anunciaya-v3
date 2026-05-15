@@ -3,6 +3,8 @@
 > Sistema de notificaciones en tiempo real vía Socket.io + persistencia en BD.
 >
 > **UBICACIÓN:** `apps/api/src/services/notificaciones.service.ts` (función `crearNotificacion`)
+>
+> **Documento hermano (UI):** `docs/arquitectura/PanelNotificaciones.md` — el popover/side sheet que renderiza las notificaciones en el cliente (tabs Todas/No leídas, bucketing por antigüedad, mapeo de tipos a familias visuales, motion).
 
 ---
 

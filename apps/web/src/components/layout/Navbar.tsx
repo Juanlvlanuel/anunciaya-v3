@@ -13,7 +13,7 @@
 // - Dropdown usuario con toggle de modo
 
 import { useState, useRef, useEffect } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
   Search,
@@ -23,8 +23,6 @@ import {
   Store,
   ShoppingCart,
   Tag,
-  User,
-  LogOut,
   X,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
@@ -34,9 +32,7 @@ import { ICONOS } from '../../config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
-const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
-const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} hFlip {...p} />;
 
 // Stores
@@ -48,8 +44,8 @@ import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
-import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 import SelectorSucursalesInline from './SelectorSucursalesInline';
+import { DrawerDesktop } from './DrawerDesktop';
 
 // =============================================================================
 // ESTILOS CSS PARA ANIMACIONES
@@ -160,76 +156,11 @@ const RUTAS_OCULTAS_GERENTE = [
 const NAV_ITEM_MARKET = { id: 'market', label: 'Marketplace', path: '/marketplace', icon: ShoppingCart };
 
 // =============================================================================
-// SUBCOMPONENTE: DropdownItem (VERSIÓN PREMIUM)
-// =============================================================================
-
-interface DropdownItemProps {
-  icon: React.ElementType;
-  label: string;
-  badge?: number;
-  bgColor?: string;
-  iconColor?: string;
-  hoverGradient?: string;
-  arrowColor?: string;
-  onClick: () => void;
-}
-
-function DropdownItem({
-  icon: Icon,
-  label,
-  badge,
-  bgColor = 'bg-gray-100',
-  iconColor = 'text-gray-600',
-  hoverGradient = 'hover:from-gray-50',
-  arrowColor = 'text-gray-400 group-hover:text-blue-500',
-  onClick,
-}: DropdownItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-2 lg:px-2 lg:py-1.5 2xl:px-4 2xl:py-2.5 px-4 py-2.5 hover:bg-linear-to-r ${hoverGradient} hover:to-transparent group transition-all duration-150 hover:translate-x-1 cursor-pointer`}
-    >
-      {/* Icono con background circular */}
-      <div
-        className={`lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 w-8 h-8 ${bgColor} rounded-lg flex items-center justify-center group-hover:scale-110 transition-transform duration-150 shadow-sm shrink-0`}
-      >
-        <Icon className={`lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 w-4 h-4 ${iconColor}`} />
-      </div>
-
-      {/* Label */}
-      <span className="font-semibold text-gray-900 lg:text-[10px] 2xl:text-sm text-sm flex-1 text-left">{label}</span>
-
-      {/* Badge o Chevron */}
-      {badge !== undefined && badge > 0 ? (
-        <span className="bg-blue-500 text-white lg:text-[9px] 2xl:text-xs text-xs lg:px-1 lg:py-0.5 2xl:px-2 2xl:py-0.5 px-2 py-0.5 rounded-full font-bold">
-          {badge > 9 ? '9+' : badge}
-        </span>
-      ) : (
-        <svg
-          className={`lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 w-4 h-4 ${arrowColor} group-hover:translate-x-1 transition-all duration-150`}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="2"
-            d="M9 5l7 7-7 7"
-          />
-        </svg>
-      )}
-    </button>
-  );
-}
-
-// =============================================================================
 // COMPONENTE NAVBAR
 // =============================================================================
 
 export const Navbar = () => {
   const location = useLocation();
-  const navigate = useNavigate();
   // Navegación entre secciones top-level: usa replace cuando NO venimos
   // de /inicio para evitar acumular historial entre secciones hermanas.
   const navegarASeccion = useNavegarASeccion();
@@ -311,13 +242,11 @@ export const Navbar = () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   const usuario = useAuthStore((state) => state.usuario);
-  const logout = useAuthStore((state) => state.logout);
 
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
   const toggleChatYA = useUiStore((state) => state.toggleChatYA);
   const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
   const togglePreviewNegocio = useUiStore((state) => state.togglePreviewNegocio);
-  const cerrarTodo = useUiStore((state) => state.cerrarTodo);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // NAVEGACIÓN ENTRE MÓDULOS DEL BUSINESS STUDIO
@@ -463,13 +392,6 @@ export const Navbar = () => {
   // ─────────────────────────────────────────────────────────────────────────────
 
   const isActive = (path: string) => location.pathname.startsWith(path);
-
-  const handleCerrarSesion = () => {
-    setDropdownAbierto(false);
-    cerrarTodo();
-    navigate('/');
-    logout();
-  };
 
   const handleBusqueda = (e: React.FormEvent) => {
     e.preventDefault();
@@ -972,141 +894,12 @@ export const Navbar = () => {
                   )}
                 </button>
 
-                {/* Dropdown Menu */}
+                {/* Drawer Desktop — popover de perfil (ver DrawerDesktop.tsx).
+                    Wrapper absolute para anclarlo al avatar; el componente
+                    interno tiene su propia animación de entrada. */}
                 {dropdownAbierto && (
-                  <div className="absolute right-0 top-full mt-2 lg:w-56 2xl:w-72 w-72 bg-white rounded-xl shadow-xl border border-gray-300 overflow-hidden z-40">
-
-                    {/* ===== HEADER CON GRADIENTE ===== */}
-                    <div className="bg-linear-to-r from-slate-100 via-slate-200 to-slate-100 border-b border-gray-300 lg:p-2 2xl:p-4 p-4">
-                      <div className="flex flex-col items-center text-center">
-                        {/* Avatar */}
-                        <div className="relative lg:mb-1.5 2xl:mb-3 mb-3">
-                          <div
-                            className={`lg:w-12 lg:h-12 2xl:w-16 2xl:h-16 w-16 h-16 rounded-full flex items-center justify-center text-white lg:text-lg 2xl:text-2xl text-2xl font-bold shadow-lg ring-4 ${esComercial
-                              ? 'bg-linear-to-br from-orange-400 to-orange-600 ring-orange-100'
-                              : 'bg-linear-to-br from-blue-400 to-blue-600 ring-blue-100'
-                              } overflow-hidden`}
-                          >
-                            {esComercial ? (
-                              // Foto de perfil comercial
-                              (usuario?.sucursalAsignada
-                                ? usuario.fotoPerfilSucursalAsignada      // Gerente: foto de su sucursal
-                                : usuario.fotoPerfilNegocio               // Dueño: foto del negocio
-                              ) ? (
-                                <img
-                                  src={(usuario?.sucursalAsignada
-                                    ? usuario.fotoPerfilSucursalAsignada
-                                    : usuario.fotoPerfilNegocio) ?? undefined}
-                                  alt={usuario?.sucursalAsignada
-                                    ? usuario.nombreSucursalAsignada || 'Sucursal'
-                                    : usuario.nombreNegocio || 'Negocio'}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                // Inicial si no hay foto
-                                (usuario?.sucursalAsignada
-                                  ? usuario.nombreSucursalAsignada?.charAt(0).toUpperCase()
-                                  : usuario.nombreNegocio?.charAt(0).toUpperCase()
-                                ) || 'N'
-                              )
-                            ) : (
-                              avatarUrl ? (
-                                <img
-                                  src={avatarUrl}
-                                  alt={usuario?.nombre || 'Usuario'}
-                                  className="w-full h-full object-cover"
-                                />
-                              ) : (
-                                usuarioInicial
-                              )
-                            )}
-                          </div>
-                          {/* Indicador online */}
-                          <div className="absolute bottom-0 right-0 lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 w-5 h-5 bg-green-500 rounded-full border-4 border-slate-200 shadow-md"></div>
-                        </div>
-
-                        {/* Toggle de modo */}
-                        <div className="lg:mb-1 2xl:mb-2 mb-2">
-                          <ToggleModoUsuario onModoChanged={() => setDropdownAbierto(false)} />
-                        </div>
-
-                        {/* Nombre */}
-                        <p className="font-bold text-gray-900 lg:text-xs 2xl:text-base text-base mb-0.5 px-2 truncate w-full">
-                          {esComercial
-                            ? usuario.nombreNegocio
-                            : `${usuario?.nombre} ${usuario?.apellidos}`}
-                        </p>
-
-                        {/* Correo */}
-                        <p className="lg:text-[10px] 2xl:text-sm text-sm text-gray-600 px-2 truncate w-full">
-                          {esComercial
-                            ? (usuario?.sucursalAsignada
-                              ? usuario.nombreSucursalAsignada
-                              : usuario.correoNegocio)
-                            : usuario?.correo}
-                        </p>
-                      </div>
-                    </div>
-
-                    {/* ===== OPCIONES DE NAVEGACIÓN ===== */}
-                    <div className="lg:py-1 2xl:py-2 py-2">
-
-                      {/* Opciones específicas Personal */}
-                      {!esComercial && (
-                        <>
-                          <DropdownItem
-                            icon={Package}
-                            label="Mis Publicaciones"
-                            bgColor="bg-gradient-to-br from-cyan-400 to-cyan-600"
-                            iconColor="text-white"
-                            hoverGradient="hover:from-cyan-50"
-                            onClick={() => {
-                              navegarASeccion('/mis-publicaciones');
-                              setDropdownAbierto(false);
-                            }}
-                          />
-
-                        </>
-                      )}
-
-                      {/* Opciones comunes */}
-                      <DropdownItem
-                        icon={Bookmark}
-                        label="Mis Guardados"
-                        bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
-                        iconColor="text-white"
-                        hoverGradient="hover:from-pink-50"
-                        onClick={() => {
-                          navegarASeccion('/guardados');
-                          setDropdownAbierto(false);
-                        }}
-                      />
-
-                      <div className="lg:my-1.5 lg:mx-3 2xl:my-2 2xl:mx-4 my-2 mx-4 h-px bg-linear-to-r from-transparent via-gray-300 to-transparent"></div>
-
-                      <DropdownItem
-                        icon={User}
-                        label="Mi Perfil"
-                        bgColor="bg-gradient-to-br from-blue-400 to-blue-600"
-                        iconColor="text-white"
-                        hoverGradient="hover:from-blue-50"
-                        onClick={() => {
-                          navegarASeccion('/perfil');
-                          setDropdownAbierto(false);
-                        }}
-                      />
-                    </div>
-
-                    {/* ===== FOOTER: CERRAR SESIÓN ===== */}
-                    <div className="lg:p-1.5 2xl:p-3 p-3 border-t border-gray-200 bg-linear-to-b from-transparent to-gray-50">
-                      <button
-                        onClick={handleCerrarSesion}
-                        className="w-full flex items-center justify-center gap-2 lg:py-1.5 2xl:py-3 py-3 bg-linear-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg transition-all duration-150 font-bold lg:text-[10px] 2xl:text-sm text-sm active:scale-95 cursor-pointer"
-                      >
-                        <LogOut className="lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 w-4 h-4" />
-                        <span>Cerrar Sesión</span>
-                      </button>
-                    </div>
+                  <div className="absolute right-0 top-full mt-2 z-40">
+                    <DrawerDesktop onClose={() => setDropdownAbierto(false)} />
                   </div>
                 )}
               </div>

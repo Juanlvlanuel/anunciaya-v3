@@ -1,38 +1,42 @@
 /**
- * MenuDrawer.tsx - VERSIÓN v3.2 (visión v3 — drawer adelgazado)
- * ===============================================================
- * Menú lateral que se abre desde el header en móvil.
+ * MenuDrawer.tsx — versión v4 (handoff design_handoff_menu_drawer)
+ * =================================================================
+ * Side sheet de perfil del usuario para vistas móviles. Reemplaza la versión
+ * v3.2 con la estética definitiva del handoff:
  *
- * Servicios y Notificaciones se sacaron del drawer:
- * - Servicios → ahora vive en BottomNav (acceso fijo desde la pantalla).
- * - Notificaciones → ahora vive en MobileHeader (icono campana con badge).
+ *   - Container anclado a la derecha, ancho `min(88vw, 380px)`.
+ *   - Scrim azul oscuro con blur(3px), tap cierra.
+ *   - Tabs Personal/Comercial cross-fade de paleta + indicador deslizable 3px.
+ *   - Identidad CENTRADA (avatar 64×64 con halo + nombre + correo/sucursal).
+ *   - Lista con tiles 36×36 coloreados por item (ítems con logo de marca
+ *     se renderizan sin tile coloreado para preservar la identidad).
+ *   - Sticky bottom con botón Cerrar Sesión rojo (outline + hover fill).
+ *   - X flotante en top-right con backdrop-blur.
+ *   - Toast "Cambiaste a modo X" (auto-dismiss 2.4s) al alternar tabs.
  *
- * ✨ ESTRUCTURA:
- * 1. Header (Avatar + Toggle Modo)
- * 2. OPCIÓN UNIVERSAL:
- *    - 📍 Ubicación (todos)
- * 3. OPCIONES POR MODO:
- *    - Comercial: ScanYA, Business Studio, Mis Guardados
- *    - Personal: CardYA, Cupones, Publicaciones, Mis Guardados
- * 4. OPCIÓN COMÚN: Mi Perfil
- * 5. Footer (Cerrar Sesión)
+ * El cambio de modo respeta la lógica del store (`cambiarModo`, redirección
+ * a `/inicio` si la ruta actual es exclusiva del modo viejo, validación
+ * `tieneModoComercial`). El componente `ToggleModoUsuario` ya no se importa
+ * aquí — los tabs internos son el único mecanismo de switch.
  *
  * Ubicación: apps/web/src/components/layout/MenuDrawer.tsx
  */
 
-import { useNavigate } from 'react-router-dom';
-import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
-import { useEffect } from 'react';
-import {
-  X,
-  User,
-  LogOut,
-  ChevronRight,
-  Lock,
-  Ticket,
-} from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
+import { Lock, LogOut, Ticket, User } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
+import {
+  PALETAS_DRAWER,
+  paletaACssVars,
+  type ModoDrawer,
+} from '../../config/menuDrawerTokens';
+import { useAuthStore } from '../../stores/useAuthStore';
+import { useGpsStore } from '../../stores/useGpsStore';
+import { useUiStore } from '../../stores/useUiStore';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
+import { notificar } from '../../utils/notificaciones';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -40,10 +44,6 @@ const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
 const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
 const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
-import { useAuthStore } from '../../stores/useAuthStore';
-import { useGpsStore } from '../../stores/useGpsStore';
-import { useUiStore } from '../../stores/useUiStore';
-import { ToggleModoUsuario } from '../ui/ToggleModoUsuario';
 
 // =============================================================================
 // TIPOS
@@ -53,70 +53,448 @@ interface MenuDrawerProps {
   onClose: () => void;
 }
 
+interface ItemMenuDrawer {
+  id: string;
+  label: string;
+  /** Color del tile 36×36. Cuando el item lleva imagen de marca, no se aplica. */
+  tile: string;
+  /** Ícono vectorial. Mutuamente excluyente con `iconoImagen`. */
+  icon?: React.ElementType;
+  /** Logo de marca (webp). Mutuamente excluyente con `icon`. */
+  iconoImagen?: string;
+  /** Texto alternativo para la imagen / aria-label adicional. */
+  alt?: string;
+  onClick: () => void;
+  /** Indica que el item está bloqueado (renderiza tile gris + candado). */
+  bloqueado?: boolean;
+  hintBloqueado?: string;
+}
+
 // =============================================================================
-// COMPONENTE PRINCIPAL
+// CSS — Inline para preservar tokens del handoff. Se inyecta una sola vez.
 // =============================================================================
+
+const MENU_DRAWER_STYLE_ID = 'menu-drawer-mobile-styles';
+
+const menuDrawerCss = `
+  .md4-root {
+    position: fixed; inset: 0;
+    z-index: 1001;
+    font-family: 'Inter', system-ui, sans-serif;
+  }
+
+  .md4-scrim {
+    position: absolute; inset: 0;
+    background: rgba(8,20,55,0.42);
+    backdrop-filter: blur(3px) saturate(180%);
+    -webkit-backdrop-filter: blur(3px) saturate(180%);
+    animation: md4-scrim 320ms ease both;
+    cursor: pointer;
+    touch-action: none;
+  }
+  @keyframes md4-scrim { from { opacity: 0; } to { opacity: 1; } }
+
+  .md4-drawer {
+    position: absolute; top: 0; right: 0; bottom: 0;
+    width: min(76vw, 312px);
+    z-index: 40;
+    animation: md4-slide 380ms cubic-bezier(.2,.7,.35,1) both;
+    display: flex; flex-direction: column;
+    padding-top: 56px;
+    box-sizing: border-box;
+    cursor: default;
+  }
+  @keyframes md4-slide {
+    from { transform: translateX(100%); }
+    to   { transform: translateX(0); }
+  }
+
+  .md4-close {
+    all: unset; box-sizing: border-box;
+    position: absolute; top: 16px; right: 16px;
+    width: 34px; height: 34px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.85);
+    color: #1F2937; cursor: pointer;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
+    backdrop-filter: blur(8px);
+    -webkit-backdrop-filter: blur(8px);
+    transition: transform .18s ease, background .18s ease;
+    z-index: 50;
+  }
+  .md4-close:hover { transform: scale(1.05); background: #fff; }
+  .md4-close:active { transform: scale(0.92); }
+  .md4-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  .md4-tabs { display: flex; gap: 0; padding: 0 6px; flex-shrink: 0; }
+  .md4-tab {
+    all: unset; cursor: pointer; flex: 1; box-sizing: border-box;
+    padding: 12px 12px 18px; margin-bottom: -12px;
+    border-radius: 14px 14px 0 0;
+    font-size: 14px; font-weight: 600; letter-spacing: -0.005em;
+    text-align: center;
+    display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+    /* Sin transition de background/color: el cambio de modo es instantáneo
+       para evitar el cross-fade visible entre paper y la versión inactiva.
+       Solo se anima la escala al presionar. */
+    transition: transform .08s ease;
+    /* Tokens sólidos en slate: el tab inactivo necesita contraste sobre
+       cualquier fondo (el scrim deja ver contenido detrás). */
+    background: #E2E8F0;            /* slate-200 */
+    color: #475569;                 /* slate-600 */
+    border: 1px solid #CBD5E1;      /* slate-300 */
+    border-bottom: none;
+  }
+  .md4-tab.active { z-index: 2; border-color: transparent; }
+  .md4-tab:active { transform: scale(0.98); }
+  .md4-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .md4-tab[disabled] { cursor: not-allowed; opacity: 0.5; }
+
+  .md4-card {
+    position: relative; flex: 1; min-height: 0;
+    border-radius: 22px 0 0 0;
+    overflow: hidden;
+    box-shadow: 0 0 0 1px rgba(0,0,0,0.05);
+    transition: background-color 280ms ease;
+    display: flex; flex-direction: column;
+  }
+
+  .md4-indicator {
+    position: absolute; top: 0; left: 0;
+    width: 50%; height: 3px; z-index: 3;
+    transition: transform 340ms cubic-bezier(.4,0,.2,1), background-color 280ms ease;
+  }
+
+  .md4-fade {
+    flex: 1; min-height: 0; overflow-y: auto;
+    animation: md4-fade 240ms ease both;
+  }
+  @keyframes md4-fade {
+    /* Solo translate (sin opacity 0) para que el contenido no se vea
+       transparente durante el cross-fade entre modos. */
+    from { transform: translateY(4px); }
+    to   { transform: translateY(0); }
+  }
+
+  .md4-identity {
+    display: flex; flex-direction: column; align-items: center;
+    padding: 26px 22px 20px;
+    text-align: center;
+  }
+  .md4-avatar-wrap { position: relative; }
+  .md4-avatar {
+    width: 64px; height: 64px; border-radius: 50%;
+    display: flex; align-items: center; justify-content: center;
+    font-family: 'Inter', system-ui, sans-serif;
+    font-size: 30px; font-weight: 700; color: #FFFFFF;
+    letter-spacing: -0.02em;
+    overflow: hidden;
+    transition: background-color 280ms ease, box-shadow 280ms ease;
+  }
+  .md4-avatar img { width: 100%; height: 100%; object-fit: cover; }
+  .md4-online {
+    position: absolute; right: -2px; bottom: -2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #4CC777;
+    border: 2.5px solid #fff;
+    transition: border-color 280ms ease;
+  }
+  .md4-name {
+    margin-top: 12px;
+    font-weight: 700; font-size: 17px; letter-spacing: -0.015em;
+    max-width: 260px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    transition: color 280ms ease;
+  }
+  .md4-email {
+    font-size: 15.5px;
+    font-weight: 500; letter-spacing: -0.005em;
+    transition: color 280ms ease;
+    max-width: 260px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+
+  .md4-list { padding: 6px 8px 12px; }
+  .md4-row {
+    all: unset; box-sizing: border-box; width: 100%;
+    position: relative;
+    display: flex; align-items: center; gap: 14px;
+    padding: 11px 14px 11px 18px; margin: 2px 0;
+    border-radius: 12px;
+    transition: background-color 200ms ease;
+    animation: md4-row-in 320ms cubic-bezier(.4,0,.2,1) both;
+    cursor: pointer;
+  }
+  @keyframes md4-row-in {
+    /* Solo translate — sin fade de opacity para evitar que las filas
+       se vean translúcidas durante el stagger de entrada. */
+    from { transform: translateX(-8px); }
+    to   { transform: translateX(0); }
+  }
+  .md4-row:active { background: var(--accent-soft); }
+  .md4-row:hover { background: var(--accent-soft); }
+  .md4-row:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+  .md4-row[disabled] {
+    cursor: not-allowed;
+    animation: md4-row-in 320ms cubic-bezier(.4,0,.2,1) both;
+  }
+  .md4-row[disabled]:hover,
+  .md4-row[disabled]:active { background: transparent; }
+
+  .md4-rowbar {
+    position: absolute; left: 4px; top: 22%; bottom: 22%;
+    width: 3px; background: var(--accent);
+    border-radius: 0 2px 2px 0;
+    transform: scaleY(0); transform-origin: center;
+    transition: transform 240ms cubic-bezier(.4,0,.2,1);
+  }
+  .md4-row:hover .md4-rowbar { transform: scaleY(1); }
+  .md4-row[disabled] .md4-rowbar { display: none; }
+
+  .md4-tile {
+    width: 36px; height: 36px; border-radius: 11px;
+    display: flex; align-items: center; justify-content: center;
+    color: #fff; flex-shrink: 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.08), inset 0 1px 0 rgba(255,255,255,0.18);
+    overflow: hidden;
+    position: relative;
+  }
+  .md4-tile.is-image { background: transparent !important; box-shadow: none; }
+  .md4-tile.is-image img { width: 100%; height: 100%; object-fit: contain; }
+  .md4-tile.is-locked { background: #94A3B8 !important; }
+  .md4-tile.is-locked img { filter: grayscale(1); opacity: 0.7; }
+  .md4-tile-lock-badge {
+    position: absolute; right: -2px; bottom: -2px;
+    width: 14px; height: 14px; border-radius: 50%;
+    background: #64748B; color: #fff;
+    display: flex; align-items: center; justify-content: center;
+    border: 1.5px solid var(--paper);
+  }
+
+  .md4-lbl {
+    flex: 1; font-size: 15px; font-weight: 600; letter-spacing: -0.005em;
+    transition: color 280ms ease;
+    text-align: left;
+    min-width: 0;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .md4-lbl-hint {
+    display: block;
+    font-size: 11px; font-weight: 500;
+    color: rgba(0,0,0,0.45);
+    margin-top: 1px;
+  }
+  .md4-chev {
+    color: rgba(0,0,0,0.28);
+    transition: transform 220ms cubic-bezier(.4,0,.2,1), color 200ms ease;
+    display: inline-flex; flex-shrink: 0;
+  }
+  .md4-row:hover .md4-chev { transform: translateX(3px); color: var(--accent); }
+  .md4-row[disabled] .md4-chev { color: rgba(0,0,0,0.15); }
+
+  .md4-bottom {
+    padding: 12px 16px calc(12px + env(safe-area-inset-bottom, 24px));
+    border-top: 1px solid var(--rule);
+    background: var(--paper);
+    transition: background-color 280ms ease, border-color 280ms ease;
+    flex-shrink: 0;
+  }
+  .md4-out {
+    all: unset; cursor: pointer; box-sizing: border-box;
+    width: 100%; padding: 14px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    font-family: inherit; font-size: 14.5px; font-weight: 700; letter-spacing: -0.005em;
+    color: #C53D3D;
+    border: 1.4px solid rgba(197,61,61,0.4);
+    border-radius: 14px;
+    background: rgba(197,61,61,0.02);
+    transition: background-color 200ms ease, border-color 200ms ease, transform .12s ease;
+  }
+  .md4-out:hover { background: rgba(197,61,61,0.08); border-color: rgba(197,61,61,0.6); }
+  .md4-out:active { transform: scale(0.985); }
+  .md4-out:focus-visible { outline: 2px solid #C53D3D; outline-offset: 2px; }
+
+  @media (prefers-reduced-motion: reduce) {
+    .md4-scrim,
+    .md4-drawer,
+    .md4-fade,
+    .md4-row,
+    .md4-indicator,
+    .md4-rowbar,
+    .md4-tab,
+    .md4-close,
+    .md4-card,
+    .md4-avatar,
+    .md4-online,
+    .md4-out,
+    .md4-chev {
+      animation: none !important;
+      transition: none !important;
+    }
+  }
+`;
+
+function inyectarEstilosMenuDrawer() {
+  if (typeof document === 'undefined') return;
+  let styleEl = document.getElementById(MENU_DRAWER_STYLE_ID) as HTMLStyleElement | null;
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.id = MENU_DRAWER_STYLE_ID;
+    document.head.appendChild(styleEl);
+  }
+  // Refrescar siempre el contenido — permite que HMR aplique cambios al CSS
+  // sin necesidad de recargar la pestaña entera.
+  if (styleEl.textContent !== menuDrawerCss) {
+    styleEl.textContent = menuDrawerCss;
+  }
+}
+
+// Inyectar al cargar el módulo (antes del primer render del componente)
+// para evitar que la animación de entrada arranque con CSS antiguo.
+inyectarEstilosMenuDrawer();
+
+// =============================================================================
+// COMPONENTE
+// =============================================================================
+
+const RUTAS_EXCLUSIVAS_COMERCIAL = ['/business-studio', '/scanya'];
+const RUTAS_EXCLUSIVAS_PERSONAL = ['/cardya', '/cupones', '/mis-publicaciones', '/marketplace'];
+
+// Gradients extraídos de los headers de cada página de destino — el tile
+// es un mini-espejo cromático del header al que el item lleva.
+const TILE = {
+  ubicacion: 'linear-gradient(135deg, #1e3a8a, #2563eb)',      // navy → blue-600 (sin página propia, azul de marca)
+  cardya: 'linear-gradient(135deg, #f59e0b, #d97706)',          // amber
+  cupones: 'linear-gradient(135deg, #10b981, #059669)',         // emerald
+  publicaciones: 'linear-gradient(135deg, #22d3ee, #0891b2)',   // cyan
+  guardados: 'linear-gradient(135deg, #f43f5e, #e11d48)',       // rose
+  perfil: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',          // blue
+  scanya: 'linear-gradient(135deg, #001E70, #034AE3)',          // deep blue
+  businessStudio: 'linear-gradient(135deg, #2563eb, #3b82f6)',  // blue-600 → blue-500
+} as const;
 
 export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // ---------------------------------------------------------------------------
-  // Stores
+  // Stores y hooks
   // ---------------------------------------------------------------------------
-  const usuario = useAuthStore((state) => state.usuario);
-  const logout = useAuthStore((state) => state.logout);
+  const usuario = useAuthStore((s) => s.usuario);
+  const cambiarModo = useAuthStore((s) => s.cambiarModo);
+  const logout = useAuthStore((s) => s.logout);
 
-  const ciudadData = useGpsStore((state) => state.ciudad);
+  const ciudadData = useGpsStore((s) => s.ciudad);
 
-  const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
-  const cerrarTodo = useUiStore((state) => state.cerrarTodo);
+  const abrirModalUbicacion = useUiStore((s) => s.abrirModalUbicacion);
+  const cerrarTodo = useUiStore((s) => s.cerrarTodo);
 
-  // ---------------------------------------------------------------------------
-  // Hooks
-  // ---------------------------------------------------------------------------
   const navigate = useNavigate();
-  // Para navegación entre secciones top-level (replace cuando NO venimos
-  // de /inicio para evitar acumular historial entre hermanas).
+  const location = useLocation();
   const navegarASeccion = useNavegarASeccion();
 
+  const [cambiandoModo, setCambiandoModo] = useState(false);
+
+  const drawerRef = useRef<HTMLDivElement>(null);
+  const tabPersonalRef = useRef<HTMLButtonElement>(null);
+  const tabComercialRef = useRef<HTMLButtonElement>(null);
+
+  // El CSS se inyecta al cargar el módulo (ver llamada top-level a
+  // inyectarEstilosMenuDrawer arriba) para evitar el flash entre el
+  // primer render y el momento en que useEffect aplica los estilos.
+
   // ---------------------------------------------------------------------------
-  // Effect: Bloquear scroll del body cuando el drawer está abierto
+  // Bloquear scroll del body mientras el drawer está abierto
   // ---------------------------------------------------------------------------
   useEffect(() => {
-    // Guardar la posición actual del scroll
     const scrollY = window.scrollY;
     const body = document.body;
+    const original = {
+      position: body.style.position,
+      top: body.style.top,
+      width: body.style.width,
+      overflow: body.style.overflow,
+    };
 
-    // Guardar estilos originales
-    const originalPosition = body.style.position;
-    const originalTop = body.style.top;
-    const originalWidth = body.style.width;
-    const originalOverflow = body.style.overflow;
-
-    // Fijar el body en la posición actual
     body.style.position = 'fixed';
     body.style.top = `-${scrollY}px`;
     body.style.width = '100%';
     body.style.overflow = 'hidden';
 
-    // Cleanup: Restaurar al desmontar
     return () => {
-      body.style.position = originalPosition;
-      body.style.top = originalTop;
-      body.style.width = originalWidth;
-      body.style.overflow = originalOverflow;
-
-      // Restaurar la posición del scroll
+      body.style.position = original.position;
+      body.style.top = original.top;
+      body.style.width = original.width;
+      body.style.overflow = original.overflow;
       window.scrollTo(0, scrollY);
     };
   }, []);
 
   // ---------------------------------------------------------------------------
+  // Esc cierra el drawer (a11y) + focus inicial
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    document.addEventListener('keydown', onKeyDown);
+    drawerRef.current?.focus();
+    return () => document.removeEventListener('keydown', onKeyDown);
+  }, [onClose]);
+
+  // ---------------------------------------------------------------------------
+  // Arrow keys mueven foco entre tabs (a11y)
+  // ---------------------------------------------------------------------------
+  const onTabKeyDown = (e: React.KeyboardEvent<HTMLButtonElement>) => {
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      e.preventDefault();
+      const next = e.currentTarget === tabPersonalRef.current
+        ? tabComercialRef.current
+        : tabPersonalRef.current;
+      next?.focus();
+    }
+  };
+
+  // ---------------------------------------------------------------------------
+  // Datos derivados
+  // ---------------------------------------------------------------------------
+  if (!usuario) return null;
+
+  const modo: ModoDrawer = usuario.modoActivo === 'comercial' ? 'comercial' : 'personal';
+  const tieneModoComercial = !!usuario.tieneModoComercial;
+  const paleta = PALETAS_DRAWER[modo];
+  const indicadorX = modo === 'personal' ? '0%' : '100%';
+  const participaPuntos = usuario.participaPuntos ?? true;
+
+  const inicialPersonal = usuario.nombre?.charAt(0).toUpperCase() || 'U';
+  const inicialNegocio = (usuario.sucursalAsignada
+    ? usuario.nombreSucursalAsignada?.charAt(0).toUpperCase()
+    : usuario.nombreNegocio?.charAt(0).toUpperCase()) || 'N';
+  const inicial = modo === 'comercial' ? inicialNegocio : inicialPersonal;
+
+  const avatarUrl = modo === 'comercial'
+    ? (usuario.sucursalAsignada
+      ? usuario.fotoPerfilSucursalAsignada
+      : usuario.fotoPerfilNegocio) || null
+    : usuario.avatarUrl || null;
+
+  const nombreMostrado = modo === 'comercial'
+    ? (usuario.nombreNegocio || '')
+    : `${usuario.nombre ?? ''} ${usuario.apellidos ?? ''}`.trim();
+
+  const subtituloMostrado = modo === 'comercial'
+    ? (usuario.sucursalAsignada
+      ? (usuario.nombreSucursalAsignada || '')
+      : (usuario.correoNegocio || ''))
+    : (usuario.correo || '');
+
+  // ---------------------------------------------------------------------------
   // Handlers
   // ---------------------------------------------------------------------------
   const handleNavegar = (ruta: string) => {
-    // Usa el hook para que las secciones top-level (negocios, ofertas,
-    // cardya, etc.) hagan replace en lugar de push y el back regrese a
-    // /inicio. Subrutas y otras navegaciones siguen con push normal.
     navegarASeccion(ruta);
+    onClose();
+  };
+
+  const handleAbrirUbicacion = () => {
+    abrirModalUbicacion();
     onClose();
   };
 
@@ -126,347 +504,321 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
     logout();
   };
 
-  const handleAbrirUbicacion = () => {
-    abrirModalUbicacion();
-    onClose();
+  const handleCambiarModo = async (nuevo: ModoDrawer) => {
+    if (cambiandoModo) return;
+    if (nuevo === modo) return;
+    if (nuevo === 'comercial' && !tieneModoComercial) return;
+
+    const rutaActual = location.pathname;
+    const enRutaExclusivaComercial = RUTAS_EXCLUSIVAS_COMERCIAL.some((r) => rutaActual.startsWith(r));
+    const enRutaExclusivaPersonal = RUTAS_EXCLUSIVAS_PERSONAL.some((r) => rutaActual.startsWith(r));
+    const debeRedirigir =
+      (modo === 'comercial' && nuevo === 'personal' && enRutaExclusivaComercial) ||
+      (modo === 'personal' && nuevo === 'comercial' && enRutaExclusivaPersonal);
+
+    if (debeRedirigir) {
+      navegarASeccion('/inicio');
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+
+    setCambiandoModo(true);
+    try {
+      await cambiarModo(nuevo);
+      notificar.exito(
+        nuevo === 'comercial' ? 'Cambiaste a modo Comercial' : 'Cambiaste a modo Personal',
+      );
+    } catch (error) {
+      notificar.error(error instanceof Error ? error.message : 'Error al cambiar modo');
+    } finally {
+      setCambiandoModo(false);
+    }
   };
 
   // ---------------------------------------------------------------------------
-  // Computed
+  // Items por modo
   // ---------------------------------------------------------------------------
-  const esComercial = usuario?.modoActivo === 'comercial';
-  const participaPuntos = usuario?.participaPuntos ?? true;
-  const inicialUsuario = usuario?.nombre?.charAt(0).toUpperCase() || 'U';
+  const items: ItemMenuDrawer[] = (() => {
+    const ubicacionItem: ItemMenuDrawer = {
+      id: 'loc',
+      label: ciudadData?.nombre || 'Tu Ubicación',
+      tile: TILE.ubicacion,
+      icon: MapPin,
+      onClick: handleAbrirUbicacion,
+    };
 
-  // TODO: Estos datos deben venir del store o API
+    const guardadosItem: ItemMenuDrawer = {
+      id: 'sav',
+      label: 'Mis Guardados',
+      tile: TILE.guardados,
+      icon: Bookmark,
+      onClick: () => handleNavegar('/guardados'),
+    };
+
+    const perfilItem: ItemMenuDrawer = {
+      id: 'prf',
+      label: 'Mi Perfil',
+      tile: TILE.perfil,
+      icon: User,
+      onClick: () => handleNavegar('/perfil'),
+    };
+
+    if (modo === 'personal') {
+      return [
+        ubicacionItem,
+        {
+          id: 'card',
+          label: 'CardYA',
+          tile: TILE.cardya,
+          icon: Wallet,
+          onClick: () => handleNavegar('/cardya'),
+        },
+        {
+          id: 'cup',
+          label: 'Mis Cupones',
+          tile: TILE.cupones,
+          icon: Ticket,
+          onClick: () => handleNavegar('/mis-cupones'),
+        },
+        {
+          id: 'pub',
+          label: 'Mis Publicaciones',
+          tile: TILE.publicaciones,
+          icon: Package,
+          onClick: () => handleNavegar('/mis-publicaciones'),
+        },
+        guardadosItem,
+        perfilItem,
+      ];
+    }
+
+    return [
+      ubicacionItem,
+      {
+        id: 'scn',
+        label: 'ScanYA',
+        tile: TILE.scanya,
+        iconoImagen: '/IconoScanYA.webp',
+        alt: 'ScanYA',
+        onClick: participaPuntos
+          ? () => handleNavegar('/scanya')
+          : () => {},
+        bloqueado: !participaPuntos,
+        hintBloqueado: 'Activa CardYA',
+      },
+      {
+        id: 'biz',
+        label: 'Business Studio',
+        tile: TILE.businessStudio,
+        iconoImagen: '/IconoBS.webp',
+        alt: 'Business Studio',
+        onClick: () => handleNavegar('/business-studio'),
+      },
+      guardadosItem,
+      perfilItem,
+    ];
+  })();
 
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
   return (
-    <div className="fixed inset-0" style={{ zIndex: 1001 }} data-bloquear-swipe>
-      {/* Overlay oscuro */}
+    <div
+      className="md4-root"
+      role="dialog"
+      aria-modal="true"
+      aria-label="Menú de usuario"
+      data-testid="menu-drawer"
+      data-bloquear-swipe
+    >
+      {/* Scrim — tap para cerrar */}
       <div
-        className="absolute inset-0 bg-black/50"
+        className="md4-scrim"
         onClick={onClose}
-        style={{ touchAction: 'none' }}
+        data-testid="menu-drawer-scrim"
+        aria-hidden="true"
       />
 
-      {/* Drawer - 65% del ancho en móvil */}
+      {/* Drawer */}
       <div
-        className="absolute top-0 right-0 bottom-0 w-[65%] bg-white shadow-xl flex flex-col animate-slide-in"
+        ref={drawerRef}
+        tabIndex={-1}
+        className="md4-drawer"
         style={{
-          overscrollBehavior: 'contain',
-          touchAction: 'pan-y'
+          ...paletaACssVars(paleta),
+          color: paleta.ink,
         }}
+        onClick={(e) => e.stopPropagation()}
       >
-        {/* === HEADER CON GRADIENTE METÁLICO === */}
-        <div className="bg-linear-to-r from-slate-100 via-slate-200 to-slate-100 border-b border-gray-300 p-4 relative">
-          {/* Botón cerrar - Posición absoluta */}
+        {/* X close */}
+        <button
+          type="button"
+          className="md4-close"
+          onClick={onClose}
+          aria-label="Cerrar menú"
+          data-testid="menu-drawer-close"
+        >
+          <Icon icon="lucide:x" width={16} height={16} style={{ strokeWidth: 2 }} />
+        </button>
+
+        {/* Tabs */}
+        <div role="tablist" aria-label="Modo de cuenta" className="md4-tabs">
           <button
-            onClick={onClose}
-            className="absolute top-4 right-4 p-2 bg-white text-gray-600 hover:text-gray-900 hover:bg-gray-100 rounded-full shadow-md transition-all duration-150"
+            ref={tabPersonalRef}
+            role="tab"
+            aria-selected={modo === 'personal'}
+            data-testid="menu-drawer-tab-personal"
+            className={'md4-tab ' + (modo === 'personal' ? 'active' : '')}
+            onClick={() => handleCambiarModo('personal')}
+            onKeyDown={onTabKeyDown}
+            disabled={cambiandoModo}
+            style={
+              modo === 'personal'
+                ? { background: PALETAS_DRAWER.personal.paper, color: PALETAS_DRAWER.personal.ink }
+                : undefined
+            }
           >
-            <X className="w-5 h-5" />
+            <Icon icon="lucide:user" width={15} height={15} style={{ strokeWidth: 1.9 }} />
+            Personal
           </button>
-
-          {/* Info del usuario - CENTRADO */}
-          <div className="flex flex-col items-center text-center mt-4">
-            {/* Avatar */}
-            <div className="relative mb-3">
-              <div
-                className={`w-16 h-16 rounded-full flex items-center justify-center text-white text-2xl font-bold shadow-lg ring-4 ${esComercial
-                  ? 'bg-linear-to-br from-orange-400 to-orange-600 ring-orange-100'
-                  : 'bg-linear-to-br from-blue-400 to-blue-600 ring-blue-100'
-                  } overflow-hidden`}
-              >
-                {esComercial ? (
-                  usuario?.fotoPerfilNegocio ? (
-                    <img
-                      src={usuario.fotoPerfilNegocio}
-                      alt={usuario?.nombreNegocio || 'Negocio'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    usuario?.nombreNegocio?.charAt(0).toUpperCase() || 'N'
-                  )
-                ) : (
-                  usuario?.avatarUrl ? (
-                    <img
-                      src={usuario.avatarUrl}
-                      alt={usuario?.nombre || 'Usuario'}
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    inicialUsuario
-                  )
-                )}
-              </div>
-              {/* Indicador online */}
-              <div className="absolute bottom-0 right-0 w-5 h-5 bg-green-500 rounded-full border-4 border-slate-200 shadow-md"></div>
-            </div>
-
-            {/* Toggle de modo */}
-            <div className="mb-3">
-              <ToggleModoUsuario grande />
-            </div>
-
-            {/* Nombre */}
-            <p className="font-bold text-gray-900 text-base mb-0.5 px-2 truncate w-full">
-              {esComercial
-                ? usuario.nombreNegocio
-                : `${usuario?.nombre} ${usuario?.apellidos}`}
-            </p>
-
-            {/* Correo */}
-            <p className="text-sm text-gray-600 px-2 truncate w-full">
-              {esComercial
-                ? (usuario?.sucursalAsignada
-                  ? usuario.nombreSucursalAsignada
-                  : usuario.correoNegocio)
-                : usuario?.correo}
-            </p>
-          </div>
+          <button
+            ref={tabComercialRef}
+            role="tab"
+            aria-selected={modo === 'comercial'}
+            data-testid="menu-drawer-tab-comercial"
+            className={'md4-tab ' + (modo === 'comercial' ? 'active' : '')}
+            onClick={() => handleCambiarModo('comercial')}
+            onKeyDown={onTabKeyDown}
+            disabled={cambiandoModo || !tieneModoComercial}
+            aria-disabled={!tieneModoComercial}
+            title={!tieneModoComercial ? 'Aún no tienes cuenta comercial' : undefined}
+            style={
+              modo === 'comercial'
+                ? { background: PALETAS_DRAWER.comercial.paper, color: PALETAS_DRAWER.comercial.ink }
+                : undefined
+            }
+          >
+            <Icon icon="lucide:store" width={15} height={15} style={{ strokeWidth: 1.9 }} />
+            Comercial
+          </button>
         </div>
 
-        {/* === OPCIONES DE NAVEGACIÓN === */}
-        <div className="flex-1 overflow-auto py-2">
-          {/* === SECCIÓN UNIVERSAL (SIEMPRE VISIBLE) === */}
-
-          {/* Ubicación - PRIMERA OPCIÓN */}
-          <MenuDrawerItem
-            icon={MapPin}
-            label={ciudadData?.nombre || 'Tu Ubicación'}
-            bgColor="bg-gradient-to-br from-blue-500 to-blue-600"
-            iconColor="text-white"
-            hoverGradient="hover:from-blue-50"
-            onClick={handleAbrirUbicacion}
+        {/* Card */}
+        <div className="md4-card" style={{ background: paleta.paper }}>
+          <span
+            className="md4-indicator"
+            style={{ transform: `translateX(${indicadorX})`, background: paleta.accentBg }}
           />
-          {/* Divisor después de opciones universales */}
-          <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
 
-          {/* === SECCIÓN COMERCIAL (SI APLICA) === */}
-          {esComercial && (
-            <>
-              {/* ScanYA */}
-              {/* ScanYA - Deshabilitado si CardYA no está activo */}
-              {participaPuntos ? (
-                <MenuDrawerItem
-                  iconoImagen="/IconoScanYA.webp"
-                  label={
-                    <span>
-                      <span className="text-gray-900 font-semibold">Scan</span>
-                      <span className="text-gray-900 font-semibold">YA</span>
-                    </span>
-                  }
-                  bgColor="bg-linear-to-br from-orange-500 to-orange-600"
-                  iconColor="text-white"
-                  hoverGradient="hover:from-orange-50"
-                  arrowColor="text-gray-400 group-hover:text-orange-600"
-                  comercial
-                  onClick={() => handleNavegar('/scanya')}
-                />
-              ) : (
-                <div className="w-full flex items-center gap-3 px-4 py-2.5 opacity-50 cursor-not-allowed">
-                  <div className="w-auto h-8 relative">
+          <div key={modo} className="md4-fade">
+            {/* Identity */}
+            <div className="md4-identity">
+              <div className="md4-avatar-wrap">
+                <div
+                  className="md4-avatar"
+                  style={{
+                    background: paleta.accentBg,
+                    boxShadow: `0 0 0 4px ${paleta.paper}, 0 0 0 5px ${paleta.accentSoft}`,
+                  }}
+                >
+                  {avatarUrl ? (
                     <img
-                      src="/IconoScanYA.webp"
-                      alt="ScanYA"
-                      className="w-full h-full object-contain grayscale"
+                      src={avatarUrl}
+                      alt={modo === 'comercial' ? (usuario.nombreNegocio || 'Negocio') : (usuario.nombre || 'Usuario')}
                     />
-                    <div className="absolute -bottom-1 -right-1 w-4 h-4 bg-slate-400 rounded-full flex items-center justify-center">
-                      <Lock className="w-2.5 h-2.5 text-white" />
-                    </div>
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="font-semibold text-slate-400 text-md">
-                      <span className="font-bold">Scan</span>
-                      <span className="font-bold">YA</span>
-                    </span>
-                    <span className="text-xs text-slate-400">Activa CardYA</span>
-                  </div>
-                  <Lock className="w-4 h-4 ml-auto text-slate-400" />
+                  ) : (
+                    inicial
+                  )}
                 </div>
-              )}
+                <span
+                  className="md4-online"
+                  aria-label="Disponible"
+                  style={{ borderColor: paleta.paper }}
+                />
+              </div>
+              <div className="md4-name" data-testid="menu-drawer-nombre">
+                {nombreMostrado}
+              </div>
+              <div
+                className="md4-email"
+                data-testid="menu-drawer-subtitulo"
+                style={{ color: paleta.muted }}
+              >
+                {subtituloMostrado}
+              </div>
+            </div>
 
-              {/* Business Studio */}
-              <MenuDrawerItem
-                iconoImagen="/IconoBS.webp"
-                label={
-                  <span>
-                    <span className="text-gray-900 font-semibold">Business</span>
-                    <span className="text-gray-900 font-semibold"> Studio</span>
-                  </span>
-                }
-                bgColor="bg-linear-to-br from-blue-500 to-blue-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-orange-50"
-                arrowColor="text-gray-400 group-hover:text-orange-600"
-                comercial
-                onClick={() => handleNavegar('/business-studio')}
-              />
+            {/* Lista */}
+            <div className="md4-list">
+              {items.map((it, i) => {
+                const tileClasses = ['md4-tile'];
+                if (it.iconoImagen) tileClasses.push('is-image');
+                if (it.bloqueado) tileClasses.push('is-locked');
 
-              {/* Mis Guardados */}
-              <MenuDrawerItem
-                icon={Bookmark}
-                label="Mis Guardados"
-                bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-pink-50"
-                onClick={() => handleNavegar('/guardados')}
-              />
+                const tileStyle: React.CSSProperties = {
+                  background: it.bloqueado ? undefined : it.tile,
+                };
 
-              {/* Divisor después de sección comercial */}
-              <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
-            </>
-          )}
+                const IconoFila = it.icon;
 
-          {/* === SECCIÓN PERSONAL (SI APLICA) === */}
-          {!esComercial && (
-            <>
-              {/* CardYA */}
-              <MenuDrawerItem
-                icon={Wallet}
-                label={
-                  <span>
-                    <span className="text-gray-900 font-semibold">Card</span>
-                    <span className="text-gray-900 font-semibold">YA</span>
-                  </span>
-                }
-                bgColor="bg-gradient-to-br from-amber-400 to-amber-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-amber-50"
-                onClick={() => handleNavegar('/cardya')}
-              />
+                return (
+                  <button
+                    type="button"
+                    key={it.id}
+                    role="menuitem"
+                    data-testid={`menu-drawer-item-${it.id}`}
+                    className="md4-row"
+                    style={{ animationDelay: `${i * 35 + 80}ms` }}
+                    onClick={it.bloqueado ? undefined : it.onClick}
+                    disabled={it.bloqueado}
+                    aria-disabled={it.bloqueado}
+                  >
+                    <span className="md4-rowbar" />
+                    <span className={tileClasses.join(' ')} style={tileStyle} aria-hidden="true">
+                      {it.iconoImagen ? (
+                        <img src={it.iconoImagen} alt={it.alt || it.label} />
+                      ) : IconoFila ? (
+                        <IconoFila width={17} height={17} strokeWidth={1.85} />
+                      ) : null}
+                      {it.bloqueado && (
+                        <span className="md4-tile-lock-badge" aria-hidden="true">
+                          <Lock width={8} height={8} strokeWidth={2.5} />
+                        </span>
+                      )}
+                    </span>
+                    <span className="md4-lbl">
+                      {it.label}
+                      {it.bloqueado && it.hintBloqueado && (
+                        <span className="md4-lbl-hint">{it.hintBloqueado}</span>
+                      )}
+                    </span>
+                    {it.bloqueado ? (
+                      <Lock width={14} height={14} strokeWidth={2.25} className="md4-chev" />
+                    ) : (
+                      <span className="md4-chev">
+                        <Icon icon="lucide:chevron-right" width={16} height={16} />
+                      </span>
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
 
-
-              {/* Mis Cupones */}
-              <MenuDrawerItem
-                icon={Ticket}
-                label="Mis Cupones"
-                bgColor="bg-gradient-to-br from-emerald-400 to-emerald-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-emerald-50"
-                onClick={() => handleNavegar('/mis-cupones')}
-              />
-
-              {/* Mis Publicaciones */}
-              <MenuDrawerItem
-                icon={Package}
-                label="Mis Publicaciones"
-                bgColor="bg-gradient-to-br from-cyan-400 to-cyan-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-cyan-50"
-                onClick={() => handleNavegar('/mis-publicaciones')}
-              />
-
-              {/* Mis Guardados */}
-              <MenuDrawerItem
-                icon={Bookmark}
-                label="Mis Guardados"
-                bgColor="bg-gradient-to-br from-pink-400 to-pink-600"
-                iconColor="text-white"
-                hoverGradient="hover:from-pink-50"
-                onClick={() => handleNavegar('/guardados')}
-              />
-
-              {/* Divisor después de opciones personales */}
-              <div className="my-2.5 mx-4 h-[1.5px] bg-linear-to-r from-transparent via-gray-400 to-transparent"></div>
-            </>
-          )}
-
-          {/* === OPCIONES COMUNES (TODOS) === */}
-
-          {/* Mi Perfil */}
-          <MenuDrawerItem
-            icon={User}
-            label="Mi Perfil"
-            bgColor="bg-gradient-to-br from-blue-400 to-blue-600"
-            iconColor="text-white"
-            hoverGradient="hover:from-blue-50"
-            onClick={() => handleNavegar('/perfil')}
-          />
-        </div>
-
-        {/* === FOOTER: CERRAR SESIÓN === */}
-        <div className="p-3 border-t border-gray-200 bg-linear-to-b from-transparent to-gray-50">
-          <button
-            onClick={handleCerrarSesion}
-            className="w-full flex items-center justify-center gap-2 py-3 bg-linear-to-r from-red-500 to-red-600 text-white hover:from-red-600 hover:to-red-700 rounded-xl shadow-lg transition-all duration-150 font-bold text-sm active:scale-95"
-          >
-            <LogOut className="w-4 h-4" />
-            <span>Cerrar Sesión</span>
-          </button>
+          {/* Sticky bottom: Cerrar Sesión */}
+          <div className="md4-bottom">
+            <button
+              type="button"
+              className="md4-out"
+              onClick={handleCerrarSesion}
+              data-testid="menu-drawer-logout"
+            >
+              <LogOut width={16} height={16} strokeWidth={1.7} />
+              Cerrar Sesión
+            </button>
+          </div>
         </div>
       </div>
     </div>
-  );
-}
-
-// =============================================================================
-// SUBCOMPONENTE: MenuDrawerItem (VERSIÓN COMPACTA)
-// =============================================================================
-
-interface MenuDrawerItemProps {
-  icon?: React.ElementType;
-  iconoImagen?: string;
-  label: string | React.ReactNode;
-  badge?: number;
-  bgColor: string;
-  iconColor: string;
-  hoverGradient: string;
-  arrowColor?: string;
-  comercial?: boolean;
-  onClick: () => void;
-}
-
-function MenuDrawerItem({
-  icon: Icon,
-  iconoImagen,
-  label,
-  badge,
-  bgColor,
-  iconColor,
-  hoverGradient,
-  arrowColor = 'text-gray-400 group-hover:text-blue-500',
-  onClick,
-}: MenuDrawerItemProps) {
-  return (
-    <button
-      onClick={onClick}
-      className={`w-full flex items-center gap-3 px-4 py-2.5 hover:bg-linear-to-r ${hoverGradient} hover:to-transparent group transition-all duration-150 hover:translate-x-1`}
-    >
-      {/* Icono con o sin background */}
-      <div
-        className={`${iconoImagen ? 'w-auto h-8' : 'w-8 h-8'} ${iconoImagen ? '' : bgColor
-          } ${iconoImagen ? '' : 'rounded-lg'} flex items-center justify-center group-hover:scale-110 transition-transform duration-150 ${iconoImagen ? '' : 'shadow-sm'
-          } shrink-0`}
-      >
-        {iconoImagen ? (
-          <img
-            src={iconoImagen}
-            alt={typeof label === 'string' ? label : 'Icono'}
-            className="w-full h-full object-contain"
-          />
-        ) : Icon ? (
-          <Icon className={`w-4 h-4 ${iconColor}`} />
-        ) : null}
-      </div>
-
-      {/* Label */}
-      <span className="font-semibold text-gray-900 text-md">{label}</span>
-
-      {/* Badge o Chevron */}
-      {badge !== undefined && badge > 0 ? (
-        <span className="ml-auto bg-blue-500 text-white text-[10px] px-2 py-0.5 rounded-full font-bold shadow-sm">
-          {badge > 9 ? '9+' : badge}
-        </span>
-      ) : (
-        <ChevronRight
-          className={`w-4 h-4 ml-auto ${arrowColor} group-hover:translate-x-1 transition-all duration-150`}
-        />
-      )}
-    </button>
   );
 }
 
