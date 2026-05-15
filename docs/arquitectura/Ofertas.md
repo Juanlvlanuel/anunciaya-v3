@@ -1,11 +1,23 @@
 # 🏷️ Ofertas — Sección Pública
 
-**Última actualización:** 08 Mayo 2026
-**Versión:** 1.6
+**Última actualización:** 14 Mayo 2026
+**Versión:** 1.7
 **Estado:** ✅ Operacional (Backend + Frontend Editorial completo)
 **Ruta:** `/ofertas`
 
-## 🆕 v1.6 — Carrusel rotativo migrado a Embla (08 May 2026)
+## 🆕 v1.7 — Overlay de buscador con sugerencias en vivo (14 May 2026)
+
+Replicación sobria del patrón canónico del MarketPlace (ver `docs/arquitectura/MarketPlace.md` §P5):
+
+- **Backend nuevo:** `GET /api/ofertas/buscar/sugerencias?q=&ciudad=` con ILIKE simple sobre título + descripción + nombre del negocio. Sin FTS (el dataset por ciudad es chico — decenas de ofertas, no miles), sin tabla de log, sin populares cacheados. Service en `apps/api/src/services/ofertas/buscador.ts`.
+- **Frontend nuevo:** `OverlayBuscadorOfertas.tsx` con identidad ámbar — montado en `MainLayout.tsx` cuando `pathname.startsWith('/ofertas')`. Estado vacío: solo "Búsquedas recientes" (localStorage por sección, helper `busquedasRecientes.ts` generalizado). Mientras escribe (debounce 300ms): cards con título + descuento + negocio + ciudad.
+- **HeaderOfertas refactorizado:** la lupa móvil ahora escribe a `useSearchStore.query` (antes era estado local `busquedaLocal`). El input dispara automáticamente: filtrado del feed (vía `useOfertasFeedCerca`) Y aparición del overlay con sugerencias.
+- **Click en sugerencia:** `navigate('/ofertas?oferta=:id')`. `PaginaOfertas` lee el param, busca la oferta en feeds ya cargados (camino caliente) o hace fetch del detalle como fallback, y abre `ModalOfertaDetalle`. Al cerrar el modal el param se limpia.
+- **Sin página de resultados dedicada** (a diferencia del MP que tiene `/marketplace/buscar?q=`). El feed in-page ya filtra por `useSearchStore.query`, por lo que el botón "Ver todos los resultados" simplemente cierra el overlay y deja al usuario en la lista filtrada inline.
+
+Pendiente E.1 cerrado en `docs/reportes/MarketPlace/Pendientes.md`.
+
+## v1.6 — Carrusel rotativo migrado a Embla (08 May 2026)
 
 El par superior del feed editorial (cards "Hoy te recomendamos" y "Destacado") usaba un carrusel **hand-rolled** con Touch/Pointer Events, transform DOM directo, click guards y `requestAnimationFrame` batching. Tras 9 iteraciones siguió sintiéndose rígido en móvil — había que mover el dedo con fuerza para que el slide arrancara y el snap a medio camino lucía abrupto. Causa raíz: el "scroll-slop" interno del browser (~10–15 px de detección antes de ceder el gesto al JS) no es resoluble sin un engine que separe pointer input del rendering y mantenga velocity entre frames.
 

@@ -41,7 +41,6 @@ const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p}
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
-import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../hooks/useVolverAtras';
 import { useSearchStore } from '@/stores/useSearchStore';
 import { useUiStore } from '@/stores/useUiStore';
@@ -70,25 +69,28 @@ export default function HeaderOfertas({
   totalOfertas,
   ciudad,
 }: HeaderOfertasProps) {
-  const navigate = useNavigate();
   // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
   const handleVolver = useVolverAtras('/inicio');
   const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
-  const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
-  void abrirBuscador; // reservado: dispara el OverlayBuscadorOfertas cuando exista (ver pendiente #8)
 
-  // Buscador móvil inline (mismo patrón visual que Negocios). El input es
-  // local por ahora; cuando exista OverlayBuscadorOfertas se conectará al
-  // useSearchStore global.
+  // Buscador móvil conectado al `useSearchStore` global. El input escribe
+  // directamente a `query` para que el `OverlayBuscadorOfertas` (montado en
+  // MainLayout) muestre las sugerencias en vivo y el feed de la página filtre
+  // automáticamente. Mismo patrón que MarketPlace.
+  const queryGlobal = useSearchStore((s) => s.query);
+  const setQueryGlobal = useSearchStore((s) => s.setQuery);
+  const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
+  const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
+
   const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
-  const [busquedaLocal, setBusquedaLocal] = useState('');
   const inputBusquedaMovilRef = useRef<HTMLInputElement>(null);
   const handleAbrirBuscadorMovil = () => {
     setBuscadorMovilAbierto(true);
+    abrirBuscador();
     setTimeout(() => inputBusquedaMovilRef.current?.focus(), 100);
   };
   const handleCerrarBuscadorMovil = () => {
-    setBusquedaLocal('');
+    cerrarBuscador();
     setBuscadorMovilAbierto(false);
   };
   const chipActivo = useFiltrosOfertasStore((s) => s.chipActivo);
@@ -198,17 +200,17 @@ export default function HeaderOfertas({
                   ref={inputBusquedaMovilRef}
                   data-testid="input-buscar-ofertas"
                   type="text"
-                  value={busquedaLocal}
-                  onChange={(e) => setBusquedaLocal(e.target.value)}
+                  value={queryGlobal}
+                  onChange={(e) => setQueryGlobal(e.target.value)}
                   placeholder="Buscar ofertas..."
                   autoComplete="off"
                   autoCapitalize="off"
                   spellCheck="false"
                   className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
                 />
-                {busquedaLocal.trim() && (
+                {queryGlobal.trim() && (
                   <button
-                    onClick={() => { setBusquedaLocal(''); inputBusquedaMovilRef.current?.focus(); }}
+                    onClick={() => { setQueryGlobal(''); inputBusquedaMovilRef.current?.focus(); }}
                     className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
                     aria-label="Limpiar búsqueda"
                   >

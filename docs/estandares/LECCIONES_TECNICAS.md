@@ -82,6 +82,49 @@
 
 - **Columnas de BD vs campos del schema Drizzle** — Lo que existe en PostgreSQL no tiene por qué estar en `schema.ts`. La tabla `negocio_sucursales` tiene (o tuvo) columnas `latitud`/`longitud` numeric pero el schema Drizzle define solo `ubicacion` (PostGIS POINT serializado como text). Drizzle solo inserta los campos que conoce, así que intentar pasar `{ latitud: 31.3, longitud: -113.5 }` falla con "Object literal may only specify known properties". Las coordenadas se extraen en lectura con `ST_Y(ubicacion::geometry)` y `ST_X(ubicacion::geometry)`. Regla: si necesitas un campo que no aparece en el schema, no asumas que no existe en la BD — puede estar en BD pero fuera del modelo Drizzle.
 
+### Buscadores y FTS
+
+> Patrón completo en `docs/estandares/PATRON_BUSCADOR_SECCION.md`. Lecciones puntuales:
+
+- **`plainto_tsquery` español NO hace prefix matching** — el tokenizer trabaja por palabra completa con stemming. `to_tsvector('spanish', 'bicicleta vintage') @@ plainto_tsquery('spanish', 'bici')` devuelve `false` aunque "bici" sea prefijo natural. Síntoma observado: el usuario teclea incrementalmente "bici" y no ve resultados hasta que escribe "bicicleta" entera. **Solución:** combinar FTS con OR `ILIKE` substring para cubrir prefix sin perder el ranking del FTS:
+  ```sql
+  WHERE (
+      to_tsvector('spanish', unaccent(...)) @@ plainto_tsquery('spanish', unaccent(${q}))
+      OR unaccent(titulo) ILIKE unaccent(${'%' + q + '%'})
+      OR unaccent(descripcion) ILIKE unaccent(${'%' + q + '%'})
+  )
+  ```
+  El FTS sigue rankeando con `ts_rank` (las filas que matchean por FTS rankean primero); el ILIKE solo amplía cobertura.
+
+- **`unaccent()` es extensión de Postgres, no built-in — y necesita estar a ambos lados** — La extensión `unaccent` viene en PostgreSQL contrib (Supabase la tiene disponible) pero hay que activarla con `CREATE EXTENSION IF NOT EXISTS unaccent;`. Sin ella, `ILIKE '%panaderia%'` NO matchea "Panadería" porque ILIKE es solo case-insensitive, no accent-insensitive. **Regla:** aplicar a ambos lados — `unaccent(col) ILIKE unaccent(patron)` — sino el match falla cuando el usuario sí escribe acentos. Migración aplicada: `docs/migraciones/2026-05-14-extension-unaccent.sql`. **Trampa de performance:** el GIN index original sobre la columna sin `unaccent` deja de servir y el planner cae a sequential scan. Aceptable para datasets de decenas a pocos miles. Si crece, recrear index con `CREATE INDEX ... USING gin (unaccent(col) gin_trgm_ops)` (requiere `pg_trgm` también).
+
+- **JS `normalize('NFD') + \p{Diacritic}` para el equivalente frontend de `unaccent`** — Para filtros in-memory donde no hay backend en el flujo (ej. `OverlayBuscadorNegocios` filtra contra el array ya cargado por `useNegociosLista`):
+  ```ts
+  texto.toLowerCase().normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  ```
+  La ñ se preserva porque NO es un combining mark — se considera letra propia en español. Helper compartido en `apps/web/src/utils/normalizarTexto.ts`. Aplicar a ambos lados (texto fuente Y query del usuario) en cada comparación.
+
+- **Frontend in-memory NO compensa al backend que ya recortó** — Bug típico: el backend filtra `?busqueda=panaderia` solo contra `negocio.nombre` con ILIKE simple → devuelve 0 negocios → el frontend in-memory tiene cobertura accent-insensitive sobre 6 campos pero opera contra `[]` y no encuentra nada. **Regla:** el backend debe ser el filtro de verdad. El frontend solo afina (slice top 5, dedup, formato) — no agrega resultados nuevos.
+
+- **`useDeferredValue` para filtros pesados in-memory que respaldan un input controlled** — Sin él, cada keystroke recalcula el filtro contra el array completo y re-renderiza todo lo que dependa (mapa + popups + cards). Al borrar (la lista crece) se siente "en cámara lenta". `useDeferredValue` (React 18 native, sin dependencias) mantiene el input prioritario y deja el filtro pesado para cuando React tiene tiempo libre — el input se siente fluido, los resultados aparecen ~1 frame después. Aplicado en `PaginaNegocios.tsx`. Trade-off: por 1 frame puedes ver la lista anterior mientras los resultados nuevos se calculan. Aceptable.
+
+- **Debounce manual del query antes de armar el queryKey de React Query** — Sin debounce, cada keystroke cambia el queryKey y RQ refetcha al backend cada tecla. No solo carga al backend; también dispara loading state perceptible para el usuario. Patrón:
+  ```ts
+  const [busqueda, setBusqueda] = useState(busquedaRaw);
+  useEffect(() => {
+      const t = setTimeout(() => setBusqueda(busquedaRaw), 250);
+      return () => clearTimeout(t);
+  }, [busquedaRaw]);
+  // ...usar `busqueda` en queryKey, no `busquedaRaw`
+  ```
+  El input visual sigue instantáneo (escribe directo al store); solo se debouncea el fetch. Diferente del debounce 300ms del hook de sugerencias del overlay (ahí se debouncea ANTES de armar el queryKey del hook de sugerencias en sí).
+
+- **Overlay de buscador se monta en MainLayout, NO en cada página** — Para que funcione en cualquier sub-ruta de la sección (`/marketplace/articulo/:id`, `/negocios/:sucursalId`, etc.) sin estar atado al montaje de la página principal. El overlay se auto-oculta cuando `buscadorAbierto=false` Y `query=''`, así que no estorba inactivo. El switch por sección vive en `MainLayout.tsx` con `detectarSeccion(location.pathname) === '<seccion>'`.
+
+- **Búsquedas recientes en localStorage por sección, no compartidas** — Una "panadería" buscada en Negocios no debe aparecer como reciente al abrir Ofertas. Helper `busquedasRecientes.ts` con clave por sección (`<seccion>_busquedas_recientes`). Click en chip reciente o popular **rellena el query** (dispara las sugerencias) **sin cerrar el overlay** — el usuario decide cuál sugerencia abrir.
+
+- **Ruta `/buscar/sugerencias` antes de las paramétricas en el router de Express** — Si declaras `router.get('/:id', ...)` antes que `router.get('/buscar/sugerencias', ...)`, Express interpreta `buscar` como `:id` y nunca llega al handler de sugerencias. Verificar siempre el orden cuando agregues una ruta nueva con paths relativos a un router que ya tiene paramétricas.
+
 ### Stores y Caché
 
 - **Skeleton solo en primera carga** — Usar `const esCargaInicial = datos === null` (o `.length === 0`) para decidir si mostrar spinner. Recargas posteriores muestran datos del caché al instante y actualizan silenciosamente. Patrón usado en Clientes, Transacciones, Alertas, Dashboard.

@@ -88,7 +88,6 @@ import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticuloMarketplace';
 import PaginaPublicarArticulo from '../pages/private/marketplace/PaginaPublicarArticulo';
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
-import PaginaResultadosMarketplace from '../pages/private/marketplace/PaginaResultadosMarketplace';
 const PaginaServicios = () => <PlaceholderPage nombre="🛠️ Servicios" />;
 
 // Páginas de usuario
@@ -308,14 +307,6 @@ const router = createBrowserRouter([
             // Ruta canónica nueva: /marketplace/usuario/:usuarioId.
             path: '/marketplace/vendedor/:usuarioId',
             element: <RedirectVendedorAUsuario />,
-          },
-          {
-            path: '/marketplace/buscar',
-            element: (
-              <ModoPersonalEstrictoGuard>
-                <PaginaResultadosMarketplace />
-              </ModoPersonalEstrictoGuard>
-            ),
           },
           {
             path: '/ofertas',

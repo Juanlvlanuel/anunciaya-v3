@@ -413,8 +413,24 @@ export async function listarSucursalesCercanas(
 
               ${busqueda ? sql`
                 AND (
-                    n.nombre ILIKE ${'%' + busqueda + '%'}
-                    OR s.nombre ILIKE ${'%' + busqueda + '%'}
+                    unaccent(n.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
+                    OR unaccent(s.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
+                    OR unaccent(s.direccion) ILIKE unaccent(${'%' + busqueda + '%'})
+                    OR unaccent(s.ciudad) ILIKE unaccent(${'%' + busqueda + '%'})
+                    -- Buscar también por categoría/subcategoría: el usuario que
+                    -- escribe "tacos" debe encontrar negocios cuya subcategoría
+                    -- es Tacos aunque el nombre del negocio sea "Don Pepe".
+                    OR EXISTS(
+                        SELECT 1
+                        FROM asignacion_subcategorias asig
+                        JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
+                        JOIN categorias_negocio c ON c.id = sc.categoria_id
+                        WHERE asig.negocio_id = n.id
+                          AND (
+                              unaccent(sc.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
+                              OR unaccent(c.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
+                          )
+                    )
                 )
               ` : sql``}
             

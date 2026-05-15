@@ -125,6 +125,29 @@ export async function obtenerSugerencias(
     if (q.length < 2) return { success: true, data: [] };
 
     try {
+        // Match accent-insensitive: aplicamos `unaccent()` tanto al texto
+        // indexado como al query del usuario, así "bicicleta vintage" matchea
+        // "Bicicleta Vintage" aunque el usuario escriba "bicilceta vintage"
+        // o sin acentos. Requiere `CREATE EXTENSION unaccent` aplicado vía
+        // `docs/migraciones/2026-05-14-extension-unaccent.sql`.
+        //
+        // Combina FTS español con ILIKE substring:
+        //  - FTS (`@@ plainto_tsquery`) → da ranking por relevancia y stemming
+        //    en español ("bicicletas" matchea "bicicleta") pero NO hace prefix
+        //    matching: el usuario que escribe "bici" no encuentra "bicicleta"
+        //    porque el tokenizer trabaja por palabras completas.
+        //  - ILIKE substring → cubre ese gap. Mientras el usuario escribe
+        //    incrementalmente, los matches por prefijo aparecen al instante.
+        //
+        // Ranking del ORDER BY: las filas con match FTS reciben ts_rank > 0
+        // (más relevantes); las que solo matchean por ILIKE reciben 0 y caen
+        // al final, desempatadas por `created_at` (más recientes primero).
+        //
+        // Nota: el GIN index original `idx_marketplace_titulo_fts` está sobre
+        // la versión sin `unaccent` y deja de servir para esta query — el
+        // planner cae a sequential scan. Para datasets pequeños es aceptable.
+        // Si el volumen crece, recrear el index sobre la versión con unaccent.
+        const patron = `%${q}%`;
         const resultado = await db.execute(sql`
             SELECT
                 id,
@@ -138,11 +161,15 @@ export async function obtenerSugerencias(
             WHERE estado = 'activa'
               AND deleted_at IS NULL
               AND ciudad = ${ciudad}
-              AND to_tsvector('spanish', titulo || ' ' || descripcion)
-                  @@ plainto_tsquery('spanish', ${q})
+              AND (
+                  to_tsvector('spanish', unaccent(titulo || ' ' || descripcion))
+                      @@ plainto_tsquery('spanish', unaccent(${q}))
+                  OR unaccent(titulo) ILIKE unaccent(${patron})
+                  OR unaccent(descripcion) ILIKE unaccent(${patron})
+              )
             ORDER BY ts_rank(
-                to_tsvector('spanish', titulo || ' ' || descripcion),
-                plainto_tsquery('spanish', ${q})
+                to_tsvector('spanish', unaccent(titulo || ' ' || descripcion)),
+                plainto_tsquery('spanish', unaccent(${q}))
             ) DESC,
             created_at DESC
             LIMIT 5
@@ -261,8 +288,16 @@ export async function buscarArticulos(
     ];
 
     if (queryNorm.length >= 2) {
+        // Accent-insensitive + prefix matching — ver §obtenerSugerencias
+        // para racional. Combina FTS (stemming + ranking) con ILIKE substring
+        // para cubrir el caso "bici" → "bicicleta" mientras el usuario teclea.
+        const patronLike = `%${queryNorm}%`;
         conds.push(
-            sql`to_tsvector('spanish', a.titulo || ' ' || a.descripcion) @@ plainto_tsquery('spanish', ${queryNorm})`
+            sql`(
+                to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)) @@ plainto_tsquery('spanish', unaccent(${queryNorm}))
+                OR unaccent(a.titulo) ILIKE unaccent(${patronLike})
+                OR unaccent(a.descripcion) ILIKE unaccent(${patronLike})
+            )`
         );
     }
 

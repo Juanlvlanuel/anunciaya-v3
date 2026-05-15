@@ -38,6 +38,8 @@ import { ColumnaDerecha } from './ColumnaDerecha';
 import { PanelNotificaciones } from './PanelNotificaciones';
 import { PanelPreviewNegocio } from './PanelPreviewNegocio';
 import { OverlayBuscadorMarketplace } from '../marketplace/OverlayBuscadorMarketplace';
+import { OverlayBuscadorOfertas } from '../ofertas/OverlayBuscadorOfertas';
+import { OverlayBuscadorNegocios } from '../negocios/OverlayBuscadorNegocios';
 import { detectarSeccion } from '../../stores/useSearchStore';
 import { BannerRateLimit } from '../ui/Banner429';
 import { useSwipeNavegacionBS } from '../../hooks/useSwipeNavegacionBS';
@@ -412,16 +414,27 @@ export function MainLayout() {
           <ChatOverlay />
           <PanelNotificaciones />
 
-          {/* ===== OVERLAY BUSCADOR MARKETPLACE (global en `/marketplace/*`) =====
-              Antes vivía dentro de `PaginaMarketplace.tsx` y `PaginaResultadosMarketplace.tsx`,
-              entonces el buscador del Navbar (siempre visible en desktop) no
-              funcionaba al hacer focus desde sub-rutas como `/marketplace/articulo/:id`
-              o `/marketplace/usuario/:id` — el overlay no estaba montado.
-              Montarlo aquí lo hace funcionar en cualquier sub-ruta de MP. El
-              propio overlay se auto-oculta cuando `buscadorAbierto=false` Y
-              `query=''`, así que no estorba al estar inactivo. */}
+          {/* ===== OVERLAYS DE BUSCADOR POR SECCIÓN (global en sub-rutas) =====
+              Cada overlay se monta en el layout raíz para que funcione en
+              cualquier sub-ruta de su sección — el buscador del Navbar
+              (siempre visible en desktop) dispara `useSearchStore.abrirBuscador`
+              y el overlay correspondiente aparece. Cada overlay se auto-oculta
+              cuando `buscadorAbierto=false` Y `query=''`, así que no estorba
+              estando inactivo.
+
+              MP es el "patrón canónico" (overlay completo con FTS + populares
+              + página de resultados dedicada). Ofertas y Negocios usan una
+              versión sobria del patrón — sin populares, sin página de
+              resultados; el feed in-page hace de "lista filtrada". Ver
+              `docs/arquitectura/MarketPlace.md` §P5 para racional. */}
           {detectarSeccion(location.pathname) === 'marketplace' && (
             <OverlayBuscadorMarketplace />
+          )}
+          {detectarSeccion(location.pathname) === 'ofertas' && (
+            <OverlayBuscadorOfertas />
+          )}
+          {detectarSeccion(location.pathname) === 'negocios' && (
+            <OverlayBuscadorNegocios />
           )}
         </>
       )}

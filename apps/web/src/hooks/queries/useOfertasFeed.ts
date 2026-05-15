@@ -14,10 +14,13 @@
  * Ubicación: apps/web/src/hooks/queries/useOfertasFeed.ts
  */
 
+import { useEffect, useState } from 'react';
 import { useQuery, keepPreviousData } from '@tanstack/react-query';
 import {
   obtenerFeedOfertas,
   obtenerOfertaDestacadaDelDia,
+  obtenerSugerenciasOfertas,
+  type SugerenciaOferta,
 } from '../../services/ofertasService';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useFiltrosOfertasStore } from '../../stores/useFiltrosOfertasStore';
@@ -80,7 +83,19 @@ export function useOfertasFeedCerca() {
   // Búsqueda: leer del searchStore GLOBAL (Navbar/MobileHeader) — Ofertas
   // no tiene buscador propio, reusa el del header principal. El placeholder
   // específico ya está definido en `useSearchStore.placeholderSeccion`.
-  const busqueda = useSearchStore((s) => s.query);
+  const busquedaRaw = useSearchStore((s) => s.query);
+
+  // PERF: debounce 250ms del query antes de armar el queryKey. Sin esto,
+  // cada keystroke (escribir o borrar) cambiaba el queryKey y React Query
+  // disparaba un fetch nuevo por tecla — al borrar con Backspace se sentía
+  // lento. El input visual sigue instantáneo (escribe directo al store);
+  // solo el fetch al backend se debouncea.
+  const [busqueda, setBusqueda] = useState(busquedaRaw);
+  useEffect(() => {
+    const t = setTimeout(() => setBusqueda(busquedaRaw), 250);
+    return () => clearTimeout(t);
+  }, [busquedaRaw]);
+
   const { latitud, longitud } = useGpsStore();
 
   // Patrón espejo de `useNegociosLista`: lat/lng SIEMPRE en `filtros`
@@ -191,4 +206,42 @@ export function useOfertasFeedRecientes() {
 
 export function useOfertasFeedPopulares() {
   return useBloqueCarrusel('populares', 'populares', 10);
+}
+
+// =============================================================================
+// BUSCADOR — sugerencias en vivo del overlay
+// =============================================================================
+
+export type { SugerenciaOferta };
+
+/**
+ * Sugerencias en vivo con debounce 300ms (mismo patrón que MarketPlace).
+ *
+ * El componente pasa el `query` "raw" del input — este hook se encarga de
+ * debouncear y solo dispara fetch cuando el query estabilizado tiene >= 2
+ * caracteres. Sin esto, cada tecla pegada spamearía el backend.
+ *
+ * Versión sobria del patrón de MP: sin populares, sin tabla de log.
+ */
+export function useBuscadorOfertasSugerencias(
+  queryRaw: string,
+  ciudad: string | null,
+) {
+  const [queryDebounced, setQueryDebounced] = useState(queryRaw);
+
+  useEffect(() => {
+    const timer = setTimeout(() => setQueryDebounced(queryRaw), 300);
+    return () => clearTimeout(timer);
+  }, [queryRaw]);
+
+  return useQuery({
+    queryKey: queryKeys.ofertasFeed.sugerencias(queryDebounced, ciudad ?? ''),
+    queryFn: async (): Promise<SugerenciaOferta[]> => {
+      const r = await obtenerSugerenciasOfertas(queryDebounced, ciudad ?? '');
+      return r.success ? (r.data ?? []) : [];
+    },
+    enabled: !!ciudad && queryDebounced.trim().length >= 2,
+    staleTime: 60 * 1000,
+    placeholderData: keepPreviousData,
+  });
 }

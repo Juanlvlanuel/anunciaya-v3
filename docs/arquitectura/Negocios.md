@@ -1,10 +1,20 @@
 # 🏪 Negocios - Directorio Geolocalizado
 
-**Última actualización:** 06 Mayo 2026
-**Versión:** 3.1
+**Última actualización:** 14 Mayo 2026
+**Versión:** 3.2
 **Estado:** ✅ 100% Operacional
 
-## 🆕 v3.1 — Header unificado + filtro "A domicilio" + toggle Mapa/Lista flotante (06 May 2026)
+## 🆕 v3.2 — Overlay de buscador con sugerencias en vivo (14 May 2026)
+
+Replicación sobria del patrón canónico del MarketPlace (ver `docs/arquitectura/MarketPlace.md` §P5):
+
+- **Sin endpoint backend nuevo.** El overlay filtra in-memory contra el array de `useNegociosLista()` por nombre del negocio, nombre de la sucursal, categoría padre, subcategorías, dirección y ciudad — mismo criterio que el filtro inline existente. React Query cachea esa lista entre el feed y el overlay, así que no hay doble fetch.
+- **Frontend nuevo:** `OverlayBuscadorNegocios.tsx` con identidad azul — montado en `MainLayout.tsx` cuando `pathname.startsWith('/negocios')`. Estado vacío: solo "Búsquedas recientes" (helper `busquedasRecientes.ts` con clave por sección). Mientras escribe (≥2 caracteres): top 5 cards con logo + nombre + categoría padre + ciudad.
+- **PaginaNegocios refactorizada:** la lupa móvil ahora escribe a `useSearchStore.query` (antes era estado local `busquedaLocal`). El debounce de 400ms ahora propaga `searchQuery → useFiltrosNegociosStore.busqueda` para que el backend siga filtrando — patrón equivalente al previo, solo que la fuente de verdad ahora es el store global.
+- **Click en sugerencia:** `navigate('/negocios?seleccionado=:sucursalId')`. `PaginaNegocios` lee el param y dispara `handleSeleccionarNegocio` cuando los datos están cargados (centra el mapa, abre popup, scrollea card). El param se limpia tras seleccionar para no re-disparar al re-render.
+- **Sin página de resultados dedicada** (a diferencia del MP). El feed in-page ya filtra por `useSearchStore.query` + `useFiltrosNegociosStore.busqueda`, por lo que "Ver todos los resultados" simplemente cierra el overlay.
+
+## v3.1 — Header unificado + filtro "A domicilio" + toggle Mapa/Lista flotante (06 May 2026)
 
 Cambios alineados al rediseño cross-secciones (MarketPlace, Ofertas, Negocios):
 

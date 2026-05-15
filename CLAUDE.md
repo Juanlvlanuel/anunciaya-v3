@@ -273,6 +273,7 @@ docs/
 │   ├── Patron_Scroll_Lateral.md
 │   ├── Sistema_Transformacion_snake_camelCase.md
 │   ├── PATRON_REACT_QUERY.md      ← estándar para datos del servidor
+│   ├── PATRON_BUSCADOR_SECCION.md ← buscadores con overlay por sección (MP, Ofertas, Negocios)
 │   ├── Sistema_Navegacion_Back.md ← hooks de back/regresar y jerarquía de navegación
 │   ├── SISTEMA_ICONOS.md          ← íconos semánticos (Iconify) + utilitarios (lucide)
 │   └── LECCIONES_TECNICAS.md

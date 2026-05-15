@@ -14,10 +14,11 @@
  * REGLA: Azul solo para acentos decorativos. Botones/chips/filtros en slate.
  */
 
-import { useState, useEffect, useRef, useMemo, useCallback, type RefObject } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, type RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { normalizarTexto } from '../../../utils/normalizarTexto';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import { ChipsFiltros } from '../../../components/negocios/ChipsFiltros';
@@ -561,7 +562,6 @@ export function PaginaNegocios() {
   const [negocioSeleccionadoId, setNegocioSeleccionadoId] = useState<string | null>(null);
   const [tabActiva, setTabActiva] = useState<TabNegocios>(window.innerWidth >= 1024 ? 'mapa' : 'lista');
   const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
-  const [busquedaLocal, setBusquedaLocal] = useState('');
   const inputBusquedaRef = useRef<HTMLInputElement>(null);
   const headerRef = useRef<HTMLDivElement>(null);
   const cardsScrollRef = useRef<HTMLDivElement>(null);
@@ -583,23 +583,42 @@ export function PaginaNegocios() {
   const nombreCiudad = ciudadGps?.nombre || 'tu ciudad';
   const { data: negociosRaw = [], isPending: loading } = useNegociosLista();
   const searchQuery = useSearchStore((s) => s.query);
+  const setSearchQuery = useSearchStore((s) => s.setQuery);
+  const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
   const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
 
   // Negocios: el backend filtra por búsqueda, categoría, distancia, etc.
-  // El filtro client-side del searchQuery global (Navbar) se mantiene como fallback
+  // El filtro client-side del searchQuery global (Navbar) se mantiene como fallback.
+  //
+  // PERF: usamos `useDeferredValue` sobre `searchQuery` para que el render del
+  // input se mantenga fluido al teclear/borrar. Sin esto, cada keystroke
+  // recalcula el filtro contra el array completo de negocios y re-renderiza
+  // el mapa + popups + cards — al borrar (lista crece) se sentía en cámara
+  // lenta. Con `useDeferredValue`, React mantiene el input prioritario y
+  // deja el filtro pesado para cuando hay tiempo libre.
+  //
+  // Accent-insensitive: `normalizarTexto` aplica NFD + quita diacríticos a
+  // ambos lados, así "panaderia" matchea "Panadería" (y viceversa).
+  const searchQueryDiferido = useDeferredValue(searchQuery);
   const negocios = useMemo(() => {
-    if (!searchQuery.trim()) return negociosRaw;
-    const q = searchQuery.toLowerCase();
+    if (!searchQueryDiferido.trim()) return negociosRaw;
+    const q = normalizarTexto(searchQueryDiferido);
     return negociosRaw.filter((n) => {
-      const nombreNegocio = (n.negocioNombre || '').toLowerCase();
-      const nombreSucursal = (n.sucursalNombre || '').toLowerCase();
-      const categoriaPadre = (n.categorias?.[0]?.categoria?.nombre || '').toLowerCase();
-      const subcategorias = (n.categorias || []).map(cat => (cat.nombre || '').toLowerCase()).join(' ');
-      const direccion = (n.direccion || '').toLowerCase();
-      const ciudad = (n.ciudad || '').toLowerCase();
-      return nombreNegocio.includes(q) || nombreSucursal.includes(q) || categoriaPadre.includes(q) || subcategorias.includes(q) || direccion.includes(q) || ciudad.includes(q);
+      const nombreNegocio = normalizarTexto(n.negocioNombre || '');
+      const nombreSucursal = normalizarTexto(n.sucursalNombre || '');
+      // Concatena TODAS las subcategorías + sus categorías padre — antes solo
+      // se consideraba la primera (`categorias[0]`), perdiendo matches en
+      // negocios multi-categoría.
+      const taxonomia = normalizarTexto(
+        (n.categorias || [])
+          .map(cat => `${cat.nombre || ''} ${cat.categoria?.nombre || ''}`)
+          .join(' ')
+      );
+      const direccion = normalizarTexto(n.direccion || '');
+      const ciudad = normalizarTexto(n.ciudad || '');
+      return nombreNegocio.includes(q) || nombreSucursal.includes(q) || taxonomia.includes(q) || direccion.includes(q) || ciudad.includes(q);
     });
-  }, [searchQuery, negociosRaw]);
+  }, [searchQueryDiferido, negociosRaw]);
 
   const { data: categorias = [] } = usePerfilCategorias();
   const {
@@ -623,13 +642,16 @@ export function PaginaNegocios() {
     ? [latitud, longitud]
     : [31.3125, -113.5275];
 
-  // Debounce: sincronizar búsqueda local → store (400ms)
+  // Debounce: sincronizar búsqueda global del Navbar → store de filtros local
+  // (400ms). El input físico (Navbar/header móvil) escribe a `useSearchStore`,
+  // y nosotros propagamos a `useFiltrosNegociosStore.busqueda` para que el
+  // backend filtre. Mismo patrón que MarketPlace.
   useEffect(() => {
     const timer = setTimeout(() => {
-      setBusqueda(busquedaLocal);
+      setBusqueda(searchQuery);
     }, 400);
     return () => clearTimeout(timer);
-  }, [busquedaLocal, setBusqueda]);
+  }, [searchQuery, setBusqueda]);
 
   // Cleanup al salir
   useEffect(() => {
@@ -896,6 +918,7 @@ export function PaginaNegocios() {
                             data-testid="btn-buscar-negocios"
                             onClick={() => {
                               setBuscadorMovilAbierto(true);
+                              abrirBuscador();
                               setTimeout(() => inputBusquedaRef.current?.focus(), 100);
                             }}
                             className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
@@ -951,19 +974,17 @@ export function PaginaNegocios() {
                             ref={inputBusquedaRef}
                             data-testid="input-buscar-negocios"
                             type="text"
-                            value={busquedaLocal}
-                            onChange={(e) => setBusquedaLocal(e.target.value)}
-                            onBlur={() => {
-                              if (!busquedaLocal.trim()) {
-                                setBuscadorMovilAbierto(false);
-                              }
-                            }}
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
                             placeholder="Buscar negocios..."
+                            autoComplete="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
                             className="w-full bg-white/15 text-white text-lg placeholder-white/40 outline-none rounded-full pl-10 pr-10 py-2"
                           />
-                          {busquedaLocal.trim() && (
+                          {searchQuery.trim() && (
                             <button
-                              onClick={() => { setBusquedaLocal(''); inputBusquedaRef.current?.focus(); }}
+                              onClick={() => { setSearchQuery(''); inputBusquedaRef.current?.focus(); }}
                               className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/25 hover:bg-white/40 rounded-full flex items-center justify-center cursor-pointer transition-colors"
                             >
                               <X className="w-4 h-4 text-white" />
@@ -971,7 +992,7 @@ export function PaginaNegocios() {
                           )}
                         </div>
                         <button
-                          onClick={() => { setBusquedaLocal(''); setBusqueda(''); setBuscadorMovilAbierto(false); }}
+                          onClick={() => { cerrarBuscador(); setBusqueda(''); setBuscadorMovilAbierto(false); }}
                           className="p-0.5 rounded-full text-white/80 hover:bg-white/20 cursor-pointer shrink-0"
                         >
                           <X className="w-7 h-7" />

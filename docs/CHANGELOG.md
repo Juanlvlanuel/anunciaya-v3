@@ -7,6 +7,144 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [14 Mayo 2026 — segunda sesión] - Auditoría + limpieza de los 3 buscadores 🧹
+
+Continuación de la sesión de la mañana. Cuatro frentes en orden:
+
+### 1) Performance al borrar con Backspace
+
+- **Negocios**: `useDeferredValue(searchQuery)` antes del filtro in-memory en `PaginaNegocios.tsx`. Al borrar, la lista crecía y re-renderizaba mapa + popups + cards en cada keystroke.
+- **Ofertas**: debounce 250ms del `query` en `useOfertasFeedCerca` antes de armar el queryKey. Antes cada keystroke disparaba un fetch al backend.
+
+### 2) Búsqueda accent-insensitive en las 3 secciones
+
+Migración SQL nueva: `docs/migraciones/2026-05-14-extension-unaccent.sql` (`CREATE EXTENSION IF NOT EXISTS unaccent;`).
+
+- **Negocios** frontend: helper `normalizarTexto.ts` (NFD + `\p{Diacritic}`) aplicado en filtros in-memory de `OverlayBuscadorNegocios` y `PaginaNegocios`.
+- **Negocios** backend: `unaccent()` en `negocios.service.ts` para el filtro `?busqueda=`.
+- **Ofertas** backend: `unaccent()` en `services/ofertas/buscador.ts`.
+- **MarketPlace** backend: `unaccent()` envolviendo el FTS español tanto en `obtenerSugerencias` como en `buscarArticulos`.
+
+Ejemplos: "panaderia" matchea "Panadería", "zapateria" matchea "Zapatería", "PEÑASCO" matchea "Peñasco" (la ñ se preserva — es letra propia).
+
+### 3) Auditoría completa de cobertura de campos
+
+Hallazgos y fixes:
+
+- **Negocios** backend solo filtraba por nombre del negocio + sucursal. Ahora también: dirección, ciudad, todas las subcategorías y todas las categorías padre (vía `EXISTS` contra `asignacion_subcategorias`).
+- **Ofertas** backend solo filtraba por título + descripción + nombre del negocio. Ahora también: categoría/subcategoría (vía `EXISTS`).
+- **MarketPlace** FTS no hacía prefix matching ("bici" no encontraba "bicicleta" porque el tokenizer trabaja por palabras completas). Combina FTS con OR `unaccent + ILIKE` en sugerencias y `buscarArticulos` para cubrir prefix incremental sin perder el ranking del FTS.
+- **Negocios** filtro in-memory tomaba solo `categorias[0].categoria.nombre` (perdía categorías secundarias en negocios multi-categoría). Ahora itera todas las subcategorías + sus categorías padre, mismo criterio que el backend.
+
+### 4) Etiqueta "Matriz" en sucursales del overlay de Negocios
+
+Mismo patrón de `CardNegocio` / `PaginaPerfilNegocio` / popup del mapa:
+
+- **1 sola sucursal** → no muestra etiqueta.
+- **Varias sucursales + es principal** → "Matriz".
+- **Varias sucursales + no es principal** → nombre real (ej. "Sucursal Centro").
+
+### 5) Click en sugerencia de Negocios → perfil completo
+
+Antes navegaba a `/negocios?seleccionado=:sucursalId` que solo seleccionaba el negocio en el mapa. Ahora navega a `/negocios/:sucursalId` (perfil completo, misma ruta que el click en card del feed). Eliminado también el `useEffect` huérfano que leía `?seleccionado=` y el import de `useSearchParams`.
+
+### 6) Limpieza: eliminado el botón "Ver todos los resultados" + página dedicada de MP
+
+Razón: el botón solo cerraba el overlay y dejaba la lista filtrada (no aportaba acción visible). En MP además existía una página dedicada `/marketplace/buscar?q=` con filtros (precio, condición, distancia, ordenar) que mostraba lo mismo que las 5 sugerencias del overlay — sobre-ingeniería para el dataset actual.
+
+**Eliminado:**
+- Botón "Ver todos los resultados" en los 3 overlays + handlers asociados (`handleVerTodos`, `ejecutarBusqueda`, listeners de Enter del input del Navbar).
+- `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx`
+- `apps/web/src/components/marketplace/FiltrosBuscador.tsx`
+- `apps/web/src/hooks/useFiltrosBuscadorUrl.ts`
+- `useBuscadorResultados` + tipos `FiltrosBusquedaCliente`/`RespuestaBusqueda` en `useMarketplace.ts`
+- Query key `marketplace.resultadosBusqueda`
+- Ruta `/marketplace/buscar` del router + import asociado
+- `handleEnterBusqueda` en `PaginaMarketplace.tsx` simplificado (solo cierra overlay, no navega)
+
+**Conservado:**
+- Endpoint backend `GET /api/marketplace/buscar` (`buscarArticulos` en `services/marketplace/buscador.ts`) — por si la página dedicada se reabre cuando el volumen lo justifique. Ya no consumido por frontend.
+- Click en chip reciente y popular ahora rellena el query (dispara sugerencias) sin cerrar el overlay — el usuario decide cuál sugerencia abrir.
+
+UX final en las 3 secciones: usuario escribe → ve top 5 sugerencias → click directo en una abre detalle/perfil; click fuera o Escape cierra el overlay.
+
+### Archivos modificados
+
+**Backend:**
+- `apps/api/src/services/negocios.service.ts` — filtro `busqueda` con `unaccent` + cobertura completa de campos
+- `apps/api/src/services/ofertas/buscador.ts` — `unaccent` + cobertura categoría
+- `apps/api/src/services/marketplace/buscador.ts` — `unaccent` + FTS combinado con ILIKE para prefix matching
+
+**Frontend:**
+- `apps/web/src/utils/normalizarTexto.ts` (nuevo)
+- `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
+- `apps/web/src/components/ofertas/OverlayBuscadorOfertas.tsx`
+- `apps/web/src/components/negocios/OverlayBuscadorNegocios.tsx`
+- `apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx`
+- `apps/web/src/pages/private/ofertas/PaginaOfertas.tsx` (cleanup)
+- `apps/web/src/pages/private/negocios/PaginaNegocios.tsx` (`useDeferredValue` + cobertura completa + cleanup `useSearchParams`)
+- `apps/web/src/hooks/queries/useOfertasFeed.ts` — debounce 250ms
+- `apps/web/src/hooks/queries/useMarketplace.ts` — `useBuscadorResultados` eliminado
+- `apps/web/src/config/queryKeys.ts` — `marketplace.resultadosBusqueda` eliminado
+- `apps/web/src/router/index.tsx` — ruta `/marketplace/buscar` eliminada
+
+**Migración SQL:**
+- `docs/migraciones/2026-05-14-extension-unaccent.sql` (aplicada en local + Supabase)
+
+---
+
+## [14 Mayo 2026] - Buscadores con overlay para Ofertas y Negocios 🔍
+
+Se replica el patrón del overlay de búsqueda del MarketPlace en las secciones **Ofertas** y **Negocios**, con una versión deliberadamente sobria del patrón canónico.
+
+### Por qué sobrio (no copia 1:1)
+
+El MarketPlace tiene FTS PostgreSQL en español + tabla `marketplace_busquedas_log` + populares cacheados en Redis + página de resultados dedicada con filtros. Eso se justifica porque cualquier usuario publica artículos sin tope (dataset crece de forma libre).
+
+Para Ofertas y Negocios el dataset por ciudad es chico (decenas, no miles) — solo negocios con suscripción comercial publican ofertas. Replicar todo el aparato del MP sería sobre-ingeniería: agregaría 2 tablas de log, 2 endpoints de populares con cache Redis, 2 páginas de resultados nuevas, sin valor real al usuario.
+
+### Lo que sí se entrega
+
+| Pieza | Marketplace (canónico) | Ofertas | Negocios |
+|---|---|---|---|
+| Overlay con sugerencias en vivo + recientes | ✅ | ✅ | ✅ |
+| Conexión al `useSearchStore` global | ✅ | ✅ (refactor de `HeaderOfertas`) | ✅ (refactor de `PaginaNegocios`) |
+| Click en sugerencia → detalle | ✅ navega a `/marketplace/articulo/:id` | ✅ navega a `/ofertas?oferta=:id` (`PaginaOfertas` lee param y abre `ModalOfertaDetalle`) | ✅ navega a `/negocios?seleccionado=:sucursalId` (`PaginaNegocios` selecciona el negocio en mapa+lista) |
+| Endpoint backend | ✅ FTS español | ✅ ILIKE simple sobre título + descripción + nombre del negocio | ❌ Sin endpoint nuevo — filtro in-memory contra `useNegociosLista()` (React Query ya cachea) |
+| Tabla de log para populares | ✅ | ❌ | ❌ |
+| Sección "Más buscado en [ciudad]" | ✅ | ❌ | ❌ |
+| Página de resultados dedicada | ✅ `/marketplace/buscar?q=` | ❌ — el feed in-page ya filtra por `useSearchStore.query` (cableado en `useOfertasFeedCerca`) | ❌ — el feed in-page filtra in-memory + sincroniza con `useFiltrosNegociosStore.busqueda` |
+
+Los 3 overlays comparten el helper `apps/web/src/utils/busquedasRecientes.ts` con una clave de localStorage por sección (`marketplace_busquedas_recientes`, `ofertas_busquedas_recientes`, `negocios_busquedas_recientes`) — así las recientes de una sección no contaminan otra.
+
+### Backend
+
+- **Nuevo endpoint** `GET /api/ofertas/buscar/sugerencias?q=&ciudad=` — declarado ANTES de las rutas paramétricas (`/:id/*`) para no colisionar. Requiere `verificarToken` igual que el feed.
+- **Nuevo service** `apps/api/src/services/ofertas/buscador.ts` — `obtenerSugerenciasOfertas(query, ciudad)` con dedup por `(negocio_id, titulo, descripcion, tipo, valor, fecha_fin)` para no mostrar la misma oferta repetida si está en varias sucursales.
+- Hereda los filtros de visibilidad del feed: oferta activa + visible + dentro de fechas + negocio activo + onboarding completado + sucursal activa + ciudad coincide.
+
+### Frontend — archivos creados
+
+- `apps/web/src/components/ofertas/OverlayBuscadorOfertas.tsx` (color ámbar) — montado en `MainLayout.tsx` cuando `pathname.startsWith('/ofertas')`.
+- `apps/web/src/components/negocios/OverlayBuscadorNegocios.tsx` (color azul) — montado en `MainLayout.tsx` cuando `pathname.startsWith('/negocios')`. Filtra in-memory contra el array de `useNegociosLista()` por nombre, sucursal, categoría padre, subcategorías, dirección y ciudad (mismo patrón que el filtro inline existente en `PaginaNegocios.tsx`).
+
+### Frontend — archivos modificados
+
+- `apps/web/src/utils/busquedasRecientes.ts` — generalizado para aceptar `seccion: 'marketplace' | 'ofertas' | 'negocios'` (default `'marketplace'` para retro-compatibilidad con el `OverlayBuscadorMarketplace` existente).
+- `apps/web/src/services/ofertasService.ts` — `obtenerSugerenciasOfertas(q, ciudad)` + tipo `SugerenciaOferta`.
+- `apps/web/src/hooks/queries/useOfertasFeed.ts` — `useBuscadorOfertasSugerencias(queryRaw, ciudad)` con debounce 300ms (mismo patrón que `useBuscadorSugerencias` de MP).
+- `apps/web/src/config/queryKeys.ts` — `ofertasFeed.sugerencias(query, ciudad)`.
+- `apps/web/src/components/ofertas/HeaderOfertas.tsx` — el input móvil ahora escribe a `useSearchStore.query` (antes era estado local `busquedaLocal`). La lupa móvil llama `abrirBuscador()` y la X grande llama `cerrarBuscador()`.
+- `apps/web/src/pages/private/ofertas/PaginaOfertas.tsx` — useEffect que lee `?oferta=:id` del URL: busca primero en feeds ya cargados (camino caliente) y, si no está, hace fetch del detalle vía `obtenerDetalleOferta`. `onClose` del modal limpia el param.
+- `apps/web/src/pages/private/negocios/PaginaNegocios.tsx` — el input móvil ahora escribe a `useSearchStore.query` (antes era `busquedaLocal`). Debounce de 400ms ahora propaga `searchQuery → useFiltrosNegociosStore.busqueda` (era desde `busquedaLocal`). Nuevo useEffect lee `?seleccionado=:sucursalId` y dispara `handleSeleccionarNegocio` cuando los datos están cargados.
+- `apps/web/src/components/layout/MainLayout.tsx` — monta `OverlayBuscadorOfertas` y `OverlayBuscadorNegocios` en sus respectivas secciones, junto al `OverlayBuscadorMarketplace` existente.
+
+### Pendiente cerrado
+
+- **E.1 — OverlayBuscadorOfertas** (ver `docs/reportes/MarketPlace/Pendientes.md`).
+
+---
+
 ## [13 Mayo 2026] - Mis Guardados: Marketplace funcional + unificación visual de cards 🎨
 
 Iteración completa sobre `Mis Guardados` enfocada en consistencia visual y funcional entre los tres tipos de contenido (Negocios, Ofertas, Marketplace).

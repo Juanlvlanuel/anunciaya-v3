@@ -153,6 +153,8 @@ export const queryKeys = {
     all: () => ['ofertasFeed'] as const,
     bloque: (nombre: string, filtros?: Record<string, unknown>) =>
       ['ofertasFeed', nombre, filtros] as const,
+    sugerencias: (query: string, ciudad: string) =>
+      ['ofertasFeed', 'sugerencias', query, ciudad] as const,
   },
 
   // ─── CardYA ───────────────────────────────────────────────────────────────
@@ -219,8 +221,6 @@ export const queryKeys = {
       ['marketplace', 'buscar', 'sugerencias', q, ciudad] as const,
     populares: (ciudad: string) =>
       ['marketplace', 'buscar', 'populares', ciudad] as const,
-    resultadosBusqueda: (params: Record<string, unknown>) =>
-      ['marketplace', 'buscar', 'resultados', params] as const,
     preguntas: (articuloId: string) =>
       ['marketplace', 'preguntas', articuloId] as const,
   },

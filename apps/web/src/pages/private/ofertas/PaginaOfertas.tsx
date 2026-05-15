@@ -64,6 +64,8 @@ import {
   useOfertasFeedRecientes,
   useOfertasFeedPopulares,
 } from '@/hooks/queries/useOfertasFeed';
+import { obtenerDetalleOferta } from '@/services/ofertasService';
+import { useSearchParams } from 'react-router-dom';
 
 import type { OfertaFeed } from '@/types/ofertas';
 
@@ -155,6 +157,73 @@ export default function PaginaOfertas() {
   // Modal de detalle
   const [ofertaSeleccionada, setOfertaSeleccionada] =
     useState<OfertaFeed | null>(null);
+
+  // ─── Apertura desde el OverlayBuscadorOfertas (URL search param) ────────
+  // Cuando el usuario hace click en una sugerencia del overlay, navega a
+  // `/ofertas?oferta=:id`. Aquí leemos ese param: primero buscamos la oferta
+  // en cualquiera de los feeds ya cargados; si no la encontramos (caso edge:
+  // está fuera del filtro actual o aún no se cargó el feed), hacemos fetch
+  // del detalle.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const ofertaIdParam = searchParams.get('oferta');
+  useEffect(() => {
+    if (!ofertaIdParam) return;
+    if (ofertaSeleccionada?.ofertaId === ofertaIdParam) return;
+
+    // Buscar en feeds ya cargados (cubre el camino caliente)
+    const candidatos: OfertaFeed[] = [
+      ...ofertas,
+      ...(vencenPronto.data ?? []),
+      ...(recientes.data ?? []),
+      ...(populares.data ?? []),
+      ...(ofertaDestacada ? [ofertaDestacada] : []),
+    ];
+    const local = candidatos.find((o) => o.ofertaId === ofertaIdParam);
+    if (local) {
+      setOfertaSeleccionada(local);
+      return;
+    }
+
+    // Fallback: fetch del detalle
+    let cancelado = false;
+    (async () => {
+      try {
+        const r = await obtenerDetalleOferta(ofertaIdParam);
+        if (cancelado) return;
+        if (r.success && r.data) {
+          setOfertaSeleccionada(r.data);
+        } else {
+          // Oferta no encontrada — limpiar param para no bucle infinito
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('oferta');
+            return next;
+          }, { replace: true });
+        }
+      } catch {
+        if (!cancelado) {
+          setSearchParams((prev) => {
+            const next = new URLSearchParams(prev);
+            next.delete('oferta');
+            return next;
+          }, { replace: true });
+        }
+      }
+    })();
+    return () => { cancelado = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [ofertaIdParam]);
+
+  const handleCerrarModal = () => {
+    setOfertaSeleccionada(null);
+    if (searchParams.get('oferta')) {
+      setSearchParams((prev) => {
+        const next = new URLSearchParams(prev);
+        next.delete('oferta');
+        return next;
+      }, { replace: true });
+    }
+  };
 
   // Vista expandida de la lista densa: false = layout collage + lista única
   // v1.5: el chip 'recientes' es el default. Cuando está activo se muestra el
@@ -543,7 +612,7 @@ export default function PaginaOfertas() {
             whatsapp={ofertaSeleccionada.whatsapp ?? undefined}
             negocioNombre={ofertaSeleccionada.negocioNombre}
             negocioUsuarioId={ofertaSeleccionada.negocioUsuarioId}
-            onClose={() => setOfertaSeleccionada(null)}
+            onClose={handleCerrarModal}
           />
         </div>
       )}

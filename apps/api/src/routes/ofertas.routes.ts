@@ -44,6 +44,7 @@ import {
   getMisExclusivas,
   getOfertaPublica,
   getOfertaDestacadaDelDia,
+  getSugerenciasOfertas,
 } from '../controllers/ofertas.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarNegocio } from '../middleware/negocio.middleware.js';
@@ -93,6 +94,17 @@ router.get('/:ofertaId/sucursales', verificarToken, getSucursalesDeOferta);
  * colisiones con el matcher dinámico de Express.
  */
 router.get('/destacada-del-dia', verificarToken, getOfertaDestacadaDelDia);
+
+/**
+ * GET /api/ofertas/buscar/sugerencias?q=...&ciudad=...
+ * Top 5 ofertas activas en la ciudad cuyo título, descripción o nombre del
+ * negocio matchea el query (ILIKE substring).
+ *
+ * Versión sobria del patrón de MarketPlace: sin FTS, sin populares, sin log.
+ * IMPORTANTE: declarada ANTES de las rutas paramétricas para que Express no
+ * lo confunda con `/:id`.
+ */
+router.get('/buscar/sugerencias', verificarToken, getSugerenciasOfertas);
 
 /**
  * POST /api/ofertas/:id/vista

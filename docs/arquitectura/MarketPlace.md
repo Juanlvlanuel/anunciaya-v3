@@ -409,7 +409,7 @@ Imagen arriba + bloque blanco abajo. Distinto del glassmorphism inmersivo de Car
 - **Buscador físico**:
   - **Desktop:** input vive en el Navbar global (siempre visible). Al enfocar dispara `useSearchStore.abrirBuscador()` y se muestra el overlay.
   - **Móvil:** patrón inmersivo (sin Navbar global). El input vive **dentro del header del MarketPlace** y se expande al pulsar la lupa, igual que en Negocios. El input móvil escribe al mismo `useSearchStore.query` para que el overlay reuse toda su lógica (sugerencias, populares, recientes).
-- **Patrón inmersivo móvil** — `/marketplace`, `/marketplace/articulo/:id`, `/marketplace/publicar`, `/marketplace/vendedor/:id`, `/marketplace/buscar`, `/negocios/:id` y `/ofertas` ocultan el Navbar global (banda azul "AnunciaYA Tu Comunidad Local") en móvil. La lógica vive en `MainLayout.tsx → esPaginaConHeaderPropio`. En desktop el Navbar siempre se mantiene (mismo patrón que CardYA / Mis Guardados).
+- **Patrón inmersivo móvil** — `/marketplace`, `/marketplace/articulo/:id`, `/marketplace/publicar`, `/marketplace/vendedor/:id`, `/negocios/:id` y `/ofertas` ocultan el Navbar global (banda azul "AnunciaYA Tu Comunidad Local") en móvil. La lógica vive en `MainLayout.tsx → esPaginaConHeaderPropio`. En desktop el Navbar siempre se mantiene (mismo patrón que CardYA / Mis Guardados).
 - **Badge `RECIÉN`** en CardArticulo — indica publicación con `<24h` desde `created_at`. Se usa la palabra "RECIÉN" en lugar de "NUEVO" para evitar confusión con la condición `nuevo` del artículo.
 
 
@@ -833,12 +833,13 @@ Dos FABs flotantes que usan `useHideOnScroll` para sincronizarse con el BottomNa
 
 ---
 
-### P5 — Buscador Potenciado
+### P5 — Buscador con sugerencias en vivo
 
 **Implementación:** overlay anclado al store global `useSearchStore`. El overlay NO tiene input propio: el input físico vive en el Navbar global (desktop) o inline dentro del header del MarketPlace (móvil, patrón inmersivo). Ambos escriben al mismo `useSearchStore.query` para que el overlay reuse toda su lógica.
 
 **Componente overlay:** `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
-**Página de resultados:** `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx`
+
+> **Decisión 14 May 2026 — sin página dedicada de resultados.** Antes existía `/marketplace/buscar?q=` con grid + filtros (precio, condición, distancia, ordenar) y un botón "Ver todos los resultados" en el overlay para llegar ahí. Se eliminó por sobre-ingeniería: con ~decenas de artículos por ciudad, los filtros adicionales no aportan valor real y la página solo mostraba lo mismo que ya está en el overlay. El endpoint backend `GET /marketplace/buscar` se mantiene (`buscarArticulos` en `services/marketplace/buscador.ts`) por si la página completa se reabre cuando el volumen lo justifique. Se borraron del frontend: `PaginaResultadosMarketplace.tsx`, `FiltrosBuscador.tsx`, `useFiltrosBuscadorUrl.ts`, `useBuscadorResultados`, ruta `/marketplace/buscar` y query key `marketplace.resultadosBusqueda`.
 
 #### Comportamiento del overlay
 
@@ -851,9 +852,9 @@ Dos FABs flotantes que usan `useHideOnScroll` para sincronizarse con el BottomNa
 
 #### Estado vacío (al abrir)
 
-- Sección "Búsquedas recientes" con chips eliminables (X) — guardadas en localStorage `marketplace_busquedas_recientes` (FIFO máx 10)
-- Sección "Más buscado en [ciudad]" con chips populares (top 6 de últimos 7 días)
-- Botón "Borrar todo" si hay recientes
+- Sección "Búsquedas recientes" con chips eliminables (X) — guardadas en localStorage `marketplace_busquedas_recientes` (FIFO máx 10). Click en chip rellena el query (no cierra el overlay).
+- Sección "Más buscado en [ciudad]" con chips populares (top 6 de últimos 7 días). Click en chip rellena el query.
+- Botón "Borrar todo" si hay recientes.
 
 #### Mientras escribes (debounce 300ms)
 
@@ -864,41 +865,9 @@ Dos FABs flotantes que usan `useHideOnScroll` para sincronizarse con el BottomNa
   - Condición (junto al precio, neutro slate-500: "Seminuevo", "Nuevo", etc.)
   - Ciudad
   - Ícono `ArrowUpRight` a la derecha
-- **Click en card** → navega directo a `/marketplace/articulo/:id` (NO va al listado de resultados, salta directo al detalle)
-- **Botón "Ver todos los resultados de '[query]'"** al final del listado → navega a `/marketplace/buscar?q=...` (mantiene el flujo del listado completo cuando el comprador quiere ver más opciones)
-- Fuente: top 5 artículos completos (FTS `to_tsvector('spanish', titulo+descripcion) @@ plainto_tsquery(...)`). Endpoint `GET /marketplace/buscar/sugerencias` devuelve `{ id, titulo, precio, condicion, fotoPortada, ciudad }[]`.
+- **Click en card** → navega directo a `/marketplace/articulo/:id` y cierra el overlay.
+- Fuente: top 5 artículos completos. SQL combina FTS español (`to_tsvector('spanish', unaccent(...)) @@ plainto_tsquery('spanish', unaccent(...))`) con `ILIKE` substring para cubrir prefix matching ("bici" → "bicicleta") sin perder el ranking del FTS. Endpoint `GET /marketplace/buscar/sugerencias` devuelve `{ id, titulo, precio, condicion, fotoPortada, ciudad }[]`.
 - Solo dispara si `query.length >= 2`
-
-#### Vista de resultados (después de Enter o tap en sugerencia)
-
-- Header dark sticky: ← atrás, `"[query]" · X resultados`, dropdown ordenar
-- Chips de filtros activos arriba del grid (removibles individuales o "Limpiar todos")
-- Grid de cards estilo B (reusa `CardArticulo`) con scroll infinito (`IntersectionObserver`)
-- Estado vacío: "No encontramos artículos para '[query]'. Probá quitar algunos filtros." + botón "Limpiar filtros"
-
-#### Filtros (`FiltrosBuscador.tsx`)
-
-Bottom sheet en móvil, sidebar fija en desktop:
-
-| Filtro | Tipo | Valores |
-|--------|------|---------|
-| Distancia | Chips única | 1km · 3km · 5km · 10km · 25km · 50km (oculto si no hay GPS) |
-| Precio | Slider con presets | <$500, $500-1k, $1k-5k, $5k+ y min/max manual |
-| Condición | Chips múltiples | Nuevo, Seminuevo, Usado, Para reparar |
-
-> **Filtro "Acepta ofertas" no incluido** — el default es `true`, por lo que el filtro siempre devolvería casi todo. Se evaluará agregarlo si los vendedores empiezan a desactivar el toggle en cantidad significativa.
-
-#### Ordenar (dropdown)
-
-- **Más recientes** (default)
-- **Más cercanos** (requiere GPS)
-- **Precio menor**
-- **Precio mayor**
-
-#### URL state
-
-- `useFiltrosBuscadorUrl` — sincroniza filtros ↔ `URLSearchParams`
-- URL compartible y bookmarkeable: `/marketplace/buscar?q=bici&precioMax=5000&condicion=usado`
 
 #### Privacidad
 
@@ -1044,7 +1013,7 @@ Eventos del MarketPlace que disparan notificaciones:
 | GET | `/api/marketplace/articulos/:id/preguntas` | Q&A público. Visitante autenticado: `{ data: respondidas[], miPreguntaPendiente }`. Dueño: `{ data: { pendientes, respondidas } }`. |
 | GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo con preview (top 5 con `id, titulo, precio, condicion, fotoPortada, ciudad`) |
 | GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad (cache Redis 1h) |
-| GET | `/api/marketplace/buscar` | Resultados de búsqueda con filtros |
+| GET | `/api/marketplace/buscar` | Resultados de búsqueda con filtros (ya no consumido por frontend desde 14-may-2026 — ver §P5) |
 | GET | `/api/marketplace/vendedor/:usuarioId` | Perfil público del vendedor + KPIs |
 | GET | `/api/marketplace/vendedor/:usuarioId/publicaciones` | Lista de publicaciones del vendedor por estado |
 
@@ -1539,7 +1508,6 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/web/src/pages/private/marketplace/PaginaArticuloMarketplace.tsx` — P2 Detalle
 - `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx` — P3 Perfil de Usuario
 - `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx` — P4 Wizard
-- `apps/web/src/pages/private/marketplace/PaginaResultadosMarketplace.tsx` — P5 Resultados
 - `apps/web/src/pages/public/PaginaArticuloMarketplacePublico.tsx` — P6 Pública
 
 **Frontend — Componentes del feed (cards estilo Facebook):**
@@ -1558,15 +1526,14 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/web/src/components/marketplace/MapaUbicacion.tsx`
 - `apps/web/src/components/marketplace/BarraContacto.tsx`
 - `apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx`
-- `apps/web/src/components/marketplace/FiltrosBuscador.tsx`
 - `apps/web/src/components/marketplace/ModalSugerenciaModeracion.tsx`
 
 **Frontend — Hooks, guards, utils:**
 - `apps/web/src/router/guards/ModoPersonalEstrictoGuard.tsx`
 - `apps/web/src/hooks/queries/useMarketplace.ts` — hooks de mutación + perfil + KPIs
 - `apps/web/src/hooks/queries/useFeedInfinitoMarketplace.ts` — `useInfiniteQuery` del feed
-- `apps/web/src/hooks/useFiltrosBuscadorUrl.ts`
-- `apps/web/src/utils/busquedasRecientes.ts`
+- `apps/web/src/utils/busquedasRecientes.ts` — helper para localStorage por sección (compartido con Ofertas y Negocios)
+- `apps/web/src/utils/normalizarTexto.ts` — helper accent-insensitive para filtros in-memory
 - `apps/web/src/utils/moderacionMarketplace.ts` — validación inline cliente
 - `apps/web/src/utils/optimizarImagen.ts` — redimensión + compresión WebP
 - `apps/web/src/types/marketplace.ts`

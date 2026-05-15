@@ -318,6 +318,36 @@ export async function obtenerOfertaPublica(codigo: string) {
 }
 
 // =============================================================================
+// BUSCADOR (sugerencias en vivo)
+// =============================================================================
+
+/** Forma de cada card del overlay del buscador de Ofertas. */
+export interface SugerenciaOferta {
+  ofertaId: string;
+  titulo: string;
+  imagen: string | null;
+  tipo: string;
+  valor: number;
+  negocioNombre: string;
+  sucursalNombre: string | null;
+  ciudad: string;
+}
+
+/**
+ * Sugerencias en vivo del buscador de Ofertas.
+ * GET /api/ofertas/buscar/sugerencias?q=...&ciudad=...
+ *
+ * Devuelve top 5 ofertas activas en la ciudad cuyo título, descripción o
+ * nombre del negocio matchea el query (ILIKE substring). Sin GPS, sin filtros.
+ */
+export async function obtenerSugerenciasOfertas(q: string, ciudad: string) {
+  const params = new URLSearchParams();
+  params.append('q', q);
+  params.append('ciudad', ciudad);
+  return get<SugerenciaOferta[]>(`/ofertas/buscar/sugerencias?${params.toString()}`);
+}
+
+// =============================================================================
 // EXPORT DEFAULT
 // =============================================================================
 
@@ -336,6 +366,7 @@ export default {
   obtenerOfertaDestacadaDelDia,
   obtenerDetalleOferta,
   registrarVistaOferta,
+  obtenerSugerenciasOfertas,
 
   // Código de descuento + ofertas exclusivas
   asignarOferta,

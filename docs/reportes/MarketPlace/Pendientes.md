@@ -1,6 +1,6 @@
 # Pendientes en MarketPlace
 
-**Última actualización:** 2026-05-13 (segunda sesión del día — refinamientos UI sobre C.2: card en 2 columnas móvil, dropdown compacto, toggle MarketPlace/Servicios con UI de Servicios pre-cableada, layout desktop reorganizado con toggles izquierda y tabs centro alineados al mismo nivel vertical, "Reabrir publicación" → "Re-Activar". Doc nuevo de arquitectura `docs/arquitectura/MisPublicaciones.md`. Bugs D.8–D.11 cerrados.)
+**Última actualización:** 2026-05-14 (overlays de buscador para Ofertas y Negocios — sprint cross-cutting, ver entrada del CHANGELOG. Cierra E.1.)
 
 Documento maestro de pendientes del módulo MarketPlace. Lista lo que falta implementar, ordenado por prioridad de impacto. Items cerrados se conservan al final como historial.
 
@@ -126,16 +126,13 @@ _(Sin bugs abiertos. D.1 – D.11 ya cerrados — ver D.cerrados abajo.)_
 
 ### E.1 — OverlayBuscadorOfertas (módulo Ofertas)
 
-Estrictamente no es de MarketPlace, pero hereda el patrón de `OverlayBuscadorMarketplace`.
+✅ **Cerrado** (sesión 14-may-2026, ver entrada del CHANGELOG). Implementación sobria del patrón canónico:
 
-El botón Search en el header de Ofertas dispara `useSearchStore.abrirBuscador()` pero no hay un overlay propio que escuche ese estado. Crear `apps/web/src/components/ofertas/OverlayBuscadorOfertas.tsx` siguiendo el patrón de MP:
-
-- Sugerencias por título de oferta
-- Términos populares (analytics existentes)
-- Filtros por categoría/cerca/etc.
-- Montar el overlay en `PaginaOfertas.tsx`
-
-Sprint propio (estimado similar al Sprint 6 del MarketPlace).
+- Overlay con sugerencias en vivo + búsquedas recientes (sin populares ni log).
+- Endpoint backend `GET /api/ofertas/buscar/sugerencias` con ILIKE simple sobre título + descripción + nombre del negocio (sin FTS pesado — el dataset por ciudad es chico).
+- Click en sugerencia → `navigate('/ofertas?oferta=:id')` y `PaginaOfertas` abre `ModalOfertaDetalle`. Sin página de resultados dedicada — el feed in-page ya filtra por `useSearchStore.query`.
+- Helper `busquedasRecientes.ts` generalizado para soportar 3 secciones (`marketplace`/`ofertas`/`negocios`) con clave de localStorage por sección.
+- Mismo sprint cerró el equivalente para Negocios (filtro in-memory contra `useNegociosLista()`, sin endpoint nuevo).
 
 ---
 

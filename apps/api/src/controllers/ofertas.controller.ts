@@ -38,6 +38,7 @@ import {
   obtenerMisCupones,
   revelarCodigoCupon,
 } from '../services/ofertas.service.js';
+import { obtenerSugerenciasOfertas } from '../services/ofertas/buscador.js';
 import {
   crearOfertaSchema,
   actualizarOfertaSchema,
@@ -977,6 +978,34 @@ export async function postRevelarCodigo(req: Request, res: Response) {
 }
 
 // =============================================================================
+// BUSCADOR (sugerencias en vivo)
+// =============================================================================
+
+/**
+ * GET /api/ofertas/buscar/sugerencias?q=...&ciudad=...
+ * Top 5 ofertas activas en la ciudad cuyo título, descripción o nombre del
+ * negocio matchea el query (ILIKE substring).
+ *
+ * Versión sobria del patrón de MarketPlace: sin FTS, sin populares, sin log.
+ * Ver `services/ofertas/buscador.ts` para racional.
+ */
+export async function getSugerenciasOfertas(req: Request, res: Response) {
+  try {
+    const q = typeof req.query.q === 'string' ? req.query.q : '';
+    const ciudad = typeof req.query.ciudad === 'string' ? req.query.ciudad : '';
+
+    const resultado = await obtenerSugerenciasOfertas(q, ciudad);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getSugerenciasOfertas:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al obtener sugerencias',
+    });
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -985,6 +1014,7 @@ export default {
   getFeedOfertas,
   getOfertaDetalle,
   getOfertaDestacadaDelDia,
+  getSugerenciasOfertas,
   postRegistrarVista,
 
   // Business Studio (requiere auth + modo comercial)

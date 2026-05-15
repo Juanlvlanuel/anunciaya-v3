@@ -1,43 +1,40 @@
 /**
- * OverlayBuscadorMarketplace.tsx
- * ===============================
- * Overlay del buscador del MarketPlace que se ancla al `useSearchStore`
- * global (manejado por el Navbar).
+ * OverlayBuscadorOfertas.tsx
+ * ============================
+ * Overlay del buscador de la sección Ofertas. Clon adaptado del
+ * `OverlayBuscadorMarketplace` con identidad ámbar y comportamiento sobrio:
  *
- * IMPORTANTE — decisión post-QA del Sprint 2:
- *  El overlay NO tiene input propio. El input físico SIEMPRE vive en el
- *  Navbar global (useSearchStore.query). Este componente solo muestra:
- *   - Estado vacío: "Búsquedas recientes" + "Más buscado en [ciudad]".
- *   - Mientras escribe (debounce 300ms): sugerencias en vivo.
- *   - Click en una sugerencia: navega directo al detalle del artículo.
+ *  - SIN sección de populares (la sección Ofertas no calcula populares para
+ *    no pesar al backend con un dataset chico — ver §racional en
+ *    `services/ofertas/buscador.ts`).
+ *  - Estado vacío: solo "Búsquedas recientes" + tip de empezar a escribir.
+ *  - Mientras escribe (debounce 300ms): cards con preview (`titulo +
+ *    tipo+valor del descuento + negocio + ciudad`).
+ *  - Click en sugerencia → cierra overlay + `navigate('/ofertas?oferta=:id')`.
+ *    PaginaOfertas reacciona al search param y abre `ModalOfertaDetalle`.
+ *  - Click en "Ver todos los resultados" → cierra overlay; el feed ya está
+ *    filtrado en vivo por `useSearchStore.query`. Sin página de resultados
+ *    dedicada (la lista in-page del feed sirve como tal).
  *
- * Visibilidad:
- *  - Solo se monta dentro de rutas que empiecen con `/marketplace`.
- *  - Aparece cuando `buscadorAbierto === true` (focus del input del Navbar)
- *    o cuando `query.length >= 1`.
+ * IMPORTANTE: el input físico vive en el Navbar global (desktop) o inline
+ * en el header de Ofertas (móvil). Este componente solo aporta contenido.
  *
- * Doc maestro: docs/arquitectura/MarketPlace.md (§8 P5)
- * Sprint:      docs/prompts Marketplace/Sprint-6-Buscador.md
+ * Visibilidad: solo rutas que empiecen con `/ofertas`. Aparece cuando
+ * `buscadorAbierto === true` o cuando `query.length >= 1`.
  *
- * Ubicación: apps/web/src/components/marketplace/OverlayBuscadorMarketplace.tsx
+ * Doc maestro: docs/arquitectura/MarketPlace.md (§P5 — patrón replicado).
+ *
+ * Ubicación: apps/web/src/components/ofertas/OverlayBuscadorOfertas.tsx
  */
 
 import { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { Search, X, ArrowUpRight } from 'lucide-react';
+import { Search, X, ArrowUpRight, Tag } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
 import { useSearchStore } from '../../stores/useSearchStore';
-
-// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
-type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
-const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 import { useGpsStore } from '../../stores/useGpsStore';
-import {
-    useBuscadorSugerencias,
-    useBuscadorPopulares,
-} from '../../hooks/queries/useMarketplace';
+import { useBuscadorOfertasSugerencias } from '../../hooks/queries/useOfertasFeed';
 import {
     obtenerBusquedasRecientes,
     quitarBusquedaReciente,
@@ -45,11 +42,28 @@ import {
     agregarBusquedaReciente,
 } from '../../utils/busquedasRecientes';
 
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+
+// =============================================================================
+// HELPERS DE FORMATO DEL DESCUENTO
+// =============================================================================
+
+/** Resumen humano del descuento. Igual al patrón usado en cards. */
+function formatearDescuento(tipo: string, valor: number): string {
+    if (tipo === 'porcentaje') return `${valor}% OFF`;
+    if (tipo === 'monto_fijo') return `-$${valor.toLocaleString('es-MX')}`;
+    if (tipo === '2x1') return '2x1';
+    if (tipo === '3x2') return '3x2';
+    if (tipo === 'precio_fijo') return `$${valor.toLocaleString('es-MX')}`;
+    return tipo.replace('_', ' ');
+}
+
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function OverlayBuscadorMarketplace() {
+export function OverlayBuscadorOfertas() {
     const location = useLocation();
     const navigate = useNavigate();
 
@@ -60,77 +74,77 @@ export function OverlayBuscadorMarketplace() {
 
     const ciudad = useGpsStore((s) => s.ciudad?.nombre ?? null);
 
-    // Re-render cuando cambian las búsquedas recientes (cuando borra una o todas)
     const [recientesRev, setRecientesRev] = useState(0);
-    const recientes = obtenerBusquedasRecientes();
-    void recientesRev; // forzar dependencia con re-render
+    const recientes = obtenerBusquedasRecientes('ofertas');
+    void recientesRev;
 
-    // ─── Visibilidad: solo en rutas /marketplace*  ───────────────────────────
-    const enMarketplace = location.pathname.startsWith('/marketplace');
-    const debeMostrar = enMarketplace && (buscadorAbierto || query.length >= 1);
+    // ─── Visibilidad: solo en rutas /ofertas* ────────────────────────────────
+    const enOfertas = location.pathname.startsWith('/ofertas');
+    const debeMostrar = enOfertas && (buscadorAbierto || query.length >= 1);
 
-    // ─── Hooks de datos ───────────────────────────────────────────────────────
-    const { data: sugerencias = [], isFetching: cargandoSug } = useBuscadorSugerencias(
-        query,
-        ciudad
-    );
-    const { data: populares = [] } = useBuscadorPopulares(ciudad);
+    // ─── Hook de datos ───────────────────────────────────────────────────────
+    const { data: sugerencias = [], isFetching: cargandoSug } =
+        useBuscadorOfertasSugerencias(query, ciudad);
 
-    // ─── Cerrar con Escape ────────────────────────────────────────────────────
+    // ─── Cerrar con Escape ───────────────────────────────────────────────────
     useEffect(() => {
         if (!debeMostrar) return;
         const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') {
-                cerrarBuscador();
-            }
+            if (e.key === 'Escape') cerrarBuscador();
         };
         window.addEventListener('keydown', handler);
         return () => window.removeEventListener('keydown', handler);
     }, [debeMostrar, cerrarBuscador]);
 
-    // ─── Click en chip reciente o popular ─────────────────────────────────────
-    // Rellena el query (dispara las sugerencias en vivo) sin cerrar el overlay
-    // — el usuario decide cuál sugerencia abrir.
-    const seleccionarTermino = (termino: string) => {
-        const limpio = termino.trim();
-        if (limpio.length < 2) return;
-        agregarBusquedaReciente(limpio);
-        setRecientesRev((v) => v + 1);
-        setQuery(limpio);
-    };
-
     if (!debeMostrar) return null;
 
     const escribiendo = query.trim().length >= 2;
 
+    const handleClickSugerencia = (ofertaId: string) => {
+        agregarBusquedaReciente(query.trim(), 'ofertas');
+        setRecientesRev((v) => v + 1);
+        cerrarBuscador();
+        navigate(`/ofertas?oferta=${ofertaId}`);
+    };
+
+    // Click en chip de búsqueda reciente: rellena el query (dispara
+    // sugerencias en vivo) sin cerrar el overlay — el usuario decide cuál
+    // sugerencia abrir.
+    const seleccionarTerminoReciente = (termino: string) => {
+        const limpio = termino.trim();
+        if (limpio.length < 2) return;
+        agregarBusquedaReciente(limpio, 'ofertas');
+        setRecientesRev((v) => v + 1);
+        setQuery(limpio);
+    };
+
     return (
         <div
-            data-testid="overlay-buscador-marketplace"
+            data-testid="overlay-buscador-ofertas"
             className="fixed inset-0 z-30 bg-black/30"
             onClick={cerrarBuscador}
             role="dialog"
             aria-modal="true"
-            aria-label="Buscador de MarketPlace"
+            aria-label="Buscador de Ofertas"
         >
             <div
                 onClick={(e) => e.stopPropagation()}
                 className="mx-auto mt-20 max-h-[75vh] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
             >
-                {/* ─── Estado vacío: recientes + populares ─────────────────── */}
+                {/* ─── Estado vacío: solo recientes + hint ──────────────── */}
                 {!escribiendo && (
                     <div className="space-y-5 p-4">
-                        {/* Búsquedas recientes */}
                         {recientes.length > 0 && (
-                            <section data-testid="seccion-busquedas-recientes">
+                            <section data-testid="seccion-busquedas-recientes-ofertas">
                                 <div className="mb-2 flex items-center justify-between">
                                     <h3 className="flex items-center gap-1.5 text-sm font-semibold text-slate-700">
                                         <Clock className="h-4 w-4" strokeWidth={2} />
                                         Búsquedas recientes
                                     </h3>
                                     <button
-                                        data-testid="btn-borrar-recientes"
+                                        data-testid="btn-borrar-recientes-ofertas"
                                         onClick={() => {
-                                            borrarBusquedasRecientes();
+                                            borrarBusquedasRecientes('ofertas');
                                             setRecientesRev((v) => v + 1);
                                         }}
                                         className="cursor-pointer text-xs font-semibold text-rose-600 hover:text-rose-700"
@@ -143,9 +157,9 @@ export function OverlayBuscadorMarketplace() {
                                         <ChipReciente
                                             key={termino}
                                             termino={termino}
-                                            onClick={() => seleccionarTermino(termino)}
+                                            onClick={() => seleccionarTerminoReciente(termino)}
                                             onQuitar={() => {
-                                                quitarBusquedaReciente(termino);
+                                                quitarBusquedaReciente(termino, 'ofertas');
                                                 setRecientesRev((v) => v + 1);
                                             }}
                                         />
@@ -154,45 +168,24 @@ export function OverlayBuscadorMarketplace() {
                             </section>
                         )}
 
-                        {/* Populares */}
-                        {populares.length > 0 && (
-                            <section data-testid="seccion-populares">
-                                <h3 className="mb-2 flex items-center gap-1.5 text-sm font-semibold text-slate-700">
-                                    <TrendingUp className="h-4 w-4" strokeWidth={2} />
-                                    Más buscado en {ciudad ?? 'tu ciudad'}
-                                </h3>
-                                <div className="flex flex-wrap gap-2">
-                                    {populares.map((termino) => (
-                                        <button
-                                            key={termino}
-                                            data-testid={`chip-popular-${termino}`}
-                                            onClick={() => seleccionarTermino(termino)}
-                                            className="cursor-pointer rounded-full border-2 border-slate-200 bg-slate-50 px-3 py-1.5 text-sm font-medium text-slate-700 hover:border-teal-400 hover:bg-teal-50 hover:text-teal-700"
-                                        >
-                                            {termino}
-                                        </button>
-                                    ))}
-                                </div>
-                            </section>
-                        )}
-
-                        {recientes.length === 0 && populares.length === 0 && (
+                        {recientes.length === 0 && (
                             <div className="py-6 text-center">
                                 <Search
                                     className="mx-auto mb-2 h-8 w-8 text-slate-300"
                                     strokeWidth={1.5}
                                 />
                                 <p className="text-sm text-slate-500">
-                                    Empieza a escribir para buscar artículos en {ciudad ?? 'tu ciudad'}
+                                    Empieza a escribir para buscar ofertas en{' '}
+                                    {ciudad ?? 'tu ciudad'}
                                 </p>
                             </div>
                         )}
                     </div>
                 )}
 
-                {/* ─── Sugerencias en vivo: cards con preview ─────────────── */}
+                {/* ─── Sugerencias en vivo ─────────────────────────────── */}
                 {escribiendo && (
-                    <section data-testid="seccion-sugerencias" className="p-2">
+                    <section data-testid="seccion-sugerencias-ofertas" className="p-2">
                         <h3 className="px-2 py-2 text-xs font-semibold uppercase tracking-wider text-slate-500">
                             Resultados
                         </h3>
@@ -202,48 +195,45 @@ export function OverlayBuscadorMarketplace() {
                             </div>
                         ) : sugerencias.length === 0 ? (
                             <div className="px-3 py-4 text-sm text-slate-500">
-                                No hay resultados para &quot;{query.trim()}&quot;.
+                                No hay ofertas para &quot;{query.trim()}&quot;.
                             </div>
                         ) : (
                             <ul className="flex flex-col gap-1">
-                                {sugerencias.map((articulo, idx) => (
-                                    <li key={articulo.id}>
+                                {sugerencias.map((oferta, idx) => (
+                                    <li key={oferta.ofertaId}>
                                         <button
-                                            data-testid={`sugerencia-${idx}`}
-                                            onClick={() => {
-                                                agregarBusquedaReciente(query.trim());
-                                                setRecientesRev((v) => v + 1);
-                                                cerrarBuscador();
-                                                navigate(`/marketplace/articulo/${articulo.id}`);
-                                            }}
+                                            data-testid={`sugerencia-oferta-${idx}`}
+                                            onClick={() => handleClickSugerencia(oferta.ofertaId)}
                                             className="flex w-full cursor-pointer items-center gap-3 rounded-lg px-2 py-2 text-left hover:bg-slate-100"
                                         >
                                             <div className="h-14 w-14 shrink-0 overflow-hidden rounded-lg bg-slate-100">
-                                                {articulo.fotoPortada ? (
+                                                {oferta.imagen ? (
                                                     <img
-                                                        src={articulo.fotoPortada}
-                                                        alt={articulo.titulo}
+                                                        src={oferta.imagen}
+                                                        alt={oferta.titulo}
                                                         className="h-full w-full object-cover"
                                                         loading="lazy"
                                                     />
                                                 ) : (
-                                                    <div className="flex h-full w-full items-center justify-center text-slate-300">
-                                                        <Search className="h-5 w-5" strokeWidth={1.5} />
+                                                    <div className="flex h-full w-full items-center justify-center text-amber-500">
+                                                        <Tag className="h-5 w-5" strokeWidth={2} />
                                                     </div>
                                                 )}
                                             </div>
                                             <div className="flex min-w-0 flex-1 flex-col">
                                                 <span className="truncate text-sm font-semibold text-slate-900">
-                                                    {articulo.titulo}
+                                                    {oferta.titulo}
                                                 </span>
-                                                <span className="truncate text-sm font-bold text-teal-700">
-                                                    {`$${articulo.precio.toLocaleString('es-MX')}`}
-                                                    <span className="ml-2 font-normal text-slate-500 capitalize">
-                                                        · {articulo.condicion.replace('_', ' ')}
+                                                <span className="truncate text-sm">
+                                                    <span className="font-bold text-amber-700">
+                                                        {formatearDescuento(oferta.tipo, oferta.valor)}
+                                                    </span>
+                                                    <span className="ml-2 font-normal text-slate-600">
+                                                        · {oferta.negocioNombre}
                                                     </span>
                                                 </span>
                                                 <span className="truncate text-xs text-slate-400">
-                                                    {articulo.ciudad}
+                                                    {oferta.ciudad}
                                                 </span>
                                             </div>
                                             <ArrowUpRight
@@ -263,7 +253,7 @@ export function OverlayBuscadorMarketplace() {
 }
 
 // =============================================================================
-// CHIP DE BÚSQUEDA RECIENTE (con X removible)
+// CHIP DE BÚSQUEDA RECIENTE
 // =============================================================================
 
 interface ChipRecienteProps {
@@ -275,8 +265,8 @@ interface ChipRecienteProps {
 function ChipReciente({ termino, onClick, onQuitar }: ChipRecienteProps) {
     return (
         <span
-            data-testid={`chip-reciente-${termino}`}
-            className="group inline-flex items-center gap-1.5 rounded-full border-2 border-slate-200 bg-white pl-3 pr-1 text-sm text-slate-700 hover:border-slate-400"
+            data-testid={`chip-reciente-ofertas-${termino}`}
+            className="group inline-flex items-center gap-1.5 rounded-full border-2 border-slate-200 bg-white pl-3 pr-1 text-sm text-slate-700 hover:border-amber-400"
         >
             <button
                 onClick={onClick}
@@ -285,7 +275,7 @@ function ChipReciente({ termino, onClick, onQuitar }: ChipRecienteProps) {
                 {termino}
             </button>
             <button
-                data-testid={`btn-quitar-reciente-${termino}`}
+                data-testid={`btn-quitar-reciente-ofertas-${termino}`}
                 onClick={(e) => {
                     e.stopPropagation();
                     onQuitar();
@@ -299,4 +289,4 @@ function ChipReciente({ termino, onClick, onQuitar }: ChipRecienteProps) {
     );
 }
 
-export default OverlayBuscadorMarketplace;
+export default OverlayBuscadorOfertas;

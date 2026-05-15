@@ -178,9 +178,10 @@ export function PaginaMarketplace() {
     const handleEnterBusqueda = () => {
         const termino = query.trim();
         if (termino.length < 2) return;
+        // Solo cierra el overlay y el input expandido — no hay página de
+        // resultados dedicada. El feed ya está filtrado por `query`.
         cerrarBuscador();
         setBuscadorMovilAbierto(false);
-        navigate(`/marketplace/buscar?q=${encodeURIComponent(termino)}`);
     };
 
     const handleActivarUbicacion = async () => {
