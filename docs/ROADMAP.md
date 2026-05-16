@@ -1,7 +1,7 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 4 Mayo 2026
-> **Progreso global:** MarketPlace v1 cerrado ✅ (7 sprints completados, 1 opcional pendiente para post-beta)
+> **Última actualización:** 15 Mayo 2026
+> **Progreso global:** MarketPlace v1.6 cerrado ✅ — flujos E2E probados (comprador + vendedor + Mis Publicaciones)
 > **Fase actual:** Próximo bloque = Servicios + Home con Pregúntale a Peñasco
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
@@ -21,7 +21,7 @@
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
 | **Business Studio** (5.4) | ⏳ 92% (12/13 módulos) | Vacantes (alimenta sección pública Servicios) |
-| **Secciones Públicas** (6.x) | ⏳ 67% (2/3) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1 (4 May 2026). Pendiente: Servicios |
+| **Secciones Públicas** (6.x) | ⏳ 67% (2/3) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo). Pendiente: Servicios |
 | **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -38,7 +38,7 @@
 **Q2 (Abril-Junio) — Meta:**
 - [ ] Business Studio 100% (13/13 módulos) — falta: Vacantes
 - [x] **Sección pública Ofertas** ✅ (1 May 2026 — feed editorial, multi-sucursal, swipe, analytics)
-- [x] **Sección pública MarketPlace v1** ✅ (4 May 2026 — compra-venta P2P, moderación autónoma, buscador potenciado, página pública compartible)
+- [x] **Sección pública MarketPlace v1.6** ✅ (15 May 2026 — compra-venta P2P, moderación autónoma, buscador potenciado, página pública compartible, **Mis Publicaciones (panel del vendedor)**, **Q&A estilo Mercado Libre con privacidad de pendientes**, flujos E2E probados)
 - [ ] Sección pública restante: Servicios
 - [ ] Home con Pregúntale a Peñasco
 - [ ] Panel Admin funcional
@@ -76,6 +76,10 @@
 | Sprint 20 | **MarketPlace Sprint 5 — Perfil del Vendedor**: `PaginaPerfilVendedor.tsx` SIN portada decorativa + SIN badge verificado (decisiones conscientes de Regla 13), KPIs reales (publicaciones activas, vendidos, tiempo de respuesta sin filtro `contexto_tipo`), botón Seguir vendedor con migración SQL para `votos_entity_type_check += 'usuario'`, tabs Publicaciones/Vendidos | 4 May 2026 |
 | Sprint 21 | **MarketPlace Sprint 6 — Buscador Potenciado**: 3 endpoints (sugerencias FTS español + populares cache Redis 1h + buscar paginado), `OverlayBuscadorMarketplace` SIN input propio (anclado al `useSearchStore` global del Navbar), página de resultados con scroll infinito + URL state compartible, `FiltrosBuscador` (Distancia/Precio/Condición), privacidad: `usuario_id=NULL` siempre + sanitización del término | 4 May 2026 |
 | Sprint 22 | **MarketPlace Sprint 7 — Polish + Crons + Página Pública (cierre v1)**: cron auto-pausa cada 6h + cron próxima expiración diario 09:00 UTC (notificaciones idempotentes), endpoint `/reactivar` extiende +30d, `PaginaArticuloMarketplacePublico` con OG tags + mensajes diferenciados por estado + SIN WhatsApp directo (privacidad), botón Reactivar reemplaza BarraContacto, tab "Artículos" en Mis Guardados activada, 4 tests E2E Playwright | 4 May 2026 |
+| Sprint 23 | **MarketPlace v1.3 — Rediseño páginas públicas + Navbar glass + cards de contexto en ChatYA**: rediseño visual de páginas públicas P2/P3, Navbar glass, P3 con contactos reales, cards de contexto en ChatYA con preview en input + reuso de conversación + retiro de card "vienes del perfil" + filtro sucursal persona↔negocio | 8-11 May 2026 |
+| Sprint 24 | **MarketPlace v1.4 — Buscador MP global + filtros en Mis Guardados + sucursalId en ofertas**: polish UI cross-app, filtros de estado en Mis Guardados, buscador MarketPlace global (anclado al `useSearchStore`), duplicación de sucursal en chats, retiro total de `vendedor_marketplace` legacy | 12 May 2026 |
+| Sprint 25 | **MarketPlace v1.5 — Mis Publicaciones + Mis Guardados Marketplace funcional + wizard publicar rediseñado**: panel del vendedor `Mis Publicaciones` (filtros activas/pausadas/vendidas, acciones marcar como vendida/reactivar/eliminar), UI Servicios pre-cableada, Mis Guardados Marketplace 100% funcional con unificación visual de cards, wizard publicar rediseñado, P3 perfil ajustado, galería P2, cleanup R2, filtro permisivo de sucursal | 13 May 2026 |
+| Sprint 26 | **MarketPlace v1.6 — Q&A estilo Mercado Libre + privacidad de pendientes + cierre E2E**: rediseño completo de Q&A en detalle y feed (agrupación por comprador, badge "Pendiente", conector "L" entre pregunta y respuesta, nombre+1er apellido en bubbles), responder/preguntar inline sin modal (elimina `ModalHacerPregunta`), pendientes ajenas privadas (filtro backend en `obtenerPreguntasPublicas` + `top_preguntas` del feed), helpers compartidos `agruparPorComprador<T>` + `obtenerNombreCorto` en `utils/marketplace.ts`, mejor copy de notificaciones (incluye título del artículo), fix backend vendedor devuelve apellidos+avatar completos, Tooltip "Guardar publicación" en feed, flujos E2E probados (comprador + vendedor + Mis Publicaciones) | 14-15 May 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -92,7 +96,7 @@
 | Cupones: ChatYA + Revocar/Reactivar + Rediseño | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Promociones.md` |
 | Mis Guardados: Rediseño estilo CardYA (rose) | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Guardados.md` |
 | **Sección Ofertas Públicas v1.4** | ✅ 100% | 1 May 2026 | `docs/arquitectura/Ofertas.md` |
-| **Sección MarketPlace v1** (P2P, moderación autónoma, buscador potenciado) | ✅ 100% (7 sprints) | 4 May 2026 | `docs/arquitectura/MarketPlace.md` |
+| **Sección MarketPlace v1.6** (P2P, moderación autónoma, buscador potenciado, Mis Publicaciones, Q&A estilo ML, flujos E2E probados) | ✅ 100% (11 sprints) | 15 May 2026 | `docs/arquitectura/MarketPlace.md` |
 
 ### Pendientes menores
 
@@ -147,13 +151,14 @@
 - 55 tests pasando (38 backend + 17 E2E).
 - Detalle: `docs/arquitectura/Ofertas.md` v1.4.
 
-**6.1 MarketPlace v1** ✅ Cerrada 4 May 2026
+**6.1 MarketPlace v1.6** ✅ Cerrada 15 May 2026
 - Compra-venta de **objetos físicos** entre usuarios (modo Personal), transacción 100% offline (sin pagos en la app).
-- 7 sprints: backend base, feed, detalle, wizard publicar + moderación autónoma (5 categorías de palabras prohibidas + 32 tests), perfil del vendedor con KPIs reales, buscador potenciado (sugerencias FTS + populares + filtros + URL state), polish (crons auto-pausa + página pública compartible + tab Artículos en Mis Guardados + tests E2E).
+- 11 sprints: backend base, feed, detalle, wizard publicar + moderación autónoma (5 categorías de palabras prohibidas + 32 tests), perfil del vendedor con KPIs reales, buscador potenciado (sugerencias FTS + populares + filtros + URL state), polish (crons auto-pausa + página pública compartible + tests E2E), rediseño páginas públicas + Navbar glass + cards de contexto ChatYA, buscador MP global + filtros Mis Guardados, **Mis Publicaciones (panel del vendedor)**, **Q&A estilo Mercado Libre con privacidad de pendientes y agrupación por comprador**.
 - Filosofía: alternativa ordenada y profesional a Facebook Marketplace. Hiperlocal, división estricta entre objetos físicos (MarketPlace) y servicios. Sin subastas, sin rifas, sin servicios disfrazados.
-- Decisiones clave: SIN sistema de reportes (moderación 100% autónoma), SIN portada en perfil del vendedor (estética profesional), SIN WhatsApp directo en página pública (privacidad de teléfonos), buscador anclado al Navbar global.
-- Sprint 8 (Sistema de Niveles del Vendedor) **pendiente para post-beta** — los umbrales se ajustan mejor con data real de comportamiento.
-- Detalle: `docs/arquitectura/MarketPlace.md` v1.0.
+- Decisiones clave: SIN sistema de reportes (moderación 100% autónoma), SIN portada en perfil del vendedor (estética profesional), SIN WhatsApp directo en página pública (privacidad de teléfonos), buscador anclado al Navbar global, Q&A pendientes privadas (autor + dueño, patrón ML), responder/preguntar inline sin modales.
+- Flujos E2E probados: comprador (buscar, ver detalle, preguntar, guardar, contactar) + vendedor (publicar, gestionar publicaciones, responder, pausar/reactivar).
+- Sprint pendiente para post-beta: Sistema de Niveles del Vendedor — los umbrales se ajustan mejor con data real de comportamiento.
+- Detalle: `docs/arquitectura/MarketPlace.md` v1.6.
 
 **6.2 Servicios** (~4 días)
 - Sección unificada: servicios e intangibles, incluye empleos.
@@ -263,7 +268,7 @@
 | Fase | Tiempo Estimado |
 |------|-----------------|
 | Sistema Lealtad + ChatYA + Promociones | ✅ Completado |
-| **Sección MarketPlace v1** | ✅ Completado (4 May 2026) |
+| **Sección MarketPlace v1.6** | ✅ Completado (15 May 2026, flujos E2E probados) |
 | BS Módulos Pendientes (1/13: Vacantes) | ~2 días |
 | Sección pública restante (6.2: Servicios) | ~4 días |
 | Home — Pregúntale a Peñasco | por estimar (depende del diseño) |
