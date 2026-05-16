@@ -686,10 +686,12 @@ export async function getPreguntasArticulo(req: Request, res: Response) {
             // No es el dueño → caer a vista pública con preguntaPendiente del usuario
         }
 
-        const preguntas = await obtenerPreguntasPublicas(id);
-        // Si el visitante está autenticado, también devolvemos su pregunta
-        // pendiente (si tiene una) para que vea el estado de su pregunta y
-        // pueda retirarla. Si no está autenticado o no tiene pregunta, será null.
+        // `obtenerPreguntasPublicas` ya filtra: respondidas para todos +
+        // pendientes propias del visitante autenticado (patrón ML). Las
+        // pendientes ajenas quedan ocultas hasta que el vendedor responde.
+        const preguntas = await obtenerPreguntasPublicas(id, usuarioId ?? undefined);
+        // `miPreguntaPendiente` se mantiene para compatibilidad — el frontend
+        // lo usa para condicionar el mensaje "Sé el primero en preguntar".
         const miPreguntaPendiente = usuarioId
             ? await obtenerMiPreguntaPendiente(id, usuarioId)
             : null;

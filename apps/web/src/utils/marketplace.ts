@@ -177,3 +177,81 @@ export function formatearPrecio(precio: string | number): string {
     if (isNaN(num)) return '$0';
     return `$${Math.round(num).toLocaleString('es-MX')}`;
 }
+
+// =============================================================================
+// AGRUPACIÓN DE PREGUNTAS POR COMPRADOR (patrón Mercado Libre)
+// =============================================================================
+
+/**
+ * Devuelve "Primer nombre + Primer apellido" para mostrar dentro de los
+ * bubbles de conversación (estilo ML). Compacto y sin caer en "Nombre I.".
+ */
+export function obtenerNombreCorto(nombre: string, apellidos: string): string {
+    const primerNombre = (nombre ?? '').split(' ')[0] ?? '';
+    const primerApellido = (apellidos ?? '').split(' ')[0] ?? '';
+    return `${primerNombre} ${primerApellido}`.trim();
+}
+
+/**
+ * Forma mínima que una pregunta debe tener para poder agruparse por comprador.
+ * Compatible con `PreguntaMarketplace` (detalle) y con la versión normalizada
+ * de `PreguntaInlineFeed` (feed).
+ */
+export interface PreguntaAgrupable {
+    compradorId: string;
+    compradorNombre: string;
+    compradorApellidos: string;
+    compradorAvatarUrl: string | null;
+    respondidaAt: string | null;
+    createdAt: string;
+}
+
+export interface GrupoConversacion<T extends PreguntaAgrupable = PreguntaAgrupable> {
+    compradorId: string;
+    compradorNombre: string;
+    compradorApellidos: string;
+    compradorAvatarUrl: string | null;
+    preguntas: T[];
+    tienePendientes: boolean;
+    ultimaActividad: string;
+}
+
+/**
+ * Agrupa una lista plana de preguntas por `compradorId`. Dentro de cada grupo
+ * las preguntas se ordenan por `createdAt` ASC (chat natural). Entre grupos el
+ * orden lo decide el caller:
+ *  - `'asc'` (default): hilos más antiguos arriba — usado en el detalle.
+ *  - `'desc'`: hilos más recientes arriba — usado en el feed.
+ */
+export function agruparPorComprador<T extends PreguntaAgrupable>(
+    preguntas: T[],
+    ordenGrupos: 'asc' | 'desc' = 'asc'
+): GrupoConversacion<T>[] {
+    const mapa = new Map<string, GrupoConversacion<T>>();
+    for (const p of preguntas) {
+        let grupo = mapa.get(p.compradorId);
+        if (!grupo) {
+            grupo = {
+                compradorId: p.compradorId,
+                compradorNombre: p.compradorNombre,
+                compradorApellidos: p.compradorApellidos,
+                compradorAvatarUrl: p.compradorAvatarUrl,
+                preguntas: [],
+                tienePendientes: false,
+                ultimaActividad: '',
+            };
+            mapa.set(p.compradorId, grupo);
+        }
+        grupo.preguntas.push(p);
+        if (!p.respondidaAt) grupo.tienePendientes = true;
+        if (p.createdAt > grupo.ultimaActividad) grupo.ultimaActividad = p.createdAt;
+    }
+    for (const grupo of mapa.values()) {
+        grupo.preguntas.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    }
+    return Array.from(mapa.values()).sort((a, b) =>
+        ordenGrupos === 'asc'
+            ? a.ultimaActividad.localeCompare(b.ultimaActividad)
+            : b.ultimaActividad.localeCompare(a.ultimaActividad)
+    );
+}

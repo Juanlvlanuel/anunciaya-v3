@@ -806,6 +806,19 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                             INNER JOIN usuarios uc ON uc.id = mp.comprador_id
                             WHERE mp.articulo_id = a.id
                               AND mp.deleted_at IS NULL
+                              -- Visibilidad estilo Mercado Libre: respondidas
+                              -- públicas; pendientes solo para su autor o el
+                              -- dueño del artículo.
+                              AND (
+                                  mp.respondida_at IS NOT NULL
+                                  OR (
+                                      ${opciones.usuarioId ?? null}::uuid IS NOT NULL
+                                      AND (
+                                          mp.comprador_id = ${opciones.usuarioId ?? null}::uuid
+                                          OR a.usuario_id = ${opciones.usuarioId ?? null}::uuid
+                                      )
+                                  )
+                              )
                         ) p
                     ),
                     '[]'::json

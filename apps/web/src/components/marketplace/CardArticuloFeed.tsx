@@ -51,6 +51,8 @@ import {
     formatearDistancia,
     formatearTiempoRelativo,
     formatearPrecio,
+    obtenerNombreCorto,
+    agruparPorComprador,
 } from '../../utils/marketplace';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import Tooltip from '../ui/Tooltip';
@@ -290,21 +292,45 @@ export function CardArticuloFeed({
     }, [articulo.topPreguntas, preguntasOptimistas, edicionesOptimistas, eliminadasOptimistas]);
 
     /**
-     * Lista visible (preview): primeras 2 en orden (respondidas primero por
-     * el backend). Si está expandida, muestra todas. El click "Ver más"
-     * expande inline sin navegar al detalle.
+     * Normalizamos las preguntas (`comprador.*` anidado → campos planos) para
+     * poder reusar el helper `agruparPorComprador` que comparte forma con el
+     * detalle del artículo (`PreguntaMarketplace` ya viene plano).
      */
-    const MAX_PREGUNTAS_VISIBLES = 2;
-    const { preguntasVisibles, preguntasOcultas } = useMemo(() => {
-        if (preguntasExpandidas) {
-            return { preguntasVisibles: preguntasARenderizar, preguntasOcultas: 0 };
-        }
-        const visibles = preguntasARenderizar.slice(0, MAX_PREGUNTAS_VISIBLES);
-        return {
-            preguntasVisibles: visibles,
-            preguntasOcultas: preguntasARenderizar.length - visibles.length,
-        };
-    }, [preguntasARenderizar, preguntasExpandidas]);
+    const preguntasParaAgrupar = useMemo(
+        () =>
+            preguntasARenderizar.map((p) => ({
+                ...p,
+                compradorId: p.comprador.id,
+                compradorNombre: p.comprador.nombre,
+                compradorApellidos: p.comprador.apellidos,
+                compradorAvatarUrl: p.comprador.avatarUrl,
+            })),
+        [preguntasARenderizar]
+    );
+
+    /**
+     * Preview del feed: mostramos las N preguntas más recientes (DESC por
+     * createdAt) y las agrupamos por comprador. Si hay más preguntas, el CTA
+     * "Ver más" abre el modal/detalle con la conversación completa.
+     *
+     * En `modoModal` no aplicamos límite — el modal renderiza el hilo
+     * completo y maneja su propio scroll interno.
+     */
+    const MAX_PREGUNTAS_INLINE = 2;
+    const grupos = useMemo(() => {
+        const ordenadas = [...preguntasParaAgrupar].sort((a, b) =>
+            b.createdAt.localeCompare(a.createdAt)
+        );
+        const limitadas = modoModal ? ordenadas : ordenadas.slice(0, MAX_PREGUNTAS_INLINE);
+        return agruparPorComprador(limitadas, 'desc');
+    }, [preguntasParaAgrupar, modoModal]);
+
+    /**
+     * Hay más contenido del que cabe inline → mostrar CTA al modal/detalle.
+     * En `modoModal` siempre es false (ya estás viendo todo).
+     */
+    const hayMasContenido =
+        !modoModal && preguntasARenderizar.length > MAX_PREGUNTAS_INLINE;
 
 
     // Señal de actividad inline. Tipo:
@@ -969,198 +995,187 @@ export function CardArticuloFeed({
             {/* En modoModal: esta zona es la única scrolleable; el input vive */}
             {/* en su propio container fijo abajo (ver más adelante). */}
             <div className={modoModal ? 'flex-1 min-h-0 overflow-y-auto px-4 pt-3 pb-3' : 'px-4 py-3'}>
-                {preguntasARenderizar.length > 0 && (
-                    <div className="space-y-3">
-                        {preguntasVisibles.map((p) => {
-                            const respondida = !!p.respuesta;
-                            const esMia = !!usuario && p.comprador.id === usuario.id;
-                            const puedeGestionar = esMia && !respondida;
-                            const enEdicion = editandoId === p.id;
-                            return (
-                                <div key={p.id} className="text-base">
-                                    <div className="flex gap-2">
-                                        {p.comprador.avatarUrl ? (
-                                            <img
-                                                src={p.comprador.avatarUrl}
-                                                alt={p.comprador.nombre}
-                                                className="h-7 w-7 shrink-0 rounded-full object-cover"
-                                            />
-                                        ) : (
-                                            <div
-                                                className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-md"
-                                                style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
-                                            >
-                                                {(p.comprador.nombre ?? '?').charAt(0).toUpperCase()}
-                                            </div>
-                                        )}
-                                        <div className="flex-1 rounded-2xl bg-slate-200 px-3 py-2">
-                                            <p className="text-base font-bold text-slate-900">
-                                                <BotonComentarista
-                                                    usuarioId={p.comprador.id}
-                                                    nombre={p.comprador.nombre}
-                                                    apellidos={p.comprador.apellidos}
-                                                    avatarUrl={p.comprador.avatarUrl}
-                                                    editado={!!p.editadaAt && !enEdicion}
-                                                />
-                                            </p>
-                                            {enEdicion ? (
-                                                <div className="mt-1">
-                                                    <textarea
-                                                        data-testid={`card-feed-edit-input-${p.id}`}
-                                                        value={textoEditando}
-                                                        onChange={(e) => {
-                                                            setTextoEditando(e.target.value);
-                                                            if (errorEditando) setErrorEditando(null);
-                                                        }}
-                                                        maxLength={PREGUNTA_MAX}
-                                                        rows={2}
-                                                        disabled={editarPregunta.isPending}
-                                                        className="w-full resize-none rounded-lg border-2 border-slate-300 bg-white px-2 py-1.5 text-base font-medium text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50"
-                                                    />
-                                                    {errorEditando && (
-                                                        <p className="mt-1 flex items-center gap-1 text-xs text-rose-600">
-                                                            <AlertCircle className="h-3 w-3" strokeWidth={2.5} />
-                                                            {errorEditando}
+                {grupos.length > 0 && (
+                    <div className="space-y-4">
+                        {grupos.map((grupo) => (
+                            <div
+                                key={grupo.compradorId}
+                                data-testid={`card-feed-grupo-${grupo.compradorId}`}
+                                className="rounded-xl border border-slate-300 bg-slate-50 p-3 lg:p-4"
+                            >
+                                {grupo.tienePendientes && (
+                                    <div className="flex justify-end pb-2">
+                                        <span
+                                            data-testid={`card-feed-grupo-badge-${grupo.compradorId}`}
+                                            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-xs font-bold text-amber-700"
+                                        >
+                                            <span className="h-1.5 w-1.5 rounded-full bg-amber-500" />
+                                            Pendiente
+                                        </span>
+                                    </div>
+                                )}
+
+                                <div className="space-y-4">
+                                    {grupo.preguntas.map((p) => {
+                                        const respondida = !!p.respuesta;
+                                        const esMia = !!usuario && p.compradorId === usuario.id;
+                                        const puedeGestionar = esMia && !respondida;
+                                        const enEdicion = editandoId === p.id;
+                                        return (
+                                            <div key={p.id} className="text-sm">
+                                                {/* Bubble pregunta — nombre + 1er apellido + texto/textarea */}
+                                                <div className="rounded-2xl bg-slate-200 px-3 py-1.5">
+                                                    <p className="text-sm font-semibold text-slate-900">
+                                                        <BotonComentarista
+                                                            usuarioId={p.compradorId}
+                                                            nombre={p.compradorNombre}
+                                                            apellidos={p.compradorApellidos}
+                                                            avatarUrl={p.compradorAvatarUrl}
+                                                            displayName={obtenerNombreCorto(
+                                                                p.compradorNombre,
+                                                                p.compradorApellidos
+                                                            )}
+                                                            editado={!!p.editadaAt && !enEdicion}
+                                                        />
+                                                    </p>
+                                                    {enEdicion ? (
+                                                        <div className="mt-1">
+                                                            <textarea
+                                                                data-testid={`card-feed-edit-input-${p.id}`}
+                                                                value={textoEditando}
+                                                                onChange={(e) => {
+                                                                    setTextoEditando(e.target.value);
+                                                                    if (errorEditando) setErrorEditando(null);
+                                                                }}
+                                                                maxLength={PREGUNTA_MAX}
+                                                                rows={2}
+                                                                disabled={editarPregunta.isPending}
+                                                                autoFocus
+                                                                className="w-full resize-none rounded-lg border-2 border-slate-300 bg-white px-2 py-1.5 text-base font-medium text-slate-800 focus:border-teal-500 focus:outline-none focus:ring-2 focus:ring-teal-500/20 disabled:opacity-50"
+                                                            />
+                                                            {errorEditando && (
+                                                                <p className="mt-1 flex items-center gap-1 text-xs text-rose-600">
+                                                                    <AlertCircle className="h-3 w-3" strokeWidth={2.5} />
+                                                                    {errorEditando}
+                                                                </p>
+                                                            )}
+                                                        </div>
+                                                    ) : (
+                                                        <p className="text-sm font-medium text-slate-700">
+                                                            {p.pregunta}
                                                         </p>
                                                     )}
                                                 </div>
-                                            ) : (
-                                                <p className="text-base text-slate-700">{p.pregunta}</p>
-                                            )}
-                                        </div>
-                                    </div>
 
-                                    {/* Respuesta del vendedor o estado pendiente */}
-                                    {respondida && !enEdicion && (
-                                        <div className="mt-1.5 ml-9 flex gap-2">
-                                            {/* Avatar del vendedor */}
-                                            {articulo.vendedor.avatarUrl ? (
-                                                <img
-                                                    src={articulo.vendedor.avatarUrl}
-                                                    alt={nombreVendedor}
-                                                    className="h-7 w-7 shrink-0 rounded-full object-cover"
-                                                />
-                                            ) : (
-                                                <div
-                                                    className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-[11px] font-bold text-white shadow-md"
-                                                    style={{ background: 'linear-gradient(135deg, #14b8a6 0%, #0d9488 50%, #0f766e 100%)' }}
-                                                >
-                                                    {(articulo.vendedor.nombre.charAt(0) +
-                                                        articulo.vendedor.apellidos.charAt(0)).toUpperCase()}
-                                                </div>
-                                            )}
-                                            <div className="flex-1 rounded-2xl bg-teal-100 px-3 py-2 text-base text-slate-800">
-                                                <p className="text-base font-bold text-teal-700">
-                                                    <BotonComentarista
-                                                        usuarioId={articulo.vendedor.id}
-                                                        nombre={articulo.vendedor.nombre}
-                                                        apellidos={articulo.vendedor.apellidos}
-                                                        avatarUrl={articulo.vendedor.avatarUrl}
-                                                        displayName={articulo.vendedor.nombre.split(' ')[0]}
-                                                    />
-                                                </p>
-                                                <p>{p.respuesta}</p>
+                                                {/* Respuesta del vendedor con conector "L" */}
+                                                {respondida && !enEdicion && (
+                                                    <div className="mt-1.5 flex">
+                                                        <div aria-hidden className="flex w-6 shrink-0">
+                                                            <div className="h-3 w-3 border-b border-l border-slate-500" />
+                                                        </div>
+                                                        <div className="flex-1 rounded-2xl bg-teal-100 px-3 py-1.5 text-sm text-slate-800">
+                                                            <p className="text-sm font-semibold text-teal-700">
+                                                                <BotonComentarista
+                                                                    usuarioId={articulo.vendedor.id}
+                                                                    nombre={articulo.vendedor.nombre}
+                                                                    apellidos={articulo.vendedor.apellidos}
+                                                                    avatarUrl={articulo.vendedor.avatarUrl}
+                                                                    displayName={obtenerNombreCorto(
+                                                                        articulo.vendedor.nombre,
+                                                                        articulo.vendedor.apellidos
+                                                                    )}
+                                                                />
+                                                            </p>
+                                                            <p>{p.respuesta}</p>
+                                                        </div>
+                                                    </div>
+                                                )}
+
+                                                {/* Acciones inline para mi propia pregunta pendiente */}
+                                                {puedeGestionar && !enEdicion && (
+                                                    <div className="mt-1.5 flex items-center gap-3 text-xs font-semibold">
+                                                        <button
+                                                            type="button"
+                                                            data-testid={`card-feed-editar-pregunta-${p.id}`}
+                                                            onClick={() => handleIniciarEdicion(p.id, p.pregunta)}
+                                                            className="text-slate-600 lg:cursor-pointer lg:hover:text-teal-700 lg:hover:underline"
+                                                        >
+                                                            Editar
+                                                        </button>
+                                                        <span className="text-slate-300" aria-hidden>·</span>
+                                                        <button
+                                                            type="button"
+                                                            data-testid={`card-feed-eliminar-pregunta-${p.id}`}
+                                                            onClick={() => handleEliminarPropia(p.id)}
+                                                            disabled={eliminarPreguntaMia.isPending}
+                                                            className="text-rose-600 disabled:opacity-50 lg:cursor-pointer lg:hover:text-rose-700 lg:hover:underline"
+                                                        >
+                                                            Borrar
+                                                        </button>
+                                                    </div>
+                                                )}
+
+                                                {/* Botones de modo edición */}
+                                                {puedeGestionar && enEdicion && (
+                                                    <div className="mt-1.5 flex items-center gap-2 text-xs font-semibold">
+                                                        <button
+                                                            type="button"
+                                                            data-testid={`card-feed-guardar-edicion-${p.id}`}
+                                                            onClick={() => handleGuardarEdicion(p.id)}
+                                                            disabled={
+                                                                editarPregunta.isPending ||
+                                                                textoEditando.trim().length < PREGUNTA_MIN
+                                                            }
+                                                            className="rounded-full bg-teal-600 px-3 py-1 text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40 lg:cursor-pointer lg:hover:bg-teal-700"
+                                                        >
+                                                            {editarPregunta.isPending ? 'Guardando…' : 'Guardar'}
+                                                        </button>
+                                                        <button
+                                                            type="button"
+                                                            data-testid={`card-feed-cancelar-edicion-${p.id}`}
+                                                            onClick={handleCancelarEdicion}
+                                                            disabled={editarPregunta.isPending}
+                                                            className="rounded-full px-3 py-1 text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200"
+                                                        >
+                                                            Cancelar
+                                                        </button>
+                                                        <span className="ml-auto text-slate-500">
+                                                            {textoEditando.length}/{PREGUNTA_MAX}
+                                                        </span>
+                                                    </div>
+                                                )}
+
+                                                {/* Tiempo del mensaje */}
+                                                {!enEdicion && (
+                                                    <p className="mt-1.5 text-xs font-medium text-slate-500">
+                                                        {formatearTiempoRelativo(p.createdAt)}
+                                                    </p>
+                                                )}
                                             </div>
-                                        </div>
-                                    )}
-                                    {!respondida && !enEdicion && (
-                                        <p className="mt-1 ml-9 text-sm font-medium italic text-slate-500">
-                                            Pendiente de respuesta
-                                        </p>
-                                    )}
-
-                                    {/* Acciones inline para mi propia pregunta pendiente */}
-                                    {puedeGestionar && !enEdicion && (
-                                        <div className="mt-1 ml-9 flex items-center gap-3 text-xs font-semibold">
-                                            <button
-                                                type="button"
-                                                data-testid={`card-feed-editar-pregunta-${p.id}`}
-                                                onClick={() => handleIniciarEdicion(p.id, p.pregunta)}
-                                                className="text-slate-600 lg:cursor-pointer lg:hover:text-teal-700 lg:hover:underline"
-                                            >
-                                                Editar
-                                            </button>
-                                            <span className="text-slate-300" aria-hidden>·</span>
-                                            <button
-                                                type="button"
-                                                data-testid={`card-feed-eliminar-pregunta-${p.id}`}
-                                                onClick={() => handleEliminarPropia(p.id)}
-                                                disabled={eliminarPreguntaMia.isPending}
-                                                className="text-rose-600 disabled:opacity-50 lg:cursor-pointer lg:hover:text-rose-700 lg:hover:underline"
-                                            >
-                                                Borrar
-                                            </button>
-                                        </div>
-                                    )}
-
-                                    {/* Botones de modo edición */}
-                                    {puedeGestionar && enEdicion && (
-                                        <div className="mt-1.5 ml-9 flex items-center gap-2 text-xs font-semibold">
-                                            <button
-                                                type="button"
-                                                data-testid={`card-feed-guardar-edicion-${p.id}`}
-                                                onClick={() => handleGuardarEdicion(p.id)}
-                                                disabled={
-                                                    editarPregunta.isPending ||
-                                                    textoEditando.trim().length < PREGUNTA_MIN
-                                                }
-                                                className="rounded-full bg-teal-600 px-3 py-1 text-white shadow-sm disabled:cursor-not-allowed disabled:opacity-40 lg:cursor-pointer lg:hover:bg-teal-700"
-                                            >
-                                                {editarPregunta.isPending ? 'Guardando…' : 'Guardar'}
-                                            </button>
-                                            <button
-                                                type="button"
-                                                data-testid={`card-feed-cancelar-edicion-${p.id}`}
-                                                onClick={handleCancelarEdicion}
-                                                disabled={editarPregunta.isPending}
-                                                className="rounded-full px-3 py-1 text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200"
-                                            >
-                                                Cancelar
-                                            </button>
-                                            <span className="ml-auto text-slate-500">
-                                                {textoEditando.length}/{PREGUNTA_MAX}
-                                            </span>
-                                        </div>
-                                    )}
+                                        );
+                                    })}
                                 </div>
-                            );
-                        })}
+                            </div>
+                        ))}
 
-                        {/* Botón "Ver N preguntas más" / "Ver menos" — patrón
-                            Facebook. Solo aparece si hay preguntas ocultas o
-                            si está expandido (para poder colapsar). */}
-                        {!modoModal && preguntasOcultas > 0 && !preguntasExpandidas && (
+                        {/* "Ver más" — abre el modal/detalle si hay más
+                            preguntas de las que caben inline. */}
+                        {hayMasContenido && (
                             <button
                                 type="button"
                                 data-testid={`card-feed-ver-mas-preguntas-${articulo.id}`}
                                 onClick={() => {
-                                    // Si hay callback del padre → abrir modal grande estilo
-                                    // Facebook con toda la publicación. Sin callback →
-                                    // fallback a expandir inline (comportamiento legacy
-                                    // o cuando ya estamos dentro del modal).
                                     if (onAbrirDetalle) {
                                         onAbrirDetalle();
                                     } else {
-                                        setPreguntasExpandidas(true);
+                                        irAlDetalle();
                                     }
                                 }}
                                 className="text-sm font-semibold text-teal-700 lg:cursor-pointer lg:hover:underline"
                             >
-                                Ver {preguntasOcultas}{' '}
-                                {preguntasOcultas === 1 ? 'pregunta más' : 'preguntas más'}
+                                Ver más
                             </button>
                         )}
-                        {!modoModal && preguntasExpandidas &&
-                            preguntasARenderizar.length > MAX_PREGUNTAS_VISIBLES && (
-                                <button
-                                    type="button"
-                                    data-testid={`card-feed-ver-menos-preguntas-${articulo.id}`}
-                                    onClick={() => setPreguntasExpandidas(false)}
-                                    className="text-sm font-semibold text-slate-600 lg:cursor-pointer lg:hover:underline"
-                                >
-                                    Ver menos
-                                </button>
-                            )}
                     </div>
                 )}
 

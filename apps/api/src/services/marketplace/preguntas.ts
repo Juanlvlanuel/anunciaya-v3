@@ -56,6 +56,7 @@ interface PreguntaConArticuloRow {
     compradorId: string;
     articuloId: string;
     articuloUsuarioId: string;
+    articuloTitulo: string;
     pregunta: string;
     respuesta: string | null;
     respondidaAt: string | null;
@@ -86,6 +87,7 @@ async function obtenerPreguntaConArticulo(
             p.comprador_id    AS comprador_id,
             p.articulo_id     AS articulo_id,
             a.usuario_id      AS articulo_usuario_id,
+            a.titulo          AS articulo_titulo,
             p.pregunta,
             p.respuesta,
             p.respondida_at   AS respondida_at,
@@ -104,6 +106,7 @@ async function obtenerPreguntaConArticulo(
         compradorId: row.comprador_id as string,
         articuloId: row.articulo_id as string,
         articuloUsuarioId: row.articulo_usuario_id as string,
+        articuloTitulo: row.articulo_titulo as string,
         pregunta: row.pregunta as string,
         respuesta: row.respuesta as string | null,
         respondidaAt: row.respondida_at as string | null,
@@ -166,8 +169,8 @@ export async function crearPregunta(
             usuarioId: articulo.usuario_id,
             modo: 'personal',
             tipo: 'marketplace_nueva_pregunta',
-            titulo: 'Nueva pregunta en tu artículo',
-            mensaje: `Alguien preguntó sobre "${articulo.titulo}"`,
+            titulo: 'Te hicieron una pregunta',
+            mensaje: `Un usuario preguntó sobre "${articulo.titulo}"`,
             referenciaId: articuloId,
             referenciaTipo: 'marketplace',
         }).catch(() => { /* notificación no crítica */ });
@@ -232,20 +235,25 @@ export async function editarPreguntaPropia(
 // =============================================================================
 
 /**
- * Devuelve TODAS las preguntas activas de un artículo para visitantes
- * (respondidas + pendientes), con datos completos del comprador para
- * que el frontend pueda renderizar avatar + nombre clickeable hacia
- * el perfil P3 (mismo patrón que el feed).
+ * Devuelve las preguntas activas de un artículo para visitantes.
  *
- * Las preguntas pendientes son visibles públicamente — esto da
- * transparencia: el comprador ve que su pregunta está en cola, otros
- * compradores ven preguntas duplicadas antes de hacer otra igual, y
- * el vendedor recibe presión social para responder rápido.
+ * **Visibilidad** (patrón Mercado Libre):
+ *  - Las respondidas son públicas para todos.
+ *  - Las pendientes (sin respuesta) sólo las ve su autor — protege al
+ *    comprador (preguntas pueden ser sensibles tipo "¿bajas el precio?")
+ *    y evita exponer "abandono" si el vendedor acumula sin responder.
+ *  - El dueño del artículo no usa esta función — tiene su propio endpoint
+ *    `obtenerPreguntasParaVendedor` que devuelve todas.
+ *
+ * @param articuloId UUID del artículo.
+ * @param compradorId UUID del visitante autenticado, si lo hay. Cuando
+ *   se pasa, se incluyen además sus propias pendientes.
  *
  * Orden: más recientes primero (por created_at DESC).
  */
 export async function obtenerPreguntasPublicas(
-    articuloId: string
+    articuloId: string,
+    compradorId?: string
 ): Promise<PreguntaPublicaRow[]> {
     const resultado = await db.execute(sql`
         SELECT
@@ -263,6 +271,13 @@ export async function obtenerPreguntasPublicas(
         INNER JOIN usuarios u ON u.id = p.comprador_id
         WHERE p.articulo_id = ${articuloId}
           AND p.deleted_at IS NULL
+          AND (
+              p.respondida_at IS NOT NULL
+              OR (
+                  ${compradorId ?? null}::uuid IS NOT NULL
+                  AND p.comprador_id = ${compradorId ?? null}::uuid
+              )
+          )
         ORDER BY p.created_at DESC
     `);
 
@@ -449,8 +464,8 @@ export async function responderPregunta(
         usuarioId: pregunta.compradorId,
         modo: 'personal',
         tipo: 'marketplace_pregunta_respondida',
-        titulo: 'Tu pregunta fue respondida',
-        mensaje: `El vendedor respondió tu pregunta`,
+        titulo: 'El vendedor te respondió',
+        mensaje: `Respuesta sobre "${pregunta.articuloTitulo}"`,
         referenciaId: pregunta.articuloId,
         referenciaTipo: 'marketplace',
     }).catch(() => { /* notificación no crítica */ });

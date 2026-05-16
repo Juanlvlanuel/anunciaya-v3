@@ -70,7 +70,6 @@ import { CardVendedor } from '../../../components/marketplace/CardVendedor';
 import { MapaUbicacion } from '../../../components/marketplace/MapaUbicacion';
 import { BarraContacto } from '../../../components/marketplace/BarraContacto';
 import { SeccionPreguntas } from '../../../components/marketplace/SeccionPreguntas';
-import { ModalHacerPregunta } from '../../../components/marketplace/ModalHacerPregunta';
 import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
 import Tooltip from '../../../components/ui/Tooltip';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -98,7 +97,6 @@ export function PaginaArticuloMarketplace() {
     const usuarioActual = useAuthStore((s) => s.usuario);
 
     const { data: articulo, isLoading, isError, error } = useArticuloMarketplace(articuloId);
-    const [modalPreguntaAbierto, setModalPreguntaAbierto] = useState(false);
 
     // Sincroniza la BarraContacto fija con el BottomNav: cuando el usuario
     // hace scroll y el BottomNav se oculta, los botones bajan para no quedar
@@ -398,8 +396,6 @@ export function PaginaArticuloMarketplace() {
                                 articuloId={articulo.id}
                                 vendedor={articulo.vendedor}
                                 esDueno={esDueno}
-                                usuarioAutenticado={!!usuarioActual}
-                                onAbrirModalPregunta={() => setModalPreguntaAbierto(true)}
                             />
                         </div>
                     </div>
@@ -468,13 +464,6 @@ export function PaginaArticuloMarketplace() {
                 </div>
                 </div>
             </div>{/* /wrapper único max-w-7xl */}
-
-            {/* Modal hacer pregunta */}
-            <ModalHacerPregunta
-                abierto={modalPreguntaAbierto}
-                articuloId={articulo.id}
-                onCerrar={() => setModalPreguntaAbierto(false)}
-            />
 
             {/* ════════════════════════════════════════════════════════════════
                 BARRA FIJA INFERIOR — solo móvil
