@@ -405,7 +405,7 @@ Resumen ejecutivo:
 - **Sprint 7 (cerrado 2026-05-17)**: Mis Publicaciones (pausar/reactivar/eliminar propio), cron de expiración 30 días, edición desde wizard, reseñas, moderación pasiva.
 - **Sprint 8**: BS Vacantes (publicar `vacante-empresa` desde el módulo comercial).
 - **Sprint 9+ (post-launch)**: cron mensual que pueble `usuarios.servicio_tiempo_respuesta_minutos` calculando desde `chat_mensajes`. La columna ya existe en BD pero por ahora todos los usuarios tienen NULL — el frontend oculta el KPI cuando no hay dato.
-- **Decisión 2026-05-17 — Identidad verificada descartada del MVP**: No hay forma sostenible de validar identidad real en la beta (manual no escala más allá de los 50 negocios piloto; terceros como Truora/MetaMap cuestan $1-5 USD por validación, no rentable sin ingresos todavía). La columna `usuarios.identidad_verificada` NO se agregó. El perfil del prestador muestra rating, total de publicaciones activas, miembro desde, y tiempo de respuesta (cuando exista). Reevaluar como beneficio premium del plan $449/mes para Sprint 9+.
+- **Decisión 2026-05-17 — Identidad verificada descartada del MVP**: No hay forma sostenible de validar identidad real en la beta (manual no escala más allá de los 50 negocios piloto; terceros como Truora/MetaMap cuestan $1-5 USD por validación, no rentable sin ingresos todavía). La columna `usuarios.identidad_verificada` se descartó de la migración antes de subir a `main` — el repo nunca la incluyó. El perfil del prestador muestra rating, total de publicaciones activas, miembro desde, y tiempo de respuesta (cuando exista). Reevaluar como beneficio premium del plan $449/mes para Sprint 9+.
 
 ---
 

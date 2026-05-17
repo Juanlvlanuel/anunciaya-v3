@@ -279,7 +279,7 @@ Lo único que falta:
 
 #### 8.3 — Cross-funcional
 
-- [ ] `CardVacante` ya existe y maneja `tipo='vacante-empresa'` con banda sky + logo + "Verificado"
+- [ ] `CardVacante` ya existe y maneja `tipo='vacante-empresa'` con banda sky + logo del negocio
 - [ ] `BarraContactoServicio` muestra "Postular vía ChatYA" en lugar de "Cotizar" cuando es vacante
 - [ ] Filtro "Empleo" del header del feed ya muestra estas vacantes
 

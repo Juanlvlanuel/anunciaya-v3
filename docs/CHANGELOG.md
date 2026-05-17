@@ -7,6 +7,62 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [17 Mayo 2026] - Sección Servicios v1.0 cerrada 🛠️
+
+Cierre de la **tercera sección pública** (después de Ofertas y MarketPlace).
+Sprint 7 cerrado en sus 9 sub-tareas, 40 tests Vitest pasando, lista para la beta.
+
+### Backend
+
+- **4 tablas nuevas**: `servicios_publicaciones`, `servicios_preguntas`, `servicios_resenas`, `servicios_busquedas_log`. CHECK constraints + discriminated union `precio` con 5 variantes (`fijo` | `hora` | `mensual` | `rango` | `a-convenir`).
+- **19 endpoints REST** (incluye reactivar, reseñas, sugerencias, mis-publicaciones).
+- **Cron de expiración**: `autoPausarExpiradosServicios()` corre cada 6h, pausa publicaciones con `expira_at < NOW()` en SQL atómico.
+- **Moderación pasiva**: `detectarSugerenciaSeccion()` con regex `\b(vendo|venta|remato|cambio por|cambio x)\b/i`. Devuelve 409 con `sugerencia='marketplace'` cuando matchea, el frontend abre modal y al confirmar reenvía con `confirmadoPorUsuario=true`.
+- **R2 reference count**: `eliminarFotoServicioSiHuerfana()` valida que la URL no esté en `publicaciones.fotos` antes de borrar. Registrado en `imageRegistry.ts` para el Recolector de Basura.
+- **Helper `pgArrayLiteral()`** fixea bug de Drizzle con arrays JS vacíos (generaba `()::text[]` inválido — ahora produce `'{}'`).
+
+### Frontend
+
+- **Wizard de 3 pasos unificado** (`design_handoff_publish_wizard`): Qué necesitas / Detalles / Revisa y publica. Mismo wizard funciona en modo crear y editar (storageNamespace separado en localStorage).
+- **Optimización de fotos cliente-side**: canvas resize a 1920px máximo + WebP calidad 0.85 → reduce 70-90% el peso antes de subir a R2.
+- **Limpieza de fotos huérfanas**: ref `urlsSubidasEnSesion: Set<string>` + endpoint `DELETE /servicios/foto-huerfana` con reference count cuando el usuario cancela el wizard.
+- **Feed mezclado** con widget de Clasificados (handoff design propio): pedidos urgentes destacados + 5 categorías macro (`hogar`, `eventos`, `cuidados`, `belleza-bienestar`, `empleo`, `otros`).
+- **Perfil del prestador** con avatar + rating chip + KPIs (servicios activos, tiempo de respuesta cuando exista) + distribución de estrellas 5★→1★ con barras horizontales amber.
+- **Detalle** con galería swipeable + lightbox (replicado de MP), `MapaUbicacion` reusado de MP, Q&A con filtro de privacidad, `BarraContacto` con WhatsApp + ChatYA.
+- **Mis Publicaciones**: cards de altura fija (patrón calcado de `CardArticuloMio` con `flex h-full`, `line-clamp-2 min-h`, KPIs `mt-auto`), 2 listas paralelas (activa/pausada), acciones inline (pausar/reactivar/editar/eliminar) con modal de confirmación.
+
+### Decisión de producto — Identidad verificada descartada del MVP
+
+No hay forma sostenible de validar identidad real en la beta: la verificación manual no escala más allá de los 50 negocios piloto y los servicios pro (Truora/MetaMap) cuestan $1-5 USD por validación — no rentable sin ingresos todavía. Se reevaluará como **beneficio premium del plan comercial $449/mes** para Sprint 9+.
+
+**Tiempo de respuesta sí se conserva**: es un cálculo automático sin verificación humana. La columna `usuarios.servicio_tiempo_respuesta_minutos` existe en BD pero todos los usuarios la tienen NULL hasta que un cron mensual (Sprint 9+) la pueble desde `chat_mensajes`. El frontend oculta el KPI cuando es null.
+
+### Tests
+
+- **40 tests Vitest** en `apps/api/src/__tests__/`:
+  - `servicios-validaciones.test.ts` (19): `crearPublicacionSchema` refines (modo/tipo coherence, presupuesto solo solicito, categoría solo solicito, max ≥ min en rangos), límites de campos, `crearResenaSchema` (rating 1-5, texto max 200, empty → null).
+  - `servicios-helpers.test.ts` (21): `pgArrayLiteral` (vacío→`{}`, escapado, unicode), `detectarSugerenciaSeccion` (detecta venta en mayus/minus, no falsea con servicios genuinos como "fotógrafo"/"plomería", respeta word boundaries con "vendaje").
+
+### Fix de build de Vercel (commit `da3caf5`)
+
+Limpieza de ~50 errores TypeScript **preexistentes** en `apps/web` (no relacionados con Servicios) que rompían el build porque Vercel corre `tsc -b && vite build`:
+
+- `BarraContacto`: `condicion ?? undefined` para casar con tipo de chatya.
+- `SeccionPreguntas`: parametrizar `GrupoConversacion<PreguntaMarketplace>`.
+- `Banner429`: Iconify usa `width`/`height`, no `size`.
+- **Receptores de iconos** (la mayoría): tipo unión `IconLike = LucideIcon | ComponentType<{...}>` que acepta tanto íconos lucide-react como wrappers Iconify. Cuando un receptor estaba compartido (`ReporteUI.tsx`, `TituloDeBloque.tsx`), arreglarlo limpió varios callers de cascada.
+
+Resultado: `pnpm run build` en `apps/web` ✓ built in 36.89s.
+
+### Pendientes (no bloquean beta)
+
+- Ejecutar `docs/migraciones/2026-05-17-usuarios-tiempo-respuesta.sql` en Supabase staging y producción antes del lanzamiento.
+- Tests E2E con Playwright (opcional).
+- Cron mensual de tiempo de respuesta (Sprint 9+, requiere acumular data en ChatYA primero).
+- **Sprint 8 — BS Vacantes** (post-launch): módulo en Business Studio para que negocios publiquen vacantes corporativas que aparezcan en el feed de Servicios.
+
+---
+
 ## [14 Mayo 2026 — segunda sesión] - Auditoría + limpieza de los 3 buscadores 🧹
 
 Continuación de la sesión de la mañana. Cuatro frentes en orden:
