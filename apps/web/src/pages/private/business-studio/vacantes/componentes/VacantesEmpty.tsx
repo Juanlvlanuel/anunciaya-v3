@@ -32,10 +32,13 @@ export function VacantesEmpty({ onPublicar }: VacantesEmptyProps) {
             <button
                 type="button"
                 onClick={onPublicar}
-                className="inline-flex items-center gap-2 px-6 py-3 rounded-lg bg-slate-900 text-white font-semibold text-sm lg:text-base lg:cursor-pointer hover:bg-slate-800 transition-colors"
+                className="inline-flex items-center justify-center gap-1.5 px-4 2xl:px-5 h-11 lg:h-10 2xl:h-11 rounded-lg text-base lg:text-sm 2xl:text-base font-bold text-white lg:cursor-pointer shrink-0"
+                style={{
+                    background: 'linear-gradient(135deg, #1e293b, #334155)',
+                }}
                 data-testid="btn-publicar-primera-vacante"
             >
-                <Plus className="w-5 h-5" />
+                <Plus className="w-4 h-4" />
                 Publicar primera vacante
             </button>
 

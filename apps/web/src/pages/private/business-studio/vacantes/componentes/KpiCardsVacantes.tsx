@@ -32,23 +32,18 @@ export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
         {
             label: 'Total',
             valor: kpis?.total ?? 0,
-            icono: <Briefcase className="w-4 h-4 text-sky-700" strokeWidth={1.75} />,
-            grad: 'linear-gradient(135deg, #f0f9ff, #fff)',
-            iconoGrad: 'linear-gradient(135deg, #bae6fd, #7dd3fc)',
-            iconoShadow: 'rgba(14,165,233,0.25)',
-            borde: '#7dd3fc',
-            texto: 'text-sky-700',
+            icono: <Briefcase className="w-4 h-4 text-slate-700" />,
+            grad: 'linear-gradient(135deg, #f1f5f9, #fff)',
+            iconoGrad: 'linear-gradient(135deg, #cbd5e1, #94a3b8)',
+            iconoShadow: 'rgba(100,116,139,0.25)',
+            borde: '#94a3b8',
+            texto: 'text-slate-700',
             testId: 'kpi-vacantes-total',
         },
         {
             label: 'Activas',
             valor: kpis?.activas ?? 0,
-            icono: (
-                <CheckCircle2
-                    className="w-4 h-4 text-emerald-700"
-                    strokeWidth={1.75}
-                />
-            ),
+            icono: <CheckCircle2 className="w-4 h-4 text-emerald-700" />,
             grad: 'linear-gradient(135deg, #ecfdf5, #fff)',
             iconoGrad: 'linear-gradient(135deg, #a7f3d0, #6ee7b7)',
             iconoShadow: 'rgba(16,185,129,0.25)',
@@ -59,7 +54,7 @@ export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
         {
             label: 'Por expirar',
             valor: kpis?.porExpirar ?? 0,
-            icono: <Clock className="w-4 h-4 text-amber-700" strokeWidth={1.75} />,
+            icono: <Clock className="w-4 h-4 text-amber-700" />,
             grad: 'linear-gradient(135deg, #fef3c7, #fff)',
             iconoGrad: 'linear-gradient(135deg, #fcd34d, #fbbf24)',
             iconoShadow: 'rgba(245,158,11,0.25)',
@@ -70,12 +65,7 @@ export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
         {
             label: 'Chats',
             valor: kpis?.conversaciones ?? 0,
-            icono: (
-                <MessageCircle
-                    className="w-4 h-4 text-violet-700"
-                    strokeWidth={1.75}
-                />
-            ),
+            icono: <MessageCircle className="w-4 h-4 text-violet-700" />,
             grad: 'linear-gradient(135deg, #f5f3ff, #fff)',
             iconoGrad: 'linear-gradient(135deg, #c4b5fd, #a78bfa)',
             iconoShadow: 'rgba(124,58,237,0.25)',
@@ -107,13 +97,13 @@ export function KpiCardsVacantes({ kpis }: KpiCardsVacantesProps) {
                         >
                             {c.icono}
                         </div>
-                        <div>
+                        <div className="min-w-0">
                             <p
-                                className={`text-xl lg:text-lg 2xl:text-xl font-bold tabular-nums ${c.texto}`}
+                                className={`text-[16px] lg:text-sm 2xl:text-base font-extrabold tabular-nums ${c.texto}`}
                             >
                                 {c.valor}
                             </p>
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold -mt-0.5">
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-semibold -mt-0.5 whitespace-nowrap">
                                 {c.label}
                             </p>
                         </div>
