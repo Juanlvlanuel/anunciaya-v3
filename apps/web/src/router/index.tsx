@@ -318,53 +318,50 @@ const router = createBrowserRouter([
           },
 
           // Servicios (sección unificada — visión v3, absorbe Empleos)
-          // Sprint 2: feed visible solo en modo Personal (bloqueo total para
-          // comerciales — mismo patrón que MarketPlace).
+          // Sprint 2: feed visible en AMBOS modos (Personal + Comercial). El
+          // comerciante puede explorar y contratar servicios igual que un
+          // usuario personal — solo no puede publicar desde aquí (eso vive en
+          // BS Vacantes para el modo Comercial).
+          // Sprint 8 (17-May-2026): se removió ModoPersonalEstrictoGuard de las
+          // rutas de navegación (feed, detalle, perfil del prestador). Solo se
+          // mantiene en `/servicios/publicar*` porque publicar/editar es un
+          // flujo personal — el comerciante usa BS Vacantes.
           {
             path: '/servicios',
-            element: (
-              <ModoPersonalEstrictoGuard mensaje="La sección Servicios solo está disponible en modo Personal">
-                <PaginaServicios />
-              </ModoPersonalEstrictoGuard>
-            ),
+            element: <PaginaServicios />,
           },
           // Sprint 4: Wizard de Publicar. DEBE ir antes de `/servicios/:id`
-          // o React Router lo capturaría como `:id='publicar'`.
+          // o React Router lo capturaría como `:id='publicar'`. Sigue bloqueado
+          // a modo Personal — el comerciante publica desde BS Vacantes.
           {
             path: '/servicios/publicar',
             element: (
-              <ModoPersonalEstrictoGuard mensaje="Publicar en Servicios solo está disponible en modo Personal">
+              <ModoPersonalEstrictoGuard mensaje="Publicar en Servicios solo está disponible en modo Personal. Si eres negocio, usa Business Studio → Vacantes.">
                 <PaginaPublicarServicio />
               </ModoPersonalEstrictoGuard>
             ),
           },
           // Sprint 7.3: Wizard de EDITAR. Misma página que publicar pero con
-          // `:publicacionId` cargado y hidratado al draft.
+          // `:publicacionId` cargado y hidratado al draft. Bloqueo Personal.
           {
             path: '/servicios/publicar/:publicacionId',
             element: (
-              <ModoPersonalEstrictoGuard mensaje="Editar en Servicios solo está disponible en modo Personal">
+              <ModoPersonalEstrictoGuard mensaje="Editar en Servicios solo está disponible en modo Personal. Si eres negocio, usa Business Studio → Vacantes.">
                 <PaginaPublicarServicio />
               </ModoPersonalEstrictoGuard>
             ),
           },
-          // Sprint 5: Perfil del prestador. Ruta específica antes de `/servicios/:id`.
+          // Sprint 5: Perfil del prestador. Ruta específica antes de
+          // `/servicios/:id`. Visible en AMBOS modos.
           {
             path: '/servicios/usuario/:usuarioId',
-            element: (
-              <ModoPersonalEstrictoGuard mensaje="La sección Servicios solo está disponible en modo Personal">
-                <PaginaPerfilPrestador />
-              </ModoPersonalEstrictoGuard>
-            ),
+            element: <PaginaPerfilPrestador />,
           },
           // Sprint 3: detalle de una publicación de Servicios.
+          // Visible en AMBOS modos.
           {
             path: '/servicios/:id',
-            element: (
-              <ModoPersonalEstrictoGuard mensaje="La sección Servicios solo está disponible en modo Personal">
-                <PaginaServicio />
-              </ModoPersonalEstrictoGuard>
-            ),
+            element: <PaginaServicio />,
           },
 
           // ⭐ UPGRADE: Crear negocio (personal → comercial)

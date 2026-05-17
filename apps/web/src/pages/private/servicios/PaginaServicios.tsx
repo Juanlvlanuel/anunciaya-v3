@@ -37,6 +37,7 @@ import {
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import { useServiciosFeed } from '../../../hooks/queries/useServicios';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import { OfreceToggle } from '../../../components/servicios/OfreceToggle';
@@ -73,6 +74,12 @@ export function PaginaServicios() {
     const longitud = useGpsStore((s) => s.longitud);
     const obtenerUbicacion = useGpsStore((s) => s.obtenerUbicacion);
     const cargandoGps = useGpsStore((s) => s.cargando);
+
+    // Modo activo del usuario. En modo Comercial NO se muestra el FAB de
+    // publicar — el comerciante publica desde Business Studio (BS Vacantes).
+    // El feed/detalle/perfil del prestador SÍ son visibles en ambos modos.
+    const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+    const esModoPersonal = modoActivo !== 'comercial';
 
     // Breakpoint para el widget Clasificados (1 col mobile / 2 cols desktop).
     const { esEscritorio } = useBreakpoint();
@@ -287,7 +294,10 @@ export function PaginaServicios() {
                 ) : recientes.length === 0 &&
                   cercanos.length === 0 &&
                   clasificados.length === 0 ? (
-                    <FeedVacio onPublicar={irAPublicar} ciudad={ciudad} />
+                    <FeedVacio
+                        onPublicar={esModoPersonal ? irAPublicar : null}
+                        ciudad={ciudad}
+                    />
                 ) : (
                     <>
                         {/* Carrusel: Recién publicado */}
@@ -355,7 +365,11 @@ export function PaginaServicios() {
                                     onPedidoClick={(id) =>
                                         navigate(`/servicios/${id}`)
                                     }
-                                    onPublicar={irAPublicarSolicito}
+                                    onPublicar={
+                                        esModoPersonal
+                                            ? irAPublicarSolicito
+                                            : undefined
+                                    }
                                 />
                             </div>
                         )}
@@ -363,10 +377,12 @@ export function PaginaServicios() {
                 )}
             </div>
 
-            <FABPublicar
-                onOfrezco={irAPublicarOfrezco}
-                onSolicito={irAPublicarSolicito}
-            />
+            {esModoPersonal && (
+                <FABPublicar
+                    onOfrezco={irAPublicarOfrezco}
+                    onSolicito={irAPublicarSolicito}
+                />
+            )}
         </div>
     );
 }
@@ -448,7 +464,9 @@ function FeedVacio({
     onPublicar,
     ciudad,
 }: {
-    onPublicar: () => void;
+    /** Si es null (modo comercial) NO se muestra el CTA — el comerciante
+     *  publica desde Business Studio → Vacantes, no desde aquí. */
+    onPublicar: (() => void) | null;
     ciudad: string | null;
 }) {
     return (
@@ -508,15 +526,19 @@ function FeedVacio({
                     mismo.
                 </p>
 
-                {/* CTA inline solo desktop — en móvil el FAB ya es visible */}
-                <button
-                    data-testid="btn-publicar-servicios-empty"
-                    onClick={onPublicar}
-                    className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
-                >
-                    <Plus className="h-4 w-4" strokeWidth={2.5} />
-                    Publicar primer servicio
-                </button>
+                {/* CTA inline solo desktop — en móvil el FAB ya es visible.
+                    Oculto en modo Comercial: el comerciante publica desde
+                    Business Studio → Vacantes, no desde aquí. */}
+                {onPublicar && (
+                    <button
+                        data-testid="btn-publicar-servicios-empty"
+                        onClick={onPublicar}
+                        className="mt-6 hidden cursor-pointer items-center gap-2 rounded-full bg-linear-to-br from-slate-800 to-slate-950 px-6 py-3 text-sm font-bold text-white shadow-lg transition-transform hover:scale-[1.02] lg:inline-flex"
+                    >
+                        <Plus className="h-4 w-4" strokeWidth={2.5} />
+                        Publicar primer servicio
+                    </button>
+                )}
             </div>
 
             {/* Indicador animado apuntando al FAB — solo móvil cuando el feed
