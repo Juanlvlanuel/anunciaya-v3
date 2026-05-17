@@ -225,6 +225,49 @@ export const queryKeys = {
       ['marketplace', 'preguntas', articuloId] as const,
   },
 
+  // ─── Sección pública — Servicios ──────────────────────────────────────────
+  // Sprint 1 backend + Sprint 2 frontend (May 2026). Mismo patrón que
+  // `marketplace`. El feed sirve `{ recientes, cercanos }` desde un único
+  // endpoint, con filtro opcional por `modo` (ofrezco/solicito).
+  servicios: {
+    all: () => ['servicios'] as const,
+    feed: (filtros: {
+      ciudad: string;
+      lat: number;
+      lng: number;
+      modo?: 'ofrezco' | 'solicito';
+    }) => ['servicios', 'feed', filtros] as const,
+    feedInfinito: (filtros: {
+      ciudad: string;
+      lat: number;
+      lng: number;
+      modo?: 'ofrezco' | 'solicito';
+      tipo?: 'servicio-persona' | 'vacante-empresa' | 'solicito';
+      modalidad?: 'presencial' | 'remoto' | 'hibrido';
+      orden: 'recientes' | 'cerca';
+    }) => ['servicios', 'feed-infinito', filtros] as const,
+    publicacion: (publicacionId: string) =>
+      ['servicios', 'publicacion', publicacionId] as const,
+    prestador: (usuarioId: string) =>
+      ['servicios', 'prestador', usuarioId] as const,
+    prestadorPublicaciones: (
+      usuarioId: string,
+      estado: 'activa' | 'pausada' = 'activa',
+    ) =>
+      ['servicios', 'prestador', usuarioId, 'publicaciones', estado] as const,
+    prestadorResenas: (usuarioId: string) =>
+      ['servicios', 'prestador', usuarioId, 'resenas'] as const,
+    misPublicaciones: (
+      estado: 'activa' | 'pausada' | undefined,
+      paginacion: { limit: number; offset: number }
+    ) =>
+      ['servicios', 'mis-publicaciones', estado ?? 'todos', paginacion] as const,
+    preguntas: (publicacionId: string) =>
+      ['servicios', 'preguntas', publicacionId] as const,
+    sugerencias: (q: string, ciudad: string) =>
+      ['servicios', 'buscar', 'sugerencias', q, ciudad] as const,
+  },
+
   // ─── Business Studio — Sucursales ────────────────────────────────────────
   sucursales: {
     all: () => ['sucursales'] as const,

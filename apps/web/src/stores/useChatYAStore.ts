@@ -83,7 +83,8 @@ import type {
 export type ContextoPendienteSubtipo =
   | 'oferta'
   | 'articulo_negocio'
-  | 'articulo_marketplace';
+  | 'articulo_marketplace'
+  | 'servicio_publicacion';
 
 export interface ContextoPendienteCardData {
   subtipo: ContextoPendienteSubtipo;
@@ -99,6 +100,8 @@ export interface ContextoPendienteCardData {
   tipoArticulo?: 'producto' | 'servicio';
   /** Para `articulo_marketplace`: condición (nuevo, seminuevo, usado, para_reparar). */
   condicion?: string;
+  /** Para `servicio_publicacion`: modalidad (presencial/remoto/hibrido) — opcional. */
+  modalidad?: string;
 }
 
 export interface ContextoPendiente {
@@ -568,6 +571,7 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
               contextoTipo: 'directo',
               contextoReferenciaId: null,
               articuloMarketplaceId: null,
+              servicioPublicacionId: null,
             },
           },
         });

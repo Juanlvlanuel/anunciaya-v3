@@ -39,6 +39,7 @@ import notificacionesRoutes from './notificaciones.routes';
 import chatyaRoutes from './chatya.routes';
 import reportesRoutes from './reportes.routes';
 import marketplaceRoutes from './marketplace.routes';
+import serviciosRoutes from './servicios.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -130,5 +131,8 @@ router.use('/admin', adminRoutes);
 
 // Rutas de MarketPlace (compra-venta P2P de objetos físicos)
 router.use('/marketplace', marketplaceRoutes);
+
+// Rutas de Servicios (sección pública unificada — servicios e intangibles + empleos)
+router.use('/servicios', serviciosRoutes);
 
 export default router;

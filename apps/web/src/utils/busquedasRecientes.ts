@@ -20,12 +20,13 @@
  * Ubicación: apps/web/src/utils/busquedasRecientes.ts
  */
 
-export type SeccionBusqueda = 'marketplace' | 'ofertas' | 'negocios';
+export type SeccionBusqueda = 'marketplace' | 'ofertas' | 'negocios' | 'servicios';
 
 const STORAGE_KEY_POR_SECCION: Record<SeccionBusqueda, string> = {
     marketplace: 'marketplace_busquedas_recientes',
     ofertas: 'ofertas_busquedas_recientes',
     negocios: 'negocios_busquedas_recientes',
+    servicios: 'servicios_busquedas_recientes',
 };
 
 const MAX_RECIENTES = 10;

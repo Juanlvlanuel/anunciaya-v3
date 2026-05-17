@@ -11,6 +11,7 @@ import { inicializarCronChatYA } from './cron/chatya.cron.js';
 import { inicializarCronAlertas } from './cron/alertas.cron.js';
 import { inicializarCronScanYA } from './cron/scanya.cron.js';
 import { inicializarCronMarketplaceExpiracion } from './cron/marketplace-expiracion.cron.js';
+import { inicializarCronServiciosExpiracion } from './cron/servicios-expiracion.cron.js';
 
 const PORT = process.env.API_PORT || 4000;
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -37,6 +38,7 @@ const iniciarServidor = async () => {
     inicializarCronAlertas();     // Detección alertas (diario 4:00 AM + semanal lunes 5:00 AM)
     inicializarCronScanYA();      // Cierre auto de turnos colgados (cada 30 min)
     inicializarCronMarketplaceExpiracion(); // Auto-pausa cada 6h + notif próx exp diaria 9:00 UTC
+    inicializarCronServiciosExpiracion();   // Auto-pausa cada 6h de publicaciones de Servicios vencidas
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
     process.exit(1);

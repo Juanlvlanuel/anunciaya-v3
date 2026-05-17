@@ -89,7 +89,10 @@ import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticuloMarketplace';
 import PaginaPublicarArticulo from '../pages/private/marketplace/PaginaPublicarArticulo';
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
-const PaginaServicios = () => <PlaceholderPage nombre="🛠️ Servicios" />;
+import PaginaServicios from '../pages/private/servicios/PaginaServicios';
+import PaginaServicio from '../pages/private/servicios/PaginaServicio';
+import PaginaPublicarServicio from '../pages/private/servicios/PaginaPublicarServicio';
+import PaginaPerfilPrestador from '../pages/private/servicios/PaginaPerfilPrestador';
 
 // Páginas de usuario
 
@@ -315,9 +318,53 @@ const router = createBrowserRouter([
           },
 
           // Servicios (sección unificada — visión v3, absorbe Empleos)
+          // Sprint 2: feed visible solo en modo Personal (bloqueo total para
+          // comerciales — mismo patrón que MarketPlace).
           {
             path: '/servicios',
-            element: <PaginaServicios />,
+            element: (
+              <ModoPersonalEstrictoGuard mensaje="La sección Servicios solo está disponible en modo Personal">
+                <PaginaServicios />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          // Sprint 4: Wizard de Publicar. DEBE ir antes de `/servicios/:id`
+          // o React Router lo capturaría como `:id='publicar'`.
+          {
+            path: '/servicios/publicar',
+            element: (
+              <ModoPersonalEstrictoGuard mensaje="Publicar en Servicios solo está disponible en modo Personal">
+                <PaginaPublicarServicio />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          // Sprint 7.3: Wizard de EDITAR. Misma página que publicar pero con
+          // `:publicacionId` cargado y hidratado al draft.
+          {
+            path: '/servicios/publicar/:publicacionId',
+            element: (
+              <ModoPersonalEstrictoGuard mensaje="Editar en Servicios solo está disponible en modo Personal">
+                <PaginaPublicarServicio />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          // Sprint 5: Perfil del prestador. Ruta específica antes de `/servicios/:id`.
+          {
+            path: '/servicios/usuario/:usuarioId',
+            element: (
+              <ModoPersonalEstrictoGuard mensaje="La sección Servicios solo está disponible en modo Personal">
+                <PaginaPerfilPrestador />
+              </ModoPersonalEstrictoGuard>
+            ),
+          },
+          // Sprint 3: detalle de una publicación de Servicios.
+          {
+            path: '/servicios/:id',
+            element: (
+              <ModoPersonalEstrictoGuard mensaje="La sección Servicios solo está disponible en modo Personal">
+                <PaginaServicio />
+              </ModoPersonalEstrictoGuard>
+            ),
           },
 
           // ⭐ UPGRADE: Crear negocio (personal → comercial)

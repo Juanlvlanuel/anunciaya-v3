@@ -197,11 +197,32 @@ interface SistemaArticuloNegocio {
   iniciadorId?: string;
 }
 
+interface PrecioServicioJSON {
+  kind: 'fijo' | 'hora' | 'mensual' | 'rango' | 'a-convenir';
+  monto?: number | string;
+  min?: number | string;
+  max?: number | string;
+  moneda?: string;
+}
+
+interface SistemaServicioPublicacion {
+  subtipo: 'servicio_publicacion';
+  publicacionId: string;
+  titulo: string;
+  precio: PrecioServicioJSON;
+  modalidad: string;
+  modo: string;
+  tipo: string;
+  fotoUrl: string | null;
+  iniciadorId?: string;
+}
+
 type DatosSistema =
   | SistemaArticuloMP
   | SistemaContactoPerfil
   | SistemaOfertaNegocio
   | SistemaArticuloNegocio
+  | SistemaServicioPublicacion
   | { subtipo?: string };
 
 function parsearContenidoSistema(raw: string): DatosSistema | null {
@@ -232,6 +253,31 @@ function formatearPrecioMP(valor: string | number): string {
     minimumFractionDigits: 0,
     maximumFractionDigits: 0,
   }).format(num);
+}
+
+/**
+ * Formateador inline del precio de Servicios (discriminated union JSONB).
+ * No re-exportamos de `utils/servicios` para evitar acoplar ChatYA con la
+ * sección Servicios. El snapshot del precio viene en el JSON del mensaje
+ * sistema; basta con renderizarlo.
+ */
+function formatearPrecioServicioInline(p: PrecioServicioJSON | null | undefined): string {
+  if (!p || !p.kind) return 'A convenir';
+  const num = (v: number | string | undefined) => Number(v ?? 0);
+  switch (p.kind) {
+    case 'fijo':
+      return `$${num(p.monto).toLocaleString('es-MX')}`;
+    case 'hora':
+      return `$${num(p.monto).toLocaleString('es-MX')}/h`;
+    case 'mensual':
+      return `$${num(p.monto).toLocaleString('es-MX')}/mes`;
+    case 'rango':
+      return `$${num(p.min).toLocaleString('es-MX')}–$${num(p.max).toLocaleString('es-MX')}`;
+    case 'a-convenir':
+      return 'A convenir';
+    default:
+      return 'A convenir';
+  }
 }
 
 function MensajeSistema({ contenidoRaw, miId }: MensajeSistemaProps) {
@@ -311,6 +357,75 @@ function MensajeSistema({ contenidoRaw, miId }: MensajeSistemaProps) {
                 {formatearPrecioMP(d.precio)}
               </span>
               <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-teal-700 lg:group-hover:text-teal-900">
+                Ver
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+              </span>
+            </div>
+          </div>
+        </button>
+      </div>
+    );
+  }
+
+  // ── Subtipo: publicación de Servicios ────────────────────────────────────
+  if (
+    datos &&
+    (datos as SistemaServicioPublicacion).subtipo === 'servicio_publicacion'
+  ) {
+    const d = datos as SistemaServicioPublicacion;
+    const irAlServicio = (e: React.MouseEvent) => {
+      e.stopPropagation();
+      e.preventDefault();
+      if (!d.publicacionId) {
+        // eslint-disable-next-line no-console
+        console.warn(
+          '[MensajeSistema] servicio_publicacion sin publicacionId',
+          datos,
+        );
+        return;
+      }
+      window.dispatchEvent(
+        new CustomEvent('chatya:navegar-externo', {
+          detail: `/servicios/${d.publicacionId}`,
+        }),
+      );
+    };
+    return (
+      <div className={`flex w-full my-1 ${justify}`}>
+        <button
+          type="button"
+          data-testid={`mensaje-sistema-servicio-${d.publicacionId}`}
+          onClick={irAlServicio}
+          className="group flex w-full max-w-sm cursor-pointer items-stretch overflow-hidden rounded-xl border-2 border-slate-300 bg-white text-left shadow-md lg:hover:border-sky-500"
+        >
+          {/* Foto cuadrada izquierda */}
+          <div className="flex h-20 w-20 shrink-0 items-center justify-center overflow-hidden bg-slate-200">
+            {d.fotoUrl ? (
+              <img
+                src={d.fotoUrl}
+                alt={d.titulo}
+                className="h-full w-full object-cover"
+                loading="lazy"
+              />
+            ) : (
+              <ImageOff className="h-8 w-8 text-slate-500" strokeWidth={1.5} />
+            )}
+          </div>
+          {/* Contenido */}
+          <div className="flex min-w-0 flex-1 flex-col justify-between p-2.5">
+            <div className="min-w-0">
+              <p className="truncate text-xs font-bold uppercase tracking-wide text-sky-700">
+                Servicios
+              </p>
+              <p className="line-clamp-2 text-sm font-bold leading-tight text-slate-900">
+                {d.titulo}
+              </p>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-2">
+              <span className="shrink-0 text-base font-extrabold text-slate-900">
+                {formatearPrecioServicioInline(d.precio)}
+              </span>
+              <span className="inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-sky-700 lg:group-hover:text-sky-900">
                 Ver
                 <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
               </span>

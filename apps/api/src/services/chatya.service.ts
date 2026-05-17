@@ -21,6 +21,7 @@ import {
     ofertas,
     articulos,
     articulosMarketplace,
+    serviciosPublicaciones,
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
@@ -699,9 +700,10 @@ export async function crearObtenerConversacion(
 
             // Caso "convo ya existe": SOLO se inserta una nueva card de
             // contexto cuando vienen del DETALLE de un artículo (marketplace +
-            // articuloMarketplaceId) o del DETALLE de una oferta/artículo de
-            // un negocio. El chat directo (sin contexto específico) nunca
-            // inserta card.
+            // articuloMarketplaceId), del DETALLE de una publicación de
+            // Servicios (servicio + servicioPublicacionId), o del DETALLE de
+            // una oferta/artículo de un negocio. El chat directo (sin
+            // contexto específico) nunca inserta card.
             if (
                 input.contextoTipo === 'marketplace' &&
                 input.articuloMarketplaceId
@@ -709,6 +711,16 @@ export async function crearObtenerConversacion(
                 await insertarMensajeContextoMarketplace(
                     existente.id,
                     input.articuloMarketplaceId,
+                    usuarioId,
+                    input.participante2Id,
+                );
+            } else if (
+                input.contextoTipo === 'servicio' &&
+                input.servicioPublicacionId
+            ) {
+                await insertarMensajeContextoServicio(
+                    existente.id,
+                    input.servicioPublicacionId,
                     usuarioId,
                     input.participante2Id,
                 );
@@ -746,6 +758,7 @@ export async function crearObtenerConversacion(
                 contextoTipo: input.contextoTipo ?? 'directo',
                 contextoReferenciaId: input.contextoReferenciaId ?? null,
                 articuloMarketplaceId: input.articuloMarketplaceId ?? null,
+                servicioPublicacionId: input.servicioPublicacionId ?? null,
             })
             .returning();
 
@@ -758,6 +771,16 @@ export async function crearObtenerConversacion(
             await insertarMensajeContextoMarketplace(
                 nueva.id,
                 input.articuloMarketplaceId,
+                usuarioId,
+                input.participante2Id,
+            );
+        } else if (
+            input.contextoTipo === 'servicio' &&
+            input.servicioPublicacionId
+        ) {
+            await insertarMensajeContextoServicio(
+                nueva.id,
+                input.servicioPublicacionId,
                 usuarioId,
                 input.participante2Id,
             );
@@ -907,6 +930,122 @@ async function insertarMensajeContextoMarketplace(
         // el mensaje de contexto — peor caso, la conversación queda sin la
         // card y el usuario igual puede chatear normal.
         console.error('Error en insertarMensajeContextoMarketplace:', error);
+    }
+}
+
+// =============================================================================
+// HELPER: INSERTAR MENSAJE SISTEMA DE CONTEXTO (Servicios)
+// =============================================================================
+
+/**
+ * Inserta un mensaje `tipo='sistema'` con JSON discriminado para dar
+ * contexto al inicio de una conversación de Servicios.
+ *
+ * Análogo a `insertarMensajeContextoMarketplace` pero para la sección
+ * Servicios. Subtipo único: `servicio_publicacion`.
+ *
+ * El JSON snapshot incluye: titulo, precio (discriminated union JSONB),
+ * modalidad, modo, tipo, fotoUrl, iniciadorId. El frontend lo renderiza
+ * como card embebida en el chat.
+ *
+ * Mismo comportamiento: `emisorId = NULL` (sistema), NO incrementa
+ * contadores no leídos, emite Socket.io a ambos lados.
+ *
+ * Si la publicación ya no existe (404), no inserta nada — no rompe el flujo
+ * principal de creación de conversación.
+ */
+async function insertarMensajeContextoServicio(
+    conversacionId: string,
+    servicioPublicacionId: string,
+    iniciadorId: string,
+    receptorId: string,
+): Promise<void> {
+    try {
+        const [pub] = await db
+            .select({
+                id: serviciosPublicaciones.id,
+                titulo: serviciosPublicaciones.titulo,
+                precio: serviciosPublicaciones.precio,
+                modalidad: serviciosPublicaciones.modalidad,
+                modo: serviciosPublicaciones.modo,
+                tipo: serviciosPublicaciones.tipo,
+                fotos: serviciosPublicaciones.fotos,
+                fotoPortadaIndex: serviciosPublicaciones.fotoPortadaIndex,
+            })
+            .from(serviciosPublicaciones)
+            .where(eq(serviciosPublicaciones.id, servicioPublicacionId))
+            .limit(1);
+
+        if (!pub) return;
+
+        const fotos = (pub.fotos as string[] | null) ?? [];
+        const idx = Math.max(0, Math.min(pub.fotoPortadaIndex ?? 0, fotos.length - 1));
+        const fotoUrl = fotos[idx] ?? null;
+
+        const contenido = JSON.stringify({
+            subtipo: 'servicio_publicacion',
+            publicacionId: pub.id,
+            titulo: pub.titulo,
+            precio: pub.precio,
+            modalidad: pub.modalidad,
+            modo: pub.modo,
+            tipo: pub.tipo,
+            fotoUrl,
+            iniciadorId,
+        });
+        const previewTexto = `Sobre: ${pub.titulo}`.substring(0, 100);
+
+        const [msg] = await db
+            .insert(chatMensajes)
+            .values({
+                conversacionId,
+                emisorId: null,
+                emisorModo: null,
+                emisorSucursalId: null,
+                tipo: 'sistema',
+                contenido,
+                estado: 'enviado',
+            })
+            .returning();
+
+        const ahora = new Date().toISOString();
+        await db
+            .update(chatConversaciones)
+            .set({
+                ultimoMensajeTexto: previewTexto,
+                ultimoMensajeFecha: ahora,
+                ultimoMensajeTipo: 'sistema',
+                ultimoMensajeEstado: 'enviado',
+                ultimoMensajeEmisorId: null,
+                updatedAt: ahora,
+            })
+            .where(eq(chatConversaciones.id, conversacionId));
+
+        const mensajeResponse: MensajeResponse = {
+            id: msg.id,
+            conversacionId: msg.conversacionId,
+            emisorId: null,
+            emisorModo: null,
+            emisorSucursalId: null,
+            empleadoId: null,
+            tipo: 'sistema',
+            contenido: msg.contenido,
+            estado: msg.estado as EstadoMensaje,
+            editado: msg.editado,
+            editadoAt: msg.editadoAt,
+            eliminado: msg.eliminado,
+            eliminadoAt: msg.eliminadoAt,
+            respuestaAId: null,
+            reenviadoDeId: null,
+            createdAt: msg.createdAt ?? '',
+            entregadoAt: msg.entregadoAt,
+            leidoAt: msg.leidoAt,
+        };
+
+        emitirAUsuario(iniciadorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+        emitirAUsuario(receptorId, 'chatya:mensaje-nuevo', { conversacionId, mensaje: mensajeResponse });
+    } catch (error) {
+        console.error('Error en insertarMensajeContextoServicio:', error);
     }
 }
 

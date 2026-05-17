@@ -282,71 +282,241 @@ interface ModalConfirmacionToastProps {
   onCancel: () => void;
 }
 
+/**
+ * ConfirmExitModal — handoff `design_handoff_confirm_exit_modal/` (2026-05-16).
+ *
+ * Modal adaptativo:
+ *   - Desktop (≥ lg, ≥1024px): tarjeta centrada con icono coral animado
+ *     (pulse de anillos concéntricos + bob del badge).
+ *   - Mobile (< lg, <1024px): top-sheet que baja desde arriba, layout 2-col
+ *     denso (icono+texto · botones full-width).
+ *
+ * Reemplaza el modal anterior de confirmación. La API (`mostrarConfirmacion`)
+ * se mantiene — solo cambia la presentación visual y la animación.
+ *
+ * Keyframes definidos en `apps/web/src/index.css` (cem-in · cem-slide-down ·
+ * cem-pulse · cem-bob) con respeto a `prefers-reduced-motion`.
+ */
 const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options, onConfirm, onCancel }) => {
   const [saliendo, setSaliendo] = useState(false);
+  const cancelBtnRef = useRef<HTMLButtonElement>(null);
 
   const handleClose = (callback: () => void) => {
     setSaliendo(true);
-    setTimeout(() => callback(), 300);
+    setTimeout(() => callback(), 200);
   };
 
-  return (
-    <>
-      {/* Backdrop */}
-      <div
-        className={`fixed inset-0 z-9999 bg-black/40 transition-opacity duration-300 ${saliendo ? 'opacity-0' : 'opacity-100'}`}
-        onClick={() => handleClose(onCancel)}
+  // ESC + bloqueo de scroll + foco inicial en Cancelar (acción segura)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') handleClose(onCancel);
+    };
+    document.addEventListener('keydown', onKey);
+
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    // Foco en la acción segura tras el primer paint
+    const timer = setTimeout(() => cancelBtnRef.current?.focus(), 50);
+
+    return () => {
+      document.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+      clearTimeout(timer);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const labelCancelar = i18n.t('common:confirmacion.cancelar');
+  const labelConfirmar = i18n.t('common:confirmacion.confirmar');
+
+  // Glyph "!" del icono (coral-600)
+  const IconExclamacion = (
+    <svg viewBox="0 0 24 24" width="100%" height="100%" fill="none" aria-hidden>
+      <path
+        d="M12 6.5v7.2"
+        stroke="#e26146"
+        strokeWidth="2.6"
+        strokeLinecap="round"
       />
+      <circle cx="12" cy="17.2" r="1.5" fill="#e26146" />
+    </svg>
+  );
 
-      {/* Modal centrado */}
-      <div className="fixed inset-0 z-10000 flex items-center justify-center px-4 pointer-events-none">
-        <div
-          className={`pointer-events-auto w-full max-w-sm overflow-hidden rounded-2xl bg-white transition-all duration-300
-            ${saliendo ? 'opacity-0 scale-95' : 'animate-[confirmIn_0.3s_cubic-bezier(0.22,1,0.36,1)]'}
-          `}
-          style={{ boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
-        >
-          {/* Header */}
-          <div className="px-5 pt-5 pb-3 flex items-start gap-3">
-            <div
-              className="shrink-0 w-10 h-10 rounded-xl flex items-center justify-center"
-              style={{ background: 'linear-gradient(135deg, #fecaca, #fca5a5)', boxShadow: '0 3px 8px rgba(220,38,38,0.2)' }}
-            >
-              <svg width="20" height="20" fill="none" viewBox="0 0 20 20">
-                <path d="M10 6V11M10 13.5V14" stroke="#dc2626" strokeWidth="2.5" strokeLinecap="round" />
-              </svg>
-            </div>
-            <div className="flex-1 min-w-0">
-              <h3 className="text-base font-bold text-slate-800 leading-tight">
-                {options.titulo}
-              </h3>
-              {options.descripcion && (
-                <p className="text-sm text-slate-500 font-medium leading-relaxed mt-1">
-                  {options.descripcion}
-                </p>
-              )}
-            </div>
-          </div>
-
-          {/* Botones */}
-          <div className="px-5 pb-5 pt-2 flex gap-2.5">
-            <button
-              onClick={() => handleClose(onCancel)}
-              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-slate-600 border-2 border-slate-300 hover:bg-slate-100 cursor-pointer active:scale-[0.98]"
-            >
-              {i18n.t('common:confirmacion.cancelar')}
-            </button>
-            <button
-              onClick={() => handleClose(onConfirm)}
-              className="flex-1 py-2.5 px-4 rounded-xl text-sm font-bold text-white cursor-pointer active:scale-[0.98]"
-              style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 4px 12px rgba(30,41,59,0.3)' }}
-            >
-              {i18n.t('common:confirmacion.confirmar')}
-            </button>
+  return (
+    <div
+      role="alertdialog"
+      aria-labelledby="cem-title"
+      aria-describedby="cem-desc"
+      onClick={() => handleClose(onCancel)}
+      className="fixed inset-0 z-10000 flex items-start lg:items-center justify-center"
+      style={{
+        background:
+          typeof window !== 'undefined' && window.innerWidth >= 1024
+            ? 'rgba(15,23,42,0.42)'
+            : 'rgba(15,23,42,0.22)',
+        backdropFilter: 'blur(3px)',
+        WebkitBackdropFilter: 'blur(3px)',
+        opacity: saliendo ? 0 : 1,
+        transition: 'opacity 200ms ease-out',
+      }}
+    >
+      {/* ─── Mobile sheet (< lg) ─── */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="cem-sheet-anim lg:hidden w-full max-w-[380px] bg-white rounded-[18px] border-[1.5px] border-slate-200 mt-3.5 mx-3.5 shadow-md grid grid-cols-[auto_1fr] gap-x-3 gap-y-3 p-3.5 pl-4"
+        style={{
+          animation: saliendo
+            ? 'none'
+            : 'cem-slide-down 420ms cubic-bezier(.16,.84,.32,1)',
+          boxShadow: '0 28px 56px -20px rgba(15,23,42,0.32)',
+        }}
+      >
+        {/* Icono 40×40 con pulse + bob */}
+        <div className="relative w-10 h-10 grid place-items-center row-start-1 col-start-1">
+          <span
+            className="cem-ring absolute inset-0 rounded-full border-[2px] border-[#ffaa97]"
+            style={{ animation: 'cem-pulse 2.2s ease-out infinite' }}
+          />
+          <span
+            className="cem-ring absolute inset-0 rounded-full border-[2px] border-[#ffaa97]"
+            style={{
+              animation: 'cem-pulse 2.2s ease-out infinite',
+              animationDelay: '1.1s',
+            }}
+          />
+          <div
+            className="cem-badge-anim relative w-8 h-8 rounded-full grid place-items-center"
+            style={{
+              background:
+                'radial-gradient(circle at 32% 30%, #fff, #ffd0c2 60%, #ffaa97)',
+              boxShadow:
+                'inset 0 0 0 1.5px #ffaa97, 0 10px 20px -8px rgba(244,115,88,.55)',
+              animation: 'cem-bob 2.8s ease-in-out infinite',
+            }}
+          >
+            <div className="w-5 h-5">{IconExclamacion}</div>
           </div>
         </div>
+
+        {/* Texto */}
+        <div className="row-start-1 col-start-2 min-w-0">
+          <h3
+            id="cem-title"
+            className="text-base font-semibold text-slate-900 leading-tight tracking-tight"
+          >
+            {options.titulo}
+          </h3>
+          {options.descripcion && (
+            <p
+              id="cem-desc"
+              className="text-sm text-slate-600 font-medium leading-snug mt-0.5"
+            >
+              {options.descripcion}
+            </p>
+          )}
+        </div>
+
+        {/* Botones full-width */}
+        <div className="row-start-2 col-span-2 grid grid-cols-2 gap-2.5">
+          <button
+            ref={cancelBtnRef}
+            type="button"
+            onClick={() => handleClose(onCancel)}
+            className="py-2.5 px-3.5 rounded-[10px] text-[15px] font-semibold text-slate-700 bg-white border-[1.5px] border-slate-300 hover:border-slate-400 lg:cursor-pointer active:scale-[0.98]"
+          >
+            {labelCancelar}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleClose(onConfirm)}
+            className="py-2.5 px-3.5 rounded-[10px] text-[15px] font-semibold text-white bg-slate-900 hover:bg-[#050913] border-[1.5px] border-slate-900 lg:cursor-pointer active:scale-[0.98]"
+          >
+            {labelConfirmar}
+          </button>
+        </div>
       </div>
-    </>
+
+      {/* ─── Desktop card (≥ lg) ─── */}
+      <div
+        onClick={(e) => e.stopPropagation()}
+        className="cem-modal-anim hidden lg:block w-[440px] max-w-[calc(100vw-2rem)] bg-white rounded-[20px] border-[1.5px] border-slate-200 text-center"
+        style={{
+          padding: '36px 32px 28px',
+          animation: saliendo
+            ? 'none'
+            : 'cem-in 350ms cubic-bezier(.16,.84,.32,1)',
+          boxShadow: '0 28px 56px -20px rgba(15,23,42,0.32)',
+          opacity: saliendo ? 0 : undefined,
+          transform: saliendo ? 'translateY(8px) scale(0.96)' : undefined,
+          transition: saliendo ? 'all 200ms ease-in' : undefined,
+        }}
+      >
+        {/* Icono 76×76 con pulse + bob */}
+        <div className="relative w-[76px] h-[76px] mx-auto grid place-items-center">
+          <span
+            className="cem-ring absolute inset-0 rounded-full border-[2px] border-[#ffaa97]"
+            style={{ animation: 'cem-pulse 2.2s ease-out infinite' }}
+          />
+          <span
+            className="cem-ring absolute inset-0 rounded-full border-[2px] border-[#ffaa97]"
+            style={{
+              animation: 'cem-pulse 2.2s ease-out infinite',
+              animationDelay: '1.1s',
+            }}
+          />
+          <div
+            className="cem-badge-anim relative w-[60px] h-[60px] rounded-full grid place-items-center"
+            style={{
+              background:
+                'radial-gradient(circle at 32% 30%, #fff, #ffd0c2 60%, #ffaa97)',
+              boxShadow:
+                'inset 0 0 0 1.5px #ffaa97, 0 10px 20px -8px rgba(244,115,88,.55)',
+              animation: 'cem-bob 2.8s ease-in-out infinite',
+            }}
+          >
+            <div className="w-7 h-7">{IconExclamacion}</div>
+          </div>
+        </div>
+
+        {/* Título */}
+        <h2
+          id="cem-title"
+          className="text-[22px] font-bold text-[#111827] tracking-tight mt-5 mb-2.5"
+        >
+          {options.titulo}
+        </h2>
+
+        {/* Descripción */}
+        {options.descripcion && (
+          <p
+            id="cem-desc"
+            className="text-base text-slate-600 leading-[1.55] max-w-[340px] mx-auto font-normal"
+          >
+            {options.descripcion}
+          </p>
+        )}
+
+        {/* Botones */}
+        <div className="grid grid-cols-2 gap-3 mt-[26px]">
+          <button
+            ref={cancelBtnRef}
+            type="button"
+            onClick={() => handleClose(onCancel)}
+            className="py-[13px] px-5 rounded-xl text-base font-semibold text-slate-700 bg-white border-[1.5px] border-slate-300 hover:border-slate-400 lg:cursor-pointer active:scale-[0.98]"
+          >
+            {labelCancelar}
+          </button>
+          <button
+            type="button"
+            onClick={() => handleClose(onConfirm)}
+            className="py-[13px] px-5 rounded-xl text-base font-semibold text-white bg-slate-900 hover:bg-[#050913] border-[1.5px] border-slate-900 lg:cursor-pointer active:scale-[0.98]"
+          >
+            {labelConfirmar}
+          </button>
+        </div>
+      </div>
+    </div>
   );
 };
 

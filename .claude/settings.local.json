@@ -223,7 +223,14 @@
       "Bash(del \"E:\\\\AnunciaYA\\\\anunciaya\\\\apps\\\\web\\\\src\\\\pages\\\\private\\\\TestIconos.tsx\")",
       "Bash(ls ../../docs/arquitectura/ | grep -iE \"negocios|ofertas|promociones\")",
       "Bash(cd ../web && npx tsc -b 2>&1 | grep -E \"\\(PaginaNegocios|useOfertasFeed\\)\" | head -10)",
-      "Bash(grep -nE \"linear-gradient.*135deg.*#[0-9A-Fa-f]{3,6}\" \"E:/AnunciaYA/anunciaya/apps/web/src/pages/private/scanya/PaginaScanYA.tsx\" \"E:/AnunciaYA/anunciaya/apps/web/src/pages/private/business-studio/dashboard/PaginaDashboard.tsx\")"
+      "Bash(grep -nE \"linear-gradient.*135deg.*#[0-9A-Fa-f]{3,6}\" \"E:/AnunciaYA/anunciaya/apps/web/src/pages/private/scanya/PaginaScanYA.tsx\" \"E:/AnunciaYA/anunciaya/apps/web/src/pages/private/business-studio/dashboard/PaginaDashboard.tsx\")",
+      "Bash(pnpm vitest *)",
+      "Bash(pnpm --filter @anunciaya/web tsc --noEmit)",
+      "Bash(tee /tmp/tsc-out.txt)",
+      "Bash(pnpm --filter @anunciaya/api exec tsc --noEmit)",
+      "Bash(xargs -I {} basename {})",
+      "Bash(grep -n \"fab-publicar\\\\|Publicar artículo\\\\|publicar-mp-pulse\\\\|^[[:space:]]*\\)}[[:space:]]*$\" \"E:/AnunciaYA/anunciaya/apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx\")",
+      "Bash(psql --version)"
     ]
   },
   "disableAllHooks": true

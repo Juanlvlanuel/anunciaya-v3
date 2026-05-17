@@ -87,6 +87,10 @@ export const usuarios = pgTable("usuarios", {
 	sucursalAsignada: uuid('sucursal_asignada').references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'set null' }),
 	ultimaConexion: timestamp("ultima_conexion", { withTimezone: true, mode: 'string' }),
 	requiereCambioContrasena: boolean("requiere_cambio_contrasena").default(false).notNull(),
+	// Sprint 7.5 — Mediana del tiempo de respuesta del usuario en ChatYA
+	// (filtrado por contexto 'servicio_publicacion'). Lo pobla un cron
+	// mensual (TODO). Por ahora NULL para todos.
+	servicioTiempoRespuestaMinutos: integer("servicio_tiempo_respuesta_minutos"),
 }, (table) => [
 	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
 	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast()),
@@ -1971,6 +1975,12 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	// del schema (mismo patrón que `usuarios.referidoPor`).
 	articuloMarketplaceId: uuid("articulo_marketplace_id").references((): AnyPgColumn => articulosMarketplace.id, { onDelete: 'set null' }),
 
+	// Referencia específica a la publicación de Servicios (si el chat arrancó
+	// desde una publicación). Análogo a articuloMarketplaceId. Sprint 1 —
+	// Servicios. La card de contexto se inserta en chatya.service en Sprint 3
+	// (junto con la BarraContacto del detalle).
+	servicioPublicacionId: uuid("servicio_publicacion_id").references((): AnyPgColumn => serviciosPublicaciones.id, { onDelete: 'set null' }),
+
 	// Preview del último mensaje
 	ultimoMensajeTexto: varchar("ultimo_mensaje_texto", { length: 100 }),
 	ultimoMensajeFecha: timestamp("ultimo_mensaje_fecha", { withTimezone: true, mode: 'string' }),
@@ -2006,6 +2016,7 @@ export const chatConversaciones = pgTable("chat_conversaciones", {
 	index("idx_chat_conv_p1_activas").using("btree", table.participante1Id.asc().nullsLast(), table.updatedAt.desc().nullsFirst()).where(sql`(eliminada_por_p1 = false)`),
 	index("idx_chat_conv_p2_activas").using("btree", table.participante2Id.asc().nullsLast(), table.updatedAt.desc().nullsFirst()).where(sql`(eliminada_por_p2 = false)`),
 	index("idx_chat_conv_articulo_marketplace").using("btree", table.articuloMarketplaceId.asc().nullsLast()).where(sql`(articulo_marketplace_id IS NOT NULL)`),
+	index("idx_chat_conv_servicio_publicacion").using("btree", table.servicioPublicacionId.asc().nullsLast()).where(sql`(servicio_publicacion_id IS NOT NULL)`),
 	foreignKey({
 		columns: [table.participante1Id],
 		foreignColumns: [usuarios.id],
@@ -2344,4 +2355,175 @@ export const marketplacePreguntas = pgTable("marketplace_preguntas", {
 	// 2026-05-07-marketplace-preguntas-sin-limite.sql.
 	index("idx_preguntas_articulo").using("btree", table.articuloId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
 	index("idx_preguntas_respondidas").using("btree", table.articuloId.asc().nullsLast(), table.respondidaAt.asc().nullsLast()).where(sql`respondida_at IS NOT NULL AND deleted_at IS NULL`),
+]);
+
+// ============================================================================
+// SERVICIOS — Tablas base (Sprint 1, Mayo 2026)
+// ============================================================================
+// Sección pública /servicios. Discriminada por modo+tipo:
+//   modo: 'ofrezco' | 'solicito'
+//   tipo: 'servicio-persona' | 'vacante-empresa' | 'solicito'
+//
+// Ver:
+//   - docs/migraciones/2026-05-15-servicios-base.sql
+//   - docs/VISION_ESTRATEGICA_AnunciaYA.md §3.2
+//   - design_handoff_servicios/README.md
+//
+// Estados: solo `activa | pausada | eliminada` (sin "vendida" — un servicio
+// no se agota; si ya no se ofrece, se elimina). Decisión arquitectural.
+
+export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+
+	// Discriminadores
+	modo: varchar({ length: 20 }).notNull(),
+	tipo: varchar({ length: 30 }).notNull(),
+	subtipo: varchar({ length: 30 }),
+
+	// Contenido
+	titulo: varchar({ length: 80 }).notNull(),
+	descripcion: text().notNull(),
+	fotos: jsonb().default(sql`'[]'::jsonb`).notNull(),
+	fotoPortadaIndex: smallint("foto_portada_index").default(0).notNull(),
+
+	// Precio (discriminated union JSONB por `kind`):
+	//   { kind: 'fijo'|'hora'|'mensual', monto: number, moneda?: 'MXN' }
+	//   { kind: 'rango', min: number, max: number, moneda?: 'MXN' }
+	//   { kind: 'a-convenir' }
+	// La validación profunda vive en Zod; el CHECK SQL solo verifica el kind.
+	precio: jsonb().notNull(),
+
+	modalidad: varchar({ length: 20 }).notNull(),
+
+	// Ubicación — declarado como text porque Drizzle no soporta geography
+	// nativamente. La BD usa geography(Point,4326); el service convierte con
+	// ST_AsText/ST_GeomFromText en SQL crudo (mismo patrón que MarketPlace).
+	// `ubicacion` (real) NUNCA se devuelve al frontend; `ubicacionAproximada`
+	// es la coordenada con offset random uniforme en disco de 500m, fija al crear.
+	ubicacion: text().notNull(),
+	ubicacionAproximada: text("ubicacion_aproximada").notNull(),
+	ciudad: varchar({ length: 100 }).notNull(),
+	zonasAproximadas: varchar("zonas_aproximadas", { length: 150 }).array().notNull().default(sql`'{}'::varchar[]`),
+
+	// Skills (solo servicio-persona, max 8 — validado por CHECK + Zod)
+	skills: text().array().notNull().default(sql`'{}'::text[]`),
+
+	// Campos exclusivos de vacante-empresa (NULL/vacío en otros tipos)
+	requisitos: text().array().notNull().default(sql`'{}'::text[]`),
+	horario: varchar({ length: 150 }),
+	diasSemana: varchar("dias_semana", { length: 3 }).array().notNull().default(sql`'{}'::varchar[]`),
+
+	// Campo exclusivo de tipo='solicito': { min: number, max: number }
+	presupuesto: jsonb(),
+
+	// Categoría de clasificado — solo aplica a `modo='solicito'`. NULL en `ofrezco`.
+	// Valores permitidos por CHECK: hogar, eventos, empleo, mudanzas, tutorias,
+	// mascotas, otros. La UI mapea a labels con tildes ("Tutorías", "Mudanzas").
+	categoria: varchar({ length: 20 }),
+
+	// Marca un pedido como urgente — sube al top del widget Clasificados y
+	// pinta eyebrow rojo en la fila. Aplica a cualquier modo en BD pero la UI
+	// solo lo renderiza en clasificados (modo='solicito').
+	urgente: boolean().default(false).notNull(),
+
+	// Snapshot del checklist legal del wizard (Paso 4):
+	//   { legal: bool, verdadera: bool, coordinacion: bool, version: string,
+	//     aceptadasAt: ISO }
+	// Evidencia inmutable ante denuncias. NULL para publicaciones legacy.
+	confirmaciones: jsonb(),
+
+	// Estado del ciclo de vida. Sin 'vendida'.
+	estado: varchar({ length: 20 }).default('activa').notNull(),
+
+	// Métricas
+	totalVistas: integer("total_vistas").default(0).notNull(),
+	totalMensajes: integer("total_mensajes").default(0).notNull(),
+	totalGuardados: integer("total_guardados").default(0).notNull(),
+
+	// TTL — solo se setea al crear; cron Sprint 7 lo usa para auto-pausar
+	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),
+
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_servicios_pub_estado").using("btree", table.estado.asc().nullsLast()),
+	index("idx_servicios_pub_ciudad").using("btree", table.ciudad.asc().nullsLast()),
+	index("idx_servicios_pub_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_servicios_pub_created").using("btree", table.createdAt.desc().nullsFirst()),
+	index("idx_servicios_pub_expira").using("btree", table.expiraAt.asc().nullsLast()),
+	index("idx_servicios_pub_modo_tipo").using("btree", table.modo.asc().nullsLast(), table.tipo.asc().nullsLast()),
+	// Índices GIST (ubicacion_aproximada) y GIN (FTS sobre titulo+descripcion)
+	// viven SOLO en SQL — Drizzle no soporta declarar GIST sobre geography ni
+	// GIN sobre to_tsvector(). La migración SQL los crea y la BD los mantiene.
+	check("servicios_pub_modo_check", sql`(modo)::text = ANY ((ARRAY['ofrezco'::character varying, 'solicito'::character varying])::text[])`),
+	check("servicios_pub_tipo_check", sql`(tipo)::text = ANY ((ARRAY['servicio-persona'::character varying, 'vacante-empresa'::character varying, 'solicito'::character varying])::text[])`),
+	check("servicios_pub_subtipo_check", sql`subtipo IS NULL OR (subtipo)::text = ANY ((ARRAY['servicio-personal'::character varying, 'busco-empleo'::character varying, 'servicio-puntual'::character varying, 'vacante-empresa'::character varying])::text[])`),
+	check("servicios_pub_modalidad_check", sql`(modalidad)::text = ANY ((ARRAY['presencial'::character varying, 'remoto'::character varying, 'hibrido'::character varying])::text[])`),
+	check("servicios_pub_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'eliminada'::character varying])::text[])`),
+	check("servicios_pub_precio_kind_check", sql`(precio->>'kind') IN ('fijo', 'hora', 'rango', 'mensual', 'a-convenir')`),
+	check("servicios_pub_fotos_array_check", sql`jsonb_typeof(fotos) = 'array'`),
+	check("servicios_pub_skills_max_check", sql`array_length(skills, 1) IS NULL OR array_length(skills, 1) <= 8`),
+	check("servicios_pub_presupuesto_solo_solicito_check", sql`presupuesto IS NULL OR tipo = 'solicito'`),
+	check("servicios_pub_categoria_check", sql`categoria IS NULL OR (categoria)::text = ANY ((ARRAY['hogar'::character varying, 'cuidados'::character varying, 'eventos'::character varying, 'belleza-bienestar'::character varying, 'empleo'::character varying, 'otros'::character varying])::text[])`),
+	check("servicios_pub_categoria_solo_solicito_check", sql`categoria IS NULL OR modo = 'solicito'`),
+]);
+
+// ============================================================================
+// Servicios — Preguntas y Respuestas (Q&A público en detalle)
+// ============================================================================
+
+export const serviciosPreguntas = pgTable("servicios_preguntas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	publicacionId: uuid("publicacion_id").notNull().references(() => serviciosPublicaciones.id, { onDelete: 'cascade' }),
+	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	pregunta: varchar({ length: 200 }).notNull(),
+	respuesta: varchar({ length: 500 }),
+	respondidaAt: timestamp("respondida_at", { withTimezone: true, mode: 'string' }),
+	editadaAt: timestamp("editada_at", { withTimezone: true, mode: 'string' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	// Un autor puede hacer múltiples preguntas en la misma publicación
+	// (no hay UNIQUE constraint, mismo patrón que marketplace_preguntas
+	// post-2026-05-07).
+	index("idx_servicios_preg_publicacion").using("btree", table.publicacionId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_servicios_preg_respondidas").using("btree", table.publicacionId.asc().nullsLast(), table.respondidaAt.asc().nullsLast()).where(sql`respondida_at IS NOT NULL AND deleted_at IS NULL`),
+	index("idx_servicios_preg_autor").using("btree", table.autorId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+]);
+
+// ============================================================================
+// Servicios — Reseñas (rating 1..5 + texto corto) — endpoints en Sprint 5
+// ============================================================================
+
+export const serviciosResenas = pgTable("servicios_resenas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	publicacionId: uuid("publicacion_id").notNull().references(() => serviciosPublicaciones.id, { onDelete: 'cascade' }),
+	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	destinatarioId: uuid("destinatario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	rating: smallint().notNull(),
+	texto: varchar({ length: 200 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
+}, (table) => [
+	index("idx_servicios_res_destinatario").using("btree", table.destinatarioId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_servicios_res_publicacion").using("btree", table.publicacionId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	unique("servicios_res_unique_autor_publicacion").on(table.publicacionId, table.autorId),
+	check("servicios_res_rating_check", sql`rating BETWEEN 1 AND 5`),
+	check("servicios_res_no_self_check", sql`autor_id <> destinatario_id`),
+]);
+
+// ============================================================================
+// Servicios — Log de búsquedas (para populares en Sprint 6)
+// ============================================================================
+
+export const serviciosBusquedasLog = pgTable("servicios_busquedas_log", {
+	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
+	ciudad: varchar({ length: 100 }).notNull(),
+	termino: varchar({ length: 100 }).notNull(),
+	usuarioId: uuid("usuario_id").references(() => usuarios.id, { onDelete: 'set null' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_servicios_busq_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 ]);

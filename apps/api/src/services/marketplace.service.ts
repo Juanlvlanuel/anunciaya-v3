@@ -91,47 +91,15 @@ interface ArticuloFeedRow extends ArticuloRow {
 }
 
 // =============================================================================
-// HELPER: Aleatorizar coordenada dentro de un círculo de 500m
+// HELPER: Aleatorizar coordenada (extraído a utils/aleatorizarUbicacion.ts)
 // =============================================================================
+// Sprint 1 de Servicios (15-may-2026): el helper se movió a utils para ser
+// compartido con la nueva sección Servicios. Importamos para uso local en este
+// archivo y re-exportamos para no romper imports existentes (test + futuros
+// consumidores que ya lo importan desde este archivo).
 
-const RADIO_PRIVACIDAD_METROS = 500;
-const METROS_POR_GRADO_LAT = 111_320;
-
-/**
- * Devuelve una nueva coordenada desplazada uniformemente dentro de un círculo
- * de `RADIO_PRIVACIDAD_METROS` (500m) alrededor del punto original.
- *
- * Distribución uniforme en disco usando `r = R * sqrt(random())`:
- * - sin sqrt, los puntos se agrupan cerca del centro (área ∝ r²).
- * - con sqrt, la densidad por unidad de área es constante.
- *
- * Se aplica al CREAR el artículo. La coordenada original queda guardada en la
- * columna privada `ubicacion`; la pública es esta aleatorizada.
- *
- * @param lat - Latitud original en grados
- * @param lng - Longitud original en grados
- * @returns Nueva coordenada `{ lat, lng }` dentro del círculo de 500m
- */
-export function aleatorizarCoordenada(
-    lat: number,
-    lng: number
-): { lat: number; lng: number } {
-    const r = RADIO_PRIVACIDAD_METROS * Math.sqrt(Math.random());
-    const theta = 2 * Math.PI * Math.random();
-
-    const offsetMetrosLat = r * Math.cos(theta);
-    const offsetMetrosLng = r * Math.sin(theta);
-
-    const offsetGradosLat = offsetMetrosLat / METROS_POR_GRADO_LAT;
-    // En longitud, 1 grado equivale a menos metros conforme aumenta la latitud.
-    const offsetGradosLng =
-        offsetMetrosLng / (METROS_POR_GRADO_LAT * Math.cos((lat * Math.PI) / 180));
-
-    return {
-        lat: lat + offsetGradosLat,
-        lng: lng + offsetGradosLng,
-    };
-}
+import { aleatorizarCoordenada } from '../utils/aleatorizarUbicacion.js';
+export { aleatorizarCoordenada };
 
 // =============================================================================
 // HELPER: Eliminar foto de R2 si está huérfana

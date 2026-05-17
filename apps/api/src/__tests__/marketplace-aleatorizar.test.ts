@@ -14,7 +14,11 @@
  */
 
 import { describe, it, expect } from 'vitest';
-import { aleatorizarCoordenada } from '../services/marketplace.service';
+// Sprint 1 de Servicios (15-may-2026): el helper se movió a utils para ser
+// compartido entre MarketPlace y Servicios. El path canónico es ahora
+// `../utils/aleatorizarUbicacion`. `marketplace.service` lo re-exporta para
+// no romper imports legacy, pero el test apunta directo a la fuente.
+import { aleatorizarCoordenada } from '../utils/aleatorizarUbicacion';
 
 // =============================================================================
 // HELPER: distancia haversine en metros entre dos coordenadas

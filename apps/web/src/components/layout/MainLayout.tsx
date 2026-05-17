@@ -40,6 +40,7 @@ import { PanelPreviewNegocio } from './PanelPreviewNegocio';
 import { OverlayBuscadorMarketplace } from '../marketplace/OverlayBuscadorMarketplace';
 import { OverlayBuscadorOfertas } from '../ofertas/OverlayBuscadorOfertas';
 import { OverlayBuscadorNegocios } from '../negocios/OverlayBuscadorNegocios';
+import { OverlayBuscadorServicios } from '../servicios/OverlayBuscadorServicios';
 import { detectarSeccion } from '../../stores/useSearchStore';
 import { BannerRateLimit } from '../ui/Banner429';
 import { useSwipeNavegacionBS } from '../../hooks/useSwipeNavegacionBS';
@@ -79,6 +80,7 @@ export function MainLayout() {
   const esMarketplace = location.pathname.startsWith('/marketplace');
   const esOfertas = location.pathname.startsWith('/ofertas');
   const esMisPublicaciones = location.pathname.startsWith('/mis-publicaciones');
+  const esServicios = location.pathname.startsWith('/servicios');
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
@@ -106,7 +108,7 @@ export function MainLayout() {
   // Registrar ref de scroll en el store global
   // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
   // ---------------------------------------------------------------------------
-  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones;
+  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones || esServicios;
   useEffect(() => {
     if (esDesktop) {
       setMainScrollRef(mainRef);
@@ -435,6 +437,9 @@ export function MainLayout() {
           )}
           {detectarSeccion(location.pathname) === 'negocios' && (
             <OverlayBuscadorNegocios />
+          )}
+          {detectarSeccion(location.pathname) === 'servicios' && (
+            <OverlayBuscadorServicios />
           )}
         </>
       )}

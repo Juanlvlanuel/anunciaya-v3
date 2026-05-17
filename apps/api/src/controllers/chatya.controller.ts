@@ -153,6 +153,7 @@ export async function crearConversacionController(req: Request, res: Response) {
       contextoTipo = 'directo',
       contextoReferenciaId = null,
       articuloMarketplaceId = null,
+      servicioPublicacionId = null,
     } = req.body;
 
     if (!participante2Id) {
@@ -187,6 +188,7 @@ export async function crearConversacionController(req: Request, res: Response) {
       contextoTipo: contextoTipo as ContextoTipo,
       contextoReferenciaId,
       articuloMarketplaceId,
+      servicioPublicacionId,
     }, usuarioId);
 
     if (!resultado.success) {

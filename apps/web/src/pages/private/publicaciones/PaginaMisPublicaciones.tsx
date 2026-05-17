@@ -48,6 +48,7 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { CardArticuloMio } from '../../../components/marketplace/CardArticuloMio';
+import { MisPublicacionesServiciosSection } from '../../../components/servicios/MisPublicacionesServiciosSection';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -156,6 +157,13 @@ export function PaginaMisPublicaciones() {
         useState<ArticuloMarketplace | null>(null);
     const [articuloAEliminar, setArticuloAEliminar] =
         useState<ArticuloMarketplace | null>(null);
+
+    // Conteos de Servicios (los reporta la sección via callback `onConteos`).
+    // Necesarios para los badges de los tabs cuando `tipoActivo === 'servicios'`.
+    const [conteosServicios, setConteosServicios] = useState<{
+        activa: number;
+        pausada: number;
+    }>({ activa: 0, pausada: 0 });
 
     // ─── Datos del servidor (React Query) ────────────────────────────────────
     // Cargamos las 3 listas en paralelo para que los badges de los tabs
@@ -523,7 +531,11 @@ export function PaginaMisPublicaciones() {
                                                 const conteo =
                                                     tipoActivo === 'marketplace'
                                                         ? conteoPorTab[tab.id]
-                                                        : 0;
+                                                        : tab.id === 'activa'
+                                                          ? conteosServicios.activa
+                                                          : tab.id === 'pausada'
+                                                            ? conteosServicios.pausada
+                                                            : 0;
                                                 return (
                                                     <button
                                                         key={tab.id}
@@ -618,7 +630,13 @@ export function PaginaMisPublicaciones() {
                                         const Icono = tab.Icono;
                                         const activo = tabActivo === tab.id;
                                         const conteo =
-                                            tipoActivo === 'marketplace' ? conteoPorTab[tab.id] : 0;
+                                            tipoActivo === 'marketplace'
+                                                ? conteoPorTab[tab.id]
+                                                : tab.id === 'activa'
+                                                  ? conteosServicios.activa
+                                                  : tab.id === 'pausada'
+                                                    ? conteosServicios.pausada
+                                                    : 0;
                                         return (
                                             <button
                                                 key={tab.id}
@@ -660,23 +678,14 @@ export function PaginaMisPublicaciones() {
             ════════════════════════════════════════════════════════════════ */}
             <div className="p-4 lg:mx-auto lg:max-w-7xl lg:p-6 2xl:p-8">
                 {tipoActivo === 'servicios' ? (
-                    /* ── Servicios: estado "Próximamente" hasta que llegue su sprint.
-                       Mismo patrón visual que los empty de Cupones/CardYA pero con
-                       paleta sky para diferenciarse del cyan de MarketPlace. */
-                    <div
-                        data-testid="empty-servicios-proximamente"
-                        className="flex flex-col items-center justify-center py-20"
-                    >
-                        <div className="w-24 h-24 rounded-full bg-linear-to-br from-sky-100 to-sky-50 flex items-center justify-center ring-8 ring-sky-50 mb-6">
-                            <Briefcase className="w-12 h-12 lg:w-16 lg:h-16 text-sky-400" />
-                        </div>
-                        <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
-                            Servicios — Próximamente
-                        </h3>
-                        <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
-                            Pronto podrás publicar y gestionar tus servicios y empleos aquí.
-                        </p>
-                    </div>
+                    /* Sección real de Mis Publicaciones de Servicios.
+                       Sprint 7.2 — wireup con backend completo + acciones. */
+                    <MisPublicacionesServiciosSection
+                        tabActivo={
+                            tabActivo === 'vendida' ? 'activa' : tabActivo
+                        }
+                        onConteos={setConteosServicios}
+                    />
                 ) : (
                     <>
                 {/* Banner: borrador sin publicar (solo si existe contenido) */}
@@ -756,21 +765,24 @@ export function PaginaMisPublicaciones() {
             </div>
 
             {/* ════════════════════════════════════════════════════════════════
-                FAB "+ Publicar" — visible solo en modo MarketPlace. Servicios
-                aún no tiene endpoint de publicar, por eso se oculta cuando ese
-                selector está activo. Mismo patrón que el FAB del feed de
-                MarketPlace (`PaginaMarketplace`), con paleta cyan en lugar de teal:
-                  - Móvil: baja a `bottom-4` cuando el BottomNav se oculta,
-                    sube a `bottom-20` cuando reaparece.
-                  - Desktop: fijo en `bottom-6`, alineado a la izquierda de la
-                    `ColumnaDerecha` (`lg:right-[330px] 2xl:right-[394px]`).
-                  - Icono con animación rotate-pulse cada 2.4s.
+                FAB "+ Publicar" — visible en ambos modos (MarketPlace y
+                Servicios). El destino del onClick cambia según `tipoActivo`:
+                  - marketplace → /marketplace/publicar
+                  - servicios   → /servicios/publicar?modo=ofrezco
+                La paleta también cambia: cyan para MP, sky para Servicios.
             ════════════════════════════════════════════════════════════════ */}
-            {tipoActivo === 'marketplace' && (
             <button
                 data-testid="fab-publicar"
-                onClick={irAPublicar}
-                aria-label="Publicar artículo"
+                onClick={
+                    tipoActivo === 'marketplace'
+                        ? irAPublicar
+                        : () => navigate('/servicios/publicar?modo=ofrezco')
+                }
+                aria-label={
+                    tipoActivo === 'marketplace'
+                        ? 'Publicar artículo'
+                        : 'Publicar servicio'
+                }
                 style={{
                     transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
@@ -778,7 +790,14 @@ export function PaginaMisPublicaciones() {
                     bottomNavVisible ? 'bottom-20' : 'bottom-4'
                 }`}
             >
-                <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-cyan-500 to-cyan-700 text-white shadow-lg shadow-cyan-500/30 ring-2 ring-cyan-300/30 transition-transform hover:scale-105">
+                <span
+                    className={
+                        'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
+                        (tipoActivo === 'marketplace'
+                            ? 'bg-linear-to-br from-cyan-500 to-cyan-700 shadow-cyan-500/30 ring-cyan-300/30'
+                            : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30')
+                    }
+                >
                     <Plus
                         className="h-6 w-6"
                         strokeWidth={2.75}
@@ -799,7 +818,6 @@ export function PaginaMisPublicaciones() {
                     }
                 `}</style>
             </button>
-            )}
 
             {/* ── Modal: confirmar marcar vendido ── */}
             <ModalAdaptativo

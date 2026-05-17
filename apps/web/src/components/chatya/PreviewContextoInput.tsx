@@ -63,16 +63,20 @@ export function PreviewContextoInput({
       ? 'text-amber-700'
       : cardData.subtipo === 'articulo_marketplace'
         ? 'text-teal-700'
-        : 'text-blue-700';
+        : cardData.subtipo === 'servicio_publicacion'
+          ? 'text-sky-700'
+          : 'text-blue-700';
 
   const eyebrowTexto =
     cardData.subtipo === 'oferta'
       ? 'Oferta'
       : cardData.subtipo === 'articulo_marketplace'
         ? 'MarketPlace'
-        : cardData.tipoArticulo === 'servicio'
-          ? 'Servicio'
-          : 'Producto';
+        : cardData.subtipo === 'servicio_publicacion'
+          ? 'Servicios'
+          : cardData.tipoArticulo === 'servicio'
+            ? 'Servicio'
+            : 'Producto';
 
   return (
     <div
@@ -121,6 +125,22 @@ export function PreviewContextoInput({
             {cardData.condicion && (
               <span className="text-[11px] font-semibold text-slate-600">
                 {ETIQUETA_CONDICION_MP[cardData.condicion] ?? cardData.condicion}
+              </span>
+            )}
+          </div>
+        )}
+        {cardData.subtipo === 'servicio_publicacion' && (
+          <div className="mt-0.5 flex items-center gap-2">
+            {cardData.precio !== undefined && (
+              <span className="text-sm font-extrabold text-slate-900">
+                {typeof cardData.precio === 'string'
+                    ? cardData.precio
+                    : formatearPrecio(cardData.precio)}
+              </span>
+            )}
+            {cardData.modalidad && (
+              <span className="text-[11px] font-semibold text-slate-600 capitalize">
+                {cardData.modalidad}
               </span>
             )}
           </div>

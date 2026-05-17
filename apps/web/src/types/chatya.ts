@@ -249,6 +249,12 @@ export interface CrearConversacionInput {
    * card de contexto.
    */
   articuloMarketplaceId?: string | null;
+  /**
+   * FK directa a la publicación de Servicios cuando la conversación se inicia
+   * desde el detalle de un servicio. Análogo a `articuloMarketplaceId`.
+   * Solo aplica con `contextoTipo === 'servicio'`.
+   */
+  servicioPublicacionId?: string | null;
 }
 
 /**

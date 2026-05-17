@@ -63,6 +63,12 @@ export interface CrearConversacionInput {
    * genérico) — esta columna existe específicamente en BD con FK real.
    */
   articuloMarketplaceId?: string | null;
+  /**
+   * FK a `servicios_publicaciones.id`. Solo aplica cuando
+   * `contextoTipo === 'servicio'`. Análogo a `articuloMarketplaceId` pero
+   * para la sección Servicios. Permite snapshot + card de contexto.
+   */
+  servicioPublicacionId?: string | null;
 }
 
 export interface EnviarMensajeInput {

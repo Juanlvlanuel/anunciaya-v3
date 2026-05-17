@@ -111,6 +111,12 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // con regex — cubre tanto array plano como array de objetos si en el
     // futuro la estructura crece.
     { tabla: 'articulos_marketplace', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos del artículo de MarketPlace (JSONB array de URLs)' },
+
+    // ─── Servicios ───
+    // Tabla `servicios_publicaciones` (Sprint 1 Servicios, 15-May-2026). Campo
+    // `fotos` es JSONB array de URLs en R2 (max 6 fotos por publicación, 1 en
+    // vacantes). Mismo patrón que marketplace.
+    { tabla: 'servicios_publicaciones', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos de publicación de Servicios (JSONB array de URLs)' },
 ];
 
 /**
