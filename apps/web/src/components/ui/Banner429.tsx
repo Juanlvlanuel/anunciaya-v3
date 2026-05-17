@@ -355,7 +355,7 @@ export function BannerRateLimit() {
           background: '#fef3c7', border: '1px solid #fde68a',
           borderRadius: '8px', padding: '5px 12px', flexShrink: 0,
         }}>
-          <Clock size={14} color="#d97706" />
+          <Clock width={14} height={14} color="#d97706" />
           <span style={{
             fontSize: '16px', fontWeight: '700', color: '#d97706',
             fontVariantNumeric: 'tabular-nums', fontFamily: 'inherit',

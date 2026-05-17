@@ -39,8 +39,10 @@ import {
 	Trash2,
 	Layers,
 	Gauge,
+	type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -49,6 +51,11 @@ const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p}
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
 const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+	| LucideIcon
+	| ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { useAlertasStore } from '../../../../stores/useAlertasStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import {
@@ -105,7 +112,7 @@ function formatearFecha(fecha: string | null): string {
 	return `${dia} ${mes} ${anio}`;
 }
 
-const ICONO_CATEGORIA: Record<CategoriaAlerta, typeof Shield> = {
+const ICONO_CATEGORIA: Record<CategoriaAlerta, IconLike> = {
 	seguridad: Shield,
 	operativa: Wrench,
 	rendimiento: TrendingUp,

@@ -3,7 +3,12 @@
  */
 
 import type { LucideIcon } from 'lucide-react';
-import type { ReactNode } from 'react';
+import type { ComponentType, ReactNode } from 'react';
+
+/** Tipo que admite tanto LucideIcon (forwardRef) como wrappers locales Iconify. */
+export type IconLike =
+  | LucideIcon
+  | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 
 /** Paleta de colores para KpiCard — igual al patrón del Dashboard BS */
 export type ColorKpi = 'emerald' | 'blue' | 'violet' | 'amber' | 'red' | 'slate';
@@ -62,7 +67,7 @@ const PALETA_KPI: Record<ColorKpi, PaletaKpi> = {
 };
 
 interface KpiCardProps {
-  icono: LucideIcon;
+  icono: IconLike;
   label: string;
   valor: ReactNode;
   color: ColorKpi;
@@ -125,7 +130,7 @@ export function KpiCard({ icono: Icono, label, valor, color, onClick, disabled, 
 }
 
 /** Título de sección con gradiente oscuro (patrón Dashboard) */
-export function PanelTitulo({ icono: Icono, titulo }: { icono: LucideIcon; titulo: string }) {
+export function PanelTitulo({ icono: Icono, titulo }: { icono: IconLike; titulo: string }) {
   return (
     <div
       className="flex items-center gap-2.5 px-3 lg:px-4 2xl:px-4 py-2"

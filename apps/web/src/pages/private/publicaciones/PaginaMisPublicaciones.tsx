@@ -35,8 +35,10 @@ import {
     ShoppingCart,
     AlertTriangle,
     Trash2,
+    type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -44,6 +46,11 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+    | LucideIcon
+    | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
@@ -80,7 +87,7 @@ type TabPublicacion = 'activa' | 'pausada' | 'vendida';
  */
 type TipoPublicacion = 'marketplace' | 'servicios';
 
-const TIPOS: { id: TipoPublicacion; label: string; Icono: typeof ShoppingCart }[] = [
+const TIPOS: { id: TipoPublicacion; label: string; Icono: IconLike }[] = [
     { id: 'marketplace', label: 'MarketPlace', Icono: ShoppingCart },
     { id: 'servicios', label: 'Servicios', Icono: Briefcase },
 ];

@@ -12,14 +12,21 @@ import {
 	Settings,
 	Shield,
 	Heart,
+	type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
 const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+	| LucideIcon
+	| ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useAlertasConfiguracion, useActualizarConfiguracionAlerta } from '../../../../hooks/queries/useAlertas';
 import { notificar } from '../../../../utils/notificaciones';
@@ -30,7 +37,7 @@ import type { CategoriaAlerta, ConfiguracionAlerta } from '../../../../types/ale
 // CONSTANTES
 // =============================================================================
 
-const TABS: { id: CategoriaAlerta; label: string; icono: typeof Shield }[] = [
+const TABS: { id: CategoriaAlerta; label: string; icono: IconLike }[] = [
 	{ id: 'seguridad', label: 'Seguridad', icono: Shield },
 	{ id: 'operativa', label: 'Operativa', icono: Wrench },
 	{ id: 'rendimiento', label: 'Rendimiento', icono: TrendingUp },

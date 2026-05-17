@@ -10,14 +10,20 @@
  */
 
 import { useEffect, useState } from 'react';
-import { BarChart3, Download, Loader2, Users, UserCog, Tag } from 'lucide-react';
+import { BarChart3, Download, Loader2, Users, UserCog, Tag, type LucideIcon } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const DollarSign = (p: IconoWrapperProps) => <Icon icon={ICONOS.dinero} {...p} />;
 const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+  | LucideIcon
+  | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { DatePicker } from '../../../../components/ui/DatePicker';
 import { useReportesStore } from '../../../../stores/useReportesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
@@ -54,7 +60,7 @@ if (!document.querySelector('[data-reportes-style]')) {
 // CONFIGURACIÓN
 // =============================================================================
 
-const TABS_CONFIG: { id: TabReporte; etiqueta: string; icono: typeof DollarSign }[] = [
+const TABS_CONFIG: { id: TabReporte; etiqueta: string; icono: IconLike }[] = [
   { id: 'ventas', etiqueta: 'Ventas', icono: DollarSign },
   { id: 'clientes', etiqueta: 'Clientes', icono: Users },
   { id: 'empleados', etiqueta: 'Operador', icono: UserCog },

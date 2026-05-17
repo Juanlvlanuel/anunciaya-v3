@@ -26,8 +26,10 @@ import {
     X,
     Check,
     ShoppingCart,
+    type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -35,6 +37,11 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
 const Briefcase = (p: IconoWrapperProps) => <Icon icon={ICONOS.empleos} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+    | LucideIcon
+    | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { useNavigate } from 'react-router-dom';
@@ -357,7 +364,7 @@ export function PaginaGuardados() {
     // Render
     // ---------------------------------------------------------------------------
     // Orden B2C → P2P (visión v3): Negocios → Ofertas → Marketplace → Servicios
-    const TABS_GUARDADOS: { id: TabGuardado; label: string; Icono: typeof Tag }[] = [
+    const TABS_GUARDADOS: { id: TabGuardado; label: string; Icono: IconLike }[] = [
         { id: 'negocios', label: 'Negocios', Icono: Store },
         { id: 'ofertas', label: 'Ofertas', Icono: Tag },
         { id: 'marketplace', label: 'Marketplace', Icono: ShoppingCart },

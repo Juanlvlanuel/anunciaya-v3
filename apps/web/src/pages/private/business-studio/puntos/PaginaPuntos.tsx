@@ -32,8 +32,10 @@ import { createPortal } from 'react-dom';
 import {
   Ticket, Users, Settings, Lock, Save,
   Plus, CircleDollarSign, Repeat, ChevronDown,
+  type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -43,6 +45,11 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Gift = (p: IconoWrapperProps) => <Icon icon={ICONOS.recompensa} {...p} />;
 const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
 const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+  | LucideIcon
+  | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useUiStore } from '../../../../stores/useUiStore';
 import { usePuntosStore } from '../../../../stores/usePuntosStore';
@@ -188,7 +195,7 @@ const ESTILO_ICONO_HEADER = `
 
 type TabPuntos = 'configuracion' | 'niveles' | 'recompensas';
 
-const TABS_CONFIG: { id: TabPuntos; label: string; Icono: typeof Settings }[] = [
+const TABS_CONFIG: { id: TabPuntos; label: string; Icono: IconLike }[] = [
   { id: 'configuracion', label: 'Config', Icono: Settings },
   { id: 'niveles', label: 'Niveles', Icono: Award },
   { id: 'recompensas', label: 'Recompensas', Icono: Gift },

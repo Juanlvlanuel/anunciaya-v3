@@ -516,7 +516,7 @@ function VistaDueno({ articuloId, vendedor, pendientes, respondidas, total }: Vi
 // =============================================================================
 
 interface GrupoConversacionDuenoProps {
-    grupo: GrupoConversacion;
+    grupo: GrupoConversacion<PreguntaMarketplace>;
     vendedor: VendedorArticulo;
     preguntaRespondiendoId: string | null;
     textoRespuesta: string;
@@ -794,7 +794,7 @@ function MensajeDueno({
 // =============================================================================
 
 interface GrupoConversacionVisitanteProps {
-    grupo: GrupoConversacion;
+    grupo: GrupoConversacion<PreguntaMarketplace>;
     vendedor: VendedorArticulo;
     usuarioActualId: string | null;
     editandoId: string | null;

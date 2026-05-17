@@ -18,17 +18,22 @@
  * Ubicación: apps/web/src/components/ofertas/BloqueCarruselAuto.tsx
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
 import CardOfertaCarrusel from './CardOfertaCarrusel';
 import TituloDeBloque from './TituloDeBloque';
 import type { OfertaFeed } from '@/types/ofertas';
 
+/** Tipo que admite tanto LucideIcon (forwardRef) como wrappers locales Iconify. */
+type IconLike =
+  | LucideIcon
+  | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
+
 interface BloqueCarruselAutoProps {
   eyebrow: string;
   titulo: string;
-  /** Ícono Lucide opcional para el cuadrado negro junto al título. */
-  iconoLucide?: LucideIcon;
+  /** Ícono opcional para el cuadrado negro junto al título. Acepta LucideIcon o wrappers Iconify. */
+  iconoLucide?: IconLike;
   ofertas: OfertaFeed[];
   cargando: boolean;
   onClickOferta: (oferta: OfertaFeed) => void;

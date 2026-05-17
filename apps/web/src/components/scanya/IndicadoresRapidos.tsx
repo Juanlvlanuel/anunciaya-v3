@@ -18,13 +18,19 @@
  * Ubicación: apps/web/src/components/scanya/IndicadoresRapidos.tsx
  */
 
-import { WifiOff, Ticket, History } from 'lucide-react';
+import { WifiOff, Ticket, History, type LucideIcon } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '../../config/iconos';
 
 // Wrapper local: ícono migrado a Iconify manteniendo el nombre familiar.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
+
+/** Tipo que admite tanto LucideIcon (forwardRef) como wrappers de Iconify. */
+type IconLike =
+  | LucideIcon
+  | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 
 // =============================================================================
 // INTERFACES
@@ -45,7 +51,7 @@ interface IndicadoresRapidosProps {
 interface Boton {
   id: string;
   label: string;
-  icon?: typeof Star;
+  icon?: IconLike;
   isLogo?: boolean;
   logoSrc?: string;
   ruta: string;

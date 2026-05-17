@@ -18,15 +18,20 @@
  * Ubicación: apps/web/src/components/ofertas/TituloDeBloque.tsx
  */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, type ComponentType } from 'react';
 import type { LucideIcon } from 'lucide-react';
+
+/** Tipo que admite tanto LucideIcon (forwardRef) como wrappers locales Iconify. */
+type IconLike =
+  | LucideIcon
+  | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 
 interface TituloDeBloqueProps {
   eyebrow: string;
   titulo: string;
-  /** Ícono Lucide opcional. Si se pasa, se renderiza un cuadrado negro
-   *  con el ícono blanco adentro a la izquierda del título. */
-  iconoLucide?: LucideIcon;
+  /** Ícono opcional. Acepta LucideIcon o wrappers Iconify. Si se pasa, se renderiza
+   *  un cuadrado negro con el ícono blanco adentro a la izquierda del título. */
+  iconoLucide?: IconLike;
   /** Si true, muestra el indicador "AUTO" (puntito pulsando) a la derecha. */
   indicadorAuto?: boolean;
   /** Variante visual.

@@ -95,7 +95,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
             titulo,
             imagen: fotoUrl,
             precio: articulo.precio,
-            condicion: articulo.condicion,
+            condicion: articulo.condicion ?? undefined,
         };
 
         abrirChatTemporal({

@@ -15,7 +15,7 @@ import type { PromocionResumen, TipoDetallePromocion } from '../../../../../serv
 import { useReportePromociones } from '../../../../../hooks/queries/useReportes';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { CarouselKPI } from '../../../../../components/ui/CarouselKPI';
-import { PanelTitulo, TablaHeader, formatearMonto, KpiCard } from './ReporteUI';
+import { PanelTitulo, TablaHeader, formatearMonto, KpiCard, type IconLike } from './ReporteUI';
 import { ModalDetallePromocion } from './ModalDetallePromocion';
 
 interface TabPromocionesProps {
@@ -152,7 +152,7 @@ export function TabPromociones({ fechaInicio, fechaFin, solo = 'body' }: TabProm
 function CardMejorPromocion({ promo, titulo, iconoPlaceholder: IconoPlaceholder, emptyText, testId }: {
   promo: PromocionResumen | null;
   titulo: string;
-  iconoPlaceholder: typeof Tag;
+  iconoPlaceholder: IconLike;
   emptyText: string;
   testId: string;
 }) {

@@ -20,14 +20,20 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Banknote, ArrowLeftRight, Loader2 } from 'lucide-react';
+import { Banknote, ArrowLeftRight, Loader2, type LucideIcon } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
 const Wallet = (p: IconoWrapperProps) => <Icon icon={ICONOS.cartera} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+    | LucideIcon
+    | ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { notificar } from '@/utils/notificaciones';
@@ -39,7 +45,7 @@ import { notificar } from '@/utils/notificaciones';
 interface MetodoPago {
     id: string;
     nombre: string;
-    Icono: typeof Banknote;
+    Icono: IconLike;
     descripcion: string;
     valor: 'efectivo' | 'tarjeta_debito' | 'transferencia';
 }

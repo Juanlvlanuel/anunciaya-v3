@@ -15,8 +15,10 @@ import {
 	BarChart3,
 	FileText,
 	ExternalLink,
+	type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
+import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -24,6 +26,11 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} {...p} />;
 const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
+
+/** Tipo que admite tanto LucideIcon como wrappers locales Iconify. */
+type IconLike =
+	| LucideIcon
+	| ComponentType<{ className?: string; strokeWidth?: number; fill?: string; width?: number | string; height?: number | string }>;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import type { AlertaCompleta, CategoriaAlerta, SeveridadAlerta, TipoAlerta } from '../../../../types/alertas';
 
@@ -42,7 +49,7 @@ const formatearFechaCompleta = (fechaISO: string) => {
 	return `${dia}, ${diaN} de ${mes} de ${anio}, ${hora}:${min}`;
 };
 
-const ICONO_CATEGORIA: Record<CategoriaAlerta, typeof Shield> = {
+const ICONO_CATEGORIA: Record<CategoriaAlerta, IconLike> = {
 	seguridad: Shield,
 	operativa: Wrench,
 	rendimiento: TrendingUp,

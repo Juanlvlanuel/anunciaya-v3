@@ -230,7 +230,9 @@
       "Bash(pnpm --filter @anunciaya/api exec tsc --noEmit)",
       "Bash(xargs -I {} basename {})",
       "Bash(grep -n \"fab-publicar\\\\|Publicar artículo\\\\|publicar-mp-pulse\\\\|^[[:space:]]*\\)}[[:space:]]*$\" \"E:/AnunciaYA/anunciaya/apps/web/src/pages/private/publicaciones/PaginaMisPublicaciones.tsx\")",
-      "Bash(psql --version)"
+      "Bash(psql --version)",
+      "Bash(echo \"Exit code: $?\")",
+      "Bash(echo \"Exit code final: $?\")"
     ]
   },
   "disableAllHooks": true
