@@ -397,14 +397,14 @@ Click en una card del feed
 
 ---
 
-## Pendientes (Sprint 7+ y polish)
+## Pendientes (Sprint 9+ y polish)
 
 Ver `docs/reportes/Servicios/2026-05-17-progreso-y-pendientes.md` para el detalle.
 
 Resumen ejecutivo:
 - **Sprint 7 (cerrado 2026-05-17)**: Mis Publicaciones (pausar/reactivar/eliminar propio), cron de expiración 30 días, edición desde wizard, reseñas, moderación pasiva.
-- **Sprint 8**: BS Vacantes (publicar `vacante-empresa` desde el módulo comercial).
-- **Sprint 9+ (post-launch)**: cron mensual que pueble `usuarios.servicio_tiempo_respuesta_minutos` calculando desde `chat_mensajes`. La columna ya existe en BD pero por ahora todos los usuarios tienen NULL — el frontend oculta el KPI cuando no hay dato.
+- **Sprint 8 (cerrado 2026-05-17)**: BS Vacantes — módulo en Business Studio. 3 campos nuevos en BD (`sucursal_id`, `tipo_empleo`, `beneficios`) + estado `'cerrada'`. KPIs + tabs + tabla + detalle inline + slideover de creación/edición. Filtrado por sucursal activa (cada sucursal sus propias vacantes). 25 tests Vitest. **Sin tabla `postulaciones`** — los interesados contactan vía ChatYA; en BS se mide "Conversaciones iniciadas" (= total_mensajes). Evolución a postulaciones formales queda para Sprint 9+ si la beta valida demanda.
+- **Sprint 9+ (post-launch)**: cron mensual que pueble `usuarios.servicio_tiempo_respuesta_minutos` calculando desde `chat_mensajes` + filtrado de ChatYA por contexto de vacante específica (botón "Ver mis conversaciones" del detalle BS hoy es placeholder).
 - **Decisión 2026-05-17 — Identidad verificada descartada del MVP**: No hay forma sostenible de validar identidad real en la beta (manual no escala más allá de los 50 negocios piloto; terceros como Truora/MetaMap cuestan $1-5 USD por validación, no rentable sin ingresos todavía). La columna `usuarios.identidad_verificada` se descartó de la migración antes de subir a `main` — el repo nunca la incluyó. El perfil del prestador muestra rating, total de publicaciones activas, miembro desde, y tiempo de respuesta (cuando exista). Reevaluar como beneficio premium del plan $449/mes para Sprint 9+.
 
 ---

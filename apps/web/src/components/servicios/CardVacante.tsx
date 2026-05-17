@@ -14,8 +14,17 @@ import { Briefcase, Check } from 'lucide-react';
 import type {
     PublicacionServicio,
     OferenteServicio,
+    TipoEmpleo,
 } from '../../types/servicios';
 import { formatearPrecioServicio } from '../../utils/servicios';
+
+// Mapeo local — coincide con etiquetaTipoEmpleo de Vacantes BS.
+const ETIQUETA_TIPO_EMPLEO: Record<TipoEmpleo, string> = {
+    'tiempo-completo': 'Tiempo completo',
+    'medio-tiempo': 'Medio tiempo',
+    'por-proyecto': 'Por proyecto',
+    'eventual': 'Eventual',
+};
 
 interface CardVacanteProps {
     publicacion: PublicacionServicio;
@@ -80,6 +89,24 @@ export function CardVacante({
                         {formatearPrecioServicio(publicacion.precio)}
                     </span>
                 </div>
+                {publicacion.tipoEmpleo && (
+                    <div className="mt-1.5">
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-full bg-violet-50 text-violet-700 border border-violet-200 text-[10px] font-semibold">
+                            {ETIQUETA_TIPO_EMPLEO[publicacion.tipoEmpleo]}
+                        </span>
+                    </div>
+                )}
+                {publicacion.beneficios.length > 0 && (
+                    <div className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-700 font-semibold">
+                        <Check className="w-[10px] h-[10px]" strokeWidth={3} />
+                        <span className="truncate">
+                            {publicacion.beneficios[0]}
+                            {publicacion.beneficios.length > 1
+                                ? ` · +${publicacion.beneficios.length - 1} más`
+                                : ''}
+                        </span>
+                    </div>
+                )}
                 <div className="mt-1.5 flex items-center justify-between gap-2">
                     <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-sky-100 text-sky-700 text-[10px] font-bold uppercase tracking-wider">
                         <Briefcase className="w-[10px] h-[10px]" strokeWidth={1.75} />

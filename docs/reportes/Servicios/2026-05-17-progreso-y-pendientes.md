@@ -1,7 +1,7 @@
 # Reporte de progreso — Sección Servicios
 
-> **Fecha:** 2026-05-17 (actualizado tras cierre de Sprint 7)
-> **Estado:** 7 de 8 sprints completados + 2 subsprints + Sprint 7 cerrado en sus 9 sub-tareas. Solo resta Sprint 8 (BS Vacantes, post-launch).
+> **Fecha:** 2026-05-17 (actualizado tras cierre de Sprint 8)
+> **Estado:** ✅ **TODOS los sprints cerrados** — 8/8 + 2 subsprints. La sección Servicios + módulo BS Vacantes están listos para la beta.
 
 ## Resumen ejecutivo
 
@@ -17,8 +17,11 @@ La sección **Servicios** está **funcionalmente lista para la beta**. Los usuar
 - **Dejar reseñas** a los prestadores con quienes contactaron
 - Recibir **sugerencias de moderación pasiva** ("¿Esto encajaría mejor en MarketPlace?") cuando el contenido luce a venta de objeto
 
-Lo único que falta:
-- **BS Vacantes** (Sprint 8, post-launch): módulo en Business Studio para que negocios publiquen vacantes corporativas en Servicios.
+Y desde Business Studio, los negocios pueden:
+- **Publicar vacantes corporativas** desde el módulo Vacantes en BS (Sprint 8)
+- Gestionar vacantes por sucursal (cada sucursal sus propias vacantes)
+- Pausar, reactivar, cerrar (puesto cubierto) o eliminar
+- Ver KPIs: Total / Activas / Por expirar / Conversaciones iniciadas
 
 ---
 
@@ -252,36 +255,60 @@ Lo único que falta:
 
 ---
 
-## 🚧 Lo pendiente
+### Sprint 8 — BS Vacantes (CERRADO 2026-05-17)
 
-### Sprint 8 — BS Vacantes (módulo en Business Studio)
+> Módulo en Business Studio para publicar vacantes corporativas. Cierre de la sección Servicios.
 
-> Post-launch. No bloquea la beta. Permite que negocios publiquen vacantes corporativas que aparecen en el feed de Servicios.
+#### 8.1 — Backend ✅
 
-#### 8.1 — Backend
+- [x] Migración SQL `2026-05-17-servicios-vacantes-extension.sql`:
+  - `sucursal_id UUID FK a negocio_sucursales(id) ON DELETE SET NULL`
+  - `tipo_empleo VARCHAR(20)` con CHECK 4 valores (`tiempo-completo | medio-tiempo | por-proyecto | eventual`)
+  - `beneficios TEXT[]` con CHECK max 8
+  - Nuevo estado `'cerrada'` en CHECK de `estado` (distinto de 'pausada' — puesto cubierto, no se reactiva)
+  - Índice parcial `idx_servicios_pub_sucursal WHERE sucursal_id IS NOT NULL`
+- [x] Drizzle schema actualizado en `apps/api/src/db/schemas/schema.ts`
+- [x] Zod schema extendido en `apps/api/src/validations/servicios.schema.ts`:
+  - `crearVacanteSchema` (wrapper específico de BS)
+  - `actualizarVacanteSchema` (update parcial)
+  - `listarVacantesQuerySchema` (filtros del listado)
+  - Refines en `crearPublicacionSchema`: sucursalId+tipoEmpleo requeridos cuando tipo='vacante-empresa'; prohibidos cuando es otro tipo
+- [x] Service `apps/api/src/services/vacantes.service.ts` con 7 funciones: listar, kpis, crear, actualizar, cambiarEstado, cerrar, eliminar
+- [x] Controller `apps/api/src/controllers/vacantes.controller.ts` con 7 endpoints
+- [x] Routes `apps/api/src/routes/vacantes.routes.ts` montadas en `/api/business-studio/vacantes`
+- [x] Middleware: `verificarToken → verificarNegocio → validarAccesoSucursal`
 
-- [ ] Service que adapta `crearPublicacion` para `modo='solicito'` + `tipo='vacante-empresa'`:
-  - `usuario_id` puede ser el dueño/operador del negocio
-  - Auto-completa info del negocio en el preview (logo + nombre + verificado)
-  - Precio mensual: `{kind:'mensual', monto}` con CHECK extra (mensual solo en vacantes)
-- [ ] Endpoint `POST /api/business-studio/vacantes` (NO /servicios, vive en BS)
-- [ ] La vacante creada se inserta en `servicios_publicaciones` con bandera implícita (tipo='vacante-empresa') y aparece en el feed público de Servicios
+#### 8.2 — UI en Business Studio ✅
 
-#### 8.2 — UI en Business Studio
+- [x] Item "Vacantes" en `MenuBusinessStudio` (icono Briefcase de Iconify)
+- [x] Ruta `/business-studio/vacantes` con `BSPaginaVacantes` (reemplazó placeholder pre-cableado)
+- [x] `apps/web/src/pages/private/business-studio/vacantes/PaginaVacantes.tsx` — orquestador con KPIs + tabs + tabla/cards + detalle inline + slideover (estado interno, NO ruta dedicada)
+- [x] Componentes auxiliares en `componentes/`:
+  - `KpiCardsVacantes.tsx` — 4 cards (Total / Activas / Por expirar / Conversaciones)
+  - `TablaVacantes.tsx` — tabla densa B2B (desktop)
+  - `CardVacanteMobile.tsx` — cards mobile
+  - `VacanteDetalleInline.tsx` — detalle con sidebar Actividad + Acciones rápidas (sin URL)
+  - `SlideoverNuevaVacante.tsx` — form completo con confirmaciones legales (modo crear y editar)
+  - `VacantesEmpty.tsx` — estado vacío con 3 tips diferenciadores
+  - `VacanteAtoms.tsx` — Pills (estado, tipo empleo, modalidad)
+  - `helpers.ts` — `formatearPrecioVacante`, `diasRestantesVacante`, validaciones
+- [x] Hook React Query `useVacantesBS` con 7 funciones (lista, kpis, crear, actualizar, cambiarEstado, cerrar, eliminar)
+- [x] Cada sucursal gestiona sus propias vacantes (filtrado por `sucursalActiva` del `useAuthStore`)
 
-- [ ] Módulo "Vacantes" en el menú lateral de BS (icono Briefcase)
-- [ ] Página `/business-studio/vacantes` con tabs `Activas | Pausadas`
-- [ ] Wizard simplificado (3 pasos):
-  - Paso 1: Título del puesto + descripción + categoría='empleo' fija
-  - Paso 2: Requisitos (chips) + Horario + Días + Modalidad + Sueldo mensual (NO presupuesto)
-  - Paso 3: Preview + 3 confirmaciones (legales para empleador)
-- [ ] Métricas en el dashboard de BS: postulantes (mensajes recibidos), vacantes activas
+#### 8.3 — Cross-funcional ✅
 
-#### 8.3 — Cross-funcional
+- [x] `CardVacante` público (feed Servicios) ajustado para mostrar `tipoEmpleo` (chip) + mini-strip de beneficios ("✓ Prestaciones de ley +N más")
+- [x] `PaginaServicio` (detalle público) agrega `SeccionCard` "Beneficios" con checks verdes cuando `tipo='vacante-empresa'` y hay beneficios
+- [x] Filtro "Empleo" del header del feed sigue mostrando vacantes (sin cambios — ya funcionaba)
+- [x] El cron de auto-pausa (Sprint 7.4) también aplica a vacantes (filtra por estado='activa', no por tipo)
 
-- [ ] `CardVacante` ya existe y maneja `tipo='vacante-empresa'` con banda sky + logo del negocio
-- [ ] `BarraContactoServicio` muestra "Postular vía ChatYA" en lugar de "Cotizar" cuando es vacante
-- [ ] Filtro "Empleo" del header del feed ya muestra estas vacantes
+#### 8.4 — Tests + Documentación ✅
+
+- [x] `apps/api/src/__tests__/servicios-vacantes.test.ts` — 25 tests Vitest (4 grupos: crearVacanteSchema happy, límites, refines en crearPublicacionSchema, listarVacantesQuerySchema)
+- [x] Doc maestro actualizado (`docs/arquitectura/Servicios.md`)
+- [x] Reporte de progreso (este archivo)
+
+**Total tests Vitest:** 65 (40 previos + 25 nuevos de Sprint 8).
 
 ---
 
@@ -289,39 +316,43 @@ Lo único que falta:
 
 | Métrica | Valor |
 |---|---|
-| Archivos backend creados/modificados | ~22 |
-| Archivos frontend creados/modificados | ~42 |
-| Líneas SQL (migraciones + seeds) | ~650 |
-| Componentes React nuevos | ~32 |
-| Endpoints REST implementados | 19 (incluye reactivar, reseñas) |
-| Hooks React Query | 18 (incluye misPublicaciones, editar, reseñas, reactivar) |
-| Schemas Zod | 9 (incluye `crearResenaSchema`) |
-| Casos del wizard cubiertos | 5 (ofrezco / busco servicio / busco trabajo / vacante legacy / **editar**) |
+| Archivos backend creados/modificados | ~27 |
+| Archivos frontend creados/modificados | ~52 |
+| Líneas SQL (migraciones + seeds) | ~720 |
+| Componentes React nuevos | ~40 |
+| Endpoints REST implementados | 26 (servicios + BS vacantes) |
+| Hooks React Query | 25 (servicios + vacantes BS) |
+| Schemas Zod | 12 (incluye `crearVacanteSchema`, `actualizarVacanteSchema`, `listarVacantesQuerySchema`) |
+| Casos del wizard cubiertos | 6 (ofrezco / busco servicio / busco trabajo / vacante legacy / editar / **vacante BS**) |
 | Tests E2E | 0 (pendientes como mejora, no bloquean beta) |
-| Tests API Vitest | **40 (2 archivos: validaciones + helpers)** |
-| Crons activos | 1 (auto-pausa expiración cada 6h) |
+| Tests API Vitest | **65 (3 archivos: validaciones + helpers + vacantes)** |
+| Crons activos | 1 (auto-pausa expiración cada 6h — aplica a servicios y vacantes) |
 
 ---
 
 ## 🎯 Próximos pasos sugeridos
 
-Servicios ya está **funcionalmente cerrada para la beta**. Los próximos pasos lógicos son:
+Servicios + BS Vacantes están **listos para la beta**. Los próximos pasos lógicos son:
 
-1. **Ejecutar migración pendiente** en Supabase: `docs/migraciones/2026-05-17-usuarios-tiempo-respuesta.sql` (agrega `usuarios.servicio_tiempo_respuesta_minutos`).
-2. **Tests E2E con Playwright** (opcional, no bloquea beta): flujo publicar, editar, cancelar wizard, dejar reseña.
+1. **Ejecutar migraciones pendientes** en Supabase staging/producción:
+   - `docs/migraciones/2026-05-17-usuarios-tiempo-respuesta.sql` (agrega `usuarios.servicio_tiempo_respuesta_minutos`)
+   - `docs/migraciones/2026-05-17-servicios-vacantes-extension.sql` (agrega `sucursal_id`, `tipo_empleo`, `beneficios` + estado 'cerrada')
+2. **Tests E2E con Playwright** (opcional, no bloquea beta): flujo publicar servicio, editar, cancelar wizard, dejar reseña, publicar vacante desde BS.
 3. **Cron mensual** que pueble `servicio_tiempo_respuesta_minutos` desde `chat_mensajes` (Sprint 9+, una vez que haya datos suficientes en ChatYA).
-4. **Sprint 8 — BS Vacantes** (post-launch, cuando haya tracción de negocios).
+4. **Filtro de conversaciones por contexto de vacante en ChatYA** (Sprint 9+): permite al comerciante ver solo los chats de una vacante específica desde el botón "Ver mis conversaciones" del detalle. Por ahora el botón muestra un placeholder.
 5. **Identidad verificada como beneficio premium** (post-launch, opcional): si la beta valida tracción comercial, reintroducir verificación manual desde Panel Admin solo para suscriptores del plan $449/mes.
 
 Decisiones de producto **diferidas a observación de la beta**:
 - ¿Las reseñas se piden tras cerrar la conversación ChatYA, o tras trigger manual? — actualmente: trigger manual desde la `SeccionCard` del detalle.
 - ¿Moderación pasiva amplía señales (renta, donación, etc.)? — actualmente: solo detecta venta de objetos (→ MarketPlace).
-- ¿La gente publica más en `ofrezco` o `solicito`? — métricas tras 30 días.
+- ¿La gente publica más en `ofrezco` o `solicito`? ¿Las vacantes generan suficiente flujo para justificar postulaciones formales? — métricas tras 30 días.
 
 Decisiones tomadas:
 - **2026-05-17 — Identidad verificada descartada del MVP**: no hay forma sostenible de validarla en beta. La columna `usuarios.identidad_verificada` se descartó de la migración antes de llegar a `main` — el repo no la incluye. Reevaluar como beneficio premium para Sprint 9+. **Tiempo de respuesta SÍ se conserva** porque es automático (no requiere verificación humana ni costo externo).
+- **2026-05-17 — Sin tabla de postulaciones (Opción A)**: las vacantes BS no tienen tabla de postulaciones — los interesados contactan vía ChatYA. La métrica "Conversaciones iniciadas" usa `total_mensajes`. Si la beta valida demanda fuerte, evolucionar a tabla `postulaciones` en Sprint 9+.
+- **2026-05-17 — Vacantes visible en todas las sucursales (no solo Matriz)**: cada sucursal gestiona sus propias vacantes desde su BS. El interceptor de Axios manda `?sucursalId=` y el middleware valida.
 
 ---
 
-**Última actualización:** 2026-05-17 (cierre Sprint 7)
+**Última actualización:** 2026-05-17 (cierre Sprint 8 — Servicios completa)
 **Autor:** Sesión de implementación + refactor iterativo con feedback en vivo del comerciante (Juan).

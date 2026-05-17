@@ -241,6 +241,27 @@ export function PaginaServicio() {
                             </SeccionCard>
                         )}
 
+                        {isVacante && publicacion.beneficios.length > 0 && (
+                            <SeccionCard>
+                                <Seccion titulo="Beneficios">
+                                    <ul className="space-y-1.5">
+                                        {publicacion.beneficios.map((b) => (
+                                            <li
+                                                key={b}
+                                                className="flex items-start gap-2 text-[13px] text-slate-700 font-medium"
+                                            >
+                                                <Check
+                                                    className="w-[14px] h-[14px] text-emerald-600 mt-0.5 shrink-0"
+                                                    strokeWidth={2.5}
+                                                />
+                                                {b}
+                                            </li>
+                                        ))}
+                                    </ul>
+                                </Seccion>
+                            </SeccionCard>
+                        )}
+
                         <SeccionCard>
                             <Seccion titulo="Modalidad y ubicación">
                                 <div className="flex flex-wrap gap-1.5 mb-3">

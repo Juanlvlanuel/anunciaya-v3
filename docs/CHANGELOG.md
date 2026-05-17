@@ -7,6 +7,67 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [17 Mayo 2026 — tarde] - Sprint 8: BS Vacantes 💼 (Servicios v1.1 + BS 100%)
+
+Cierre del módulo **Vacantes en Business Studio**, último pendiente de BS. Con esto, Business Studio queda al **100% (13/13 módulos)** y la sección Servicios sube a v1.1.
+
+### Backend
+
+- **Migración SQL** `2026-05-17-servicios-vacantes-extension.sql`:
+  - `sucursal_id UUID FK` → cada sucursal gestiona sus propias vacantes
+  - `tipo_empleo VARCHAR(20)` con CHECK 4 valores (`tiempo-completo | medio-tiempo | por-proyecto | eventual`)
+  - `beneficios TEXT[]` con CHECK max 8
+  - Estado nuevo `'cerrada'` (distinto de pausada — puesto cubierto, no se reactiva)
+  - Índice parcial `idx_servicios_pub_sucursal` para filtrado por sucursal
+- **Zod schemas nuevos**: `crearVacanteSchema`, `actualizarVacanteSchema`, `listarVacantesQuerySchema`. Refines extendidos en `crearPublicacionSchema` para vacantes (sucursalId+tipoEmpleo requeridos cuando tipo='vacante-empresa'; prohibidos en otros tipos).
+- **Service** `apps/api/src/services/vacantes.service.ts` (7 funciones): listar, KPIs, crear, actualizar, cambiarEstado, cerrar, eliminar. Delega a `crearPublicacion`/`actualizarPublicacion` de servicios, forzando `modo='solicito'` + `tipo='vacante-empresa'`.
+- **7 endpoints REST** bajo `/api/business-studio/vacantes` (GET listar, GET kpis, POST crear, PUT actualizar, PATCH estado, PATCH cerrar, DELETE).
+- **Cron de auto-pausa de Sprint 7.4** aplica a vacantes (filtra por estado='activa', no por tipo).
+
+### Frontend Business Studio
+
+- **Módulo Vacantes** en `apps/web/src/pages/private/business-studio/vacantes/` con 8 componentes: orquestador `PaginaVacantes.tsx` + 7 auxiliares.
+- **Hook React Query** `useVacantesBS` con 7 funciones (lista, kpis, mutations). Filtrado automático por `sucursalActiva` del store.
+- **UI con tokens correctos**: H1 `text-2xl lg:text-2xl 2xl:text-3xl font-extrabold tracking-tight`, KPI valor `font-bold` (no extrabold), CTAs primarios `bg-slate-900`. Estética B2B profesional (Linear/Stripe/Notion).
+- **Vista detalle como estado interno** (sin URL) — al hacer click en una fila se abre el detalle en el mismo componente; "Volver" regresa a la lista.
+- **Slideover desde la derecha** para crear/editar — backdrop con blur + footer sticky con CTAs.
+- **Sin tabla `postulaciones`** (Opción A): los interesados contactan vía ChatYA. En BS solo se muestra "Conversaciones iniciadas" como métrica.
+
+### Frontend público (Servicios)
+
+- `CardVacante` (feed de Servicios) ajustada para mostrar chip de `tipoEmpleo` + mini-strip de beneficios.
+- `PaginaServicio` (detalle público) agrega `SeccionCard` "Beneficios" con checks verdes cuando `tipo='vacante-empresa'` y hay beneficios.
+
+### Tests
+
+- **25 tests Vitest** nuevos en `apps/api/src/__tests__/servicios-vacantes.test.ts`:
+  - `crearVacanteSchema` happy paths (4 tipos empleo, 5 kinds precio, campos opcionales)
+  - Límites (requisitos min 3 / max 20, beneficios max 8, longitud 100, UUID válido, días max 7)
+  - Refines de `crearPublicacionSchema` para vacantes (sucursalId+tipoEmpleo requeridos en vacantes, prohibidos en servicios personales)
+  - `listarVacantesQuerySchema` (estados válidos incluyendo 'cerrada', coerce de query strings, límite max)
+- **Total tests servicios: 65** (40 previos + 25 nuevos de Sprint 8). Todos verdes.
+
+### Decisión de producto — Opción A: sin postulaciones formales
+
+Las vacantes BS NO tienen tabla `postulaciones` ni perfil de candidatos individuales. Los interesados:
+1. Ven la vacante en el feed público de Servicios
+2. Aprietan "Contactar" → abre ChatYA con mensaje pre-llenado
+3. El dueño del negocio gestiona esas conversaciones como cualquier otra en ChatYA
+
+En BS solo se mide la métrica agregada "Conversaciones iniciadas" (= `total_mensajes`). Si la beta valida demanda fuerte, se evolucionará a tabla `postulaciones` en Sprint 9+.
+
+### Decisión de producto — Visibilidad multi-sucursal
+
+Vacantes está visible en **todas las sucursales** (no solo Matriz). Cada sucursal gestiona sus propias vacantes desde su BS. El interceptor de Axios manda `?sucursalId=` y el middleware `validarAccesoSucursal` valida el acceso.
+
+### Pendientes (no bloquean beta)
+
+- Ejecutar `docs/migraciones/2026-05-17-servicios-vacantes-extension.sql` en Supabase staging y producción.
+- Tests E2E con Playwright (opcional).
+- Filtro de conversaciones por contexto de vacante en ChatYA (Sprint 9+): hoy el botón "Ver mis conversaciones" del detalle es placeholder.
+
+---
+
 ## [17 Mayo 2026] - Sección Servicios v1.0 cerrada 🛠️
 
 Cierre de la **tercera sección pública** (después de Ofertas y MarketPlace).

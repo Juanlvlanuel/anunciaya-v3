@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
 > **Última actualización:** 17 Mayo 2026
-> **Progreso global:** Servicios v1.0 cerrado ✅ (Sprint 7 completo, 40 tests Vitest) — 3 de 4 secciones públicas listas
-> **Fase actual:** Próximo bloque = Home con Pregúntale a Peñasco · BS Vacantes · Panel Admin
+> **Progreso global:** Servicios v1.1 cerrado ✅ + BS Vacantes 13/13 ✅ (Sprints 7 y 8 cerrados, 65 tests Vitest) — 3 de 4 secciones públicas listas + BS al 100%
+> **Fase actual:** Próximo bloque = Home con Pregúntale a Peñasco · Panel Admin
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
 ---
@@ -20,8 +20,8 @@
 | **Sistema Lealtad + CardYA** (5.6-5.7) | ✅ 100% | - |
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
-| **Business Studio** (5.4) | ⏳ 92% (12/13 módulos) | Vacantes (alimenta sección pública Servicios) |
-| **Secciones Públicas** (6.x) | ✅ 100% (3/3 + Home) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.0 (17 May 2026, Sprint 7 cerrado, 40 tests Vitest). Pendiente: Home con Pregúntale a Peñasco |
+| **Business Studio** (5.4) | ✅ 100% (13/13 módulos) | Dashboard, Mi Perfil, Catálogo, Promociones, Puntos, Transacciones, Clientes, Opiniones, Alertas, Empleados, Reportes, Sucursales, **Vacantes** ✅ |
+| **Secciones Públicas** (6.x) | ✅ 100% (3/3 + Home) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest). Pendiente: Home con Pregúntale a Peñasco |
 | **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
@@ -36,10 +36,10 @@
 - ⏳ BS 80% — no alcanzado, pasa a Q2 (BS hoy va 12/13 = 92%)
 
 **Q2 (Abril-Junio) — Meta:**
-- [ ] Business Studio 100% (13/13 módulos) — falta: Vacantes
+- [x] **Business Studio 100% (13/13 módulos)** ✅ — todos los módulos cerrados, último: Vacantes (17 May 2026)
 - [x] **Sección pública Ofertas** ✅ (1 May 2026 — feed editorial, multi-sucursal, swipe, analytics)
 - [x] **Sección pública MarketPlace v1.6** ✅ (15 May 2026 — compra-venta P2P, moderación autónoma, buscador potenciado, página pública compartible, **Mis Publicaciones (panel del vendedor)**, **Q&A estilo Mercado Libre con privacidad de pendientes**, flujos E2E probados)
-- [x] **Sección pública Servicios v1.0** ✅ (17 May 2026 — Sprint 7 cerrado: feed mezclado con widget de Clasificados, wizard 3 pasos para crear/editar, Mis Publicaciones, cron de expiración 30 días, reseñas, perfil del prestador con distribución de estrellas, moderación pasiva, 40 tests Vitest)
+- [x] **Sección pública Servicios v1.1** ✅ (17 May 2026 — Sprints 7+8 cerrados: feed mezclado con widget de Clasificados, wizard 3 pasos para crear/editar, Mis Publicaciones, cron de expiración 30 días, reseñas, perfil del prestador con distribución de estrellas, moderación pasiva, **+ BS Vacantes (módulo en Business Studio para que negocios publiquen vacantes corporativas)**, 65 tests Vitest)
 - [ ] Home con Pregúntale a Peñasco
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto

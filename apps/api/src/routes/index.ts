@@ -40,6 +40,7 @@ import chatyaRoutes from './chatya.routes';
 import reportesRoutes from './reportes.routes';
 import marketplaceRoutes from './marketplace.routes';
 import serviciosRoutes from './servicios.routes';
+import vacantesRoutes from './vacantes.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -134,5 +135,10 @@ router.use('/marketplace', marketplaceRoutes);
 
 // Rutas de Servicios (sección pública unificada — servicios e intangibles + empleos)
 router.use('/servicios', serviciosRoutes);
+
+// Rutas de Business Studio - Vacantes (Sprint 8)
+// Las vacantes son publicaciones de tipo='vacante-empresa' gestionadas desde
+// BS por el operador del negocio. Aparecen en el feed público de Servicios.
+router.use('/business-studio/vacantes', vacantesRoutes);
 
 export default router;

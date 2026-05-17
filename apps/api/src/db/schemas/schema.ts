@@ -2376,6 +2376,12 @@ export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
 
+	// Sprint 8 — Sucursal a la que pertenece la vacante (solo aplica cuando
+	// tipo='vacante-empresa'). NULL en publicaciones personales (servicio-persona
+	// o solicito). ON DELETE SET NULL para que si se elimina la sucursal, la
+	// vacante quede "huérfana" pero no se borre.
+	sucursalId: uuid("sucursal_id").references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'set null' }),
+
 	// Discriminadores
 	modo: varchar({ length: 20 }).notNull(),
 	tipo: varchar({ length: 30 }).notNull(),
@@ -2413,6 +2419,16 @@ export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
 	requisitos: text().array().notNull().default(sql`'{}'::text[]`),
 	horario: varchar({ length: 150 }),
 	diasSemana: varchar("dias_semana", { length: 3 }).array().notNull().default(sql`'{}'::varchar[]`),
+
+	// Sprint 8 — Tipo de empleo (solo vacantes). 4 valores fijos por CHECK:
+	// 'tiempo-completo' | 'medio-tiempo' | 'por-proyecto' | 'eventual'.
+	// NULL para publicaciones que no son vacantes.
+	tipoEmpleo: varchar("tipo_empleo", { length: 20 }),
+
+	// Sprint 8 — Lista de beneficios/prestaciones (Aguinaldo, Vales, Home office,
+	// etc.). Max 8 elementos por CHECK; cada string hasta 100 chars (validado
+	// por Zod). Solo se renderiza en la UI cuando tipo='vacante-empresa'.
+	beneficios: text().array().notNull().default(sql`'{}'::text[]`),
 
 	// Campo exclusivo de tipo='solicito': { min: number, max: number }
 	presupuesto: jsonb(),
@@ -2461,13 +2477,18 @@ export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
 	check("servicios_pub_tipo_check", sql`(tipo)::text = ANY ((ARRAY['servicio-persona'::character varying, 'vacante-empresa'::character varying, 'solicito'::character varying])::text[])`),
 	check("servicios_pub_subtipo_check", sql`subtipo IS NULL OR (subtipo)::text = ANY ((ARRAY['servicio-personal'::character varying, 'busco-empleo'::character varying, 'servicio-puntual'::character varying, 'vacante-empresa'::character varying])::text[])`),
 	check("servicios_pub_modalidad_check", sql`(modalidad)::text = ANY ((ARRAY['presencial'::character varying, 'remoto'::character varying, 'hibrido'::character varying])::text[])`),
-	check("servicios_pub_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'eliminada'::character varying])::text[])`),
+	check("servicios_pub_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'cerrada'::character varying, 'eliminada'::character varying])::text[])`),
 	check("servicios_pub_precio_kind_check", sql`(precio->>'kind') IN ('fijo', 'hora', 'rango', 'mensual', 'a-convenir')`),
 	check("servicios_pub_fotos_array_check", sql`jsonb_typeof(fotos) = 'array'`),
 	check("servicios_pub_skills_max_check", sql`array_length(skills, 1) IS NULL OR array_length(skills, 1) <= 8`),
 	check("servicios_pub_presupuesto_solo_solicito_check", sql`presupuesto IS NULL OR tipo = 'solicito'`),
 	check("servicios_pub_categoria_check", sql`categoria IS NULL OR (categoria)::text = ANY ((ARRAY['hogar'::character varying, 'cuidados'::character varying, 'eventos'::character varying, 'belleza-bienestar'::character varying, 'empleo'::character varying, 'otros'::character varying])::text[])`),
 	check("servicios_pub_categoria_solo_solicito_check", sql`categoria IS NULL OR modo = 'solicito'`),
+	// Sprint 8 — Vacantes
+	check("servicios_pub_tipo_empleo_check", sql`tipo_empleo IS NULL OR (tipo_empleo)::text = ANY ((ARRAY['tiempo-completo'::character varying, 'medio-tiempo'::character varying, 'por-proyecto'::character varying, 'eventual'::character varying])::text[])`),
+	check("servicios_pub_tipo_empleo_solo_vacante_check", sql`tipo_empleo IS NULL OR tipo = 'vacante-empresa'`),
+	check("servicios_pub_beneficios_max_check", sql`array_length(beneficios, 1) IS NULL OR array_length(beneficios, 1) <= 8`),
+	index("idx_servicios_pub_sucursal").using("btree", table.sucursalId.asc().nullsLast()).where(sql`sucursal_id IS NOT NULL`),
 ]);
 
 // ============================================================================

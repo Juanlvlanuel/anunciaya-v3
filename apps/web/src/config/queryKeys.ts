@@ -281,4 +281,22 @@ export const queryKeys = {
       ['sucursales', 'gerente', sucursalId] as const,
   },
 
+  // ─── Business Studio — Vacantes (Sprint 8) ──────────────────────────────
+  // Módulo nuevo: el comerciante publica vacantes que aparecen en el feed
+  // público de Servicios con tipo='vacante-empresa'. Cada sucursal gestiona
+  // sus propias vacantes desde su BS (filtrado por sucursal activa).
+  vacantes: {
+    all: () => ['vacantes'] as const,
+    lista: (
+      sucursalId: string,
+      filtros: {
+        estado?: 'activa' | 'pausada' | 'cerrada';
+        busqueda?: string;
+        limit: number;
+        offset: number;
+      },
+    ) => ['vacantes', 'lista', sucursalId, filtros] as const,
+    kpis: (sucursalId: string) => ['vacantes', 'kpis', sucursalId] as const,
+  },
+
 } as const;

@@ -48,7 +48,8 @@ import { CATEGORIAS_CLASIFICADO } from '../validations/servicios.schema.js';
 type Modo = 'ofrezco' | 'solicito';
 type Tipo = 'servicio-persona' | 'vacante-empresa' | 'solicito';
 type Modalidad = 'presencial' | 'remoto' | 'hibrido';
-type Estado = 'activa' | 'pausada' | 'eliminada';
+type Estado = 'activa' | 'pausada' | 'cerrada' | 'eliminada';
+type TipoEmpleo = 'tiempo-completo' | 'medio-tiempo' | 'por-proyecto' | 'eventual';
 type CategoriaClasificado = (typeof CATEGORIAS_CLASIFICADO)[number];
 
 interface PresupuestoJSON {
@@ -59,6 +60,8 @@ interface PresupuestoJSON {
 export interface PublicacionRow {
     id: string;
     usuarioId: string;
+    /** Sprint 8 — Sucursal del negocio (solo vacantes). NULL para servicios personales. */
+    sucursalId: string | null;
     modo: Modo;
     tipo: Tipo;
     subtipo: string | null;
@@ -75,6 +78,10 @@ export interface PublicacionRow {
     requisitos: string[];
     horario: string | null;
     diasSemana: string[];
+    /** Sprint 8 — Tipo de empleo (solo vacantes). NULL para servicios personales. */
+    tipoEmpleo: TipoEmpleo | null;
+    /** Sprint 8 — Beneficios de la vacante (max 8). Vacío para servicios personales. */
+    beneficios: string[];
     presupuesto: PresupuestoJSON | null;
     /** Categoría del clasificado (solo modo='solicito'). NULL en `ofrezco`. */
     categoria: CategoriaClasificado | null;
@@ -115,6 +122,7 @@ export interface PublicacionFeedRow extends PublicacionRow {
 type RawPublicacionDb = {
     id: string;
     usuario_id: string;
+    sucursal_id: string | null;
     modo: string;
     tipo: string;
     subtipo: string | null;
@@ -132,6 +140,8 @@ type RawPublicacionDb = {
     requisitos: string[];
     horario: string | null;
     dias_semana: string[];
+    tipo_empleo: string | null;
+    beneficios: string[];
     presupuesto: PresupuestoJSON | null;
     categoria: string | null;
     urgente: boolean;
@@ -219,6 +229,7 @@ function mapearPublicacion(row: RawPublicacionDb): PublicacionRow {
     return {
         id: row.id,
         usuarioId: row.usuario_id,
+        sucursalId: row.sucursal_id,
         modo: row.modo as Modo,
         tipo: row.tipo as Tipo,
         subtipo: row.subtipo,
@@ -235,6 +246,8 @@ function mapearPublicacion(row: RawPublicacionDb): PublicacionRow {
         requisitos: row.requisitos ?? [],
         horario: row.horario,
         diasSemana: row.dias_semana ?? [],
+        tipoEmpleo: row.tipo_empleo as TipoEmpleo | null,
+        beneficios: row.beneficios ?? [],
         presupuesto: row.presupuesto,
         categoria: row.categoria as CategoriaClasificado | null,
         urgente: row.urgente ?? false,
@@ -262,6 +275,7 @@ function mapearPublicacion(row: RawPublicacionDb): PublicacionRow {
 const COLUMNAS_PUBLICACION = sql`
     sp.id,
     sp.usuario_id,
+    sp.sucursal_id,
     sp.modo,
     sp.tipo,
     sp.subtipo,
@@ -279,6 +293,8 @@ const COLUMNAS_PUBLICACION = sql`
     sp.requisitos,
     sp.horario,
     sp.dias_semana,
+    sp.tipo_empleo,
+    sp.beneficios,
     sp.presupuesto,
     sp.categoria,
     sp.urgente,
@@ -379,6 +395,7 @@ export async function crearPublicacion(
         const resultado = await db.execute<{ id: string }>(sql`
             INSERT INTO servicios_publicaciones (
                 usuario_id,
+                sucursal_id,
                 modo,
                 tipo,
                 subtipo,
@@ -396,6 +413,8 @@ export async function crearPublicacion(
                 requisitos,
                 horario,
                 dias_semana,
+                tipo_empleo,
+                beneficios,
                 presupuesto,
                 categoria,
                 urgente,
@@ -403,6 +422,7 @@ export async function crearPublicacion(
                 expira_at
             ) VALUES (
                 ${usuarioId},
+                ${datos.sucursalId ?? null},
                 ${datos.modo},
                 ${datos.tipo},
                 ${datos.subtipo ?? null},
@@ -420,6 +440,8 @@ export async function crearPublicacion(
                 ${pgArrayLiteral(datos.requisitos)}::text[],
                 ${datos.horario ?? null},
                 ${pgArrayLiteral(datos.diasSemana)}::varchar[],
+                ${datos.tipoEmpleo ?? null},
+                ${pgArrayLiteral(datos.beneficios)}::text[],
                 ${datos.presupuesto ? JSON.stringify(datos.presupuesto) : null}::jsonb,
                 ${datos.categoria ?? null},
                 ${datos.urgente ?? false},
@@ -845,6 +867,16 @@ export async function actualizarPublicacion(
         }
         if (datos.urgente !== undefined) {
             sets.push(sql`urgente = ${datos.urgente}`);
+        }
+        // Sprint 8 — Vacantes
+        if (datos.sucursalId !== undefined) {
+            sets.push(sql`sucursal_id = ${datos.sucursalId}`);
+        }
+        if (datos.tipoEmpleo !== undefined) {
+            sets.push(sql`tipo_empleo = ${datos.tipoEmpleo ?? null}`);
+        }
+        if (datos.beneficios !== undefined) {
+            sets.push(sql`beneficios = ${pgArrayLiteral(datos.beneficios)}::text[]`);
         }
 
         // Ubicación: si vienen ambos, recalculamos ambas columnas.

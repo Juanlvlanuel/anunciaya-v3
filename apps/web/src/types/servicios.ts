@@ -28,7 +28,20 @@ export type SubtipoPublicacion =
 
 export type ModalidadServicio = 'presencial' | 'remoto' | 'hibrido';
 
-export type EstadoPublicacion = 'activa' | 'pausada' | 'eliminada';
+export type EstadoPublicacion = 'activa' | 'pausada' | 'cerrada' | 'eliminada';
+
+/**
+ * Sprint 8 — Tipo de empleo para vacantes. Solo aplica a `tipo='vacante-empresa'`.
+ *   - tiempo-completo: 40h/sem
+ *   - medio-tiempo: 20h/sem
+ *   - por-proyecto: plazo definido
+ *   - eventual: por evento o turno
+ */
+export type TipoEmpleo =
+    | 'tiempo-completo'
+    | 'medio-tiempo'
+    | 'por-proyecto'
+    | 'eventual';
 
 /**
  * Categorías del widget Clasificados v2 — set consolidado de 5 macro + Otros
@@ -98,6 +111,8 @@ export interface UbicacionAproximada {
 export interface PublicacionServicio {
     id: string;
     usuarioId: string;
+    /** Sprint 8 — Solo aplica a vacantes (tipo='vacante-empresa'). NULL para servicios personales. */
+    sucursalId: string | null;
     modo: ModoServicio;
     tipo: TipoPublicacion;
     subtipo: SubtipoPublicacion | null;
@@ -114,6 +129,10 @@ export interface PublicacionServicio {
     requisitos: string[];
     horario: string | null;
     diasSemana: DiaSemanaCodigo[];
+    /** Sprint 8 — Solo aplica a vacantes. NULL para otros tipos. */
+    tipoEmpleo: TipoEmpleo | null;
+    /** Sprint 8 — Solo aplica a vacantes (max 8). Vacío para otros tipos. */
+    beneficios: string[];
     presupuesto: PresupuestoServicio | null;
     /** Categoría del clasificado (solo modo='solicito'). NULL en `ofrezco`. */
     categoria: CategoriaClasificado | null;
@@ -262,4 +281,66 @@ export interface SugerenciaServicio {
     oferenteNombre: string;
     oferenteApellidos: string;
     oferenteAvatarUrl: string | null;
+}
+
+// =============================================================================
+// VACANTES — Business Studio (Sprint 8)
+// =============================================================================
+
+/**
+ * Vacante tal como llega de los endpoints de BS. Extiende PublicacionServicio
+ * con `sucursalNombre` denormalizado (viene del JOIN con negocio_sucursales).
+ */
+export interface Vacante extends PublicacionServicio {
+    /** Nombre denormalizado de la sucursal — JOIN del backend. */
+    sucursalNombre: string | null;
+}
+
+/** KPIs del dashboard de Vacantes (4 cards arriba). */
+export interface KpisVacantes {
+    total: number;
+    activas: number;
+    /** Estado='activa' AND expira_at <= NOW() + 5 días. */
+    porExpirar: number;
+    /** Suma de total_mensajes de no-eliminadas. */
+    conversaciones: number;
+}
+
+/** Payload para crear una vacante desde BS. */
+export interface CrearVacanteInput {
+    sucursalId: string;
+    titulo: string;
+    descripcion: string;
+    tipoEmpleo: TipoEmpleo;
+    modalidad: ModalidadServicio;
+    precio: PrecioServicio;
+    requisitos: string[];
+    beneficios?: string[];
+    horario?: string;
+    diasSemana?: DiaSemanaCodigo[];
+    latitud: number;
+    longitud: number;
+    ciudad: string;
+    zonasAproximadas?: string[];
+    confirmaciones: {
+        legal: boolean;
+        verdadera: boolean;
+        coordinacion: boolean;
+        version: string;
+    };
+}
+
+/** Payload para actualizar una vacante existente desde BS (update parcial). */
+export type ActualizarVacanteInput = Partial<
+    Omit<CrearVacanteInput, 'confirmaciones'>
+>;
+
+/** Respuesta paginada del listado de vacantes. */
+export interface RespuestaVacantes {
+    data: Vacante[];
+    paginacion: {
+        limit: number;
+        offset: number;
+        total: number;
+    };
 }
