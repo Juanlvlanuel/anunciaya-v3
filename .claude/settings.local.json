@@ -234,7 +234,8 @@
       "Bash(echo \"Exit code: $?\")",
       "Bash(echo \"Exit code final: $?\")",
       "PowerShell(Set-Location 'E:/AnunciaYA/anunciaya/apps/web'; & pnpm tsc --noEmit; Write-Host \"EXIT=$LASTEXITCODE\")",
-      "Bash(pnpm eslint *)"
+      "Bash(pnpm eslint *)",
+      "Bash(git -C E:/AnunciaYA/anunciaya log --oneline -20 -- apps/web/src/components/ui/Modal.tsx apps/web/src/hooks/useBackNativo.ts apps/web/src/router/RootLayout.tsx apps/web/src/components/layout/ModalUbicacion.tsx)"
     ]
   },
   "disableAllHooks": true

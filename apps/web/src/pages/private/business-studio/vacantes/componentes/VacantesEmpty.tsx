@@ -15,7 +15,7 @@ interface VacantesEmptyProps {
 export function VacantesEmpty({ onPublicar }: VacantesEmptyProps) {
     return (
         <div
-            className="bg-white border border-dashed border-slate-300 rounded-2xl px-6 py-12 lg:px-10 lg:py-16 text-center"
+            className="bg-white border-2 border-dashed border-slate-300 rounded-2xl px-6 py-12 lg:px-10 lg:py-16 text-center lg:mt-7 2xl:mt-14"
             data-testid="vacantes-empty"
         >
             <div className="w-24 h-24 lg:w-28 lg:h-28 mx-auto mb-5 lg:mb-6 rounded-full bg-linear-to-br from-sky-50 to-sky-100 grid place-items-center text-sky-700">

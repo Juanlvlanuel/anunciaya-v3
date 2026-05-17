@@ -150,8 +150,13 @@ export function RootLayout() {
     // Solo push si NO hay fantasma encima. Evita acumular fantasmas en
     // re-renders, HMR de Vite, y vueltas al /inicio desde otras rutas.
     if (!stateActual?._anunciayaFantasma) {
-      window.history.pushState({ _anunciayaFantasma: true }, '');
-      window.history.pushState({ _anunciayaFantasma: true }, '');
+      // Propagar state previo para no borrar marcas de modales abiertos
+      // (`_modalUI`, `_modalBottom`, etc.). Sin esto, abrir un modal en
+      // /inicio + cualquier re-render que dispare este effect podría
+      // borrar la marca del modal y hacer que useBackNativo lo cierre.
+      const base = (stateActual ?? {}) as Record<string, unknown>;
+      window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
+      window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
     }
   }, [pathname, esPreviewIframe]);
 
@@ -170,7 +175,9 @@ export function RootLayout() {
         // el invariante "siempre hay fantasma encima". Esto evita que un
         // back más adelante caiga en /inicio_router (sin fantasma) y luego
         // saque al usuario del SPA.
-        window.history.pushState({ _anunciayaFantasma: true }, '');
+        // Propagar el state previo para no borrar marcas de modales abiertos.
+        const base = (state ?? {}) as Record<string, unknown>;
+        window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
       }
     };
     window.addEventListener('popstate', handlePopState);

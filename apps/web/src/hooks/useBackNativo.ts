@@ -119,10 +119,15 @@ export function useBackNativo({
             // Si ya nos limpiamos (cierre programático), ignorar.
             if (!historyPushedRef.current) return;
             const stateActual = window.history.state as Record<string, unknown> | null;
-            // Si nuestra entrada fue consumida por el back del navegador
-            // (el id que dejamos ya no está en el state), notificar al
-            // consumidor para que cierre el modal.
-            if (stateActual?.[discriminador] !== id) {
+            // Cerrar SOLO si nuestra key fue REMOVIDA por completo del state
+            // (back nativo real consumió nuestra entrada). Antes el chequeo
+            // era `stateActual?.[discriminador] !== id`, lo cual también
+            // disparaba cierre si otro componente mutaba el state via
+            // `pushState`/`replaceState` poniendo un id distinto en el
+            // mismo discriminador — caso falso positivo (StrictMode dev,
+            // fantasmas de RootLayout, etc.).
+            const keyAusente = !stateActual || !(discriminador in stateActual);
+            if (keyAusente) {
                 historyPushedRef.current = false;
                 popStateHandlerRef.current = null;
                 onCerrarRef.current();
