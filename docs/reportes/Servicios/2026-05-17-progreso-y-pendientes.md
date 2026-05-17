@@ -319,7 +319,7 @@ Decisiones de producto **diferidas a observación de la beta**:
 - ¿La gente publica más en `ofrezco` o `solicito`? — métricas tras 30 días.
 
 Decisiones tomadas:
-- **2026-05-17 — Identidad verificada descartada del MVP**: no hay forma sostenible de validarla en beta. Columna `usuarios.identidad_verificada` eliminada de BD y código. Reevaluar como beneficio premium para Sprint 9+. **Tiempo de respuesta SÍ se conserva** porque es automático (no requiere verificación humana ni costo externo).
+- **2026-05-17 — Identidad verificada descartada del MVP**: no hay forma sostenible de validarla en beta. La columna `usuarios.identidad_verificada` se descartó de la migración antes de llegar a `main` — el repo no la incluye. Reevaluar como beneficio premium para Sprint 9+. **Tiempo de respuesta SÍ se conserva** porque es automático (no requiere verificación humana ni costo externo).
 
 ---
 
