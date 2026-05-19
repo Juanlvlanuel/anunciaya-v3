@@ -491,73 +491,107 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
           </div>
         </div>
 
-        <div className="flex flex-col items-center gap-0.5 text-center">
-          {/* CON ALIAS: Alias > Nombre real > Sucursal */}
-          {contactoExistente?.alias?.trim() ? (
-            <>
-              <p className="text-[19px] lg:text-[19px] font-bold text-white lg:text-gray-800 leading-snug">{contactoExistente.alias.trim()}</p>
-              {tipoVista === 'negocio' ? (
-                <span className="flex items-center gap-2 text-[15px] font-bold text-blue-400 lg:text-gray-800">
-                  <Store className="w-4 h-4 shrink-0" />
-                  {nombre}
-                </span>
+        <div className="flex flex-col items-center text-center w-full">
+          {/* ── BLOQUE 1: Identidad (nombre + sucursal alineada al texto del nombre) ── */}
+          <div className="flex justify-center w-full">
+            <div className="flex flex-col items-start gap-0">
+              {/* CON ALIAS: Alias > Nombre real > Sucursal */}
+              {contactoExistente?.alias?.trim() ? (
+                <>
+                  <p className="text-[19px] lg:text-[19px] font-bold text-white lg:text-gray-800 leading-snug self-center">{contactoExistente.alias.trim()}</p>
+                  {tipoVista === 'negocio' ? (
+                    <span className="flex items-center gap-2 text-[15px] font-bold text-blue-400 lg:text-gray-800">
+                      <Store className="w-4 h-4 shrink-0" />
+                      {nombre}
+                    </span>
+                  ) : (
+                    <p className="text-[15px] text-white/60 lg:text-slate-600 font-medium self-center">{nombre}</p>
+                  )}
+                  {tipoVista === 'negocio' && otro?.sucursalNombre && (
+                    <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium leading-tight pl-6">
+                      {otro.sucursalNombre.includes(' - ')
+                        ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
+                        : otro.sucursalNombre}
+                    </p>
+                  )}
+                </>
               ) : (
-                <p className="text-[15px] text-white/60 lg:text-slate-600 font-medium">{nombre}</p>
+                <>
+                  {/* SIN ALIAS: Nombre > Sucursal */}
+                  {tipoVista === 'negocio' ? (
+                    <span className="flex items-center gap-2 text-[20px] font-bold text-blue-400 lg:text-gray-800 leading-snug">
+                      <Store className="w-5 h-5 shrink-0" />
+                      {nombre}
+                    </span>
+                  ) : (
+                    <p className="text-[20px] font-bold text-white lg:text-gray-800 leading-snug self-center">{nombre}</p>
+                  )}
+                  {tipoVista === 'negocio' && otro?.sucursalNombre && (
+                    <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium leading-tight pl-7">
+                      {otro.sucursalNombre.includes(' - ')
+                        ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
+                        : otro.sucursalNombre}
+                    </p>
+                  )}
+                </>
               )}
-              {tipoVista === 'negocio' && otro?.sucursalNombre && (
-                <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium">
-                  {otro.sucursalNombre.includes(' - ')
-                    ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
-                    : otro.sucursalNombre}
-                </p>
-              )}
-            </>
-          ) : (
-            <>
-              {/* SIN ALIAS: Nombre > Sucursal */}
-              {tipoVista === 'negocio' ? (
-                <span className="flex items-center gap-2 text-[20px] font-bold text-blue-400 lg:text-gray-800 leading-snug">
-                  <Store className="w-5 h-5 shrink-0" />
-                  {nombre}
-                </span>
-              ) : (
-                <p className="text-[20px] font-bold text-white lg:text-gray-800 leading-snug">{nombre}</p>
-              )}
-              {tipoVista === 'negocio' && otro?.sucursalNombre && (
-                <p className="text-[14px] text-white/50 lg:text-gray-600 font-medium">
-                  {otro.sucursalNombre.includes(' - ')
-                    ? otro.sucursalNombre.split(' - ').slice(1).join(' - ')
-                    : otro.sucursalNombre}
-                </p>
-              )}
-            </>
-          )}
+            </div>
+          </div>
 
-          {estadoOtro?.estado === 'conectado' ? (
-              <span className="flex items-center gap-1.5 text-sm text-green-600 font-semibold">
-                <span className="w-1.5 h-1.5 bg-green-600 rounded-full" />
-                En línea
-              </span>
-            ) : estadoOtro?.estado === 'ausente' ? (
-              <span className="flex items-center gap-1.5 text-sm text-amber-400 font-semibold">
-                <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
-                Ausente
-              </span>
-            ) : estadoOtro?.estado === 'desconectado' ? (
-              <span className="text-sm text-white/70 lg:text-slate-600 font-semibold">
-                {formatearUltimaVez(estadoOtro.timestamp)}
-              </span>
-            ) : (
-              <span className="text-sm text-white/30 lg:text-slate-600">...</span>
-            )}
-          {conversacion.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
-            <span className="text-sm lg:text-[11px] 2xl:text-sm text-white/40 lg:text-slate-600 font-medium mt-0.5">
-              {conversacion.contextoTipo === 'negocio' && 'Contactó desde: Tu perfil'}
-              {conversacion.contextoTipo === 'oferta' && `Contactó por oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
-              {conversacion.contextoTipo === 'marketplace' && `Contactó por publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
-              {conversacion.contextoTipo === 'servicio' && `Contactó por servicio: ${conversacion.contextoNombre || 'Servicios'}`}
-            </span>
-          )}
+          {/* ── BLOQUE 2: Estado de conexión ── */}
+          <div className="mt-2.5">
+            {estadoOtro?.estado === 'conectado' ? (
+                <span className="flex items-center gap-1.5 text-sm text-green-600 font-semibold">
+                  <span className="w-1.5 h-1.5 bg-green-600 rounded-full" />
+                  En línea
+                </span>
+              ) : estadoOtro?.estado === 'ausente' ? (
+                <span className="flex items-center gap-1.5 text-sm text-amber-400 font-semibold">
+                  <span className="w-1.5 h-1.5 bg-amber-400 rounded-full" />
+                  Ausente
+                </span>
+              ) : estadoOtro?.estado === 'desconectado' ? (
+                <span className="text-sm text-white/70 lg:text-slate-600 font-semibold">
+                  {formatearUltimaVez(estadoOtro.timestamp)}
+                </span>
+              ) : (
+                <span className="text-sm text-white/30 lg:text-slate-600">...</span>
+              )}
+          </div>
+
+          {/* ── BLOQUE 3: Contexto — texto descriptivo con divisor sutil arriba ── */}
+          {conversacion.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (() => {
+            // El iniciador del chat es siempre `participante1Id` (quien llamó
+            // a `crearObtenerConversacion`). Si yo soy P1, "Contactaste"; si soy
+            // P2, "Te contactó". Aplica a negocio / oferta / marketplace / servicio.
+            const yoInicie = miId === conversacion.participante1Id;
+            const seccion: Record<string, string> = {
+              oferta: 'desde Ofertas',
+              marketplace: 'desde MarketPlace',
+              servicio: 'desde Servicios',
+            };
+            const etiquetaSeccion = seccion[conversacion.contextoTipo] ?? '';
+
+            const linea1 = conversacion.contextoTipo === 'negocio'
+              ? (yoInicie ? 'Contactaste desde' : 'Te contactó desde')
+              : (yoInicie ? `Contactaste ${etiquetaSeccion}` : `Te contactó ${etiquetaSeccion}`);
+            const linea2 = conversacion.contextoTipo === 'negocio'
+              ? (yoInicie ? 'El Perfil del Negocio' : 'Tu Perfil')
+              : (conversacion.contextoNombre ?? null);
+
+            return (
+              <div className="mt-3 w-full max-w-[240px] pt-2.5 border-t border-white/10 lg:border-slate-300">
+                <p className="text-[13px] text-white/45 lg:text-slate-500 leading-tight">
+                  {linea1}
+                </p>
+                {linea2 && (
+                  <p className="text-[14px] font-semibold text-white/85 lg:text-slate-700 leading-snug mt-0.5">
+                    {linea2}
+                  </p>
+                )}
+              </div>
+            );
+          })()}
         </div>
       </div>
 

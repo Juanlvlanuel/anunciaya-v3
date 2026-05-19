@@ -82,15 +82,18 @@ export default function ModalDetalleBilletera({
       history.replaceState(estado, '');
     }
 
+    // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+    // Fallback al logo si la sucursal aún no tiene foto subida.
+    const avatarSucursal = billetera.negocioSucursalFotoPerfil ?? billetera.negocioLogo;
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
         id: billetera.negocioUsuarioId,
         nombre: billetera.negocioNombre,
         apellidos: '',
-        avatarUrl: billetera.negocioLogo,
+        avatarUrl: avatarSucursal,
         negocioNombre: billetera.negocioNombre,
-        negocioLogo: billetera.negocioLogo ?? undefined,
+        negocioLogo: avatarSucursal ?? undefined,
       },
       datosCreacion: {
         participante2Id: billetera.negocioUsuarioId,

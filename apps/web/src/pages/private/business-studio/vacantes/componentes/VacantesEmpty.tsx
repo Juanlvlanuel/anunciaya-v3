@@ -22,12 +22,12 @@ export function VacantesEmpty({ onPublicar }: VacantesEmptyProps) {
                 <Briefcase className="w-10 h-10 lg:w-11 lg:h-11" strokeWidth={1.75} />
             </div>
             <h2 className="text-xl lg:text-2xl font-bold tracking-tight text-slate-900 mb-2">
-                Aún no tienes vacantes publicadas
+                Encuentra a tu próximo empleado
             </h2>
             <p className="text-sm lg:text-base text-slate-600 leading-snug max-w-md mx-auto mb-6 font-medium">
-                Publica tu primera oferta de empleo y aparecerá en la sección
-                {' '}<b>Servicios</b> de AnunciaYA para que los vecinos de Puerto
-                Peñasco puedan contactarte directamente.
+                Tu vacante aparecerá en la sección
+                <br />
+                <b>Servicios</b> de AnunciaYA.
             </p>
             <button
                 type="button"
@@ -39,7 +39,7 @@ export function VacantesEmpty({ onPublicar }: VacantesEmptyProps) {
                 data-testid="btn-publicar-primera-vacante"
             >
                 <Plus className="w-4 h-4" />
-                Publicar primera vacante
+                Publicar Vacante
             </button>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 max-w-3xl mx-auto mt-8">

@@ -77,6 +77,8 @@ function obtenerSucursalId(req: Request): string | null {
 
 /**
  * GET /api/chatya/conversaciones?modo=personal&limit=20&offset=0
+ *   ?servicioPublicacionId=UUID — filtra solo los chats relacionados a esa
+ *   publicación (vacante BS o servicio). Usado por BS Vacantes.
  */
 export async function listarConversacionesController(req: Request, res: Response) {
   try {
@@ -87,7 +89,22 @@ export async function listarConversacionesController(req: Request, res: Response
     const sucursalId = modo === 'comercial' ? obtenerSucursalId(req) : null;
 
     const archivadas = req.query.archivadas === 'true';
-    const resultado = await listarConversaciones(usuarioId, modo, { limit, offset }, archivadas, sucursalId);
+    const servicioPublicacionIdParam = (req.query.servicioPublicacionId as string) || null;
+    // Validar UUID v4 básico para evitar inyecciones extrañas en el WHERE
+    const uuidRe = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    const servicioPublicacionId =
+      servicioPublicacionIdParam && uuidRe.test(servicioPublicacionIdParam)
+        ? servicioPublicacionIdParam
+        : null;
+
+    const resultado = await listarConversaciones(
+      usuarioId,
+      modo,
+      { limit, offset },
+      archivadas,
+      sucursalId,
+      servicioPublicacionId,
+    );
 
 
     if (!resultado.success) {

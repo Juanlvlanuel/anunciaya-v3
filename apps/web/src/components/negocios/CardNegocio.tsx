@@ -297,15 +297,18 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       negocio.totalSucursales > 1
         ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
         : undefined;
+    // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+    // Fallback al logo si la sucursal aún no tiene foto subida.
+    const avatarSucursal = negocio.fotoPerfil ?? negocio.logoUrl ?? null;
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
         id: negocio.usuarioId,
         nombre: negocio.negocioNombre,
         apellidos: '',
-        avatarUrl: negocio.logoUrl,
+        avatarUrl: avatarSucursal,
         negocioNombre: negocio.negocioNombre,
-        negocioLogo: negocio.logoUrl || undefined,
+        negocioLogo: avatarSucursal ?? undefined,
         sucursalNombre: sucursalParaHeader || undefined,
       },
       datosCreacion: {

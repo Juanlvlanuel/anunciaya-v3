@@ -42,6 +42,11 @@ export interface CardNegocioCompactoProps {
          *  junto al nombre. Si no hay galería, también se usa como foto grande
          *  (fallback). */
         imagenPerfil?: string;
+        /** Foto de perfil de la SUCURSAL (avatar del chat). Fallback al logo. */
+        fotoPerfil?: string | null;
+        sucursalNombre?: string;
+        esPrincipal?: boolean;
+        totalSucursales?: number;
         /** Galería del negocio. Si tiene fotos, la primera se usa como foto
          *  grande arriba (foto del local/fachada/producto). Si no hay,
          *  fallback a `imagenPerfil` o gradient con ícono. */
@@ -111,15 +116,26 @@ export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoPro
         e.stopPropagation();
         e.preventDefault();
         if (!usuarioId) return;
+        // Sufijo de sucursal — mismo criterio del header del chat: solo si >1
+        // sucursales, y para la principal usar "Matriz" en lugar del nombre del
+        // negocio (que sería duplicado en el header).
+        const sucursalParaHeader =
+            (negocio.totalSucursales ?? 1) > 1
+                ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
+                : undefined;
+        // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+        // Fallback al logo si la sucursal aún no tiene foto subida.
+        const avatarSucursal = negocio.fotoPerfil ?? imagenPerfil ?? null;
         abrirChatTemporal({
             id: `temp_${Date.now()}`,
             otroParticipante: {
                 id: usuarioId,
                 nombre,
                 apellidos: '',
-                avatarUrl: imagenPerfil ?? null,
+                avatarUrl: avatarSucursal,
                 negocioNombre: nombre,
-                negocioLogo: imagenPerfil,
+                negocioLogo: avatarSucursal ?? undefined,
+                sucursalNombre: sucursalParaHeader || undefined,
             },
             datosCreacion: {
                 participante2Id: usuarioId,

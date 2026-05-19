@@ -20,9 +20,11 @@
  */
 
 import { useEffect, useState } from 'react';
-import { Briefcase, Search, Plus, X } from 'lucide-react';
+import { ArrowLeft, Briefcase, ChevronRight, Search, Plus, X } from 'lucide-react';
 
 import { useAuthStore } from '../../../../stores/useAuthStore';
+import { useUiStore } from '../../../../stores/useUiStore';
+import { useChatYAStore } from '../../../../stores/useChatYAStore';
 import {
     useVacantesBS,
     useKpisVacantesBS,
@@ -88,6 +90,10 @@ const TABS: { id: TabActivo; label: string }[] = [
 
 export default function PaginaVacantes() {
     const usuario = useAuthStore((s) => s.usuario);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const setFiltroPublicacionId = useChatYAStore(
+        (s) => s.setFiltroPublicacionId,
+    );
 
     // ---------------------------------------------------------------------------
     // Estado UI local (no se persiste en URL — decisión documentada)
@@ -271,57 +277,16 @@ export default function PaginaVacantes() {
         window.open(`/servicios/${vacante.id}`, '_blank');
     };
 
-    const handleIrAConversaciones = (_vacante: Vacante) => {
-        // TODO: integrar con ChatYA filtrando por contexto de vacante.
-        // Por ahora avisamos al usuario que aún no está conectado.
-        notificar.info(
-            'Próximamente podrás ver todos los chats de esta vacante desde aquí.',
-        );
+    const handleIrAConversaciones = (vacante: Vacante) => {
+        // Filtra ChatYA por servicio_publicacion_id de esta vacante. El chip
+        // de filtro aparece en la cabecera de la lista y el comerciante puede
+        // quitarlo para volver a ver todas sus conversaciones.
+        setFiltroPublicacionId(vacante.id);
+        abrirChatYA();
     };
 
     // ---------------------------------------------------------------------------
-    // Render — detalle inline
-    // ---------------------------------------------------------------------------
-    if (vacanteSeleccionada) {
-        return (
-            <div
-                className="p-3 lg:p-1.5 2xl:p-3"
-                data-testid="pagina-vacantes"
-            >
-                <div className="w-full max-w-7xl lg:max-w-4xl 2xl:max-w-7xl mx-auto">
-                    <VacanteDetalleInline
-                        vacante={vacanteSeleccionada}
-                        onVolver={() => setVacanteSeleccionada(null)}
-                        onEditar={() => abrirEditar(vacanteSeleccionada)}
-                        onPausar={() => handlePausar(vacanteSeleccionada)}
-                        onReactivar={() => handleReactivar(vacanteSeleccionada)}
-                        onCerrar={() => handleCerrar(vacanteSeleccionada)}
-                        onEliminar={() => handleEliminar(vacanteSeleccionada)}
-                        onIrAConversaciones={() =>
-                            handleIrAConversaciones(vacanteSeleccionada)
-                        }
-                        onVerEnFeedPublico={() =>
-                            handleVerEnFeedPublico(vacanteSeleccionada)
-                        }
-                    />
-                </div>
-                <SlideoverNuevaVacante
-                    abierto={slideoverAbierto}
-                    modo={modoSlideover}
-                    sucursales={sucursalesOpciones}
-                    enviando={
-                        crearMutation.isPending || actualizarMutation.isPending
-                    }
-                    onClose={cerrarSlideover}
-                    onSubmitCrear={handleSubmitCrear}
-                    onSubmitEditar={handleSubmitEditar}
-                />
-            </div>
-        );
-    }
-
-    // ---------------------------------------------------------------------------
-    // Render — lista / empty
+    // Render — header + KPIs siempre visibles; debajo: detalle inline O lista
     // ---------------------------------------------------------------------------
     const sinVacantes =
         !cargandoVacantes &&
@@ -340,8 +305,19 @@ export default function PaginaVacantes() {
                     className="flex flex-col lg:flex-row lg:items-center lg:gap-3 2xl:gap-4"
                     data-testid="header-vacantes"
                 >
-                    {/* Ícono + Título (hidden móvil) */}
-                    <div className="hidden lg:flex items-center gap-4 shrink-0 mb-3 lg:mb-0">
+                    {/* Ícono + Título (hidden móvil) — breadcrumb si hay detalle */}
+                    <div className="hidden lg:flex items-center gap-3 shrink-0 mb-3 lg:mb-0">
+                        {vacanteSeleccionada && (
+                            <button
+                                type="button"
+                                onClick={() => setVacanteSeleccionada(null)}
+                                className="inline-flex items-center justify-center w-10 h-10 rounded-lg bg-white border-2 border-slate-300 text-slate-700 lg:cursor-pointer hover:bg-slate-100 hover:border-slate-400"
+                                data-testid="btn-volver-header"
+                                aria-label="Volver a la lista"
+                            >
+                                <ArrowLeft className="w-5 h-5" strokeWidth={2} />
+                            </button>
+                        )}
                         <div
                             className="flex items-center justify-center shrink-0"
                             style={{
@@ -358,13 +334,28 @@ export default function PaginaVacantes() {
                                 strokeWidth={1.75}
                             />
                         </div>
-                        <div>
-                            <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
-                                Vacantes
-                            </h1>
-                            <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
-                                Publica y gestiona tus ofertas de empleo
-                            </p>
+                        <div className="min-w-0">
+                            <div className="flex items-center gap-2 flex-wrap">
+                                <h1 className="text-2xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 tracking-tight">
+                                    Vacantes
+                                </h1>
+                                {vacanteSeleccionada && (
+                                    <>
+                                        <ChevronRight
+                                            className="w-5 h-5 text-slate-400 shrink-0"
+                                            strokeWidth={2}
+                                        />
+                                        <span className="text-2xl lg:text-2xl 2xl:text-3xl font-bold text-slate-900 tracking-tight truncate max-w-[400px] 2xl:max-w-[600px]">
+                                            {vacanteSeleccionada.titulo}
+                                        </span>
+                                    </>
+                                )}
+                            </div>
+                            {!vacanteSeleccionada && (
+                                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium">
+                                    Publica y gestiona tus ofertas de empleo
+                                </p>
+                            )}
                         </div>
                     </div>
 
@@ -372,6 +363,24 @@ export default function PaginaVacantes() {
                     <KpiCardsVacantes kpis={kpis} />
                 </div>
 
+                {vacanteSeleccionada ? (
+                    <VacanteDetalleInline
+                        vacante={vacanteSeleccionada}
+                        onVolver={() => setVacanteSeleccionada(null)}
+                        onEditar={() => abrirEditar(vacanteSeleccionada)}
+                        onPausar={() => handlePausar(vacanteSeleccionada)}
+                        onReactivar={() => handleReactivar(vacanteSeleccionada)}
+                        onCerrar={() => handleCerrar(vacanteSeleccionada)}
+                        onEliminar={() => handleEliminar(vacanteSeleccionada)}
+                        onIrAConversaciones={() =>
+                            handleIrAConversaciones(vacanteSeleccionada)
+                        }
+                        onVerEnFeedPublico={() =>
+                            handleVerEnFeedPublico(vacanteSeleccionada)
+                        }
+                    />
+                ) : (
+                <>
                 {/* ═══════════════════════════════════════════════════════════
                     FILTROS — tabs + buscador + botón
                     ═══════════════════════════════════════════════════════════ */}
@@ -532,6 +541,8 @@ export default function PaginaVacantes() {
                             />
                         </div>
                     </>
+                )}
+                </>
                 )}
             </div>
 

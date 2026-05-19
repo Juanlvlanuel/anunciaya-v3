@@ -55,6 +55,7 @@ function mapearPerfilAResumen(data: Record<string, unknown>): NegocioResumen {
     sucursalId: data.sucursalId as string,
     sucursalNombre: data.sucursalNombre as string,
     esPrincipal: (data.esPrincipal as boolean) ?? false,
+    fotoPerfil: (data.fotoPerfil as string | null) ?? null,
     direccion: (data.direccion as string) ?? '',
     ciudad: (data.ciudad as string) ?? '',
     telefono: (data.telefono as string) ?? '',

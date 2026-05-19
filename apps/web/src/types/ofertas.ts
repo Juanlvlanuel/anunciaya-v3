@@ -105,6 +105,8 @@ export interface OfertaFeed {
   // Datos de la sucursal
   sucursalId: string;
   sucursalNombre: string;
+  /** Foto de perfil de la sucursal (avatar del chat). */
+  sucursalFotoPerfil: string | null;
   direccion: string;
   ciudad: string;
   telefono: string | null;

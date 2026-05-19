@@ -21,16 +21,16 @@ import type {
 
 export const TIPO_EMPLEO_LABEL: Record<TipoEmpleo, string> = {
     'tiempo-completo': 'Tiempo completo',
-    'medio-tiempo': 'Medio tiempo',
+    'medio-tiempo': 'Medio turno',
     'por-proyecto': 'Por proyecto',
-    'eventual': 'Eventual',
+    'eventual': 'Por día',
 };
 
 export const TIPO_EMPLEO_SUBLABEL: Record<TipoEmpleo, string> = {
-    'tiempo-completo': '40 hrs / sem',
-    'medio-tiempo': '20 hrs / sem',
+    'tiempo-completo': '48 hrs / sem',
+    'medio-tiempo': '24 hrs / sem',
     'por-proyecto': 'Plazo definido',
-    'eventual': 'Por evento o turno',
+    'eventual': 'Pago por jornada',
 };
 
 export const MODALIDAD_LABEL: Record<ModalidadServicio, string> = {
@@ -160,6 +160,47 @@ export function formatearPrecioVacante(
 
 const DIAS_LV: DiaSemanaCodigo[] = ['lun', 'mar', 'mie', 'jue', 'vie'];
 
+/** Mapeo de letra corta del wizard ("L", "M", "X"...) al nombre largo ("Lun", "Mar", "Mié"...). */
+const CODIGO_LARGO_POR_LETRA: Record<string, string> = {
+    L: 'Lun',
+    M: 'Mar',
+    X: 'Mié',
+    J: 'Jue',
+    V: 'Vie',
+    S: 'Sáb',
+    D: 'Dom',
+};
+
+/**
+ * Expande el string serializado del wizard de horario al formato largo legible.
+ *
+ *   Input  : "L · M · X · J · V de 09:00 a 18:00 | S de 09:00 a 14:00"
+ *   Output : ["Lun · Mar · Mié · Jue · Vie de 09:00 a 18:00", "Sáb de 09:00 a 14:00"]
+ *
+ * Si el horario no matchea el formato estructurado del wizard (texto libre
+ * legacy), devuelve `null` y el caller debe usar render fallback.
+ */
+export function expandirHorarioEstructurado(
+    horario: string,
+): string[] | null {
+    const bloques = horario.split('|').map((b) => b.trim()).filter(Boolean);
+    if (bloques.length === 0) return null;
+
+    const expandidos: string[] = [];
+    for (const bloque of bloques) {
+        const m = bloque.match(/^(.+?) de (\d{2}:\d{2}) a (\d{2}:\d{2})$/);
+        if (!m) return null;
+        const [, diasStr, ini, fin] = m;
+        const diasLargos = diasStr
+            .split('·')
+            .map((s) => s.trim())
+            .map((letra) => CODIGO_LARGO_POR_LETRA[letra] ?? letra)
+            .join(' · ');
+        expandidos.push(`${diasLargos} de ${ini} a ${fin}`);
+    }
+    return expandidos;
+}
+
 /** Devuelve "L–V" / "Todos los días" / "Lun · Mié · Vie" / null. */
 export function formatearDiasSemana(diasSemana?: DiaSemanaCodigo[]): string | null {
     if (!diasSemana || diasSemana.length === 0) return null;
@@ -259,11 +300,19 @@ export function validarVacante(
     if (precio.kind === 'rango') {
         if (precio.min < 0 || precio.max < 0) {
             errores.precio = 'El salario no puede ser negativo.';
+        } else if (precio.min === 0 && precio.max === 0) {
+            errores.precio = 'Define el rango salarial o activa "Dejar a convenir".';
+        } else if ((precio.min === 0) !== (precio.max === 0)) {
+            errores.precio = 'Llena el mínimo y el máximo.';
         } else if (precio.min >= precio.max) {
             errores.precio = 'El mínimo debe ser menor que el máximo.';
         }
-    } else if (precio.kind !== 'a-convenir' && precio.monto < 0) {
-        errores.precio = 'El salario no puede ser negativo.';
+    } else if (precio.kind !== 'a-convenir') {
+        if (precio.monto < 0) {
+            errores.precio = 'El salario no puede ser negativo.';
+        } else if (precio.monto === 0) {
+            errores.precio = 'Define un monto o activa "Dejar a convenir".';
+        }
     }
 
     if (!datos.confirmacionesOk) {

@@ -52,6 +52,8 @@ export interface NegocioResumen {
   sucursalId: string;
   sucursalNombre: string;
   esPrincipal: boolean;
+  /** Foto de perfil de la sucursal (distinta al logo del negocio). */
+  fotoPerfil: string | null;
   direccion: string;
   ciudad: string;
   telefono: string;
@@ -173,6 +175,8 @@ export interface NegocioCompleto {
   sucursalId: string;
   sucursalNombre: string;
   esPrincipal: boolean;
+  /** Foto de perfil de la sucursal (distinta al logo del negocio). */
+  fotoPerfil: string | null;
   direccion: string;
   ciudad: string;
   telefono: string;

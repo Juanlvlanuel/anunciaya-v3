@@ -38,6 +38,15 @@ export interface SugerenciaServicioRow {
     oferenteNombre: string;
     oferenteApellidos: string;
     oferenteAvatarUrl: string | null;
+    // ── Datos del negocio (cuando la publicación está asociada a una
+    //    sucursal — típicamente `tipo='vacante-empresa'`). NULL si es
+    //    publicación personal (servicio-persona o solicito). ────────────
+    negocioNombre: string | null;
+    sucursalNombre: string | null;
+    /** `true` si la sucursal de esta publicación es la Matriz del negocio. */
+    esPrincipal: boolean;
+    /** Total de sucursales activas del negocio (para decidir si mostrar el sufijo). */
+    totalSucursales: number;
 }
 
 // =============================================================================
@@ -80,6 +89,10 @@ export async function obtenerSugerenciasServicios(
             oferente_nombre: string;
             oferente_apellidos: string;
             oferente_avatar_url: string | null;
+            negocio_nombre: string | null;
+            sucursal_nombre: string | null;
+            es_principal: boolean | null;
+            total_sucursales: number | null;
         };
 
         const resultado = await db.execute(sql`
@@ -95,9 +108,24 @@ export async function obtenerSugerenciasServicios(
                 sp.ciudad              AS ciudad,
                 u.nombre               AS oferente_nombre,
                 u.apellidos            AS oferente_apellidos,
-                u.avatar_url           AS oferente_avatar_url
+                u.avatar_url           AS oferente_avatar_url,
+                -- Negocio asociado (solo cuando la publicación tiene sucursalId,
+                -- típicamente vacante-empresa). NULL para servicios personales.
+                n.nombre               AS negocio_nombre,
+                s.nombre               AS sucursal_nombre,
+                s.es_principal         AS es_principal,
+                -- Total de sucursales activas del negocio (para decidir si
+                -- mostrar el sufijo de sucursal en el resultado del buscador).
+                CASE WHEN n.id IS NULL THEN NULL ELSE (
+                    SELECT COUNT(*)::integer
+                    FROM negocio_sucursales ns
+                    WHERE ns.negocio_id = n.id
+                      AND ns.activa = true
+                ) END                  AS total_sucursales
             FROM servicios_publicaciones sp
             INNER JOIN usuarios u ON u.id = sp.usuario_id
+            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+            LEFT JOIN negocios n ON n.id = s.negocio_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
@@ -117,7 +145,7 @@ export async function obtenerSugerenciasServicios(
                   )
               )
             ORDER BY sp.updated_at DESC
-            LIMIT 5
+            LIMIT 50
         `);
 
         const items = (resultado.rows as Raw[]).map((r) => ({
@@ -133,6 +161,10 @@ export async function obtenerSugerenciasServicios(
             oferenteNombre: r.oferente_nombre,
             oferenteApellidos: r.oferente_apellidos,
             oferenteAvatarUrl: r.oferente_avatar_url,
+            negocioNombre: r.negocio_nombre,
+            sucursalNombre: r.sucursal_nombre,
+            esPrincipal: !!r.es_principal,
+            totalSucursales: Number(r.total_sucursales) || 0,
         }));
 
         return { success: true, data: items };

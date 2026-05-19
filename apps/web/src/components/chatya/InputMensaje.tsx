@@ -652,12 +652,13 @@ export function InputMensaje({
       }
       transicionarAConversacionReal(conv.id);
       // En contextos donde el backend auto-inserta una card de sistema
-      // (marketplace, oferta, articulo_negocio), sincronizar mensajes
-      // desde el backend para reemplazar el optimista temporal con el
-      // mensaje real persistido. Sin esto la card desaparece al refrescar
-      // y el receptor nunca la ve.
+      // (marketplace, servicio, oferta, articulo_negocio), sincronizar
+      // mensajes desde el backend para reemplazar el optimista temporal
+      // con el mensaje real persistido. Sin esto la card desaparece al
+      // refrescar y el receptor nunca la ve.
       const esContextoConCardBackend =
         datosCreacion.contextoTipo === 'marketplace' ||
+        datosCreacion.contextoTipo === 'servicio' ||
         datosCreacion.contextoTipo === 'oferta' ||
         datosCreacion.contextoTipo === 'articulo_negocio';
       if (esContextoConCardBackend) {

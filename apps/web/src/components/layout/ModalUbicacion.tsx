@@ -61,7 +61,14 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
     // Estado local
     // ---------------------------------------------------------------------------
     const [busqueda, setBusqueda] = useState('');
-    const [ciudadesPopulares, setCiudadesPopulares] = useState<CiudadConNombreCompleto[]>([]);
+    // Inicializamos con el resultado directo (lazy initializer) para que
+    // la lista aparezca poblada desde el primer paint. Antes inicializaba
+    // como [] y un useEffect llenaba el array después, causando un flash
+    // de "lista vacía → lista con datos" durante la animación de entrada
+    // del modal.
+    const [ciudadesPopulares] = useState<CiudadConNombreCompleto[]>(() =>
+        getCiudadesPopulares(15),
+    );
     const [detectandoGPS, setDetectandoGPS] = useState(false);
     const [errorGPS, setErrorGPS] = useState<string | null>(null);
 
@@ -83,11 +90,6 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
     // ---------------------------------------------------------------------------
     // Efectos
     // ---------------------------------------------------------------------------
-    useEffect(() => {
-        const populares = getCiudadesPopulares(15);
-        setCiudadesPopulares(populares);
-    }, []);
-
     useEffect(() => {
         if (window.innerWidth >= 1024) {
             inputRef.current?.focus();
@@ -192,8 +194,8 @@ export function ModalUbicacion({ onClose, onSeleccionar }: ModalUbicacionProps) 
                             <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
                         </div>
                         <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
-                            <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white">Seleccionar ubicación</h3>
-                            <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">Elige tu ciudad para ver negocios cercanos</span>
+                            <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white">Elige una ubicación</h3>
+                            <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">Para personalizar tu experiencia</span>
                         </div>
                     </div>
                 </div>

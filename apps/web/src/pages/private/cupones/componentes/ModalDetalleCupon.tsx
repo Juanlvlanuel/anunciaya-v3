@@ -129,10 +129,12 @@ export default function ModalDetalleCupon({
     const handleContactarNegocio = () => {
         if (!cupon.negocioUsuarioId) return;
 
+        // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+        // Fallback al logo si la sucursal aún no tiene foto subida.
         const datos = {
             id: cupon.negocioUsuarioId,
             nombre: cupon.negocioNombre,
-            logo: cupon.negocioLogo,
+            logo: cupon.sucursalFotoPerfil ?? cupon.negocioLogo,
             sucursalId: cupon.sucursalId,
             sucursalNombre: cupon.sucursalNombre,
         };

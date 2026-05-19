@@ -3,6 +3,9 @@
  * =======================
  * Card de vacante para vista móvil (< lg). Clickeable; abre el detalle inline.
  *
+ * Patrón consistente con cards móviles de Empleados / Clientes (border-2
+ * slate-300, texto en tokens responsive, sin tamaños hardcoded).
+ *
  * Ubicación: apps/web/src/pages/private/business-studio/vacantes/componentes/CardVacanteMobile.tsx
  */
 
@@ -25,7 +28,7 @@ export function CardVacanteMobile({ vacante, onClick }: CardVacanteMobileProps) 
         <button
             type="button"
             onClick={onClick}
-            className="w-full text-left bg-white border border-slate-200 rounded-2xl p-3.5 mb-2.5 shadow-sm"
+            className="w-full text-left bg-white border-2 border-slate-300 rounded-2xl p-3.5 mb-2.5 shadow-sm"
             data-testid={`card-vacante-${vacante.id}`}
         >
             <div className="flex items-start justify-between gap-2.5">
@@ -34,15 +37,15 @@ export function CardVacanteMobile({ vacante, onClick }: CardVacanteMobileProps) 
                         <Briefcase className="w-[18px] h-[18px]" strokeWidth={1.75} />
                     </div>
                     <div className="min-w-0">
-                        <div className="text-[15px] font-bold leading-tight text-slate-900">
+                        <p className="text-base font-bold leading-tight text-slate-900">
                             {vacante.titulo}
-                        </div>
-                        <div className="flex items-center gap-1 text-[12.5px] text-slate-500 mt-0.5 font-medium">
-                            <MapPin className="w-3 h-3" strokeWidth={1.75} />
+                        </p>
+                        <p className="flex items-center gap-1 text-sm text-slate-600 mt-0.5 font-medium">
+                            <MapPin className="w-3 h-3 shrink-0" strokeWidth={1.75} />
                             <span className="truncate">
                                 {vacante.sucursalNombre ?? 'Sin sucursal'}
                             </span>
-                        </div>
+                        </p>
                     </div>
                 </div>
                 <PillEstadoVacante estado={estadoUi} />
@@ -53,11 +56,11 @@ export function CardVacanteMobile({ vacante, onClick }: CardVacanteMobileProps) 
                 )}
                 <PillModalidad modalidad={vacante.modalidad} />
             </div>
-            <div className="flex items-center justify-between pt-2.5 border-t border-slate-200">
+            <div className="flex items-center justify-between pt-2.5 border-t border-slate-300">
                 <span className="text-sm font-bold text-slate-900 tabular-nums whitespace-nowrap">
                     {formatearPrecioVacante(vacante.precio, vacante.tipoEmpleo)}
                 </span>
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-sky-50 text-sky-700 text-[12.5px] font-bold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm font-bold bg-sky-100 text-sky-700">
                     <MessageCircle className="w-3 h-3" strokeWidth={2} />
                     {vacante.totalMensajes}
                 </span>

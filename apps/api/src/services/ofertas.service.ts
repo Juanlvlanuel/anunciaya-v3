@@ -197,6 +197,7 @@ export async function obtenerFeedOfertas(
           -- Datos de la sucursal
           s.id AS sucursal_id,
           s.nombre AS sucursal_nombre,
+          s.foto_perfil AS sucursal_foto_perfil,
           s.direccion,
           s.ciudad,
           s.telefono,
@@ -421,6 +422,7 @@ export async function obtenerOfertaDetalle(
         -- Datos de la sucursal
         s.id as sucursal_id,
         s.nombre as sucursal_nombre,
+        s.foto_perfil as sucursal_foto_perfil,
         s.direccion,
         s.ciudad,
         s.telefono,
@@ -2418,7 +2420,8 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
         n.nombre as negocio_nombre,
         n.logo_url as negocio_logo,
         o.sucursal_id,
-        ns.nombre as sucursal_nombre
+        ns.nombre as sucursal_nombre,
+        ns.foto_perfil as sucursal_foto_perfil
       FROM oferta_usuarios ou
       JOIN ofertas o ON o.id = ou.oferta_id
       JOIN negocios n ON n.id = o.negocio_id

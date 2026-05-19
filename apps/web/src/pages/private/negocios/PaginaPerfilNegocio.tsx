@@ -449,7 +449,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                         {/* Dirección */}
                                         <div className="flex items-center gap-2 pt-1 pb-1 border-t border-slate-300">
                                             <MapPin className="w-5 h-5 text-slate-400 shrink-0" />
-                                            <p className="text-sm font-extrabold text-slate-800 leading-snug line-clamp-2 pt-0.5">
+                                            <p className="text-[14px] font-bold text-slate-500 leading-snug line-clamp-2 pt-0.5">
                                                 {negocio.direccion}
                                             </p>
                                         </div>
@@ -459,7 +459,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                         {/* Contacto */}
                                         <div className="flex items-center justify-center gap-4">
                                             <button
-                                                onClick={(e) => { e.stopPropagation(); onChat?.(); }}
+                                                onClick={(e) => { e.stopPropagation(); onClose(); onChat?.(); }}
                                                 className="cursor-pointer hover:scale-110"
                                             >
                                                 <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
@@ -823,15 +823,18 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
             negocio.totalSucursales > 1
                 ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
                 : undefined;
+        // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+        // Fallback al logo si la sucursal aún no tiene foto subida.
+        const avatarSucursal = negocio.fotoPerfil ?? negocio.logoUrl ?? null;
         abrirChatTemporal({
             id: `temp_${Date.now()}`,
             otroParticipante: {
                 id: negocio.usuarioId,
                 nombre: negocio.negocioNombre,
                 apellidos: '',
-                avatarUrl: negocio.logoUrl,
+                avatarUrl: avatarSucursal,
                 negocioNombre: negocio.negocioNombre,
-                negocioLogo: negocio.logoUrl || undefined,
+                negocioLogo: avatarSucursal ?? undefined,
                 sucursalNombre: sucursalParaHeader || undefined,
             },
             datosCreacion: {
@@ -2005,7 +2008,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 </div>
                                                 <div className="h-px bg-slate-300 my-3" />
                                                 <div className="flex items-center justify-center gap-4">
-                                                    <button onClick={(e) => { e.stopPropagation(); handleChatYA(); }} className="cursor-pointer hover:scale-110">
+                                                    <button onClick={(e) => { e.stopPropagation(); setModalMapaAbierto(false); handleChatYA(); }} className="cursor-pointer hover:scale-110">
                                                         <img src="/IconoRojoChatYA.webp" alt="ChatYA" className="h-11 w-auto" />
                                                     </button>
                                                     {negocio.whatsapp && (

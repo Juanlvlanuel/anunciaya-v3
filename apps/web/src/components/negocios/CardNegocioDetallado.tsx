@@ -37,6 +37,11 @@ export interface CardNegocioDetalladoProps {
         usuarioId?: string;
         nombre: string;
         imagenPerfil?: string;
+        /** Foto de perfil de la SUCURSAL (avatar del chat). Fallback al logo. */
+        fotoPerfil?: string | null;
+        sucursalNombre?: string;
+        esPrincipal?: boolean;
+        totalSucursales?: number;
         galeria?: Array<{ url: string; titulo?: string }>;
         categoria?: string;
         estaAbierto?: boolean | null;
@@ -212,15 +217,26 @@ export function CardNegocioDetallado({
         e.stopPropagation();
         e.preventDefault();
         if (!negocio.usuarioId) return;
+        // Sufijo de sucursal — mismo criterio del header del chat: solo si >1
+        // sucursales, y para la principal usar "Matriz" en lugar del nombre del
+        // negocio (que sería duplicado en el header).
+        const sucursalParaHeader =
+            (negocio.totalSucursales ?? 1) > 1
+                ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
+                : undefined;
+        // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+        // Fallback al logo si la sucursal aún no tiene foto subida.
+        const avatarSucursal = negocio.fotoPerfil ?? negocio.imagenPerfil ?? null;
         abrirChatTemporal({
             id: `temp_${Date.now()}`,
             otroParticipante: {
                 id: negocio.usuarioId,
                 nombre: negocio.nombre,
                 apellidos: '',
-                avatarUrl: negocio.imagenPerfil ?? null,
+                avatarUrl: avatarSucursal,
                 negocioNombre: negocio.nombre,
-                negocioLogo: negocio.imagenPerfil,
+                negocioLogo: avatarSucursal ?? undefined,
+                sucursalNombre: sucursalParaHeader || undefined,
             },
             datosCreacion: {
                 participante2Id: negocio.usuarioId,

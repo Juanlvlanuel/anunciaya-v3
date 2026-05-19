@@ -118,6 +118,7 @@ export interface SucursalResumenRow {
     sucursal_id: string;
     sucursal_nombre: string;
     es_principal: boolean;
+    foto_perfil: string | null;
     direccion: string | null;
     ciudad: string | null;
     estado: string | null;

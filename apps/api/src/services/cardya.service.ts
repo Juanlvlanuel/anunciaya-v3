@@ -58,6 +58,7 @@ export async function obtenerBilleterasPorUsuario(
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
         negocioPortada: negocioSucursales.portadaUrl,
+        negocioSucursalFotoPerfil: negocioSucursales.fotoPerfil,
         negocioUsuarioId: negocios.usuarioId,
         negocioSucursalId: negocioSucursales.id,
         whatsappContacto: negocioSucursales.whatsapp,
@@ -110,6 +111,7 @@ export async function obtenerBilleterasPorUsuario(
         negocioNombre: b.negocioNombre,
         negocioLogo: b.negocioLogo,
         negocioPortada: b.negocioPortada,
+        negocioSucursalFotoPerfil: b.negocioSucursalFotoPerfil ?? null,
         puntosDisponibles: b.puntosDisponibles,
         puntosAcumuladosTotal: b.puntosAcumuladosTotal,
         puntosCanjeadosTotal: b.puntosCanjeadosTotal,
@@ -232,6 +234,7 @@ export async function obtenerDetalleNegocioBilletera(
         telefono: negocioSucursales.telefono,
         whatsapp: negocioSucursales.whatsapp,
         id: negocioSucursales.id,
+        fotoPerfil: negocioSucursales.fotoPerfil,
       })
       .from(negocioSucursales)
       .where(and(
@@ -274,6 +277,7 @@ export async function obtenerDetalleNegocioBilletera(
       negocioNombre: billetera.negocioNombre,
       negocioLogo: billetera.negocioLogo,
       negocioPortada: null,
+      negocioSucursalFotoPerfil: sucursalPrincipal[0]?.fotoPerfil ?? null,
       puntosDisponibles: billetera.puntosDisponibles,
       puntosAcumuladosTotal: billetera.puntosAcumuladosTotal,
       puntosCanjeadosTotal: billetera.puntosCanjeadosTotal,

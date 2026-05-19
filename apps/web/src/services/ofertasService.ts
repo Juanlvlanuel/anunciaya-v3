@@ -330,6 +330,10 @@ export interface SugerenciaOferta {
   valor: number;
   negocioNombre: string;
   sucursalNombre: string | null;
+  /** Si la sucursal de esta oferta es la principal del negocio (Matriz). */
+  esPrincipal: boolean;
+  /** Total de sucursales activas del negocio (para decidir si mostrar el sufijo). */
+  totalSucursales: number;
   ciudad: string;
 }
 

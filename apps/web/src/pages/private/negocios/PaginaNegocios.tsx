@@ -527,21 +527,26 @@ export function PaginaNegocios() {
 
   const handleChatPopup = useCallback((negocio: NegocioResumen) => {
     if (!negocio.usuarioId) return;
+    // Cerrar el popup del marker antes de abrir el chat (evita overlays apilados).
+    markerRefs.current[negocio.sucursalId]?.closePopup();
     // Sufijo de sucursal coherente con el resto del UI: solo si >1 sucursales,
     // y para la principal usar "Matriz" en lugar del nombre (duplicado).
     const sucursalParaHeader =
       negocio.totalSucursales > 1
         ? (negocio.esPrincipal ? 'Matriz' : negocio.sucursalNombre)
         : undefined;
+    // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+    // Fallback al logo si la sucursal aún no tiene foto subida.
+    const avatarSucursal = negocio.fotoPerfil ?? negocio.logoUrl ?? null;
     abrirChatTemporal({
       id: `temp_${Date.now()}`,
       otroParticipante: {
         id: negocio.usuarioId,
         nombre: negocio.negocioNombre,
         apellidos: '',
-        avatarUrl: negocio.logoUrl,
+        avatarUrl: avatarSucursal,
         negocioNombre: negocio.negocioNombre,
-        negocioLogo: negocio.logoUrl || undefined,
+        negocioLogo: avatarSucursal ?? undefined,
         sucursalNombre: sucursalParaHeader || undefined,
       },
       datosCreacion: {
@@ -966,38 +971,11 @@ export function PaginaNegocios() {
                     </>
                   ) : (
                     <>
-                      {/* Buscador activo — reemplaza fila principal */}
-                      <div className="flex items-center gap-2.5 px-3 pt-4 pb-2.5">
-                        <div className="flex-1 relative">
-                          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-white/40 pointer-events-none" />
-                          <input
-                            ref={inputBusquedaRef}
-                            data-testid="input-buscar-negocios"
-                            type="text"
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                            placeholder="Buscar negocios..."
-                            autoComplete="off"
-                            autoCapitalize="off"
-                            spellCheck="false"
-                            className="w-full bg-white/15 text-white text-lg placeholder-white/40 outline-none rounded-full pl-10 pr-10 py-2"
-                          />
-                          {searchQuery.trim() && (
-                            <button
-                              onClick={() => { setSearchQuery(''); inputBusquedaRef.current?.focus(); }}
-                              className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/25 hover:bg-white/40 rounded-full flex items-center justify-center cursor-pointer transition-colors"
-                            >
-                              <X className="w-4 h-4 text-white" />
-                            </button>
-                          )}
-                        </div>
-                        <button
-                          onClick={() => { cerrarBuscador(); setBusqueda(''); setBuscadorMovilAbierto(false); }}
-                          className="p-0.5 rounded-full text-white/80 hover:bg-white/20 cursor-pointer shrink-0"
-                        >
-                          <X className="w-7 h-7" />
-                        </button>
-                      </div>
+                      {/* Buscador activo — el input vive en un PORTAL FLOTANTE
+                          arriba (z-[60]) para quedar por encima del overlay del
+                          buscador (z-50). Aquí dentro del header sticky solo
+                          conservamos el subtítulo, que queda oscurecido detrás
+                          del overlay. Ver bloque `createPortal` más abajo. */}
                       {/* Subtítulo se mantiene al buscar */}
                       <div className="flex items-center justify-center gap-2.5 pb-2">
                         <div
@@ -1100,6 +1078,50 @@ export function PaginaNegocios() {
         {/* filtros. Renderizado por portal en document.body para evitar que  */}
         {/* el `overflow-hidden` del header dark recorte el `fixed`.          */}
         {/* ══════════════════════════════════════════════════════════════════ */}
+
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {/* INPUT MÓVIL FLOTANTE — solo cuando el buscador móvil está abierto.*/}
+        {/* Va por portal con z-[60] para quedar ENCIMA del overlay del      */}
+        {/* buscador (z-50). El resto del header sticky (z-20) queda detrás   */}
+        {/* del overlay y se ve oscurecido — solo el input queda visible.    */}
+        {/* ══════════════════════════════════════════════════════════════════ */}
+        {buscadorMovilAbierto && createPortal(
+          <div className="fixed top-0 left-0 right-0 z-[60] bg-black px-3 pt-4 pb-2.5 lg:hidden">
+            <div className="flex items-center gap-2.5">
+              <div className="flex-1 relative">
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-6 h-6 text-white/40 pointer-events-none" />
+                <input
+                  ref={inputBusquedaRef}
+                  data-testid="input-buscar-negocios"
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  placeholder="Buscar negocios..."
+                  autoComplete="off"
+                  autoCapitalize="off"
+                  spellCheck="false"
+                  className="w-full bg-white/15 text-white text-lg placeholder-white/40 outline-none rounded-full pl-10 pr-10 py-2"
+                />
+                {searchQuery.trim() && (
+                  <button
+                    onClick={() => { setSearchQuery(''); inputBusquedaRef.current?.focus(); }}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 w-6 h-6 bg-white/25 hover:bg-white/40 rounded-full flex items-center justify-center cursor-pointer transition-colors"
+                  >
+                    <X className="w-4 h-4 text-white" />
+                  </button>
+                )}
+              </div>
+              <button
+                onClick={() => { cerrarBuscador(); setBusqueda(''); setBuscadorMovilAbierto(false); }}
+                className="p-0.5 rounded-full text-white/80 hover:bg-white/20 cursor-pointer shrink-0"
+              >
+                <X className="w-7 h-7" />
+              </button>
+            </div>
+          </div>,
+          document.body
+        )}
+
         {createPortal(
           <div
             data-testid="toggle-mapa-lista-flotante"

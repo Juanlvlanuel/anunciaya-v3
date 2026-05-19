@@ -4,6 +4,12 @@
  * Pills + status atómicos reutilizables del módulo Vacantes.
  * Componentes puros sin estado, sin lógica de negocio.
  *
+ * Patrón consistente con los pills de Empleados / Promociones / Catálogo:
+ *   `inline-flex items-center gap-1 px-2 py-0.5 rounded-full
+ *    text-sm lg:text-[11px] 2xl:text-sm font-bold
+ *    bg-{color}-100 text-{color}-700`
+ * Sin border (estética B2B Regla 13 — densa, no caricaturesca).
+ *
  * Ubicación: apps/web/src/pages/private/business-studio/vacantes/componentes/VacanteAtoms.tsx
  */
 
@@ -17,22 +23,23 @@ import type {
     ModalidadServicio,
 } from '../../../../../types/servicios';
 
+const CLASES_PILL_BASE =
+    'inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-bold whitespace-nowrap';
+
 // =============================================================================
 // PILL TIPO DE EMPLEO
 // =============================================================================
 
 const COLOR_TIPO_EMPLEO: Record<TipoEmpleo, string> = {
-    'tiempo-completo': 'bg-sky-50 text-sky-700 border-sky-200',
-    'medio-tiempo': 'bg-violet-50 text-violet-700 border-violet-200',
-    'por-proyecto': 'bg-amber-50 text-amber-700 border-amber-200',
-    'eventual': 'bg-slate-100 text-slate-700 border-slate-300',
+    'tiempo-completo': 'bg-sky-100 text-sky-700',
+    'medio-tiempo': 'bg-violet-100 text-violet-700',
+    'por-proyecto': 'bg-amber-100 text-amber-700',
+    'eventual': 'bg-slate-200 text-slate-700',
 };
 
 export function PillTipoEmpleo({ tipoEmpleo }: { tipoEmpleo: TipoEmpleo }) {
     return (
-        <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[11px] font-semibold tracking-wide ${COLOR_TIPO_EMPLEO[tipoEmpleo]}`}
-        >
+        <span className={`${CLASES_PILL_BASE} ${COLOR_TIPO_EMPLEO[tipoEmpleo]}`}>
             {TIPO_EMPLEO_LABEL[tipoEmpleo]}
         </span>
     );
@@ -43,16 +50,14 @@ export function PillTipoEmpleo({ tipoEmpleo }: { tipoEmpleo: TipoEmpleo }) {
 // =============================================================================
 
 const COLOR_MODALIDAD: Record<ModalidadServicio, string> = {
-    presencial: 'bg-slate-100 text-slate-700 border-slate-300',
-    remoto: 'bg-cyan-50 text-cyan-700 border-cyan-200',
-    hibrido: 'bg-teal-50 text-teal-700 border-teal-200',
+    presencial: 'bg-slate-200 text-slate-700',
+    remoto: 'bg-cyan-100 text-cyan-700',
+    hibrido: 'bg-teal-100 text-teal-700',
 };
 
 export function PillModalidad({ modalidad }: { modalidad: ModalidadServicio }) {
     return (
-        <span
-            className={`inline-flex items-center px-2.5 py-0.5 rounded-full border text-[11px] font-semibold tracking-wide ${COLOR_MODALIDAD[modalidad]}`}
-        >
+        <span className={`${CLASES_PILL_BASE} ${COLOR_MODALIDAD[modalidad]}`}>
             {MODALIDAD_LABEL[modalidad]}
         </span>
     );
@@ -67,27 +72,27 @@ const COLOR_ESTADO: Record<
     { wrap: string; dot: string; label: string }
 > = {
     activa: {
-        wrap: 'bg-emerald-50 text-emerald-700 border-emerald-200',
+        wrap: 'bg-emerald-100 text-emerald-700',
         dot: 'bg-emerald-500',
         label: 'Activa',
     },
     pausada: {
-        wrap: 'bg-slate-100 text-slate-700 border-slate-300',
+        wrap: 'bg-slate-200 text-slate-700',
         dot: 'bg-slate-500',
         label: 'Pausada',
     },
     cerrada: {
-        wrap: 'bg-rose-50 text-rose-700 border-rose-200',
+        wrap: 'bg-rose-100 text-rose-700',
         dot: 'bg-rose-500',
         label: 'Cerrada',
     },
     'por-expirar': {
-        wrap: 'bg-amber-50 text-amber-700 border-amber-200',
+        wrap: 'bg-amber-100 text-amber-700',
         dot: 'bg-amber-500',
         label: 'Por expirar',
     },
     eliminada: {
-        wrap: 'bg-slate-100 text-slate-500 border-slate-300',
+        wrap: 'bg-slate-200 text-slate-600',
         dot: 'bg-slate-400',
         label: 'Eliminada',
     },
@@ -96,9 +101,7 @@ const COLOR_ESTADO: Record<
 export function PillEstadoVacante({ estado }: { estado: EstadoVacanteUI }) {
     const cfg = COLOR_ESTADO[estado];
     return (
-        <span
-            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full border text-[11px] font-semibold tracking-wider ${cfg.wrap}`}
-        >
+        <span className={`${CLASES_PILL_BASE} ${cfg.wrap}`}>
             <span className={`w-1.5 h-1.5 rounded-full ${cfg.dot}`} aria-hidden />
             {cfg.label}
         </span>

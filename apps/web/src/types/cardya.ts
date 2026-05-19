@@ -44,6 +44,8 @@ export interface BilleteraNegocio {
   negocioNombre: string;
   negocioLogo: string | null;
   negocioPortada: string | null;
+  /** Foto de perfil de la sucursal del negocio (avatar del chat). */
+  negocioSucursalFotoPerfil: string | null;
   puntosDisponibles: number;
   puntosAcumuladosTotal: number;
   puntosCanjeadosTotal: number;

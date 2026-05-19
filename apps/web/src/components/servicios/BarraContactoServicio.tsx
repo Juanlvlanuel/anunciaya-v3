@@ -42,13 +42,27 @@ export function BarraContactoServicio({
 }: BarraContactoServicioProps) {
     const usuarioActual = useAuthStore((s) => s.usuario);
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
+    const conversaciones = useChatYAStore((s) => s.conversaciones);
+    const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
+    const guardarBorrador = useChatYAStore((s) => s.guardarBorrador);
     const setContextoPendiente = useChatYAStore((s) => s.setContextoPendiente);
     const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
-    const { oferente, titulo, id, precio, modalidad } = publicacion;
+    const { oferente, titulo, id, precio, modalidad, tipo, sucursalId } = publicacion;
     const esDueno = usuarioActual?.id === oferente.id;
     const tieneTelefono =
         !!oferente.telefono && oferente.telefono.trim().length > 0;
+
+    // Bug #2: vacantes BS son siempre de un negocio → el chat debe ir al lado
+    // comercial del oferente (con sucursalId), no a su perfil personal. Si no,
+    // el dueño nunca vería el mensaje desde BS (ChatYA filtra por modo) y los
+    // KPIs de Vacantes BS no se actualizan.
+    const esVacanteEmpresa = tipo === 'vacante-empresa';
+    const participante2Modo = esVacanteEmpresa
+        ? ('comercial' as const)
+        : ('personal' as const);
+    const participante2SucursalId = esVacanteEmpresa ? sucursalId : null;
 
     if (esDueno) return null;
 
@@ -62,12 +76,11 @@ export function BarraContactoServicio({
         window.open(url, '_blank', 'noopener,noreferrer');
     };
 
-    const handleEnviarMensaje = () => {
+    const handleEnviarMensaje = async () => {
         if (!usuarioActual) {
             notificar.advertencia('Inicia sesión para enviar un mensaje');
             return;
         }
-        const idTemp = `temp_servicio_${id}_${Date.now()}`;
 
         // Foto de portada para el preview.
         const fotoUrl = obtenerFotoPortada(
@@ -78,7 +91,8 @@ export function BarraContactoServicio({
         // Datos para crear la conversación + insertar card en backend.
         const datosCreacion = {
             participante2Id: oferente.id,
-            participante2Modo: 'personal' as const,
+            participante2Modo,
+            participante2SucursalId,
             contextoTipo: 'servicio' as const,
             contextoReferenciaId: id,
             servicioPublicacionId: id,
@@ -93,16 +107,71 @@ export function BarraContactoServicio({
             modalidad: modalidadLabel(modalidad),
         };
 
+        const borradorTexto = `Hola, me interesa tu publicación de "${titulo}". `;
+
+        // ── Buscar conversación existente entre los participantes ─────────
+        // Si ya hay un chat con este oferente (mismo modo / sucursal cuando
+        // aplica), abrirlo directamente y mostrar el preview arriba del input.
+        // La card SOLO se persiste si el usuario envía el mensaje. Si descarta
+        // el preview o cierra el chat sin enviar, no queda nada en BD.
+        let convs = conversaciones;
+        if (convs.length === 0) {
+            await cargarConversaciones('personal');
+            convs = useChatYAStore.getState().conversaciones;
+        }
+        const convExistente = convs.find((c) => {
+            if (c.otroParticipante?.id !== oferente.id) return false;
+            // Para vacante-empresa, el chat está en el lado comercial: filtrar
+            // por que tenga negocioNombre (lo trae el backend cuando el
+            // participante2Modo es 'comercial').
+            if (esVacanteEmpresa) return !!c.otroParticipante?.negocioNombre;
+            // Para servicio personal, asegurar que NO sea el chat comercial
+            // del mismo usuario (puede tener ambos perfiles).
+            return !c.otroParticipante?.negocioNombre;
+        });
+
+        if (convExistente) {
+            abrirConversacion(convExistente.id);
+            setContextoPendiente({ datosCreacion, cardData });
+            guardarBorrador(convExistente.id, borradorTexto);
+            abrirChatYA();
+            return;
+        }
+
+        // ── No hay chat previo: chat temporal con datos completos ─────────
+        // Cuando es vacante-empresa, el header debe mostrar la identidad del
+        // NEGOCIO con la foto de perfil de la SUCURSAL específica (no el
+        // logo del negocio) y "Matriz" cuando es la sucursal principal.
+        const sucursalLabel = esVacanteEmpresa
+            ? (oferente.sucursalEsPrincipal
+                ? 'Matriz'
+                : oferente.sucursalNombre ?? undefined)
+            : undefined;
+        const otroParticipante =
+            esVacanteEmpresa && oferente.negocioNombre
+                ? {
+                    id: oferente.id,
+                    nombre: oferente.negocioNombre,
+                    apellidos: '',
+                    // Avatar = foto de perfil de la sucursal (no logo de marca).
+                    avatarUrl: oferente.sucursalFotoPerfil ?? null,
+                    negocioNombre: oferente.negocioNombre,
+                    negocioLogo: oferente.sucursalFotoPerfil ?? undefined,
+                    sucursalNombre: sucursalLabel,
+                }
+                : {
+                    id: oferente.id,
+                    nombre: oferente.nombre,
+                    apellidos: oferente.apellidos,
+                    avatarUrl: oferente.avatarUrl,
+                };
+
+        const idTemp = `temp_servicio_${id}_${Date.now()}`;
         abrirChatTemporal({
             id: idTemp,
-            otroParticipante: {
-                id: oferente.id,
-                nombre: oferente.nombre,
-                apellidos: oferente.apellidos,
-                avatarUrl: oferente.avatarUrl,
-            },
+            otroParticipante,
             datosCreacion,
-            borradorInicial: `Hola, me interesa tu publicación de "${titulo}". `,
+            borradorInicial: borradorTexto,
         });
         setContextoPendiente({ datosCreacion, cardData });
         abrirChatYA();

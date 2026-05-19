@@ -36,6 +36,8 @@ export interface CuponCliente {
   negocioLogo: string | null;
   sucursalId: string | null;
   sucursalNombre: string | null;
+  /** Foto de perfil de la sucursal (avatar del chat). */
+  sucursalFotoPerfil: string | null;
   limiteUsosPorUsuario: number | null;
   usosRealizados: number;
 }

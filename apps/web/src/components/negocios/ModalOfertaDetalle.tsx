@@ -75,6 +75,8 @@ interface Oferta {
     totalSucursales?: number;
     /** URL del logo del negocio (para el header del modal). */
     logoUrl?: string | null;
+    /** Foto de perfil de la sucursal específica (avatar del chat). */
+    sucursalFotoPerfil?: string | null;
     /** Nombre de la sucursal específica de esta oferta. */
     sucursalNombre?: string | null;
 }
@@ -460,19 +462,18 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         // ── No hay chat previo: chat temporal + preview (sin optimista en chat)
         const idTemp = `temp_oferta_${getId(oferta)}_${Date.now()}`;
 
+        // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+        // Fallback al logo si la sucursal aún no tiene foto subida.
+        const avatarSucursal = oferta.sucursalFotoPerfil ?? oferta.logoUrl ?? null;
         abrirChatTemporal({
             id: idTemp,
             otroParticipante: {
                 id: negocioUsuarioId,
                 nombre: negocioNombre || 'Negocio',
                 apellidos: '',
-                // El avatar del chat (header + lista de conversaciones) usa
-                // `negocioLogo || avatarUrl`. Pasamos el logo del negocio en
-                // ambos para que se muestre correctamente — antes quedaba
-                // como iniciales por `avatarUrl: null`.
-                avatarUrl: oferta.logoUrl ?? null,
+                avatarUrl: avatarSucursal,
                 negocioNombre: negocioNombre,
-                negocioLogo: oferta.logoUrl ?? undefined,
+                negocioLogo: avatarSucursal ?? undefined,
             },
             // `participante2SucursalId` puede ser `null` cuando no hay
             // sucursal — el backend intenta insertar el valor en una columna

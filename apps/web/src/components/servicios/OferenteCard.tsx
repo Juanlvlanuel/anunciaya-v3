@@ -14,7 +14,7 @@
  * Ubicación: apps/web/src/components/servicios/OferenteCard.tsx
  */
 
-import { ChevronRight, ShieldCheck } from 'lucide-react';
+import { ChevronRight } from 'lucide-react';
 import type { PublicacionDetalle } from '../../types/servicios';
 
 interface OferenteCardProps {
@@ -25,8 +25,27 @@ interface OferenteCardProps {
 export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
     const { oferente, tipo } = publicacion;
     const esEmpresa = tipo === 'vacante-empresa';
-    const iniciales = obtenerIniciales(oferente.nombre, oferente.apellidos);
-    const nombreCompleto = `${oferente.nombre} ${oferente.apellidos}`.trim();
+
+    // ── Identidad mostrada ──────────────────────────────────────────────
+    // - Empresa: nombre del negocio + (si aplica) sufijo de sucursal con
+    //   divisor vertical. Avatar = foto de perfil de la sucursal con fallback
+    //   al logo del negocio.
+    // - Persona: nombre + apellidos del usuario. Avatar = avatar del usuario.
+    const nombrePrincipal = esEmpresa
+        ? (oferente.negocioNombre ?? `${oferente.nombre} ${oferente.apellidos}`.trim())
+        : `${oferente.nombre} ${oferente.apellidos}`.trim();
+
+    const sufijoSucursal = esEmpresa && (oferente.totalSucursales ?? 0) > 1
+        ? (oferente.sucursalEsPrincipal ? 'Matriz' : oferente.sucursalNombre)
+        : null;
+
+    const avatarUrl = esEmpresa
+        ? (oferente.sucursalFotoPerfil ?? oferente.negocioLogo ?? oferente.avatarUrl)
+        : oferente.avatarUrl;
+
+    const iniciales = esEmpresa
+        ? obtenerInicialesDeNombre(nombrePrincipal)
+        : obtenerIniciales(oferente.nombre, oferente.apellidos);
 
     return (
         <button
@@ -37,10 +56,10 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
         >
             {esEmpresa ? (
                 <div className="w-12 h-12 rounded-xl bg-white grid place-items-center text-sky-700 font-extrabold border border-sky-100 shrink-0 overflow-hidden">
-                    {oferente.avatarUrl ? (
+                    {avatarUrl ? (
                         <img
-                            src={oferente.avatarUrl}
-                            alt={nombreCompleto}
+                            src={avatarUrl}
+                            alt={nombrePrincipal}
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -49,10 +68,10 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
                 </div>
             ) : (
                 <div className="w-12 h-12 rounded-full bg-linear-to-br from-sky-400 to-sky-700 grid place-items-center text-white font-extrabold shrink-0 overflow-hidden">
-                    {oferente.avatarUrl ? (
+                    {avatarUrl ? (
                         <img
-                            src={oferente.avatarUrl}
-                            alt={nombreCompleto}
+                            src={avatarUrl}
+                            alt={nombrePrincipal}
                             className="w-full h-full object-cover"
                         />
                     ) : (
@@ -62,15 +81,17 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
             )}
 
             <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5">
+                <div className="flex items-center gap-1.5 min-w-0">
                     <span className="text-[14px] font-bold text-slate-900 truncate">
-                        {nombreCompleto}
+                        {nombrePrincipal}
                     </span>
-                    {esEmpresa && (
-                        <ShieldCheck
-                            className="w-[13px] h-[13px] text-sky-600 shrink-0"
-                            strokeWidth={2.5}
-                        />
+                    {sufijoSucursal && (
+                        <>
+                            <span className="h-3.5 w-px shrink-0 bg-slate-300" />
+                            <span className="text-[13px] font-medium text-slate-600 truncate">
+                                {sufijoSucursal}
+                            </span>
+                        </>
                     )}
                 </div>
                 <div className="text-[11px] font-semibold text-slate-600 mt-0.5">
@@ -91,6 +112,13 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
 function obtenerIniciales(nombre: string, apellidos: string): string {
     const a = (nombre ?? '').trim().charAt(0).toUpperCase();
     const b = (apellidos ?? '').trim().charAt(0).toUpperCase();
+    return `${a}${b}` || '··';
+}
+
+function obtenerInicialesDeNombre(nombre: string): string {
+    const partes = (nombre ?? '').trim().split(/\s+/).filter(Boolean);
+    const a = partes[0]?.charAt(0).toUpperCase() ?? '';
+    const b = partes[1]?.charAt(0).toUpperCase() ?? '';
     return `${a}${b}` || '··';
 }
 

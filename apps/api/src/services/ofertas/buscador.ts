@@ -38,6 +38,10 @@ export interface SugerenciaOfertaRow {
     valor: number;
     negocioNombre: string;
     sucursalNombre: string | null;
+    /** Si la sucursal de esta oferta es la principal del negocio (Matriz). */
+    esPrincipal: boolean;
+    /** Total de sucursales activas del negocio (para decidir si mostrar el sufijo). */
+    totalSucursales: number;
     ciudad: string;
 }
 
@@ -89,6 +93,15 @@ export async function obtenerSugerenciasOfertas(
                     o.updated_at      AS updated_at,
                     n.nombre          AS negocio_nombre,
                     s.nombre          AS sucursal_nombre,
+                    s.es_principal    AS es_principal,
+                    -- Total de sucursales activas del negocio (para decidir
+                    -- si mostrar el sufijo de sucursal en el header del chat).
+                    (
+                        SELECT COUNT(*)::integer
+                        FROM negocio_sucursales ns
+                        WHERE ns.negocio_id = n.id
+                        AND ns.activa = true
+                    )                 AS total_sucursales,
                     s.ciudad          AS ciudad,
                     ROW_NUMBER() OVER (
                         PARTITION BY
@@ -137,11 +150,13 @@ export async function obtenerSugerenciasOfertas(
                 valor,
                 negocio_nombre,
                 sucursal_nombre,
+                es_principal,
+                total_sucursales,
                 ciudad
             FROM base
             WHERE rn = 1
             ORDER BY updated_at DESC
-            LIMIT 5
+            LIMIT 50
         `);
 
         type Raw = {
@@ -152,6 +167,8 @@ export async function obtenerSugerenciasOfertas(
             valor: string | number;
             negocio_nombre: string;
             sucursal_nombre: string | null;
+            es_principal: boolean;
+            total_sucursales: number;
             ciudad: string;
         };
 
@@ -163,6 +180,8 @@ export async function obtenerSugerenciasOfertas(
             valor: typeof r.valor === 'string' ? Number(r.valor) : r.valor,
             negocioNombre: r.negocio_nombre,
             sucursalNombre: r.sucursal_nombre,
+            esPrincipal: !!r.es_principal,
+            totalSucursales: Number(r.total_sucursales) || 1,
             ciudad: r.ciudad,
         }));
 

@@ -172,7 +172,7 @@ export async function obtenerSugerencias(
                 plainto_tsquery('spanish', unaccent(${q}))
             ) DESC,
             created_at DESC
-            LIMIT 5
+            LIMIT 50
         `);
 
         type Raw = {

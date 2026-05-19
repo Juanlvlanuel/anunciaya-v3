@@ -74,13 +74,16 @@ export async function getConversaciones(
   modo: ModoChatYA = 'personal',
   limit = 20,
   offset = 0,
-  archivadas = false
+  archivadas = false,
+  servicioPublicacionId: string | null = null
 ) {
   const params = new URLSearchParams();
   params.append('modo', modo);
   params.append('limit', limit.toString());
   params.append('offset', offset.toString());
   if (archivadas) params.append('archivadas', 'true');
+  if (servicioPublicacionId)
+    params.append('servicioPublicacionId', servicioPublicacionId);
 
   return get<ListaPaginada<Conversacion>>(`/chatya/conversaciones?${params}`);
 }

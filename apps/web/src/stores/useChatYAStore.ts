@@ -247,8 +247,19 @@ interface ChatYAState {
   setVisorAbierto: (abierto: boolean) => void;
   setPanelInfoAbierto: (abierto: boolean) => void;
 
+  // ─── Filtro por publicación (vacante BS) ──────────────────────────────
+  /**
+   * Cuando está seteado, la lista de conversaciones se filtra para mostrar
+   * solo los chats relacionados a esa publicación (vacante o servicio).
+   * Lo usa BS Vacantes al abrir ChatYA desde el detalle de una vacante.
+   * Null = sin filtro (comportamiento normal).
+   */
+  filtroPublicacionId: string | null;
+
   // ─── ACCIONES: Conversaciones ─────────────────────────────────────────
   cargarConversaciones: (modo?: ModoChatYA, offset?: number, silencioso?: boolean) => Promise<void>;
+  /** Setea o limpia el filtro por publicación. Re-carga conversaciones. */
+  setFiltroPublicacionId: (id: string | null) => void;
   crearConversacion: (datos: CrearConversacionInput) => Promise<Conversacion | null>;
   toggleFijar: (id: string) => Promise<void>;
   toggleArchivar: (id: string) => Promise<void>;
@@ -386,6 +397,7 @@ const ESTADO_INICIAL = {
   cacheTotalMensajes: {} as Record<string, number>,
   cacheHayMas: {} as Record<string, boolean>,
   cacheFijados: {} as Record<string, MensajeFijado[]>,
+  filtroPublicacionId: null as string | null,
 };
 
 // =============================================================================
@@ -641,7 +653,13 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     set({ cargandoConversaciones: esCargaInicial, error: null });
 
     try {
-      const respuesta = await chatyaService.getConversaciones(modo, 20, offset);
+      const respuesta = await chatyaService.getConversaciones(
+        modo,
+        20,
+        offset,
+        false,
+        get().filtroPublicacionId,
+      );
       if (respuesta.success && respuesta.data) {
         const data = respuesta.data as ListaPaginada<Conversacion>;
         const nuevasConversaciones = offset === 0
@@ -652,10 +670,14 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
           totalConversaciones: data.total,
           conversacionesModo: modo,
           // Poblar el cache del modo recién cargado para swaps instantáneos.
-          conversacionesPorModo: {
-            ...prev.conversacionesPorModo,
-            [modo]: nuevasConversaciones,
-          },
+          // Solo se cachea cuando NO hay filtro activo — un cache "filtrado"
+          // contaminaría las próximas vistas sin filtro.
+          conversacionesPorModo: get().filtroPublicacionId
+            ? prev.conversacionesPorModo
+            : {
+                ...prev.conversacionesPorModo,
+                [modo]: nuevasConversaciones,
+              },
         }));
       }
     } catch (error) {
@@ -664,6 +686,22 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     } finally {
       set({ cargandoConversaciones: false });
     }
+  },
+
+  setFiltroPublicacionId: (id: string | null) => {
+    if (get().filtroPublicacionId === id) return;
+    set({
+      filtroPublicacionId: id,
+      // Limpiar lista actual y la vista para evitar mostrar datos del filtro
+      // anterior mientras carga el nuevo resultado.
+      conversaciones: [],
+      totalConversaciones: 0,
+      vistaActiva: 'lista',
+      conversacionActivaId: null,
+    });
+    // Re-fetch con el modo actualmente activo (o personal por defecto).
+    const modoActual = get().conversacionesModo ?? 'personal';
+    get().cargarConversaciones(modoActual, 0, false);
   },
 
   crearConversacion: async (datos: CrearConversacionInput) => {
@@ -1030,10 +1068,21 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         // real, snapshot validado) son la fuente de verdad.
         const esContextoConCardBackend =
           datosCreacion.contextoTipo === 'marketplace' ||
+          datosCreacion.contextoTipo === 'servicio' ||
           datosCreacion.contextoTipo === 'oferta' ||
           datosCreacion.contextoTipo === 'articulo_negocio';
         if (esContextoConCardBackend) {
           await get().cargarMensajes(conv.id);
+          // Retry defensivo: si el primer fetch corrió ANTES de que el
+          // INSERT del card hubiera commiteado (race poco común pero
+          // posible), un segundo intento con delay corto lo asegura. Solo
+          // si la conv sigue activa y aún no hay mensaje sistema.
+          setTimeout(() => {
+            const st = get();
+            if (st.conversacionActivaId !== conv.id) return;
+            const tieneCard = st.mensajes.some((m) => m.tipo === 'sistema');
+            if (!tieneCard) get().cargarMensajes(conv.id);
+          }, 400);
         }
         // El contexto pendiente queda implícito en `chatTemporal.datosCreacion`
         // — al materializar arriba ya se persistió la card. Limpiar el preview.
@@ -1043,8 +1092,10 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
         // a `crearObtenerConversacion` con los `datosCreacion` del preview
         // dispara la inserción de la card sistema en BD (el backend reusa
         // la conv y agrega el mensaje sistema con anti-duplicado). Después
-        // limpiamos el preview — el envío del mensaje real procede normal.
+        // recargamos los mensajes para que el nuevo card aparezca en la
+        // ventana sin requerir refresh manual.
         await get().crearConversacion(contextoPendiente.datosCreacion);
+        await get().cargarMensajes(idActual);
         set({ contextoPendiente: null });
       }
     }

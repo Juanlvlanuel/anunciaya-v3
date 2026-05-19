@@ -107,6 +107,19 @@ export interface PublicacionConOferenteRow extends PublicacionRow {
         telefono: string | null;
         ultimaConexion: string | null;
         tiempoRespuestaMinutos: number | null;
+        // Datos del negocio asociado al oferente (solo aplica cuando es
+        // vacante-empresa; null para servicios publicados por personas).
+        negocioId: string | null;
+        negocioNombre: string | null;
+        negocioLogo: string | null;
+        sucursalNombre: string | null;
+        sucursalFotoPerfil: string | null;
+        /** Portada del local (foto grande de la sucursal) — usada como hero
+         *  en el detalle de vacante-empresa. */
+        sucursalPortada: string | null;
+        sucursalEsPrincipal: boolean | null;
+        /** Total de sucursales activas del negocio (0 si no hay negocio asociado). */
+        totalSucursales: number;
     };
 }
 
@@ -476,6 +489,10 @@ export async function crearPublicacion(
  */
 export async function obtenerPublicacionPorId(publicacionId: string) {
     try {
+        // Para vacantes-empresa, también traemos info del negocio + sucursal
+        // (LEFT JOIN — quedará null para servicios publicados por personas).
+        // Esto permite al frontend mostrar el chat con la identidad del
+        // negocio en lugar del usuario dueño cuando se contacta una vacante BS.
         const resultado = await db.execute<RawPublicacionDb & {
             oferente_id: string;
             oferente_nombre: string;
@@ -484,6 +501,14 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
             oferente_ciudad: string | null;
             oferente_telefono: string | null;
             oferente_ultima_conexion: string | null;
+            negocio_id: string | null;
+            negocio_nombre: string | null;
+            negocio_logo: string | null;
+            sucursal_nombre: string | null;
+            sucursal_foto_perfil: string | null;
+            sucursal_portada: string | null;
+            sucursal_es_principal: boolean | null;
+            total_sucursales: number | null;
         }>(sql`
             SELECT
                 ${COLUMNAS_PUBLICACION},
@@ -493,9 +518,28 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
                 u.avatar_url      AS oferente_avatar_url,
                 u.ciudad          AS oferente_ciudad,
                 u.telefono        AS oferente_telefono,
-                u.ultima_conexion AS oferente_ultima_conexion
+                u.ultima_conexion AS oferente_ultima_conexion,
+                n.id              AS negocio_id,
+                n.nombre          AS negocio_nombre,
+                n.logo_url        AS negocio_logo,
+                ns.nombre         AS sucursal_nombre,
+                ns.foto_perfil    AS sucursal_foto_perfil,
+                -- Portada del local (foto grande de la sucursal) — usada
+                -- como background hero en el detalle de vacante-empresa.
+                ns.portada_url    AS sucursal_portada,
+                ns.es_principal   AS sucursal_es_principal,
+                -- Total de sucursales activas del negocio — para decidir si
+                -- mostrar el sufijo de sucursal en el header del detalle.
+                CASE WHEN n.id IS NULL THEN NULL ELSE (
+                    SELECT COUNT(*)::integer
+                    FROM negocio_sucursales nsc
+                    WHERE nsc.negocio_id = n.id
+                      AND nsc.activa = true
+                ) END             AS total_sucursales
             FROM servicios_publicaciones sp
             INNER JOIN usuarios u ON u.id = sp.usuario_id
+            LEFT JOIN negocios n ON n.id = u.negocio_id
+            LEFT JOIN negocio_sucursales ns ON ns.id = sp.sucursal_id
             WHERE sp.id = ${publicacionId}
               AND sp.estado != 'eliminada'
               AND sp.deleted_at IS NULL
@@ -518,6 +562,14 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
             oferente_ciudad: string | null;
             oferente_telefono: string | null;
             oferente_ultima_conexion: string | null;
+            negocio_id: string | null;
+            negocio_nombre: string | null;
+            negocio_logo: string | null;
+            sucursal_nombre: string | null;
+            sucursal_foto_perfil: string | null;
+            sucursal_portada: string | null;
+            sucursal_es_principal: boolean | null;
+            total_sucursales: number | null;
         };
 
         const base = mapearPublicacion(row);
@@ -532,6 +584,14 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
                 telefono: row.oferente_telefono,
                 ultimaConexion: row.oferente_ultima_conexion,
                 tiempoRespuestaMinutos: null,
+                negocioId: row.negocio_id,
+                negocioNombre: row.negocio_nombre,
+                negocioLogo: row.negocio_logo,
+                sucursalNombre: row.sucursal_nombre,
+                sucursalFotoPerfil: row.sucursal_foto_perfil,
+                sucursalPortada: row.sucursal_portada,
+                sucursalEsPrincipal: row.sucursal_es_principal,
+                totalSucursales: Number(row.total_sucursales) || 0,
             },
         };
 

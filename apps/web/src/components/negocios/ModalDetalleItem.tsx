@@ -52,10 +52,12 @@ interface ModalDetalleItemProps {
     negocioUsuarioId?: string | null;
     sucursalId?: string | null;
     negocioNombre?: string | null;
-    /** Logo/foto de perfil del negocio. Se pasa al chat temporal como
-     *  avatar y `negocioLogo` para que el header + lista del ChatYA
-     *  muestren la imagen correcta en lugar de iniciales. */
+    /** Logo del negocio. Fallback del avatar del chat si no hay
+     *  `sucursalFotoPerfil`. */
     logoUrl?: string | null;
+    /** Foto de perfil de la sucursal específica — preferida sobre `logoUrl`
+     *  para el avatar del chat. */
+    sucursalFotoPerfil?: string | null;
     onClose: () => void;
     openedFromModal?: boolean;
 }
@@ -64,7 +66,7 @@ interface ModalDetalleItemProps {
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
+export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
     const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
     const conversaciones = useChatYAStore((s) => s.conversaciones);
@@ -181,19 +183,18 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
         // ── No hay chat previo: chat temporal + preview (sin optimista en chat)
         const idTemp = `temp_articulo_${item.id}_${Date.now()}`;
 
+        // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
+        // Fallback al logo si la sucursal aún no tiene foto subida.
+        const avatarSucursal = sucursalFotoPerfil ?? logoUrl ?? null;
         abrirChatTemporal({
             id: idTemp,
             otroParticipante: {
                 id: negocioUsuarioId,
                 nombre: negocioNombre ?? '',
                 apellidos: '',
-                // El avatar del chat (header + lista de conversaciones) usa
-                // `negocioLogo || avatarUrl`. Pasamos el logo del negocio en
-                // ambos para que se muestre correctamente — antes quedaba
-                // como iniciales por `avatarUrl: null`.
-                avatarUrl: logoUrl ?? null,
+                avatarUrl: avatarSucursal,
                 negocioNombre: negocioNombre ?? undefined,
-                negocioLogo: logoUrl ?? undefined,
+                negocioLogo: avatarSucursal ?? undefined,
             },
             datosCreacion,
             borradorInicial: borradorTexto,

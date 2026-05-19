@@ -92,7 +92,12 @@ interface NegocioSeguido {
     nombre: string;
     categoria: string;
     imagenPerfil?: string;
+    /** Foto de perfil de la SUCURSAL (avatar del chat). Distinto al logo. */
+    fotoPerfil?: string | null;
     sucursalId: string;
+    sucursalNombre?: string;
+    esPrincipal?: boolean;
+    totalSucursales?: number;
     usuarioId?: string;
     votanteSucursalId?: string | null; // Para saber cómo eliminar el follow
     // Propiedades opcionales para CardNegocioDetallado

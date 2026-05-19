@@ -162,6 +162,20 @@ export interface OferenteServicio {
     telefono: string | null;
     ultimaConexion: string | null;
     tiempoRespuestaMinutos: number | null;
+    /** Datos del negocio asociado (solo cuando la publicación es vacante-empresa). */
+    negocioId?: string | null;
+    negocioNombre?: string | null;
+    negocioLogo?: string | null;
+    sucursalNombre?: string | null;
+    /** Foto de perfil de la sucursal específica (distinta al logo del negocio). */
+    sucursalFotoPerfil?: string | null;
+    /** Portada del local (foto grande de la sucursal) — usada como hero en
+     *  el detalle de vacante-empresa. */
+    sucursalPortada?: string | null;
+    /** Si la sucursal es la principal ("Matriz") del negocio. */
+    sucursalEsPrincipal?: boolean | null;
+    /** Total de sucursales activas del negocio (0 si no hay negocio asociado). */
+    totalSucursales?: number;
 }
 
 /** Detalle completo: publicación + oferente. */
@@ -281,6 +295,15 @@ export interface SugerenciaServicio {
     oferenteNombre: string;
     oferenteApellidos: string;
     oferenteAvatarUrl: string | null;
+    // ── Datos del negocio (cuando la publicación está asociada a una
+    //    sucursal — típicamente `tipo='vacante-empresa'`). NULL si es
+    //    publicación personal (servicio-persona o solicito). ────────────
+    negocioNombre: string | null;
+    sucursalNombre: string | null;
+    /** `true` si la sucursal de esta publicación es la Matriz del negocio. */
+    esPrincipal: boolean;
+    /** Total de sucursales activas del negocio (0 si no hay negocio asociado). */
+    totalSucursales: number;
 }
 
 // =============================================================================

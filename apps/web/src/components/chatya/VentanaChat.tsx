@@ -1320,17 +1320,23 @@ function VentanaChatInner() {
                 onClick={() => !esMisNotas && togglePanel()}
                 className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
               >
-                <div className="flex items-baseline gap-1.5 min-w-0">
-                  <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight">{nombreMostrar}</p>
-                </div>
                 {(() => {
-                  const mostrarSucursal = !!sucursalSufijo && !contactoExistente?.alias?.trim() && !esMisNotas && !esBloqueado;
-                  const prefijoSucursal = mostrarSucursal ? (
-                    <>
-                      <span className="text-white/50 lg:text-gray-500 font-medium">{sucursalSufijo}</span>
-                      <span className="text-white/30 lg:text-gray-400">·</span>
-                    </>
-                  ) : null;
+                  const mostrarSucursalHeader = !!sucursalSufijo && !contactoExistente?.alias?.trim() && !esMisNotas && !esBloqueado;
+                  return (
+                    <div className="flex items-center gap-2 min-w-0">
+                      <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight min-w-0">{nombreMostrar}</p>
+                      {mostrarSucursalHeader && (
+                        <>
+                          <span className="w-px h-4 bg-white/30 lg:bg-gray-300 shrink-0" />
+                          <p className="text-sm text-white/60 lg:text-gray-600 font-medium truncate leading-tight shrink-0 max-w-[40%]">
+                            {sucursalSufijo}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  );
+                })()}
+                {(() => {
                   return esMisNotas ? (
                     <p className="text-sm lg:text-[11px] 2xl:text-sm text-white/50 lg:text-slate-600 font-medium">Notas personales</p>
                   ) : esBloqueado ? (
@@ -1340,12 +1346,10 @@ function VentanaChatInner() {
                     </p>
                   ) : estaEscribiendo ? (
                     <p className="text-[13px] font-medium flex items-center gap-1 truncate">
-                      {prefijoSucursal}
                       <span className="text-blue-500 font-semibold">Escribiendo...</span>
                     </p>
                   ) : (
                     <p className="text-[13px] font-medium flex items-center gap-1 truncate">
-                      {prefijoSucursal}
                       {estadoOtro?.estado === 'conectado' ? (
                       <>
                         <span className="w-1.5 h-1.5 bg-green-600 rounded-full shrink-0" />
@@ -1376,14 +1380,14 @@ function VentanaChatInner() {
                     ) : (
                       <span className="text-white/30 lg:text-slate-600">...</span>
                     )}
-                      {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && conversacion.participante1Id !== miId && (
+                      {conversacion?.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (
                         <>
                           <span className="text-white/30 lg:text-gray-300">·</span>
                           <span className="text-white/40 lg:text-slate-600 truncate">
                             {conversacion.contextoTipo === 'negocio' && modoActivo === 'comercial' && 'Desde: Tu perfil'}
-                            {conversacion.contextoTipo === 'oferta' && `Desde oferta: ${conversacion.contextoNombre || 'Ofertas'}`}
-                            {conversacion.contextoTipo === 'marketplace' && `Desde publicación: ${conversacion.contextoNombre || 'Marketplace'}`}
-                            {conversacion.contextoTipo === 'servicio' && `Desde servicio: ${conversacion.contextoNombre || 'Servicios'}`}
+                            {conversacion.contextoTipo === 'oferta' && (conversacion.contextoNombre ? `Desde oferta: ${conversacion.contextoNombre}` : 'Desde una oferta')}
+                            {conversacion.contextoTipo === 'marketplace' && (conversacion.contextoNombre ? `Desde MarketPlace: ${conversacion.contextoNombre}` : 'Desde MarketPlace')}
+                            {conversacion.contextoTipo === 'servicio' && (conversacion.contextoNombre ? `Desde Servicios: ${conversacion.contextoNombre}` : 'Desde Servicios')}
                           </span>
                         </>
                       )}

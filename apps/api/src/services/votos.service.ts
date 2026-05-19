@@ -314,6 +314,8 @@ export async function obtenerSeguidos(
                     n.usuario_id as usuario_id,
                     n.nombre as nombre,
                     s.nombre as sucursal_nombre,
+                    s.es_principal,
+                    s.foto_perfil as sucursal_foto_perfil,
                     s.direccion,
                     s.ciudad,
                     s.telefono,
@@ -321,6 +323,13 @@ export async function obtenerSeguidos(
                     s.tiene_envio_domicilio,
                     s.activa,
                     n.logo_url as imagen_perfil,
+                    -- Total de sucursales activas del negocio (para decidir si mostrar "Matriz" en el header del chat)
+                    (
+                        SELECT COUNT(*)::integer
+                        FROM negocio_sucursales ns
+                        WHERE ns.negocio_id = n.id
+                        AND ns.activa = true
+                    ) as total_sucursales,
                     -- Galería (array de imágenes)
                     COALESCE(
                         json_agg(
@@ -411,10 +420,10 @@ export async function obtenerSeguidos(
                         : sql`AND v.votante_sucursal_id IS NULL`)
                     : sql`` // Sin filtro = traer TODOS
                 }
-                GROUP BY 
+                GROUP BY
                     v.id, v.entity_id, v.votante_sucursal_id, v.created_at,
                     n.id, n.usuario_id, n.nombre, n.logo_url,
-                    s.id, s.nombre, s.direccion, s.ciudad, s.telefono, s.whatsapp,
+                    s.id, s.nombre, s.es_principal, s.foto_perfil, s.direccion, s.ciudad, s.telefono, s.whatsapp,
                     s.tiene_envio_domicilio, s.activa, s.ubicacion, s.zona_horaria,
                     m.total_likes, m.total_views, m.promedio_rating, m.total_resenas
                 ORDER BY v.created_at DESC
@@ -433,7 +442,12 @@ export async function obtenerSeguidos(
                 votanteSucursalId: row.votante_sucursal_id, // Para saber cómo eliminar
                 nombre: row.nombre,
                 categoria: row.subcategorias?.[0]?.nombre || 'Negocios',
-                imagen_perfil: row.imagen_perfil,
+                imagen_perfil: row.imagen_perfil, // Logo del negocio (compat)
+                // Foto de perfil de la SUCURSAL (avatar del chat). Fallback al logo.
+                foto_perfil: row.sucursal_foto_perfil,
+                sucursal_nombre: row.sucursal_nombre,
+                es_principal: row.es_principal,
+                total_sucursales: Number(row.total_sucursales) || 1,
                 galeria: row.galeria || [],
                 estaAbierto: row.esta_abierto, // Calculado desde horarios
                 distanciaKm: row.distancia_km,

@@ -260,6 +260,25 @@ async function resolverContextoNombre(
                     .limit(1);
                 return ofe?.titulo ?? null;
             }
+            case 'servicio': {
+                const [pub] = await db
+                    .select({ titulo: serviciosPublicaciones.titulo })
+                    .from(serviciosPublicaciones)
+                    .where(eq(serviciosPublicaciones.id, referenciaId))
+                    .limit(1);
+                return pub?.titulo ?? null;
+            }
+            case 'marketplace': {
+                // El contextoReferenciaId aquí es el id del artículo MP. Lo
+                // resolvemos a su título para que el header del chat muestre
+                // "Desde publicación: <título>" en vez del fallback genérico.
+                const [art] = await db
+                    .select({ titulo: articulosMarketplace.titulo })
+                    .from(articulosMarketplace)
+                    .where(eq(articulosMarketplace.id, referenciaId))
+                    .limit(1);
+                return art?.titulo ?? null;
+            }
             default:
                 return null;
         }
@@ -398,7 +417,8 @@ export async function listarConversaciones(
     modo: ModoChatYA,
     paginacion: PaginacionInput,
     archivadas: boolean = false,
-    sucursalId: string | null = null
+    sucursalId: string | null = null,
+    servicioPublicacionId: string | null = null
 ): Promise<RespuestaServicio<ListaPaginada<ConversacionResponse>>> {
     try {
         // Construir condiciones para P1
@@ -445,6 +465,17 @@ export async function listarConversaciones(
                     eq(chatConversaciones.participante1Modo, 'personal'),
                 )!,
             );
+        }
+
+        // Filtro opcional por publicación (servicio/vacante) — usado por BS
+        // Vacantes para mostrar solo los chats relacionados a UNA vacante.
+        if (servicioPublicacionId) {
+            const cond = eq(
+                chatConversaciones.servicioPublicacionId,
+                servicioPublicacionId,
+            );
+            condicionesP1.push(cond);
+            condicionesP2.push(cond);
         }
 
         const whereClause = or(and(...condicionesP1), and(...condicionesP2));
@@ -622,17 +653,19 @@ export async function crearObtenerConversacion(
 
         // Buscar conversación existente (en cualquier dirección).
         //
-        // Para chats inter-sucursal (comercial ↔ comercial) sí diferenciamos
-        // por sucursal de cada lado: son entidades operativas independientes
-        // y necesitan hilos separados.
-        //
-        // Para chat persona ↔ negocio (personal vs comercial) IGNORAMOS la
-        // sucursal del lado comercial: un cliente espera UN solo chat con
-        // cada negocio sin importar de qué sucursal le llegó la oferta o
-        // artículo. Sin esto, abrir chat desde dos ofertas de distintas
-        // sucursales del MISMO negocio crea 2 conversaciones duplicadas en
-        // la lista del cliente. Si hay múltiples existentes (por chats
-        // creados antes de este fix), tomamos el más reciente con `orderBy`.
+        // Regla de sucursal:
+        //   - Si el caller PASA `participante2SucursalId`, lo respetamos como
+        //     filtro estricto. Es el camino normal: BS Vacantes, ofertas,
+        //     artículos de catálogo, cupones, billeteras y cards de negocio
+        //     todos pasan sucursalId → cada sucursal mantiene sus propios
+        //     hilos de conversación.
+        //   - Si NO lo pasa (null) y es chat persona↔negocio, ignoramos la
+        //     sucursal del lado comercial. Caso edge raro — solo se activa si
+        //     el negocio en BD quedó sin sucursal asociada (datos irregulares
+        //     o sucursal eliminada con ON DELETE SET NULL). En ese caso reusa
+        //     cualquier chat con el negocio para evitar duplicados al cliente.
+        //     NOTA: MarketPlace NO entra aquí — sus chats son persona↔persona.
+        //   - En comercial↔comercial sin sucursal, requerimos NULL explícito.
         const esChatPersonaConNegocio =
             (input.participante1Modo === 'personal' && input.participante2Modo === 'comercial') ||
             (input.participante1Modo === 'comercial' && input.participante2Modo === 'personal');
@@ -651,12 +684,11 @@ export async function crearObtenerConversacion(
                         input.participante1Modo === 'personal' || !input.participante1SucursalId
                             ? sql`${chatConversaciones.participante1SucursalId} IS NULL`
                             : eq(chatConversaciones.participante1SucursalId, input.participante1SucursalId),
-                        // Sucursal del lado comercial: en persona↔negocio se
-                        // ignora; en comercial↔comercial sí se filtra.
-                        esChatPersonaConNegocio
-                            ? sql`TRUE`
-                            : (input.participante2SucursalId
-                                ? eq(chatConversaciones.participante2SucursalId, input.participante2SucursalId)
+                        // Sucursal del lado comercial — ver comentario arriba.
+                        input.participante2SucursalId
+                            ? eq(chatConversaciones.participante2SucursalId, input.participante2SucursalId)
+                            : (esChatPersonaConNegocio
+                                ? sql`TRUE`
                                 : sql`${chatConversaciones.participante2SucursalId} IS NULL`)
                     ),
                     and(
@@ -666,12 +698,13 @@ export async function crearObtenerConversacion(
                         eq(chatConversaciones.participante2Modo, input.participante1Modo),
                         // En esta dirección invertida, P1 de la BD es el otro
                         // (su modo es input.participante2Modo) y P2 soy yo.
-                        // El lado personal va con NULL, el comercial se ignora
-                        // si es chat persona↔negocio.
-                        esChatPersonaConNegocio
-                            ? sql`TRUE`
-                            : (input.participante2SucursalId
-                                ? eq(chatConversaciones.participante1SucursalId, input.participante2SucursalId)
+                        // Misma regla de sucursal que arriba: si el caller la
+                        // pasa, filtra estricto; si no y es persona↔negocio,
+                        // ignora; en otro caso requiere NULL.
+                        input.participante2SucursalId
+                            ? eq(chatConversaciones.participante1SucursalId, input.participante2SucursalId)
+                            : (esChatPersonaConNegocio
+                                ? sql`TRUE`
                                 : sql`${chatConversaciones.participante1SucursalId} IS NULL`),
                         input.participante1Modo === 'personal' || !input.participante1SucursalId
                             ? sql`${chatConversaciones.participante2SucursalId} IS NULL`
@@ -724,6 +757,21 @@ export async function crearObtenerConversacion(
                     usuarioId,
                     input.participante2Id,
                 );
+                // Bug #5: incrementar contador en la publicación (KPI
+                // "Conversaciones iniciadas" de BS Vacantes / Servicios).
+                // Solo cuando es publicación DISTINTA a la que ya tenía la
+                // conversación (evita doble conteo al reabrir el mismo card).
+                if (existente.servicioPublicacionId !== input.servicioPublicacionId) {
+                    await incrementarTotalMensajesPublicacion(input.servicioPublicacionId);
+                }
+                // Bug #1 + #4: actualizar contexto de la conversación al más
+                // reciente. El header del chat refleja "de qué se está hablando
+                // ahora", no el contexto histórico de creación. Los cards
+                // anteriores siguen visibles en el historial de mensajes.
+                await actualizarContextoConversacion(existente.id, {
+                    contextoTipo: 'servicio',
+                    servicioPublicacionId: input.servicioPublicacionId,
+                });
             } else if (
                 (input.contextoTipo === 'oferta' || input.contextoTipo === 'articulo_negocio') &&
                 input.contextoReferenciaId
@@ -784,6 +832,9 @@ export async function crearObtenerConversacion(
                 usuarioId,
                 input.participante2Id,
             );
+            // Bug #5: contar la conversación recién creada para los KPIs de
+            // la publicación (Servicios o BS Vacantes).
+            await incrementarTotalMensajesPublicacion(input.servicioPublicacionId);
         } else if (
             (input.contextoTipo === 'oferta' || input.contextoTipo === 'articulo_negocio') &&
             input.contextoReferenciaId
@@ -805,6 +856,74 @@ export async function crearObtenerConversacion(
     } catch (error) {
         console.error('Error en crearObtenerConversacion:', error);
         return { success: false, message: 'Error al crear conversación', code: 500 };
+    }
+}
+
+// =============================================================================
+// HELPER: INCREMENTAR contador KPI de publicación
+// =============================================================================
+
+/**
+ * Incrementa `servicios_publicaciones.total_mensajes` para una publicación
+ * (servicio o vacante BS). Usado por `crearObtenerConversacion` para llevar
+ * el KPI "Conversaciones iniciadas" — se cuenta una vez por contacto, no
+ * por mensaje.
+ *
+ * Idempotente respecto a `deleted_at`: si la publicación fue eliminada, no
+ * hace nada. No falla la transacción principal si la publicación no existe.
+ */
+async function incrementarTotalMensajesPublicacion(
+    publicacionId: string | null,
+): Promise<void> {
+    if (!publicacionId) return;
+    try {
+        await db.execute(sql`
+            UPDATE servicios_publicaciones
+            SET total_mensajes = total_mensajes + 1,
+                updated_at = NOW()
+            WHERE id = ${publicacionId}
+              AND deleted_at IS NULL
+        `);
+    } catch (error) {
+        console.error('Error en incrementarTotalMensajesPublicacion:', error);
+    }
+}
+
+// =============================================================================
+// HELPER: ACTUALIZAR CONTEXTO DE CONVERSACIÓN EXISTENTE
+// =============================================================================
+
+/**
+ * Cuando se reusa una conversación existente y el usuario llega desde un
+ * contexto distinto al original (ej. la creó por MarketPlace y ahora la
+ * abre desde un servicio), actualizamos el contexto activo de la conversación
+ * para que el header refleje "de qué se está hablando ahora".
+ *
+ * Los cards históricos en los mensajes NO se tocan — siguen mostrando los
+ * contextos previos cronológicamente.
+ */
+async function actualizarContextoConversacion(
+    conversacionId: string,
+    nuevoContexto: {
+        contextoTipo: 'marketplace' | 'servicio' | 'oferta' | 'articulo_negocio';
+        articuloMarketplaceId?: string;
+        servicioPublicacionId?: string;
+        contextoReferenciaId?: string;
+    },
+): Promise<void> {
+    try {
+        await db
+            .update(chatConversaciones)
+            .set({
+                contextoTipo: nuevoContexto.contextoTipo,
+                articuloMarketplaceId: nuevoContexto.articuloMarketplaceId ?? null,
+                servicioPublicacionId: nuevoContexto.servicioPublicacionId ?? null,
+                contextoReferenciaId: nuevoContexto.contextoReferenciaId ?? null,
+                updatedAt: new Date().toISOString(),
+            })
+            .where(eq(chatConversaciones.id, conversacionId));
+    } catch (error) {
+        console.error('Error en actualizarContextoConversacion:', error);
     }
 }
 
@@ -2520,9 +2639,10 @@ export async function listarContactos(
                         .limit(1);
 
                     if (sucursal) {
-                        if (sucursal.fotoPerfil) {
-                            resp.negocioLogo = sucursal.fotoPerfil;
-                        }
+                        // Exponer la foto de perfil de la sucursal en su propio
+                        // campo. El frontend decide usarla como avatar del chat
+                        // (con fallback al logo de marca).
+                        resp.sucursalFotoPerfil = sucursal.fotoPerfil ?? null;
 
                         // Sufijo de sucursal — mismo criterio que el header de chat
                         // (`obtenerDatosParticipante`): solo si >1 sucursales, y para

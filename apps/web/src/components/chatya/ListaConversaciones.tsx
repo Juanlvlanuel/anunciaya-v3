@@ -18,7 +18,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, X, MessageSquarePlus, Store, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2 } from 'lucide-react';
+import { Search, X, MessageSquarePlus, Store, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2, Briefcase } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
 
@@ -71,6 +71,8 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
   const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
   const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
+  const filtroPublicacionId = useChatYAStore((s) => s.filtroPublicacionId);
+  const setFiltroPublicacionId = useChatYAStore((s) => s.setFiltroPublicacionId);
 
   // Contactos
   const contactos = useChatYAStore((s) => s.contactos);
@@ -448,15 +450,18 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
     if (convExistente) {
       abrirConversacion(convExistente.id);
     } else {
+      // Avatar comercial: foto de perfil de la SUCURSAL con fallback al logo
+      // del negocio. En modo personal se usa el avatar del usuario.
+      const avatarComercial = contacto.sucursalFotoPerfil ?? contacto.negocioLogo ?? null;
       abrirChatTemporal({
         id: `temp_${Date.now()}`,
         otroParticipante: {
           id: contacto.contactoId,
           nombre: esNegocio ? (contacto.negocioNombre || contacto.nombre) : contacto.nombre,
           apellidos: esNegocio ? '' : contacto.apellidos,
-          avatarUrl: esNegocio ? (contacto.negocioLogo || null) : contacto.avatarUrl,
+          avatarUrl: esNegocio ? avatarComercial : contacto.avatarUrl,
           negocioNombre: contacto.negocioNombre,
-          negocioLogo: contacto.negocioLogo,
+          negocioLogo: esNegocio ? (avatarComercial ?? undefined) : contacto.negocioLogo,
         },
         datosCreacion: {
           participante2Id: contacto.contactoId,
@@ -476,6 +481,25 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   // ---------------------------------------------------------------------------
   return (
     <div className="flex-1 min-h-0 h-full flex flex-col overflow-hidden select-none">
+      {/* ═══ Chip de filtro activo (cuando viene de BS Vacantes) ═══ */}
+      {filtroPublicacionId && (
+        <div className="px-3 pt-2.5 shrink-0">
+          <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-blue-500/25 border border-blue-300/40 rounded-full text-white text-sm font-semibold">
+            <Briefcase className="w-3.5 h-3.5 shrink-0" strokeWidth={2} />
+            <span>Filtrado por vacante</span>
+            <button
+              type="button"
+              onClick={() => setFiltroPublicacionId(null)}
+              className="w-5 h-5 rounded-full grid place-items-center hover:bg-white/15 lg:cursor-pointer"
+              aria-label="Quitar filtro"
+              data-testid="btn-quitar-filtro-publicacion"
+            >
+              <X className="w-3.5 h-3.5" strokeWidth={2.5} />
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* ═══ Input de búsqueda (siempre visible) ═══ */}
       <div className="px-3 py-2.5 shrink-0">
         <div className="relative">
@@ -593,7 +617,10 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                 : `${contacto.nombre || ''} ${contacto.apellidos || ''}`.trim() || 'Sin nombre';
               // Alias tiene prioridad sobre el nombre real
               const nombreMostrar = contacto.alias?.trim() || nombreReal;
-              const avatar = esNegocio ? (contacto.negocioLogo || null) : contacto.avatarUrl;
+              // Avatar negocio: foto de perfil de SUCURSAL con fallback al logo.
+              const avatar = esNegocio
+                ? (contacto.sucursalFotoPerfil ?? contacto.negocioLogo ?? null)
+                : contacto.avatarUrl;
               const iniciales = `${(contacto.nombre || '').charAt(0)}${(contacto.apellidos || '').charAt(0)}`.toUpperCase() || '?';
 
               return (

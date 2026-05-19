@@ -24,6 +24,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { ShoppingCart, Plus, AlertCircle, ChevronLeft, Search, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
@@ -347,41 +348,12 @@ export function PaginaMarketplace() {
                                         </div>
                                     </div>
                                 ) : (
-                                    <div className="flex items-center gap-2.5 px-3 pt-4 pb-2.5">
-                                        <div className="relative flex-1">
-                                            <Search className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-white/40" />
-                                            <input
-                                                ref={inputBusquedaMovilRef}
-                                                id="input-busqueda-navbar"
-                                                data-testid="input-buscar-marketplace"
-                                                type="text"
-                                                value={query}
-                                                onChange={(e) => setQuery(e.target.value)}
-                                                onKeyDown={(e) => { if (e.key === 'Enter') handleEnterBusqueda(); }}
-                                                placeholder="Buscar en MarketPlace..."
-                                                autoComplete="off"
-                                                autoCapitalize="off"
-                                                spellCheck="false"
-                                                className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
-                                            />
-                                            {query.trim() && (
-                                                <button
-                                                    onClick={() => { setQuery(''); inputBusquedaMovilRef.current?.focus(); }}
-                                                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
-                                                    aria-label="Limpiar búsqueda"
-                                                >
-                                                    <X className="h-4 w-4 text-white" />
-                                                </button>
-                                            )}
-                                        </div>
-                                        <button
-                                            onClick={handleCerrarBuscadorMovil}
-                                            aria-label="Cerrar buscador"
-                                            className="shrink-0 cursor-pointer rounded-full p-0.5 text-white/80 hover:bg-white/20"
-                                        >
-                                            <X className="h-7 w-7" />
-                                        </button>
-                                    </div>
+                                    // Buscador activo — el input vive en un PORTAL FLOTANTE
+                                    // arriba (z-[60]) para quedar por encima del overlay del
+                                    // buscador (z-50). Aquí dentro del header sticky solo
+                                    // conservamos el subtítulo, que queda oscurecido detrás
+                                    // del overlay. Ver bloque `createPortal` más abajo.
+                                    null
                                 )}
                                 {/* Subtítulo decorativo — ciudad + total al estilo Ofertas */}
                                 <div className="pb-2 overflow-hidden">
@@ -837,6 +809,53 @@ export function PaginaMarketplace() {
             {/* Overlay del buscador: ahora se monta GLOBALMENTE en `MainLayout`
                 cuando la sección activa es `/marketplace/*`. Antes vivía aquí
                 y entonces no funcionaba en sub-rutas como articulo/usuario. */}
+
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {/* INPUT MÓVIL FLOTANTE — solo cuando el buscador móvil está abierto. */}
+            {/* Va por portal con z-[60] para quedar ENCIMA del overlay del      */}
+            {/* buscador (z-50). El resto del header sticky (z-20) queda detrás   */}
+            {/* del overlay y se ve oscurecido — solo el input queda visible.    */}
+            {/* ════════════════════════════════════════════════════════════════ */}
+            {buscadorMovilAbierto && createPortal(
+                <div className="fixed top-0 left-0 right-0 z-[60] bg-black px-3 pt-4 pb-2.5 lg:hidden">
+                    <div className="flex items-center gap-2.5">
+                        <div className="relative flex-1">
+                            <Search className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-white/40" />
+                            <input
+                                ref={inputBusquedaMovilRef}
+                                id="input-busqueda-navbar"
+                                data-testid="input-buscar-marketplace"
+                                type="text"
+                                value={query}
+                                onChange={(e) => setQuery(e.target.value)}
+                                onKeyDown={(e) => { if (e.key === 'Enter') handleEnterBusqueda(); }}
+                                placeholder="Buscar en MarketPlace..."
+                                autoComplete="off"
+                                autoCapitalize="off"
+                                spellCheck="false"
+                                className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
+                            />
+                            {query.trim() && (
+                                <button
+                                    onClick={() => { setQuery(''); inputBusquedaMovilRef.current?.focus(); }}
+                                    className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
+                                    aria-label="Limpiar búsqueda"
+                                >
+                                    <X className="h-4 w-4 text-white" />
+                                </button>
+                            )}
+                        </div>
+                        <button
+                            onClick={handleCerrarBuscadorMovil}
+                            aria-label="Cerrar buscador"
+                            className="shrink-0 cursor-pointer rounded-full p-0.5 text-white/80 hover:bg-white/20"
+                        >
+                            <X className="h-7 w-7" />
+                        </button>
+                    </div>
+                </div>,
+                document.body
+            )}
 
             {/* Modal de detalle del artículo (estilo Facebook) — se abre al
                 hacer click en "Ver N preguntas más" desde la card del feed. */}

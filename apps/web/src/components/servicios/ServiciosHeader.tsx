@@ -22,6 +22,7 @@
  */
 
 import { useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Search, Wrench, X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -108,6 +109,7 @@ export function ServiciosHeader({
     const modoSeguro: ModoServicio | null = modo ?? null;
 
     return (
+        <>
         <div className="sticky top-0 z-20">
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                 <div
@@ -203,43 +205,12 @@ export function ServiciosHeader({
                                     </div>
                                 </div>
                             ) : (
-                                /* Buscador activo: input expandido + X */
-                                <div className="flex items-center gap-2.5 px-3 pt-4 pb-2.5">
-                                    <div className="relative flex-1">
-                                        <Search className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-white/40" />
-                                        <input
-                                            ref={inputBusquedaMovilRef}
-                                            data-testid="input-buscar-servicios"
-                                            type="text"
-                                            value={queryGlobal}
-                                            onChange={(e) => setQueryGlobal(e.target.value)}
-                                            placeholder="Buscar servicios..."
-                                            autoComplete="off"
-                                            autoCapitalize="off"
-                                            spellCheck="false"
-                                            className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
-                                        />
-                                        {queryGlobal.trim() && (
-                                            <button
-                                                onClick={() => {
-                                                    setQueryGlobal('');
-                                                    inputBusquedaMovilRef.current?.focus();
-                                                }}
-                                                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
-                                                aria-label="Limpiar búsqueda"
-                                            >
-                                                <X className="h-4 w-4 text-white" />
-                                            </button>
-                                        )}
-                                    </div>
-                                    <button
-                                        onClick={handleCerrarBuscadorMovil}
-                                        aria-label="Cerrar buscador"
-                                        className="shrink-0 cursor-pointer rounded-full p-0.5 text-white/80 hover:bg-white/20"
-                                    >
-                                        <X className="h-7 w-7" />
-                                    </button>
-                                </div>
+                                // Buscador activo — el input vive en un PORTAL FLOTANTE
+                                // arriba (z-[60]) para quedar por encima del overlay del
+                                // buscador (z-50). Aquí dentro del header sticky solo
+                                // conservamos el subtítulo, que queda oscurecido detrás
+                                // del overlay. Ver bloque `createPortal` más abajo.
+                                null
                             )}
 
                             {/* Subtítulo decorativo — contenido contextual */}
@@ -395,6 +366,55 @@ export function ServiciosHeader({
                 </div>
             </div>
         </div>
+
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {/* INPUT MÓVIL FLOTANTE — solo cuando el buscador móvil está abierto. */}
+        {/* Va por portal con z-[60] para quedar ENCIMA del overlay del      */}
+        {/* buscador (z-50). El resto del header sticky (z-20) queda detrás   */}
+        {/* del overlay y se ve oscurecido — solo el input queda visible.    */}
+        {/* ════════════════════════════════════════════════════════════════ */}
+        {buscadorMovilAbierto && createPortal(
+            <div className="fixed top-0 left-0 right-0 z-[60] bg-black px-3 pt-4 pb-2.5 lg:hidden">
+                <div className="flex items-center gap-2.5">
+                    <div className="relative flex-1">
+                        <Search className="pointer-events-none absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-white/40" />
+                        <input
+                            ref={inputBusquedaMovilRef}
+                            data-testid="input-buscar-servicios"
+                            type="text"
+                            value={queryGlobal}
+                            onChange={(e) => setQueryGlobal(e.target.value)}
+                            placeholder="Buscar servicios..."
+                            autoComplete="off"
+                            autoCapitalize="off"
+                            spellCheck="false"
+                            className="w-full rounded-full bg-white/15 py-2 pl-10 pr-10 text-lg text-white placeholder-white/40 outline-none"
+                        />
+                        {queryGlobal.trim() && (
+                            <button
+                                onClick={() => {
+                                    setQueryGlobal('');
+                                    inputBusquedaMovilRef.current?.focus();
+                                }}
+                                className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 cursor-pointer items-center justify-center rounded-full bg-white/25 transition-colors hover:bg-white/40"
+                                aria-label="Limpiar búsqueda"
+                            >
+                                <X className="h-4 w-4 text-white" />
+                            </button>
+                        )}
+                    </div>
+                    <button
+                        onClick={handleCerrarBuscadorMovil}
+                        aria-label="Cerrar buscador"
+                        className="shrink-0 cursor-pointer rounded-full p-0.5 text-white/80 hover:bg-white/20"
+                    >
+                        <X className="h-7 w-7" />
+                    </button>
+                </div>
+            </div>,
+            document.body
+        )}
+        </>
     );
 }
 

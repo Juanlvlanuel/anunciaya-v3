@@ -328,6 +328,8 @@ export interface Contacto {
   negocioNombre?: string;
   negocioLogo?: string;
   sucursalNombre?: string;
+  /** Foto de perfil de la sucursal (avatar del chat en modo comercial). */
+  sucursalFotoPerfil?: string | null;
 }
 
 // =============================================================================

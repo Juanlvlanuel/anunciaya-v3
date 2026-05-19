@@ -73,6 +73,18 @@ export function OverlayBuscadorServicios() {
     const { data: sugerencias = [], isFetching: cargandoSug } =
         useBuscadorServiciosSugerencias(query, ciudad);
 
+    // ─── Bloquear scroll del body mientras el overlay está abierto ──────────
+    // (en desktop el body ya viene con overflow:hidden desde `index.css`, pero
+    // en móvil sin esto la página detrás sigue haciendo scroll).
+    useEffect(() => {
+        if (!debeMostrar) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, [debeMostrar]);
+
     // ─── Cerrar con Escape ───────────────────────────────────────────────────
     useEffect(() => {
         if (!debeMostrar) return;
@@ -105,15 +117,17 @@ export function OverlayBuscadorServicios() {
     return (
         <div
             data-testid="overlay-buscador-servicios"
-            className="fixed inset-0 z-30 bg-black/30"
+            className="fixed inset-0 z-50"
             onClick={cerrarBuscador}
             role="dialog"
             aria-modal="true"
             aria-label="Buscador de Servicios"
         >
+            {/* Overlay oscuro con gradiente radial — patrón estándar de modales (ver `Modal.tsx`). */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] animate-in fade-in duration-200" />
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="mx-auto mt-20 max-h-[75vh] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
+                className="relative mx-auto mt-20 max-h-[480px] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
             >
                 {/* ─── Estado vacío: solo recientes + hint ──────────────── */}
                 {!escribiendo && (
@@ -220,28 +234,60 @@ export function OverlayBuscadorServicios() {
                                                     )}
                                                 </div>
                                                 <div className="flex min-w-0 flex-1 flex-col">
-                                                    <span className="truncate text-sm font-semibold text-slate-900">
-                                                        {sug.titulo}
-                                                    </span>
-                                                    <span className="truncate text-sm">
-                                                        <span className="font-bold text-sky-700">
-                                                            {formatearPrecioServicio(
-                                                                sug.precio,
-                                                            )}
+                                                    <span className="flex items-center gap-2 min-w-0">
+                                                        <span className="truncate text-base font-semibold text-slate-900">
+                                                            {sug.titulo}
                                                         </span>
-                                                        <span className="ml-2 font-normal text-slate-600">
-                                                            · {modalidadLabel(
-                                                                sug.modalidad,
-                                                            )}{' '}
-                                                            · {sug.oferenteNombre}
+                                                        <span className="shrink-0 text-sm font-bold text-sky-700">
+                                                            · {formatearPrecioServicio(sug.precio)}
                                                         </span>
                                                     </span>
-                                                    <span className="truncate text-xs text-slate-400">
+                                                    {(() => {
+                                                        // Quién publica:
+                                                        //  - Si hay negocio asociado (vacante-empresa) → "Negocio | Sucursal"
+                                                        //    (la sucursal solo aplica cuando el negocio tiene más de una).
+                                                        //  - Si no hay negocio → persona ofreciendo/solicitando.
+                                                        if (sug.negocioNombre) {
+                                                            const etiquetaSucursal = sug.totalSucursales > 1
+                                                                ? (sug.esPrincipal ? 'Matriz' : sug.sucursalNombre)
+                                                                : null;
+                                                            return (
+                                                                <span className="flex items-center gap-2 truncate text-sm">
+                                                                    <span className="truncate font-medium text-slate-600">
+                                                                        {sug.negocioNombre}
+                                                                    </span>
+                                                                    {etiquetaSucursal && (
+                                                                        <>
+                                                                            <span className="h-3.5 w-px shrink-0 bg-slate-300" />
+                                                                            <span className="truncate font-medium text-slate-600">
+                                                                                {etiquetaSucursal}
+                                                                            </span>
+                                                                        </>
+                                                                    )}
+                                                                    <span className="shrink-0 font-medium text-slate-500">
+                                                                        · {modalidadLabel(sug.modalidad)}
+                                                                    </span>
+                                                                </span>
+                                                            );
+                                                        }
+                                                        const nombrePersona = `${sug.oferenteNombre}${sug.oferenteApellidos ? ` ${sug.oferenteApellidos}` : ''}`.trim();
+                                                        return (
+                                                            <span className="flex items-center gap-2 truncate text-sm">
+                                                                <span className="truncate font-medium text-slate-600">
+                                                                    {nombrePersona}
+                                                                </span>
+                                                                <span className="shrink-0 font-medium text-slate-500">
+                                                                    · {modalidadLabel(sug.modalidad)}
+                                                                </span>
+                                                            </span>
+                                                        );
+                                                    })()}
+                                                    <span className="truncate text-xs font-medium text-slate-600">
                                                         {sug.ciudad}
                                                     </span>
                                                 </div>
                                                 <ArrowUpRight
-                                                    className="h-4 w-4 shrink-0 text-slate-400"
+                                                    className="h-5 w-5 shrink-0 text-slate-400"
                                                     strokeWidth={2}
                                                 />
                                             </button>

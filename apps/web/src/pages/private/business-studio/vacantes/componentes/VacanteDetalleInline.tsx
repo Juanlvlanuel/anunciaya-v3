@@ -3,18 +3,22 @@
  * ==========================
  * Vista de detalle de una vacante, montada en línea dentro de PaginaVacantes
  * (no es una ruta separada). Recibe la vacante seleccionada y un callback
- * `onVolver` para regresar a la lista.
+ * `onVolver` para regresar a la lista (el botón vive en el header de la página).
  *
  * Layout: card principal + sidebar derecho (oculto en mobile) con métricas
  * y acciones rápidas. NO contiene lista de candidatos — AnunciaYA solo conecta;
  * las conversaciones viven en ChatYA.
  *
+ * Tokens: border-2 border-slate-300, rounded-xl, shadow-md (cards BS),
+ * tamaños responsive, sin transition-colors, sin pastel -50/-200.
+ *
  * Ubicación: apps/web/src/pages/private/business-studio/vacantes/componentes/VacanteDetalleInline.tsx
  */
 
 import {
+    ArrowLeft,
+    Briefcase,
     Check,
-    ChevronLeft,
     ChevronRight,
     Clock,
     Calendar,
@@ -30,11 +34,24 @@ import {
 } from 'lucide-react';
 import {
     estadoUiVacante,
+    expandirHorarioEstructurado,
     formatearDiasSemana,
     formatearPrecioVacante,
 } from './helpers';
 import { PillTipoEmpleo, PillModalidad, PillEstadoVacante } from './VacanteAtoms';
 import type { Vacante } from '../../../../../types/servicios';
+
+const MESES_LARGOS = [
+    'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+];
+
+function formatearFechaLarga(fecha: Date): string {
+    const dia = String(fecha.getDate()).padStart(2, '0');
+    const mes = MESES_LARGOS[fecha.getMonth()];
+    const anio = fecha.getFullYear();
+    return `${dia} ${mes} ${anio}`;
+}
 
 interface VacanteDetalleInlineProps {
     vacante: Vacante;
@@ -66,56 +83,69 @@ export function VacanteDetalleInline({
     const fechaCierre = esCerrada ? new Date(vacante.updatedAt) : null;
 
     return (
-        <div data-testid="vacante-detalle-inline">
-            {/* Volver + breadcrumb */}
-            <div className="flex items-center gap-2.5 mb-4">
-                <button
-                    type="button"
-                    onClick={onVolver}
-                    className="inline-flex items-center gap-2 px-3.5 py-2 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold text-sm lg:cursor-pointer hover:bg-slate-50 transition-colors"
-                    data-testid="btn-volver-lista"
-                >
-                    <ChevronLeft className="w-4 h-4" strokeWidth={2} />
-                    Volver
-                </button>
-                <span className="text-sm text-slate-500 font-medium hidden lg:inline-flex items-center">
-                    Vacantes
-                    <ChevronRight className="w-3 h-3 inline mx-1" strokeWidth={2} />
-                    <span className="truncate max-w-[280px]">{vacante.titulo}</span>
-                </span>
-            </div>
-
+        <div data-testid="vacante-detalle-inline" className="lg:mt-7 2xl:mt-14">
             <div className="grid gap-4 grid-cols-1 lg:grid-cols-[1fr_320px] 2xl:grid-cols-[1fr_360px]">
                 {/* Card principal */}
-                <article className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-                    <header className="px-5 py-5 lg:px-6 border-b border-slate-200">
-                        <div className="flex items-center gap-2 text-sm text-slate-600 mb-1.5 font-medium">
-                            <MapPin className="w-3.5 h-3.5" strokeWidth={1.75} />
-                            <span>
-                                {vacante.sucursalNombre ?? 'Sin sucursal'} · Puerto Peñasco
-                            </span>
-                        </div>
-                        <h2 className="text-xl lg:text-2xl font-bold tracking-tight text-slate-900 mb-2.5">
-                            {vacante.titulo}
-                        </h2>
-                        <div className="flex flex-wrap gap-2 items-center">
-                            <PillEstadoVacante estado={estadoUi} />
-                            {vacante.tipoEmpleo && (
-                                <PillTipoEmpleo tipoEmpleo={vacante.tipoEmpleo} />
-                            )}
-                            <PillModalidad modalidad={vacante.modalidad} />
-                            <span className="text-sm lg:text-base font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                                {formatearPrecioVacante(
-                                    vacante.precio,
-                                    vacante.tipoEmpleo,
+                <article className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden shadow-md">
+                    {/* Header del card — avatar Briefcase con gradient (igual al header de PC).
+                        En mobile incluye botón Volver porque el header de la página está oculto. */}
+                    <header className="px-5 lg:px-6 py-5 border-b border-slate-300">
+                        <div className="flex items-start gap-3">
+                            <button
+                                type="button"
+                                onClick={onVolver}
+                                className="lg:hidden w-10 h-10 rounded-lg bg-white border-2 border-slate-300 text-slate-700 grid place-items-center shrink-0 hover:bg-slate-100 hover:border-slate-400"
+                                data-testid="btn-volver-mobile"
+                                aria-label="Volver a la lista"
+                            >
+                                <ArrowLeft className="w-5 h-5" strokeWidth={2} />
+                            </button>
+                            <div
+                                className="lg:hidden w-14 h-14 rounded-lg grid place-items-center shrink-0"
+                                style={{
+                                    background:
+                                        'linear-gradient(135deg, #0ea5e9, #2563eb, #1d4ed8)',
+                                    boxShadow: '0 6px 20px rgba(14,165,233,0.4)',
+                                }}
+                            >
+                                <Briefcase
+                                    className="w-6 h-6 text-white"
+                                    strokeWidth={1.75}
+                                />
+                            </div>
+                            <div className="min-w-0 flex-1">
+                                <div className="flex items-center gap-2 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mb-1 font-medium">
+                                    <MapPin
+                                        className="w-3.5 h-3.5 text-slate-500 shrink-0"
+                                        strokeWidth={1.75}
+                                    />
+                                    <span className="truncate">
+                                        {vacante.sucursalNombre ?? 'Sin sucursal'} · Puerto Peñasco
+                                    </span>
+                                </div>
+                                <h2 className="text-xl lg:text-2xl font-bold tracking-tight text-slate-900 mb-2.5">
+                                    {vacante.titulo}
+                                </h2>
+                                <div className="flex flex-wrap gap-2 items-center">
+                                    <PillEstadoVacante estado={estadoUi} />
+                                    {vacante.tipoEmpleo && (
+                                        <PillTipoEmpleo tipoEmpleo={vacante.tipoEmpleo} />
+                                    )}
+                                    <PillModalidad modalidad={vacante.modalidad} />
+                                    <span className="text-sm lg:text-base font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                                        {formatearPrecioVacante(
+                                            vacante.precio,
+                                            vacante.tipoEmpleo,
+                                        )}
+                                    </span>
+                                </div>
+                                {esCerrada && fechaCierre && (
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-2 font-medium">
+                                        Cerrada el {formatearFechaLarga(fechaCierre)}
+                                    </p>
                                 )}
-                            </span>
+                            </div>
                         </div>
-                        {esCerrada && fechaCierre && (
-                            <p className="text-[12.5px] text-slate-500 mt-2 font-medium">
-                                Cerrada el {fechaCierre.toLocaleDateString('es-MX')}
-                            </p>
-                        )}
                     </header>
 
                     {/* Descripción */}
@@ -125,66 +155,80 @@ export function VacanteDetalleInline({
                         </p>
                     </Seccion>
 
-                    {/* Requisitos */}
-                    {vacante.requisitos.length > 0 && (
-                        <Seccion titulo="Requisitos">
-                            <ChecklistVerde items={vacante.requisitos} />
-                        </Seccion>
-                    )}
-
-                    {/* Beneficios */}
-                    {vacante.beneficios.length > 0 && (
-                        <Seccion titulo="Beneficios">
-                            <ChecklistVerde items={vacante.beneficios} />
-                        </Seccion>
+                    {/* Requisitos + Beneficios (2 columnas en desktop, apilados en mobile) */}
+                    {(vacante.requisitos.length > 0 || vacante.beneficios.length > 0) && (
+                        <section className="px-5 lg:px-6 py-5 border-t border-slate-300">
+                            <div
+                                className={
+                                    vacante.requisitos.length > 0 &&
+                                    vacante.beneficios.length > 0
+                                        ? 'grid gap-5 lg:gap-0 lg:grid-cols-2'
+                                        : ''
+                                }
+                            >
+                                {vacante.requisitos.length > 0 && (
+                                    <div
+                                        className={
+                                            vacante.beneficios.length > 0 ? 'lg:pr-6' : ''
+                                        }
+                                    >
+                                        <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold tracking-[0.12em] uppercase text-slate-600 mb-2.5">
+                                            Requisitos
+                                        </h3>
+                                        <ChecklistVerde items={vacante.requisitos} />
+                                    </div>
+                                )}
+                                {vacante.beneficios.length > 0 && (
+                                    <div
+                                        className={
+                                            vacante.requisitos.length > 0
+                                                ? 'lg:pl-6 lg:border-l lg:border-slate-300'
+                                                : ''
+                                        }
+                                    >
+                                        <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold tracking-[0.12em] uppercase text-slate-600 mb-2.5">
+                                            Beneficios
+                                        </h3>
+                                        <ChecklistVerde items={vacante.beneficios} />
+                                    </div>
+                                )}
+                            </div>
+                        </section>
                     )}
 
                     {/* Horario y días */}
                     {(vacante.horario || diasStr) && (
                         <Seccion titulo="Horario y días">
-                            <div className="flex gap-6 flex-wrap text-sm lg:text-base text-slate-700">
-                                {vacante.horario && (
-                                    <div className="inline-flex items-center gap-2">
-                                        <Clock
-                                            className="w-4 h-4 text-slate-500"
-                                            strokeWidth={1.75}
-                                        />
-                                        <b className="text-slate-900">
-                                            {vacante.horario}
-                                        </b>
-                                    </div>
-                                )}
-                                {diasStr && (
-                                    <div className="inline-flex items-center gap-2">
-                                        <Calendar
-                                            className="w-4 h-4 text-slate-500"
-                                            strokeWidth={1.75}
-                                        />
-                                        <b className="text-slate-900">{diasStr}</b>
-                                    </div>
-                                )}
-                            </div>
+                            <HorarioDisplay
+                                horario={vacante.horario}
+                                diasStr={diasStr}
+                            />
                         </Seccion>
                     )}
 
-                    {/* Acciones */}
-                    <div className="flex flex-wrap gap-2 items-center px-5 lg:px-6 py-4 border-t border-slate-200">
+                    {/* Acciones — flex-1 en mobile garantiza que los 3 botones quepan
+                        en cualquier ancho; lg:flex-none restaura el ancho natural */}
+                    <div className="flex gap-2 items-stretch px-5 lg:px-6 py-4 border-t border-slate-300">
                         {esCerrada ? (
                             <button
                                 type="button"
                                 onClick={onEliminar}
-                                className="ml-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-semibold text-sm lg:cursor-pointer hover:bg-rose-100 transition-colors"
+                                className="flex-1 lg:flex-none lg:ml-auto inline-flex items-center justify-center gap-2 px-3 lg:px-4 py-2.5 rounded-lg bg-white border-2 border-rose-300 text-rose-700 font-semibold text-sm lg:cursor-pointer hover:bg-rose-100 hover:border-rose-400"
                                 data-testid="btn-detalle-eliminar"
                             >
-                                <Trash2 className="w-[15px] h-[15px]" strokeWidth={1.75} />
-                                Eliminar definitivamente
+                                <Trash2 className="w-[15px] h-[15px] shrink-0" strokeWidth={1.75} />
+                                <span>
+                                    Eliminar
+                                    <span className="hidden lg:inline"> definitivamente</span>
+                                </span>
                             </button>
                         ) : (
                             <>
                                 <BotonGhost
-                                    icono={<Pencil className="w-[15px] h-[15px]" strokeWidth={1.75} />}
+                                    icono={<Pencil className="w-[15px] h-[15px] shrink-0" strokeWidth={1.75} />}
                                     onClick={onEditar}
                                     testId="btn-detalle-editar"
+                                    className="flex-1 lg:flex-none"
                                 >
                                     Editar
                                 </BotonGhost>
@@ -192,12 +236,13 @@ export function VacanteDetalleInline({
                                     <BotonGhost
                                         icono={
                                             <PlayCircle
-                                                className="w-[15px] h-[15px]"
+                                                className="w-[15px] h-[15px] shrink-0"
                                                 strokeWidth={1.75}
                                             />
                                         }
                                         onClick={onReactivar}
                                         testId="btn-detalle-reactivar"
+                                        className="flex-1 lg:flex-none"
                                     >
                                         Reactivar
                                     </BotonGhost>
@@ -205,12 +250,13 @@ export function VacanteDetalleInline({
                                     <BotonGhost
                                         icono={
                                             <PauseCircle
-                                                className="w-[15px] h-[15px]"
+                                                className="w-[15px] h-[15px] shrink-0"
                                                 strokeWidth={1.75}
                                             />
                                         }
                                         onClick={onPausar}
                                         testId="btn-detalle-pausar"
+                                        className="flex-1 lg:flex-none"
                                     >
                                         Pausar
                                     </BotonGhost>
@@ -218,14 +264,17 @@ export function VacanteDetalleInline({
                                 <button
                                     type="button"
                                     onClick={onCerrar}
-                                    className="ml-auto inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 font-semibold text-sm lg:cursor-pointer hover:bg-rose-100 transition-colors"
+                                    className="flex-1 lg:flex-none lg:ml-auto inline-flex items-center justify-center gap-2 px-3 lg:px-4 py-2.5 rounded-lg bg-white border-2 border-rose-300 text-rose-700 font-semibold text-sm lg:cursor-pointer hover:bg-rose-100 hover:border-rose-400"
                                     data-testid="btn-detalle-cerrar"
                                 >
                                     <XCircle
-                                        className="w-[15px] h-[15px]"
+                                        className="w-[15px] h-[15px] shrink-0"
                                         strokeWidth={1.75}
                                     />
-                                    Cerrar vacante
+                                    <span>
+                                        Cerrar
+                                        <span className="hidden lg:inline"> vacante</span>
+                                    </span>
                                 </button>
                             </>
                         )}
@@ -243,7 +292,8 @@ export function VacanteDetalleInline({
                                 />
                             }
                             num={vacante.totalVistas}
-                            label="Vistas totales"
+                            label="Vistas"
+                            colorIcono="bg-slate-200 text-slate-600"
                         />
                         <ActividadItem
                             icono={
@@ -253,8 +303,8 @@ export function VacanteDetalleInline({
                                 />
                             }
                             num={vacante.totalMensajes}
-                            label="Conversaciones iniciadas"
-                            sub="Candidatos que te escribieron"
+                            label="Mensajes"
+                            colorIcono="bg-blue-100 text-blue-600"
                         />
                         <ActividadItem
                             icono={
@@ -265,6 +315,7 @@ export function VacanteDetalleInline({
                             }
                             num={vacante.totalGuardados}
                             label="Guardados"
+                            colorIcono="bg-amber-100 text-amber-600"
                         />
                     </SideCard>
 
@@ -276,10 +327,11 @@ export function VacanteDetalleInline({
                                     strokeWidth={1.75}
                                 />
                             }
-                            titulo="Ver mis conversaciones"
-                            sub="Abre ChatYA con candidatos de esta vacante"
+                            titulo="Ver chats"
+                            sub="Solo los de esta vacante"
                             onClick={onIrAConversaciones}
                             testId="quick-ver-conversaciones"
+                            colorIcono="bg-blue-100 text-blue-600"
                         />
                         <AccionRapida
                             icono={
@@ -288,10 +340,11 @@ export function VacanteDetalleInline({
                                     strokeWidth={1.75}
                                 />
                             }
-                            titulo="Ver en feed público"
-                            sub="Cómo se ve tu vacante en Servicios"
+                            titulo="Ver publicación"
+                            sub="en la sección de Servicios"
                             onClick={onVerEnFeedPublico}
                             testId="quick-ver-feed-publico"
+                            colorIcono="bg-slate-200 text-slate-600"
                         />
                     </SideCard>
                 </aside>
@@ -312,12 +365,66 @@ function Seccion({
     children: React.ReactNode;
 }) {
     return (
-        <section className="px-5 lg:px-6 py-5 border-t border-slate-200">
-            <h3 className="text-[12px] font-semibold tracking-wider uppercase text-slate-600 mb-2.5">
+        <section className="px-5 lg:px-6 py-5 border-t border-slate-300">
+            <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold tracking-[0.12em] uppercase text-slate-600 mb-2.5">
                 {titulo}
             </h3>
             {children}
         </section>
+    );
+}
+
+function HorarioDisplay({
+    horario,
+    diasStr,
+}: {
+    horario: string | null;
+    diasStr: string | null;
+}) {
+    // Formato estructurado del wizard → 1 línea por bloque con días largos
+    const bloques = horario ? expandirHorarioEstructurado(horario) : null;
+
+    if (bloques) {
+        return (
+            <div className="space-y-1.5">
+                {bloques.map((b, i) => (
+                    <div
+                        key={i}
+                        className="inline-flex items-center gap-2 text-sm lg:text-base text-slate-900 font-bold mr-4"
+                    >
+                        <Clock
+                            className="w-4 h-4 text-slate-500 shrink-0"
+                            strokeWidth={1.75}
+                        />
+                        <span>{b}</span>
+                    </div>
+                ))}
+            </div>
+        );
+    }
+
+    // Fallback legacy: horario en texto libre + días por separado
+    return (
+        <div className="flex gap-6 flex-wrap text-sm lg:text-base text-slate-700">
+            {horario && (
+                <div className="inline-flex items-center gap-2">
+                    <Clock
+                        className="w-4 h-4 text-slate-500 shrink-0"
+                        strokeWidth={1.75}
+                    />
+                    <b className="text-slate-900">{horario}</b>
+                </div>
+            )}
+            {diasStr && (
+                <div className="inline-flex items-center gap-2">
+                    <Calendar
+                        className="w-4 h-4 text-slate-500 shrink-0"
+                        strokeWidth={1.75}
+                    />
+                    <b className="text-slate-900">{diasStr}</b>
+                </div>
+            )}
+        </div>
     );
 }
 
@@ -344,17 +451,19 @@ function BotonGhost({
     onClick,
     testId,
     children,
+    className = '',
 }: {
     icono: React.ReactNode;
     onClick: () => void;
     testId?: string;
     children: React.ReactNode;
+    className?: string;
 }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-lg bg-white border border-slate-300 text-slate-700 font-semibold text-sm lg:cursor-pointer hover:bg-slate-50 transition-colors"
+            className={`inline-flex items-center justify-center gap-2 px-3 lg:px-4 py-2.5 rounded-lg bg-white border-2 border-slate-300 text-slate-700 font-semibold text-sm lg:cursor-pointer hover:bg-slate-100 hover:border-slate-400 ${className}`}
             data-testid={testId}
         >
             {icono}
@@ -371,9 +480,9 @@ function SideCard({
     children: React.ReactNode;
 }) {
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-            <header className="px-5 py-4 border-b border-slate-200">
-                <h3 className="text-[12px] font-semibold tracking-wider uppercase text-slate-600">
+        <div className="bg-white border-2 border-slate-300 rounded-xl overflow-hidden shadow-md">
+            <header className="px-5 py-4 border-b border-slate-300">
+                <h3 className="text-sm lg:text-[11px] 2xl:text-sm font-bold tracking-[0.12em] uppercase text-slate-600">
                     {titulo}
                 </h3>
             </header>
@@ -387,25 +496,27 @@ function ActividadItem({
     num,
     label,
     sub,
+    colorIcono = 'bg-slate-200 text-slate-700',
 }: {
     icono: React.ReactNode;
     num: number;
     label: string;
     sub?: string;
+    colorIcono?: string;
 }) {
     return (
         <div className="flex items-center gap-3.5 px-5 py-3">
-            <div className="w-10 h-10 rounded-lg bg-slate-100 text-slate-700 grid place-items-center shrink-0">
+            <div className={`w-10 h-10 rounded-lg grid place-items-center shrink-0 ${colorIcono}`}>
                 {icono}
             </div>
             <div className="min-w-0">
                 <div className="text-xl lg:text-lg 2xl:text-xl font-bold leading-none tabular-nums tracking-tight text-slate-800">
                     {num}
                 </div>
-                <div className="text-sm text-slate-500 mt-0.5 font-medium">
+                <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-700 mt-0.5 font-semibold">
                     {label}
                     {sub && (
-                        <div className="text-[11px] text-slate-400 mt-0.5">
+                        <div className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-0.5 font-medium">
                             {sub}
                         </div>
                     )}
@@ -421,36 +532,37 @@ function AccionRapida({
     sub,
     onClick,
     testId,
+    colorIcono = 'bg-slate-200 text-slate-700',
 }: {
     icono: React.ReactNode;
     titulo: string;
     sub: string;
     onClick: () => void;
     testId?: string;
+    colorIcono?: string;
 }) {
     return (
         <button
             type="button"
             onClick={onClick}
-            className="w-full flex items-center gap-3 px-5 py-4 border-t border-slate-200 first:border-t-0 text-left lg:cursor-pointer hover:bg-slate-50 transition-colors"
+            className="w-full flex items-center gap-3 px-5 py-4 border-t border-slate-300 first:border-t-0 text-left lg:cursor-pointer hover:bg-slate-100"
             data-testid={testId}
         >
-            <span className="w-9 h-9 rounded-lg bg-sky-100 text-sky-700 grid place-items-center shrink-0">
+            <span className={`w-9 h-9 rounded-lg grid place-items-center shrink-0 ${colorIcono}`}>
                 {icono}
             </span>
             <span className="flex-1 min-w-0">
                 <strong className="block text-sm font-bold text-slate-900">
                     {titulo}
                 </strong>
-                <span className="block text-[12.5px] text-slate-500 mt-0.5 font-medium">
+                <span className="block text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-0.5 font-medium">
                     {sub}
                 </span>
             </span>
             <ChevronRight
-                className="w-4 h-4 text-slate-400 shrink-0"
+                className="w-4 h-4 text-slate-500 shrink-0"
                 strokeWidth={1.75}
             />
         </button>
     );
 }
-

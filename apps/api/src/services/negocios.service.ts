@@ -64,6 +64,9 @@ function mapearSucursalResumen(row: SucursalResumenRow) {
         sucursalId: row.sucursal_id,
         sucursalNombre: row.sucursal_nombre,
         esPrincipal: row.es_principal,
+        // Foto de perfil de la SUCURSAL (distinta al logo del negocio).
+        // Usada como avatar del chat en ChatYA.
+        fotoPerfil: row.foto_perfil ?? null,
         direccion: row.direccion,
         ciudad: row.ciudad,
         estado: row.estado,
@@ -110,6 +113,8 @@ function mapearPerfilCompleto(row: PerfilSucursalRow) {
         logoUrl: row.logo_url,
         portadaUrl: row.portada_url,
         fotoPerfilUrl: row.foto_perfil,
+        // Alias coherente con `NegocioResumen` para el avatar de ChatYA.
+        fotoPerfil: row.foto_perfil ?? null,
         sitioWeb: row.sitio_web,
         redesSociales: row.redes_sociales,
         aceptaCardya: row.acepta_cardya,
@@ -218,6 +223,7 @@ export async function listarSucursalesCercanas(
                 s.id as sucursal_id,
                 s.nombre as sucursal_nombre,
                 s.es_principal,
+                s.foto_perfil,
                 s.direccion,
                 s.ciudad,
                 s.telefono,

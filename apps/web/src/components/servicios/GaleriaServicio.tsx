@@ -17,7 +17,7 @@
  */
 
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ShieldCheck } from 'lucide-react';
 import type { PublicacionDetalle } from '../../types/servicios';
 import { ModalImagenes } from '../ui/ModalImagenes';
 
@@ -76,28 +76,81 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
     }, [indiceActivo, fotos.length, irA]);
 
     // ─── Vacante-empresa: identidad de marca, sin galería ─────────────────
+    // Layout estilo "hero": portada del local (sucursal) como fondo +
+    // barra inferior con gradiente oscuro que contiene logo full-rounded del
+    // negocio + nombre del negocio + sufijo de sucursal (cuando aplica).
+    // Sin portada → fallback al gradient azul original.
     if (publicacion.tipo === 'vacante-empresa') {
-        const iniciales = obtenerInicialesEmpresa(
-            publicacion.oferente.nombre,
-            publicacion.oferente.apellidos,
-        );
+        const { oferente } = publicacion;
+        const nombreNegocio = oferente.negocioNombre
+            ?? `${oferente.nombre} ${oferente.apellidos}`.trim();
+        const portada = oferente.sucursalPortada;
+        const logoEmpresa = oferente.negocioLogo
+            ?? oferente.sucursalFotoPerfil
+            ?? oferente.avatarUrl;
+        const sufijoSucursal = (oferente.totalSucursales ?? 0) > 1
+            ? (oferente.sucursalEsPrincipal ? 'Matriz' : oferente.sucursalNombre)
+            : null;
+        const iniciales = obtenerInicialesEmpresa(nombreNegocio, '');
         return (
-            <div className="aspect-[16/9] relative bg-linear-to-br from-sky-100 to-sky-200 grid place-items-center">
-                <div className="text-center px-6">
-                    <div className="mx-auto w-20 h-20 rounded-2xl bg-white grid place-items-center text-sky-700 text-2xl font-extrabold shadow-md overflow-hidden">
-                        {publicacion.oferente.avatarUrl ? (
+            <div className="aspect-[16/9] lg:aspect-auto lg:h-64 2xl:h-72 relative overflow-hidden">
+                {/* Fondo: portada del local con fallback al gradient sky. */}
+                {portada ? (
+                    <img
+                        src={portada}
+                        alt={nombreNegocio}
+                        className="absolute inset-0 w-full h-full object-cover"
+                    />
+                ) : (
+                    <div className="absolute inset-0 bg-linear-to-br from-sky-100 to-sky-200" />
+                )}
+
+                {/* Overlay oscuro inferior para legibilidad del texto. */}
+                <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/75 via-black/40 to-transparent pointer-events-none" />
+
+                {/* Sello "Empresa verificada" — premium dorado, sin texto.
+                    Posición esquina superior derecha del hero. Tooltip nativo
+                    `title` describe el significado a quien no asocie el icono. */}
+                <div
+                    className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full grid place-items-center shadow-lg ring-2 ring-white/80"
+                    style={{
+                        background:
+                            'linear-gradient(135deg, #fde047 0%, #fbbf24 45%, #d97706 100%)',
+                    }}
+                    title="Empresa verificada"
+                    aria-label="Empresa verificada"
+                >
+                    <ShieldCheck
+                        className="w-5 h-5 text-amber-950"
+                        strokeWidth={2.75}
+                    />
+                </div>
+
+                {/* Barra de identidad inferior: logo + nombre + sucursal. */}
+                <div className="absolute inset-x-0 bottom-0 p-3 lg:p-4 flex items-center gap-3 min-w-0">
+                    <div className="w-12 h-12 lg:w-14 lg:h-14 rounded-full bg-white grid place-items-center text-sky-700 text-base lg:text-lg font-extrabold shadow-md ring-2 ring-white/70 overflow-hidden shrink-0">
+                        {logoEmpresa ? (
                             <img
-                                src={publicacion.oferente.avatarUrl}
-                                alt={publicacion.oferente.nombre}
+                                src={logoEmpresa}
+                                alt={nombreNegocio}
                                 className="w-full h-full object-cover"
                             />
                         ) : (
                             iniciales
                         )}
                     </div>
-                    <div className="mt-3 text-sm font-bold text-slate-900">
-                        {publicacion.oferente.nombre}{' '}
-                        {publicacion.oferente.apellidos}
+                    <div className="flex items-center gap-2 min-w-0">
+                        <span className="text-base lg:text-lg font-bold text-white leading-tight truncate drop-shadow-sm">
+                            {nombreNegocio}
+                        </span>
+                        {sufijoSucursal && (
+                            <>
+                                <span className="h-4 w-px shrink-0 bg-white/50" />
+                                <span className="text-sm font-medium text-white/85 truncate drop-shadow-sm">
+                                    {sufijoSucursal}
+                                </span>
+                            </>
+                        )}
                     </div>
                 </div>
             </div>

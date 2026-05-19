@@ -315,6 +315,25 @@ export const useUiStore = create<UiState>((set) => ({
       chatYAAbierto: false,
       chatYAMinimizado: false,
     });
+    // Limpiar filtro por publicación si quedó activo (ej. abrió desde BS
+    // Vacantes). No debe persistir entre sesiones del overlay: la próxima
+    // vez que abra ChatYA general debería ver TODOS sus chats.
+    // Carga lazy del store para evitar ciclo de imports a la altura de
+    // resolución de módulos.
+    import('./useChatYAStore').then(({ useChatYAStore }) => {
+      const chatYA = useChatYAStore.getState();
+      if (!chatYA.filtroPublicacionId) return;
+      // Restaurar la lista desde el cache del modo (no contaminado por el
+      // filtro). Si no hay cache, queda lista vacía y el siguiente
+      // `cargarConversaciones` la recompondrá.
+      const modo = chatYA.conversacionesModo ?? 'personal';
+      const cached = chatYA.conversacionesPorModo[modo] ?? [];
+      useChatYAStore.setState({
+        filtroPublicacionId: null,
+        conversaciones: cached,
+        totalConversaciones: cached.length,
+      });
+    });
   },
 
   /**

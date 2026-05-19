@@ -76,6 +76,18 @@ export function OverlayBuscadorMarketplace() {
     );
     const { data: populares = [] } = useBuscadorPopulares(ciudad);
 
+    // ─── Bloquear scroll del body mientras el overlay está abierto ──────────
+    // (en desktop el body ya viene con overflow:hidden desde `index.css`, pero
+    // en móvil sin esto la página detrás sigue haciendo scroll).
+    useEffect(() => {
+        if (!debeMostrar) return;
+        const prev = document.body.style.overflow;
+        document.body.style.overflow = 'hidden';
+        return () => {
+            document.body.style.overflow = prev;
+        };
+    }, [debeMostrar]);
+
     // ─── Cerrar con Escape ────────────────────────────────────────────────────
     useEffect(() => {
         if (!debeMostrar) return;
@@ -106,15 +118,17 @@ export function OverlayBuscadorMarketplace() {
     return (
         <div
             data-testid="overlay-buscador-marketplace"
-            className="fixed inset-0 z-30 bg-black/30"
+            className="fixed inset-0 z-50"
             onClick={cerrarBuscador}
             role="dialog"
             aria-modal="true"
             aria-label="Buscador de MarketPlace"
         >
+            {/* Overlay oscuro con gradiente radial — patrón estándar de modales (ver `Modal.tsx`). */}
+            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] animate-in fade-in duration-200" />
             <div
                 onClick={(e) => e.stopPropagation()}
-                className="mx-auto mt-20 max-h-[75vh] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
+                className="relative mx-auto mt-20 max-h-[480px] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
             >
                 {/* ─── Estado vacío: recientes + populares ─────────────────── */}
                 {!escribiendo && (
@@ -233,21 +247,23 @@ export function OverlayBuscadorMarketplace() {
                                                 )}
                                             </div>
                                             <div className="flex min-w-0 flex-1 flex-col">
-                                                <span className="truncate text-sm font-semibold text-slate-900">
-                                                    {articulo.titulo}
-                                                </span>
-                                                <span className="truncate text-sm font-bold text-teal-700">
-                                                    {`$${articulo.precio.toLocaleString('es-MX')}`}
-                                                    <span className="ml-2 font-normal text-slate-500 capitalize">
-                                                        · {articulo.condicion.replace('_', ' ')}
+                                                <span className="flex items-center gap-2 min-w-0">
+                                                    <span className="truncate text-base font-semibold text-slate-900">
+                                                        {articulo.titulo}
+                                                    </span>
+                                                    <span className="shrink-0 text-sm font-bold text-teal-700">
+                                                        · {`$${articulo.precio.toLocaleString('es-MX')}`}
                                                     </span>
                                                 </span>
-                                                <span className="truncate text-xs text-slate-400">
+                                                <span className="truncate text-sm font-medium text-slate-600 capitalize">
+                                                    {articulo.condicion.replace('_', ' ')}
+                                                </span>
+                                                <span className="truncate text-xs font-medium text-slate-600">
                                                     {articulo.ciudad}
                                                 </span>
                                             </div>
                                             <ArrowUpRight
-                                                className="h-4 w-4 shrink-0 text-slate-400"
+                                                className="h-5 w-5 shrink-0 text-slate-400"
                                                 strokeWidth={2}
                                             />
                                         </button>
