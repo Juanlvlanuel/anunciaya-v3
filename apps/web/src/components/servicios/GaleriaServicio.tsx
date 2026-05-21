@@ -3,15 +3,21 @@
  * =====================
  * Galería del detalle del servicio.
  *
- * Para `tipo='vacante-empresa'`: una sola imagen aspect 16:9 (logo + identidad
+ * Proporciones uniformes para los 3 tipos (`vacante-empresa`,
+ * `servicio-persona`, `solicito`):
+ *   - Móvil: `aspect-[16/9]` (banda horizontal compacta).
+ *   - Desktop: `lg:aspect-auto lg:h-64 2xl:h-72` (alto fijo 256/288px).
+ *
+ * Para `tipo='vacante-empresa'`: una sola imagen como hero (logo + identidad
  * de marca del negocio). Sin lightbox porque hay solo una.
  *
- * Para `tipo='servicio-persona'` o `'solicito'`: hasta 6 fotos aspect 4:3
- * con swipe nativo (móvil) o flechas (desktop). Click abre lightbox
- * fullscreen con `ModalImagenes`. Patrón replicado del módulo MarketPlace
- * (scroll-snap CSS puro + listener `scroll` pasivo).
+ * Para `tipo='servicio-persona'` o `'solicito'`: hasta 6 fotos con swipe
+ * nativo (móvil) o flechas (desktop). Click abre lightbox fullscreen con
+ * `ModalImagenes`. Patrón replicado del módulo MarketPlace (scroll-snap
+ * CSS puro + listener `scroll` pasivo).
  *
- * Sin fotos: placeholder con rayas slate (mismo `bg-stripe` del handoff).
+ * Sin fotos: placeholder con rayas slate (mismo `bg-stripe` del handoff)
+ * con la misma proporción que las galerías con foto.
  *
  * Ubicación: apps/web/src/components/servicios/GaleriaServicio.tsx
  */
@@ -158,9 +164,12 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
     }
 
     // ─── Sin fotos: placeholder ────────────────────────────────────────────
+    // Misma proporción que vacante-empresa para coherencia visual entre
+    // los 3 tipos (servicio-persona / solicito / vacante): banda horizontal
+    // compacta en desktop (256px alto / 288px en 2xl) y 16:9 en móvil.
     if (fotos.length === 0) {
         return (
-            <div className="aspect-[4/3] relative bg-stripe">
+            <div className="aspect-[16/9] lg:aspect-auto lg:h-64 2xl:h-72 relative bg-stripe">
                 <div className="absolute inset-0 grid place-items-center">
                     <span className="text-slate-500/70 text-[10px] tracking-widest uppercase font-mono">
                         sin foto
@@ -171,9 +180,12 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
     }
 
     // ─── Servicio-persona / solicito: galería swipe + lightbox ─────────────
+    // Misma proporción que la vacante (banda horizontal compacta en desktop)
+    // para que los 3 tipos se vean alineados visualmente. Antes era `aspect-[4/3]`
+    // que producía una imagen demasiado alta comparada con la vacante.
     return (
         <>
-            <div className="aspect-[4/3] relative bg-stripe overflow-hidden">
+            <div className="aspect-[16/9] lg:aspect-auto lg:h-64 2xl:h-72 relative bg-stripe overflow-hidden">
                 {/* Carrusel: tira horizontal con scroll-snap. Funciona como
                     swipe nativo en móvil y como scroll programático con las
                     flechas en desktop. */}

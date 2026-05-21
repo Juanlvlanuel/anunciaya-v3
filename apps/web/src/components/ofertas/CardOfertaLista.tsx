@@ -19,6 +19,7 @@ const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { registrarVistaOferta } from '@/services/ofertasService';
 import type { OfertaFeed } from '@/types/ofertas';
+import { formatearSucursalLabel } from '@/utils/sucursalOferta';
 
 interface CardOfertaListaProps {
   oferta: OfertaFeed;
@@ -52,16 +53,17 @@ function formatDistancia(km: number | null | undefined): string | null {
   return `${km.toFixed(1)} km`;
 }
 
-function getSucursalLabel(oferta: OfertaFeed): string {
-  return oferta.sucursalNombre === oferta.negocioNombre
-    ? 'Matriz'
-    : oferta.sucursalNombre;
-}
+// `getSucursalLabel` movido a `utils/sucursalOferta.ts` (`formatearSucursalLabel`)
+// para que las 4 vistas de oferta usen la MISMA regla. Sprint 9.3.
 
 export default function CardOfertaLista({ oferta, onClick }: CardOfertaListaProps) {
   const badge         = getBadgeTexto(oferta);
   const distancia     = formatDistancia(oferta.distanciaKm);
-  const sucursalLabel = getSucursalLabel(oferta);
+  const sucursalLabel = formatearSucursalLabel(
+    oferta.sucursalNombre,
+    oferta.negocioNombre,
+    oferta.negocioTotalSucursales,
+  );
 
   // Tracking de vista: ≥50% visible por ≥1s. Backend deduplica per día.
   const refCard = useRef<HTMLButtonElement>(null);
@@ -76,10 +78,23 @@ export default function CardOfertaLista({ oferta, onClick }: CardOfertaListaProp
       ref={refCard}
       data-testid={`fila-oferta-${oferta.ofertaId}`}
       onClick={onClick}
-      className="group relative flex items-center w-full min-h-[140px] lg:min-h-[118px] 2xl:min-h-[130px] cursor-pointer text-left overflow-hidden hover:bg-[#faf9f5] transition-colors duration-200"
+      // `h-full` es CRÍTICO: el grid 2-cols del padre alinea las cards
+      // de cada fila al alto del card más alto (el que tiene 2 líneas
+      // de título + subtítulo). Sin `h-full`, el button interior se
+      // quedaba en su altura natural y la foto `absolute h-full` medía
+      // ese alto menor → quedaba franja blanca abajo en los cards más
+      // cortos. Con `h-full`, el button se estira al alto del wrapper
+      // (que ya se estira por el grid) y la foto llena todo.
+      className="group relative flex items-center w-full h-full min-h-[140px] lg:min-h-[118px] 2xl:min-h-[130px] cursor-pointer text-left overflow-hidden hover:bg-[#faf9f5] transition-colors duration-200"
     >
-      {/* ── Foto full-height con fade hacia la derecha ── */}
-      <div className="absolute left-0 top-0 w-36 lg:w-[220px] 2xl:w-60 h-full pointer-events-none">
+      {/* ── Foto full-height con fade hacia la derecha ──
+           Sprint 9.3: reducida de w-36/w-[220px]/w-60 a w-32/w-[160px]/w-[180px]
+           para dar más aire al contenido. En PC cada card mide ~434px (grid
+           2 cols dentro de max-w-[920px]); antes la foto se comía 220px y
+           dejaba sólo ~212px al texto (nombres del negocio se truncaban a
+           "Im..."). Ahora el contenido tiene ~274px → caben los nombres
+           completos. */}
+      <div className="absolute left-0 top-0 w-32 lg:w-[160px] 2xl:w-[180px] h-full pointer-events-none">
         {oferta.imagen ? (
           <img
             src={oferta.imagen}
@@ -87,8 +102,11 @@ export default function CardOfertaLista({ oferta, onClick }: CardOfertaListaProp
             className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
-          <div className="h-full w-full bg-[#e8e6e0] flex items-center justify-center">
-            <Tag className="w-8 h-8 text-[#c8c4bc]" strokeWidth={1.5} />
+          // Placeholder con gradiente slate puro (sin sky). Neutral —
+          // no compite visualmente con los amber del feed editorial
+          // (hero/destacado) ni con el azul/sky de otras secciones.
+          <div className="h-full w-full bg-linear-to-br from-slate-100 via-slate-200 to-slate-300 flex items-center justify-center">
+            <Tag className="w-12 h-12 text-slate-400/70" strokeWidth={1.5} />
           </div>
         )}
         {/* Badge descuento — esquina sup-izq DENTRO de la imagen.
@@ -103,10 +121,8 @@ export default function CardOfertaLista({ oferta, onClick }: CardOfertaListaProp
           title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
         >
           <Eye
-            className="w-3.5 h-3.5 shrink-0"
+            className="w-3.5 h-3.5 shrink-0 text-white"
             strokeWidth={2.5}
-            fill="currentColor"
-            fillOpacity={0.25}
           />
           {oferta.totalVistas}
         </span>
@@ -114,14 +130,18 @@ export default function CardOfertaLista({ oferta, onClick }: CardOfertaListaProp
         <div className="absolute inset-0 bg-linear-to-r from-transparent from-70% to-white" />
       </div>
 
-      {/* ── Línea punteada estilo cupón ── */}
-      <div className="absolute inset-y-0 left-[142px] lg:left-[218px] 2xl:left-[238px] border-l-2 border-dashed border-[#a8a49a] pointer-events-none" />
+      {/* ── Línea punteada estilo cupón ──
+           Alineada al borde derecho de la foto (foto-width − 2px del border-l).
+           Mantener sincronizada con los anchos de la foto arriba. */}
+      <div className="absolute inset-y-0 left-[126px] lg:left-[158px] 2xl:left-[178px] border-l-2 border-dashed border-[#a8a49a] pointer-events-none" />
 
       {/* ── Contenido a la derecha de la línea punteada ──                */}
       {/* `justify-center` mantiene el contenido agrupado verticalmente    */}
       {/* (sin estirarse a los extremos del card aunque éste sea más alto  */}
       {/* por la imagen). `gap-2.5` da el aire mínimo entre los 2 bloques. */}
-      <div className="relative flex flex-col justify-center gap-2.5 w-full pl-[154px] lg:pl-[230px] 2xl:pl-[250px] pr-3 lg:pr-5 py-1.5 lg:py-2">
+      {/* El padding-left es 12px más que la línea punteada para dejar     */}
+      {/* respiro entre la línea y el inicio del texto.                    */}
+      <div className="relative flex flex-col justify-center gap-2.5 w-full pl-[138px] lg:pl-[170px] 2xl:pl-[190px] pr-3 lg:pr-5 py-1.5 lg:py-2">
 
         {/* ── BLOQUE SUPERIOR: Logo + Nombre del negocio + Sucursal ── */}
         <div className="flex items-start gap-2.5 min-w-0">
@@ -141,17 +161,25 @@ export default function CardOfertaLista({ oferta, onClick }: CardOfertaListaProp
             <div className="text-[17px] lg:text-[18px] font-bold text-[#1a1a1a] tracking-tight leading-tight">
               {oferta.negocioNombre}
             </div>
-            {/* Sucursal — fuerza 1 línea con el badge "+N más" */}
-            <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
-              <span className="text-[14px] text-[#555] font-medium truncate min-w-0">
-                {sucursalLabel}
-              </span>
-              {oferta.totalSucursales > 1 && (
-                <span className="shrink-0 text-[12px] bg-[#efefeb] text-[#555] rounded-full px-2.5 py-1 font-semibold leading-none whitespace-nowrap">
-                  +{oferta.totalSucursales - 1}
-                </span>
-              )}
-            </div>
+            {/* Sucursal — fuerza 1 línea con el badge "+N más".
+                `sucursalLabel` puede ser null (sucursal matriz única →
+                el helper omite el label porque repetir "Matriz" cuando
+                solo hay 1 sucursal no aporta info). En ese caso solo
+                renderizamos el badge "+N" si aplica. */}
+            {(sucursalLabel || oferta.totalSucursales > 1) && (
+              <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
+                {sucursalLabel && (
+                  <span className="text-[14px] text-[#555] font-medium truncate min-w-0">
+                    {sucursalLabel}
+                  </span>
+                )}
+                {oferta.totalSucursales > 1 && (
+                  <span className="shrink-0 text-[12px] bg-[#efefeb] text-[#555] rounded-full px-2.5 py-1 font-semibold leading-none whitespace-nowrap">
+                    +{oferta.totalSucursales - 1}
+                  </span>
+                )}
+              </div>
+            )}
           </div>
         </div>
 

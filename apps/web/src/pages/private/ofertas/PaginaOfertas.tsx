@@ -25,7 +25,7 @@
  * Ubicación: apps/web/src/pages/private/ofertas/PaginaOfertas.tsx
  */
 
-import { Fragment, useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react';
 import {
   Tag,
   Loader2,
@@ -73,17 +73,12 @@ import type { OfertaFeed } from '@/types/ofertas';
 // HELPERS
 // =============================================================================
 
-const HORAS_NUEVA = 48;
-const MS_NUEVA = HORAS_NUEVA * 60 * 60 * 1000;
-
 const HORAS_VENCE_PRONTO = 48;
 const MS_VENCE_PRONTO = HORAS_VENCE_PRONTO * 60 * 60 * 1000;
 
-function esCreadaHaceMenosDeXh(createdAt: string, msUmbral: number): boolean {
-  const t = new Date(createdAt).getTime();
-  if (Number.isNaN(t)) return false;
-  return Date.now() - t < msUmbral;
-}
+// `HORAS_NUEVA` / `MS_NUEVA` / `esCreadaHaceMenosDeXh` se eliminaron en
+// Sprint 9.3 junto con el bloque "Recién publicadas". Si vuelve un bloque
+// que use la microseñal 'nueva', rehidratar estos helpers.
 
 function venceEnMenosDeXh(fechaFin: string, msUmbral: number): boolean {
   const t = new Date(fechaFin).getTime();
@@ -260,15 +255,9 @@ export default function PaginaOfertas() {
     [ofertas]
   );
 
-  // Fotos del collage: fijas en las primeras 6 del total (3 pares + 3 impares)
-  const collageIzq = useMemo(
-    () => ofertas.slice(0, 6).filter((_, i) => i % 2 === 0),
-    [ofertas]
-  );
-  const collageDer = useMemo(
-    () => ofertas.slice(0, 6).filter((_, i) => i % 2 === 1),
-    [ofertas]
-  );
+  // `collageIzq` / `collageDer` / `CollageItem` eliminados Sprint 9.3
+  // junto con el layout de 3 cols (collage izq + lista + collage der). El
+  // grid de cards ahora es 1 col / 2 cols sin fotos decorativas laterales.
 
   // ───────────────────────────────────────────────────────────────────────
   // CARRUSELES ROTATIVOS DEL PAR SUPERIOR
@@ -347,15 +336,9 @@ export default function PaginaOfertas() {
     return r;
   }, [vencenPronto.data]);
 
-  const microsenalesNuevas = useMemo<Record<string, 'nueva'>>(() => {
-    const r: Record<string, 'nueva'> = {};
-    (recientes.data ?? []).forEach((o) => {
-      if (esCreadaHaceMenosDeXh(o.createdAt, MS_NUEVA)) {
-        r[o.ofertaId] = 'nueva';
-      }
-    });
-    return r;
-  }, [recientes.data]);
+  // `microsenalesNuevas` se eliminó junto con el bloque "Recién publicadas"
+  // (Sprint 9.3). Si en el futuro vuelve un bloque que use la microseñal
+  // 'nueva', rehidratar este useMemo desde `recientes.data`.
 
   const microsenalesPopulares = useMemo<Record<string, 'popular'>>(() => {
     const r: Record<string, 'popular'> = {};
@@ -397,11 +380,11 @@ export default function PaginaOfertas() {
       {/* - Chip 'todas': feed editorial completo (Hero + carruseles + lista)*/}
       {/* - Chip ≠ 'todas': SOLO la lista filtrada — Hero/carruseles/ticker  */}
       {/*   se ocultan para que el filtro se sienta fuerte e inmediato.      */}
+      {/* Acotado a `lg:max-w-[920px]` (Sprint 9.3 — mismo ancho que el     */}
+      {/* feed de MP, Servicios y Negocios para coherencia visual entre     */}
+      {/* secciones). El header sticky de arriba mantiene `max-w-7xl`.      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      {/* Padding lateral DEBE coincidir con el del wrapper sticky        */}
-      {/* (`lg:px-6 2xl:px-8`) para que el contenido NO sobrepase el ancho */}
-      {/* horizontal del header negro.                                     */}
-      <div className="px-4 lg:px-6 2xl:px-8 lg:max-w-7xl lg:mx-auto pt-6 lg:pt-8 pb-16">
+      <div className="px-4 lg:px-4 lg:max-w-[920px] lg:mx-auto pt-6 lg:pt-8 pb-16">
         {/* 1. PAR ARRIBA (2 cols desktop): "Hoy te recomendamos" (Hero    */}
         {/*    admin override) + "Destacado" (2do popular / 1er reciente). */}
         {/*    Comparten ancho para que el Hero no domine toda la pantalla.*/}
@@ -445,30 +428,22 @@ export default function PaginaOfertas() {
           </div>
         )}
 
-        {/* 2. PAR EN 2 COLUMNAS (desktop): "Últimas horas" + "Recién     */}
-        {/*    publicadas". Comparten ancho porque ambos son temporales   */}
-        {/*    (urgencia + novedad). En móvil se apilan stack.             */}
+        {/* 2. BLOQUE "Últimas horas" — carrusel full-width.
+            Sprint 9.3: antes era un par 2 cols con "Recién publicadas" al
+            lado. Se eliminó esa segunda columna porque duplicaba el eje
+            "novedad" que ya cubren "Hoy te recomendamos" y "Destacado"
+            arriba. "Vencen pronto" se queda solo porque aporta info única
+            (urgencia / tiempo de caducidad) y empuja conversión. */}
         {feedEditorialVisible && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-5 2xl:gap-x-6">
-            <BloqueCarruselAuto
-              eyebrow="Vencen pronto"
-              titulo="Últimas horas"
-              iconoLucide={Flame}
-              ofertas={vencenPronto.data ?? []}
-              cargando={vencenPronto.isPending}
-              microsenales={microsenalesVencen}
-              onClickOferta={setOfertaSeleccionada}
-            />
-            <BloqueCarruselAuto
-              eyebrow="Lo más nuevo"
-              titulo="Recién publicadas"
-              iconoLucide={Sparkles}
-              ofertas={recientes.data ?? []}
-              cargando={recientes.isPending}
-              microsenales={microsenalesNuevas}
-              onClickOferta={setOfertaSeleccionada}
-            />
-          </div>
+          <BloqueCarruselAuto
+            eyebrow="Vencen pronto"
+            titulo="Últimas horas"
+            iconoLucide={Flame}
+            ofertas={vencenPronto.data ?? []}
+            cargando={vencenPronto.isPending}
+            microsenales={microsenalesVencen}
+            onClickOferta={setOfertaSeleccionada}
+          />
         )}
 
         {/* 3. TICKER — logos flotantes (sin contenedor), mismo ancho     */}
@@ -517,61 +492,24 @@ export default function PaginaOfertas() {
                 onLimpiar={() => useFiltrosOfertasStore.getState().resetear()}
               />
             )
-          ) : chipActivo === 'recientes' ? (
-            // Layout COMPACTO — 3 columnas: collage | lista única | collage.
-            // Solo se usa cuando estás en la vista editorial completa (sin
-            // filtro). Si hay un chip activo, la lista es resultado de un
-            // filtro y los collages laterales se ven vacíos/raros — en ese
-            // caso caemos al grid limpio de abajo.
-            <div className="lg:grid lg:grid-cols-[220px_1fr_220px] 2xl:grid-cols-[260px_1fr_260px] lg:gap-5 2xl:gap-6 items-stretch">
-              {/* Collage izquierdo — solo desktop, fotos fijas */}
-              <div className="hidden lg:flex flex-col gap-1.5 overflow-hidden">
-                {collageIzq.map((o, i) => (
-                    <CollageItem
-                      key={o.ofertaId}
-                      oferta={o}
-                      deg={i % 2 === 0 ? -1.5 : 1.5}
-                      onClick={() => setOfertaSeleccionada(o)}
-                    />
-                  ))}
-              </div>
-
-              {/* Lista central */}
-              <div className="bg-white border-2 border-[#e8e6e0] rounded-xl overflow-hidden shadow-md">
-                {ofertasLista.map((o, idx) => (
-                  <Fragment key={o.ofertaId}>
-                    <CardOfertaLista
-                      oferta={o}
-                      onClick={() => setOfertaSeleccionada(o)}
-                    />
-                    {idx < ofertasLista.length - 1 && (
-                      <div className="border-t-[1.5px] border-[#d6d2c8]" />
-                    )}
-                  </Fragment>
-                ))}
-              </div>
-
-              {/* Collage derecho — solo desktop, fotos fijas */}
-              <div className="hidden lg:flex flex-col gap-1.5 overflow-hidden">
-                {collageDer.map((o, i) => (
-                    <CollageItem
-                      key={o.ofertaId}
-                      oferta={o}
-                      deg={i % 2 === 0 ? 1.5 : -1.5}
-                      onClick={() => setOfertaSeleccionada(o)}
-                    />
-                  ))}
-              </div>
-            </div>
           ) : (
-            // Layout EXPANDIDO — grid 1 / 2 (lg) / 3 (2xl) columnas, sin
-            // collages laterales. Mismo CardOfertaLista pero cada card en su
-            // propio contenedor con borde + sombra para exploración tranquila.
+            // Layout UNIFICADO — grid 1 col móvil / 2 cols lg+. Mismo
+            // patrón para vista editorial completa y vista filtrada.
+            // Sprint 9.3: antes había 3 cols (collage izq + lista + collage
+            // der) cuando estabas en `recientes`, pero los collages
+            // laterales se descartaron — el feed ahora vive acotado a
+            // `max-w-[920px]` y no había espacio coherente para fotos
+            // decorativas grandes a los lados.
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:gap-5">
               {ofertasLista.map((o) => (
                 <div
                   key={o.ofertaId}
-                  className="bg-white border-2 border-[#e8e6e0] rounded-xl overflow-hidden shadow-md"
+                  // `ring-1` en lugar de `border-2`: el ring se renderiza
+                  // POR FUERA del box (sin afectar el layout interior), así
+                  // la foto absolute `h-full` del CardOfertaLista llega
+                  // hasta el borde exterior del card sin que el border-2
+                  // deje una franja blanca arriba y abajo.
+                  className="bg-white ring-1 ring-[#e8e6e0] rounded-xl overflow-hidden shadow-md"
                 >
                   <CardOfertaLista
                     oferta={o}
@@ -763,37 +701,6 @@ function EstadoError({ onReintentar }: { onReintentar: () => void }) {
         Reintentar
       </button>
     </div>
-  );
-}
-
-function CollageItem({
-  oferta,
-  deg,
-  onClick,
-}: {
-  oferta: OfertaFeed;
-  deg: number;
-  onClick: () => void;
-}) {
-  return (
-    <button
-      onClick={onClick}
-      title={oferta.titulo}
-      style={{ transform: `rotate(${deg}deg)` }}
-      className="w-full aspect-3/4 rounded-lg overflow-hidden bg-[#e8e6e0] opacity-70 hover:opacity-90 transition-opacity duration-300 shadow-sm cursor-pointer"
-    >
-      {oferta.imagen ? (
-        <img
-          src={oferta.imagen}
-          alt={oferta.titulo}
-          className="h-full w-full object-cover"
-        />
-      ) : (
-        <div className="flex h-full w-full items-center justify-center">
-          <Tag className="w-4 h-4 text-[#b8b4a8]" strokeWidth={2} />
-        </div>
-      )}
-    </button>
   );
 }
 

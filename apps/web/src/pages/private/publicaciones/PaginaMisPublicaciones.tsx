@@ -121,13 +121,17 @@ const TABS_POR_TIPO: Record<
 };
 
 /**
- * El wizard de publicar guarda el borrador "nuevo" en localStorage bajo
- * `wizard_marketplace_${usuarioId}_nuevo`. Las keys con `articuloId` son
- * borradores de edición de artículos ya publicados — NO se consideran
- * borradores aquí (solo nos interesa el de creación nueva, que es único
- * por usuario).
+ * El composer inline guarda el borrador "nuevo" en localStorage bajo
+ * `aya:composer:marketplace:draft-v1` (un solo borrador por usuario, sin
+ * prefijo por id porque el composer es global). Las keys con prefijo
+ * `aya:composer:marketplace:draft-edit-{id}` son borradores de edición de
+ * artículos ya publicados — NO se consideran borradores aquí (solo nos
+ * interesa el de creación nueva, que es único por usuario).
+ *
+ * Mantener sincronizado con `claveDraft('v1')` en
+ * `apps/web/src/hooks/useComposerMarketplace.ts`.
  */
-const STORAGE_PREFIX_WIZARD = 'wizard_marketplace_';
+const COMPOSER_DRAFT_KEY = 'aya:composer:marketplace:draft-v1';
 
 // =============================================================================
 // COMPONENTE
@@ -207,16 +211,20 @@ export function PaginaMisPublicaciones() {
     const refetch = queryActual.refetch;
 
     // ─── Detectar borrador "nuevo" en localStorage al montar ──────────────────
-    // El wizard guarda automáticamente cada cambio. Si el usuario empezó a
-    // publicar y se salió sin terminar, mostramos un banner discreto para que
-    // pueda volver a su borrador.
+    // Composer inline guarda automáticamente cada cambio bajo la key
+    // `aya:composer:marketplace:draft-v1` (un solo borrador por usuario,
+    // sin prefijo por id porque el composer es global). Si el usuario empezó
+    // a publicar y se salió sin terminar, mostramos un banner discreto para
+    // que pueda volver a su borrador.
     useEffect(() => {
         if (!usuarioId) {
             setBorradorExiste(false);
             return;
         }
-        const key = `${STORAGE_PREFIX_WIZARD}${usuarioId}_nuevo`;
-        const valor = typeof window !== 'undefined' ? localStorage.getItem(key) : null;
+        const valor =
+            typeof window !== 'undefined'
+                ? localStorage.getItem(COMPOSER_DRAFT_KEY)
+                : null;
         if (!valor) {
             setBorradorExiste(false);
             return;
@@ -236,12 +244,14 @@ export function PaginaMisPublicaciones() {
     }, [usuarioId]);
 
     // ─── Handlers de navegación / CTAs ───────────────────────────────────────
-    const irAPublicar = () => navigate('/marketplace/publicar');
-    const continuarBorrador = () => navigate('/marketplace/publicar');
+    // Composer inline en /marketplace: `?crear=1` lo expande para crear,
+    // `?editar={id}` lo expande para editar. Reemplaza al wizard antiguo.
+    const irAPublicar = () => navigate('/marketplace?crear=1');
+    const continuarBorrador = () => navigate('/marketplace?crear=1');
 
     // ─── Handlers de acciones por artículo ───────────────────────────────────
     const handleEditar = (articulo: ArticuloMarketplace) => {
-        navigate(`/marketplace/publicar/${articulo.id}`);
+        navigate(`/marketplace?editar=${articulo.id}`);
     };
 
     const handlePausar = async (articulo: ArticuloMarketplace) => {
@@ -774,10 +784,10 @@ export function PaginaMisPublicaciones() {
             {/* ════════════════════════════════════════════════════════════════
                 FAB "+ Publicar" — visible en ambos modos (MarketPlace y
                 Servicios). El destino del onClick cambia según `tipoActivo`:
-                  - marketplace → /marketplace/publicar (wizard MP)
-                  - servicios   → /servicios?crear=ofrezco (composer inline
-                                  en el feed que se expande al cargar)
-                La paleta también cambia: cyan para MP, sky para Servicios.
+                  - marketplace → /marketplace?crear=1 (composer inline MP)
+                  - servicios   → /servicios?crear=ofrezco (composer inline)
+                Ambos expanden el composer en el feed de la sección. La
+                paleta cambia: teal/cyan para MP, sky para Servicios.
             ════════════════════════════════════════════════════════════════ */}
             <button
                 data-testid="fab-publicar"

@@ -1,0 +1,355 @@
+/**
+ * useComposerMarketplace.ts
+ * ===========================
+ * Estado del Composer de MarketPlace — réplica 1:1 del patrón usado en
+ * `useComposerServicios.ts` pero con el shape del artículo MP.
+ *
+ * Diferencias con Servicios:
+ *   - Sin `modo` (Ofrezco/Solicito) — todo es "vender un artículo".
+ *   - Sin `categoria`, `modalidad`, `urgente`, `presupuesto rango`.
+ *   - Precio = un solo entero (no discriminated union).
+ *   - Condición + Acepta ofertas + Unidad de venta (campos exclusivos MP).
+ *   - Zona = string única (no array).
+ *   - Foto OBLIGATORIA mínimo 1 (en Servicios es opcional).
+ *   - 4 confirmaciones legales (licito, enPoder, honesto, seguro).
+ *
+ * Persistencia: localStorage `aya:composer:marketplace:draft-{ns}`.
+ *   - `v1` para creación (un solo borrador por usuario).
+ *   - `edit-{articuloId}` para edición.
+ *
+ * Ubicación: apps/web/src/hooks/useComposerMarketplace.ts
+ */
+
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import type { CondicionArticulo } from '../types/marketplace';
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+const NAMESPACE_DEFAULT = 'v1';
+
+function claveDraft(ns: string) {
+    return `aya:composer:marketplace:draft-${ns}`;
+}
+
+// Mismos límites que el backend (`validations/marketplace.schema.ts`).
+const TITULO_MIN = 10;
+const TITULO_MAX = 80;
+const DESC_MAX = 1000;
+const PRECIO_MAX = 999999;
+const ZONA_MIN = 3;
+const ZONA_MAX = 150;
+const UNIDAD_MAX = 30;
+
+// =============================================================================
+// SHAPE DEL DRAFT
+// =============================================================================
+
+export interface ComposerMarketplaceDraft {
+    // Visible arriba
+    titulo: string;
+    descripcion: string;
+    /** String para permitir input vacío; se convierte a number al publicar. */
+    precio: string;
+
+    // Fotos (URLs públicas R2 ya subidas, vía presigned URL).
+    fotos: string[];
+    fotoPortadaIndex: number;
+
+    // Detalles (acordeón colapsable en la UI).
+    condicion: CondicionArticulo | null;
+    aceptaOfertas: boolean | null;
+    unidadVenta: string;
+
+    // Ubicación — viene del GPS, se siembra automáticamente.
+    latitud: number | null;
+    longitud: number | null;
+    ciudad: string | null;
+    /** Zona aproximada (string única, mínimo 3 chars). */
+    zonaAproximada: string;
+
+    // Confirmaciones legales — backend pide 4 con su versión.
+    confirmaciones: {
+        licito: boolean;
+        enPoder: boolean;
+        honesto: boolean;
+        seguro: boolean;
+    };
+}
+
+const DRAFT_INICIAL: ComposerMarketplaceDraft = {
+    titulo: '',
+    descripcion: '',
+    precio: '',
+    fotos: [],
+    fotoPortadaIndex: 0,
+    condicion: null,
+    aceptaOfertas: null,
+    unidadVenta: '',
+    latitud: null,
+    longitud: null,
+    ciudad: null,
+    zonaAproximada: '',
+    confirmaciones: {
+        licito: false,
+        enPoder: false,
+        honesto: false,
+        seguro: false,
+    },
+};
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/** Parsea un string a entero positivo, devuelve null si vacío o inválido. */
+export function parseEnteroPositivo(v: string): number | null {
+    const limpio = v.replace(/[^\d]/g, '');
+    if (!limpio) return null;
+    const n = parseInt(limpio, 10);
+    return Number.isFinite(n) && n > 0 ? n : null;
+}
+
+// =============================================================================
+// PERSISTENCIA
+// =============================================================================
+
+function cargarDraft(ns: string): ComposerMarketplaceDraft {
+    if (typeof window === 'undefined') return DRAFT_INICIAL;
+    try {
+        const raw = localStorage.getItem(claveDraft(ns));
+        if (!raw) return DRAFT_INICIAL;
+        const parsed = JSON.parse(raw) as Partial<ComposerMarketplaceDraft>;
+        return { ...DRAFT_INICIAL, ...parsed };
+    } catch {
+        return DRAFT_INICIAL;
+    }
+}
+
+function guardarDraft(ns: string, d: ComposerMarketplaceDraft) {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.setItem(claveDraft(ns), JSON.stringify(d));
+    } catch {
+        /* noop */
+    }
+}
+
+function limpiarDraftMarketplace(ns: string) {
+    if (typeof window === 'undefined') return;
+    try {
+        localStorage.removeItem(claveDraft(ns));
+    } catch {
+        /* noop */
+    }
+}
+
+/** Determina si un draft está vacío (sin cambios significativos del usuario). */
+export function draftEstaIntacto(d: ComposerMarketplaceDraft): boolean {
+    return (
+        d.titulo === '' &&
+        d.descripcion === '' &&
+        d.precio === '' &&
+        d.fotos.length === 0 &&
+        d.condicion === null &&
+        d.aceptaOfertas === null &&
+        d.unidadVenta === '' &&
+        d.zonaAproximada === '' &&
+        !d.confirmaciones.licito &&
+        !d.confirmaciones.enPoder &&
+        !d.confirmaciones.honesto &&
+        !d.confirmaciones.seguro
+    );
+}
+
+// =============================================================================
+// VALIDACIÓN GLOBAL
+// =============================================================================
+
+export type CampoErrorComposerMP =
+    | 'titulo'
+    | 'descripcion'
+    | 'precio'
+    | 'fotos'
+    | 'condicion'
+    | 'unidadVenta'
+    | 'zonaAproximada'
+    | 'ubicacion'
+    | 'confirmaciones';
+
+export type ErroresComposerMP = Partial<Record<CampoErrorComposerMP, string>>;
+
+export interface ResultadoValidacionMP {
+    errores: ErroresComposerMP;
+    valido: boolean;
+    mensajeBoton: string | null;
+}
+
+export function validarComposerMP(
+    d: ComposerMarketplaceDraft,
+): ResultadoValidacionMP {
+    const errores: ErroresComposerMP = {};
+
+    // ── OBLIGATORIOS ────────────────────────────────────────────────
+    const titLen = d.titulo.trim().length;
+    if (titLen < TITULO_MIN) {
+        errores.titulo =
+            titLen === 0
+                ? 'Escribe un título.'
+                : `Faltan ${TITULO_MIN - titLen} caracteres en el título.`;
+    } else if (titLen > TITULO_MAX) {
+        errores.titulo = `El título no debe pasar de ${TITULO_MAX} caracteres.`;
+    }
+
+    const precio = parseEnteroPositivo(d.precio);
+    if (precio === null) {
+        errores.precio = 'Escribe el precio.';
+    } else if (precio > PRECIO_MAX) {
+        errores.precio = `El precio máximo es $${PRECIO_MAX.toLocaleString('es-MX')}.`;
+    }
+
+    if (d.fotos.length < 1) {
+        errores.fotos = 'Agrega al menos 1 foto.';
+    }
+
+    if (d.latitud === null || d.longitud === null || !d.ciudad) {
+        errores.ubicacion = 'Activa tu ubicación para continuar.';
+    }
+
+    const zonaLen = d.zonaAproximada.trim().length;
+    if (zonaLen < ZONA_MIN) {
+        errores.zonaAproximada =
+            zonaLen === 0
+                ? 'Escribe una zona (ej. Centro, Las Conchas).'
+                : `Faltan ${ZONA_MIN - zonaLen} caracteres en la zona.`;
+    } else if (zonaLen > ZONA_MAX) {
+        errores.zonaAproximada = `La zona no debe pasar de ${ZONA_MAX} caracteres.`;
+    }
+
+    const todasOk =
+        d.confirmaciones.licito &&
+        d.confirmaciones.enPoder &&
+        d.confirmaciones.honesto &&
+        d.confirmaciones.seguro;
+    if (!todasOk) {
+        errores.confirmaciones = 'Acepta las reglas de publicación.';
+    }
+
+    // ── OPCIONALES (validan solo límites máximos si hay contenido) ──
+    const descLen = d.descripcion.trim().length;
+    if (descLen > DESC_MAX) {
+        errores.descripcion = `La descripción no debe pasar de ${DESC_MAX} caracteres.`;
+    }
+
+    if (d.unidadVenta.trim().length > UNIDAD_MAX) {
+        errores.unidadVenta = `La unidad no debe pasar de ${UNIDAD_MAX} caracteres.`;
+    }
+
+    const orden: CampoErrorComposerMP[] = [
+        'titulo',
+        'descripcion',
+        'precio',
+        'fotos',
+        'condicion',
+        'unidadVenta',
+        'zonaAproximada',
+        'ubicacion',
+        'confirmaciones',
+    ];
+    let mensajeBoton: string | null = null;
+    for (const k of orden) {
+        if (errores[k]) {
+            mensajeBoton = errores[k] ?? null;
+            break;
+        }
+    }
+
+    return {
+        errores,
+        valido: Object.keys(errores).length === 0,
+        mensajeBoton,
+    };
+}
+
+// =============================================================================
+// HOOK
+// =============================================================================
+
+interface UseComposerMarketplaceOpts {
+    /** Namespace para localStorage. Default `'v1'` (CREAR). Para EDITAR usar
+     *  `'edit-{articuloId}'` para no mezclar borradores. */
+    storageNamespace?: string;
+}
+
+export function useComposerMarketplace(opts: UseComposerMarketplaceOpts = {}) {
+    const ns = opts.storageNamespace ?? NAMESPACE_DEFAULT;
+
+    const [draft, setDraft] = useState<ComposerMarketplaceDraft>(() =>
+        cargarDraft(ns),
+    );
+
+    useEffect(() => {
+        guardarDraft(ns, draft);
+    }, [draft, ns]);
+
+    const actualizar = useCallback(
+        (
+            cambio:
+                | Partial<ComposerMarketplaceDraft>
+                | ((d: ComposerMarketplaceDraft) => Partial<ComposerMarketplaceDraft>),
+        ) => {
+            setDraft((d) => {
+                const patch = typeof cambio === 'function' ? cambio(d) : cambio;
+                return { ...d, ...patch };
+            });
+        },
+        [],
+    );
+
+    /** Setea las 4 confirmaciones legales con un solo valor — refleja la
+     *  decisión de UI de compactar 4 checkboxes en 1. */
+    const setConfirmacionesUnificadas = useCallback((acepta: boolean) => {
+        setDraft((d) => ({
+            ...d,
+            confirmaciones: {
+                licito: acepta,
+                enPoder: acepta,
+                honesto: acepta,
+                seguro: acepta,
+            },
+        }));
+    }, []);
+
+    const limpiar = useCallback(() => {
+        limpiarDraftMarketplace(ns);
+        setDraft(DRAFT_INICIAL);
+    }, [ns]);
+
+    /** Hidrata el draft con valores de un artículo existente (modo edición).
+     *  Llamar UNA SOLA VEZ cuando el artículo se carga (ref-guard). */
+    const hidratarDesdeArticulo = useCallback(
+        (d: Partial<ComposerMarketplaceDraft>) => {
+            setDraft((prev) => ({ ...prev, ...d }));
+        },
+        [],
+    );
+
+    const validacion = useMemo(() => validarComposerMP(draft), [draft]);
+
+    return {
+        draft,
+        actualizar,
+        setConfirmacionesUnificadas,
+        limpiar,
+        hidratarDesdeArticulo,
+        // Validación
+        errores: validacion.errores,
+        valido: validacion.valido,
+        mensajeBoton: validacion.mensajeBoton,
+        // Utilidades
+        estaIntacto: draftEstaIntacto(draft),
+    };
+}
+
+export default useComposerMarketplace;

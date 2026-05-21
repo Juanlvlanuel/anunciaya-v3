@@ -279,7 +279,18 @@ export async function obtenerFeedOfertas(
             PARTITION BY
               o.negocio_id, o.titulo, o.descripcion, o.tipo,
               o.valor, o.imagen, o.fecha_inicio, o.fecha_fin
-          ) AS total_sucursales
+          ) AS total_sucursales,
+
+          -- Cuántas sucursales ACTIVAS tiene el negocio en total
+          -- (independiente de cuántas tienen esta oferta). El frontend
+          -- usa este conteo para decidir si una sucursal matriz debe
+          -- mostrarse como "Matriz" (multi-sucursal) o sin label (única).
+          (
+            SELECT COUNT(*)::int
+            FROM negocio_sucursales s2
+            WHERE s2.negocio_id = n.id
+              AND s2.activa = true
+          ) AS negocio_total_sucursales
 
         FROM ofertas o
         INNER JOIN negocios n ON n.id = o.negocio_id

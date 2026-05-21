@@ -35,6 +35,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 import { registrarVistaOferta } from '@/services/ofertasService';
 import type { OfertaFeed } from '@/types/ofertas';
+import { formatearSucursalLabel } from '@/utils/sucursalOferta';
 
 // =============================================================================
 // SUBCOMPONENTE: Flama con gradient rojo→naranja→amarillo (SVG inline)
@@ -262,6 +263,13 @@ function CardOfertaHeroBase({
 
   const badge = getBadgeTexto(oferta);
   const distancia = formatDistancia(oferta.distanciaKm);
+  // Sucursal: "Matriz" si es matriz multi-sucursal, nombre real si es
+  // sucursal específica, null si es matriz única (no aporta info).
+  const sucursalLabel = formatearSucursalLabel(
+    oferta.sucursalNombre,
+    oferta.negocioNombre,
+    oferta.negocioTotalSucursales,
+  );
   const vence = textoVence(oferta.fechaFin);
   const dias = diasRestantes(oferta.fechaFin);
 
@@ -355,10 +363,8 @@ function CardOfertaHeroBase({
           title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
         >
           <Eye
-            className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0"
+            className="w-3.5 h-3.5 lg:w-4 lg:h-4 shrink-0 text-white"
             strokeWidth={2.5}
-            fill="currentColor"
-            fillOpacity={0.25}
           />
           {oferta.totalVistas}
         </span>
@@ -390,10 +396,21 @@ function CardOfertaHeroBase({
               )}
             </div>
 
-            {/* Nombre + distancia en una sola fila con divisor vertical */}
+            {/* Nombre + sucursal (en columna) + distancia en una fila
+                con divisor vertical. La sucursal aparece debajo del
+                nombre del negocio (estilo "Imprenta FindUS / Sucursal
+                Norte") solo cuando hay sucursal real o "Matriz"
+                multi-sucursal. */}
             <div className="flex-1 min-w-0 flex items-center gap-3">
-              <div className="text-lg lg:text-xl font-bold text-[#1a1a1a] tracking-tight truncate leading-tight">
-                {oferta.negocioNombre}
+              <div className="flex-1 min-w-0">
+                <div className="text-lg lg:text-xl font-bold text-[#1a1a1a] tracking-tight truncate leading-tight">
+                  {oferta.negocioNombre}
+                </div>
+                {sucursalLabel && (
+                  <div className="text-[12px] lg:text-[13px] font-medium text-[#6b6b6b] tracking-tight truncate leading-tight mt-0.5">
+                    {sucursalLabel}
+                  </div>
+                )}
               </div>
               {distancia && (
                 <>
@@ -417,6 +434,7 @@ function CardOfertaHeroBase({
         ) : (
           <div className={eyebrowClasses}>
             {oferta.negocioNombre}
+            {sucursalLabel ? ` · ${sucursalLabel}` : ''}
             {distancia ? ` · ${distancia}` : ''}
           </div>
         )}

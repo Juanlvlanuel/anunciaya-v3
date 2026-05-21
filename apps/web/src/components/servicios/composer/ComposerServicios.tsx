@@ -426,7 +426,11 @@ export function ComposerServicios({
                                 texto={`${draft.titulo} ${draft.descripcion}`}
                                 onIrMarketplace={() => {
                                     onColapsar();
-                                    navigate('/marketplace/publicar');
+                                    // Composer inline MP: expandimos vía
+                                    // query param (réplica del flujo de
+                                    // Servicios). Reemplaza al wizard
+                                    // antiguo /marketplace/publicar.
+                                    navigate('/marketplace?crear=1');
                                 }}
                             />
                         </div>

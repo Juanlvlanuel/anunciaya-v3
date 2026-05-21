@@ -1,21 +1,20 @@
 /**
  * ModalSugerenciaModeracion.tsx
  * ==============================
- * Modal de sugerencia suave del wizard de Publicar. Aparece cuando el backend
- * detecta que el texto del usuario podría ser un servicio o una búsqueda
- * disfrazada, pero NO bloquea (severidad 'sugerencia').
+ * Modal de sugerencia suave del composer de Publicar (Sprint 9 — antes
+ * vivía en el wizard MP; tras la migración a composer inline lo sigue
+ * usando `ComposerMarketplace`). Aparece cuando el backend detecta que el
+ * texto del usuario podría ser un servicio o una búsqueda disfrazada,
+ * pero NO bloquea (severidad 'sugerencia').
  *
  * El usuario puede:
- *  - "Editar mi publicación" → cierra el modal y vuelve al paso anterior.
+ *  - "Editar mi publicación" → cierra el modal y queda editando en el
+ *    composer.
  *  - "Continuar de todos modos" → reenvía la mutation con
  *    `confirmadoPorUsuario: true` para que el backend acepte sin bloquear.
  *
- * NOTA: el botón "Llevar a Servicios" (que aparecía en la spec) se omite
- * en v1 porque la sección /servicios todavía es placeholder. Se agregará
- * cuando esa sección exista.
- *
- * Doc maestro: docs/arquitectura/MarketPlace.md (§7 Moderación 1.3, 1.4)
- * Sprint:      docs/prompts Marketplace/Sprint-4-Wizard-Publicar.md
+ * Doc maestro: docs/arquitectura/MarketPlace.md (§ Moderación + § P4)
+ * Sprint:      docs/prompts Marketplace/Sprint-9-Composer-Inline.md
  *
  * Ubicación: apps/web/src/components/marketplace/ModalSugerenciaModeracion.tsx
  */
@@ -50,7 +49,7 @@ export function ModalSugerenciaModeracion({
 }: ModalSugerenciaModeracionProps) {
     // Back nativo (Android + flecha del navegador) cierra el modal con la
     // misma semántica que el botón "Editar mi publicación" — volver al
-    // wizard sin reenviar la publicación.
+    // composer sin reenviar la publicación.
     useBackNativo({
         abierto,
         onCerrar: onEditar,

@@ -248,6 +248,15 @@ export interface OfertaFeedRow {
   total_sucursales: number;
 
   /**
+   * Cantidad de sucursales ACTIVAS que tiene el negocio en total
+   * (independiente de cuántas tienen esta oferta). El frontend usa este
+   * conteo para decidir si una sucursal matriz debe mostrarse como
+   * "Matriz" (cuando el negocio tiene >1 sucursal) o sin label (única).
+   * Siempre >= 1.
+   */
+  negocio_total_sucursales: number;
+
+  /**
    * Marcado por backend en post-procesado: true para las primeras N filas
    * cuando `orden=populares` y la tabla `oferta_vistas` existe (vistas reales
    * últimos 7 días). En cualquier otro caso, false.

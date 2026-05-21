@@ -28,6 +28,7 @@ import {
     generarUrlUploadImagenMarketplace,
     obtenerVendedorPorId,
     obtenerArticulosDeVendedor,
+    eliminarFotoMarketplaceSiHuerfana,
 } from '../services/marketplace.service.js';
 import {
     obtenerSugerencias,
@@ -71,6 +72,15 @@ const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12
 
 function obtenerUsuarioId(req: Request): string | null {
     return req.usuario?.usuarioId ?? null;
+}
+
+function exigirUsuarioId(req: Request, res: Response): string | null {
+    const id = obtenerUsuarioId(req);
+    if (!id) {
+        res.status(401).json({ success: false, message: 'No autenticado' });
+        return null;
+    }
+    return id;
 }
 
 // =============================================================================
@@ -413,6 +423,39 @@ export async function postUploadImagen(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al generar URL de subida',
+        });
+    }
+}
+
+/**
+ * DELETE /api/marketplace/foto-huerfana
+ * Body: { url: string }
+ * El composer de publicar dispara esto cuando:
+ *  - El usuario quita una foto antes de publicar.
+ *  - El usuario descarta el borrador y hay fotos subidas en sesión.
+ * El service hace reference count contra `articulos_marketplace.fotos` para
+ * que NO se borre si ya está en uso por un artículo creado.
+ */
+export async function deleteFotoMarketplaceHuerfana(req: Request, res: Response) {
+    try {
+        const usuarioId = exigirUsuarioId(req, res);
+        if (!usuarioId) return;
+
+        const { url } = req.body ?? {};
+        if (typeof url !== 'string' || !url.trim()) {
+            return res.status(400).json({
+                success: false,
+                message: 'Falta la URL de la foto a eliminar.',
+            });
+        }
+
+        await eliminarFotoMarketplaceSiHuerfana(url);
+        return res.status(200).json({ success: true });
+    } catch (error) {
+        console.error('Error en deleteFotoMarketplaceHuerfana:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al eliminar la foto.',
         });
     }
 }

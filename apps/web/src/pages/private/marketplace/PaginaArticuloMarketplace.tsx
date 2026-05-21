@@ -189,19 +189,17 @@ export function PaginaArticuloMarketplace() {
             data-testid="pagina-articulo-marketplace"
             className="min-h-full bg-transparent pb-[150px] lg:pb-12"
         >
-            {/* Wrapper único `max-w-7xl` — todo lo que esté adentro (header
-                sticky + contenido) respeta exactamente el mismo ancho. Esto
-                garantiza que el contenido NO se salga del ancho horizontal
-                del header negro. */}
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
-
             {/* ════════════════════════════════════════════════════════════════
                 HEADER DARK STICKY — Identidad teal del MarketPlace.
                 Mismo patrón que PaginaMarketplace y P3 PaginaPerfilVendedor:
                 fondo negro + glow teal + grid pattern. El icono gradient
                 teal antes del título refuerza la marca.
+
+                Wrapper propio `max-w-7xl` — el header mantiene su ancho
+                completo (coherente con PaginaMarketplace). El contenido
+                de abajo vive en su propio wrapper `max-w-[920px]`.
             ════════════════════════════════════════════════════════════════ */}
-            <div className="sticky top-0 z-30">
+            <div className="sticky top-0 z-30 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
@@ -317,12 +315,13 @@ export function PaginaArticuloMarketplace() {
                 </div>
 
             {/* ════════════════════════════════════════════════════════════════
-                CONTENIDO — comparte el wrapper max-w-7xl con el header.
+                CONTENIDO — wrapper propio `max-w-[920px]` (acotado al ancho
+                del feed de MP). El header de arriba mantiene `max-w-7xl`.
                 En móvil: sin padding-top — la galería queda pegada al header
                 (visualmente continua, sin franja del fondo azul de la app).
                 En desktop: padding arriba y abajo (lg:py-8).
             ════════════════════════════════════════════════════════════════ */}
-                <div className="pb-5 lg:py-8">
+            <div className="pb-5 lg:py-8 lg:mx-auto lg:max-w-[920px] lg:px-4">
                     {/* ─── DESKTOP: 2 columnas 60/40 con fracciones (fr).
                         Se usa `3fr_2fr` (no `60%_40%`) porque CSS Grid suma el
                         gap DESPUÉS de calcular los porcentajes, causando
@@ -462,8 +461,7 @@ export function PaginaArticuloMarketplace() {
                         </div>
                     </div>
                 </div>
-                </div>
-            </div>{/* /wrapper único max-w-7xl */}
+            </div>{/* /wrapper contenido max-w-[920px] */}
 
             {/* ════════════════════════════════════════════════════════════════
                 BARRA FIJA INFERIOR — solo móvil

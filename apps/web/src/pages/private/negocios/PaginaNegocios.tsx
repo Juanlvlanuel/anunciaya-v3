@@ -1215,8 +1215,17 @@ export function PaginaNegocios() {
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* CONTENIDO                                                        */}
+        {/* Ancho FIJO derivado del ancho de 3 cards lado a lado:            */}
+        {/*   - lg:  `max-w-[940px]`  = 3×300 + 2×20 (gap-5)                 */}
+        {/*   - 2xl: `max-w-[1068px]` = 3×340 + 2×24 (gap-6)                 */}
+        {/* Mismo ancho en ambos tabs (lista y mapa) → al alternar entre     */}
+        {/* vistas el área visible no cambia. Sin padding lateral en lg+     */}
+        {/* para que el ancho coincida exacto con cards+gaps (sin "sobra"    */}
+        {/* que reordene el centrado). El header arriba mantiene max-w-7xl.  */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        <div className={`relative z-0 lg:max-w-7xl lg:mx-auto ${tabActiva === 'mapa' ? 'p-4 lg:px-6 lg:py-3 2xl:px-8 2xl:py-3' : 'p-4 lg:p-6 2xl:p-8'}`}>
+        <div className={`relative z-0 lg:mx-auto p-4 lg:px-0 lg:max-w-[940px] 2xl:max-w-[1068px] ${
+          tabActiva === 'mapa' ? 'lg:py-3 2xl:py-3' : 'lg:py-6 2xl:py-8'
+        }`}>
 
           {/* ── MOBILE: Tab Lista ── */}
           {tabActiva === 'lista' && (
@@ -1264,11 +1273,15 @@ export function PaginaNegocios() {
           {/* ── DESKTOP ── */}
           <div className="hidden lg:block" data-testid="negocios-desktop">
 
-            {/* Tab Lista: Solo grid de cards */}
+            {/* Tab Lista: Grid de cards con ancho FIJO 300/340px (mismo
+                tamaño que la columna izq del tab Mapa). Usa `auto-fill`
+                para que entren las que quepan en el ancho disponible
+                (max-w-7xl). En lg → 3 cards/fila; en 2xl → 3 cards/fila;
+                en monitores muy anchos → 4+ cards/fila. */}
             {tabActiva === 'lista' && (
               <>
                 {loading && negocios.length === 0 ? (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-5 2xl:gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-[repeat(auto-fill,300px)] 2xl:grid-cols-[repeat(auto-fill,340px)] gap-4 lg:gap-5 2xl:gap-6 justify-start">
                     {Array.from({ length: 8 }).map((_, i) => (
                       <div key={i} className="h-[200px] bg-slate-100 rounded-2xl animate-pulse">
                         <div className="h-[130px] bg-slate-200 rounded-t-2xl" />
@@ -1286,7 +1299,7 @@ export function PaginaNegocios() {
                     <EstadoFiltroSinNegocios onLimpiar={limpiarFiltros} />
                   )
                 ) : (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 2xl:grid-cols-3 gap-4 lg:gap-5 2xl:gap-6">
+                  <div className="grid grid-cols-1 lg:grid-cols-[repeat(auto-fill,300px)] 2xl:grid-cols-[repeat(auto-fill,340px)] gap-4 lg:gap-5 2xl:gap-6 justify-start">
                     {negocios.map((negocio) => (
                       <div key={negocio.sucursalId} ref={(el) => { cardRefs.current[negocio.sucursalId] = el; }}>
                         <CardNegocio
@@ -1301,11 +1314,17 @@ export function PaginaNegocios() {
               </>
             )}
 
-            {/* Tab Mapa: Cards izquierda + Mapa derecha */}
+            {/* Tab Mapa: Cards izquierda + Mapa derecha.
+                gaps `lg:gap-5 2xl:gap-6` para coincidir EXACTO con los
+                gaps del grid de la vista Lista (Sprint 9.3 balance):
+                card 300 + gap 20 + mapa 620 = 940px = 3 cards lista. */}
             {tabActiva === 'mapa' && (
-              <div className="flex gap-4 2xl:gap-5" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)' }}>
-                {/* Cards scrollable izquierda */}
-                <div ref={cardsScrollRef} className="negocios-cards-scroll w-[380px] 2xl:w-[420px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
+              <div className="flex gap-5 2xl:gap-6" style={{ height: 'calc(100vh - 83px - var(--negocios-header-h) - 24px)' }}>
+                {/* Cards scrollable izquierda — Sprint 9.3: bajadas de
+                    380/420px a 300/340px para que el mapa de la derecha
+                    gane ~80px adicionales dentro del container acotado a
+                    `max-w-[920px]`. */}
+                <div ref={cardsScrollRef} className="negocios-cards-scroll w-[300px] 2xl:w-[340px] shrink-0 overflow-y-auto overflow-x-visible pr-1 z-10">
                   {loading && negocios.length === 0 ? (
                     <div className="flex flex-col gap-5">
                       {Array.from({ length: 4 }).map((_, i) => (

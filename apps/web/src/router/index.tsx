@@ -87,7 +87,6 @@ const PlaceholderPage = ({ nombre }: { nombre: string }) => (
 // Páginas de secciones principales
 import PaginaMarketplace from '../pages/private/marketplace/PaginaMarketplace';
 import PaginaArticuloMarketplace from '../pages/private/marketplace/PaginaArticuloMarketplace';
-import PaginaPublicarArticulo from '../pages/private/marketplace/PaginaPublicarArticulo';
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
 import PaginaServicios from '../pages/private/servicios/PaginaServicios';
 import PaginaServicio from '../pages/private/servicios/PaginaServicio';
@@ -132,6 +131,22 @@ const NoEncontrada = () => (
 function RedirectVendedorAUsuario() {
   const { usuarioId } = useParams<{ usuarioId: string }>();
   return <Navigate to={`/marketplace/usuario/${usuarioId}`} replace />;
+}
+
+/**
+ * Redirige el viejo URL del wizard de edición
+ * `/marketplace/publicar/:articuloId` al composer inline activado con
+ * `?editar=<id>`. Sirve para no romper enlaces guardados o cualquier
+ * `navigate(...)` viejo que sobreviva en componentes externos.
+ */
+function RedirigirEditarArticulo() {
+  const { articuloId } = useParams<{ articuloId: string }>();
+  return (
+    <Navigate
+      to={articuloId ? `/marketplace?editar=${articuloId}` : '/marketplace'}
+      replace
+    />
+  );
 }
 
 // =============================================================================
@@ -282,20 +297,17 @@ const router = createBrowserRouter([
             ),
           },
           {
+            // Rutas `/marketplace/publicar` y `/marketplace/publicar/:articuloId`
+            // ELIMINADAS en el rediseño Sprint 9. El composer ahora vive inline
+            // en `/marketplace` (orquestador <ComposerSection> activado por
+            // `?crear=1` o `?editar=<id>`). Si llegaste aquí desde un link
+            // viejo, redirige al feed con el composer expandido.
             path: '/marketplace/publicar',
-            element: (
-              <ModoPersonalEstrictoGuard>
-                <PaginaPublicarArticulo />
-              </ModoPersonalEstrictoGuard>
-            ),
+            element: <Navigate to="/marketplace?crear=1" replace />,
           },
           {
             path: '/marketplace/publicar/:articuloId',
-            element: (
-              <ModoPersonalEstrictoGuard>
-                <PaginaPublicarArticulo />
-              </ModoPersonalEstrictoGuard>
-            ),
+            element: <RedirigirEditarArticulo />,
           },
           {
             path: '/marketplace/usuario/:usuarioId',

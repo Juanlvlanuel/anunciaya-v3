@@ -32,6 +32,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 import { registrarVistaOferta } from '@/services/ofertasService';
 import type { OfertaFeed } from '@/types/ofertas';
+import { formatearSucursalLabel } from '@/utils/sucursalOferta';
 
 interface CardOfertaCarruselProps {
   oferta: OfertaFeed;
@@ -126,6 +127,11 @@ export default function CardOfertaCarrusel({
 }: CardOfertaCarruselProps) {
   const badge = getBadgeTexto(oferta);
   const distancia = formatDistancia(oferta.distanciaKm);
+  const sucursalLabel = formatearSucursalLabel(
+    oferta.sucursalNombre,
+    oferta.negocioNombre,
+    oferta.negocioTotalSucursales,
+  );
   const senal = textoMicrosenal(microsenal, oferta.fechaFin);
 
   // Tracking de vista (impression): cuando ≥50% de la card está visible
@@ -194,9 +200,16 @@ export default function CardOfertaCarrusel({
               <Store className="w-3 h-3 text-[#888]" strokeWidth={2} />
             )}
           </div>
-          <span className="text-[14px] lg:text-[15px] font-bold text-[#1a1a1a] tracking-tight truncate leading-tight">
-            {oferta.negocioNombre}
-          </span>
+          <div className="min-w-0 flex-1">
+            <div className="text-[14px] lg:text-[15px] font-bold text-[#1a1a1a] tracking-tight truncate leading-tight">
+              {oferta.negocioNombre}
+            </div>
+            {sucursalLabel && (
+              <div className="text-[11px] lg:text-[12px] font-medium text-[#6b6b6b] tracking-tight truncate leading-tight mt-0.5">
+                {sucursalLabel}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Título de la oferta — `min-h` reserva siempre 2 líneas de espacio
@@ -232,10 +245,8 @@ export default function CardOfertaCarrusel({
             title={`${oferta.totalVistas} ${oferta.totalVistas === 1 ? 'vista' : 'vistas'}`}
           >
             <Eye
-              className="w-3.5 h-3.5 shrink-0"
+              className="w-3.5 h-3.5 shrink-0 text-white"
               strokeWidth={2.5}
-              fill="currentColor"
-              fillOpacity={0.25}
             />
             {oferta.totalVistas}
           </span>

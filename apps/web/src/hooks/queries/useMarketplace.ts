@@ -270,9 +270,10 @@ export async function heartbeatArticulo(articuloId: string): Promise<void> {
 // =============================================================================
 
 /**
- * Body que el wizard envía al backend. `confirmadoPorUsuario` es opcional;
- * el wizard lo agrega cuando el usuario eligió "Continuar de todos modos"
- * tras una sugerencia suave de moderación (servicio o búsqueda).
+ * Body que el composer (antes wizard) envía al backend.
+ * `confirmadoPorUsuario` es opcional; el composer lo agrega cuando el
+ * usuario eligió "Continuar de todos modos" tras una sugerencia suave de
+ * moderación (servicio o búsqueda).
  */
 export interface CrearArticuloPayload {
     titulo: string;
@@ -525,6 +526,56 @@ export function useSubirFotoMarketplace(): UseSubirFotoMarketplaceResult {
     }, []);
 
     return { publicUrl, isUploading, error, subir, reset };
+}
+
+/**
+ * `POST /api/marketplace/upload-imagen` — versión "mutation" del flujo de
+ * presigned URL, pensada para el composer inline (réplica del patrón de
+ * Servicios). Devuelve `{ uploadUrl, publicUrl }` y el caller hace el PUT
+ * directo a R2.
+ *
+ * Convive con `useSubirFotoMarketplace` (que sigue siendo usado por el
+ * wizard mientras se migra). Una vez retirado el wizard, este hook queda
+ * como único punto de entrada para subir fotos al bucket MarketPlace.
+ */
+export function useUploadFotoMarketplace() {
+    return useMutation({
+        mutationFn: async (vars: {
+            nombreArchivo: string;
+            contentType: 'image/jpeg' | 'image/png' | 'image/webp';
+        }) => {
+            const response = await api.post<{
+                success: boolean;
+                data?: {
+                    uploadUrl: string;
+                    publicUrl: string;
+                };
+                message?: string;
+            }>('/marketplace/upload-imagen', vars);
+            return response.data;
+        },
+    });
+}
+
+/**
+ * `DELETE /api/marketplace/foto-huerfana` — composer usa esto para limpiar
+ * fotos que el usuario subió a R2 pero que aún no están atadas a un
+ * artículo creado (canceló o descartó el borrador).
+ *
+ * El backend valida reference count contra `articulos_marketplace.fotos`
+ * antes de borrar, así que si la URL ya está en un artículo publicado
+ * queda protegida.
+ */
+export function useEliminarFotoMarketplaceHuerfana() {
+    return useMutation({
+        mutationFn: async (url: string) => {
+            const response = await api.delete<{
+                success: boolean;
+                message?: string;
+            }>('/marketplace/foto-huerfana', { data: { url } });
+            return response.data;
+        },
+    });
 }
 
 // =============================================================================

@@ -46,6 +46,7 @@ import {
     deleteArticulo,
     getMisArticulos,
     postUploadImagen,
+    deleteFotoMarketplaceHuerfana,
     getVendedorMarketplace,
     getPublicacionesDeVendedor,
     getSugerenciasBuscador,
@@ -159,6 +160,19 @@ router.post(
     verificarToken,
     requiereModoPersonal,
     postUploadImagen
+);
+
+/**
+ * DELETE /api/marketplace/foto-huerfana
+ * Body: { url }. Composer de publicar dispara esto al descartar borrador
+ * para limpiar fotos subidas que aún no están atadas a un artículo.
+ * El service valida reference count antes de borrar de R2.
+ */
+router.delete(
+    '/foto-huerfana',
+    verificarToken,
+    requiereModoPersonal,
+    deleteFotoMarketplaceHuerfana
 );
 
 /**

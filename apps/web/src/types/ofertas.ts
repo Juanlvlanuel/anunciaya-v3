@@ -146,6 +146,16 @@ export interface OfertaFeed {
   totalSucursales: number;
 
   /**
+   * Cuántas sucursales ACTIVAS tiene el negocio en total (independiente
+   * de cuántas tienen esta oferta). Siempre >= 1. Usado para decidir si
+   * una sucursal matriz se muestra como "Matriz" o sin label. Si el
+   * negocio tiene >1 sucursal, mostrar "Matriz" siempre que la oferta
+   * sea de la sucursal principal — aunque solo esa sucursal tenga la
+   * oferta (la matriz es 1 sucursal entre varias del negocio).
+   */
+  negocioTotalSucursales: number;
+
+  /**
    * Marcado por backend (post-procesado): true para top N cuando
    * `orden=populares` y hay datos de vistas reales. False en cualquier
    * otro caso. Permite al frontend pintar el pill "Popular" honestamente.

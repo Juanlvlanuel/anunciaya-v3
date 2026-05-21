@@ -155,7 +155,7 @@ export default function TituloDeBloque({
     ? 'w-4 h-4 lg:w-[18px] lg:h-[18px] 2xl:w-5 2xl:h-5'
     : 'w-3.5 h-3.5 lg:w-4 lg:h-4';
   const tituloClasses = esDestacado
-    ? 'text-xl lg:text-2xl 2xl:text-3xl font-extrabold text-[#1a1a1a] leading-tight tracking-tight'
+    ? 'text-xl lg:text-2xl 2xl:text-3xl font-extrabold text-[#1a1a1a] leading-tight tracking-tight truncate'
     : 'text-base lg:text-lg 2xl:text-xl font-bold text-[#1a1a1a] leading-tight tracking-tight';
   const underlineClasses = [
     'titulo-bloque-underline',
@@ -170,10 +170,13 @@ export default function TituloDeBloque({
   ]
     .filter(Boolean)
     .join(' ');
-  // Subtítulo (eyebrow) en Title Case — más grande, al lado derecho del
-  // título, sin uppercase. La capitalización ya viene desde el padre.
+  // Subtítulo (eyebrow) en Title Case — sin uppercase.
+  //   - 'destacado': APILADO ARRIBA del título (más chico, evita empalme
+  //     con el título grande cuando el contenedor es estrecho — fix
+  //     Sprint 9.3 al acotar feed a max-w-[920px]).
+  //   - 'normal': inline al LADO DERECHO del título (como estaba).
   const eyebrowClasses = esDestacado
-    ? 'text-lg lg:text-xl 2xl:text-2xl text-amber-600 font-semibold tracking-tight whitespace-nowrap'
+    ? 'text-[11px] lg:text-xs 2xl:text-sm text-amber-600 font-bold uppercase tracking-wider leading-none'
     : 'text-base lg:text-lg 2xl:text-xl text-amber-600 font-semibold tracking-tight whitespace-nowrap';
 
   // `key` cambia cuando cambia el slug → fuerza remount → animación
@@ -183,7 +186,10 @@ export default function TituloDeBloque({
       key={slug}
       data-testid={`titulo-bloque-${slug}`}
       className={[
-        'flex items-center mb-3 lg:mb-4',
+        'flex mb-3 lg:mb-4',
+        // En destacado el contenido se alinea por la línea base del
+        // título (top); en normal se alinea verticalmente al centro.
+        esDestacado ? 'items-center' : 'items-center',
         esDestacado ? 'gap-3' : 'gap-2.5',
       ].join(' ')}
     >
@@ -204,14 +210,20 @@ export default function TituloDeBloque({
         </div>
       )}
 
-      {/* Título + underline (a la izquierda, toma el espacio restante) */}
+      {/* Bloque de texto — toma el espacio restante */}
       <div className="flex-1 min-w-0">
+        {/* DESTACADO: eyebrow ARRIBA del título (apilado vertical) */}
+        {esDestacado && (
+          <div className={`${eyebrowClasses} mb-1`}>{eyebrow}</div>
+        )}
         <div className={tituloClasses}>{titulo}</div>
         <span className={underlineClasses} aria-hidden="true" />
       </div>
 
-      {/* Subtítulo al LADO DERECHO, en Title Case y más grande */}
-      <div className={`shrink-0 ${eyebrowClasses}`}>{eyebrow}</div>
+      {/* NORMAL: eyebrow al lado derecho (como estaba antes) */}
+      {!esDestacado && (
+        <div className={`shrink-0 ${eyebrowClasses}`}>{eyebrow}</div>
+      )}
     </div>
   );
 }

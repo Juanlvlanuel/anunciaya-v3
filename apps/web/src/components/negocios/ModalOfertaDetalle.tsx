@@ -24,6 +24,7 @@ import { X, Flame, Store } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 import { useNavigate } from 'react-router-dom';
+import { formatearSucursalLabel } from '@/utils/sucursalOferta';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -33,7 +34,6 @@ const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
-const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 import { useGuardados } from '@/hooks/useGuardados';
 import {
   registrarClickOferta,
@@ -73,6 +73,10 @@ interface Oferta {
     /** Cantidad de sucursales donde aplica la misma oferta. Si >1, el
      *  modal pide el listado al backend y lo muestra. */
     totalSucursales?: number;
+    /** Cantidad de sucursales ACTIVAS del negocio en total. Se usa para
+     *  decidir si la sucursal matriz se muestra como "Matriz" (cuando
+     *  el negocio tiene >1 sucursal) o sin label. Sprint 9.3. */
+    negocioTotalSucursales?: number;
     /** URL del logo del negocio (para el header del modal). */
     logoUrl?: string | null;
     /** Foto de perfil de la sucursal específica (avatar del chat). */
@@ -279,20 +283,18 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         navigate(`/negocios/${oferta.sucursalId}`);
     };
 
-    // Etiqueta de sucursal a mostrar bajo el nombre del negocio:
-    //  - Si es negocio de 1 sola sucursal (sucursalNombre === negocioNombre
-    //    Y `totalSucursales` indica que solo esta sucursal tiene la oferta),
-    //    no mostramos nada para evitar duplicar el nombre.
-    //  - Si es multi-sucursal y esta es la matriz (sucursalNombre coincide
-    //    con negocioNombre), mostramos "Matriz".
-    //  - En cualquier otro caso multi-sucursal, mostramos el nombre real.
-    const esMultiSucursal = (oferta?.totalSucursales ?? 0) > 1;
-    const esMatriz = !!(oferta?.sucursalNombre && negocioNombre && oferta.sucursalNombre === negocioNombre);
-    const sucursalLabelModal: string | null = !oferta?.sucursalNombre
-        ? null
-        : esMatriz
-            ? (esMultiSucursal ? 'Matriz' : null) // single-sucursal: omitir para no duplicar
-            : oferta.sucursalNombre;
+    // Etiqueta de sucursal a mostrar bajo el nombre del negocio.
+    // Sprint 9.3: lógica centralizada en `formatearSucursalLabel`
+    // (utils/sucursalOferta.ts) — antes la lógica vivía inline aquí y
+    // NO detectaba el caso `sucursalNombre === 'Principal'` (el backend
+    // pone "Principal" como nombre default de la sucursal matriz), así
+    // que el modal mostraba literalmente "Principal" en lugar de
+    // "Matriz". Ahora detecta ambos casos.
+    const sucursalLabelModal = formatearSucursalLabel(
+        oferta?.sucursalNombre,
+        negocioNombre,
+        oferta?.negocioTotalSucursales,
+    );
 
     // Hook de guardados
     const { guardado, toggleGuardado } = useGuardados({
@@ -323,7 +325,28 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         obtenerSucursalesDeOferta(ofertaId, gps)
             .then((r) => {
                 if (r.success && Array.isArray(r.data)) {
-                    setSucursales(r.data);
+                    // Dedupe en 2 capas (defensa contra duplicados del
+                    // backend / datos sucios en BD):
+                    //   1. Por `sucursalId` — caso bug del backend que
+                    //      devuelve la MISMA fila 2 veces (mismo ID).
+                    //   2. Por (nombre + dirección normalizada) — caso
+                    //      datos sucios: hay 2 sucursales literalmente
+                    //      con mismo nombre y misma dirección pero
+                    //      sucursalIds distintos en BD (visto Sprint 9.3
+                    //      con "Sucursal Norte" de Imprenta FindUS).
+                    // Conservamos la PRIMERA aparición de cada clave.
+                    const idsVistos = new Set<string>();
+                    const nombreDirVistos = new Set<string>();
+                    const unicas: SucursalDeOferta[] = [];
+                    for (const s of r.data) {
+                        const claveNombreDir = `${s.sucursalNombre.trim().toLowerCase()}|${(s.direccion ?? '').trim().toLowerCase()}`;
+                        if (idsVistos.has(s.sucursalId)) continue;
+                        if (nombreDirVistos.has(claveNombreDir)) continue;
+                        idsVistos.add(s.sucursalId);
+                        nombreDirVistos.add(claveNombreDir);
+                        unicas.push(s);
+                    }
+                    setSucursales(unicas);
                 }
             })
             .catch(() => { /* silent */ });
@@ -721,7 +744,21 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                         </span>
                                     </div>
                                     <div className="bg-white/5 rounded-lg ring-1 ring-white/10 overflow-hidden">
-                                        {sucursales.map((s, idx) => (
+                                        {sucursales.map((s, idx) => {
+                                            // Aplicar el mismo helper que en el header del modal:
+                                            // "Principal" o el nombre del negocio se traducen a
+                                            // "Matriz" cuando la oferta está en >1 sucursal. Aquí
+                                            // SIEMPRE se cumple `sucursales.length > 1` (el bloque
+                                            // entero está condicionado a esa lógica arriba), así
+                                            // que el helper devuelve string no-null y caemos al
+                                            // nombre tal cual solo como fallback defensivo.
+                                            const labelSucursal =
+                                                formatearSucursalLabel(
+                                                    s.sucursalNombre,
+                                                    negocioNombre,
+                                                    sucursales.length,
+                                                ) ?? s.sucursalNombre;
+                                            return (
                                             <div
                                                 key={s.sucursalId}
                                                 className={`flex items-center gap-2.5 px-3 py-2 ${
@@ -731,7 +768,7 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                                 <div className="flex-1 min-w-0">
                                                     <div className="flex items-center gap-1.5">
                                                         <span className="text-white text-[13px] font-bold truncate">
-                                                            {s.sucursalNombre}
+                                                            {labelSucursal}
                                                         </span>
                                                         {s.distanciaKm != null && (
                                                             <span className="text-amber-300 text-[11px] font-semibold tabular-nums shrink-0">
@@ -747,32 +784,15 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                                         </p>
                                                     )}
                                                 </div>
-                                                <div className="flex items-center gap-1 shrink-0">
-                                                    {s.whatsapp && (
-                                                        <a
-                                                            href={`https://wa.me/${s.whatsapp.replace(/\D/g, '')}`}
-                                                            target="_blank"
-                                                            rel="noopener noreferrer"
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="w-7 h-7 rounded-full bg-green-500 hover:bg-green-400 flex items-center justify-center transition-colors"
-                                                            title={`WhatsApp ${s.sucursalNombre}`}
-                                                        >
-                                                            <MessageCircle className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
-                                                        </a>
-                                                    )}
-                                                    {s.telefono && (
-                                                        <a
-                                                            href={`tel:${s.telefono.replace(/\s/g, '')}`}
-                                                            onClick={(e) => e.stopPropagation()}
-                                                            className="w-7 h-7 rounded-full bg-white/15 hover:bg-white/25 flex items-center justify-center transition-colors"
-                                                            title={`Llamar ${s.sucursalNombre}`}
-                                                        >
-                                                            <Phone className="w-3.5 h-3.5 text-white" strokeWidth={2.5} />
-                                                        </a>
-                                                    )}
-                                                </div>
+                                                {/* Iconos WhatsApp + Teléfono por sucursal
+                                                    removidos Sprint 9.3 — el modal mantiene
+                                                    los CTAs principales abajo (uno solo para
+                                                    el contacto del negocio). El listado de
+                                                    sucursales sirve solo de info de ubicación
+                                                    y distancia, sin duplicar CTAs por fila. */}
                                             </div>
-                                        ))}
+                                            );
+                                        })}
                                     </div>
                                 </div>
                             )}

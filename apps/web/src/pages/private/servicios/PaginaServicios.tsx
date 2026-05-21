@@ -7,7 +7,10 @@
  *  - Wrapper `min-h-full bg-transparent` (hereda gradiente azul del MainLayout).
  *  - `<ServiciosHeader>` sticky con `max-w-7xl` y `rounded-b-3xl` en desktop.
  *    Contiene back + logo + título + toggle Ofrezco/Solicito + KPI.
- *  - Contenido en contenedor `lg:max-w-7xl` también.
+ *  - Contenido acotado a `lg:max-w-[920px]` (alineado al ancho del
+ *    composer/feed de MarketPlace para coherencia visual entre secciones).
+ *    El header arriba mantiene su ancho completo (`max-w-7xl`) — solo el
+ *    contenido se acota.
  *  - Carrusel "Recién publicado" con snap horizontal.
  *  - Grid "Cerca de ti" (2 cols móvil / 3 cols lg / 4 cols 2xl).
  *  - FAB "+ Publicar".
@@ -44,11 +47,9 @@ import { useServiciosFeed } from '../../../hooks/queries/useServicios';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import type { TabServicios } from '../../../components/servicios/TabsServicios';
 import { CardServicio } from '../../../components/servicios/CardServicio';
-import { CardVacante } from '../../../components/servicios/CardVacante';
 import { CardHorizontal } from '../../../components/servicios/CardHorizontal';
 import { ClasificadosWidget } from '../../../components/servicios/ClasificadosWidget';
 import { ComposerSection } from '../../../components/servicios/composer/ComposerSection';
-import { MisPublicacionesWidget } from '../../../components/servicios/composer/MisPublicacionesWidget';
 import { Spinner } from '../../../components/ui/Spinner';
 import type {
     ModoServicio,
@@ -111,10 +112,9 @@ export function PaginaServicios() {
     //   - vacantes    → tipo='vacante-empresa'   (empleos formales de negocios)
     const [tabActiva, setTabActiva] = useState<TabServicios>('todos');
 
-    // Estado del composer: el widget <MisPublicacionesWidget> lo lee
-    // para mostrar 5 cards cuando hay más altura disponible (composer
-    // expandido) y solo 2 en estado colapsado.
-    const [composerExpandido, setComposerExpandido] = useState(false);
+    // El estado `composerExpandido` se eliminó junto con `MisPublicacionesWidget`
+    // (Sprint 9.2): el atajo a /mis-publicaciones ahora vive como chip dentro
+    // del propio composer (header de la pill colapsada). Mismo patrón que MP.
 
     // Filtro del tag strip del widget Clasificados (interno de la tab Solicitudes).
     const [filtroClasificado, setFiltroClasificado] =
@@ -242,7 +242,7 @@ export function PaginaServicios() {
                     ciudad={ciudad}
                     totalPublicaciones={null}
                 />
-                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                     <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                         <div className="w-20 h-20 rounded-full bg-sky-50 grid place-items-center mb-4">
                             <MapPin
@@ -302,32 +302,24 @@ export function PaginaServicios() {
             />
 
             {/* ── Contenido ── */}
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+            <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                 {/* Composer inline — pill colapsada que se expande
                     in-place al tap. Solo en modo Personal y en tabs
                     donde el usuario puede publicar (Todos / Servicios /
                     Solicitudes). Vacantes se publica desde Business
                     Studio, no aquí.
 
-                    En PC se renderiza junto a `<MisPublicacionesWidget>`
-                    en grid 2-col (composer + atajo a publicaciones del
-                    autor). En móvil el composer ocupa todo el ancho y
-                    el widget se oculta (la gestión vive en /mis-publicaciones). */}
+                    Sprint 9.2: se quitó el widget lateral `MisPublicacionesWidget`
+                    y el atajo a /mis-publicaciones quedó como chip dentro
+                    del header de la pill (mismo patrón que MP). Todo el
+                    contenido del feed (composer + cards + secciones) se
+                    acota a `max-w-[920px]` desde el container padre, igual
+                    que MP — el composer hereda ese ancho sin wrapper extra. */}
                 {esModoPersonal && tabActiva !== 'vacantes' && (
                     <div className="px-4 lg:px-0 pt-3 lg:pt-4">
-                        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-4 lg:items-stretch">
-                            <div className="min-w-0">
-                                <ComposerSection
-                                    modoServiciosDefault={modoComposerPorTab(tabActiva)}
-                                    onExpandirChange={setComposerExpandido}
-                                />
-                            </div>
-                            <div className="hidden lg:block">
-                                <MisPublicacionesWidget
-                                    composerExpandido={composerExpandido}
-                                />
-                            </div>
-                        </div>
+                        <ComposerSection
+                            modoServiciosDefault={modoComposerPorTab(tabActiva)}
+                        />
                     </div>
                 )}
 
@@ -396,7 +388,7 @@ export function PaginaServicios() {
                                 </TituloSeccion>
                                 <div
                                     data-testid="servicios-carrusel-recientes"
-                                    className="flex gap-3 lg:gap-4 overflow-x-auto no-scrollbar pb-2 snap-x"
+                                    className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x"
                                 >
                                     {recientes.map((p) => (
                                         <CardHorizontal
@@ -515,10 +507,11 @@ function CardSegunTipo({
     distanciaMetros?: number | null;
     onClick?: () => void;
 }) {
-    // Los `tipo='solicito'` ya no llegan aquí — viven en ClasificadosWidget.
-    if (publicacion.tipo === 'vacante-empresa') {
-        return <CardVacante publicacion={publicacion} onClick={onClick} />;
-    }
+    // Sprint 9.3: `CardServicio` es universal — renderiza los 3 tipos
+    // (`servicio-persona`, `solicito`, `vacante-empresa`) con el mismo
+    // layout y misma altura. La diferenciación visual entre tipos vive en
+    // el badge sup-izq de la foto y en el meta secundario (modalidad vs
+    // tipo de empleo). Ya no se ramifica aquí por `publicacion.tipo`.
     return (
         <CardServicio
             publicacion={publicacion}

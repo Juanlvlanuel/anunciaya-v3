@@ -16,7 +16,7 @@
  *     modalidad + mapa + Q&A
  *   - Barra fija inferior con ChatYA + WhatsApp
  *
- * Layout desktop: 1 columna acotada con `max-w-7xl` + sticky CTA en lateral
+ * Layout desktop: 1 columna acotada con `max-w-[920px]` + sticky CTA en lateral
  * (simplificación: por ahora una sola columna fluida para todos los breakpoints
  * y la barra de contacto inline al final).
  *
@@ -111,7 +111,7 @@ export function PaginaServicio() {
             <>
                 <ServiciosHeader variante="pagina" onBack={handleVolver} />
                 <div className="min-h-full bg-transparent">
-                    <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                    <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                         <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                             <div className="w-16 h-16 rounded-full bg-amber-50 grid place-items-center mb-4">
                                 <AlertCircle
@@ -394,7 +394,7 @@ export function PaginaServicio() {
                 }
             />
             <div className="min-h-full bg-transparent pb-32 lg:pb-8">
-                <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8 lg:py-6">
+                <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
                     <div className="px-4 lg:px-0 space-y-3 lg:space-y-4">
                         {/* Hero ancho completo — edge-to-edge mobile, card en desktop */}
                         <div className="-mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">

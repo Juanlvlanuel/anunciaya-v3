@@ -30,7 +30,7 @@
    - [P1 — Feed](#p1--feed-de-marketplace)
    - [P2 — Detalle del Artículo](#p2--detalle-del-artículo)
    - [P3 — Perfil de Usuario](#p3--perfil-de-usuario)
-   - [P4 — Wizard de Publicar / Editar](#p4--wizard-de-publicar--editar)
+   - [P4 — Composer inline de Publicar / Editar](#p4--composer-inline-de-publicar--editar)
    - [P5 — Buscador Potenciado](#p5--buscador-potenciado)
    - [P6 — Página Pública Compartible](#p6--página-pública-compartible)
 9. [Integraciones con Otros Módulos](#integraciones-con-otros-módulos)
@@ -91,9 +91,9 @@ La sección nace como respuesta directa a la experiencia caótica que viven los 
 
 1. **Una sola cosa por publicación, claramente categorizada.** Una publicación es UN objeto en venta. Punto. Sin ofertas múltiples, sin "vendo varias cosas", sin packs ambiguos. Si tienes 5 cosas, son 5 publicaciones.
 
-2. **División estricta entre MarketPlace y Servicios.** MarketPlace es **solo objetos físicos tangibles**. Cualquier publicación que ofrezca tiempo, mano de obra, conocimiento o disponibilidad es Servicio y va en `/servicios`. La línea es clara y se hace cumplir tanto en el wizard como en moderación.
+2. **División estricta entre MarketPlace y Servicios.** MarketPlace es **solo objetos físicos tangibles**. Cualquier publicación que ofrezca tiempo, mano de obra, conocimiento o disponibilidad es Servicio y va en `/servicios`. La línea es clara y se hace cumplir tanto en el composer (hint inline) como en moderación.
 
-3. **Cada publicación cumple un mínimo de información útil.** Sin foto, sin título descriptivo o sin precio, no se publica. Esto se valida en el wizard y elimina el ruido típico de "vendo esto" sin contexto.
+3. **Cada publicación cumple un mínimo de información útil.** Sin foto, sin título descriptivo o sin precio, no se publica. Esto se valida en el composer y elimina el ruido típico de "vendo esto" sin contexto.
 
 4. **No es un foro ni una red social.** No hay comentarios públicos, no hay "me gusta" expuestos, no hay timeline social. Solo: ver publicaciones, contactar al vendedor, guardar para después. Punto.
 
@@ -101,7 +101,7 @@ La sección nace como respuesta directa a la experiencia caótica que viven los 
 
 ### Lo que NO permitimos en MarketPlace
 
-Estas reglas se aplican en moderación y en el checklist del paso 3 del wizard ("No vendo artículos prohibidos por las reglas"):
+Estas reglas se aplican en moderación y en el checklist legal del composer (4 confirmaciones compactadas en 1 checkbox: lícito, en mi poder, honesto, seguro):
 
 - ❌ **Subastas** ("el que dé más se lo lleva", pujas, ventas con remate)
 - ❌ **Rifas, sorteos o ventas de boletos** (riesgo legal SEGOB + ya descartado en Visión Estratégica)
@@ -150,8 +150,8 @@ Si la respuesta a cualquiera es "no", la decisión se rechaza.
 
 ### Funciones del Vendedor
 
-- Publicar artículo en wizard de 3 pasos (Fotos+Título → Precio+Detalles → Ubicación+Confirmación)
-- Editar publicación existente (reusa el wizard en modo edición)
+- Publicar artículo en composer inline en el feed (`/marketplace?crear=1`)
+- Editar publicación existente (reusa el composer vía `/marketplace?editar=<id>`)
 - Pausar / activar / marcar como vendida / eliminar publicación
 - Reactivar publicaciones pausadas (extiende +30 días)
 - Ver métricas básicas por publicación: vistas, mensajes, guardados
@@ -238,11 +238,11 @@ Vendida → Eliminada
 
 ### Capa 1 — Validación preventiva al publicar
 
-Esta capa corre en el wizard (frontend + backend) y es la **única defensa real** del sistema. Si pasa esta capa, la publicación queda en el feed sin más controles.
+Esta capa corre en el composer (frontend + backend) y es la **única defensa real** del sistema. Si pasa esta capa, la publicación queda en el feed sin más controles.
 
 **Implementación:** `apps/api/src/services/marketplace/filtros.ts`
 
-#### 1.1 — Mínimos obligatorios (en el wizard P4)
+#### 1.1 — Mínimos obligatorios (en el composer P4)
 
 - Mínimo 1 foto, máximo 8
 - Título entre 10 y 80 caracteres
@@ -254,7 +254,7 @@ Esta capa corre en el wizard (frontend + backend) y es la **única defensa real*
 
 #### 1.2 — Filtro de palabras prohibidas (RECHAZO DURO)
 
-Si el título o la descripción contiene cualquier palabra de la lista negra, el wizard **NO permite publicar** y muestra un mensaje claro al usuario explicando por qué.
+Si el título o la descripción contiene cualquier palabra de la lista negra, el composer **NO permite publicar** y muestra un mensaje claro al usuario explicando por qué (toast con el mensaje del backend tras un 422).
 
 **Comportamiento técnico:**
 - Validación tanto en frontend (feedback inmediato) como en backend (defensa real).
@@ -276,7 +276,7 @@ Si el título o la descripción contiene cualquier palabra de la lista negra, el
 
 #### 1.3 — Detección de servicios disfrazados (SUGERENCIA SUAVE)
 
-Cuando el texto sugiere un servicio en lugar de un objeto físico, el wizard muestra un modal con dos opciones:
+Cuando el texto sugiere un servicio en lugar de un objeto físico, el composer muestra el modal `ModalSugerenciaModeracion` post-publicación con dos opciones (además del hint inline `<ComposerHintModeracion>` que aparece mientras se escribe):
 
 **Patrones detectados:** `ofrezco mis servicios de…`, `doy clases de…`, `servicio de [verbo]`, `cobro $X la hora`, `disponible para…`, `me dedico a…`, `soy [profesión]`, `presupuesto sin compromiso`, etc.
 
@@ -409,7 +409,7 @@ Imagen arriba + bloque blanco abajo. Distinto del glassmorphism inmersivo de Car
 - **Buscador físico**:
   - **Desktop:** input vive en el Navbar global (siempre visible). Al enfocar dispara `useSearchStore.abrirBuscador()` y se muestra el overlay.
   - **Móvil:** patrón inmersivo (sin Navbar global). El input vive **dentro del header del MarketPlace** y se expande al pulsar la lupa, igual que en Negocios. El input móvil escribe al mismo `useSearchStore.query` para que el overlay reuse toda su lógica (sugerencias, populares, recientes).
-- **Patrón inmersivo móvil** — `/marketplace`, `/marketplace/articulo/:id`, `/marketplace/publicar`, `/marketplace/vendedor/:id`, `/negocios/:id` y `/ofertas` ocultan el Navbar global (banda azul "AnunciaYA Tu Comunidad Local") en móvil. La lógica vive en `MainLayout.tsx → esPaginaConHeaderPropio`. En desktop el Navbar siempre se mantiene (mismo patrón que CardYA / Mis Guardados).
+- **Patrón inmersivo móvil** — `/marketplace`, `/marketplace/articulo/:id`, `/marketplace/vendedor/:id`, `/negocios/:id` y `/ofertas` ocultan el Navbar global (banda azul "AnunciaYA Tu Comunidad Local") en móvil. La lógica vive en `MainLayout.tsx → esPaginaConHeaderPropio`. En desktop el Navbar siempre se mantiene (mismo patrón que CardYA / Mis Guardados). _Nota: las rutas viejas del wizard `/marketplace/publicar` y `/marketplace/publicar/:id` redirigen al composer inline con query params (`?crear=1` / `?editar=<id>`)._
 - **Badge `RECIÉN`** en CardArticulo — indica publicación con `<24h` desde `created_at`. Se usa la palabra "RECIÉN" en lugar de "NUEVO" para evitar confusión con la condición `nuevo` del artículo.
 
 
@@ -476,7 +476,7 @@ Scroll vertical continuo, no estático. Invita a explorar.
 
 - **Tap/click en card** → navega a `/marketplace/articulo/:id` (P2)
 - **Tap en ❤️ guardar** → toggle vía `useGuardados` con `entity_type='articulo_marketplace'`
-- **Tap en "+ Publicar artículo"** → navega a `/marketplace/publicar` (P4 modo creación)
+- **Tap en "+ Publicar artículo"** → expande el composer inline en el mismo feed (`navigate('/marketplace?crear=1')` + scroll arriba). El orquestador `<ComposerSection>` detecta el query param y abre `<ComposerMarketplace>` sobre el feed (P4).
 - **Buscador**:
   - **Desktop:** focus en input del Navbar global → abre overlay P5.
   - **Móvil:** lupa en header del MP → input se expande inline, escribir abre overlay P5 con cards preview.
@@ -697,139 +697,212 @@ Las URLs del backend son `GET /api/marketplace/vendedor/:usuarioId` y `GET /api/
 
 ---
 
-### P4 — Wizard de Publicar / Editar
+### P4 — Composer inline de Publicar / Editar
 
-**Rutas:**
-- Crear: `/marketplace/publicar`
-- Editar: `/marketplace/publicar/:articuloId`
+> **Cambio Sprint 9 (Mayo 2026):** el wizard de 3 pasos que vivía en
+> `/marketplace/publicar` se **eliminó**. Ahora el composer vive **inline en
+> el feed de MarketPlace** (`/marketplace`), réplica 1:1 del composer de
+> Servicios. Las URLs viejas redirigen al feed con el composer expandido
+> vía query param. Las decisiones de diseño que motivaron el cambio están
+> documentadas en `docs/prompts Marketplace/Sprint-9-Composer-Inline.md`.
 
-**Archivo:** `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx`
+**Ruta única:** `/marketplace` con activación por query params:
 
-#### Modos del Wizard
+- `?crear=1` → expande el composer en modo creación.
+- `?editar=<articuloId>` → expande el composer en modo edición.
+
+Después de procesarlos, el orquestador `<ComposerSection>` los limpia del
+URL con `navigate(..., { replace: true })`.
+
+**Archivos clave (todos en `apps/web/src/`):**
+
+| Archivo | Rol |
+|---------|-----|
+| `components/marketplace/composer/ComposerSection.tsx` | Orquestador: decide colapsado vs expandido, lee query params. |
+| `components/marketplace/composer/ComposerColapsado.tsx` | Pill colapsada en el feed (con variante "borrador en progreso"). |
+| `components/marketplace/composer/ComposerMarketplace.tsx` | Composer expandido (header + fotos + campos + acciones). |
+| `components/marketplace/composer/ComposerHintModeracion.tsx` | Hint inline cuando el texto parece servicio o búsqueda. |
+| `components/marketplace/composer/MisArticulosWidget.tsx` | Widget lateral en PC con los 2 (o 5) artículos activos del autor. |
+| `components/marketplace/composer/ChipInputList.tsx` | Input + chips reutilizable (heredado del de Servicios). |
+| `hooks/useComposerMarketplace.ts` | Draft + validación + auto-save localStorage. |
+| `hooks/useFotosUploaderMarketplace.ts` | Subida batch a R2 + cleanup de huérfanas. |
+| `utils/composerMarketplacePayload.ts` | `construirPayloadCrearMP` / `construirPayloadEditarMP`. |
+| `utils/borradorComposerMarketplace.ts` | `leerBorradorMarketplace` / `descartarBorradorMarketplace`. |
+| `utils/deteccionServicio.ts` | Regex `pareceServicio` / `pareceBusqueda` para el hint. |
+
+#### Modos del composer
 
 | Modo | Detección | Título | Botón final |
 |------|-----------|--------|-------------|
-| **Crear** | sin `articuloId` en params | "Nueva publicación" | "Publicar ahora" |
-| **Editar** | con `articuloId` en params | "Editar publicación" | "Guardar cambios" |
+| **Crear** | sin `?editar` | "Vender un artículo" | "Publicar" |
+| **Editar** | con `?editar=<id>` | "Editar publicación" | "Guardar cambios" |
 
 En modo edición:
-- Datos precargados de la publicación existente
-- El paso 3 (ubicación) es modificable; el checklist final NO se muestra
-- `expira_at` NO se modifica (solo el endpoint "Reactivar" lo extiende)
+- Datos precargados desde `useArticuloMarketplace(id)` (hidratación una sola
+  vez con ref-guard, evita pisar lo que el usuario escribió).
+- El checklist legal NO se vuelve a mostrar (el original persiste en BD).
+- `expira_at` NO se modifica (solo el endpoint "Reactivar" lo extiende).
 
-#### Estructura visual (todas las resoluciones)
+#### Estructura visual
 
-El wizard sigue el mismo patrón visual que P1, P2 y P3 del módulo:
-
-- **Header sticky dark `#000`** con glow teal radial + grid pattern sutil (mismo patrón que P1/P2/P3).
-  - Icono cuadrado 36×36 con gradient teal `#2dd4bf → #0d9488` con `Plus` adentro.
-  - Título "Nueva publi**cación**" o "Edi**tar**" con la segunda mitad en `text-teal-400`.
-  - Desktop: separador vertical + subtítulo "Paso N de 3" en la zona izquierda.
-  - Móvil: chip "Paso N/3" en el bloque derecho.
-- **Barra de progreso integrada al final del header negro**: 3 segmentos `h-1.5` con `bg-teal-400` para los pasos completados y `bg-white/15` para los pendientes.
-- **Grid desktop** `lg:grid-cols-[3fr_2fr] lg:gap-8` con wrapper `lg:max-w-7xl lg:px-6 2xl:px-8`. La columna izquierda contiene los bloques del paso activo y la derecha la vista previa sticky.
-- **Cada bloque del paso vive en una card** `mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4`.
-- **Headings de bloque**: `text-base lg:text-lg font-bold text-slate-900` con subtítulo `text-sm font-medium text-slate-600`.
-- **Wrapper raíz** con `pb-40 lg:pb-12` para reservar espacio bajo el contenido en móvil (los FABs flotantes y el BottomNav no deben tapar la última card del paso).
-
-**Botones de navegación — desktop**
-
-Los botones "Anterior/Salir" y "Continuar/Publicar" viven en el bloque derecho del header dark del wizard (no hay footer fijo en desktop). Outline `border-2 border-white/25 bg-transparent text-white/85` para el secundario, gradient `bg-linear-to-br from-teal-500 to-teal-700` para el primario. El texto del primario muestra según contexto: `"Continuar"` en pasos 1-2, `"Publicar ahora"` en el paso 3 modo crear, `"Guardar cambios"` en modo editar, `"Subiendo fotos…"` con `Loader2` spinning cuando hay batch activo.
-
-**FABs flotantes — móvil**
-
-Dos FABs flotantes que usan `useHideOnScroll` para sincronizarse con el BottomNav:
-
-- **FAB izquierdo** (Salir/Anterior): icono `ChevronLeft h-6 w-6` en círculo `h-14 w-14 rounded-full border-2 border-slate-300 bg-white shadow-lg` con `box-shadow: 0 6px 20px rgba(15,23,42,0.18)`. Esquina `fixed left-4`. Posición vertical: `bottom-20` cuando el BottomNav está visible (sobre él), `bottom-4` cuando el BottomNav se oculta al scroll. Transición `bottom 300ms cubic-bezier(0.4,0,0.2,1)`.
-- **FAB derecho** (Continuar/Publicar): pill con texto dinámico y `bg-linear-to-br from-teal-500 to-teal-700`. Texto: `"Continuar"` en pasos 1-2 (con icono `ArrowRight` a la derecha), `"Publicar ahora"` o `"Guardar cambios"` en el paso 3 (con icono `Check` a la izquierda), `"Subiendo fotos…"` con `Loader2` cuando hay batch activo. Esquina `fixed right-4`. Misma sincronización con `useHideOnScroll`: `bottom-20` → `bottom-4`. Mismo patrón que el FAB "Publicar" del feed.
+El composer reutiliza el mismo patrón que `ComposerServicios` con tonos
+**teal** (identidad MarketPlace) en lugar de sky. Layout:
 
 ```
-┌──────────────────────────────────────┐
-│ [▣ teal] Nueva Publicación  [Paso 1/3]│  ← header dark sticky (móvil)
-│ ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━     │  ← barra progreso 3 segmentos
-├──────────────────────────────────────┤
-│   [contenido del paso en cards]      │
-└──────────────────────────────────────┘
- [←]                          [Continuar →]   ← FABs flotantes sobre BottomNav
+┌────────────────────────────── COMPOSER COLAPSADO ──────────────────────────┐
+│ [✎ teal]  ¿Qué estás vendiendo hoy?            [📷 móvil]                  │
+│ ─────────────────────────────────────────────────────────────────────────  │
+│ 🖼 Fotos │ 💲 Precio │ 🏷 Condición │ 📍 Zona │ ⋯ Detalles   ← solo PC    │
+└────────────────────────────────────────────────────────────────────────────┘
+
+         ↓ click pill o FAB Publicar ↓
+
+┌─────────────── COMPOSER EXPANDIDO (PC: 2 columnas) ────────────────────────┐
+│ [avatar] Vender un artículo                                          [✕]   │
+│          Juan · Puerto Peñasco                                              │
+│ ──────────────────────────────────────────────────────────────────────────  │
+│ ┌──────────────┐  Título                                                    │
+│ │              │  [Ej: Bicicleta de montaña rodada 26                  ]   │
+│ │   ZONA       │  Precio (MXN)                                              │
+│ │   FOTOS      │  [$ 0                                                  ]   │
+│ │              │  Descripción (opcional, máx 1000)                          │
+│ │  [carrusel]  │  [textarea …                                          ]   │
+│ │              │  💡 hint inline si parece servicio o búsqueda              │
+│ └──────────────┘                                                            │
+│                                                                              │
+│ Detalles    1/4                                                              │
+│ [🏷 Condición] [⋯ Ofertas] [📦 Unidad] [📍 Zona]   ← chips full-width      │
+│ ↳ Acordeón con panel del chip activo (PC) / ModalBottom (móvil)            │
+│                                                                              │
+│ ──────────────────────────────────────────────────────────────────────────  │
+│ ☑ Acepto las reglas de publicación de MarketPlace · ver detalles  [Cancel] │
+│                                                                  [Publicar] │
+└────────────────────────────────────────────────────────────────────────────┘
 ```
 
-#### Paso 1 — Fotos + Título
+#### Campos del composer
 
-- **Subida múltiple**: el input `<input type="file" multiple>` permite seleccionar hasta 8 fotos al mismo tiempo. El upload corre en paralelo con `Promise.all`. Si el usuario selecciona más fotos que el espacio disponible, se toman las primeras y se notifica.
-- **Selección manual de portada**: cada foto que NO es la portada actual muestra un botón circular con icono `Star` (h-6 w-6, fondo `bg-white/90`, color `amber-500`) en la esquina inferior derecha. Al tocarlo, esa foto se vuelve portada. El array de fotos NO se reordena — la portada es solo un índice (`fotoPortadaIndex`) que apunta a la foto deseada.
-- **Foto-portada actual**: muestra badge "PORTADA" con icono `Star` filled en la esquina superior izquierda + ring `ring-teal-500` + `border-teal-500` (en lugar de `border-slate-300`).
-- **Placeholders fantasma durante el batch**: por cada foto pendiente se renderiza un slot con `Loader2` spinning + borde teal-dashed + `animate-pulse` + fondo `bg-teal-50`. El slot "Agregar" desaparece mientras hay batch activo.
-- **Counter `N/8`** visible en la esquina superior derecha de la card (`rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold`).
-- **Título**: input 10-80 caracteres con contador visible, validación inline de palabras prohibidas.
-- **Card de Tips contextuales** al final del paso con icono `Lightbulb` amber y 4 bullets teal sobre fotos y título.
+**Columna izquierda (PC) / Bloque arriba (móvil) — `<ZonaFotos>`:**
+- Aspect `3/1` móvil (compacto) / `square` PC.
+- Vacío: placeholder grande clickeable que abre menú **Cámara / Galería**
+  (móvil) o picker de archivos directo (PC).
+- Con fotos: carrusel con dots, flechas y badge "Portada" en la primera.
+- Botón `+` overlay en hover para agregar más, `X` rojo overlay para
+  eliminar la actual (cleanup R2 inline si era de esta sesión).
+- Click en la imagen abre el lightbox `<ModalImagenes>` (con back nativo).
+- Hasta `MAX_FOTOS_COMPOSER_MP = 8` fotos. Mínimo 1 (obligatorio).
 
-#### Paso 2 — Precio + Detalles
+**Columna derecha — campos principales:**
+- **Título** — input 10-80 chars con `autoFocus` en creación.
+- **Precio (MXN)** — input numérico entero positivo, máximo $999,999. Solo
+  acepta dígitos.
+- **Descripción** — textarea opcional, máx 1000 chars con contador.
+- **`<ComposerHintModeracion>`** — debajo del textarea. Detecta servicio
+  (`ofrezco|reparo|clases|asesoría…`) o búsqueda (`busco|necesito|quiero|
+  requiero`) con debounce 600ms y sugiere ir a `/servicios?crear=ofrezco`
+  o al Home (`/inicio`) según el caso.
 
-- **Card "Precio"**: input grande con `$` y `MXN` a los lados. Valida > 0 y < $999,999. Si < $10 → modal de advertencia antes de avanzar.
-- **Card "Condición + Acepta ofertas"**: 4 chips (Nuevo / Seminuevo / Usado / Para reparar), selección única; toggle "Acepta ofertas" (default `true`) separado con `border-t-2 border-slate-200 pt-3`.
-- **Card "Descripción"**: textarea 50-1000 caracteres con contador, validación inline de palabras prohibidas.
-- **Card de Tips contextuales** al final con consejos sobre precio competitivo, honestidad con la condición y nivel de detalle.
+**Detalles (full-width, fila de íconos + acordeón único):**
+- **Condición** (`Tags`) — chips Nuevo / Seminuevo / Usado / Para reparar.
+  Opcional (NULL si no aplica).
+- **Acepta ofertas** (`MoreHorizontal`) — chips Sí / No. Opcional (NULL si
+  no se especifica).
+- **Unidad de venta** (`Package`) — input libre con sugerencias clickables
+  (`c/u`, `por kg`, `por docena`, `por litro`, `por metro`). Máx 30 chars.
+- **Zona aproximada** (`MapPin`) — input texto 3-150 chars. **Obligatorio.**
 
-#### Paso 3 — Ubicación + Resumen + Checklist
+Cada chip muestra un dot verde si el campo ya tiene contenido (KPI
+`activos/total` arriba del chip strip). En PC el panel se abre inline
+debajo de la fila; en móvil abre un `<ModalBottom>` (variante B).
 
-- **Card "Zona aproximada"**: mapa Leaflet no interactivo (zoom/dragging/touchZoom/doubleClickZoom desactivados, `pointerEvents: none`) con `<Circle radius={500}>` con stroke teal y fill teal/15%. El mapa vive dentro de un wrapper `relative z-0 mt-3 overflow-hidden rounded-xl border-2 border-slate-200 isolate` — el combo `relative z-0 isolate` crea un stacking context propio que mantiene contenidos los z-index 400+ de Leaflet (capas tile, overlay, popup), evitando que escapen y se monten sobre el header sticky del wizard, el BottomNav u otros elementos fijos. Mismo patrón aplicado en `MapaUbicacion.tsx` de P2 Detalle. Si no hay GPS ni coordenada de ciudad → banner amarillo pidiendo activar ubicación (no permite avanzar). Texto explicativo de privacidad debajo del mapa.
-- **Card "Resumen de tu publicación"**: vista compacta con foto portada + título + precio destacado en `text-teal-700 text-xl extrabold` + condición + flag "Acepta ofertas".
-- **Card "Antes de publicar"** (solo modo crear): 3 checkboxes:
-  - "No vendo artículos prohibidos por las reglas"
-  - "Las fotos son del artículo real, sin retoque"
-  - "Acepto que mi publicación se mostrará 30 días"
-  - Cuando los 3 están marcados, el card cambia a `border-teal-300 bg-teal-50` para feedback visual.
-- **Card de Tips contextuales** al final con consejos de seguridad (encuentros en lugares públicos, cobra antes de entregar).
+**Footer (Reglas + Acciones):**
+- Checkbox unificado: "Acepto las reglas de publicación de MarketPlace"
+  más botón "ver detalles" que despliega los 4 puntos legales (lícito,
+  en mi poder, honesto, seguro). Marcar el checkbox activa los 4
+  internamente. La versión `VERSION_CONFIRMACIONES_MP_COMPOSER` se
+  persiste en BD junto con el snapshot.
+- Botones **Cancelar** (colapsa, conserva el borrador) y **Publicar**
+  (deshabilitado si la validación local falla; muestra el primer error
+  abriendo el panel correspondiente al click).
 
-#### Vista previa en vivo (solo desktop, `lg+`)
+#### Widget lateral — `<MisArticulosWidget>` (solo PC)
 
-- Panel sticky derecho `sticky top-28` con scrollbar oculta (`[scrollbar-width:none]`), altura limitada a `calc(100vh - 8rem)`.
-- Renderiza `<CardArticuloFeed>` (la card real del feed, no una versión simplificada) envuelta en `<div aria-hidden style={{ pointerEvents: 'none' }}>` para bloquear interacciones porque el artículo aún no existe en BD.
-- Usa la prop `claseAspectoGaleria="aspect-[4/3] lg:aspect-square"` para que la galería del preview sea más cuadrada que la del feed real (`aspect-[4/3] lg:aspect-[2/1]`), permitiendo que el sidebar de thumbnails laterales entre completo sin scroll vertical.
-- El label rotulado **"Vista previa — así se verá en el feed"** va **debajo** de la card (no arriba) para que el borde superior del preview se alinee exactamente con la columna izquierda (Fotos). Compone pill `h-1.5 w-1.5 rounded-full bg-teal-500` + título `text-base font-bold text-slate-700` "Vista previa" + texto medio slate-500 "— así se verá en el feed".
-- Se actualiza en tiempo real con `useMemo` que depende de `datos` y `articuloId`.
-- En móvil no hay vista previa (no cabe).
+A la derecha del composer en grid `lg:grid-cols-[minmax(0,1fr)_320px]`.
+Muestra los **2** artículos activos más recientes del autor (mini-cards
+con thumbnail, precio en chip teal, condición, KPIs vistas/mensajes/
+tiempo) y un footer con link a `/mis-publicaciones`. Cuando el composer
+está expandido aumenta a **5** mini-cards (más altura disponible).
 
 #### Manejo de moderación
 
-- **Validación inline (cliente)** en `título` (paso 1) y `descripción` (paso 2) vía `apps/web/src/utils/moderacionMarketplace.ts`. Si hay match, muestra mensaje rojo bajo el input y deshabilita "Continuar". Cuando el texto se corrige, el botón se vuelve a habilitar.
-- **Robustez contra evasión** (frontend + backend, lógica equivalente):
-  - **Leetspeak** — sustituciones en `normalizar()`: `0→o`, `1→i`, `3→e`, `4→a`, `5→s`, `7→t`, `8→b`, `9→g`, `@→a`, `$→s`, `€→e`, `!→i`, `|→i`. Así "s0rt30" o "r1f@" matchean "sorteo" / "rifa".
-  - **Separadores entre letras** — `construirRegex` permite cualquier carácter no-alfanumérico entre las letras (`r.i.f.a`, `r i f a`, `r-i-f-a`, `r_i_f_a` matchean `rifa`).
-  - **Boundary robusto** — lookarounds `(?<![a-z0-9])` y `(?![a-z0-9])` en lugar de `\b`, para evitar que "deriva" matchee "rifa" o que "soporte" matchee "sorte".
-  - **Variantes truncadas** — la lista incluye truncamientos comunes (`sorte`, `sortes`, `rife`, `rifen`, `cachit`, `subastar`, `rematando`, etc.).
-- **Rechazo duro (HTTP 422)** del backend → `ModalAdaptativo` con header gradient rose (`#be123c → #881337`), patrón TC-6A. Muestra mensaje + palabra detectada + CTA teal "Editar mi publicación".
-- **Sugerencia suave (HTTP 200 con `moderacion.severidad='sugerencia'`)** → `ModalSugerenciaModeracion` con 2 botones:
-  - "Editar mi publicación" → cierra modal, vuelve al paso correspondiente.
-  - "Continuar de todos modos" → reenvía con `confirmadoPorUsuario: true`.
-- Botón "Llevar a Servicios" omitido hasta que la sección `/servicios` exista.
+Dos niveles:
+
+1. **Inline hint (`<ComposerHintModeracion>`)** — detección cliente con
+   `pareceServicio` y `pareceBusqueda` (regex espejo del backend) que
+   aparece debajo del campo descripción con debounce 600ms. Botón
+   amber "Llévame a Servicios" o "Llévame al Home" cierra el composer y
+   navega. Botón X discreto para ignorar.
+
+2. **Modal post-publish (`<ModalSugerenciaModeracion>`)** — si el
+   backend devuelve `success: false` con `severidad: 'sugerencia'`, abre
+   el mismo modal que usaba el wizard antiguo con dos botones:
+   - "Editar publicación" → cierra el modal, queda editando.
+   - "Continuar de todos modos" → re-llama `publicar(true)` con
+     `confirmadoPorUsuario: true`.
+
+**Rechazo duro (HTTP 422)** → `notificar.error(mensaje)` con el texto del
+backend (no permite continuar). La detección sigue siendo robusta contra
+evasión (leetspeak, separadores, boundary, truncamientos) — la lógica
+vive en `apps/api/src/services/marketplace/filtros.ts` y no cambió.
 
 #### Auto-save (borrador local por usuario)
 
-- **Storage**: `localStorage` con key `wizard_marketplace_${usuarioId ?? 'anon'}_${articuloId ?? 'nuevo'}`. Debounced 500ms desde el cambio del state.
-- **Persistencia entre sesiones**: el borrador sobrevive al cierre del navegador, recargas, logout y login posterior. Cuando el autor vuelve a loguearse, el wizard hidrata el borrador y retoma exactamente donde quedó (texto + fotos).
-- **Aislamiento cross-usuario**: el `usuarioId` en el storageKey impide que otro usuario que se loguee en el mismo dispositivo vea el borrador. Cada cuenta tiene su propio storage independiente.
-- **Modo crear vs modo edición** tienen keys separadas (no se contaminan).
-- **Salida del wizard**:
-  - Si el usuario no escribió nada (sin fotos, título, descripción, precio) → sale directo a `/marketplace` sin preguntar.
-  - Si tiene cambios → `ModalAdaptativo` "¿Salir sin publicar?" con header gradient teal (TC-6A) y 3 opciones inline:
-    - **Seguir** (icono `Pencil`) — cierra el modal y permanece editando.
-    - **Descartar** (icono `XCircle`) — limpia `localStorage` + dispara `DELETE /api/r2/imagen` por cada foto huérfana (modo crear: todas las del state; modo edición: solo las subidas en esta sesión, distinguidas vía `urlsSubidasEnSesion` ref) + navega a `/marketplace`.
-    - **Guardar** (icono `BookmarkPlus`) — fuerza `localStorage.setItem` con el state actual y navega a `/marketplace`.
-- **`beforeunload` warning**: cuando hay cambios sin guardar (`tieneCambios && !guardando`), el navegador muestra su diálogo nativo "¿Salir? Tus cambios no se guardaron" si el usuario intenta cerrar la pestaña. No borra fotos automáticamente (sería peligroso ante cierres accidentales) — el reconcile global de R2 limpia las huérfanas eventualmente.
+- **Storage**: `localStorage` con key `aya:composer:marketplace:draft-v1`
+  para creación, `aya:composer:marketplace:draft-edit-<articuloId>` para
+  edición. Cada cambio del draft re-escribe la entrada (sin debounce — es
+  trivial vs el costo de perder el borrador).
+- **Persistencia entre sesiones**: el borrador sobrevive al cierre del
+  navegador, recargas, logout y login posterior. La pill colapsada del
+  feed lo detecta y muestra la variante "Borrador en progreso" con
+  botones [Descartar] / [Continuar].
+- **Aislamiento cross-usuario**: por convención el composer es global y la
+  key NO incluye `usuarioId`. Cuando otro usuario se loguea en el mismo
+  dispositivo, vería el borrador del anterior — `useAuthStore` limpia la
+  key al hacer logout para evitar contaminación cross-cuenta.
+- **Descartar borrador** (desde la pill): itera `borrador.fotos` y
+  dispara `DELETE /api/marketplace/foto-huerfana` por cada URL antes de
+  eliminar la key. El backend valida reference count antes de borrar de
+  R2 (las URLs que ya quedaron en un artículo publicado quedan
+  protegidas).
 
 #### Subida de fotos a R2 (optimización + cleanup)
 
-- **Optimización cliente-side antes de subir**: `apps/web/src/utils/optimizarImagen.ts` (helper compartido con `useR2Upload` de ChatYA y BS) redimensiona a `maxWidth: 1920` y comprime a WebP `quality: 0.85`. Reduce 70-90% el peso de fotos de cámara móvil (5-10 MB → ~500 KB).
-- **Flujo del upload**: `useSubirFotoMarketplace` pide presigned URL al backend (`POST /marketplace/upload-imagen`), hace PUT directo a R2 con el blob WebP optimizado, y devuelve la URL pública.
-- **Cleanup R2 al quitar foto (botón X)**:
-  - Modo crear: borra siempre. Todas las fotos del state son efímeras (el artículo no existe en BD aún), incluyendo las hidratadas desde un borrador en localStorage.
-  - Modo edición: borra solo las subidas en la sesión actual (rastreadas en `urlsSubidasEnSesion` ref). Las preexistentes del artículo guardado las maneja el backend con `eliminarFotoMarketplaceSiHuerfana` al hacer submit (diff de fotos viejas vs nuevas en `actualizarArticulo`).
-- **Cleanup R2 al descartar borrador** (`handleDescartarYSalir`):
-  - Modo crear: itera `datos.fotos` completo y dispara `DELETE /api/r2/imagen` por cada URL.
-  - Modo edición: itera el set `urlsSubidasEnSesion` (solo las nuevas de esta sesión).
-- **Defensa en profundidad en el endpoint backend**: `DELETE /api/r2/imagen` verifica con `urlEstaEnUso(url)` contra `IMAGE_REGISTRY` antes de borrar. Si la URL sigue referenciada por alguna fila de alguna tabla (artículos, sucursales, chat, ofertas, etc.), conserva el archivo y responde con `{ success: true, enUso: true }`. Esto protege contra bugs futuros que pudieran llamar el endpoint con URLs en uso.
-- **Bloqueo de navegación durante batch**: mientras un upload paralelo está en curso (`pendientesUpload > 0`), los botones "Anterior/Salir" y "Continuar/Publicar" se deshabilitan con tooltip "Espera a que terminen de subirse las fotos". El texto del botón principal cambia a "Subiendo fotos…" con `Loader2` spinning. Esto evita que el usuario navegue afuera o publique antes de que las fotos lleguen al state — sin este guard, las URLs quedarían huérfanas en R2.
+- **Optimización cliente-side antes de subir**:
+  `apps/web/src/utils/optimizarImagen.ts` (helper compartido con
+  `useR2Upload` de ChatYA y BS) redimensiona a `maxWidth: 1920` y
+  comprime a WebP `quality: 0.85`. Reduce 70-90% el peso de fotos de
+  cámara móvil (5-10 MB → ~500 KB).
+- **Flujo del upload**: `useUploadFotoMarketplace` (mutation) pide
+  presigned URL al backend (`POST /marketplace/upload-imagen`), el hook
+  `useFotosUploaderMarketplace` hace PUT directo a R2 con el blob WebP
+  optimizado y empuja la URL al state.
+- **Cleanup R2 al quitar foto (botón X de la zona de fotos)**: el
+  uploader dispara `DELETE /marketplace/foto-huerfana` solo para las
+  URLs subidas en la sesión actual (tracked en `urlsSubidasEnSesion`
+  ref). Las preexistentes del artículo en edición las maneja el backend
+  con `eliminarFotoMarketplaceSiHuerfana` al hacer submit (diff fotos
+  viejas vs nuevas en `actualizarArticulo`).
+- **Cleanup R2 al descartar borrador**: ver sección Auto-save.
+- **Defensa en profundidad en el endpoint backend**: el service
+  `eliminarFotoMarketplaceSiHuerfana(url, excluirId?)` verifica
+  reference count contra `articulos_marketplace.fotos` antes de borrar
+  de R2. Si la URL sigue referenciada conserva el archivo.
+
+> **Hook `useSubirFotoMarketplace` (legacy)**: existe en
+> `hooks/queries/useMarketplace.ts` por compatibilidad histórica con el
+> wizard. El composer NO lo usa — usa `useUploadFotoMarketplace`
+> (mutation, batch-friendly). Eliminar cuando se haga la próxima
+> limpieza grande del hook de mutations.
 
 ---
 
@@ -940,7 +1013,7 @@ Panel del vendedor implementado en `apps/web/src/pages/private/publicaciones/Pag
 **Estructura:**
 
 - 3 tabs (chips estilo CardYA): **Activas / Pausadas / Vendidas**. El conteo del tab activo aparece como pill blanca dentro del chip. La columna `eliminada` queda fuera (soft delete; el endpoint la filtra de raíz).
-- Banner condicional **"Tienes un borrador sin publicar"** — aparece solo si existe la key `wizard_marketplace_${usuarioId}_nuevo` en localStorage con contenido válido (título o al menos una foto). Click → navega a `/marketplace/publicar`, que hidrata el borrador automáticamente. Si no hay borrador, el banner no se renderiza.
+- Banner condicional **"Tienes un borrador sin publicar"** — aparece solo si existe la key `aya:composer:marketplace:draft-v1` en localStorage con contenido válido (título o al menos una foto). Click → navega a `/marketplace?crear=1`, que expande el composer inline y hidrata el borrador automáticamente. Si no hay borrador, el banner no se renderiza.
 - Listado responsive de `CardArticuloMio` (1 col móvil · 2 col laptop · 3 col 2xl) con foto cuadrada + título + precio + pill de estado + KPIs reales (`👁 vistas · 💬 mensajes · ♡ guardados · ⏱ días restantes`). Click en card → detalle público P2 (`/marketplace/articulos/:id`). Menú "⋯" → acciones contextuales según estado.
 - Estado vacío por tab con CTA "Publicar artículo" (solo en tab Activas; los otros tabs tienen mensaje contextual sin CTA).
 - FAB "+" en móvil (esquina inferior derecha, encima del BottomNav) para publicar rápido; CTA "Publicar" en el header lado derecho en desktop.
@@ -1507,7 +1580,8 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/web/src/pages/private/marketplace/PaginaMarketplace.tsx` — P1 Feed
 - `apps/web/src/pages/private/marketplace/PaginaArticuloMarketplace.tsx` — P2 Detalle
 - `apps/web/src/pages/private/marketplace/PaginaPerfilVendedor.tsx` — P3 Perfil de Usuario
-- `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx` — P4 Wizard
+- `apps/web/src/components/marketplace/composer/ComposerSection.tsx` — P4 Composer inline (orquestador)
+- `apps/web/src/components/marketplace/composer/ComposerMarketplace.tsx` — P4 Composer expandido
 - `apps/web/src/pages/public/PaginaArticuloMarketplacePublico.tsx` — P6 Pública
 
 **Frontend — Componentes del feed (cards estilo Facebook):**

@@ -7,6 +7,67 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [20 Mayo 2026] - Sprint 9.2: MarketPlace Composer Inline 🛒
+
+Migración del wizard de 3 pasos `/marketplace/publicar` a un **composer inline**
+réplica 1:1 del de Servicios. La sección Publicar ya no es una página separada:
+vive en el feed y se expande sobre él vía query params.
+
+### Frontend (nuevos archivos)
+
+- **Hooks** — `useComposerMarketplace` (draft + validación + auto-save) y
+  `useFotosUploaderMarketplace` (batch upload R2 con cleanup de huérfanas).
+- **Utils** — `composerMarketplacePayload` (`construirPayloadCrearMP` /
+  `construirPayloadEditarMP`), `borradorComposerMarketplace` (lectura/descarte
+  del borrador desde fuera del hook), `deteccionServicio` (regex
+  `pareceServicio` / `pareceBusqueda` espejo del backend).
+- **Componentes** `components/marketplace/composer/`:
+  - `ComposerSection.tsx` — orquestador, lee `?crear=1` y `?editar=<id>`.
+  - `ComposerColapsado.tsx` — pill con variante "borrador en progreso".
+  - `ComposerMarketplace.tsx` — composer expandido (header + zona fotos +
+    campos + 4 chips detalles + checkbox legal + acciones).
+  - `ComposerHintModeracion.tsx` — hint inline para servicio/búsqueda.
+  - `MisArticulosWidget.tsx` — widget lateral PC (2 cards / 5 si expandido).
+  - `ChipInputList.tsx` — input + chips reutilizable.
+
+### Frontend (cambios)
+
+- `PaginaMarketplace.tsx` monta `<ComposerSection>` + `<MisArticulosWidget>`
+  arriba del feed cuando el usuario está en modo personal. El FAB Publicar
+  ya no navega — expande el composer in-place (scroll + `?crear=1`).
+- `PaginaMisPublicaciones.tsx` redirige sus CTAs al composer
+  (`/marketplace?crear=1`, `/marketplace?editar=<id>`). El banner
+  "Tienes un borrador" lee la key `aya:composer:marketplace:draft-v1`.
+- `ComposerServicios.tsx` actualizó su hint anti-venta para llevar también
+  al composer MP inline en lugar del wizard.
+
+### Backend
+
+- Endpoint nuevo `DELETE /api/marketplace/foto-huerfana` (controller
+  `deleteFotoMarketplaceHuerfana` + ruta privada con `verificarToken` +
+  `requiereModoPersonal`). Usa el service existente
+  `eliminarFotoMarketplaceSiHuerfana` que valida reference count contra
+  `articulos_marketplace.fotos` antes de borrar de R2.
+- Mutation nueva `useUploadFotoMarketplace` (batch-friendly, espejo de
+  `useUploadFotoServicio`). Convive con `useSubirFotoMarketplace` (legacy
+  one-shot del wizard, marcada para limpieza cuando se sienta segura).
+
+### Eliminado
+
+- `apps/web/src/pages/private/marketplace/PaginaPublicarArticulo.tsx`
+  (~1000 líneas del wizard de 3 pasos).
+- Rutas `/marketplace/publicar` y `/marketplace/publicar/:articuloId` del
+  router — ahora redirigen al composer inline con query params (helpers
+  `RedirigirEditarArticulo` y `<Navigate>`).
+
+### Docs
+
+- `docs/arquitectura/MarketPlace.md` § P4 reescrito (Composer inline en
+  lugar de Wizard). Actualizadas referencias a `wizard` por `composer` en
+  filosofía, alcance, moderación, mis-publicaciones y archivos clave.
+
+---
+
 ## [17 Mayo 2026 — tarde] - Sprint 8: BS Vacantes 💼 (Servicios v1.1 + BS 100%)
 
 Cierre del módulo **Vacantes en Business Studio**, último pendiente de BS. Con esto, Business Studio queda al **100% (13/13 módulos)** y la sección Servicios sube a v1.1.

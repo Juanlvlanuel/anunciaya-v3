@@ -135,26 +135,22 @@ test.describe('MarketPlace — Flujos felices', () => {
         ).toBeVisible({ timeout: 10000 });
     });
 
-    test('4. Botón Publicar del feed navega al wizard', async ({ page }) => {
+    test('4. Botón Publicar del feed expande el composer inline', async ({ page }) => {
         await login(page, 'personal');
         await page.goto(`${APP_URL}/marketplace`);
 
-        // Esperar a que el feed cargue
-        await page.waitForSelector('[data-testid="fab-publicar-mobile"], [data-testid="btn-publicar-desktop"]', {
+        // En el rediseño Sprint 9 (réplica del composer de Servicios) el
+        // wizard `/marketplace/publicar` se eliminó: el FAB ahora expande
+        // un composer inline en el feed (`<ComposerSection>`).
+        await page.waitForSelector('[data-testid="fab-publicar"]', {
             timeout: 10000,
         });
 
-        // Click en el FAB móvil o el CTA desktop según viewport
-        const fabMobile = page.locator('[data-testid="fab-publicar-mobile"]');
-        const ctaDesktop = page.locator('[data-testid="btn-publicar-desktop"]');
+        await page.locator('[data-testid="fab-publicar"]').click();
 
-        if (await fabMobile.isVisible()) {
-            await fabMobile.click();
-        } else {
-            await ctaDesktop.click();
-        }
-
-        await expect(page).toHaveURL(`${APP_URL}/marketplace/publicar`, { timeout: 5000 });
-        await expect(page.locator('[data-testid="pagina-publicar-articulo"]')).toBeVisible();
+        // El composer expandido debe aparecer al tope del feed.
+        await expect(
+            page.locator('[data-testid="composer-mp-expandido"]')
+        ).toBeVisible({ timeout: 5000 });
     });
 });

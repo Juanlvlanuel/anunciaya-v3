@@ -37,6 +37,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { useAuthStore } from '../../../stores/useAuthStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useMarketplaceFeed, useFeedInfinitoMarketplace } from '../../../hooks/queries/useMarketplace';
@@ -44,6 +45,7 @@ import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFe
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
 import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArticuloDetalle';
+import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito } from '../../../types/marketplace';
@@ -62,6 +64,12 @@ export function PaginaMarketplace() {
     const longitud = useGpsStore((s) => s.longitud);
     const obtenerUbicacion = useGpsStore((s) => s.obtenerUbicacion);
     const cargandoGps = useGpsStore((s) => s.cargando);
+
+    // Modo activo (personal vs comercial). El composer inline solo aparece
+    // en modo personal — en comercial los negocios no publican artículos
+    // P2P (publican promociones, no productos individuales).
+    const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+    const esModoPersonal = modoActivo !== 'comercial';
 
     // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
     // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece.
@@ -187,7 +195,12 @@ export function PaginaMarketplace() {
     }, [buscadorAbierto]);
 
     const handlePublicar = () => {
-        navigate('/marketplace/publicar');
+        // Composer inline: scroll arriba + expandir vía query param. El
+        // orquestador <ComposerSection> detecta `?crear` y se expande
+        // sobre el feed (mismo patrón que Servicios). El FAB se oculta
+        // en modo comercial — los negocios no publican artículos P2P.
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        navigate('/marketplace?crear=1', { replace: true });
     };
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
@@ -515,12 +528,30 @@ export function PaginaMarketplace() {
 
             {/* ════════════════════════════════════════════════════════════════
                 CONTENIDO
+
+                TODO el contenido se acota a `lg:max-w-[920px]` (mismo ancho
+                que el feed de cards estilo Facebook + el composer + el reel).
+                Solo el header sticky negro de arriba mantiene `max-w-7xl`.
+                Reels, composer y feed heredan este ancho del padre — los
+                wrappers internos `max-w-[920px]` se eliminaron por redundantes.
             ════════════════════════════════════════════════════════════════ */}
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+            <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque
                     DESKTOP HEADER arriba. */}
+
+                {/* ── Composer inline ─────────────────────────────────────
+                    Réplica del patrón de Servicios. Solo en modo personal —
+                    en modo comercial los negocios no publican artículos P2P.
+                    El atajo a "Mis publicaciones" vive como chip dentro del
+                    propio composer (header de la pill colapsada), por eso
+                    no hay widget lateral. */}
+                {esModoPersonal && (
+                    <div className="px-3 lg:px-0 pt-3 lg:pt-4">
+                        <ComposerSection />
+                    </div>
+                )}
 
                 {/* Estado: sin ciudad seleccionada. En móvil (sin Navbar global)
                     el botón abre el ModalUbicacion para que el usuario pueda
@@ -651,18 +682,18 @@ export function PaginaMarketplace() {
                     <>
                         {/* Reel: solo se muestra cuando NO hay filtros activos
                             (orden=recientes). Decisión Juan: el reel solo vive
-                            en el "home" del marketplace. Acotado al mismo ancho
-                            que el feed (max-w-[920px]) para alineación visual. */}
+                            en el "home" del marketplace. Hereda el ancho del
+                            container padre (920px) — sin wrapper extra. */}
                         {orden === 'recientes' && articulosReel.length > 0 && (
-                            <div className="mx-auto mt-2 max-w-[920px] lg:mt-4">
+                            <div className="mt-2 lg:mt-4">
                                 <ReelMarketplace articulos={articulosReel} />
                             </div>
                         )}
 
                         {/* Feed infinito: cards grandes estilo Facebook.
                             Móvil → full-width sin gap, separador inferior por card.
-                            Desktop → columna centrada ~920px con gap y bordes. */}
-                        <div className="mx-auto max-w-full lg:max-w-[920px] space-y-2 lg:space-y-4 lg:px-4 lg:py-2">
+                            Desktop → hereda ancho del container padre (920px). */}
+                        <div className="space-y-2 lg:space-y-4 lg:py-2">
                             {articulosFeedSinReel.map((articulo) => (
                                 <CardArticuloFeed
                                     key={articulo.id}
@@ -795,11 +826,13 @@ export function PaginaMarketplace() {
             </div>
 
             {/* ════════════════════════════════════════════════════════════════
-                FAB "+ Publicar" — visible en móvil y desktop. En móvil baja a
+                FAB "+ Publicar" — visible solo en modo personal (los negocios
+                no publican artículos P2P en MarketPlace). En móvil baja a
                 bottom-4 cuando el BottomNav se oculta, sube a bottom-20 cuando
                 reaparece. En desktop queda fijo en bottom-6. Color teal de la
                 marca MP, icono con animación rotate-pulse cada 2.4s.
             ════════════════════════════════════════════════════════════════ */}
+            {esModoPersonal && (
             <button
                 data-testid="fab-publicar"
                 onClick={handlePublicar}
@@ -832,6 +865,7 @@ export function PaginaMarketplace() {
                     }
                 `}</style>
             </button>
+            )}
 
             {/* Overlay del buscador: ahora se monta GLOBALMENTE en `MainLayout`
                 cuando la sección activa es `/marketplace/*`. Antes vivía aquí
