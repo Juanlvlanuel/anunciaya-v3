@@ -22,7 +22,7 @@
  * Ubicación: apps/web/src/components/negocios/OverlayBuscadorNegocios.tsx
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, ArrowUpRight, Store } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
@@ -36,6 +36,7 @@ import {
     agregarBusquedaReciente,
 } from '../../utils/busquedasRecientes';
 import { normalizarTexto } from '../../utils/normalizarTexto';
+import { OverlayBuscadorContainer } from '../ui/OverlayBuscadorContainer';
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
@@ -98,30 +99,6 @@ export function OverlayBuscadorNegocios() {
             .slice(0, 50);
     }, [query, negocios]);
 
-    // ─── Bloquear scroll del body mientras el overlay está abierto ──────────
-    // (en desktop el body ya viene con overflow:hidden desde `index.css`, pero
-    // en móvil sin esto la página detrás sigue haciendo scroll).
-    useEffect(() => {
-        if (!debeMostrar) return;
-        const prev = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = prev;
-        };
-    }, [debeMostrar]);
-
-    // ─── Cerrar con Escape ───────────────────────────────────────────────────
-    useEffect(() => {
-        if (!debeMostrar) return;
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') cerrarBuscador();
-        };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [debeMostrar, cerrarBuscador]);
-
-    if (!debeMostrar) return null;
-
     const escribiendo = query.trim().length >= 2;
 
     const handleClickSugerencia = (sucursalId: string) => {
@@ -130,7 +107,15 @@ export function OverlayBuscadorNegocios() {
         cerrarBuscador();
         // Abre el perfil completo del negocio — misma ruta que el click en
         // un card del feed.
-        navigate(`/negocios/${sucursalId}`);
+        //
+        // `replace: true` es CLAVE: reemplaza la entrada del overlay en el
+        // history en vez de apilar una nueva. Sin esto queda una entrada
+        // fantasma entre `/negocios` y `/negocios/:id` (el setTimeout de
+        // limpieza del `useBackNativo` corre después del navigate y no
+        // alcanza a hacer el back porque el state ya cambió). Resultado del
+        // bug: back desde el detalle requería 3 clicks (1 para el detalle,
+        // 1 "muerto" sobre el fantasma, 1 para /inicio).
+        navigate(`/negocios/${sucursalId}`, { replace: true });
     };
 
     // Click en chip reciente: rellena el query (dispara las sugerencias en
@@ -144,20 +129,13 @@ export function OverlayBuscadorNegocios() {
     };
 
     return (
-        <div
-            data-testid="overlay-buscador-negocios"
-            className="fixed inset-0 z-50"
-            onClick={cerrarBuscador}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Buscador de Negocios"
+        <OverlayBuscadorContainer
+            abierto={debeMostrar}
+            onCerrar={cerrarBuscador}
+            discriminador="_buscadorNegocios"
+            ariaLabel="Buscador de Negocios"
+            testId="overlay-buscador-negocios"
         >
-            {/* Overlay oscuro con gradiente radial — patrón estándar de modales (ver `Modal.tsx`). */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] animate-in fade-in duration-200" />
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="relative mx-auto mt-20 max-h-[480px] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
-            >
                 {/* ─── Estado vacío: solo recientes + hint ──────────────── */}
                 {!escribiendo && (
                     <div className="space-y-5 p-4">
@@ -298,8 +276,7 @@ export function OverlayBuscadorNegocios() {
                         )}
                     </section>
                 )}
-            </div>
-        </div>
+        </OverlayBuscadorContainer>
     );
 }
 

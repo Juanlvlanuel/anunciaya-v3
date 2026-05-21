@@ -91,7 +91,6 @@ import PaginaPublicarArticulo from '../pages/private/marketplace/PaginaPublicarA
 import PaginaPerfilVendedor from '../pages/private/marketplace/PaginaPerfilVendedor';
 import PaginaServicios from '../pages/private/servicios/PaginaServicios';
 import PaginaServicio from '../pages/private/servicios/PaginaServicio';
-import PaginaPublicarServicio from '../pages/private/servicios/PaginaPublicarServicio';
 import PaginaPerfilPrestador from '../pages/private/servicios/PaginaPerfilPrestador';
 
 // Páginas de usuario
@@ -322,34 +321,14 @@ const router = createBrowserRouter([
           // comerciante puede explorar y contratar servicios igual que un
           // usuario personal — solo no puede publicar desde aquí (eso vive en
           // BS Vacantes para el modo Comercial).
-          // Sprint 8 (17-May-2026): se removió ModoPersonalEstrictoGuard de las
-          // rutas de navegación (feed, detalle, perfil del prestador). Solo se
-          // mantiene en `/servicios/publicar*` porque publicar/editar es un
-          // flujo personal — el comerciante usa BS Vacantes.
+          // Sprint 9 (20-May-2026): se eliminaron las rutas `/servicios/publicar`
+          // y `/servicios/publicar/:id` cuando el wizard fue reemplazado por
+          // el composer inline (`<ComposerSection>` dentro de `<PaginaServicios>`).
+          // Triggers externos (Mis Publicaciones, FAB) redirigen a /servicios
+          // con `?crear=ofrezco|solicito` o `?editar=<id>`.
           {
             path: '/servicios',
             element: <PaginaServicios />,
-          },
-          // Sprint 4: Wizard de Publicar. DEBE ir antes de `/servicios/:id`
-          // o React Router lo capturaría como `:id='publicar'`. Sigue bloqueado
-          // a modo Personal — el comerciante publica desde BS Vacantes.
-          {
-            path: '/servicios/publicar',
-            element: (
-              <ModoPersonalEstrictoGuard mensaje="Publicar en Servicios solo está disponible en modo Personal. Si eres negocio, usa Business Studio → Vacantes.">
-                <PaginaPublicarServicio />
-              </ModoPersonalEstrictoGuard>
-            ),
-          },
-          // Sprint 7.3: Wizard de EDITAR. Misma página que publicar pero con
-          // `:publicacionId` cargado y hidratado al draft. Bloqueo Personal.
-          {
-            path: '/servicios/publicar/:publicacionId',
-            element: (
-              <ModoPersonalEstrictoGuard mensaje="Editar en Servicios solo está disponible en modo Personal. Si eres negocio, usa Business Studio → Vacantes.">
-                <PaginaPublicarServicio />
-              </ModoPersonalEstrictoGuard>
-            ),
           },
           // Sprint 5: Perfil del prestador. Ruta específica antes de
           // `/servicios/:id`. Visible en AMBOS modos.

@@ -40,6 +40,8 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useSalirDeWizard } from '../../../hooks/useSalirDeWizard';
 import {
     ChevronLeft,
     X,
@@ -212,6 +214,15 @@ export function PaginaPublicarArticulo() {
     const { articuloId } = useParams<{ articuloId?: string }>();
     const esModoEdicion = !!articuloId;
     const navigate = useNavigate();
+    // Para el botón ← del header (paso 1 sin cambios): respeta el
+    // historial real si vino por navegación interna; cae a /marketplace
+    // si abrió el wizard por URL directa.
+    const volverAFeed = useVolverAtras('/marketplace');
+    // Para los handlers del modal "Salir sin publicar" ("Descartar y
+    // salir" / "Guardar borrador y salir"). Retrocede modal + wizard
+    // de una sola vez sin dejar entradas fantasma. Ver doc del hook
+    // para por qué `useVolverAtras` no aplica en este caso.
+    const salirDelWizard = useSalirDeWizard(2, '/marketplace');
 
     // Stores
     const ciudadGps = useGpsStore((s) => s.ciudad);
@@ -424,33 +435,21 @@ export function PaginaPublicarArticulo() {
         datos.descripcion.trim().length > 0 ||
         datos.precio.length > 0 ||
         // Si hay un batch de fotos subiéndose pero aún no aterrizaron en
-        // `datos.fotos`, también contamos como "hay cambios" — para que el
-        // beforeunload warning evite que el usuario cierre la pestaña y
-        // pierda las URLs en vuelo (que quedarían huérfanas en R2).
+        // `datos.fotos`, también contamos como "hay cambios" — sirve para
+        // que `handleAtras` (botón ← y back nativo del navegador) abra
+        // el modal "¿Salir sin publicar?" mientras hay subida en vuelo.
         subiendoBatch;
 
-    // ─── Warning del navegador al cerrar pestaña con cambios sin guardar ───
-    // Si el usuario cierra la pestaña, refresca o navega fuera con el botón
-    // del navegador (NO con `navigate()` interno) mientras tiene fotos
-    // subidas o texto escrito, el navegador muestra su diálogo nativo
-    // "¿Salir? Tus cambios no se guardaron".
-    //
-    // No borra fotos automáticamente — sería peligroso si el usuario cierra
-    // por error. El reconcile global de R2 limpiará las que queden
-    // huérfanas eventualmente. Los flujos internos del wizard
-    // (handleDescartarYSalir, handleGuardarBorradorYSalir) usan `navigate()`
-    // que NO dispara `beforeunload`, así que no hay conflicto.
-    useEffect(() => {
-        if (!tieneCambios || guardando) return;
-        const handler = (e: BeforeUnloadEvent) => {
-            e.preventDefault();
-            // Chrome / Edge requieren setear `returnValue`. El texto se
-            // ignora desde 2016 — el navegador muestra su mensaje genérico.
-            e.returnValue = '';
-        };
-        window.addEventListener('beforeunload', handler);
-        return () => window.removeEventListener('beforeunload', handler);
-    }, [tieneCambios, guardando]);
+    // NOTA: el `beforeunload` warning del navegador se quitó intencionalmente.
+    // Antes mostraba el diálogo nativo "¿Salir? Tus cambios no se guardaron"
+    // al recargar/cerrar pestaña con cambios, pero:
+    //   1) El auto-save a localStorage (debounced 500ms — ver useEffect más
+    //      abajo) ya cubre el caso: al volver al wizard, el borrador se
+    //      recupera intacto.
+    //   2) El diálogo nativo no se puede customizar (texto fijo del browser)
+    //      y rompe el flow visual del wizard.
+    // Apps de referencia (Stripe, Notion, Linear) hacen lo mismo: confían en
+    // su auto-save y omiten el `beforeunload`.
 
     const handleAtras = () => {
         // Guard defensivo: si por race condition el handler se dispara
@@ -464,7 +463,7 @@ export function PaginaPublicarArticulo() {
         if (pasoActual === 1) {
             // Si no escribió nada, salir directo sin preguntar.
             if (!tieneCambios) {
-                navigate('/marketplace');
+                volverAFeed();
                 return;
             }
             setModalSalirAbierto(true);
@@ -472,6 +471,23 @@ export function PaginaPublicarArticulo() {
         }
         setPasoActual((p) => (p - 1) as 1 | 2 | 3);
     };
+
+    // NOTA: el wizard NO usa `useBackNativo` intencionalmente. Decisión
+    // arquitectónica: el back nativo del navegador en el wizard SACA al
+    // usuario al feed sin abrir modal de confirmación.
+    //
+    // Por qué: combinar `useBackNativo` del wizard con el `useBackNativo`
+    // del modal "Salir sin publicar" causa que `useSalirDeWizard(N)`
+    // requiera un N variable (2 vs 3 según cómo se abrió el modal), lo
+    // cual es frágil y no se puede determinar limpiamente desde el
+    // handler de "Descartar".
+    //
+    // El auto-save a localStorage (debounced 500ms, useEffect más abajo)
+    // cubre la "pérdida" del back nativo: al volver al wizard, el
+    // borrador está intacto. Mismo patrón que Stripe / Notion / Linear.
+    //
+    // Si el usuario quiere salir con confirmación explícita, usa el botón
+    // ← del header que SÍ abre el modal (vía handleAtras).
 
     const handleGuardarBorradorYSalir = () => {
         // El auto-save ya guardó el state en localStorage (debounced 500ms),
@@ -482,7 +498,7 @@ export function PaginaPublicarArticulo() {
             /* QuotaExceeded — fallback al cron del browser */
         }
         setModalSalirAbierto(false);
-        navigate('/marketplace');
+        salirDelWizard();
     };
 
     const handleDescartarYSalir = () => {
@@ -511,7 +527,7 @@ export function PaginaPublicarArticulo() {
         urlsSubidasEnSesion.current.clear();
         limpiarStorage();
         setModalSalirAbierto(false);
-        navigate('/marketplace');
+        salirDelWizard();
     };
 
     const handleContinuar = () => {

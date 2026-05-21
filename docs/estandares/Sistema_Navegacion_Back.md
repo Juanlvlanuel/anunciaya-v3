@@ -40,7 +40,7 @@ La app tiene una **jerarquía conceptual fija** que el back debe respetar SIEMPR
 
 ---
 
-## Los 3 Hooks Centralizados
+## Los 4 Hooks Centralizados
 
 ### 1. `useVolverAtras(fallback)`
 
@@ -167,14 +167,77 @@ function MiModal({ abierto, onCerrar }) {
 4. **Si el padre desmonta el componente directamente** (patrón `{cond && <Modal/>}` con `cond=false`) → el cleanup function se ejecuta y limpia la entrada igual que en el caso (3). Esta ruta cubre el caso D8: modal cerrado con X custom que llama `onClose` del padre, donde el padre desmonta el modal sin pasar por el ciclo `abierto: false`.
 5. **Guard contra race condition con `navigate(...)`** (clave): el `history.back()` del cleanup solo se ejecuta si la entrada propia SIGUE siendo la actual. Si entre el push y el cleanup alguien hizo `navigate(...)`, la entrada ya está enterrada y un back retrocedería la navegación posterior.
 6. **Guard contra StrictMode dev**: el `history.back()` del cleanup se difiere con `setTimeout(0)`. En StrictMode el ciclo es mount → cleanup → remount; sin el delay, el back ejecuta antes del remount y cuando el remount pushea su propia entrada, el back encolado consume esa entrada nueva y dispara `onCerrar` instantáneamente (modal se cerraba al abrirlo). Con el delay, si hay remount, el state actual ya no es el del closure y el back se salta. En producción (sin StrictMode) o en desmontaje real, el state sigue siendo el propio y el back se ejecuta.
+7. **Guard contra overlays apilados encima** (caso wizard + modal interno): cuando un wizard hace `useBackNativo({abierto: true})` y abre un modal interno (ej. "¿Salir sin publicar?") que también usa el hook, al cambiar `abierto: !modalAbierto` en el wizard, el cleanup vería su propia marca en el state actual y haría `history.back()`. Pero el modal recién pusheó su propia entrada conservando la marca del wizard (`pushState({...prev, _modalUI: id})`) → ese back consumiría la entrada del modal y lo cerraría al instante (modal abre y cierra en el mismo tick). El hook detecta este caso comparando las keys del state actual contra el snapshot del state previo a su push (`prevStateRef`): cualquier key extra que no estuviera en el previo Y no sea nuestro discriminador es de un overlay encima. En ese caso, el cleanup usa `replaceState` para borrar nuestra marca sin tocar el cursor, en lugar de `history.back()`. El overlay encima queda intacto, el wizard pierde su intercepción (correcto — el wizard ya entregó el control al modal).
 
 **Aplicado en:**
 - `Modal.tsx` (wrapper base de modales centrados desktop) — discriminador `'_modalUI'`. Cubre TODOS los modales que usan `Modal` como base sin tocar consumidores.
 - `ModalImagenes.tsx` — discriminador `'_modalImagenes'`. Antes tenía implementación manual con bug D8; migrado al hook para heredar fixes (D8 + StrictMode guard).
 - `DropdownCompartir.tsx` — discriminador `'_dropdownCompartir'`. Permite anidar el dropdown sobre un Modal: el back consume primero el dropdown (entrada superior) y deja el modal abierto.
 - `ModalBottom.tsx` (wrapper base de bottom-sheets móviles) — implementación propia con discriminador `'_modalBottom'` (precede al hook, mismo patrón).
+- `OverlayBuscadorContainer.tsx` — wrapper de los 4 OverlayBuscador (Negocios, MP, Ofertas, Servicios). Cada buscador pasa su discriminador (`_buscadorNegocios`, `_buscadorMarketplace`, etc.) cuando lo monta.
+- `ModalSugerenciaModeracion.tsx` — discriminador `_modalSugerenciaModeracion`.
+- `MenuDrawer.tsx` (drawer móvil del perfil) — discriminador `_menuDrawer`. Mantiene su CSS custom (`md4-drawer`), solo agrega el hook.
+- `PanelNotificaciones.tsx` (panel móvil — `PanelMovil`) — discriminador `_panelNotificaciones`.
 - `ChatOverlay.tsx` — implementación propia con 4 capas (`chatyaOverlay`, `chatya`, `panelInfo`, `visorImagenes`). Ver detalle abajo en "ChatOverlay".
 - `ModalArticuloDetalle.tsx`, `PanelInfoContacto.tsx`, `PanelPreviewNegocio.tsx`, modales de ScanYA — implementaciones propias previas al hook (probadas, sin bug D8 conocido).
+
+---
+
+### 4. `useSalirDeWizard(numEntradas, fallback)`
+
+**Para salir de un wizard (o flujo profundo) DESDE UN MODAL de confirmación interno.**
+
+```ts
+// apps/web/src/hooks/useSalirDeWizard.ts
+import { useSalirDeWizard } from '../../hooks/useSalirDeWizard';
+
+function MiWizard() {
+  const [modalAbierto, setModalAbierto] = useState(false);
+  // 2 entradas = modal de confirmación + wizard
+  const salirDelWizard = useSalirDeWizard(2, '/marketplace');
+
+  const handleDescartar = () => {
+    limpiarStorage();
+    setModalAbierto(false);
+    salirDelWizard();
+  };
+
+  return <ModalAdaptativo abierto={modalAbierto} ...>...</ModalAdaptativo>;
+}
+```
+
+**Por qué existe (caso que `useVolverAtras` y `navegarASeccion` NO resuelven):**
+
+Cuando el usuario abre un wizard (`/marketplace/publicar`, etc. — Servicios ya no tiene wizard desde Sprint 9, usa el composer global) y luego abre un modal de confirmación interno (ej. "¿Salir sin publicar?"), el history queda así:
+
+```
+[..., /inicio, /marketplace, /marketplace/publicar, /marketplace/publicar (_modalUI_xxx)]
+```
+
+Click "Descartar y salir":
+- `useVolverAtras` haría `navigate(-1)` → consume solo la entrada del modal, queda en el wizard.
+- `navegarASeccion('/marketplace')` haría push o replace → deja la entrada del wizard atrás, el back desde `/marketplace` regresa al wizard.
+- `navigate('/marketplace')` directo → push, mismo problema.
+
+**Solución:** `navigate(-2)` retrocede modal + wizard en una sola operación atómica → stack limpio. Si no hay historial real (entrada directa por URL al wizard, `location.key === 'default'`), cae al `fallback`.
+
+**Comportamiento:**
+
+| Situación | Acción |
+|---|---|
+| `location.key !== 'default'` (hay historial real) | `navigate(-numEntradas)` (atómico) |
+| `location.key === 'default'` (entrada directa por URL) | `navigate(fallback)` |
+
+**Aplicado en:**
+- `PaginaPublicarArticulo` (MP wizard) — `useSalirDeWizard(2, '/marketplace')` para los handlers del modal "¿Salir sin publicar?" (`handleGuardarBorradorYSalir`, `handleDescartarYSalir`).
+
+**Cuándo usarlo:**
+- ✅ Modal de confirmación dentro de un wizard que cierra el modal Y sale del wizard.
+- ❌ Botón ← de header normal → usa `useVolverAtras`.
+- ❌ Navegación entre top-levels → usa `useNavegarASeccion`.
+- ❌ Cierre simple de modal sin navegar a otra ruta → solo `setModalAbierto(false)`.
+
+**Misma raíz arquitectural que** el patrón `history.go(-(1+N))` usado por `abrirChatYA` cuando se abre el chat desde un modal (ver §"Por qué replaceState + conteo de marcas + go(-(1+N))").
 
 ---
 
@@ -522,9 +585,11 @@ function MiLink() {
 
 ---
 
-### Receta 4 — Botón dentro de modal que navega Y cierra modal
+### Receta 4 — Botón dentro de modal que navega a otra ruta (caso simple)
 
-Este es el caso del botón "Ver historial completo" en `ModalDetalleCliente`. Necesita cerrar el modal Y navegar a otra ruta SIN que el back nativo regrese al modal cerrado.
+> ⚠️ **Esta receta tiene una limitación conocida** — ver "Aceptación con un back extra" abajo. Para "modal de confirmación que sale de un wizard" usa **Receta 6**, no esta.
+
+Caso de uso: botón "Ver historial completo" en `ModalDetalleCliente` (BS) que cierra el modal Y navega a `/business-studio/transacciones`.
 
 ```tsx
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
@@ -533,7 +598,7 @@ function MiModal({ onCerrar }) {
   const navegarASeccion = useNavegarASeccion();
 
   const handleClickAccion = () => {
-    onCerrar();  // cierra modal → cleanup hace history.back síncrono
+    onCerrar();  // cierra modal
     navegarASeccion('/destino');  // detecta replace si aplica
   };
 
@@ -541,10 +606,78 @@ function MiModal({ onCerrar }) {
 }
 ```
 
-**Por qué funciona el orden:**
-1. `onCerrar()` → `ModalBottom` (o `useBackNativo` de Modal) hace `history.back()` síncrono → limpia entrada del modal.
-2. `navegarASeccion()` → calcula replace (si aplica) → reemplaza la entrada activa con el destino.
-3. Stack final limpio: `[..., /inicio, /destino]`. Back → `/inicio`. ✅
+**Aceptación con un back extra:**
+
+El cleanup de `useBackNativo` del modal se difiere con `setTimeout(0)` (necesario para sobrevivir StrictMode dev). Cuando el caller hace `onCerrar()` + `navegarASeccion()` síncronamente en el handler, el orden real de eventos es:
+
+1. `setState(false)` del modal → React schedule re-render.
+2. `navegarASeccion('/destino')` ejecuta síncrono → push o replace del destino.
+3. React re-renderiza → modal se desmonta → cleanup corre → schedule setTimeout(0) para `history.back()`.
+4. `setTimeout(0)` corre → checa state actual → ya cambió por el `navigate` → NO hace back.
+
+Resultado: la entrada del modal queda atrás en el stack como fantasma. **El back desde el destino regresa primero al modal (URL no cambia, parece "click muerto") y luego al lugar correcto.**
+
+`ModalDetalleCliente.tsx` documenta este trade-off explícitamente:
+
+> "...requiere 2 backs en lugar de 1. Aceptado como UX viable porque...
+> Solucionarlo robustamente requiere coordinar el cleanup del modal con el
+> navigate posterior — implementaciones intentadas con setTimeout /
+> requestAnimationFrame no funcionaron consistente."
+
+**Cuándo usar esta receta (con el back extra):**
+- ✅ Modal de detalle simple sobre una página (no wizard).
+- ✅ Flujo poco frecuente donde el extra back no molesta.
+- ✅ Destino es una ruta hermana donde el usuario podría querer regresar al modal de origen.
+
+**Cuándo NO usarla — usar Receta 6 en su lugar:**
+- ❌ Modal de confirmación que sale de un wizard de publicación.
+- ❌ Cualquier caso donde el back fantasma regresaría a una ruta que ya descartaste lógicamente (wizard del que saliste con "Descartar").
+
+---
+
+### Receta 6 — Modal de confirmación dentro de un wizard (salir limpio)
+
+Caso de uso: wizard `/seccion/publicar` con modal "¿Salir sin publicar?" interno. Click en "Descartar y salir" / "Guardar borrador y salir" debe cerrar el modal Y salir del wizard SIN dejar entradas fantasma en el history.
+
+```tsx
+import { useSalirDeWizard } from '../../hooks/useSalirDeWizard';
+
+function MiWizard() {
+  const [modalAbierto, setModalAbierto] = useState(false);
+  // 2 entradas = modal de confirmación + wizard
+  const salirDelWizard = useSalirDeWizard(2, '/seccion');
+
+  const handleDescartar = () => {
+    limpiarStorage();
+    setModalAbierto(false);
+    salirDelWizard();  // navigate(-2) atómico
+  };
+
+  const handleGuardarBorrador = () => {
+    persistirStorage();
+    setModalAbierto(false);
+    salirDelWizard();
+  };
+
+  // Botón ← del header del wizard usa useVolverAtras (Receta 1) — esa
+  // ruta sí responde al historial real y no requiere atómicas.
+}
+```
+
+**Por qué funciona:**
+
+1. `setModalAbierto(false)` → modal se desmonta en el próximo render.
+2. `salirDelWizard()` → `navigate(-2)` síncrono → browser retrocede modal + wizard en una sola operación atómica → cursor del history queda 2 posiciones atrás.
+3. Cleanup del modal corre → schedule setTimeout(0) → cuando ejecuta, el state actual ya NO tiene la marca del modal (porque el navigate(-2) ya lo consumió) → no hace back duplicado.
+
+Stack final limpio. Back desde la ruta destino lleva al lugar correcto sin clicks muertos.
+
+**Aplicado en:**
+- `PaginaPublicarArticulo` (MP wizard) → `useSalirDeWizard(2, '/marketplace')`.
+
+**Cuándo `numEntradas !== 2`:**
+
+Si el wizard tiene capas adicionales que pushean entradas al history (ej. un selector inicial dentro del wizard, un sub-modal anidado, etc.), incrementar `numEntradas` para incluirlas. La regla es: `1 (wizard) + 1 (modal de confirmación) + N (capas extra)`.
 
 ---
 
@@ -600,6 +733,7 @@ Todo lo gestiona `abrirChatYA`. Solo llama `abrirChatTemporal` (para crear la co
 - `apps/web/src/hooks/useVolverAtras.ts`
 - `apps/web/src/hooks/useNavegarASeccion.ts`
 - `apps/web/src/hooks/useBackNativo.ts`
+- `apps/web/src/hooks/useSalirDeWizard.ts`
 
 ### Infraestructura
 - `apps/web/src/router/RootLayout.tsx` — buffer fantasma en `/inicio`

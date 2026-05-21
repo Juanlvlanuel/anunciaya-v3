@@ -27,7 +27,7 @@
  * Ubicación: apps/web/src/components/ofertas/OverlayBuscadorOfertas.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Search, X, ArrowUpRight, Tag } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
@@ -41,6 +41,7 @@ import {
     borrarBusquedasRecientes,
     agregarBusquedaReciente,
 } from '../../utils/busquedasRecientes';
+import { OverlayBuscadorContainer } from '../ui/OverlayBuscadorContainer';
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
@@ -86,37 +87,15 @@ export function OverlayBuscadorOfertas() {
     const { data: sugerencias = [], isFetching: cargandoSug } =
         useBuscadorOfertasSugerencias(query, ciudad);
 
-    // ─── Bloquear scroll del body mientras el overlay está abierto ──────────
-    // (en desktop el body ya viene con overflow:hidden desde `index.css`, pero
-    // en móvil sin esto la página detrás sigue haciendo scroll).
-    useEffect(() => {
-        if (!debeMostrar) return;
-        const prev = document.body.style.overflow;
-        document.body.style.overflow = 'hidden';
-        return () => {
-            document.body.style.overflow = prev;
-        };
-    }, [debeMostrar]);
-
-    // ─── Cerrar con Escape ───────────────────────────────────────────────────
-    useEffect(() => {
-        if (!debeMostrar) return;
-        const handler = (e: KeyboardEvent) => {
-            if (e.key === 'Escape') cerrarBuscador();
-        };
-        window.addEventListener('keydown', handler);
-        return () => window.removeEventListener('keydown', handler);
-    }, [debeMostrar, cerrarBuscador]);
-
-    if (!debeMostrar) return null;
-
     const escribiendo = query.trim().length >= 2;
 
     const handleClickSugerencia = (ofertaId: string) => {
         agregarBusquedaReciente(query.trim(), 'ofertas');
         setRecientesRev((v) => v + 1);
         cerrarBuscador();
-        navigate(`/ofertas?oferta=${ofertaId}`);
+        // `replace: true` evita dejar entrada fantasma del overlay en el
+        // history (ver OverlayBuscadorNegocios).
+        navigate(`/ofertas?oferta=${ofertaId}`, { replace: true });
     };
 
     // Click en chip de búsqueda reciente: rellena el query (dispara
@@ -131,20 +110,13 @@ export function OverlayBuscadorOfertas() {
     };
 
     return (
-        <div
-            data-testid="overlay-buscador-ofertas"
-            className="fixed inset-0 z-50"
-            onClick={cerrarBuscador}
-            role="dialog"
-            aria-modal="true"
-            aria-label="Buscador de Ofertas"
+        <OverlayBuscadorContainer
+            abierto={debeMostrar}
+            onCerrar={cerrarBuscador}
+            discriminador="_buscadorOfertas"
+            ariaLabel="Buscador de Ofertas"
+            testId="overlay-buscador-ofertas"
         >
-            {/* Overlay oscuro con gradiente radial — patrón estándar de modales (ver `Modal.tsx`). */}
-            <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(0,0,0,0.4)_0%,rgba(0,0,0,0.75)_100%)] animate-in fade-in duration-200" />
-            <div
-                onClick={(e) => e.stopPropagation()}
-                className="relative mx-auto mt-20 max-h-[480px] max-w-3xl overflow-y-auto rounded-2xl border border-slate-200 bg-white shadow-2xl lg:mt-24"
-            >
                 {/* ─── Estado vacío: solo recientes + hint ──────────────── */}
                 {!escribiendo && (
                     <div className="space-y-5 p-4">
@@ -280,8 +252,7 @@ export function OverlayBuscadorOfertas() {
                         )}
                     </section>
                 )}
-            </div>
-        </div>
+        </OverlayBuscadorContainer>
     );
 }
 

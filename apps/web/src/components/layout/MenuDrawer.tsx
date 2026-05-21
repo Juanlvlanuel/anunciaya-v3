@@ -36,6 +36,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import { notificar } from '../../utils/notificaciones';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
@@ -395,6 +396,19 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
   const tabPersonalRef = useRef<HTMLButtonElement>(null);
   const tabComercialRef = useRef<HTMLButtonElement>(null);
+
+  // ---------------------------------------------------------------------------
+  // Back nativo (Android + flecha del navegador)
+  // ---------------------------------------------------------------------------
+  // El MenuDrawer se monta condicionalmente desde `MainLayout` (cuando
+  // `menuDrawerAbierto === true`) — siempre que está montado está abierto.
+  // El hook intercepta el back y dispara `onClose` sin tocar la ruta actual,
+  // misma semántica que cualquier modal con `useBackNativo`.
+  useBackNativo({
+    abierto: true,
+    onCerrar: onClose,
+    discriminador: '_menuDrawer',
+  });
 
   // El CSS se inyecta al cargar el módulo (ver llamada top-level a
   // inyectarEstilosMenuDrawer arriba) para evitar el flash entre el

@@ -78,7 +78,10 @@ export function MisPublicacionesServiciosSection({
 
     // ─── Handlers ─────────────────────────────────────────────────────
     function handleEditar(p: PublicacionServicio) {
-        navigate(`/servicios/publicar/${p.id}`);
+        // El composer vive inline en /servicios. Redirigimos al feed
+        // con ?editar=<id>; ComposerSection lo detecta y expande el
+        // composer con los datos hidratados.
+        navigate(`/servicios?editar=${p.id}`);
     }
 
     async function handlePausar(p: PublicacionServicio) {
@@ -136,7 +139,9 @@ export function MisPublicacionesServiciosSection({
     }
 
     function irAPublicar() {
-        navigate('/servicios/publicar?modo=ofrezco');
+        // Composer inline vive en /servicios — redirigimos con
+        // ?crear=ofrezco para que se expanda al cargar.
+        navigate('/servicios?crear=ofrezco');
     }
 
     // ─── Render ───────────────────────────────────────────────────────

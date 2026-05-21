@@ -618,6 +618,8 @@ export interface SugerenciaArticulo {
     condicion: string;
     fotoPortada: string | null;
     ciudad: string;
+    /** Nombre del usuario que publicó (solo personas — MP no admite negocios). */
+    vendedorNombre: string;
 }
 
 export function useBuscadorSugerencias(queryRaw: string, ciudad: string | null) {

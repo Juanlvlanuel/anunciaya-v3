@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import {
     usePublicacionServicio,
     useRegistrarVistaServicio,
@@ -66,6 +67,7 @@ const VISTA_REGISTRADA_STORAGE_PREFIX = 'aya:servicios:vista:';
 export function PaginaServicio() {
     const { id } = useParams<{ id: string }>();
     const navigate = useNavigate();
+    const navegarASeccion = useNavegarASeccion();
     const handleVolver = useVolverAtras('/servicios');
     const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
 
@@ -125,7 +127,7 @@ export function PaginaServicio() {
                                 para ver otras publicaciones cercanas.
                             </p>
                             <button
-                                onClick={() => navigate('/servicios')}
+                                onClick={handleVolver}
                                 className="mt-5 px-5 py-2.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 text-white font-semibold text-sm shadow-cta-sky lg:cursor-pointer"
                             >
                                 Volver al feed
@@ -141,6 +143,20 @@ export function PaginaServicio() {
     const isServicio = publicacion.tipo === 'servicio-persona';
     const isVacante = publicacion.tipo === 'vacante-empresa';
     const isSolicito = publicacion.tipo === 'solicito';
+
+    /** Click en "Ver negocio" / "Ver perfil" — destino según tipo:
+     *  - vacante-empresa con sucursalId → /negocios/{sucursalId} (perfil real
+     *    del negocio en la sección Negocios — usa `navegarASeccion` porque
+     *    es un salto entre top-levels).
+     *  - resto → /servicios/usuario/{oferenteId} (perfil del prestador como
+     *    persona dentro de Servicios — push normal, subruta del mismo padre). */
+    const irAPerfilDelOferente = () => {
+        if (isVacante && publicacion.sucursalId) {
+            navegarASeccion(`/negocios/${publicacion.sucursalId}`);
+            return;
+        }
+        navigate(`/servicios/usuario/${publicacion.oferente.id}`);
+    };
 
     // ─── Contenido de cabecera (tipo + título + precio mobile) ────────
     const cabeceraTituloPrecio = (
@@ -197,11 +213,7 @@ export function PaginaServicio() {
             <div className="lg:hidden">
                 <OferenteCard
                     publicacion={publicacion}
-                    onClick={() =>
-                        navigate(
-                            `/servicios/usuario/${publicacion.oferente.id}`,
-                        )
-                    }
+                    onClick={irAPerfilDelOferente}
                 />
             </div>
         </SeccionCard>
@@ -423,11 +435,7 @@ export function PaginaServicio() {
                                 />
                                 <SidebarSobreNegocio
                                     publicacion={publicacion}
-                                    onVerNegocio={() =>
-                                        navigate(
-                                            `/servicios/usuario/${publicacion.oferente.id}`,
-                                        )
-                                    }
+                                    onVerNegocio={irAPerfilDelOferente}
                                 />
                             </aside>
                         </div>

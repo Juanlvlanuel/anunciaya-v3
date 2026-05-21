@@ -32,10 +32,19 @@ const campoTitulo = z
     .min(10, 'El título debe tener al menos 10 caracteres')
     .max(80, 'El título no puede exceder 80 caracteres');
 
+// Versión estricta (min 30) — usada por BS Vacantes que sí requiere
+// descripción detallada por ser publicación comercial.
 const campoDescripcion = z
     .string()
     .trim()
     .min(30, 'La descripción debe tener al menos 30 caracteres')
+    .max(500, 'La descripción no puede exceder 500 caracteres');
+
+// Versión libre (sin mínimo) — usada por el composer de Servicios desde
+// Sprint 9. La descripción es opcional; si se escribe, se respeta el max.
+const campoDescripcionLibre = z
+    .string()
+    .trim()
     .max(500, 'La descripción no puede exceder 500 caracteres');
 
 const campoCiudad = z
@@ -284,13 +293,16 @@ export const crearPublicacionSchema = z
         subtipo: campoSubtipo.nullish(),
 
         titulo: campoTitulo,
-        descripcion: campoDescripcion,
+        // Descripción opcional (Sprint 9 — composer). Si llega vacía o
+        // ausente, se persiste como string vacío. Sin mínimo de chars.
+        descripcion: campoDescripcionLibre.optional().default(''),
 
         fotos: campoFotos,
         fotoPortadaIndex: campoFotoPortadaIndex.optional().default(0),
 
         precio: precioSchema,
-        modalidad: campoModalidad,
+        // Modalidad opcional con default 'presencial' (Sprint 9 — composer).
+        modalidad: campoModalidad.optional().default('presencial'),
 
         latitud: campoLatitud,
         longitud: campoLongitud,
@@ -412,7 +424,9 @@ export type CrearPublicacionInput = z.infer<typeof crearPublicacionSchema>;
 export const actualizarPublicacionSchema = z
     .object({
         titulo: campoTitulo.optional(),
-        descripcion: campoDescripcion.optional(),
+        // Misma laxitud que en `crearPublicacionSchema`: descripción
+        // editable sin mínimo de chars (Sprint 9 — composer).
+        descripcion: campoDescripcionLibre.optional(),
 
         fotos: campoFotos.optional(),
         fotoPortadaIndex: campoFotoPortadaIndex.optional(),

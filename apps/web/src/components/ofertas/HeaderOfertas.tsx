@@ -18,7 +18,7 @@
  * Ubicación: apps/web/src/components/ofertas/HeaderOfertas.tsx
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import {
   ChevronLeft,
@@ -82,9 +82,23 @@ export default function HeaderOfertas({
   const setQueryGlobal = useSearchStore((s) => s.setQuery);
   const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
   const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
+  const buscadorAbierto = useSearchStore((s) => s.buscadorAbierto);
 
   const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
   const inputBusquedaMovilRef = useRef<HTMLInputElement>(null);
+
+  // Sincronización con el store del buscador: cuando algo externo (back
+  // nativo, Escape, click backdrop del scrim) dispara `cerrarBuscador()`,
+  // también cerramos el input móvil flotante para que no quede "huérfano".
+  // Mismo patrón aplicado en PaginaMarketplace — ver doc allá.
+  const buscadorAbiertoPrevRef = useRef(buscadorAbierto);
+  useEffect(() => {
+    if (buscadorAbiertoPrevRef.current && !buscadorAbierto) {
+      setBuscadorMovilAbierto(false);
+    }
+    buscadorAbiertoPrevRef.current = buscadorAbierto;
+  }, [buscadorAbierto]);
+
   const handleAbrirBuscadorMovil = () => {
     setBuscadorMovilAbierto(true);
     abrirBuscador();

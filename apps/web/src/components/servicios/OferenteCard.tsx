@@ -39,8 +39,12 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
         ? (oferente.sucursalEsPrincipal ? 'Matriz' : oferente.sucursalNombre)
         : null;
 
+    // Avatar empresa: LOGO del negocio primero (marca corporativa);
+    // fallback a la foto de perfil de la sucursal solo si el negocio no tiene
+    // logo. Patrón inverso al avatar del chat (donde la foto de sucursal va
+    // primero porque representa al equipo que atiende).
     const avatarUrl = esEmpresa
-        ? (oferente.sucursalFotoPerfil ?? oferente.negocioLogo ?? oferente.avatarUrl)
+        ? (oferente.negocioLogo ?? oferente.sucursalFotoPerfil ?? oferente.avatarUrl)
         : oferente.avatarUrl;
 
     const iniciales = esEmpresa

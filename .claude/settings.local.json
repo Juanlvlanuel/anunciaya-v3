@@ -244,7 +244,12 @@
       "Bash(where /R E:\\\\AnunciaYA\\\\anunciaya README.md)",
       "Bash(findstr design_handoff_wizard_vacante)",
       "PowerShell(git config --global user.email)",
-      "Bash(git config *)"
+      "Bash(git config *)",
+      "Bash(git check-ignore *)",
+      "Bash(findstr /R \"\\\\.env$\")",
+      "Bash(grep -v \"useNavigate\\\\|import\\\\|//\")",
+      "Bash(pnpm type:check:web)",
+      "Bash(awk '/<div className=\"mt-3 space-y-3\">/{a=NR} /<\\\\/div>/{if\\(a\\){print NR\": close of div opened at \"a; a=0}} ' apps/web/src/components/servicios/composer/ComposerServicios.tsx)"
     ]
   },
   "disableAllHooks": true

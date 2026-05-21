@@ -10,7 +10,7 @@
  *     - Mobile: notif + menú · subtítulo "En {ciudad} · N publicaciones" +
  *               chips internos con modo (Ofrecen/Solicitan) + filtros
  *
- *   variante='pagina' (usado en /servicios/:id, /servicios/publicar, etc.)
+ *   variante='pagina' (usado en /servicios/:id, /servicios/usuario/:id)
  *     - Desktop: `slotDerecho` (típicamente pill con el tipo de página) o vacío
  *     - Mobile: notif + menú · subtítulo `subtituloMobile` (texto contextual)
  *
@@ -21,7 +21,7 @@
  * Ubicación: apps/web/src/components/servicios/ServiciosHeader.tsx
  */
 
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Search, Wrench, X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
@@ -30,8 +30,7 @@ import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useSearchStore } from '../../stores/useSearchStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { IconoMenuMorph } from '../ui/IconoMenuMorph';
-import { ChipsFiltros, type FiltroChip } from './ChipsFiltros';
-import type { ModoServicio } from '../../types/servicios';
+import { TabsServicios, type TabServicios } from './TabsServicios';
 
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
@@ -46,12 +45,11 @@ interface ServiciosHeaderProps {
     ciudad?: string | null;
     /** Total de publicaciones visibles (KPI desktop + subtítulo móvil). */
     totalPublicaciones?: number | null;
-    /** Chip de filtro activo (Todos / Presencial / Remoto / Servicio / Empleo). */
-    filtroActivo?: FiltroChip;
-    onFiltroChange?: (f: FiltroChip) => void;
-    /** Modo (Ofrecen/Solicitan). `null` = "Todos" activo. */
-    modo?: ModoServicio | null;
-    onModoChange?: (m: ModoServicio | null) => void;
+    /** Tab activa (Servicios / Solicitudes / Vacantes). */
+    tabActiva?: TabServicios;
+    onTabChange?: (t: TabServicios) => void;
+    /** Conteo por tab para badges en los pills. */
+    conteosPorTab?: Partial<Record<TabServicios, number>>;
 
     // ─── Props para variante='pagina' ────────────────────────────────────────
     /** Contenido del lado derecho del header en desktop (reemplaza chips+KPI).
@@ -72,10 +70,9 @@ export function ServiciosHeader({
     variante = 'feed',
     ciudad = null,
     totalPublicaciones = null,
-    filtroActivo,
-    onFiltroChange,
-    modo,
-    onModoChange,
+    tabActiva,
+    onTabChange,
+    conteosPorTab,
     slotDerecho,
     breadcrumb,
     subtituloMobile,
@@ -89,9 +86,22 @@ export function ServiciosHeader({
     const setQueryGlobal = useSearchStore((s) => s.setQuery);
     const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
     const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
+    const buscadorAbierto = useSearchStore((s) => s.buscadorAbierto);
 
     const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
     const inputBusquedaMovilRef = useRef<HTMLInputElement>(null);
+
+    // Sincronización con el store del buscador: cuando algo externo (back
+    // nativo, Escape, click backdrop del scrim) dispara `cerrarBuscador()`,
+    // también cerramos el input móvil flotante para que no quede "huérfano".
+    // Mismo patrón aplicado en PaginaMarketplace — ver doc allá.
+    const buscadorAbiertoPrevRef = useRef(buscadorAbierto);
+    useEffect(() => {
+        if (buscadorAbiertoPrevRef.current && !buscadorAbierto) {
+            setBuscadorMovilAbierto(false);
+        }
+        buscadorAbiertoPrevRef.current = buscadorAbierto;
+    }, [buscadorAbierto]);
 
     const handleAbrirBuscadorMovil = () => {
         setBuscadorMovilAbierto(true);
@@ -104,10 +114,6 @@ export function ServiciosHeader({
     };
 
     const esFeed = variante === 'feed';
-    // Para feed: si el padre pasó filtros, los usamos. Por defecto = 'todos'/null.
-    const filtroSeguro: FiltroChip = filtroActivo ?? 'todos';
-    const modoSeguro: ModoServicio | null = modo ?? null;
-
     return (
         <>
         <div className="sticky top-0 z-20">
@@ -261,15 +267,15 @@ export function ServiciosHeader({
                                 </div>
                             )}
 
-                            {/* Chips de filtros — solo variante='feed' en mobile */}
-                            {esFeed && filtroActivo && onFiltroChange && (
+                            {/* Tabs (Servicios / Solicitudes / Vacantes) — solo
+                                variante='feed' en mobile, estilo dark. */}
+                            {esFeed && tabActiva && onTabChange && (
                                 <div className="pl-3 pb-3">
-                                    <ChipsFiltros
-                                        activo={filtroSeguro}
-                                        onChange={onFiltroChange}
+                                    <TabsServicios
+                                        activa={tabActiva}
+                                        onChange={onTabChange}
+                                        conteos={conteosPorTab}
                                         variant="dark"
-                                        modo={modoSeguro}
-                                        onModoChange={onModoChange}
                                     />
                                 </div>
                             )}
@@ -331,11 +337,12 @@ export function ServiciosHeader({
                                 <div className="flex shrink-0 items-center gap-4">
                                     {esFeed ? (
                                         <>
-                                            {filtroActivo && onFiltroChange && (
+                                            {tabActiva && onTabChange && (
                                                 <div className="min-w-0">
-                                                    <ChipsFiltros
-                                                        activo={filtroSeguro}
-                                                        onChange={onFiltroChange}
+                                                    <TabsServicios
+                                                        activa={tabActiva}
+                                                        onChange={onTabChange}
+                                                        conteos={conteosPorTab}
                                                         variant="dark"
                                                     />
                                                 </div>

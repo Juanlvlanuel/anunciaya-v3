@@ -115,6 +115,8 @@ export interface SugerenciaArticuloRow {
     condicion: string;
     fotoPortada: string | null;
     ciudad: string;
+    /** Nombre del usuario que publicó (solo personas — MP no admite negocios). */
+    vendedorNombre: string;
 }
 
 export async function obtenerSugerencias(
@@ -150,28 +152,31 @@ export async function obtenerSugerencias(
         const patron = `%${q}%`;
         const resultado = await db.execute(sql`
             SELECT
-                id,
-                titulo,
-                precio,
-                condicion,
-                fotos,
-                foto_portada_index,
-                ciudad
-            FROM articulos_marketplace
-            WHERE estado = 'activa'
-              AND deleted_at IS NULL
-              AND ciudad = ${ciudad}
+                a.id,
+                a.titulo,
+                a.precio,
+                a.condicion,
+                a.fotos,
+                a.foto_portada_index,
+                a.ciudad,
+                u.nombre AS vendedor_nombre,
+                u.apellidos AS vendedor_apellidos
+            FROM articulos_marketplace a
+            INNER JOIN usuarios u ON u.id = a.usuario_id
+            WHERE a.estado = 'activa'
+              AND a.deleted_at IS NULL
+              AND a.ciudad = ${ciudad}
               AND (
-                  to_tsvector('spanish', unaccent(titulo || ' ' || descripcion))
+                  to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion))
                       @@ plainto_tsquery('spanish', unaccent(${q}))
-                  OR unaccent(titulo) ILIKE unaccent(${patron})
-                  OR unaccent(descripcion) ILIKE unaccent(${patron})
+                  OR unaccent(a.titulo) ILIKE unaccent(${patron})
+                  OR unaccent(a.descripcion) ILIKE unaccent(${patron})
               )
             ORDER BY ts_rank(
-                to_tsvector('spanish', unaccent(titulo || ' ' || descripcion)),
+                to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)),
                 plainto_tsquery('spanish', unaccent(${q}))
             ) DESC,
-            created_at DESC
+            a.created_at DESC
             LIMIT 50
         `);
 
@@ -183,12 +188,18 @@ export async function obtenerSugerencias(
             fotos: string[] | null;
             foto_portada_index: number | null;
             ciudad: string;
+            vendedor_nombre: string | null;
+            vendedor_apellidos: string | null;
         };
 
         const items = (resultado.rows as Raw[]).map((r) => {
             const fotos = Array.isArray(r.fotos) ? r.fotos : [];
             const idx = r.foto_portada_index ?? 0;
             const fotoPortada = fotos.length > 0 ? fotos[idx] ?? fotos[0] ?? null : null;
+            const nombreCompleto = [r.vendedor_nombre, r.vendedor_apellidos]
+                .filter(Boolean)
+                .join(' ')
+                .trim();
             return {
                 id: r.id,
                 titulo: r.titulo,
@@ -196,6 +207,7 @@ export async function obtenerSugerencias(
                 condicion: r.condicion,
                 fotoPortada,
                 ciudad: r.ciudad,
+                vendedorNombre: nombreCompleto || 'Anónimo',
             };
         });
         return { success: true, data: items };

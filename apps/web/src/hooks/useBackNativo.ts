@@ -90,6 +90,12 @@ export function useBackNativo({
         `${discriminador}_${Date.now()}_${Math.random().toString(36).slice(2, 6)}`,
     );
     const popStateHandlerRef = useRef<(() => void) | null>(null);
+    // Snapshot del state que había en `history.state` ANTES de nuestro
+    // push. Lo usamos en el cleanup para detectar si otro overlay pusheó
+    // su propia entrada encima de nosotros (en cuyo caso NO debemos
+    // hacer `history.back()` — consumiría la entrada del overlay encima
+    // y lo cerraría sin querer).
+    const prevStateRef = useRef<Record<string, unknown>>({});
     // Ref a `onCerrar` para que el listener no quede capturado con un
     // closure stale si el componente padre re-crea la función entre
     // renders.
@@ -107,6 +113,7 @@ export function useBackNativo({
         // Push solo una vez (StrictMode double-mount safe).
         if (!historyPushedRef.current) {
             const prevState = (window.history.state ?? {}) as Record<string, unknown>;
+            prevStateRef.current = prevState;
             window.history.pushState(
                 { ...prevState, [discriminador]: id },
                 '',
@@ -159,19 +166,50 @@ export function useBackNativo({
             historyPushedRef.current = false;
             const stateAlCleanup = window.history.state as Record<string, unknown> | null;
             if (stateAlCleanup?.[discriminador] !== id) return;
-            // Diferir el back con `setTimeout(0)` para sobrevivir el ciclo
-            // mount → cleanup → remount de React.StrictMode (dev). Si el
-            // remount ocurre antes del próximo macrotask, va a pushear su
-            // propia entrada al history y el state actual ya no será el
-            // nuestro — saltamos el back y evitamos cerrar el modal recién
-            // re-montado. En producción (sin StrictMode) o cuando el padre
-            // realmente desmonta el componente (caso D8), no hay remount y
-            // el back se ejecuta normalmente.
+
+            // Snapshot del state previo a NUESTRO push. Lo usamos abajo
+            // (dentro del setTimeout) para detectar overlays apilados encima.
+            const prevState = prevStateRef.current;
+
+            // Diferir con `setTimeout(0)` para:
+            //   (1) Sobrevivir StrictMode dev mount → cleanup → remount.
+            //   (2) Esperar a que cualquier `pushState` de un overlay que
+            //       se está montando en el mismo render (ej. modal que se
+            //       abre al cerrar nosotros) ya esté aplicado en
+            //       `history.state`. Esto permite que la verificación de
+            //       "marcas encima" abajo vea el state REAL post-push.
             setTimeout(() => {
                 const stateAhora = window.history.state as Record<string, unknown> | null;
-                if (stateAhora?.[discriminador] === id) {
-                    window.history.back();
+                if (stateAhora?.[discriminador] !== id) return;
+
+                // Guard contra race condition con overlay apilado encima
+                // (típico wizard que abre modal de confirmación interno):
+                // si en el state ACTUAL hay keys que NO estaban en el state
+                // ANTES de nuestro push, es porque otro overlay pusheó su
+                // entrada encima conservando nuestra marca (pushState hace
+                // `{...prev, ...nuevo}`). Hacer `history.back()` aquí
+                // consumiría la entrada del overlay encima y lo cerraría
+                // sin querer.
+                //
+                // Detección: comparar keys de stateAhora vs prevState
+                // capturado en el push. Cualquier key extra (≠ nuestro
+                // discriminador, ≠ keys del prev) es de un overlay encima.
+                //
+                // Acción: usar `replaceState` para borrar nuestra marca sin
+                // tocar el cursor. El overlay encima queda intacto y
+                // nuestra entrada deja de interceptar (correcto — ya
+                // entregamos el control al overlay encima).
+                const marcasEncima = Object.keys(stateAhora ?? {}).filter(
+                    (k) => k !== discriminador && !(k in prevState),
+                );
+                if (marcasEncima.length > 0) {
+                    const stateLimpio = { ...(stateAhora ?? {}) };
+                    delete stateLimpio[discriminador];
+                    window.history.replaceState(stateLimpio, '', window.location.href);
+                    return;
                 }
+
+                window.history.back();
             }, 0);
         };
     }, [abierto, discriminador]);

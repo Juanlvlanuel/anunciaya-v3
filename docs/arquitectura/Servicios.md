@@ -1,436 +1,254 @@
 # Arquitectura — Sección Servicios
 
-> **Estado:** En desarrollo activo (Sprint 4/8 completados a fecha 2026-05-17).
-> **Visión estratégica:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
+> Última actualización: 2026-05-20 (Sprint 9 — composer inline en el feed, fila de íconos).
+> Visión estratégica: [`docs/VISION_ESTRATEGICA_AnunciaYA.md`](../VISION_ESTRATEGICA_AnunciaYA.md) §3.2.
 
-## Visión general
+Servicios es la sección pública unificada para **servicios e intangibles** (incluye empleos).
 
-**Servicios** es la sección pública de AnunciaYA para servicios e intangibles entre vecinos. Cubre dos modos:
+---
 
-| Modo | Tipo | Subtipo | Casos típicos |
+## 1. Modos y tipos de publicación
+
+| Modo (UI) | `tipo` (BD) | `subtipo` (BD) | Quién publica |
 |---|---|---|---|
-| **`ofrezco`** | `servicio-persona` | `servicio-personal` | "Plomería 24h", "Diseño web para negocios", "Pastelería para eventos" |
-| **`solicito`** | `solicito` | `servicio-puntual` | "Busco fotógrafo para boda", "Necesito plomero urgente" |
-| **`solicito`** | `solicito` | `busco-empleo` | "Busco trabajo de mesero" (auto cuando `categoria='empleo'`) |
-| **`solicito`** | `vacante-empresa` | `vacante-empresa` | Vacantes publicadas desde BS Sprint 8 (no desde Servicios) |
+| **Ofrezco** | `servicio-persona` | `servicio-personal` | Usuario personal que ofrece un servicio |
+| **Solicito** (no empleo) | `solicito` | `servicio-puntual` | Usuario personal que necesita un servicio |
+| **Solicito** (empleo) | `solicito` | `busco-empleo` | Persona que busca trabajo (auto cuando `categoria='empleo'`) |
+| **Vacante** | `vacante-empresa` | `vacante-empresa` | Negocio publica empleo (desde BS, no aquí) |
 
-**Modo Personal estricto**: toda la sección está protegida por `ModoPersonalEstrictoGuard`. Un usuario en modo comercial (con negocio) no puede acceder a `/servicios`.
+El composer maneja Ofrezco/Solicito. Las Vacantes se publican desde Business Studio (Sprint 8) y solo se visualizan en el feed.
 
-**Ciudad de beta**: Puerto Peñasco, Sonora. El feed filtra por `usuarios.ciudad === ciudad.nombre`.
+Tipos en `apps/web/src/types/servicios.ts`.
 
 ---
 
-## Base de datos
+## 2. Composer inline en el feed
 
-### Tablas principales
+Desde Sprint 9 las publicaciones se crean y editan con un **composer inline** que vive arriba del feed de Servicios — sin overlay, sin modal, sin ruta propia. Reemplazó al wizard de 3 pasos (`/servicios/publicar`, eliminado).
 
-| Tabla | Filas (~beta) | Propósito |
+### 2.1 Arquitectura
+
+```
+<PaginaServicios />                       ← feed
+  └─ <ComposerSection modoServiciosDefault={...} />
+     ├─ Estado COLAPSADO  → <ComposerColapsado /> (pill clickeable)
+     └─ Estado EXPANDIDO  → <ComposerServicios /> (formulario inline)
+                            ├─ Header + X
+                            ├─ Toggle Ofrezco/Solicito (sólo creación)
+                            ├─ Input título + Textarea descripción
+                            ├─ <ComposerHintModeracion>     (anti-venta inline)
+                            ├─ Strip de thumbnails (si hay fotos)
+                            ├─ Fila de íconos "Agregar a tu publicación"
+                            ├─ Panel del ícono activo (acordeón)
+                            ├─ Checkbox legal compactado
+                            └─ Botón Publicar
+```
+
+### 2.2 Fila de íconos
+
+Lista inspirada en Facebook ("Agregar a tu publicación"). 5 íconos en Ofrezco, 6 en Solicito:
+
+| Ícono | Acción | Activo cuando |
 |---|---|---|
-| `servicios_publicaciones` | 100-500 | Publicaciones (ofrezco/solicito) |
-| `servicios_preguntas` | 50-200 | Q&A público en el detalle |
-| `servicios_resenas` | 20-100 | Reseñas tras un servicio entregado |
-| `servicios_busquedas_log` | crece | Log de queries del buscador (para "populares") |
+| 📷 Camera | Abre file picker (no acordeón) — sube fotos a R2 | `fotos.length > 0` |
+| 🏷️ Tags | Toggle panel Categoría (chip strip 6 categorías) | `categoria != null` |
+| 🛠️ Wrench | Toggle panel Modalidad (Presencial/Remoto/Híbrido) | `modalidad != null` |
+| 💰 DollarSign | Toggle panel Tarifa/Presupuesto (min-max MXN) | min o max llenos |
+| 📍 MapPin | Toggle panel Zonas (chip input list, 1-10) | `zonasAproximadas.length > 0` |
+| ⚡ Zap | Toggle panel Urgente (sólo en Solicito) | `urgente === true` |
 
-### `servicios_publicaciones`
+Cada ícono activo muestra un dot verde arriba-derecha. Solo un panel puede estar abierto a la vez (click en otro ícono cierra el actual y abre el nuevo).
 
-```sql
-id                   uuid PK
-usuario_id           uuid FK→usuarios (CASCADE delete)
-modo                 varchar(20)   -- 'ofrezco' | 'solicito'
-tipo                 varchar(30)   -- 'servicio-persona' | 'vacante-empresa' | 'solicito'
-subtipo              varchar(30)   -- 'servicio-personal' | 'busco-empleo' | 'servicio-puntual' | 'vacante-empresa'
-titulo               varchar(80)
-descripcion          text
-fotos                jsonb default '[]'
-foto_portada_index   smallint default 0
-precio               jsonb         -- discriminated union (ver abajo)
-modalidad            varchar(20)   -- 'presencial' | 'remoto' | 'hibrido'
-ubicacion            geography(Point,4326)  -- exacta, NUNCA se devuelve al FE
-ubicacion_aproximada geography(Point,4326)  -- con offset random de ~500m
-ciudad               varchar(100)
-zonas_aproximadas    varchar(150)[]
-skills               text[] (max 8, solo servicio-persona)
-requisitos           text[] (solo vacante-empresa)
-horario              varchar(150) nullable
-dias_semana          varchar(3)[]
-presupuesto          jsonb nullable -- { min, max } solo tipo='solicito'
-categoria            varchar(20) nullable -- solo modo='solicito'
-urgente              boolean default false
-confirmaciones       jsonb         -- snapshot legal del wizard
-estado               varchar(20) default 'activa' -- 'activa' | 'pausada' | 'eliminada'
-total_vistas         integer default 0
-total_mensajes       integer default 0
-total_guardados      integer default 0
-expira_at            timestamptz   -- NOW() + 30 días al crear
-created_at           timestamptz
-updated_at           timestamptz
-deleted_at           timestamptz nullable
-```
+Si el usuario aprieta Publicar y hay errores en un campo dentro de un panel cerrado, el panel correspondiente se abre automáticamente.
 
-**Constraints CHECK:**
-- `modo` ∈ ('ofrezco', 'solicito')
-- `tipo` ∈ ('servicio-persona', 'vacante-empresa', 'solicito')
-- `subtipo` ∈ los 4 valores listados arriba
-- `modalidad` ∈ ('presencial', 'remoto', 'hibrido')
-- `estado` ∈ ('activa', 'pausada', 'eliminada')
-- `precio->>'kind'` ∈ ('fijo', 'hora', 'rango', 'mensual', 'a-convenir')
-- `skills` máximo 8
-- `presupuesto` IS NULL OR `tipo='solicito'`
-- `categoria` IS NULL OR `modo='solicito'`
-- `categoria` ∈ 6 valores: hogar, cuidados, eventos, belleza-bienestar, empleo, otros
+### 2.3 Pill colapsada
 
-**Índices:**
-- Btree: `estado`, `ciudad`, `usuario_id`, `created_at DESC`, `expira_at`, `(modo, tipo)`
-- GIST: `ubicacion_aproximada` (para `ST_DWithin` cercanos)
-- GIN: FTS sobre `to_tsvector(titulo || descripcion)` para buscador
-- Parcial: `idx_servicios_pub_solicito_categoria` (categoria, estado, created_at) WHERE modo='solicito'
-- Parcial: `idx_servicios_pub_solicito_urgente` (urgente DESC, created_at DESC) WHERE modo='solicito' AND estado='activa'
-
-### Discriminated union `precio` (JSONB)
-
-```ts
-type Precio =
-  | { kind: 'fijo';       monto: number; moneda?: 'MXN' }     // pago único
-  | { kind: 'hora';       monto: number; moneda?: 'MXN' }     // por hora
-  | { kind: 'mensual';    monto: number; moneda?: 'MXN' }     // mensual (vacantes BS)
-  | { kind: 'rango';      min: number; max: number; moneda?: 'MXN' }  // "$X–$Y"
-  | { kind: 'a-convenir' }                                     // sin precio fijado
-```
-
-El wizard actual (v2, 3 pasos) **siempre normaliza** `budgetMin/budgetMax` strings → precio según modo:
-- `modo='solicito'`: `precio = { kind: 'a-convenir' }` y `presupuesto = { min, max }` aparte.
-- `modo='ofrezco'`: si min=max → `fijo`, si min<max → `rango`, si vacíos → `a-convenir`.
-
-### `servicios_resenas`
-
-```sql
-id              uuid PK
-publicacion_id  uuid FK→publicaciones (CASCADE)
-autor_id        uuid FK→usuarios (CASCADE)
-destinatario_id uuid FK→usuarios (CASCADE)
-rating          smallint  CHECK rating BETWEEN 1 AND 5
-texto           varchar(200) nullable
-created_at      timestamptz
-deleted_at      timestamptz
-```
-
-**Constraint UNIQUE**: `(publicacion_id, autor_id)` — una reseña por autor por publicación.
-**Constraint CHECK**: `autor_id <> destinatario_id` — sin self-review.
-
-### `servicios_preguntas`
-
-```sql
-id             uuid PK
-publicacion_id uuid FK→publicaciones (CASCADE)
-autor_id       uuid FK→usuarios (CASCADE)
-pregunta       varchar(200)
-respuesta      varchar(500) nullable
-respondida_at  timestamptz nullable
-editada_at     timestamptz nullable
-created_at     timestamptz
-```
-
-**Visibilidad pública** (calculada en backend, ver `services/servicios/preguntas.ts`):
-- Visitante anónimo: solo respondidas (`respondida_at IS NOT NULL`).
-- Autor de la pregunta: sus pendientes + todas las respondidas.
-- Dueño de la publicación: todas (pendientes y respondidas).
-
-### Migraciones aplicadas
-
-| Fecha | Archivo | Cambio |
+| Variante | Cuando | Mensaje |
 |---|---|---|
-| 2026-05-15 | `2026-05-15-servicios-base.sql` | 4 tablas core |
-| 2026-05-15 | `2026-05-15-chat-servicios-fk.sql` | `chat_conversaciones.servicio_publicacion_id` |
-| 2026-05-15 | `2026-05-15-seeds-servicios-dev.sql` | 5 publicaciones de prueba |
-| 2026-05-16 | `2026-05-16-servicios-categoria-urgente.sql` | Cols `categoria` + `urgente` + 2 CHECK + 2 índices parciales |
-| 2026-05-16 | `2026-05-16-seeds-clasificados-dev.sql` | 5 pedidos solicito + update del existente con categoría |
-| 2026-05-16 | `2026-05-16-categorias-clasificados-v2.sql` | Migración a 6 cats (de 7 a 5 macro + Otros) con remapeo |
+| Sin borrador | localStorage vacío | "¿Qué ofreces o necesitas hoy?" (varía según tab) |
+| Con borrador | hay draft no publicado | "Continúa tu borrador: <título extraído>" + botones [Descartar] y [Continuar →] |
+
+Click en cualquier parte de la pill → `<ComposerSection>` cambia estado a expandido.
+
+### 2.4 Puntos de entrada externos
+
+El composer NO es overlay global. Todos los triggers externos redirigen a `/servicios` con un query param:
+
+| Trigger | Query | Comportamiento |
+|---|---|---|
+| FAB de PaginaServicios | `?crear=<modo>` (según tab) | El feed scrolea arriba + expande el composer con modo |
+| FAB de PaginaMisPublicaciones (tab Servicios) | `?crear=ofrezco` | Redirige al feed y expande |
+| Botón "Editar" en CardServicioMio | `?editar=<id>` | Redirige al feed, hidrata y expande |
+| Empty state Mis Publicaciones Servicios | `?crear=ofrezco` | Redirige al feed y expande |
+| Hint anti-venta "Llévame a MarketPlace" | navega a `/marketplace/publicar` | Colapsa el composer primero |
+
+`<ComposerSection>` detecta los query params al cargar, expande el composer y limpia los params del URL con `replaceState`.
+
+### 2.5 Persistencia de borradores
+
+- Namespace localStorage: `aya:composer:servicios:draft-{ns}`.
+- `ns = 'v3'` para creación (un solo borrador por usuario).
+- `ns = 'edit-{publicacionId}'` para edición (uno por publicación).
+- Auto-save en cada cambio. Sin `beforeunload` (patrón consolidado en MP).
+- La pill colapsada lee con `leerBorradorServicios()` y refresca al colapsar/publicar (via `refreshKey` tick).
+
+### 2.6 Validación
+
+- Hook `useComposerServicios` devuelve `{ errores, valido, mensajeBoton }`.
+- Errores se muestran inline bajo cada campo (rojo).
+- Botón Publicar bloqueado mientras `!valido`. Mensaje contextual arriba.
+- Click en Publicar con errores en panel cerrado → abre el panel.
+
+Límites (sincronizados con Zod del backend):
+- Título: 10–80 chars.
+- Descripción: 30–500 chars.
+- Fotos: máx 6 (opcionales).
+- Zonas: 1–10.
+- Presupuesto: `min <= max`.
+
+### 2.7 Moderación pasiva
+
+- **Frontend:** hint inline en `<ComposerHintModeracion>` con debounce 600ms. Detecta `vendo|venta|remato|cambio por` en título+descripción (`utils/deteccionVenta.ts`). Hint amarillo bajo la descripción con CTA "Llévame a MarketPlace".
+- **Backend:** red de seguridad — sigue devolviendo `409 + { sugerencia: 'marketplace' }` (`servicios.service.ts → detectarSugerenciaSeccion`). El composer trata el 409 como advertencia genérica.
+
+Mantener `utils/deteccionVenta.ts` sincronizado con el regex backend hasta centralizar en `packages/shared/` (pendiente cuando MP adopte detección bidireccional).
+
+### 2.8 Confirmaciones legales
+
+- Backend pide 3 confirmaciones con versión `v3-2026-05-20`.
+- UI compactada en **1 checkbox** "Acepto las reglas de publicación de AnunciaYA" con link "Ver detalles" (acordeón inline con los 3 puntos).
+- `useComposerServicios.setConfirmacionesUnificadas(v)` setea las 3 al mismo valor.
+
+### 2.9 Fotos R2
+
+- Subida: presigned URL → PUT directo del cliente a R2.
+- Lógica encapsulada en `useFotosUploaderServicios` (hook que devuelve `inputProps`, `abrirSelector`, `eliminar`, `subiendo`).
+- El ícono cámara dispara `abrirSelector` directo (sin acordeón).
+- Strip de thumbnails arriba del textarea (3-6 fotos horizontales, scroll si son varias). X para eliminar.
+- Tracking huérfanas: `Set<string>` con URLs subidas en sesión. Al publicar se vacía sin disparar deletes. Al eliminar foto del strip sí dispara `useEliminarFotoServicioHuerfana`. Reconcile global limpia eventuales.
+
+### 2.10 Modo Personal vs Comercial
+
+- El composer **NO se monta** en modo Comercial. Los comerciantes publican Vacantes desde Business Studio → Vacantes (Sprint 8).
+- La pill colapsada y el FAB de Servicios verifican `useAuthStore.usuario.modoActivo !== 'comercial'` antes de mostrarse.
+- Feed y detalle de Servicios son visibles en ambos modos.
 
 ---
 
-## Backend
+## 3. Páginas y vistas
 
-### Estructura de archivos
+| Ruta | Componente | Propósito |
+|---|---|---|
+| `/servicios` | `PaginaServicios` | Feed con tabs Todos/Servicios/Solicitudes/Vacantes + composer inline |
+| `/servicios?crear=<modo>` | `PaginaServicios` | Feed + composer expandido en modo crear |
+| `/servicios?editar=<id>` | `PaginaServicios` | Feed + composer expandido en modo editar |
+| `/servicios/:id` | `PaginaServicio` | Detalle de publicación |
+| `/servicios/usuario/:usuarioId` | `PaginaPerfilPrestador` | Perfil del prestador con reseñas |
+| `/mis-publicaciones` | `PaginaMisPublicaciones` | Panel del autor — toggle MP/Servicios |
 
-```
-apps/api/src/
-├── db/schemas/schema.ts                    # Drizzle: tablas serviciosPublicaciones, serviciosResenas, serviciosPreguntas
-├── services/
-│   ├── servicios.service.ts                # CRUD core de publicaciones (~830 líneas)
-│   └── servicios/
-│       ├── perfilPrestador.ts              # Perfil + KPIs + listado de publicaciones + reseñas (Sprint 5)
-│       ├── preguntas.ts                    # Q&A público
-│       └── buscador.ts                     # Sugerencias en vivo + búsqueda full text
-├── controllers/servicios.controller.ts     # Orquestadores HTTP
-├── routes/servicios.routes.ts              # Rutas REST
-├── validations/servicios.schema.ts         # Zod schemas (~500 líneas)
-└── utils/aleatorizarUbicacion.ts           # Offset random ~500m para ubicacion_aproximada
-```
-
-### Endpoints REST
-
-Base: `/api/servicios`
-
-**Públicos (`verificarTokenOpcional`):**
-
-```
-GET    /feed?ciudad=&lat=&lng=&modo=                       # Feed inicial {recientes, cercanos}
-GET    /feed/infinito?ciudad=&lat=&lng=&modo=&tipo=&...    # Paginado con filtros (orden + categoria + soloUrgente)
-GET    /publicaciones/:id                                  # Detalle público con oferente embebido
-POST   /publicaciones/:id/vista                            # Incrementa total_vistas (sin auth)
-GET    /publicaciones/:id/preguntas                        # Q&A público (filtro de privacidad)
-GET    /buscar/sugerencias?q=&ciudad=                      # Top 5 en vivo
-GET    /usuarios/:usuarioId                                # Perfil base + KPIs (rating promedio, total reseñas)
-GET    /usuarios/:usuarioId/publicaciones?estado=&limit=   # Publicaciones del prestador
-GET    /usuarios/:usuarioId/resenas?limit=                 # Reseñas con autor embebido
-```
-
-**Privados (`verificarToken + requiereModoPersonal`):**
-
-```
-POST   /upload-imagen                  # Genera presigned URL R2 (prefijo `servicios/`)
-DELETE /foto-huerfana                  # Body { url } — limpieza tras cancelar wizard (ref count antes de borrar)
-GET    /mis-publicaciones?estado=      # Paginado de las propias
-POST   /publicaciones                  # Crear (con validación Zod profunda)
-PUT    /publicaciones/:id              # Editar (UPDATE dinámico)
-PATCH  /publicaciones/:id/estado       # Toggle 'activa' ↔ 'pausada'
-DELETE /publicaciones/:id              # Soft delete
-POST   /publicaciones/:id/preguntas    # Autor pregunta
-POST   /preguntas/:id/responder        # Dueño responde
-PUT    /preguntas/:id/mia              # Autor edita su pregunta pendiente
-DELETE /preguntas/:id/mia              # Autor retira su pregunta pendiente
-DELETE /preguntas/:id                  # Dueño elimina cualquier pregunta de su publicación
-```
-
-### Patrones técnicos clave
-
-**1. `aleatorizarCoordenada(lat, lng)`** — desplaza la coordenada exacta dentro de un disco uniforme de ~500m. Aplicado a `ubicacion_aproximada` al insertar. La `ubicacion` exacta NUNCA se devuelve al frontend; el feed/detalle solo expone `ubicacionAproximada` con `ST_X/ST_Y`.
-
-**2. `pgArrayLiteral(arr)`** — helper interno que serializa `string[]` JS a literal PostgreSQL (`'{}'` vacío, `'{"a","b"}'` no vacío con escape). Sin este helper, Drizzle no serializa correctamente arrays vacíos al pasar `${[]}::text[]` y genera `()::text[]` sintácticamente inválido.
-
-**3. `eliminarFotoServicioSiHuerfana(url, excluirPublicacionId?)`** — borra una URL de R2 SOLO si no aparece en `servicios_publicaciones.fotos` de ninguna fila viva. Patrón mark-and-sweep + reference count. Usado por:
-- El controller `DELETE /foto-huerfana` (wizard al cancelar/borrar borrador).
-- `actualizarPublicacion` cuando el usuario quita una foto al editar.
-
-**4. Filtro orden urgente para solicito** — en `obtenerFeedInfinito`, cuando `modo='solicito'`, el orden por defecto es `urgente DESC, created_at DESC` para que los pedidos urgentes salgan al top del widget Clasificados. Aprovecha el índice parcial `idx_servicios_pub_solicito_urgente`.
-
-**5. Subqueries de KPIs del prestador** — `obtenerPerfilPrestador` ejecuta una sola query con 3 subqueries para `rating_promedio`, `total_resenas`, `total_publicaciones_activas`. Más simple que JOIN + GROUP BY y suficientemente rápido para 100-500 publicaciones por prestador en la beta.
+**Eliminadas en Sprint 9:**
+- `/servicios/publicar`
+- `/servicios/publicar/:publicacionId`
 
 ---
 
-## Frontend
+## 4. Backend
 
-### Estructura de archivos
+### 4.1 Endpoints relevantes para el composer
+
+| Método | Ruta | Uso |
+|---|---|---|
+| POST | `/servicios/publicaciones` | Crear (puede devolver 409 con `sugerencia`) |
+| PUT | `/servicios/publicaciones/:id` | Editar (campos parciales) |
+| GET | `/servicios/publicaciones/:id` | Detalle con oferente (hidratación edición) |
+| POST | `/servicios/upload-imagen` | Presigned URL R2 |
+| DELETE | `/servicios/foto-huerfana` | Reference count + borra de R2 |
+
+Validación con Zod en `apps/api/src/validations/servicios.schema.ts`.
+
+### 4.2 Moderación pasiva
+
+`apps/api/src/services/servicios/servicios.service.ts → detectarSugerenciaSeccion()` — regex simple sobre título+descripción. Si detecta venta, devuelve `{ code: 409, sugerencia: 'marketplace' }`.
+
+---
+
+## 5. Estado y datos
+
+### 5.1 React Query
+
+`apps/web/src/hooks/queries/useServicios.ts`. Cumple [`PATRON_REACT_QUERY.md`](../estandares/PATRON_REACT_QUERY.md): query keys centralizadas, `staleTime` 2 min, `placeholderData: keepPreviousData` en filtros.
+
+### 5.2 Estado local (sin Zustand)
+
+A diferencia de la primera iteración del composer (que usaba un store global), el inline NO necesita store global. `<ComposerSection>` maneja su estado expandido/colapsado con `useState` local. Los triggers externos pasan intención vía URL query params, no via store.
+
+`useComposerServicios` (hook React) sigue manejando el draft + validación + auto-save localStorage.
+
+---
+
+## 6. Tipos clave
+
+`apps/web/src/types/servicios.ts`:
+- `ModoServicio = 'ofrezco' | 'solicito'`
+- `TipoPublicacion = 'servicio-persona' | 'vacante-empresa' | 'solicito'`
+- `SubtipoPublicacion = 'servicio-personal' | 'busco-empleo' | 'servicio-puntual' | 'vacante-empresa'`
+- `ModalidadServicio = 'presencial' | 'remoto' | 'hibrido'`
+- `CategoriaClasificado = 'hogar' | 'cuidados' | 'eventos' | 'belleza-bienestar' | 'empleo' | 'otros'`
+- `PrecioServicio` (discriminated union: fijo, hora, mensual, rango, a-convenir)
+- `PublicacionServicio`, `PublicacionDetalle`
+
+---
+
+## 7. Replicación a MarketPlace (futuro)
+
+El composer fue diseñado **genérico desde el inicio** para que MP lo adopte. Para sumar MP al patrón:
+
+1. Crear `useComposerMarketplace.ts` (hook draft con shape de MP: precio único, condición usado/nuevo, etc.).
+2. Crear `components/marketplace/composer/ComposerMarketplace.tsx` + `ComposerSection.tsx` propio.
+3. Replicar el patrón pill colapsada + expandido inline en `PaginaMarketplace`.
+4. Wire-up externo via query params: `/marketplace?crear=...` o `?editar=...`.
+5. Reutilizar piezas: `ChipInputList` (mover a `components/composer/` cuando se reuse), `useFotosUploaderServicios` (renombrar a `useFotosUploader` y parametrizar mutations), `ComposerHintModeracion` (centralizar regex en `packages/shared/`).
+
+---
+
+## 8. Archivos clave
 
 ```
 apps/web/src/
-├── types/servicios.ts                         # Tipos compartidos (PublicacionServicio, PerfilPrestador, etc.)
-├── utils/
-│   ├── servicios.ts                           # formatearPrecio, formatearPresupuesto, labelCategoria, tonoCategoria
-│   └── optimizarImagen.ts                     # Helper compartido (canvas → WebP 1920px máx, calidad 0.85)
 ├── hooks/
-│   ├── useWizardServicios.ts                  # Estado wizard 3 pasos + localStorage + validación
-│   └── queries/useServicios.ts                # 12 hooks React Query: feed, detalle, mutations, Q&A, perfil
-├── config/queryKeys.ts                        # Keys: servicios.feed, .feedInfinito, .publicacion, .prestador, etc.
-├── components/servicios/
-│   ├── ServiciosHeader.tsx                    # Header negro persistente (variantes 'feed' / 'pagina')
-│   ├── CardServicio.tsx
-│   ├── CardVacante.tsx
-│   ├── CardHorizontal.tsx
-│   ├── ChipsFiltros.tsx
-│   ├── ClasificadosWidget.tsx                 # Widget de pedidos (modo='solicito') en el feed
-│   ├── OfreceToggle.tsx
-│   ├── OferenteCard.tsx
-│   ├── GaleriaServicio.tsx                    # Scroll-snap + lightbox + dots
-│   ├── BarraContactoServicio.tsx              # ChatYA + WhatsApp
-│   ├── SeccionPreguntasServicio.tsx
-│   ├── MapaPlaceholderServicio.tsx
-│   ├── FABPublicar.tsx                        # FAB con 2 opciones Ofrezco/Solicito
-│   ├── OverlayBuscadorServicios.tsx
-│   └── wizard/
-│       ├── WizardServiciosLayout.tsx          # Contenedor + nav inferior flotante mobile + banner nextHelp desktop
-│       ├── WizardSeccionCard.tsx              # Card reusable para cada sección del paso
-│       ├── ChipInputList.tsx                  # Input + chips removibles
-│       ├── Paso1QueNecesitas.tsx              # Categoría + título + descripción + urgente
-│       ├── Paso2Detalles.tsx                  # Fotos + modalidad + presupuesto + zonas
-│       ├── Paso3Revisar.tsx                   # Preview en vivo + 3 confirmaciones legales
-│       └── ModalExitoPublicacion.tsx          # Modal éxito tras publicar
-└── pages/private/servicios/
-    ├── PaginaServicios.tsx                    # Feed (recientes + cercanos + widget Clasificados)
-    ├── PaginaServicio.tsx                     # Detalle (cards separados por sección)
-    ├── PaginaPublicarServicio.tsx             # Orquestador del wizard
-    └── PaginaPerfilPrestador.tsx              # Perfil con tabs Servicios/Reseñas
-```
+│   ├── useComposerServicios.ts                         ← draft + validación + auto-save
+│   └── useFotosUploaderServicios.ts                    ← lógica subida R2 + tracking huérfanas
+├── components/servicios/composer/
+│   ├── ComposerSection.tsx                             ← orquestador (colapsado ↔ expandido + query params)
+│   ├── ComposerColapsado.tsx                           ← pill del feed (2 variantes)
+│   ├── ComposerServicios.tsx                           ← formulario inline (header + textarea + fila íconos + paneles)
+│   ├── ComposerHintModeracion.tsx                      ← hint inline anti-venta
+│   └── ChipInputList.tsx                               ← input + chips reusable
+├── utils/
+│   ├── composerServiciosPayload.ts                     ← construir payload crear/editar
+│   ├── borradorComposerServicios.ts                    ← leer/descartar borrador
+│   └── deteccionVenta.ts                               ← regex anti-venta (sync con backend)
+├── pages/private/servicios/
+│   ├── PaginaServicios.tsx                             ← feed (monta <ComposerSection>)
+│   ├── PaginaServicio.tsx                              ← detalle
+│   └── PaginaPerfilPrestador.tsx
+└── components/servicios/
+    ├── MisPublicacionesServiciosSection.tsx            ← navigate a /servicios?editar/?crear
+    ├── ServiciosHeader.tsx, TabsServicios.tsx
+    └── CardServicio.tsx, CardVacante.tsx, CardServicioMio.tsx, …
 
-### Rutas
-
-```
-/servicios                          # Feed
-/servicios/publicar?modo=ofrezco    # Wizard
-/servicios/publicar?modo=solicito   # Wizard
-/servicios/usuario/:usuarioId       # Perfil del prestador
-/servicios/:id                      # Detalle (debe ir DESPUÉS de /publicar y /usuario)
-```
-
-Las rutas específicas (`publicar`, `usuario/:id`) declaradas **antes** de `/servicios/:id` en `router/index.tsx` para que React Router no capture el segmento como `:id`.
-
-### Patrones técnicos clave
-
-**1. `ServiciosHeader` con 2 variantes** — `'feed'` (toggle Ofrecen/Solicitan + chips de filtros + KPI N publicaciones) y `'pagina'` (slot derecho personalizable + breadcrumb opcional + subtítulo mobile). Persistente en TODAS las rutas de `/servicios`.
-
-**2. Wizard v2 (3 pasos)**:
-- Estado: `useWizardServicios` con `localStorage` (claves `aya:servicios:wizard:draft-v2` y `aya:servicios:wizard:step-v2`).
-- 3 pasos lineales para ambos modos. Subtipo inferido por categoría (`empleo` → `busco-empleo`, resto → `servicio-puntual`).
-- `nextHelp`: mensaje contextual de qué falta (banner amarillo desktop / texto en nav inferior mobile).
-- Modal de éxito con 2 acciones: "Ver mi anuncio" (redirect al detalle) y "Publicar otro" (reset wizard).
-- Cancelación = limpieza R2: el ref `urlsSubidasEnSesion: Set<string>` rastrea las fotos subidas y dispara `DELETE /foto-huerfana` para cada una al cancelar/borrar borrador.
-
-**3. Optimización de fotos cliente-side** — `optimizarImagen()` aplica resize a 1920px máx y conversión a **WebP calidad 0.85** (reduce 70-90% el peso). El wizard sube directo a R2 con `image/webp` independiente del formato original.
-
-**4. Galería con scroll-snap nativo** — `GaleriaServicio.tsx` usa CSS puro `snap-x snap-mandatory overflow-x-auto` + listener `scroll` pasivo que recalcula el índice activo. Click abre `ModalImagenes` fullscreen (mismo de MP). Mismo patrón que `GaleriaArticulo` de MarketPlace.
-
-**5. Widget Clasificados** — embebido en el feed para `tipo='solicito'`. Tag strip de filtros con 8 chips (todos, urgente, 6 categorías sin 'otros'). KPI dinámico según filtro activo (`6 pedidos hoy` cuando 'todos', `2 en Eventos` cuando filtro). Urgentes pinned al top con eyebrow rojo. Footer con CTAs "Publicar pedido" + "Ver los N".
-
-**6. Cards por sección** — tanto el detalle como el wizard usan el mismo patrón visual: cada bloque vive en su propio `WizardSeccionCard` / `SeccionCard` (`bg-white rounded-2xl border-[1.5px] border-slate-300 + shadow suave`) sobre fondo transparente que hereda el gradiente azul del `MainLayout`.
-
-### Categorías de Clasificados
-
-Las 6 categorías (lowercase, kebab-case en BD; con tildes en UI vía `labelCategoria`):
-
-| BD | Label UI | Cubre |
-|---|---|---|
-| `hogar` | Hogar | Plomería, electricidad, A/C, jardín, limpieza, mudanzas, albañilería |
-| `cuidados` | Cuidados | Niñeras, tutorías, ancianos, paseadores, cuidadores de mascotas |
-| `eventos` | Eventos | Bodas, XV, catering, fotografía, mariachi, decoración |
-| `belleza-bienestar` | Belleza y bienestar | Estilismo, masajes, manicura, spa a domicilio, entrenamiento |
-| `empleo` | Empleo | "Busco trabajo" / "Busco empleado para mi negocio" (auto subtipo `busco-empleo`) |
-| `otros` | Otros | Fallback — no aparece como filtro UI, sí como opción en wizard |
-
-"Urgente" es boolean independiente (`urgente: true`), NO una categoría. Se combina con cualquier categoría.
-
----
-
-## Flujos clave
-
-### A. Publicar un servicio (modo=ofrezco)
-
-```
-FAB del feed
-  → click "Ofrezco un servicio"
-  → /servicios/publicar?modo=ofrezco
-  → useWizardServicios siembra modo='ofrezco', tipo='servicio-persona', subtipo='servicio-personal'
-  → Paso 1: usuario no escoge categoría (oculta para ofrezco), llena título + descripción
-  → Paso 2: sube fotos optimizadas a R2, escoge modalidad, llena presupuesto (rango), agrega zonas
-  → Paso 3: revisa preview, marca las 3 confirmaciones legales
-  → click "Publicar"
-  → POST /api/servicios/publicaciones
-    - construirPayload() arma el shape exacto
-    - precio = rango si min<max, fijo si min=max, a-convenir si vacíos
-    - presupuesto = undefined
-  → backend valida con crearPublicacionSchema (Zod)
-  → INSERT con SQL crudo (geography + jsonb)
-  → invalidación de queryKey servicios.all
-  → modal éxito → "Ver mi anuncio" navega a /servicios/{idCreado}
-```
-
-### B. Publicar un pedido (modo=solicito)
-
-```
-FAB → "Solicito un servicio" o widget Clasificados → "Publicar pedido"
-  → /servicios/publicar?modo=solicito
-  → useWizardServicios siembra modo='solicito', tipo='solicito', subtipo=null (se decide en paso 1)
-  → Paso 1: usuario escoge categoría → subtipo se infiere (empleo → busco-empleo, resto → servicio-puntual). Toggle urgente opcional.
-  → Paso 2: fotos opcionales, modalidad, presupuesto rango, zonas
-  → Paso 3: preview con badge "Solicito" + tres confirmaciones
-  → POST → precio={kind:'a-convenir'}, presupuesto={min,max}, categoria, urgente
-  → INSERT
-  → modal éxito → redirect a detalle
-```
-
-### C. Ver detalle de una publicación
-
-```
-Click en una card del feed
-  → /servicios/:id
-  → ServiciosHeader variante='pagina' con pill del tipo
-  → usePublicacionServicio(id) → GET /publicaciones/:id (incluye oferente embebido)
-  → useRegistrarVistaServicio() POST /publicaciones/:id/vista (dedupe en sessionStorage)
-  → Render condicional por tipo:
-    - servicio-persona → GaleriaServicio 4:3 + skills + sin requisitos
-    - vacante-empresa → portada 16:9 con logo + sección Requisitos
-    - solicito → sin galería destacada + bloque presupuesto amber
-  → Cards separados: cabecera, descripción, especialidades, modalidad+ubicación, Q&A
-  → BarraContactoServicio fija inferior móvil + inline desktop
-  → Click "Ver perfil" del OferenteCard → /servicios/usuario/{oferenteId}
-```
-
-### D. Ver perfil de un prestador
-
-```
-/servicios/usuario/:usuarioId
-  → ServiciosHeader variante='pagina' con pill "Perfil"
-  → 3 hooks paralelos:
-    - usePerfilPrestador(id) → GET /usuarios/:id (KPIs)
-    - usePublicacionesDelPrestador(id) → GET /usuarios/:id/publicaciones
-    - useResenasDelPrestador(id) → GET /usuarios/:id/resenas
-  → Bloque identidad: avatar + nombre + ciudad + "Miembro desde" + rating chip + KPIs
-  → Tabs: Servicios activos [N] | Reseñas [N]
-  → Tab Servicios: grid 2/3 cols con CardServicio/CardVacante
-  → Tab Reseñas: card de promedio + lista densa con autor+rating+texto+publicación origen
+apps/api/src/services/servicios/                        ← lógica BD + moderación pasiva
+apps/api/src/validations/servicios.schema.ts            ← Zod
 ```
 
 ---
 
-## Decisiones de producto importantes
+## 9. Sprints relevantes
 
-1. **Sin BS Vacantes en Servicios** — las vacantes corporativas vienen del módulo BS (Sprint 8 pendiente). El wizard de Servicios NO permite publicar `tipo='vacante-empresa'`; eso requiere modo comercial. El feed sí muestra las vacantes (`CardVacante` con banda sky y verificado).
-
-2. **Wizard único para los 2 modos** — el FAB elige modo, el wizard se adapta. Se eligió contra la opción "wizards separados" para reducir mantenimiento y compartir validaciones.
-
-3. **Solo 2 estados del ciclo de vida**: `activa` ↔ `pausada`. NO existe `vendida` (un servicio no se agota; si ya no se ofrece, se elimina). El soft delete usa `estado='eliminada'` + `deleted_at`.
-
-4. **`expira_at = NOW() + 30 días`** al crear. Cron de Sprint 7 auto-pausa cuando vence sin interacción y notifica al dueño con CTA "Reactivar".
-
-5. **Las categorías son solo para `modo='solicito'`**. Las publicaciones `ofrezco` NO tienen categoría — su discoverability viene del título/descripción y del buscador. Decisión tomada para simplificar el feed (categorías solo aplican a "lo que se busca").
-
-6. **`bg-transparent` heredando el gradiente azul** del MainLayout en todas las páginas de Servicios. Cada bloque significativo vive en su propio card blanco (`SeccionCard` / `WizardSeccionCard`). Patrón consistente con BS y Negocios.
-
----
-
-## Pendientes (Sprint 9+ y polish)
-
-Ver `docs/reportes/Servicios/2026-05-17-progreso-y-pendientes.md` para el detalle.
-
-Resumen ejecutivo:
-- **Sprint 7 (cerrado 2026-05-17)**: Mis Publicaciones (pausar/reactivar/eliminar propio), cron de expiración 30 días, edición desde wizard, reseñas, moderación pasiva.
-- **Sprint 8 (cerrado 2026-05-17)**: BS Vacantes — módulo en Business Studio. 3 campos nuevos en BD (`sucursal_id`, `tipo_empleo`, `beneficios`) + estado `'cerrada'`. KPIs + tabs + tabla + detalle inline + slideover de creación/edición. Filtrado por sucursal activa (cada sucursal sus propias vacantes). 25 tests Vitest. **Sin tabla `postulaciones`** — los interesados contactan vía ChatYA; en BS se mide "Conversaciones iniciadas" (= total_mensajes). Evolución a postulaciones formales queda para Sprint 9+ si la beta valida demanda.
-- **Sprint 9+ (post-launch)**: cron mensual que pueble `usuarios.servicio_tiempo_respuesta_minutos` calculando desde `chat_mensajes` + filtrado de ChatYA por contexto de vacante específica (botón "Ver mis conversaciones" del detalle BS hoy es placeholder).
-- **Decisión 2026-05-17 — Identidad verificada descartada del MVP**: No hay forma sostenible de validar identidad real en la beta (manual no escala más allá de los 50 negocios piloto; terceros como Truora/MetaMap cuestan $1-5 USD por validación, no rentable sin ingresos todavía). La columna `usuarios.identidad_verificada` se descartó de la migración antes de subir a `main` — el repo nunca la incluyó. El perfil del prestador muestra rating, total de publicaciones activas, miembro desde, y tiempo de respuesta (cuando exista). Reevaluar como beneficio premium del plan $449/mes para Sprint 9+.
-
----
-
-## Lecciones técnicas relevantes
-
-| Lección | Detalle | Aplicado en |
-|---|---|---|
-| `unaccent` no se puede usar en GIN index | Es STABLE no IMMUTABLE. Solución: omitir del CREATE INDEX, aplicar solo en SELECT. | Buscador `services/servicios/buscador.ts` |
-| Arrays vacíos en Drizzle sql template | `${[]}::text[]` genera `()::text[]` inválido. Solución: helper `pgArrayLiteral()`. | `crearPublicacion`, `actualizarPublicacion` |
-| `column reference "id" is ambiguous` en JOIN | Cuando el SELECT hace JOIN, los nombres sin alias colisionan. Solución: prefijo `sp.` en todas las columnas. | `COLUMNAS_PUBLICACION` |
-| `useEmblaCarousel` necesita memoizar options | Pasarlos inline causa reInit en cada render. | (No usamos Embla en Servicios; lo evitamos con scroll-snap nativo) |
-| Mismatch ciudad "Puerto Peñasco, Sonora" vs "Puerto Peñasco" | El GPS store devuelve la forma corta. Los seeds deben usar `'Puerto Peñasco'` sin estado. | Seeds dev + comentario en `seed-clasificados-dev.sql` |
-
----
-
-## Documentos relacionados
-
-- `docs/VISION_ESTRATEGICA_AnunciaYA.md` §3.2 — Visión estratégica de Servicios.
-- `docs/estandares/TOKENS_GLOBALES.md` — 13 reglas de diseño (texto, tonos, bordes, etc.).
-- `docs/estandares/PATRON_REACT_QUERY.md` — Patrón estándar de queries en el frontend.
-- `docs/estandares/PATRON_BUSCADOR_SECCION.md` — Overlay del buscador.
-- `docs/estandares/Sistema_Navegacion_Back.md` — `useVolverAtras` usado en todas las páginas.
-- `docs/arquitectura/Mantenimiento_R2.md` — Reconcile + reference count para fotos huérfanas.
-- `docs/arquitectura/ChatYA.md` — Cards de contexto `subtipo='servicio_publicacion'`.
-
----
-
-**Última actualización:** 2026-05-17 · Sprints 1-6 + subsprints (Clasificados, Wizard v2) completados.
+| Sprint | Resumen |
+|---|---|
+| 2–7 | Wizard de 3 pasos (eliminado en Sprint 9) |
+| 5 | Perfil del prestador, reseñas, Q&A público |
+| 7 | Mis Publicaciones, edición |
+| 8 | BS Vacantes (cierre del módulo BS) |
+| **9** | **Composer inline en el feed (sin overlay, sin ruta). Fila de íconos "Agregar a tu publicación" estilo Facebook. Triggers externos vía query params (`?crear=`, `?editar=`). Cámara compacta + strip de thumbnails. Hint inline anti-venta. Borradores discoverables.** |

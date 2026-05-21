@@ -774,8 +774,9 @@ export function PaginaMisPublicaciones() {
             {/* ════════════════════════════════════════════════════════════════
                 FAB "+ Publicar" — visible en ambos modos (MarketPlace y
                 Servicios). El destino del onClick cambia según `tipoActivo`:
-                  - marketplace → /marketplace/publicar
-                  - servicios   → /servicios/publicar?modo=ofrezco
+                  - marketplace → /marketplace/publicar (wizard MP)
+                  - servicios   → /servicios?crear=ofrezco (composer inline
+                                  en el feed que se expande al cargar)
                 La paleta también cambia: cyan para MP, sky para Servicios.
             ════════════════════════════════════════════════════════════════ */}
             <button
@@ -783,7 +784,7 @@ export function PaginaMisPublicaciones() {
                 onClick={
                     tipoActivo === 'marketplace'
                         ? irAPublicar
-                        : () => navigate('/servicios/publicar?modo=ofrezco')
+                        : () => navigate('/servicios?crear=ofrezco')
                 }
                 aria-label={
                     tipoActivo === 'marketplace'

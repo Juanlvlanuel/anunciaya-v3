@@ -96,13 +96,13 @@ export function CardVacante({
                         </span>
                     </div>
                 )}
-                {publicacion.beneficios.length > 0 && (
+                {(publicacion.beneficios?.length ?? 0) > 0 && (
                     <div className="mt-1.5 flex items-center gap-1 text-[11px] text-emerald-700 font-semibold">
                         <Check className="w-[10px] h-[10px]" strokeWidth={3} />
                         <span className="truncate">
-                            {publicacion.beneficios[0]}
-                            {publicacion.beneficios.length > 1
-                                ? ` · +${publicacion.beneficios.length - 1} más`
+                            {publicacion.beneficios![0]}
+                            {publicacion.beneficios!.length > 1
+                                ? ` · +${publicacion.beneficios!.length - 1} más`
                                 : ''}
                         </span>
                     </div>

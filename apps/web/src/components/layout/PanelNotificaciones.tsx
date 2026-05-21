@@ -29,6 +29,7 @@ import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import type { Notificacion, TipoNotificacion } from '../../types/notificaciones';
 import { obtenerIniciales } from '../../utils/obtenerIniciales';
 import { notificar } from '../../utils/notificaciones';
@@ -1193,6 +1194,16 @@ interface PanelMovilProps {
 
 function PanelMovil({ onClose }: PanelMovilProps) {
   const drawerRef = useRef<HTMLDivElement>(null);
+
+  // Back nativo (Android + flecha del navegador). El PanelMovil se monta
+  // condicionalmente desde el componente padre cuando `panelAbierto === true`
+  // — siempre que está montado está abierto. El hook intercepta el back y
+  // dispara `onClose` sin tocar la ruta actual.
+  useBackNativo({
+    abierto: true,
+    onCerrar: onClose,
+    discriminador: '_panelNotificaciones',
+  });
 
   // Bloqueo de scroll del body mientras está abierto
   useEffect(() => {

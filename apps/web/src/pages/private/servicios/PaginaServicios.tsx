@@ -36,26 +36,38 @@ import {
 } from 'lucide-react';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
+import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useServiciosFeed } from '../../../hooks/queries/useServicios';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
-import { OfreceToggle } from '../../../components/servicios/OfreceToggle';
-import {
-    chipAFiltroFeed,
-    type FiltroChip,
-} from '../../../components/servicios/ChipsFiltros';
+import type { TabServicios } from '../../../components/servicios/TabsServicios';
 import { CardServicio } from '../../../components/servicios/CardServicio';
 import { CardVacante } from '../../../components/servicios/CardVacante';
 import { CardHorizontal } from '../../../components/servicios/CardHorizontal';
-import { FABPublicar } from '../../../components/servicios/FABPublicar';
 import { ClasificadosWidget } from '../../../components/servicios/ClasificadosWidget';
+import { ComposerSection } from '../../../components/servicios/composer/ComposerSection';
+import { MisPublicacionesWidget } from '../../../components/servicios/composer/MisPublicacionesWidget';
 import { Spinner } from '../../../components/ui/Spinner';
 import type {
-    PublicacionServicio,
     ModoServicio,
+    PublicacionServicio,
     FiltroClasificado,
 } from '../../../types/servicios';
+
+// =============================================================================
+// HELPERS
+// =============================================================================
+
+/** Mapea la tab activa al `modoServiciosDefault` que el composer recibirá.
+ *  Tab Servicios → 'ofrezco', Solicitudes → 'solicito', Todos → null
+ *  (el usuario elige dentro del composer). */
+function modoComposerPorTab(t: TabServicios): ModoServicio | null {
+    if (t === 'servicios') return 'ofrezco';
+    if (t === 'solicitudes') return 'solicito';
+    return null;
+}
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -84,88 +96,81 @@ export function PaginaServicios() {
     // Breakpoint para el widget Clasificados (1 col mobile / 2 cols desktop).
     const { esEscritorio } = useBreakpoint();
 
-    // ─── Estado local ─────────────────────────────────────────────────────
-    // `modo`   → filtro de modo (Ofrecen/Solicitan). `null` = "Todos" activo.
-    // `filtro` → chip de filtro activo en el header (Todos/Presencial/...).
-    //
-    // Selección única coordinada: solo UN chip puede estar activo a la vez en
-    // el carrusel móvil. Si seleccionas modo, filtro vuelve a 'todos'. Si
-    // seleccionas un filtro de modalidad/tipo, modo vuelve a `null`.
-    const [modo, setModo] = useState<ModoServicio | null>(null);
-    const [filtro, setFiltro] = useState<FiltroChip>('todos');
+    // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
+    // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece. Mismo
+    // patrón que el FAB del MarketPlace.
+    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
 
-    // Filtro del tag strip del widget Clasificados (tab interno del widget).
-    // No se coordina con `modo`/`filtro` — opera dentro del bloque solicito.
+    // ─── Estado local ─────────────────────────────────────────────────────
+    // `tabActiva` → tab activa del segmented control. Reemplaza al sistema
+    // previo de chips Servicio/Vacantes + Ofrecen/Solicitan que mezclaba 2
+    // ejes y generaba confusión (decisión 2026-05). Las 3 tabs agrupan por
+    // tipo de publicación:
+    //   - servicios   → tipo='servicio-persona'  (gente que ofrece su trabajo)
+    //   - solicitudes → tipo='solicito'          (gente que busca contratar)
+    //   - vacantes    → tipo='vacante-empresa'   (empleos formales de negocios)
+    const [tabActiva, setTabActiva] = useState<TabServicios>('todos');
+
+    // Estado del composer: el widget <MisPublicacionesWidget> lo lee
+    // para mostrar 5 cards cuando hay más altura disponible (composer
+    // expandido) y solo 2 en estado colapsado.
+    const [composerExpandido, setComposerExpandido] = useState(false);
+
+    // Filtro del tag strip del widget Clasificados (interno de la tab Solicitudes).
     const [filtroClasificado, setFiltroClasificado] =
         useState<FiltroClasificado>('todos');
-
-    const handleSetModo = (m: ModoServicio | null) => {
-        setModo(m);
-        setFiltro('todos');
-    };
-    const handleSetFiltro = (f: FiltroChip) => {
-        setFiltro(f);
-        setModo(null);
-    };
-
-    // Los chips secundarios se traducen a {tipo, modalidad} para el backend
-    // cuando hay equivalente directo; los que aún no llegan al backend
-    // (distancia/precio) se aplican client-side a nivel visual.
-    const { tipo: tipoFiltrado, modalidad: modalidadFiltrada } = useMemo(
-        () => chipAFiltroFeed(filtro),
-        [filtro]
-    );
 
     // ─── React Query — feed inicial ────────────────────────────────────────
     const { data, isLoading, isError, refetch } = useServiciosFeed({
         ciudad,
         lat: latitud,
         lng: longitud,
-        modo,
+        modo: null,
     });
 
     const recientesRaw = data?.recientes ?? [];
     const cercanosRaw = data?.cercanos ?? [];
 
-    // Filtrado client-side de los chips secundarios (Sprint 2). El filtrado
-    // profundo se moverá al backend en el Sprint 6 con el buscador potenciado.
-    //
-    // Los `tipo='solicito'` NO se muestran ni en "Recién publicado" ni en
-    // "Cerca de ti" — viven aparte en `ClasificadosWidget` con estética
-    // formal (card unificada + tag strip). Decisión UX 2026-05-16.
+    // Mapeo tab → tipo de publicación que muestra en recientes/cercanos.
+    //   - servicios → solo servicio-persona
+    //   - solicitudes → solo solicito (renderizado en ClasificadosWidget aparte)
+    //   - vacantes → solo vacante-empresa
+    //   - todos → servicio-persona + vacante-empresa juntos (los solicito
+    //     van al widget aparte en su propia sección)
+    const tipoDeTab: Record<
+        TabServicios,
+        PublicacionServicio['tipo'] | 'todos'
+    > = {
+        todos: 'todos',
+        servicios: 'servicio-persona',
+        solicitudes: 'solicito',
+        vacantes: 'vacante-empresa',
+    };
+
+    const tipoActivo = tipoDeTab[tabActiva];
+
+    /** Recientes filtrados por la tab activa. En `todos` excluimos `solicito`
+     *  porque esos viven en el widget Clasificados (sección aparte). */
     const recientes = useMemo(() => {
-        return recientesRaw.filter((p) => {
-            if (p.tipo === 'solicito') return false;
-            if (tipoFiltrado && p.tipo !== tipoFiltrado) return false;
-            if (modalidadFiltrada && p.modalidad !== modalidadFiltrada) return false;
-            return true;
-        });
-    }, [recientesRaw, tipoFiltrado, modalidadFiltrada]);
+        if (tipoActivo === 'todos') {
+            return recientesRaw.filter((p) => p.tipo !== 'solicito');
+        }
+        return recientesRaw.filter((p) => p.tipo === tipoActivo);
+    }, [recientesRaw, tipoActivo]);
 
     const cercanos = useMemo(() => {
-        return cercanosRaw.filter((p) => {
-            if (p.tipo === 'solicito') return false;
-            if (tipoFiltrado && p.tipo !== tipoFiltrado) return false;
-            if (modalidadFiltrada && p.modalidad !== modalidadFiltrada) return false;
-            return true;
-        });
-    }, [cercanosRaw, tipoFiltrado, modalidadFiltrada]);
+        if (tipoActivo === 'todos') {
+            return cercanosRaw.filter((p) => p.tipo !== 'solicito');
+        }
+        return cercanosRaw.filter((p) => p.tipo === tipoActivo);
+    }, [cercanosRaw, tipoActivo]);
 
-    /** Solicitudes para la sección "Clasificados" al final del feed. Salen
-     *  tanto de `recientes` como de `cercanos` (con dedupe por id) y respetan
-     *  el filtro de modalidad cuando aplique.
-     *
-     *  Si el usuario seleccionó un chip de tipo concreto ("Servicio" o
-     *  "Empleo"), los clasificados se ocultan: esos chips apuntan a tipos
-     *  distintos a `solicito` y el usuario está buscando algo específico. */
+    /** Solicitudes para la tab Solicitudes. Dedup por id + aplica el filtro
+     *  del tag strip del widget (categoría / urgente). */
     const clasificados = useMemo(() => {
-        if (tipoFiltrado) return [];
         const mapa = new Map<string, typeof recientesRaw[number]>();
         for (const p of [...recientesRaw, ...cercanosRaw]) {
             if (p.tipo !== 'solicito') continue;
-            if (modalidadFiltrada && p.modalidad !== modalidadFiltrada) continue;
-            // Filtro del tag strip del widget. 'todos' = sin filtro; 'urgente'
-            // = solo urgentes; cualquier categoría = match exacto.
             if (filtroClasificado === 'urgente' && !p.urgente) continue;
             if (
                 filtroClasificado !== 'todos' &&
@@ -180,11 +185,9 @@ export function PaginaServicios() {
             if (a.urgente !== b.urgente) return a.urgente ? -1 : 1;
             return b.createdAt.localeCompare(a.createdAt);
         });
-    }, [recientesRaw, cercanosRaw, modalidadFiltrada, tipoFiltrado, filtroClasificado]);
+    }, [recientesRaw, cercanosRaw, filtroClasificado]);
 
-    /** KPI "N pedidos hoy" del widget — cuenta TODOS los `solicito` únicos del
-     *  feed sin aplicar el filtro del tag strip (el strip filtra la lista que se
-     *  muestra, pero el KPI es agregado). */
+    /** KPI "N pedidos hoy" del widget — total de `solicito` únicos sin filtro. */
     const totalClasificadosHoy = useMemo(() => {
         const ids = new Set<string>();
         for (const p of [...recientesRaw, ...cercanosRaw]) {
@@ -193,25 +196,42 @@ export function PaginaServicios() {
         return ids.size;
     }, [recientesRaw, cercanosRaw]);
 
-    /** KPI "N PUBLICACIONES" del header — dedupe por ID porque las mismas
-     *  publicaciones pueden aparecer en recientes Y cercanos. */
-    const totalPublicaciones = useMemo(() => {
-        if (!data) return null;
-        const ids = new Set<string>([
-            ...recientes.map((p) => p.id),
-            ...cercanos.map((p) => p.id),
-        ]);
-        return ids.size;
-    }, [data, recientes, cercanos]);
+    /** Conteos por tab para los badges de TabsServicios. Cuenta IDs únicos
+     *  de cada tipo en recientes + cercanos. El badge de `todos` es la suma
+     *  global (servicios + solicitudes + vacantes). */
+    const conteosPorTab = useMemo<Partial<Record<TabServicios, number>>>(() => {
+        const ids = {
+            servicios: new Set<string>(),
+            solicitudes: new Set<string>(),
+            vacantes: new Set<string>(),
+            todos: new Set<string>(),
+        };
+        for (const p of [...recientesRaw, ...cercanosRaw]) {
+            ids.todos.add(p.id);
+            if (p.tipo === 'servicio-persona') ids.servicios.add(p.id);
+            else if (p.tipo === 'solicito') ids.solicitudes.add(p.id);
+            else if (p.tipo === 'vacante-empresa') ids.vacantes.add(p.id);
+        }
+        return {
+            todos: ids.todos.size,
+            servicios: ids.servicios.size,
+            solicitudes: ids.solicitudes.size,
+            vacantes: ids.vacantes.size,
+        };
+    }, [recientesRaw, cercanosRaw]);
 
-    /** Navega al wizard. El FAB tiene speed-dial con 2 opciones que pre-rellenan
-     *  el `modo`; el FeedVacio mantiene un solo botón sin modo (el wizard
-     *  pregunta en su Paso 1). */
-    const irAPublicar = () => navigate('/servicios/publicar');
-    const irAPublicarOfrezco = () =>
-        navigate('/servicios/publicar?modo=ofrezco');
-    const irAPublicarSolicito = () =>
-        navigate('/servicios/publicar?modo=solicito');
+    /** Expande el composer inline en el feed pasando el modo deseado
+     *  como query param. La pill de `<ComposerSection>` lo detecta y se
+     *  expande con el modo correcto. Hace scroll al top para asegurar
+     *  que el composer entre en viewport. */
+    function expandirComposer(modo: ModoServicio | null) {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+        const qs = modo ? `?crear=${modo}` : '?crear=ofrezco';
+        navigate(`/servicios${qs}`, { replace: true });
+    }
+    const irAPublicar = () => expandirComposer(null);
+    const irAPublicarOfrezco = () => expandirComposer('ofrezco');
+    const irAPublicarSolicito = () => expandirComposer('solicito');
 
     // ─── Estado: sin GPS ──────────────────────────────────────────────────
     if (!ciudad || latitud === null || longitud === null) {
@@ -221,10 +241,6 @@ export function PaginaServicios() {
                     onBack={handleVolver}
                     ciudad={ciudad}
                     totalPublicaciones={null}
-                    filtroActivo={filtro}
-                    onFiltroChange={handleSetFiltro}
-                    modo={modo}
-                    onModoChange={handleSetModo}
                 />
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
@@ -256,51 +272,123 @@ export function PaginaServicios() {
     }
 
     // ─── Render principal ─────────────────────────────────────────────────
+    const totalTabActiva = conteosPorTab[tabActiva] ?? 0;
+
+    // FAB: un solo botón "+ Publicar" en todas las tabs excepto Vacantes
+    // (Vacantes no tiene FAB público — se publica desde BS). El handler
+    // varía según tab para ahorrar el Paso 1 del wizard:
+    //   - todos       → wizard sin modo (el Paso 1 pregunta)
+    //   - servicios   → wizard con modo=ofrezco (directo al detalle)
+    //   - solicitudes → wizard con modo=solicito (directo al detalle)
+    const fabHandler: (() => void) | null = !esModoPersonal
+        ? null
+        : tabActiva === 'todos'
+            ? irAPublicar
+            : tabActiva === 'servicios'
+                ? irAPublicarOfrezco
+                : tabActiva === 'solicitudes'
+                    ? irAPublicarSolicito
+                    : null;
+
     return (
         <div className="min-h-full bg-transparent">
             <ServiciosHeader
                 onBack={handleVolver}
                 ciudad={ciudad}
-                totalPublicaciones={totalPublicaciones}
-                filtroActivo={filtro}
-                onFiltroChange={handleSetFiltro}
-                modo={modo}
-                onModoChange={handleSetModo}
+                totalPublicaciones={totalTabActiva}
+                tabActiva={tabActiva}
+                onTabChange={setTabActiva}
+                conteosPorTab={conteosPorTab}
             />
-
-            {/* ── Toggle Ofrecen/Solicitan — SOLO DESKTOP. En móvil, los chips
-                  "Ofrecen / Solicitan" viven al inicio del carrusel de chips
-                  del header (ver ServiciosHeader → ChipsFiltros con `modo`).
-                  Aquí el toggle es un bloque encimado al borde inferior del
-                  header dark (mitad dentro, mitad fuera).
-                  Altura del toggle ~38px → `-mt-[19px]` lo deja a la mitad.
-                  `z-30` para que se vea sobre el header sticky (z-20).
-                  Offset lateral (`lg:pl-[60px]`) alinea con el bloque
-                  [icono + título "Servicios"] del header. ── */}
-            <div className="hidden lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8 -mt-[19px] relative z-30 lg:block">
-                <div className="lg:pl-[60px] 2xl:pl-[64px]">
-                    <OfreceToggle value={modo} onChange={handleSetModo} />
-                </div>
-            </div>
 
             {/* ── Contenido ── */}
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                {/* Composer inline — pill colapsada que se expande
+                    in-place al tap. Solo en modo Personal y en tabs
+                    donde el usuario puede publicar (Todos / Servicios /
+                    Solicitudes). Vacantes se publica desde Business
+                    Studio, no aquí.
+
+                    En PC se renderiza junto a `<MisPublicacionesWidget>`
+                    en grid 2-col (composer + atajo a publicaciones del
+                    autor). En móvil el composer ocupa todo el ancho y
+                    el widget se oculta (la gestión vive en /mis-publicaciones). */}
+                {esModoPersonal && tabActiva !== 'vacantes' && (
+                    <div className="px-4 lg:px-0 pt-3 lg:pt-4">
+                        <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_320px] lg:gap-4 lg:items-stretch">
+                            <div className="min-w-0">
+                                <ComposerSection
+                                    modoServiciosDefault={modoComposerPorTab(tabActiva)}
+                                    onExpandirChange={setComposerExpandido}
+                                />
+                            </div>
+                            <div className="hidden lg:block">
+                                <MisPublicacionesWidget
+                                    composerExpandido={composerExpandido}
+                                />
+                            </div>
+                        </div>
+                    </div>
+                )}
+
                 {isLoading ? (
                     <div className="flex items-center justify-center py-20">
                         <Spinner tamanio="lg" />
                     </div>
                 ) : isError ? (
                     <ErrorBloque onReintentar={() => refetch()} />
-                ) : recientes.length === 0 &&
-                  cercanos.length === 0 &&
-                  clasificados.length === 0 ? (
-                    <FeedVacio
-                        onPublicar={esModoPersonal ? irAPublicar : null}
-                        ciudad={ciudad}
-                    />
+                ) : tabActiva === 'solicitudes' ? (
+                    /* ═══ TAB SOLICITUDES — el widget ya tiene su propia UI ═══
+                       `onPublicar` no se pasa: el botón "+ Publicar pedido"
+                       del widget es redundante con el FAB global "+ Publicar"
+                       que ya está en la página. */
+                    totalClasificadosHoy > 0 ? (
+                        <div className="px-4 lg:px-0 mt-4 lg:mt-5">
+                            <ClasificadosWidget
+                                pedidos={clasificados}
+                                totalHoy={totalClasificadosHoy}
+                                filtroActivo={filtroClasificado}
+                                onFiltroChange={setFiltroClasificado}
+                                desktop={esEscritorio}
+                                onPedidoClick={(id) =>
+                                    navigate(`/servicios/${id}`)
+                                }
+                            />
+                        </div>
+                    ) : (
+                        <TabVacia
+                            titulo="Sin solicitudes activas"
+                            subtitulo="Nadie ha pedido un servicio aún."
+                            ctaLabel={esModoPersonal ? 'Pide un servicio' : null}
+                            onCta={irAPublicarSolicito}
+                        />
+                    )
+                ) : recientes.length === 0
+                    && cercanos.length === 0
+                    && (tabActiva !== 'todos' || totalClasificadosHoy === 0) ? (
+                    /* ═══ TAB Servicios / Vacantes / Todos — VACÍA ═══ */
+                    tabActiva === 'vacantes' ? (
+                        <TabVacia
+                            titulo="Sin vacantes activas"
+                            subtitulo="Los negocios verificados publican sus puestos aquí."
+                            ctaLabel={null}
+                            onCta={() => undefined}
+                        />
+                    ) : (
+                        <FeedVacio
+                            onPublicar={esModoPersonal ? irAPublicar : null}
+                            ciudad={ciudad}
+                        />
+                    )
                 ) : (
+                    /* ═══ TAB Servicios / Vacantes / Todos con contenido ═══ */
                     <>
-                        {/* Carrusel: Recién publicado */}
+                        {/* Banner solo en Vacantes — invita al comerciante a
+                            publicar desde BS si tiene negocio. */}
+                        {tabActiva === 'vacantes' && (
+                            <BannerVacantesBS />
+                        )}
+
                         {recientes.length > 0 && (
                             <section className="px-4 lg:px-0 mt-5 lg:mt-6">
                                 <TituloSeccion>
@@ -323,7 +411,6 @@ export function PaginaServicios() {
                             </section>
                         )}
 
-                        {/* Grid: Cerca de ti */}
                         {cercanos.length > 0 && (
                             <section className="px-4 lg:px-0 mt-6 lg:mt-8">
                                 <TituloSeccion
@@ -349,13 +436,11 @@ export function PaginaServicios() {
                             </section>
                         )}
 
-                        {/* Clasificados: pedidos ("Busco X") como widget formal
-                            con tag strip de categorías + KPI. Vive aparte del
-                            feed principal. Decisión UX 2026-05-16.
-                            TODO: cuando exista la ruta dedicada
-                            `/servicios/clasificados`, agregar `onVerTodos`. */}
-                        {totalClasificadosHoy > 0 && (
-                            <div className="px-4 lg:px-0">
+                        {/* Tab Todos: además del feed, mostrar ClasificadosWidget
+                            al final con las solicitudes activas (los `solicito`
+                            no caben en el grid principal con servicio/vacante). */}
+                        {tabActiva === 'todos' && totalClasificadosHoy > 0 && (
+                            <div className="px-4 lg:px-0 mt-6 lg:mt-8">
                                 <ClasificadosWidget
                                     pedidos={clasificados}
                                     totalHoy={totalClasificadosHoy}
@@ -365,11 +450,6 @@ export function PaginaServicios() {
                                     onPedidoClick={(id) =>
                                         navigate(`/servicios/${id}`)
                                     }
-                                    onPublicar={
-                                        esModoPersonal
-                                            ? irAPublicarSolicito
-                                            : undefined
-                                    }
                                 />
                             </div>
                         )}
@@ -377,11 +457,46 @@ export function PaginaServicios() {
                 )}
             </div>
 
-            {esModoPersonal && (
-                <FABPublicar
-                    onOfrezco={irAPublicarOfrezco}
-                    onSolicito={irAPublicarSolicito}
-                />
+            {/* FAB "+ Publicar" — un solo botón. El wizard pregunta el modo
+                (Ofrezco / Solicito) en su Paso 1 cuando no se especifica. En
+                tabs Servicios/Solicitudes ya se preselecciona el modo. Tab
+                Vacantes no tiene FAB (se publica desde BS).
+                Posición dinámica: baja a `bottom-4` cuando el BottomNav se
+                oculta, sube a `bottom-20` cuando reaparece. Mismo patrón
+                visual que el FAB del MarketPlace. */}
+            {fabHandler && (
+                <button
+                    type="button"
+                    data-testid="fab-publicar"
+                    onClick={fabHandler}
+                    aria-label="Publicar"
+                    style={{
+                        transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+                    }}
+                    className={`fixed right-4 z-30 lg:right-[330px] 2xl:right-[394px] lg:bottom-6 flex cursor-pointer flex-col items-center gap-1 ${
+                        bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                    }`}
+                >
+                    <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/30 ring-2 ring-sky-300/30 transition-transform hover:scale-105">
+                        <Plus
+                            className="h-6 w-6"
+                            strokeWidth={2.75}
+                            style={{
+                                animation:
+                                    'fab-servicios-pulse 2.4s ease-in-out infinite',
+                            }}
+                        />
+                    </span>
+                    <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:bg-transparent lg:px-0 lg:py-0 lg:text-base lg:shadow-none lg:backdrop-blur-none">
+                        Publicar
+                    </span>
+                    <style>{`
+                        @keyframes fab-servicios-pulse {
+                            0%, 100% { transform: rotate(0deg) scale(1); }
+                            50% { transform: rotate(90deg) scale(1.15); }
+                        }
+                    `}</style>
+                </button>
             )}
         </div>
     );
@@ -429,6 +544,86 @@ function TituloSeccion({
                 <span className="text-[12px] font-semibold text-slate-500">
                     {count}
                 </span>
+            )}
+        </div>
+    );
+}
+
+/** Banner sobre la tab Vacantes: invita al comerciante a publicar desde BS.
+ *  Visible siempre — los usuarios sin negocio simplemente lo ignoran. La
+ *  navegación a BS Vacantes se gatekeepea en `/business-studio/vacantes`
+ *  (auth + tener negocio activo + ModoGuard 'comercial'). Usa
+ *  `useNavegarASeccion` porque es un salto entre top-levels (Servicios → BS). */
+function BannerVacantesBS() {
+    const navegarASeccion = useNavegarASeccion();
+    return (
+        <div className="px-4 lg:px-0 mt-4 lg:mt-5">
+            <button
+                type="button"
+                data-testid="banner-publicar-vacante-bs"
+                onClick={() => navegarASeccion('/business-studio/vacantes')}
+                className="flex w-full items-center gap-3 rounded-2xl border border-sky-300 bg-sky-50 px-4 py-3 text-left lg:cursor-pointer lg:hover:border-sky-400 lg:hover:bg-sky-100/60"
+            >
+                <div
+                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg text-white"
+                    style={{
+                        background: 'linear-gradient(135deg, #38bdf8, #0369a1)',
+                    }}
+                >
+                    <Wrench className="h-5 w-5" strokeWidth={2.25} />
+                </div>
+                <div className="flex-1 min-w-0">
+                    <div className="text-sm font-bold text-slate-900">
+                        ¿Tienes un negocio?
+                    </div>
+                    <div className="text-sm font-medium text-slate-600">
+                        Publica vacantes desde Business Studio.
+                    </div>
+                </div>
+                <CornerRightDown
+                    className="h-5 w-5 shrink-0 text-sky-700 rotate-[-90deg]"
+                    strokeWidth={2.5}
+                />
+            </button>
+        </div>
+    );
+}
+
+/** Estado vacío genérico por tab — más sobrio que `FeedVacio` (que tiene
+ *  ilustración + animaciones para el caso totalmente vacío sin filtros). */
+function TabVacia({
+    titulo,
+    subtitulo,
+    ctaLabel,
+    onCta,
+}: {
+    titulo: string;
+    subtitulo: string;
+    ctaLabel: string | null;
+    onCta: () => void;
+}) {
+    return (
+        <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
+            <div className="w-16 h-16 rounded-full bg-sky-100 grid place-items-center mb-4">
+                <Sparkles
+                    className="w-7 h-7 text-sky-600"
+                    strokeWidth={1.75}
+                />
+            </div>
+            <h2 className="text-[18px] font-extrabold text-slate-900">
+                {titulo}
+            </h2>
+            <p className="mt-2 text-[14px] text-slate-600 leading-relaxed">
+                {subtitulo}
+            </p>
+            {ctaLabel && (
+                <button
+                    type="button"
+                    onClick={onCta}
+                    className="mt-5 px-5 py-2.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 text-white font-semibold text-sm shadow-cta-sky lg:cursor-pointer"
+                >
+                    {ctaLabel}
+                </button>
             )}
         </div>
     );

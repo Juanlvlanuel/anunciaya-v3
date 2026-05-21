@@ -148,6 +148,7 @@ export function PaginaMarketplace() {
     const navigate = useNavigate();
     const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
     const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
+    const buscadorAbierto = useSearchStore((s) => s.buscadorAbierto);
     const query = useSearchStore((s) => s.query);
     const setQuery = useSearchStore((s) => s.setQuery);
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
@@ -158,6 +159,32 @@ export function PaginaMarketplace() {
     // populares/recientes mientras el usuario escribe.
     const [buscadorMovilAbierto, setBuscadorMovilAbierto] = useState(false);
     const inputBusquedaMovilRef = useRef<HTMLInputElement>(null);
+
+    // Sincronización con el store del buscador para que el input móvil
+    // flotante no quede "huérfano" cuando algo externo cierra el overlay
+    // (back nativo del celular, Escape, click backdrop del scrim).
+    //
+    // Cuando el usuario empieza a escribir, marcamos el store como
+    // abierto. Después, cuando algo externo dispara `cerrarBuscador()`
+    // (que resetea `buscadorAbierto: false, query: ''`), detectamos la
+    // transición true → false y cerramos también el input flotante.
+    //
+    // Sin esto, el back nativo del celular cierra el overlay con
+    // sugerencias pero deja el input flotante (portal z-[60]) visible
+    // colgando sobre el header — UI inconsistente.
+    useEffect(() => {
+        if (query.length >= 1 && !buscadorAbierto) {
+            abrirBuscador();
+        }
+    }, [query, buscadorAbierto, abrirBuscador]);
+
+    const buscadorAbiertoPrevRef = useRef(buscadorAbierto);
+    useEffect(() => {
+        if (buscadorAbiertoPrevRef.current && !buscadorAbierto) {
+            setBuscadorMovilAbierto(false);
+        }
+        buscadorAbiertoPrevRef.current = buscadorAbierto;
+    }, [buscadorAbierto]);
 
     const handlePublicar = () => {
         navigate('/marketplace/publicar');

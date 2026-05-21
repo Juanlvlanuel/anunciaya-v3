@@ -21,6 +21,7 @@
  */
 
 import { AlertTriangle } from 'lucide-react';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 interface ModalSugerenciaModeracionProps {
     abierto: boolean;
@@ -47,6 +48,15 @@ export function ModalSugerenciaModeracion({
     onContinuar,
     cargandoContinuar = false,
 }: ModalSugerenciaModeracionProps) {
+    // Back nativo (Android + flecha del navegador) cierra el modal con la
+    // misma semántica que el botón "Editar mi publicación" — volver al
+    // wizard sin reenviar la publicación.
+    useBackNativo({
+        abierto,
+        onCerrar: onEditar,
+        discriminador: '_modalSugerenciaModeracion',
+    });
+
     if (!abierto) return null;
 
     return (

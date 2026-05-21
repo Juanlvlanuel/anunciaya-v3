@@ -9,6 +9,7 @@ import React, { createContext, useContext, useState, useCallback, useEffect, use
 import { createRoot } from 'react-dom/client';
 import { X } from 'lucide-react';
 import i18n from '../config/i18n';
+import { useBackNativo } from '../hooks/useBackNativo';
 
 // =============================================================================
 // TIPOS TYPESCRIPT
@@ -305,6 +306,16 @@ const ModalConfirmacionToast: React.FC<ModalConfirmacionToastProps> = ({ options
     setSaliendo(true);
     setTimeout(() => callback(), 200);
   };
+
+  // Back nativo (Android + flecha del navegador) cierra el modal con la
+  // misma semántica que el botón "Cancelar" (acción segura). El modal está
+  // montado solo cuando hay `confirmacion` activa en el provider, por eso
+  // `abierto: true` constante.
+  useBackNativo({
+    abierto: true,
+    onCerrar: () => handleClose(onCancel),
+    discriminador: '_confirmacionToast',
+  });
 
   // ESC + bloqueo de scroll + foco inicial en Cancelar (acción segura)
   useEffect(() => {

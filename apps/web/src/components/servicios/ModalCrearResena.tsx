@@ -15,6 +15,7 @@
 import { Star, X } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useCrearResenaServicio } from '../../hooks/queries/useServicios';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import { notificar } from '../../utils/notificaciones';
 
 interface ModalCrearResenaProps {
@@ -59,6 +60,14 @@ export function ModalCrearResena({
             document.body.style.overflow = prev;
         };
     }, [open]);
+
+    // Back nativo del celular cierra el modal — patrón estándar del sistema
+    // de navegación back (ver `docs/estandares/Sistema_Navegacion_Back.md`).
+    useBackNativo({
+        abierto: open,
+        onCerrar: onClose,
+        discriminador: '_modalCrearResena',
+    });
 
     if (!open) return null;
 

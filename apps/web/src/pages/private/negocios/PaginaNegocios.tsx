@@ -591,6 +591,25 @@ export function PaginaNegocios() {
   const setSearchQuery = useSearchStore((s) => s.setQuery);
   const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
   const cerrarBuscador = useSearchStore((s) => s.cerrarBuscador);
+  const buscadorAbierto = useSearchStore((s) => s.buscadorAbierto);
+
+  // Sincronización con el store del buscador para que el input móvil
+  // flotante (portal) no quede "huérfano" cuando algo externo cierra el
+  // overlay (back nativo del celular, Escape, click backdrop del scrim).
+  // Mismo patrón aplicado en PaginaMarketplace — ver doc allá.
+  useEffect(() => {
+    if (searchQuery.length >= 1 && !buscadorAbierto) {
+      abrirBuscador();
+    }
+  }, [searchQuery, buscadorAbierto, abrirBuscador]);
+
+  const buscadorAbiertoPrevRef = useRef(buscadorAbierto);
+  useEffect(() => {
+    if (buscadorAbiertoPrevRef.current && !buscadorAbierto) {
+      setBuscadorMovilAbierto(false);
+    }
+    buscadorAbiertoPrevRef.current = buscadorAbierto;
+  }, [buscadorAbierto]);
 
   // Negocios: el backend filtra por búsqueda, categoría, distancia, etc.
   // El filtro client-side del searchQuery global (Navbar) se mantiene como fallback.

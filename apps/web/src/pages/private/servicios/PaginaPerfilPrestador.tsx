@@ -98,7 +98,7 @@ export function PaginaPerfilPrestador() {
                                 prestadores.
                             </p>
                             <button
-                                onClick={() => navigate('/servicios')}
+                                onClick={handleVolver}
                                 className="mt-5 px-5 py-2.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 text-white font-semibold text-sm shadow-cta-sky lg:cursor-pointer"
                             >
                                 Volver al feed
