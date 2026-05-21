@@ -19,12 +19,11 @@ import {
     useQueryClient,
     keepPreviousData,
 } from '@tanstack/react-query';
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { api } from '../../services/api';
 import { queryKeys } from '../../config/queryKeys';
 import type {
     FeedMarketplace,
-    ArticuloFeed,
     ArticuloMarketplaceDetalle,
     ArticuloMarketplace,
     CondicionArticulo,
@@ -37,7 +36,6 @@ import type {
     OrdenFeedInfinito,
     RespuestaFeedInfinito,
 } from '../../types/marketplace';
-import { optimizarImagen } from '../../utils/optimizarImagen';
 
 // =============================================================================
 // FEED DEL MARKETPLACE (recientes + cercanos)
@@ -436,107 +434,15 @@ export function useActualizarArticulo() {
 // HOOK — UPLOAD DE FOTOS A R2
 // =============================================================================
 
-interface RespuestaUploadImagen {
-    success: boolean;
-    data?: { uploadUrl: string; publicUrl: string };
-    message?: string;
-}
-
-interface UseSubirFotoMarketplaceResult {
-    /** URL pública de R2 una vez completado el upload (null durante o si falló) */
-    publicUrl: string | null;
-    isUploading: boolean;
-    error: string | null;
-    /** Ejecuta el upload del archivo elegido por el usuario */
-    subir: (file: File) => Promise<string | null>;
-    /** Limpia el estado (al borrar foto del wizard, etc.) */
-    reset: () => void;
-}
-
 /**
- * Hook para subir UNA foto a R2 con prefijo `marketplace/`. Retorna la URL
- * pública lista para guardar en `articulo.fotos`. Diseñado para usarse N
- * veces en paralelo (uno por slot del wizard).
+ * `POST /api/marketplace/upload-imagen` — mutation que pide la presigned
+ * URL al backend. El caller (típicamente `useFotosUploaderMarketplace`)
+ * recibe `{ uploadUrl, publicUrl }`, optimiza la imagen a WebP y hace el
+ * PUT directo a R2.
  *
- * Flujo:
- *  1. Pide presigned URL al backend (`POST /marketplace/upload-imagen`).
- *  2. PUT directo a R2 con el archivo (sin pasar por nuestro server).
- *  3. Devuelve `publicUrl` final.
- *
- * Optimiza imágenes antes de subir: redimensiona a 1920px máx, comprime a
- * WebP con calidad 85%. Reduce 70-90% el peso de fotos de cámara móvil
- * (5-10MB → ~500KB) y unifica el formato en R2. Reusa el helper compartido
- * `optimizarImagen` (mismo que usan ChatYA y Business Studio).
- */
-export function useSubirFotoMarketplace(): UseSubirFotoMarketplaceResult {
-    const [publicUrl, setPublicUrl] = useState<string | null>(null);
-    const [isUploading, setIsUploading] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-
-    const subir = useCallback(async (file: File): Promise<string | null> => {
-        setIsUploading(true);
-        setError(null);
-        try {
-            // 1. Optimizar a WebP (redimensiona + comprime client-side)
-            const blobOptimizado = await optimizarImagen(file, {
-                maxWidth: 1920,
-                quality: 0.85,
-            });
-            const nombreArchivo = file.name.replace(/\.[^.]+$/, '.webp');
-            const contentType = 'image/webp';
-
-            // 2. Pedir presigned URL al backend
-            const presignResp = await api.post<RespuestaUploadImagen>(
-                '/marketplace/upload-imagen',
-                {
-                    nombreArchivo,
-                    contentType,
-                }
-            );
-            if (!presignResp.data.success || !presignResp.data.data) {
-                throw new Error(presignResp.data.message ?? 'No se pudo generar URL de subida');
-            }
-            const { uploadUrl, publicUrl: urlFinal } = presignResp.data.data;
-
-            // 3. PUT directo a R2 con el blob WebP optimizado
-            const putResp = await fetch(uploadUrl, {
-                method: 'PUT',
-                body: blobOptimizado,
-                headers: { 'Content-Type': contentType },
-            });
-            if (!putResp.ok) {
-                throw new Error(`R2 PUT falló: HTTP ${putResp.status}`);
-            }
-
-            setPublicUrl(urlFinal);
-            return urlFinal;
-        } catch (e) {
-            const msg = e instanceof Error ? e.message : 'Error subiendo foto';
-            setError(msg);
-            return null;
-        } finally {
-            setIsUploading(false);
-        }
-    }, []);
-
-    const reset = useCallback(() => {
-        setPublicUrl(null);
-        setError(null);
-        setIsUploading(false);
-    }, []);
-
-    return { publicUrl, isUploading, error, subir, reset };
-}
-
-/**
- * `POST /api/marketplace/upload-imagen` — versión "mutation" del flujo de
- * presigned URL, pensada para el composer inline (réplica del patrón de
- * Servicios). Devuelve `{ uploadUrl, publicUrl }` y el caller hace el PUT
- * directo a R2.
- *
- * Convive con `useSubirFotoMarketplace` (que sigue siendo usado por el
- * wizard mientras se migra). Una vez retirado el wizard, este hook queda
- * como único punto de entrada para subir fotos al bucket MarketPlace.
+ * Sprint 9.3: se eliminó `useSubirFotoMarketplace` (versión one-shot con
+ * estado interno) que solo usaba el wizard MP. Ahora este es el único
+ * punto de entrada para subir fotos al bucket MarketPlace.
  */
 export function useUploadFotoMarketplace() {
     return useMutation({

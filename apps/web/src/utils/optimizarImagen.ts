@@ -7,7 +7,8 @@
  *
  * Reutilizado por:
  *  - `useR2Upload` (ChatYA, Business Studio perfil, etc.)
- *  - `useSubirFotoMarketplace` (wizard de publicar artículos)
+ *  - `useFotosUploaderMarketplace` (composer inline de MarketPlace)
+ *  - `useFotosUploaderServicios` (composer inline de Servicios)
  *
  * Beneficios:
  *  - Reduce 70-90% el tamaño de fotos de cámara móvil (5-10MB → ~500KB)

@@ -58,8 +58,9 @@ interface ResultadoR2Upload {
 }
 
 // El helper de optimización vive en `apps/web/src/utils/optimizarImagen.ts`
-// y es compartido por este hook y por `useSubirFotoMarketplace` para
-// mantener un único lugar con la lógica de redimensión + WebP.
+// y es compartido por este hook y por los uploaders de los composers
+// (MarketPlace, Servicios) para mantener un único lugar con la lógica de
+// redimensión + WebP.
 
 // =============================================================================
 // HOOK
