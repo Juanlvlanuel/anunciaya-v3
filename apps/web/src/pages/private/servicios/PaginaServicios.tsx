@@ -925,7 +925,7 @@ function BannerVacantesBS() {
                     </div>
                 </div>
                 <CornerRightDown
-                    className="h-5 w-5 shrink-0 text-sky-700 rotate-[-90deg]"
+                    className="h-5 w-5 shrink-0 text-sky-700 -rotate-90"
                     strokeWidth={2.5}
                 />
             </button>

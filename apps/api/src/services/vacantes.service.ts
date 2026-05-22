@@ -64,18 +64,27 @@ export interface KpisVacantes {
 // =============================================================================
 
 /**
- * Verifica que la vacante existe, pertenece al usuario que la está modificando,
- * y opcionalmente que pertenece a la sucursal activa. Devuelve la fila o null.
+ * Verifica que la vacante existe Y pertenece a la sucursal indicada.
+ * Devuelve sus datos básicos o null.
+ *
+ * Sprint 9.3 (fix): antes filtraba por `usuario_id` (creador), lo que hacía
+ * que SOLO quien creó la vacante la pudiera ver/gestionar — la gerente NUNCA
+ * veía vacantes del dueño y viceversa. Ahora filtra por `sucursal_id` —
+ * cualquier empleado con acceso a esa sucursal (validado por el middleware
+ * `validarAccesoSucursal`) puede gestionar todas las vacantes de la sucursal.
+ *
+ * Las vacantes son del NEGOCIO/SUCURSAL, no del usuario individual — mismo
+ * modelo que Catálogo, Promociones y otros módulos BS.
  */
-async function verificarVacanteDelUsuario(
+async function verificarVacanteEnSucursal(
     publicacionId: string,
-    usuarioId: string
+    sucursalId: string
 ): Promise<{ existe: boolean; sucursalId: string | null } | null> {
     const res = await db.execute<{ sucursal_id: string | null }>(sql`
         SELECT sucursal_id
         FROM servicios_publicaciones
         WHERE id = ${publicacionId}
-          AND usuario_id = ${usuarioId}
+          AND sucursal_id = ${sucursalId}
           AND tipo = 'vacante-empresa'
           AND deleted_at IS NULL
         LIMIT 1
@@ -93,14 +102,21 @@ async function verificarVacanteDelUsuario(
 
 /**
  * Lista paginada de vacantes filtradas por sucursal activa. Cada operador ve
- * solo las vacantes de SU sucursal (el middleware ya validó acceso).
+ * TODAS las vacantes de su sucursal — dueño, gerentes y empleados con acceso
+ * (validado por el middleware `validarAccesoSucursal`).
+ *
+ * Sprint 9.3 (fix): antes filtraba también por `usuario_id = creador`, lo
+ * que ocultaba las vacantes del dueño a la gerente y viceversa. Ahora el
+ * único filtro de acceso es `sucursal_id` (las vacantes pertenecen al
+ * negocio, no al empleado individual). El `usuarioId` se mantiene en la
+ * firma para logs/auditoría pero NO se usa en el WHERE.
  *
  * Para que la lista incluya el nombre de la sucursal en cada fila, hace JOIN
  * con `negocio_sucursales`. Para vacantes con `sucursal_id IS NULL` (legacy o
  * casos edge), el nombre queda null.
  */
 export async function listarVacantes(
-    usuarioId: string,
+    usuarioId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
     sucursalId: string,
     opciones: ListarVacantesQueryInput
 ) {
@@ -189,8 +205,7 @@ export async function listarVacantes(
                 sp.updated_at
             FROM servicios_publicaciones sp
             LEFT JOIN negocio_sucursales ns ON ns.id = sp.sucursal_id
-            WHERE sp.usuario_id = ${usuarioId}
-              AND sp.sucursal_id = ${sucursalId}
+            WHERE sp.sucursal_id = ${sucursalId}
               AND sp.tipo = 'vacante-empresa'
               AND sp.deleted_at IS NULL
               ${filtroEstado}
@@ -210,8 +225,7 @@ export async function listarVacantes(
         const [{ total }] = (await db.execute<{ total: number }>(sql`
             SELECT COUNT(*)::int AS total
             FROM servicios_publicaciones sp
-            WHERE sp.usuario_id = ${usuarioId}
-              AND sp.sucursal_id = ${sucursalId}
+            WHERE sp.sucursal_id = ${sucursalId}
               AND sp.tipo = 'vacante-empresa'
               AND sp.deleted_at IS NULL
               ${filtroEstado}
@@ -288,9 +302,12 @@ export async function listarVacantes(
  *   - Activas: estado='activa'
  *   - Por expirar: estado='activa' AND expira_at <= NOW() + 5 días
  *   - Conversaciones: suma de total_mensajes de no-eliminadas
+ *
+ * Sprint 9.3 (fix): mismo cambio que `listarVacantes` — KPIs cuentan TODAS
+ * las vacantes de la sucursal, no solo las que creó el usuario actual.
  */
 export async function obtenerKpisVacantes(
-    usuarioId: string,
+    usuarioId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
     sucursalId: string
 ) {
     try {
@@ -309,8 +326,7 @@ export async function obtenerKpisVacantes(
                 )::int AS por_expirar,
                 COALESCE(SUM(total_mensajes), 0)::int AS conversaciones
             FROM servicios_publicaciones
-            WHERE usuario_id = ${usuarioId}
-              AND sucursal_id = ${sucursalId}
+            WHERE sucursal_id = ${sucursalId}
               AND tipo = 'vacante-empresa'
               AND deleted_at IS NULL
               AND estado != 'eliminada'
@@ -390,22 +406,24 @@ export async function crearVacante(
 
 /**
  * Actualiza una vacante existente. Delega a `actualizarPublicacion` del service
- * de servicios después de verificar que la vacante existe y es del usuario.
+ * de servicios pasando `{ sucursalId }` como filtro de acceso — cualquier
+ * empleado con acceso a la sucursal puede editar la vacante.
  */
 export async function actualizarVacante(
     usuarioId: string,
+    sucursalId: string,
     publicacionId: string,
     datos: ActualizarVacanteInput
 ) {
-    const vacante = await verificarVacanteDelUsuario(publicacionId, usuarioId);
+    const vacante = await verificarVacanteEnSucursal(publicacionId, sucursalId);
     if (!vacante) {
         return {
             success: false as const,
             code: 404,
-            message: 'No encontramos esta vacante o no es tuya.',
+            message: 'No encontramos esta vacante en tu sucursal.',
         };
     }
-    return await actualizarPublicacion(usuarioId, publicacionId, datos);
+    return await actualizarPublicacion(usuarioId, publicacionId, datos, { sucursalId });
 }
 
 // =============================================================================
@@ -415,18 +433,23 @@ export async function actualizarVacante(
 /**
  * Pausar o reactivar una vacante. Para "cerrar" (puesto cubierto), usa
  * `cerrarVacante` (estado='cerrada' es distinto de 'pausada').
+ *
+ * Sprint 9.3 (fix): el WHERE de los UPDATE ahora filtra por `sucursal_id`
+ * en vez de `usuario_id`, para que cualquier empleado con acceso a la
+ * sucursal pueda pausar/reactivar (no solo el creador).
  */
 export async function cambiarEstadoVacante(
-    usuarioId: string,
+    usuarioId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    sucursalId: string,
     publicacionId: string,
     nuevoEstado: 'activa' | 'pausada'
 ) {
-    const vacante = await verificarVacanteDelUsuario(publicacionId, usuarioId);
+    const vacante = await verificarVacanteEnSucursal(publicacionId, sucursalId);
     if (!vacante) {
         return {
             success: false as const,
             code: 404,
-            message: 'No encontramos esta vacante o no es tuya.',
+            message: 'No encontramos esta vacante en tu sucursal.',
         };
     }
 
@@ -463,7 +486,7 @@ export async function cambiarEstadoVacante(
                     expira_at = ${expiraAtSql},
                     updated_at = NOW()
                 WHERE id = ${publicacionId}
-                  AND usuario_id = ${usuarioId}
+                  AND sucursal_id = ${sucursalId}
                   AND tipo = 'vacante-empresa'
                   AND deleted_at IS NULL
             `);
@@ -473,7 +496,7 @@ export async function cambiarEstadoVacante(
                 SET estado = 'pausada',
                     updated_at = NOW()
                 WHERE id = ${publicacionId}
-                  AND usuario_id = ${usuarioId}
+                  AND sucursal_id = ${sucursalId}
                   AND tipo = 'vacante-empresa'
                   AND deleted_at IS NULL
             `);
@@ -498,13 +521,17 @@ export async function cambiarEstadoVacante(
  * pausada se puede reactivar; cerrada queda en historial sin posibilidad de
  * reactivación desde BS (si necesitan volver a abrir, deben crear una nueva).
  */
-export async function cerrarVacante(usuarioId: string, publicacionId: string) {
-    const vacante = await verificarVacanteDelUsuario(publicacionId, usuarioId);
+export async function cerrarVacante(
+    usuarioId: string, // eslint-disable-line @typescript-eslint/no-unused-vars
+    sucursalId: string,
+    publicacionId: string,
+) {
+    const vacante = await verificarVacanteEnSucursal(publicacionId, sucursalId);
     if (!vacante) {
         return {
             success: false as const,
             code: 404,
-            message: 'No encontramos esta vacante o no es tuya.',
+            message: 'No encontramos esta vacante en tu sucursal.',
         };
     }
 
@@ -514,7 +541,7 @@ export async function cerrarVacante(usuarioId: string, publicacionId: string) {
             SET estado = 'cerrada',
                 updated_at = NOW()
             WHERE id = ${publicacionId}
-              AND usuario_id = ${usuarioId}
+              AND sucursal_id = ${sucursalId}
               AND tipo = 'vacante-empresa'
               AND deleted_at IS NULL
         `);
@@ -535,15 +562,16 @@ export async function cerrarVacante(usuarioId: string, publicacionId: string) {
 
 export async function eliminarVacante(
     usuarioId: string,
-    publicacionId: string
+    sucursalId: string,
+    publicacionId: string,
 ) {
-    const vacante = await verificarVacanteDelUsuario(publicacionId, usuarioId);
+    const vacante = await verificarVacanteEnSucursal(publicacionId, sucursalId);
     if (!vacante) {
         return {
             success: false as const,
             code: 404,
-            message: 'No encontramos esta vacante o no es tuya.',
+            message: 'No encontramos esta vacante en tu sucursal.',
         };
     }
-    return await eliminarPublicacion(usuarioId, publicacionId);
+    return await eliminarPublicacion(usuarioId, publicacionId, { sucursalId });
 }

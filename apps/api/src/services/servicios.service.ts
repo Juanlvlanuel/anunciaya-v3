@@ -1049,15 +1049,28 @@ export async function obtenerMisPublicaciones(
 export async function actualizarPublicacion(
     usuarioId: string,
     publicacionId: string,
-    datos: ActualizarPublicacionInput
+    datos: ActualizarPublicacionInput,
+    opciones?: { sucursalId?: string }
 ) {
     try {
-        // 1. Validar que la publicación existe y es del usuario.
+        // Modo de acceso (Sprint 9.3):
+        //  - Por defecto, el filtro es por `usuario_id` (publicaciones
+        //    personales: solo el creador puede editarlas).
+        //  - Si el caller pasa `opciones.sucursalId`, el filtro es por
+        //    `sucursal_id` (vacantes: cualquier empleado con acceso a
+        //    la sucursal puede gestionarlas — middleware ya validó el
+        //    acceso). En ese caso `usuarioId` queda solo como auditoría.
+        const usaSucursal = !!opciones?.sucursalId;
+        const filtroAcceso = usaSucursal
+            ? sql`sucursal_id = ${opciones!.sucursalId}`
+            : sql`usuario_id = ${usuarioId}`;
+
+        // 1. Validar que la publicación existe y es accesible.
         const existeRes = await db.execute<{ fotos: string[]; estado: string }>(sql`
             SELECT fotos, estado
             FROM servicios_publicaciones
             WHERE id = ${publicacionId}
-              AND usuario_id = ${usuarioId}
+              AND ${filtroAcceso}
               AND deleted_at IS NULL
             LIMIT 1
         `);
@@ -1137,7 +1150,7 @@ export async function actualizarPublicacion(
             UPDATE servicios_publicaciones
             SET ${setClause}
             WHERE id = ${publicacionId}
-              AND usuario_id = ${usuarioId}
+              AND ${filtroAcceso}
               AND deleted_at IS NULL
         `);
 
@@ -1283,14 +1296,23 @@ export async function reactivarPublicacion(
  */
 export async function eliminarPublicacion(
     usuarioId: string,
-    publicacionId: string
+    publicacionId: string,
+    opciones?: { sucursalId?: string }
 ) {
     try {
+        // Mismo patrón que `actualizarPublicacion` — por defecto valida
+        // por `usuario_id`, pero las vacantes pasan `sucursalId` para
+        // que cualquier empleado con acceso a la sucursal pueda
+        // eliminarlas (no solo el creador).
+        const filtroAcceso = opciones?.sucursalId
+            ? sql`sucursal_id = ${opciones.sucursalId}`
+            : sql`usuario_id = ${usuarioId}`;
+
         const resultado = await db.execute<{ id: string }>(sql`
             UPDATE servicios_publicaciones
             SET estado = 'eliminada', deleted_at = NOW(), updated_at = NOW()
             WHERE id = ${publicacionId}
-              AND usuario_id = ${usuarioId}
+              AND ${filtroAcceso}
               AND deleted_at IS NULL
             RETURNING id
         `);

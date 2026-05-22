@@ -163,6 +163,8 @@ export async function actualizarVacanteController(req: Request, res: Response) {
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
+        const sucursalId = exigirSucursalId(req, res);
+        if (!sucursalId) return;
 
         const publicacionId = req.params.id;
         if (!UUID_REGEX.test(publicacionId)) {
@@ -183,6 +185,7 @@ export async function actualizarVacanteController(req: Request, res: Response) {
 
         const resultado = await actualizarVacante(
             usuarioId,
+            sucursalId,
             publicacionId,
             validacion.data
         );
@@ -204,6 +207,8 @@ export async function cambiarEstadoVacanteController(req: Request, res: Response
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
+        const sucursalId = exigirSucursalId(req, res);
+        if (!sucursalId) return;
 
         const publicacionId = req.params.id;
         if (!UUID_REGEX.test(publicacionId)) {
@@ -224,6 +229,7 @@ export async function cambiarEstadoVacanteController(req: Request, res: Response
 
         const resultado = await cambiarEstadoVacante(
             usuarioId,
+            sucursalId,
             publicacionId,
             validacion.data.estado
         );
@@ -245,6 +251,8 @@ export async function cerrarVacanteController(req: Request, res: Response) {
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
+        const sucursalId = exigirSucursalId(req, res);
+        if (!sucursalId) return;
 
         const publicacionId = req.params.id;
         if (!UUID_REGEX.test(publicacionId)) {
@@ -254,7 +262,7 @@ export async function cerrarVacanteController(req: Request, res: Response) {
             });
         }
 
-        const resultado = await cerrarVacante(usuarioId, publicacionId);
+        const resultado = await cerrarVacante(usuarioId, sucursalId, publicacionId);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
         console.error('Error en cerrarVacanteController:', error);
@@ -273,6 +281,8 @@ export async function eliminarVacanteController(req: Request, res: Response) {
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
+        const sucursalId = exigirSucursalId(req, res);
+        if (!sucursalId) return;
 
         const publicacionId = req.params.id;
         if (!UUID_REGEX.test(publicacionId)) {
@@ -282,7 +292,7 @@ export async function eliminarVacanteController(req: Request, res: Response) {
             });
         }
 
-        const resultado = await eliminarVacante(usuarioId, publicacionId);
+        const resultado = await eliminarVacante(usuarioId, sucursalId, publicacionId);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
         console.error('Error en eliminarVacanteController:', error);

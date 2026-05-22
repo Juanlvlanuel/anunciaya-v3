@@ -150,7 +150,7 @@ export function CardArticulo({
                     altoFijo
                         ? 'h-[60%] shrink-0'
                         : variant === 'compacta'
-                        ? 'aspect-[3/2]'
+                        ? 'aspect-3/2'
                         : 'aspect-square'
                 }`}
             >
@@ -246,7 +246,7 @@ export function CardArticulo({
                 {/* Descripción — siempre reserva 2 líneas de altura aunque
                     el texto sea corto, para que todos los cards del grid
                     midan lo mismo sin importar la longitud de su descripción. */}
-                <p className="line-clamp-2 min-h-[2.5rem] text-sm font-medium leading-snug text-slate-700">
+                <p className="line-clamp-2 min-h-10 text-sm font-medium leading-snug text-slate-700">
                     {articulo.descripcion}
                 </p>
 
@@ -269,7 +269,7 @@ export function CardArticulo({
                 {variant === 'feed' && (
                     <div
                         data-testid={`actividad-${articulo.id}`}
-                        className="flex min-h-[1.125rem] items-center gap-1 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600"
+                        className="flex min-h-4.5 items-center gap-1 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600"
                     >
                         {senalActividad ? (
                             <>
