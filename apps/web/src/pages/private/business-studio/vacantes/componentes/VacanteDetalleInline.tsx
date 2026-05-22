@@ -38,7 +38,12 @@ import {
     formatearDiasSemana,
     formatearPrecioVacante,
 } from './helpers';
-import { PillTipoEmpleo, PillModalidad, PillEstadoVacante } from './VacanteAtoms';
+import {
+    PillTipoEmpleo,
+    PillModalidad,
+    PillEstadoVacante,
+    PillSueldoATratar,
+} from './VacanteAtoms';
 import type { Vacante } from '../../../../../types/servicios';
 
 const MESES_LARGOS = [
@@ -132,12 +137,22 @@ export function VacanteDetalleInline({
                                         <PillTipoEmpleo tipoEmpleo={vacante.tipoEmpleo} />
                                     )}
                                     <PillModalidad modalidad={vacante.modalidad} />
-                                    <span className="text-sm lg:text-base font-bold text-slate-900 tabular-nums whitespace-nowrap">
-                                        {formatearPrecioVacante(
-                                            vacante.precio,
-                                            vacante.tipoEmpleo,
-                                        )}
-                                    </span>
+                                    {/* Sprint 9.3: cuando es 'a-convenir' lo
+                                        mostramos como `PillSueldoATratar`
+                                        (mismo `CLASES_PILL_BASE` que los
+                                        demás pills de esta fila). Cuando
+                                        hay monto real, sigue como texto
+                                        bold tabular. */}
+                                    {vacante.precio.kind === 'a-convenir' ? (
+                                        <PillSueldoATratar />
+                                    ) : (
+                                        <span className="text-sm lg:text-base font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                                            {formatearPrecioVacante(
+                                                vacante.precio,
+                                                vacante.tipoEmpleo,
+                                            )}
+                                        </span>
+                                    )}
                                 </div>
                                 {esCerrada && fechaCierre && (
                                     <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-2 font-medium">

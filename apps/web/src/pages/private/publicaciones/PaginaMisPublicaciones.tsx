@@ -23,7 +23,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
     ChevronLeft,
     Plus,
@@ -139,6 +139,7 @@ const COMPOSER_DRAFT_KEY = 'aya:composer:marketplace:draft-v1';
 
 export function PaginaMisPublicaciones() {
     const navigate = useNavigate();
+    const location = useLocation();
     const handleVolver = useVolverAtras('/inicio');
     const usuarioId = useAuthStore((s) => s.usuario?.id ?? null);
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
@@ -151,7 +152,31 @@ export function PaginaMisPublicaciones() {
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
 
     // ─── Estado UI ───────────────────────────────────────────────────────────
-    const [tipoActivo, setTipoActivo] = useState<TipoPublicacion>('marketplace');
+    // `tipoActivo` puede pre-seleccionarse desde el URL con `?tipo=marketplace`
+    // o `?tipo=servicios`. Esto lo usan los chips "Mis publicaciones" de los
+    // composers inline para llevar al usuario directo al tab correcto. Si el
+    // param no viene o es inválido, default 'marketplace'.
+    const tipoInicial: TipoPublicacion = (() => {
+        const sp = new URLSearchParams(location.search);
+        const t = sp.get('tipo');
+        return t === 'servicios' || t === 'marketplace' ? t : 'marketplace';
+    })();
+    const [tipoActivo, setTipoActivo] = useState<TipoPublicacion>(tipoInicial);
+
+    // Limpia el query param `?tipo=` después de leerlo una vez (mismo patrón
+    // que `ComposerSection` con `?crear`/`?editar`). Así, si el usuario
+    // recarga o comparte el URL, no se queda pegado el filtro inicial.
+    useEffect(() => {
+        const sp = new URLSearchParams(location.search);
+        if (sp.has('tipo')) {
+            sp.delete('tipo');
+            const qs = sp.toString();
+            navigate(`${location.pathname}${qs ? `?${qs}` : ''}`, {
+                replace: true,
+            });
+        }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
     const [tabActivo, setTabActivo] = useState<TabPublicacion>('activa');
     const [borradorExiste, setBorradorExiste] = useState(false);
 

@@ -18,7 +18,12 @@ import {
     formatearPrecioVacante,
     type EstadoVacanteUI,
 } from './helpers';
-import { PillTipoEmpleo, PillModalidad, PillEstadoVacante } from './VacanteAtoms';
+import {
+    PillTipoEmpleo,
+    PillModalidad,
+    PillEstadoVacante,
+    PillSueldoATratar,
+} from './VacanteAtoms';
 import type { Vacante } from '../../../../../types/servicios';
 
 interface TablaVacantesProps {
@@ -196,9 +201,20 @@ function FilaVacante({
                 <PillModalidad modalidad={vacante.modalidad} />
             </div>
 
-            {/* Col 4 — Salario */}
-            <div className="text-center font-bold text-slate-900 tabular-nums whitespace-nowrap mr-10">
-                {formatearPrecioVacante(vacante.precio, vacante.tipoEmpleo)}
+            {/* Col 4 — Salario
+                Sprint 9.3: cuando el precio es 'a-convenir' lo mostramos
+                como pill consistente con los demás chips de la fila
+                (PillTipoEmpleo, PillModalidad, PillEstadoVacante). Los
+                montos numéricos siguen en texto plano con tabular-nums
+                para alineación columnar. */}
+            <div className="text-center mr-10">
+                {vacante.precio.kind === 'a-convenir' ? (
+                    <PillSueldoATratar />
+                ) : (
+                    <span className="font-bold text-slate-900 tabular-nums whitespace-nowrap">
+                        {formatearPrecioVacante(vacante.precio, vacante.tipoEmpleo)}
+                    </span>
+                )}
             </div>
 
             {/* Col 5 — Chats */}

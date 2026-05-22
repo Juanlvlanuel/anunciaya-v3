@@ -57,12 +57,17 @@ import {
     useOfertasGuardadas,
     useNegociosSeguidos,
     useArticulosMarketplaceGuardados,
+    useServiciosGuardados,
 } from '@/hooks/queries/useMisGuardados';
 import { aplicarCambioGuardadoEnCache } from '@/hooks/useGuardados';
 import notificar from '@/utils/notificaciones';
 import { CardArticulo } from '@/components/marketplace/CardArticulo';
+import { CardServicio } from '@/components/servicios/CardServicio';
+import { calcularDistanciaMetros } from '@/utils/marketplace';
+import { useGpsStore } from '@/stores/useGpsStore';
 import type { Oferta } from '@/types/ofertas';
 import type { ArticuloFeed } from '@/types/marketplace';
+import type { PublicacionServicio } from '@/types/servicios';
 
 // =============================================================================
 // TIPOS
@@ -137,6 +142,7 @@ export function PaginaGuardados() {
     const ofertasQuery = useOfertasGuardadas();
     const negociosQuery = useNegociosSeguidos();
     const articulosMarketplaceQuery = useArticulosMarketplaceGuardados();
+    const serviciosQuery = useServiciosGuardados();
     const ofertas = (ofertasQuery.data ?? []) as GuardadoOferta[];
     const negocios = (negociosQuery.data ?? []) as NegocioSeguido[];
     const articulosMarketplace = (articulosMarketplaceQuery.data ?? []) as Array<{
@@ -146,9 +152,17 @@ export function PaginaGuardados() {
         createdAt: string;
         articulo: ArticuloFeed;
     }>;
+    const servicios = (serviciosQuery.data ?? []) as Array<{
+        id: string;
+        entityType: string;
+        entityId: string;
+        createdAt: string;
+        publicacion: PublicacionServicio;
+    }>;
     const loadingOfertas = ofertasQuery.isPending;
     const loadingNegocios = negociosQuery.isPending;
     const loadingArticulosMarketplace = articulosMarketplaceQuery.isPending;
+    const loadingServicios = serviciosQuery.isPending;
     const [ofertaSeleccionada, setOfertaSeleccionada] = useState<GuardadoOferta | null>(null);
 
     // Filtros (para implementación futura)
@@ -235,6 +249,8 @@ export function PaginaGuardados() {
             setIdsSeleccionados(new Set(negocios.map((n) => n.id)));
         } else if (tabActivo === 'marketplace') {
             setIdsSeleccionados(new Set(articulosMarketplace.map((a) => a.id)));
+        } else if (tabActivo === 'servicios') {
+            setIdsSeleccionados(new Set(servicios.map((s) => s.id)));
         }
     };
 
@@ -250,6 +266,7 @@ export function PaginaGuardados() {
         const ofertasOriginales = [...ofertas];
         const negociosOriginales = [...negocios];
         const articulosOriginales = [...articulosMarketplace];
+        const serviciosOriginales = [...servicios];
 
         try {
             // Eliminación: se refresca después del delete
@@ -287,6 +304,13 @@ export function PaginaGuardados() {
                     const item = articulosOriginales.find(a => a.id === guardadoId);
                     if (item) {
                         return api.delete(`guardados/articulo_marketplace/${item.entityId}`);
+                    }
+                } else if (tabActivo === 'servicios') {
+                    // Sprint 9.3 — desguardar publicación de Servicios.
+                    // Mismo endpoint genérico que ofertas/marketplace.
+                    const item = serviciosOriginales.find(s => s.id === guardadoId);
+                    if (item) {
+                        return api.delete(`guardados/servicio/${item.entityId}`);
                     }
                 }
                 return Promise.resolve(); // Si no se encuentra, resolver vacío
@@ -332,11 +356,13 @@ export function PaginaGuardados() {
     const totalGuardados =
         tabActivo === 'ofertas' ? ofertas.length :
         tabActivo === 'negocios' ? negocios.length :
-        tabActivo === 'marketplace' ? articulosMarketplace.length : 0;
+        tabActivo === 'marketplace' ? articulosMarketplace.length :
+        tabActivo === 'servicios' ? servicios.length : 0;
     const loading =
         tabActivo === 'ofertas' ? loadingOfertas :
         tabActivo === 'negocios' ? loadingNegocios :
-        tabActivo === 'marketplace' ? loadingArticulosMarketplace : false;
+        tabActivo === 'marketplace' ? loadingArticulosMarketplace :
+        tabActivo === 'servicios' ? loadingServicios : false;
 
     // Ordenar items según selección
     const ofertasOrdenadas = [...ofertas].sort((a, b) => {
@@ -380,6 +406,7 @@ export function PaginaGuardados() {
         if (id === 'ofertas') return ofertas.length;
         if (id === 'negocios') return negocios.length;
         if (id === 'marketplace') return articulosMarketplace.length;
+        if (id === 'servicios') return servicios.length;
         return 0;
     };
 
@@ -641,7 +668,16 @@ export function PaginaGuardados() {
 
                     {tabActivo === 'servicios' && (
                         <div className="animate-fade-in">
-                            <EstadoProximamente tipo={tabActivo} />
+                            <ContenidoServicios
+                                items={servicios}
+                                loading={loadingServicios}
+                                onClickBookmark={handleClickBookmark}
+                                onClickCard={(servicioId) =>
+                                    navigate(`/servicios/${servicioId}`)
+                                }
+                                modoSeleccion={modoSeleccion}
+                                idsSeleccionados={idsSeleccionados}
+                            />
                         </div>
                     )}
 
@@ -730,11 +766,19 @@ export function PaginaGuardados() {
 interface BookmarkGlassProps {
     seleccionado: boolean;
     onClick: (e: React.MouseEvent) => void;
+    /** Posición del bookmark sobre el card. Default 'top-left' (patrón
+     *  histórico de MP). Para Servicios usamos 'top-right' porque el
+     *  card de Servicio tiene su badge tipo (VACANTE/SERVICIO/SOLICITUD)
+     *  fijo en top-left y se chocarían. */
+    posicion?: 'top-left' | 'top-right';
 }
 
-function BookmarkGlass({ seleccionado, onClick }: BookmarkGlassProps) {
+function BookmarkGlass({ seleccionado, onClick, posicion = 'top-left' }: BookmarkGlassProps) {
+    const claseEsquina = posicion === 'top-right'
+        ? 'top-2 right-2'
+        : 'top-2 left-2';
     return (
-        <div className="absolute top-2 left-2 z-10">
+        <div className={`absolute ${claseEsquina} z-10`}>
             <button
                 onClick={onClick}
                 className={`w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible transition-transform duration-200 lg:hover:scale-110 ${
@@ -1066,6 +1110,126 @@ function ContenidoMarketplace({
                         variant="compacta"
                         altoFijo="h-[280px] lg:h-[340px] 2xl:h-[340px]"
                         ocultarBotonGuardar
+                    />
+                </div>
+            ))}
+        </div>
+    );
+}
+
+// =============================================================================
+// SUBCOMPONENTE: ContenidoServicios (Sprint 9.3)
+// =============================================================================
+//
+// Tab "Servicios" en Mis Guardados. Reemplaza al placeholder
+// `EstadoProximamente` que vivía aquí antes. Mismo patrón visual y de
+// interacción que `ContenidoMarketplace`:
+//   - Grid responsive 2/3/4 columnas.
+//   - `BookmarkGlass` overlay para entrar a modo selección + eliminar
+//     en batch (vía la barra flotante compartida del header).
+//   - Card reutiliza `CardServicio` del feed público (mantener
+//     coherencia visual). Diferencia clave: el `BookmarkGlass` va
+//     `top-right` (no `top-left`) porque el card de Servicio tiene su
+//     badge tipo (VACANTE/SERVICIO/SOLICITUD) fijo en `top-left`.
+
+interface ItemServicioGuardado {
+    id: string;
+    entityType: string;
+    entityId: string;
+    createdAt: string;
+    publicacion: PublicacionServicio;
+}
+
+interface ContenidoServiciosProps {
+    items: ItemServicioGuardado[];
+    loading: boolean;
+    onClickBookmark: (id: string, e: React.MouseEvent) => void;
+    onClickCard: (servicioId: string) => void;
+    modoSeleccion: boolean;
+    idsSeleccionados: Set<string>;
+}
+
+function ContenidoServicios({
+    items,
+    loading,
+    onClickBookmark,
+    onClickCard,
+    modoSeleccion,
+    idsSeleccionados,
+}: ContenidoServiciosProps) {
+    // GPS del usuario — se usa para calcular distancia client-side a
+    // cada publicación guardada (el endpoint no precalcula distancia
+    // porque la query es un JOIN simple sin ST_Distance contra GPS).
+    const latUsuario = useGpsStore((s) => s.latitud);
+    const lngUsuario = useGpsStore((s) => s.longitud);
+
+    if (loading) {
+        return (
+            <div className="flex min-h-40 items-center justify-center">
+                <div className="h-10 w-10 animate-spin rounded-full border-4 border-rose-500 border-t-transparent" />
+            </div>
+        );
+    }
+
+    if (items.length === 0) {
+        return (
+            <div className="flex flex-col items-center justify-center py-20">
+                {/* Mismo patrón visual que el estado vacío de Marketplace. */}
+                <div className="w-24 h-24 rounded-full bg-linear-to-br from-rose-100 to-rose-50 flex items-center justify-center ring-8 ring-rose-50 mb-6">
+                    <Briefcase className="w-12 h-12 lg:w-16 lg:h-16 text-rose-400" />
+                </div>
+                <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
+                    Sin servicios guardados
+                </h3>
+                <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
+                    Toca el ícono guardar en una publicación de Servicios
+                    <br className="hidden lg:inline" />
+                    para que aparezca aquí.
+                </p>
+            </div>
+        );
+    }
+
+    return (
+        <div
+            data-testid="grid-servicios-guardados"
+            className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4 2xl:gap-6"
+        >
+            {items.map((item) => (
+                <div
+                    key={item.id}
+                    className="relative lg:max-w-[270px] 2xl:max-w-[270px] mx-auto w-full"
+                >
+                    {/* Bookmark glass top-LEFT — mismo lado que MP/Ofertas
+                        para coherencia visual entre tabs. El CardServicio
+                        recibe `posicionBadgeTipo='right'` para mover su
+                        badge VACANTE/SERVICIO/SOLICITUD a top-RIGHT y no
+                        chocar con el bookmark. */}
+                    <BookmarkGlass
+                        seleccionado={modoSeleccion && idsSeleccionados.has(item.id)}
+                        onClick={(e) => onClickBookmark(item.id, e)}
+                        posicion="top-left"
+                    />
+
+                    {/* CardServicio universal del feed — renderiza con
+                        layout consistente los 3 tipos (vacante, servicio,
+                        solicito). `onClick` navega al detalle.
+                        Sprint 9.3 (iteración): pasamos `distanciaMetros`
+                        calculada client-side desde el GPS del usuario y
+                        la `ubicacionAproximada` de la publicación
+                        (devuelta por el JOIN del endpoint). El card lo
+                        muestra como badge inf-der sobre la foto. */}
+                    <CardServicio
+                        publicacion={item.publicacion}
+                        distanciaMetros={calcularDistanciaMetros(
+                            latUsuario,
+                            lngUsuario,
+                            item.publicacion.ubicacionAproximada?.lat,
+                            item.publicacion.ubicacionAproximada?.lng,
+                        )}
+                        onClick={() => onClickCard(item.publicacion.id)}
+                        posicionBadgeTipo="right"
+                        mostrarNegocioEnInfo
                     />
                 </div>
             ))}

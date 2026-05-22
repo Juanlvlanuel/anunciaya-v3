@@ -211,7 +211,7 @@ export function OverlayBuscadorServicios() {
                                                             {sug.titulo}
                                                         </span>
                                                         <span className="shrink-0 text-sm font-bold text-sky-700">
-                                                            · {formatearPrecioServicio(sug.precio)}
+                                                            · {formatearPrecioServicio(sug.precio, { esVacante: !!sug.negocioNombre })}
                                                         </span>
                                                     </span>
                                                     {(() => {

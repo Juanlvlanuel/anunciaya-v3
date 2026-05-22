@@ -58,6 +58,43 @@ export function formatearDistancia(metros: number | null): string {
     return `${Math.round(km)}km`;
 }
 
+/**
+ * Calcula la distancia en METROS entre dos coordenadas usando la
+ * fórmula de Haversine. Útil para vistas client-side donde el backend
+ * no precalcula distancia (ej. Mis Guardados: la publicación viene del
+ * JOIN simple sin ST_Distance contra el GPS del usuario actual).
+ *
+ * Devuelve `null` si alguna de las coordenadas es null/undefined — el
+ * caller debe pasarle el resultado a `formatearDistancia` que ya
+ * maneja `null` como string vacío.
+ */
+export function calcularDistanciaMetros(
+    lat1: number | null | undefined,
+    lng1: number | null | undefined,
+    lat2: number | null | undefined,
+    lng2: number | null | undefined,
+): number | null {
+    if (
+        lat1 === null || lat1 === undefined ||
+        lng1 === null || lng1 === undefined ||
+        lat2 === null || lat2 === undefined ||
+        lng2 === null || lng2 === undefined
+    ) {
+        return null;
+    }
+    const R = 6371000; // Radio de la Tierra en METROS
+    const dLat = ((lat2 - lat1) * Math.PI) / 180;
+    const dLng = ((lng2 - lng1) * Math.PI) / 180;
+    const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2)
+        + Math.cos((lat1 * Math.PI) / 180)
+            * Math.cos((lat2 * Math.PI) / 180)
+            * Math.sin(dLng / 2)
+            * Math.sin(dLng / 2);
+    const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+    return Math.round(R * c);
+}
+
 // =============================================================================
 // FORMATO DE TIEMPO RELATIVO
 // =============================================================================

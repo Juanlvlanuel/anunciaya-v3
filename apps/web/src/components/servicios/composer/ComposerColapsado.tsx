@@ -130,12 +130,6 @@ export function ComposerColapsado({
                         <span className="flex-1 text-left text-[16px] lg:text-[18px] text-slate-500 font-medium truncate">
                             {placeholder}
                         </span>
-                        <span
-                            aria-hidden
-                            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 lg:hidden"
-                        >
-                            <Camera className="h-5 w-5" strokeWidth={2} />
-                        </span>
                     </div>
                     <div className="hidden lg:flex flex-1 flex-col justify-end p-3 pt-0">
                         <div className="rounded-xl border-2 border-slate-300 bg-slate-100 px-2 py-2">
@@ -258,17 +252,13 @@ export function ComposerColapsado({
                     lateral que existía antes en PC). Solo aparece si el
                     usuario tiene alguna publicación activa. En móvil
                     compacta a ícono + contador; en PC expande el label
-                    completo. Mismo patrón que el composer de MarketPlace. */}
+                    completo. Mismo patrón que el composer de MarketPlace.
+
+                    Nota Sprint 9.3: el ícono de cámara móvil que vivía
+                    al lado del chip se eliminó — duplicaba la acción
+                    del placeholder (ambos abrían el composer) y agregaba
+                    ruido visual sin diferencia funcional. */}
                 <MisPublicacionesChip total={totalActivas} />
-                <button
-                    type="button"
-                    aria-label="Agregar fotos"
-                    data-testid="composer-colapsado-camara"
-                    onClick={onExpandir}
-                    className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-slate-500 hover:bg-sky-100 hover:text-sky-700 lg:cursor-pointer lg:hidden"
-                >
-                    <Camera className="h-5 w-5" strokeWidth={2} />
-                </button>
             </div>
 
             {/* Spacer + fila de íconos teaser — solo PC, estira el alto.
@@ -328,7 +318,9 @@ function MisPublicacionesChip({ total }: { total: number }) {
             aria-label={`Mis publicaciones · ${total} ${total === 1 ? 'activa' : 'activas'}`}
             onClick={(e) => {
                 e.stopPropagation();
-                navigate('/mis-publicaciones');
+                // `?tipo=servicios` pre-selecciona el toggle de Servicios
+                // al llegar (PaginaMisPublicaciones lo lee y limpia el param).
+                navigate('/mis-publicaciones?tipo=servicios');
             }}
             className="inline-flex items-center gap-1.5 h-9 lg:h-10 px-2.5 lg:px-3.5 rounded-full bg-sky-50 border-2 border-sky-200 text-sky-800 text-[13px] lg:text-[14px] font-semibold hover:bg-sky-100 hover:border-sky-300 lg:cursor-pointer shrink-0"
         >

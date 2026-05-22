@@ -1,23 +1,28 @@
 /**
  * SeccionPreguntasServicio.tsx
  * ==============================
- * Q&A público del detalle del servicio. Versión simplificada inicial — más
- * adelante se puede migrar al patrón completo de MarketPlace (agrupación por
- * comprador, conector "L", privacidad de pendientes con badges).
+ * Q&A público del detalle del servicio. Sprint 9.3 (iteración):
+ * estilo visual replicado de `SeccionPreguntas.tsx` (MarketPlace) para
+ * coherencia cross-sección — bubbles tipo chat con conector "L" para
+ * las respuestas, header con conteo, input pill al final.
  *
- * Por ahora:
- *  - Lista plana de preguntas con autor + texto + respuesta inline.
- *  - Form inline al final para crear pregunta nueva (solo si el caller NO es
- *    el dueño y está logueado).
- *  - Cada pregunta pendiente del dueño tiene textarea inline para responder.
- *  - El backend ya filtra privacidad: visitante anónimo ve solo respondidas,
- *    autor ve sus pendientes, dueño ve todas.
+ * Diferencias vs MP:
+ *   - Colores: sky en lugar de teal (familia cromática de Servicios).
+ *   - Sin agrupación por usuario (lista plana — el backend de Servicios
+ *     devuelve `PreguntaServicio[]` simple, no `{pendientes, respondidas,
+ *     grupos}` como MP).
+ *   - Sin edición/retiro de pregunta propia (puede agregarse después
+ *     usando los hooks `useEditarPreguntaPropiaServicio` y
+ *     `useEliminarPreguntaPropiaServicio` que ya existen).
+ *   - Sin BotonComentarista (apunta al perfil del usuario en MP — para
+ *     Servicios la navegación al perfil del prestador queda como
+ *     mejora futura).
  *
  * Ubicación: apps/web/src/components/servicios/SeccionPreguntasServicio.tsx
  */
 
 import { useState } from 'react';
-import { Send } from 'lucide-react';
+import { AlertCircle, Send } from 'lucide-react';
 import {
     useCrearPreguntaServicio,
     usePreguntasServicio,
@@ -25,12 +30,27 @@ import {
 } from '../../hooks/queries/useServicios';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
-import { formatearTiempoRelativo, obtenerNombreCorto } from '../../utils/servicios';
-import type { PreguntaServicio, PublicacionDetalle } from '../../types/servicios';
+import {
+    formatearTiempoRelativo,
+    obtenerNombreCorto,
+} from '../../utils/servicios';
+import type {
+    PreguntaServicio,
+    PublicacionDetalle,
+} from '../../types/servicios';
+
+const PREGUNTA_MIN = 10;
+const PREGUNTA_MAX = 200;
+const RESPUESTA_MIN = 5;
+const RESPUESTA_MAX = 500;
 
 interface SeccionPreguntasServicioProps {
     publicacion: PublicacionDetalle;
 }
+
+// =============================================================================
+// COMPONENTE PRINCIPAL
+// =============================================================================
 
 export function SeccionPreguntasServicio({
     publicacion,
@@ -41,229 +61,361 @@ export function SeccionPreguntasServicio({
     const { data: preguntas = [], isPending } = usePreguntasServicio(
         publicacion.id,
     );
-    const crearMut = useCrearPreguntaServicio();
 
-    const [textoNueva, setTextoNueva] = useState('');
-
-    const handleCrearPregunta = async () => {
-        const limpio = textoNueva.trim();
-        if (limpio.length < 10) {
-            notificar.advertencia(
-                'La pregunta debe tener al menos 10 caracteres',
-            );
-            return;
-        }
-        try {
-            await crearMut.mutateAsync({
-                publicacionId: publicacion.id,
-                pregunta: limpio,
-            });
-            setTextoNueva('');
-            notificar.exito('Pregunta enviada');
-        } catch {
-            notificar.error('No pudimos enviar la pregunta');
-        }
-    };
+    const puedeMostrarInput = !!usuarioActual && !esDueno;
 
     return (
-        <section
-            data-testid="seccion-preguntas-servicio"
-            className="mt-5"
-        >
-            <div className="text-[12px] font-bold uppercase tracking-wider text-slate-500 mb-2">
-                Preguntas y respuestas
-            </div>
+        <div data-testid="seccion-preguntas-servicio" className="space-y-4">
+            <h2 className="text-base font-bold text-slate-900">
+                Preguntas sobre esta publicación
+                {preguntas.length > 0 && (
+                    <span className="ml-1.5 text-xs font-medium text-slate-500">
+                        ({preguntas.length})
+                    </span>
+                )}
+            </h2>
 
-            {/* Form inline para preguntar (solo no-dueño, logueado) */}
-            {!esDueno && usuarioActual && (
-                <div className="mb-4 rounded-xl border border-slate-200 bg-white p-3">
-                    <textarea
-                        data-testid="textarea-nueva-pregunta-servicio"
-                        value={textoNueva}
-                        onChange={(e) => setTextoNueva(e.target.value)}
-                        maxLength={200}
-                        rows={2}
-                        placeholder="¿Qué quieres preguntar sobre este servicio?"
-                        className="w-full resize-none rounded-lg border-2 border-slate-200 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-sky-500"
-                    />
-                    <div className="mt-1.5 flex items-center justify-between gap-2">
-                        <span className="text-[11px] font-medium text-slate-500">
-                            {textoNueva.length}/200
-                        </span>
-                        <button
-                            data-testid="btn-enviar-pregunta-servicio"
-                            type="button"
-                            onClick={handleCrearPregunta}
-                            disabled={
-                                textoNueva.trim().length < 10 ||
-                                crearMut.isPending
-                            }
-                            className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 px-4 py-1.5 text-sm font-bold text-white shadow-md shadow-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed lg:cursor-pointer"
-                        >
-                            <Send className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            {crearMut.isPending ? 'Enviando...' : 'Preguntar'}
-                        </button>
-                    </div>
-                </div>
-            )}
-
-            {/* Lista de preguntas */}
             {isPending ? (
-                <p className="text-sm text-slate-500 py-4">Cargando preguntas...</p>
+                <p className="text-sm font-medium text-slate-600">
+                    Cargando preguntas...
+                </p>
             ) : preguntas.length === 0 ? (
-                <p className="text-sm text-slate-500 py-4">
-                    Aún no hay preguntas. {!esDueno && usuarioActual && '¡Haz la primera!'}
+                <p className="text-sm font-medium text-slate-600">
+                    Sé el primero en preguntar sobre esta publicación.
                 </p>
             ) : (
-                <div className="space-y-4">
+                <div className="max-h-[500px] space-y-5 overflow-y-auto pr-1">
                     {preguntas.map((p) => (
-                        <PreguntaItem
+                        <BubblePregunta
                             key={p.id}
                             pregunta={p}
-                            publicacionId={publicacion.id}
+                            publicacion={publicacion}
                             esDueno={esDueno}
                         />
                     ))}
                 </div>
             )}
-        </section>
+
+            {/* Input inline "Hacer una pregunta" — mismo patrón pill que MP.
+                Solo visible para usuarios autenticados que no sean dueños. */}
+            {puedeMostrarInput && (
+                <FormHacerPregunta publicacionId={publicacion.id} />
+            )}
+        </div>
     );
 }
 
 // =============================================================================
-// SUBCOMPONENTE — PreguntaItem
+// SUBCOMPONENTE — BubblePregunta (cada pregunta + respuesta opcional)
 // =============================================================================
 
-interface PreguntaItemProps {
+interface BubblePreguntaProps {
     pregunta: PreguntaServicio;
-    publicacionId: string;
+    publicacion: PublicacionDetalle;
     esDueno: boolean;
 }
 
-function PreguntaItem({ pregunta, publicacionId, esDueno }: PreguntaItemProps) {
-    const responderMut = useResponderPreguntaServicio();
-    const [respuestaTexto, setRespuestaTexto] = useState('');
-    const [respondiendo, setRespondiendo] = useState(false);
-
-    const nombreCorto = obtenerNombreCorto(
+function BubblePregunta({ pregunta, publicacion, esDueno }: BubblePreguntaProps) {
+    const tiempo = formatearTiempoRelativo(pregunta.createdAt);
+    const nombreCortoAutor = obtenerNombreCorto(
         pregunta.autor.nombre,
         pregunta.autor.apellidos,
     );
-    const tiempo = formatearTiempoRelativo(pregunta.createdAt);
+    const nombreCortoOferente = obtenerNombreCorto(
+        publicacion.oferente.nombre,
+        publicacion.oferente.apellidos,
+    );
+    const respondida = !!pregunta.respuesta;
 
-    const handleResponder = async () => {
-        const limpio = respuestaTexto.trim();
-        if (limpio.length < 5) {
-            notificar.advertencia(
-                'La respuesta debe tener al menos 5 caracteres',
-            );
+    return (
+        <div className="flex items-start gap-2.5 text-sm">
+            {/* Avatar del autor de la pregunta */}
+            <AvatarUsuario
+                avatarUrl={pregunta.autor.avatarUrl}
+                nombre={pregunta.autor.nombre}
+                apellidos={pregunta.autor.apellidos}
+            />
+
+            {/* Columna derecha: bubble pregunta + (opcional) bubble respuesta */}
+            <div className="min-w-0 flex-1">
+                {/* Bubble pregunta — slate-200 (mismo que MP) */}
+                <div className="rounded-2xl bg-slate-200 px-3 py-1.5">
+                    <p className="text-sm font-semibold text-slate-900">
+                        <span>{nombreCortoAutor}</span>
+                        <span className="ml-1.5 text-xs font-medium text-slate-500">
+                            · {tiempo}
+                        </span>
+                        {pregunta.pendiente && esDueno && (
+                            <span className="ml-1.5 inline-flex items-center rounded-full bg-amber-100 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-800">
+                                Pendiente
+                            </span>
+                        )}
+                    </p>
+                    <p className="text-sm font-medium text-slate-700">
+                        {pregunta.pregunta}
+                    </p>
+                </div>
+
+                {/* Respuesta del oferente con conector "L" — bubble sky-100
+                    (Servicios usa la familia sky vs teal de MP). */}
+                {respondida && (
+                    <div className="mt-1.5 flex">
+                        <div aria-hidden className="flex w-6 shrink-0">
+                            <div className="h-3 w-3 border-b border-l border-slate-500" />
+                        </div>
+                        <div className="flex-1 rounded-2xl bg-sky-100 px-3 py-1.5 text-sm text-slate-800">
+                            <p className="text-sm font-semibold text-sky-700">
+                                {nombreCortoOferente}
+                            </p>
+                            <p>{pregunta.respuesta}</p>
+                        </div>
+                    </div>
+                )}
+
+                {/* Form de respuesta inline (solo dueño + pregunta pendiente) */}
+                {esDueno && !respondida && (
+                    <FormResponderPregunta
+                        preguntaId={pregunta.id}
+                        publicacionId={publicacion.id}
+                    />
+                )}
+            </div>
+        </div>
+    );
+}
+
+// =============================================================================
+// SUBCOMPONENTE — FormHacerPregunta (input pill al final, estilo MP)
+// =============================================================================
+
+function FormHacerPregunta({ publicacionId }: { publicacionId: string }) {
+    const usuarioActual = useAuthStore((s) => s.usuario);
+    const crearMut = useCrearPreguntaServicio();
+    const [texto, setTexto] = useState('');
+    const [error, setError] = useState<string | null>(null);
+
+    const handleEnviar = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const limpio = texto.trim();
+        if (limpio.length < PREGUNTA_MIN) {
+            setError(`Escribe al menos ${PREGUNTA_MIN} caracteres`);
             return;
         }
+        if (limpio.length > PREGUNTA_MAX) {
+            setError(`Máximo ${PREGUNTA_MAX} caracteres`);
+            return;
+        }
+        setError(null);
         try {
-            await responderMut.mutateAsync({
-                preguntaId: pregunta.id,
+            await crearMut.mutateAsync({
                 publicacionId,
-                respuesta: limpio,
+                pregunta: limpio,
             });
-            setRespuestaTexto('');
-            setRespondiendo(false);
-            notificar.exito('Respuesta enviada');
+            setTexto('');
+            notificar.exito('Tu pregunta fue enviada.');
         } catch {
-            notificar.error('No pudimos enviar la respuesta');
+            notificar.error('No pudimos enviar la pregunta.');
         }
     };
 
     return (
-        <div className="rounded-xl border border-slate-200 bg-white p-3">
-            <div className="flex items-center gap-2 mb-1.5">
-                <div className="w-6 h-6 rounded-full bg-slate-200 grid place-items-center text-[10px] font-bold text-slate-600 overflow-hidden">
-                    {pregunta.autor.avatarUrl ? (
-                        <img
-                            src={pregunta.autor.avatarUrl}
-                            alt={nombreCorto}
-                            className="w-full h-full object-cover"
-                        />
-                    ) : (
-                        nombreCorto.charAt(0)
-                    )}
+        <form onSubmit={handleEnviar} className="pt-2">
+            <div className="flex items-center gap-2.5">
+                {/* Avatar usuario actual */}
+                <AvatarUsuario
+                    avatarUrl={usuarioActual?.avatarUrl ?? null}
+                    nombre={usuarioActual?.nombre ?? ''}
+                    apellidos={usuarioActual?.apellidos ?? ''}
+                />
+
+                {/* Pill input + botón send */}
+                <div className="flex flex-1 items-center gap-2 rounded-full border-2 border-slate-300 bg-white px-3 py-1.5 focus-within:border-sky-500">
+                    <input
+                        type="text"
+                        data-testid="input-hacer-pregunta-servicio"
+                        value={texto}
+                        onChange={(e) => {
+                            setTexto(e.target.value);
+                            if (error) setError(null);
+                        }}
+                        maxLength={PREGUNTA_MAX}
+                        placeholder="Hacer una pregunta..."
+                        className="flex-1 min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
+                    />
+                    <button
+                        type="submit"
+                        data-testid="btn-enviar-pregunta-servicio"
+                        disabled={
+                            texto.trim().length < PREGUNTA_MIN
+                                || crearMut.isPending
+                        }
+                        aria-label="Enviar pregunta"
+                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-linear-to-b from-sky-500 to-sky-700 text-white shadow-md shadow-sky-500/30 disabled:opacity-40 disabled:cursor-not-allowed lg:cursor-pointer"
+                    >
+                        <Send className="h-3.5 w-3.5" strokeWidth={2.5} />
+                    </button>
                 </div>
-                <span className="text-[12px] font-bold text-slate-900">
-                    {nombreCorto}
-                </span>
-                <span className="text-[11px] text-slate-500">· {tiempo}</span>
-                {pregunta.pendiente && (
-                    <span className="ml-auto inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-800 text-[10px] font-bold uppercase">
-                        Pendiente
-                    </span>
+            </div>
+            {error && (
+                <p className="mt-1.5 ml-11 flex items-center gap-1 text-xs font-semibold text-rose-600">
+                    <AlertCircle className="h-3 w-3" strokeWidth={2.5} />
+                    {error}
+                </p>
+            )}
+        </form>
+    );
+}
+
+// =============================================================================
+// SUBCOMPONENTE — FormResponderPregunta (form inline para dueño)
+// =============================================================================
+
+function FormResponderPregunta({
+    preguntaId,
+    publicacionId,
+}: {
+    preguntaId: string;
+    publicacionId: string;
+}) {
+    const responderMut = useResponderPreguntaServicio();
+    const [activo, setActivo] = useState(false);
+    const [texto, setTexto] = useState('');
+    const [error, setError] = useState<string | null>(null);
+
+    const handleEnviar = async () => {
+        const limpio = texto.trim();
+        if (limpio.length < RESPUESTA_MIN) {
+            setError(`Mínimo ${RESPUESTA_MIN} caracteres`);
+            return;
+        }
+        if (limpio.length > RESPUESTA_MAX) {
+            setError(`Máximo ${RESPUESTA_MAX} caracteres`);
+            return;
+        }
+        setError(null);
+        try {
+            await responderMut.mutateAsync({
+                preguntaId,
+                publicacionId,
+                respuesta: limpio,
+            });
+            setActivo(false);
+            setTexto('');
+            notificar.exito('Respuesta enviada.');
+        } catch {
+            notificar.error('No pudimos enviar la respuesta.');
+        }
+    };
+
+    if (!activo) {
+        return (
+            <div className="mt-1.5 flex">
+                <div aria-hidden className="flex w-6 shrink-0">
+                    <div className="h-3 w-3 border-b border-l border-slate-500" />
+                </div>
+                <button
+                    type="button"
+                    data-testid={`btn-iniciar-respuesta-${preguntaId}`}
+                    onClick={() => setActivo(true)}
+                    className="text-xs font-bold text-sky-700 hover:text-sky-900 lg:cursor-pointer"
+                >
+                    + Responder
+                </button>
+            </div>
+        );
+    }
+
+    return (
+        <div className="mt-1.5 flex">
+            <div aria-hidden className="flex w-6 shrink-0">
+                <div className="h-3 w-3 border-b border-l border-slate-500" />
+            </div>
+            <div className="flex-1">
+                <textarea
+                    data-testid={`textarea-respuesta-${preguntaId}`}
+                    value={texto}
+                    onChange={(e) => {
+                        setTexto(e.target.value);
+                        if (error) setError(null);
+                    }}
+                    maxLength={RESPUESTA_MAX}
+                    rows={2}
+                    autoFocus
+                    disabled={responderMut.isPending}
+                    placeholder="Escribe tu respuesta..."
+                    className="w-full resize-none rounded-lg border-2 border-slate-300 bg-white px-2.5 py-1.5 text-sm text-slate-900 focus:border-sky-500 focus:outline-none focus:ring-2 focus:ring-sky-500/20 disabled:opacity-50"
+                />
+                {error && (
+                    <p className="mt-1 flex items-center gap-1 text-xs font-semibold text-rose-600">
+                        <AlertCircle className="h-3 w-3" strokeWidth={2.5} />
+                        {error}
+                    </p>
                 )}
-            </div>
-            <div className="text-[13px] text-slate-800 font-medium leading-snug">
-                {pregunta.pregunta}
-            </div>
-
-            {pregunta.respuesta && (
-                <div className="mt-2 pl-3 border-l-2 border-sky-200 text-[13px] text-slate-700 leading-snug">
-                    <span className="text-[11px] font-bold uppercase tracking-wider text-sky-700 block mb-0.5">
-                        Respuesta
-                    </span>
-                    {pregunta.respuesta}
+                <div className="mt-1.5 flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={() => {
+                            setActivo(false);
+                            setTexto('');
+                            setError(null);
+                        }}
+                        disabled={responderMut.isPending}
+                        className="rounded-full px-3 py-1 text-xs font-semibold text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200 disabled:opacity-50"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        data-testid={`btn-enviar-respuesta-${preguntaId}`}
+                        onClick={handleEnviar}
+                        disabled={
+                            texto.trim().length < RESPUESTA_MIN
+                                || responderMut.isPending
+                        }
+                        className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 px-3 py-1 text-xs font-bold text-white shadow-md shadow-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed lg:cursor-pointer"
+                    >
+                        <Send className="h-3 w-3" strokeWidth={2.5} />
+                        {responderMut.isPending ? 'Enviando...' : 'Responder'}
+                    </button>
                 </div>
-            )}
+            </div>
+        </div>
+    );
+}
 
-            {/* Form inline de respuesta (solo dueño, pregunta pendiente) */}
-            {esDueno && !pregunta.respuesta && (
-                <div className="mt-2">
-                    {!respondiendo ? (
-                        <button
-                            type="button"
-                            data-testid={`btn-responder-${pregunta.id}`}
-                            onClick={() => setRespondiendo(true)}
-                            className="text-[12px] font-bold text-sky-700 hover:text-sky-900 lg:cursor-pointer"
-                        >
-                            + Responder
-                        </button>
-                    ) : (
-                        <div className="rounded-lg bg-slate-50 p-2">
-                            <textarea
-                                data-testid={`textarea-respuesta-${pregunta.id}`}
-                                value={respuestaTexto}
-                                onChange={(e) => setRespuestaTexto(e.target.value)}
-                                maxLength={500}
-                                rows={2}
-                                placeholder="Escribe tu respuesta..."
-                                className="w-full resize-none rounded-md border-2 border-slate-200 bg-white px-2.5 py-1.5 text-sm text-slate-900 outline-none focus:border-sky-500"
-                            />
-                            <div className="mt-1.5 flex items-center justify-end gap-2">
-                                <button
-                                    type="button"
-                                    onClick={() => {
-                                        setRespondiendo(false);
-                                        setRespuestaTexto('');
-                                    }}
-                                    className="text-[12px] font-semibold text-slate-600 hover:text-slate-900 lg:cursor-pointer"
-                                >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="button"
-                                    data-testid={`btn-enviar-respuesta-${pregunta.id}`}
-                                    onClick={handleResponder}
-                                    disabled={
-                                        respuestaTexto.trim().length < 5 ||
-                                        responderMut.isPending
-                                    }
-                                    className="inline-flex items-center gap-1.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 px-3 py-1 text-xs font-bold text-white shadow-md shadow-sky-500/30 disabled:opacity-50 disabled:cursor-not-allowed lg:cursor-pointer"
-                                >
-                                    <Send className="h-3 w-3" strokeWidth={2.5} />
-                                    {responderMut.isPending
-                                        ? 'Enviando...'
-                                        : 'Responder'}
-                                </button>
-                            </div>
-                        </div>
-                    )}
-                </div>
-            )}
+// =============================================================================
+// SUBCOMPONENTE — AvatarUsuario (reutilizable)
+// =============================================================================
+
+interface AvatarUsuarioProps {
+    avatarUrl: string | null;
+    nombre: string;
+    apellidos: string;
+}
+
+function AvatarUsuario({ avatarUrl, nombre, apellidos }: AvatarUsuarioProps) {
+    const inicial = (nombre?.trim().charAt(0) ?? '').toUpperCase()
+        + (apellidos?.trim().charAt(0) ?? '').toUpperCase();
+    if (avatarUrl) {
+        return (
+            <img
+                src={avatarUrl}
+                alt=""
+                aria-hidden
+                className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
+            />
+        );
+    }
+    return (
+        <div
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full text-xs font-bold text-white shadow-md ring-2 ring-slate-200"
+            style={{
+                background:
+                    'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
+            }}
+            aria-hidden
+        >
+            {inicial || '··'}
         </div>
     );
 }

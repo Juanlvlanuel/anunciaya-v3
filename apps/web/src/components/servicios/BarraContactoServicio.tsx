@@ -13,56 +13,46 @@
  * Ubicación: apps/web/src/components/servicios/BarraContactoServicio.tsx
  */
 
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '../../config/iconos';
-import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { notificar } from '../../utils/notificaciones';
-import {
-    formatearPrecioServicio,
-    modalidadLabel,
-    obtenerFotoPortada,
-} from '../../utils/servicios';
+import { useIniciarChatServicio } from '../../hooks/useIniciarChatServicio';
 import type { PublicacionDetalle } from '../../types/servicios';
-
-type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const MessageCircle = (p: IconoWrapperProps) => (
-    <Icon icon={ICONOS.chat} {...p} />
-);
 
 interface BarraContactoServicioProps {
     publicacion: PublicacionDetalle;
     variante: 'mobile' | 'desktop';
 }
 
+/**
+ * Logo de WhatsApp (icono de marca) — SVG inline reutilizado del
+ * `CardNegocio`. Color verde solid (`text-green-500`) que se hereda
+ * por `fill="currentColor"`. Sprint 9.3 (iteración): cambiamos de
+ * un botón verde con texto "WhatsApp" a solo el icono brand para
+ * que conviva con el logo de ChatYA inline (sin botón de fondo).
+ */
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+    <svg
+        className={`${className ?? 'h-9 w-9'} text-green-500`}
+        fill="currentColor"
+        viewBox="0 0 24 24"
+    >
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+);
+
 export function BarraContactoServicio({
     publicacion,
     variante,
 }: BarraContactoServicioProps) {
     const usuarioActual = useAuthStore((s) => s.usuario);
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
-    const conversaciones = useChatYAStore((s) => s.conversaciones);
-    const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
-    const guardarBorrador = useChatYAStore((s) => s.guardarBorrador);
-    const setContextoPendiente = useChatYAStore((s) => s.setContextoPendiente);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    // Sprint 9.3: la lógica de "iniciar chat con oferente" se extrajo
+    // al hook `useIniciarChatServicio` para reutilizarla desde el
+    // botón ChatYA del card de Servicios en MisGuardados.
+    const iniciarChatServicio = useIniciarChatServicio();
 
-    const { oferente, titulo, id, precio, modalidad, tipo, sucursalId } = publicacion;
+    const { oferente, titulo } = publicacion;
     const esDueno = usuarioActual?.id === oferente.id;
     const tieneTelefono =
         !!oferente.telefono && oferente.telefono.trim().length > 0;
-
-    // Bug #2: vacantes BS son siempre de un negocio → el chat debe ir al lado
-    // comercial del oferente (con sucursalId), no a su perfil personal. Si no,
-    // el dueño nunca vería el mensaje desde BS (ChatYA filtra por modo) y los
-    // KPIs de Vacantes BS no se actualizan.
-    const esVacanteEmpresa = tipo === 'vacante-empresa';
-    const participante2Modo = esVacanteEmpresa
-        ? ('comercial' as const)
-        : ('personal' as const);
-    const participante2SucursalId = esVacanteEmpresa ? sucursalId : null;
 
     if (esDueno) return null;
 
@@ -77,129 +67,31 @@ export function BarraContactoServicio({
     };
 
     const handleEnviarMensaje = async () => {
-        if (!usuarioActual) {
-            notificar.advertencia('Inicia sesión para enviar un mensaje');
-            return;
-        }
-
-        // Foto de portada para el preview.
-        const fotoUrl = obtenerFotoPortada(
-            publicacion.fotos,
-            publicacion.fotoPortadaIndex,
-        );
-
-        // Datos para crear la conversación + insertar card en backend.
-        const datosCreacion = {
-            participante2Id: oferente.id,
-            participante2Modo,
-            participante2SucursalId,
-            contextoTipo: 'servicio' as const,
-            contextoReferenciaId: id,
-            servicioPublicacionId: id,
-        };
-
-        // Preview de la card encima del input (no se persiste hasta enviar).
-        const cardData = {
-            subtipo: 'servicio_publicacion' as const,
-            titulo,
-            imagen: fotoUrl,
-            precio: formatearPrecioServicio(precio),
-            modalidad: modalidadLabel(modalidad),
-        };
-
-        const borradorTexto = `Hola, me interesa tu publicación de "${titulo}". `;
-
-        // ── Buscar conversación existente entre los participantes ─────────
-        // Si ya hay un chat con este oferente (mismo modo / sucursal cuando
-        // aplica), abrirlo directamente y mostrar el preview arriba del input.
-        // La card SOLO se persiste si el usuario envía el mensaje. Si descarta
-        // el preview o cierra el chat sin enviar, no queda nada en BD.
-        let convs = conversaciones;
-        if (convs.length === 0) {
-            await cargarConversaciones('personal');
-            convs = useChatYAStore.getState().conversaciones;
-        }
-        const convExistente = convs.find((c) => {
-            if (c.otroParticipante?.id !== oferente.id) return false;
-            // Para vacante-empresa, el chat está en el lado comercial: filtrar
-            // por que tenga negocioNombre (lo trae el backend cuando el
-            // participante2Modo es 'comercial').
-            if (esVacanteEmpresa) return !!c.otroParticipante?.negocioNombre;
-            // Para servicio personal, asegurar que NO sea el chat comercial
-            // del mismo usuario (puede tener ambos perfiles).
-            return !c.otroParticipante?.negocioNombre;
-        });
-
-        if (convExistente) {
-            abrirConversacion(convExistente.id);
-            setContextoPendiente({ datosCreacion, cardData });
-            guardarBorrador(convExistente.id, borradorTexto);
-            abrirChatYA();
-            return;
-        }
-
-        // ── No hay chat previo: chat temporal con datos completos ─────────
-        // Cuando es vacante-empresa, el header debe mostrar la identidad del
-        // NEGOCIO con la foto de perfil de la SUCURSAL específica (no el
-        // logo del negocio) y "Matriz" cuando es la sucursal principal.
-        const sucursalLabel = esVacanteEmpresa
-            ? (oferente.sucursalEsPrincipal
-                ? 'Matriz'
-                : oferente.sucursalNombre ?? undefined)
-            : undefined;
-        const otroParticipante =
-            esVacanteEmpresa && oferente.negocioNombre
-                ? {
-                    id: oferente.id,
-                    nombre: oferente.negocioNombre,
-                    apellidos: '',
-                    // Avatar = foto de perfil de la sucursal (no logo de marca).
-                    avatarUrl: oferente.sucursalFotoPerfil ?? null,
-                    negocioNombre: oferente.negocioNombre,
-                    negocioLogo: oferente.sucursalFotoPerfil ?? undefined,
-                    sucursalNombre: sucursalLabel,
-                }
-                : {
-                    id: oferente.id,
-                    nombre: oferente.nombre,
-                    apellidos: oferente.apellidos,
-                    avatarUrl: oferente.avatarUrl,
-                };
-
-        const idTemp = `temp_servicio_${id}_${Date.now()}`;
-        abrirChatTemporal({
-            id: idTemp,
-            otroParticipante,
-            datosCreacion,
-            borradorInicial: borradorTexto,
-        });
-        setContextoPendiente({ datosCreacion, cardData });
-        abrirChatYA();
+        await iniciarChatServicio(publicacion);
     };
 
+    // Sprint 9.3 (iteración): ambos botones son INLINE (sin background
+    // de botón). Solo los logos clickeables con hover scale, igual
+    // patrón que el botón ChatYA del card de Negocios en MisGuardados.
+    //   - ChatYA va a la IZQUIERDA (primero, principal).
+    //   - WhatsApp va a la DERECHA (segundo, fallback).
+    //   - Sin texto "WhatsApp", solo el ícono de marca.
     const claseContenedor =
-        variante === 'mobile' ? 'flex gap-2 px-3 py-2' : 'flex gap-2';
+        variante === 'mobile'
+            ? 'flex items-center gap-3 px-3 py-2'
+            : 'flex items-center gap-3';
 
     return (
         <div
             data-testid={`barra-contacto-servicio-${variante}`}
             className={claseContenedor}
         >
-            {tieneTelefono && (
-                <button
-                    data-testid="btn-whatsapp-servicio"
-                    onClick={handleWhatsApp}
-                    className="flex flex-1 cursor-pointer items-center justify-center gap-2 rounded-lg bg-linear-to-br from-[#22C55E] to-[#15803D] px-4 py-1.5 text-base font-bold text-white shadow-md transition-transform hover:scale-[1.01]"
-                >
-                    <MessageCircle className="h-6 w-6 shrink-0" strokeWidth={2.5} />
-                    WhatsApp
-                </button>
-            )}
+            {/* ChatYA — botón primario, inline. */}
             <button
                 data-testid="btn-chatya-servicio"
                 onClick={handleEnviarMensaje}
                 aria-label="Contactar por ChatYA"
-                className="flex flex-1 cursor-pointer items-center justify-center rounded-lg bg-linear-to-br from-slate-800 to-slate-950 px-4 py-1.5 text-white shadow-md transition-transform hover:scale-[1.01]"
+                className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
             >
                 <img
                     src="/ChatYA.webp"
@@ -207,6 +99,20 @@ export function BarraContactoServicio({
                     className="h-9 w-auto shrink-0 object-contain"
                 />
             </button>
+
+            {/* WhatsApp — solo ícono de marca, sin texto. Tamaño un
+                poco menor que el logo de ChatYA (h-7 vs h-9) para no
+                competir visualmente — ChatYA es el canal primario. */}
+            {tieneTelefono && (
+                <button
+                    data-testid="btn-whatsapp-servicio"
+                    onClick={handleWhatsApp}
+                    aria-label="Contactar por WhatsApp"
+                    className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
+                >
+                    <WhatsAppIcon className="h-7 w-7" />
+                </button>
+            )}
         </div>
     );
 }

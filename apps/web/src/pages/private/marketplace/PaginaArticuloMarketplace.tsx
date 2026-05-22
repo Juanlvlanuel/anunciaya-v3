@@ -330,8 +330,16 @@ export function PaginaArticuloMarketplace() {
                         gap, evitando el desbordamiento.
                     ─────────────────────────────────────────────────────── */}
                     <div className="lg:grid lg:grid-cols-[3fr_2fr] lg:gap-8">
-                    {/* ─── COLUMNA IZQUIERDA (full width en móvil) ───────── */}
-                    <div className="space-y-5 lg:space-y-6">
+                    {/* ─── COLUMNA IZQUIERDA (full width en móvil) ─────────
+                        `min-w-0` Sprint 9.3 (iteración): por default los grid
+                        items tienen `min-width: auto` que les permite crecer
+                        al ancho de su contenido. Sin esto, los inputs/textareas
+                        de SeccionPreguntas (que tienen `w-full`) fuerzan al
+                        column track a expandirse, "empujando" el grid fuera del
+                        wrapper `max-w-[920px]` del padre. Con `min-w-0` el
+                        column respeta su fracción (3fr) y el contenido se
+                        ajusta. */}
+                    <div className="min-w-0 space-y-5 lg:space-y-6">
                         {/* Galería */}
                         <div className="relative">
                             <GaleriaArticulo
@@ -389,8 +397,13 @@ export function PaginaArticuloMarketplace() {
                             />
                         </div>
 
-                        {/* Preguntas y Respuestas — card propia */}
-                        <div className="mx-3 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
+                        {/* Preguntas y Respuestas — card propia.
+                            `min-w-0` defensivo Sprint 9.3 (iteración): el
+                            wrapper también respeta el ancho del column
+                            track del grid padre, por si algún input/textarea
+                            interno de `SeccionPreguntas` tiene contenido
+                            largo sin word-break que intente expandir. */}
+                        <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
                             <SeccionPreguntas
                                 articuloId={articulo.id}
                                 vendedor={articulo.vendedor}
@@ -405,7 +418,7 @@ export function PaginaArticuloMarketplace() {
                         cortas), el panel scrollea INTERNAMENTE con scrollbar
                         oculto — el usuario sigue viendo todo el contenido y
                         la columna izquierda hace su scroll independiente. */}
-                    <div className="hidden lg:block">
+                    <div className="hidden lg:block min-w-0">
                         <div
                             className="sticky top-24 space-y-2 overflow-y-auto pr-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
                             style={{ maxHeight: 'calc(100vh - 7rem)' }}

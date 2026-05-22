@@ -102,6 +102,80 @@ export function getZonaHorariaPorEstado(estado: string | null | undefined): Zona
 }
 
 /**
+ * Mapa de ciudades MEXICANAS conocidas → zona horaria IANA. Útil para
+ * contextos donde no tenemos el `estado` (ej. `servicios_publicaciones.ciudad`
+ * es un string libre que el usuario escribe como "Puerto Peñasco" sin estado).
+ *
+ * Crece a medida que AnunciaYA abre más ciudades. Para ciudades no mapeadas
+ * cae al fallback `America/Mexico_City` (la zona horaria del centro del
+ * país, cubre ~70% de México). Las claves están normalizadas (lowercase
+ * sin tildes ni acentos) — `normalizarEstado()` también funciona para
+ * ciudades porque solo aplica `toLowerCase()` + quita diacríticos.
+ *
+ * IMPORTANTE: este mapeo es heurístico y solo cubre las ciudades en las
+ * que AnunciaYA opera. Para una solución robusta cuando se expanda a
+ * todo México: agregar columna `estado` en `usuarios` / `articulos_marketplace`
+ * / `servicios_publicaciones` y usar `getZonaHorariaPorEstado()`.
+ */
+const CIUDAD_A_ZONA: Record<string, ZonaHorariaMx> = {
+	// ── Sonora (beta inicial) ──────────────────────────────────────────
+	'puerto penasco': 'America/Hermosillo',
+	'puerto peñasco': 'America/Hermosillo', // normalizarEstado quita la ñ → "n"
+	'hermosillo': 'America/Hermosillo',
+	'caborca': 'America/Hermosillo',
+	'nogales': 'America/Hermosillo',
+	'san luis rio colorado': 'America/Hermosillo',
+	'guaymas': 'America/Hermosillo',
+	'ciudad obregon': 'America/Hermosillo',
+	'navojoa': 'America/Hermosillo',
+
+	// ── Baja California ────────────────────────────────────────────────
+	'tijuana': 'America/Tijuana',
+	'mexicali': 'America/Tijuana',
+	'ensenada': 'America/Tijuana',
+	'rosarito': 'America/Tijuana',
+	'tecate': 'America/Tijuana',
+
+	// ── Sinaloa / Mazatlán zone ────────────────────────────────────────
+	'mazatlan': 'America/Mazatlan',
+	'culiacan': 'America/Mazatlan',
+	'la paz': 'America/Mazatlan',
+	'los cabos': 'America/Mazatlan',
+	'san jose del cabo': 'America/Mazatlan',
+	'cabo san lucas': 'America/Mazatlan',
+	'chihuahua': 'America/Mazatlan',
+	'ciudad juarez': 'America/Mazatlan',
+
+	// ── Quintana Roo ────────────────────────────────────────────────────
+	'cancun': 'America/Cancun',
+	'playa del carmen': 'America/Cancun',
+	'tulum': 'America/Cancun',
+	'cozumel': 'America/Cancun',
+	'chetumal': 'America/Cancun',
+};
+
+/**
+ * Devuelve la zona horaria IANA correspondiente a la ciudad dada.
+ *
+ * Usado en contextos donde NO hay `sucursal_id` (publicaciones de
+ * Servicios / MarketPlace creadas por usuarios personales). El usuario
+ * indica su ciudad como string libre — el mapeo `CIUDAD_A_ZONA` cubre
+ * las ciudades en las que AnunciaYA opera. Para el resto cae al
+ * fallback `America/Mexico_City`.
+ *
+ * Tolera mayúsculas, tildes y diacríticos (ej. "Puerto Peñasco" y
+ * "PUERTO PENASCO" matchean).
+ *
+ * @param ciudad Nombre de la ciudad mexicana.
+ * @returns Zona horaria IANA válida para México.
+ */
+export function getZonaHorariaPorCiudad(ciudad: string | null | undefined): ZonaHorariaMx {
+	if (!ciudad) return 'America/Mexico_City';
+	const clave = normalizarEstado(ciudad);
+	return CIUDAD_A_ZONA[clave] ?? 'America/Mexico_City';
+}
+
+/**
  * Whitelist de zonas horarias válidas para México.
  * Cualquier valor leído de BD que no esté aquí se descarta y se usa el fallback.
  * Necesario porque las zonas se interpolan como literales SQL (ver

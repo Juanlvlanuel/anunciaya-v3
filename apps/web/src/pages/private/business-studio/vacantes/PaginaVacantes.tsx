@@ -19,8 +19,18 @@
  * Ubicación: apps/web/src/pages/private/business-studio/vacantes/PaginaVacantes.tsx
  */
 
-import { useEffect, useState } from 'react';
-import { ArrowLeft, Briefcase, ChevronRight, Search, Plus, X } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import {
+    ArrowLeft,
+    ArrowRight,
+    Briefcase,
+    ChevronRight,
+    FileEdit,
+    Search,
+    Plus,
+    Trash2,
+    X,
+} from 'lucide-react';
 
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useUiStore } from '../../../../stores/useUiStore';
@@ -55,6 +65,10 @@ import type {
     CrearVacanteInput,
     ActualizarVacanteInput,
 } from '../../../../types/servicios';
+import {
+    descartarBorradorVacantes,
+    resumenBorradorVacantes,
+} from '../../../../utils/borradorVacantes';
 
 // =============================================================================
 // ESTILOS — ANIMACIÓN DEL ÍCONO HEADER (estética BS)
@@ -106,6 +120,43 @@ export default function PaginaVacantes() {
     const [slideoverAbierto, setSlideoverAbierto] = useState(false);
     const [modoSlideover, setModoSlideover] =
         useState<ModoSlideover>('crear');
+
+    // ---------------------------------------------------------------------------
+    // Borrador del wizard de Vacantes (Sprint 9.3) — namespaced por sucursal
+    // ---------------------------------------------------------------------------
+    // El slideover auto-guarda el draft en localStorage bajo la clave
+    // `aya:bs:vacantes:draft-v1:{sucursalActivaId}`. La página detecta
+    // si hay borrador pendiente PARA LA SUCURSAL ACTIVA y muestra un
+    // banner amber arriba del listado invitando a continuar (o descartar).
+    //
+    // Cuando el dueño cambia entre sucursales (Matriz → Sucursal Norte),
+    // el banner se actualiza para reflejar el draft de la nueva sucursal
+    // — los drafts NO se cruzan entre contextos. Si la sucursal nueva
+    // no tiene draft, el banner desaparece.
+    //
+    // `tickBorrador` se incrementa cuando descartamos manualmente o al
+    // cerrarse el slideover (probablemente cambió el borrador). Eso
+    // refresca la lectura via useMemo.
+    const sucursalActivaId = useAuthStore(
+        (s) => s.usuario?.sucursalActiva ?? '',
+    );
+    const [tickBorrador, setTickBorrador] = useState(0);
+    const borrador = useMemo(
+        () => resumenBorradorVacantes(sucursalActivaId),
+        // `slideoverAbierto` como dep: al cerrarse el slideover (después
+        // de un auto-save reciente) se relee y el banner refleja el
+        // estado más actualizado del borrador.
+        // `sucursalActivaId` como dep: al cambiar de sucursal el banner
+        // pasa a reflejar el draft de la nueva sucursal (o desaparece).
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+        [tickBorrador, slideoverAbierto, sucursalActivaId],
+    );
+
+    function descartarBorrador() {
+        descartarBorradorVacantes(sucursalActivaId);
+        setTickBorrador((n) => n + 1);
+        notificar.info('Borrador descartado');
+    }
 
     // Debounce búsqueda
     useEffect(() => {
@@ -381,6 +432,68 @@ export default function PaginaVacantes() {
                     />
                 ) : (
                 <>
+                {/* ═══════════════════════════════════════════════════════════
+                    BANNER BORRADOR — detector de borrador pendiente
+                    Sprint 9.3: si el usuario empezó a publicar una vacante
+                    y cerró sin terminar, el slideover guardó el draft en
+                    localStorage. Aquí lo detectamos y mostramos un banner
+                    amber arriba del listado invitando a [Continuar] o
+                    [Descartar]. Mismo tono cromático que el badge de
+                    edición y el footer del widget de Solicitudes en
+                    el feed público (familia amber = "acción pendiente").
+                    ═══════════════════════════════════════════════════════════ */}
+                {borrador && (
+                    <div
+                        data-testid="banner-borrador-vacante"
+                        className="mt-5 lg:mt-7 2xl:mt-14 rounded-xl lg:rounded-lg 2xl:rounded-xl border-2 border-amber-300 bg-linear-to-r from-amber-50 to-orange-50 shadow-md p-3 lg:p-3.5 2xl:p-4 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between lg:gap-4"
+                    >
+                        <div className="flex items-start gap-3 min-w-0">
+                            <div
+                                aria-hidden
+                                className="shrink-0 w-10 h-10 lg:w-9 lg:h-9 2xl:w-10 2xl:h-10 rounded-lg bg-amber-100 grid place-items-center text-amber-700"
+                            >
+                                <FileEdit
+                                    className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5"
+                                    strokeWidth={2.25}
+                                />
+                            </div>
+                            <div className="min-w-0">
+                                <div className="text-base lg:text-[15px] 2xl:text-base font-extrabold text-slate-900 leading-tight">
+                                    Tienes un borrador en progreso
+                                </div>
+                                <div className="text-sm lg:text-[12px] 2xl:text-sm text-slate-700 font-medium leading-snug mt-1 truncate">
+                                    {borrador.titulo
+                                        ? `"${borrador.titulo}"`
+                                        : 'Continúa donde lo dejaste para publicar tu vacante.'}
+                                </div>
+                            </div>
+                        </div>
+                        <div className="flex items-center gap-2 lg:gap-2.5 shrink-0">
+                            <button
+                                type="button"
+                                onClick={descartarBorrador}
+                                data-testid="btn-descartar-borrador-vacante"
+                                className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 lg:px-3 lg:py-2 2xl:px-3.5 2xl:py-2.5 rounded-lg border-2 border-slate-300 bg-white text-slate-700 font-semibold text-sm lg:text-[13px] 2xl:text-sm lg:cursor-pointer hover:border-red-300 hover:text-red-600 hover:bg-red-50"
+                            >
+                                <Trash2 className="w-4 h-4" strokeWidth={2.25} />
+                                Descartar
+                            </button>
+                            <button
+                                type="button"
+                                onClick={abrirCrear}
+                                data-testid="btn-continuar-borrador-vacante"
+                                className="inline-flex items-center justify-center gap-1.5 px-4 py-2.5 lg:px-4 lg:py-2 2xl:px-5 2xl:py-2.5 rounded-lg bg-amber-500 hover:bg-amber-600 text-white font-bold text-sm lg:text-[13px] 2xl:text-sm lg:cursor-pointer shadow-md shadow-amber-500/30 ring-1 ring-amber-600/20 whitespace-nowrap"
+                            >
+                                Continuar
+                                <ArrowRight
+                                    className="w-4 h-4"
+                                    strokeWidth={2.5}
+                                />
+                            </button>
+                        </div>
+                    </div>
+                )}
+
                 {/* ═══════════════════════════════════════════════════════════
                     FILTROS — tabs + buscador + botón
                     ═══════════════════════════════════════════════════════════ */}

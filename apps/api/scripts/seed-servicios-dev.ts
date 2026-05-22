@@ -268,7 +268,14 @@ async function main() {
                 $21::jsonb,
                 $22::jsonb,
                 'activa',
-                NOW() + INTERVAL '30 days'
+                -- expira_at = fin del día N+30 en hora local de Puerto
+                -- Peñasco (America/Hermosillo). Mismo cálculo que usa
+                -- el helper `sqlExpiracionFinDeDia` del backend.
+                (
+                    (((NOW() AT TIME ZONE 'America/Hermosillo')::date + INTERVAL '30 days')::timestamp
+                        + INTERVAL '23 hours 59 minutes 59 seconds')
+                    AT TIME ZONE 'America/Hermosillo'
+                )
             )
             RETURNING id
         `;

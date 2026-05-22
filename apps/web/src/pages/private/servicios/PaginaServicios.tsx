@@ -6,14 +6,23 @@
  * Estructura (idéntica al patrón de PaginaMarketplace / PaginaOfertas / PaginaNegocios):
  *  - Wrapper `min-h-full bg-transparent` (hereda gradiente azul del MainLayout).
  *  - `<ServiciosHeader>` sticky con `max-w-7xl` y `rounded-b-3xl` en desktop.
- *    Contiene back + logo + título + toggle Ofrezco/Solicito + KPI.
+ *    Contiene back + logo + título + tabs + KPI.
  *  - Contenido acotado a `lg:max-w-[920px]` (alineado al ancho del
  *    composer/feed de MarketPlace para coherencia visual entre secciones).
- *    El header arriba mantiene su ancho completo (`max-w-7xl`) — solo el
- *    contenido se acota.
- *  - Carrusel "Recién publicado" con snap horizontal.
- *  - Grid "Cerca de ti" (2 cols móvil / 3 cols lg / 4 cols 2xl).
- *  - FAB "+ Publicar".
+ *  - FAB "+ Publicar" (oculto en Vacantes — se publica desde BS).
+ *
+ * Comportamiento por tab (Sprint 9.3):
+ *  - 'todos': feed con 3 secciones agrupadas (Vacantes → Recién publicado →
+ *    Clasificados). Cada sección muestra hasta 8 items (preview) con link
+ *    "Ver más →" a la tab filtrada cuando la cantidad real supera 8. NO
+ *    paginado — el feed inicial trae lo más reciente y cercano y suele
+ *    caber sin scroll infinito.
+ *  - 'servicios' / 'vacantes': lista paginada con `useServiciosFeedInfinito`.
+ *    Scroll infinito en móvil (IntersectionObserver) + botón "Cargar más"
+ *    en desktop. Patrón calcado de BS Empleados/Transacciones. Sin límite
+ *    de items — se muestran TODOS los resultados de la ciudad hasta agotar.
+ *  - 'solicitudes': `ClasificadosWidget` (densidad alta, sin paginación —
+ *    los pedidos del día caben en una sola vista por diseño).
  *
  * Estados:
  *  - Sin GPS o sin ciudad → mensaje accionable invitando a activar ubicación.
@@ -27,10 +36,11 @@
  * Ubicación: apps/web/src/pages/private/servicios/PaginaServicios.tsx
  */
 
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
     AlertCircle,
+    ArrowRight,
     CornerRightDown,
     MapPin,
     Plus,
@@ -43,7 +53,10 @@ import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
-import { useServiciosFeed } from '../../../hooks/queries/useServicios';
+import {
+    useServiciosFeed,
+    useServiciosFeedInfinito,
+} from '../../../hooks/queries/useServicios';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import type { TabServicios } from '../../../components/servicios/TabsServicios';
 import { CardServicio } from '../../../components/servicios/CardServicio';
@@ -56,6 +69,20 @@ import type {
     PublicacionServicio,
     FiltroClasificado,
 } from '../../../types/servicios';
+
+// =============================================================================
+// CONSTANTES
+// =============================================================================
+
+/** Tope de cards a renderizar en cada sección del tab='todos' (preview).
+ *  Si la cantidad real supera este límite, se muestra "Ver más →" al
+ *  lado del título que cambia a la tab filtrada correspondiente. */
+const LIMITE_PREVIEW_TODOS = 8;
+
+/** Items por página del feed infinito (tabs filtradas). 20 es un buen
+ *  balance: rellena 4 filas de cards en desktop (5 cols max) sin que el
+ *  primer fetch tarde demasiado en BD. */
+const LIMITE_FEED_INFINITO = 20;
 
 // =============================================================================
 // HELPERS
@@ -94,8 +121,9 @@ export function PaginaServicios() {
     const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
     const esModoPersonal = modoActivo !== 'comercial';
 
-    // Breakpoint para el widget Clasificados (1 col mobile / 2 cols desktop).
-    const { esEscritorio } = useBreakpoint();
+    // Breakpoint para el widget Clasificados (1 col mobile / 2 cols desktop)
+    // y para el sentinel del feed infinito (auto-load solo en móvil).
+    const { esEscritorio, esMobile } = useBreakpoint();
 
     // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
     // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece. Mismo
@@ -110,7 +138,40 @@ export function PaginaServicios() {
     //   - servicios   → tipo='servicio-persona'  (gente que ofrece su trabajo)
     //   - solicitudes → tipo='solicito'          (gente que busca contratar)
     //   - vacantes    → tipo='vacante-empresa'   (empleos formales de negocios)
-    const [tabActiva, setTabActiva] = useState<TabServicios>('todos');
+    //
+    // Sprint 9.3: `tabActiva` se sincroniza con el query param `?tab=`
+    // para que el filtro PERSISTA al navegar al detalle y regresar
+    // (back nativo de móvil, flecha del header, back del navegador).
+    // Cuando es 'todos' (default) se omite del URL para mantenerlo limpio.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const TABS_VALIDAS: TabServicios[] = [
+        'todos',
+        'servicios',
+        'solicitudes',
+        'vacantes',
+    ];
+    const tabInicial = ((): TabServicios => {
+        const t = searchParams.get('tab');
+        return t && (TABS_VALIDAS as string[]).includes(t)
+            ? (t as TabServicios)
+            : 'todos';
+    })();
+    const [tabActiva, setTabActivaState] = useState<TabServicios>(tabInicial);
+
+    /** Cambia el tab activo Y actualiza el query param del URL con
+     *  `replace: true` (no llena el history con cada cambio de tab).
+     *  Esto hace que al ir al detalle y regresar, el URL conserve el
+     *  filtro elegido y el tab se restaure automáticamente. */
+    const setTabActiva = (nuevo: TabServicios) => {
+        setTabActivaState(nuevo);
+        const sp = new URLSearchParams(searchParams);
+        if (nuevo === 'todos') {
+            sp.delete('tab');
+        } else {
+            sp.set('tab', nuevo);
+        }
+        setSearchParams(sp, { replace: true });
+    };
 
     // El estado `composerExpandido` se eliminó junto con `MisPublicacionesWidget`
     // (Sprint 9.2): el atajo a /mis-publicaciones ahora vive como chip dentro
@@ -121,6 +182,11 @@ export function PaginaServicios() {
         useState<FiltroClasificado>('todos');
 
     // ─── React Query — feed inicial ────────────────────────────────────────
+    // SIEMPRE activo — es la fuente de verdad para:
+    //   - Tab 'todos': secciones agrupadas (Vacantes + Recién publicado).
+    //   - Tab 'solicitudes': widget Clasificados (no paginado).
+    //   - Conteos por tab (los chips de TabsServicios).
+    //   - KPI del header.
     const { data, isLoading, isError, refetch } = useServiciosFeed({
         ciudad,
         lat: latitud,
@@ -130,6 +196,84 @@ export function PaginaServicios() {
 
     const recientesRaw = data?.recientes ?? [];
     const cercanosRaw = data?.cercanos ?? [];
+
+    // ─── React Query — feed INFINITO (paginado) ────────────────────────────
+    // Solo se dispara cuando el usuario está en una tab filtrada que se
+    // beneficia de paginación (servicios o vacantes). En 'todos' está
+    // apagado (la UI usa el feed inicial agrupado por secciones); en
+    // 'solicitudes' también está apagado (el widget Clasificados maneja
+    // su propia UX sin paginación).
+    //
+    // El `tipo` matchea con el enum de BD (servicio-persona / vacante-empresa).
+    // `orden: 'recientes'` mantiene consistencia con la sensación del feed
+    // de "lo más nuevo primero" — el sort por distancia queda como filtro
+    // futuro si se necesita.
+    const tipoFiltroInfinito = tabActiva === 'servicios'
+        ? 'servicio-persona'
+        : tabActiva === 'vacantes'
+            ? 'vacante-empresa'
+            : undefined;
+
+    const feedInfinitoEnabled = tipoFiltroInfinito !== undefined;
+
+    const feedInfinitoQuery = useServiciosFeedInfinito({
+        ciudad,
+        lat: latitud,
+        lng: longitud,
+        tipo: tipoFiltroInfinito,
+        orden: 'recientes',
+        limite: LIMITE_FEED_INFINITO,
+        enabled: feedInfinitoEnabled,
+    });
+
+    // Items aplanados del infinito (todas las páginas concatenadas).
+    const itemsInfinitos = useMemo(
+        () =>
+            feedInfinitoQuery.data?.pages.flatMap((p) => p.items) ?? [],
+        [feedInfinitoQuery.data],
+    );
+    const totalInfinito =
+        feedInfinitoQuery.data?.pages[0]?.paginacion.total ?? 0;
+    const hayMasInfinito = feedInfinitoQuery.hasNextPage;
+    const cargandoMasInfinito = feedInfinitoQuery.isFetchingNextPage;
+    const cargandoInfinito = feedInfinitoQuery.isPending && feedInfinitoEnabled;
+
+    // ─── Sentinel + IntersectionObserver para scroll infinito móvil ────────
+    // Patrón calcado de PaginaEmpleados.tsx (BS): cuando el sentinel entra
+    // al viewport y aún hay páginas pendientes, dispara fetchNextPage.
+    // En desktop el botón "Cargar más" toma el rol (el sentinel sigue
+    // observándose pero rara vez se activa porque la lista no llega tan
+    // abajo sin scrollear).
+    const sentinelaRef = useRef<HTMLDivElement | null>(null);
+    const fetchNextPage = feedInfinitoQuery.fetchNextPage;
+
+    useEffect(() => {
+        // Solo en móvil: el sentinel observa el final de la lista y dispara
+        // la siguiente página automáticamente. En desktop el usuario aprieta
+        // el botón "Cargar más" — no queremos comportamiento auto-load en
+        // desktop porque los grids se vuelven enormes y desorientan.
+        if (!esMobile || !feedInfinitoEnabled || !sentinelaRef.current) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (
+                    entries[0].isIntersecting &&
+                    hayMasInfinito &&
+                    !cargandoMasInfinito
+                ) {
+                    fetchNextPage();
+                }
+            },
+            { rootMargin: '100px' },
+        );
+        observer.observe(sentinelaRef.current);
+        return () => observer.disconnect();
+    }, [
+        esMobile,
+        feedInfinitoEnabled,
+        hayMasInfinito,
+        cargandoMasInfinito,
+        fetchNextPage,
+    ]);
 
     // Mapeo tab → tipo de publicación que muestra en recientes/cercanos.
     //   - servicios → solo servicio-persona
@@ -149,21 +293,56 @@ export function PaginaServicios() {
 
     const tipoActivo = tipoDeTab[tabActiva];
 
-    /** Recientes filtrados por la tab activa. En `todos` excluimos `solicito`
-     *  porque esos viven en el widget Clasificados (sección aparte). */
-    const recientes = useMemo(() => {
-        if (tipoActivo === 'todos') {
-            return recientesRaw.filter((p) => p.tipo !== 'solicito');
+    /** Vacantes (Sprint 9.3 — sección propia arriba del feed cuando
+     *  tab='todos' o tab='vacantes'). Combina recientes+cercanos y
+     *  deduplica por id. Las vacantes ya NO aparecen en "Recién
+     *  publicado" cuando tab='todos' (tienen su sección dedicada). */
+    const vacantes = useMemo(() => {
+        if (tabActiva !== 'todos' && tabActiva !== 'vacantes') return [];
+        const mapa = new Map<string, typeof recientesRaw[number]>();
+        for (const p of [...recientesRaw, ...cercanosRaw]) {
+            if (p.tipo === 'vacante-empresa') mapa.set(p.id, p);
         }
-        return recientesRaw.filter((p) => p.tipo === tipoActivo);
-    }, [recientesRaw, tipoActivo]);
+        return Array.from(mapa.values()).sort((a, b) =>
+            b.createdAt.localeCompare(a.createdAt),
+        );
+    }, [recientesRaw, cercanosRaw, tabActiva]);
 
-    const cercanos = useMemo(() => {
-        if (tipoActivo === 'todos') {
-            return cercanosRaw.filter((p) => p.tipo !== 'solicito');
+    /** "Recién publicado" — combina recientes + cercanos (dedupe por id)
+     *  para no perder publicaciones que solo aparecen en `cercanos`. Antes
+     *  esas se mostraban en la sección "Cerca de ti" eliminada en Sprint
+     *  9.3; ahora se incluyen aquí junto con las recientes.
+     *
+     *  Filtros por tab:
+     *  - tab='todos':     todo lo que NO es Clasificados (`solicito`) ni
+     *                     Vacantes (`vacante-empresa`) — esos tienen
+     *                     secciones dedicadas arriba/abajo del feed.
+     *  - tab='servicios': solo `servicio-persona`.
+     *  - tab='vacantes':  vacío (vacantes están en su sección arriba).
+     *  - tab='solicitudes': vacío (ClasificadosWidget aparte). */
+    const recientes = useMemo(() => {
+        if (tabActiva === 'vacantes' || tabActiva === 'solicitudes') return [];
+        const mapa = new Map<string, typeof recientesRaw[number]>();
+        for (const p of [...recientesRaw, ...cercanosRaw]) {
+            if (tipoActivo === 'todos') {
+                if (p.tipo === 'solicito' || p.tipo === 'vacante-empresa') continue;
+            } else if (p.tipo !== tipoActivo) {
+                continue;
+            }
+            // Map.set conserva la primera ocurrencia por id — orden de
+            // recientesRaw (created_at DESC) prevalece sobre cercanosRaw.
+            if (!mapa.has(p.id)) mapa.set(p.id, p);
         }
-        return cercanosRaw.filter((p) => p.tipo === tipoActivo);
-    }, [cercanosRaw, tipoActivo]);
+        return Array.from(mapa.values()).sort((a, b) =>
+            b.createdAt.localeCompare(a.createdAt),
+        );
+    }, [recientesRaw, cercanosRaw, tipoActivo, tabActiva]);
+
+    // `cercanos` (sección "Cerca de ti") eliminado Sprint 9.3 —
+    // sus items se reparten ahora entre las 3 secciones del feed
+    // según tipo (Vacantes / Recién publicado / Clasificados).
+    // `cercanosRaw` sigue alimentando el dedupe/conteo de las demás
+    // secciones combinándose con `recientesRaw`.
 
     /** Solicitudes para la tab Solicitudes. Dedup por id + aplica el filtro
      *  del tag strip del widget (categoría / urgente). */
@@ -331,20 +510,30 @@ export function PaginaServicios() {
                     <ErrorBloque onReintentar={() => refetch()} />
                 ) : tabActiva === 'solicitudes' ? (
                     /* ═══ TAB SOLICITUDES — el widget ya tiene su propia UI ═══
-                       `onPublicar` no se pasa: el botón "+ Publicar pedido"
-                       del widget es redundante con el FAB global "+ Publicar"
-                       que ya está en la página. */
+                       `onPublicar` sí se pasa (Sprint 9.3): el footer del
+                       widget se rediseñó como CTA de conversión amber y
+                       tiene sentido aunque el FAB global esté visible
+                       (aquí el contexto es "ya viste las solicitudes de
+                       otros, publica la tuya"). No usa paginación infinita
+                       — los clasificados del día caben sin scroll y la UX
+                       del widget es densa por diseño. */
                     totalClasificadosHoy > 0 ? (
                         <div className="px-4 lg:px-0 mt-4 lg:mt-5">
                             <ClasificadosWidget
                                 pedidos={clasificados}
-                                totalHoy={totalClasificadosHoy}
                                 filtroActivo={filtroClasificado}
                                 onFiltroChange={setFiltroClasificado}
                                 desktop={esEscritorio}
+                                ciudad={ciudad.split(',')[0]}
                                 onPedidoClick={(id) =>
                                     navigate(`/servicios/${id}`)
                                 }
+                                onPublicar={
+                                    esModoPersonal ? irAPublicarSolicito : undefined
+                                }
+                                /* `onVerTodos` NO se pasa aquí: ya estamos
+                                   en tab='solicitudes', no hay a dónde
+                                   navegar — "ver más" carecería de sentido. */
                             />
                         </div>
                     ) : (
@@ -355,66 +544,56 @@ export function PaginaServicios() {
                             onCta={irAPublicarSolicito}
                         />
                     )
-                ) : recientes.length === 0
-                    && cercanos.length === 0
-                    && (tabActiva !== 'todos' || totalClasificadosHoy === 0) ? (
-                    /* ═══ TAB Servicios / Vacantes / Todos — VACÍA ═══ */
-                    tabActiva === 'vacantes' ? (
-                        <TabVacia
-                            titulo="Sin vacantes activas"
-                            subtitulo="Los negocios verificados publican sus puestos aquí."
-                            ctaLabel={null}
-                            onCta={() => undefined}
-                        />
-                    ) : (
-                        <FeedVacio
-                            onPublicar={esModoPersonal ? irAPublicar : null}
-                            ciudad={ciudad}
-                        />
-                    )
-                ) : (
-                    /* ═══ TAB Servicios / Vacantes / Todos con contenido ═══ */
+                ) : tabActiva === 'servicios' || tabActiva === 'vacantes' ? (
+                    /* ═══ TAB FILTRADAS — Servicios / Vacantes (paginadas) ═══
+                       Sprint 9.3: estas dos tabs usan `useServiciosFeedInfinito`
+                       para listar TODOS los resultados con scroll infinito
+                       móvil + botón "Cargar más" desktop (patrón calcado de
+                       BS Empleados/Transacciones). Sin slice — se ven los N
+                       que haya hasta agotar la BD.
+
+                       El tab='todos' (más abajo) sigue usando el feed simple
+                       con secciones agrupadas y preview de 8 items por sección. */
                     <>
                         {/* Banner solo en Vacantes — invita al comerciante a
                             publicar desde BS si tiene negocio. */}
-                        {tabActiva === 'vacantes' && (
-                            <BannerVacantesBS />
-                        )}
+                        {tabActiva === 'vacantes' && <BannerVacantesBS />}
 
-                        {recientes.length > 0 && (
-                            <section className="px-4 lg:px-0 mt-5 lg:mt-6">
-                                <TituloSeccion>
-                                    Recién publicado en {ciudad.split(',')[0]}
+                        {cargandoInfinito ? (
+                            <div className="flex items-center justify-center py-20">
+                                <Spinner tamanio="lg" />
+                            </div>
+                        ) : itemsInfinitos.length === 0 ? (
+                            tabActiva === 'vacantes' ? (
+                                <TabVacia
+                                    titulo="Sin vacantes activas"
+                                    subtitulo="Los negocios verificados publican sus puestos aquí."
+                                    ctaLabel={null}
+                                    onCta={() => undefined}
+                                />
+                            ) : (
+                                <FeedVacio
+                                    onPublicar={esModoPersonal ? irAPublicar : null}
+                                    ciudad={ciudad}
+                                />
+                            )
+                        ) : (
+                            <section className="px-4 lg:px-0 mt-5 lg:mt-6 pb-28 lg:pb-32">
+                                <TituloSeccion count={totalInfinito}>
+                                    {tabActiva === 'vacantes'
+                                        ? `Vacantes en ${ciudad.split(',')[0]}`
+                                        : `Servicios en ${ciudad.split(',')[0]}`}
                                 </TituloSeccion>
-                                <div
-                                    data-testid="servicios-carrusel-recientes"
-                                    className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x"
-                                >
-                                    {recientes.map((p) => (
-                                        <CardHorizontal
-                                            key={p.id}
-                                            publicacion={p}
-                                            onClick={() =>
-                                                navigate(`/servicios/${p.id}`)
-                                            }
-                                        />
-                                    ))}
-                                </div>
-                            </section>
-                        )}
 
-                        {cercanos.length > 0 && (
-                            <section className="px-4 lg:px-0 mt-6 lg:mt-8">
-                                <TituloSeccion
-                                    count={`${cercanos.length} resultado${cercanos.length === 1 ? '' : 's'}`}
-                                >
-                                    Cerca de ti
-                                </TituloSeccion>
                                 <div
-                                    data-testid="servicios-grid-cercanos"
+                                    data-testid={
+                                        tabActiva === 'vacantes'
+                                            ? 'servicios-grid-vacantes-paginado'
+                                            : 'servicios-grid-servicios-paginado'
+                                    }
                                     className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4"
                                 >
-                                    {cercanos.map((p) => (
+                                    {itemsInfinitos.map((p) => (
                                         <CardSegunTipo
                                             key={p.id}
                                             publicacion={p}
@@ -425,22 +604,173 @@ export function PaginaServicios() {
                                         />
                                     ))}
                                 </div>
+
+                                {/* Sentinel móvil — IntersectionObserver lo
+                                    observa para auto-cargar la siguiente
+                                    página. En desktop está oculto (no auto-load). */}
+                                <div
+                                    ref={sentinelaRef}
+                                    className="h-1 lg:hidden"
+                                />
+
+                                {/* Spinner mientras carga la siguiente página
+                                    (común móvil y desktop). */}
+                                {cargandoMasInfinito && (
+                                    <div className="flex justify-center py-4">
+                                        <Spinner />
+                                    </div>
+                                )}
+
+                                {/* Botón "Cargar más" desktop. Se oculta en
+                                    móvil porque el sentinel ya carga solo. */}
+                                {hayMasInfinito && !cargandoMasInfinito && (
+                                    <div className="hidden lg:block mt-6">
+                                        <button
+                                            type="button"
+                                            onClick={() => fetchNextPage()}
+                                            data-testid="btn-cargar-mas-servicios"
+                                            className="w-full py-3 rounded-xl border border-slate-300 bg-white text-sm font-semibold text-slate-700 hover:bg-slate-50 hover:border-sky-400 hover:text-sky-700 lg:cursor-pointer transition-colors"
+                                        >
+                                            Cargar más
+                                        </button>
+                                    </div>
+                                )}
+
+                                {/* Mensaje "ya no hay más" al final cuando
+                                    el usuario llegó al fondo del listado. */}
+                                {!hayMasInfinito && itemsInfinitos.length > 0 && (
+                                    <p className="mt-6 text-center text-sm lg:text-[13px] 2xl:text-sm text-slate-600 font-semibold">
+                                        Has visto todos los resultados ({totalInfinito})
+                                    </p>
+                                )}
+                            </section>
+                        )}
+                    </>
+                ) : recientes.length === 0
+                    && vacantes.length === 0
+                    && totalClasificadosHoy === 0 ? (
+                    /* ═══ TAB 'todos' VACÍA — sin servicios, vacantes ni
+                       solicitudes en toda la ciudad ═══ */
+                    <FeedVacio
+                        onPublicar={esModoPersonal ? irAPublicar : null}
+                        ciudad={ciudad}
+                    />
+                ) : (
+                    /* ═══ TAB 'todos' CON CONTENIDO ═══
+                       Secciones agrupadas como preview (slice 8) con link
+                       "Ver más →" a la tab filtrada cuando hay más. La
+                       paginación completa vive en las tabs filtradas (rama
+                       de arriba con useServiciosFeedInfinito). */
+                    <>
+                        {/* 1. VACANTES — preview slice 8 + Ver más. */}
+                        {vacantes.length > 0 && (
+                            <section className="px-4 lg:px-0 mt-5 lg:mt-6">
+                                <TituloSeccion
+                                    count={vacantes.length}
+                                    onVerMas={
+                                        vacantes.length > LIMITE_PREVIEW_TODOS
+                                            ? () => setTabActiva('vacantes')
+                                            : undefined
+                                    }
+                                >
+                                    Vacantes en {ciudad.split(',')[0]}
+                                </TituloSeccion>
+                                <div
+                                    data-testid="servicios-grid-vacantes"
+                                    className="grid grid-cols-2 lg:grid-cols-3 2xl:grid-cols-4 gap-3 lg:gap-4"
+                                >
+                                    {vacantes
+                                        .slice(0, LIMITE_PREVIEW_TODOS)
+                                        .map((p) => (
+                                            <CardSegunTipo
+                                                key={p.id}
+                                                publicacion={p}
+                                                distanciaMetros={
+                                                    p.distanciaMetros
+                                                }
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/servicios/${p.id}`,
+                                                    )
+                                                }
+                                            />
+                                        ))}
+                                </div>
                             </section>
                         )}
 
-                        {/* Tab Todos: además del feed, mostrar ClasificadosWidget
-                            al final con las solicitudes activas (los `solicito`
-                            no caben en el grid principal con servicio/vacante). */}
-                        {tabActiva === 'todos' && totalClasificadosHoy > 0 && (
+                        {/* 2. SERVICIOS — carrusel horizontal preview slice 8
+                            + Ver más a la tab Servicios. El título es
+                            "Servicios" (no "Recién publicado") para mantener
+                            simetría con las otras 2 secciones del tab='todos'
+                            (Vacantes / Servicios / Clasificados) y para
+                            matchear el nombre de la tab cuando el usuario
+                            entra al vista filtrada. El orden por fecha es
+                            implícito — los cards muestran "hace Xh". */}
+                        {recientes.length > 0 && (
+                            <section className="px-4 lg:px-0 mt-6 lg:mt-8">
+                                <TituloSeccion
+                                    count={recientes.length}
+                                    onVerMas={
+                                        recientes.length > LIMITE_PREVIEW_TODOS
+                                            ? () => setTabActiva('servicios')
+                                            : undefined
+                                    }
+                                >
+                                    Servicios en {ciudad.split(',')[0]}
+                                </TituloSeccion>
+                                <div
+                                    data-testid="servicios-carrusel-recientes"
+                                    className="flex gap-3 overflow-x-auto no-scrollbar pb-2 snap-x"
+                                >
+                                    {recientes
+                                        .slice(0, LIMITE_PREVIEW_TODOS)
+                                        .map((p) => (
+                                            <CardHorizontal
+                                                key={p.id}
+                                                publicacion={p}
+                                                distanciaMetros={
+                                                    p.distanciaMetros
+                                                }
+                                                onClick={() =>
+                                                    navigate(
+                                                        `/servicios/${p.id}`,
+                                                    )
+                                                }
+                                            />
+                                        ))}
+                                </div>
+                            </section>
+                        )}
+
+                        {/* 3. CLASIFICADOS — widget con teaser de los
+                            `solicito` activos (la tab Solicitudes tiene la
+                            versión completa). */}
+                        {totalClasificadosHoy > 0 && (
                             <div className="px-4 lg:px-0 mt-6 lg:mt-8">
                                 <ClasificadosWidget
                                     pedidos={clasificados}
-                                    totalHoy={totalClasificadosHoy}
                                     filtroActivo={filtroClasificado}
                                     onFiltroChange={setFiltroClasificado}
                                     desktop={esEscritorio}
+                                    ciudad={ciudad.split(',')[0]}
                                     onPedidoClick={(id) =>
                                         navigate(`/servicios/${id}`)
+                                    }
+                                    /* "Ver más →" en el header del widget
+                                       solo aparece si hay más de 6 (el
+                                       widget muestra hasta 6 en desktop —
+                                       con 6 o menos el usuario ya las ve
+                                       todas, no tiene sentido navegar). */
+                                    onVerTodos={
+                                        totalClasificadosHoy > 6
+                                            ? () => setTabActiva('solicitudes')
+                                            : undefined
+                                    }
+                                    onPublicar={
+                                        esModoPersonal
+                                            ? irAPublicarSolicito
+                                            : undefined
                                     }
                                 />
                             </div>
@@ -524,19 +854,40 @@ function CardSegunTipo({
 function TituloSeccion({
     children,
     count,
+    onVerMas,
+    verMasLabel = 'Ver más',
 }: {
     children: React.ReactNode;
-    count?: string;
+    /** Número de resultados — se renderiza INLINE al lado del título
+     *  como "(N)" en gris discreto. Si no se pasa, no se muestra. */
+    count?: number;
+    /** Si se pasa, renderiza un link "Ver más →" alineado a la derecha
+     *  del título. Pensado para los "preview" del tab='todos' donde cada
+     *  sección muestra solo N items y el resto se ve filtrando la tab. */
+    onVerMas?: () => void;
+    /** Texto del link cuando `onVerMas` está activo. Default: "Ver más". */
+    verMasLabel?: string;
 }) {
     return (
-        <div className="flex items-end justify-between mb-2 lg:mb-3">
-            <h2 className="text-[17px] lg:text-[18px] font-extrabold tracking-tight text-slate-900">
+        <div className="mb-2 lg:mb-3 flex items-baseline justify-between gap-3">
+            <h2 className="text-[17px] lg:text-[18px] font-extrabold tracking-tight text-slate-900 truncate min-w-0">
                 {children}
+                {count != null && count > 0 && (
+                    <span className="ml-1.5 text-[14px] font-semibold text-slate-500 tabular-nums">
+                        ({count})
+                    </span>
+                )}
             </h2>
-            {count && (
-                <span className="text-[12px] font-semibold text-slate-500">
-                    {count}
-                </span>
+            {onVerMas && (
+                <button
+                    type="button"
+                    onClick={onVerMas}
+                    data-testid="btn-ver-mas-seccion"
+                    className="shrink-0 inline-flex items-center gap-0.5 text-[13px] lg:text-[12px] 2xl:text-[13px] font-semibold text-sky-700 hover:text-sky-800 lg:cursor-pointer"
+                >
+                    {verMasLabel}
+                    <ArrowRight className="h-3.5 w-3.5" strokeWidth={2.5} />
+                </button>
             )}
         </div>
     );

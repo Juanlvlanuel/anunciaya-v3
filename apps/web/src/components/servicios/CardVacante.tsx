@@ -86,7 +86,7 @@ export function CardVacante({
                 </div>
                 <div className="mt-1.5">
                     <span className="text-[15px] font-extrabold text-slate-900">
-                        {formatearPrecioServicio(publicacion.precio)}
+                        {formatearPrecioServicio(publicacion.precio, { esVacante: true })}
                     </span>
                 </div>
                 {publicacion.tipoEmpleo && (

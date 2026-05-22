@@ -107,3 +107,22 @@ export function PillEstadoVacante({ estado }: { estado: EstadoVacanteUI }) {
         </span>
     );
 }
+
+// =============================================================================
+// PILL SUELDO A TRATAR
+// =============================================================================
+//
+// Pill mostrado cuando el precio de la vacante es `{kind: 'a-convenir'}`
+// — el negocio activó el toggle "Sueldo a tratar" del paso 2 en lugar
+// de dar un monto. Usa el mismo `CLASES_PILL_BASE` que los demás pills
+// del módulo (tipo, modalidad, estado) para que la fila de chips de
+// la vacante se vea uniforme. Tono slate neutro = "información sin
+// urgencia" (mismo tono usado por modalidad presencial y tipo eventual).
+
+export function PillSueldoATratar() {
+    return (
+        <span className={`${CLASES_PILL_BASE} bg-slate-200 text-slate-700`}>
+            Sueldo a tratar
+        </span>
+    );
+}

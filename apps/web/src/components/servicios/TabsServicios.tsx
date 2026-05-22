@@ -1,19 +1,25 @@
 /**
  * TabsServicios.tsx
  * ===================
- * Segmented control de 3 tabs para la sección Servicios:
+ * Segmented control de 4 tabs para la sección Servicios:
  *
- *   Servicios · Solicitudes · Vacantes
+ *   Todos · Vacantes · Servicios · Solicitudes
  *
  * Reemplaza el sistema previo de chips Servicio/Empleo + Ofrecen/Solicitan,
  * que mezclaba 2 ejes (tipo + modo) y generaba confusión. Cada tab agrupa
  * un único `tipo` de publicación con su layout y filtros propios:
  *
+ *   - Vacantes    → `tipo='vacante-empresa'`  (empleos formales de negocios).
  *   - Servicios   → `tipo='servicio-persona'` (gente que ofrece su trabajo).
  *   - Solicitudes → `tipo='solicito'`         (gente que busca contratar).
- *   - Vacantes    → `tipo='vacante-empresa'`  (empleos formales de negocios).
  *
- * Estilo: pill blanco con borde slate, 3 segmentos. El activo usa fondo
+ * Orden Sprint 9.3: Vacantes va primero porque es la rama "comercial"
+ * (publicada por negocios desde BS) y suele tener menos publicaciones —
+ * dándole prioridad visual evita que quede sepultada al fondo. Luego
+ * Servicios y Solicitudes (las ramas de usuario personal) siguiendo el
+ * orden natural ofrezco → solicito.
+ *
+ * Estilo: pill blanco con borde slate, 4 segmentos. El activo usa fondo
  * sky (acento de marca de Servicios) sobre texto blanco. Inactivo: texto
  * slate-700 + hover sutil.
  *
@@ -32,9 +38,9 @@ interface OpcionTab {
 
 const TABS: OpcionTab[] = [
     { key: 'todos', label: 'Todos', Icono: SlidersHorizontal },
+    { key: 'vacantes', label: 'Vacantes', Icono: Briefcase },
     { key: 'servicios', label: 'Servicios', Icono: Wrench },
     { key: 'solicitudes', label: 'Solicitudes', Icono: HelpCircle },
-    { key: 'vacantes', label: 'Vacantes', Icono: Briefcase },
 ];
 
 interface TabsServiciosProps {

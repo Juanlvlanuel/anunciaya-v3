@@ -33,6 +33,8 @@ import {
     eliminarPublicacion,
     type PublicacionRow,
 } from './servicios.service.js';
+import { sqlExpiracionFinDeDia, TTL_DIAS_DEFAULT } from '../utils/expiracion.js';
+import type { ZonaHorariaMx } from '../utils/zonaHoraria.js';
 import type {
     CrearVacanteInput,
     ActualizarVacanteInput,
@@ -249,6 +251,15 @@ export async function listarVacantes(
             expiraAt: row.expira_at,
             createdAt: row.created_at,
             updatedAt: row.updated_at,
+            // Campos del negocio (Sprint 9.3) — esta query interna de BS
+            // Vacantes solo consume `servicios_publicaciones`, no hace JOIN
+            // a `negocios`/`negocio_sucursales`. Por eso van NULL aquí. Si
+            // BS necesita esos datos en el futuro, agregar el LEFT JOIN.
+            negocioId: null,
+            negocioNombre: null,
+            negocioLogo: null,
+            sucursalPortada: null,
+            sucursalFotoPerfil: null,
         }));
 
         return {
@@ -420,15 +431,36 @@ export async function cambiarEstadoVacante(
     }
 
     try {
-        // Si reactiva, también extiende expira_at +30d para evitar pausa
-        // inmediata del cron (mismo patrón que reactivarPublicacion).
+        // Si reactiva, también extiende expira_at para evitar pausa
+        // inmediata del cron. La zona horaria viene de la SUCURSAL
+        // (es vacante-empresa) — leemos `zona_horaria` configurada en
+        // onboarding del negocio. Fallback a Mexico_City si la sucursal
+        // no la tiene seteada o la zona en BD no está en el whitelist.
         if (nuevoEstado === 'activa') {
-            const expiraAt = new Date();
-            expiraAt.setUTCDate(expiraAt.getUTCDate() + 30);
+            const ZONAS_VALIDAS: ReadonlySet<ZonaHorariaMx> = new Set<ZonaHorariaMx>([
+                'America/Mexico_City',
+                'America/Hermosillo',
+                'America/Tijuana',
+                'America/Cancun',
+                'America/Mazatlan',
+            ]);
+            let zonaSucursal: ZonaHorariaMx = 'America/Mexico_City';
+            if (vacante.sucursalId) {
+                const zonaRow = await db.execute<{ zona_horaria: string | null }>(sql`
+                    SELECT zona_horaria FROM negocio_sucursales
+                    WHERE id = ${vacante.sucursalId}
+                    LIMIT 1
+                `);
+                const z = zonaRow.rows[0]?.zona_horaria;
+                if (z && ZONAS_VALIDAS.has(z as ZonaHorariaMx)) {
+                    zonaSucursal = z as ZonaHorariaMx;
+                }
+            }
+            const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaSucursal);
             await db.execute(sql`
                 UPDATE servicios_publicaciones
                 SET estado = 'activa',
-                    expira_at = ${expiraAt.toISOString()},
+                    expira_at = ${expiraAtSql},
                     updated_at = NOW()
                 WHERE id = ${publicacionId}
                   AND usuario_id = ${usuarioId}

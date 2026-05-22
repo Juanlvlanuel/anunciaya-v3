@@ -99,6 +99,8 @@ interface ArticuloFeedRow extends ArticuloRow {
 // consumidores que ya lo importan desde este archivo).
 
 import { aleatorizarCoordenada } from '../utils/aleatorizarUbicacion.js';
+import { getZonaHorariaPorCiudad } from '../utils/zonaHoraria.js';
+import { sqlExpiracionFinDeDia, TTL_DIAS_DEFAULT } from '../utils/expiracion.js';
 export { aleatorizarCoordenada };
 
 // =============================================================================
@@ -311,6 +313,13 @@ export async function crearArticulo(
               })
             : null;
 
+        // `expira_at` = fin del día N+TTL en zona horaria local del
+        // usuario (inferida de su ciudad). Antes era `NOW() + 30 days`
+        // → expiraba a la hora EXACTA de creación + 30 días, perdiendo
+        // horas del día. Ahora respeta el día completo.
+        const zonaUsuario = getZonaHorariaPorCiudad(datos.ciudad);
+        const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
+
         const resultado = await db.execute(sql`
             INSERT INTO articulos_marketplace (
                 usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,
@@ -335,7 +344,7 @@ export async function crearArticulo(
                 ST_SetSRID(ST_MakePoint(${aprox.lng}, ${aprox.lat}), 4326)::geography,
                 ${datos.ciudad},
                 ${datos.zonaAproximada},
-                NOW() + INTERVAL '30 days'
+                ${expiraAtSql}
             )
             RETURNING
                 id, usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,

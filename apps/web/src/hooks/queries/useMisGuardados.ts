@@ -59,6 +59,38 @@ export function useArticulosMarketplaceGuardados() {
 }
 
 // =============================================================================
+// PUBLICACIONES DE SERVICIOS GUARDADAS (Sprint 9.3)
+// =============================================================================
+
+/**
+ * Lista paginada de publicaciones de Servicios que el usuario guardó.
+ * Usa el endpoint genérico `/guardados` con `entityType=servicio`. El
+ * backend hace JOIN con `servicios_publicaciones` y devuelve los datos
+ * completos de cada publicación + el `id` del guardado para des-guardar.
+ *
+ * QueryKey: `['guardados', 'servicios', usuarioId]` — el prefijo
+ * `'guardados'` permite que las mutaciones del hook `useGuardados`
+ * invaliden esta query automáticamente vía
+ * `qc.invalidateQueries({ queryKey: ['guardados'] })`. Eso mantiene en
+ * sync el listado de Mis Guardados con el botón bookmark del detalle.
+ */
+export function useServiciosGuardados() {
+  const usuarioId = useAuthStore((s) => s.usuario?.id ?? '');
+  const habilitado = !!usuarioId;
+
+  return useQuery({
+    queryKey: ['guardados', 'servicios', usuarioId] as const,
+    queryFn: async () => {
+      const response = await api.get('/guardados', {
+        params: { entityType: 'servicio', pagina: 1, limite: 50 },
+      });
+      return response.data.success ? response.data.data.guardados ?? [] : [];
+    },
+    enabled: habilitado,
+  });
+}
+
+// =============================================================================
 // NEGOCIOS SEGUIDOS
 // =============================================================================
 

@@ -78,7 +78,23 @@ export function subtituloTipoEmpleo(tipoEmpleo: TipoEmpleo | null | undefined): 
 // FORMATO HUMANO DE HORARIO ESTRUCTURADO
 // =============================================================================
 
+/**
+ * Mapeo de token (cualquier formato) → nombre largo en español.
+ *
+ * Sprint 9.3: el wizard de Vacantes serializa días con 3 letras
+ * (`Lun · Mar · Mié`). Antes era 1 letra (`L · M · X`). Aceptamos
+ * AMBOS formatos para no romper vacantes publicadas antes del cambio.
+ */
 const DIA_LARGO: Record<string, string> = {
+    // Formato nuevo (3 letras) — Sprint 9.3+
+    Lun: 'Lunes',
+    Mar: 'Martes',
+    Mié: 'Miércoles',
+    Jue: 'Jueves',
+    Vie: 'Viernes',
+    Sáb: 'Sábado',
+    Dom: 'Domingo',
+    // Formato legacy (1 letra)
     L: 'Lunes',
     M: 'Martes',
     X: 'Miércoles',
@@ -88,7 +104,28 @@ const DIA_LARGO: Record<string, string> = {
     D: 'Domingo',
 };
 
-const ORDEN_DIAS = ['L', 'M', 'X', 'J', 'V', 'S', 'D'] as const;
+/**
+ * Orden canonical de los días (3 letras — formato nuevo). Los tokens
+ * legacy de 1 letra se normalizan a este orden antes de operaciones
+ * de orden/agrupación.
+ */
+const ORDEN_DIAS = ['Lun', 'Mar', 'Mié', 'Jue', 'Vie', 'Sáb', 'Dom'] as const;
+
+/**
+ * Normaliza cualquier token de día (1 letra o 3 letras) al canonical
+ * de 3 letras. Si el token no es reconocido, lo devuelve tal cual
+ * (sirve como pasarela neutra).
+ */
+const TOKEN_A_CANONICAL: Record<string, (typeof ORDEN_DIAS)[number]> = {
+    Lun: 'Lun', Mar: 'Mar', Mié: 'Mié', Jue: 'Jue',
+    Vie: 'Vie', Sáb: 'Sáb', Dom: 'Dom',
+    L: 'Lun', M: 'Mar', X: 'Mié', J: 'Jue',
+    V: 'Vie', S: 'Sáb', D: 'Dom',
+};
+
+function normalizarDia(token: string): string {
+    return TOKEN_A_CANONICAL[token] ?? token;
+}
 
 /** Convierte "09:00" → "9 a.m." / "14:30" → "2:30 p.m." */
 function formatearHora12(hora24: string): string {
@@ -104,19 +141,27 @@ function formatearHora12(hora24: string): string {
 }
 
 /**
- * Agrupa una lista de códigos de día y devuelve la etiqueta legible:
- *   ['L','M','X','J','V'] → "Lunes a Viernes"  (3+ consecutivos)
- *   ['L','M']             → "Lunes y Martes"   (2 días)
- *   ['S']                 → "Sábado"           (1 día)
- *   ['L','X','V']         → "Lunes, Miércoles, Viernes" (no consecutivos)
+ * Agrupa una lista de tokens de día (en cualquier formato: 1 letra
+ * "L" o 3 letras "Lun") y devuelve la etiqueta legible:
+ *   ['Lun','Mar','Mié','Jue','Vie'] → "Lunes a Viernes"  (3+ consecutivos)
+ *   ['Lun','Mar']                   → "Lunes y Martes"   (2 días)
+ *   ['Sáb']                         → "Sábado"           (1 día)
+ *   ['Lun','Mié','Vie']             → "Lunes, Miércoles, Viernes"
+ *
+ * Sprint 9.3: normaliza los tokens a canonical antes de ordenar para
+ * soportar tanto el formato nuevo (3 letras) como el legacy (1 letra)
+ * sin que se mezclen y produzcan strings corruptos.
  */
-function formatearGrupoDias(diasCortos: string[]): string {
-    if (diasCortos.length === 0) return '';
-    const ordenados = [...diasCortos].sort(
-        (a, b) =>
-            ORDEN_DIAS.indexOf(a as (typeof ORDEN_DIAS)[number])
-            - ORDEN_DIAS.indexOf(b as (typeof ORDEN_DIAS)[number]),
-    );
+function formatearGrupoDias(diasTokens: string[]): string {
+    if (diasTokens.length === 0) return '';
+    const ordenados = [...diasTokens]
+        .map(normalizarDia)
+        .filter((d, i, arr) => arr.indexOf(d) === i) // dedupe por canonical
+        .sort(
+            (a, b) =>
+                ORDEN_DIAS.indexOf(a as (typeof ORDEN_DIAS)[number])
+                - ORDEN_DIAS.indexOf(b as (typeof ORDEN_DIAS)[number]),
+        );
     if (ordenados.length === 1) return DIA_LARGO[ordenados[0]];
     if (ordenados.length === 2) {
         return `${DIA_LARGO[ordenados[0]]} y ${DIA_LARGO[ordenados[1]]}`;
@@ -183,7 +228,11 @@ export function formatearHorarioLegible(
             .split('·')
             .map((s) => s.trim())
             .filter(Boolean);
-        dias.forEach((d) => diasCubiertos.add(d));
+        // Sprint 9.3: normalizar a canonical (3 letras "Lun"...) antes
+        // de meter al Set, así el cálculo de `diasCerrados` funciona
+        // correctamente tanto si el bloque vino con formato nuevo
+        // como con legacy.
+        dias.forEach((d) => diasCubiertos.add(normalizarDia(d)));
 
         const diasFmt = formatearGrupoDias(dias);
         const iniFmt = formatearHora12(ini);
@@ -191,7 +240,9 @@ export function formatearHorarioLegible(
         lineas.push({ dias: diasFmt, horario: `${iniFmt} a ${finFmt}` });
     }
 
-    // Días cerrados — los que no están cubiertos por ningún bloque
+    // Días cerrados — los que no están cubiertos por ningún bloque.
+    // `ORDEN_DIAS` ya está en canonical y `diasCubiertos` también
+    // (gracias al `normalizarDia` arriba), así que el filtrado es exacto.
     const diasCerrados = ORDEN_DIAS.filter((d) => !diasCubiertos.has(d));
     if (diasCerrados.length > 0) {
         const grupoFmt = formatearGrupoDias([...diasCerrados]);
@@ -213,9 +264,22 @@ export function formatearHorarioLegible(
  *   - { kind: 'hora',       monto: 250 }         → "$250/h"
  *   - { kind: 'mensual',    monto: 8500 }        → "$8,500 / mes"
  *   - { kind: 'rango',      min: 300, max: 500 } → "$300–$500"
- *   - { kind: 'a-convenir' }                     → "A convenir"
+ *   - { kind: 'a-convenir' }                     → "A tratar" o "Sueldo a tratar"
+ *
+ * Sprint 9.3: "A convenir" → "A tratar" / "Sueldo a tratar".
+ *   - Cuando el card es una VACANTE (`esVacante: true`), devuelve
+ *     "Sueldo a tratar" — mismo término que el toggle del slideover
+ *     de BS Vacantes, coherente para el candidato.
+ *   - En cualquier otro caso (servicio Ofrezco/Solicito de persona),
+ *     devuelve "A tratar" — más versátil porque no asume que el
+ *     intercambio es un sueldo (puede ser precio de servicio, etc.).
+ *   "A tratar" y "Sueldo a tratar" son más cálidos y de uso común
+ *   en México vs el formal "A convenir".
  */
-export function formatearPrecioServicio(precio: PrecioServicio): string {
+export function formatearPrecioServicio(
+    precio: PrecioServicio,
+    opciones?: { esVacante?: boolean },
+): string {
     switch (precio.kind) {
         case 'fijo':
             return `$${precio.monto.toLocaleString('es-MX')}`;
@@ -226,7 +290,7 @@ export function formatearPrecioServicio(precio: PrecioServicio): string {
         case 'rango':
             return `$${precio.min.toLocaleString('es-MX')}–$${precio.max.toLocaleString('es-MX')}`;
         case 'a-convenir':
-            return 'A convenir';
+            return opciones?.esVacante ? 'Sueldo a tratar' : 'A tratar';
     }
 }
 

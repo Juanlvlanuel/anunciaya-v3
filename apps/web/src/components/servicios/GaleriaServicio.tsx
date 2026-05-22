@@ -115,10 +115,13 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
                 <div className="absolute inset-x-0 bottom-0 h-2/3 bg-linear-to-t from-black/75 via-black/40 to-transparent pointer-events-none" />
 
                 {/* Sello "Empresa verificada" — premium dorado, sin texto.
-                    Posición esquina superior derecha del hero. Tooltip nativo
-                    `title` describe el significado a quien no asocie el icono. */}
+                    Sprint 9.3: movido de top-right a top-LEFT para
+                    intercambiar con el botón Bookmark (que ahora vive
+                    top-right en PaginaServicio.tsx). Tooltip nativo
+                    `title` describe el significado a quien no asocie el
+                    icono. */}
                 <div
-                    className="absolute top-3 right-3 z-10 w-10 h-10 rounded-full grid place-items-center shadow-lg ring-2 ring-white/80"
+                    className="absolute top-3 left-3 z-10 w-10 h-10 rounded-full grid place-items-center shadow-lg ring-2 ring-white/80"
                     style={{
                         background:
                             'linear-gradient(135deg, #fde047 0%, #fbbf24 45%, #d97706 100%)',

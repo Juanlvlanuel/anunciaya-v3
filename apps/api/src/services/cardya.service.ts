@@ -23,6 +23,8 @@ import {
   ofertas,
 } from '../db/schemas/schema.js';
 import { eq, and, sql, desc, isNotNull } from 'drizzle-orm';
+import { obtenerZonaHorariaSucursal } from '../utils/zonaHoraria.js';
+import { sqlExpiracionFinDeDia } from '../utils/expiracion.js';
 import type {
   RespuestaServicio,
   BilleteraNegocio,
@@ -484,8 +486,20 @@ export async function generarVoucher(
 
     const diasExpiracion = config[0]?.diasExpiracionVoucher ?? 30;
     const codigo = generarCodigoVoucher();
-    const expiraAt = new Date();
-    expiraAt.setDate(expiraAt.getDate() + diasExpiracion);
+
+    // `expiraAt` = fin del día N+diasExpiracion en zona horaria del
+    // negocio que emite el voucher. Antes era `new Date(); setDate(+N)`
+    // → vencía a la hora EXACTA de canje + N días. Ahora respeta el
+    // día completo en hora local — si el cliente canjea a las 8pm y
+    // va al negocio a las 10pm del día N, el voucher SIGUE válido.
+    const zonaNegocio = await obtenerZonaHorariaSucursal(recomp.negocioId);
+    const expRes = await db.execute<{ expira_at: Date | string }>(sql`
+        SELECT ${sqlExpiracionFinDeDia(diasExpiracion, zonaNegocio)} AS expira_at
+    `);
+    const expiraAtRaw = expRes.rows[0]?.expira_at;
+    const expiraAtIso = expiraAtRaw instanceof Date
+        ? expiraAtRaw.toISOString()
+        : String(expiraAtRaw);
 
     const puntosADescontar = requierePuntos ? recomp.puntosRequeridos : 0;
 
@@ -522,7 +536,7 @@ export async function generarVoucher(
           qrData: JSON.stringify({ codigo, recompensaId, usuarioId }),
           puntosUsados: puntosADescontar,
           estado: 'pendiente',
-          expiraAt: expiraAt.toISOString(),
+          expiraAt: expiraAtIso,
         })
         .returning();
 

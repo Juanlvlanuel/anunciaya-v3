@@ -321,7 +321,9 @@ function MisPublicacionesChip({ total }: { total: number }) {
             aria-label={`Mis publicaciones · ${total} ${total === 1 ? 'activa' : 'activas'}`}
             onClick={(e) => {
                 e.stopPropagation();
-                navigate('/mis-publicaciones');
+                // `?tipo=marketplace` pre-selecciona el toggle de MP al
+                // llegar (PaginaMisPublicaciones lo lee y limpia el param).
+                navigate('/mis-publicaciones?tipo=marketplace');
             }}
             className="inline-flex items-center gap-1.5 h-9 lg:h-10 px-2.5 lg:px-3.5 rounded-full bg-teal-50 border-2 border-teal-200 text-teal-800 text-[13px] lg:text-[14px] font-semibold hover:bg-teal-100 hover:border-teal-300 lg:cursor-pointer shrink-0"
         >

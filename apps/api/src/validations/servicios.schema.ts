@@ -522,10 +522,15 @@ const camposVacanteBase = {
     tipoEmpleo: campoTipoEmpleo,
     modalidad: campoModalidad,
     precio: precioSchema,
+    // Requisitos opcionales — Sprint 9.3 alineó BS Vacantes con la
+    // filosofía de "máxima flexibilidad al publicar" de MP/Servicios.
+    // Si el negocio agrega requisitos, se valida longitud individual
+    // y tope superior (20); si no, la vacante se publica sin esa sección.
     requisitos: z
         .array(campoRequisito)
-        .min(3, 'Una vacante necesita al menos 3 requisitos')
-        .max(20, 'Máximo 20 requisitos'),
+        .max(20, 'Máximo 20 requisitos')
+        .optional()
+        .default([]),
     beneficios: z.array(campoBeneficio).max(8).optional().default([]),
     horario: z.string().trim().max(150).optional(),
     diasSemana: z.array(campoDiaSemana).max(7).optional().default([]),

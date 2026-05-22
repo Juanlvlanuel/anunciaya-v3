@@ -31,6 +31,7 @@ import {
     negocioSucursales,
     negocios,
     articulosMarketplace,
+    serviciosPublicaciones,
 } from '../db/schemas/schema';
 
 // =============================================================================
@@ -86,14 +87,21 @@ export async function agregarGuardado(params: AgregarGuardadoParams) {
             })
             .returning();
 
-        // Incrementar el contador denormalizado del artículo de MarketPlace.
-        // Las ofertas y servicios tienen sus propios contadores manejados
-        // en otros services — solo articulo_marketplace requiere update aquí.
+        // Incrementar el contador denormalizado de la entidad guardada.
+        // Las ofertas tienen su contador manejado en otros services.
+        // articulo_marketplace y servicio actualizan aquí su `total_guardados`
+        // para que el feed/detalle muestren el número correcto sin tener
+        // que volver a contar la tabla guardados.
         if (entityType === 'articulo_marketplace') {
             await db
                 .update(articulosMarketplace)
                 .set({ totalGuardados: sql`${articulosMarketplace.totalGuardados} + 1` })
                 .where(eq(articulosMarketplace.id, entityId));
+        } else if (entityType === 'servicio') {
+            await db
+                .update(serviciosPublicaciones)
+                .set({ totalGuardados: sql`${serviciosPublicaciones.totalGuardados} + 1` })
+                .where(eq(serviciosPublicaciones.id, entityId));
         }
 
         return {
@@ -151,7 +159,7 @@ export async function quitarGuardado(
             .delete(guardados)
             .where(eq(guardados.id, guardadoExistente.id));
 
-        // Decrementar el contador denormalizado del artículo de MarketPlace.
+        // Decrementar el contador denormalizado de la entidad guardada.
         // GREATEST evita valores negativos si el contador queda desfasado.
         if (entityType === 'articulo_marketplace') {
             await db
@@ -160,6 +168,13 @@ export async function quitarGuardado(
                     totalGuardados: sql`GREATEST(${articulosMarketplace.totalGuardados} - 1, 0)`,
                 })
                 .where(eq(articulosMarketplace.id, entityId));
+        } else if (entityType === 'servicio') {
+            await db
+                .update(serviciosPublicaciones)
+                .set({
+                    totalGuardados: sql`GREATEST(${serviciosPublicaciones.totalGuardados} - 1, 0)`,
+                })
+                .where(eq(serviciosPublicaciones.id, entityId));
         }
 
         return {
@@ -450,10 +465,217 @@ export async function obtenerGuardados(
         }
 
         // =====================================================================
-        // CASO 3: entityType === 'servicio' (Servicios) → Solo IDs
+        // CASO 3: entityType === 'servicio' → JOIN con servicios_publicaciones
+        // (Sprint 9.3 — tab "Servicios" en Mis Guardados)
+        // =====================================================================
+        else if (entityType === 'servicio') {
+            // SQL crudo igual que articulo_marketplace porque ubicacion_aproximada
+            // está como text (geography no soportado nativamente por Drizzle).
+            //
+            // Sprint 9.3 (iteración): se agregaron LEFT JOIN a negocios +
+            // negocio_sucursales (mismos que `COLUMNAS_PUBLICACION_FEED` del
+            // feed normal) para que el card de Vacante guardada renderice
+            // el logo del negocio y la foto de portada de la sucursal
+            // (antes salía con placeholder gris porque faltaban esos
+            // campos en la respuesta).
+            const offsetSql = (pagina - 1) * limite;
+            const guardadosRaw = await db.execute(sql`
+                SELECT
+                    g.id,
+                    g.entity_type AS "entityType",
+                    g.entity_id AS "entityId",
+                    g.created_at AS "createdAt",
+                    p.id AS "publicacionId",
+                    p.usuario_id AS "publicacionUsuarioId",
+                    p.sucursal_id AS "publicacionSucursalId",
+                    p.modo AS "publicacionModo",
+                    p.tipo AS "publicacionTipo",
+                    p.subtipo AS "publicacionSubtipo",
+                    p.titulo AS "publicacionTitulo",
+                    p.descripcion AS "publicacionDescripcion",
+                    p.fotos AS "publicacionFotos",
+                    p.foto_portada_index AS "publicacionFotoPortadaIndex",
+                    p.precio AS "publicacionPrecio",
+                    p.modalidad AS "publicacionModalidad",
+                    ST_Y(p.ubicacion_aproximada::geometry) AS "publicacionLat",
+                    ST_X(p.ubicacion_aproximada::geometry) AS "publicacionLng",
+                    p.ciudad AS "publicacionCiudad",
+                    p.zonas_aproximadas AS "publicacionZonasAproximadas",
+                    p.skills AS "publicacionSkills",
+                    p.requisitos AS "publicacionRequisitos",
+                    p.horario AS "publicacionHorario",
+                    p.dias_semana AS "publicacionDiasSemana",
+                    p.tipo_empleo AS "publicacionTipoEmpleo",
+                    p.beneficios AS "publicacionBeneficios",
+                    p.presupuesto AS "publicacionPresupuesto",
+                    p.categoria AS "publicacionCategoria",
+                    p.urgente AS "publicacionUrgente",
+                    p.estado AS "publicacionEstado",
+                    p.total_vistas AS "publicacionTotalVistas",
+                    p.total_mensajes AS "publicacionTotalMensajes",
+                    p.total_guardados AS "publicacionTotalGuardados",
+                    p.expira_at AS "publicacionExpiraAt",
+                    p.created_at AS "publicacionCreatedAt",
+                    p.updated_at AS "publicacionUpdatedAt",
+                    -- Datos del negocio + sucursal (solo poblados cuando
+                    -- es vacante con sucursal_id). NULL en publicaciones
+                    -- personales (servicio-persona, solicito).
+                    n.id            AS "publicacionNegocioId",
+                    n.nombre        AS "publicacionNegocioNombre",
+                    n.logo_url      AS "publicacionNegocioLogo",
+                    s.nombre        AS "publicacionSucursalNombre",
+                    s.portada_url   AS "publicacionSucursalPortada",
+                    s.foto_perfil   AS "publicacionSucursalFotoPerfil"
+                FROM guardados g
+                INNER JOIN servicios_publicaciones p ON p.id = g.entity_id
+                LEFT JOIN negocio_sucursales s ON p.sucursal_id = s.id
+                LEFT JOIN negocios n ON s.negocio_id = n.id
+                WHERE g.usuario_id = ${userId}
+                  AND g.entity_type = 'servicio'
+                  -- Solo publicaciones activas. Si el dueño la pausó o el
+                  -- cron de expiración la auto-pausó, desaparece de Mis
+                  -- Guardados. La fila en guardados se mantiene en BD
+                  -- por si la publicación vuelve a 'activa' después.
+                  AND p.estado = 'activa'
+                ORDER BY g.created_at DESC
+                LIMIT ${limite}
+                OFFSET ${offsetSql}
+            `);
+
+            interface RawPubRow {
+                id: string;
+                entityType: string;
+                entityId: string;
+                createdAt: string;
+                publicacionId: string;
+                publicacionUsuarioId: string;
+                publicacionSucursalId: string | null;
+                publicacionModo: string;
+                publicacionTipo: string;
+                publicacionSubtipo: string | null;
+                publicacionTitulo: string;
+                publicacionDescripcion: string;
+                publicacionFotos: string[];
+                publicacionFotoPortadaIndex: number;
+                publicacionPrecio: unknown;
+                publicacionModalidad: string;
+                publicacionLat: number;
+                publicacionLng: number;
+                publicacionCiudad: string;
+                publicacionZonasAproximadas: string[];
+                publicacionSkills: string[];
+                publicacionRequisitos: string[];
+                publicacionHorario: string | null;
+                publicacionDiasSemana: string[];
+                publicacionTipoEmpleo: string | null;
+                publicacionBeneficios: string[];
+                publicacionPresupuesto: unknown;
+                publicacionCategoria: string | null;
+                publicacionUrgente: boolean;
+                publicacionEstado: string;
+                publicacionTotalVistas: number;
+                publicacionTotalMensajes: number;
+                publicacionTotalGuardados: number;
+                publicacionExpiraAt: string;
+                publicacionCreatedAt: string;
+                publicacionUpdatedAt: string;
+                // Datos del negocio (vacantes) — null para tipos personales.
+                publicacionNegocioId: string | null;
+                publicacionNegocioNombre: string | null;
+                publicacionNegocioLogo: string | null;
+                publicacionSucursalNombre: string | null;
+                publicacionSucursalPortada: string | null;
+                publicacionSucursalFotoPerfil: string | null;
+            }
+
+            const guardadosConPublicacion = (
+                guardadosRaw.rows as unknown as RawPubRow[]
+            ).map((r) => ({
+                id: r.id,
+                entityType: r.entityType,
+                entityId: r.entityId,
+                createdAt: r.createdAt,
+                publicacion: {
+                    id: r.publicacionId,
+                    usuarioId: r.publicacionUsuarioId,
+                    sucursalId: r.publicacionSucursalId,
+                    modo: r.publicacionModo,
+                    tipo: r.publicacionTipo,
+                    subtipo: r.publicacionSubtipo,
+                    titulo: r.publicacionTitulo,
+                    descripcion: r.publicacionDescripcion,
+                    fotos: r.publicacionFotos,
+                    fotoPortadaIndex: r.publicacionFotoPortadaIndex,
+                    precio: r.publicacionPrecio,
+                    modalidad: r.publicacionModalidad,
+                    ubicacionAproximada: {
+                        lat: r.publicacionLat,
+                        lng: r.publicacionLng,
+                    },
+                    ciudad: r.publicacionCiudad,
+                    zonasAproximadas: r.publicacionZonasAproximadas,
+                    skills: r.publicacionSkills,
+                    requisitos: r.publicacionRequisitos,
+                    horario: r.publicacionHorario,
+                    diasSemana: r.publicacionDiasSemana,
+                    tipoEmpleo: r.publicacionTipoEmpleo,
+                    beneficios: r.publicacionBeneficios,
+                    presupuesto: r.publicacionPresupuesto,
+                    categoria: r.publicacionCategoria,
+                    urgente: r.publicacionUrgente,
+                    estado: r.publicacionEstado,
+                    totalVistas: r.publicacionTotalVistas,
+                    totalMensajes: r.publicacionTotalMensajes,
+                    totalGuardados: r.publicacionTotalGuardados,
+                    expiraAt: r.publicacionExpiraAt,
+                    createdAt: r.publicacionCreatedAt,
+                    updatedAt: r.publicacionUpdatedAt,
+                    // Negocio + sucursal — para que el CardServicio
+                    // renderice logo de vacante y portada de la sucursal.
+                    negocioId: r.publicacionNegocioId,
+                    negocioNombre: r.publicacionNegocioNombre,
+                    negocioLogo: r.publicacionNegocioLogo,
+                    sucursalNombre: r.publicacionSucursalNombre,
+                    sucursalPortada: r.publicacionSucursalPortada,
+                    sucursalFotoPerfil: r.publicacionSucursalFotoPerfil,
+                },
+            }));
+
+            // Total — cuenta solo activas para que el badge del tab
+            // refleje lo que el usuario realmente puede ver.
+            const [{ count }] = await db
+                .select({ count: sql<number>`count(*)` })
+                .from(guardados)
+                .innerJoin(
+                    serviciosPublicaciones,
+                    eq(serviciosPublicaciones.id, guardados.entityId),
+                )
+                .where(
+                    and(
+                        eq(guardados.usuarioId, userId),
+                        eq(guardados.entityType, 'servicio'),
+                        eq(serviciosPublicaciones.estado, 'activa'),
+                    ),
+                );
+            const total = Number(count);
+            const totalPaginas = Math.ceil(total / limite);
+
+            return {
+                success: true,
+                data: {
+                    guardados: guardadosConPublicacion,
+                    total,
+                    pagina,
+                    limite,
+                    totalPaginas,
+                },
+            };
+        }
+
+        // =====================================================================
+        // CASO FALLBACK: cualquier otro entityType → Solo IDs (comportamiento legacy)
         // =====================================================================
         else {
-            // Obtener guardados (comportamiento original)
             const guardadosRaw = await db
                 .select({
                     id: guardados.id,
@@ -467,7 +689,6 @@ export async function obtenerGuardados(
                 .limit(limite)
                 .offset(offset);
 
-            // Contar total
             const [{ count }] = await db
                 .select({ count: sql<number>`count(*)` })
                 .from(guardados)

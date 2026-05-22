@@ -45,17 +45,19 @@ export const MODALIDAD_SUBLABEL: Record<ModalidadServicio, string> = {
     hibrido: 'Mezcla de ambos',
 };
 
+/**
+ * Etiqueta corta del día (3 letras) usada para chips visuales del
+ * selector de días Y para la serialización del campo `horario`.
+ *
+ * Sprint 9.3: antes era 1 letra (L M X J V S D) con la convención
+ * española de usar "X" para Miércoles. Se cambió a 3 letras uniforme
+ * (Lun Mar Mié Jue Vie Sáb Dom) porque visualmente es más claro y
+ * elimina la sorpresa del "X" para usuarios no familiarizados con
+ * la convención. El parser legacy (`CODIGO_POR_LETRA` en HorarioYDias)
+ * mantiene soporte para "X" y demás 1-letra para no romper vacantes
+ * publicadas antes del cambio.
+ */
 export const DIA_CORTO: Record<DiaSemanaCodigo, string> = {
-    lun: 'L',
-    mar: 'M',
-    mie: 'X',
-    jue: 'J',
-    vie: 'V',
-    sab: 'S',
-    dom: 'D',
-};
-
-export const DIA_FULL: Record<DiaSemanaCodigo, string> = {
     lun: 'Lun',
     mar: 'Mar',
     mie: 'Mié',
@@ -64,6 +66,13 @@ export const DIA_FULL: Record<DiaSemanaCodigo, string> = {
     sab: 'Sáb',
     dom: 'Dom',
 };
+
+/**
+ * @deprecated alias de `DIA_CORTO` (antes diferían: corto=1 letra,
+ * full=3 letras). Ahora son iguales; este alias se mantiene por
+ * compatibilidad con código que aún lo importa.
+ */
+export const DIA_FULL = DIA_CORTO;
 
 export const DIAS_ORDEN: DiaSemanaCodigo[] = [
     'lun',
@@ -129,7 +138,13 @@ function fmtMonto(n: number): string {
  *   - kind='rango'   → "$1,500–$3,000/mes" (con unidad según tipoEmpleo)
  *   - kind='hora'    → "$X/hora"
  *   - kind='fijo' + tipoEmpleo='por-proyecto' → "$X por entrega"
- *   - kind='a-convenir' → "A convenir"
+ *   - kind='a-convenir' → "Sueldo a tratar"
+ *
+ * Sprint 9.3: "A convenir" → "Sueldo a tratar" (mismo término que el
+ * toggle del slideover y el card del feed público — coherencia entre
+ * todas las superficies). Las superficies que rendericen este string
+ * para `kind='a-convenir'` deberían mostrarlo como BADGE (no texto
+ * plano) para diferenciarlo visualmente de los montos numéricos.
  */
 export function formatearPrecioVacante(
     precio: PrecioServicio,
@@ -150,7 +165,7 @@ export function formatearPrecioVacante(
             return `${fmtMonto(precio.monto)} ${sufijo}`;
         }
         case 'a-convenir':
-            return 'A convenir';
+            return 'Sueldo a tratar';
     }
 }
 
@@ -160,8 +175,25 @@ export function formatearPrecioVacante(
 
 const DIAS_LV: DiaSemanaCodigo[] = ['lun', 'mar', 'mie', 'jue', 'vie'];
 
-/** Mapeo de letra corta del wizard ("L", "M", "X"...) al nombre largo ("Lun", "Mar", "Mié"...). */
+/**
+ * Mapeo de token corto a nombre largo legible. Acepta TANTO el formato
+ * nuevo de 3 letras (Sprint 9.3+: "Lun", "Mar", "Mié"...) COMO el
+ * legacy de 1 letra ("L", "M", "X"...) para no romper vacantes
+ * publicadas antes del cambio. La función `expandirHorarioEstructurado`
+ * lo usa para volver el string serializado a un texto legible.
+ */
 const CODIGO_LARGO_POR_LETRA: Record<string, string> = {
+    // Formato nuevo (3 letras) — Sprint 9.3+. Los días ya vienen en
+    // la forma larga; el mapeo es identidad pero lo dejamos explícito
+    // para que el parser no devuelva null al encontrar "Lun" etc.
+    Lun: 'Lun',
+    Mar: 'Mar',
+    Mié: 'Mié',
+    Jue: 'Jue',
+    Vie: 'Vie',
+    Sáb: 'Sáb',
+    Dom: 'Dom',
+    // Formato legacy (1 letra) — vacantes creadas antes de Sprint 9.3
     L: 'Lun',
     M: 'Mar',
     X: 'Mié',
@@ -174,8 +206,9 @@ const CODIGO_LARGO_POR_LETRA: Record<string, string> = {
 /**
  * Expande el string serializado del wizard de horario al formato largo legible.
  *
- *   Input  : "L · M · X · J · V de 09:00 a 18:00 | S de 09:00 a 14:00"
- *   Output : ["Lun · Mar · Mié · Jue · Vie de 09:00 a 18:00", "Sáb de 09:00 a 14:00"]
+ *   Input (nuevo Sprint 9.3) : "Lun · Mar · Mié de 09:00 a 18:00 | Sáb de 09:00 a 14:00"
+ *   Input (legacy)           : "L · M · X · J · V de 09:00 a 18:00 | S de 09:00 a 14:00"
+ *   Output (ambos)           : ["Lun · Mar · Mié · Jue · Vie de 09:00 a 18:00", "Sáb de 09:00 a 14:00"]
  *
  * Si el horario no matchea el formato estructurado del wizard (texto libre
  * legacy), devuelve `null` y el caller debe usar render fallback.
@@ -194,7 +227,7 @@ export function expandirHorarioEstructurado(
         const diasLargos = diasStr
             .split('·')
             .map((s) => s.trim())
-            .map((letra) => CODIGO_LARGO_POR_LETRA[letra] ?? letra)
+            .map((token) => CODIGO_LARGO_POR_LETRA[token] ?? token)
             .join(' · ');
         expandidos.push(`${diasLargos} de ${ini} a ${fin}`);
     }
@@ -276,9 +309,11 @@ export function validarVacante(
             'La descripción debe tener entre 30 y 500 caracteres.';
     }
 
-    if (datos.requisitos.length < 3) {
-        errores.requisitos = 'Agrega al menos 3 requisitos.';
-    } else if (datos.requisitos.length > 20) {
+    // Requisitos opcionales — Sprint 9.3 alineó BS Vacantes con la
+    // filosofía de "máxima flexibilidad al publicar" de MP/Servicios.
+    // Si el negocio NO agrega requisitos, la vacante se publica sin esa
+    // sección. Si agrega, se valida longitud individual y tope superior.
+    if (datos.requisitos.length > 20) {
         errores.requisitos = 'Máximo 20 requisitos.';
     } else if (datos.requisitos.some((r) => r.length < 3 || r.length > 200)) {
         errores.requisitos =
@@ -296,22 +331,25 @@ export function validarVacante(
         errores.horario = 'El horario tiene un máximo de 150 caracteres.';
     }
 
+    // Salario opcional — Sprint 9.3 alineó BS Vacantes con la filosofía
+    // de "máxima flexibilidad al publicar" de MP/Servicios. Si el rango
+    // queda en 0/0 (o el monto en 0), el payload se normaliza a
+    // `{kind: 'a-convenir'}` antes de enviarse al backend — ver
+    // `normalizarPrecioVacanteParaPayload` en SlideoverNuevaVacante.tsx.
+    // Aquí solo damos error cuando los datos son inconsistentes
+    // (negativos, mínimo/máximo a medio llenar, min >= max).
     const precio = datos.precio;
     if (precio.kind === 'rango') {
         if (precio.min < 0 || precio.max < 0) {
             errores.precio = 'El salario no puede ser negativo.';
-        } else if (precio.min === 0 && precio.max === 0) {
-            errores.precio = 'Define el rango salarial o activa "Dejar a convenir".';
         } else if ((precio.min === 0) !== (precio.max === 0)) {
             errores.precio = 'Llena el mínimo y el máximo.';
-        } else if (precio.min >= precio.max) {
+        } else if (precio.min > 0 && precio.min >= precio.max) {
             errores.precio = 'El mínimo debe ser menor que el máximo.';
         }
     } else if (precio.kind !== 'a-convenir') {
         if (precio.monto < 0) {
             errores.precio = 'El salario no puede ser negativo.';
-        } else if (precio.monto === 0) {
-            errores.precio = 'Define un monto o activa "Dejar a convenir".';
         }
     }
 

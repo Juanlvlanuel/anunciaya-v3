@@ -57,6 +57,11 @@ import type {
     TipoEmpleo,
     Vacante,
 } from '../../../../../types/servicios';
+import {
+    descartarBorradorVacantes,
+    guardarBorradorVacantes,
+    leerBorradorVacantes,
+} from '../../../../../utils/borradorVacantes';
 
 // =============================================================================
 // CONSTANTES
@@ -105,19 +110,29 @@ type PasoKey = (typeof PASOS)[number]['key'];
 
 const STEP_HEADER: Record<
     PasoKey,
-    { titulo: string; hint: string }
+    { titulo: string; hint: string; opcional?: boolean }
 > = {
     identidad: {
         titulo: 'Puesto',
         hint: '¿Qué puesto buscas y bajo qué condiciones?',
     },
     compensa: {
+        // Sin hint Sprint 9.3 — el título "Descripción" y los labels
+        // de cada campo (Salario, Descripción, Requisitos, Beneficios)
+        // comunican qué se pide. El subtítulo descriptivo agregaba
+        // ruido para un paso sencillo.
         titulo: 'Descripción',
-        hint: 'Define qué pagas y describe la oportunidad.',
+        hint: '',
     },
     logistica: {
+        // Sin hint — el contenido del paso (campos de horario + card de
+        // confirmaciones) es autoexplicativo y el subtítulo agregaba ruido.
+        // `opcional: true` agrega un sufijo "· Opcional" inline al título
+        // (sustituye al label "Horario y días · opcional" del Field que
+        // antes envolvía al HorarioYDias — Sprint 9.3).
         titulo: 'Horarios',
-        hint: 'Horario, vigencia y confirma para publicar.',
+        hint: '',
+        opcional: true,
     },
 };
 
@@ -212,13 +227,38 @@ function previewSalario(
     return `${fmtMxn(precio.monto)} ${UNIDAD_SUFIJO[unidad]}`;
 }
 
+/**
+ * Normaliza el precio antes de enviarlo al backend cuando el usuario
+ * dejó el salario sin definir (Sprint 9.3 — salario opcional en BS
+ * Vacantes). Casos:
+ *   - rango con `min === 0 && max === 0`     → `{kind: 'a-convenir'}`
+ *   - monto único con `monto === 0`          → `{kind: 'a-convenir'}`
+ * El resto de variantes pasa intacto. El discriminated union del schema
+ * Zod sí acepta `'a-convenir'` y el card de la vacante renderiza
+ * "A convenir" en esos casos.
+ */
+function normalizarPrecioVacanteParaPayload(
+    precio: PrecioServicio,
+): PrecioServicio {
+    if (precio.kind === 'rango' && precio.min === 0 && precio.max === 0) {
+        return { kind: 'a-convenir' };
+    }
+    if (
+        precio.kind !== 'a-convenir' &&
+        precio.kind !== 'rango' &&
+        precio.monto === 0
+    ) {
+        return { kind: 'a-convenir' };
+    }
+    return precio;
+}
+
 /** Devuelve los faltantes user-friendly del paso indicado. */
 function faltantesDelPaso(args: {
     paso: PasoKey;
     errores: ErroresVacante;
     titulo: string;
     descripcion: string;
-    requisitos: string[];
     aConvenir: boolean;
     precio: PrecioServicio;
     confirmacionesOk: boolean;
@@ -229,7 +269,6 @@ function faltantesDelPaso(args: {
         errores,
         titulo,
         descripcion,
-        requisitos,
         aConvenir,
         precio,
         confirmacionesOk,
@@ -245,25 +284,24 @@ function faltantesDelPaso(args: {
     }
 
     if (paso === 'compensa') {
-        if (!aConvenir) {
-            if (precio.kind === 'rango') {
-                if (precio.min === 0 || precio.max === 0) lista.push('salario');
-                else if (precio.min >= precio.max) lista.push('salario válido');
-            } else if (precio.kind !== 'a-convenir' && precio.monto === 0) {
-                lista.push('salario');
+        // Sprint 9.3: salario y requisitos son OPCIONALES. Solo aparecen
+        // en la lista de faltantes cuando están parcialmente llenos de
+        // forma inconsistente (rango con un solo extremo, min >= max,
+        // requisito demasiado corto/largo, etc.). Si el usuario los deja
+        // totalmente vacíos, NO bloquea avanzar — la vacante se publica
+        // con esos campos sin definir (precio se trata como "a convenir"
+        // automáticamente en el payload).
+        if (!aConvenir && precio.kind === 'rango') {
+            if ((precio.min === 0) !== (precio.max === 0)) {
+                lista.push('salario válido');
+            } else if (precio.min > 0 && precio.min >= precio.max) {
+                lista.push('salario válido');
             }
         }
         const d = descripcion.trim();
         if (d.length === 0) lista.push('descripción');
         else if (d.length < 30) lista.push('descripción más larga');
-        if (requisitos.length === 0) {
-            lista.push('requisitos');
-        } else if (requisitos.length < 3) {
-            const faltan = 3 - requisitos.length;
-            lista.push(
-                `${faltan} requisito${faltan === 1 ? '' : 's'} más`,
-            );
-        }
+        if (errores.requisitos) lista.push('requisitos válidos');
         if (errores.beneficios) lista.push('beneficios válidos');
     }
 
@@ -383,19 +421,51 @@ export function SlideoverNuevaVacante({
             // En edición no pedimos las confirmaciones de nuevo
             setConfirms({ real: true, legal: true, coord: true });
         } else {
-            setSucursalId(sucursalDefault);
-            setTitulo('');
-            setDescripcion('');
-            setTipoEmpleo('tiempo-completo');
-            setModalidad('presencial');
-            setAConvenir(false);
-            setUnidad('mes-rango');
-            setMontoMin('');
-            setMontoMax('');
-            setRequisitos([]);
-            setBeneficios([]);
-            setHorario('');
-            setDias([]);
+            // Sprint 9.3: modo CREAR — si hay borrador pendiente en
+            // localStorage (namespaced por sucursal activa), pre-cargamos
+            // los campos desde ahí. Si no, arrancamos con los defaults
+            // limpios. El borrador de OTRA sucursal NO se ve aquí.
+            const borrador = leerBorradorVacantes(sucursalActivaId);
+            if (borrador) {
+                // sucursalId: respetamos el del borrador si sigue siendo
+                // válida en la lista actual de sucursales. Si la sucursal
+                // ya no existe (fue eliminada, etc.), caemos al default.
+                const sucursalValida = sucursales.some(
+                    (s) => s.id === borrador.sucursalId,
+                );
+                setSucursalId(
+                    sucursalValida ? borrador.sucursalId : sucursalDefault,
+                );
+                setTitulo(borrador.titulo);
+                setDescripcion(borrador.descripcion);
+                setTipoEmpleo(borrador.tipoEmpleo);
+                setModalidad(borrador.modalidad);
+                setAConvenir(borrador.aConvenir);
+                setUnidad(borrador.unidad);
+                setMontoMin(borrador.montoMin);
+                setMontoMax(borrador.montoMax);
+                setRequisitos(borrador.requisitos);
+                setBeneficios(borrador.beneficios);
+                setHorario(borrador.horario);
+                setDias(borrador.dias as DiaSemanaCodigo[]);
+            } else {
+                setSucursalId(sucursalDefault);
+                setTitulo('');
+                setDescripcion('');
+                setTipoEmpleo('tiempo-completo');
+                setModalidad('presencial');
+                setAConvenir(false);
+                setUnidad('mes-rango');
+                setMontoMin('');
+                setMontoMax('');
+                setRequisitos([]);
+                setBeneficios([]);
+                setHorario('');
+                setDias([]);
+            }
+            // Confirmaciones legales SIEMPRE se piden frescas, aunque
+            // haya borrador (decisión de cumplimiento — el usuario debe
+            // releer y confirmar cada vez que publica).
             setConfirms({ real: false, legal: false, coord: false });
         }
 
@@ -443,6 +513,65 @@ export function SlideoverNuevaVacante({
                 return { kind: 'fijo', monto: min, moneda: 'MXN' };
         }
     }, [aConvenir, unidad, montoMin, montoMax]);
+
+    // ===========================================================================
+    // BORRADOR — auto-guardado con debounce 500ms (solo modo CREAR)
+    // ===========================================================================
+    //
+    // Cada cambio en cualquier campo dispara un timer; si pasan 500ms sin
+    // nuevos cambios, persiste el borrador en localStorage. Esto evita
+    // escribir en cada tecla (~30 escrituras/seg al teclear rápido) y
+    // mantiene la sincronía cuando el usuario hace pausa natural.
+    //
+    // No corre en modo edición — la edición de una vacante existente NO
+    // usa borrador (Sprint 9.3: si en el futuro queremos preservar
+    // cambios entre sesiones de edición, agregar namespace `edit-{id}`).
+    //
+    // Tampoco corre cuando el slideover está cerrado (`abierto === false`)
+    // para evitar sobrescribir el borrador con datos stale tras un reset.
+    //
+    // Va DESPUÉS del useMemo de `precio` porque depende de él (declaración
+    // antes de uso para evitar TDZ del block-scoped binding).
+    useEffect(() => {
+        if (!abierto || esEdicion) return;
+        const timer = setTimeout(() => {
+            guardarBorradorVacantes(sucursalActivaId, {
+                sucursalId,
+                titulo,
+                descripcion,
+                tipoEmpleo,
+                modalidad,
+                precio,
+                aConvenir,
+                unidad,
+                montoMin,
+                montoMax,
+                requisitos,
+                beneficios,
+                horario,
+                dias,
+            });
+        }, 500);
+        return () => clearTimeout(timer);
+    }, [
+        abierto,
+        esEdicion,
+        sucursalActivaId,
+        sucursalId,
+        titulo,
+        descripcion,
+        tipoEmpleo,
+        modalidad,
+        precio,
+        aConvenir,
+        unidad,
+        montoMin,
+        montoMax,
+        requisitos,
+        beneficios,
+        horario,
+        dias,
+    ]);
 
     const confirmacionesOk =
         confirms.real && confirms.legal && confirms.coord;
@@ -517,7 +646,6 @@ export function SlideoverNuevaVacante({
                 errores,
                 titulo,
                 descripcion,
-                requisitos,
                 aConvenir,
                 precio,
                 confirmacionesOk,
@@ -528,7 +656,6 @@ export function SlideoverNuevaVacante({
             errores,
             titulo,
             descripcion,
-            requisitos,
             aConvenir,
             precio,
             confirmacionesOk,
@@ -589,6 +716,12 @@ export function SlideoverNuevaVacante({
         const lng = FALLBACK_PENASCO.lng;
         const ciudad = FALLBACK_PENASCO.ciudad;
 
+        // Sprint 9.3: si el usuario dejó el salario sin definir (rango 0/0
+        // o monto 0), normalizamos el precio a `{kind: 'a-convenir'}` antes
+        // de enviarlo al backend — el discriminated union del schema sí lo
+        // acepta y se renderiza como "A convenir" en el card de la vacante.
+        const precioNormalizado = normalizarPrecioVacanteParaPayload(precio);
+
         if (esEdicion && vacanteInicial) {
             const cambios: ActualizarVacanteInput = {
                 sucursalId,
@@ -596,7 +729,7 @@ export function SlideoverNuevaVacante({
                 descripcion: descripcion.trim(),
                 tipoEmpleo,
                 modalidad,
-                precio,
+                precio: precioNormalizado,
                 requisitos,
                 beneficios,
                 horario: horario.trim() || undefined,
@@ -613,7 +746,7 @@ export function SlideoverNuevaVacante({
                 descripcion: descripcion.trim(),
                 tipoEmpleo,
                 modalidad,
-                precio,
+                precio: precioNormalizado,
                 requisitos,
                 beneficios,
                 horario: horario.trim() || undefined,
@@ -629,6 +762,15 @@ export function SlideoverNuevaVacante({
                 },
             };
             await onSubmitCrear(input);
+            // Sprint 9.3: borrador descartado al publicar exitosamente.
+            // El `await` resolvió sin throw → la mutación pasó la
+            // validación del backend y la vacante se creó. Si el padre
+            // (PaginaVacantes) decide no cerrar el slideover por alguna
+            // razón, el auto-save lo escribiría de nuevo en 500ms — por
+            // eso descartamos DESPUÉS del await, no antes.
+            // Namespaced por sucursal: solo se borra el draft de la
+            // sucursal activa actual (no afecta drafts de otras).
+            descartarBorradorVacantes(sucursalActivaId);
         }
     };
 
@@ -678,8 +820,13 @@ export function SlideoverNuevaVacante({
                 className="fixed top-0 right-0 bottom-0 z-[101] w-full max-w-[720px] bg-white border-l border-slate-300 shadow-2xl flex flex-col animate-in slide-in-from-right duration-200"
                 data-testid="slideover-vacante"
             >
-                {/* Header */}
-                <header className="flex items-start gap-3.5 px-5 lg:px-7 py-5 border-b border-slate-300 shrink-0">
+                {/* Header — items-center desde Sprint 9.3 (antes items-start).
+                    El cambio se hizo cuando se eliminó el subtítulo descriptivo
+                    debajo del título: con solo el título, el bloque del medio
+                    es más bajo que el ícono 44×44 y se veía descentrado arriba.
+                    Con items-center el título, el ícono y el botón X se
+                    alinean verticalmente al centro del header. */}
+                <header className="flex items-center gap-3.5 px-5 lg:px-7 py-5 border-b border-slate-300 shrink-0">
                     <div
                         className="w-11 h-11 rounded-xl text-white grid place-items-center shrink-0"
                         style={{
@@ -699,18 +846,17 @@ export function SlideoverNuevaVacante({
                         >
                             {esEdicion ? 'Editar vacante' : 'Nueva vacante'}
                         </h2>
-                        <p className="text-base lg:text-sm 2xl:text-base text-slate-600 mt-0.5 font-medium">
-                            {esEdicion
-                                ? 'Actualiza los datos de tu publicación.'
-                                : 'Publícala y aparecerá en la sección Servicios de AnunciaYA.'}
-                        </p>
+                        {/* Subtítulo descriptivo eliminado Sprint 9.3 — el
+                            paso del wizard ya comunica qué se está pidiendo
+                            (Puesto / Descripción / Horarios), no hace falta
+                            el texto extra del header. */}
                     </div>
                     <button
                         ref={closeBtnRef}
                         type="button"
                         onClick={onClose}
                         aria-label="Cerrar"
-                        className="w-9 h-9 rounded-lg border-2 border-red-300 bg-white grid place-items-center text-red-600 lg:cursor-pointer hover:bg-red-100 hover:border-red-400"
+                        className="w-9 h-9 rounded-lg border-2 border-slate-300 bg-white grid place-items-center text-slate-600 lg:cursor-pointer hover:bg-red-50 hover:border-red-300 hover:text-red-600"
                         data-testid="btn-cerrar-slideover"
                     >
                         <X className="w-4 h-4" strokeWidth={2} />
@@ -720,11 +866,22 @@ export function SlideoverNuevaVacante({
                 {/* Progress bar */}
                 <ProgressBar paso={paso} />
 
-                {/* Body */}
-                <div className="flex-1 overflow-y-auto px-5 lg:px-7 py-6 space-y-5">
+                {/* Body — Sprint 9.3:
+                      - space-y-5 → flex flex-col gap-6 (mismo espaciado
+                        que antes, pero como flex container para que
+                        algunos pasos puedan empujar bloques al fondo
+                        usando `flex-1` en un spacer).
+                      - El paso 3 usa esto: el banner "Activa 30 días"
+                        + el checkbox de políticas se separan del bloque
+                        de horarios con un spacer flex-1, quedando
+                        pegados al fondo del viewport disponible.
+                      - Los pasos 1 y 2 no agregan spacer, así que su
+                        contenido fluye natural arriba como antes. */}
+                <div className="flex-1 overflow-y-auto px-5 lg:px-7 py-6 flex flex-col gap-6">
                     <StepHeader
                         titulo={STEP_HEADER[pasoActualKey].titulo}
                         hint={STEP_HEADER[pasoActualKey].hint}
+                        opcional={STEP_HEADER[pasoActualKey].opcional}
                     />
 
                     {paso === 1 && (
@@ -1120,11 +1277,17 @@ function PasoCompensacion({
                         testId="toggle-a-convenir"
                     />
                     <span className="text-sm font-semibold text-slate-700">
-                        Dejar a convenir
+                        Sueldo a tratar
                     </span>
-                    <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
-                        Sin monto público — los candidatos preguntan por chat.
-                    </span>
+                    {/* Sprint 9.3:
+                         - Antes: "Dejar a convenir" + subtexto largo
+                           "Sin monto público — los candidatos preguntan
+                           por chat".
+                         - Después: "Sueldo a tratar" (mismo término que
+                           se renderiza en el card del feed cuando el
+                           negocio activa este toggle — ver
+                           `formatearPrecioServicio` en utils/servicios.ts).
+                         Coherencia visual y reducción de texto. */}
                 </div>
                 {!aConvenir && (
                     <>
@@ -1201,13 +1364,17 @@ function PasoCompensacion({
             </Field>
 
             <Field
-                label="Requisitos · habilidades clave"
+                // Label simplificado Sprint 9.3: antes era "Requisitos ·
+                // habilidades clave" — "habilidades clave" era redundante
+                // (los requisitos YA son habilidades). Y el subtexto
+                // "Agrega entre 3 y 20 elementos. Presiona Enter para
+                // añadir" se eliminó: "entre 3 y 20" ya no aplica (es
+                // opcional ahora) y "Presiona Enter" se descubre solo al
+                // teclear (también está el botón "Agregar" al lado).
+                label="Requisitos"
                 contador={`${requisitos.length}/20`}
-                requerido
+                hint="opcional"
             >
-                <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 -mt-1 mb-2 font-medium">
-                    Agrega entre 3 y 20 elementos. Presiona Enter para añadir.
-                </p>
                 <div className="flex gap-2">
                     <input
                         type="text"
@@ -1219,7 +1386,7 @@ function PasoCompensacion({
                                 agregarRequisito();
                             }
                         }}
-                        placeholder="Ej: Adobe Illustrator, Inglés avanzado..."
+                        placeholder="Adobe Illustrator, Inglés avanzado…"
                         maxLength={200}
                         className={CLASES_INPUT}
                         data-testid="input-requisito"
@@ -1262,7 +1429,7 @@ function PasoCompensacion({
                                 agregarBeneficio();
                             }
                         }}
-                        placeholder="Ej: Aguinaldo, Home office 2 días, Bonos..."
+                        placeholder="Aguinaldo, Home office, Bonos…"
                         maxLength={100}
                         className={CLASES_INPUT}
                         data-testid="input-beneficio"
@@ -1319,7 +1486,11 @@ function PasoLogistica({
 }) {
     return (
         <>
-            <Field label="Horario y días" hint="opcional">
+            {/* Sprint 9.3: se eliminó el <Field label="Horario y días"
+                hint="opcional"> que envolvía esto. El "· Opcional" ahora
+                vive inline al lado del título "Horarios" del StepHeader
+                (sin label duplicado encima del componente). */}
+            <div>
                 <HorarioYDias
                     value={{ horario, dias }}
                     onChange={(v) => {
@@ -1328,7 +1499,15 @@ function PasoLogistica({
                     }}
                 />
                 {erroresHorario && <ErrorText msg={erroresHorario} />}
-            </Field>
+            </div>
+
+            {/* Spacer flex-1 — empuja el banner "Activa 30 días" y el
+                checkbox de políticas al FONDO del body cuando hay altura
+                sobrante. Si el contenido excede el viewport, este spacer
+                se colapsa (flex-1 sin espacio = 0px) y todo apila normal
+                con scroll. El body padre debe ser `flex flex-col` para
+                que `flex-1` funcione aquí. */}
+            <div className="flex-1 min-h-0" aria-hidden />
 
             <div className="flex items-start gap-2 px-4 py-3 bg-slate-100 border border-slate-300 rounded-lg text-sm text-slate-700 font-medium">
                 <Clock
@@ -1361,13 +1540,33 @@ function PasoLogistica({
 const CLASES_INPUT =
     'w-full px-3.5 py-2.5 border-2 border-slate-300 rounded-lg bg-white text-base lg:text-sm 2xl:text-base text-slate-900 placeholder:text-slate-500 outline-none focus:border-slate-900 focus:ring-2 focus:ring-slate-900/15 font-medium';
 
-function StepHeader({ titulo, hint }: { titulo: string; hint: string }) {
+function StepHeader({
+    titulo,
+    hint,
+    opcional,
+}: {
+    titulo: string;
+    hint: string;
+    /** Si true, agrega "· Opcional" inline al lado del título (mismo
+     *  patrón visual que el sufijo del `Field`). Útil para pasos donde
+     *  TODO el contenido es opcional (paso 3 Horarios, Sprint 9.3). */
+    opcional?: boolean;
+}) {
     return (
         <div>
             <h3 className="text-lg lg:text-xl font-bold tracking-tight text-slate-900">
                 {titulo}
+                {opcional && (
+                    <span className="ml-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-500 tracking-normal">
+                        · Opcional
+                    </span>
+                )}
             </h3>
-            <p className="text-base lg:text-sm 2xl:text-base text-slate-600 mt-1 font-medium">{hint}</p>
+            {hint && (
+                <p className="text-base lg:text-sm 2xl:text-base text-slate-600 mt-1 font-medium">
+                    {hint}
+                </p>
+            )}
         </div>
     );
 }
@@ -1548,77 +1747,77 @@ function ConfirmacionConsolidada({
     expandido: boolean;
     onToggleExpandido: () => void;
 }) {
+    // Sprint 9.3 (iteración 2):
+    //   - SIN card wrapper (inline puro).
+    //   - SOLO el checkbox es clickeable (no toda la línea). El texto
+    //     y el "Ver más" son botones independientes.
+    //   - "Ver más" va INLINE al lado del texto del checkbox, no debajo.
+    //     Si el ancho aprieta, flex-wrap mueve el "Ver más" a una segunda
+    //     línea automáticamente.
     return (
-        <div
-            className={
-                'rounded-lg border-2 overflow-hidden ' +
-                (checked
-                    ? 'border-slate-900 bg-slate-100'
-                    : 'border-slate-300 bg-white')
-            }
-        >
-            <button
-                type="button"
-                onClick={onToggle}
-                className="w-full flex items-start gap-3.5 px-4 py-3.5 text-left lg:cursor-pointer"
-                data-testid="check-confirmacion-consolidada"
-            >
-                <span
+        <div className="space-y-2">
+            <div className="flex items-start gap-2.5">
+                {/* Checkbox aislado — único elemento clickeable para
+                    marcar/desmarcar. Antes el botón abarcaba toda la
+                    línea (checkbox + texto), pero generaba clicks
+                    accidentales al leer y un target visual confuso. */}
+                <button
+                    type="button"
+                    onClick={onToggle}
+                    aria-label="Confirmo las políticas de publicación"
+                    data-testid="check-confirmacion-consolidada"
                     className={
-                        'w-[22px] h-[22px] rounded-md grid place-items-center shrink-0 mt-px ' +
+                        'w-[22px] h-[22px] rounded-md grid place-items-center shrink-0 mt-px lg:cursor-pointer ' +
                         (checked
                             ? 'bg-slate-900 border-2 border-slate-900 text-white'
-                            : 'border-2 border-slate-400 bg-white')
+                            : 'border-2 border-slate-400 bg-white hover:border-slate-600')
                     }
                 >
                     {checked && <Check className="w-3.5 h-3.5" strokeWidth={3} />}
-                </span>
-                <div className="flex-1 min-w-0">
-                    <span className="block text-sm text-slate-900 font-semibold leading-snug">
+                </button>
+
+                {/* Texto NO clickeable + "Ver más" inline. Usan
+                    `flex-wrap` para que en pantallas estrechas el "Ver más"
+                    se pase a una segunda línea sin truncar el texto. */}
+                <div className="flex-1 flex items-baseline flex-wrap gap-x-2 gap-y-1">
+                    <span className="text-sm text-slate-900 font-semibold leading-snug">
                         Confirmo las políticas de publicación
                     </span>
-                    <span className="block text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium mt-0.5 leading-relaxed">
-                        Vacante real y vigente, cumple las leyes locales y los términos
-                        de AnunciaYA, y el contacto con candidatos lo coordino entre las
-                        partes.
-                    </span>
+                    <button
+                        type="button"
+                        onClick={onToggleExpandido}
+                        aria-expanded={expandido}
+                        data-testid="btn-expandir-confirmacion"
+                        className="inline-flex items-center gap-0.5 text-sm lg:text-[12px] 2xl:text-sm font-semibold text-slate-600 hover:text-slate-900 lg:cursor-pointer"
+                    >
+                        <span>{expandido ? 'Ver menos' : 'Ver más'}</span>
+                        <ChevronDown
+                            className={
+                                'w-3.5 h-3.5 transition-transform ' +
+                                (expandido ? 'rotate-180' : '')
+                            }
+                            strokeWidth={2}
+                        />
+                    </button>
                 </div>
-            </button>
-            <div className="border-t border-slate-300">
-                <button
-                    type="button"
-                    onClick={onToggleExpandido}
-                    className="w-full flex items-center justify-between px-4 py-2 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 lg:cursor-pointer hover:bg-slate-100"
-                    aria-expanded={expandido}
-                    data-testid="btn-expandir-confirmacion"
-                >
-                    <span>
-                        {expandido
-                            ? 'Ocultar puntos individuales'
-                            : 'Ver los 3 puntos individuales'}
-                    </span>
-                    <ChevronDown
-                        className={
-                            'w-3.5 h-3.5 transition-transform ' +
-                            (expandido ? 'rotate-180' : '')
-                        }
-                        strokeWidth={2}
-                    />
-                </button>
-                {expandido && (
-                    <ul className="px-4 pb-3 space-y-1 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium list-disc list-inside">
-                        <li>Esta vacante es real y vigente.</li>
-                        <li>
-                            El contenido cumple las leyes locales y los términos de
-                            AnunciaYA.
-                        </li>
-                        <li>
-                            El contacto con candidatos se coordina entre las partes;
-                            AnunciaYA solo conecta.
-                        </li>
-                    </ul>
-                )}
             </div>
+
+            {/* Lista de puntos — solo cuando está expandido. Alineada con
+                el texto del checkbox (ml-[34px] = 22px checkbox + gap-2.5)
+                para crear una columna visual coherente. */}
+            {expandido && (
+                <ul className="ml-[34px] space-y-1 text-sm lg:text-[12px] 2xl:text-sm text-slate-600 font-medium list-disc list-inside">
+                    <li>Esta vacante es real y vigente.</li>
+                    <li>
+                        El contenido cumple las leyes locales y los términos
+                        de AnunciaYA.
+                    </li>
+                    <li>
+                        El contacto con candidatos se coordina entre las partes;
+                        AnunciaYA solo conecta.
+                    </li>
+                </ul>
+            )}
         </div>
     );
 }

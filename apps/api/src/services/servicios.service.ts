@@ -34,6 +34,8 @@ import { db } from '../db/index.js';
 import { serviciosPublicaciones } from '../db/schemas/schema.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { aleatorizarCoordenada } from '../utils/aleatorizarUbicacion.js';
+import { getZonaHorariaPorCiudad } from '../utils/zonaHoraria.js';
+import { sqlExpiracionFinDeDia, TTL_DIAS_DEFAULT } from '../utils/expiracion.js';
 import type {
     CrearPublicacionInput,
     ActualizarPublicacionInput,
@@ -94,9 +96,37 @@ export interface PublicacionRow {
     expiraAt: string;
     createdAt: string;
     updatedAt: string;
+    // ───────────────────────────────────────────────────────────────────
+    // Datos del negocio asociado (Sprint 9.3) — solo poblados cuando la
+    // publicación es una vacante (`sucursal_id` no nulo) Y el SELECT hizo
+    // el LEFT JOIN. `obtenerFeed` y `obtenerFeedInfinito` los devuelven;
+    // las queries del detalle usan el JOIN propio de `obtenerPublicacion`.
+    // ───────────────────────────────────────────────────────────────────
+    /** ID del negocio que publicó la vacante. NULL para servicios-persona. */
+    negocioId: string | null;
+    /** Nombre del negocio (ej. "Imprenta FindUS"). NULL para servicios. */
+    negocioNombre: string | null;
+    /** URL del logo del negocio. NULL para servicios. */
+    negocioLogo: string | null;
+    /** Nombre de la sucursal (ej. "Matriz", "Sucursal Norte"). */
+    sucursalNombre: string | null;
+    /** Portada del local — foto grande del exterior/interior. Usada como
+     *  hero de la vacante en cards del feed y en el detalle. */
+    sucursalPortada: string | null;
+    /** Foto de perfil de la sucursal (avatar del chat). */
+    sucursalFotoPerfil: string | null;
 }
 
 export interface PublicacionConOferenteRow extends PublicacionRow {
+    /**
+     * Ubicación EXACTA del local (sin offset). Sprint 9.3: solo se
+     * incluye cuando `tipo === 'vacante-empresa'` — los negocios son
+     * entidades verificadas y su dirección ya es pública en la sección
+     * Negocios. Para servicios-persona y solicitudes-de-persona NO se
+     * incluye (privacidad del oferente / cliente — se mantiene la
+     * `ubicacionAproximada` con offset random de 500m).
+     */
+    ubicacionExacta?: { lat: number; lng: number };
     oferente: {
         id: string;
         nombre: string;
@@ -165,6 +195,18 @@ type RawPublicacionDb = {
     expira_at: string;
     created_at: string;
     updated_at: string;
+    // ───────────────────────────────────────────────────────────────────
+    // Datos del negocio asociado — opcionales, solo se llenan cuando la
+    // publicación es una vacante (`sucursal_id` no nulo). El frontend los
+    // usa en las cards del feed para mostrar logo/portada del negocio como
+    // identidad visual. NULL para servicios-persona y solicitos-persona.
+    // ───────────────────────────────────────────────────────────────────
+    negocio_id?: string | null;
+    negocio_nombre?: string | null;
+    negocio_logo?: string | null;
+    sucursal_nombre?: string | null;
+    sucursal_portada?: string | null;
+    sucursal_foto_perfil?: string | null;
 } & Record<string, unknown>;
 
 // =============================================================================
@@ -271,6 +313,14 @@ function mapearPublicacion(row: RawPublicacionDb): PublicacionRow {
         expiraAt: row.expira_at,
         createdAt: row.created_at,
         updatedAt: row.updated_at,
+        // Datos del negocio para vacantes — null para servicios-persona y
+        // solicitos-persona (cuando el query no hace el LEFT JOIN).
+        negocioId: row.negocio_id ?? null,
+        negocioNombre: row.negocio_nombre ?? null,
+        negocioLogo: row.negocio_logo ?? null,
+        sucursalNombre: row.sucursal_nombre ?? null,
+        sucursalPortada: row.sucursal_portada ?? null,
+        sucursalFotoPerfil: row.sucursal_foto_perfil ?? null,
     };
 }
 
@@ -318,6 +368,56 @@ const COLUMNAS_PUBLICACION = sql`
     sp.expira_at,
     sp.created_at,
     sp.updated_at
+`;
+
+// Set de columnas para el FEED — extiende COLUMNAS_PUBLICACION con datos
+// del negocio asociado (solo aplican a vacantes). Para servicios-persona
+// y solicitos-persona los LEFT JOIN devuelven NULL → el card del feed
+// cae a su placeholder por defecto.
+//
+// IMPORTANTE: requiere que la query haga
+//   LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+//   LEFT JOIN negocios n           ON n.id = s.negocio_id
+const COLUMNAS_PUBLICACION_FEED = sql`
+    sp.id,
+    sp.usuario_id,
+    sp.sucursal_id,
+    sp.modo,
+    sp.tipo,
+    sp.subtipo,
+    sp.titulo,
+    sp.descripcion,
+    sp.fotos,
+    sp.foto_portada_index,
+    sp.precio,
+    sp.modalidad,
+    ST_X(sp.ubicacion_aproximada::geometry) AS lng,
+    ST_Y(sp.ubicacion_aproximada::geometry) AS lat,
+    sp.ciudad,
+    sp.zonas_aproximadas,
+    sp.skills,
+    sp.requisitos,
+    sp.horario,
+    sp.dias_semana,
+    sp.tipo_empleo,
+    sp.beneficios,
+    sp.presupuesto,
+    sp.categoria,
+    sp.urgente,
+    sp.estado,
+    sp.total_vistas,
+    sp.total_mensajes,
+    sp.total_guardados,
+    sp.expira_at,
+    sp.created_at,
+    sp.updated_at,
+    -- Datos del negocio (solo poblados cuando es vacante con sucursal_id)
+    n.id              AS negocio_id,
+    n.nombre          AS negocio_nombre,
+    n.logo_url        AS negocio_logo,
+    s.nombre          AS sucursal_nombre,
+    s.portada_url     AS sucursal_portada,
+    s.foto_perfil     AS sucursal_foto_perfil
 `;
 
 // =============================================================================
@@ -393,9 +493,13 @@ export async function crearPublicacion(
         // 1. Aleatorizar coordenada para `ubicacion_aproximada`.
         const aprox = aleatorizarCoordenada(datos.latitud, datos.longitud);
 
-        // 2. Calcular `expira_at` = NOW() + 30 días en UTC.
-        const expiraAt = new Date();
-        expiraAt.setUTCDate(expiraAt.getUTCDate() + 30);
+        // 2. Calcular `expira_at` como FIN DEL DÍA del día N+TTL en la
+        //    zona horaria local del usuario (inferida de su ciudad).
+        //    Antes era `NOW() + 30 días en UTC` → expiraba a la hora
+        //    EXACTA de creación + 30 días, perdiéndose horas del día.
+        //    Ahora respeta el día completo independiente de la hora.
+        const zonaUsuario = getZonaHorariaPorCiudad(datos.ciudad);
+        const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
 
         // 3. Inyectar `aceptadasAt` (timestamp confiable, no lo manda el cliente)
         //    al snapshot de confirmaciones.
@@ -459,7 +563,7 @@ export async function crearPublicacion(
                 ${datos.categoria ?? null},
                 ${datos.urgente ?? false},
                 ${JSON.stringify(confirmacionesConTimestamp)}::jsonb,
-                ${expiraAt.toISOString()}
+                ${expiraAtSql}
             )
             RETURNING id
         `);
@@ -509,6 +613,12 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
+            // Sprint 9.3: ubicación exacta (sin offset) — la query SIEMPRE
+            // la extrae, pero el mapper solo la incluye en el response
+            // cuando es vacante-empresa (los servicios personales mantienen
+            // privacidad con `ubicacionAproximada` + círculo de 500m).
+            ubicacion_exacta_lat: number | null;
+            ubicacion_exacta_lng: number | null;
         }>(sql`
             SELECT
                 ${COLUMNAS_PUBLICACION},
@@ -535,7 +645,19 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
                     FROM negocio_sucursales nsc
                     WHERE nsc.negocio_id = n.id
                       AND nsc.activa = true
-                ) END             AS total_sucursales
+                ) END             AS total_sucursales,
+                -- Ubicación EXACTA del local — extraída de la SUCURSAL
+                -- (no de la publicación). Esto es crítico porque el
+                -- wizard de Vacantes BS actualmente guarda
+                -- sp.ubicacion con un FALLBACK genérico (centro de
+                -- Puerto Peñasco), no con la dirección real del local.
+                -- Usamos ns.ubicacion (que SÍ está bien al ser parte
+                -- del onboarding del negocio). NULL si la sucursal aún
+                -- no tiene dirección configurada — el mapper lo filtra.
+                CASE WHEN ns.ubicacion IS NULL THEN NULL
+                     ELSE ST_Y(ns.ubicacion::geometry) END AS ubicacion_exacta_lat,
+                CASE WHEN ns.ubicacion IS NULL THEN NULL
+                     ELSE ST_X(ns.ubicacion::geometry) END AS ubicacion_exacta_lng
             FROM servicios_publicaciones sp
             INNER JOIN usuarios u ON u.id = sp.usuario_id
             LEFT JOIN negocios n ON n.id = u.negocio_id
@@ -570,11 +692,28 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
+            ubicacion_exacta_lat: number | null;
+            ubicacion_exacta_lng: number | null;
         };
 
         const base = mapearPublicacion(row);
+        // Sprint 9.3: ubicación EXACTA solo se expone en vacantes (negocios
+        // verificados, dirección pública por naturaleza). Servicios-persona
+        // y solicitudes mantienen privacidad con la `ubicacionAproximada`
+        // (offset random fijo en disco de 500m) del mapeo base.
+        const esVacante = row.tipo === 'vacante-empresa';
+        const ubicacionExacta = esVacante
+            && row.ubicacion_exacta_lat !== null
+            && row.ubicacion_exacta_lng !== null
+            ? {
+                lat: row.ubicacion_exacta_lat,
+                lng: row.ubicacion_exacta_lng,
+            }
+            : undefined;
+
         const data: PublicacionConOferenteRow = {
             ...base,
+            ...(ubicacionExacta ? { ubicacionExacta } : {}),
             oferente: {
                 id: row.oferente_id,
                 nombre: row.oferente_nombre,
@@ -631,9 +770,24 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
         const filtroModo = modo ? sql`AND sp.modo = ${modo}` : sql``;
 
         // ── Recientes ────────────────────────────────────────────────────
-        const recientesRes = await db.execute<RawPublicacionDb>(sql`
-            SELECT ${COLUMNAS_PUBLICACION}
+        // LEFT JOIN con negocio + sucursal para enriquecer vacantes con
+        // su marca real (logo + portada). Servicios-persona y solicitos-
+        // persona no tienen sucursal_id → los JOIN devuelven NULL y el
+        // card cae al placeholder por defecto.
+        //
+        // Sprint 9.3: también calculamos `ST_Distance` aquí para que las
+        // cards del carrusel "Recién publicado" puedan mostrar la
+        // distancia como badge (igual que las cards de "Cerca de ti").
+        const recientesRes = await db.execute<RawPublicacionDb & { dist_m: number }>(sql`
+            SELECT
+                ${COLUMNAS_PUBLICACION_FEED},
+                ST_Distance(
+                    sp.ubicacion_aproximada::geography,
+                    ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
+                ) AS dist_m
             FROM servicios_publicaciones sp
+            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+            LEFT JOIN negocios n           ON n.id = s.negocio_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
@@ -644,15 +798,18 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
 
         // ── Cercanos ─────────────────────────────────────────────────────
         // ST_DWithin con radio amplio (50 km) para limitar candidatos; orden
-        // exacto por ST_Distance ascendente.
+        // exacto por ST_Distance ascendente. Mismo LEFT JOIN para enriquecer
+        // vacantes.
         const cercanosRes = await db.execute<RawPublicacionDb & { dist_m: number }>(sql`
             SELECT
-                ${COLUMNAS_PUBLICACION},
+                ${COLUMNAS_PUBLICACION_FEED},
                 ST_Distance(
                     sp.ubicacion_aproximada::geography,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS dist_m
             FROM servicios_publicaciones sp
+            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+            LEFT JOIN negocios n           ON n.id = s.negocio_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
@@ -666,7 +823,15 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
             LIMIT 20
         `);
 
-        const recientes = (recientesRes.rows as RawPublicacionDb[]).map(mapearPublicacion);
+        // Recientes ahora también traen distanciaMetros (calculada con
+        // ST_Distance) — Sprint 9.3, para que el carrusel pueda mostrar
+        // el badge de distancia sobre la foto igual que "Cerca de ti".
+        const recientes: PublicacionFeedRow[] = (
+            recientesRes.rows as Array<RawPublicacionDb & { dist_m: number }>
+        ).map((r) => ({
+            ...mapearPublicacion(r),
+            distanciaMetros: Math.round(r.dist_m),
+        }));
         const cercanos: PublicacionFeedRow[] = (
             cercanosRes.rows as Array<RawPublicacionDb & { dist_m: number }>
         ).map((r) => ({
@@ -742,14 +907,19 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                   ? sql`ORDER BY sp.urgente DESC, sp.created_at DESC`
                   : sql`ORDER BY sp.created_at DESC`;
 
+        // LEFT JOIN con negocio + sucursal: enriquece vacantes con su
+        // marca real (logo + portada). Servicios-persona / solicitos-
+        // persona quedan con esos campos NULL.
         const filasRes = await db.execute<RawPublicacionDb & { dist_m: number }>(sql`
             SELECT
-                ${COLUMNAS_PUBLICACION},
+                ${COLUMNAS_PUBLICACION_FEED},
                 ST_Distance(
                     sp.ubicacion_aproximada::geography,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS dist_m
             FROM servicios_publicaciones sp
+            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+            LEFT JOIN negocios n           ON n.id = s.negocio_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
@@ -1050,13 +1220,35 @@ export async function reactivarPublicacion(
     publicacionId: string,
 ) {
     try {
-        const expiraAt = new Date();
-        expiraAt.setUTCDate(expiraAt.getUTCDate() + 30);
+        // Leer ciudad para inferir la zona horaria correcta. Más simple
+        // y mantenible que mapear ciudad→zona en SQL puro (el mapeo vive
+        // en `getZonaHorariaPorCiudad` y crece junto con las ciudades
+        // que abre AnunciaYA).
+        const ciudadRow = await db.execute<{ ciudad: string | null }>(sql`
+            SELECT ciudad FROM servicios_publicaciones
+            WHERE id = ${publicacionId}
+              AND usuario_id = ${usuarioId}
+              AND deleted_at IS NULL
+              AND estado = 'pausada'
+            LIMIT 1
+        `);
+
+        if (ciudadRow.rows.length === 0) {
+            return {
+                success: false as const,
+                code: 404,
+                message:
+                    'No encontramos esta publicación o no es tuya o no está pausada.',
+            };
+        }
+
+        const zonaUsuario = getZonaHorariaPorCiudad(ciudadRow.rows[0].ciudad);
+        const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
 
         const resultado = await db.execute<{ id: string }>(sql`
             UPDATE servicios_publicaciones
             SET estado = 'activa',
-                expira_at = ${expiraAt.toISOString()},
+                expira_at = ${expiraAtSql},
                 updated_at = NOW()
             WHERE id = ${publicacionId}
               AND usuario_id = ${usuarioId}

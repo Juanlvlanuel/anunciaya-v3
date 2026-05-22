@@ -29,17 +29,21 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
+    BadgeCheck,
+    Bookmark,
     Briefcase,
     Check,
+    ChevronRight,
     Clock,
     MapPin,
-    ShieldCheck,
+    Navigation,
     Star,
     Wrench,
 } from 'lucide-react';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
+import { useGuardados } from '../../../hooks/useGuardados';
 import {
     usePublicacionServicio,
     useRegistrarVistaServicio,
@@ -49,6 +53,7 @@ import {
     formatearHorarioLegible,
     formatearPrecioServicio,
     formatearPresupuesto,
+    formatearUltimaConexion,
     modalidadLabel,
     obtenerNombreCorto,
 } from '../../../utils/servicios';
@@ -75,6 +80,20 @@ export function PaginaServicio() {
     const registrarVista = useRegistrarVistaServicio();
     const vistaYaRegistrada = useRef(false);
     const [modalResenaAbierto, setModalResenaAbierto] = useState(false);
+
+    // Botón guardar de la galería del detalle. Mismo patrón que MP
+    // (ver `PaginaArticuloMarketplace`). El hook arranca con
+    // `guardado=false` y refleja el estado real cuando el usuario
+    // interactúa — el invalidateQueries del hook mantiene en sync el
+    // listado de Mis Guardados (tab Servicios) y este botón.
+    const {
+        guardado,
+        loading: cargandoGuardar,
+        toggleGuardado,
+    } = useGuardados({
+        entityType: 'servicio',
+        entityId: id ?? '',
+    });
 
     // Registrar vista una vez por sesión (dedupe en sessionStorage para no
     // inflar el contador con reloads o navegación back/forward).
@@ -144,6 +163,16 @@ export function PaginaServicio() {
     const isVacante = publicacion.tipo === 'vacante-empresa';
     const isSolicito = publicacion.tipo === 'solicito';
 
+    // Sprint 9.3 (iteración): la galería se OCULTA cuando no aporta
+    // contenido visual. Vacantes-empresa siempre muestran el hero (logo
+    // + identidad de marca, con fallback a gradient sky). Servicios
+    // personales / solicitudes sin fotos antes mostraban un placeholder
+    // "SIN FOTO" enorme que solo consumía espacio — ahora omitimos el
+    // wrapper entero y movemos el botón guardar al header del primer
+    // SeccionCard (al lado del badge de tipo) para que siga accesible.
+    const tieneGaleria = isVacante || (publicacion.fotos?.length ?? 0) > 0;
+    const puedeGuardar = usuarioActualId !== publicacion.oferente.id;
+
     /** Click en "Ver negocio" / "Ver perfil" — destino según tipo:
      *  - vacante-empresa con sucursalId → /negocios/{sucursalId} (perfil real
      *    del negocio en la sección Negocios — usa `navegarASeccion` porque
@@ -159,9 +188,41 @@ export function PaginaServicio() {
     };
 
     // ─── Contenido de cabecera (tipo + título + precio mobile) ────────
+    // Sprint 9.3 (iteración): cuando NO hay galería, el bookmark sale a
+    // la fila del TipoChip (sin glass blur — fondo blanco normal con
+    // borde slate). Cuando sí hay galería, el bookmark vive en la
+    // galería con su estilo glass (renderizado más abajo).
     const cabeceraTituloPrecio = (
         <SeccionCard>
-            <TipoChip tipo={publicacion.tipo} verificada={isVacante} />
+            <div className="flex items-start justify-between gap-3">
+                <TipoChip tipo={publicacion.tipo} verificada={isVacante} />
+                {!tieneGaleria && puedeGuardar && (
+                    <button
+                        type="button"
+                        data-testid="btn-guardar-servicio"
+                        onClick={toggleGuardado}
+                        disabled={cargandoGuardar}
+                        aria-label={
+                            guardado
+                                ? 'Quitar de guardados'
+                                : 'Guardar publicación'
+                        }
+                        aria-pressed={guardado}
+                        className={
+                            'shrink-0 h-9 w-9 grid place-items-center rounded-full border-2 border-slate-300 bg-white shadow-sm lg:cursor-pointer hover:bg-slate-50 disabled:opacity-60 ' +
+                            (guardado
+                                ? 'text-amber-500'
+                                : 'text-slate-700 hover:text-slate-900')
+                        }
+                    >
+                        <Bookmark
+                            className="h-4 w-4"
+                            strokeWidth={2.25}
+                            fill={guardado ? 'currentColor' : 'none'}
+                        />
+                    </button>
+                )}
+            </div>
 
             {/* Título + tipo de empleo (solo vacantes) — los 2 datos más
                 importantes en una sola línea, separados por divisor vertical.
@@ -199,7 +260,9 @@ export function PaginaServicio() {
                 ) : (
                     <div className="mt-1 flex items-baseline gap-2 flex-wrap">
                         <span className="text-[20px] font-extrabold text-sky-700">
-                            {formatearPrecioServicio(publicacion.precio)}
+                            {formatearPrecioServicio(publicacion.precio, {
+                                esVacante: isVacante,
+                            })}
                         </span>
                         <span className="text-sm font-semibold text-slate-600">
                             · {modalidadLabel(publicacion.modalidad)} ·{' '}
@@ -279,62 +342,53 @@ export function PaginaServicio() {
         </SeccionCard>
     );
 
+    // Sprint 9.3 (iteración): el título y el mensaje debajo del mapa
+    // varían por tipo. Vacantes-empresa muestran "Ubicación del
+    // negocio" + pin exacto + pill "Cómo llegar". Servicios personales
+    // y solicitudes muestran "Ubicación aproximada" + círculo de
+    // privacidad + mensaje genérico (la dinámica no siempre es punto
+    // de encuentro como en MP, puede ser que el prestador vaya al
+    // cliente o al revés, por eso usamos un copy más neutro que el
+    // de MP).
+    const esExacto = isVacante && Boolean(publicacion.ubicacionExacta);
+    const tituloMapa = isVacante
+        ? 'Ubicación del negocio'
+        : 'Ubicación aproximada';
+    const mensajePrivacidadMapa = isVacante
+        ? undefined
+        : 'Por privacidad mostramos solo la zona aproximada.\nCoordina los detalles por chat.';
+    const urlComoLlegar = esExacto && publicacion.ubicacionExacta
+        ? `https://www.google.com/maps/dir/?api=1&destination=${publicacion.ubicacionExacta.lat},${publicacion.ubicacionExacta.lng}`
+        : null;
+
     const cardModalidadUbicacion = (
         <SeccionCard>
-            <Seccion titulo="Modalidad y ubicación">
-                <div className="flex flex-wrap gap-1.5 mb-3">
-                    {isVacante && publicacion.tipoEmpleo && (
-                        <ChipInfo
-                            icono={<Briefcase className="w-3.5 h-3.5" strokeWidth={2} />}
-                        >
-                            {etiquetaTipoEmpleo(publicacion.tipoEmpleo)}
-                        </ChipInfo>
-                    )}
-                    <ChipInfo
-                        icono={<MapPin className="w-3.5 h-3.5" strokeWidth={2} />}
-                    >
-                        {modalidadLabel(publicacion.modalidad)}
-                    </ChipInfo>
-                    {publicacion.zonasAproximadas.length > 0 && (
-                        <ChipInfo>
-                            {publicacion.zonasAproximadas.join(' · ')}
-                        </ChipInfo>
-                    )}
+            <div className="flex items-center justify-between gap-3 mb-2.5">
+                <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600">
+                    {tituloMapa}
                 </div>
+                {urlComoLlegar && (
+                    <a
+                        href={urlComoLlegar}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        data-testid="btn-como-llegar"
+                        className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 px-3 py-1.5 text-xs font-bold text-white shadow-cta-sky lg:cursor-pointer active:scale-[0.98]"
+                    >
+                        <Navigation className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        Cómo llegar
+                    </a>
+                )}
+            </div>
 
-                {/* Horario en líneas legibles (no como chip) — formato 12h con
-                    rangos consecutivos y días cerrados. Día en bold, ":" como
-                    separador con el horario en peso normal. */}
-                {publicacion.horario && (() => {
-                    const lineas = formatearHorarioLegible(publicacion.horario);
-                    if (lineas.length === 0) return null;
-                    return (
-                        <div className="mb-3 flex items-start gap-2 text-sm lg:text-[13px] 2xl:text-sm text-slate-700">
-                            <Clock
-                                className="w-4 h-4 text-slate-500 shrink-0 mt-0.5"
-                                strokeWidth={2}
-                            />
-                            <div className="flex flex-col gap-0.5">
-                                {lineas.map((linea) => (
-                                    <div key={`${linea.dias}-${linea.horario}`}>
-                                        <span className="font-bold text-slate-900">
-                                            {linea.dias}
-                                        </span>
-                                        {linea.horario && (
-                                            <>
-                                                {': '}
-                                                <span className="font-medium">
-                                                    {linea.horario}
-                                                </span>
-                                            </>
-                                        )}
-                                    </div>
-                                ))}
-                            </div>
-                        </div>
-                    );
-                })()}
-
+            {esExacto && publicacion.ubicacionExacta ? (
+                <MapaUbicacion
+                    lat={publicacion.ubicacionExacta.lat}
+                    lng={publicacion.ubicacionExacta.lng}
+                    zonaAproximada={publicacion.ciudad}
+                    exacto
+                />
+            ) : (
                 <MapaUbicacion
                     lat={publicacion.ubicacionAproximada.lat}
                     lng={publicacion.ubicacionAproximada.lng}
@@ -343,8 +397,9 @@ export function PaginaServicio() {
                             ? publicacion.zonasAproximadas.join(' · ')
                             : publicacion.ciudad
                     }
+                    mensajePrivacidad={mensajePrivacidadMapa}
                 />
-            </Seccion>
+            )}
         </SeccionCard>
     );
 
@@ -354,8 +409,14 @@ export function PaginaServicio() {
         </SeccionCard>
     );
 
+    // Sprint 9.3 (iteración): NO mostrar el CTA "Deja una reseña" en
+    // vacantes. Las vacantes son ofertas de empleo de negocios, no
+    // servicios tomados — calificar al negocio por una vacante no tiene
+    // sentido aquí (las reseñas del negocio viven en su perfil de la
+    // sección Negocios). Solo aplica a servicios-persona y solicito.
     const cardDejarResena = usuarioActualId
-        && usuarioActualId !== publicacion.oferente.id && (
+        && usuarioActualId !== publicacion.oferente.id
+        && !isVacante && (
         <SeccionCard>
             <div className="flex items-start gap-3">
                 <div className="shrink-0 w-10 h-10 rounded-lg bg-amber-100 grid place-items-center">
@@ -396,17 +457,67 @@ export function PaginaServicio() {
             <div className="min-h-full bg-transparent pb-32 lg:pb-8">
                 <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
                     <div className="px-4 lg:px-0 space-y-3 lg:space-y-4">
-                        {/* Hero ancho completo — edge-to-edge mobile, card en desktop */}
-                        <div className="-mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
-                            <GaleriaServicio publicacion={publicacion} />
-                        </div>
+                        {/* Hero ancho completo — edge-to-edge mobile, card en desktop.
+                            Sprint 9.3 (iteración): el wrapper SOLO se
+                            renderiza si hay galería (vacantes-empresa
+                            siempre, o servicio-persona/solicito con
+                            fotos). Si no hay fotos en un servicio
+                            personal o solicitud, se omite el wrapper
+                            entero y el bookmark vive en el header de
+                            la cabecera (al lado del badge de tipo). */}
+                        {tieneGaleria && (
+                            <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
+                                <GaleriaServicio publicacion={publicacion} />
+
+                                {/* Botón guardar sobre galería — estilo
+                                    glass blanco translúcido con backdrop
+                                    blur. Icono Bookmark amber cuando
+                                    guardado, slate cuando no. NO se
+                                    muestra al dueño porque no tendría
+                                    sentido guardar tu propia
+                                    publicación. */}
+                                {puedeGuardar && (
+                                    <button
+                                        type="button"
+                                        data-testid="btn-guardar-servicio"
+                                        onClick={toggleGuardado}
+                                        disabled={cargandoGuardar}
+                                        aria-label={
+                                            guardado
+                                                ? 'Quitar de guardados'
+                                                : 'Guardar publicación'
+                                        }
+                                        aria-pressed={guardado}
+                                        className={
+                                            'absolute top-3 right-3 z-10 h-10 w-10 grid place-items-center rounded-full bg-white/85 backdrop-blur ring-2 ring-white/60 shadow-md lg:cursor-pointer hover:bg-white disabled:opacity-60 ' +
+                                            (guardado
+                                                ? 'text-amber-500'
+                                                : 'text-slate-700 hover:text-slate-900')
+                                        }
+                                    >
+                                        <Bookmark
+                                            className="h-5 w-5"
+                                            strokeWidth={2.25}
+                                            fill={guardado ? 'currentColor' : 'none'}
+                                        />
+                                    </button>
+                                )}
+                            </div>
+                        )}
 
                         {isPausada && <BannerPausada />}
 
-                        {/* ─── LAYOUT 2-COL EN DESKTOP ─── */}
-                        <div className="lg:grid lg:grid-cols-3 lg:gap-4 2xl:gap-6 lg:items-start space-y-3 lg:space-y-0">
-                            {/* COL IZQUIERDA — contenido principal (2/3) */}
-                            <div className="space-y-3 lg:space-y-4 lg:col-span-2 min-w-0">
+                        {/* ─── LAYOUT 2-COL EN DESKTOP ───
+                            Sprint 9.3 (iteración): proporciones ajustadas
+                            de 2:1 (66/33) → 3:2 (60/40) para dar más
+                            ancho al sidebar derecho — la card de PAGO +
+                            datos + ChatYA/WhatsApp necesitaba más aire
+                            con la nueva tipografía. La izquierda se
+                            reduce un poco (sigue cómoda para descripción
+                            y mapa). */}
+                        <div className="lg:grid lg:grid-cols-5 lg:gap-4 2xl:gap-6 lg:items-start space-y-3 lg:space-y-0">
+                            {/* COL IZQUIERDA — contenido principal (3/5 = 60%) */}
+                            <div className="space-y-3 lg:space-y-4 lg:col-span-3 min-w-0">
                                 {cabeceraTituloPrecio}
                                 {cardDescripcion}
                                 {cardSkills}
@@ -426,8 +537,8 @@ export function PaginaServicio() {
                                 {cardDejarResena}
                             </div>
 
-                            {/* COL DERECHA — sidebar sticky (1/3, solo desktop) */}
-                            <aside className="hidden lg:block lg:col-span-1 space-y-4 lg:sticky lg:top-24">
+                            {/* COL DERECHA — sidebar sticky (2/5 = 40%, solo desktop) */}
+                            <aside className="hidden lg:block lg:col-span-2 space-y-4 lg:sticky lg:top-24">
                                 <SidebarContacto
                                     publicacion={publicacion}
                                     isPausada={isPausada}
@@ -567,21 +678,6 @@ function PillList({ items }: { items: string[] }) {
     );
 }
 
-function ChipInfo({
-    icono,
-    children,
-}: {
-    icono?: React.ReactNode;
-    children: React.ReactNode;
-}) {
-    return (
-        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-slate-100 text-slate-700 text-sm lg:text-[11px] 2xl:text-sm font-semibold">
-            {icono}
-            {children}
-        </span>
-    );
-}
-
 function BannerPausada() {
     return (
         <div className="mt-3 mx-4 lg:mx-0 px-3 py-2.5 rounded-xl bg-amber-100 border border-amber-300 flex items-start gap-2.5">
@@ -618,39 +714,74 @@ function SidebarContacto({
     isPausada: boolean;
     isSolicito: boolean;
 }) {
+    // `esVacante` se deriva dentro del componente — no se pasa como prop
+    // para no cambiar la firma. Es necesario para que el helper devuelva
+    // "Sueldo a tratar" (vacante) vs "A tratar" (servicio) cuando el
+    // precio es 'a-convenir'.
+    const esVacante = publicacion.tipo === 'vacante-empresa';
+    const hayBadges = (esVacante && publicacion.tipoEmpleo) || Boolean(publicacion.modalidad);
+
+    // Sprint 9.3 (iteración): determinamos si el visitante es el dueño
+    // de la publicación para NO renderizar la sección "Contactos" en
+    // ese caso. La `BarraContactoServicio` también retorna null cuando
+    // es dueño, pero sin esta verificación el título "Contactos" se
+    // quedaba colgado sin botones debajo — UX rota.
+    const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
+    const esDuenio = usuarioActualId === publicacion.oferente.id;
+    const mostrarContactos = !esDuenio;
+
     return (
         <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-3.5">
-            {/* Precio destacado */}
+            {/* Precio destacado — Sprint 9.3 (iteración): tamaño bajado de
+                22/26px a 18/20px porque "Sueldo a tratar" es texto largo
+                y se veía sobredimensionado. Para precios numéricos (ej
+                "$15,000") el tamaño actual sigue siendo claramente
+                jerárquico vs el título "Pago" (11/14px). */}
             {isSolicito && publicacion.presupuesto ? (
                 <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-amber-700">
+                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-amber-700 mb-1.5">
                         Presupuesto
                     </div>
-                    <div className="text-[22px] 2xl:text-[26px] font-extrabold text-slate-900 leading-tight">
+                    <div className="text-lg 2xl:text-xl font-extrabold text-slate-900 leading-tight">
                         {formatearPresupuesto(publicacion.presupuesto)}
                     </div>
                 </div>
             ) : (
                 <div>
-                    <div className="text-[11px] font-bold uppercase tracking-wider text-slate-600">
+                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-1.5">
                         Pago
                     </div>
-                    <div className="text-[22px] 2xl:text-[26px] font-extrabold text-sky-700 leading-tight">
-                        {formatearPrecioServicio(publicacion.precio)}
+                    <div className="text-lg 2xl:text-xl font-extrabold text-sky-700 leading-tight">
+                        {formatearPrecioServicio(publicacion.precio, {
+                            esVacante,
+                        })}
                     </div>
                 </div>
             )}
 
-            {/* Metadatos rápidos — tipoEmpleo se omite aquí porque ya vive
-                arriba junto al título. */}
-            <div className="flex flex-col gap-1.5 pt-1 border-t border-slate-200">
-                <div className="flex items-center gap-2 text-[13px] 2xl:text-sm text-slate-700 font-medium">
-                    <MapPin
-                        className="w-3.5 h-3.5 text-slate-500 shrink-0"
-                        strokeWidth={2}
-                    />
-                    {modalidadLabel(publicacion.modalidad)}
+            {/* Badges Tiempo Completo + Presencial — debajo del precio.
+                Sprint 9.3 (iteración): se movieron desde el card del mapa
+                al sidebar porque son metadatos rápidos del puesto, mucho
+                más útiles al lado del CTA de contacto que dentro del mapa. */}
+            {hayBadges && (
+                <div className="flex flex-wrap gap-1.5">
+                    {esVacante && publicacion.tipoEmpleo && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-sky-100 px-2.5 py-1 text-xs font-bold text-sky-700">
+                            <Briefcase className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            {etiquetaTipoEmpleo(publicacion.tipoEmpleo)}
+                        </span>
+                    )}
+                    {publicacion.modalidad && (
+                        <span className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2.5 py-1 text-xs font-bold text-slate-700">
+                            <MapPin className="h-3.5 w-3.5" strokeWidth={2.5} />
+                            {modalidadLabel(publicacion.modalidad)}
+                        </span>
+                    )}
                 </div>
+            )}
+
+            {/* Ciudad + horario — debajo de los badges, separados por línea. */}
+            <div className="flex flex-col gap-1.5 pt-3 border-t border-slate-200">
                 <div className="flex items-center gap-2 text-[13px] 2xl:text-sm text-slate-700 font-medium">
                     <MapPin
                         className="w-3.5 h-3.5 text-slate-500 shrink-0"
@@ -689,22 +820,30 @@ function SidebarContacto({
                 })()}
             </div>
 
-            {/* Barra de contacto inline (botones ChatYA + WhatsApp) */}
-            <div className="pt-2 border-t border-slate-200">
-                {isPausada ? (
-                    <button
-                        disabled
-                        className="w-full py-3 rounded-xl bg-slate-200 text-slate-600 font-bold text-sm cursor-not-allowed"
-                    >
-                        Contacto deshabilitado
-                    </button>
-                ) : (
-                    <BarraContactoServicio
-                        publicacion={publicacion}
-                        variante="desktop"
-                    />
-                )}
-            </div>
+            {/* Contactos — título + barra inline (ChatYA + WhatsApp).
+                Solo se renderiza si el visitante NO es el dueño de la
+                publicación (en ese caso la barra retornaría null y
+                quedaría un título colgado sin botones). */}
+            {mostrarContactos && (
+                <div className="pt-3 border-t border-slate-200">
+                    <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600 mb-2">
+                        Contactos
+                    </div>
+                    {isPausada ? (
+                        <button
+                            disabled
+                            className="w-full py-3 rounded-xl bg-slate-200 text-slate-600 font-bold text-sm cursor-not-allowed"
+                        >
+                            Contacto deshabilitado
+                        </button>
+                    ) : (
+                        <BarraContactoServicio
+                            publicacion={publicacion}
+                            variante="desktop"
+                        />
+                    )}
+                </div>
+            )}
         </div>
     );
 }
@@ -712,9 +851,11 @@ function SidebarContacto({
 // =============================================================================
 // SIDEBAR DESKTOP — Card "Sobre el oferente / negocio"
 // =============================================================================
-// Card identidad: para vacante-empresa muestra logo + nombre del negocio +
-// sucursal (con divisor); para servicio-persona muestra avatar + nombre +
-// ciudad. Click → navega al perfil del oferente.
+// Sprint 9.3 (iteración): renderiza inline sin el wrapper de OferenteCard
+// — antes la card interna tenía su propio borde+sombra y se veía como
+// "card dentro de card". Ahora los datos del negocio (avatar + nombre +
+// sucursal arriba, botón "Ver negocio" abajo, badge de actividad al
+// final) viven directamente dentro del wrapper "SOBRE EL NEGOCIO".
 function SidebarSobreNegocio({
     publicacion,
     onVerNegocio,
@@ -726,14 +867,139 @@ function SidebarSobreNegocio({
     const esEmpresa = tipo === 'vacante-empresa';
     const titulo = esEmpresa ? 'Sobre el negocio' : 'Sobre el oferente';
 
+    // Identidad mostrada — empresa: nombre del negocio + sufijo de sucursal
+    // (Matriz / nombre de la sucursal cuando hay más de una). Persona:
+    // nombre + apellidos del usuario.
+    const nombrePrincipal = esEmpresa
+        ? oferente.negocioNombre
+            ?? `${oferente.nombre} ${oferente.apellidos}`.trim()
+        : `${oferente.nombre} ${oferente.apellidos}`.trim();
+
+    const sufijoSucursal = esEmpresa && (oferente.totalSucursales ?? 0) > 1
+        ? oferente.sucursalEsPrincipal
+            ? 'Matriz'
+            : oferente.sucursalNombre
+        : null;
+
+    const avatarUrl = esEmpresa
+        ? oferente.negocioLogo
+            ?? oferente.sucursalFotoPerfil
+            ?? oferente.avatarUrl
+        : oferente.avatarUrl;
+
+    const iniciales = esEmpresa
+        ? iniciasDeNombre(nombrePrincipal)
+        : iniciasDePersona(oferente.nombre, oferente.apellidos);
+
+    const conexionLabel = formatearUltimaConexion(oferente.ultimaConexion);
+    const ctaLabel = esEmpresa ? 'Ver negocio' : 'Ver perfil';
+
     return (
         <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-3">
             <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600">
                 {titulo}
             </div>
-            <OferenteCard publicacion={publicacion} onClick={onVerNegocio} />
+
+            {/* Avatar + nombre + sucursal — fila superior */}
+            <div className="flex items-center gap-2.5">
+                {esEmpresa ? (
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
+                        {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt={nombrePrincipal}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                            />
+                        ) : (
+                            <div className="grid h-full w-full place-items-center text-sm font-extrabold text-sky-700">
+                                {iniciales}
+                            </div>
+                        )}
+                    </div>
+                ) : (
+                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                        {avatarUrl ? (
+                            <img
+                                src={avatarUrl}
+                                alt={nombrePrincipal}
+                                className="h-full w-full object-cover"
+                                loading="lazy"
+                            />
+                        ) : (
+                            <div
+                                className="flex h-full w-full items-center justify-center text-sm font-bold text-white"
+                                style={{
+                                    background:
+                                        'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
+                                }}
+                            >
+                                {iniciales}
+                            </div>
+                        )}
+                    </div>
+                )}
+
+                <div className="min-w-0 flex-1">
+                    <div className="flex items-center gap-1">
+                        <span className="truncate text-base font-bold text-slate-900">
+                            {nombrePrincipal}
+                        </span>
+                        {esEmpresa && (
+                            <BadgeCheck
+                                className="h-4 w-4 shrink-0 text-sky-600"
+                                strokeWidth={2.5}
+                                aria-label="Empresa verificada"
+                            />
+                        )}
+                    </div>
+                    {sufijoSucursal && (
+                        <div className="truncate text-sm font-medium text-slate-600">
+                            {sufijoSucursal}
+                        </div>
+                    )}
+                </div>
+            </div>
+
+            {/* Botón Ver negocio — full width debajo */}
+            <button
+                type="button"
+                data-testid="btn-ver-negocio-sidebar"
+                onClick={onVerNegocio}
+                aria-label={`${ctaLabel} de ${nombrePrincipal}`}
+                className="inline-flex w-full items-center justify-center gap-1 rounded-full border-2 border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-700 lg:cursor-pointer lg:hover:bg-sky-100"
+            >
+                {ctaLabel}
+                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+            </button>
+
+            {/* Badge de actividad — última conexión del oferente. */}
+            {conexionLabel && (
+                <div className="flex">
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
+                        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        {conexionLabel}
+                    </span>
+                </div>
+            )}
         </div>
     );
+}
+
+// Helpers locales para iniciales del avatar — copia de OferenteCard
+// para que el sidebar sea autónomo (sin importar el componente entero
+// solo por estas 2 funciones).
+function iniciasDePersona(nombre: string, apellidos: string): string {
+    const a = (nombre ?? '').trim().charAt(0).toUpperCase();
+    const b = (apellidos ?? '').trim().charAt(0).toUpperCase();
+    return `${a}${b}` || '··';
+}
+
+function iniciasDeNombre(nombre: string): string {
+    const partes = (nombre ?? '').trim().split(/\s+/).filter(Boolean);
+    const a = partes[0]?.charAt(0).toUpperCase() ?? '';
+    const b = partes[1]?.charAt(0).toUpperCase() ?? '';
+    return `${a}${b}` || '··';
 }
 
 // =============================================================================

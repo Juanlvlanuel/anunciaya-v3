@@ -113,6 +113,20 @@ export interface PublicacionServicio {
     usuarioId: string;
     /** Sprint 8 — Solo aplica a vacantes (tipo='vacante-empresa'). NULL para servicios personales. */
     sucursalId: string | null;
+    // ──────────────────────────────────────────────────────────────────
+    // Datos del negocio asociado (Sprint 9.3) — solo poblados cuando la
+    // publicación es vacante (`sucursalId` no nulo). Los devuelve el
+    // backend en endpoints del feed (`/feed`, `/feed/infinito`) vía
+    // LEFT JOIN. Cards usan estos campos para mostrar logo + portada
+    // del local como identidad visual de la vacante. Null para
+    // servicios-persona y solicitos-persona.
+    // ──────────────────────────────────────────────────────────────────
+    negocioId?: string | null;
+    negocioNombre?: string | null;
+    negocioLogo?: string | null;
+    sucursalNombre?: string | null;
+    sucursalPortada?: string | null;
+    sucursalFotoPerfil?: string | null;
     modo: ModoServicio;
     tipo: TipoPublicacion;
     subtipo: SubtipoPublicacion | null;
@@ -181,11 +195,20 @@ export interface OferenteServicio {
 /** Detalle completo: publicación + oferente. */
 export interface PublicacionDetalle extends PublicacionServicio {
     oferente: OferenteServicio;
+    /** Ubicación EXACTA del local (sin offset). Sprint 9.3: solo viene
+     *  del backend cuando `tipo === 'vacante-empresa'` — los negocios son
+     *  entidades verificadas y su dirección ya es pública en la sección
+     *  Negocios. Para servicios-persona y solicitudes-de-persona es
+     *  `undefined` y la UI cae a `ubicacionAproximada` (círculo 500m). */
+    ubicacionExacta?: { lat: number; lng: number };
 }
 
 /** Respuesta del endpoint `/feed`. */
 export interface FeedServicios {
-    recientes: PublicacionServicio[];
+    /** Recientes también traen `distanciaMetros` (Sprint 9.3) — el
+     *  backend la calcula con `ST_Distance` para que el carrusel pueda
+     *  mostrar el badge de distancia sobre la foto, igual que cercanos. */
+    recientes: PublicacionFeed[];
     cercanos: PublicacionFeed[];
 }
 

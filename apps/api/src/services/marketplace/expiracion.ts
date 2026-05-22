@@ -28,6 +28,8 @@
 
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
+import { getZonaHorariaPorCiudad } from '../../utils/zonaHoraria.js';
+import { sqlExpiracionFinDeDia, TTL_DIAS_DEFAULT } from '../../utils/expiracion.js';
 
 // =============================================================================
 // HELPER — Crear notificación idempotente
@@ -258,8 +260,11 @@ export async function notificarProximaExpiracion(): Promise<ResultadoProximaExpi
  */
 export async function reactivarArticulo(articuloId: string, usuarioId: string) {
     try {
+        // Leemos `ciudad` para inferir la zona horaria del usuario y
+        // calcular `expira_at` como fin del día N+TTL en hora local
+        // (en lugar de NOW()+30d en UTC que perdía horas del día).
         const verificacion = await db.execute(sql`
-            SELECT usuario_id, estado
+            SELECT usuario_id, estado, ciudad
             FROM articulos_marketplace
             WHERE id = ${articuloId}
               AND deleted_at IS NULL
@@ -270,7 +275,11 @@ export async function reactivarArticulo(articuloId: string, usuarioId: string) {
             return { success: false, message: 'Artículo no encontrado', code: 404 };
         }
 
-        const actual = verificacion.rows[0] as { usuario_id: string; estado: string };
+        const actual = verificacion.rows[0] as {
+            usuario_id: string;
+            estado: string;
+            ciudad: string | null;
+        };
 
         if (actual.usuario_id !== usuarioId) {
             return {
@@ -291,11 +300,13 @@ export async function reactivarArticulo(articuloId: string, usuarioId: string) {
         // `vendida_at = NULL` cubre el caso `vendida → activa` (en `pausada`
         // ese campo ya era NULL, así que el UPDATE es idempotente sin efectos
         // secundarios).
+        const zonaUsuario = getZonaHorariaPorCiudad(actual.ciudad);
+        const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
         await db.execute(sql`
             UPDATE articulos_marketplace
             SET estado = 'activa',
                 vendida_at = NULL,
-                expira_at = NOW() + INTERVAL '30 days',
+                expira_at = ${expiraAtSql},
                 updated_at = NOW()
             WHERE id = ${articuloId}
         `);

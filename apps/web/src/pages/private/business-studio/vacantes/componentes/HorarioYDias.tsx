@@ -101,8 +101,19 @@ function parsearHorario(
     const partes = horario.split('|').map((p) => p.trim()).filter(Boolean);
     const bloques: BloqueHorario[] = [];
 
+    // Mapeo retro-compatible: acepta tanto el formato nuevo (3 letras
+    // "Lun", "Mar", "Mié", etc. — Sprint 9.3+) como el legacy de 1
+    // letra ("L", "M", "X", "J", "V", "S", "D") usado en vacantes
+    // creadas antes del cambio. El parser detecta cuál es por el largo
+    // del token y mapea al código interno.
     const CODIGO_POR_LETRA: Record<string, DiaSemanaCodigo> = {
-        L: 'lun', M: 'mar', X: 'mie', J: 'jue', V: 'vie', S: 'sab', D: 'dom',
+        // Formato nuevo — Sprint 9.3
+        Lun: 'lun', Mar: 'mar', Mié: 'mie', Jue: 'jue',
+        Vie: 'vie', Sáb: 'sab', Dom: 'dom',
+        // Formato legacy — 1 letra con "X" para miércoles (vacantes
+        // creadas antes del cambio Sprint 9.3, mantener para no romper)
+        L: 'lun', M: 'mar', X: 'mie', J: 'jue',
+        V: 'vie', S: 'sab', D: 'dom',
     };
 
     for (const parte of partes) {
@@ -214,7 +225,10 @@ export function HorarioYDias({ value, onChange }: HorarioYDiasProps) {
     );
 
     return (
-        <div className="space-y-3" data-testid="horario-y-dias">
+        // Sprint 9.3: space-y-3 → space-y-4 entre los bloques de horario
+        // y el botón "Agregar otro" para evitar la sensación apretada
+        // cuando hay 2+ bloques apilados.
+        <div className="space-y-4" data-testid="horario-y-dias">
             {bloques.map((bloque, idx) => (
                 <BloqueRow
                     key={bloque.id}
@@ -337,7 +351,7 @@ function BloqueRow({
                     <button
                         type="button"
                         onClick={onEliminar}
-                        className="p-2 rounded-lg text-red-600 hover:bg-red-100 lg:cursor-pointer shrink-0"
+                        className="p-2 rounded-lg text-slate-600 hover:bg-red-50 hover:text-red-600 lg:cursor-pointer shrink-0"
                         aria-label="Eliminar bloque"
                         data-testid={`bloque-${indice}-eliminar`}
                     >

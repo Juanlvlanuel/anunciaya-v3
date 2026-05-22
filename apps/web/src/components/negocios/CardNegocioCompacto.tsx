@@ -25,7 +25,7 @@
  * Ubicación: apps/web/src/components/negocios/CardNegocioCompacto.tsx
  */
 
-import { Store, Star } from 'lucide-react';
+import { MapPin, Star, Store } from 'lucide-react';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useUiStore } from '../../stores/useUiStore';
 
@@ -168,18 +168,27 @@ export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoPro
                     </div>
                 )}
 
-                {/* Pill de estado Abierto/Cerrado — solo cuando viene del backend
-                    (puede ser null si no hay horario configurado). */}
+                {/* Sprint 9.3 (iteración):
+                      - Tamaños intermedios entre el original (`text-xs` con
+                        escalado lg) y el ultra-compacto (`text-[11px]`):
+                        `text-xs` (12px) uniforme + `px-2.5 py-1` + iconos
+                        `h-3.5 w-3.5` + `gap-1.5`.
+                      - Icono MapPin agregado al badge de distancia
+                        (igualando el patrón del CardServicio).
+                      - Posiciones inf intercambiadas: rating ahora
+                        inf-IZQ, distancia inf-DER (antes era al revés). */}
+
+                {/* Pill de estado Abierto/Cerrado — esquina sup-der */}
                 {estaAbierto !== null && estaAbierto !== undefined && (
                     <span
-                        className={`absolute right-2 top-2 z-10 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-bold shadow-md backdrop-blur lg:right-3 lg:top-3 lg:gap-1.5 lg:px-3 lg:py-1 lg:text-sm ${
+                        className={`absolute right-2 top-2 z-10 inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-xs font-bold shadow-md backdrop-blur ${
                             estaAbierto
                                 ? 'bg-emerald-500 text-white'
                                 : 'bg-slate-900/70 text-white'
                         }`}
                     >
                         <span
-                            className={`h-1.5 w-1.5 rounded-full lg:h-2 lg:w-2 ${
+                            className={`h-1.5 w-1.5 rounded-full ${
                                 estaAbierto ? 'bg-white' : 'bg-slate-300'
                             }`}
                         />
@@ -187,53 +196,85 @@ export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoPro
                     </span>
                 )}
 
-                {/* Distancia abajo-izq sobre la foto */}
-                {distanciaTexto && (
-                    <span
-                        data-testid={`card-negocio-distancia-${negocio.sucursalId}`}
-                        className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-0.5 text-xs font-bold text-white shadow-md backdrop-blur lg:bottom-3 lg:left-3 lg:px-3 lg:py-1 lg:text-sm"
-                    >
-                        {distanciaTexto}
-                    </span>
-                )}
-
-                {/* Rating abajo-der sobre la foto */}
+                {/* Rating — esquina inf-IZQ sobre la foto */}
                 {tieneRating && (
                     <span
                         data-testid={`card-negocio-rating-${negocio.sucursalId}`}
-                        className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1 rounded-full bg-slate-900/70 px-2 py-0.5 text-xs font-bold text-white shadow-md backdrop-blur lg:bottom-3 lg:right-3 lg:gap-1.5 lg:px-3 lg:py-1 lg:text-sm"
+                        className="absolute bottom-2 left-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-bold text-white shadow-md backdrop-blur"
                     >
                         <Star
-                            className="h-3.5 w-3.5 fill-amber-400 text-amber-400 lg:h-4 lg:w-4"
-                            strokeWidth={2}
+                            className="h-3.5 w-3.5 fill-amber-400 text-amber-400"
+                            strokeWidth={2.5}
                         />
-                        <span>{rating!.toFixed(1)}</span>
+                        <span className="tabular-nums">{rating!.toFixed(1)}</span>
+                    </span>
+                )}
+
+                {/* Distancia — esquina inf-DER sobre la foto, con icono
+                    MapPin igual al patrón del badge distancia de CardServicio. */}
+                {distanciaTexto && (
+                    <span
+                        data-testid={`card-negocio-distancia-${negocio.sucursalId}`}
+                        className="absolute bottom-2 right-2 z-10 inline-flex items-center gap-1.5 rounded-full bg-slate-900/70 px-2.5 py-1 text-xs font-bold text-white shadow-md backdrop-blur"
+                    >
+                        <MapPin className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        <span className="tabular-nums">{distanciaTexto}</span>
                     </span>
                 )}
             </div>
 
             {/* ── Panel info abajo ─────────────────────────────────────────── */}
             <div className="flex min-h-0 flex-1 flex-col justify-between gap-1.5 p-3 lg:gap-2">
-                {/* Línea 1: logo (avatar) + nombre del negocio */}
-                <div className="flex min-w-0 items-center gap-2 lg:gap-2.5">
-                    {imagenPerfil ? (
-                        <img
-                            src={imagenPerfil}
-                            alt=""
-                            className="h-8 w-8 shrink-0 rounded-full border border-slate-200 object-cover lg:h-10 lg:w-10"
-                            loading="lazy"
-                        />
-                    ) : (
-                        <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-slate-200 to-slate-300 text-xs font-bold text-slate-600 lg:h-10 lg:w-10 lg:text-sm">
-                            {obtenerIniciales(nombre) || <Store className="h-4 w-4" strokeWidth={2} />}
+                {/* Línea 1: avatar + nombre del negocio + subtítulo de sucursal
+                    (Sprint 9.3 — iteración): se agregó una segunda línea con
+                    el label de sucursal ("Matriz" si es la principal, o el
+                    nombre de la sucursal secundaria) usando el mismo patrón
+                    visual que CardServicio en MisGuardados.
+                      - Nombre: `font-bold` (antes `font-semibold`).
+                      - Sucursal: `text-xs slate-600 font-medium` debajo. */}
+                {(() => {
+                    // Label de sucursal: "Matriz" si esPrincipal o
+                    // sucursalNombre coincide con convenciones, sino el
+                    // nombre propio.
+                    const labelSucursal = (() => {
+                        if (negocio.esPrincipal) return 'Matriz';
+                        if (negocio.sucursalNombre === 'Principal') return 'Matriz';
+                        if (negocio.sucursalNombre
+                            && negocio.sucursalNombre !== nombre) {
+                            return negocio.sucursalNombre;
+                        }
+                        return 'Matriz';
+                    })();
+                    return (
+                        <div className="flex min-w-0 items-center gap-2 lg:gap-2.5">
+                            {imagenPerfil ? (
+                                <img
+                                    src={imagenPerfil}
+                                    alt=""
+                                    className="h-9 w-9 shrink-0 rounded-full border-2 border-slate-200 object-cover lg:h-10 lg:w-10"
+                                    loading="lazy"
+                                />
+                            ) : (
+                                <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full border-2 border-slate-200 bg-linear-to-br from-slate-100 to-slate-200 text-xs font-bold text-slate-600 lg:h-10 lg:w-10 lg:text-sm">
+                                    {obtenerIniciales(nombre) || <Store className="h-4 w-4" strokeWidth={2} />}
+                                </div>
+                            )}
+                            <div className="min-w-0 flex-1">
+                                <h3 className="truncate text-sm lg:text-[14px] 2xl:text-base font-bold text-slate-900 leading-tight">
+                                    {nombre}
+                                </h3>
+                                <div className="truncate text-xs lg:text-[11px] 2xl:text-xs font-medium text-slate-600 leading-tight mt-0.5">
+                                    {labelSucursal}
+                                </div>
+                            </div>
                         </div>
-                    )}
-                    <h3 className="truncate text-sm font-semibold text-slate-900 lg:text-lg">
-                        {nombre}
-                    </h3>
-                </div>
+                    );
+                })()}
 
-                {/* Línea 2: logo de ChatYA clickeable, centrado horizontalmente.
+                {/* Línea 2: logo de ChatYA clickeable, alineado a la derecha
+                    (Sprint 9.3 — iteración: antes estaba centrado con
+                    `mx-auto`, movido a `ml-auto` para que quede pegado al
+                    borde derecho y deje libre el espacio a la izquierda).
                     Solo si hay usuarioId (sin él no podemos crear conversación).
                     Click stopPropagation para no triggear el onClick de la card. */}
                 {usuarioId && (
@@ -241,7 +282,7 @@ export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoPro
                         data-testid={`btn-chatya-card-negocio-${negocio.sucursalId}`}
                         onClick={handleChatYA}
                         aria-label={`Abrir ChatYA con ${nombre}`}
-                        className="mx-auto inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
+                        className="ml-auto inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
                     >
                         <img
                             src="/ChatYA.webp"

@@ -669,20 +669,34 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
             </h3>
             <div className="flex items-center gap-1.5 mt-0.5 min-w-0">
               {/*
-                Si el negocio tiene más de 1 sucursal → muestra "Matriz" o nombre de sucursal
-                Si solo tiene 1 sucursal (única Matriz) → muestra la categoría
+                Lógica del subtítulo (Sprint 9.3 — iteración):
+                Prioridad sucursal > categoría. El subtítulo SIEMPRE debe
+                identificar la sucursal del negocio (Matriz / Sucursal X)
+                porque es info que el usuario necesita ver al primer vistazo.
+                  1. Si es principal o sucursalNombre coincide con conv
+                     ("Principal" / mismo nombre del negocio) → "Matriz"
+                  2. Sucursal con nombre propio → ese nombre
+                  3. Fallback: categoría o "Matriz" como último recurso
               */}
               <span className="text-[13px] font-bold text-white truncate min-w-0"
                 style={{ WebkitTextStroke: '1.2px rgba(0,0,0,1)', paintOrder: 'stroke fill', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000' }}
               >
-                {negocio.totalSucursales > 1
-                  ? (negocio.esPrincipal ? 'Matriz' : (negocio.sucursalNombre || categoriaNombre))
-                  : categoriaNombre}
+                {(() => {
+                  if (negocio.esPrincipal) return 'Matriz';
+                  if (negocio.sucursalNombre === 'Principal') return 'Matriz';
+                  if (negocio.sucursalNombre
+                      && negocio.sucursalNombre !== negocio.negocioNombre) {
+                    return negocio.sucursalNombre;
+                  }
+                  return categoriaNombre || 'Matriz';
+                })()}
               </span>
               {tieneResenas && (
                 <span className="flex items-center gap-0.5 shrink-0">
-                  <Icon icon={ICONOS.rating} className="w-3.5 h-3.5" style={{ color: '#fbbf24' }} />
-                  <span className="text-[13px] font-extrabold text-white"
+                  {/* Sprint 9.3: badge rating reducido para igualar al
+                      badge de distancia del CardServicio (text-[11px] + icon h-3). */}
+                  <Icon icon={ICONOS.rating} className="w-3 h-3" style={{ color: '#fbbf24' }} />
+                  <span className="text-[11px] font-extrabold text-white"
                     style={{ WebkitTextStroke: '1.2px rgba(0,0,0,1)', paintOrder: 'stroke fill', textShadow: '1px 1px 0 #000, -1px -1px 0 #000, 1px -1px 0 #000, -1px 1px 0 #000, 0 1px 0 #000, 0 -1px 0 #000, 1px 0 0 #000, -1px 0 0 #000' }}
                   >{calificacion.toFixed(1)}</span>
                 </span>
@@ -690,11 +704,13 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
             </div>
           </div>
 
-          {/* Distancia resaltada */}
+          {/* Distancia resaltada — Sprint 9.3: tamaños igualados al
+              badge de distancia del CardServicio (text-[11px] + icon h-3
+              + px-2 py-1) para coherencia entre módulos. */}
           {distanciaTexto && (
-            <div className="flex items-center gap-1 shrink-0 bg-black/40 backdrop-blur-sm rounded-[10px] px-2.5 py-1">
-              <Icon icon={ICONOS.distancia} className="w-3.5 h-3.5" style={{ color: 'white' }} />
-              <span className="text-[13px] font-bold text-white">{distanciaTexto}</span>
+            <div className="flex items-center gap-1 shrink-0 bg-black/40 backdrop-blur-sm rounded-full px-2 py-1">
+              <Icon icon={ICONOS.distancia} className="w-3 h-3" style={{ color: 'white' }} />
+              <span className="text-[11px] font-bold text-white">{distanciaTexto}</span>
             </div>
           )}
         </div>

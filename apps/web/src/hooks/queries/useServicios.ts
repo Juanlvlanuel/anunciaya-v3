@@ -107,6 +107,12 @@ interface UseServiciosFeedInfinitoParams {
     orden?: OrdenFeedInfinito;
     /** Items por página. Default 10. */
     limite?: number;
+    /** Override del `enabled` interno. Si es `false`, el hook NO se
+     *  dispara aunque haya GPS — útil cuando la UI alterna entre el feed
+     *  simple (`useServiciosFeed`) y el infinito según el tab activo y
+     *  no queremos doble fetch. Default: `true` (mismo comportamiento
+     *  previo a Sprint 9.3). */
+    enabled?: boolean;
 }
 
 /**
@@ -128,9 +134,11 @@ export function useServiciosFeedInfinito(params: UseServiciosFeedInfinitoParams)
         modalidad,
         orden = 'recientes',
         limite = 10,
+        enabled = true,
     } = params;
 
     const habilitado =
+        enabled &&
         !!ciudad &&
         lat !== null &&
         lat !== undefined &&
