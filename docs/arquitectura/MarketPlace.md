@@ -1,8 +1,8 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 13 Mayo 2026
+> **Última actualización:** 22 Mayo 2026 (Sprint 9.3 — perfil rediseñado, fotos optimistas, TTL fin-de-día con zona horaria, botones contacto con logos de marca).
 > **Estado:** ✅ En producción.
-> **Versión:** 1.5.1
+> **Versión:** 1.6.0
 > **Pendientes opcionales:**
 >  - Sistema de Niveles del Vendedor (ver §Niveles)
 >  - Stories de contactos arriba del feed
@@ -318,6 +318,16 @@ Dos schedules:
 - **Auto-pausa de expirados:** cada 6 horas (60s después del arranque + intervalo). Marca como `pausada` toda publicación con `expira_at < NOW()` y `estado = 'activa'`. Notificación al vendedor: "Tu publicación expiró. Reactívala con 1 click si sigue disponible."
 - **Notificación de próxima expiración:** 1 vez al día (09:00 UTC). Detecta artículos que expiran en 3 días y notifica al vendedor.
 
+#### TTL "fin del día" con zona horaria (Sprint 9.2)
+
+`expira_at` se calcula con `sqlExpiracionFinDeDia(ttlDias, zona)` (`apps/api/src/utils/expiracion.ts`):
+
+- `TTL_DIAS_DEFAULT = 30` días.
+- La expresión SQL usa `AT TIME ZONE` para devolver el último segundo (`23:59:59`) del día local de la ciudad, no la hora exacta de creación.
+- Zona horaria resuelta con `getZonaHorariaPorCiudad()` (`apps/api/src/utils/zonaHoraria.ts`) — mapeo IANA por ciudad mexicana. Default `'America/Hermosillo'` para Puerto Peñasco.
+
+Antes del fix, una publicación creada a las 14:30 del día 1 expiraba a las 14:30 del día 31. Ahora expira a las 23:59:59 del día 31 en hora local. Aplica también en `marketplace/expiracion.ts` (`reactivarArticulo`), `servicios.service.ts`, `vacantes.service.ts`, `cardya.service.ts`.
+
 Ambas notificaciones son **idempotentes** (verifica `WHERE referencia_id+tipo` antes de insertar). Si el cron corre 2 veces, no spamea.
 
 ### Lo que NO se implementa (decisión consciente)
@@ -553,8 +563,12 @@ Scroll vertical continuo, no estático. Invita a explorar.
   - **Click en la foto principal** abre `ModalImagenes` (lightbox fullscreen reusado).
 
 - **Card vendedor:** `apps/web/src/components/marketplace/CardVendedor.tsx`
-  - Avatar circular 48px (con fallback a iniciales)
-  - Nombre + ciudad + link "Ver perfil →" (navega a P3)
+  - Avatar `h-12 w-12` simplificado (sin ring gradient — decisión Sprint 9.3 "avatar simplificado").
+  - Nombre completo en 2 líneas con `BadgeCheck` invertido inline (`fill-blue-500 text-white` estilo Twitter/X) cuando es vendedor verificado.
+  - **Sin ciudad** (decisión UX Sprint 9.3 — la ubicación exacta del personal no se expone).
+  - Actividad relativa ("Activa hace 2 hrs") inline con un dot, en lugar de pill.
+  - `Ver perfil →` alineado a la derecha (`ml-auto`) en el **mismo renglón** que la actividad.
+  - Mismo patrón compartido con `OferenteCard`/`SidebarSobreNegocio` de Servicios (tema sky); aquí amber/teal.
 
 - **Mapa:** `apps/web/src/components/marketplace/MapaUbicacion.tsx`
   - `<MapContainer>` no interactivo (zoom/dragging desactivados)
@@ -632,9 +646,9 @@ wrapper: lg:grid lg:grid-cols-2 lg:items-stretch
 
 `flex flex-col items-center gap-4 p-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:border-r-2 lg:border-slate-300 lg:text-left`. Apilada vertical centrada en móvil; horizontal con avatar izquierda + texto derecha en desktop. Contiene:
 
-- **Avatar** 80×80 móvil / 96×96 desktop dentro de `AvatarConAdornos`. Ring gradient brand (`teal → blue diagonal`) con `p-[3px]` estilo Instagram + anillo blanco interior `p-[2px]` que separa el gradient del avatar. Status dot online (verde emerald `conectado`, ámbar `ausente`, sin dot `desconectado`) anclado en bottom-right empalmado al círculo del avatar, con `ring-2 ring-white`. La presencia llega vía Socket.io: la página emite `chatya:consultar-estado` al montar y lee `useChatYAStore.estadosUsuarios[usuarioId]`.
-- **Nombre completo** en `text-xl lg:text-2xl font-extrabold tracking-tight text-slate-900`, seguido de `BadgeCheck h-5 w-5 text-blue-600` cuando la persona es vendedor.
-- **Ciudad** en su propia línea: `mt-1.5 inline-flex items-center gap-1.5 text-base font-semibold text-slate-700` con icono `MapPin h-4 w-4 text-slate-600` a la izquierda.
+- **Avatar** `h-12 w-12` simplificado, sin ring decorativo (decisión Sprint 9.3 — "avatar simplificado"). Status dot online (verde emerald `conectado`, ámbar `ausente`, sin dot `desconectado`) anclado en bottom-right con `ring-2 ring-white`. La presencia llega vía Socket.io: la página emite `chatya:consultar-estado` al montar y lee `useChatYAStore.estadosUsuarios[usuarioId]`.
+- **Nombre completo** en 2 líneas con `BadgeCheck` invertido inline estilo Twitter/X (`fill-blue-500 text-white`) cuando la persona es vendedor verificado. Antes era `text-blue-600` plano; ahora el badge es relleno azul con palomita blanca para mayor reconocibilidad.
+- **Sin ciudad** (decisión UX Sprint 9.3 — ubicación exacta del personal no se expone). Antes había una línea `MapPin + ciudad`.
 - **Miembro desde** en `mt-0.5 text-sm font-medium text-slate-600` con formato `"Miembro desde {Mes} {Año}"` calculado con `MESES_ES` en español.
 
 **Columna derecha — KPIs + acciones**
@@ -643,7 +657,7 @@ wrapper: lg:grid lg:grid-cols-2 lg:items-stretch
 
 **Sub-bloque de KPIs (solo si la persona es vendedor):**
 
-- Grid 3 columnas con divisores verticales: `grid grid-cols-3 divide-x-2 divide-slate-300 bg-slate-200`.
+- Grid 3 columnas con divisores verticales: `grid grid-cols-3 border-2 border-slate-300 bg-slate-100 divide-x-2 divide-slate-300` (Sprint 9.3 — antes era `bg-slate-200` sin border; se igualó al patrón "estética profesional" de la regla 13 de tokens).
 - Cada bloque KPI (`KpiBlock`) lleva:
   - Número grande arriba: `text-2xl lg:text-3xl font-extrabold tracking-tight text-slate-900`.
   - Label inline debajo: `inline-flex items-center gap-1 text-[11px] lg:text-xs font-bold uppercase tracking-wider text-slate-600` con icono `h-3.5 w-3.5 text-slate-600` a la izquierda.
@@ -656,10 +670,12 @@ wrapper: lg:grid lg:grid-cols-2 lg:items-stretch
 
 - Wrapper `flex flex-1 flex-wrap items-center justify-center gap-2 p-4 lg:gap-3`. Cuando hay KPIs arriba, agrega `border-t-2 border-slate-300` para separarlo del bloque de números.
 - Se oculta por completo cuando la persona perfilada es uno mismo o cuando hay relación de bloqueo bidireccional.
-- 3 botones inline tipo "link grande con icono" — sin fondo ni ring en estado default; el color brand vive en el icono y en el hover. Todos comparten `inline-flex h-12 items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors active:scale-[0.97]`:
-  - **WhatsApp** — icono `MessageCircle h-5 w-5 text-emerald-700`. Hover `bg-emerald-100`. Solo aparece si `perfil.telefono` está presente. Abre `https://wa.me/{numero}?text={mensaje}` con mensaje precargado `"Hola {nombre}, vi tu perfil en AnunciaYA"`.
-  - **ChatYA** — icono `MessageSquare h-5 w-5 text-blue-700`. Hover `bg-blue-100`. Llama `useChatYAStore.abrirChatTemporal` con `contextoTipo='directo'` (sin card de contexto — el chat abre limpio) **+** `useUiStore.abrirChatYA()` (las dos son obligatorias). Antes de abrir un chat temporal busca si ya existe una conversación con esa persona en modo personal sin negocio asociado; si existe, abre esa conversación con su historial.
-  - **Agregar contacto / En contactos** — icono `UserPlus h-5 w-5 text-emerald-700` cuando no es contacto, `UserCheck h-5 w-5 text-emerald-700` cuando ya lo es. Hover `bg-emerald-100`. Texto cambia entre `"Agregar contacto"` y `"En contactos"`. Llama `useChatYAStore.agregarContacto`/`eliminarContacto` sincronizando con la agenda real (`chat_contactos`). Estado leído filtrando `contactos` por `(contactoId, tipo='personal', sucursalId=null)`. Es uno de los 5 puntos de entrada al sistema de contactos de ChatYA — sincroniza en tiempo real con los otros 4 dentro del chat (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`).
+- 3 botones inline con logos de marca (Sprint 9.3 — sustituyeron a los icons lucide planos):
+  - **WhatsApp** — SVG inline de WhatsApp con su verde brand `#22C55E → #15803D`. Solo aparece si `perfil.telefono` está presente. Abre `https://wa.me/{numero}?text={mensaje}` con mensaje precargado `"Hola {nombre}, vi tu perfil en AnunciaYA"`.
+  - **ChatYA** — imagen `/ChatYA.webp` inline (logo oficial). Llama `useChatYAStore.abrirChatTemporal` con `contextoTipo='directo'` (sin card de contexto — el chat abre limpio) **+** `useUiStore.abrirChatYA()` (las dos son obligatorias). Antes de abrir un chat temporal busca si ya existe una conversación con esa persona en modo personal sin negocio asociado; si existe, abre esa conversación con su historial.
+  - **Agregar contacto / En contactos** — icono `UserPlus` (o `UserCheck` cuando ya es contacto) envuelto en `Tooltip`. Llama `useChatYAStore.agregarContacto`/`eliminarContacto` sincronizando con la agenda real (`chat_contactos`). Estado leído filtrando `contactos` por `(contactoId, tipo='personal', sucursalId=null)`. Es uno de los 5 puntos de entrada al sistema de contactos de ChatYA — sincroniza en tiempo real con los otros 4 dentro del chat (`VentanaChat`, `PanelInfoContacto`, `MenuContextualChat`, `ListaConversaciones`).
+
+> El mismo patrón de logos inline se reusa en Servicios (`OferenteCard`, `SidebarSobreNegocio`, `CardServicio`) — ver `docs/arquitectura/Servicios.md` §3.3.
 
 **Banner de bloqueado (estado especial):**
 
@@ -886,6 +902,14 @@ vive en `apps/api/src/services/marketplace/filtros.ts` y no cambió.
   presigned URL al backend (`POST /marketplace/upload-imagen`), el hook
   `useFotosUploaderMarketplace` hace PUT directo a R2 con el blob WebP
   optimizado y empuja la URL al state.
+- **Optimistic preview (Sprint 9.2)**: al seleccionar imágenes se generan
+  blobs locales (`URL.createObjectURL`) que aparecen INSTANT en el strip
+  con un overlay de spinner. Las subidas a R2 corren en paralelo con
+  `Promise.allSettled`. Cuando una termina, su preview se reemplaza por
+  la URL final de R2. Si falla, se quita la preview y se notifica al
+  usuario sin bloquear el resto. Estado expuesto vía `previews:
+  FotoPreviewLocal[]` (`{ id, blobUrl, file }`). Mismo patrón en
+  `useFotosUploaderServicios`.
 - **Cleanup R2 al quitar foto (botón X de la zona de fotos)**: el
   uploader dispara `DELETE /marketplace/foto-huerfana` solo para las
   URLs subidas en la sesión actual (tracked en `urlsSubidasEnSesion`
@@ -1563,6 +1587,11 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - Sprint 5 — Perfil del Vendedor
 - Sprint 6 — Buscador Potenciado
 - Sprint 7 — Polish + Crons + Página Pública
+- Sprint 8 — Q&A público (preguntas/respuestas en el detalle, notificaciones `marketplace_*_pregunta_*`)
+- Sprint 9 — Composer inline (sustituye al wizard `/marketplace/publicar`, replicación 1:1 del composer de Servicios)
+- Sprint 9.1 — Layout `max-w-[920px]` con `min-w-0` en el detalle para respetar el contenedor sin overflow
+- Sprint 9.2 — TTL "fin del día" con zona horaria (`sqlExpiracionFinDeDia` + `getZonaHorariaPorCiudad`) + fotos optimistas (blob previews + `Promise.allSettled`)
+- Sprint 9.3 — Perfil rediseñado (avatar simplificado, BadgeCheck invertido, sin ciudad, KPIs `border-2 bg-slate-100 divide-x-2`) + botones contacto con logos de marca (WhatsApp SVG inline + ChatYA.webp + UserPlus con Tooltip). Mismo patrón compartido con `OferenteCard`/`SidebarSobreNegocio` de Servicios.
 
 ### Archivos del módulo
 

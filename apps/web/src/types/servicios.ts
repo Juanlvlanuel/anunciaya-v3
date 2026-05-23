@@ -201,6 +201,10 @@ export interface PublicacionDetalle extends PublicacionServicio {
      *  Negocios. Para servicios-persona y solicitudes-de-persona es
      *  `undefined` y la UI cae a `ubicacionAproximada` (círculo 500m). */
     ubicacionExacta?: { lat: number; lng: number };
+    /** Sprint 9.3: true si el usuario actual tiene esta publicación en
+     *  sus guardados. false para visitantes anónimos o sin guardar. Lo
+     *  usa el bookmark del detalle para arrancar con el estado real. */
+    guardado: boolean;
 }
 
 /** Respuesta del endpoint `/feed`. */

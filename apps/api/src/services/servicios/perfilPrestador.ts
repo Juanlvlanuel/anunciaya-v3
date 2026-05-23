@@ -60,6 +60,19 @@ export interface PublicacionDelPrestadorRow {
     urgente: boolean;
     estado: 'activa' | 'pausada';
     createdAt: string;
+    // Sprint 9.3: campos específicos de vacantes (NULL para
+    // servicio-persona / solicito). Necesarios para que CardServicio
+    // pueda renderizar foto del local + logo del negocio + meta
+    // secundaria (tipo de empleo) en las vacantes.
+    sucursalId: string | null;
+    tipoEmpleo: 'tiempo-completo' | 'medio-tiempo' | 'por-proyecto' | 'eventual' | null;
+    beneficios: string[];
+    negocioId: string | null;
+    negocioNombre: string | null;
+    negocioLogo: string | null;
+    sucursalNombre: string | null;
+    sucursalPortada: string | null;
+    sucursalFotoPerfil: string | null;
 }
 
 export interface ResenaPrestadorRow {
@@ -136,6 +149,11 @@ export async function obtenerPerfilPrestador(usuarioId: string) {
                     WHERE sp.usuario_id = u.id
                       AND sp.estado = 'activa'
                       AND sp.deleted_at IS NULL
+                      -- Excluye vacantes-empresa: esas pertenecen al
+                      -- NEGOCIO del usuario, no a su perfil personal.
+                      -- Las vacantes aparecen en el perfil del negocio
+                      -- en la sección Negocios.
+                      AND sp.tipo IN ('servicio-persona', 'solicito')
                 ) AS total_publicaciones_activas
             FROM usuarios u
             WHERE u.id = ${usuarioId}
@@ -209,6 +227,16 @@ type RawPubDelPrestador = {
     urgente: boolean;
     estado: string;
     created_at: string;
+    // Sprint 9.3: campos específicos de vacantes (NULL para no-vacantes).
+    sucursal_id: string | null;
+    tipo_empleo: string | null;
+    beneficios: string[] | null;
+    negocio_id: string | null;
+    negocio_nombre: string | null;
+    negocio_logo: string | null;
+    sucursal_nombre: string | null;
+    sucursal_portada: string | null;
+    sucursal_foto_perfil: string | null;
 } & Record<string, unknown>;
 
 export async function obtenerPublicacionesDelPrestador(
@@ -228,6 +256,11 @@ export async function obtenerPublicacionesDelPrestador(
     const offset = Math.max(opts.offset ?? 0, 0);
 
     try {
+        // Sprint 9.3: LEFT JOIN con `negocio_sucursales` + `negocios`
+        // para enriquecer las vacantes con foto del local + logo del
+        // negocio (mismo patrón que `obtenerFeed` en
+        // `servicios.service.ts`). Para servicio-persona y solicito
+        // los JOINs devuelven NULL → CardServicio cae a sus fallbacks.
         const result = await db.execute<RawPubDelPrestador>(sql`
             SELECT
                 sp.id, sp.modo, sp.tipo,
@@ -236,11 +269,26 @@ export async function obtenerPublicacionesDelPrestador(
                 sp.precio, sp.presupuesto, sp.modalidad,
                 sp.ciudad, sp.zonas_aproximadas,
                 sp.categoria, sp.urgente,
-                sp.estado, sp.created_at
+                sp.estado, sp.created_at,
+                sp.sucursal_id,
+                sp.tipo_empleo, sp.beneficios,
+                n.id              AS negocio_id,
+                n.nombre          AS negocio_nombre,
+                n.logo_url        AS negocio_logo,
+                s.nombre          AS sucursal_nombre,
+                s.portada_url     AS sucursal_portada,
+                s.foto_perfil     AS sucursal_foto_perfil
             FROM servicios_publicaciones sp
+            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+            LEFT JOIN negocios n           ON n.id = s.negocio_id
             WHERE sp.usuario_id = ${usuarioId}
               AND sp.deleted_at IS NULL
               AND sp.estado = ${estado}
+              -- Sprint 9.3: excluye vacantes-empresa. Las vacantes
+              -- pertenecen al NEGOCIO y aparecen en su perfil dentro
+              -- de la seccion Negocios, no en el perfil personal del
+              -- usuario que las creo como operador del negocio.
+              AND sp.tipo IN ('servicio-persona', 'solicito')
             ORDER BY sp.created_at DESC
             LIMIT ${limit} OFFSET ${offset}
         `);
@@ -264,6 +312,16 @@ export async function obtenerPublicacionesDelPrestador(
                 urgente: row.urgente ?? false,
                 estado: row.estado as 'activa' | 'pausada',
                 createdAt: row.created_at,
+                // Datos para vacantes — NULL para servicio-persona / solicito.
+                sucursalId: row.sucursal_id ?? null,
+                tipoEmpleo: row.tipo_empleo as PublicacionDelPrestadorRow['tipoEmpleo'],
+                beneficios: row.beneficios ?? [],
+                negocioId: row.negocio_id ?? null,
+                negocioNombre: row.negocio_nombre ?? null,
+                negocioLogo: row.negocio_logo ?? null,
+                sucursalNombre: row.sucursal_nombre ?? null,
+                sucursalPortada: row.sucursal_portada ?? null,
+                sucursalFotoPerfil: row.sucursal_foto_perfil ?? null,
             };
         });
 

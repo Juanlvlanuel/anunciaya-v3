@@ -106,9 +106,16 @@ export function PaginaArticuloMarketplace() {
     const esDueno = !!usuarioActual && !!articulo && usuarioActual.id === articulo.vendedor.id;
 
     // ─── Botón guardar ─────────────────────────────────────────────────────────
+    // El backend devuelve `articulo.guardado` con el estado real del usuario
+    // actual (Sprint 9.3 — antes arrancaba siempre en false porque el endpoint
+    // de detalle no traía el flag). El hook re-sincroniza cuando llega la data
+    // (efecto sobre initialGuardado) y `aplicarCambioGuardadoEnCache` sigue
+    // manteniendo en sync el feed-infinito + publicaciones del vendedor al
+    // hacer toggle desde aquí.
     const { guardado, loading: cargandoGuardar, toggleGuardado } = useGuardados({
         entityType: 'articulo_marketplace',
         entityId: articuloId ?? '',
+        initialGuardado: articulo?.guardado ?? false,
     });
 
     // ─── Reactivar (Sprint 7) ─────────────────────────────────────────────────
@@ -299,13 +306,13 @@ export function PaginaArticuloMarketplace() {
                                                 : 'Guardar artículo'
                                         }
                                         aria-pressed={guardado}
-                                        className={`flex h-10 w-10 items-center justify-center rounded-lg disabled:opacity-50 lg:cursor-pointer lg:hover:bg-white/10 ${
-                                            guardado ? 'text-amber-400' : 'text-white/50 lg:hover:text-white'
+                                        className={`flex h-11 w-11 items-center justify-center rounded-lg disabled:opacity-50 lg:cursor-pointer lg:hover:bg-white/10 ${
+                                            guardado ? 'text-teal-400' : 'text-white/50 lg:hover:text-white'
                                         }`}
                                     >
                                         <Icon
                                             icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
-                                            className="h-5 w-5"
+                                            className="h-6 w-6"
                                         />
                                     </button>
                                 </Tooltip>

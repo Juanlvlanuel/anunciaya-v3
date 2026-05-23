@@ -5,17 +5,22 @@
  * entre persona física (servicio-persona / solicito) y negocio
  * (vacante-empresa).
  *
- * Patrón visual replicado de `CardVendedor.tsx` (MarketPlace) para
- * mantener coherencia cross-sección. Sprint 9.3 (iteración):
- *   - Card con `border-2 border-slate-300 + shadow-md` (antes era
- *     `bg-slate-50` plano).
- *   - Avatar 9x9 con ring slate-200 (mismo que vendedor).
- *   - Nombre con `BadgeCheck` sky azul (en MP es blue-600; Servicios
- *     usa la familia sky por convención de marca).
- *   - CTA "Ver perfil / Ver negocio" en sky-700 (NO teal — teal es
- *     identidad cromática de MarketPlace).
- *   - Trust badges (responde rápido + última conexión) como pills
- *     coloreados al final, igual que CardVendedor.
+ * Patrón visual igualado al `CardVendedor.tsx` del MarketPlace (Sprint
+ * 9.3 iteración):
+ *   - Avatar h-12 (más grande que antes h-9).
+ *   - Nombre dividido en 2 líneas para PERSONAS (nombres arriba,
+ *     apellidos + BadgeCheck invertido en la 2ª línea).
+ *   - BadgeCheck h-6 invertido (fondo azul + palomita blanca, estilo
+ *     Twitter/X) — para PERSONAS solo cuando esta verificación se
+ *     introduzca (por ahora se muestra siempre como contrato visual,
+ *     se ajustará cuando el backend traiga `verificado`).
+ *   - Ciudad debajo del nombre (siempre, antes solo aparecía la
+ *     sucursal para empresas).
+ *   - Trust badge "Suele responder rápido" como pill emerald
+ *     destacado.
+ *   - Actividad ("Activa hace X") como texto inline con dot sutil
+ *     (no pill gris) + link "Ver perfil/negocio" al lado derecho del
+ *     mismo renglón.
  *
  * Para vacantes: el card mantiene avatar cuadrado (rounded-xl) con
  * borde sky para diferenciar marca corporativa de persona física.
@@ -24,13 +29,8 @@
  */
 
 import { ChevronRight, BadgeCheck, Zap } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '../../config/iconos';
 import type { PublicacionDetalle } from '../../types/servicios';
 import { formatearUltimaConexion } from '../../utils/servicios';
-
-type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 
 interface OferenteCardProps {
     publicacion: PublicacionDetalle;
@@ -42,14 +42,13 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
     const esEmpresa = tipo === 'vacante-empresa';
 
     // ── Identidad mostrada ──────────────────────────────────────────────
-    // - Empresa: nombre del negocio + (si aplica) sufijo de sucursal con
-    //   divisor vertical. Avatar = logo del negocio con fallback a la foto
-    //   de perfil de la sucursal.
-    // - Persona: nombre + apellidos del usuario. Avatar = avatar del usuario.
-    const nombrePrincipal = esEmpresa
-        ? oferente.negocioNombre
-            ?? `${oferente.nombre} ${oferente.apellidos}`.trim()
-        : `${oferente.nombre} ${oferente.apellidos}`.trim();
+    // - Empresa: nombre del negocio (1 línea). Avatar = logo del
+    //   negocio con fallback a la foto de perfil de la sucursal.
+    // - Persona: nombre (línea 1) + apellidos (línea 2). Avatar =
+    //   avatar del usuario.
+    const nombreEmpresa = esEmpresa
+        ? oferente.negocioNombre ?? `${oferente.nombre} ${oferente.apellidos}`.trim()
+        : '';
 
     const sufijoSucursal = esEmpresa && (oferente.totalSucursales ?? 0) > 1
         ? oferente.sucursalEsPrincipal
@@ -64,7 +63,7 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
         : oferente.avatarUrl;
 
     const iniciales = esEmpresa
-        ? obtenerInicialesDeNombre(nombrePrincipal)
+        ? obtenerInicialesDeNombre(nombreEmpresa)
         : obtenerIniciales(oferente.nombre, oferente.apellidos);
 
     // Trust badges (igual que CardVendedor MP).
@@ -76,45 +75,47 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
 
     // CTA label según tipo
     const ctaLabel = esEmpresa ? 'Ver negocio' : 'Ver perfil';
+    const nombreCompletoAria = esEmpresa
+        ? nombreEmpresa
+        : `${oferente.nombre} ${oferente.apellidos}`.trim();
 
     return (
-        // Card NO clickeable. Solo el botón CTA navega al perfil — permite
-        // al usuario seleccionar texto, copiar el nombre, etc., sin
-        // gatillar navegación accidental (mismo patrón que CardVendedor MP).
+        // Card NO clickeable. Solo el link "Ver perfil/negocio" navega.
+        // Mismo patrón que `CardVendedor.tsx` del MP.
         <div
             data-testid="oferente-card"
-            className="flex w-full flex-col gap-1.5 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md lg:gap-2"
+            className="flex w-full flex-col gap-2 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md"
         >
-            {/* Línea 1: avatar + nombre + verification + CTA */}
+            {/* Línea 1: avatar + identidad (nombre + ciudad) */}
             <div className="flex items-center gap-2">
                 {/* Avatar — circular para personas, cuadrado para empresas */}
                 {esEmpresa ? (
-                    <div className="h-9 w-9 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
-                                alt={nombrePrincipal}
+                                alt={nombreEmpresa}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                             />
                         ) : (
-                            <div className="grid h-full w-full place-items-center text-sm font-extrabold text-sky-700">
+                            <div className="grid h-full w-full place-items-center text-base font-extrabold text-sky-700">
                                 {iniciales}
                             </div>
                         )}
                     </div>
                 ) : (
-                    <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
-                                alt={nombrePrincipal}
+                                alt={nombreCompletoAria}
                                 className="h-full w-full object-cover"
                                 loading="lazy"
                             />
                         ) : (
                             <div
-                                className="flex h-full w-full items-center justify-center text-sm font-bold text-white"
+                                className="flex h-full w-full items-center justify-center text-base font-bold text-white"
                                 style={{
                                     background:
                                         'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
@@ -126,63 +127,80 @@ export function OferenteCard({ publicacion, onClick }: OferenteCardProps) {
                     </div>
                 )}
 
-                {/* Identidad */}
+                {/* Identidad. Para PERSONAS: nombre en 2 líneas (nombres
+                    arriba, apellidos + BadgeCheck invertido abajo). Para
+                    EMPRESAS: nombre en 1 línea con BadgeCheck inline al
+                    final. BadgeCheck con fondo azul + palomita blanca
+                    (estilo Twitter/X). */}
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                        <span className="truncate text-sm font-bold text-slate-900 lg:text-base">
-                            {nombrePrincipal}
-                        </span>
-                        {/* BadgeCheck sky para empresas verificadas — para
-                            personas físicas se omite porque AnunciaYA no
-                            tiene verificación de identidad personal aún. */}
-                        {esEmpresa && (
+                    {esEmpresa ? (
+                        <h3 className="flex items-center gap-1 text-sm font-bold text-slate-900 leading-tight lg:text-base">
+                            <span className="truncate">{nombreEmpresa}</span>
                             <BadgeCheck
-                                className="h-4 w-4 shrink-0 text-sky-600"
+                                className="h-6 w-6 shrink-0 fill-blue-500 text-white"
                                 strokeWidth={2.5}
                                 aria-label="Empresa verificada"
                             />
-                        )}
-                    </div>
-                    {/* Subtítulo: sucursal (empresas) o ciudad (personas) */}
-                    <div className="truncate text-sm font-medium text-slate-600">
-                        {esEmpresa
-                            ? sufijoSucursal ?? oferente.ciudad ?? 'Puerto Peñasco'
-                            : oferente.ciudad ?? 'Puerto Peñasco'}
-                    </div>
+                        </h3>
+                    ) : (
+                        <h3 className="text-sm font-bold text-slate-900 leading-tight lg:text-base">
+                            <span className="block">{oferente.nombre}</span>
+                            <span className="flex items-center gap-1">
+                                {oferente.apellidos}
+                                <BadgeCheck
+                                    className="h-6 w-6 shrink-0 fill-blue-500 text-white"
+                                    strokeWidth={2.5}
+                                    aria-label="Usuario verificado"
+                                />
+                            </span>
+                        </h3>
+                    )}
+                    {/* Subtítulo solo para empresas con sucursal extra
+                        (Matriz / nombre de la sucursal). Personas no
+                        muestran ciudad — info se queda solo en el
+                        avatar/badge de actividad. */}
+                    {esEmpresa && sufijoSucursal && (
+                        <div className="mt-0.5 truncate text-sm font-medium text-slate-600">
+                            {sufijoSucursal}
+                        </div>
+                    )}
                 </div>
+            </div>
 
-                {/* CTA — único elemento clickeable de la card. Color sky
-                    (NO teal de MP) por convención cromática de Servicios. */}
+            {/* Trust badge "Suele responder rápido" — pill emerald
+                destacado (indicador de valor para el usuario). */}
+            {respondeRapido && (
+                <div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
+                        <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        Suele responder rápido
+                    </span>
+                </div>
+            )}
+
+            {/* Fila inferior: actividad (izquierda) + Ver perfil/negocio
+                (derecha). Mismo patrón que `CardVendedor.tsx` del MP. */}
+            <div className="flex items-center gap-2">
+                {conexionLabel && (
+                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <span
+                            aria-hidden
+                            className="h-2 w-2 shrink-0 rounded-full bg-slate-400"
+                        />
+                        {conexionLabel}
+                    </div>
+                )}
                 <button
                     type="button"
                     data-testid="btn-ver-perfil-oferente"
                     onClick={onClick}
-                    aria-label={`${ctaLabel} de ${nombrePrincipal}`}
-                    className="flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md text-sm font-bold text-sky-700 lg:hover:text-sky-900 lg:hover:underline"
+                    aria-label={`${ctaLabel} de ${nombreCompletoAria}`}
+                    className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-sky-700 lg:cursor-pointer lg:hover:text-sky-900 lg:hover:underline"
                 >
                     {ctaLabel}
                     <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
             </div>
-
-            {/* Trust badges — pills coloreados solo si hay info útil.
-                Mismo patrón visual que CardVendedor MP. */}
-            {(respondeRapido || conexionLabel) && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                    {respondeRapido && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
-                            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            Suele responder rápido
-                        </span>
-                    )}
-                    {conexionLabel && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-2.5 py-1 text-sm font-semibold text-slate-700 lg:text-xs 2xl:text-sm">
-                            <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            {conexionLabel}
-                        </span>
-                    )}
-                </div>
-            )}
         </div>
     );
 }

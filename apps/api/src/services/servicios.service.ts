@@ -127,6 +127,13 @@ export interface PublicacionConOferenteRow extends PublicacionRow {
      * `ubicacionAproximada` con offset random de 500m).
      */
     ubicacionExacta?: { lat: number; lng: number };
+    /**
+     * Sprint 9.3: true cuando el usuario actual tiene esta publicación
+     * en su lista de guardados. false para visitantes anónimos o
+     * usuarios sin guardado. Lo usa el bookmark del detalle para
+     * arrancar con el estado real desde el primer render.
+     */
+    guardado: boolean;
     oferente: {
         id: string;
         nombre: string;
@@ -591,7 +598,7 @@ export async function crearPublicacion(
  * Visible para todos: activa | pausada. NO visible: eliminada.
  * El controller decide si bloquea el contacto cuando está pausada.
  */
-export async function obtenerPublicacionPorId(publicacionId: string) {
+export async function obtenerPublicacionPorId(publicacionId: string, usuarioActualId?: string) {
     try {
         // Para vacantes-empresa, también traemos info del negocio + sucursal
         // (LEFT JOIN — quedará null para servicios publicados por personas).
@@ -619,6 +626,7 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
             // privacidad con `ubicacionAproximada` + círculo de 500m).
             ubicacion_exacta_lat: number | null;
             ubicacion_exacta_lng: number | null;
+            guardado: boolean;
         }>(sql`
             SELECT
                 ${COLUMNAS_PUBLICACION},
@@ -657,7 +665,19 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
                 CASE WHEN ns.ubicacion IS NULL THEN NULL
                      ELSE ST_Y(ns.ubicacion::geometry) END AS ubicacion_exacta_lat,
                 CASE WHEN ns.ubicacion IS NULL THEN NULL
-                     ELSE ST_X(ns.ubicacion::geometry) END AS ubicacion_exacta_lng
+                     ELSE ST_X(ns.ubicacion::geometry) END AS ubicacion_exacta_lng,
+                -- Flag de guardado para el usuario actual. NULL → false
+                -- cuando no hay sesión. Permite que el bookmark del
+                -- detalle refleje el estado real desde el primer render
+                -- (sin esto, el botón siempre arranca desactivado).
+                CASE WHEN ${usuarioActualId ?? null}::uuid IS NULL THEN false
+                     ELSE EXISTS (
+                         SELECT 1 FROM guardados g
+                         WHERE g.usuario_id = ${usuarioActualId ?? null}::uuid
+                           AND g.entity_type = 'servicio'
+                           AND g.entity_id = sp.id
+                     )
+                END AS guardado
             FROM servicios_publicaciones sp
             INNER JOIN usuarios u ON u.id = sp.usuario_id
             LEFT JOIN negocios n ON n.id = u.negocio_id
@@ -694,6 +714,7 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
             total_sucursales: number | null;
             ubicacion_exacta_lat: number | null;
             ubicacion_exacta_lng: number | null;
+            guardado: boolean;
         };
 
         const base = mapearPublicacion(row);
@@ -713,6 +734,7 @@ export async function obtenerPublicacionPorId(publicacionId: string) {
 
         const data: PublicacionConOferenteRow = {
             ...base,
+            guardado: row.guardado,
             ...(ubicacionExacta ? { ubicacionExacta } : {}),
             oferente: {
                 id: row.oferente_id,

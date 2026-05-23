@@ -70,6 +70,12 @@ interface ArticuloRow {
 }
 
 interface ArticuloConVendedorRow extends ArticuloRow {
+    /**
+     * Sprint 9.3: true cuando el usuario actual tiene este artículo en
+     * sus guardados. false para visitantes anónimos. Lo usa el bookmark
+     * del detalle para arrancar con el estado real desde el primer render.
+     */
+    guardado: boolean;
     vendedor: {
         id: string;
         nombre: string;
@@ -449,7 +455,7 @@ async function calcularTiempoRespuesta(vendedorId: string): Promise<number | nul
  * Visible mientras `deleted_at IS NULL` — incluye `vendida` y `pausada` para
  * permitir links compartidos con badge de estado en el frontend.
  */
-export async function obtenerArticuloPorId(articuloId: string) {
+export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?: string) {
     try {
         const resultado = await db.execute(sql`
             SELECT
@@ -467,7 +473,21 @@ export async function obtenerArticuloPorId(articuloId: string) {
                 u.avatar_url      AS vendedor_avatar_url,
                 u.ciudad          AS vendedor_ciudad,
                 u.telefono        AS vendedor_telefono,
-                u.ultima_conexion AS vendedor_ultima_conexion
+                u.ultima_conexion AS vendedor_ultima_conexion,
+                -- Flag de guardado del usuario actual (Sprint 9.3). Mismo
+                -- patron EXISTS que el feed-infinito y publicaciones del
+                -- vendedor. Permite que el bookmark del detalle refleje el
+                -- estado real desde el primer render — antes del fix
+                -- siempre arrancaba en false porque el endpoint no devolvia
+                -- este flag y el hook useGuardados no recibia initialGuardado.
+                ${usuarioActualId
+                    ? sql`EXISTS (
+                            SELECT 1 FROM guardados g
+                            WHERE g.usuario_id = ${usuarioActualId}
+                              AND g.entity_type = 'articulo_marketplace'
+                              AND g.entity_id = a.id
+                          )`
+                    : sql`FALSE`} AS usuario_guardo
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             WHERE a.id = ${articuloId}
@@ -490,6 +510,7 @@ export async function obtenerArticuloPorId(articuloId: string) {
             vendedor_ciudad: string | null;
             vendedor_telefono: string | null;
             vendedor_ultima_conexion: string | null;
+            usuario_guardo: boolean;
         };
 
         const [tiempoRespuestaMinutos] = await Promise.all([
@@ -498,6 +519,7 @@ export async function obtenerArticuloPorId(articuloId: string) {
 
         const data: ArticuloConVendedorRow = {
             ...mapearArticulo(row),
+            guardado: row.usuario_guardo,
             vendedor: {
                 id: row.vendedor_id,
                 nombre: row.vendedor_nombre,

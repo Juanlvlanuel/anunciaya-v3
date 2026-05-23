@@ -169,8 +169,8 @@ export async function crearPregunta(
             usuarioId: articulo.usuario_id,
             modo: 'personal',
             tipo: 'marketplace_nueva_pregunta',
-            titulo: 'Te hicieron una pregunta',
-            mensaje: `Un usuario preguntó sobre "${articulo.titulo}"`,
+            titulo: 'Tienes una nueva pregunta',
+            mensaje: `Te preguntaron sobre "${articulo.titulo}"`,
             referenciaId: articuloId,
             referenciaTipo: 'marketplace',
         }).catch(() => { /* notificación no crítica */ });
@@ -464,8 +464,8 @@ export async function responderPregunta(
         usuarioId: pregunta.compradorId,
         modo: 'personal',
         tipo: 'marketplace_pregunta_respondida',
-        titulo: 'El vendedor te respondió',
-        mensaje: `Respuesta sobre "${pregunta.articuloTitulo}"`,
+        titulo: 'Tu pregunta fue respondida',
+        mensaje: `Ya hay respuesta sobre "${pregunta.articuloTitulo}"`,
         referenciaId: pregunta.articuloId,
         referenciaTipo: 'marketplace',
     }).catch(() => { /* notificación no crítica */ });

@@ -62,6 +62,7 @@ import {
 import { aplicarCambioGuardadoEnCache } from '@/hooks/useGuardados';
 import notificar from '@/utils/notificaciones';
 import { CardArticulo } from '@/components/marketplace/CardArticulo';
+import { CardArticuloGuardado } from '@/components/marketplace/CardArticuloGuardado';
 import { CardServicio } from '@/components/servicios/CardServicio';
 import { calcularDistanciaMetros } from '@/utils/marketplace';
 import { useGpsStore } from '@/stores/useGpsStore';
@@ -83,11 +84,18 @@ interface GuardadoOferta {
     entityId: string;
     createdAt: string;
     oferta: Oferta;
-    // ✅ NUEVO: Datos del negocio asociado
+    // Datos del negocio + sucursal asociados. El backend hace JOIN y
+    // devuelve nombre del NEGOCIO (no de la sucursal), logo del negocio,
+    // nombre de la sucursal y foto de perfil de la sucursal. Esos campos
+    // alimentan el header del ModalOfertaDetalle y el avatar del chat
+    // (que debe usar `sucursalFotoPerfil`, no el logo del negocio).
     negocio?: {
         nombre: string;
+        logoUrl?: string | null;
         whatsapp?: string | null;
         sucursalId: string;
+        sucursalNombre?: string | null;
+        sucursalFotoPerfil?: string | null;
         usuarioId?: string | null;
     };
 }
@@ -721,10 +729,20 @@ export function PaginaGuardados() {
             </div>
             {/* Fin contenedor max-w-7xl */}
 
-            {/* Modal de detalle de oferta */}
+            {/* Modal de detalle de oferta. La oferta se enriquece con
+                logo del negocio + nombre y foto de perfil de la sucursal
+                — campos que el modal usa para el header (logo + nombre
+                negocio + label sucursal) y para el avatar correcto del
+                chat (sucursalFotoPerfil ≠ logoUrl: el header del chat
+                debe mostrar la foto de la sucursal específica). */}
             {ofertaSeleccionada && (
-                <ModalOfertaDetalle 
-                    oferta={ofertaSeleccionada.oferta || ofertaSeleccionada} 
+                <ModalOfertaDetalle
+                    oferta={{
+                        ...(ofertaSeleccionada.oferta || ofertaSeleccionada),
+                        logoUrl: ofertaSeleccionada.negocio?.logoUrl ?? undefined,
+                        sucursalNombre: ofertaSeleccionada.negocio?.sucursalNombre ?? undefined,
+                        sucursalFotoPerfil: ofertaSeleccionada.negocio?.sucursalFotoPerfil ?? undefined,
+                    }}
                     onClose={handleCloseModal}
                     whatsapp={ofertaSeleccionada.negocio?.whatsapp || undefined}
                     negocioNombre={ofertaSeleccionada.negocio?.nombre || undefined}
@@ -781,12 +799,22 @@ function BookmarkGlass({ seleccionado, onClick, posicion = 'top-left' }: Bookmar
         <div className={`absolute ${claseEsquina} z-10`}>
             <button
                 onClick={onClick}
-                className={`w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible transition-transform duration-200 lg:hover:scale-110 ${
+                className={`relative w-[38px] h-[38px] rounded-full flex items-center justify-center cursor-pointer overflow-visible transition-transform duration-200 lg:hover:scale-110 ${
                     seleccionado
                         ? 'bg-red-500 border-2 border-red-500'
                         : 'bg-white border-2 border-amber-500 backdrop-blur-[10px]'
                 }`}
             >
+                {/* Pulse ring amber respirando cuando NO está en modo
+                    selección (estado normal "guardado"). Mismo patrón
+                    visual que CardNegocio del feed para coherencia. */}
+                {!seleccionado && (
+                    <span
+                        aria-hidden
+                        className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                        style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                    />
+                )}
                 {seleccionado ? (
                     <svg
                         className="w-5 h-5 text-white"
@@ -895,6 +923,7 @@ function ContenidoOfertas({
                             oferta={guardado.oferta}
                             size={esMobile ? 'compact' : 'normal'}
                             orientacion={esMobile ? 'vertical' : 'auto'}
+                            acentoHover="rose"
                         />
                     </div>
                 </div>
@@ -977,6 +1006,7 @@ function ContenidoNegocios({
                     <CardNegocioCompacto
                         negocio={negocio}
                         onClick={() => onClickNegocio(negocio)}
+                        acentoHover="rose"
                     />
                 </div>
             ))}
@@ -1053,6 +1083,12 @@ function ContenidoMarketplace({
     modoSeleccion,
     idsSeleccionados,
 }: ContenidoMarketplaceProps) {
+    // `useNavegarASeccion` es el hook estándar de navegación (ver
+    // `docs/estandares/Sistema_Navegacion_Back.md`). Para navegar a una
+    // subruta (`/marketplace/articulo/:id`) hace push normal — el back
+    // desde el detalle regresará al listado de MisGuardados.
+    const navegarASeccion = useNavegarASeccion();
+
     if (loading) {
         return (
             <div className="flex min-h-40 items-center justify-center">
@@ -1099,17 +1135,13 @@ function ContenidoMarketplace({
                         onClick={(e) => onClickBookmark(item.id, e)}
                     />
 
-                    {/* `altoFijo` iguala la altura con la de OfertaCard que
-                        renderiza el tab Ofertas: compact vertical en mobile
-                        (`h-[280px]`) y normal vertical en lg/2xl (`h-[340px]`).
-                        `variant='compacta'` omite la señal de actividad
-                        ("X personas lo guardaron") — en Mis Guardados el
-                        panel se queda con precio + título + tiempo. */}
-                    <CardArticulo
+                    {/* CardArticuloGuardado — clon del layout de CardServicio
+                        adaptado a MP: foto 4:3 + badge condición teal +
+                        precio + meta + botón ChatYA al final. Mismo patrón
+                        visual que los otros 3 tabs de MisGuardados. */}
+                    <CardArticuloGuardado
                         articulo={{ ...item.articulo, distanciaMetros: null } as ArticuloFeed}
-                        variant="compacta"
-                        altoFijo="h-[280px] lg:h-[340px] 2xl:h-[340px]"
-                        ocultarBotonGuardar
+                        onClick={() => navegarASeccion(`/marketplace/articulo/${item.articulo.id}`)}
                     />
                 </div>
             ))}
@@ -1230,6 +1262,7 @@ function ContenidoServicios({
                         onClick={() => onClickCard(item.publicacion.id)}
                         posicionBadgeTipo="right"
                         mostrarNegocioEnInfo
+                        acentoHover="rose"
                     />
                 </div>
             ))}

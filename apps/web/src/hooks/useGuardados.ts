@@ -154,12 +154,18 @@ export function aplicarCambioGuardadoEnCache(
   );
 
   // Detalle del artículo — exact match.
+  // IMPORTANTE: actualizar también el flag `guardado` (no solo el contador).
+  // Sin esto, al salir del detalle y volver a entrar, el cache aún tiene
+  // `guardado=true` del fetch inicial y el bookmark se vería marcado aunque
+  // el usuario lo haya quitado dentro de la misma sesión. El staleTime de
+  // la query del detalle (1-2 min) mantiene el dato sin refetch.
   qc.setQueryData<ArticuloMarketplaceDetalle | null>(
     queryKeys.marketplace.articulo(articuloId),
     (old) => {
       if (!old) return old;
       return {
         ...old,
+        guardado: guardadoNuevo,
         totalGuardados: Math.max(0, old.totalGuardados + delta),
       };
     },

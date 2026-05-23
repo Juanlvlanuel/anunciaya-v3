@@ -280,11 +280,19 @@ export async function obtenerGuardados(
                         createdAt: ofertas.createdAt,
                         updatedAt: ofertas.updatedAt,
                     },
-                    // ✅ NUEVO: Datos de la sucursal (whatsapp, nombre) + usuarioId para ChatYA
+                    // Datos completos del negocio + sucursal para el header
+                    // del ModalOfertaDetalle (logo + nombre del negocio +
+                    // label de sucursal) y para el avatar correcto del chat
+                    // (foto de perfil de la SUCURSAL, no el logo). Antes solo
+                    // se devolvía `nombre` (de la sucursal) y eso se mostraba
+                    // como nombre del negocio — bug visible en MisGuardados.
                     negocio: {
-                        nombre: negocioSucursales.nombre,
+                        nombre: negocios.nombre,                     // nombre del NEGOCIO
+                        logoUrl: negocios.logoUrl,                   // logo del negocio
                         whatsapp: negocioSucursales.whatsapp,
                         sucursalId: negocioSucursales.id,
+                        sucursalNombre: negocioSucursales.nombre,    // nombre de la SUCURSAL
+                        sucursalFotoPerfil: negocioSucursales.fotoPerfil, // avatar chat
                         usuarioId: negocios.usuarioId,
                     }
                 })

@@ -39,7 +39,7 @@ import type {
     PublicacionDetalle,
 } from '../../types/servicios';
 
-const PREGUNTA_MIN = 10;
+const PREGUNTA_MIN = 5;
 const PREGUNTA_MAX = 200;
 const RESPUESTA_MIN = 5;
 const RESPUESTA_MAX = 500;
@@ -64,10 +64,16 @@ export function SeccionPreguntasServicio({
 
     const puedeMostrarInput = !!usuarioActual && !esDueno;
 
+    // Sprint 9.3: textos personalizados según tipo de publicación.
+    // Genérico "esta publicación" suena impersonal — usar el término
+    // específico (vacante / solicitud / servicio) y un mensaje empty
+    // que oriente sobre QUÉ preguntar es mejor UX.
+    const textos = textosSeccionPreguntas(publicacion.tipo);
+
     return (
         <div data-testid="seccion-preguntas-servicio" className="space-y-4">
             <h2 className="text-base font-bold text-slate-900">
-                Preguntas sobre esta publicación
+                {textos.titulo}
                 {preguntas.length > 0 && (
                     <span className="ml-1.5 text-xs font-medium text-slate-500">
                         ({preguntas.length})
@@ -81,7 +87,7 @@ export function SeccionPreguntasServicio({
                 </p>
             ) : preguntas.length === 0 ? (
                 <p className="text-sm font-medium text-slate-600">
-                    Sé el primero en preguntar sobre esta publicación.
+                    {textos.vacio}
                 </p>
             ) : (
                 <div className="max-h-[500px] space-y-5 overflow-y-auto pr-1">
@@ -99,10 +105,41 @@ export function SeccionPreguntasServicio({
             {/* Input inline "Hacer una pregunta" — mismo patrón pill que MP.
                 Solo visible para usuarios autenticados que no sean dueños. */}
             {puedeMostrarInput && (
-                <FormHacerPregunta publicacionId={publicacion.id} />
+                <FormHacerPregunta
+                    publicacionId={publicacion.id}
+                    placeholder={textos.placeholder}
+                />
             )}
         </div>
     );
+}
+
+/**
+ * Textos contextuales de la sección de preguntas según el tipo de
+ * publicación. Mejora UX: el genérico "esta publicación" suena
+ * impersonal — usar el término específico orienta al usuario sobre
+ * qué tipo de pregunta tiene sentido aquí.
+ */
+function textosSeccionPreguntas(tipo: PublicacionDetalle['tipo']) {
+    if (tipo === 'vacante-empresa') {
+        return {
+            titulo: 'Pregunta sobre esta Vacante',
+            vacio: 'Sé el primero. Pregunta sobre horarios, prestaciones o requisitos del puesto.',
+            placeholder: 'Pregunta sobre la vacante...',
+        };
+    }
+    if (tipo === 'solicito') {
+        return {
+            titulo: 'Pregunta sobre esta Solicitud',
+            vacio: 'Sé el primero en preguntar...',
+            placeholder: 'Pregunta sobre la solicitud...',
+        };
+    }
+    return {
+        titulo: 'Pregunta sobre este Servicio',
+        vacio: 'Sé el primero en preguntar...',
+        placeholder: 'Pregunta sobre el servicio...',
+    };
 }
 
 // =============================================================================
@@ -188,7 +225,14 @@ function BubblePregunta({ pregunta, publicacion, esDueno }: BubblePreguntaProps)
 // SUBCOMPONENTE — FormHacerPregunta (input pill al final, estilo MP)
 // =============================================================================
 
-function FormHacerPregunta({ publicacionId }: { publicacionId: string }) {
+function FormHacerPregunta({
+    publicacionId,
+    placeholder = 'Hacer una pregunta...',
+}: {
+    publicacionId: string;
+    /** Placeholder contextual según tipo (vacante / solicitud / servicio). */
+    placeholder?: string;
+}) {
     const usuarioActual = useAuthStore((s) => s.usuario);
     const crearMut = useCrearPreguntaServicio();
     const [texto, setTexto] = useState('');
@@ -239,7 +283,7 @@ function FormHacerPregunta({ publicacionId }: { publicacionId: string }) {
                             if (error) setError(null);
                         }}
                         maxLength={PREGUNTA_MAX}
-                        placeholder="Hacer una pregunta..."
+                        placeholder={placeholder}
                         className="flex-1 min-w-0 bg-transparent text-sm text-slate-900 outline-none placeholder:text-slate-500"
                     />
                     <button

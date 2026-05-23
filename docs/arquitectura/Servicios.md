@@ -1,6 +1,6 @@
 # Arquitectura — Sección Servicios
 
-> Última actualización: 2026-05-20 (Sprint 9 — composer inline en el feed, fila de íconos).
+> Última actualización: 2026-05-22 (Sprint 9.3 — Q&A con notificaciones, perfil prestador rediseñado, fotos optimistas, TTL fin-de-día con zona horaria).
 > Visión estratégica: [`docs/VISION_ESTRATEGICA_AnunciaYA.md`](../VISION_ESTRATEGICA_AnunciaYA.md) §3.2.
 
 Servicios es la sección pública unificada para **servicios e intangibles** (incluye empleos).
@@ -122,10 +122,12 @@ Mantener `utils/deteccionVenta.ts` sincronizado con el regex backend hasta centr
 ### 2.9 Fotos R2
 
 - Subida: presigned URL → PUT directo del cliente a R2.
-- Lógica encapsulada en `useFotosUploaderServicios` (hook que devuelve `inputProps`, `abrirSelector`, `eliminar`, `subiendo`).
+- Lógica encapsulada en `useFotosUploaderServicios` (hook que devuelve `inputProps`, `abrirSelector`, `eliminar`, `subiendo`, `previews`).
 - El ícono cámara dispara `abrirSelector` directo (sin acordeón).
 - Strip de thumbnails arriba del textarea (3-6 fotos horizontales, scroll si son varias). X para eliminar.
 - Tracking huérfanas: `Set<string>` con URLs subidas en sesión. Al publicar se vacía sin disparar deletes. Al eliminar foto del strip sí dispara `useEliminarFotoServicioHuerfana`. Reconcile global limpia eventuales.
+
+**Optimistic preview (Sprint 9.2):** Al seleccionar imágenes se generan blobs locales (`URL.createObjectURL`) que aparecen INSTANT en el strip con un overlay de spinner. Las subidas a R2 corren en paralelo con `Promise.allSettled`. Cuando una termina, su preview se reemplaza por la URL final de R2. Si falla, se quita la preview y se notifica al usuario sin bloquear el resto. Estado expuesto vía `previews: FotoPreviewLocal[]` (`{ id, blobUrl, file }`). Mismo patrón en `useFotosUploaderMarketplace`.
 
 ### 2.10 Modo Personal vs Comercial
 
@@ -142,13 +144,54 @@ Mantener `utils/deteccionVenta.ts` sincronizado con el regex backend hasta centr
 | `/servicios` | `PaginaServicios` | Feed con tabs Todos/Servicios/Solicitudes/Vacantes + composer inline |
 | `/servicios?crear=<modo>` | `PaginaServicios` | Feed + composer expandido en modo crear |
 | `/servicios?editar=<id>` | `PaginaServicios` | Feed + composer expandido en modo editar |
-| `/servicios/:id` | `PaginaServicio` | Detalle de publicación |
-| `/servicios/usuario/:usuarioId` | `PaginaPerfilPrestador` | Perfil del prestador con reseñas |
+| `/servicios/:id` | `PaginaServicio` | Detalle de publicación (servicio, solicitud o vacante) |
+| `/servicios/usuario/:usuarioId` | `PaginaPerfilPrestador` | Perfil personal del prestador (no incluye vacantes — esas viven en `/negocios/:id`) |
 | `/mis-publicaciones` | `PaginaMisPublicaciones` | Panel del autor — toggle MP/Servicios |
 
 **Eliminadas en Sprint 9:**
 - `/servicios/publicar`
 - `/servicios/publicar/:publicacionId`
+
+### 3.1 PaginaPerfilPrestador — vista personal
+
+El perfil del prestador es un **espacio personal del usuario** (no del negocio). Solo muestra publicaciones donde el usuario está como persona física: `tipo IN ('servicio-persona', 'solicito')`. Las vacantes (`vacante-empresa`) se excluyen porque pertenecen al negocio del usuario y se ven en `/negocios/:negocioId` o en BS Vacantes — no en su perfil personal.
+
+**HeroCard:**
+- Avatar h-12 (sin ring decorativo — el usuario pidió "avatar simplificado").
+- Nombre en 2 líneas con badge azul invertido (`fill-blue-500 text-white` estilo Twitter/X) si verificado.
+- KPIs en grid `border-2 bg-slate-100 divide-x-2` (3-4 columnas según data): publicaciones activas, reseñas, calificación promedio, miembro desde.
+- Sin ciudad (decisión UX: ubicación exacta del personal no se expone).
+
+**Tabs:**
+- 🔧 Wrench → Servicios y solicitudes activas (grid `auto-rows-fr [&>*]:h-full` con `CardServicio` universal).
+- ⭐ Star → Reseñas.
+
+**Hidratación backend:** `apps/api/src/services/servicios/perfilPrestador.ts` hace `LEFT JOIN` con `negocio_sucursales` y `negocios` por si en el futuro se mezclan publicaciones de negocio, pero el filtro actual mantiene la vista limpia de personal.
+
+### 3.2 Sidebar "Sobre …" en detalle (PaginaServicio)
+
+El componente `SidebarSobreNegocio` (desktop) y `OferenteCard` (móvil) comparten patrón con `CardVendedor` de MP (tema sky en lugar de amber):
+
+- Avatar h-12 (personas) o logo de negocio (vacantes).
+- Nombre + BadgeCheck invertido inline.
+- Actividad relativa ("Activa hace 2 hrs") inline con dot.
+- "Ver perfil" alineado a la derecha en el mismo renglón.
+- **Título dinámico por tipo:**
+  - `servicio-persona` → "Sobre el oferente"
+  - `solicito` → "Sobre el solicitante"
+  - `vacante-empresa` → "Sobre el negocio"
+- **"Dejar reseña"** solo para `servicio-persona` (no en vacantes ni solicitudes — un solicitante no presta servicio).
+
+### 3.3 Botones de contacto inline (BarraContactoServicio)
+
+Sustituyó botones genéricos por logos de marca inline:
+- WhatsApp → SVG inline con color verde brand.
+- ChatYA → imagen `/ChatYA.webp` inline.
+- Agregar contacto → icono `UserPlus` con `Tooltip`.
+
+Aplica en `OferenteCard`, `SidebarSobreNegocio` y `CardServicio`. Mismo patrón se reusa en MP (`CardVendedor`, sidebar de detalle, `CardArticulo`).
+
+`useIniciarChatServicio` encapsula la lógica de iniciar conversación ChatYA reutilizable desde la card y el detalle.
 
 ---
 
@@ -164,11 +207,47 @@ Mantener `utils/deteccionVenta.ts` sincronizado con el regex backend hasta centr
 | POST | `/servicios/upload-imagen` | Presigned URL R2 |
 | DELETE | `/servicios/foto-huerfana` | Reference count + borra de R2 |
 
-Validación con Zod en `apps/api/src/validations/servicios.schema.ts`.
+### 4.2 Endpoints Q&A público
 
-### 4.2 Moderación pasiva
+| Método | Ruta | Uso |
+|---|---|---|
+| GET | `/servicios/publicaciones/:id/preguntas` | Lista pública (respondidas + pendientes propias) |
+| POST | `/servicios/publicaciones/:id/preguntas` | Crear pregunta (autor ≠ dueño) |
+| PUT | `/servicios/preguntas/:id` | Editar pregunta propia si no tiene respuesta |
+| PUT | `/servicios/preguntas/:id/respuesta` | Dueño responde |
+| DELETE | `/servicios/preguntas/:id` | Soft delete (autor si pendiente, dueño cualquiera) |
+
+Service: `apps/api/src/services/servicios/preguntas.ts`. Validación: `apps/api/src/validations/servicios.schema.ts`. `PREGUNTA_MIN` = 5 (frontend y Zod backend, Sprint 9.3 — antes 10 bloqueaba palabras de 7 letras como "Gracias").
+
+### 4.3 Moderación pasiva
 
 `apps/api/src/services/servicios/servicios.service.ts → detectarSugerenciaSeccion()` — regex simple sobre título+descripción. Si detecta venta, devuelve `{ code: 409, sugerencia: 'marketplace' }`.
+
+### 4.4 TTL "fin del día" con zona horaria (Sprint 9.2)
+
+Las publicaciones de Servicios (servicio, solicito, vacante) tienen `expira_at` calculado con `sqlExpiracionFinDeDia(ttlDias, zona)` (`apps/api/src/utils/expiracion.ts`).
+
+- `TTL_DIAS_DEFAULT = 30` días.
+- La expresión SQL usa `AT TIME ZONE` para devolver el último segundo (`23:59:59`) del día local de la ciudad, no la hora exacta de creación.
+- La zona horaria se resuelve con `getZonaHorariaPorCiudad()` (`utils/zonaHoraria.ts`) — mapeo IANA por ciudad mexicana. Default `'America/Hermosillo'` para Puerto Peñasco.
+- Antes del fix, una publicación creada a las 14:30 del día 1 expiraba a las 14:30 del día 31. Ahora expira a las 23:59:59 del día 31 en hora local.
+
+Aplica también a `marketplace.service.ts`, `vacantes.service.ts`, `cardya.service.ts` (cupones/recompensas) y `marketplace/expiracion.ts`.
+
+### 4.5 Q&A — Notificaciones
+
+Las preguntas y respuestas detonan notificaciones (Sprint 9.3). Ver `docs/arquitectura/Notificaciones.md` sección "Servicios — Q&A".
+
+| Evento | Tipo notificación | Destinatario | Mensaje |
+|---|---|---|---|
+| Usuario hace pregunta | `servicios_nueva_pregunta` | Dueño publicación | `Tienes una nueva pregunta` / `Te preguntaron sobre "{titulo}"` |
+| Dueño responde | `servicios_pregunta_respondida` | Autor pregunta | `Tu pregunta fue respondida` / `Ya hay respuesta sobre "{titulo}"` |
+
+Ambas usan `modo: 'personal'` (llegan al perfil personal del receptor sin importar contexto BS), `referenciaTipo: 'servicio'`, `referenciaId: publicacionId`. Click → `/servicios/{publicacionId}`. La llamada a `crearNotificacion` está envuelta en `.catch()` silencioso — la notificación no es crítica al flujo Q&A.
+
+El check constraint de la BD (`notificaciones_tipo_check`) fue actualizado para incluir `servicios_nueva_pregunta` y `servicios_pregunta_respondida` (migración manual, ver `apps/api/src/db/schemas/schema.ts`).
+
+Mismo patrón aplica a MP (`marketplace_nueva_pregunta`, `marketplace_pregunta_respondida`).
 
 ---
 
@@ -199,15 +278,22 @@ A diferencia de la primera iteración del composer (que usaba un store global), 
 
 ---
 
-## 7. Replicación a MarketPlace (futuro)
+## 7. Composer compartido MarketPlace ↔ Servicios
 
-El composer fue diseñado **genérico desde el inicio** para que MP lo adopte. Para sumar MP al patrón:
+El composer se diseñó genérico desde Sprint 9 y se replicó a MP en Sprint 9.1. Hoy ambas secciones tienen su propio composer inline siguiendo el mismo patrón visual + arquitectural:
 
-1. Crear `useComposerMarketplace.ts` (hook draft con shape de MP: precio único, condición usado/nuevo, etc.).
-2. Crear `components/marketplace/composer/ComposerMarketplace.tsx` + `ComposerSection.tsx` propio.
-3. Replicar el patrón pill colapsada + expandido inline en `PaginaMarketplace`.
-4. Wire-up externo via query params: `/marketplace?crear=...` o `?editar=...`.
-5. Reutilizar piezas: `ChipInputList` (mover a `components/composer/` cuando se reuse), `useFotosUploaderServicios` (renombrar a `useFotosUploader` y parametrizar mutations), `ComposerHintModeracion` (centralizar regex en `packages/shared/`).
+| Pieza | Servicios | MarketPlace |
+|---|---|---|
+| Hook draft | `useComposerServicios.ts` | `useComposerMarketplace.ts` |
+| Hook fotos | `useFotosUploaderServicios.ts` | `useFotosUploaderMarketplace.ts` |
+| Composer UI | `components/servicios/composer/ComposerServicios.tsx` | `components/marketplace/composer/ComposerMarketplace.tsx` |
+| Triggers externos | `/servicios?crear=&editar=` | `/marketplace?crear=&editar=` |
+| Layout | inline + pill colapsada | inline + pill colapsada (`max-w-[920px]` con `min-w-0`) |
+
+**Piezas aún no centralizadas (oportunidad de refactor):**
+- `ChipInputList` (vive en `components/servicios/composer/` pero MP no la usa todavía)
+- Hooks de uploader (podrían unificarse en uno parametrizado por mutations)
+- `ComposerHintModeracion` y `deteccionVenta.ts` (regex duplicada en ambos — centralizar en `packages/shared/`)
 
 ---
 
@@ -217,7 +303,8 @@ El composer fue diseñado **genérico desde el inicio** para que MP lo adopte. P
 apps/web/src/
 ├── hooks/
 │   ├── useComposerServicios.ts                         ← draft + validación + auto-save
-│   └── useFotosUploaderServicios.ts                    ← lógica subida R2 + tracking huérfanas
+│   ├── useFotosUploaderServicios.ts                    ← lógica subida R2 + tracking huérfanas + previews optimistas
+│   └── useIniciarChatServicio.ts                       ← reusable desde card y detalle (botón ChatYA)
 ├── components/servicios/composer/
 │   ├── ComposerSection.tsx                             ← orquestador (colapsado ↔ expandido + query params)
 │   ├── ComposerColapsado.tsx                           ← pill del feed (2 variantes)
@@ -230,15 +317,23 @@ apps/web/src/
 │   └── deteccionVenta.ts                               ← regex anti-venta (sync con backend)
 ├── pages/private/servicios/
 │   ├── PaginaServicios.tsx                             ← feed (monta <ComposerSection>)
-│   ├── PaginaServicio.tsx                              ← detalle
-│   └── PaginaPerfilPrestador.tsx
+│   ├── PaginaServicio.tsx                              ← detalle (incluye <SidebarSobreNegocio>)
+│   └── PaginaPerfilPrestador.tsx                       ← perfil personal (sin vacantes)
 └── components/servicios/
     ├── MisPublicacionesServiciosSection.tsx            ← navigate a /servicios?editar/?crear
     ├── ServiciosHeader.tsx, TabsServicios.tsx
+    ├── OferenteCard.tsx                                ← variante móvil del sidebar (personas + empresa)
+    ├── SeccionPreguntasServicio.tsx                    ← Q&A público con copy por tipo
+    ├── BarraContactoServicio.tsx                       ← WhatsApp SVG + ChatYA.webp + UserPlus + Tooltip
     └── CardServicio.tsx, CardVacante.tsx, CardServicioMio.tsx, …
 
-apps/api/src/services/servicios/                        ← lógica BD + moderación pasiva
-apps/api/src/validations/servicios.schema.ts            ← Zod
+apps/api/src/services/servicios/
+├── servicios.service.ts                                ← CRUD + moderación pasiva
+├── preguntas.ts                                        ← Q&A + crearNotificacion (2 tipos)
+└── perfilPrestador.ts                                  ← perfil + filtro tipo IN ('servicio-persona','solicito')
+apps/api/src/validations/servicios.schema.ts            ← Zod (PREGUNTA_MIN=5)
+apps/api/src/utils/expiracion.ts                        ← sqlExpiracionFinDeDia (TTL fin-de-día)
+apps/api/src/utils/zonaHoraria.ts                       ← getZonaHorariaPorCiudad (mapeo IANA)
 ```
 
 ---
@@ -251,4 +346,7 @@ apps/api/src/validations/servicios.schema.ts            ← Zod
 | 5 | Perfil del prestador, reseñas, Q&A público |
 | 7 | Mis Publicaciones, edición |
 | 8 | BS Vacantes (cierre del módulo BS) |
-| **9** | **Composer inline en el feed (sin overlay, sin ruta). Fila de íconos "Agregar a tu publicación" estilo Facebook. Triggers externos vía query params (`?crear=`, `?editar=`). Cámara compacta + strip de thumbnails. Hint inline anti-venta. Borradores discoverables.** |
+| **9** | Composer inline en el feed (sin overlay, sin ruta). Fila de íconos "Agregar a tu publicación" estilo Facebook. Triggers externos vía query params (`?crear=`, `?editar=`). Cámara compacta + strip de thumbnails. Hint inline anti-venta. Borradores discoverables. |
+| **9.1** | Composer MP inline + layout 920px (`min-w-0` para respetar `max-w-[920px]`). Replicación del composer Servicios. |
+| **9.2** | TTL "fin del día" con zona horaria (`sqlExpiracionFinDeDia` + `getZonaHorariaPorCiudad`). Fotos optimistas (blob previews + `Promise.allSettled`). Rediseño detalle Servicios (ChatYA inline). BS Vacantes visibles para todo el equipo de la sucursal (antes solo el creador — se quitó el filtro `usuario_id`). |
+| **9.3** | **Perfil prestador rediseñado** (HeroCard con avatar simplificado, KPIs grid con `auto-rows-fr [&>*]:h-full`, BadgeCheck invertido, sin ciudad). Perfil personal excluye vacantes con filtro `tipo IN ('servicio-persona', 'solicito')`. SidebarSobreNegocio + OferenteCard + CardVendedor con mismo patrón sky/amber. Q&A personalizado por tipo (`textosSeccionPreguntas`), `PREGUNTA_MIN: 10 → 5`. **Notificaciones Q&A:** `servicios_nueva_pregunta` + `servicios_pregunta_respondida` (mismo patrón que MP), deep-link al detalle vía `referenciaTipo: 'servicio'`. Botones contacto inline con logos de marca (WhatsApp SVG + ChatYA.webp + UserPlus). |

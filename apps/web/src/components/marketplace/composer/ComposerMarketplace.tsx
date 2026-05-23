@@ -40,6 +40,7 @@ import {
     ChevronLeft,
     ChevronRight,
     Image as ImageIcon,
+    Loader2,
     MapPin,
     MoreHorizontal,
     Package,
@@ -59,6 +60,7 @@ import {
 import {
     useFotosUploaderMarketplace,
     MAX_FOTOS_COMPOSER_MP,
+    type FotoPreviewLocalMP,
 } from '../../../hooks/useFotosUploaderMarketplace';
 import {
     useArticuloMarketplace,
@@ -356,6 +358,7 @@ export function ComposerMarketplace({
                             <div className="mb-3 lg:mb-0">
                                 <ZonaFotos
                                     fotos={draft.fotos}
+                                    previews={fotosUploader.previews}
                                     onEliminar={fotosUploader.eliminar}
                                     onAbrirGaleria={fotosUploader.abrirGaleria}
                                     onAbrirCamara={fotosUploader.abrirCamara}
@@ -810,6 +813,7 @@ function FilaIconos({
 
 function ZonaFotos({
     fotos,
+    previews,
     onEliminar,
     onAbrirGaleria,
     onAbrirCamara,
@@ -817,6 +821,9 @@ function ZonaFotos({
     error,
 }: {
     fotos: string[];
+    /** Fotos en curso de subida — se renderizan al final del carrusel
+     *  con overlay de spinner y sin botón X (no eliminables). */
+    previews: FotoPreviewLocalMP[];
     onEliminar: (idx: number) => void;
     onAbrirGaleria: () => void;
     onAbrirCamara: () => void;
@@ -839,9 +846,16 @@ function ZonaFotos({
         };
     }, [menuAbierto]);
 
-    const lleno = fotos.length >= MAX_FOTOS_COMPOSER_MP;
+    // Sprint 9.3 (UI optimista): el carrusel renderiza `fotos` (URLs R2
+    // confirmadas) seguidas de `previews` (blob: URLs en curso de subida).
+    const items: Array<{ url: string; subiendo: boolean }> = [
+        ...fotos.map((url) => ({ url, subiendo: false })),
+        ...previews.map((p) => ({ url: p.url, subiendo: true })),
+    ];
+    const totalItems = items.length;
+    const lleno = totalItems >= MAX_FOTOS_COMPOSER_MP;
     const abrirMenu = () => {
-        if (subiendo || lleno) return;
+        if (lleno) return;
         if (esEscritorio) {
             onAbrirGaleria();
             return;
@@ -851,19 +865,21 @@ function ZonaFotos({
 
     const [indiceActual, setIndiceActual] = useState(0);
     useEffect(() => {
-        if (fotos.length === 0) {
+        if (totalItems === 0) {
             setIndiceActual(0);
             return;
         }
-        if (indiceActual >= fotos.length) {
-            setIndiceActual(fotos.length - 1);
+        if (indiceActual >= totalItems) {
+            setIndiceActual(totalItems - 1);
         }
-    }, [fotos.length, indiceActual]);
+    }, [totalItems, indiceActual]);
 
     const prev = () => setIndiceActual((i) => Math.max(0, i - 1));
     const next = () =>
-        setIndiceActual((i) => Math.min(fotos.length - 1, i + 1));
-    const urlActual = fotos[indiceActual] ?? null;
+        setIndiceActual((i) => Math.min(totalItems - 1, i + 1));
+    const itemActual = items[indiceActual] ?? null;
+    const urlActual = itemActual?.url ?? null;
+    const actualEsSubiendo = itemActual?.subiendo ?? false;
 
     const [lightboxAbierto, setLightboxAbierto] = useState(false);
 
@@ -883,17 +899,16 @@ function ZonaFotos({
                     </span>
                 </div>
                 <span className="text-[13px] font-semibold text-slate-500 tabular-nums">
-                    {fotos.length}/{MAX_FOTOS_COMPOSER_MP}
+                    {totalItems}/{MAX_FOTOS_COMPOSER_MP}
                 </span>
             </div>
 
             <div className="group relative aspect-[3/1] lg:aspect-square w-full rounded-xl overflow-hidden">
-                {fotos.length === 0 ? (
+                {totalItems === 0 ? (
                     <button
                         type="button"
                         data-testid="composer-mp-zona-fotos-vacia"
                         onClick={abrirMenu}
-                        disabled={subiendo}
                         className={
                             'absolute inset-0 rounded-xl flex flex-row lg:flex-col items-center justify-center gap-2.5 lg:gap-1.5 text-slate-600 hover:bg-teal-50 hover:text-teal-700 lg:cursor-pointer disabled:opacity-50 px-3 lg:px-0 ' +
                             (error
@@ -919,21 +934,52 @@ function ZonaFotos({
                         {urlActual && (
                             <button
                                 type="button"
-                                aria-label="Ver foto en grande"
-                                onClick={() => setLightboxAbierto(true)}
-                                className="absolute inset-0 w-full h-full lg:cursor-zoom-in"
+                                aria-label={
+                                    actualEsSubiendo
+                                        ? 'Subiendo foto'
+                                        : 'Ver foto en grande'
+                                }
+                                onClick={() => {
+                                    if (!actualEsSubiendo) setLightboxAbierto(true);
+                                }}
+                                disabled={actualEsSubiendo}
+                                className={
+                                    'absolute inset-0 w-full h-full ' +
+                                    (actualEsSubiendo ? '' : 'lg:cursor-zoom-in')
+                                }
                             >
                                 <img
                                     key={urlActual}
                                     src={urlActual}
-                                    alt={`Foto ${indiceActual + 1} de ${fotos.length}`}
-                                    className="w-full h-full object-cover bg-slate-100"
+                                    alt={`Foto ${indiceActual + 1} de ${totalItems}`}
+                                    className={
+                                        'w-full h-full object-cover bg-slate-100 ' +
+                                        (actualEsSubiendo ? 'opacity-70' : '')
+                                    }
                                     loading="lazy"
                                 />
                             </button>
                         )}
 
-                        {indiceActual === 0 && (
+                        {/* Overlay de "subiendo" — spinner centrado sobre
+                            la imagen optimista. Se quita cuando la foto
+                            real (URL R2) toma su lugar. */}
+                        {actualEsSubiendo && (
+                            <div
+                                aria-hidden
+                                className="absolute inset-0 grid place-items-center pointer-events-none"
+                            >
+                                <div className="flex flex-col items-center gap-1.5 px-3 py-2 rounded-lg bg-black/60 text-white text-[12px] font-semibold backdrop-blur-sm">
+                                    <Loader2
+                                        className="w-5 h-5 animate-spin"
+                                        strokeWidth={2.5}
+                                    />
+                                    <span>Subiendo…</span>
+                                </div>
+                            </div>
+                        )}
+
+                        {indiceActual === 0 && !actualEsSubiendo && (
                             <span
                                 aria-hidden
                                 className="absolute top-2 left-2 px-2 py-0.5 rounded-full bg-teal-600/90 text-white text-[11px] font-semibold shadow pointer-events-none"
@@ -947,26 +993,30 @@ function ZonaFotos({
                                 type="button"
                                 data-testid="composer-mp-zona-fotos-agregar"
                                 onClick={abrirMenu}
-                                disabled={subiendo}
                                 aria-label="Agregar otra foto"
                                 title="Agregar otra foto"
-                                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 hover:bg-black/80 lg:cursor-pointer disabled:opacity-0 transition-opacity"
+                                className="absolute top-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 hover:bg-black/80 lg:cursor-pointer transition-opacity"
                             >
                                 <Plus className="w-4 h-4" strokeWidth={2.5} />
                             </button>
                         )}
 
-                        <button
-                            type="button"
-                            aria-label="Eliminar foto"
-                            data-testid={`composer-mp-foto-eliminar-${indiceActual}`}
-                            onClick={() => onEliminar(indiceActual)}
-                            className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white grid place-items-center hover:bg-red-500/90 lg:cursor-pointer"
-                        >
-                            <X className="w-4 h-4" strokeWidth={2.5} />
-                        </button>
+                        {/* Botón "X" eliminar foto actual — NO se muestra
+                            sobre previews (no son eliminables hasta que
+                            terminen su upload). */}
+                        {!actualEsSubiendo && (
+                            <button
+                                type="button"
+                                aria-label="Eliminar foto"
+                                data-testid={`composer-mp-foto-eliminar-${indiceActual}`}
+                                onClick={() => onEliminar(indiceActual)}
+                                className="absolute bottom-2 right-2 w-8 h-8 rounded-full bg-black/60 text-white grid place-items-center hover:bg-red-500/90 lg:cursor-pointer"
+                            >
+                                <X className="w-4 h-4" strokeWidth={2.5} />
+                            </button>
+                        )}
 
-                        {fotos.length > 1 && (
+                        {totalItems > 1 && (
                             <>
                                 <button
                                     type="button"
@@ -984,7 +1034,7 @@ function ZonaFotos({
                                     type="button"
                                     aria-label="Foto siguiente"
                                     onClick={next}
-                                    disabled={indiceActual === fotos.length - 1}
+                                    disabled={indiceActual === totalItems - 1}
                                     className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 rounded-full bg-black/60 text-white grid place-items-center opacity-0 group-hover:opacity-100 hover:bg-black/80 lg:cursor-pointer disabled:opacity-0 transition-opacity"
                                 >
                                     <ChevronRight
@@ -996,7 +1046,7 @@ function ZonaFotos({
                                     aria-hidden
                                     className="absolute bottom-2 left-1/2 -translate-x-1/2 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/40"
                                 >
-                                    {fotos.map((_, i) => (
+                                    {items.map((_, i) => (
                                         <span
                                             key={i}
                                             className={
@@ -1058,9 +1108,11 @@ function ZonaFotos({
                 </div>
             )}
 
+            {/* Lightbox — solo expone fotos confirmadas (URLs R2
+                persistentes). Las previews en curso no son expandibles. */}
             <ModalImagenes
                 images={fotos}
-                initialIndex={indiceActual}
+                initialIndex={Math.min(indiceActual, Math.max(0, fotos.length - 1))}
                 isOpen={lightboxAbierto && fotos.length > 0}
                 onClose={() => setLightboxAbierto(false)}
             />

@@ -57,6 +57,11 @@ export interface CardNegocioCompactoProps {
         totalCalificaciones?: number;
     };
     onClick: () => void;
+    /** MisGuardados pasa `'rose'` para que el card tenga border 2px,
+     *  hover rose-400 + lift + scale en la imagen (mismo patrón que
+     *  CardServicio en MisGuardados). Default `undefined` mantiene el
+     *  comportamiento histórico (border 1px, sin lift/scale). */
+    acentoHover?: 'rose';
 }
 
 // =============================================================================
@@ -77,7 +82,7 @@ function obtenerIniciales(nombre: string): string {
 // COMPONENTE
 // =============================================================================
 
-export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoProps) {
+export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegocioCompactoProps) {
     const {
         nombre,
         imagenPerfil,
@@ -151,7 +156,12 @@ export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoPro
         <article
             data-testid={`card-negocio-compacto-${negocio.sucursalId}`}
             onClick={onClick}
-            className="group relative flex h-[280px] cursor-pointer flex-col overflow-hidden rounded-xl border border-slate-300 bg-white lg:h-[340px] lg:hover:border-rose-400 lg:hover:shadow-md"
+            className={
+                'group relative flex h-[280px] cursor-pointer flex-col overflow-hidden rounded-xl bg-white lg:h-[340px] lg:hover:shadow-md ' +
+                (acentoHover === 'rose'
+                    ? 'border-2 border-slate-300 transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-rose-400'
+                    : 'border border-slate-300 lg:hover:border-rose-400')
+            }
         >
             {/* ── Foto grande del negocio ──────────────────────────────────── */}
             <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden bg-slate-200">
@@ -159,7 +169,12 @@ export function CardNegocioCompacto({ negocio, onClick }: CardNegocioCompactoPro
                     <img
                         src={fotoGrande}
                         alt={nombre}
-                        className="h-full w-full object-cover"
+                        className={
+                            'h-full w-full object-cover ' +
+                            (acentoHover === 'rose'
+                                ? 'transition-transform duration-300 group-hover:scale-105'
+                                : '')
+                        }
                         loading="lazy"
                     />
                 ) : (

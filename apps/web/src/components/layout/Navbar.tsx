@@ -526,7 +526,15 @@ export const Navbar = () => {
                     {/* Texto placeholder — `left-4 right-4` para respetar
                         el `px-4` del padre (CSS absolute se posiciona desde
                         padding-box, NO content-box). Tipografía alineada al
-                        selector de ciudad: text-xs + font-medium. */}
+                        selector de ciudad: text-xs + font-medium.
+                        FIX intermitente: la visibilidad depende SOLO de
+                        `buscadorExpandido`. Antes también dependía de
+                        `inputVisible` y eso creaba un estado limbo (span
+                        oculto + input w-0) cuando ambos quedaban
+                        desincronizados después de hover sin focus o
+                        navegación durante la transición — el placeholder
+                        "desaparecía" hasta refrescar. `inputVisible` es
+                        responsabilidad SOLO del input. */}
                     <span
                       className={`
                           absolute left-4 right-4 top-1/2 -translate-y-1/2
@@ -534,7 +542,7 @@ export const Navbar = () => {
                           cursor-pointer select-none truncate
                           hover:text-white
                           transition-opacity duration-300 ease-out
-                          ${!buscadorExpandido && !inputVisible ? 'opacity-100' : 'opacity-0 pointer-events-none'}
+                          ${!buscadorExpandido ? 'opacity-100' : 'opacity-0 pointer-events-none'}
                         `}
                       onMouseEnter={() => {
                         setBuscadorExpandido(true);

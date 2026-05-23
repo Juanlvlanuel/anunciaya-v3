@@ -24,6 +24,7 @@
 
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
+import { crearNotificacion } from '../notificaciones.service.js';
 
 // =============================================================================
 // TIPOS
@@ -168,9 +169,14 @@ export async function crearPregunta(
     texto: string
 ) {
     try {
-        // No puede preguntarse a sí mismo (sería pregunta sobre su propia publicación).
-        const duenoRes = await db.execute<{ usuario_id: string }>(sql`
-            SELECT usuario_id
+        // No puede preguntarse a sí mismo (sería pregunta sobre su propia
+        // publicación). Traemos también `titulo` para el mensaje de la
+        // notificación que dispara el INSERT.
+        const duenoRes = await db.execute<{
+            usuario_id: string;
+            titulo: string;
+        }>(sql`
+            SELECT usuario_id, titulo
             FROM servicios_publicaciones
             WHERE id = ${publicacionId}
               AND estado != 'eliminada'
@@ -184,7 +190,8 @@ export async function crearPregunta(
                 message: 'Publicación no encontrada.',
             };
         }
-        if ((duenoRes.rows[0] as { usuario_id: string }).usuario_id === autorId) {
+        const dueno = duenoRes.rows[0] as { usuario_id: string; titulo: string };
+        if (dueno.usuario_id === autorId) {
             return {
                 success: false as const,
                 code: 400,
@@ -199,6 +206,21 @@ export async function crearPregunta(
         `);
 
         const id = (resultado.rows[0] as { id: string }).id;
+
+        // Notificar al dueño de la publicación. Mismo patrón que MP
+        // (`marketplace/preguntas.ts`): `.catch()` silencioso porque
+        // la notificación NO es crítica — si falla, el flujo principal
+        // (la pregunta ya está creada) sigue siendo exitoso.
+        await crearNotificacion({
+            usuarioId: dueno.usuario_id,
+            modo: 'personal',
+            tipo: 'servicios_nueva_pregunta',
+            titulo: 'Tienes una nueva pregunta',
+            mensaje: `Te preguntaron sobre "${dueno.titulo}"`,
+            referenciaId: publicacionId,
+            referenciaTipo: 'servicio',
+        }).catch(() => { /* notificación no crítica */ });
+
         return { success: true as const, code: 201, data: { id } };
     } catch (error) {
         console.error('Error en crearPregunta:', error);
@@ -220,7 +242,16 @@ export async function responderPregunta(
     respuesta: string
 ) {
     try {
-        const resultado = await db.execute<{ id: string }>(sql`
+        // RETURNING extendido: devolvemos autor_id (a quién notificar),
+        // publicacion_id (referenciaId del deep-link) y titulo (para el
+        // mensaje de la notificación). El JOIN con `servicios_publicaciones`
+        // ya filtra por dueño, así que el UPDATE es atómico.
+        const resultado = await db.execute<{
+            id: string;
+            autor_id: string;
+            publicacion_id: string;
+            titulo: string;
+        }>(sql`
             UPDATE servicios_preguntas p
             SET respuesta = ${respuesta}, respondida_at = NOW()
             FROM servicios_publicaciones pub
@@ -229,7 +260,7 @@ export async function responderPregunta(
               AND pub.usuario_id = ${usuarioActualId}
               AND p.deleted_at IS NULL
               AND p.respuesta IS NULL
-            RETURNING p.id
+            RETURNING p.id, p.autor_id, p.publicacion_id, pub.titulo
         `);
 
         if (resultado.rows.length === 0) {
@@ -239,6 +270,24 @@ export async function responderPregunta(
                 message: 'No encontramos esta pregunta, o ya tiene respuesta, o no es tuya.',
             };
         }
+
+        // Notificar al autor de la pregunta que su oferente le respondió.
+        // Mismo patrón que MP (.catch() silencioso, no crítico).
+        const fila = resultado.rows[0] as {
+            autor_id: string;
+            publicacion_id: string;
+            titulo: string;
+        };
+        await crearNotificacion({
+            usuarioId: fila.autor_id,
+            modo: 'personal',
+            tipo: 'servicios_pregunta_respondida',
+            titulo: 'Tu pregunta fue respondida',
+            mensaje: `Ya hay respuesta sobre "${fila.titulo}"`,
+            referenciaId: fila.publicacion_id,
+            referenciaTipo: 'servicio',
+        }).catch(() => { /* notificación no crítica */ });
+
         return { success: true as const, code: 200 };
     } catch (error) {
         console.error('Error en responderPregunta:', error);

@@ -32,7 +32,9 @@ export type TipoNotificacion =
   | 'marketplace_proxima_expirar'
   | 'marketplace_expirada'
   | 'marketplace_nueva_pregunta'
-  | 'marketplace_pregunta_respondida';
+  | 'marketplace_pregunta_respondida'
+  | 'servicios_nueva_pregunta'
+  | 'servicios_pregunta_respondida';
 
 // Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =

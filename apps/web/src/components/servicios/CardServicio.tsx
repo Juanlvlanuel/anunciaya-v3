@@ -71,6 +71,12 @@ interface CardServicioProps {
      *  Usado en MisGuardados para reducir saturación visual sobre la
      *  foto y dar protagonismo a la marca del negocio. */
     mostrarNegocioEnInfo?: boolean;
+    /** Color del acento al hacer hover (border + shadow). Default `'sky'`
+     *  matchea el tema de Servicios (sky). MisGuardados usa `'rose'` para
+     *  unificar los 4 tabs al color temático de esa página, con border 2px
+     *  en lugar de 1px. El zoom de imagen + lift del card aplican igual
+     *  en todas las variantes. */
+    acentoHover?: 'sky' | 'rose';
 }
 
 export function CardServicio({
@@ -79,6 +85,7 @@ export function CardServicio({
     onClick,
     posicionBadgeTipo = 'left',
     mostrarNegocioEnInfo = false,
+    acentoHover = 'sky',
 }: CardServicioProps) {
     // ─── Datos derivados según tipo ─────────────────────────────────────
     const esVacante = publicacion.tipo === 'vacante-empresa';
@@ -219,7 +226,12 @@ export function CardServicio({
             // `flex-col` interno y `mt-auto` en el footer, distribuye el
             // espacio sobrante AL FINAL del card (no entre título y meta)
             // cuando el título es corto.
-            className="group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl border border-slate-300 bg-white shadow-sm transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-sky-400 lg:hover:shadow-md"
+            className={
+                'group flex h-full cursor-pointer flex-col overflow-hidden rounded-2xl bg-white shadow-sm transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:shadow-md ' +
+                (acentoHover === 'rose'
+                    ? 'border-2 border-slate-300 lg:hover:border-rose-400'
+                    : 'border border-slate-300 lg:hover:border-sky-400')
+            }
         >
             {/* ── Foto (aspect 4:3 igual que CardHorizontal) ──────────── */}
             <div className="relative aspect-[4/3] overflow-hidden bg-slate-100">

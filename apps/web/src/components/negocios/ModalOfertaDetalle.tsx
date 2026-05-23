@@ -497,6 +497,12 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                 avatarUrl: avatarSucursal,
                 negocioNombre: negocioNombre,
                 negocioLogo: avatarSucursal ?? undefined,
+                // Mostrar la sucursal específica en el header del chat
+                // (subtítulo bajo el nombre del negocio). Reusamos
+                // `sucursalLabelModal` que ya resuelve "Matriz" cuando
+                // es la principal y omite el label cuando hay una sola
+                // sucursal — misma lógica que el header del modal.
+                sucursalNombre: sucursalLabelModal ?? undefined,
             },
             // `participante2SucursalId` puede ser `null` cuando no hay
             // sucursal — el backend intenta insertar el valor en una columna

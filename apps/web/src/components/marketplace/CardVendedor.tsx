@@ -13,13 +13,7 @@
  */
 
 import { ChevronRight, BadgeCheck, Zap } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '../../config/iconos';
 import { useNavigate } from 'react-router-dom';
-
-// Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
-type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import type { VendedorArticulo } from '../../types/marketplace';
 import { formatearUltimaConexion } from '../../utils/marketplace';
 
@@ -44,17 +38,20 @@ export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
         vendedor.tiempoRespuestaMinutos < 60;
 
     return (
-        // Card NO clickeable. Solo el botón "Ver perfil →" navega al perfil.
-        // Permite al usuario seleccionar texto, copiar el nombre, etc., sin
-        // gatillar navegación accidental.
+        // Card NO clickeable. Solo el link "Ver perfil →" navega al perfil.
+        // Sprint 9.3: reordenado al mismo patrón que `SidebarSobreNegocio`
+        // de Servicios — primero identidad, luego trust badges (responde
+        // rápido + última conexión), y al final el link "Ver perfil"
+        // discreto inline (sin pill). Jerarquía: info clave arriba, acción
+        // opcional abajo.
         <div
             data-testid="card-vendedor"
-            className={`flex w-full flex-col gap-1.5 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md lg:gap-2 ${className}`}
+            className={`flex w-full flex-col gap-2 rounded-xl border-2 border-slate-300 bg-white p-2.5 shadow-md ${className}`}
         >
-            {/* Línea 1: avatar + nombre + verification + CTA */}
+            {/* Línea 1: avatar + nombre + verification */}
             <div className="flex items-center gap-2">
                 {/* Avatar con ring sutil */}
-                <div className="h-9 w-9 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
                     {vendedor.avatarUrl ? (
                         <img
                             src={vendedor.avatarUrl}
@@ -75,57 +72,62 @@ export function CardVendedor({ vendedor, className = '' }: CardVendedorProps) {
                     )}
                 </div>
 
-                {/* Identidad */}
+                {/* Identidad — nombre dividido en 2 líneas: nombres
+                    arriba, apellidos + BadgeCheck invertido (fondo azul
+                    + palomita blanca, estilo Twitter/X) en la 2ª línea.
+                    Mismo patrón que el perfil del vendedor en MP. */}
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                        <span className="truncate text-sm font-bold text-slate-900 lg:text-base">
-                            {vendedor.nombre} {vendedor.apellidos}
+                    <h3 className="text-sm font-bold text-slate-900 leading-tight lg:text-base">
+                        <span className="block">{vendedor.nombre}</span>
+                        <span className="flex items-center gap-1">
+                            {vendedor.apellidos}
+                            <BadgeCheck
+                                className="h-6 w-6 shrink-0 fill-blue-500 text-white"
+                                strokeWidth={2.5}
+                                aria-label="Vendedor verificado"
+                            />
                         </span>
-                        <BadgeCheck
-                            className="h-4 w-4 shrink-0 text-blue-600"
-                            strokeWidth={2.5}
-                            aria-label="Vendedor verificado"
-                        />
-                    </div>
-                    {vendedor.ciudad && (
-                        <div className="truncate text-sm font-medium text-slate-600">
-                            {vendedor.ciudad}
-                        </div>
-                    )}
+                    </h3>
                 </div>
+            </div>
 
-                {/* CTA "Ver perfil →" — único elemento clickeable de la card */}
+            {/* Trust badge — "Suele responder rápido" se mantiene como
+                pill emerald destacado (es indicador de valor real para
+                el comprador). */}
+            {respondeRapido && (
+                <div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
+                        <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        Suele responder rápido
+                    </span>
+                </div>
+            )}
+
+            {/* Fila: actividad (izquierda) + Ver perfil (derecha).
+                Sprint 9.3: ambos elementos en el mismo renglón con
+                `flex justify-between`. Si no hay conexionLabel, el
+                botón se mantiene a la derecha por `ml-auto`. */}
+            <div className="flex items-center gap-2">
+                {conexionLabel && (
+                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <span
+                            aria-hidden
+                            className="h-2 w-2 shrink-0 rounded-full bg-slate-400"
+                        />
+                        {conexionLabel}
+                    </div>
+                )}
                 <button
                     type="button"
                     data-testid="btn-ver-perfil"
                     onClick={handleVerPerfil}
                     aria-label={`Ver perfil de ${vendedor.nombre} ${vendedor.apellidos}`}
-                    className="flex shrink-0 cursor-pointer items-center gap-0.5 rounded-md text-sm font-bold text-teal-700 lg:hover:text-teal-900 lg:hover:underline"
+                    className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-teal-700 lg:cursor-pointer lg:hover:text-teal-900 lg:hover:underline"
                 >
                     Ver perfil
                     <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
                 </button>
             </div>
-
-            {/* Trust badges — pills coloreados solo si hay info útil.
-                Tamaño: text-sm (mínimo móvil) → text-xs en laptop para
-                compactar el panel sticky → text-sm de nuevo en desktop. */}
-            {(respondeRapido || conexionLabel) && (
-                <div className="flex flex-wrap items-center gap-1.5">
-                    {respondeRapido && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700 lg:text-xs 2xl:text-sm">
-                            <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            Suele responder rápido
-                        </span>
-                    )}
-                    {conexionLabel && (
-                        <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-2.5 py-1 text-sm font-semibold text-slate-700 lg:text-xs 2xl:text-sm">
-                            <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-                            {conexionLabel}
-                        </span>
-                    )}
-                </div>
-            )}
         </div>
     );
 }

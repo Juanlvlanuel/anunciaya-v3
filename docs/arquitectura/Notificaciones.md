@@ -20,7 +20,7 @@
 | `actorImagenUrl` | string \| null | Personal: logo del negocio. Comercial: avatar del cliente |
 | `actorNombre` | string \| null | Personal: nombre del negocio. Comercial: nombre del cliente |
 | `referenciaId` | string \| null | ID de la entidad relacionada |
-| `referenciaTipo` | string \| null | Tipo de entidad: `transaccion`, `voucher`, `oferta`, `cupon`, `recompensa`, `resena`, `alerta` |
+| `referenciaTipo` | string \| null | Tipo de entidad: `transaccion`, `voucher`, `oferta`, `cupon`, `recompensa`, `resena`, `alerta`, `marketplace`, `servicio` |
 | `negocioId` | string | Negocio dueño de la notificación |
 | `sucursalId` | string \| null | Sucursal del evento. `null` = evento a nivel negocio (ver "Filtrado por sucursal") |
 
@@ -235,9 +235,15 @@ mensaje: `${nombreCliente} ganó ${puntos} puntos`,
 | `nuevo_cliente` | UserPlus | Cyan | `#06b6d4 → #0891b2` |
 | `stock_bajo` | AlertTriangle | Rojo oscuro | `#dc2626 → #991b1b` |
 | `nueva_resena` | Star | Ámbar | `#f59e0b → #b45309` |
-| `nuevo_marketplace` | ShoppingBag | Rosa | `#ec4899 → #be185d` |
-| `nuevo_servicio` | Briefcase | Azul cielo | `#0ea5e9 → #0369a1` (alineado con sección pública Servicios) |
-| `sistema` | Settings | Gris | `#64748b → #475569` |
+| `nuevo_marketplace` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
+| `nuevo_servicio` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
+| `marketplace_nueva_pregunta` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
+| `marketplace_pregunta_respondida` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
+| `servicios_nueva_pregunta` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
+| `servicios_pregunta_respondida` | ChartUp (fallback) | Slate (familia `sistema`) | `#64748b → #475569` |
+| `sistema` | ChartUp | Slate | `#64748b → #475569` |
+
+> **Familias visuales:** El frontend mapea los tipos a 6 familias (`compra`, `entregado`, `pendiente`, `resena`, `alerta`, `sistema`) en `TIPO_A_FAMILIA`. Los tipos no registrados caen a familia `sistema` por fallback (`?? 'sistema'`). Hoy todos los tipos relacionados con MP/Servicios (broadcast + Q&A) caen al fallback — pendiente diseñar familias propias.
 
 **Regla:** Cada tipo tiene icono y color únicos. No repetir combinaciones.
 
@@ -420,6 +426,22 @@ Algunas notificaciones no tienen `referenciaTipo` (ej: cambio de sistema de nive
 |---|------|--------|---------|-------|----------|----------|
 | 16 | `nueva_resena` | `Respondió tu reseña` | `"{texto}"\n{negocio}` | 💬 | resenas | Negocio respondió reseña del cliente |
 
+#### Marketplace — Q&A
+
+| # | Tipo | Título | Mensaje | Icono | Servicio | Contexto |
+|---|------|--------|---------|-------|----------|----------|
+| 16d | `marketplace_pregunta_respondida` | `Tu pregunta fue respondida` | `Ya hay respuesta sobre "{titulo}"` | 💬 | marketplace/preguntas | Vendedor respondió a la pregunta del usuario |
+
+> `referenciaTipo: 'marketplace'`, `referenciaId: publicacionId`. El click navega a `/marketplace/{publicacionId}`. Sin `\n` y sin `actorNombre` cuando el responder no es un negocio (perfil personal).
+
+#### Servicios — Q&A
+
+| # | Tipo | Título | Mensaje | Icono | Servicio | Contexto |
+|---|------|--------|---------|-------|----------|----------|
+| 16e | `servicios_pregunta_respondida` | `Tu pregunta fue respondida` | `Ya hay respuesta sobre "{titulo}"` | 💬 | servicios/preguntas | Oferente/prestador respondió a la pregunta del usuario |
+
+> `referenciaTipo: 'servicio'`, `referenciaId: publicacionId`. El click navega a `/servicios/{publicacionId}`. Aplica a los tres tipos de publicación (`servicio-persona`, `solicito`, `vacante-empresa`). El copy del hilo Q&A en el frontend cambia por tipo (`textosSeccionPreguntas` en `SeccionPreguntasServicio`), pero la notificación es siempre la misma.
+
 #### Sistema (cambios de configuración del negocio)
 
 | # | Tipo | Título | Mensaje | Icono | Servicio | Contexto |
@@ -443,9 +465,13 @@ Algunas notificaciones no tienen `referenciaTipo` (ej: cambio de sistema de nive
 | 18 | `voucher_cobrado` | `Recompensa entregada` | `Se entregó: {recompensa}` | ✅ | scanya | Recompensa validada y entregada |
 | 19 | `voucher_pendiente` | `Recompensa por entregar` | `Canjeó sus puntos por: {recompensa}` | 🎟️ | cardya | Cliente canjeó puntos, pendiente entrega |
 | 21 | `nueva_resena` | `Nueva reseña {estrellas}` | `"{texto}"` | ⭐ | resenas | Cliente publicó reseña |
+| 21b | `marketplace_nueva_pregunta` | `Tienes una nueva pregunta` | `Te preguntaron sobre "{titulo}"` | 💬 | marketplace/preguntas | Usuario dejó pregunta en una publicación MP del vendedor |
+| 21c | `servicios_nueva_pregunta` | `Tienes una nueva pregunta` | `Te preguntaron sobre "{titulo}"` | 💬 | servicios/preguntas | Usuario dejó pregunta en una publicación de Servicios del oferente/prestador |
 
 > **actorNombre** = nombre completo del cliente. **actorImagenUrl** = avatar del cliente.
 > El nombre del cliente NO va en el mensaje — ya se muestra grande en azul desde `actorNombre`.
+>
+> **Q&A (MP + Servicios):** `referenciaTipo: 'marketplace' | 'servicio'`, `referenciaId: publicacionId`. El destinatario es el `usuario_id` autor de la publicación (no depende de sucursal, llega siempre al perfil personal). Por eso se persiste con `modo: 'personal'` aunque conceptualmente sea "comercial" para el receptor. No se filtran por sucursal y aparecen sin importar el contexto BS activo.
 
 #### Sin usuario (mensaje principal prominente)
 
@@ -533,6 +559,8 @@ El frontend aplica transformaciones automáticas para notificaciones existentes 
 | `apps/api/src/services/cardya.service.ts` | 4 | Voucher generado, voucher pendiente (dueño + todos los gerentes + empleados vía `notificarNegocioCompleto`), stock bajo/agotado (`sucursal_id=null`, evento de negocio) |
 | `apps/api/src/services/resenas.service.ts` | 2 | Nueva reseña (dueño + gerente de la sucursal), respuesta reseña (al cliente) |
 | `apps/api/src/services/alertas.service.ts` | 1 | Alerta de seguridad (dueño + empleados de la sucursal vía `notificarNegocioCompleto`) |
+| `apps/api/src/services/marketplace/preguntas.ts` | 2 | Nueva pregunta (al vendedor) + pregunta respondida (al comprador) — `referenciaTipo: 'marketplace'`, `.catch()` silencioso |
+| `apps/api/src/services/servicios/preguntas.ts` | 2 | Nueva pregunta (al oferente/prestador) + pregunta respondida (al usuario) — `referenciaTipo: 'servicio'`, `.catch()` silencioso |
 | `apps/web/src/components/layout/PanelNotificaciones.tsx` | — | Renderizado frontend (IconoNotificacion, ContenidoItem, 5 modos, expansión inline) |
 | `apps/web/src/components/layout/MainLayout.tsx` | — | `useEffect` que recarga notificaciones al entrar/salir de `/business-studio/*` |
 | `apps/web/src/types/notificaciones.ts` | — | Tipos TypeScript frontend (incluye `sucursalId`) |
@@ -571,10 +599,33 @@ Algunas notificaciones apuntan a un tab pero la entidad ya migró a otro. Ejempl
 
 ---
 
+## Patrón: Deep Link a Detalle de Publicación (MP / Servicios Q&A)
+
+Las notificaciones de Q&A (`marketplace_nueva_pregunta`, `marketplace_pregunta_respondida`, `servicios_nueva_pregunta`, `servicios_pregunta_respondida`) navegan al detalle de la publicación donde se hizo la pregunta.
+
+El mapeo lo resuelve `obtenerRutaDestino()` en `apps/web/src/components/layout/PanelNotificaciones.tsx`:
+
+```typescript
+switch (referenciaTipo) {
+    case 'marketplace':
+        return `/marketplace/${referenciaId}`;
+    case 'servicio':
+        return `/servicios/${referenciaId}`;
+    // ...
+}
+```
+
+Al abrir el detalle, el componente `SeccionPreguntasServicio` / `SeccionPreguntasArticulo` carga su listado, y el usuario ve directo el hilo de Q&A con su pregunta o la respuesta nueva. No hay scroll automático al hilo (las preguntas son la sección principal del detalle abajo del fold — visibles tras un scroll natural).
+
+---
+
 ## Pendientes
 
 - [ ] Agregar campo `negocioLogoUrl` separado de `actorImagenUrl` para distinguir logo del negocio vs imagen del contenido
-- [ ] Notificaciones pendientes de crear (cuando las secciones públicas se construyan): `nuevo_marketplace`, `nuevo_servicio`.
+- [ ] Notificaciones pendientes de crear (cuando las secciones públicas amplíen funcionalidad): `nuevo_marketplace` (broadcast a seguidores cuando se publica), `nuevo_servicio` (broadcast equivalente). Las Q&A ya están cubiertas por `marketplace_*_pregunta_*` y `servicios_*_pregunta_*`.
 - [ ] Notificación `nuevo_cliente` — aún no implementada en el backend
 - [ ] Evaluar si los gerentes deben recibir `stock_bajo` / `agotado` (actualmente solo el dueño)
 - [ ] Empleados ScanYA aún no tienen panel de notificaciones visible — las notificaciones se guardan para su `usuarioId` pero no hay UI
+- [ ] Q&A Servicios/MP: si el oferente/vendedor tiene **negocio**, podrían enriquecer la notificación con `actorImagenUrl = logo del negocio` y `actorNombre = nombre del negocio` (hoy las preguntas/respuestas no envían actor — caen a tile sin imagen)
+- [ ] Agregar tipos faltantes al `TipoNotificacion` (frontend) y a `TIPO_A_FAMILIA` con familia visual propia: `marketplace_nueva_pregunta`, `marketplace_pregunta_respondida`, `servicios_nueva_pregunta`, `servicios_pregunta_respondida`. Hoy caen al fallback `sistema` (tile slate + ChartUp). Diseñar familia `pregunta` con MessageCircleQuestion + color rosa/sky según sección
+- [ ] Agregar `'alerta'` al union `ReferenciaTipo` en `apps/web/src/types/notificaciones.ts` (ya se documenta en la tabla de estructura pero el type lo omite)

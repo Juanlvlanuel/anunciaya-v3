@@ -10,9 +10,23 @@
  *   - Las fotos van al bucket con prefijo `marketplace/` (lo decide el backend
  *     al firmar la presigned URL).
  *
+ * ── UI OPTIMISTA (Sprint 9.3) ────────────────────────────────────────
+ * Al seleccionar archivos, se generan PREVIEWS locales inmediatos con
+ * `URL.createObjectURL(blob)` que aparecen YA en el grid del composer
+ * mientras la subida real ocurre en paralelo en background. Cuando una
+ * foto termina su upload a R2:
+ *   - éxito: se quita del array de previews y se agrega a `draft.fotos`
+ *     con su URL pública R2.
+ *   - error: se quita del array de previews y se muestra una notificación.
+ *
+ * Las subidas paralelas (Promise.allSettled) evitan que una foto lenta
+ * bloquee al resto, y el INSERT batched al final de `draft.fotos` evita
+ * race conditions con `onCambioFotos` (que recibe el array completo).
+ *
  * Devuelve:
  *   - `eliminar(idx)`       → quita una foto del array y dispara delete R2
- *   - `subiendo`            → flag de loading
+ *   - `subiendo`            → flag de loading (true mientras haya previews)
+ *   - `previews`            → URLs locales (blob:) de fotos en curso de subida
  *   - `inputGaleriaProps`   → props para spread sobre un <input type="file" hidden />
  *   - `inputCamaraProps`    → props para spread con `capture="environment"`
  *   - `abrirGaleria()`      → click programático sobre el input galería
@@ -22,7 +36,7 @@
  */
 
 import axios from 'axios';
-import { useRef, useState, type MutableRefObject } from 'react';
+import { useEffect, useRef, useState, type MutableRefObject } from 'react';
 import {
     useEliminarFotoMarketplaceHuerfana,
     useUploadFotoMarketplace,
@@ -43,6 +57,16 @@ const TIPOS_PERMITIDOS: Record<
     'image/webp': 'image/webp',
 };
 
+/**
+ * Preview local de una foto en curso de subida. La `url` es un
+ * `blob:` URL generada con `URL.createObjectURL` — el caller la usa
+ * como `src` de la `<img>` para mostrar la imagen al instante.
+ */
+export interface FotoPreviewLocalMP {
+    tempId: string;
+    url: string;
+}
+
 interface UseFotosUploaderMPOpts {
     fotos: string[];
     onCambioFotos: (fotos: string[]) => void;
@@ -58,13 +82,59 @@ export function useFotosUploaderMarketplace({
 }: UseFotosUploaderMPOpts) {
     const inputGaleriaRef = useRef<HTMLInputElement>(null);
     const inputCamaraRef = useRef<HTMLInputElement>(null);
-    const [subiendo, setSubiendo] = useState(false);
+    const [previews, setPreviews] = useState<FotoPreviewLocalMP[]>([]);
     const uploadMutation = useUploadFotoMarketplace();
     const eliminarHuerfanaMutation = useEliminarFotoMarketplaceHuerfana();
 
+    const fotosRef = useRef(fotos);
+    useEffect(() => {
+        fotosRef.current = fotos;
+    }, [fotos]);
+
+    useEffect(() => {
+        return () => {
+            previews.forEach((p) => URL.revokeObjectURL(p.url));
+        };
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    async function subirUno(archivo: File): Promise<string> {
+        if (!TIPOS_PERMITIDOS[archivo.type.toLowerCase()]) {
+            throw new Error(`${archivo.name}: tipo no permitido (JPG, PNG o WebP).`);
+        }
+        if (archivo.size > MAX_BYTES) {
+            throw new Error(`${archivo.name}: pesa más de 5 MB.`);
+        }
+        let blob: Blob;
+        try {
+            blob = await optimizarImagen(archivo, {
+                maxWidth: 1920,
+                quality: 0.85,
+            });
+        } catch {
+            throw new Error(`${archivo.name}: no se pudo procesar la imagen.`);
+        }
+        const res = await uploadMutation.mutateAsync({
+            nombreArchivo: archivo.name.replace(/\.[^.]+$/, '.webp'),
+            contentType: 'image/webp',
+        });
+        if (!res.success || !res.data) {
+            throw new Error(`No se pudo preparar la subida de ${archivo.name}.`);
+        }
+        try {
+            await axios.put(res.data.uploadUrl, blob, {
+                headers: { 'Content-Type': 'image/webp' },
+            });
+        } catch {
+            throw new Error(`Falló la subida de ${archivo.name}. Intenta de nuevo.`);
+        }
+        return res.data.publicUrl;
+    }
+
     async function manejarArchivos(files: FileList | null) {
         if (!files || files.length === 0) return;
-        const espacios = MAX_FOTOS_COMPOSER_MP - fotos.length;
+        const ocupados = fotosRef.current.length + previews.length;
+        const espacios = MAX_FOTOS_COMPOSER_MP - ocupados;
         if (espacios <= 0) {
             notificar.advertencia(
                 `Máximo ${MAX_FOTOS_COMPOSER_MP} fotos por publicación.`,
@@ -72,63 +142,52 @@ export function useFotosUploaderMarketplace({
             return;
         }
         const archivos = Array.from(files).slice(0, espacios);
-        setSubiendo(true);
-        const acumulado = [...fotos];
-        try {
-            for (const archivo of archivos) {
-                if (!TIPOS_PERMITIDOS[archivo.type.toLowerCase()]) {
-                    notificar.error(
-                        `${archivo.name}: tipo no permitido (JPG, PNG o WebP).`,
-                    );
-                    continue;
-                }
-                if (archivo.size > MAX_BYTES) {
-                    notificar.error(`${archivo.name}: pesa más de 5 MB.`);
-                    continue;
-                }
-                let blob: Blob;
-                try {
-                    blob = await optimizarImagen(archivo, {
-                        maxWidth: 1920,
-                        quality: 0.85,
-                    });
-                } catch {
-                    notificar.error(
-                        `${archivo.name}: no se pudo procesar la imagen.`,
-                    );
-                    continue;
-                }
-                const res = await uploadMutation.mutateAsync({
-                    nombreArchivo: archivo.name.replace(/\.[^.]+$/, '.webp'),
-                    contentType: 'image/webp',
-                });
-                if (!res.success || !res.data) {
-                    notificar.error(
-                        `No se pudo preparar la subida de ${archivo.name}.`,
-                    );
-                    continue;
-                }
-                try {
-                    await axios.put(res.data.uploadUrl, blob, {
-                        headers: { 'Content-Type': 'image/webp' },
-                    });
-                } catch {
-                    notificar.error(
-                        `Falló la subida de ${archivo.name}. Intenta de nuevo.`,
-                    );
-                    continue;
-                }
-                const publicUrl = res.data.publicUrl;
-                urlsSubidasEnSesion.current.add(publicUrl);
-                acumulado.push(publicUrl);
+
+        const items = archivos.map((archivo) => ({
+            tempId: `${Date.now()}-${Math.random().toString(36).slice(2, 9)}`,
+            url: URL.createObjectURL(archivo),
+            archivo,
+        }));
+        setPreviews((prev) => [
+            ...prev,
+            ...items.map(({ tempId, url }) => ({ tempId, url })),
+        ]);
+
+        if (inputGaleriaRef.current) inputGaleriaRef.current.value = '';
+        if (inputCamaraRef.current) inputCamaraRef.current.value = '';
+
+        const resultados = await Promise.allSettled(
+            items.map(async (item) => {
+                const publicUrl = await subirUno(item.archivo);
+                return { tempId: item.tempId, publicUrl };
+            }),
+        );
+
+        const exitosas: string[] = [];
+        resultados.forEach((r, i) => {
+            if (r.status === 'fulfilled') {
+                exitosas.push(r.value.publicUrl);
+                urlsSubidasEnSesion.current.add(r.value.publicUrl);
+            } else {
+                const msg = r.reason instanceof Error
+                    ? r.reason.message
+                    : `Falló la subida de ${items[i].archivo.name}.`;
+                notificar.error(msg);
             }
-            if (acumulado.length !== fotos.length) {
-                onCambioFotos(acumulado.slice(0, MAX_FOTOS_COMPOSER_MP));
-            }
-        } finally {
-            setSubiendo(false);
-            if (inputGaleriaRef.current) inputGaleriaRef.current.value = '';
-            if (inputCamaraRef.current) inputCamaraRef.current.value = '';
+        });
+
+        const tempIdsProcesados = new Set(items.map((i) => i.tempId));
+        setPreviews((prev) =>
+            prev.filter((p) => !tempIdsProcesados.has(p.tempId)),
+        );
+        items.forEach((i) => URL.revokeObjectURL(i.url));
+
+        if (exitosas.length > 0) {
+            const combinadas = [...fotosRef.current, ...exitosas].slice(
+                0,
+                MAX_FOTOS_COMPOSER_MP,
+            );
+            onCambioFotos(combinadas);
         }
     }
 
@@ -143,8 +202,8 @@ export function useFotosUploaderMarketplace({
     }
 
     function puedeAgregar(): boolean {
-        if (subiendo) return false;
-        if (fotos.length >= MAX_FOTOS_COMPOSER_MP) {
+        const ocupados = fotos.length + previews.length;
+        if (ocupados >= MAX_FOTOS_COMPOSER_MP) {
             notificar.advertencia(
                 `Máximo ${MAX_FOTOS_COMPOSER_MP} fotos por publicación.`,
             );
@@ -164,7 +223,8 @@ export function useFotosUploaderMarketplace({
     }
 
     return {
-        subiendo,
+        subiendo: previews.length > 0,
+        previews,
         eliminar,
         abrirGaleria,
         abrirCamara,

@@ -30,7 +30,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import {
     AlertCircle,
     BadgeCheck,
-    Bookmark,
     Briefcase,
     Check,
     ChevronRight,
@@ -39,7 +38,10 @@ import {
     Navigation,
     Star,
     Wrench,
+    Zap,
 } from 'lucide-react';
+import { Icon } from '@iconify/react';
+import { ICONOS } from '../../../config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
@@ -81,11 +83,12 @@ export function PaginaServicio() {
     const vistaYaRegistrada = useRef(false);
     const [modalResenaAbierto, setModalResenaAbierto] = useState(false);
 
-    // Botón guardar de la galería del detalle. Mismo patrón que MP
-    // (ver `PaginaArticuloMarketplace`). El hook arranca con
-    // `guardado=false` y refleja el estado real cuando el usuario
-    // interactúa — el invalidateQueries del hook mantiene en sync el
-    // listado de Mis Guardados (tab Servicios) y este botón.
+    // Botón guardar de la galería del detalle. El backend devuelve
+    // `publicacion.guardado` con el estado real del usuario actual
+    // (Sprint 9.3 — antes arrancaba siempre en false). El hook
+    // re-sincroniza cuando llega la data (efecto sobre initialGuardado)
+    // y el invalidateQueries mantiene en sync el listado de Mis
+    // Guardados (tab Servicios) y este botón.
     const {
         guardado,
         loading: cargandoGuardar,
@@ -93,6 +96,7 @@ export function PaginaServicio() {
     } = useGuardados({
         entityType: 'servicio',
         entityId: id ?? '',
+        initialGuardado: publicacion?.guardado ?? false,
     });
 
     // Registrar vista una vez por sesión (dedupe en sessionStorage para no
@@ -209,16 +213,16 @@ export function PaginaServicio() {
                         }
                         aria-pressed={guardado}
                         className={
-                            'shrink-0 h-9 w-9 grid place-items-center rounded-full border-2 border-slate-300 bg-white shadow-sm lg:cursor-pointer hover:bg-slate-50 disabled:opacity-60 ' +
+                            'shrink-0 h-9 w-9 grid place-items-center rounded-full bg-white shadow-sm lg:cursor-pointer hover:bg-slate-50 disabled:opacity-60 transition-colors ' +
                             (guardado
-                                ? 'text-amber-500'
-                                : 'text-slate-700 hover:text-slate-900')
+                                ? 'border-2 border-amber-500'
+                                : 'border-2 border-slate-300')
                         }
                     >
-                        <Bookmark
-                            className="h-4 w-4"
-                            strokeWidth={2.25}
-                            fill={guardado ? 'currentColor' : 'none'}
+                        <Icon
+                            icon={ICONOS.guardar}
+                            className="w-4.5 h-4.5"
+                            style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
                         />
                     </button>
                 )}
@@ -381,11 +385,16 @@ export function PaginaServicio() {
                 )}
             </div>
 
+            {/* Sprint 9.3 (iteración): el nombre de la ciudad NO se
+                pasa al MapaUbicacion porque ya vive en el SidebarContacto
+                de la derecha — mostrarlo aquí abajo del mapa era duplicado.
+                Para servicios/solicitudes sí mostramos `zonasAproximadas`
+                si las hay (ej. "Las Conchas") porque agregan info que la
+                ciudad sola no da. Si no hay zonas, no mostramos nada. */}
             {esExacto && publicacion.ubicacionExacta ? (
                 <MapaUbicacion
                     lat={publicacion.ubicacionExacta.lat}
                     lng={publicacion.ubicacionExacta.lng}
-                    zonaAproximada={publicacion.ciudad}
                     exacto
                 />
             ) : (
@@ -395,7 +404,7 @@ export function PaginaServicio() {
                     zonaAproximada={
                         publicacion.zonasAproximadas.length > 0
                             ? publicacion.zonasAproximadas.join(' · ')
-                            : publicacion.ciudad
+                            : undefined
                     }
                     mensajePrivacidad={mensajePrivacidadMapa}
                 />
@@ -410,13 +419,19 @@ export function PaginaServicio() {
     );
 
     // Sprint 9.3 (iteración): NO mostrar el CTA "Deja una reseña" en
-    // vacantes. Las vacantes son ofertas de empleo de negocios, no
-    // servicios tomados — calificar al negocio por una vacante no tiene
-    // sentido aquí (las reseñas del negocio viven en su perfil de la
-    // sección Negocios). Solo aplica a servicios-persona y solicito.
+    // vacantes. Sprint 9.3 (iteración): tampoco se muestra en
+    // SOLICITUDES — el solicitante pide ayuda, no presta servicio, así
+    // que no tiene sentido calificarlo. Las reseñas solo aplican al
+    // PRESTADOR del servicio (tipo='servicio-persona').
+    //
+    // Vacantes: las reseñas del negocio viven en su perfil de la sección
+    // Negocios, no aquí.
+    // Solicito: el reseñado sería quien resuelve la necesidad, pero ese
+    // intercambio sucede 1:1 por chat — el modelo de reseñas pública del
+    // solicitante no aporta nada útil.
     const cardDejarResena = usuarioActualId
         && usuarioActualId !== publicacion.oferente.id
-        && !isVacante && (
+        && isServicio && (
         <SeccionCard>
             <div className="flex items-start gap-3">
                 <div className="shrink-0 w-10 h-10 rounded-lg bg-amber-100 grid place-items-center">
@@ -469,13 +484,16 @@ export function PaginaServicio() {
                             <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
                                 <GaleriaServicio publicacion={publicacion} />
 
-                                {/* Botón guardar sobre galería — estilo
-                                    glass blanco translúcido con backdrop
-                                    blur. Icono Bookmark amber cuando
-                                    guardado, slate cuando no. NO se
-                                    muestra al dueño porque no tendría
-                                    sentido guardar tu propia
-                                    publicación. */}
+                                {/* Botón guardar sobre galería — mismo
+                                    patrón visual que las cards de Mis
+                                    Guardados: círculo blanco con border-2
+                                    amber e icono ICONOS.guardar (Iconify
+                                    ph:archive-box-fill) en amber-500.
+                                    Cuando NO está guardado, el border y
+                                    el icono caen a slate para indicar
+                                    estado vacío. NO se muestra al dueño
+                                    porque no tendría sentido guardar tu
+                                    propia publicación. */}
                                 {puedeGuardar && (
                                     <button
                                         type="button"
@@ -489,16 +507,16 @@ export function PaginaServicio() {
                                         }
                                         aria-pressed={guardado}
                                         className={
-                                            'absolute top-3 right-3 z-10 h-10 w-10 grid place-items-center rounded-full bg-white/85 backdrop-blur ring-2 ring-white/60 shadow-md lg:cursor-pointer hover:bg-white disabled:opacity-60 ' +
+                                            'absolute top-3 right-3 z-10 w-[38px] h-[38px] grid place-items-center rounded-full bg-white shadow-md lg:cursor-pointer hover:scale-110 disabled:opacity-60 transition-transform duration-200 ' +
                                             (guardado
-                                                ? 'text-amber-500'
-                                                : 'text-slate-700 hover:text-slate-900')
+                                                ? 'border-2 border-amber-500'
+                                                : 'border-2 border-slate-300')
                                         }
                                     >
-                                        <Bookmark
-                                            className="h-5 w-5"
-                                            strokeWidth={2.25}
-                                            fill={guardado ? 'currentColor' : 'none'}
+                                        <Icon
+                                            icon={ICONOS.guardar}
+                                            className="w-5 h-5"
+                                            style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
                                         />
                                     </button>
                                 )}
@@ -865,7 +883,13 @@ function SidebarSobreNegocio({
 }) {
     const { oferente, tipo } = publicacion;
     const esEmpresa = tipo === 'vacante-empresa';
-    const titulo = esEmpresa ? 'Sobre el negocio' : 'Sobre el oferente';
+    // Sprint 9.3: título según tipo de publicación. "Oferente" implica
+    // ofrecer, así que NO aplica a solicitudes (donde el usuario PIDE
+    // ayuda, no la ofrece). Las solicitudes usan "Solicitante".
+    const titulo =
+        tipo === 'vacante-empresa' ? 'Sobre el negocio'
+        : tipo === 'solicito' ? 'Sobre el solicitante'
+        : 'Sobre el oferente';
 
     // Identidad mostrada — empresa: nombre del negocio + sufijo de sucursal
     // (Matriz / nombre de la sucursal cuando hay más de una). Persona:
@@ -892,18 +916,34 @@ function SidebarSobreNegocio({
         : iniciasDePersona(oferente.nombre, oferente.apellidos);
 
     const conexionLabel = formatearUltimaConexion(oferente.ultimaConexion);
+    const respondeRapido =
+        oferente.tiempoRespuestaMinutos !== null
+        && oferente.tiempoRespuestaMinutos !== undefined
+        && oferente.tiempoRespuestaMinutos < 60;
     const ctaLabel = esEmpresa ? 'Ver negocio' : 'Ver perfil';
+    // Subtítulo solo para empresas con sucursal extra (Matriz / nombre
+    // de la sucursal). Personas no muestran ciudad.
+    const subtitulo = esEmpresa ? sufijoSucursal : null;
 
     return (
-        <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-3">
+        <div className="bg-white rounded-2xl border border-slate-300 shadow-md p-5 space-y-2.5">
             <div className="text-sm lg:text-[11px] 2xl:text-sm font-bold uppercase tracking-wider text-slate-600">
                 {titulo}
             </div>
 
-            {/* Avatar + nombre + sucursal — fila superior */}
+            {/* Línea 1: avatar + identidad. Igualado al patrón nuevo de
+                `CardVendedor.tsx` del MP (Sprint 9.3 iter):
+                  - Avatar h-12 (antes h-11)
+                  - Nombre dividido en 2 líneas para PERSONAS (nombres
+                    arriba, apellidos + BadgeCheck invertido abajo)
+                  - Para EMPRESAS: nombre en 1 línea con BadgeCheck
+                    inline al final
+                  - BadgeCheck h-6 invertido (fondo azul + palomita
+                    blanca, estilo Twitter/X)
+                  - Subtítulo: sucursal o ciudad */}
             <div className="flex items-center gap-2.5">
                 {esEmpresa ? (
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-lg bg-white shadow-md ring-2 ring-sky-100">
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -912,13 +952,13 @@ function SidebarSobreNegocio({
                                 loading="lazy"
                             />
                         ) : (
-                            <div className="grid h-full w-full place-items-center text-sm font-extrabold text-sky-700">
+                            <div className="grid h-full w-full place-items-center text-base font-extrabold text-sky-700">
                                 {iniciales}
                             </div>
                         )}
                     </div>
                 ) : (
-                    <div className="h-11 w-11 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
+                    <div className="h-12 w-12 shrink-0 overflow-hidden rounded-full bg-white shadow-md ring-2 ring-slate-200">
                         {avatarUrl ? (
                             <img
                                 src={avatarUrl}
@@ -928,7 +968,7 @@ function SidebarSobreNegocio({
                             />
                         ) : (
                             <div
-                                className="flex h-full w-full items-center justify-center text-sm font-bold text-white"
+                                className="flex h-full w-full items-center justify-center text-base font-bold text-white"
                                 style={{
                                     background:
                                         'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
@@ -941,47 +981,70 @@ function SidebarSobreNegocio({
                 )}
 
                 <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-1">
-                        <span className="truncate text-base font-bold text-slate-900">
-                            {nombrePrincipal}
-                        </span>
-                        {esEmpresa && (
+                    {esEmpresa ? (
+                        <h3 className="flex items-center gap-1 text-sm font-bold text-slate-900 leading-tight lg:text-base">
+                            <span className="truncate">{nombrePrincipal}</span>
                             <BadgeCheck
-                                className="h-4 w-4 shrink-0 text-sky-600"
+                                className="h-6 w-6 shrink-0 fill-blue-500 text-white"
                                 strokeWidth={2.5}
                                 aria-label="Empresa verificada"
                             />
-                        )}
-                    </div>
-                    {sufijoSucursal && (
-                        <div className="truncate text-sm font-medium text-slate-600">
-                            {sufijoSucursal}
+                        </h3>
+                    ) : (
+                        <h3 className="text-sm font-bold text-slate-900 leading-tight lg:text-base">
+                            <span className="block">{oferente.nombre}</span>
+                            <span className="flex items-center gap-1">
+                                {oferente.apellidos}
+                                <BadgeCheck
+                                    className="h-6 w-6 shrink-0 fill-blue-500 text-white"
+                                    strokeWidth={2.5}
+                                    aria-label="Usuario verificado"
+                                />
+                            </span>
+                        </h3>
+                    )}
+                    {subtitulo && (
+                        <div className="mt-0.5 truncate text-sm font-medium text-slate-600">
+                            {subtitulo}
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Botón Ver negocio — full width debajo */}
-            <button
-                type="button"
-                data-testid="btn-ver-negocio-sidebar"
-                onClick={onVerNegocio}
-                aria-label={`${ctaLabel} de ${nombrePrincipal}`}
-                className="inline-flex w-full items-center justify-center gap-1 rounded-full border-2 border-sky-200 bg-sky-50 px-3 py-2 text-sm font-bold text-sky-700 lg:cursor-pointer lg:hover:bg-sky-100"
-            >
-                {ctaLabel}
-                <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
-            </button>
-
-            {/* Badge de actividad — última conexión del oferente. */}
-            {conexionLabel && (
-                <div className="flex">
-                    <span className="inline-flex items-center gap-1.5 rounded-full bg-slate-200 px-2.5 py-1 text-xs font-semibold text-slate-700">
-                        <Clock className="h-3.5 w-3.5" strokeWidth={2.5} />
-                        {conexionLabel}
+            {/* Trust badge "Suele responder rápido" — pill emerald. */}
+            {respondeRapido && (
+                <div>
+                    <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">
+                        <Zap className="h-3.5 w-3.5" strokeWidth={2.5} />
+                        Suele responder rápido
                     </span>
                 </div>
             )}
+
+            {/* Fila inferior: actividad (izquierda) + Ver perfil/negocio
+                (derecha alineado por `ml-auto`). Mismo patrón que el
+                CardVendedor del MP. */}
+            <div className="flex items-center gap-2">
+                {conexionLabel && (
+                    <div className="inline-flex items-center gap-1.5 text-sm font-medium text-slate-500">
+                        <span
+                            aria-hidden
+                            className="h-2 w-2 shrink-0 rounded-full bg-slate-400"
+                        />
+                        {conexionLabel}
+                    </div>
+                )}
+                <button
+                    type="button"
+                    data-testid="btn-ver-negocio-sidebar"
+                    onClick={onVerNegocio}
+                    aria-label={`${ctaLabel} de ${nombrePrincipal}`}
+                    className="ml-auto inline-flex shrink-0 items-center gap-0.5 text-sm font-bold text-sky-700 lg:cursor-pointer lg:hover:text-sky-900 lg:hover:underline"
+                >
+                    {ctaLabel}
+                    <ChevronRight className="h-4 w-4" strokeWidth={2.5} />
+                </button>
+            </div>
         </div>
     );
 }

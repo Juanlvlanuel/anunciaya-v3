@@ -7,18 +7,43 @@
  * Accesible desde el botón "Ver perfil" del OferenteCard en la pantalla
  * de detalle de una publicación.
  *
+ * Sprint 9.3 (iteración): rediseñado para igualar el patrón visual del
+ * perfil de usuario en MarketPlace (`PaginaPerfilVendedor`) — hero card
+ * horizontal con 2 columnas en desktop (identidad | KPIs + botones de
+ * contacto), tabs underline segmented y grid de cards. Cambios respecto
+ * al MP:
+ *
+ *  - Tema cromático SKY (no teal — convención cromática de Servicios).
+ *  - Sin botón WhatsApp (el `PerfilPrestador` del backend no expone
+ *    `telefono` — solo el detalle de la publicación lo trae).
+ *  - KPIs: Publicaciones / Reseñas (rating o `—`) / Responde.
+ *  - Tabs: Servicios activos / Reseñas (no Vendidos como MP).
+ *  - max-w-[920px] para igualar al feed de Servicios.
+ *
  * Estructura:
- *   - ServiciosHeader (negro, persistente) con onBack + pill paso/contexto
- *   - Bloque identidad: avatar + nombre + ciudad + miembro desde + KPIs
- *   - Tabs: Servicios activos · Reseñas
+ *   - ServiciosHeader (negro, persistente) con onBack + pill "Perfil"
+ *   - HeroCard: avatar con ring gradient sky + nombre + ciudad + KPIs
+ *     + botones inline (ChatYA + Agregar contacto)
+ *   - Tabs underline: Servicios activos · Reseñas
  *   - Contenido del tab activo (grid de cards o lista de reseñas)
  *
  * Ubicación: apps/web/src/pages/private/servicios/PaginaPerfilPrestador.tsx
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { AlertCircle, MessageCircle, Star } from 'lucide-react';
+import {
+    AlertCircle,
+    BadgeCheck,
+    MapPin,
+    MessageCircle,
+    Package,
+    Star,
+    UserCheck,
+    UserPlus,
+    Wrench,
+} from 'lucide-react';
+import Tooltip from '../../../components/ui/Tooltip';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import {
     usePerfilPrestador,
@@ -27,8 +52,11 @@ import {
 } from '../../../hooks/queries/useServicios';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import { CardServicio } from '../../../components/servicios/CardServicio';
-import { CardVacante } from '../../../components/servicios/CardVacante';
 import { Spinner } from '../../../components/ui/Spinner';
+import { useAuthStore } from '../../../stores/useAuthStore';
+import { useChatYAStore } from '../../../stores/useChatYAStore';
+import { useUiStore } from '../../../stores/useUiStore';
+import { notificar } from '../../../utils/notificaciones';
 import {
     formatearTiempoRelativo,
     obtenerNombreCorto,
@@ -46,6 +74,19 @@ export function PaginaPerfilPrestador() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
     const handleVolver = useVolverAtras('/servicios');
+    const usuarioActual = useAuthStore((s) => s.usuario);
+
+    // Stores de ChatYA (mismo patrón que perfil de MP) para soportar el
+    // botón "ChatYA" + "Agregar contacto" del hero card.
+    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
+    const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
+    const conversaciones = useChatYAStore((s) => s.conversaciones);
+    const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
+    const contactos = useChatYAStore((s) => s.contactos);
+    const cargarContactos = useChatYAStore((s) => s.cargarContactos);
+    const agregarContacto = useChatYAStore((s) => s.agregarContacto);
+    const eliminarContacto = useChatYAStore((s) => s.eliminarContacto);
+    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     const {
         data: perfil,
@@ -64,6 +105,105 @@ export function PaginaPerfilPrestador() {
     } = useResenasDelPrestador(usuarioId);
 
     const [tab, setTab] = useState<TabActivo>('servicios');
+    const [accionContactoEnCurso, setAccionContactoEnCurso] = useState(false);
+
+    // Cargar lista de contactos personales al montar para saber si el
+    // perfilado ya está en la agenda (estado del botón "Agregar a contactos").
+    useEffect(() => {
+        if (!usuarioActual) return;
+        cargarContactos('personal');
+    }, [usuarioActual, cargarContactos]);
+
+    const esUnoMismo = usuarioActual?.id === perfil?.id;
+    const contactoExistente =
+        usuarioId
+            ? contactos.find(
+                  (c) =>
+                      c.contactoId === usuarioId &&
+                      c.tipo === 'personal' &&
+                      c.sucursalId === null,
+              )
+            : undefined;
+    const esContacto = !!contactoExistente;
+
+    const handleToggleContacto = async () => {
+        if (!perfil || !usuarioActual || accionContactoEnCurso) return;
+        if (usuarioActual.id === perfil.id) return;
+        setAccionContactoEnCurso(true);
+        try {
+            if (contactoExistente) {
+                const ok = await eliminarContacto(contactoExistente.id);
+                if (ok) {
+                    notificar.exito(`${perfil.nombre} ya no está en tus contactos`);
+                } else {
+                    notificar.error('No se pudo quitar el contacto. Intenta de nuevo.');
+                }
+            } else {
+                const creado = await agregarContacto(
+                    {
+                        contactoId: perfil.id,
+                        tipo: 'personal',
+                        sucursalId: null,
+                        negocioId: null,
+                    },
+                    {
+                        nombre: perfil.nombre,
+                        apellidos: perfil.apellidos,
+                        avatarUrl: perfil.avatarUrl,
+                    },
+                );
+                if (creado) {
+                    notificar.exito(`${perfil.nombre} agregado a tus contactos`);
+                } else {
+                    notificar.error('No se pudo agregar el contacto. Intenta de nuevo.');
+                }
+            }
+        } finally {
+            setAccionContactoEnCurso(false);
+        }
+    };
+
+    const handleEnviarMensaje = async () => {
+        if (!perfil) return;
+        if (!usuarioActual) {
+            notificar.advertencia('Inicia sesión para enviar un mensaje');
+            return;
+        }
+
+        let convs = conversaciones;
+        if (convs.length === 0) {
+            await cargarConversaciones('personal');
+            convs = useChatYAStore.getState().conversaciones;
+        }
+
+        // Buscar conversación existente con este usuario en modo personal
+        // (sin negocio asociado — es chat persona↔persona).
+        const convExistente = convs.find(
+            (c) =>
+                c.otroParticipante?.id === perfil.id &&
+                !c.otroParticipante?.negocioNombre,
+        );
+
+        if (convExistente) {
+            abrirConversacion(convExistente.id);
+        } else {
+            abrirChatTemporal({
+                id: `temp_prestador_${perfil.id}_${Date.now()}`,
+                otroParticipante: {
+                    id: perfil.id,
+                    nombre: perfil.nombre,
+                    apellidos: perfil.apellidos,
+                    avatarUrl: perfil.avatarUrl,
+                },
+                datosCreacion: {
+                    participante2Id: perfil.id,
+                    participante2Modo: 'personal',
+                    contextoTipo: 'directo',
+                },
+            });
+        }
+        abrirChatYA();
+    };
 
     if (cargandoPerfil) {
         return (
@@ -81,7 +221,7 @@ export function PaginaPerfilPrestador() {
             <>
                 <ServiciosHeader variante="pagina" onBack={handleVolver} />
                 <div className="min-h-full bg-transparent">
-                    <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                    <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                         <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                             <div className="w-16 h-16 rounded-full bg-amber-50 grid place-items-center mb-4">
                                 <AlertCircle
@@ -127,53 +267,46 @@ export function PaginaPerfilPrestador() {
             />
 
             <div className="min-h-full bg-transparent pb-32">
-                <div className="lg:mx-auto lg:max-w-5xl lg:px-6 2xl:px-8">
-                    {/* Bloque identidad */}
-                    <div className="px-4 lg:px-0 pt-5 lg:pt-8">
-                        <BloqueIdentidad
+                {/* Contenedor max 920px para igualar al feed de Servicios. */}
+                <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
+                    <div className="px-3 py-5 lg:px-0 lg:py-2">
+                        <HeroCard
                             perfil={perfil}
                             nombreCompleto={nombreCompleto}
+                            esUnoMismo={esUnoMismo}
+                            esContacto={esContacto}
+                            accionContactoEnCurso={accionContactoEnCurso}
+                            onToggleContacto={handleToggleContacto}
+                            onEnviarMensaje={handleEnviarMensaje}
                         />
-                    </div>
 
-                    {/* Tabs */}
-                    <div className="mt-6 lg:mt-8 px-4 lg:px-0">
-                        <div className="border-b-2 border-slate-300 flex gap-2">
-                            <BotonTab
-                                activa={tab === 'servicios'}
-                                onClick={() => setTab('servicios')}
-                                etiqueta="Servicios activos"
-                                contador={perfil.totalPublicacionesActivas}
-                                testid="tab-servicios"
-                            />
-                            <BotonTab
-                                activa={tab === 'resenas'}
-                                onClick={() => setTab('resenas')}
-                                etiqueta="Reseñas"
-                                contador={perfil.totalResenas}
-                                testid="tab-resenas"
-                            />
-                        </div>
-                    </div>
-
-                    {/* Contenido del tab */}
-                    <div className="px-4 lg:px-0 mt-5 lg:mt-6">
-                        {tab === 'servicios' ? (
-                            <SeccionPublicaciones
-                                cargando={cargandoPubs}
-                                publicaciones={publicaciones}
-                                nombre={nombreCorto}
-                                onClick={(id) => navigate(`/servicios/${id}`)}
-                            />
-                        ) : (
-                            <SeccionResenas
-                                cargando={cargandoResenas}
-                                resenas={resenas}
-                                nombre={nombreCorto}
-                                ratingPromedio={perfil.ratingPromedio}
+                        <div className="mt-6">
+                            <TabsSegmented
+                                tabActiva={tab}
+                                totalServicios={perfil.totalPublicacionesActivas}
                                 totalResenas={perfil.totalResenas}
+                                onChange={setTab}
                             />
-                        )}
+
+                            <div className="mt-4">
+                                {tab === 'servicios' ? (
+                                    <SeccionPublicaciones
+                                        cargando={cargandoPubs}
+                                        publicaciones={publicaciones}
+                                        nombre={nombreCorto}
+                                        onClick={(id) => navigate(`/servicios/${id}`)}
+                                    />
+                                ) : (
+                                    <SeccionResenas
+                                        cargando={cargandoResenas}
+                                        resenas={resenas}
+                                        nombre={nombreCorto}
+                                        ratingPromedio={perfil.ratingPromedio}
+                                        totalResenas={perfil.totalResenas}
+                                    />
+                                )}
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -182,97 +315,154 @@ export function PaginaPerfilPrestador() {
 }
 
 // =============================================================================
-// BloqueIdentidad — avatar + nombre + badges + KPIs
+// HERO CARD — 2 columnas (identidad | KPIs + botones)
 // =============================================================================
 
-function BloqueIdentidad({
-    perfil,
-    nombreCompleto,
-}: {
+interface HeroCardProps {
     perfil: PerfilPrestador;
     nombreCompleto: string;
-}) {
-    const iniciales = (perfil.nombre[0] ?? '') + (perfil.apellidos[0] ?? '');
+    esUnoMismo: boolean;
+    esContacto: boolean;
+    accionContactoEnCurso: boolean;
+    onToggleContacto: () => void;
+    onEnviarMensaje: () => void;
+}
 
-    const miembroDesdeTexto = formatearMiembroDesde(perfil.miembroDesde);
-
+function HeroCard({
+    perfil,
+    esUnoMismo,
+    esContacto,
+    accionContactoEnCurso,
+    onToggleContacto,
+    onEnviarMensaje,
+}: HeroCardProps) {
+    // `esPrestador` = tiene al menos una publicación activa (equivalente
+    // al `esVendedor` del perfil MP). Decide si mostrar KPIs + badge
+    // verificado o solo el bloque de identidad básico.
+    const esPrestador = perfil.totalPublicacionesActivas > 0;
     return (
-        <div className="bg-white rounded-2xl border-2 border-slate-300 shadow-md p-5 lg:p-8">
-            <div className="flex flex-col lg:flex-row items-start lg:items-center gap-4 lg:gap-6">
-                {/* Avatar */}
-                <div className="shrink-0">
-                    {perfil.avatarUrl ? (
-                        <img
-                            src={perfil.avatarUrl}
-                            alt={nombreCompleto}
-                            className="w-20 h-20 lg:w-24 lg:h-24 rounded-full object-cover shadow-md border-2 border-white"
-                        />
-                    ) : (
-                        <div
-                            className="w-20 h-20 lg:w-24 lg:h-24 rounded-full grid place-items-center text-white font-extrabold text-2xl lg:text-3xl shadow-md"
-                            style={{
-                                background:
-                                    'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)',
-                            }}
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-lg lg:rounded-3xl lg:px-8 lg:py-5">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-10">
+                {/* ── Columna izquierda: avatar + identidad ────────────────── */}
+                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:text-left">
+                    <AvatarConRingSky perfil={perfil} />
+                    <div className="flex min-w-0 flex-1 flex-col items-center lg:items-start">
+                        {/* Nombre dividido en 2 líneas + badge verificado
+                            invertido al final del apellido (estilo Twitter/X
+                            con fondo azul + palomita blanca). */}
+                        <h1
+                            data-testid="nombre-prestador"
+                            className="text-xl font-extrabold tracking-tight text-slate-950 leading-tight lg:text-2xl"
                         >
-                            {iniciales.toUpperCase() || '?'}
-                        </div>
-                    )}
-                </div>
-
-                {/* Datos */}
-                <div className="min-w-0 flex-1">
-                    <div className="flex items-center gap-2 flex-wrap">
-                        <h1 className="text-xl lg:text-3xl font-extrabold text-slate-900 tracking-tight leading-tight">
-                            {nombreCompleto || 'Usuario'}
+                            <span className="block">{perfil.nombre}</span>
+                            <span className="flex items-center justify-center gap-1.5 lg:justify-start">
+                                {perfil.apellidos}
+                                {esPrestador && (
+                                    <BadgeCheck
+                                        className="h-5 w-5 shrink-0 fill-blue-500 text-white lg:h-6 lg:w-6"
+                                        strokeWidth={2.5}
+                                        aria-label="Prestador con publicaciones"
+                                    />
+                                )}
+                            </span>
                         </h1>
-                    </div>
-
-                    <div className="mt-1.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm lg:text-[13px] 2xl:text-sm text-slate-600 font-medium">
                         {perfil.ciudad && (
-                            <>
-                                <span>{perfil.ciudad}</span>
-                                <span className="text-slate-400">·</span>
-                            </>
+                            <div className="mt-6 flex items-center gap-1.5 text-base font-medium text-slate-600 lg:mt-8">
+                                <MapPin
+                                    className="h-4 w-4 shrink-0 text-slate-500"
+                                    strokeWidth={2}
+                                />
+                                {perfil.ciudad}
+                            </div>
                         )}
-                        <span>Miembro desde {miembroDesdeTexto}</span>
+                        <p className="mt-0.5 text-sm font-medium text-slate-500">
+                            Miembro desde: {formatearMiembroDesde(perfil.miembroDesde)}
+                        </p>
                     </div>
-
-                    {/* Inline rating chip si tiene reseñas */}
-                    {perfil.ratingPromedio !== null && (
-                        <div className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-amber-50 border-2 border-amber-200">
-                            <Star
-                                className="w-4 h-4 text-amber-500 fill-amber-400"
-                                strokeWidth={1.5}
-                            />
-                            <span className="text-base lg:text-[14px] 2xl:text-base font-bold text-amber-900 tabular-nums">
-                                {perfil.ratingPromedio.toFixed(1)}
-                            </span>
-                            <span className="text-sm lg:text-[12px] 2xl:text-sm font-semibold text-amber-800">
-                                · {perfil.totalResenas}{' '}
-                                {perfil.totalResenas === 1
-                                    ? 'reseña'
-                                    : 'reseñas'}
-                            </span>
-                        </div>
-                    )}
                 </div>
 
-                {/* KPIs (desktop) */}
-                <div className="hidden lg:flex flex-col gap-1.5 shrink-0 min-w-[140px]">
-                    <KPIBloque
-                        valor={String(perfil.totalPublicacionesActivas)}
-                        label={
-                            perfil.totalPublicacionesActivas === 1
-                                ? 'Servicio activo'
-                                : 'Servicios activos'
-                        }
-                    />
-                    {perfil.tiempoRespuestaMinutos !== null && (
-                        <KPIBloque
-                            valor={`~${perfil.tiempoRespuestaMinutos}m`}
-                            label="Tiempo de respuesta"
-                        />
+                {/* ── Columna derecha: KPIs + botones de contacto ──────────── */}
+                <div className="flex flex-col gap-3 lg:gap-4">
+                    {esPrestador && (
+                        <div
+                            data-testid="kpis-prestador"
+                            className="grid grid-cols-2 divide-x-2 divide-slate-300 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100"
+                        >
+                            <KpiCard
+                                icono={<Package className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
+                                valor={String(perfil.totalPublicacionesActivas)}
+                                label="Publicaciones"
+                            />
+                            <KpiCard
+                                icono={<Star className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
+                                valor={
+                                    perfil.ratingPromedio !== null
+                                        ? perfil.ratingPromedio.toFixed(1)
+                                        : '—'
+                                }
+                                label={
+                                    perfil.totalResenas === 1 ? 'Reseña' : 'Reseñas'
+                                }
+                            />
+                        </div>
+                    )}
+
+                    {!esUnoMismo && (
+                        <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-end lg:gap-4">
+                            {/* ChatYA — logo brand INLINE (sin pill, sin
+                                texto duplicado) con hover scale. Mismo
+                                patrón que en el detalle de la publicación
+                                y en el perfil de MarketPlace. */}
+                            <button
+                                type="button"
+                                data-testid="btn-chatya-prestador"
+                                onClick={onEnviarMensaje}
+                                aria-label="Enviar mensaje por ChatYA"
+                                className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
+                            >
+                                <img
+                                    src="/ChatYA.webp"
+                                    alt="ChatYA"
+                                    className="h-9 w-auto shrink-0 object-contain"
+                                />
+                            </button>
+                            {/* Agregar contacto — icon-only sky con tooltip.
+                                Mismo patrón inline que el logo de ChatYA. */}
+                            <Tooltip
+                                text={
+                                    esContacto
+                                        ? 'Quitar de contactos'
+                                        : 'Agregar a contactos'
+                                }
+                                position="top"
+                            >
+                                <button
+                                    type="button"
+                                    data-testid="btn-agregar-contacto-prestador"
+                                    onClick={onToggleContacto}
+                                    disabled={accionContactoEnCurso}
+                                    aria-pressed={esContacto}
+                                    aria-label={
+                                        esContacto
+                                            ? 'Quitar de contactos'
+                                            : 'Agregar a contactos'
+                                    }
+                                    className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 disabled:cursor-not-allowed disabled:opacity-60 lg:hover:scale-110"
+                                >
+                                    {esContacto ? (
+                                        <UserCheck
+                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            strokeWidth={2.25}
+                                        />
+                                    ) : (
+                                        <UserPlus
+                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            strokeWidth={2.25}
+                                        />
+                                    )}
+                                </button>
+                            </Tooltip>
+                        </div>
                     )}
                 </div>
             </div>
@@ -280,64 +470,135 @@ function BloqueIdentidad({
     );
 }
 
-function KPIBloque({ valor, label }: { valor: string; label: string }) {
+// ─── Avatar simple — círculo plano (sin ring gradient) ────────────────────
+// Sprint 9.3 (iteración): se removió el ring gradient brand para alinear
+// con el nuevo diseño del perfil (más limpio, menos decoración).
+
+function AvatarConRingSky({ perfil }: { perfil: PerfilPrestador }) {
+    const iniciales = obtenerIniciales(perfil.nombre, perfil.apellidos);
     return (
-        <div className="flex items-baseline gap-2 justify-end">
-            <span className="text-xl font-bold text-slate-800 tabular-nums leading-none">
+        <div className="relative shrink-0">
+            <div className="h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-[104px] lg:w-[104px]">
+                {perfil.avatarUrl ? (
+                    <img
+                        src={perfil.avatarUrl}
+                        alt={`Avatar de ${perfil.nombre}`}
+                        className="h-full w-full object-cover"
+                    />
+                ) : (
+                    <div
+                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white lg:text-3xl"
+                        style={{
+                            background:
+                                'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
+                        }}
+                    >
+                        {iniciales || '?'}
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}
+
+// ─── Celda de KPI (interna al grid del HeroCard) ──────────────────────────
+// Sprint 9.3 (rediseño): estructura "alta + baja":
+//   - Alta: valor grande arriba (jerarquía principal)
+//   - Baja: icono + label en una sola línea horizontal abajo
+// El bg + rounded vive en el grid contenedor (no en cada celda) para que
+// las 2 columnas compartan el mismo bloque visual con un divisor entre
+// ellas (divide-x-2). Mismo patrón que el perfil de MarketPlace.
+
+interface KpiCardProps {
+    icono: React.ReactNode;
+    valor: string;
+    label: string;
+}
+
+function KpiCard({ icono, valor, label }: KpiCardProps) {
+    return (
+        <div className="flex flex-col items-center justify-center gap-1 px-3 py-2 text-center lg:py-2.5">
+            <div className="text-xl font-black tracking-tight text-slate-950 leading-none lg:text-2xl">
                 {valor}
-            </span>
-            <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 uppercase tracking-wider">
+            </div>
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:text-base">
+                <span className="text-slate-500">{icono}</span>
                 {label}
-            </span>
+            </div>
         </div>
     );
 }
 
 // =============================================================================
-// BotonTab — tab redondeado dentro del border-b
+// TABS — segmented underline (mismo patrón que perfil MP, color sky)
 // =============================================================================
 
-function BotonTab({
-    activa,
-    onClick,
-    etiqueta,
-    contador,
-    testid,
-}: {
+interface TabsSegmentedProps {
+    tabActiva: TabActivo;
+    totalServicios: number;
+    totalResenas: number;
+    onChange: (tab: TabActivo) => void;
+}
+
+function TabsSegmented({
+    tabActiva,
+    totalServicios,
+    totalResenas,
+    onChange,
+}: TabsSegmentedProps) {
+    return (
+        <div role="tablist" className="flex gap-8 border-b-2 border-slate-300">
+            <TabUnderline
+                activa={tabActiva === 'servicios'}
+                icono={<Wrench className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
+                label="Servicios"
+                count={totalServicios}
+                onClick={() => onChange('servicios')}
+                testId="perfil-tab-servicios"
+            />
+            <TabUnderline
+                activa={tabActiva === 'resenas'}
+                icono={<Star className="h-5 w-5 shrink-0" strokeWidth={2.5} />}
+                label="Reseñas"
+                count={totalResenas}
+                onClick={() => onChange('resenas')}
+                testId="perfil-tab-resenas"
+            />
+        </div>
+    );
+}
+
+interface TabUnderlineProps {
     activa: boolean;
+    icono: React.ReactNode;
+    label: string;
+    count: number;
     onClick: () => void;
-    etiqueta: string;
-    contador: number;
-    testid: string;
-}) {
+    testId: string;
+}
+
+function TabUnderline({ activa, icono, label, count, onClick, testId }: TabUnderlineProps) {
     return (
         <button
-            type="button"
-            data-testid={`perfil-${testid}`}
+            data-testid={testId}
             onClick={onClick}
-            className={
-                'relative px-1 lg:px-2 py-3 text-base lg:text-[14px] 2xl:text-base font-bold lg:cursor-pointer transition-colors ' +
-                (activa
-                    ? 'text-slate-900'
-                    : 'text-slate-600 hover:text-slate-900')
-            }
+            role="tab"
+            aria-selected={activa}
+            className={`relative -mb-0.5 inline-flex items-center gap-2.5 border-b-2 px-1 pb-3.5 pt-1.5 text-base font-bold transition-colors lg:cursor-pointer lg:text-lg ${
+                activa
+                    ? 'border-sky-500 text-sky-700'
+                    : 'border-transparent text-slate-600 hover:text-slate-800'
+            }`}
         >
-            <span className="flex items-center gap-2">
-                {etiqueta}
-                <span
-                    className={
-                        'tabular-nums text-sm lg:text-[12px] 2xl:text-sm font-bold px-2 py-0.5 rounded-full ' +
-                        (activa
-                            ? 'bg-slate-900 text-white'
-                            : 'bg-slate-200 text-slate-700')
-                    }
-                >
-                    {contador}
-                </span>
+            {icono}
+            <span>{label}</span>
+            <span
+                className={`text-sm font-bold tabular-nums ${
+                    activa ? 'text-sky-700' : 'text-slate-500'
+                }`}
+            >
+                {count}
             </span>
-            {activa && (
-                <span className="absolute left-0 right-0 -bottom-[2px] h-[3px] bg-sky-600 rounded-full" />
-            )}
         </button>
     );
 }
@@ -375,7 +636,7 @@ function SeccionPublicaciones({
     return (
         <div
             data-testid="perfil-grid-publicaciones"
-            className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4"
+            className="grid grid-cols-2 auto-rows-fr gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4 [&>*]:h-full"
         >
             {publicaciones.map((p) => (
                 <CardSegunTipoPerfil
@@ -395,10 +656,12 @@ function CardSegunTipoPerfil({
     publicacion: PublicacionServicio;
     onClick: () => void;
 }) {
-    if (publicacion.tipo === 'vacante-empresa') {
-        return <CardVacante publicacion={publicacion} onClick={onClick} />;
-    }
-    // Solicito y servicio-persona usan CardServicio
+    // Sprint 9.3: `CardServicio` es universal — renderiza los 3 tipos
+    // (servicio-persona / solicito / vacante-empresa) con el mismo
+    // layout y misma altura. Mismo patrón que el feed de Servicios
+    // (`PaginaServicios.tsx`). Antes se ramificaba a `CardVacante` para
+    // las vacantes pero esa card era visualmente distinta (sin foto,
+    // banner sky) y rompía la consistencia del grid.
     return <CardServicio publicacion={publicacion} onClick={onClick} />;
 }
 
@@ -476,7 +739,7 @@ function SeccionResenas({
                                 {totalResenas === 1 ? 'reseña' : 'reseñas'}
                             </p>
                         </div>
-                        {/* Distribución de barras 5★→1★ — Sprint 7.9 */}
+                        {/* Distribución de barras 5★→1★ */}
                         <div className="flex-1 min-w-0 space-y-1.5">
                             {([5, 4, 3, 2, 1] as const).map((nivel) => {
                                 const cant = distribucion[nivel];
@@ -554,7 +817,7 @@ function ItemResena({ resena }: { resena: ResenaServicio }) {
                         className="w-9 h-9 rounded-full grid place-items-center text-white font-bold text-sm shadow-sm"
                         style={{
                             background:
-                                'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)',
+                                'linear-gradient(135deg, #38bdf8 0%, #0284c7 50%, #0369a1 100%)',
                         }}
                     >
                         {iniciales.toUpperCase() || '?'}
@@ -672,6 +935,12 @@ function formatearMiembroDesde(iso: string): string {
     } catch {
         return '—';
     }
+}
+
+function obtenerIniciales(nombre: string, apellidos: string): string {
+    const a = nombre.trim().charAt(0).toUpperCase();
+    const b = apellidos.trim().charAt(0).toUpperCase();
+    return `${a}${b}`;
 }
 
 export default PaginaPerfilPrestador;

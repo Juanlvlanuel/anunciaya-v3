@@ -152,7 +152,7 @@ export async function getPublicacion(req: Request, res: Response) {
         const { id } = req.params;
         if (!validarUUID(id, res, 'ID de la publicación')) return;
 
-        const resultado = await obtenerPublicacionPorId(id);
+        const resultado = await obtenerPublicacionPorId(id, req.usuario?.usuarioId);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
         console.error('Error en getPublicacion:', error);

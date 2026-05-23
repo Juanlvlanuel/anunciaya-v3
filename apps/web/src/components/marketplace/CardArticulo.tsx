@@ -65,6 +65,14 @@ interface CardArticuloProps {
      * individual.
      */
     ocultarBotonGuardar?: boolean;
+    /**
+     * MisGuardados pasa `'rose'` para unificar el acento al rosa temático
+     * de esa página: hover border-rose-400 + lift + scale en la imagen.
+     * Default `undefined` mantiene el comportamiento histórico (sin hover
+     * notable) en el resto de los contextos (feed, perfil del vendedor,
+     * buscador).
+     */
+    acentoHover?: 'rose';
 }
 
 export function CardArticulo({
@@ -72,6 +80,7 @@ export function CardArticulo({
     variant = 'feed',
     altoFijo,
     ocultarBotonGuardar,
+    acentoHover,
 }: CardArticuloProps) {
     const navigate = useNavigate();
     // `articulo.guardado` viene del backend cuando el visitante está
@@ -133,6 +142,10 @@ export function CardArticulo({
             data-testid={`card-articulo-${articulo.id}`}
             onClick={handleClickCard}
             className={`group min-w-0 cursor-pointer flex flex-col overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md ${
+                acentoHover === 'rose'
+                    ? 'transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-rose-400 lg:hover:shadow-lg'
+                    : ''
+            } ${
                 altoFijo
                     ? altoFijo
                     : variant === 'compacta'
@@ -158,7 +171,11 @@ export function CardArticulo({
                     <img
                         src={fotoPortada}
                         alt={articulo.titulo}
-                        className="absolute inset-0 h-full w-full object-cover"
+                        className={`absolute inset-0 h-full w-full object-cover ${
+                            acentoHover === 'rose'
+                                ? 'transition-transform duration-300 group-hover:scale-105'
+                                : ''
+                        }`}
                         loading="lazy"
                     />
                 ) : (

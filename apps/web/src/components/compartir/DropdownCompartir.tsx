@@ -188,7 +188,7 @@ export function DropdownCompartir({
         glass: `w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer`,
         // Variante para headers dark (P2 Detalle, P3 Perfil, PaginaMarketplace).
         // Mismo estilo que los demás botones del header dark: text-white/50 + lg:hover:bg-white/10.
-        dark: `w-10 h-10 rounded-lg flex items-center justify-center text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white`,
+        dark: `w-11 h-11 rounded-lg flex items-center justify-center text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white`,
     };
 
     // -------------------------------------------------------------------------
@@ -208,11 +208,11 @@ export function DropdownCompartir({
                     en el mismo header. Las demás variantes mantienen el
                     color slate-700 + group-hover gray-500 original. */}
                 <Share2
-                    className={`w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 ${
+                    className={
                         variante === 'dark'
-                            ? ''
-                            : 'text-slate-700 group-hover:text-gray-500 transition-colors'
-                    }`}
+                            ? 'w-6 h-6'
+                            : 'w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700 group-hover:text-gray-500 transition-colors'
+                    }
                 />
             </button>
 

@@ -58,7 +58,6 @@ import {
     BadgeCheck,
     Ban,
     ShieldOff,
-    MessageSquare,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -68,8 +67,24 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />;
-const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
+
+/**
+ * Logo de WhatsApp brand — SVG inline reutilizado de `BarraContacto.tsx`.
+ * Color verde solid (`text-green-500`) heredado por `fill="currentColor"`.
+ * Sprint 9.3 (iteración): el botón "WhatsApp" del hero del perfil ahora
+ * usa este logo brand en vez del icono lucide genérico, igual que en el
+ * detalle de la publicación.
+ */
+const WhatsAppIcon = ({ className }: { className?: string }) => (
+    <svg
+        className={`${className ?? 'h-7 w-7'} text-green-500`}
+        fill="currentColor"
+        viewBox="0 0 24 24"
+    >
+        <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413z" />
+    </svg>
+);
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
 import { useUiStore } from '../../../stores/useUiStore';
@@ -95,16 +110,14 @@ const MESES_ES = [
 ];
 
 const DARK_GRADIENT = 'linear-gradient(135deg, #1e293b, #334155)';
-const BRAND_ACCENT_DIAGONAL = 'linear-gradient(135deg, #14b8a6 0%, #2563eb 100%)';
-// Azul brand de ChatYA — color sólido (mismo tono del header de VentanaChat).
-// Usado en el botón ChatYA del perfil.
-const CHATYA_BLUE = '#0B358F';
 
 function formatearMiembroDesde(timestamp: string): string {
+    // Sprint 9.3: el helper retorna SOLO la fecha ("Enero 2026"). El
+    // prefijo "Miembro desde:" lo agrega el JSX para evitar duplicación.
     try {
         const d = parsearFechaPostgres(timestamp);
         if (isNaN(d.getTime())) return '';
-        return `Miembro desde ${MESES_ES[d.getMonth()]} ${d.getFullYear()}`;
+        return `${MESES_ES[d.getMonth()]} ${d.getFullYear()}`;
     } catch {
         return '';
     }
@@ -380,6 +393,10 @@ export function PaginaPerfilVendedor() {
                 gradient teal antes para tener coherencia visual con el resto
                 del módulo (Market<teal>Place</teal> · Card<teal>YA</teal>).
             ════════════════════════════════════════════════════════════════ */}
+            {/* Header sticky con su PROPIO wrapper `max-w-7xl` (mismo
+                patrón que el detalle de MP — `PaginaArticuloMarketplace`).
+                El body del perfil vive en su propio wrapper más compacto
+                `max-w-[920px]` más abajo. */}
             <div className="sticky top-0 z-30">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
@@ -493,8 +510,8 @@ export function PaginaPerfilVendedor() {
                 </div>
             </div>
 
-            {/* CONTENEDOR */}
-            <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+            {/* CONTENEDOR — max 920px para igualar al feed de MP */}
+            <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                 <div className="px-3 py-5 lg:px-0 lg:py-8">
 
                     <HeroCard
@@ -535,7 +552,7 @@ export function PaginaPerfilVendedor() {
                                 ) : (
                                     <div
                                         data-testid={`grid-${tabActiva}`}
-                                        className="grid grid-cols-2 items-start gap-3 lg:grid-cols-4 lg:gap-4 2xl:grid-cols-5"
+                                        className="grid grid-cols-2 items-start gap-3 lg:grid-cols-3 lg:gap-4 2xl:grid-cols-4"
                                     >
                                         {articulos.map((a) =>
                                             tabActiva === 'vendida' ? (
@@ -611,96 +628,104 @@ function HeroCard({
 }: HeroCardProps) {
     const hayAccionesContacto = !esUnoMismo && !estaBloqueado;
     return (
-        <div className="overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-md">
+        <div className="rounded-2xl border border-slate-200 bg-white px-6 py-4 shadow-lg lg:rounded-3xl lg:px-8 lg:py-5">
             {/* ═══════════════════════════════════════════════════════════════
-                Layout 2 columnas en desktop:
-                  · Col izquierda: identidad (avatar + nombre + ciudad + miembro)
-                  · Col derecha:  KPIs + botones de contacto juntos
-                En móvil se apila vertical: identidad → KPIs → botones.
-                Las columnas se separan con un divisor vertical sutil en lg+.
+                Layout 2 columnas en desktop (Sprint 9.3 rediseño):
+                  · Col izquierda: avatar grande + identidad apilados
+                    verticalmente
+                  · Col derecha: 3 KPI cards individuales arriba +
+                    3 botones (grid 3 cols) abajo
+                En móvil se apila vertical. Card wrapper más generoso
+                (`p-6`/`lg:p-8`, `rounded-2xl`/`lg:rounded-3xl`).
             ═══════════════════════════════════════════════════════════════ */}
-            <div className="lg:grid lg:grid-cols-2 lg:items-stretch">
-                {/* ── Columna izquierda: identidad ─────────────────────────── */}
-                <div className="flex flex-col items-center gap-4 p-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:border-r-2 lg:border-slate-300 lg:text-left">
+            <div className="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-start lg:gap-10">
+                {/* ── Columna izquierda: avatar + identidad ──────────────────
+                    En desktop la identidad va AL LADO del avatar
+                    (flex-row); en móvil se apila vertical centrado.
+                    Sprint 9.3 (iteración): antes era flex-col siempre
+                    y el bloque de identidad caía debajo del avatar
+                    incluso en desktop, desperdiciando ancho útil. */}
+                <div className="flex flex-col items-center gap-5 text-center lg:flex-row lg:items-center lg:gap-5 lg:text-left">
                     <AvatarConAdornos
                         perfil={perfil}
                         estadoPresencia={estadoPresencia}
                     />
-                    <div className="min-w-0 flex-1">
-                        <div className="flex flex-wrap items-center justify-center gap-1.5 lg:justify-start">
-                            <h1
-                                data-testid="nombre-vendedor"
-                                className="text-xl font-extrabold tracking-tight text-slate-900 lg:text-2xl"
-                            >
-                                {perfil.nombre} {perfil.apellidos}
-                            </h1>
-                            {esVendedor && (
-                                <BadgeCheck
-                                    className="h-5 w-5 shrink-0 text-blue-600"
-                                    strokeWidth={2.5}
-                                    aria-label="Vendedor con publicaciones"
-                                />
-                            )}
-                        </div>
+                    <div className="flex min-w-0 flex-1 flex-col items-center lg:items-start">
+                        {/* Nombre dividido en 2 líneas: nombres arriba,
+                            apellidos + badge verificado en la 2ª línea.
+                            BadgeCheck invertido: fondo azul (`fill-blue-500`)
+                            con palomita blanca (`text-white` sobre el
+                            stroke del check), estilo "verified" tipo
+                            Twitter/X. */}
+                        <h1
+                            data-testid="nombre-vendedor"
+                            className="text-xl font-extrabold tracking-tight text-slate-950 leading-tight lg:text-2xl"
+                        >
+                            <span className="block">{perfil.nombre}</span>
+                            <span className="flex items-center justify-center gap-1.5 lg:justify-start">
+                                {perfil.apellidos}
+                                {esVendedor && (
+                                    <BadgeCheck
+                                        className="h-5 w-5 shrink-0 fill-blue-500 text-white lg:h-6 lg:w-6"
+                                        strokeWidth={2.5}
+                                        aria-label="Vendedor con publicaciones"
+                                    />
+                                )}
+                            </span>
+                        </h1>
+                        {/* Ciudad + miembro desde con separación visual
+                            mayor del nombre (mt-6/mt-8) para que se
+                            perciban como un bloque secundario distinto. */}
                         {perfil.ciudad && (
-                            <p className="mt-1.5 inline-flex items-center gap-1.5 text-base font-semibold text-slate-700">
+                            <div className="mt-6 flex items-center gap-1.5 text-base font-medium text-slate-600 lg:mt-8">
                                 <MapPin
-                                    className="h-4 w-4 shrink-0 text-slate-600"
-                                    strokeWidth={2.25}
+                                    className="h-4 w-4 shrink-0 text-slate-500"
+                                    strokeWidth={2}
                                 />
                                 {perfil.ciudad}
-                            </p>
+                            </div>
                         )}
-                        <p className="mt-0.5 text-sm font-medium text-slate-600">
-                            {formatearMiembroDesde(perfil.miembroDesde)}
+                        <p className="mt-0.5 text-sm font-medium text-slate-500">
+                            Miembro desde: {formatearMiembroDesde(perfil.miembroDesde)}
                         </p>
                     </div>
                 </div>
 
-                {/* ── Columna derecha: KPIs + botones ──────────────────────── */}
-                <div className="flex flex-col border-t-2 border-slate-300 lg:border-t-0">
+                {/* ── Columna derecha: KPIs (3 cards) + botones (3 cols) ───── */}
+                <div className="flex flex-col gap-3 lg:gap-4">
                     {esVendedor && (
                         <div
                             data-testid="kpis-vendedor"
-                            className="grid grid-cols-3 divide-x-2 divide-slate-300 bg-slate-200"
+                            className="grid grid-cols-2 divide-x-2 divide-slate-300 overflow-hidden rounded-2xl border-2 border-slate-300 bg-slate-100"
                         >
-                            <KpiBlock
-                                icono={<Package className="h-3.5 w-3.5" strokeWidth={2.25} />}
+                            <KpiCard
+                                icono={<Package className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
                                 valor={totalActivos.toString()}
                                 label="Publicaciones"
                             />
-                            <KpiBlock
-                                icono={<ShoppingBag className="h-3.5 w-3.5" strokeWidth={2.25} />}
+                            <KpiCard
+                                icono={<ShoppingBag className="h-5 w-5 lg:h-6 lg:w-6" strokeWidth={1.75} />}
                                 valor={totalVendidos.toString()}
                                 label="Vendidos"
-                            />
-                            <KpiBlock
-                                icono={<Clock className="h-3.5 w-3.5" strokeWidth={2.25} />}
-                                valor={perfil.kpis.tiempoRespuesta || '—'}
-                                label="Responde"
                             />
                         </div>
                     )}
 
                     {hayAccionesContacto && (
-                        <div
-                            className={`flex flex-1 flex-wrap items-center justify-center gap-2 p-4 lg:gap-3 ${
-                                esVendedor ? 'border-t-2 border-slate-300' : ''
-                            }`}
-                        >
+                        <div className="flex flex-wrap items-center justify-center gap-3 lg:justify-end lg:gap-4">
+                            {/* WhatsApp + ChatYA: logos brand INLINE (sin
+                                pill, sin texto duplicado) con hover scale.
+                                Mismo patrón EXACTO que `BarraContacto.tsx`
+                                del detalle de la publicación. */}
                             {perfil.telefono && (
                                 <button
                                     type="button"
                                     data-testid="btn-whatsapp-vendedor"
                                     onClick={onWhatsApp}
                                     aria-label="Contactar por WhatsApp"
-                                    className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors hover:bg-emerald-100 active:scale-[0.97]"
+                                    className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
                                 >
-                                    <MessageCircle
-                                        className="h-5 w-5 shrink-0 text-emerald-700"
-                                        strokeWidth={2.5}
-                                    />
-                                    WhatsApp
+                                    <WhatsAppIcon className="h-7 w-7" />
                                 </button>
                             )}
                             <button
@@ -708,56 +733,67 @@ function HeroCard({
                                 data-testid="btn-chatya-vendedor"
                                 onClick={onEnviarMensaje}
                                 aria-label="Enviar mensaje por ChatYA"
-                                className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors hover:bg-blue-100 active:scale-[0.97]"
+                                className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 lg:hover:scale-110"
                             >
-                                <MessageSquare
-                                    className="h-5 w-5 shrink-0 text-blue-700"
-                                    strokeWidth={2.5}
+                                <img
+                                    src="/ChatYA.webp"
+                                    alt="ChatYA"
+                                    className="h-9 w-auto shrink-0 object-contain"
                                 />
-                                ChatYA
                             </button>
-                            <button
-                                type="button"
-                                data-testid="btn-agregar-contacto"
-                                onClick={onToggleContacto}
-                                disabled={accionContactoEnCurso}
-                                aria-pressed={esContacto}
-                                aria-label={
-                                    esContacto ? 'Quitar de contactos' : 'Agregar a contactos'
+                            {/* Agregar contacto — icon-only en tonos teal
+                                (familia cromática de MarketPlace). Mismo
+                                patrón inline que los logos brand (sin
+                                fondo, hover scale). Tooltip describe la
+                                acción al hover/focus. UserCheck cuando ya
+                                es contacto, UserPlus cuando no. */}
+                            <Tooltip
+                                text={
+                                    esContacto
+                                        ? 'Quitar de contactos'
+                                        : 'Agregar a contactos'
                                 }
-                                className="inline-flex h-12 cursor-pointer items-center gap-2 rounded-full px-5 text-base font-bold text-slate-900 transition-colors hover:bg-emerald-100 active:scale-[0.97] disabled:cursor-not-allowed disabled:opacity-60"
+                                position="top"
                             >
-                                {esContacto ? (
-                                    <>
+                                <button
+                                    type="button"
+                                    data-testid="btn-agregar-contacto"
+                                    onClick={onToggleContacto}
+                                    disabled={accionContactoEnCurso}
+                                    aria-pressed={esContacto}
+                                    aria-label={
+                                        esContacto
+                                            ? 'Quitar de contactos'
+                                            : 'Agregar a contactos'
+                                    }
+                                    className="inline-flex shrink-0 cursor-pointer items-center justify-center rounded-lg p-1 transition-transform duration-200 active:opacity-70 disabled:cursor-not-allowed disabled:opacity-60 lg:hover:scale-110"
+                                >
+                                    {esContacto ? (
                                         <UserCheck
-                                            className="h-5 w-5 shrink-0 text-emerald-700"
-                                            strokeWidth={2.5}
+                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            strokeWidth={2.25}
                                         />
-                                        En contactos
-                                    </>
-                                ) : (
-                                    <>
+                                    ) : (
                                         <UserPlus
-                                            className="h-5 w-5 shrink-0 text-emerald-700"
-                                            strokeWidth={2.5}
+                                            className="h-7 w-7 shrink-0 text-sky-600"
+                                            strokeWidth={2.25}
                                         />
-                                        Agregar contacto
-                                    </>
-                                )}
-                            </button>
+                                    )}
+                                </button>
+                            </Tooltip>
                         </div>
                     )}
                 </div>
             </div>
 
-            {/* Banner de bloqueado — full width abajo del grid si aplica. */}
+            {/* Banner de bloqueado — debajo del grid si aplica. */}
             {!esUnoMismo && estaBloqueado && (
                 <div
                     data-testid="banner-usuario-bloqueado"
-                    className="flex items-center gap-3 border-t-2 border-red-300 bg-red-100 px-5 py-3 lg:px-6"
+                    className="mt-5 flex items-center gap-3 rounded-xl border-2 border-red-300 bg-red-100 px-4 py-3"
                 >
                     <Ban className="h-5 w-5 shrink-0 text-red-700" strokeWidth={2.5} />
-                    <p className="text-sm font-semibold text-red-800 lg:text-[13px] 2xl:text-sm">
+                    <p className="text-sm font-semibold text-red-800">
                         Has bloqueado a este usuario.{' '}
                         <span className="font-medium text-red-700">
                             No podrán enviarse mensajes mutuamente.
@@ -769,22 +805,32 @@ function HeroCard({
     );
 }
 
-// ─── Bloque de KPI (sección 2 del HeroCard) ───────────────────────────────
+// ─── Celda de KPI (interna al grid del HeroCard) ──────────────────────────
+// Sprint 9.3 (rediseño): estructura "alta + baja":
+//   - Alta: valor grande arriba (jerarquía principal)
+//   - Baja: icono + label en una sola línea horizontal abajo
+// El bg + rounded vive en el grid contenedor (no en cada celda) para que
+// las 2 columnas compartan el mismo bloque visual con un divisor entre
+// ellas (divide-x-2). Cada celda es solo el contenido centrado.
 
-interface KpiBlockProps {
+interface KpiCardProps {
     icono: React.ReactNode;
     valor: string;
     label: string;
 }
 
-function KpiBlock({ icono, valor, label }: KpiBlockProps) {
+function KpiCard({ icono, valor, label }: KpiCardProps) {
     return (
-        <div className="flex flex-col items-center gap-0.5 px-2 py-3 lg:py-4">
-            <div className="text-2xl font-extrabold tracking-tight text-slate-900 lg:text-3xl">
+        <div className="flex flex-col items-center justify-center gap-1 px-3 py-2 text-center lg:py-2.5">
+            <div className="text-xl font-black tracking-tight text-slate-950 leading-none lg:text-2xl">
                 {valor}
             </div>
-            <div className="inline-flex items-center gap-1 text-[11px] font-bold uppercase tracking-wider text-slate-600 lg:text-xs">
-                <span className="text-slate-600">{icono}</span>
+            {/* Label en altas y bajas (Title Case) — Sprint 9.3:
+                antes era UPPERCASE con tracking-wider, se cambió a
+                Title Case porque se lee más natural en pantalla y
+                permite tipografía un punto más grande sin saturar. */}
+            <div className="inline-flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:text-base">
+                <span className="text-slate-500">{icono}</span>
                 {label}
             </div>
         </div>
@@ -817,51 +863,43 @@ function AvatarConAdornos({
                 ? 'bg-amber-400'
                 : null;
 
+    // Sprint 9.3 (iteración): avatar simplificado — círculo plano con
+    // fondo sky cuando no hay foto. Se removió el ring gradient brand
+    // estilo Instagram (era demasiada decoración para un perfil
+    // comercial de marketplace; el diseño nuevo prioriza claridad y
+    // densidad de información).
     return (
         <div className="relative shrink-0">
-            {/* Ring gradient brand alrededor (estilo Instagram story) */}
-            <div
-                className="rounded-full p-[3px] shadow-md"
-                style={{ background: BRAND_ACCENT_DIAGONAL }}
-            >
-                {/* Anillo blanco interior — separación visual entre gradient y avatar */}
-                <div className="rounded-full bg-white p-[2px]">
-                    <div className="h-[80px] w-[80px] overflow-hidden rounded-full bg-white lg:h-[96px] lg:w-[96px]">
-                        {perfil.avatarUrl ? (
-                            <img
-                                src={perfil.avatarUrl}
-                                alt={`Avatar de ${perfil.nombre}`}
-                                className="h-full w-full object-cover"
-                            />
-                        ) : (
-                            <div
-                                className="flex h-full w-full items-center justify-center text-2xl font-bold text-white"
-                                style={{
-                                    background:
-                                        'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)',
-                                }}
-                            >
-                                {iniciales}
-                            </div>
-                        )}
+            <div className="h-[88px] w-[88px] overflow-hidden rounded-full shadow-md lg:h-[104px] lg:w-[104px]">
+                {perfil.avatarUrl ? (
+                    <img
+                        src={perfil.avatarUrl}
+                        alt={`Avatar de ${perfil.nombre}`}
+                        className="h-full w-full object-cover"
+                    />
+                ) : (
+                    <div
+                        className="flex h-full w-full items-center justify-center text-2xl font-bold text-white lg:text-3xl"
+                        style={{
+                            // Tonos teal — familia cromática de MarketPlace.
+                            background:
+                                'linear-gradient(135deg, #2dd4bf 0%, #0d9488 50%, #0f766e 100%)',
+                        }}
+                    >
+                        {iniciales}
                     </div>
-                </div>
+                )}
             </div>
 
             {/* Status dot — bottom-right, ligeramente empalmado sobre el
-                círculo del avatar. El FAB Seguir se movió al lado del
-                nombre, por eso esta esquina queda libre. */}
+                círculo del avatar. */}
             {dotColor && (
                 <span
                     aria-label={
-                        estadoPresencia === 'conectado'
-                            ? 'En línea'
-                            : 'Ausente'
+                        estadoPresencia === 'conectado' ? 'En línea' : 'Ausente'
                     }
                     title={
-                        estadoPresencia === 'conectado'
-                            ? 'En línea'
-                            : 'Ausente'
+                        estadoPresencia === 'conectado' ? 'En línea' : 'Ausente'
                     }
                     className={`absolute bottom-1 right-1 h-3.5 w-3.5 rounded-full ring-2 ring-white lg:h-4 lg:w-4 lg:bottom-1.5 lg:right-1.5 ${dotColor}`}
                 />

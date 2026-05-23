@@ -89,6 +89,14 @@ interface OfertaCardProps {
      * - `'horizontal'`: siempre horizontal.
      */
     orientacion?: 'auto' | 'vertical' | 'horizontal';
+    /**
+     * MisGuardados pasa `'rose'` para unificar el acento al rosa temático
+     * de esa página: border-2 slate-300, hover border-rose-400 + lift +
+     * shadow. La imagen ya tiene `group-hover:scale-110` por default.
+     * Default `undefined` mantiene el comportamiento histórico (sin border
+     * ni hover de contorno).
+     */
+    acentoHover?: 'rose';
 }
 
 // =============================================================================
@@ -479,7 +487,15 @@ export default function OfertaCard({
     esNueva = false,
     esPopular = false,
     orientacion = 'auto',
+    acentoHover,
 }: OfertaCardProps) {
+    // Clases extra que MisGuardados aplica al wrapper para unificar el
+    // acento rose con los otros 3 cards (Negocios, MP, Servicios) en esa
+    // página: border-2 visible siempre + hover border-rose-400 + lift +
+    // shadow. La imagen ya tiene `group-hover:scale-110` por default.
+    const claseHoverRose = acentoHover === 'rose'
+        ? 'border-2 border-slate-300 rounded-xl transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-rose-400 lg:hover:shadow-lg'
+        : '';
     // Si coinciden, prevalece "Popular" (tiene mayor valor informativo).
     const microsenalVariante: 'popular' | 'nueva' | null =
         esPopular ? 'popular' : esNueva ? 'nueva' : null;
@@ -637,7 +653,7 @@ export default function OfertaCard({
     // LAYOUT HORIZONTAL: imagen izquierda, panel derecha
     if (usarLayoutHorizontal) {
         return (
-            <div ref={refCard} className={`@container ${s.card} group cursor-pointer ${className}`} onClick={onClick}>
+            <div ref={refCard} className={`@container ${s.card} group cursor-pointer ${claseHoverRose} ${className}`} onClick={onClick}>
                 <div className={`relative h-full flex flex-row overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                     {/* Badge */}
@@ -738,7 +754,7 @@ export default function OfertaCard({
 
     // LAYOUT DESKTOP: Vertical (ORIGINAL - sin cambios)
     return (
-        <div ref={refCard} className={`${s.card} group cursor-pointer ${className}`} onClick={onClick}>
+        <div ref={refCard} className={`${s.card} group cursor-pointer ${claseHoverRose} ${className}`} onClick={onClick}>
             <div className={`relative h-full flex flex-col overflow-visible rounded-xl shadow-md transition-all duration-300  ${config.hoverShadow}`}>
 
                 {/* Badge */}

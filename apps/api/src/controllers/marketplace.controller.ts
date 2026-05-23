@@ -169,7 +169,7 @@ export async function getArticulo(req: Request, res: Response) {
             });
         }
 
-        const resultado = await obtenerArticuloPorId(id);
+        const resultado = await obtenerArticuloPorId(id, req.usuario?.usuarioId);
         if (!resultado.success) {
             return res.status(404).json(resultado);
         }

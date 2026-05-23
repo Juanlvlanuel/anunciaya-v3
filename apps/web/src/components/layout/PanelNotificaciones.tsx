@@ -228,6 +228,11 @@ function obtenerRutaDestino(n: Notificacion): string | null {
           : null;
       case 'marketplace':
         return referenciaId ? `/marketplace/articulo/${referenciaId}` : null;
+      case 'servicio':
+        // Sprint 9.3: notificaciones de Q&A de Servicios
+        // (`servicios_nueva_pregunta` / `servicios_pregunta_respondida`)
+        // referencian la publicación. Deep-link al detalle.
+        return referenciaId ? `/servicios/${referenciaId}` : null;
       default:
         return null;
     }

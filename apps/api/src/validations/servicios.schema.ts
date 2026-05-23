@@ -715,7 +715,7 @@ export const crearPreguntaSchema = z.object({
     pregunta: z
         .string()
         .trim()
-        .min(10, 'La pregunta debe tener al menos 10 caracteres')
+        .min(5, 'La pregunta debe tener al menos 5 caracteres')
         .max(200, 'La pregunta no puede exceder 200 caracteres'),
 });
 

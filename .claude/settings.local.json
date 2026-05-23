@@ -249,7 +249,19 @@
       "Bash(findstr /R \"\\\\.env$\")",
       "Bash(grep -v \"useNavigate\\\\|import\\\\|//\")",
       "Bash(pnpm type:check:web)",
-      "Bash(awk '/<div className=\"mt-3 space-y-3\">/{a=NR} /<\\\\/div>/{if\\(a\\){print NR\": close of div opened at \"a; a=0}} ' apps/web/src/components/servicios/composer/ComposerServicios.tsx)"
+      "Bash(awk '/<div className=\"mt-3 space-y-3\">/{a=NR} /<\\\\/div>/{if\\(a\\){print NR\": close of div opened at \"a; a=0}} ' apps/web/src/components/servicios/composer/ComposerServicios.tsx)",
+      "Bash(pnpm --filter web exec tsc --noEmit -p apps/web/tsconfig.app.json)",
+      "Bash(npx --prefix apps/web tsc --noEmit -p apps/web)",
+      "Bash(npx --prefix apps/web eslint apps/web/src/components/servicios/CardServicioMio.tsx)",
+      "Bash(npx --prefix apps/web eslint apps/web/src/components/servicios/CardHorizontal.tsx)",
+      "Bash(npx --prefix apps/web eslint apps/web/src/components/servicios/CardServicio.tsx)",
+      "Bash(npx --prefix apps/api tsc --noEmit -p apps/api)",
+      "Bash(npx --prefix apps/web eslint apps/web/src/pages/private/servicios/PaginaServicios.tsx apps/web/src/components/servicios/ClasificadosWidget.tsx)",
+      "Bash(node node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(node ../../node_modules/typescript/bin/tsc --noEmit)",
+      "Bash(echo \"EXIT_FE=$?\")",
+      "Bash(echo \"EXIT_API=$?\")",
+      "Bash(echo \"EXIT_WEB=$?\")"
     ]
   },
   "disableAllHooks": true
