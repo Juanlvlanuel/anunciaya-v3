@@ -49,8 +49,7 @@ import { useScanYAStore } from '@/stores/useScanYAStore';
 import scanyaService, { type PeriodoHistorial } from '@/services/scanyaService';
 import type { TransaccionScanYA } from '@/types/scanya';
 import { TarjetaTransaccion } from './TarjetaTransaccion';
-import { useChatYAStore } from '@/stores/useChatYAStore';
-import { useUiStore } from '@/stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '@/hooks/useIniciarChatDirectoPersona';
 
 // =============================================================================
 // TIPOS
@@ -262,6 +261,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   // ---------------------------------------------------------------------------
   const { usuario, nivelesActivos, setNivelesActivos } = useScanYAStore();
   const tipoUsuario = usuario?.tipo || 'empleado';
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
   // ---------------------------------------------------------------------------
   // Estado - Filtros
@@ -602,17 +602,13 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     }[t.registradoPorTipo] || { icono: Users, label: '' };
     const RegistradorIcono = registradorConfig.icono;
 
-    const abrirChatTemporal = useChatYAStore.getState().abrirChatTemporal;
-    const abrirChatYA = useUiStore.getState().abrirChatYA;
-
     const handleContactar = () => {
       if (!t.clienteId) return;
-      abrirChatTemporal({
-        id: `temp_${Date.now()}`,
-        otroParticipante: { id: t.clienteId, nombre: t.clienteNombre, apellidos: '', avatarUrl: t.clienteAvatarUrl ?? null },
-        datosCreacion: { participante2Id: t.clienteId, participante2Modo: 'personal', contextoTipo: 'directo' },
+      void iniciarChatDirectoPersona({
+        usuarioId: t.clienteId,
+        nombre: t.clienteNombre,
+        avatarUrl: t.clienteAvatarUrl ?? null,
       });
-      abrirChatYA();
       setTransaccionDetalle(null);
       onClose();
     };

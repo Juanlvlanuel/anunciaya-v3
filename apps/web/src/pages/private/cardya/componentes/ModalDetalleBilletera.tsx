@@ -20,8 +20,7 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import Tooltip from '../../../../components/ui/Tooltip';
 import type { DetalleNegocioBilletera } from '../../../../types/cardya';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatNegocio } from '../../../../hooks/useIniciarChatNegocio';
 
 // Configuración de niveles
 const NIVELES_CONFIG = {
@@ -69,8 +68,7 @@ export default function ModalDetalleBilletera({
 
   const nivel = NIVELES_CONFIG[billetera.nivelActual];
   const nivelesActivos = billetera.nivelesActivos ?? true;
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatNegocio = useIniciarChatNegocio();
 
   const handleChatYA = () => {
     if (!billetera.negocioUsuarioId) return;
@@ -85,26 +83,12 @@ export default function ModalDetalleBilletera({
     // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
     // Fallback al logo si la sucursal aún no tiene foto subida.
     const avatarSucursal = billetera.negocioSucursalFotoPerfil ?? billetera.negocioLogo;
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: billetera.negocioUsuarioId,
-        nombre: billetera.negocioNombre,
-        apellidos: '',
-        avatarUrl: avatarSucursal,
-        negocioNombre: billetera.negocioNombre,
-        negocioLogo: avatarSucursal ?? undefined,
-      },
-      datosCreacion: {
-        participante2Id: billetera.negocioUsuarioId,
-        participante2Modo: 'comercial',
-        // `null` en vez de `''`: el backend trata `''` como UUID inválido
-        // y rechaza la creación de la conversación.
-        participante2SucursalId: billetera.negocioSucursalId ?? null,
-        contextoTipo: 'negocio',
-      },
+    void iniciarChatNegocio({
+      usuarioId: billetera.negocioUsuarioId,
+      sucursalId: billetera.negocioSucursalId ?? null,
+      negocioNombre: billetera.negocioNombre,
+      avatarUrl: avatarSucursal,
     });
-    abrirChatYA();
     onCerrar();
   };
 

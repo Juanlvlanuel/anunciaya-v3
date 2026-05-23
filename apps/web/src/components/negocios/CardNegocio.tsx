@@ -47,8 +47,7 @@ import { useHorariosNegocio } from '../../hooks/useHorariosNegocio';
 import { useVotos } from '../../hooks/useVotos';
 import { ModalHorarios } from './ModalHorarios';
 import type { NegocioResumen } from '../../types/negocios';
-import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useUiStore } from '../../stores/useUiStore';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 
 // =============================================================================
 // TIPOS
@@ -277,19 +276,12 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     navigate(url);
   };
 
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatNegocio = useIniciarChatNegocio();
 
   const handleChat = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
-    console.log('🟡 handleChat disparado');
-    console.log('🟡 usuarioId:', negocio.usuarioId);
-    if (!negocio.usuarioId) {
-      console.log('❌ usuarioId es undefined — no abre chat');
-      return;
-    }
-    console.log('✅ Abriendo chat con:', negocio.negocioNombre);
+    if (!negocio.usuarioId) return;
     // Sufijo de sucursal — mismo criterio del header del chat: solo si >1
     // sucursales, y para la principal usar "Matriz" en lugar del nombre del
     // negocio (que sería duplicado en el header).
@@ -300,25 +292,13 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
     // Fallback al logo si la sucursal aún no tiene foto subida.
     const avatarSucursal = negocio.fotoPerfil ?? negocio.logoUrl ?? null;
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: negocio.usuarioId,
-        nombre: negocio.negocioNombre,
-        apellidos: '',
-        avatarUrl: avatarSucursal,
-        negocioNombre: negocio.negocioNombre,
-        negocioLogo: avatarSucursal ?? undefined,
-        sucursalNombre: sucursalParaHeader || undefined,
-      },
-      datosCreacion: {
-        participante2Id: negocio.usuarioId,
-        participante2Modo: 'comercial',
-        participante2SucursalId: negocio.sucursalId,
-        contextoTipo: 'negocio',
-      },
+    void iniciarChatNegocio({
+      usuarioId: negocio.usuarioId,
+      sucursalId: negocio.sucursalId,
+      negocioNombre: negocio.negocioNombre,
+      avatarUrl: avatarSucursal,
+      sucursalNombre: sucursalParaHeader,
     });
-    abrirChatYA();
   };
 
   const { liked, followed, toggleLike, toggleFollow } = useVotos({

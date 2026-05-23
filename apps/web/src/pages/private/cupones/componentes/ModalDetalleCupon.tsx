@@ -26,8 +26,7 @@ import { Spinner } from '../../../../components/ui/Spinner';
 import { notificar } from '../../../../utils/notificaciones';
 import { revelarCodigo } from '../../../../services/misCuponesService';
 import type { CuponCliente } from '../../../../services/misCuponesService';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatNegocio } from '../../../../hooks/useIniciarChatNegocio';
 
 // =============================================================================
 // HELPERS
@@ -71,8 +70,7 @@ export default function ModalDetalleCupon({
     onCerrar: () => void;
     cupon: CuponCliente | null;
 }) {
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const iniciarChatNegocio = useIniciarChatNegocio();
     const [codigoVisible, setCodigoVisible] = useState(false);
     const [codigoRevelado, setCodigoRevelado] = useState<string | null>(null);
     const [cargandoCodigo, setCargandoCodigo] = useState(false);
@@ -158,25 +156,13 @@ export default function ModalDetalleCupon({
                 datos.sucursalNombre && datos.sucursalNombre !== datos.nombre
                     ? datos.sucursalNombre
                     : undefined;
-            abrirChatTemporal({
-                id: `temp_${Date.now()}`,
-                otroParticipante: {
-                    id: datos.id,
-                    nombre: datos.nombre,
-                    apellidos: '',
-                    avatarUrl: datos.logo,
-                    negocioNombre: datos.nombre,
-                    negocioLogo: datos.logo || undefined,
-                    sucursalNombre: sucursalParaHeader,
-                },
-                datosCreacion: {
-                    participante2Id: datos.id,
-                    participante2Modo: 'comercial',
-                    participante2SucursalId: datos.sucursalId || undefined,
-                    contextoTipo: 'negocio',
-                },
+            void iniciarChatNegocio({
+                usuarioId: datos.id,
+                sucursalId: datos.sucursalId ?? null,
+                negocioNombre: datos.nombre,
+                avatarUrl: datos.logo ?? null,
+                sucursalNombre: sucursalParaHeader,
             });
-            abrirChatYA();
         }, 300);
     };
 

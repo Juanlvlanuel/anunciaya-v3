@@ -21,10 +21,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { MessageSquare, User } from 'lucide-react';
-import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useUiStore } from '../../stores/useUiStore';
-import { useAuthStore } from '../../stores/useAuthStore';
-import { notificar } from '../../utils/notificaciones';
+import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
 
 interface BotonComentaristaProps {
     usuarioId: string;
@@ -51,9 +48,7 @@ export function BotonComentarista({
     editado = false,
 }: BotonComentaristaProps) {
     const navigate = useNavigate();
-    const usuarioActual = useAuthStore((s) => s.usuario);
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
     const botonRef = useRef<HTMLButtonElement>(null);
     const popupRef = useRef<HTMLDivElement>(null);
@@ -65,34 +60,9 @@ export function BotonComentarista({
     }, [navigate, usuarioId]);
 
     const enviarMensaje = useCallback(() => {
-        if (!usuarioActual) {
-            notificar.advertencia('Inicia sesión para enviar un mensaje');
-            return;
-        }
-        if (usuarioActual.id === usuarioId) {
-            notificar.info('No puedes enviarte un mensaje a ti mismo');
-            return;
-        }
-        // Chat directo sin card de contexto. Las cards solo aplican a
-        // artículos/ofertas específicas — abrir un chat con un comentarista
-        // del feed no requiere card "Vienes del perfil de X".
-        abrirChatTemporal({
-            id: `temp_comentarista_${usuarioId}_${Date.now()}`,
-            otroParticipante: {
-                id: usuarioId,
-                nombre,
-                apellidos,
-                avatarUrl,
-            },
-            datosCreacion: {
-                participante2Id: usuarioId,
-                participante2Modo: 'personal',
-                contextoTipo: 'directo',
-            },
-        });
-        abrirChatYA();
+        void iniciarChatDirectoPersona({ usuarioId, nombre, apellidos, avatarUrl });
         setPopupAbierto(false);
-    }, [usuarioActual, usuarioId, nombre, apellidos, avatarUrl, abrirChatTemporal, abrirChatYA]);
+    }, [iniciarChatDirectoPersona, usuarioId, nombre, apellidos, avatarUrl]);
 
     /**
      * Abre el popup en la posición del cursor (estilo context menu nativo).

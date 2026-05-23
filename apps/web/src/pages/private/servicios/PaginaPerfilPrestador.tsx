@@ -55,7 +55,7 @@ import { CardServicio } from '../../../components/servicios/CardServicio';
 import { Spinner } from '../../../components/ui/Spinner';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
-import { useUiStore } from '../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
 import { notificar } from '../../../utils/notificaciones';
 import {
     formatearTiempoRelativo,
@@ -76,17 +76,13 @@ export function PaginaPerfilPrestador() {
     const handleVolver = useVolverAtras('/servicios');
     const usuarioActual = useAuthStore((s) => s.usuario);
 
-    // Stores de ChatYA (mismo patrón que perfil de MP) para soportar el
-    // botón "ChatYA" + "Agregar contacto" del hero card.
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
-    const conversaciones = useChatYAStore((s) => s.conversaciones);
-    const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
+    // ChatYA: hook centralizado para "Enviar mensaje" + store para
+    // agenda de contactos (contactos del hero card).
+    const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
     const contactos = useChatYAStore((s) => s.contactos);
     const cargarContactos = useChatYAStore((s) => s.cargarContactos);
     const agregarContacto = useChatYAStore((s) => s.agregarContacto);
     const eliminarContacto = useChatYAStore((s) => s.eliminarContacto);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
 
     const {
         data: perfil,
@@ -165,44 +161,12 @@ export function PaginaPerfilPrestador() {
 
     const handleEnviarMensaje = async () => {
         if (!perfil) return;
-        if (!usuarioActual) {
-            notificar.advertencia('Inicia sesión para enviar un mensaje');
-            return;
-        }
-
-        let convs = conversaciones;
-        if (convs.length === 0) {
-            await cargarConversaciones('personal');
-            convs = useChatYAStore.getState().conversaciones;
-        }
-
-        // Buscar conversación existente con este usuario en modo personal
-        // (sin negocio asociado — es chat persona↔persona).
-        const convExistente = convs.find(
-            (c) =>
-                c.otroParticipante?.id === perfil.id &&
-                !c.otroParticipante?.negocioNombre,
-        );
-
-        if (convExistente) {
-            abrirConversacion(convExistente.id);
-        } else {
-            abrirChatTemporal({
-                id: `temp_prestador_${perfil.id}_${Date.now()}`,
-                otroParticipante: {
-                    id: perfil.id,
-                    nombre: perfil.nombre,
-                    apellidos: perfil.apellidos,
-                    avatarUrl: perfil.avatarUrl,
-                },
-                datosCreacion: {
-                    participante2Id: perfil.id,
-                    participante2Modo: 'personal',
-                    contextoTipo: 'directo',
-                },
-            });
-        }
-        abrirChatYA();
+        await iniciarChatDirectoPersona({
+            usuarioId: perfil.id,
+            nombre: perfil.nombre,
+            apellidos: perfil.apellidos,
+            avatarUrl: perfil.avatarUrl,
+        });
     };
 
     if (cargandoPerfil) {

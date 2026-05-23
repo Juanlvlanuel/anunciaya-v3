@@ -37,8 +37,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useAuthStore } from '../../../../stores/useAuthStore';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
 import type { VoucherCanje } from '../../../../types/transacciones';
 
 // =============================================================================
@@ -142,8 +141,7 @@ export default function ModalDetalleCanjeBS({
   const totalSucursales = useAuthStore((s) => s.totalSucursales);
   const nombreNegocio = useAuthStore((s) => s.usuario?.nombreNegocio ?? null);
   const tieneSucursales = totalSucursales > 1;
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
   if (!abierto || !canje) return null;
 
@@ -163,21 +161,11 @@ export default function ModalDetalleCanjeBS({
 
     onCerrar();
     setTimeout(() => {
-      abrirChatTemporal({
-        id: `temp_${Date.now()}`,
-        otroParticipante: {
-          id: datos.id,
-          nombre: datos.nombre,
-          apellidos: '',
-          avatarUrl: datos.avatarUrl,
-        },
-        datosCreacion: {
-          participante2Id: datos.id,
-          participante2Modo: 'personal',
-          contextoTipo: 'directo',
-        },
+      void iniciarChatDirectoPersona({
+        usuarioId: datos.id,
+        nombre: datos.nombre,
+        avatarUrl: datos.avatarUrl,
       });
-      abrirChatYA();
     }, 300);
   };
 

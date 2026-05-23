@@ -51,8 +51,7 @@ import { useClientesStore } from '../../../../stores/useClientesStore';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { useClientesKPIs, useClientesLista } from '../../../../hooks/queries/useClientes';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
 import { descargarExcel } from '../../../../services/clientesService';
 import Tooltip from '../../../../components/ui/Tooltip';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
@@ -450,28 +449,17 @@ export default function PaginaClientes() {
   }, []);
 
   // ─── Handler abrir ChatYA con cliente ───
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
   const handleChatear = useCallback((clienteId: string) => {
     const cliente = clientes.find((c) => c.id === clienteId);
     if (!cliente) return;
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: cliente.id,
-        nombre: cliente.nombre,
-        apellidos: '',
-        avatarUrl: cliente.avatarUrl ?? null,
-      },
-      datosCreacion: {
-        participante2Id: cliente.id,
-        participante2Modo: 'personal',
-        contextoTipo: 'directo',
-      },
+    void iniciarChatDirectoPersona({
+      usuarioId: cliente.id,
+      nombre: cliente.nombre,
+      avatarUrl: cliente.avatarUrl ?? null,
     });
-    abrirChatYA();
-  }, [clientes, abrirChatTemporal, abrirChatYA]);
+  }, [clientes, iniciarChatDirectoPersona]);
 
   // ─── Handler cerrar modal ───
   const handleCerrarModal = useCallback(() => {

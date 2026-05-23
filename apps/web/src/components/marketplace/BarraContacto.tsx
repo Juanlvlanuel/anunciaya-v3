@@ -20,10 +20,8 @@
  * Ubicación: apps/web/src/components/marketplace/BarraContacto.tsx
  */
 
-import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useUiStore } from '../../stores/useUiStore';
 import { useAuthStore } from '../../stores/useAuthStore';
-import { notificar } from '../../utils/notificaciones';
+import { useIniciarChatMarketplace } from '../../hooks/useIniciarChatMarketplace';
 import type { ArticuloMarketplaceDetalle } from '../../types/marketplace';
 
 interface BarraContactoProps {
@@ -51,11 +49,9 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 
 export function BarraContacto({ articulo, variante }: BarraContactoProps) {
     const usuarioActual = useAuthStore((s) => s.usuario);
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const setContextoPendiente = useChatYAStore((s) => s.setContextoPendiente);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const iniciarChatMarketplace = useIniciarChatMarketplace();
 
-    const { vendedor, titulo, id } = articulo;
+    const { vendedor, titulo } = articulo;
     const esDueno = usuarioActual?.id === vendedor.id;
     const tieneTelefono = !!vendedor.telefono && vendedor.telefono.trim().length > 0;
 
@@ -75,57 +71,7 @@ export function BarraContacto({ articulo, variante }: BarraContactoProps) {
     };
 
     const handleEnviarMensaje = () => {
-        if (!usuarioActual) {
-            notificar.advertencia('Inicia sesión para enviar un mensaje');
-            return;
-        }
-        const idTemp = `temp_marketplace_${id}_${Date.now()}`;
-
-        // Foto principal del artículo para el preview.
-        const fotos = articulo.fotos ?? [];
-        const idxPortada = Math.max(
-            0,
-            Math.min(articulo.fotoPortadaIndex ?? 0, fotos.length - 1),
-        );
-        const fotoUrl = fotos[idxPortada] ?? fotos[0] ?? null;
-
-        // Datos para insertar la card al enviar el primer mensaje.
-        const datosCreacion = {
-            participante2Id: vendedor.id,
-            participante2Modo: 'personal' as const,
-            contextoTipo: 'marketplace' as const,
-            contextoReferenciaId: id,
-            // FK al artículo: el backend hace JOIN para snapshot y emite
-            // el mensaje sistema vía Socket.io a ambos participantes al
-            // materializar la conv.
-            articuloMarketplaceId: id,
-        };
-
-        // Datos para el preview encima del input.
-        const cardData = {
-            subtipo: 'articulo_marketplace' as const,
-            titulo,
-            imagen: fotoUrl,
-            precio: articulo.precio,
-            condicion: articulo.condicion ?? undefined,
-        };
-
-        abrirChatTemporal({
-            id: idTemp,
-            otroParticipante: {
-                id: vendedor.id,
-                nombre: vendedor.nombre,
-                apellidos: vendedor.apellidos,
-                avatarUrl: vendedor.avatarUrl,
-            },
-            datosCreacion,
-            borradorInicial: `Hola, me interesa tu publicación de "${titulo}". `,
-        });
-        // Preview del recurso encima del input. La card NO se persiste
-        // hasta que el usuario envíe; al hacerlo, la materialización con
-        // `articuloMarketplaceId` la insertará en BD.
-        setContextoPendiente({ datosCreacion, cardData });
-        abrirChatYA();
+        void iniciarChatMarketplace(articulo);
     };
 
     // ─── Variantes ────────────────────────────────────────────────────────────

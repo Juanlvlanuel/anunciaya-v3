@@ -60,25 +60,16 @@ export default function HeaderScanYA({ className = '', onCambioSucursal }: Heade
 
       try {
         const respuesta = await obtenerSucursalesNegocio(usuario.negocioId);
-        
-        console.log('[HEADER DEBUG] Sucursales obtenidas:', respuesta.data);
-        console.log('[HEADER DEBUG] usuario.sucursalId:', usuario.sucursalId);
-        console.log('[HEADER DEBUG] usuario.tipo:', usuario.tipo);
-        
+
         if (respuesta.success && respuesta.data) {
           setTotalSucursales(respuesta.data.length);
 
           // Buscar la sucursal actual para obtener su nombre real y si es principal
           const sucursalActual = respuesta.data.find(s => s.id === usuario.sucursalId);
-          
-          console.log('[HEADER DEBUG] sucursalActual encontrada:', sucursalActual);
-          
+
           if (sucursalActual) {
             setEsSucursalPrincipal(sucursalActual.esPrincipal);
             setNombreSucursalReal(sucursalActual.nombre);
-            
-            console.log('[HEADER DEBUG] esPrincipal:', sucursalActual.esPrincipal);
-            console.log('[HEADER DEBUG] nombreSucursalReal:', sucursalActual.nombre);
           }
         }
       } catch (error) {

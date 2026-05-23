@@ -44,8 +44,7 @@ import { notificar } from '../../../../utils/notificaciones';
 import { useRevocarTransaccion } from '../../../../hooks/queries/useTransacciones';
 import { useAuthStore } from '../../../../stores/useAuthStore';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
 import type { TransaccionPuntos } from '../../../../types/puntos';
 
 // =============================================================================
@@ -154,8 +153,7 @@ export default function ModalDetalleTransaccionBS({
   const { data: configPuntos } = usePuntosConfiguracion();
   const nivelesActivos = configPuntos?.nivelesActivos ?? true;
   const tieneSucursales = totalSucursales > 1;
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
   // ─── Handler ChatYA ───
   const handleContactarCliente = () => {
@@ -177,21 +175,11 @@ export default function ModalDetalleTransaccionBS({
 
     handleCerrar();
     setTimeout(() => {
-      abrirChatTemporal({
-        id: `temp_${Date.now()}`,
-        otroParticipante: {
-          id: datos.id,
-          nombre: datos.nombre,
-          apellidos: '',
-          avatarUrl: datos.avatarUrl,
-        },
-        datosCreacion: {
-          participante2Id: datos.id,
-          participante2Modo: 'personal',
-          contextoTipo: 'directo',
-        },
+      void iniciarChatDirectoPersona({
+        usuarioId: datos.id,
+        nombre: datos.nombre,
+        avatarUrl: datos.avatarUrl,
       });
-      abrirChatYA();
     }, 300);
   };
 

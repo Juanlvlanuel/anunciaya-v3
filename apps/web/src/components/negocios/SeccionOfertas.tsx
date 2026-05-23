@@ -132,30 +132,21 @@ export default function SeccionOfertas({ ofertas, whatsapp, negocioNombre, negoc
     const handleClickOferta = (oferta: Oferta) => {
         const ofertaId = getId(oferta);
         const claveClick = `click_oferta_${ofertaId}`;
-        
-        console.log('🖱️ Click en oferta:', oferta.titulo);
-        console.log('🔑 Clave click:', claveClick);
-        console.log('📦 Ya registrado?:', sessionStorage.getItem(claveClick));
-        
-        // Registrar click (solo 1 vez por oferta por sesión)
+
+        // Registrar click (solo 1 vez por oferta por sesión). Las métricas
+        // no deben afectar la UX: errores se swallowan en silencio, mismo
+        // patrón que el registro de impresiones en useEffect arriba.
         if (!sessionStorage.getItem(claveClick)) {
-            console.log('📤 Registrando click...');
-            
             api.post('/metricas/click', {
                 entityType: 'oferta',
-                entityId: ofertaId
+                entityId: ofertaId,
             })
-            .then((response) => {
-                console.log('✅ Click registrado exitosamente');
-                console.log('📊 Respuesta:', response.data);
-                sessionStorage.setItem(claveClick, new Date().toISOString());
-            })
-            .catch((error) => {
-                console.error('❌ Error registrando click:', error);
-                console.error('❌ Response:', error.response);
-            });
-        } else {
-            console.log('⏭️ Click ya registrado en esta sesión');
+                .then(() => {
+                    sessionStorage.setItem(claveClick, new Date().toISOString());
+                })
+                .catch(() => {
+                    // Silenciar errores de métricas
+                });
         }
 
         // Abrir modal de detalle

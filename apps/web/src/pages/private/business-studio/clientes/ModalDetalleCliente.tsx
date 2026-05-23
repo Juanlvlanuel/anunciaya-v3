@@ -36,8 +36,7 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useClienteDetalle, useClienteHistorial } from '../../../../hooks/queries/useClientes';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
 
 // =============================================================================
@@ -215,8 +214,7 @@ export default function ModalDetalleCliente({
   const cargandoDetalle = detalleQuery.isPending;
   const cargandoHistorial = historialQuery.isPending;
 
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
   const { data: configPuntos } = usePuntosConfiguracion();
   const nivelesActivos = configPuntos?.nivelesActivos ?? true;
 
@@ -269,21 +267,11 @@ export default function ModalDetalleCliente({
 
     handleCerrar();
     setTimeout(() => {
-      abrirChatTemporal({
-        id: `temp_${Date.now()}`,
-        otroParticipante: {
-          id: datos.id,
-          nombre: datos.nombre,
-          apellidos: '',
-          avatarUrl: datos.avatarUrl,
-        },
-        datosCreacion: {
-          participante2Id: datos.id,
-          participante2Modo: 'personal',
-          contextoTipo: 'directo',
-        },
+      void iniciarChatDirectoPersona({
+        usuarioId: datos.id,
+        nombre: datos.nombre,
+        avatarUrl: datos.avatarUrl,
       });
-      abrirChatYA();
     }, 300);
   };
 

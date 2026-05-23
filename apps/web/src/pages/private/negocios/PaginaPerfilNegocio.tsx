@@ -69,8 +69,7 @@ import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 // useNegociosCacheStore eliminado — React Query maneja caché
-import { useChatYAStore } from '../../../stores/useChatYAStore';
-import { useUiStore } from '../../../stores/useUiStore';
+import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
 import { notificar } from '../../../utils/notificaciones';
 import { SeccionCatalogo, SeccionOfertas, SeccionResenas, ModalOfertaDetalle } from '../../../components/negocios';
 import { useLockScroll } from '../../../hooks/useLockScroll';
@@ -519,8 +518,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
     const sucursalId = sucursalIdOverride || sucursalIdParam;
     const navigate = useNavigate();
     const { usuario } = useAuthStore();
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const iniciarChatNegocio = useIniciarChatNegocio();
 
     // ✅ Store de caché para ofertas y catálogo
     // React Query
@@ -826,25 +824,13 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
         // Fallback al logo si la sucursal aún no tiene foto subida.
         const avatarSucursal = negocio.fotoPerfil ?? negocio.logoUrl ?? null;
-        abrirChatTemporal({
-            id: `temp_${Date.now()}`,
-            otroParticipante: {
-                id: negocio.usuarioId,
-                nombre: negocio.negocioNombre,
-                apellidos: '',
-                avatarUrl: avatarSucursal,
-                negocioNombre: negocio.negocioNombre,
-                negocioLogo: avatarSucursal ?? undefined,
-                sucursalNombre: sucursalParaHeader || undefined,
-            },
-            datosCreacion: {
-                participante2Id: negocio.usuarioId,
-                participante2Modo: 'comercial',
-                participante2SucursalId: negocio.sucursalId,
-                contextoTipo: 'negocio',
-            },
+        void iniciarChatNegocio({
+            usuarioId: negocio.usuarioId,
+            sucursalId: negocio.sucursalId,
+            negocioNombre: negocio.negocioNombre,
+            avatarUrl: avatarSucursal,
+            sucursalNombre: sucursalParaHeader,
         });
-        abrirChatYA();
     };
 
     // ✅ NUEVO: Handlers simplificados para ModalImagenes

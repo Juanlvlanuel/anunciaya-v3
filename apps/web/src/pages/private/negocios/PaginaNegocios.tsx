@@ -53,7 +53,7 @@ import { usePerfilCategorias, usePerfilSubcategorias } from '../../../hooks/quer
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useMainScrollStore } from '../../../stores/useMainScrollStore';
-import { useChatYAStore } from '../../../stores/useChatYAStore';
+import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
@@ -522,8 +522,7 @@ export function PaginaNegocios() {
   const btnCategoriaRef = useRef<HTMLButtonElement>(null);
   const btnSubcategoriaRef = useRef<HTMLButtonElement>(null);
   const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatNegocio = useIniciarChatNegocio();
 
   const handleChatPopup = useCallback((negocio: NegocioResumen) => {
     if (!negocio.usuarioId) return;
@@ -538,26 +537,14 @@ export function PaginaNegocios() {
     // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
     // Fallback al logo si la sucursal aún no tiene foto subida.
     const avatarSucursal = negocio.fotoPerfil ?? negocio.logoUrl ?? null;
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: negocio.usuarioId,
-        nombre: negocio.negocioNombre,
-        apellidos: '',
-        avatarUrl: avatarSucursal,
-        negocioNombre: negocio.negocioNombre,
-        negocioLogo: avatarSucursal ?? undefined,
-        sucursalNombre: sucursalParaHeader || undefined,
-      },
-      datosCreacion: {
-        participante2Id: negocio.usuarioId,
-        participante2Modo: 'comercial',
-        participante2SucursalId: negocio.sucursalId,
-        contextoTipo: 'negocio',
-      },
+    void iniciarChatNegocio({
+      usuarioId: negocio.usuarioId,
+      sucursalId: negocio.sucursalId,
+      negocioNombre: negocio.negocioNombre,
+      avatarUrl: avatarSucursal,
+      sucursalNombre: sucursalParaHeader,
     });
-    abrirChatYA();
-  }, [abrirChatTemporal, abrirChatYA]);
+  }, [iniciarChatNegocio]);
 
   // Refs para sincronización bidireccional
   const markerRefs = useRef<Record<string, L.Marker>>({});

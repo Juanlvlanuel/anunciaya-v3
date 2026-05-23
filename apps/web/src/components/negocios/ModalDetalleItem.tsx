@@ -23,8 +23,7 @@ import { useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import Tooltip from '../ui/Tooltip';
 import api from '../../services/api';
-import { useChatYAStore } from '@/stores/useChatYAStore';
-import { useUiStore } from '@/stores/useUiStore';
+import { useIniciarChatNegocio } from '@/hooks/useIniciarChatNegocio';
 import { useAuthStore } from '@/stores/useAuthStore';
 
 // =============================================================================
@@ -67,13 +66,7 @@ interface ModalDetalleItemProps {
 // =============================================================================
 
 export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId, negocioNombre, logoUrl, sucursalFotoPerfil, onClose, openedFromModal: _openedFromModal = false }: ModalDetalleItemProps) {
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
-    const conversaciones = useChatYAStore((s) => s.conversaciones);
-    const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
-    const setContextoPendiente = useChatYAStore((s) => s.setContextoPendiente);
-    const guardarBorrador = useChatYAStore((s) => s.guardarBorrador);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const iniciarChatNegocio = useIniciarChatNegocio();
     const usuario = useAuthStore((s) => s.usuario);
     // Registrar vista del artículo (con filtro de cooldown)
     useEffect(() => {
@@ -136,73 +129,28 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
             history.replaceState(estado, '');
         }
 
-        // Datos para insertar la card del artículo cuando el usuario envíe
-        // el primer mensaje. El backend reusa la conv si ya existe.
-        const datosCreacion = {
-            participante2Id: negocioUsuarioId,
-            participante2Modo: 'comercial' as const,
-            participante2SucursalId: sucursalId ?? null,
-            contextoTipo: 'articulo_negocio' as const,
-            contextoReferenciaId: item.id,
-        };
-
-        // Datos para renderizar el preview encima del input.
-        const cardData = {
-            subtipo: 'articulo_negocio' as const,
-            titulo: item.nombre,
-            imagen: item.imagenPrincipal ?? null,
-            precio: item.precioBase,
-            tipoArticulo: (item.tipo === 'servicio' ? 'servicio' : 'producto') as 'producto' | 'servicio',
-        };
-
-        const borradorTexto = `Hola, me interesa: "${item.nombre}". `;
-
-        // ── Buscar conversación existente con este negocio ────────────────
-        // Si ya hay chat con este negocio, abrirlo y mostrar el preview
-        // arriba del input. La card SOLO se persiste al enviar el mensaje.
-        let convs = conversaciones;
-        if (convs.length === 0) {
-            await cargarConversaciones('personal');
-            convs = useChatYAStore.getState().conversaciones;
-        }
-        const convExistente = convs.find(
-            (c) =>
-                c.otroParticipante?.id === negocioUsuarioId &&
-                !!c.otroParticipante?.negocioNombre,
-        );
-
-        if (convExistente) {
-            abrirConversacion(convExistente.id);
-            setContextoPendiente({ datosCreacion, cardData });
-            guardarBorrador(convExistente.id, borradorTexto);
-            abrirChatYA();
-            onClose();
-            return;
-        }
-
-        // ── No hay chat previo: chat temporal + preview (sin optimista en chat)
-        const idTemp = `temp_articulo_${item.id}_${Date.now()}`;
-
         // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
         // Fallback al logo si la sucursal aún no tiene foto subida.
         const avatarSucursal = sucursalFotoPerfil ?? logoUrl ?? null;
-        abrirChatTemporal({
-            id: idTemp,
-            otroParticipante: {
-                id: negocioUsuarioId,
-                nombre: negocioNombre ?? '',
-                apellidos: '',
-                avatarUrl: avatarSucursal,
-                negocioNombre: negocioNombre ?? undefined,
-                negocioLogo: avatarSucursal ?? undefined,
+
+        await iniciarChatNegocio({
+            usuarioId: negocioUsuarioId,
+            sucursalId: sucursalId ?? null,
+            negocioNombre: negocioNombre ?? '',
+            avatarUrl: avatarSucursal,
+            contexto: {
+                tipo: 'articulo_negocio',
+                referenciaId: item.id,
+                cardData: {
+                    subtipo: 'articulo_negocio',
+                    titulo: item.nombre,
+                    imagen: item.imagenPrincipal ?? null,
+                    precio: item.precioBase,
+                    tipoArticulo: item.tipo === 'servicio' ? 'servicio' : 'producto',
+                },
+                borradorInicial: `Hola, me interesa: "${item.nombre}". `,
             },
-            datosCreacion,
-            borradorInicial: borradorTexto,
         });
-        // Setear preview encima del input. La card solo se persiste cuando
-        // se materializa la conv al enviar el primer mensaje.
-        setContextoPendiente({ datosCreacion, cardData });
-        abrirChatYA();
         onClose();
     };
 

@@ -87,7 +87,7 @@ const WhatsAppIcon = ({ className }: { className?: string }) => (
 );
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useChatYAStore } from '../../../stores/useChatYAStore';
-import { useUiStore } from '../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../hooks/useIniciarChatDirectoPersona';
 import {
     useVendedorMarketplace,
     useVendedorPublicaciones,
@@ -141,11 +141,7 @@ export function PaginaPerfilVendedor() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
     const usuarioActual = useAuthStore((s) => s.usuario);
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
-    const conversaciones = useChatYAStore((s) => s.conversaciones);
-    const cargarConversaciones = useChatYAStore((s) => s.cargarConversaciones);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+    const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
     // ─── Bloqueo de usuario (sistema reusado de ChatYA) ───────────────────────
     // El bloqueo es BIDIRECCIONAL en backend: si A bloquea a B, ninguno puede
@@ -313,54 +309,12 @@ export function PaginaPerfilVendedor() {
 
     const handleEnviarMensaje = async () => {
         if (!perfil) return;
-        if (!usuarioActual) {
-            notificar.advertencia('Inicia sesión para enviar un mensaje');
-            return;
-        }
-
-        // Si las conversaciones aún no están cargadas, las cargamos para
-        // poder buscar duplicados antes de abrir un chat temporal nuevo.
-        // (Mismo patrón que ListaConversaciones.handleChatDesdeContacto.)
-        let convs = conversaciones;
-        if (convs.length === 0) {
-            await cargarConversaciones('personal');
-            convs = useChatYAStore.getState().conversaciones;
-        }
-
-        // Buscar conversación existente con este usuario en modo personal
-        // (sin negocio asociado — es chat persona↔persona).
-        const convExistente = convs.find(
-            (c) =>
-                c.otroParticipante?.id === perfil.id &&
-                !c.otroParticipante?.negocioNombre,
-        );
-
-        if (convExistente) {
-            // Ya existía: abrir esa conversación (con su historial).
-            abrirConversacion(convExistente.id);
-        } else {
-            // Primer contacto: abrir chat temporal sin contexto. La conversación
-            // se materializa al enviar el primer mensaje. No sembramos card de
-            // "Vienes del perfil de X" — se decidió que ese contexto no aporta
-            // valor real (el iniciador ya sabe de dónde viene; el receptor no
-            // gana nada con saber el medio). Las cards de contexto solo aplican
-            // a artículos/ofertas específicas, no a contacto desde perfil.
-            abrirChatTemporal({
-                id: `temp_vendedor_${perfil.id}_${Date.now()}`,
-                otroParticipante: {
-                    id: perfil.id,
-                    nombre: perfil.nombre,
-                    apellidos: perfil.apellidos,
-                    avatarUrl: perfil.avatarUrl,
-                },
-                datosCreacion: {
-                    participante2Id: perfil.id,
-                    participante2Modo: 'personal',
-                    contextoTipo: 'directo',
-                },
-            });
-        }
-        abrirChatYA();
+        await iniciarChatDirectoPersona({
+            usuarioId: perfil.id,
+            nombre: perfil.nombre,
+            apellidos: perfil.apellidos,
+            avatarUrl: perfil.avatarUrl,
+        });
     };
 
     if (cargandoPerfil) {

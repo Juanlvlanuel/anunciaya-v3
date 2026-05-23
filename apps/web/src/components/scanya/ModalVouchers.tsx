@@ -44,8 +44,7 @@ import {
 } from 'lucide-react';
 import scanyaService from '@/services/scanyaService';
 import { useScanYAStore } from '@/stores/useScanYAStore';
-import { useChatYAStore } from '@/stores/useChatYAStore';
-import { useUiStore } from '@/stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '@/hooks/useIniciarChatDirectoPersona';
 import { TarjetaVoucher } from './TarjetaVoucher';
 import type { VoucherCompleto, ClienteConVouchers } from '@/types/scanya';
 import { Coins } from 'lucide-react';
@@ -320,6 +319,7 @@ export function ModalVouchers({
     // ---------------------------------------------------------------------------
     const usuario = useScanYAStore((s) => s.usuario);
     const tipoUsuario = usuario?.tipo || 'empleado';
+    const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
     // Buscador
     const [buscadorAbierto, setBuscadorAbierto] = useState(false);
@@ -703,17 +703,13 @@ export function ModalVouchers({
         })();
         const EstadoIcono = estadoConfig.icon;
 
-        const abrirChatTemporal = useChatYAStore.getState().abrirChatTemporal;
-        const abrirChatYA = useUiStore.getState().abrirChatYA;
-
         const handleContactar = () => {
             if (!v.usuarioId) return;
-            abrirChatTemporal({
-                id: `temp_${Date.now()}`,
-                otroParticipante: { id: v.usuarioId, nombre: v.usuarioNombre, apellidos: '', avatarUrl: v.usuarioAvatarUrl ?? null },
-                datosCreacion: { participante2Id: v.usuarioId, participante2Modo: 'personal', contextoTipo: 'directo' },
+            void iniciarChatDirectoPersona({
+                usuarioId: v.usuarioId,
+                nombre: v.usuarioNombre,
+                avatarUrl: v.usuarioAvatarUrl ?? null,
             });
-            abrirChatYA();
             setVoucherDetalle(null);
             onClose();
         };

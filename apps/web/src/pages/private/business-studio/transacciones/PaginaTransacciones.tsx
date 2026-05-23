@@ -63,8 +63,7 @@ import {
   useTransaccionesCuponesHistorial,
   useTransaccionesCanjesHistorial,
 } from '../../../../hooks/queries/useTransacciones';
-import { useChatYAStore } from '../../../../stores/useChatYAStore';
-import { useUiStore } from '../../../../stores/useUiStore';
+import { useIniciarChatDirectoPersona } from '../../../../hooks/useIniciarChatDirectoPersona';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
 import { ModalImagenes } from '../../../../components/ui/ModalImagenes';
@@ -853,28 +852,17 @@ export default function PaginaTransacciones() {
   }, []);
 
   // ——— Abrir ChatYA con cliente ———
-  const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-  const abrirChatYA = useUiStore((s) => s.abrirChatYA);
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
   const handleChatear = useCallback((clienteId: string) => {
     const tx = historial.find((t) => t.clienteId === clienteId);
     if (!tx) return;
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: tx.clienteId,
-        nombre: tx.clienteNombre || 'Cliente',
-        apellidos: '',
-        avatarUrl: tx.clienteAvatarUrl ?? null,
-      },
-      datosCreacion: {
-        participante2Id: tx.clienteId,
-        participante2Modo: 'personal',
-        contextoTipo: 'directo',
-      },
+    void iniciarChatDirectoPersona({
+      usuarioId: tx.clienteId,
+      nombre: tx.clienteNombre || 'Cliente',
+      avatarUrl: tx.clienteAvatarUrl ?? null,
     });
-    abrirChatYA();
-  }, [historial, abrirChatTemporal, abrirChatYA]);
+  }, [historial, iniciarChatDirectoPersona]);
 
   const handleCerrarModal = useCallback(() => {
     setTxSeleccionada(null);

@@ -26,8 +26,7 @@
  */
 
 import { MapPin, Star, Store } from 'lucide-react';
-import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useUiStore } from '../../stores/useUiStore';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 
 // =============================================================================
 // TIPOS
@@ -112,12 +111,12 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
                 : `${negocio.distanciaKm.toFixed(1)} km`
             : null;
 
-    // Handler ChatYA — mismo patrón que `CardNegocioDetallado.handleChat`.
-    // Solo se muestra el botón si tenemos `usuarioId` (sin él no hay con quién
-    // crear la conversación).
-    const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
-    const abrirChatYA = useUiStore((s) => s.abrirChatYA);
-    const handleChatYA = (e: React.MouseEvent) => {
+    // Handler ChatYA — delega a `useIniciarChatNegocio` que busca
+    // conversación existente con el negocio antes de abrir temporal
+    // (evita chats duplicados). Solo se muestra el botón si tenemos
+    // `usuarioId` (sin él no hay con quién crear la conversación).
+    const iniciarChatNegocio = useIniciarChatNegocio();
+    const handleChatYA = async (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
         if (!usuarioId) return;
@@ -131,25 +130,13 @@ export function CardNegocioCompacto({ negocio, onClick, acentoHover }: CardNegoc
         // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
         // Fallback al logo si la sucursal aún no tiene foto subida.
         const avatarSucursal = negocio.fotoPerfil ?? imagenPerfil ?? null;
-        abrirChatTemporal({
-            id: `temp_${Date.now()}`,
-            otroParticipante: {
-                id: usuarioId,
-                nombre,
-                apellidos: '',
-                avatarUrl: avatarSucursal,
-                negocioNombre: nombre,
-                negocioLogo: avatarSucursal ?? undefined,
-                sucursalNombre: sucursalParaHeader || undefined,
-            },
-            datosCreacion: {
-                participante2Id: usuarioId,
-                participante2Modo: 'comercial',
-                participante2SucursalId: negocio.sucursalId,
-                contextoTipo: 'negocio',
-            },
+        await iniciarChatNegocio({
+            usuarioId,
+            sucursalId: negocio.sucursalId,
+            negocioNombre: nombre,
+            avatarUrl: avatarSucursal,
+            sucursalNombre: sucursalParaHeader,
         });
-        abrirChatYA();
     };
 
     return (

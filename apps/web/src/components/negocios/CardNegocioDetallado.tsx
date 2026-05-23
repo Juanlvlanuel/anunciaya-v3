@@ -24,8 +24,7 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { ModalHorarios } from './ModalHorarios';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
-import { useChatYAStore } from '../../stores/useChatYAStore';
-import { useUiStore } from '../../stores/useUiStore';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 
 // =============================================================================
 // TIPOS
@@ -139,8 +138,7 @@ export function CardNegocioDetallado({
 }: CardNegocioDetalladoProps) {
 
     const { prefetch: prefetchCompleto } = useNegocioPrefetch();
-    const { abrirChatTemporal } = useChatYAStore();
-    const { abrirChatYA } = useUiStore();
+    const iniciarChatNegocio = useIniciarChatNegocio();
 
     const { horarios, loading: loadingHorarios, fetchHorarios, reset: resetHorarios } = useHorariosNegocio();
     const [modalHorariosAbierto, setModalHorariosAbierto] = useState(false);
@@ -213,7 +211,7 @@ export function CardNegocioDetallado({
         resetHorarios();
     };
 
-    const handleChat = (e: React.MouseEvent) => {
+    const handleChat = async (e: React.MouseEvent) => {
         e.stopPropagation();
         e.preventDefault();
         if (!negocio.usuarioId) return;
@@ -227,25 +225,16 @@ export function CardNegocioDetallado({
         // Avatar: foto de perfil de la SUCURSAL (no el logo del negocio).
         // Fallback al logo si la sucursal aún no tiene foto subida.
         const avatarSucursal = negocio.fotoPerfil ?? negocio.imagenPerfil ?? null;
-        abrirChatTemporal({
-            id: `temp_${Date.now()}`,
-            otroParticipante: {
-                id: negocio.usuarioId,
-                nombre: negocio.nombre,
-                apellidos: '',
-                avatarUrl: avatarSucursal,
-                negocioNombre: negocio.nombre,
-                negocioLogo: avatarSucursal ?? undefined,
-                sucursalNombre: sucursalParaHeader || undefined,
-            },
-            datosCreacion: {
-                participante2Id: negocio.usuarioId,
-                participante2Modo: 'comercial',
-                participante2SucursalId: negocio.sucursalId,
-                contextoTipo: 'negocio',
-            },
+        // `useIniciarChatNegocio` busca conversación existente con el
+        // mismo negocio y la abre directamente, evitando crear chats
+        // temporales duplicados.
+        await iniciarChatNegocio({
+            usuarioId: negocio.usuarioId,
+            sucursalId: negocio.sucursalId,
+            negocioNombre: negocio.nombre,
+            avatarUrl: avatarSucursal,
+            sucursalNombre: sucursalParaHeader,
         });
-        abrirChatYA();
     };
 
     const handleTouchStart = (e: React.TouchEvent) => {
