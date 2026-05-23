@@ -28,6 +28,8 @@ const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession, obtenerMiIdChatYA } from '../../hooks/useChatYASession';
+import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
+import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { ConversacionItem } from './ConversacionItem';
 import { MenuContextualChat } from './MenuContextualChat';
@@ -78,6 +80,12 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   const contactos = useChatYAStore((s) => s.contactos);
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
+
+  // Hooks centralizados para iniciar chat desde resultados del buscador.
+  // Internamente buscan conv existente antes de abrir chat temporal para
+  // evitar duplicados visuales (misma persona/negocio como temporal + real).
+  const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
+  const iniciarChatNegocio = useIniciarChatNegocio();
 
   const { modo: modoActivo } = useChatYASession();
 
@@ -356,50 +364,33 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   }, []);
 
   // ---------------------------------------------------------------------------
-  // Handler: Click en persona → abrir chat temporal (lazy creation)
+  // Handler: Click en persona → buscar conv existente y reusar; si no, abrir
+  // chat temporal (delegado en `useIniciarChatDirectoPersona`).
   // ---------------------------------------------------------------------------
   const handleClickPersona = useCallback((persona: PersonaBusqueda) => {
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: persona.id,
-        nombre: persona.nombre,
-        apellidos: persona.apellidos,
-        avatarUrl: persona.avatarUrl,
-      },
-      datosCreacion: {
-        participante2Id: persona.id,
-        participante2Modo: 'personal',
-        contextoTipo: 'directo',
-      },
-    });
     limpiarBusqueda();
-  }, [abrirChatTemporal, limpiarBusqueda]);
+    void iniciarChatDirectoPersona({
+      usuarioId: persona.id,
+      nombre: persona.nombre,
+      apellidos: persona.apellidos,
+      avatarUrl: persona.avatarUrl,
+    });
+  }, [iniciarChatDirectoPersona, limpiarBusqueda]);
 
   // ---------------------------------------------------------------------------
-  // Handler: Click en negocio → abrir chat temporal (lazy creation)
+  // Handler: Click en negocio → buscar conv existente y reusar; si no, abrir
+  // chat temporal (delegado en `useIniciarChatNegocio`).
   // ---------------------------------------------------------------------------
   const handleClickNegocio = useCallback((negocio: NegocioBusqueda) => {
-    abrirChatTemporal({
-      id: `temp_${Date.now()}`,
-      otroParticipante: {
-        id: negocio.usuarioId,
-        nombre: negocio.negocioNombre,
-        apellidos: '',
-        avatarUrl: negocio.fotoPerfil,
-        negocioNombre: negocio.negocioNombre,
-        negocioLogo: negocio.fotoPerfil || undefined,
-        sucursalNombre: negocio.sucursalNombre || undefined,
-      },
-      datosCreacion: {
-        participante2Id: negocio.usuarioId,
-        participante2Modo: 'comercial',
-        participante2SucursalId: negocio.sucursalId,
-        contextoTipo: 'directo',
-      },
-    });
     limpiarBusqueda();
-  }, [abrirChatTemporal, limpiarBusqueda]);
+    void iniciarChatNegocio({
+      usuarioId: negocio.usuarioId,
+      sucursalId: negocio.sucursalId,
+      negocioNombre: negocio.negocioNombre,
+      avatarUrl: negocio.fotoPerfil,
+      sucursalNombre: negocio.sucursalNombre || undefined,
+    });
+  }, [iniciarChatNegocio, limpiarBusqueda]);
 
   // ---------------------------------------------------------------------------
   // Handler: Agregar contacto desde resultados de búsqueda

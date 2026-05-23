@@ -2033,10 +2033,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                 <button
                   key={r.emoji}
                   onClick={() => onReaccionar?.(mensaje.id, r.emoji)}
-                  className={`inline-flex items-center justify-center rounded-full cursor-pointer hover:scale-110 shadow-sm border ${cantidadReal > 1 ? 'gap-0.5 px-1.5 h-7' : 'w-7 h-7'} ${esMio
-                    ? 'bg-blue-100 border-blue-300'
-                    : 'bg-[linear-gradient(135deg,#0f2a6b,#0a1d4e)] border-blue-900/50'
-                  }`}
+                  className={`inline-flex items-center justify-center rounded-full cursor-pointer hover:scale-110 shadow-sm border bg-blue-100 border-blue-300 ${cantidadReal > 1 ? 'gap-0.5 px-1.5 h-7' : 'w-7 h-7'}`}
                 >
                   <EmojiNoto emoji={r.emoji} tamaño={18} />
                   {cantidadReal > 1 && (
