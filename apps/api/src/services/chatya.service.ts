@@ -439,30 +439,34 @@ export async function listarConversaciones(
             ne(chatConversaciones.contextoTipo, 'notas'),
         ];
 
-        // En modo comercial: filtrar por sucursal activa SOLO en chats
-        // inter-sucursal (comercial↔comercial). Para chats persona↔negocio
-        // ignoramos la sucursal del lado comercial — coherente con la regla
-        // de creación (`crearObtenerConversacion`): el cliente espera UN
-        // solo hilo con el negocio sin importar de qué sucursal le llegó la
-        // oferta o artículo. Sin esta excepción, un chat creado con
-        // `participante2SucursalId = X` desaparece cuando el dueño está en
-        // la sucursal Y o cuando la conv quedó con NULL por timing al
-        // crearse desde un recurso sin sucursal específica.
+        // En modo comercial: cada sucursal ve SOLO sus propios chats.
+        // El aislamiento entre sucursales del mismo negocio es estricto —
+        // Matriz no ve los chats de Sucursal Norte ni viceversa, aunque
+        // ambas hayan chateado con el mismo cliente. Cada sucursal opera
+        // independientemente con su propio historial.
+        //
+        // Defensa para convs huérfanas: incluimos también las convs donde
+        // mi lado tiene `sucursal_id IS NULL` (datos históricos previos a
+        // los fixes de normalización, o casos edge de creación sin
+        // sucursal específica). Sin esto, esas convs serían invisibles
+        // desde cualquier sucursal hasta que se les asigne una.
+        //
+        // NOTA: la regla "el cliente espera UN solo hilo con el negocio"
+        // aplica al LADO PERSONAL del cliente cuando él lista sus chats
+        // personales — el filtro de modo personal no tiene `sucursalId`,
+        // por lo que naturalmente ve todos sus hilos. NO aplica al dueño
+        // del negocio operando una sucursal específica.
         if (sucursalId) {
             condicionesP1.push(
                 or(
                     eq(chatConversaciones.participante1SucursalId, sucursalId),
-                    // P1 comercial + P2 personal = chat persona↔negocio donde
-                    // YO soy el negocio (P1). Ignorar mi sucursal.
-                    eq(chatConversaciones.participante2Modo, 'personal'),
+                    sql`${chatConversaciones.participante1SucursalId} IS NULL`,
                 )!,
             );
             condicionesP2.push(
                 or(
                     eq(chatConversaciones.participante2SucursalId, sucursalId),
-                    // P2 comercial + P1 personal = chat persona↔negocio donde
-                    // YO soy el negocio (P2). Ignorar mi sucursal.
-                    eq(chatConversaciones.participante1Modo, 'personal'),
+                    sql`${chatConversaciones.participante2SucursalId} IS NULL`,
                 )!,
             );
         }
