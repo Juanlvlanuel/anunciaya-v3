@@ -643,6 +643,24 @@ export async function crearObtenerConversacion(
     usuarioId: string
 ): Promise<RespuestaServicio<ConversacionResponse>> {
     try {
+        // ── Defensa profunda: normalizar sucursal_id según modo ───────────
+        // Si un caller envía `participanteN_modo='personal'` pero también
+        // pasa `participanteN_sucursal_id` (caso histórico: gerentes con
+        // `sucursalAsignada` en JWT antes del fix de `obtenerSucursalId`,
+        // o clientes nuevos —web/app nativa— con bugs futuros), forzamos
+        // sucursal a null para mantener coherencia.
+        //
+        // Sin esta defensa, las convs quedan con datos inconsistentes que
+        // rompen el dedupe (este filtra por `IS NULL` cuando el modo es
+        // personal). Resultado típico: chats duplicados en la lista del
+        // usuario.
+        if (input.participante1Modo === 'personal') {
+            input = { ...input, participante1SucursalId: null };
+        }
+        if (input.participante2Modo === 'personal') {
+            input = { ...input, participante2SucursalId: null };
+        }
+
         // Verificar bloqueo según el tipo de cada lado (persona vs sucursal)
         const ladoYo = determinarLado(usuarioId, input.participante1Modo, input.participante1SucursalId);
         const ladoOtro = determinarLado(input.participante2Id, input.participante2Modo, input.participante2SucursalId);
@@ -747,6 +765,13 @@ export async function crearObtenerConversacion(
                     usuarioId,
                     input.participante2Id,
                 );
+                // Actualizar contexto de la conversación al más reciente para
+                // que el header refleje "de qué se está hablando ahora". Los
+                // cards previos en el historial se mantienen.
+                await actualizarContextoConversacion(existente.id, {
+                    contextoTipo: 'marketplace',
+                    articuloMarketplaceId: input.articuloMarketplaceId,
+                });
             } else if (
                 input.contextoTipo === 'servicio' &&
                 input.servicioPublicacionId
@@ -764,10 +789,10 @@ export async function crearObtenerConversacion(
                 if (existente.servicioPublicacionId !== input.servicioPublicacionId) {
                     await incrementarTotalMensajesPublicacion(input.servicioPublicacionId);
                 }
-                // Bug #1 + #4: actualizar contexto de la conversación al más
-                // reciente. El header del chat refleja "de qué se está hablando
-                // ahora", no el contexto histórico de creación. Los cards
-                // anteriores siguen visibles en el historial de mensajes.
+                // Actualizar contexto de la conversación al más reciente. El
+                // header del chat refleja "de qué se está hablando ahora", no
+                // el contexto histórico de creación. Los cards anteriores
+                // siguen visibles en el historial de mensajes.
                 await actualizarContextoConversacion(existente.id, {
                     contextoTipo: 'servicio',
                     servicioPublicacionId: input.servicioPublicacionId,
@@ -788,6 +813,11 @@ export async function crearObtenerConversacion(
                     usuarioId,
                     input.participante2Id,
                 );
+                // Actualizar contexto de la conversación al más reciente.
+                await actualizarContextoConversacion(existente.id, {
+                    contextoTipo: input.contextoTipo,
+                    contextoReferenciaId: input.contextoReferenciaId,
+                });
             }
 
             return obtenerConversacion(existente.id, usuarioId, input.participante1SucursalId ?? null);
@@ -1939,11 +1969,24 @@ export async function enviarMensaje(
             return { success: false, message: 'No tienes acceso a esta conversación', code: 403 };
         }
 
+        // ── Defensa profunda: emisor_modo/emisor_sucursal_id coherentes con la conv ─
+        // El modo y sucursal del emisor DEBEN coincidir con su posición en la
+        // conv (p1 o p2). Si el cliente manda algo distinto (ej. está en BS
+        // activo pero abre una conv personal y manda mensaje), el cliente
+        // podría enviar `emisor_modo='comercial'` mientras su lado en la conv
+        // es 'personal'. Forzamos coherencia ignorando lo que mande el cliente.
+        const modoCanonico = (pos === 'p1' ? conv.participante1Modo : conv.participante2Modo) as ModoChatYA;
+        const sucursalCanonica = pos === 'p1' ? conv.participante1SucursalId : conv.participante2SucursalId;
+        const emisorModoFinal = modoCanonico;
+        // Adicional: si modo es personal, la sucursal SIEMPRE es null —
+        // refuerzo del invariante (modo='personal' ⇒ sucursal_id IS NULL).
+        const emisorSucursalIdFinal = modoCanonico === 'personal' ? null : sucursalCanonica;
+
         // Verificar bloqueo según el tipo de cada lado (persona vs sucursal)
         const otroId = pos === 'p1' ? conv.participante2Id : conv.participante1Id;
         const otroModo = (pos === 'p1' ? conv.participante2Modo : conv.participante1Modo) as ModoChatYA;
         const otroSucursalId = pos === 'p1' ? conv.participante2SucursalId : conv.participante1SucursalId;
-        const ladoEmisor = determinarLado(input.emisorId, input.emisorModo, input.emisorSucursalId);
+        const ladoEmisor = determinarLado(input.emisorId, emisorModoFinal, emisorSucursalIdFinal);
         const ladoOtro = determinarLado(otroId, otroModo, otroSucursalId);
         const bloqueado = await existeBloqueo(ladoEmisor, ladoOtro);
         if (bloqueado) {
@@ -1956,8 +1999,8 @@ export async function enviarMensaje(
             .values({
                 conversacionId: input.conversacionId,
                 emisorId: input.emisorId,
-                emisorModo: input.emisorModo,
-                emisorSucursalId: input.emisorSucursalId ?? null,
+                emisorModo: emisorModoFinal,
+                emisorSucursalId: emisorSucursalIdFinal,
                 empleadoId: input.empleadoId ?? null,
                 tipo: input.tipo,
                 contenido: input.contenido,
