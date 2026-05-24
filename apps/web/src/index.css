@@ -546,6 +546,24 @@ body {
   }
 }
 
+/* ============================================= */
+/* Bubble flotante "¡Guardado!" / "Quitado" /    */
+/* "¡Gracias!" — sube y se desvanece al hacer    */
+/* toggle. Usado por useSaveBubble + variantes   */
+/* de like/follow en cards (CardNegocio,         */
+/* CardArticulo, CardArticuloFeed).              */
+/* ============================================= */
+@keyframes cardFloatUp {
+  0% {
+    opacity: 1;
+    transform: translateY(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateY(-30px);
+  }
+}
+
 /* Ocultar header y bottom nav en landscape móvil */
 @media (orientation: landscape) and (max-height: 500px) {
 

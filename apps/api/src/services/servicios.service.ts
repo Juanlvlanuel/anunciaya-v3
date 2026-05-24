@@ -151,6 +151,11 @@ export interface PublicacionConOferenteRow extends PublicacionRow {
         negocioLogo: string | null;
         sucursalNombre: string | null;
         sucursalFotoPerfil: string | null;
+        /** WhatsApp de la sucursal — distinto al telefono del usuario dueño
+         *  (que es del dueño personal, no del negocio). Se usa para el
+         *  botón WhatsApp en el detalle de vacante-empresa (público y
+         *  privado). El FE oculta el botón si es null. */
+        sucursalWhatsapp: string | null;
         /** Portada del local (foto grande de la sucursal) — usada como hero
          *  en el detalle de vacante-empresa. */
         sucursalPortada: string | null;
@@ -617,6 +622,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             negocio_logo: string | null;
             sucursal_nombre: string | null;
             sucursal_foto_perfil: string | null;
+            sucursal_whatsapp: string | null;
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
@@ -642,6 +648,11 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
                 n.logo_url        AS negocio_logo,
                 ns.nombre         AS sucursal_nombre,
                 ns.foto_perfil    AS sucursal_foto_perfil,
+                -- WhatsApp de la sucursal — usado por el botón WhatsApp en
+                -- el detalle de vacante-empresa (público y privado). Es
+                -- distinto al telefono del usuario dueño porque el negocio
+                -- tiene su propio canal de contacto.
+                ns.whatsapp       AS sucursal_whatsapp,
                 -- Portada del local (foto grande de la sucursal) — usada
                 -- como background hero en el detalle de vacante-empresa.
                 ns.portada_url    AS sucursal_portada,
@@ -709,6 +720,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             negocio_logo: string | null;
             sucursal_nombre: string | null;
             sucursal_foto_perfil: string | null;
+            sucursal_whatsapp: string | null;
             sucursal_portada: string | null;
             sucursal_es_principal: boolean | null;
             total_sucursales: number | null;
@@ -750,6 +762,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
                 negocioLogo: row.negocio_logo,
                 sucursalNombre: row.sucursal_nombre,
                 sucursalFotoPerfil: row.sucursal_foto_perfil,
+                sucursalWhatsapp: row.sucursal_whatsapp,
                 sucursalPortada: row.sucursal_portada,
                 sucursalEsPrincipal: row.sucursal_es_principal,
                 totalSucursales: Number(row.total_sucursales) || 0,

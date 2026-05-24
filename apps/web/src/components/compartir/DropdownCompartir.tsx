@@ -179,16 +179,19 @@ export function DropdownCompartir({
     // Estilos según variante
     // -------------------------------------------------------------------------
     const estilosBoton = {
-        hero: `p-2.5 lg:p-2 2xl:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${abierto
+        hero: `w-[38px] h-[38px] grid place-items-center rounded-full border-2 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${abierto
             ? 'bg-blue-50 border-blue-500 text-blue-600'
-            : 'bg-white/90 border-white text-slate-700 hover:bg-blue-50 hover:border-blue-500 hover:text-blue-600'
+            : 'bg-white border-slate-300 text-slate-700 hover:border-blue-500 hover:text-blue-600'
             }`,
         card: `p-2 rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-600 transition-colors`,
         simple: `p-2 hover:bg-slate-100 rounded-lg text-slate-500 hover:text-slate-700 transition-colors`,
-        glass: `w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer`,
+        glass: `w-[38px] h-[38px] rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer transition-transform duration-200 lg:hover:scale-110 active:opacity-70`,
         // Variante para headers dark (P2 Detalle, P3 Perfil, PaginaMarketplace).
-        // Mismo estilo que los demás botones del header dark: text-white/50 + lg:hover:bg-white/10.
-        dark: `w-11 h-11 rounded-lg flex items-center justify-center text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white`,
+        // Círculo `w-[38px] h-[38px]` mismo tamaño que el pill del botón
+        // guardar al lado. Fondo TRANSPARENTE + border-2 blanco semi para
+        // que el círculo se delinee sobre el header dark sin tapar el
+        // fondo. Icono blanco para que se lea. Zoom 110% al hover.
+        dark: `inline-flex w-[38px] h-[38px] items-center justify-center rounded-full bg-transparent border-2 border-white/40 text-white lg:cursor-pointer transition-transform duration-200 lg:hover:scale-110 lg:hover:border-white/70 active:opacity-70`,
     };
 
     // -------------------------------------------------------------------------
@@ -210,8 +213,10 @@ export function DropdownCompartir({
                 <Share2
                     className={
                         variante === 'dark'
-                            ? 'w-6 h-6'
-                            : 'w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700 group-hover:text-gray-500 transition-colors'
+                            ? 'w-5 h-5'
+                            : variante === 'hero'
+                                ? 'w-5 h-5'
+                                : 'w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-700 group-hover:text-gray-500 transition-colors'
                     }
                 />
             </button>

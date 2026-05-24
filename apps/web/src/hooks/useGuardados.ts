@@ -75,6 +75,14 @@ interface UseGuardadosParams {
    * Útil para actualizar contadores en el padre
    */
   onGuardadoChange?: (guardado: boolean) => void;
+
+  /**
+   * Si true, NO emite los toasts globales de "¡Guardado!" / "Quitado".
+   * Usado cuando el caller muestra su propio feedback (ej. bubble flotante
+   * con `useSaveBubble` en cards y detalles). Los toasts de ERROR siguen
+   * apareciendo en ambos casos — esos son críticos.
+   */
+  silencioso?: boolean;
 }
 
 interface UseGuardadosResult {
@@ -232,6 +240,7 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
     entityId,
     initialGuardado = false,
     onGuardadoChange,
+    silencioso = false,
   } = params;
 
   const qc = useQueryClient();
@@ -292,7 +301,7 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
       });
 
       qc.invalidateQueries({ queryKey: ['guardados'] });
-      notificar.exito('¡Guardado!');
+      if (!silencioso) notificar.exito('¡Guardado!');
 
     } catch (error: unknown) {
       console.error('❌ Error al agregar a guardados:', error);
@@ -336,7 +345,7 @@ export function useGuardados(params: UseGuardadosParams): UseGuardadosResult {
       await api.delete(`/guardados/${entityType}/${entityId}`);
 
       qc.invalidateQueries({ queryKey: ['guardados'] });
-      notificar.info('Quitado de guardados');
+      if (!silencioso) notificar.info('Quitado de guardados');
 
     } catch (error: unknown) {
       console.error('❌ Error al quitar de guardados:', error);

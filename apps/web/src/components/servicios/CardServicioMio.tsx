@@ -161,7 +161,10 @@ export function CardServicioMio({
         <article
             data-testid={`card-servicio-mio-${publicacion.id}`}
             onClick={handleClickCard}
-            className="group relative flex cursor-pointer flex-col rounded-xl border border-slate-300 bg-white lg:hover:border-sky-400 lg:hover:shadow-md"
+            // Hover unificado con MisGuardados: border-2, lift `-translate-y-0.5`,
+            // shadow + scale 105 en la imagen. Color sky (identidad del módulo
+            // Servicios en MisPublicaciones).
+            className="group relative flex cursor-pointer flex-col rounded-xl border-2 border-slate-300 bg-white transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-sky-400 lg:hover:shadow-md"
         >
             {/* ── Foto portada (aspect 4:3 fullbleed) ───────────────────────── */}
             <div className="relative aspect-[4/3] w-full shrink-0 overflow-hidden rounded-t-xl bg-slate-200">
@@ -169,7 +172,7 @@ export function CardServicioMio({
                     <img
                         src={foto}
                         alt={publicacion.titulo}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         loading="lazy"
                     />
                 ) : (

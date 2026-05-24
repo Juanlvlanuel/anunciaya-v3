@@ -261,7 +261,9 @@
       "Bash(node ../../node_modules/typescript/bin/tsc --noEmit)",
       "Bash(echo \"EXIT_FE=$?\")",
       "Bash(echo \"EXIT_API=$?\")",
-      "Bash(echo \"EXIT_WEB=$?\")"
+      "Bash(echo \"EXIT_WEB=$?\")",
+      "PowerShell(Set-Location 'E:\\\\AnunciaYA\\\\anunciaya\\\\apps\\\\web'; npx tsc --noEmit; Write-Output \"EXIT_CODE=$LASTEXITCODE\")",
+      "Bash(grep -rn \"ModalAuthRequerido$\\\\|<ModalAuthRequerido\" E:/AnunciaYA/anunciaya/apps/web/src --include=\"*.tsx\")"
     ]
   },
   "disableAllHooks": true

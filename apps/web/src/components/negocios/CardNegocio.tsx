@@ -301,11 +301,15 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
     });
   };
 
+  // `silencioso: true` suprime los toasts globales del hook porque el
+  // feedback se muestra con el bubble flotante inline `renderSaveAnimation`
+  // anclado al botón — patrón unificado cross-módulo (sin doble mensaje).
   const { liked, followed, toggleLike, toggleFollow } = useVotos({
     entityType: 'sucursal',
     entityId: negocio.sucursalId,
     initialLiked: negocio.liked,
     initialFollowed: negocio.followed,
+    silencioso: true,
   });
 
   const [likeAnimation, setLikeAnimation] = useState<'like' | 'unlike' | null>(null);

@@ -18,7 +18,6 @@
  */
 
 import { useState, useCallback, useMemo, useRef, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import {
     Users,
@@ -28,8 +27,6 @@ import {
     Send,
     Loader2,
     AlertCircle,
-    Smile,
-    Frown,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
@@ -41,6 +38,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 import { useGuardados } from '../../hooks/useGuardados';
+import { useSaveBubble } from '../../hooks/useSaveBubble';
 import {
     useCrearPregunta,
     useEditarPreguntaPropia,
@@ -124,10 +122,6 @@ if (typeof document !== 'undefined' && !document.getElementById(FEED_HEART_STYLE
         @keyframes feedHeartRingPulse {
             0%, 100% { transform: scale(1); opacity: 0.5; }
             50% { transform: scale(1.5); opacity: 0; }
-        }
-        @keyframes feedFloatUp {
-            0% { opacity: 1; transform: translateY(0); }
-            100% { opacity: 0; transform: translateY(-50px); }
         }
     `;
     document.head.appendChild(style);
@@ -239,8 +233,8 @@ export function CardArticuloFeed({
     /** Estado para animar el heart al click + popup flotante (patrón CardNegocio). */
     const heartButtonRef = useRef<HTMLButtonElement>(null);
     const [heartBounce, setHeartBounce] = useState(false);
-    const [likeAnimation, setLikeAnimation] = useState<'like' | 'unlike' | null>(null);
-    const [likePosition, setLikePosition] = useState({ top: 0, left: 0 });
+    // Bubble flotante "¡Guardado!" / "Quitado" centralizado en hook.
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
 
     // ─── Derivados ───────────────────────────────────────────────────────────
     const fotos = articulo.fotos ?? [];
@@ -475,26 +469,15 @@ export function CardArticuloFeed({
     const handleToggleGuardado = useCallback(
         (e: React.MouseEvent) => {
             e.stopPropagation();
-            // Posicionar el popup arriba-izquierda del botón. Se ancla al borde
-            // derecho del botón restando el ancho aproximado del popup, para
-            // que no se salga de la pantalla cuando el botón está pegado al
-            // edge derecho del card.
-            if (heartButtonRef.current) {
-                const rect = heartButtonRef.current.getBoundingClientRect();
-                const POPUP_WIDTH_APROX = 130;
-                setLikePosition({
-                    top: rect.top - 50,
-                    left: rect.right - POPUP_WIDTH_APROX,
-                });
-            }
-            // Tipo de animación según el estado actual (antes del toggle).
-            setLikeAnimation(guardado ? 'unlike' : 'like');
+            // Bubble flotante "¡Guardado!" / "Quitado" — usa el hook
+            // centralizado `useSaveBubble` para mantener consistencia
+            // cross-módulo con CardNegocio, CardArticulo, etc.
+            triggerSaveBubble(e, guardado ? 'unsave' : 'save');
             setHeartBounce(true);
             toggleGuardado();
             setTimeout(() => setHeartBounce(false), 500);
-            setTimeout(() => setLikeAnimation(null), 1500);
         },
-        [toggleGuardado, guardado]
+        [toggleGuardado, guardado, triggerSaveBubble]
     );
 
     const handleAvatarClick = useCallback((e: React.MouseEvent) => {
@@ -720,27 +703,31 @@ export function CardArticuloFeed({
                         onClick={handleToggleGuardado}
                         disabled={loading}
                         aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
-                        className={`relative shrink-0 rounded-full p-2 lg:cursor-pointer ${guardado
-                                ? 'text-teal-600 lg:hover:bg-teal-50'
-                                : 'text-slate-500 lg:hover:bg-slate-200 lg:hover:text-teal-600'
-                            }`}
+                        className={`relative shrink-0 grid place-items-center w-[38px] h-[38px] rounded-full bg-white overflow-visible disabled:opacity-50 transition-transform duration-200 lg:cursor-pointer lg:hover:scale-110 active:opacity-70 ${
+                            guardado
+                                ? 'border-2 border-amber-500'
+                                : 'border-2 border-slate-300'
+                        }`}
                         style={{
                             animation: heartBounce
                                 ? 'feedHeartBounce 0.5s cubic-bezier(0.36, 0.07, 0.19, 0.97)'
                                 : undefined,
                         }}
                     >
-                        {/* Pulse ring de 1 sola pasada al momento del click */}
-                        {heartBounce && (
+                        {/* Pulse ring amber respirando cuando guardado —
+                            mismo patrón cross-módulo que CardNegocio,
+                            CardArticulo y BookmarkGlass. */}
+                        {guardado && (
                             <span
-                                className="pointer-events-none absolute inset-1 rounded-full border-2 border-teal-600/40"
-                                style={{ animation: 'feedHeartRingPulse 0.6s ease-out' }}
-                                aria-hidden="true"
+                                aria-hidden
+                                className="pointer-events-none absolute -inset-1 rounded-full border-2 border-amber-500/40"
+                                style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
                             />
                         )}
                         <Icon
-                            icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
-                            className="h-7 w-7"
+                            icon={ICONOS.guardar}
+                            className="h-5 w-5"
+                            style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
                         />
                     </button>
                 </Tooltip>
@@ -1305,36 +1292,11 @@ export function CardArticuloFeed({
                 />
             )}
 
-            {/* ─── POPUP FLOTANTE AL GUARDAR (mismo patrón que CardNegocio) ── */}
-            {likeAnimation && createPortal(
-                <div
-                    className={`fixed flex items-center gap-2 px-3 py-1.5 rounded-full whitespace-nowrap shadow-lg ${
-                        likeAnimation === 'like'
-                            ? 'bg-green-100 text-green-600'
-                            : 'bg-red-100 text-red-600'
-                    }`}
-                    style={{
-                        top: likePosition.top,
-                        left: likePosition.left,
-                        zIndex: 99999,
-                        pointerEvents: 'none',
-                        animation: 'feedFloatUp 1.5s ease-out forwards',
-                    }}
-                >
-                    {likeAnimation === 'like' ? (
-                        <>
-                            <Smile className="w-5 h-5" />
-                            <span className="text-sm font-medium">¡Gracias!</span>
-                        </>
-                    ) : (
-                        <>
-                            <Frown className="w-5 h-5" />
-                            <span className="text-sm font-medium">¡Oh no!</span>
-                        </>
-                    )}
-                </div>,
-                document.body
-            )}
+            {/* Bubble "¡Guardado!" / "Quitado" vía useSaveBubble — mismo
+                patrón unificado que CardNegocio, CardArticulo y BookmarkGlass.
+                El portal vive dentro del article para que se desmonte si
+                el card se quita del DOM. */}
+            {saveBubble}
         </article>
     );
 }

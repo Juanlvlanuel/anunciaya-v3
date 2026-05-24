@@ -57,6 +57,7 @@ import { queryKeys } from '../../../config/queryKeys';
 import { useNegocioPerfil, useNegocioOfertas, useNegocioCatalogo, useNegocioResenas } from '../../../hooks/queries/useNegocios';
 import type { NegocioCompleto } from '../../../types/negocios';
 import { useVotos } from '../../../hooks/useVotos';
+import { useSaveBubble } from '../../../hooks/useSaveBubble';
 import { api } from '../../../services/api';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
@@ -660,6 +661,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         }
     }, [negocio?.sucursalId, negocio?.totalLikes]);
 
+    // `silencioso: true` suprime el toast global del hook porque el
+    // feedback se muestra con el bubble flotante `useSaveBubble` anclado
+    // al botón — patrón unificado cross-módulo.
     const { liked, followed, toggleLike, toggleFollow } = useVotos({
         entityType: 'sucursal',
         entityId: sucursalId || '',
@@ -668,7 +672,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         onLikeChange: (liked) => {
             setTotalLikes(prev => prev !== undefined ? (liked ? prev + 1 : prev - 1) : prev);
         },
+        silencioso: true,
     });
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
 
     // -------------------------------------------------------------------------
     // Wrappers condicionales para acciones que requieren auth
@@ -682,12 +688,14 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         toggleLike();
     };
 
-    const handleSaveConAuth = () => {
+    const handleSaveConAuth = (e: React.MouseEvent) => {
         if (!estaLogueado) {
             setAccionAuthRequerida('save');
             setModalAuthAbierto(true);
             return;
         }
+        // El estado pasado al bubble es el que VA A QUEDAR tras el toggle.
+        triggerSaveBubble(e, followed ? 'unsave' : 'save');
         toggleFollow();
     };
 
@@ -1031,31 +1039,75 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
                 <div className="absolute inset-0 pointer-events-none">
                     <div className="px-12 @5xl:px-16 @[96rem]:px-20 h-full relative">
-                        {/* Botón Volver (oculto en modo preview) */}
+                        {/* Bubble flotante "¡Guardado!" / "Quitado" anclado
+                            al botón guardar (silencioso=true en useVotos).
+                            Patrón unificado cross-módulo. */}
+                        {saveBubble}
+
+                        {/* Botón Volver (oculto en modo preview) — pill 38px
+                            uniforme con los botones de la derecha + zoom hover. */}
                         {!esModoPreview && (
                             <div className="pointer-events-auto absolute top-14 @5xl:top-4 left-5 @[96rem]:left-7.5">
                                 <Tooltip text="Volver" position="bottom">
-                                    <button onClick={handleVolver} className="cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 bg-white/90 border-white text-slate-700 backdrop-blur-sm shadow-lg">
-                                        <ArrowLeft className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
+                                    <button
+                                        onClick={handleVolver}
+                                        aria-label="Volver"
+                                        className="w-[38px] h-[38px] grid place-items-center cursor-pointer rounded-full border-2 bg-white border-slate-300 text-slate-700 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70"
+                                    >
+                                        <ArrowLeft className="w-5 h-5" />
                                     </button>
                                 </Tooltip>
                             </div>
                         )}
 
-                        <div className="absolute top-14 @5xl:top-4 right-5 @[96rem]:right-7.5 flex gap-2 pointer-events-auto">
-                            {/* Botón Me gusta */}
+                        <div className="absolute top-14 @5xl:top-4 right-5 @[96rem]:right-7.5 flex items-center gap-2 pointer-events-auto">
+                            {/* Botón Me gusta — pill 38px + zoom hover. Border
+                                blue cuando liked (sin pulse — el pulse es
+                                exclusivo del bookmark). */}
                             <Tooltip text={liked ? 'Quitar me gusta' : 'Me gusta'} position="bottom">
-                                <button onClick={handleLikeConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${liked ? 'bg-white border-blue-500 text-blue-500' : 'bg-white/90 border-white text-slate-700'}`}>
-                                    <Icon icon={liked ? ICONOS.like : 'material-symbols:thumb-up-outline-rounded'} className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
+                                <button
+                                    onClick={handleLikeConAuth}
+                                    aria-label={liked ? 'Quitar me gusta' : 'Me gusta'}
+                                    aria-pressed={liked}
+                                    className={`w-[38px] h-[38px] grid place-items-center cursor-pointer rounded-full border-2 backdrop-blur-sm shadow-lg transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                        liked ? 'bg-white border-blue-500 text-blue-500' : 'bg-white border-slate-300 text-slate-700'
+                                    }`}
+                                >
+                                    <Icon
+                                        icon={liked ? ICONOS.like : 'material-symbols:thumb-up-outline-rounded'}
+                                        className="w-5 h-5"
+                                    />
                                 </button>
                             </Tooltip>
-                            {/* Botón Guardar */}
+                            {/* Botón Guardar — pill 38px + zoom hover + pulse
+                                ring amber cuando followed (mismo patrón cross-
+                                módulo). Icono ICONOS.guardar siempre relleno
+                                con color toggle entre amber/slate. */}
                             <Tooltip text={followed ? 'Quitar de guardados' : 'Guardar'} position="bottom">
-                                <button onClick={handleSaveConAuth} className={`cursor-pointer p-2.5 @5xl:p-2 @[96rem]:p-2.5 rounded-full border-2 backdrop-blur-sm shadow-lg ${followed ? 'bg-white border-amber-500 text-amber-500' : 'bg-white/90 border-white text-slate-700'}`}>
-                                    <Icon icon={followed ? ICONOS.guardar : 'ph:archive-box'} className="w-5 h-5 @5xl:w-4 @5xl:h-4 @[96rem]:w-5 @[96rem]:h-5" />
+                                <button
+                                    onClick={handleSaveConAuth}
+                                    aria-label={followed ? 'Quitar de guardados' : 'Guardar negocio'}
+                                    aria-pressed={followed}
+                                    className={`relative w-[38px] h-[38px] grid place-items-center cursor-pointer rounded-full border-2 backdrop-blur-sm shadow-lg overflow-visible transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                        followed ? 'bg-white border-amber-500' : 'bg-white border-slate-300'
+                                    }`}
+                                >
+                                    {followed && (
+                                        <span
+                                            aria-hidden
+                                            className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                                            style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                                        />
+                                    )}
+                                    <Icon
+                                        icon={ICONOS.guardar}
+                                        className="w-5 h-5"
+                                        style={{ color: followed ? '#f59e0b' : '#94a3b8' }}
+                                    />
                                 </button>
                             </Tooltip>
-                            {/* Botón Compartir */}
+                            {/* Botón Compartir — variante hero ahora pill 38px
+                                + zoom hover (cambio aplicado en DropdownCompartir). */}
                             <Tooltip text="Compartir" position="bottom">
                                 <DropdownCompartir
                                     url={`${window.location.origin}/p/negocio/${sucursalId}`}

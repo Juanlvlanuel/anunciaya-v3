@@ -161,7 +161,10 @@ export function CardArticuloMio({
         <article
             data-testid={`card-articulo-mio-${articulo.id}`}
             onClick={handleClickCard}
-            className="group relative flex cursor-pointer flex-col rounded-xl border border-slate-300 bg-white lg:hover:border-cyan-400 lg:hover:shadow-md"
+            // Hover unificado con MisGuardados: border-2, lift `-translate-y-0.5`,
+            // shadow + scale 105 en la imagen. Color cyan (identidad del módulo
+            // MP en MisPublicaciones) en lugar de rose (MisGuardados).
+            className="group relative flex cursor-pointer flex-col rounded-xl border-2 border-slate-300 bg-white transition-all duration-200 lg:hover:-translate-y-0.5 lg:hover:border-cyan-400 lg:hover:shadow-md"
         >
             {/* ── Foto portada ─────────────────────────────────────────────────
                 Layout vertical unificado (móvil + desktop): foto fullbleed
@@ -173,7 +176,7 @@ export function CardArticuloMio({
                     <img
                         src={foto}
                         alt={articulo.titulo}
-                        className="h-full w-full object-cover"
+                        className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-105"
                         loading="lazy"
                     />
                 ) : (

@@ -203,7 +203,8 @@ export function ModalDetalleItem({ item, whatsapp, negocioUsuarioId, sucursalId,
                         <Tooltip text="Cerrar" position="bottom">
                             <button
                                 onClick={onClose}
-                                className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer"
+                                aria-label="Cerrar modal"
+                                className="w-[38px] h-[38px] rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer transition-transform duration-200 lg:hover:scale-110 active:opacity-70"
                             >
                                 <X className="w-5 h-5 text-slate-700" />
                             </button>

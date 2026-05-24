@@ -202,8 +202,11 @@ const TEMAS_COLUMNA: Record<string, TemaColumna> = {
     widgetDark: true,
   },
 
-  // ── Tema Negocios: Dark con acentos blue ──
-  negocios: {
+  // ── Tema Mis Publicaciones: Dark con acentos blue ──
+  // Aplica a `/mis-publicaciones` — gradient azul → negro (mismo patrón
+  // que CardYA / Cupones / Guardados) con acentos blue para identidad
+  // de "panel del autor".
+  misPublicaciones: {
     background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
     borderColor: 'border-white/5',
     widgetWrapperBg: 'bg-slate-200',
@@ -237,7 +240,10 @@ function detectarTema(pathname: string): TemaColumna {
   if (pathname.startsWith('/cardya')) return TEMAS_COLUMNA.cardya;
   if (pathname.startsWith('/mis-cupones')) return TEMAS_COLUMNA.cupones;
   if (pathname.startsWith('/guardados')) return TEMAS_COLUMNA.guardados;
-  if (pathname.startsWith('/negocios')) return TEMAS_COLUMNA.negocios;
+  if (pathname.startsWith('/mis-publicaciones')) return TEMAS_COLUMNA.misPublicaciones;
+  // `/negocios` cae al tema `default` (claro/slate) para hacer juego con
+  // Ofertas / MarketPlace / Servicios — todas las secciones públicas
+  // comparten la misma estética de columna lateral.
   return TEMAS_COLUMNA.default;
 }
 

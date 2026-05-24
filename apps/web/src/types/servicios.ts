@@ -183,6 +183,10 @@ export interface OferenteServicio {
     sucursalNombre?: string | null;
     /** Foto de perfil de la sucursal específica (distinta al logo del negocio). */
     sucursalFotoPerfil?: string | null;
+    /** WhatsApp de la sucursal específica — distinto al `telefono` del
+     *  usuario dueño (campo personal). Solo se usa cuando la publicación
+     *  es vacante-empresa. El FE oculta el botón WhatsApp si es null. */
+    sucursalWhatsapp?: string | null;
     /** Portada del local (foto grande de la sucursal) — usada como hero en
      *  el detalle de vacante-empresa. */
     sucursalPortada?: string | null;

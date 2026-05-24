@@ -287,7 +287,10 @@ export function WidgetCardYA({ dark = false }: WidgetCardYAProps) {
               className="w-7 h-7 rounded-md flex items-center justify-center shrink-0"
               style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
             >
-              <Wallet className="w-3.5 h-3.5 text-black" strokeWidth={2.5} />
+              <Wallet
+                className={`w-5 h-5 ${dark ? 'text-black' : 'text-slate-700'}`}
+                strokeWidth={2.5}
+              />
             </div>
             <div className="flex items-baseline">
               <span className="text-lg font-extrabold tracking-tight text-white">

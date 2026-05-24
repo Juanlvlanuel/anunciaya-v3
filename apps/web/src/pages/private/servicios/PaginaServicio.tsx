@@ -32,6 +32,7 @@ import {
     BadgeCheck,
     Briefcase,
     Check,
+    ChevronLeft,
     ChevronRight,
     Clock,
     MapPin,
@@ -40,12 +41,15 @@ import {
     Wrench,
     Zap,
 } from 'lucide-react';
+import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
+import Tooltip from '../../../components/ui/Tooltip';
 import { Icon } from '@iconify/react';
 import { ICONOS } from '../../../config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { useGuardados } from '../../../hooks/useGuardados';
+import { useSaveBubble } from '../../../hooks/useSaveBubble';
 import {
     usePublicacionServicio,
     useRegistrarVistaServicio,
@@ -89,6 +93,10 @@ export function PaginaServicio() {
     // re-sincroniza cuando llega la data (efecto sobre initialGuardado)
     // y el invalidateQueries mantiene en sync el listado de Mis
     // Guardados (tab Servicios) y este botón.
+    //
+    // `silencioso: true` desactiva los toasts globales del hook porque el
+    // feedback se muestra con el bubble flotante `useSaveBubble` anclado
+    // al botón — patrón unificado cross-módulo.
     const {
         guardado,
         loading: cargandoGuardar,
@@ -97,7 +105,13 @@ export function PaginaServicio() {
         entityType: 'servicio',
         entityId: id ?? '',
         initialGuardado: publicacion?.guardado ?? false,
+        silencioso: true,
     });
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
+    const handleToggleGuardar = (e: React.MouseEvent) => {
+        triggerSaveBubble(e, guardado ? 'unsave' : 'save');
+        toggleGuardado();
+    };
 
     // Registrar vista una vez por sesión (dedupe en sessionStorage para no
     // inflar el contador con reloads o navegación back/forward).
@@ -200,32 +214,9 @@ export function PaginaServicio() {
         <SeccionCard>
             <div className="flex items-start justify-between gap-3">
                 <TipoChip tipo={publicacion.tipo} verificada={isVacante} />
-                {!tieneGaleria && puedeGuardar && (
-                    <button
-                        type="button"
-                        data-testid="btn-guardar-servicio"
-                        onClick={toggleGuardado}
-                        disabled={cargandoGuardar}
-                        aria-label={
-                            guardado
-                                ? 'Quitar de guardados'
-                                : 'Guardar publicación'
-                        }
-                        aria-pressed={guardado}
-                        className={
-                            'shrink-0 h-9 w-9 grid place-items-center rounded-full bg-white shadow-sm lg:cursor-pointer hover:bg-slate-50 disabled:opacity-60 transition-colors ' +
-                            (guardado
-                                ? 'border-2 border-amber-500'
-                                : 'border-2 border-slate-300')
-                        }
-                    >
-                        <Icon
-                            icon={ICONOS.guardar}
-                            className="w-4.5 h-4.5"
-                            style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
-                        />
-                    </button>
-                )}
+                {/* El botón guardar vive ahora en el header dark sticky
+                    superior (mismo patrón que el detalle de MarketPlace),
+                    no duplicado aquí. */}
             </div>
 
             {/* Título + tipo de empleo (solo vacantes) — los 2 datos más
@@ -462,13 +453,143 @@ export function PaginaServicio() {
 
     return (
         <>
-            <ServiciosHeader
-                variante="pagina"
-                onBack={handleVolver}
-                subtituloMobile={
-                    <SubtituloMobileHeader publicacion={publicacion} />
-                }
-            />
+            {/* Bubble flotante "¡Guardado!" / "Quitado" vía useSaveBubble —
+                reemplaza el toast global (silencioso=true en useGuardados)
+                para anclar el feedback al botón. Patrón unificado con
+                cards de MP, CardNegocio y detalle MP. */}
+            {saveBubble}
+            {/* ════════════════════════════════════════════════════════════════
+                HEADER DARK STICKY — Identidad sky de Servicios. Mismo patrón
+                compacto que el detalle de MarketPlace (fila única con
+                ← icono-sky Detalle | título — share + guardar). Fondo negro
+                + glow sky + grid pattern.
+
+                Wrapper propio `max-w-7xl` — el header mantiene su ancho
+                completo. El contenido de abajo vive en su propio wrapper
+                `max-w-[920px]`.
+            ════════════════════════════════════════════════════════════════ */}
+            <div className="sticky top-0 z-30 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+                <div
+                    className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
+                    style={{ background: '#000000' }}
+                >
+                    {/* Glow sutil sky arriba-derecha */}
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            background:
+                                'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 50%)',
+                        }}
+                    />
+                    {/* Grid pattern sutil */}
+                    <div
+                        className="pointer-events-none absolute inset-0"
+                        style={{
+                            opacity: 0.08,
+                            backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                              repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                        }}
+                    />
+
+                    {/* Contenido del header */}
+                    <div className="relative z-10 flex items-center justify-between px-3 pt-4 pb-2.5">
+                        {/* Bloque izquierdo: ← + icono sky + Detalle | título */}
+                        <div className="flex min-w-0 items-center gap-1.5">
+                            <button
+                                data-testid="btn-volver-servicio"
+                                onClick={handleVolver}
+                                aria-label="Volver"
+                                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-white/50 lg:cursor-pointer lg:hover:bg-white/10 lg:hover:text-white"
+                            >
+                                <ChevronLeft className="h-5 w-5" strokeWidth={2.5} />
+                            </button>
+                            <div
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
+                                style={{
+                                    background:
+                                        'linear-gradient(135deg, #38bdf8, #0369a1)',
+                                }}
+                            >
+                                <Wrench
+                                    className="h-[18px] w-[18px] text-white"
+                                    strokeWidth={2.5}
+                                />
+                            </div>
+                            <span className="ml-1.5 shrink-0 text-2xl font-extrabold tracking-tight text-white">
+                                Detalle
+                            </span>
+
+                            {/* Separador vertical */}
+                            <span
+                                aria-hidden
+                                className="ml-2 h-7 w-[1.5px] shrink-0 rounded-full bg-white/50"
+                            />
+
+                            {/* Título de la publicación (truncado) */}
+                            <span className="ml-1 min-w-0 truncate text-sm font-semibold text-white/85 lg:text-base">
+                                {publicacion.titulo}
+                            </span>
+                        </div>
+
+                        {/* Bloque derecho: compartir + guardar (pill amber +
+                            pulse ring + bubble flotante). Mismo patrón visual
+                            que el detalle de MarketPlace. */}
+                        <div className="flex shrink-0 items-center gap-3">
+                            <Tooltip
+                                text="Compartir publicación"
+                                position="bottom"
+                                className="hidden lg:block"
+                            >
+                                <DropdownCompartir
+                                    url={`${window.location.origin}/p/servicio/${publicacion.id}`}
+                                    texto={`Mira "${publicacion.titulo}" en AnunciaYA Servicios`}
+                                    titulo={publicacion.titulo}
+                                    variante="dark"
+                                />
+                            </Tooltip>
+
+                            {puedeGuardar && (
+                                <Tooltip
+                                    text={guardado ? 'Quitar de guardados' : 'Guardar publicación'}
+                                    position="bottom"
+                                    className="hidden lg:block"
+                                >
+                                    <button
+                                        type="button"
+                                        data-testid="btn-guardar-servicio"
+                                        onClick={handleToggleGuardar}
+                                        disabled={cargandoGuardar}
+                                        aria-label={
+                                            guardado
+                                                ? 'Quitar de guardados'
+                                                : 'Guardar publicación'
+                                        }
+                                        aria-pressed={guardado}
+                                        className={`relative flex w-[38px] h-[38px] items-center justify-center rounded-full overflow-visible disabled:opacity-50 lg:cursor-pointer transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                            guardado
+                                                ? 'bg-white border-2 border-amber-500'
+                                                : 'bg-transparent border-2 border-white/40 lg:hover:border-white/70'
+                                        }`}
+                                    >
+                                        {guardado && (
+                                            <span
+                                                aria-hidden
+                                                className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                                                style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                                            />
+                                        )}
+                                        <Icon
+                                            icon={ICONOS.guardar}
+                                            className="h-5 w-5"
+                                            style={{ color: guardado ? '#f59e0b' : 'rgba(255,255,255,0.9)' }}
+                                        />
+                                    </button>
+                                </Tooltip>
+                            )}
+                        </div>
+                    </div>
+                </div>
+            </div>
             <div className="min-h-full bg-transparent pb-32 lg:pb-8">
                 <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
                     <div className="px-4 lg:px-0 space-y-3 lg:space-y-4">
@@ -483,43 +604,10 @@ export function PaginaServicio() {
                         {tieneGaleria && (
                             <div className="relative -mx-4 lg:mx-0 lg:rounded-2xl lg:overflow-hidden lg:shadow-md lg:border lg:border-slate-300">
                                 <GaleriaServicio publicacion={publicacion} />
-
-                                {/* Botón guardar sobre galería — mismo
-                                    patrón visual que las cards de Mis
-                                    Guardados: círculo blanco con border-2
-                                    amber e icono ICONOS.guardar (Iconify
-                                    ph:archive-box-fill) en amber-500.
-                                    Cuando NO está guardado, el border y
-                                    el icono caen a slate para indicar
-                                    estado vacío. NO se muestra al dueño
-                                    porque no tendría sentido guardar tu
-                                    propia publicación. */}
-                                {puedeGuardar && (
-                                    <button
-                                        type="button"
-                                        data-testid="btn-guardar-servicio"
-                                        onClick={toggleGuardado}
-                                        disabled={cargandoGuardar}
-                                        aria-label={
-                                            guardado
-                                                ? 'Quitar de guardados'
-                                                : 'Guardar publicación'
-                                        }
-                                        aria-pressed={guardado}
-                                        className={
-                                            'absolute top-3 right-3 z-10 w-[38px] h-[38px] grid place-items-center rounded-full bg-white shadow-md lg:cursor-pointer hover:scale-110 disabled:opacity-60 transition-transform duration-200 ' +
-                                            (guardado
-                                                ? 'border-2 border-amber-500'
-                                                : 'border-2 border-slate-300')
-                                        }
-                                    >
-                                        <Icon
-                                            icon={ICONOS.guardar}
-                                            className="w-5 h-5"
-                                            style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
-                                        />
-                                    </button>
-                                )}
+                                {/* El botón guardar vive ahora en el header
+                                    dark sticky superior (mismo patrón que el
+                                    detalle de MarketPlace), no overlay sobre
+                                    la galería. */}
                             </div>
                         )}
 
@@ -1092,48 +1180,6 @@ function PillTipoHeader({ tipo }: { tipo: PublicacionDetalle['tipo'] }) {
             <Wrench className="w-3.5 h-3.5" strokeWidth={2.5} />
             Servicio personal
         </span>
-    );
-}
-
-// =============================================================================
-// Subtítulo contextual mobile del ServiciosHeader
-// =============================================================================
-// El header en mobile, variante 'pagina', renderiza este texto entre los
-// gradientes decorativos. Patrón: "{tipo legible} · {nombre del oferente}".
-function SubtituloMobileHeader({
-    publicacion,
-}: {
-    publicacion: PublicacionDetalle;
-}) {
-    const tipoLabel =
-        publicacion.tipo === 'vacante-empresa'
-            ? 'Vacante'
-            : publicacion.tipo === 'solicito'
-              ? 'Solicitud'
-              : 'Servicio personal';
-
-    // Identidad mostrada — empresa: nombre del negocio (+ sufijo de sucursal
-    // si tiene más de una); persona: nombre corto del usuario.
-    const { oferente, tipo } = publicacion;
-    const esEmpresa = tipo === 'vacante-empresa';
-    const nombre = esEmpresa
-        ? (oferente.negocioNombre ?? obtenerNombreCorto(oferente.nombre, oferente.apellidos))
-        : obtenerNombreCorto(oferente.nombre, oferente.apellidos);
-    const sufijoSucursal = esEmpresa && (oferente.totalSucursales ?? 0) > 1
-        ? (oferente.sucursalEsPrincipal ? 'Matriz' : oferente.sucursalNombre)
-        : null;
-
-    return (
-        <>
-            {tipoLabel} ·{' '}
-            <span className="font-bold text-white">{nombre}</span>
-            {sufijoSucursal && (
-                <>
-                    <span className="inline-block mx-1.5 h-3 w-px bg-white/40 align-middle" />
-                    <span className="font-medium text-white/80">{sufijoSucursal}</span>
-                </>
-            )}
-        </>
     );
 }
 

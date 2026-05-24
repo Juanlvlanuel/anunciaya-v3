@@ -18,7 +18,7 @@
 
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { AlertTriangle, Briefcase, PauseCircle, PlayCircle, Trash2 } from 'lucide-react';
+import { AlertTriangle, PauseCircle, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import {
     useCambiarEstadoPublicacionServicio,
     useEliminarPublicacionServicio,
@@ -214,33 +214,37 @@ interface EstadoVacioServiciosProps {
 }
 
 function EstadoVacioServicios({ tab, onPublicar }: EstadoVacioServiciosProps) {
+    // Copy adaptado por tab. Mismo patrón visual que el `EstadoVacio` de
+    // MarketPlace (PaginaMisPublicaciones) — círculo grande pastel + ring,
+    // título extrabold, mensaje conciso, CTA `rounded-xl` sólido. Paleta
+    // sky en lugar de cyan para mantener la identidad de Servicios.
     const config = {
         activa: {
             icono: PlayCircle,
             titulo: 'Sin publicaciones activas',
-            mensaje:
-                'Aún no has publicado ningún servicio o pedido. Empieza ahora y los vecinos podrán encontrarte.',
-            cta: 'Publicar mi primer servicio',
+            mensaje: 'Publica una para empezar a ofrecer.',
+            cta: 'Publicar servicio',
         },
         pausada: {
             icono: PauseCircle,
             titulo: 'Sin publicaciones pausadas',
-            mensaje:
-                'Cuando pauses una publicación o expire por 30 días sin interacción aparecerá aquí.',
+            mensaje: 'Aquí verás las que pauses o expiren.',
             cta: null,
         },
     }[tab];
 
     const Icono = config.icono;
     return (
-        <div className="flex flex-col items-center justify-center py-16 lg:py-20 text-center max-w-md mx-auto">
-            <div className="w-20 h-20 rounded-full bg-linear-to-br from-sky-100 to-sky-50 flex items-center justify-center ring-8 ring-sky-50 mb-5">
-                <Icono className="w-10 h-10 text-sky-500" strokeWidth={1.75} />
+        <div className="flex flex-col items-center justify-center py-20">
+            {/* Círculo pastel con ring — patrón estándar idéntico a MP /
+                Cupones / CardYA. Tamaño 24 (96px) + icono 12/16 (48/64). */}
+            <div className="w-24 h-24 rounded-full bg-linear-to-br from-sky-100 to-sky-50 flex items-center justify-center ring-8 ring-sky-50 mb-6">
+                <Icono className="w-12 h-12 lg:w-16 lg:h-16 text-sky-400" />
             </div>
-            <h3 className="text-lg lg:text-xl font-bold text-slate-900">
+            <h3 className="text-xl lg:text-2xl font-bold text-gray-900">
                 {config.titulo}
             </h3>
-            <p className="text-sm lg:text-base font-medium text-slate-600 mt-1.5 leading-relaxed">
+            <p className="text-base lg:text-lg font-medium text-gray-600 mt-1 text-center">
                 {config.mensaje}
             </p>
             {config.cta && (
@@ -248,9 +252,9 @@ function EstadoVacioServicios({ tab, onPublicar }: EstadoVacioServiciosProps) {
                     type="button"
                     data-testid="empty-servicios-publicar"
                     onClick={onPublicar}
-                    className="mt-5 inline-flex items-center gap-2 px-5 py-2.5 rounded-full bg-linear-to-b from-sky-500 to-sky-700 text-white font-bold text-sm lg:cursor-pointer shadow-cta-sky active:scale-[0.98]"
+                    className="mt-6 inline-flex items-center gap-2 px-6 py-3 bg-sky-500 hover:bg-sky-600 text-white font-semibold rounded-xl transition-colors lg:cursor-pointer"
                 >
-                    <Briefcase className="w-4 h-4" strokeWidth={2.5} />
+                    <Plus className="w-5 h-5" />
                     {config.cta}
                 </button>
             )}

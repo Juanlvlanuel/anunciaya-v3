@@ -31,6 +31,7 @@ import PaginaRegistroExito from '../pages/public/PaginaRegistroExito';
 import PaginaArticuloPublico from '../pages/public/PaginaArticuloPublico';
 import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
 import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMarketplacePublico';
+import PaginaServicioPublico from '../pages/public/PaginaServicioPublico';
 
 // Páginas privadas
 import PaginaInicio from '../pages/private/PaginaInicio';
@@ -196,6 +197,10 @@ const router = createBrowserRouter([
       {
         path: '/p/articulo-marketplace/:articuloId',
         element: <PaginaArticuloMarketplacePublico />,
+      },
+      {
+        path: '/p/servicio/:publicacionId',
+        element: <PaginaServicioPublico />,
       },
 
       // -----------------------------------------------------------------------

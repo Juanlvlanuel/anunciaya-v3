@@ -83,6 +83,14 @@ interface UseVotosParams {
    * Callback cuando cambia el estado de follow
    */
   onFollowChange?: (followed: boolean) => void;
+
+  /**
+   * Si true, NO emite los toasts globales de éxito/info ("¡Gracias!" /
+   * "¡Guardado!" / "Quitado de guardados"). Usado cuando el caller muestra
+   * su propio feedback (ej. bubble flotante `useSaveBubble`). Los toasts
+   * de ERROR siguen activos en ambos casos — son críticos.
+   */
+  silencioso?: boolean;
 }
 
 interface UseVotosResult {
@@ -169,6 +177,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
     initialFollowed = false,
     onLikeChange,
     onFollowChange,
+    silencioso = false,
   } = params;
 
   // Obtener sucursalActiva si está en modo comercial
@@ -338,7 +347,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
         votanteSucursalId: sucursalActiva || null,
       });
 
-      notificar.exito('¡Guardado!');
+      if (!silencioso) notificar.exito('¡Guardado!');
       invalidarCaches();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {
@@ -376,7 +385,7 @@ export function useVotos(params: UseVotosParams): UseVotosResult {
       // votanteSucursalId se agrega automáticamente por el interceptor en modo comercial
       await api.delete(`/votos/${entityType}/${entityId}/follow`);
 
-      notificar.info('Quitado de guardados');
+      if (!silencioso) notificar.info('Quitado de guardados');
       invalidarCaches();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     } catch (error: any) {

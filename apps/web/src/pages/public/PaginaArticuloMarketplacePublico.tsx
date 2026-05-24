@@ -370,7 +370,7 @@ export function PaginaArticuloMarketplacePublico() {
             <ModalAuthRequerido
                 abierto={modalAuthAbierto}
                 onCerrar={() => setModalAuthAbierto(false)}
-                accion="chat"
+                contexto={{ tipo: 'articulo', titulo: articulo.titulo }}
                 urlRetorno={`/marketplace/articulo/${articuloId}`}
             />
         </div>

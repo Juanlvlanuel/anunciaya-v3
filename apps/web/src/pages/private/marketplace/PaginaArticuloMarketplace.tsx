@@ -61,6 +61,7 @@ import {
     useReactivarArticulo,
 } from '../../../hooks/queries/useMarketplace';
 import { useGuardados } from '../../../hooks/useGuardados';
+import { useSaveBubble } from '../../../hooks/useSaveBubble';
 import {
     formatearPrecio,
     formatearTiempoRelativo,
@@ -112,11 +113,21 @@ export function PaginaArticuloMarketplace() {
     // (efecto sobre initialGuardado) y `aplicarCambioGuardadoEnCache` sigue
     // manteniendo en sync el feed-infinito + publicaciones del vendedor al
     // hacer toggle desde aquí.
+    //
+    // `silencioso: true` + `useSaveBubble`: feedback unificado vía bubble
+    // flotante anclado al botón (mismo patrón que CardNegocio del feed y
+    // cards de MisGuardados). Reemplaza el toast global verde.
     const { guardado, loading: cargandoGuardar, toggleGuardado } = useGuardados({
         entityType: 'articulo_marketplace',
         entityId: articuloId ?? '',
         initialGuardado: articulo?.guardado ?? false,
+        silencioso: true,
     });
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
+    const handleToggleGuardar = (e: React.MouseEvent) => {
+        triggerSaveBubble(e, guardado ? 'unsave' : 'save');
+        toggleGuardado();
+    };
 
     // ─── Reactivar (Sprint 7) ─────────────────────────────────────────────────
     const reactivarMutation = useReactivarArticulo();
@@ -196,6 +207,11 @@ export function PaginaArticuloMarketplace() {
             data-testid="pagina-articulo-marketplace"
             className="min-h-full bg-transparent pb-[150px] lg:pb-12"
         >
+            {/* Bubble flotante "¡Guardado!" / "Quitado" vía useSaveBubble —
+                reemplaza el toast global (silencioso=true en useGuardados)
+                para mantener el feedback anclado al botón. Mismo patrón
+                que cards de MP y CardNegocio del feed. */}
+            {saveBubble}
             {/* ════════════════════════════════════════════════════════════════
                 HEADER DARK STICKY — Identidad teal del MarketPlace.
                 Mismo patrón que PaginaMarketplace y P3 PaginaPerfilVendedor:
@@ -277,7 +293,7 @@ export function PaginaArticuloMarketplace() {
                                 móvil el botón se comporta sin tooltip,
                                 consistente con el patrón usado en P3
                                 Perfil del Vendedor. */}
-                            <div className="flex shrink-0 items-center gap-1">
+                            <div className="flex shrink-0 items-center gap-3">
                                 <Tooltip
                                     text="Compartir publicación"
                                     position="bottom"
@@ -298,7 +314,7 @@ export function PaginaArticuloMarketplace() {
                                 >
                                     <button
                                         data-testid="btn-guardar-articulo"
-                                        onClick={toggleGuardado}
+                                        onClick={handleToggleGuardar}
                                         disabled={cargandoGuardar}
                                         aria-label={
                                             guardado
@@ -306,13 +322,26 @@ export function PaginaArticuloMarketplace() {
                                                 : 'Guardar artículo'
                                         }
                                         aria-pressed={guardado}
-                                        className={`flex h-11 w-11 items-center justify-center rounded-lg disabled:opacity-50 lg:cursor-pointer lg:hover:bg-white/10 ${
-                                            guardado ? 'text-teal-400' : 'text-white/50 lg:hover:text-white'
+                                        className={`relative flex w-[38px] h-[38px] items-center justify-center rounded-full overflow-visible disabled:opacity-50 lg:cursor-pointer transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                            guardado
+                                                ? 'bg-white border-2 border-amber-500'
+                                                : 'bg-transparent border-2 border-white/40 lg:hover:border-white/70'
                                         }`}
                                     >
+                                        {/* Pulse ring amber respirando cuando guardado — mismo
+                                            patrón visual que CardNegocio y BookmarkGlass de
+                                            MisGuardados para coherencia cross-módulo. */}
+                                        {guardado && (
+                                            <span
+                                                aria-hidden
+                                                className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                                                style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                                            />
+                                        )}
                                         <Icon
                                             icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
-                                            className="h-6 w-6"
+                                            className="h-5 w-5"
+                                            style={{ color: guardado ? '#f59e0b' : 'rgba(255,255,255,0.9)' }}
                                         />
                                     </button>
                                 </Tooltip>

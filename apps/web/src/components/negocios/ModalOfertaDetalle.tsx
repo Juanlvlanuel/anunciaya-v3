@@ -35,6 +35,7 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useGuardados } from '@/hooks/useGuardados';
+import { useSaveBubble } from '@/hooks/useSaveBubble';
 import {
   registrarClickOferta,
   registrarShareOferta,
@@ -289,12 +290,17 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         oferta?.negocioTotalSucursales,
     );
 
-    // Hook de guardados
+    // Hook de guardados.
+    // `silencioso: true` desactiva los toasts globales del hook porque el
+    // feedback se muestra con el bubble flotante `useSaveBubble` anclado al
+    // botón — patrón unificado cross-módulo (cards, detalles MP/Servicios).
     const { guardado, toggleGuardado } = useGuardados({
         entityType: 'oferta',
         entityId: oferta ? getId(oferta) : '',
         initialGuardado: false, // TODO: Pasar desde el padre si viene del backend
+        silencioso: true,
     });
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
 
     // Lista de sucursales donde aplica la misma oferta (multi-sucursal).
     // Solo se carga cuando `oferta.totalSucursales > 1`. La sección
@@ -381,11 +387,15 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
         ? getBadgeUrgenciaConfig(diasRestantes) 
         : null;
 
-    const handleGuardar = () => {
+    const handleGuardar = (e: React.MouseEvent) => {
         if (!usuario) {
             notificar.error('Debes iniciar sesión para guardar ofertas');
             return;
         }
+        // El estado pasado al bubble es el que VA A QUEDAR tras el toggle
+        // (no el actual): si `guardado=false` ahora, el click lo pasa a
+        // true → bubble "¡Guardado!".
+        triggerSaveBubble(e, guardado ? 'unsave' : 'save');
         toggleGuardado();
     };
 
@@ -455,6 +465,10 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
 
     return (
         <>
+            {/* Bubble flotante "¡Guardado!" / "Quitado" anclado al botón
+                — patrón unificado cross-módulo. Reemplaza el toast global
+                (silencioso=true en useGuardados arriba). */}
+            {saveBubble}
             {/* Estilos para animaciones - IGUALES a OfertaCard */}
             <style>{`
                 /* animate-float - Badges flotantes */
@@ -547,15 +561,34 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                             <Tooltip text={guardado ? 'Quitar de guardados' : 'Guardar'} position="bottom">
                                 <button
                                     onClick={handleGuardar}
-                                    className={`w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 cursor-pointer ${guardado ? 'border-amber-500' : 'border-white'}`}
+                                    aria-label={guardado ? 'Quitar de guardados' : 'Guardar oferta'}
+                                    aria-pressed={guardado}
+                                    className={`relative w-[38px] h-[38px] grid place-items-center rounded-full bg-white overflow-visible shadow-md cursor-pointer transition-transform duration-200 lg:hover:scale-110 active:opacity-70 ${
+                                        guardado ? 'border-2 border-amber-500' : 'border-2 border-slate-300'
+                                    }`}
                                 >
-                                    <Icon icon={guardado ? ICONOS.guardar : 'ph:archive-box'} className={`w-5 h-5 ${guardado ? 'text-amber-500' : 'text-slate-700'}`} />
+                                    {/* Pulse ring amber respirando cuando guardado —
+                                        mismo patrón cross-módulo (CardNegocio, MisGuardados,
+                                        detalles MP/Servicios). */}
+                                    {guardado && (
+                                        <span
+                                            aria-hidden
+                                            className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                                            style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                                        />
+                                    )}
+                                    <Icon
+                                        icon={ICONOS.guardar}
+                                        className="w-5 h-5"
+                                        style={{ color: guardado ? '#f59e0b' : '#94a3b8' }}
+                                    />
                                 </button>
                             </Tooltip>
                             <Tooltip text="Cerrar" position="bottom">
                                 <button
                                     onClick={onClose}
-                                    className="w-10 h-10 rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer"
+                                    aria-label="Cerrar modal"
+                                    className="w-[38px] h-[38px] rounded-full bg-white/90 backdrop-blur-sm flex items-center justify-center shadow-lg border-2 border-white cursor-pointer transition-transform duration-200 lg:hover:scale-110 active:opacity-70"
                                 >
                                     <X className="w-5 h-5 text-slate-700" />
                                 </button>

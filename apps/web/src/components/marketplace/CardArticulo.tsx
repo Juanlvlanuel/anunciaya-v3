@@ -32,6 +32,7 @@ const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const MessageCircle = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 import { useGuardados } from '../../hooks/useGuardados';
+import { useSaveBubble } from '../../hooks/useSaveBubble';
 import {
     formatearDistancia,
     formatearTiempoRelativo,
@@ -132,12 +133,22 @@ export function CardArticulo({
         navigate(`/marketplace/articulo/${articulo.id}`);
     };
 
+    const { triggerSaveBubble, saveBubble } = useSaveBubble();
     const handleClickGuardar = (e: React.MouseEvent) => {
         e.stopPropagation();
+        // El estado que pasamos al bubble es el QUE VA A QUEDAR después
+        // del toggle (no el actual). Si `guardado=false` ahora, el
+        // click lo pasa a true → mostrar "¡Guardado!".
+        triggerSaveBubble(e, guardado ? 'unsave' : 'save');
         toggleGuardado();
     };
 
     return (
+        <>
+        {/* Bubble flotante "¡Guardado!" / "Quitado" renderizado vía
+            createPortal a document.body — vive fuera del <article> para
+            que el portal no se desmonte si el card se re-renderiza. */}
+        {saveBubble}
         <article
             data-testid={`card-articulo-${articulo.id}`}
             onClick={handleClickCard}
@@ -214,12 +225,23 @@ export function CardArticulo({
                         disabled={loading}
                         aria-label={guardado ? 'Quitar de guardados' : 'Guardar artículo'}
                         aria-pressed={guardado}
-                        className={`absolute right-2 top-2 flex h-9 w-9 cursor-pointer items-center justify-center rounded-full backdrop-blur-[10px] disabled:opacity-50 ${
+                        className={`absolute right-2 top-2 flex w-[38px] h-[38px] cursor-pointer items-center justify-center rounded-full backdrop-blur-[10px] overflow-visible disabled:opacity-50 ${
                             guardado
                                 ? 'border-2 border-amber-500 bg-white'
                                 : 'border border-white/10 bg-black/25'
                         }`}
                     >
+                        {/* Pulse ring amber respirando cuando guardado —
+                            mismo patrón visual que CardNegocio del feed y
+                            BookmarkGlass de MisGuardados para coherencia
+                            cross-módulo. */}
+                        {guardado && (
+                            <span
+                                aria-hidden
+                                className="absolute -inset-1 rounded-full border-2 border-amber-500/40 pointer-events-none"
+                                style={{ animation: 'cardHeartRingPulse 2s ease-in-out infinite' }}
+                            />
+                        )}
                         <Icon
                             icon={guardado ? ICONOS.guardar : 'ph:archive-box'}
                             className="h-5 w-5"
@@ -300,6 +322,7 @@ export function CardArticulo({
                 )}
             </div>
         </article>
+        </>
     );
 }
 
