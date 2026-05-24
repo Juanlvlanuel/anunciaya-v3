@@ -57,6 +57,7 @@ const RUTAS_SIN_SUCURSAL = [
   '/ofertas/feed',           // Feed público de ofertas — filtra por ciudad, NO por sucursal del comerciante
   '/ofertas/destacada-del-dia', // Hero de ofertas — contenido editorial global
   '/ofertas/detalle/',       // Detalle público de una oferta
+  '/preguntas-comunidad',    // Feed del Home "Pregúntale a [ciudad]" — filtra por ciudad, NO por sucursal
 ];
 
 /**

@@ -299,4 +299,18 @@ export const queryKeys = {
     kpis: (sucursalId: string) => ['vacantes', 'kpis', sucursalId] as const,
   },
 
+  // ─── Home — Pregúntale a [ciudad] ────────────────────────────────────────
+  // Feed conversacional del Home. La "partición" del caché es por ciudad
+  // (texto plano del useGpsStore — no hay FK a regiones). Para invalidar
+  // todas las páginas del feed de una ciudad usar prefix match:
+  // ['preguntasComunidad', 'porCiudad', ciudad].
+  preguntasComunidad: {
+    all: () => ['preguntasComunidad'] as const,
+    porCiudad: (
+      ciudad: string,
+      paginacion: { limit: number; offset: number },
+    ) =>
+      ['preguntasComunidad', 'porCiudad', ciudad, paginacion] as const,
+  },
+
 } as const;

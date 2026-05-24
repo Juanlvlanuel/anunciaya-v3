@@ -2548,3 +2548,36 @@ export const serviciosBusquedasLog = pgTable("servicios_busquedas_log", {
 }, (table) => [
 	index("idx_servicios_busq_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 ]);
+
+// ============================================================================
+// Home — "Pregúntale a [ciudad]" — Tabla base del feed conversacional
+// Migración: docs/migraciones/2026-05-24-preguntas-comunidad.sql
+//
+// Cada fila es una pregunta del vecino para su ciudad. El feed se filtra por
+// `ciudad` (texto plano del useGpsStore — no hay FK a `regiones`). El campo
+// `estado` es el estado geográfico (Sonora, etc.), y `estadoPregunta` es el
+// ciclo de vida de la pregunta (activa | cerrada | oculta) — nombres distintos
+// para no confundir.
+//
+// MVP intencionalmente mínimo: solo el texto, autor y ubicación. Keywords,
+// categoría y respuesta de IA vienen en sprints posteriores.
+// ============================================================================
+export const preguntasComunidad = pgTable("preguntas_comunidad", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	texto: varchar({ length: 500 }).notNull(),
+	ciudad: varchar({ length: 120 }).notNull(),
+	estado: varchar({ length: 100 }).notNull(),
+	estadoPregunta: varchar("estado_pregunta", { length: 20 }).default('activa').notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_preguntas_comunidad_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_preguntas_comunidad_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_preguntas_comunidad_usuario"
+	}).onDelete("cascade"),
+	check("preguntas_comunidad_estado_pregunta_check", sql`(estado_pregunta)::text = ANY ((ARRAY['activa'::character varying, 'cerrada'::character varying, 'oculta'::character varying])::text[])`),
+]);

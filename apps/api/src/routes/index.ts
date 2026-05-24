@@ -41,6 +41,7 @@ import reportesRoutes from './reportes.routes';
 import marketplaceRoutes from './marketplace.routes';
 import serviciosRoutes from './servicios.routes';
 import vacantesRoutes from './vacantes.routes';
+import preguntasComunidadRoutes from './preguntasComunidad.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -140,5 +141,8 @@ router.use('/servicios', serviciosRoutes);
 // Las vacantes son publicaciones de tipo='vacante-empresa' gestionadas desde
 // BS por el operador del negocio. Aparecen en el feed público de Servicios.
 router.use('/business-studio/vacantes', vacantesRoutes);
+
+// Rutas del feed "Pregúntale a [ciudad]" (Home — preguntas de la comunidad)
+router.use('/preguntas-comunidad', preguntasComunidadRoutes);
 
 export default router;
