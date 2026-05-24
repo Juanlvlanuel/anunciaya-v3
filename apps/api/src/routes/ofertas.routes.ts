@@ -45,6 +45,7 @@ import {
   getOfertaPublica,
   getOfertaDestacadaDelDia,
   getSugerenciasOfertas,
+  getBuscarOfertas,
 } from '../controllers/ofertas.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarNegocio } from '../middleware/negocio.middleware.js';
@@ -105,6 +106,14 @@ router.get('/destacada-del-dia', verificarToken, getOfertaDestacadaDelDia);
  * lo confunda con `/:id`.
  */
 router.get('/buscar/sugerencias', verificarToken, getSugerenciasOfertas);
+
+/**
+ * GET /api/ofertas/buscar?q=...&ciudad=...&tipo=&ordenar=&limit=&offset=
+ * Búsqueda completa híbrida (FTS + ILIKE + unaccent) sobre titulo+descripcion
+ * + nombre del negocio + categorías. Login obligatorio (regla del proyecto).
+ * Declarada ANTES de las rutas paramétricas para evitar colisión con `/:id`.
+ */
+router.get('/buscar', verificarToken, getBuscarOfertas);
 
 /**
  * POST /api/ofertas/:id/vista

@@ -409,6 +409,32 @@ export const validarCodigoSchema = z.object({
 export type ValidarCodigoInput = z.infer<typeof validarCodigoSchema>;
 
 // =============================================================================
+// SCHEMA 7: BUSCAR OFERTAS (búsqueda completa con filtros + orden + paginado)
+// =============================================================================
+// Para: GET /api/ofertas/buscar
+//
+// Calcado de `buscarServiciosQuerySchema` de servicios. Diferencias:
+//   - Solo filtro `tipo` (no hay modo/modalidad/categoria propios).
+//   - Sin lat/lng/distanciaMaxKm: las ofertas no tienen ubicación propia
+//     (la sucursal sí, pero la oferta no — el feed se filtra por ciudad).
+//   - `ordenar` solo permite 'recientes' (por la misma razón).
+
+export const buscarOfertasQuerySchema = z.object({
+  q: z.string().trim().max(100).optional(),
+  ciudad: z
+    .string()
+    .trim()
+    .min(2, 'La ciudad es obligatoria')
+    .max(100, 'La ciudad no puede exceder 100 caracteres'),
+  tipo: campoTipo.optional(),
+  ordenar: z.enum(['recientes']).optional().default('recientes'),
+  limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+  offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+export type BuscarOfertasQueryInput = z.infer<typeof buscarOfertasQuerySchema>;
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -419,5 +445,6 @@ export default {
   filtrosFeedSchema,
   asignarOfertaSchema,
   validarCodigoSchema,
+  buscarOfertasQuerySchema,
   formatearErroresZod,
 };

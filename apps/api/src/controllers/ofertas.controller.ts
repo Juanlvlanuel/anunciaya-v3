@@ -38,13 +38,17 @@ import {
   obtenerMisCupones,
   revelarCodigoCupon,
 } from '../services/ofertas.service.js';
-import { obtenerSugerenciasOfertas } from '../services/ofertas/buscador.js';
+import {
+  obtenerSugerenciasOfertas,
+  buscarOfertas,
+} from '../services/ofertas/buscador.js';
 import {
   crearOfertaSchema,
   actualizarOfertaSchema,
   duplicarOfertaSchema,
   filtrosFeedSchema,
   asignarOfertaSchema,
+  buscarOfertasQuerySchema,
   formatearErroresZod,
 } from '../validations/ofertas.schema.js';
 
@@ -1001,6 +1005,38 @@ export async function getSugerenciasOfertas(req: Request, res: Response) {
     return res.status(500).json({
       success: false,
       message: 'Error al obtener sugerencias',
+    });
+  }
+}
+
+/**
+ * GET /api/ofertas/buscar?q=...&ciudad=...&tipo=&ordenar=&limit=&offset=
+ *
+ * Búsqueda completa híbrida (FTS + ILIKE + unaccent) sobre titulo+descripcion
+ * + nombre del negocio + categorías/subcategorías. Calca el patrón de
+ * `getBuscarServicios` ajustado a los filtros del dominio Ofertas
+ * (solo `tipo`). Login obligatorio (regla del proyecto: todo privado).
+ *
+ * Inserta en `ofertas_busquedas_log` fire-and-forget con `usuario_id = NULL`
+ * por privacidad.
+ */
+export async function getBuscarOfertas(req: Request, res: Response) {
+  try {
+    const validacion = buscarOfertasQuerySchema.safeParse(req.query);
+    if (!validacion.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Query inválida',
+        errores: formatearErroresZod(validacion.error),
+      });
+    }
+    const resultado = await buscarOfertas(validacion.data);
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getBuscarOfertas:', error);
+    return res.status(500).json({
+      success: false,
+      message: 'Error al ejecutar la búsqueda',
     });
   }
 }
