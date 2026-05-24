@@ -35,7 +35,10 @@ import {
     eliminarPreguntaPropia,
     eliminarPreguntaDueno,
 } from '../services/servicios/preguntas.js';
-import { obtenerSugerenciasServicios } from '../services/servicios/buscador.js';
+import {
+    obtenerSugerenciasServicios,
+    buscarServicios,
+} from '../services/servicios/buscador.js';
 import {
     crearResenaServicio,
     obtenerPerfilPrestador,
@@ -54,6 +57,7 @@ import {
     editarPreguntaSchema,
     responderPreguntaSchema,
     crearResenaSchema,
+    buscarServiciosQuerySchema,
     formatearErroresZod,
 } from '../validations/servicios.schema.js';
 
@@ -211,6 +215,39 @@ export async function getSugerenciasBuscador(req: Request, res: Response) {
         return res.status(500).json({
             success: false,
             message: 'Error al obtener sugerencias',
+        });
+    }
+}
+
+/**
+ * GET /api/servicios/buscar?q=...&ciudad=...&modo=&tipo=&modalidad=&tipoEmpleo=
+ *      &categoria=&soloUrgente=&distanciaMaxKm=&ordenar=&limit=&offset=
+ *
+ * Búsqueda completa con filtros + orden + paginado. Calca el patrón de
+ * `getBuscarArticulos` de MarketPlace, ajustado a los filtros del dominio
+ * Servicios. Login obligatorio (regla del proyecto: todo privado, a
+ * diferencia de MP que es público).
+ *
+ * Inserta en `servicios_busquedas_log` fire-and-forget con `usuario_id = NULL`
+ * por privacidad.
+ */
+export async function getBuscarServicios(req: Request, res: Response) {
+    try {
+        const validacion = buscarServiciosQuerySchema.safeParse(req.query);
+        if (!validacion.success) {
+            return res.status(400).json({
+                success: false,
+                message: 'Query inválida',
+                errores: formatearErroresZod(validacion.error),
+            });
+        }
+        const resultado = await buscarServicios(validacion.data);
+        return res.json(resultado);
+    } catch (error) {
+        console.error('Error en getBuscarServicios:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al ejecutar la búsqueda',
         });
     }
 }

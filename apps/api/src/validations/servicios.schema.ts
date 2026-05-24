@@ -690,6 +690,41 @@ export const crearResenaSchema = z.object({
 export type CrearResenaInput = z.infer<typeof crearResenaSchema>;
 
 // =============================================================================
+// SCHEMA — BUSCAR SERVICIOS (búsqueda completa con filtros + orden + paginado)
+// =============================================================================
+// GET /api/servicios/buscar
+//
+// Calcado de `buscarQuerySchema` de marketplace. Diferencias clave:
+//   - Filtros del dominio Servicios: modo, tipo, modalidad, tipoEmpleo,
+//     categoria, soloUrgente.
+//   - Sin precioMin/precioMax ni ordenamiento por precio: el campo `precio`
+//     es JSONB discriminated union (fijo|hora|mensual|rango|a-convenir) y
+//     ordenarlo uniformemente no es trivial.
+//   - Solo `recientes` y `cercanos` en `ordenar`.
+
+export const buscarServiciosQuerySchema = z.object({
+    q: z.string().trim().max(100).optional(),
+    ciudad: campoCiudad,
+    lat: z.coerce.number().min(-90).max(90).optional(),
+    lng: z.coerce.number().min(-180).max(180).optional(),
+    modo: campoModo.optional(),
+    tipo: campoTipo.optional(),
+    modalidad: campoModalidad.optional(),
+    tipoEmpleo: campoTipoEmpleo.optional(),
+    categoria: campoCategoria.optional(),
+    soloUrgente: z.coerce.boolean().optional(),
+    distanciaMaxKm: z.coerce.number().min(0).max(500).optional(),
+    ordenar: z
+        .enum(['recientes', 'cercanos'])
+        .optional()
+        .default('recientes'),
+    limit: z.coerce.number().int().min(1).max(100).optional().default(20),
+    offset: z.coerce.number().int().min(0).optional().default(0),
+});
+
+export type BuscarServiciosQueryInput = z.infer<typeof buscarServiciosQuerySchema>;
+
+// =============================================================================
 // SCHEMA 6: UPLOAD DE IMAGEN (presigned URL R2 prefijo `servicios/`)
 // =============================================================================
 // POST /api/servicios/upload-imagen

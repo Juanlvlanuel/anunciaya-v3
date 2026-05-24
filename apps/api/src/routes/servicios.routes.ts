@@ -45,6 +45,7 @@ import {
     postRegistrarVista,
     getPreguntasPublicacion,
     getSugerenciasBuscador,
+    getBuscarServicios,
     postUploadImagen,
     getMisPublicaciones,
     postCrearPublicacion,
@@ -91,6 +92,15 @@ router.get('/feed/infinito', verificarTokenOpcional, getFeedInfinito);
  * Express no confunda la ruta con un parámetro.
  */
 router.get('/buscar/sugerencias', verificarToken, getSugerenciasBuscador);
+
+/**
+ * GET /api/servicios/buscar?q=...&ciudad=...&modo=&tipo=&modalidad=&tipoEmpleo=
+ *      &categoria=&soloUrgente=&distanciaMaxKm=&ordenar=&limit=&offset=
+ * Búsqueda completa híbrida (FTS + ILIKE + unaccent). Login obligatorio
+ * (regla del proyecto: todo privado, distinto de marketplace que es público).
+ * Declarada ANTES de /publicaciones/:id.
+ */
+router.get('/buscar', verificarToken, getBuscarServicios);
 
 /**
  * GET /api/servicios/publicaciones/:id/preguntas
