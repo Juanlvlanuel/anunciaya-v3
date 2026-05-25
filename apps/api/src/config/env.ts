@@ -72,6 +72,14 @@ const esquemaEnv = z.object({
   // En producción DEBE ser un string largo y aleatorio. Cuando se cree el Panel
   // Admin con roles reales, este middleware se reemplaza por auth de admin.
   ADMIN_SECRET: z.string().min(16, 'ADMIN_SECRET debe tener mínimo 16 caracteres').optional(),
+
+  // -------- Gemini (Coyo — asistente del Home) --------
+  // API key del LLM que usa Coyo para interpretar lenguaje natural y enriquecer
+  // resultados del buscador unificado. OPCIONAL: si falta, el server arranca
+  // igual y los endpoints de Coyo que dependan del LLM deberán manejarlo
+  // (fallback o respuesta de error). Las búsquedas estructuradas siguen
+  // funcionando sin esta clave.
+  GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY no puede estar vacía').optional(),
 });
 
 // ====================================
