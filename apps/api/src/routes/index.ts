@@ -42,6 +42,7 @@ import marketplaceRoutes from './marketplace.routes';
 import serviciosRoutes from './servicios.routes';
 import vacantesRoutes from './vacantes.routes';
 import preguntasComunidadRoutes from './preguntasComunidad.routes';
+import coyoRoutes from './coyo.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -144,5 +145,8 @@ router.use('/business-studio/vacantes', vacantesRoutes);
 
 // Rutas del feed "Pregúntale a [ciudad]" (Home — preguntas de la comunidad)
 router.use('/preguntas-comunidad', preguntasComunidadRoutes);
+
+// Rutas del asistente Coyo (Home — buscador unificado en las 4 áreas)
+router.use('/coyo', coyoRoutes);
 
 export default router;
