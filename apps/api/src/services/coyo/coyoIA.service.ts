@@ -122,11 +122,13 @@ const PROMPT_INTERPRETAR = `Lee la pregunta de un vecino del pueblo y decide 2 c
 
 1. esBusquedaLocal: true si la pregunta es para BUSCAR algo del pueblo (un negocio, un producto, un servicio, una oferta, alguien que ofrezca algo). false si es otra cosa (matemáticas, escribir textos, política, charla random, opinión general, etc.).
 
-2. terminos: las palabras clave LIMPIAS para buscar en el catálogo del pueblo. Quita preguntas, conectores y signos. Conserva solo lo buscable. Si esBusquedaLocal es false, deja terminos como "".
+2. terminos: SOLO 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL de lo que busca. NO devuelvas sinónimos. NO devuelvas frases largas. Prefiere 1 palabra fuerte; máximo 3 SOLO si de verdad ayudan a precisar (ej. "cuidado mascotas" porque las dos juntas precisan el dominio). Si esBusquedaLocal es false, deja terminos como "".
 
 Ejemplos:
-- "¿Quién arregla una fuga urgente?" → {"esBusquedaLocal": true, "terminos": "plomería fontanero fuga agua"}
-- "Necesito tacos baratos" → {"esBusquedaLocal": true, "terminos": "tacos baratos"}
+- "¿Quién arregla una fuga de agua urgente?" → {"esBusquedaLocal": true, "terminos": "plomería"}
+- "¿Dónde venden tacos al pastor?" → {"esBusquedaLocal": true, "terminos": "tacos"}
+- "Busco quien cuide a mi perro el fin" → {"esBusquedaLocal": true, "terminos": "cuidado mascotas"}
+- "Necesito un fotógrafo para mi boda" → {"esBusquedaLocal": true, "terminos": "fotógrafo bodas"}
 - "¿Cuánto es 5 por 8?" → {"esBusquedaLocal": false, "terminos": ""}
 - "Escríbeme un poema sobre el mar" → {"esBusquedaLocal": false, "terminos": ""}
 
@@ -219,7 +221,11 @@ ${pregunta}
 Resultados reales encontrados en el catálogo del pueblo (JSON):
 ${datosJson}
 
-Escribe la respuesta de Coyo en español, breve (1-2 frases), cálida y mexicana sin exagerar. SOLO menciona resultados que estén en el JSON. Si hay datos ricos (rating, totalResenas, verificado, estaAbierto, condicion, aceptaOfertas, negocioRating, diasParaVencer), úsalos cuando aporten valor. Si todos los grupos vienen vacíos, lo dices con honestidad e invitas al vecino a dejar su pregunta para la comunidad.
+Escribe la respuesta de Coyo en español, breve (1-2 frases), cálida y mexicana sin exagerar.
+
+CASO A — Si hay resultados (al menos un grupo tiene items): SOLO menciona resultados que estén en el JSON. Si hay datos ricos (rating, totalResenas, verificado, estaAbierto, condicion, aceptaOfertas, negocioRating, diasParaVencer), úsalos cuando aporten valor. NUNCA inventes negocios, precios ni datos.
+
+CASO B — Si TODOS los grupos vienen vacíos (sin items en ninguno): dilo con honestidad y calidez, sin inventar nada. Reconoce que esta vez no encontraste eso en el catálogo del pueblo, e invita al vecino a dejar su pregunta para que la comunidad pueda responderle. Mantén el tono cálido y vecinal — no es un error, es información honesta.
 
 RESPONDE SOLO con el texto de Coyo, SIN comillas envolventes, SIN bloques markdown, SIN encabezados, SIN explicaciones.`;
 

@@ -21,6 +21,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import type { PrecioInput } from '../../validations/servicios.schema.js';
 import { sanitizarTerminoParaLog } from '../marketplace/buscador.js';
+import { tokenizarQuery, unirOr } from '../_helpers/busquedaFlexible.js';
 
 // =============================================================================
 // TIPOS
@@ -226,6 +227,14 @@ export interface FiltrosBusquedaServicios {
     ordenar?: OrdenarBusquedaServicios;
     limit?: number;
     offset?: number;
+    /**
+     * Modo flexible para Coyo (NO afectar usuarios normales).
+     * Cuando `true`, la query multi-palabra se trata como OR (cualquier
+     * palabra matchea) en vez del AND implícito por defecto. Activado
+     * solo desde `services/coyo/buscadorUnificado.ts`. Ver
+     * `services/_helpers/busquedaFlexible.ts` para el racional.
+     */
+    modoFlexible?: boolean;
 }
 
 export interface ResultadoBusquedaServicios {
@@ -260,25 +269,44 @@ export async function buscarServicios(
     ];
 
     if (queryNorm.length >= 2) {
-        // Híbrido FTS + ILIKE + unaccent. Patrón de PATRON_BUSCADOR_FTS.md:
-        //   - FTS español (con stemming) sobre titulo+descripcion.
-        //   - ILIKE substring para prefix matching mientras teclea.
-        //   - EXISTS + unnest para que el término matchee cualquier entrada
-        //     de los arrays `skills` o `requisitos`.
-        // `unaccent` aplicado a ambos lados.
-        const patronLike = `%${queryNorm}%`;
+        // Híbrido FTS + ILIKE + unaccent. Dos variantes:
+        //   - Normal (usuarios): plainto_tsquery (AND) + un solo ILIKE de la
+        //     frase entera. Comportamiento histórico, no se toca.
+        //   - Flexible (Coyo): websearch_to_tsquery con tokens unidos por
+        //     "OR" + ILIKE por palabra unidos con OR. Permite que una query
+        //     multi-palabra como "plomería fontanero" encuentre registros
+        //     que tengan UNA de las palabras (no las dos juntas).
+        const tokens = filtros.modoFlexible ? tokenizarQuery(queryNorm) : [];
+        const usarFlexible = filtros.modoFlexible && tokens.length > 0;
+
+        const ftsExpr = usarFlexible
+            ? sql`websearch_to_tsquery('spanish', immutable_unaccent(${unirOr(tokens)}))`
+            : sql`plainto_tsquery('spanish', immutable_unaccent(${queryNorm}))`;
+
+        const ilikeOr = (expresion: ReturnType<typeof sql>) => {
+            if (usarFlexible) {
+                return sql.join(
+                    tokens.map(
+                        (t) =>
+                            sql`${expresion} ILIKE immutable_unaccent(${`%${t}%`})`,
+                    ),
+                    sql` OR `,
+                );
+            }
+            return sql`${expresion} ILIKE immutable_unaccent(${`%${queryNorm}%`})`;
+        };
+
         conds.push(sql`(
-            to_tsvector('spanish', immutable_unaccent(sp.titulo || ' ' || sp.descripcion))
-                @@ plainto_tsquery('spanish', immutable_unaccent(${queryNorm}))
-            OR immutable_unaccent(sp.titulo) ILIKE immutable_unaccent(${patronLike})
-            OR immutable_unaccent(sp.descripcion) ILIKE immutable_unaccent(${patronLike})
+            to_tsvector('spanish', immutable_unaccent(sp.titulo || ' ' || sp.descripcion)) @@ ${ftsExpr}
+            OR ${ilikeOr(sql`immutable_unaccent(sp.titulo)`)}
+            OR ${ilikeOr(sql`immutable_unaccent(sp.descripcion)`)}
             OR EXISTS (
                 SELECT 1 FROM unnest(sp.skills) skill
-                WHERE immutable_unaccent(skill) ILIKE immutable_unaccent(${patronLike})
+                WHERE ${ilikeOr(sql`immutable_unaccent(skill)`)}
             )
             OR EXISTS (
                 SELECT 1 FROM unnest(sp.requisitos) req
-                WHERE immutable_unaccent(req) ILIKE immutable_unaccent(${patronLike})
+                WHERE ${ilikeOr(sql`immutable_unaccent(req)`)}
             )
         )`);
     }

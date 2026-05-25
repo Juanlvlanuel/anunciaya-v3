@@ -31,6 +31,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { redis } from '../../db/redis.js';
+import { tokenizarQuery, unirOr } from '../_helpers/busquedaFlexible.js';
 
 // =============================================================================
 // TIPOS
@@ -59,6 +60,13 @@ export interface FiltrosBusqueda {
     ordenar?: OrdenarBusqueda;
     limit?: number;
     offset?: number;
+    /**
+     * Modo flexible para Coyo. Cuando `true`, las palabras se tratan como
+     * OR (cualquiera matchea) en vez del AND implícito por defecto. Solo
+     * lo activa `services/coyo/buscadorUnificado.ts`. Ver
+     * `services/_helpers/busquedaFlexible.ts`.
+     */
+    modoFlexible?: boolean;
 }
 
 export interface ResultadoBusqueda {
@@ -303,12 +311,35 @@ export async function buscarArticulos(
         // Accent-insensitive + prefix matching — ver §obtenerSugerencias
         // para racional. Combina FTS (stemming + ranking) con ILIKE substring
         // para cubrir el caso "bici" → "bicicleta" mientras el usuario teclea.
-        const patronLike = `%${queryNorm}%`;
+        //
+        // Dos variantes:
+        //   - Normal (usuarios): plainto_tsquery (AND) + frase entera.
+        //   - Flexible (Coyo): websearch_to_tsquery + OR por palabra.
+        // Ver `services/_helpers/busquedaFlexible.ts`.
+        const tokens = filtros.modoFlexible ? tokenizarQuery(queryNorm) : [];
+        const usarFlexible = filtros.modoFlexible && tokens.length > 0;
+
+        const ftsExpr = usarFlexible
+            ? sql`websearch_to_tsquery('spanish', unaccent(${unirOr(tokens)}))`
+            : sql`plainto_tsquery('spanish', unaccent(${queryNorm}))`;
+
+        const ilikeOr = (expresion: ReturnType<typeof sql>) => {
+            if (usarFlexible) {
+                return sql.join(
+                    tokens.map(
+                        (t) => sql`${expresion} ILIKE unaccent(${`%${t}%`})`,
+                    ),
+                    sql` OR `,
+                );
+            }
+            return sql`${expresion} ILIKE unaccent(${`%${queryNorm}%`})`;
+        };
+
         conds.push(
             sql`(
-                to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)) @@ plainto_tsquery('spanish', unaccent(${queryNorm}))
-                OR unaccent(a.titulo) ILIKE unaccent(${patronLike})
-                OR unaccent(a.descripcion) ILIKE unaccent(${patronLike})
+                to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)) @@ ${ftsExpr}
+                OR ${ilikeOr(sql`unaccent(a.titulo)`)}
+                OR ${ilikeOr(sql`unaccent(a.descripcion)`)}
             )`
         );
     }

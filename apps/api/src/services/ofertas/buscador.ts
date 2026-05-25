@@ -26,6 +26,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { sanitizarTerminoParaLog } from '../marketplace/buscador.js';
+import { tokenizarQuery, unirOr } from '../_helpers/busquedaFlexible.js';
 
 // =============================================================================
 // TIPOS
@@ -234,6 +235,13 @@ export interface FiltrosBusquedaOfertas {
     ordenar?: OrdenarBusquedaOfertas;
     limit?: number;
     offset?: number;
+    /**
+     * Modo flexible para Coyo. Cuando `true`, las palabras se tratan como
+     * OR (cualquiera matchea) en vez del AND implícito por defecto. Solo
+     * lo activa `services/coyo/buscadorUnificado.ts`. Ver
+     * `services/_helpers/busquedaFlexible.ts`.
+     */
+    modoFlexible?: boolean;
 }
 
 export interface ResultadoBusquedaOfertas {
@@ -282,16 +290,35 @@ export async function buscarOfertas(
 
     if (queryNorm.length >= 2) {
         // Híbrido FTS + ILIKE + unaccent (con coalesce porque descripcion es
-        // NULLABLE — trampa #6 del patrón). El índice GIN también lleva
-        // `immutable_unaccent(titulo || ' ' || coalesce(descripcion, ''))` para que la
-        // expresión coincida y el planner use el índice.
-        const patronLike = `%${queryNorm}%`;
+        // NULLABLE — trampa #6 del patrón). Dos variantes:
+        //   - Normal (usuarios): plainto_tsquery (AND) + frase entera.
+        //   - Flexible (Coyo): websearch_to_tsquery + OR por palabra.
+        // Ver `services/_helpers/busquedaFlexible.ts`.
+        const tokens = filtros.modoFlexible ? tokenizarQuery(queryNorm) : [];
+        const usarFlexible = filtros.modoFlexible && tokens.length > 0;
+
+        const ftsExpr = usarFlexible
+            ? sql`websearch_to_tsquery('spanish', immutable_unaccent(${unirOr(tokens)}))`
+            : sql`plainto_tsquery('spanish', immutable_unaccent(${queryNorm}))`;
+
+        const ilikeOr = (expresion: ReturnType<typeof sql>) => {
+            if (usarFlexible) {
+                return sql.join(
+                    tokens.map(
+                        (t) =>
+                            sql`${expresion} ILIKE immutable_unaccent(${`%${t}%`})`,
+                    ),
+                    sql` OR `,
+                );
+            }
+            return sql`${expresion} ILIKE immutable_unaccent(${`%${queryNorm}%`})`;
+        };
+
         conds.push(sql`(
-            to_tsvector('spanish', immutable_unaccent(o.titulo || ' ' || coalesce(o.descripcion, '')))
-                @@ plainto_tsquery('spanish', immutable_unaccent(${queryNorm}))
-            OR immutable_unaccent(o.titulo) ILIKE immutable_unaccent(${patronLike})
-            OR immutable_unaccent(coalesce(o.descripcion, '')) ILIKE immutable_unaccent(${patronLike})
-            OR immutable_unaccent(n.nombre) ILIKE immutable_unaccent(${patronLike})
+            to_tsvector('spanish', immutable_unaccent(o.titulo || ' ' || coalesce(o.descripcion, ''))) @@ ${ftsExpr}
+            OR ${ilikeOr(sql`immutable_unaccent(o.titulo)`)}
+            OR ${ilikeOr(sql`immutable_unaccent(coalesce(o.descripcion, ''))`)}
+            OR ${ilikeOr(sql`immutable_unaccent(n.nombre)`)}
             OR EXISTS (
                 SELECT 1
                 FROM asignacion_subcategorias asig
@@ -299,8 +326,8 @@ export async function buscarOfertas(
                 JOIN categorias_negocio c ON c.id = sc.categoria_id
                 WHERE asig.negocio_id = n.id
                   AND (
-                      immutable_unaccent(sc.nombre) ILIKE immutable_unaccent(${patronLike})
-                      OR immutable_unaccent(c.nombre) ILIKE immutable_unaccent(${patronLike})
+                      ${ilikeOr(sql`immutable_unaccent(sc.nombre)`)}
+                      OR ${ilikeOr(sql`immutable_unaccent(c.nombre)`)}
                   )
             )
         )`);

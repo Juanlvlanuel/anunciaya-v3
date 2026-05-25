@@ -11,6 +11,9 @@ import {
     crearPregunta,
     listarPreguntasPorCiudad,
 } from '../services/preguntasComunidad.service.js';
+import { obtenerEstadoCoyo } from '../services/coyo/orquestador.js';
+
+const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // =============================================================================
 // HELPERS
@@ -97,6 +100,52 @@ export async function listarPreguntasPorCiudadController(req: Request, res: Resp
         });
     } catch (error) {
         console.error('Error en listarPreguntasPorCiudadController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/preguntas-comunidad/:id/coyo
+// =============================================================================
+
+/**
+ * Endpoint de sondeo: devuelve el estado actual de Coyo sobre una pregunta.
+ * El frontend lo llama cada N segundos hasta que `estadoCoyo` sea distinto
+ * de `'pendiente'` o `'procesando'` (es decir, hasta que sea un estado final
+ * `'listo' | 'sin_respuesta' | 'no_aplica'`).
+ *
+ * Respuesta: { estadoCoyo, respuestaCoyo, resultadosCoyo, coyoProcesadoAt }.
+ */
+export async function obtenerEstadoCoyoController(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+
+        if (!id || !UUID_REGEX.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID de la pregunta no es un UUID válido',
+            });
+        }
+
+        const estado = await obtenerEstadoCoyo(id);
+
+        if (!estado) {
+            return res.status(404).json({
+                success: false,
+                message: 'Pregunta no encontrada',
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: 'Estado de Coyo obtenido',
+            data: estado,
+        });
+    } catch (error) {
+        console.error('Error en obtenerEstadoCoyoController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',

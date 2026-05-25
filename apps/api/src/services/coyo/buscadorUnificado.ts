@@ -197,6 +197,12 @@ export async function buscarEnTodaLaApp(
 ): Promise<ResultadoBusquedaUnificada> {
     const { q, ciudad, lat, lng, usuarioId = null } = input;
 
+    // `modoFlexible: true` en las 4 llamadas — los 4 buscadores tratan la
+    // query multi-palabra como OR (cualquier palabra matchea) en vez del
+    // AND implícito por defecto. Sin esto, una pregunta como "plomería
+    // fontanero fuga" exigiría que todas las palabras estén en el mismo
+    // registro y devolvería 0 hits aunque haya plomeros publicados.
+    // Solo Coyo activa este modo; los usuarios normales siguen con AND.
     const [resNegocios, resOfertas, resMarketplace, resServicios] =
         await Promise.allSettled([
             listarSucursalesCercanas(usuarioId, {
@@ -205,10 +211,40 @@ export async function buscarEnTodaLaApp(
                 busqueda: q,
                 limite: LIMIT_POR_AREA,
                 offset: 0,
+                modoFlexible: true,
+                // Filtro ESTRICTO por ciudad — sin esto, Negocios devolvía
+                // sucursales de otras ciudades cuando el texto matcheaba
+                // (ej. pregunta desde Peñasco que traía un negocio de
+                // Caborca). Las otras 3 áreas ya filtran estricto por ciudad;
+                // este `ciudad` nivela a Negocios con ellas. Solo Coyo lo
+                // activa (vía el flag modoFlexible).
+                ciudad,
             }),
-            buscarOfertas({ q, ciudad, limit: LIMIT_POR_AREA, offset: 0 }),
-            buscarArticulos({ q, ciudad, lat, lng, limit: LIMIT_POR_AREA, offset: 0 }),
-            buscarServicios({ q, ciudad, lat, lng, limit: LIMIT_POR_AREA, offset: 0 }),
+            buscarOfertas({
+                q,
+                ciudad,
+                limit: LIMIT_POR_AREA,
+                offset: 0,
+                modoFlexible: true,
+            }),
+            buscarArticulos({
+                q,
+                ciudad,
+                lat,
+                lng,
+                limit: LIMIT_POR_AREA,
+                offset: 0,
+                modoFlexible: true,
+            }),
+            buscarServicios({
+                q,
+                ciudad,
+                lat,
+                lng,
+                limit: LIMIT_POR_AREA,
+                offset: 0,
+                modoFlexible: true,
+            }),
         ]);
 
     return {

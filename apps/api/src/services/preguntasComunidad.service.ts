@@ -18,8 +18,10 @@ import type {
     ListarPreguntasPorCiudadInput,
     PreguntaComunidadResponse,
     EstadoPregunta,
+    EstadoCoyo,
     RespuestaServicio,
 } from '../types/preguntasComunidad.types.js';
+import { procesarPreguntaConCoyo } from './coyo/orquestador.js';
 
 // =============================================================================
 // CONSTANTES
@@ -104,7 +106,26 @@ export async function crearPregunta(
             autorNombre: autor.nombre,
             autorApellidos: autor.apellidos,
             autorAvatarUrl: autor.avatarUrl ?? null,
+            // Campos de Coyo en su estado inicial — el frontend sondeará
+            // con GET /api/preguntas-comunidad/:id/coyo hasta que el
+            // orquestador (disparado fire-and-forget abajo) los actualice.
+            estadoCoyo: nueva.estadoCoyo as EstadoCoyo,
+            respuestaCoyo: nueva.respuestaCoyo ?? null,
+            resultadosCoyo: nueva.resultadosCoyo ?? null,
+            coyoProcesadoAt: nueva.coyoProcesadoAt ?? null,
         };
+
+        // ─── DISPARO COYO EN SEGUNDO PLANO (fire-and-forget) ─────────
+        // No await. La pregunta se publica al instante; Coyo procesa
+        // detrás. Si falla, se loguea — la publicación NO depende ni
+        // espera a Coyo. El frontend sondea para enterarse del progreso.
+        procesarPreguntaConCoyo(nueva.id).catch((err) => {
+            console.warn(
+                'Coyo orquestador falló (fire-and-forget) para',
+                nueva.id,
+                err,
+            );
+        });
 
         return {
             success: true,
@@ -153,6 +174,12 @@ export async function listarPreguntasPorCiudad(
                 autorNombre: usuarios.nombre,
                 autorApellidos: usuarios.apellidos,
                 autorAvatarUrl: usuarios.avatarUrl,
+                // Campos de Coyo — al recargar el feed, las preguntas viejas
+                // ya tienen su respuesta lista (no requiere sondear).
+                estadoCoyo: preguntasComunidad.estadoCoyo,
+                respuestaCoyo: preguntasComunidad.respuestaCoyo,
+                resultadosCoyo: preguntasComunidad.resultadosCoyo,
+                coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
             })
             .from(preguntasComunidad)
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
@@ -179,6 +206,10 @@ export async function listarPreguntasPorCiudad(
             autorNombre: f.autorNombre ?? '',
             autorApellidos: f.autorApellidos ?? '',
             autorAvatarUrl: f.autorAvatarUrl ?? null,
+            estadoCoyo: f.estadoCoyo as EstadoCoyo,
+            respuestaCoyo: f.respuestaCoyo,
+            resultadosCoyo: f.resultadosCoyo,
+            coyoProcesadoAt: f.coyoProcesadoAt,
         }));
 
         return {

@@ -8,6 +8,16 @@
 
 export type EstadoPregunta = 'activa' | 'cerrada' | 'oculta';
 
+/**
+ * Estado de procesamiento de Coyo sobre la pregunta:
+ *   - `pendiente`     → recién creada, Coyo aún no la toca.
+ *   - `procesando`    → Coyo está trabajando.
+ *   - `listo`         → Coyo respondió (hay respuestaCoyo + resultadosCoyo).
+ *   - `sin_respuesta` → Coyo corrió pero no encontró nada / IA no disponible.
+ *   - `no_aplica`     → la pregunta no era búsqueda local (Coyo redirigió).
+ */
+export type EstadoCoyo = 'pendiente' | 'procesando' | 'listo' | 'sin_respuesta' | 'no_aplica';
+
 // =============================================================================
 // INPUT
 // =============================================================================
@@ -47,6 +57,18 @@ export interface PreguntaComunidadResponse {
     autorNombre: string;
     autorApellidos: string;
     autorAvatarUrl: string | null;
+
+    // Respuesta de Coyo (asíncrona; en la creación viene en 'pendiente')
+    estadoCoyo: EstadoCoyo;
+    respuestaCoyo: string | null;
+    /**
+     * Shape: { negocios, ofertas, marketplace, servicios } cada uno con
+     * { items: ItemUnificado[], total: number, error?: string }. Tipado
+     * como `unknown` para no acoplar este módulo con el shape exacto del
+     * buscador unificado — el frontend lo tipa al consumir.
+     */
+    resultadosCoyo: unknown | null;
+    coyoProcesadoAt: string | null;
 }
 
 // =============================================================================

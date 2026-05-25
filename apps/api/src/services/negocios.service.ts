@@ -13,6 +13,7 @@
 
 import { eq, and, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
+import { tokenizarQuery } from './_helpers/busquedaFlexible.js';
 import { negocios, negocioGaleria, negocioSucursales, empleados, usuarios } from '../db/schemas/schema';
 import type { PerfilSucursalRow, SucursalResumenRow } from '../types/negocios.types';
 
@@ -37,6 +38,26 @@ interface FiltrosListaSucursales {
     limite?: number;
     offset?: number;
     votanteSucursalId?: string | null; // Para filtrar votos por modo personal/comercial
+    /**
+     * Modo flexible para Coyo. Cuando `true`, la query multi-palabra se
+     * trata como OR (cualquier palabra matchea) en vez del AND implícito
+     * de un solo ILIKE de la frase entera. Solo lo activa
+     * `services/coyo/buscadorUnificado.ts`. Ver
+     * `services/_helpers/busquedaFlexible.ts`.
+     */
+    modoFlexible?: boolean;
+    /**
+     * Nombre de la ciudad para FILTRAR ESTRICTO en modo flexible (Coyo).
+     * Sin esto, Negocios devolvía sucursales de otras ciudades cuando el
+     * texto de búsqueda matcheaba (ej. preguntar desde Peñasco y traer
+     * negocios de Caborca). MarketPlace, Servicios y Ofertas ya filtran
+     * estricto por ciudad; este parámetro nivela a Negocios con ellos.
+     *
+     * SOLO se aplica cuando `modoFlexible === true`. Los usuarios normales
+     * que no pasan modoFlexible siguen con el filtro por proximidad
+     * (lat/lng + distanciaMaxKm) como histórico.
+     */
+    ciudad?: string;
 }
 
 // =============================================================================
@@ -206,7 +227,18 @@ export async function listarSucursalesCercanas(
             limite = 20,
             offset = 0,
             votanteSucursalId,
+            modoFlexible,
+            ciudad,
         } = filtros;
+
+        // ─── Modo flexible (Coyo): tokenizar `busqueda` en palabras ─────────
+        // y construir OR por palabra en los ILIKE. Solo se aplica cuando
+        // modoFlexible=true; usuarios normales usan el ILIKE de frase entera
+        // (comportamiento histórico, intacto). Helper compartido en
+        // `services/_helpers/busquedaFlexible.ts`.
+        const tokensBusqueda =
+            busqueda && modoFlexible ? tokenizarQuery(busqueda) : [];
+        const usarBusquedaFlexible = !!modoFlexible && tokensBusqueda.length > 0;
 
         // Query SQL raw para PostGIS
         const query = sql`
@@ -362,7 +394,16 @@ export async function listarSucursalesCercanas(
                     ${distanciaMaxKm * 1000}
                 )
               ` : sql``}
-              
+
+              -- Filtro ESTRICTO por ciudad (solo modo flexible / Coyo).
+              -- Garantiza que Coyo NUNCA mezcle negocios de otras ciudades,
+              -- nivelando Negocios con MarketPlace/Servicios/Ofertas que ya
+              -- filtran estricto. Para usuarios normales (sin modoFlexible)
+              -- NO se aplica — siguen confiando en el filtro por proximidad.
+              ${modoFlexible && ciudad ? sql`
+                AND s.ciudad = ${ciudad}
+              ` : sql``}
+
               -- Filtro por categoría
               ${categoriaId ? sql`
                 AND EXISTS(
@@ -417,7 +458,41 @@ export async function listarSucursalesCercanas(
               ` : sql``}
 
 
-              ${busqueda ? sql`
+              ${busqueda
+                ? (usarBusquedaFlexible
+                    // ─── Modo flexible (Coyo): OR por palabra ─────────────
+                    // Cada columna se chequea contra cada token; cualquier
+                    // match en cualquier columna basta para que el registro
+                    // entre en el resultset.
+                    ? sql`
+                AND (
+                    ${sql.join(
+                        tokensBusqueda.map(
+                            (t) => sql`(
+                                unaccent(n.nombre) ILIKE unaccent(${'%' + t + '%'})
+                                OR unaccent(s.nombre) ILIKE unaccent(${'%' + t + '%'})
+                                OR unaccent(s.direccion) ILIKE unaccent(${'%' + t + '%'})
+                                OR unaccent(s.ciudad) ILIKE unaccent(${'%' + t + '%'})
+                                OR EXISTS(
+                                    SELECT 1
+                                    FROM asignacion_subcategorias asig
+                                    JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
+                                    JOIN categorias_negocio c ON c.id = sc.categoria_id
+                                    WHERE asig.negocio_id = n.id
+                                      AND (
+                                          unaccent(sc.nombre) ILIKE unaccent(${'%' + t + '%'})
+                                          OR unaccent(c.nombre) ILIKE unaccent(${'%' + t + '%'})
+                                      )
+                                )
+                            )`,
+                        ),
+                        sql` OR `,
+                    )}
+                )
+              `
+                    // ─── Modo normal (usuarios): ILIKE de frase entera ────
+                    // Comportamiento histórico, intacto.
+                    : sql`
                 AND (
                     unaccent(n.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
                     OR unaccent(s.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
@@ -438,7 +513,8 @@ export async function listarSucursalesCercanas(
                           )
                     )
                 )
-              ` : sql``}
+              `)
+                : sql``}
             
             -- Ordenar por distancia (más cercano primero)
             ORDER BY ${latitud && longitud ? sql`distancia_km ASC` : sql`s.total_likes DESC`}

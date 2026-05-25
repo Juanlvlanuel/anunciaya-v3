@@ -14,6 +14,7 @@ import { Router, type Router as RouterType } from 'express';
 import {
     crearPreguntaController,
     listarPreguntasPorCiudadController,
+    obtenerEstadoCoyoController,
 } from '../controllers/preguntasComunidad.controller.js';
 
 // Importar middlewares
@@ -48,6 +49,14 @@ router.post('/', crearPreguntaController);
  * más recientes primero, con datos básicos del autor.
  */
 router.get('/', listarPreguntasPorCiudadController);
+
+/**
+ * GET /api/preguntas-comunidad/:id/coyo
+ * Endpoint de SONDEO: devuelve solo el estado actual de Coyo sobre la
+ * pregunta. El frontend lo consulta cada N segundos tras publicar, hasta
+ * que `estadoCoyo` deje de ser 'pendiente' o 'procesando'.
+ */
+router.get('/:id/coyo', obtenerEstadoCoyoController);
 
 // =============================================================================
 // EXPORTAR ROUTER

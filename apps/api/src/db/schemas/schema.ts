@@ -2571,13 +2571,20 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	estadoPregunta: varchar("estado_pregunta", { length: 20 }).default('activa').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	// Respuesta de Coyo (asíncrona, agregadas en 2026-05-24-coyo-respuesta-en-pregunta.sql)
+	respuestaCoyo: text("respuesta_coyo"),
+	resultadosCoyo: jsonb("resultados_coyo"),
+	estadoCoyo: varchar("estado_coyo", { length: 20 }).default('pendiente').notNull(),
+	coyoProcesadoAt: timestamp("coyo_procesado_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_preguntas_comunidad_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_preguntas_comunidad_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_preguntas_comunidad_coyo_pendientes").using("btree", table.estadoCoyo.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`estado_coyo IN ('pendiente', 'procesando')`),
 	foreignKey({
 		columns: [table.usuarioId],
 		foreignColumns: [usuarios.id],
 		name: "fk_preguntas_comunidad_usuario"
 	}).onDelete("cascade"),
 	check("preguntas_comunidad_estado_pregunta_check", sql`(estado_pregunta)::text = ANY ((ARRAY['activa'::character varying, 'cerrada'::character varying, 'oculta'::character varying])::text[])`),
+	check("preguntas_comunidad_estado_coyo_check", sql`(estado_coyo)::text = ANY ((ARRAY['pendiente'::character varying, 'procesando'::character varying, 'listo'::character varying, 'sin_respuesta'::character varying, 'no_aplica'::character varying])::text[])`),
 ]);
