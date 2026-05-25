@@ -7,6 +7,130 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [24 Mayo 2026] - Home "Pregúntale a [ciudad]" + Coyo (Fase 1 + Cerebro IA) 🦊
+
+Home conversacional con asistente de IA. El vecino pregunta, Coyo (asistente
+con Gemini 2.5-flash) interpreta, busca en las 4 áreas (Negocios + MarketPlace
++ Servicios + Ofertas) y redacta una respuesta cálida con resultados reales.
+La pregunta queda viva para que otros vecinos también respondan.
+
+Doc maestro: `docs/arquitectura/Home_Coyo.md`. Visión: `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4.
+
+### Base de datos
+
+- Tabla nueva `preguntas_comunidad` (id, usuario_id FK, texto, ciudad, estado
+  geográfico, estado_pregunta, timestamps). Migración:
+  `2026-05-24-preguntas-comunidad.sql`.
+- 4 columnas de Coyo agregadas en migración separada
+  `2026-05-24-coyo-respuesta-en-pregunta.sql`: `respuesta_coyo`,
+  `resultados_coyo` (jsonb), `estado_coyo` (CHECK: pendiente | procesando |
+  listo | sin_respuesta | no_aplica), `coyo_procesado_at`. Índice parcial
+  para preguntas atascadas (cron futuro).
+
+### Backend del feed
+
+- `services/preguntasComunidad.service.ts`: `crearPregunta` (INSERT +
+  fire-and-forget al orquestador) y `listarPreguntasPorCiudad` (incluye
+  campos de Coyo para que preguntas viejas se vean ya con su respuesta).
+- `controllers/preguntasComunidad.controller.ts` + `routes/preguntasComunidad.routes.ts`
+  con 3 endpoints: `POST /`, `GET /?ciudad=...`, `GET /:id/coyo` (sondeo).
+
+### Buscador unificado (`services/coyo/buscadorUnificado.ts`)
+
+- `buscarEnTodaLaApp({ q, ciudad, lat?, lng? })` llama a los 4 buscadores
+  existentes en paralelo con `Promise.allSettled` (tolerante a fallos
+  parciales). Max 3 ítems por área.
+- Shape normalizado `ItemUnificado { id, tipo, titulo, subtitulo, imagen +
+  8 ricos opcionales }`. Datos ricos: rating, totalResenas, verificado,
+  estaAbierto (Negocios); condicion, aceptaOfertas (MarketPlace);
+  negocioRating, diasParaVencer (Ofertas).
+- Endpoint público para Coyo y usos futuros: `GET /api/coyo/buscar?q=&ciudad=`.
+
+### Buscadores de las 4 áreas + modo flexible
+
+- **`buscarServicios`** y **`buscarOfertas`** nuevas: búsqueda FTS completa
+  paginada (antes solo tenían "sugerencias top 5"). Migraciones SQL
+  `2026-05-24-servicios-buscador-fts.sql` y `2026-05-24-ofertas-buscador-fts.sql`
+  con índices GIN.
+- Parámetro `modoFlexible?: boolean` agregado a los 4 buscadores. Solo Coyo
+  lo activa: las palabras se tratan como OR (cualquiera matchea) usando
+  `websearch_to_tsquery` + ILIKE OR por palabra. Sin esto, una pregunta
+  como "plomería fontanero" exigía las 2 palabras juntas → 0 hits.
+- Filtro estricto por ciudad en Negocios cuando `modoFlexible=true` para
+  garantizar que Coyo nunca mezcle ciudades (objetivo innegociable).
+- Helper compartido `services/_helpers/busquedaFlexible.ts` (`tokenizarQuery`,
+  `unirOr`).
+
+### Wrapper portable `immutable_unaccent` (lección de Supabase)
+
+- Receta original `ALTER FUNCTION unaccent IMMUTABLE` falla en Supabase
+  (`42501: must be owner of function unaccent`). Solución portable: bloque
+  DO que detecta dinámicamente el schema donde vive `unaccent` (extensions
+  en Supabase, public en local) y crea wrapper `public.immutable_unaccent`
+  calificada con el schema correcto.
+- Servicios y Ofertas migrados al wrapper. MarketPlace mantiene su índice
+  histórico sin unaccent. Doc actualizado: `docs/estandares/PATRON_BUSCADOR_FTS.md`
+  (Opción A reescrita + Trampa #7 ampliada con la sub-trampa de Supabase).
+
+### Cajita de IA (`services/coyo/coyoIA.service.ts`)
+
+- ÚNICO archivo del backend que importa `@google/genai` (modelo
+  `gemini-2.5-flash`). Encapsulación total para que migrar a otra LLM en
+  el futuro sea tocar un archivo.
+- 2 funciones: `interpretarPregunta(texto)` → `{ esBusquedaLocal, terminos }`
+  (JSON estricto, 1-3 palabras clave esenciales — no sinónimos) y
+  `redactarRespuestaCoyo(pregunta, resultados)` → texto cálido (1-2 frases,
+  maneja "0 resultados" honestamente sin inventar).
+- Tipo discriminado `RespuestaIA<T> = { disponible: true, data: T } |
+  { disponible: false, razon: 'sin_api_key' | 'error_gemini' | 'error_parseo' }`.
+  Las funciones NUNCA lanzan.
+- `PERSONALIDAD_COYO` editable al inicio del archivo (tono cálido y
+  mexicano sin exagerar, regla de oro: no inventar).
+- `GEMINI_API_KEY` opcional en `config/env.ts` — el server arranca sin ella;
+  Coyo queda "apagado" pero la app sigue funcional.
+
+### Orquestador (`services/coyo/orquestador.ts`)
+
+- `procesarPreguntaConCoyo(preguntaId)` coordina cajita IA + buscador
+  unificado y guarda el resultado. A prueba de fallos: NUNCA lanza al
+  caller. 5 estados posibles según el camino que tome el flujo.
+- Coyo SIEMPRE responde, aun con 0 resultados (cierra como `listo` con
+  texto cálido que invita a la comunidad). Solo cierra como `sin_respuesta`
+  si la IA además está caída.
+
+### Frontend
+
+- `pages/private/PaginaInicio.tsx`: hero "Coyo te habla (bubble)" con Coyo
+  grande (`<img src="/Coyo.png">` h-40 lg:h-56) + bocadillo SVG con cola
+  + saludo personalizado + input + stat dinámico. Feed con `CardPregunta`
+  que muestra el bloque de Coyo según `estadoCoyo` (4 variantes:
+  `BloqueCoyoPensando`, `BloqueCoyoListo`, `BloqueCoyoNoAplica`, mensaje
+  "Esperando respuestas de la comunidad"). Encabezado condicional:
+  "Coyo encontró esto para ti" si hay tarjetas, "Coyo dice" si solo texto.
+- `hooks/queries/usePreguntasComunidad.ts`: `useEstadoCoyo(preguntaId,
+  estadoInicial)` con `refetchInterval` condicional. Sondea cada 2s
+  mientras pendiente/procesando, se detiene SOLO al llegar a estado final.
+  Preguntas viejas del feed (estado final) NO generan ningún request.
+- Asset `apps/web/public/Coyo.png` agregado.
+
+### Pendientes conocidos
+
+- **Tarjetas de Coyo no son clicables todavía** (no llevan al detalle).
+  Backend ya devuelve `tipo + id`; falta cablear `onClick`.
+- `GEMINI_API_KEY` pendiente de configurar en Render.
+- Negocios filtra por nombre de ciudad (no por GPS) — mejora aditiva:
+  capturar lat/lng en la pregunta.
+
+### Aplicado en producción (Supabase)
+
+Las 4 migraciones del Home/Coyo están aplicadas en Supabase:
+- `2026-05-24-preguntas-comunidad.sql`
+- `2026-05-24-servicios-buscador-fts.sql`
+- `2026-05-24-ofertas-buscador-fts.sql`
+- `2026-05-24-coyo-respuesta-en-pregunta.sql`
+
+---
+
 ## [20 Mayo 2026] - Sprint 9.2: MarketPlace Composer Inline 🛒
 
 Migración del wizard de 3 pasos `/marketplace/publicar` a un **composer inline**

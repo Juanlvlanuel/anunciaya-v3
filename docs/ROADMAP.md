@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 17 Mayo 2026
-> **Progreso global:** Servicios v1.1 cerrado ✅ + BS Vacantes 13/13 ✅ (Sprints 7 y 8 cerrados, 65 tests Vitest) — 3 de 4 secciones públicas listas + BS al 100%
-> **Fase actual:** Próximo bloque = Home con Pregúntale a Peñasco · Panel Admin
+> **Última actualización:** 24 Mayo 2026
+> **Progreso global:** Home + Coyo (Fase 1 + Cerebro IA) ✅ — 4 de 4 secciones públicas listas + Home conversacional + BS al 100%
+> **Fase actual:** Próximo bloque = Panel Admin · Tarjetas Coyo clicables · Beta privada
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
 ---
@@ -21,8 +21,8 @@
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
 | **Business Studio** (5.4) | ✅ 100% (13/13 módulos) | Dashboard, Mi Perfil, Catálogo, Promociones, Puntos, Transacciones, Clientes, Opiniones, Alertas, Empleados, Reportes, Sucursales, **Vacantes** ✅ |
-| **Secciones Públicas** (6.x) | ✅ 100% (3/3 + Home) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest). Pendiente: Home con Pregúntale a Peñasco |
-| **Home — Pregúntale a Peñasco** | ⏳ 0% | Feed conversacional + buscador hiperlocal + mascota. Ver `VISION_ESTRATEGICA_AnunciaYA.md` §4 |
+| **Secciones Públicas** (6.x) | ✅ 100% (4/4) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest) · ✅ Home / Coyo Fase 1 + Cerebro IA (24 May 2026, ver `docs/arquitectura/Home_Coyo.md`) |
+| **Home — Pregúntale a Peñasco / Coyo** | ✅ Fase 1 + Cerebro IA | Feed conversacional + hero "Coyo te habla" + asistente con Gemini 2.5-flash que busca en las 4 áreas y responde cálido. Detalle: `docs/arquitectura/Home_Coyo.md`. **Pendiente:** tarjetas de resultados de Coyo aún NO son clicables (no llevan al perfil/publicación) |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
 
@@ -40,7 +40,7 @@
 - [x] **Sección pública Ofertas** ✅ (1 May 2026 — feed editorial, multi-sucursal, swipe, analytics)
 - [x] **Sección pública MarketPlace v1.6** ✅ (15 May 2026 — compra-venta P2P, moderación autónoma, buscador potenciado, página pública compartible, **Mis Publicaciones (panel del vendedor)**, **Q&A estilo Mercado Libre con privacidad de pendientes**, flujos E2E probados)
 - [x] **Sección pública Servicios v1.1** ✅ (17 May 2026 — Sprints 7+8 cerrados: feed mezclado con widget de Clasificados, wizard 3 pasos para crear/editar, Mis Publicaciones, cron de expiración 30 días, reseñas, perfil del prestador con distribución de estrellas, moderación pasiva, **+ BS Vacantes (módulo en Business Studio para que negocios publiquen vacantes corporativas)**, 65 tests Vitest)
-- [ ] Home con Pregúntale a Peñasco
+- [x] **Home con Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** ✅ (24 May 2026 — feed conversacional con hero "Coyo te habla", asistente con Gemini 2.5-flash que interpreta la pregunta, busca en las 4 áreas vía buscador unificado y redacta respuesta cálida; modelo "publicar al instante + sondeo cada 2s" sin socket. Detalle: `docs/arquitectura/Home_Coyo.md`. Pendiente: tarjetas clicables)
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
 - [ ] Lanzamiento público
@@ -97,6 +97,7 @@
 | Mis Guardados: Rediseño estilo CardYA (rose) | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Guardados.md` |
 | **Sección Ofertas Públicas v1.4** | ✅ 100% | 1 May 2026 | `docs/arquitectura/Ofertas.md` |
 | **Sección MarketPlace v1.6** (P2P, moderación autónoma, buscador potenciado, Mis Publicaciones, Q&A estilo ML, flujos E2E probados) | ✅ 100% (11 sprints) | 15 May 2026 | `docs/arquitectura/MarketPlace.md` |
+| **Home — Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** | ✅ Fase 1 + Cerebro IA | 24 May 2026 | `docs/arquitectura/Home_Coyo.md` |
 
 ### Pendientes menores
 
@@ -107,10 +108,13 @@
   - Para **gerentes** (con `sucursalAsignada != null`): bloquear cambio de correo (es la identidad vinculada al negocio). Permitir editar nombre, avatar, contraseña.
   - Para **dueños** (con `negocioId != null, sucursalAsignada = null`): mismas reglas que gerentes, no cambio de correo mientras tengan negocio activo.
   - Para **usuarios personales** (sin negocio): todo editable incluido correo (con flujo de verificación).
+- [ ] **Tarjetas de resultados de Coyo clicables** — el bloque "Coyo encontró esto para ti" pinta tarjetas con `tipo + id` pero todavía NO navegan al detalle (negocio, marketplace, servicio, oferta). Decidir si abren modal o navegan fuera del Home, y cablear el `onClick` en `TarjetaItemCoyo` (`PaginaInicio.tsx`).
+- [x] ~~`coyo_respuesta_en_pregunta.sql` en producción~~ ✅ (24 May 2026, aplicada en Supabase)
+- [ ] **`GEMINI_API_KEY` en Render** — agregar la env var en el dashboard de Render para que Coyo funcione en producción. Sin ella, las preguntas en prod terminarán en `sin_respuesta` (resiliente, no rompe).
 
 ---
 
-## ⏭️ Sprint siguiente: Servicios + Home con Pregúntale a Peñasco
+## ⏭️ Sprint siguiente: Panel Admin · Tarjetas Coyo clicables
 
 ---
 
