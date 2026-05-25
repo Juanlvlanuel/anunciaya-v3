@@ -8,25 +8,47 @@
  * Datos en vivo del backend (hooks de React Query):
  *   - usePreguntasComunidadLista() → feed de la ciudad activa del useGpsStore
  *   - useCrearPregunta()           → publicar + invalidar feed
+ *   - useEstadoCoyo(id, estado)    → sondea cada 2s mientras Coyo procesa
  *
- * Fase 2 (cuando el backend devuelva respuesta de IA):
- *   - Agregar bloque "Coyo encontró esto para ti" dentro de cada CardPregunta
- *     (ver comentario in-situ).
+ * Cada CardPregunta tiene un bloque "Coyo encontró esto para ti" que se
+ * enciende según el estadoCoyo de la pregunta:
+ *   - pendiente/procesando → "Coyo está pensando…" con spinner
+ *   - listo                → respuestaCoyo + tarjetas agrupadas por tipo
+ *   - no_aplica            → solo el texto de redirección amable
+ *   - sin_respuesta        → mensaje normal "Esperando respuestas de la comunidad"
  *
  * Ubicación: apps/web/src/pages/private/PaginaInicio.tsx
  */
 
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Send, Loader2, Sparkles, Users, Inbox, RefreshCcw } from 'lucide-react';
+import {
+    Send,
+    Loader2,
+    Sparkles,
+    Users,
+    Inbox,
+    RefreshCcw,
+    Star,
+    BadgeCheck,
+    Clock,
+} from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import {
     usePreguntasComunidadLista,
     useCrearPregunta,
+    useEstadoCoyo,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
-import type { PreguntaComunidad } from '../../types/preguntasComunidad';
+import type {
+    PreguntaComunidad,
+    EstadoCoyo,
+    ResultadosCoyo,
+    GrupoCoyo,
+    ItemCoyo,
+    TipoItemCoyo,
+} from '../../types/preguntasComunidad';
 
 // =============================================================================
 // CONSTANTES
@@ -334,14 +356,6 @@ function SeccionFeed({ feed, nombreCiudad }: SeccionFeedProps) {
                     ))}
                 </ul>
             )}
-
-            {/* ─── Fase 2 (pendiente backend) ────────────────────────────────
-                Cuando el endpoint devuelva la respuesta automática de Coyo
-                por pregunta (resumen + recomendaciones de negocios/servicios),
-                renderizar un bloque inline tipo "Coyo encontró esto para ti"
-                dentro de cada CardPregunta — debajo del texto y antes del
-                contador de respuestas. Hoy se omite porque el backend solo
-                guarda el texto plano y `vecinosRespondieron` es 0. */}
         </section>
     );
 }
@@ -361,8 +375,24 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
         }
     })();
 
-    // Backend aún no devuelve cantidad de respuestas — placeholder 0.
-    const vecinosRespondieron = 0;
+    // Sondea el estado de Coyo. Si ya viene final del feed, el hook NO
+    // hace requests (enabled: false). Si está pendiente/procesando, sondea
+    // cada 2s y se detiene solo al llegar a estado final.
+    const sondeo = useEstadoCoyo(pregunta.id, pregunta.estadoCoyo);
+
+    // El hook PUEDE no tener data aún (primer fetch en vuelo). Mientras
+    // tanto usamos lo que vino del feed como estado actual.
+    const estadoCoyo: EstadoCoyo = sondeo.data?.estadoCoyo ?? pregunta.estadoCoyo;
+    const respuestaCoyo = sondeo.data?.respuestaCoyo ?? pregunta.respuestaCoyo;
+    const resultadosCoyo = sondeo.data?.resultadosCoyo ?? pregunta.resultadosCoyo;
+
+    // El mensaje "Esperando respuestas de la comunidad" solo tiene sentido
+    // cuando Coyo no encontró nada (sin_respuesta) — ahí la pregunta
+    // genuinamente vive para los vecinos. Para 'no_aplica' no tiene sentido
+    // (la pregunta no era para el pueblo). Para 'listo' tampoco lo
+    // mostramos hoy porque vecinosRespondieron siempre es 0 — cuando el
+    // backend traiga ese contador, podemos mostrarlo junto al bloque Coyo.
+    const mostrarEsperaComunidad = estadoCoyo === 'sin_respuesta';
 
     return (
         <li
@@ -391,13 +421,34 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                     <p className="mt-1 text-sm lg:text-base text-slate-700 leading-relaxed break-words">
                         {pregunta.texto}
                     </p>
-                    <p className="mt-2 text-xs lg:text-sm text-slate-500">
-                        {vecinosRespondieron === 0
-                            ? 'Esperando respuestas de la comunidad'
-                            : vecinosRespondieron === 1
-                                ? '1 vecino respondió'
-                                : `${vecinosRespondieron} vecinos respondieron`}
-                    </p>
+
+                    {/* Bloque Coyo: pensando / listo / no_aplica.
+                        Para 'sin_respuesta' no se muestra (cae al mensaje
+                        de espera de la comunidad abajo). */}
+                    {(estadoCoyo === 'pendiente' || estadoCoyo === 'procesando') && (
+                        <div className="mt-3">
+                            <BloqueCoyoPensando />
+                        </div>
+                    )}
+                    {estadoCoyo === 'listo' && (
+                        <div className="mt-3">
+                            <BloqueCoyoListo
+                                respuesta={respuestaCoyo}
+                                resultados={resultadosCoyo}
+                            />
+                        </div>
+                    )}
+                    {estadoCoyo === 'no_aplica' && respuestaCoyo && (
+                        <div className="mt-3">
+                            <BloqueCoyoNoAplica texto={respuestaCoyo} />
+                        </div>
+                    )}
+
+                    {mostrarEsperaComunidad && (
+                        <p className="mt-2 text-xs lg:text-sm text-slate-500">
+                            Esperando respuestas de la comunidad
+                        </p>
+                    )}
                 </div>
             </div>
         </li>
@@ -519,4 +570,254 @@ function obtenerIniciales(nombre: string, apellidos: string): string {
     const a = (nombre || '').trim().charAt(0).toUpperCase();
     const b = (apellidos || '').trim().charAt(0).toUpperCase();
     return (a + b) || '?';
+}
+
+// =============================================================================
+// BLOQUES DE COYO — pensando / listo / no_aplica
+// =============================================================================
+//
+// Diseño: panel azulado claro debajo del texto de la pregunta. Encabezado
+// pequeño con icono Sparkles ámbar (consistente con el label "Pregúntale
+// a Coyo" del hero). Texto cálido + tarjetas agrupadas por tipo. Las
+// tarjetas usan SOLO los datos ricos que vinieron (rating, verificado,
+// estaAbierto, condicion, días para vencer) — sin inventar.
+
+function BloqueCoyoPensando() {
+    return (
+        <section
+            aria-live="polite"
+            className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3 lg:p-4"
+        >
+            <div className="flex items-center gap-2 text-slate-600">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                <span className="text-sm lg:text-base font-bold">Coyo está pensando</span>
+                <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" aria-hidden="true" />
+            </div>
+        </section>
+    );
+}
+
+function BloqueCoyoNoAplica({ texto }: { texto: string }) {
+    return (
+        <section className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3 lg:p-4">
+            <div className="flex items-start gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.5} aria-hidden="true" />
+                <p className="text-sm lg:text-base text-slate-700 leading-relaxed">
+                    {texto}
+                </p>
+            </div>
+        </section>
+    );
+}
+
+interface BloqueCoyoListoProps {
+    respuesta: string | null;
+    resultados: ResultadosCoyo | null;
+}
+
+function BloqueCoyoListo({ respuesta, resultados }: BloqueCoyoListoProps) {
+    // Solo grupos con items, en orden fijo (negocios primero por relevancia
+    // del comercio local).
+    const grupos = useMemo(() => {
+        if (!resultados) return [];
+        const orden: Array<{
+            clave: TipoItemCoyo;
+            titulo: string;
+            grupo: GrupoCoyo;
+        }> = [
+            { clave: 'negocio', titulo: 'Negocios', grupo: resultados.negocios },
+            { clave: 'oferta', titulo: 'Ofertas', grupo: resultados.ofertas },
+            { clave: 'marketplace', titulo: 'MarketPlace', grupo: resultados.marketplace },
+            { clave: 'servicio', titulo: 'Servicios', grupo: resultados.servicios },
+        ];
+        return orden.filter((g) => g.grupo.items.length > 0);
+    }, [resultados]);
+
+    // Encabezado condicional: "encontró esto" miente cuando no hay tarjetas.
+    // Si Coyo respondió pero los 4 grupos están vacíos (busqué y no había
+    // nada del pueblo), usamos un encabezado neutro.
+    const encabezado = grupos.length > 0 ? 'Coyo encontró esto para ti' : 'Coyo dice';
+
+    return (
+        <section className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3 lg:p-4 space-y-3">
+            <div className="flex items-center gap-2">
+                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                <span className="text-sm lg:text-base font-bold text-slate-700">
+                    {encabezado}
+                </span>
+            </div>
+
+            {respuesta && (
+                <p className="text-sm lg:text-base text-slate-700 leading-relaxed">
+                    {respuesta}
+                </p>
+            )}
+
+            {grupos.length > 0 && (
+                <div className="space-y-3">
+                    {grupos.map(({ clave, titulo, grupo }) => (
+                        <div key={clave} className="space-y-1.5">
+                            <h4 className="text-[11px] lg:text-xs font-bold text-slate-500 uppercase tracking-wide px-0.5">
+                                {titulo}
+                                {grupo.total > grupo.items.length && (
+                                    <span className="ml-1 text-slate-400 normal-case font-medium">
+                                        ({grupo.total})
+                                    </span>
+                                )}
+                            </h4>
+                            <ul className="space-y-1.5">
+                                {grupo.items.slice(0, 3).map((item) => (
+                                    <TarjetaItemCoyo
+                                        key={`${item.tipo}-${item.id}`}
+                                        item={item}
+                                    />
+                                ))}
+                            </ul>
+                        </div>
+                    ))}
+                </div>
+            )}
+        </section>
+    );
+}
+
+// =============================================================================
+// TARJETA DE ITEM COYO — fila densa con datos ricos
+// =============================================================================
+
+function TarjetaItemCoyo({ item }: { item: ItemCoyo }) {
+    return (
+        <li className="flex items-start gap-2.5 lg:gap-3 bg-white border border-slate-200 rounded-lg p-2 lg:p-2.5">
+            <ImagenItem url={item.imagen} alt={item.titulo} />
+            <div className="min-w-0 flex-1">
+                <p className="text-sm lg:text-base font-bold text-slate-800 truncate">
+                    {item.titulo}
+                </p>
+                {item.subtitulo && (
+                    <p className="text-xs lg:text-sm text-slate-500 truncate">
+                        {item.subtitulo}
+                    </p>
+                )}
+                <ChipsDatosRicos item={item} />
+            </div>
+        </li>
+    );
+}
+
+function ImagenItem({ url, alt }: { url: string | null; alt: string }) {
+    const [error, setError] = useState(false);
+    const mostrar = !!url && !error;
+    return (
+        <div className="shrink-0 w-12 h-12 lg:w-14 lg:h-14 rounded-md bg-slate-100 border border-slate-200 overflow-hidden flex items-center justify-center">
+            {mostrar ? (
+                <img
+                    src={url}
+                    alt={alt}
+                    className="w-full h-full object-cover"
+                    onError={() => setError(true)}
+                />
+            ) : (
+                <span className="text-slate-300 text-xs" aria-hidden="true">
+                    —
+                </span>
+            )}
+        </div>
+    );
+}
+
+/**
+ * Chips horizontales con los datos ricos disponibles del item.
+ * Solo muestra los que NO son null (los que no aplican al tipo del item
+ * vienen null desde el backend — no se renderizan).
+ */
+function ChipsDatosRicos({ item }: { item: ItemCoyo }) {
+    const chips: Array<{ clave: string; nodo: React.ReactNode }> = [];
+
+    // Rating + total de reseñas (negocio)
+    if (item.rating !== null) {
+        chips.push({
+            clave: 'rating',
+            nodo: (
+                <>
+                    <Star className="w-3 h-3 text-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" fill="currentColor" />
+                    <span>
+                        {item.rating.toFixed(1)}
+                        {item.totalResenas !== null && item.totalResenas > 0 && (
+                            <span className="text-slate-400"> ({item.totalResenas})</span>
+                        )}
+                    </span>
+                </>
+            ),
+        });
+    }
+    // Verificado (negocio)
+    if (item.verificado === true) {
+        chips.push({
+            clave: 'verificado',
+            nodo: (
+                <>
+                    <BadgeCheck className="w-3 h-3 text-blue-600 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                    <span>Verificado</span>
+                </>
+            ),
+        });
+    }
+    // Abierto / cerrado (negocio)
+    if (item.estaAbierto !== null) {
+        chips.push({
+            clave: 'abierto',
+            nodo: (
+                <>
+                    <Clock className="w-3 h-3 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                    <span>{item.estaAbierto ? 'Abierto' : 'Cerrado'}</span>
+                </>
+            ),
+        });
+    }
+    // Rating del negocio (oferta)
+    if (item.negocioRating !== null) {
+        chips.push({
+            clave: 'negocioRating',
+            nodo: (
+                <>
+                    <Star className="w-3 h-3 text-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" fill="currentColor" />
+                    <span>{item.negocioRating.toFixed(1)}</span>
+                </>
+            ),
+        });
+    }
+    // Días para vencer (oferta)
+    if (item.diasParaVencer !== null) {
+        const d = item.diasParaVencer;
+        const texto = d === 0 ? 'Vence hoy' : d === 1 ? 'Vence mañana' : `Vence en ${d} días`;
+        chips.push({ clave: 'vence', nodo: <span>{texto}</span> });
+    }
+    // Condición (marketplace)
+    if (item.condicion) {
+        chips.push({
+            clave: 'condicion',
+            nodo: <span className="capitalize">{item.condicion.replace('_', ' ')}</span>,
+        });
+    }
+    // Acepta ofertas (marketplace)
+    if (item.aceptaOfertas === true) {
+        chips.push({ clave: 'negociable', nodo: <span>Negociable</span> });
+    }
+
+    if (chips.length === 0) return null;
+
+    return (
+        <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-0.5 text-[11px] lg:text-xs text-slate-600 font-medium">
+            {chips.map((c, i) => (
+                <span key={c.clave} className="inline-flex items-center gap-0.5">
+                    {c.nodo}
+                    {i < chips.length - 1 && (
+                        <span className="ml-1.5 text-slate-300" aria-hidden="true">
+                            ·
+                        </span>
+                    )}
+                </span>
+            ))}
+        </div>
+    );
 }

@@ -311,6 +311,13 @@ export const queryKeys = {
       paginacion: { limit: number; offset: number },
     ) =>
       ['preguntasComunidad', 'porCiudad', ciudad, paginacion] as const,
+    /**
+     * Sondeo del estado de Coyo de UNA pregunta. El hook hace polling
+     * con refetchInterval condicional (2s mientras 'pendiente'/'procesando',
+     * detenido en estados finales). Key por preguntaId.
+     */
+    estadoCoyo: (preguntaId: string) =>
+      ['preguntasComunidad', 'estadoCoyo', preguntaId] as const,
   },
 
 } as const;

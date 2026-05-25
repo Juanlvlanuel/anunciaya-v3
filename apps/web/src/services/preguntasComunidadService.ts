@@ -17,6 +17,7 @@ import type {
     PreguntaComunidad,
     CrearPreguntaInput,
     ListarPreguntasPorCiudadInput,
+    EstadoCoyoResponse,
 } from '../types/preguntasComunidad';
 
 // =============================================================================
@@ -58,10 +59,28 @@ export async function listarPreguntasPorCiudad({
 }
 
 // =============================================================================
+// SONDEO: estado de Coyo de una pregunta
+// =============================================================================
+
+/**
+ * GET /api/preguntas-comunidad/:id/coyo
+ *
+ * Devuelve solo los 4 campos de Coyo de una pregunta:
+ * { estadoCoyo, respuestaCoyo, resultadosCoyo, coyoProcesadoAt }.
+ *
+ * El hook `useEstadoCoyo` lo llama cada ~2s hasta que `estadoCoyo` sea
+ * final ('listo' | 'sin_respuesta' | 'no_aplica').
+ */
+export async function obtenerEstadoCoyo(preguntaId: string) {
+    return get<EstadoCoyoResponse>(`/preguntas-comunidad/${preguntaId}/coyo`);
+}
+
+// =============================================================================
 // EXPORT DEFAULT
 // =============================================================================
 
 export default {
     crearPregunta,
     listarPreguntasPorCiudad,
+    obtenerEstadoCoyo,
 };

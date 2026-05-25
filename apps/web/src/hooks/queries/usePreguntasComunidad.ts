@@ -26,9 +26,12 @@ import {
     keepPreviousData,
 } from '@tanstack/react-query';
 import * as preguntasComunidadService from '../../services/preguntasComunidadService';
-import type {
-    PreguntaComunidad,
-    CrearPreguntaInput,
+import {
+    esEstadoCoyoFinal,
+    type PreguntaComunidad,
+    type CrearPreguntaInput,
+    type EstadoCoyo,
+    type EstadoCoyoResponse,
 } from '../../types/preguntasComunidad';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { queryKeys } from '../../config/queryKeys';
@@ -112,5 +115,62 @@ export function useCrearPregunta() {
                 queryKey: ['preguntasComunidad', 'porCiudad', variables.ciudad],
             });
         },
+    });
+}
+
+// =============================================================================
+// SONDEO: estado de Coyo de UNA pregunta
+// =============================================================================
+
+/**
+ * Intervalo de sondeo en ms. 2 segundos es buen compromiso: rápido lo
+ * suficiente para sentir que Coyo "responde solito", lento lo suficiente
+ * para no saturar el server con preguntas viejas que tardaron en procesar.
+ */
+const INTERVALO_SONDEO_MS = 2000;
+
+/**
+ * Sondea el estado de Coyo de una pregunta hasta que llegue a un estado
+ * final ('listo' | 'sin_respuesta' | 'no_aplica'). Diseñado para que cada
+ * `CardPregunta` lo invoque con el `estadoCoyo` que ya viene en el feed:
+ *
+ *   - Si `estadoInicial` ya es final → el query queda DESHABILITADO. No
+ *     se hace ningún request. Las preguntas viejas del feed ni siquiera
+ *     llaman al endpoint de sondeo.
+ *   - Si `estadoInicial` es 'pendiente' / 'procesando' → el query arranca,
+ *     y mientras el `data.estadoCoyo` siga siendo pendiente/procesando,
+ *     `refetchInterval` devuelve 2000ms. Cuando llega a un estado final,
+ *     `refetchInterval` devuelve `false` y el sondeo se DETIENE solo.
+ *
+ * @param preguntaId    UUID de la pregunta.
+ * @param estadoInicial El `estadoCoyo` del feed (decide si arrancar).
+ */
+export function useEstadoCoyo(preguntaId: string, estadoInicial: EstadoCoyo) {
+    const inicialEsFinal = esEstadoCoyoFinal(estadoInicial);
+
+    return useQuery<EstadoCoyoResponse | null>({
+        queryKey: queryKeys.preguntasComunidad.estadoCoyo(preguntaId),
+        queryFn: () =>
+            preguntasComunidadService
+                .obtenerEstadoCoyo(preguntaId)
+                .then((r) => r.data ?? null),
+        // Solo arranca si la pregunta aún no terminó. Las preguntas viejas
+        // del feed (con estado final) no hacen ningún request.
+        enabled: preguntaId.length > 0 && !inicialEsFinal,
+        // refetchInterval CONDICIONAL: 2s mientras esté procesando, false
+        // (detener) cuando llegue a estado final. Esto cumple la regla
+        // "Coyo debe poder apagarse sin saturar el server".
+        refetchInterval: (query) => {
+            const estado = query.state.data?.estadoCoyo;
+            // Si aún no hay data (primer fetch en vuelo) o el estado actual
+            // sigue siendo no-final → sigue sondeando.
+            if (!estado || !esEstadoCoyoFinal(estado)) {
+                return INTERVALO_SONDEO_MS;
+            }
+            return false;
+        },
+        // El sondeo ya está corriendo en intervalo, no necesitamos también
+        // refetch al focus (sería redundante y duplicaría requests).
+        refetchOnWindowFocus: false,
     });
 }
