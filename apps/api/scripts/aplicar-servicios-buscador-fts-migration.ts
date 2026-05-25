@@ -17,16 +17,36 @@ import { db } from '../src/db/index.js';
 import { sql } from 'drizzle-orm';
 
 async function main() {
-    // 1. Marcar unaccent como IMMUTABLE (necesario para usarla en índice).
-    //    Postgres exige IMMUTABLE en expresiones de índice; unaccent es
-    //    STABLE por defecto. Ver migración SQL para detalles.
-    await db.execute(sql`ALTER FUNCTION unaccent(text) IMMUTABLE`);
+    // 1. Wrapper IMMUTABLE de unaccent en `public`. Detectamos en qué
+    //    schema vive `unaccent` (Supabase: `extensions`, local: `public`)
+    //    y calificamos explícitamente. Sin calificar, el INLINING durante
+    //    CREATE INDEX falla con "function unaccent(text) does not exist".
+    //    Ver migración SQL y PATRON_BUSCADOR_FTS.md trampa #7.
+    const schemaRes = await db.execute(sql`
+        SELECT n.nspname AS schema
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace = n.oid
+        WHERE p.proname = 'unaccent'
+        LIMIT 1
+    `);
+    const unaccentSchema = (schemaRes.rows[0] as { schema?: string } | undefined)?.schema;
+    if (!unaccentSchema) {
+        throw new Error('Extensión unaccent no instalada — corre la migración 2026-05-14-extension-unaccent.sql primero');
+    }
+    await db.execute(sql.raw(`
+        CREATE OR REPLACE FUNCTION public.immutable_unaccent(text) RETURNS text AS $$
+            SELECT ${unaccentSchema}.unaccent($1)
+        $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    `));
 
-    // 2. Índice FTS GIN con unaccent
+    // 2. Drop+Create del índice FTS con la wrapper (por si ya existía con
+    //    `unaccent(...)` directo de una corrida anterior).
+    await db.execute(sql`DROP INDEX IF EXISTS idx_servicios_pub_titulo_fts_unaccent`);
+
     await db.execute(sql`
-        CREATE INDEX IF NOT EXISTS idx_servicios_pub_titulo_fts_unaccent
+        CREATE INDEX idx_servicios_pub_titulo_fts_unaccent
             ON servicios_publicaciones
-            USING GIN (to_tsvector('spanish', unaccent(titulo || ' ' || descripcion)))
+            USING GIN (to_tsvector('spanish', public.immutable_unaccent(titulo || ' ' || descripcion)))
             WHERE deleted_at IS NULL
     `);
 

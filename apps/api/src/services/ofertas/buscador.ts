@@ -79,7 +79,7 @@ export async function obtenerSugerenciasOfertas(
     try {
         const patron = `%${q}%`;
 
-        // Match accent-insensitive: `unaccent()` se aplica a ambos lados
+        // Match accent-insensitive: `immutable_unaccent()` se aplica a ambos lados
         // (columna y patrón) para que "panaderia" matchee "Panadería" y
         // viceversa. Requiere `CREATE EXTENSION unaccent` aplicado vía
         // `docs/migraciones/2026-05-14-extension-unaccent.sql`.
@@ -124,9 +124,9 @@ export async function obtenerSugerenciasOfertas(
                   AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
                   AND s.ciudad = ${ciudad}
                   AND (
-                      unaccent(o.titulo) ILIKE unaccent(${patron})
-                      OR unaccent(o.descripcion) ILIKE unaccent(${patron})
-                      OR unaccent(n.nombre) ILIKE unaccent(${patron})
+                      immutable_unaccent(o.titulo) ILIKE immutable_unaccent(${patron})
+                      OR immutable_unaccent(o.descripcion) ILIKE immutable_unaccent(${patron})
+                      OR immutable_unaccent(n.nombre) ILIKE immutable_unaccent(${patron})
                       -- Categoría/subcategoría del negocio: "tacos" encuentra
                       -- ofertas de negocios categorizados como Tacos aunque
                       -- la palabra no esté en el título de la oferta.
@@ -137,8 +137,8 @@ export async function obtenerSugerenciasOfertas(
                           JOIN categorias_negocio c ON c.id = sc.categoria_id
                           WHERE asig.negocio_id = n.id
                             AND (
-                                unaccent(sc.nombre) ILIKE unaccent(${patron})
-                                OR unaccent(c.nombre) ILIKE unaccent(${patron})
+                                immutable_unaccent(sc.nombre) ILIKE immutable_unaccent(${patron})
+                                OR immutable_unaccent(c.nombre) ILIKE immutable_unaccent(${patron})
                             )
                       )
                   )
@@ -283,15 +283,15 @@ export async function buscarOfertas(
     if (queryNorm.length >= 2) {
         // Híbrido FTS + ILIKE + unaccent (con coalesce porque descripcion es
         // NULLABLE — trampa #6 del patrón). El índice GIN también lleva
-        // `unaccent(titulo || ' ' || coalesce(descripcion, ''))` para que la
+        // `immutable_unaccent(titulo || ' ' || coalesce(descripcion, ''))` para que la
         // expresión coincida y el planner use el índice.
         const patronLike = `%${queryNorm}%`;
         conds.push(sql`(
-            to_tsvector('spanish', unaccent(o.titulo || ' ' || coalesce(o.descripcion, '')))
-                @@ plainto_tsquery('spanish', unaccent(${queryNorm}))
-            OR unaccent(o.titulo) ILIKE unaccent(${patronLike})
-            OR unaccent(coalesce(o.descripcion, '')) ILIKE unaccent(${patronLike})
-            OR unaccent(n.nombre) ILIKE unaccent(${patronLike})
+            to_tsvector('spanish', immutable_unaccent(o.titulo || ' ' || coalesce(o.descripcion, '')))
+                @@ plainto_tsquery('spanish', immutable_unaccent(${queryNorm}))
+            OR immutable_unaccent(o.titulo) ILIKE immutable_unaccent(${patronLike})
+            OR immutable_unaccent(coalesce(o.descripcion, '')) ILIKE immutable_unaccent(${patronLike})
+            OR immutable_unaccent(n.nombre) ILIKE immutable_unaccent(${patronLike})
             OR EXISTS (
                 SELECT 1
                 FROM asignacion_subcategorias asig
@@ -299,8 +299,8 @@ export async function buscarOfertas(
                 JOIN categorias_negocio c ON c.id = sc.categoria_id
                 WHERE asig.negocio_id = n.id
                   AND (
-                      unaccent(sc.nombre) ILIKE unaccent(${patronLike})
-                      OR unaccent(c.nombre) ILIKE unaccent(${patronLike})
+                      immutable_unaccent(sc.nombre) ILIKE immutable_unaccent(${patronLike})
+                      OR immutable_unaccent(c.nombre) ILIKE immutable_unaccent(${patronLike})
                   )
             )
         )`);
@@ -332,6 +332,7 @@ export async function buscarOfertas(
                 s.id              AS sucursal_id,
                 s.nombre          AS sucursal_nombre,
                 s.es_principal    AS es_principal,
+                s.calificacion_promedio AS calificacion_promedio,
                 (
                     SELECT COUNT(*)::integer
                     FROM negocio_sucursales ns
@@ -355,8 +356,8 @@ export async function buscarOfertas(
             compra_minima, fecha_inicio, fecha_fin,
             created_at, updated_at,
             negocio_id, negocio_nombre,
-            sucursal_id, sucursal_nombre, es_principal, total_sucursales,
-            ciudad
+            sucursal_id, sucursal_nombre, es_principal, calificacion_promedio,
+            total_sucursales, ciudad
         FROM base
         WHERE rn = 1
         ORDER BY updated_at DESC
@@ -398,6 +399,7 @@ export async function buscarOfertas(
         sucursal_id: string;
         sucursal_nombre: string | null;
         es_principal: boolean;
+        calificacion_promedio: string | null;
         total_sucursales: number;
         ciudad: string;
     }
@@ -421,6 +423,9 @@ export async function buscarOfertas(
         sucursalId: row.sucursal_id,
         sucursalNombre: row.sucursal_nombre,
         esPrincipal: !!row.es_principal,
+        // Rating del negocio (heredado de la sucursal). `numeric(2,1)` viene
+        // como string; el caller decide si convertirlo a número.
+        calificacionPromedio: row.calificacion_promedio,
         totalSucursales: Number(row.total_sucursales) || 1,
         ciudad: row.ciudad,
     }));

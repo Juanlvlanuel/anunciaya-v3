@@ -313,32 +313,63 @@ CREATE INDEX idx_busquedas_ciudad_fecha
 porque la expresión no coincide. Tienes dos opciones:
 
 ```sql
--- Opción A (recomendada para nuevas tablas): el índice incluye unaccent.
+-- Opción A (recomendada): índice con wrapper IMMUTABLE de `unaccent`.
 --
--- IMPORTANTE — orden obligatorio (ver trampa #7 abajo):
--- Antes de crear el índice hay que marcar `unaccent` como IMMUTABLE.
--- La extensión la registra como STABLE y Postgres solo permite IMMUTABLE
--- en expresiones de índice. Sin este paso, CREATE INDEX falla con:
---   ERROR: functions in index expression must be marked IMMUTABLE
+-- IMPORTANTE — el wrapper es OBLIGATORIO en Supabase (y recomendado en local).
+-- Postgres exige funciones IMMUTABLE en expresiones de índice. `unaccent`
+-- viene como STABLE. Las opciones intuitivas fallan en Supabase:
+--   - `ALTER FUNCTION unaccent IMMUTABLE` → ERROR 42501 (must be owner)
+--   - Wrapper con `SELECT unaccent($1)` sin schema → ERROR 42883 durante
+--     el INLINING al crear el índice (function unaccent does not exist)
+-- Ver trampa #7 abajo para detalle de las dos sub-trampas.
+--
+-- La receta PORTABLE usa un bloque DO que detecta dinámicamente el schema
+-- donde vive `unaccent` (`extensions` en Supabase, `public` en local típico)
+-- y crea la wrapper calificando con ese schema.
 
--- 1) Marcar unaccent como IMMUTABLE (idempotente, una sola vez por BD).
-ALTER FUNCTION unaccent(text) IMMUTABLE;
+-- 1) Wrapper IMMUTABLE en `public` con schema dinámico (idempotente).
+DO $do$
+DECLARE
+    unaccent_schema text;
+BEGIN
+    SELECT n.nspname INTO unaccent_schema
+    FROM pg_proc p
+    JOIN pg_namespace n ON p.pronamespace = n.oid
+    WHERE p.proname = 'unaccent'
+    LIMIT 1;
 
--- 2) Crear el índice GIN ya con unaccent en la expresión.
+    IF unaccent_schema IS NULL THEN
+        RAISE EXCEPTION 'La extensión unaccent no está instalada';
+    END IF;
+
+    EXECUTE format($fn$
+        CREATE OR REPLACE FUNCTION public.immutable_unaccent(text) RETURNS text AS $body$
+            SELECT %I.unaccent($1)
+        $body$ LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    $fn$, unaccent_schema);
+END
+$do$;
+
+-- 2) Crear el índice GIN usando la wrapper. (Drop+Create si vienes de una
+--    versión vieja con `unaccent(...)` directo).
+DROP INDEX IF EXISTS idx_X_titulo_fts_unaccent;
 CREATE INDEX idx_X_titulo_fts_unaccent
-  ON tabla USING GIN (to_tsvector('spanish', unaccent(titulo || ' ' || descripcion)));
+  ON tabla USING GIN (to_tsvector('spanish', public.immutable_unaccent(titulo || ' ' || descripcion)));
+
+-- 3) Las queries del service también usan la wrapper para que coincidan
+--    con la expresión del índice y el planner lo use:
+--    WHERE to_tsvector('spanish', immutable_unaccent(titulo || ' ' || descripcion))
+--          @@ plainto_tsquery('spanish', immutable_unaccent(${q}))
 ```
 
 ```sql
 -- Opción B: columna generada + índice sobre ella (más limpio y más rápido).
--- Aplica la misma regla: la expresión de la columna generada también lleva
--- `unaccent`, así que sigue siendo necesario hacer
--- `ALTER FUNCTION unaccent(text) IMMUTABLE` antes.
-ALTER FUNCTION unaccent(text) IMMUTABLE;
+-- Aplica la misma regla: usa la wrapper en la expresión generada. La wrapper
+-- se crea con el mismo bloque DO de la Opción A (omitido aquí por brevedad).
 ALTER TABLE tabla ADD COLUMN tsv tsvector
-  GENERATED ALWAYS AS (to_tsvector('spanish', unaccent(coalesce(titulo, '') || ' ' || coalesce(descripcion, '')))) STORED;
+  GENERATED ALWAYS AS (to_tsvector('spanish', public.immutable_unaccent(coalesce(titulo, '') || ' ' || coalesce(descripcion, '')))) STORED;
 CREATE INDEX idx_X_tsv ON tabla USING GIN (tsv);
--- Luego en la query: WHERE a.tsv @@ plainto_tsquery('spanish', unaccent(${q}))
+-- Luego en la query: WHERE a.tsv @@ plainto_tsquery('spanish', immutable_unaccent(${q}))
 ```
 
 Recomiendo la **Opción A** para Servicios/Ofertas — más simple, calca el patrón
@@ -474,24 +505,108 @@ Calcar la estructura, **ajustar filtros específicos del dominio**.
    permite funciones `IMMUTABLE` en expresiones de índice porque tiene que
    garantizar que el valor indexado nunca cambia para los mismos inputs.
 
-   **Solución:** ejecutar UNA SOLA VEZ por base de datos (idempotente,
-   no requiere reindex, no afecta consultas en curso):
-   ```sql
-   ALTER FUNCTION unaccent(text) IMMUTABLE;
+   **Por qué `ALTER FUNCTION unaccent IMMUTABLE` NO es la solución:**
+
+   La opción intuitiva es `ALTER FUNCTION unaccent(text) IMMUTABLE`. **En
+   Postgres local funciona** (eres dueño de todo). **En Supabase FALLA** con:
    ```
-   Solo cambia el flag en `pg_proc`. Tras esto, cualquier futuro índice con
-   `unaccent` en la expresión se crea sin problemas.
+   ERROR: 42501: must be owner of function unaccent
+   ```
+   porque la extensión `unaccent` vive en el schema `extensions` y es
+   propiedad de `supabase_admin`. El rol `postgres` del SQL Editor de
+   Supabase no es owner y no puede modificarla. Y NO hay forma estándar
+   desde el dashboard de Supabase de cambiar esto.
+
+   **Sub-trampa 7.b — el wrapper también debe calificar con schema:**
+
+   La versión obvia del wrapper:
+   ```sql
+   CREATE OR REPLACE FUNCTION public.immutable_unaccent(text) RETURNS text AS $$
+       SELECT unaccent($1)
+   $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE;
+   ```
+   **Funciona en local pero FALLA en Supabase** al crear el índice con:
+   ```
+   ERROR: 42883: function unaccent(text) does not exist
+   CONTEXT: SQL function "immutable_unaccent" during inlining
+   ```
+   El error pasa durante el INLINING (cuando Postgres "expande" la wrapper
+   dentro de la expresión del índice). En ese contexto, el search_path NO
+   incluye `extensions` (donde vive `unaccent` en Supabase), aunque sí lo
+   incluya en sesiones normales. Resultado: la función llamada `unaccent`
+   no se resuelve y el `CREATE INDEX` revienta.
+
+   **La solución PORTABLE (funciona idéntico en local y Supabase):**
+
+   Detectar dinámicamente en qué schema vive `unaccent` y calificar
+   explícitamente. La forma más limpia es un bloque `DO`:
+
+   ```sql
+   DO $do$
+   DECLARE
+       unaccent_schema text;
+   BEGIN
+       SELECT n.nspname INTO unaccent_schema
+       FROM pg_proc p
+       JOIN pg_namespace n ON p.pronamespace = n.oid
+       WHERE p.proname = 'unaccent'
+       LIMIT 1;
+
+       IF unaccent_schema IS NULL THEN
+           RAISE EXCEPTION 'La extensión unaccent no está instalada';
+       END IF;
+
+       EXECUTE format($fn$
+           CREATE OR REPLACE FUNCTION public.immutable_unaccent(text) RETURNS text AS $body$
+               SELECT %I.unaccent($1)
+           $body$ LANGUAGE sql IMMUTABLE PARALLEL SAFE
+       $fn$, unaccent_schema);
+   END
+   $do$;
+   ```
+
+   - El `SELECT pg_proc + pg_namespace` encuentra el schema real (`extensions`
+     en Supabase, `public` en local típico).
+   - `EXECUTE format(..., %I, schema)` construye la wrapper calificando
+     explícitamente (`extensions.unaccent($1)` en Supabase).
+   - `LANGUAGE sql` permite que Postgres la inline (sin overhead).
+   - `IMMUTABLE` es el flag que el índice necesita.
+   - `PARALLEL SAFE` permite usarla en queries paralelas.
+   - Vive en `public` para que el código del backend no tenga que calificar
+     con schema (`immutable_unaccent(...)` resuelve directo).
+   - Idempotente: re-ejecutar la migración solo hace `CREATE OR REPLACE` y
+     re-detecta el schema (que no cambia entre corridas).
+
+   Después en el índice y en las queries del service:
+   ```sql
+   -- Índice
+   CREATE INDEX idx_X_fts ON tabla USING GIN (
+     to_tsvector('spanish', public.immutable_unaccent(titulo || ' ' || descripcion))
+   );
+
+   -- Query (la expresión debe coincidir exactamente para que el planner use el índice)
+   WHERE to_tsvector('spanish', immutable_unaccent(titulo || ' ' || descripcion))
+         @@ plainto_tsquery('spanish', immutable_unaccent(${q}))
+   ```
 
    **Por qué importa:** este es el bug histórico de MarketPlace en producción
    (ver `apps/api/src/services/marketplace/buscador.ts:148-151`). El índice
-   `idx_marketplace_titulo_fts` quedó SIN `unaccent` (porque crearlo CON
-   `unaccent` fallaba) y la query usa `unaccent`, así que el planner cae a
-   sequential scan. Para datasets pequeños es aceptable, pero al crecer hay
-   que recrear el índice — y para eso primero hay que ejecutar este `ALTER`.
+   `idx_marketplace_titulo_fts` quedó SIN `unaccent` y la query usa
+   `unaccent`, así que el planner cae a sequential scan. Para datasets
+   pequeños es aceptable, pero al crecer hay que migrar al patrón wrapper.
 
-   **Dónde ponerlo:** en la primera migración FTS de la BD que use `unaccent`
-   en un índice, justo antes del `CREATE INDEX`. Si una migración posterior
-   también lo necesita, el `ALTER` es idempotente — no rompe nada.
+   **Servicios y Ofertas ya usan este patrón** (migraciones
+   `2026-05-24-servicios-buscador-fts.sql` y `2026-05-24-ofertas-buscador-fts.sql`).
+
+   **Dónde ponerlo:** en la primera migración FTS de la BD que use la
+   wrapper, justo antes del `CREATE INDEX`. Si una migración posterior
+   también la necesita, el `CREATE OR REPLACE FUNCTION` es idempotente —
+   no rompe nada.
+
+   **Para mantener consistencia local↔producción:** SIEMPRE usar la wrapper,
+   incluso si en local podrías marcar `unaccent` como IMMUTABLE directo.
+   Mezclar ambos enfoques causa que el índice y la query no coincidan en
+   uno de los dos ambientes y el planner caiga a seq scan ahí.
 
 ---
 

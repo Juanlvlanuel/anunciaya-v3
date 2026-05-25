@@ -19,14 +19,35 @@ import { db } from '../src/db/index.js';
 import { sql } from 'drizzle-orm';
 
 async function main() {
-    // 1. Marcar unaccent como IMMUTABLE (prerequisito)
-    await db.execute(sql`ALTER FUNCTION unaccent(text) IMMUTABLE`);
+    // 1. Wrapper IMMUTABLE de unaccent en `public`. Schema dinámico para
+    //    funcionar tanto en local (public.unaccent) como en Supabase
+    //    (extensions.unaccent). Sin calificar, el INLINING en CREATE INDEX
+    //    falla. Ver migración SQL y PATRON_BUSCADOR_FTS.md trampa #7.
+    const schemaRes = await db.execute(sql`
+        SELECT n.nspname AS schema
+        FROM pg_proc p
+        JOIN pg_namespace n ON p.pronamespace = n.oid
+        WHERE p.proname = 'unaccent'
+        LIMIT 1
+    `);
+    const unaccentSchema = (schemaRes.rows[0] as { schema?: string } | undefined)?.schema;
+    if (!unaccentSchema) {
+        throw new Error('Extensión unaccent no instalada — corre la migración 2026-05-14-extension-unaccent.sql primero');
+    }
+    await db.execute(sql.raw(`
+        CREATE OR REPLACE FUNCTION public.immutable_unaccent(text) RETURNS text AS $$
+            SELECT ${unaccentSchema}.unaccent($1)
+        $$ LANGUAGE sql IMMUTABLE PARALLEL SAFE
+    `));
 
-    // 2. Índice GIN FTS con unaccent + coalesce
+    // 2. Drop+Create del índice FTS con la wrapper + coalesce
+    //    (por si ya existía con `unaccent(...)` directo de una corrida anterior).
+    await db.execute(sql`DROP INDEX IF EXISTS idx_ofertas_titulo_fts_unaccent`);
+
     await db.execute(sql`
-        CREATE INDEX IF NOT EXISTS idx_ofertas_titulo_fts_unaccent
+        CREATE INDEX idx_ofertas_titulo_fts_unaccent
             ON ofertas
-            USING GIN (to_tsvector('spanish', unaccent(titulo || ' ' || coalesce(descripcion, ''))))
+            USING GIN (to_tsvector('spanish', public.immutable_unaccent(titulo || ' ' || coalesce(descripcion, ''))))
     `);
 
     // 3. Tabla de log

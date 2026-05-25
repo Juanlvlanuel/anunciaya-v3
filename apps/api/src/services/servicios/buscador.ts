@@ -57,7 +57,7 @@ export interface SugerenciaServicioRow {
 /**
  * Devuelve top 5 publicaciones activas en la ciudad cuyo título, descripción,
  * skills o requisitos matchea el query del usuario (ILIKE substring,
- * accent-insensitive con `unaccent()`).
+ * accent-insensitive con `immutable_unaccent()`).
  *
  * El caller decide el debounce (300ms en el FE).
  *
@@ -131,18 +131,18 @@ export async function obtenerSugerenciasServicios(
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
               AND (
-                  unaccent(sp.titulo) ILIKE unaccent(${patron})
-                  OR unaccent(sp.descripcion) ILIKE unaccent(${patron})
+                  immutable_unaccent(sp.titulo) ILIKE immutable_unaccent(${patron})
+                  OR immutable_unaccent(sp.descripcion) ILIKE immutable_unaccent(${patron})
                   -- Skills y requisitos viven como arrays text[]; usamos
                   -- EXISTS + unnest para que un término matchee cualquier
                   -- entrada del array (ej. "plomería" en skills).
                   OR EXISTS (
                       SELECT 1 FROM unnest(sp.skills) skill
-                      WHERE unaccent(skill) ILIKE unaccent(${patron})
+                      WHERE immutable_unaccent(skill) ILIKE immutable_unaccent(${patron})
                   )
                   OR EXISTS (
                       SELECT 1 FROM unnest(sp.requisitos) req
-                      WHERE unaccent(req) ILIKE unaccent(${patron})
+                      WHERE immutable_unaccent(req) ILIKE immutable_unaccent(${patron})
                   )
               )
             ORDER BY sp.updated_at DESC
@@ -268,17 +268,17 @@ export async function buscarServicios(
         // `unaccent` aplicado a ambos lados.
         const patronLike = `%${queryNorm}%`;
         conds.push(sql`(
-            to_tsvector('spanish', unaccent(sp.titulo || ' ' || sp.descripcion))
-                @@ plainto_tsquery('spanish', unaccent(${queryNorm}))
-            OR unaccent(sp.titulo) ILIKE unaccent(${patronLike})
-            OR unaccent(sp.descripcion) ILIKE unaccent(${patronLike})
+            to_tsvector('spanish', immutable_unaccent(sp.titulo || ' ' || sp.descripcion))
+                @@ plainto_tsquery('spanish', immutable_unaccent(${queryNorm}))
+            OR immutable_unaccent(sp.titulo) ILIKE immutable_unaccent(${patronLike})
+            OR immutable_unaccent(sp.descripcion) ILIKE immutable_unaccent(${patronLike})
             OR EXISTS (
                 SELECT 1 FROM unnest(sp.skills) skill
-                WHERE unaccent(skill) ILIKE unaccent(${patronLike})
+                WHERE immutable_unaccent(skill) ILIKE immutable_unaccent(${patronLike})
             )
             OR EXISTS (
                 SELECT 1 FROM unnest(sp.requisitos) req
-                WHERE unaccent(req) ILIKE unaccent(${patronLike})
+                WHERE immutable_unaccent(req) ILIKE immutable_unaccent(${patronLike})
             )
         )`);
     }
