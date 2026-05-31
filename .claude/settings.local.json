@@ -263,7 +263,16 @@
       "Bash(echo \"EXIT_API=$?\")",
       "Bash(echo \"EXIT_WEB=$?\")",
       "PowerShell(Set-Location 'E:\\\\AnunciaYA\\\\anunciaya\\\\apps\\\\web'; npx tsc --noEmit; Write-Output \"EXIT_CODE=$LASTEXITCODE\")",
-      "Bash(grep -rn \"ModalAuthRequerido$\\\\|<ModalAuthRequerido\" E:/AnunciaYA/anunciaya/apps/web/src --include=\"*.tsx\")"
+      "Bash(grep -rn \"ModalAuthRequerido$\\\\|<ModalAuthRequerido\" E:/AnunciaYA/anunciaya/apps/web/src --include=\"*.tsx\")",
+      "Bash(Get-ChildItem -Path \"E:\\\\AnunciaYA\\\\anunciaya\" -Recurse -Filter \"schema*\" -ErrorAction SilentlyContinue)",
+      "Bash(Select-Object -ExpandProperty FullName)",
+      "Bash(Select-String \"\\\\.ts\")",
+      "Bash(findstr -r \"regiones\\\\|regionId\\\\|region_id\" \"apps\\\\api\\\\src\\\\**\\\\*.ts\")",
+      "Bash(NODE_TLS_REJECT_UNAUTHORIZED=0 pnpm add @google/genai)",
+      "Bash(pnpm --filter api exec tsc --noEmit -p apps/api/tsconfig.json)",
+      "PowerShell(nslookup aws-1-us-west-2.pooler.supabase.com)",
+      "PowerShell(Test-NetConnection aws-1-us-west-2.pooler.supabase.com -Port 6543 -WarningAction SilentlyContinue)",
+      "Bash(git rm *)"
     ]
   },
   "disableAllHooks": true
