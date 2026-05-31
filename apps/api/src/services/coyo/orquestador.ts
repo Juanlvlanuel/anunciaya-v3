@@ -57,6 +57,44 @@ const TEXTO_REDIRECCION_NO_APLICA =
 const TEXTO_RESPALDO_CON_RESULTADOS = 'Mira lo que encontré:';
 
 // =============================================================================
+// HELPER: detectar si Coyo redactó como "sin resultados" (CASO B del prompt)
+// =============================================================================
+
+/**
+ * Devuelve `true` si el texto redactado por Gemini sigue el patrón del
+ * CASO B del prompt de `redactarRespuestaCoyo` — Coyo dice "no encontré X"
+ * + invita a la comunidad a responder. Eso pasa cuando Gemini decide
+ * semánticamente que los items que trajo el buscador NO son relevantes
+ * para el vecino (típicamente porque el dato es contradictorio — ej. un
+ * servicio con título "Se busca Plomero" pero `modo='ofrezco'` por error
+ * de captura).
+ *
+ * Cuando esta función devuelve `true` y `huboResultados === true`, el
+ * orquestador LIMPIA los items antes de guardar para mantener consistencia
+ * visual texto ↔ tarjetas. El principio "Coyo no inventa" se extiende a
+ * lo visual: si el texto dice "no encontré", las tarjetas no deben
+ * contradecirlo.
+ *
+ * Heurística DOBLE (negativa + invitación a la comunidad) porque solo con
+ * la negativa había falsos positivos legítimos: "no encontré laptops
+ * nuevas pero encontré estas usadas" sería CASO A con matización, no
+ * CASO B. El CASO B SIEMPRE incluye la invitación a la comunidad por
+ * la regla 4 de PERSONALIDAD_COYO + el prompt explícito.
+ *
+ * Si Gemini redacta con una variación no contemplada por los regex, el
+ * caso pasa sin filtrar — preferible quedarse corto (tarjetas visibles
+ * en duda) que pasarse (ocultar tarjetas legítimas). Ver §Filtro de
+ * consistencia texto-tarjeta en docs/arquitectura/Home_Coyo.md.
+ */
+function geminiRedactoComoSinResultados(texto: string): boolean {
+    const senalNegativa =
+        /(no encontr[éeé]|no hay|por ahora no|ahorita no|todav[íi]a no|sin resultados|no aparec)/i;
+    const senalComunidad =
+        /(deja tu pregunta|deja aqu[íi] tu pregunta|comunidad|vecinos te |a la comunidad)/i;
+    return senalNegativa.test(texto) && senalComunidad.test(texto);
+}
+
+// =============================================================================
 // HELPER: marcar estado final
 // =============================================================================
 
@@ -209,6 +247,40 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
             );
         }
 
+        // ─── 6.5. Consistencia visual texto ↔ tarjetas ───────────────
+        // Si Gemini siguió el CASO B del prompt (dijo "no encontré" +
+        // invitación a la comunidad) pero el buscador SÍ trajo items,
+        // significa que descartó los items semánticamente (ej. dato
+        // contradictorio como un servicio con título "Se busca X" y
+        // modo='ofrezco'). Limpiamos los items para que las tarjetas no
+        // contradigan el texto — el principio "Coyo no inventa" se
+        // extiende a lo visual.
+        // Ver §Filtro de consistencia texto-tarjeta en
+        // docs/arquitectura/Home_Coyo.md.
+        let resultadosParaGuardar = resultadoBusqueda.resultados;
+        if (huboResultados && geminiRedactoComoSinResultados(textoFinal)) {
+            console.warn(
+                'Coyo orquestador: redacción siguió CASO B pero el buscador trajo items — limpiando para consistencia visual',
+                {
+                    preguntaId,
+                    texto: textoFinal,
+                    conteosOriginales: {
+                        negocios: resultadoBusqueda.resultados.negocios.items.length,
+                        ofertas: resultadoBusqueda.resultados.ofertas.items.length,
+                        marketplace:
+                            resultadoBusqueda.resultados.marketplace.items.length,
+                        servicios: resultadoBusqueda.resultados.servicios.items.length,
+                    },
+                },
+            );
+            resultadosParaGuardar = {
+                negocios: { items: [], total: 0 },
+                ofertas: { items: [], total: 0 },
+                marketplace: { items: [], total: 0 },
+                servicios: { items: [], total: 0 },
+            };
+        }
+
         // ─── 7. Guardar todo y cerrar como listo ─────────────────────
         // Estado SIEMPRE 'listo' (con o sin resultados) para que el front
         // muestre la respuesta de Coyo. La pregunta sigue abierta a la
@@ -217,7 +289,7 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
         await marcarEstadoFinal(preguntaId, {
             estadoCoyo: 'listo',
             respuestaCoyo: textoFinal,
-            resultadosCoyo: resultadoBusqueda.resultados,
+            resultadosCoyo: resultadosParaGuardar,
         });
     } catch (error) {
         // Red de seguridad: cualquier error inesperado deja la pregunta

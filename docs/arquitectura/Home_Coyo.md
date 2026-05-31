@@ -232,6 +232,68 @@ No están implementadas — el prompt es suficiente por ahora.
 
 ---
 
+## Filtro de consistencia texto ↔ tarjetas
+
+Aprendizaje del 2026-05-31 (segunda iteración del bug "no encontré"):
+incluso con el FTS limpio y el prompt singular para anglo, podía darse
+el caso de que **el buscador trajera un item legítimo (FTS matchea
+correctamente) pero Gemini decidiera semánticamente que ese item NO le
+sirve al vecino**. Resultado: Coyo redactaba "no encontré X" pero el
+backend pasaba el item al frontend → tarjeta visible contradiciendo el
+texto.
+
+Caso real reproducido:
+
+> Pregunta: *"algún plomero?"* → FTS encuentra un servicio con título
+> "Se busca Plomero" (matchea por `plomero`). Pero ese servicio tiene
+> `modo='ofrezco'` por error de captura (alguien quería preguntar pero
+> creó una publicación). Gemini lee título "Se busca Plomero" + modo
+> "Ofrezco" como contradictorios, decide que NO es alguien ofreciendo,
+> redacta: *"Híjole, por ahora no encontré plomeros ofreciendo sus
+> servicios aquí en tu ciudad. Pero si quieres, deja tu pregunta para
+> que los vecinos te echen una mano."* Sin embargo, la tarjeta del
+> servicio aparecía igual abajo. Mensaje contradictorio para el vecino.
+
+**Solución (orquestador.ts):** después de `redactarRespuestaCoyo`, una
+heurística detecta si Gemini siguió el **CASO B del prompt** (texto
+negativo + invitación a la comunidad). Si la heurística da `true` y el
+buscador SÍ trajo items, el orquestador **limpia los items antes de
+guardar** en `resultados_coyo`. Las tarjetas no aparecen y el mensaje
+queda consistente.
+
+```typescript
+// orquestador.ts (extracto simplificado)
+if (huboResultados && geminiRedactoComoSinResultados(textoFinal)) {
+  console.warn('Coyo: CASO B con items — limpiando para consistencia');
+  resultadosParaGuardar = { negocios: {items:[]...}, /* ... 4 vacíos */ };
+}
+```
+
+**Por qué la heurística es DOBLE (negativa + invitación a la
+comunidad):**
+
+Solo con la frase negativa había falsos positivos. Una respuesta como
+*"no encontré laptops nuevas pero encontré estas usadas"* es CASO A con
+matización, no CASO B — y filtrarla habría escondido tarjetas
+legítimas. Por la regla 4 de `PERSONALIDAD_COYO` + el prompt explícito,
+**el CASO B SIEMPRE incluye la invitación a la comunidad**. Con esa
+señal doble, los falsos positivos se cierran.
+
+**Trade-off explícito:** si Gemini redacta con una variación no
+cubierta por los regex, el caso pasa sin filtrar y aparece la
+inconsistencia. Preferible quedarse corto (tarjetas visibles en duda)
+que pasarse (ocultar tarjetas legítimas). Cuando se observe un caso
+nuevo, se agrega el patrón al helper.
+
+**Patrones cubiertos actualmente:**
+
+- Negativa: `no encontré`, `no encontro`, `no hay`, `por ahora no`,
+  `ahorita no`, `todavía no`, `sin resultados`, `no apareció/aparecen`.
+- Invitación a la comunidad: `deja tu pregunta`, `deja aquí tu
+  pregunta`, `comunidad`, `vecinos te ...`, `a la comunidad`.
+
+---
+
 ## Tono y vocabulario de Coyo
 
 Aprendizaje del 2026-05-31: Coyo originalmente decía "el pueblo" y "el
