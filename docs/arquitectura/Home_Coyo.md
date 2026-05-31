@@ -153,6 +153,105 @@ comportamiento histórico AND. Helper compartido:
 `apps/api/src/services/_helpers/busquedaFlexible.ts` (`tokenizarQuery`,
 `unirOr`).
 
+### Campos que se buscan en cada modo (importante)
+
+Aprendizaje doloroso: el `ILIKE` substring contra **texto libre largo**
+(descripciones, requisitos) **se vuelve veneno en modo flexible** porque
+una palabra suelta puede ser substring literal de otra. Caso real
+reproducido el 2026-05-31:
+
+> Pregunta: *"donde hay alguna agua purificadora"* → Gemini extrae
+> `'agua purificadora'` (correcto). El FTS español está limpio: el
+> tsvector de una Laptop HP cuya descripción dice "la batería aguanta 3
+> horas" produce `'aguant'` (raíz del verbo aguantar), **no** `'agua'`.
+> Pero `unaccent('aguanta') ILIKE '%agua%'` devuelve TRUE — y la Laptop
+> se cuela como resultado de "agua purificadora". Coyo redacta
+> correctamente "no encontré agua purificadora" pero la tarjeta de
+> Marketplace muestra la Laptop. Mensaje contradictorio para el vecino.
+
+**Por eso en modo flexible los buscadores limitan el ILIKE a campos
+cortos y curados.** El FTS español (con stemming + diccionario) sigue
+cubriendo todo el texto principal.
+
+| Buscador | Modo normal (usuarios) | Modo flexible (Coyo) |
+|---|---|---|
+| Marketplace | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`) | FTS + ILIKE(`titulo`) |
+| Servicios | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`) + EXISTS(`skills`, `requisitos`) | FTS + ILIKE(`titulo`) |
+| Ofertas | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`, `negocio.nombre`) + EXISTS(`subcategorias`, `categorias`) | FTS + ILIKE(`titulo`, `negocio.nombre`) + EXISTS(`subcategorias`, `categorias`) |
+| Negocios | ILIKE(`negocio.nombre`, `sucursal.nombre`, `direccion`, `ciudad`) + EXISTS(`subcategorias`, `categorias`) | igual (todos los campos son cortos y curados, **no aplica el bug**) |
+
+**Regla guía:** el ILIKE substring solo es seguro contra columnas que el
+comerciante o el catálogo escriben deliberadamente (nombres, títulos,
+nombres de categorías). Los textos libres largos (descripción, skills,
+requisitos) **se eliminan en modo flexible** porque ahí Gemini puede
+mandar 1 palabra suelta sin contexto de la frase completa.
+
+**Principio:** preferible que Coyo devuelva **0 resultados** y deje la
+pregunta para la comunidad, a que devuelva resultados borderline
+irrelevantes contradiciendo su propio texto.
+
+### Trampa secundaria: el stemmer español no procesa plurales en inglés
+
+Reproducida también el 2026-05-31: el stemmer Snowball Spanish que usa
+Postgres NO quita la `s` final de palabras inglesas porque no las
+reconoce como raíces españolas. Resultado:
+
+```sql
+SELECT websearch_to_tsquery('spanish', 'laptops')::text;
+-- 'laptops'   (NO se estemiza a 'laptop')
+
+SELECT to_tsvector('spanish', 'Laptop HP 15 Intel')::text;
+-- '15':3 'hp':2 'intel':4 'laptop':1   (el documento tiene 'laptop')
+
+-- → no matchean, aunque obviamente sean la misma palabra.
+```
+
+Para palabras en español el stemmer SÍ funciona (`tortillas` → `tortill`
+matchea con `tortilla` → `tortill`). El problema es exclusivo de
+préstamos del inglés (laptop, software, smartphone, hotdog, etc.).
+
+Mientras el ILIKE de descripción estaba activo en modo flexible, este
+bug quedaba enmascarado (el ILIKE "rescataba" hits por substring). Al
+limpiar el ILIKE para resolver el bug "agua → Laptop", esta trampa
+quedó al desnudo.
+
+**Mitigación actual:** el prompt de `interpretarPregunta` (en
+`coyoIA.service.ts`) le pide explícitamente a Gemini que devuelva el
+**SINGULAR** para palabras inglesas. Esto cubre el 95% de los casos.
+
+**Si más adelante hace falta robustez extra** (Gemini ignorando la
+regla en algún caso), las opciones son:
+1. Singularización en backend (quitar `s` del último token si tiene
+   >4 letras). Riesgo: falsos rebotes con "más", "país", "atrás".
+2. Buscar también la versión sin `s` como OR (`'laptops OR laptop'`).
+   Aumenta el alcance pero es seguro.
+3. Indexar también con configuración `simple` (sin stemming) además
+   de la `spanish`. Cambio de schema.
+
+No están implementadas — el prompt es suficiente por ahora.
+
+---
+
+## Tono y vocabulario de Coyo
+
+Aprendizaje del 2026-05-31: Coyo originalmente decía "el pueblo" y "el
+catálogo del pueblo" en sus respuestas. **Eso solo funciona para
+ciudades chicas como Puerto Peñasco.** AnunciaYA está diseñado para
+escalar a otras ciudades (la `ciudad` viene del `useGpsStore`); decirle
+"pueblo" a alguien en Hermosillo o Tijuana suena raro.
+
+**Regla actual en `PERSONALIDAD_COYO` y en los dos prompts:** Coyo NO
+usa las palabras "pueblo" ni "catálogo". Habla de "tu ciudad" o "la
+ciudad". El JSON con los resultados se introduce como *"Resultados
+reales encontrados en tu ciudad"*, y la regla 5 (no-búsqueda-local)
+redirige con *"si buscas algo aquí en tu ciudad, dime"*.
+
+Esta regla está escrita explícitamente en el prompt (no es solo un
+ejemplo) porque a Gemini se le pega "pueblo" si los ejemplos lo
+mencionan — mejor prohibirlo de frente.
+
+---
+
 **Documento maestro del patrón FTS:** `docs/estandares/PATRON_BUSCADOR_FTS.md`
 — incluye la receta del wrapper `public.immutable_unaccent` (portable a
 Supabase) y las 7 trampas conocidas.
@@ -248,16 +347,21 @@ inicio del archivo (editable).
 | Pieza | Archivo |
 |---|---|
 | Página | `apps/web/src/pages/private/PaginaInicio.tsx` |
+| Componente Coyo animado | `apps/web/src/components/CoyoAnimado.tsx` |
+| Hook estado visual de Coyo | `apps/web/src/hooks/useCoyoEstadoVisual.ts` |
 | Hooks RQ | `apps/web/src/hooks/queries/usePreguntasComunidad.ts` |
 | Service | `apps/web/src/services/preguntasComunidadService.ts` |
 | Types | `apps/web/src/types/preguntasComunidad.ts` |
 | Query keys | `apps/web/src/config/queryKeys.ts` (sección `preguntasComunidad`) |
+| Asset Rive | `apps/web/public/coyo.riv` |
 
-**Hero "Coyo te habla":** Coyo grande (`<img src="/Coyo.png">`, `h-40 lg:h-56`)
+**Hero "Coyo te habla":** Coyo animado (`<CoyoAnimado>` con runtime de Rive)
 + bocadillo con cola SVG (solo desktop) + saludo personalizado con
 `useAuthStore(s => s.usuario?.nombre) ?? 'vecino'` + label "Pregúntale a
 Coyo" + input + botón + stat "X vecinos preguntando hoy" (calculado del
-feed: autores únicos en últimas 24h).
+feed: autores únicos en últimas 24h). Coyo se monta visualmente sobre el
+bocadillo con `z-10` + margen negativo derecho para que la mano del saludo
+no quede cortada por el borde de la burbuja.
 
 **Hooks de React Query (3):**
 
@@ -290,6 +394,83 @@ viene no-nulo desde el backend.
 
 ---
 
+## Animación de Coyo (Rive)
+
+Coyo dejó de ser un PNG fijo: ahora es una mascota animada con state
+machine que **reacciona al estado de la app** (saludo al cargar, atento al
+escribir, pensando mientras Gemini procesa, respondiendo al llegar la
+respuesta). El archivo binario vive en `apps/web/public/coyo.riv` y se
+carga con `@rive-app/react-canvas` (runtime open source, MIT, sin
+dependencia con servidores de Rive en producción).
+
+**Archivos clave:**
+
+| Archivo | Responsabilidad |
+|---|---|
+| `apps/web/public/coyo.riv` | Asset binario exportado desde el editor Rive (despiece + state machine + 5 timelines) |
+| `apps/web/src/components/CoyoAnimado.tsx` | Componente React que monta el canvas Rive y mapea `estado` → inputs de la state machine |
+| `apps/web/src/hooks/useCoyoEstadoVisual.ts` | Calcula el `EstadoCoyoVisual` actual a partir del estado de la app (texto del input, mutación pendiente, feed) |
+| `apps/web/src/pages/private/PaginaInicio.tsx` | Consume el hook y pasa el estado al `<CoyoAnimado>` |
+
+**State machine del `.riv` — 2 layers:**
+
+- **Layer 1 (base, siempre activa):** reproduce `idle` en loop. Da la
+  sensación de "estar vivo" — Coyo respira (cuerpo escala Y 100→103%),
+  parpadea (alterna ojos abiertos/cerrados con Hold), mueve la cola, y
+  cabeza/ojos/bocas siguen al cuerpo cuando respira.
+- **Layer 2 (reacciones):** estado default `neutro` (vacío). Transiciona a
+  `saludo`/`atento`/`pensando`/`respondiendo` según los inputs y vuelve
+  solo a `neutro` cuando el input se apaga (o cuando termina el one-shot
+  del saludo).
+
+**Inputs de la state machine (exactos):**
+
+| Nombre | Tipo | Disparo desde código |
+|---|---|---|
+| `saludo` | Trigger | `inputSaludo.fire()` — al montar el Home |
+| `atento` | Boolean | `inputAtento.value = true/false` — mientras el textarea tiene contenido |
+| `pensando` | Boolean | `inputPensando.value = true/false` — mientras hay pregunta del usuario en `pendiente`/`procesando` |
+| `respondiendo` | Boolean | `inputRespondiendo.value = true/false` — durante ~6s después de que una pregunta del usuario pasa a `listo` |
+
+**Mapeo estado de la app → `EstadoCoyoVisual` (en `useCoyoEstadoVisual`):**
+
+```
+Prioridad (mayor a menor):
+  saludo > respondiendo > pensando > atento > idle
+```
+
+- `saludo`: bandera interna `mostrandoSaludo` true al montar el componente, se apaga con `setTimeout` tras `SALUDO_DURACION_MS = 2500ms`.
+- `respondiendo`: se detecta la transición de pregunta del usuario `procesando → listo` con un `Set` de IDs ya vistos. Se activa durante `RESPONDIENDO_DURACION_MS = 6000ms`.
+- `pensando`: `crear.isPending` o hay alguna `pregunta.autorId === usuarioId && (estadoCoyo === 'pendiente' || 'procesando')`.
+- `atento`: `texto.trim().length > 0`.
+- `idle`: ninguno de los anteriores.
+
+**Mitigaciones técnicas dentro del componente:**
+
+1. **Exclusividad de inputs:** antes de activar un boolean, se ponen todos los demás en `false`. Garantiza que nunca haya 2 estados activos al mismo tiempo.
+2. **Espera al salir de `respondiendo`:** si el estado anterior era `respondiendo` y se cambia a otro, se aplica el cambio con `setTimeout(250ms)` para que el ciclo de bocas termine en su frame base (`boca-cerrada` visible) y no se "congele" en un frame intermedio.
+3. **Layout fijo:** `Fit.Contain` + `Alignment.BottomRight` para que la mano alzada del saludo no se recorte por arriba.
+4. **StrictMode-safe:** el efecto que dispara `saludo` no usa flag en `useRef` (en dev el efecto corre 2 veces; un flag bloquearía la segunda ejecución y `setMostrandoSaludo(false)` nunca se llamaría). En su lugar, `mostrandoSaludo` se inicializa en `true` y el `setTimeout` se cierra correctamente con el cleanup.
+
+**Cómo regenerar el `.riv`:**
+
+1. Abrir el archivo fuente en el editor de Rive (`Coyo` en la cuenta del workspace).
+2. Editar/agregar/ajustar animaciones, keyframes o inputs.
+3. **El export `.riv` requiere plan Cadet** (~$17 USD/mes mensual o $9/mes anual). El plan Free permite editar pero no exportar.
+4. Menú ☰ → Export → For runtime → "Export your Rive file".
+5. Reemplazar `apps/web/public/coyo.riv` con el archivo nuevo.
+6. Si renombras inputs o la state machine, actualizar las constantes `STATE_MACHINE_NAME` e `INPUT_*` en `CoyoAnimado.tsx`.
+
+**Cómo verificar los inputs disponibles desde código (debug):**
+
+```typescript
+const sm = rive.stateMachineInputs('State Machine 1');
+console.log(sm.map((i) => ({ nombre: i.name, tipo: i.type })));
+// Tipos: 58 = Trigger, 59 = Boolean, 56 = Number
+```
+
+---
+
 ## Decisiones clave (y por qué)
 
 1. **Regla de oro: Coyo NO inventa.** La `PERSONALIDAD_COYO` lo prohíbe explícitamente. El frontend solo pinta lo que vino del backend; el backend solo devuelve datos reales de la BD. Si Gemini "alucina" un negocio, la regla del prompt es no incluirlo.
@@ -303,6 +484,12 @@ viene no-nulo desde el backend.
 5. **Modo flexible solo para Coyo.** Los usuarios normales que escriben en los overlays mantienen el comportamiento AND (más preciso para prefijos cortos). Solo Coyo activa el OR por palabra (más útil para términos compactos de IA).
 
 6. **Cajita IA encapsulada.** Toda la dependencia de Gemini vive en un solo archivo. Migrar a otra LLM = tocar un archivo.
+
+7. **Coyo animado con Rive (no Lottie).** Lottie no soporta state machines — necesitaríamos pre-renderizar cada estado como animación independiente y cambiar entre ellas con código, lo que dificulta combinar Layer 1 (idle de fondo, siempre activa) con Layer 2 (reacciones contextuales). Rive resuelve esto nativamente. El runtime es open source (MIT), gratis para siempre, y solo el export del `.riv` requiere plan Cadet ocasional cuando se regenera la animación.
+
+8. **Estado visual derivado, no almacenado.** `useCoyoEstadoVisual` recalcula el `EstadoCoyoVisual` en cada render a partir del estado real de la app (texto del input, mutación, feed). No hay un estado paralelo "qué animación está activa" — eso lo decide el hook como función pura. Esto evita desincronización entre la animación y la realidad de la app.
+
+9. **Exclusividad de inputs en una sola layer.** Los 3 booleans (`atento`, `pensando`, `respondiendo`) viven en la misma Layer 2 de la state machine, y el componente garantiza que solo uno está en `true` a la vez. Activar 2 al mismo tiempo manualmente provoca un bug visible (boca que desaparece cuando se interrumpe el loop de `respondiendo` a media transición). El código de producción nunca dispara esa combinación; el bug solo aparece jugando manualmente con los inputs en el editor de Rive.
 
 ---
 
@@ -346,5 +533,7 @@ que ya estaba en producción.
 | **Backend — helpers compartidos** | `services/_helpers/busquedaFlexible.ts` |
 | **Backend — config** | `config/env.ts` (`GEMINI_API_KEY`) |
 | **Frontend** | `pages/private/PaginaInicio.tsx`, `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
-| **Asset** | `apps/web/public/Coyo.png` |
+| **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
+| **Dependencia** | `@rive-app/react-canvas` (runtime open source, MIT) |
+| **Asset Rive** | `apps/web/public/coyo.riv` (export desde editor de Rive — incluye despiece SVG + 5 timelines + state machine de 2 layers) |
 | **Docs hermanos** | `docs/estandares/PATRON_BUSCADOR_FTS.md` (receta FTS portable), `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4 (visión) |

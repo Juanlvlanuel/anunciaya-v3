@@ -314,12 +314,15 @@ export async function buscarOfertas(
             return sql`${expresion} ILIKE immutable_unaccent(${`%${queryNorm}%`})`;
         };
 
-        conds.push(sql`(
-            to_tsvector('spanish', immutable_unaccent(o.titulo || ' ' || coalesce(o.descripcion, ''))) @@ ${ftsExpr}
-            OR ${ilikeOr(sql`immutable_unaccent(o.titulo)`)}
-            OR ${ilikeOr(sql`immutable_unaccent(coalesce(o.descripcion, ''))`)}
-            OR ${ilikeOr(sql`immutable_unaccent(n.nombre)`)}
-            OR EXISTS (
+        // Cláusulas comunes a los dos modos: FTS + ILIKE de título + nombre
+        // del negocio + categorías/subcategorías. Esos campos son cortos y
+        // curados (catálogos), no sufren el bug del ILIKE substring que sí
+        // afecta a textos libres largos como la descripción.
+        const clausulasBusqueda: ReturnType<typeof sql>[] = [
+            sql`to_tsvector('spanish', immutable_unaccent(o.titulo || ' ' || coalesce(o.descripcion, ''))) @@ ${ftsExpr}`,
+            ilikeOr(sql`immutable_unaccent(o.titulo)`),
+            ilikeOr(sql`immutable_unaccent(n.nombre)`),
+            sql`EXISTS (
                 SELECT 1
                 FROM asignacion_subcategorias asig
                 JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
@@ -329,8 +332,20 @@ export async function buscarOfertas(
                       ${ilikeOr(sql`immutable_unaccent(sc.nombre)`)}
                       OR ${ilikeOr(sql`immutable_unaccent(c.nombre)`)}
                   )
-            )
-        )`);
+            )`,
+        ];
+        if (!usarFlexible) {
+            // Descripción de oferta: texto libre, susceptible al bug del
+            // ILIKE substring cuando los tokens vienen sueltos de Gemini
+            // (ej. "agua" matchea "aguanta"). En modo flexible NO se
+            // agrega — se confía en el FTS español con stemming. Ver
+            // §Modo flexible en docs/arquitectura/Home_Coyo.md.
+            clausulasBusqueda.push(
+                ilikeOr(sql`immutable_unaccent(coalesce(o.descripcion, ''))`),
+            );
+        }
+
+        conds.push(sql`(${sql.join(clausulasBusqueda, sql` OR `)})`);
     }
 
     if (filtros.tipo !== undefined) {

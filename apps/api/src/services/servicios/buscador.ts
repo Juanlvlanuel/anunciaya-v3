@@ -296,19 +296,32 @@ export async function buscarServicios(
             return sql`${expresion} ILIKE immutable_unaccent(${`%${queryNorm}%`})`;
         };
 
-        conds.push(sql`(
-            to_tsvector('spanish', immutable_unaccent(sp.titulo || ' ' || sp.descripcion)) @@ ${ftsExpr}
-            OR ${ilikeOr(sql`immutable_unaccent(sp.titulo)`)}
-            OR ${ilikeOr(sql`immutable_unaccent(sp.descripcion)`)}
-            OR EXISTS (
-                SELECT 1 FROM unnest(sp.skills) skill
-                WHERE ${ilikeOr(sql`immutable_unaccent(skill)`)}
-            )
-            OR EXISTS (
-                SELECT 1 FROM unnest(sp.requisitos) req
-                WHERE ${ilikeOr(sql`immutable_unaccent(req)`)}
-            )
-        )`);
+        // En modo flexible (Coyo) SOLO se mantiene FTS + ILIKE de título.
+        // El ILIKE substring contra descripción / skills / requisitos
+        // genera falsos positivos cuando una palabra suelta de Gemini es
+        // substring literal de otra (ej. "agua" matchea "aguanta"). El FTS
+        // español ya cubre el texto principal con stemming. Ver §Modo
+        // flexible en docs/arquitectura/Home_Coyo.md y el bug "agua
+        // purificadora → Laptop HP" para racional completo.
+        const clausulasBusqueda: ReturnType<typeof sql>[] = [
+            sql`to_tsvector('spanish', immutable_unaccent(sp.titulo || ' ' || sp.descripcion)) @@ ${ftsExpr}`,
+            ilikeOr(sql`immutable_unaccent(sp.titulo)`),
+        ];
+        if (!usarFlexible) {
+            clausulasBusqueda.push(
+                ilikeOr(sql`immutable_unaccent(sp.descripcion)`),
+                sql`EXISTS (
+                    SELECT 1 FROM unnest(sp.skills) skill
+                    WHERE ${ilikeOr(sql`immutable_unaccent(skill)`)}
+                )`,
+                sql`EXISTS (
+                    SELECT 1 FROM unnest(sp.requisitos) req
+                    WHERE ${ilikeOr(sql`immutable_unaccent(req)`)}
+                )`,
+            );
+        }
+
+        conds.push(sql`(${sql.join(clausulasBusqueda, sql` OR `)})`);
     }
 
     if (filtros.modo !== undefined) {

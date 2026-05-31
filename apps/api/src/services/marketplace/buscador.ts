@@ -335,13 +335,27 @@ export async function buscarArticulos(
             return sql`${expresion} ILIKE unaccent(${`%${queryNorm}%`})`;
         };
 
-        conds.push(
-            sql`(
-                to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)) @@ ${ftsExpr}
-                OR ${ilikeOr(sql`unaccent(a.titulo)`)}
-                OR ${ilikeOr(sql`unaccent(a.descripcion)`)}
-            )`
-        );
+        // Cláusulas de búsqueda. El `ILIKE` substring contra `descripcion`
+        // SOLO se agrega en modo normal: en modo flexible (Coyo) genera
+        // falsos positivos cuando una palabra suelta de Gemini es substring
+        // literal de otra palabra distinta de la descripción. Caso real
+        // documentado: pregunta "agua purificadora" → tokens ['agua',
+        // 'purificadora']. El FTS español NO matchea la Laptop HP porque su
+        // tsvector contiene `'aguant'` (raíz de "aguanta") y no `'agua'`;
+        // pero `unaccent('aguanta') ILIKE '%agua%'` SÍ devuelve TRUE y la
+        // laptop se cuela. En modo flexible confiamos en el FTS (stemming
+        // del diccionario español) + el ILIKE del título (corto y curado,
+        // bajo riesgo de substring espurio). Ver §Modo flexible en
+        // docs/arquitectura/Home_Coyo.md.
+        const clausulasBusqueda: ReturnType<typeof sql>[] = [
+            sql`to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)) @@ ${ftsExpr}`,
+            ilikeOr(sql`unaccent(a.titulo)`),
+        ];
+        if (!usarFlexible) {
+            clausulasBusqueda.push(ilikeOr(sql`unaccent(a.descripcion)`));
+        }
+
+        conds.push(sql`(${sql.join(clausulasBusqueda, sql` OR `)})`);
     }
 
     if (filtros.precioMin !== undefined) {

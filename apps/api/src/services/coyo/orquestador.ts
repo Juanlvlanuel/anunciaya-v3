@@ -48,7 +48,7 @@ import {
  * conocemos.
  */
 const TEXTO_REDIRECCION_NO_APLICA =
-    'Para eso no soy bueno, pero si buscas algo aquí en el pueblo (negocios, ofertas, servicios, cosas de segunda mano), dime y te ayudo a buscar.';
+    'Para eso no soy bueno, pero si buscas algo aquí en tu ciudad (negocios, ofertas, servicios, cosas de segunda mano), dime y te ayudo a buscar.';
 
 /**
  * Texto de respaldo cuando hay resultados pero la IA falló al redactar
