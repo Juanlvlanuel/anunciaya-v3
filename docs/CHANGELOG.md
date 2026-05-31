@@ -7,6 +7,53 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [30 Mayo 2026] - Migración de entorno de desarrollo: de Docker local a la nube ☁️
+
+Se migró el entorno de desarrollo local de Docker (PostgreSQL + Redis en
+contenedores vía WSL2) a servicios gestionados en la nube. Motivo: en la PC
+nueva (Windows 10) Docker Desktop no arrancaba y el puente de puertos
+WSL2→Windows no funcionaba, dejando inaccesibles PostgreSQL y Redis desde
+`pnpm dev`. La decisión fue abandonar Docker local por completo.
+
+### Base de datos (PostgreSQL)
+
+- PostgreSQL de desarrollo ahora vive en un proyecto Supabase separado,
+  `anunciaya-dev` (región us-west-2), clonado desde el respaldo de la base
+  local. Producción permanece en su propio proyecto Supabase, independiente.
+- La conexión usa el **pooler** de Supabase (`pooler.supabase.com`), no la
+  conexión directa (`db.*.supabase.co`), por incompatibilidad con IPv6 en la
+  red local. Aplica tanto en el `.env` como en pgAdmin.
+- `DATABASE_URL` en `apps/api/.env` ahora apunta a `anunciaya-dev` vía pooler.
+  El interruptor `DB_ENVIRONMENT=local` y la lógica de `getDatabaseUrl` no
+  cambiaron.
+
+### Caché (Redis)
+
+- Redis de desarrollo usa el mismo Upstash de producción. El plan gratuito de
+  Upstash solo permite 1 base; al ser Redis caché temporal (datos efímeros),
+  el riesgo de compartir entre dev y producción es bajo. `REDIS_URL` apunta
+  ahora a la cadena TCP (`rediss://`) de Upstash.
+
+### Arranque
+
+- El arranque ahora es solo `pnpm dev` desde Windows (VS Code normal). Se
+  retiró el uso de Docker, WSL y los scripts `db:up` / `db:down` del flujo
+  diario. (Los scripts siguen en `package.json` pero ya no se usan.)
+
+### Limpieza de producción
+
+- Se eliminaron de producción 4 tablas obsoletas del sistema viejo de cupones
+  (`cupones`, `cupon_galeria`, `cupon_usos`, `cupon_usuarios`), funcionalidad
+  ya migrada a ofertas con código. Antes se removieron las FK que apuntaban a
+  ellas desde `pedidos` (`fk_pedidos_cupon`) y `puntos_transacciones`
+  (`puntos_transacciones_cupon_uso_id_fkey`). Dev y producción quedaron
+  alineadas en 84 tablas.
+- Nota: las columnas `cupon_id` (en `pedidos`) y `cupon_uso_id` (en
+  `puntos_transacciones`) se conservan: siguen en uso por el código bajo los
+  nombres `ofertaId` y `ofertaUsoId` (mapeo Drizzle). No se tocaron.
+
+---
+
 ## [24 Mayo 2026] - Home "Pregúntale a [ciudad]" + Coyo (Fase 1 + Cerebro IA) 🦊
 
 Home conversacional con asistente de IA. El vecino pregunta, Coyo (asistente

@@ -110,7 +110,7 @@
   - Para **usuarios personales** (sin negocio): todo editable incluido correo (con flujo de verificación).
 - [ ] **Tarjetas de resultados de Coyo clicables** — el bloque "Coyo encontró esto para ti" pinta tarjetas con `tipo + id` pero todavía NO navegan al detalle (negocio, marketplace, servicio, oferta). Decidir si abren modal o navegan fuera del Home, y cablear el `onClick` en `TarjetaItemCoyo` (`PaginaInicio.tsx`).
 - [x] ~~`coyo_respuesta_en_pregunta.sql` en producción~~ ✅ (24 May 2026, aplicada en Supabase)
-- [ ] **`GEMINI_API_KEY` en Render** — agregar la env var en el dashboard de Render para que Coyo funcione en producción. Sin ella, las preguntas en prod terminarán en `sin_respuesta` (resiliente, no rompe).
+- [x] ~~`GEMINI_API_KEY` en Render~~ ✅ (24 May 2026, agregada al dashboard, Render redeployó automático)
 
 ---
 
