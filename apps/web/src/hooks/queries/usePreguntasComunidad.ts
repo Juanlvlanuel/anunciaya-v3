@@ -147,13 +147,26 @@ const INTERVALO_SONDEO_MS = 2000;
  */
 export function useEstadoCoyo(preguntaId: string, estadoInicial: EstadoCoyo) {
     const inicialEsFinal = esEstadoCoyoFinal(estadoInicial);
+    const qc = useQueryClient();
 
     return useQuery<EstadoCoyoResponse | null>({
         queryKey: queryKeys.preguntasComunidad.estadoCoyo(preguntaId),
-        queryFn: () =>
-            preguntasComunidadService
-                .obtenerEstadoCoyo(preguntaId)
-                .then((r) => r.data ?? null),
+        queryFn: async () => {
+            const r = await preguntasComunidadService.obtenerEstadoCoyo(preguntaId);
+            const data = r.data ?? null;
+            // Cuando la pregunta llega a estado final, invalidamos el feed
+            // para que las consumers que dependen de `feed.data` (ej.
+            // `useCoyoEstadoVisual` para apagar el "pensando" del Coyo
+            // animado en el hero) vean el nuevo estado. Sin esto, el feed
+            // se queda con la versión vieja y el Coyo del hero se queda
+            // "pensando" aunque la respuesta ya esté visible en la card.
+            if (data && esEstadoCoyoFinal(data.estadoCoyo)) {
+                qc.invalidateQueries({
+                    queryKey: ['preguntasComunidad', 'porCiudad'],
+                });
+            }
+            return data;
+        },
         // Solo arranca si la pregunta aún no terminó. Las preguntas viejas
         // del feed (con estado final) no hacen ningún request.
         enabled: preguntaId.length > 0 && !inicialEsFinal,

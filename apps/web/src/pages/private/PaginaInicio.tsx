@@ -39,6 +39,8 @@ import {
     useCrearPregunta,
     useEstadoCoyo,
 } from '../../hooks/queries/usePreguntasComunidad';
+import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
+import { CoyoAnimado, type EstadoCoyoVisual } from '../../components/CoyoAnimado';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type {
@@ -62,6 +64,7 @@ const MS_24H = 24 * 60 * 60 * 1000;
 // =============================================================================
 
 export function PaginaInicio() {
+    const usuarioId = useAuthStore((s) => s.usuario?.id);
     const nombreUsuario = useAuthStore((s) => s.usuario?.nombre) ?? 'vecino';
     const ciudad = useGpsStore((s) => s.ciudad);
     const nombreCiudad = ciudad?.nombre ?? '';
@@ -71,6 +74,17 @@ export function PaginaInicio() {
     const crear = useCrearPregunta();
 
     const [texto, setTexto] = useState('');
+
+    // Estado visual de Coyo (idle | saludo | atento | pensando | respondiendo).
+    // Se calcula a partir del estado de la app: saludo al cargar, atento
+    // cuando el usuario escribe, pensando cuando hay pregunta del usuario
+    // procesando, respondiendo cuando recién llegó respuesta de Coyo.
+    const estadoCoyoVisual = useCoyoEstadoVisual({
+        usuarioId,
+        textoInput: texto,
+        crearPendiente: crear.isPending,
+        preguntas: feed.data,
+    });
 
     // "X vecinos preguntando hoy" — autores únicos con preguntas en las
     // últimas 24h. Calculado del feed actual (no hay endpoint dedicado aún).
@@ -115,7 +129,7 @@ export function PaginaInicio() {
 
     return (
         <div className="min-h-screen bg-slate-50">
-            <div className="max-w-4xl 2xl:max-w-5xl mx-auto px-4 lg:px-6 py-6 lg:py-10 space-y-8">
+            <div className="max-w-6xl 2xl:max-w-7xl mx-auto px-4 lg:px-6 py-6 lg:py-10 space-y-8">
                 <HeroBubble
                     nombreUsuario={nombreUsuario}
                     nombreCiudad={nombreCiudad}
@@ -125,6 +139,7 @@ export function PaginaInicio() {
                     enviando={crear.isPending}
                     puedeEnviar={puedeEnviar}
                     vecinosHoy={vecinosHoy}
+                    estadoCoyo={estadoCoyoVisual}
                 />
 
                 <SeccionFeed feed={feed} nombreCiudad={nombreCiudad} />
@@ -154,6 +169,7 @@ interface HeroBubbleProps {
     enviando: boolean;
     puedeEnviar: boolean;
     vecinosHoy: number;
+    estadoCoyo: EstadoCoyoVisual;
 }
 
 function HeroBubble({
@@ -165,6 +181,7 @@ function HeroBubble({
     enviando,
     puedeEnviar,
     vecinosHoy,
+    estadoCoyo,
 }: HeroBubbleProps) {
     const onSubmit = (e: FormEvent<HTMLFormElement>) => {
         e.preventDefault();
@@ -179,18 +196,21 @@ function HeroBubble({
     };
 
     return (
-        <section className="flex flex-col items-center lg:flex-row lg:items-start gap-3 lg:gap-4">
-            {/* Coyo — imagen completa, tamaño grande, sin contenedor circular */}
-            <img
-                src="/Coyo.png"
+        <section className="flex flex-col items-center lg:flex-row lg:items-start lg:justify-star gap-3 ml-14">
+            {/* Coyo — animación Rive con state machine. Reacciona al estado
+                de la app: saludo al cargar, atento al escribir, pensando
+                mientras Gemini procesa, respondiendo cuando llega la respuesta.
+                Si `coyo.riv` no carga, Rive deja un canvas vacío (la UI no se
+                rompe; el flujo del Home sigue funcionando sin la mascota). */}
+            <CoyoAnimado
+                estado={estadoCoyo}
                 alt="Coyo, asistente de AnunciaYA"
-                draggable={false}
-                className="shrink-0 h-40 lg:h-56 w-auto object-contain select-none"
+                className="shrink-0 h-56 lg:h-80 w-72 lg:w-120 select-none overflow-visible relative z-10 lg:-mr-12 lg:-ml-16"
                 style={{ filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.15))' }}
             />
 
             {/* Columna derecha: bocadillo + label+input + stat */}
-            <div className="w-full lg:flex-1 min-w-0 flex flex-col gap-4">
+            <div className="w-full lg:w-140 min-w-0 flex flex-col gap-4 ">
                 {/* Bocadillo */}
                 <div
                     className="relative bg-white border-[3px] border-blue-200 rounded-3xl px-5 py-4 lg:px-6 lg:py-5 space-y-2"
@@ -219,7 +239,7 @@ function HeroBubble({
                     />
                     <span
                         aria-hidden="true"
-                        className="hidden lg:block absolute w-1.5 h-1.5 rounded-full bg-blue-200 ring-[2px] ring-white"
+                        className="hidden lg:block absolute w-1.5 h-1.5 rounded-full bg-blue-200 ring-2 ring-white"
                         style={{ left: '-46px', top: '26px' }}
                     />
 
@@ -227,10 +247,10 @@ function HeroBubble({
                         ¡Hola, <span className="text-blue-600">{nombreUsuario}</span>!
                     </h1>
                     <p className="text-lg lg:text-xl text-slate-700 font-semibold leading-snug">
-                        ¿Qué andas buscando hoy?{' '}
-                        <span className="text-slate-500 font-medium">
-                            Pregúntame y te ayudo al instante.
-                        </span>
+                        ¿Qué andas buscando hoy?
+                    </p>
+                    <p className="text-lg lg:text-xl text-slate-500 font-medium leading-snug">
+                        Pregúntame y te ayudo al instante.
                     </p>
                 </div>
 
@@ -418,7 +438,7 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                             </span>
                         )}
                     </div>
-                    <p className="mt-1 text-sm lg:text-base text-slate-700 leading-relaxed break-words">
+                    <p className="mt-1 text-sm lg:text-base text-slate-700 leading-relaxed wrap-break-word">
                         {pregunta.texto}
                     </p>
 
