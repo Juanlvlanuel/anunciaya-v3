@@ -191,6 +191,13 @@ interface CamposFinales {
     estadoCoyo: EstadoCoyoBD;
     respuestaCoyo: string | null;
     resultadosCoyo: ResultadoBusquedaUnificada['resultados'] | null;
+    /**
+     * Si está presente, también se actualiza `estado_pregunta` de la
+     * fila. Usado solo para casos de `tipo='inapropiada'`, donde la
+     * pregunta debe ocultarse del feed (`estado_pregunta='oculta'`)
+     * para que ningún otro vecino la vea ni pueda responder.
+     */
+    estadoPregunta?: 'activa' | 'cerrada' | 'oculta';
 }
 
 /**
@@ -203,14 +210,24 @@ async function marcarEstadoFinal(
     campos: CamposFinales,
 ): Promise<void> {
     try {
+        const valores: {
+            estadoCoyo: EstadoCoyoBD;
+            respuestaCoyo: string | null;
+            resultadosCoyo: ResultadoBusquedaUnificada['resultados'] | null;
+            coyoProcesadoAt: string;
+            estadoPregunta?: 'activa' | 'cerrada' | 'oculta';
+        } = {
+            estadoCoyo: campos.estadoCoyo,
+            respuestaCoyo: campos.respuestaCoyo,
+            resultadosCoyo: campos.resultadosCoyo,
+            coyoProcesadoAt: new Date().toISOString(),
+        };
+        if (campos.estadoPregunta) {
+            valores.estadoPregunta = campos.estadoPregunta;
+        }
         await db
             .update(preguntasComunidad)
-            .set({
-                estadoCoyo: campos.estadoCoyo,
-                respuestaCoyo: campos.respuestaCoyo,
-                resultadosCoyo: campos.resultadosCoyo,
-                coyoProcesadoAt: new Date().toISOString(),
-            })
+            .set(valores)
             .where(eq(preguntasComunidad.id, preguntaId));
     } catch (error) {
         console.error(
@@ -271,12 +288,31 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
         }
 
         // ─── 3. Decidir según tipo ──────────────────────────────────
-        // 3 estados que clasifica Gemini:
+        // 4 estados que clasifica Gemini:
         //   - busqueda_local → continúa con búsqueda en las 4 áreas
         //   - vaga → guarda el mensaje específico de reformular (con
         //     sugerencias concretas) generado por Gemini en la misma
         //     llamada; estado final = 'no_aplica'
-        //   - no_local → texto fijo de redirección; estado = 'no_aplica'
+        //   - no_local → texto fijo de redirección; estado = 'no_aplica'.
+        //     La pregunta SIGUE VISIBLE en el feed (no es ofensiva, solo
+        //     fuera de scope — ej. matemáticas, charla).
+        //   - inapropiada → texto fijo de redirección + ESTADO PREGUNTA
+        //     'oculta'. La pregunta NO aparece en el feed para ningún
+        //     vecino. Importante porque si la dejáramos visible, otros
+        //     vecinos podrían responder con info real para drogas/armas/
+        //     sexo/etc. y AnunciaYA terminaría facilitando contenido
+        //     ilegal. Caso real reproducido: "donde venden marihuana?"
+        //     antes traía respuesta de Coyo invitando a la comunidad.
+        if (interpretacion.data.tipo === 'inapropiada') {
+            await marcarEstadoFinal(preguntaId, {
+                estadoCoyo: 'no_aplica',
+                respuestaCoyo: TEXTO_REDIRECCION_NO_APLICA,
+                resultadosCoyo: null,
+                estadoPregunta: 'oculta',
+            });
+            return;
+        }
+
         if (interpretacion.data.tipo === 'no_local') {
             await marcarEstadoFinal(preguntaId, {
                 estadoCoyo: 'no_aplica',

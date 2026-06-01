@@ -96,9 +96,9 @@ export type RespuestaIA<T> =
       };
 
 /**
- * Tipo de pregunta — 3 estados que decide Gemini al interpretar.
+ * Tipo de pregunta — 4 estados que decide Gemini al interpretar.
  */
-export type TipoPregunta = 'busqueda_local' | 'vaga' | 'no_local';
+export type TipoPregunta = 'busqueda_local' | 'vaga' | 'no_local' | 'inapropiada';
 
 /**
  * Output de `interpretarPregunta`.
@@ -113,7 +113,14 @@ export interface PreguntaInterpretada {
      *    pista para elegir). Gemini genera `mensajeReformular` con
      *    sugerencias específicas para que el vecino reformule.
      *  - `no_local`: NO es búsqueda local (matemáticas, opiniones,
-     *    charla random, etc.).
+     *    charla random, etc.). Coyo responde con texto fijo de
+     *    redirección. La pregunta SIGUE VISIBLE en el feed (no es
+     *    ofensiva, solo fuera de scope).
+     *  - `inapropiada`: contenido ilegal/ofensivo (drogas, armas,
+     *    sexo explícito, agresión, etc.). Coyo responde con texto
+     *    fijo de redirección Y el orquestador OCULTA la pregunta del
+     *    feed (`estado_pregunta='oculta'`) para que ningún otro vecino
+     *    la vea ni pueda responder.
      */
     tipo: TipoPregunta;
     /**
@@ -144,19 +151,19 @@ A) "busqueda_local": el vecino busca algo concreto de la ciudad (un negocio, pro
 
 B) "vaga": el vecino SÍ busca algo de la ciudad PERO la pregunta es demasiado ambigua para identificar UN dominio específico (tiene múltiples interpretaciones razonables sin pista para elegir). En este caso debes generar un \`mensajeReformular\` cálido y específico para esa pregunta, sugiriendo opciones concretas que ayuden al vecino a reformular.
 
-C) "no_local": la pregunta NO es para buscar algo de la ciudad (matemáticas, escribir textos, política, charla random, opinión general, agresión, etc.).
+C) "no_local": la pregunta NO es para buscar algo de la ciudad y NO es ofensiva (matemáticas, escribir textos, política, charla random, opinión general, etc.). La pregunta se queda visible en el feed (no es problemática, solo fuera de scope).
 
-CRÍTICO — el tipo "no_local" INCLUYE también las preguntas sobre:
+D) "inapropiada": preguntas sobre contenido ILEGAL u OFENSIVO. SIEMPRE devuelve "inapropiada" (NUNCA "busqueda_local" ni "vaga" ni "no_local") para:
 - Drogas ilegales (marihuana, cocaína, cristal, pastillas ilegales, etc.).
 - Armas, violencia, sicarios, asesinos, ataques.
 - Contenido sexual explícito, pornografía, prostitución, acompañantes.
 - Actividades ilegales (robo, fraude, falsificación, contrabando, hacking).
 - Insultos, groserías o agresión directa contra Coyo, AnunciaYA o cualquier persona.
 
-Estas SIEMPRE son "no_local" — NUNCA "busqueda_local" ni "vaga", aunque suenen como búsquedas locales. NO inviten a la comunidad a responder; NO sugieran cómo conseguir esas cosas; NO mencionen el tema específico en mensajeReformular. Devuelve simplemente:
-{"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+CRÍTICO con "inapropiada": NO inviten a la comunidad a responder; NO sugieran cómo conseguir esas cosas; NO mencionen el tema específico en mensajeReformular. Devuelve simplemente:
+{"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
 
-El sistema usará el texto fijo de redirección.
+El sistema mostrará el texto fijo de redirección Y OCULTARÁ la pregunta del feed para que ningún otro vecino la vea (importante para evitar que la comunidad ayude con esto).
 
 REGLAS para terminos (solo cuando tipo es busqueda_local):
 - 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL.
@@ -194,11 +201,13 @@ no_local:
 - "¿Cuánto es 5 por 8?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
 - "Escríbeme un poema sobre el mar" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
 - "qué piensas de la política?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "donde venden marihuana?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "necesito un sicario" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "donde compro armas?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "ustedes son una mierda" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "necesito prostitutas" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+
+inapropiada:
+- "donde venden marihuana?" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
+- "necesito un sicario" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
+- "donde compro armas?" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
+- "ustedes son una mierda" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
+- "necesito prostitutas" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
 
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
 {"tipo": "busqueda_local"|"vaga"|"no_local", "terminos": "...", "mensajeReformular": "..."}`;
@@ -345,7 +354,8 @@ function esPreguntaInterpretada(v: unknown): v is PreguntaInterpretada {
         typeof obj.tipo === 'string' &&
         (obj.tipo === 'busqueda_local' ||
             obj.tipo === 'vaga' ||
-            obj.tipo === 'no_local') &&
+            obj.tipo === 'no_local' ||
+            obj.tipo === 'inapropiada') &&
         typeof obj.terminos === 'string' &&
         typeof obj.mensajeReformular === 'string'
     );

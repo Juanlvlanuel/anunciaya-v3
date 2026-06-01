@@ -75,7 +75,7 @@ es trivial y se autoapaga al llegar a estado final).
 | `procesando` | Coyo está trabajando |
 | `listo` | Coyo respondió (hay `respuesta_coyo`; `resultados_coyo` puede tener grupos vacíos si no encontró nada pero sí redactó) |
 | `sin_respuesta` | Coyo no pudo (IA caída + 0 resultados, o error inesperado). La pregunta vive para la comunidad |
-| `no_aplica` | Coyo redirige amable. Cubre 2 sub-casos: (a) `tipo='no_local'` — la pregunta no era búsqueda local (matemáticas, charla); (b) `tipo='vaga'` — sí es local pero demasiado ambigua (ej. *"quien me ayuda con la casa?"*); en este sub-caso `respuesta_coyo` contiene un mensaje específico generado por Gemini con sugerencias para reformular |
+| `no_aplica` | Coyo redirige amable. Cubre 3 sub-casos: (a) `tipo='no_local'` — la pregunta no era búsqueda local (matemáticas, charla); (b) `tipo='vaga'` — sí es local pero demasiado ambigua (ej. *"quien me ayuda con la casa?"*); en este sub-caso `respuesta_coyo` contiene un mensaje específico generado por Gemini con sugerencias para reformular; (c) `tipo='inapropiada'` — drogas, armas, sexo explícito, agresión. En este sub-caso ADEMÁS `estado_pregunta` pasa a `'oculta'` para que la pregunta NO aparezca en el feed de ningún vecino (evita que la comunidad responda con info real para contenido ilegal) |
 
 **Índices:**
 
