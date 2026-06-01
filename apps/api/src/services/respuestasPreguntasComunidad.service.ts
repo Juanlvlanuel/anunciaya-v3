@@ -164,7 +164,7 @@ export async function crearRespuesta(
                 usuarioId: pregunta.usuarioId,
                 modo: 'personal',
                 tipo: 'pregunta_comunidad_respondida',
-                titulo: 'Respondieron tu pregunta',
+                titulo: 'Respondió tu pregunta',
                 mensaje: preview,
                 referenciaTipo: 'pregunta_comunidad',
                 referenciaId: pregunta.id,

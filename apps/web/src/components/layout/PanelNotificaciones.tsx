@@ -546,6 +546,33 @@ const panelNotifCss = `
     font-size: 13.5px; font-weight: 500; letter-spacing: -0.005em;
     color: rgba(14,31,92,0.62);
   }
+  /* ── Sprint 1.D — Home / Coyo: jerarquía invertida ─────────────────────
+     Para las notificaciones de respuesta de comunidad y recomendación
+     de Coyo, queremos que el CONTENIDO (la respuesta del vecino o la
+     mención de Coyo) sea lo protagónico, no el actor. Estilos:
+       .pn-msg-quoted → la respuesta entre comillas, color más oscuro,
+                        sin clamp tan agresivo (3 líneas en vez de 2).
+       .pn-footer-actor → pie con "Nombre · tiempo" — nombre con peso
+                          ligero (no compite con el título). */
+  .pn-msg-quoted {
+    margin-top: 4px;
+    font-size: 14.5px; font-weight: 500; letter-spacing: -0.005em;
+    color: rgba(14,31,92,0.86);
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .pn-msg-quoted::before { content: '“'; margin-right: 2px; color: rgba(14,31,92,0.54); }
+  .pn-msg-quoted::after  { content: '”'; margin-left: 2px;  color: rgba(14,31,92,0.54); }
+  .pn-footer-actor {
+    margin-top: 6px;
+    font-size: 13px; font-weight: 500; letter-spacing: -0.005em;
+    color: rgba(14,31,92,0.62);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .pn-footer-actor .pn-footer-name { color: #2244C8; font-weight: 600; }
 
   .pn-trash {
     all: unset; cursor: pointer;
@@ -794,6 +821,11 @@ function NotifRow({ notificacion, onClick, onEliminar }: NotifRowProps) {
     notificacion.modo === 'comercial' &&
     !!notificacion.actorNombre &&
     TIPOS_USUARIO_COMERCIAL.has(notificacion.tipo);
+  // Sprint 1.D — los 2 tipos del Home/Coyo usan jerarquía invertida
+  // (título arriba, mensaje destacado, nombre+tiempo en el pie).
+  const esTipoHomeCoyo =
+    notificacion.tipo === 'pregunta_comunidad_respondida' ||
+    notificacion.tipo === 'coyo_recomendacion';
 
   // ---------------------------------------------------------------------------
   // Construir las líneas del contenido — replica la lógica del panel anterior
@@ -867,20 +899,47 @@ function NotifRow({ notificacion, onClick, onEliminar }: NotifRowProps) {
       </div>
 
       <div className="pn-body-wrap">
-        {lineaPersona && (
-          <div className="pn-person">
-            {lineaPersona}
-            {sucursal && <span className="pn-branch"> · {sucursal}</span>}
-          </div>
+        {esTipoHomeCoyo ? (
+          // ── Jerarquía invertida para Home/Coyo: título arriba, mensaje
+          //    destacado en comillas, nombre+tiempo en el pie. El nombre del
+          //    autor pierde protagonismo (el contenido es lo importante).
+          <>
+            <div className="pn-title">
+              <span>{tituloVisible}</span>
+              {!notificacion.leida && <span className="pn-dot" aria-hidden="true" />}
+            </div>
+            {mensajeVisible && (
+              <div className="pn-msg-quoted">{mensajeVisible}</div>
+            )}
+            <div className="pn-footer-actor">
+              {lineaPersona && (
+                <>
+                  <span className="pn-footer-name">{lineaPersona}</span>
+                  {' · '}
+                </>
+              )}
+              {tiempo}
+            </div>
+          </>
+        ) : (
+          // ── Layout legacy (resto de tipos): actor arriba, título, mensaje.
+          <>
+            {lineaPersona && (
+              <div className="pn-person">
+                {lineaPersona}
+                {sucursal && <span className="pn-branch"> · {sucursal}</span>}
+              </div>
+            )}
+            <div className="pn-title">
+              <span>{tituloVisible}</span>
+              {!notificacion.leida && <span className="pn-dot" aria-hidden="true" />}
+            </div>
+            {mensajeVisible && (
+              <div className="pn-msg clamped">{mensajeVisible}</div>
+            )}
+            <div className="pn-age">{tiempo}</div>
+          </>
         )}
-        <div className="pn-title">
-          <span>{tituloVisible}</span>
-          {!notificacion.leida && <span className="pn-dot" aria-hidden="true" />}
-        </div>
-        {mensajeVisible && (
-          <div className="pn-msg clamped">{mensajeVisible}</div>
-        )}
-        <div className="pn-age">{tiempo}</div>
       </div>
 
       <span
