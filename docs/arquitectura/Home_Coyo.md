@@ -4,7 +4,9 @@
 > ciudad ("¿quién arregla una fuga urgente?") y **Coyo** — un asistente con
 > IA — responde unos segundos después con resultados reales sacados del
 > catálogo de la app (Negocios + MarketPlace + Servicios + Ofertas). La
-> pregunta queda viva para que otros vecinos también la respondan.
+> pregunta queda viva para que otros vecinos también la respondan, marquen
+> "yo también quiero saber", y el autor pueda gestionarla (cerrar, marcar
+> resuelta, editar antes de que reciba respuestas, o borrar).
 >
 > Visión completa: `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4.
 
@@ -49,7 +51,9 @@ final.
 
 ---
 
-## Tabla `preguntas_comunidad`
+## Tablas
+
+### `preguntas_comunidad`
 
 `apps/api/src/db/schemas/schema.ts:2565` (cerca del final del archivo).
 
@@ -62,10 +66,41 @@ final.
 | `estado` | varchar(100) NOT NULL | — | Estado geográfico ("Sonora") — NO confundir con `estado_pregunta` |
 | `estado_pregunta` | varchar(20) NOT NULL | `'activa'` | `'activa' \| 'cerrada' \| 'oculta'` |
 | `created_at` / `updated_at` | timestamptz | `now()` | — |
+| **`resuelta_at`** | timestamptz | `NULL` | Si el autor la marcó como resuelta. La pregunta sigue `'activa'`, solo muestra un badge "Resuelta" en la UI |
 | **`respuesta_coyo`** | text | `NULL` | Texto cálido que redacta Coyo |
 | **`resultados_coyo`** | jsonb | `NULL` | `{ negocios, ofertas, marketplace, servicios }` (shape del buscador unificado) |
 | **`estado_coyo`** | varchar(20) NOT NULL | `'pendiente'` | 5 valores (ver abajo) |
 | **`coyo_procesado_at`** | timestamptz | `NULL` | Cuándo terminó el orquestador |
+
+### `respuestas_preguntas_comunidad`
+
+Respuestas que los vecinos dejan en las preguntas del Home (hilo plano —
+sin threads).
+
+| Columna | Tipo | Default | Notas |
+|---|---|---|---|
+| `id` | uuid PK | `gen_random_uuid()` | — |
+| `pregunta_id` | uuid NOT NULL | — | FK a `preguntas_comunidad(id)` ON DELETE CASCADE |
+| `usuario_id` | uuid NOT NULL | — | FK a `usuarios(id)` ON DELETE CASCADE (autor de la respuesta) |
+| `texto` | text NOT NULL | — | CHECK: `length(texto) BETWEEN 1 AND 1000` |
+| `estado` | varchar(20) NOT NULL | `'activa'` | `'activa' \| 'borrada'` — soft-delete (el autor de la respuesta puede borrarla) |
+| `created_at` / `updated_at` | timestamptz | `now()` | — |
+
+Índices:
+- `idx_respuestas_pregunta_creacion (pregunta_id, created_at) WHERE estado='activa'` — listado cronológico ascendente.
+- `idx_respuestas_usuario (usuario_id)` — "mis respuestas" futuro.
+
+### `preguntas_interesados`
+
+Marca de "yo también quiero saber" — un vecino expresa interés en una
+pregunta que NO es suya. Idempotente por PK compuesta.
+
+| Columna | Tipo | Default | Notas |
+|---|---|---|---|
+| `pregunta_id` | uuid NOT NULL | — | FK a `preguntas_comunidad(id)` ON DELETE CASCADE |
+| `usuario_id` | uuid NOT NULL | — | FK a `usuarios(id)` ON DELETE CASCADE |
+| `created_at` | timestamptz | `now()` | — |
+| **PK** | (`pregunta_id`, `usuario_id`) | — | Compuesta — un usuario puede marcar UNA vez por pregunta (idempotente con `ON CONFLICT DO NOTHING`) |
 
 **Estados de `estado_coyo`:**
 
@@ -89,22 +124,66 @@ final.
 
 | Pieza | Archivo |
 |---|---|
-| Service | `apps/api/src/services/preguntasComunidad.service.ts` (`crearPregunta`, `listarPreguntasPorCiudad`) |
-| Controller | `apps/api/src/controllers/preguntasComunidad.controller.ts` (3 controllers) |
+| Service principal | `apps/api/src/services/preguntasComunidad.service.ts` (`crearPregunta`, `listarPreguntasPorCiudad`, `listarMisPreguntas`, control del autor) |
+| Service respuestas | `apps/api/src/services/respuestasPreguntasComunidad.service.ts` |
+| Service interés | `apps/api/src/services/interesPreguntasComunidad.service.ts` |
+| Service notificaciones de Coyo | `apps/api/src/services/coyo/notificacionesCoyo.service.ts` |
+| Controller | `apps/api/src/controllers/preguntasComunidad.controller.ts` |
 | Routes | `apps/api/src/routes/preguntasComunidad.routes.ts` — todas con `verificarToken` |
 | Types | `apps/api/src/types/preguntasComunidad.types.ts` |
 
 **Endpoints:**
 
 ```
-POST  /api/preguntas-comunidad                               crearPreguntaController
-GET   /api/preguntas-comunidad?ciudad=&limit=&offset=        listarPreguntasPorCiudadController
-GET   /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController  ← sondeo
+POST    /api/preguntas-comunidad                               crearPreguntaController
+GET     /api/preguntas-comunidad?ciudad=&limit=&offset=        listarPreguntasPorCiudadController
+GET     /api/preguntas-comunidad/mis-preguntas                 listarMisPreguntasController  ← histórico del autor
+GET     /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController   ← sondeo
+
+POST    /api/preguntas-comunidad/:preguntaId/respuestas        crearRespuestaController
+GET     /api/preguntas-comunidad/:preguntaId/respuestas        listarRespuestasController
+DELETE  /api/preguntas-comunidad/respuestas/:respuestaId       borrarMiRespuestaController
+
+POST    /api/preguntas-comunidad/:preguntaId/interes           marcarInteresController
+DELETE  /api/preguntas-comunidad/:preguntaId/interes           quitarInteresController
+
+POST    /api/preguntas-comunidad/:preguntaId/cerrar            cerrarMiPreguntaController
+POST    /api/preguntas-comunidad/:preguntaId/resolver          marcarResueltaController
+DELETE  /api/preguntas-comunidad/:preguntaId                   borrarMiPreguntaController
+PATCH   /api/preguntas-comunidad/:preguntaId                   editarMiPreguntaController
 ```
 
+Orden de declaración importante en `routes.ts`: las rutas estáticas
+(`/mis-preguntas`, `/respuestas/:respuestaId`) van **antes** que las
+dinámicas (`/:preguntaId/...`) — Express toma la primera que matchea.
+
 - `crearPregunta` hace `INSERT` y luego **fire-and-forget** a `procesarPreguntaConCoyo(nueva.id)` con `.catch(log)`. La publicación NO espera ni falla por Coyo.
-- `listarPreguntasPorCiudad` filtra por `estadoPregunta = 'activa'` (las `'oculta'` no aparecen — útil para preguntas inapropiadas que Coyo cierra automáticamente) y devuelve los 4 campos de Coyo, así que las preguntas viejas vienen con su respuesta lista.
+- `listarPreguntasPorCiudad`:
+  - Filtra por `estadoPregunta = 'activa'` (las `'oculta'` no aparecen — útil para preguntas inapropiadas que Coyo cierra automáticamente).
+  - Devuelve los 4 campos de Coyo + 3 conteos (`totalRespuestas`, `totalInteresados`, `yoTambienInteresado`) + `resueltaAt`, todos calculados con subqueries inline. Los índices de `respuestas_preguntas_comunidad` y la PK compuesta de `preguntas_interesados` mantienen cada subquery en O(log n).
+  - **Antes** del SELECT ejecuta `cerrarPreguntasVencidasDeCiudad(ciudad)` — el "cron pasivo" de expiración 14d (ver §Expiración pasiva).
+- `listarMisPreguntas` NO filtra por estado — devuelve `'activa'`, `'cerrada'` y `'oculta'` para que el autor gestione su histórico (la vista `/inicio/mis-preguntas`).
 - `obtenerEstadoCoyo` devuelve solo los 4 campos de Coyo (`{ estadoCoyo, respuestaCoyo, resultadosCoyo, coyoProcesadoAt }`), usado por el polling.
+
+### Respuestas, interés y control del autor
+
+| Endpoint | Reglas |
+|---|---|
+| `crearRespuesta` | Texto 1–1000 chars. La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **Dispara notificación `pregunta_comunidad_respondida` al autor de la pregunta** (fire-and-forget, bloqueada si el responder es el propio autor). |
+| `listarRespuestas` | Solo `estado='activa'`, orden cronológico ascendente (la más vieja primero — flujo natural de conversación). |
+| `borrarMiRespuesta` | Soft-delete (estado='borrada'). **Solo el autor de la respuesta** puede borrarla — el autor de la PREGUNTA no cura el tablón (decisión de producto: confiar en la comunidad). Idempotente. |
+| `marcarInteres` / `quitarInteres` | Idempotentes: `INSERT ... ON CONFLICT DO NOTHING` / `DELETE`. Devuelven el conteo `totalInteresados` actualizado. Bloqueado en el frontend para el AUTOR de la pregunta (no tiene sentido auto-marcarse). |
+| `cerrarMiPregunta` | El autor cambia `estado_pregunta='cerrada'`. La pregunta sale del feed pero las respuestas se conservan. |
+| `marcarResuelta` | El autor pone `resuelta_at=NOW()`. La pregunta sigue `'activa'` y puede recibir más respuestas, pero la UI muestra un badge "Resuelta". |
+| `borrarMiPregunta` | Soft-delete: `estado_pregunta='oculta'`. La pregunta y sus respuestas se conservan en BD pero desaparecen del feed. |
+| `editarMiPregunta` | **Solo si `totalRespuestas === 0`** — backend valida y devuelve 409 si ya hay respuestas activas. Al editar resetea los campos de Coyo (`estado_coyo='pendiente'`, demás a null) y re-dispara `procesarPreguntaConCoyo` fire-and-forget. |
+
+### Service centralizado `negocioManagement` (no aplica aquí)
+
+Las preguntas del Home tienen sus propios services dedicados — NO usan
+`negocioManagement.service.ts` (que es para CRUD de negocios). El patrón
+"controllers → services" se mantiene: ningún controller arma SQL ni toca
+otra tabla directamente.
 
 ---
 
@@ -533,17 +612,135 @@ un caso así, se amplía la heurística.
 
 ---
 
+## Notificaciones del Home
+
+El Home dispara dos tipos de notificaciones al sistema de notificaciones
+de la app (mismo `crearNotificacion()` que el resto):
+
+### 1. `pregunta_comunidad_respondida` — autor recibe respuesta
+
+Cuando un vecino crea una respuesta a una pregunta, **fire-and-forget**:
+
+- Destinatario: el `usuarioId` del autor de la pregunta.
+- Modo: `'personal'`.
+- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
+- Mensaje: primeros 100 caracteres de la respuesta + `…`.
+- `actorNombre` + `actorImagenUrl`: datos del vecino que respondió.
+- Auto-notificación bloqueada: si el responder es el propio autor de la
+  pregunta, NO se envía nada.
+
+Si el `crearNotificacion` falla (red, BD), solo se loguea — no rompe la
+creación de la respuesta.
+
+### 2. `coyo_recomendacion` — un item suyo aparece en los resultados de Coyo
+
+Cuando el orquestador llega a `'listo'` con al menos un item en
+`resultadosParaGuardar` (después de filtros CASO B / A v2), dispara
+**fire-and-forget** una notificación por cada item a su dueño. Lógica
+de destinatarios:
+
+| Tipo de item | Destinatario | Modo |
+|---|---|---|
+| Negocio | Gerente de la sucursal específica · **fallback al dueño** si no hay gerente | `'comercial'` (con `negocioId` + `sucursalId`) |
+| Oferta | Idem (la oferta se resuelve a su `sucursalId` y de ahí al gerente/dueño) | `'comercial'` |
+| Marketplace | Usuario personal que publicó el artículo | `'personal'` |
+| Servicio · `vacante-empresa` | Gerente de la sucursal · fallback dueño | `'comercial'` |
+| Servicio · `servicio-persona` / `solicito` | Usuario personal que publicó | `'personal'` |
+
+Reglas en todos los casos:
+- **Auto-notificación bloqueada:** si el destinatario es el mismo
+  `usuarioId` que el autor de la pregunta, NO se notifica.
+- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
+- `actorNombre` + `actorImagenUrl`: datos del autor de la pregunta.
+- Cada función interna en `notificacionesCoyo.service.ts` tiene su
+  try/catch — el helper general **nunca lanza** y usa
+  `Promise.allSettled` para paralelizar.
+
+Helper común: `resolverDestinatarioSucursal(sucursalId)` centraliza la
+lógica gerente-con-fallback-dueño.
+
+### CHECK constraints
+
+Los dos tipos están en `notificaciones_tipo_check` y `pregunta_comunidad`
+está en `notificaciones_referencia_tipo_check`. Migración:
+`docs/migraciones/2026-06-01-notificaciones-coyo-comunidad.sql`.
+
+### Frontend: íconos y navegación
+
+`PanelNotificaciones.tsx` mapea los dos tipos a familias visuales nuevas:
+
+| Tipo | Familia | Tile (gradient) | Glifo |
+|---|---|---|---|
+| `pregunta_comunidad_respondida` | `comunidad` | azul (#2563eb → #1d4ed8) | `IcoChat` (chat-circle-dots) |
+| `coyo_recomendacion` | `coyo` | violeta→índigo (#a855f7 → #6366f1) | `IcoSparkle` (sparkle-fill) |
+
+Click en cualquiera de las dos navega a `/inicio?preguntaId=<id>`. Hoy
+el Home no hace scroll-to-pregunta, pero el query param queda listo
+para activarse en el futuro sin romper el flujo actual.
+
+---
+
+## Expiración pasiva (14 días)
+
+Las preguntas que pasan **14 días sin nuevas respuestas activas** se
+autocierran (`estado_pregunta='cerrada'`) y salen del feed público. El
+autor sigue viéndolas en `Mis preguntas` con badge "Cerrada". Las
+respuestas existentes se conservan.
+
+**Diseño "cron pasivo"** (sin cron de Render):
+
+- Función privada `cerrarPreguntasVencidasDeCiudad(ciudad)` en
+  `preguntasComunidad.service.ts`. Ejecuta un UPDATE scoped a la ciudad
+  al inicio de `listarPreguntasPorCiudad`, **antes** del SELECT.
+- `await` intencional para garantizar que el SELECT posterior no
+  devuelva una pregunta que debería estar cerrada (consistencia
+  inmediata, no diferida).
+- Try/catch interno: si el UPDATE falla, el feed se sigue mostrando
+  normal — la función no relanza.
+- Solo afecta preguntas de la ciudad consultada (mínimo I/O). Usa los
+  índices existentes.
+
+**Fórmula de "última actividad":**
+
+```sql
+COALESCE(
+  (SELECT MAX(created_at) FROM respuestas_preguntas_comunidad
+   WHERE pregunta_id = preguntas_comunidad.id AND estado='activa'),
+  preguntas_comunidad.created_at
+)
+```
+
+Si la diferencia con `NOW()` supera 14 días, la pregunta se cierra.
+
+**Reglas de producto incorporadas:**
+
+- Solo NUEVAS respuestas activas resetean el timer. Likes ("yo también
+  quiero saber") y `resuelta_at` NO afectan la expiración. La regla
+  queda simple: *"14 días sin que nadie aporte algo nuevo, se autocierra"*.
+- Una pregunta marcada como resuelta hace 20 días sin más respuestas
+  también expira — `resuelta_at` no es excepción.
+
+Costo: una UPDATE por GET del feed. Para Puerto Peñasco (beta, <500
+preguntas activas) es despreciable. Si crece el volumen, se evalúa
+mover a un cron real.
+
+Constante editable: `DIAS_EXPIRACION = 14` (al inicio del service).
+
+---
+
 ## Frontend
 
 | Pieza | Archivo |
 |---|---|
-| Página | `apps/web/src/pages/private/PaginaInicio.tsx` |
+| Página Home | `apps/web/src/pages/private/PaginaInicio.tsx` |
+| Página "Mis preguntas" | `apps/web/src/pages/private/PaginaMisPreguntas.tsx` (ruta `/inicio/mis-preguntas`) |
 | Componente Coyo animado | `apps/web/src/components/CoyoAnimado.tsx` |
 | Hook estado visual de Coyo | `apps/web/src/hooks/useCoyoEstadoVisual.ts` |
 | Hooks RQ | `apps/web/src/hooks/queries/usePreguntasComunidad.ts` |
 | Service | `apps/web/src/services/preguntasComunidadService.ts` |
 | Types | `apps/web/src/types/preguntasComunidad.ts` |
 | Query keys | `apps/web/src/config/queryKeys.ts` (sección `preguntasComunidad`) |
+| Componentes Home | `apps/web/src/components/home/` (`BotonInteresComunidad.tsx`, `RespuestasComunidad.tsx`, `MenuAutorPregunta.tsx`, `ModalEditarPregunta.tsx`) |
 | Asset Rive | `apps/web/public/coyo.riv` |
 
 **Hero "Coyo te habla":** Coyo animado (`<CoyoAnimado>` con runtime de Rive)
@@ -554,13 +751,38 @@ feed: autores únicos en últimas 24h). Coyo se monta visualmente sobre el
 bocadillo con `z-10` + margen negativo derecho para que la mano del saludo
 no quede cortada por el borde de la burbuja.
 
-**Hooks de React Query (3):**
+**Hooks de React Query:**
 
 ```typescript
-usePreguntasComunidadLista()              // feed de la ciudad activa del useGpsStore
-useCrearPregunta()                        // publica + invalida feed
-useEstadoCoyo(preguntaId, estadoInicial)  // sondeo cada 2s mientras pendiente/procesando
+// Feed de la ciudad activa del useGpsStore
+usePreguntasComunidadLista()
+useCrearPregunta()
+useEstadoCoyo(preguntaId, estadoInicial)  // sondeo 2s mientras pendiente/procesando
+
+// Respuestas + interés
+useRespuestas(preguntaId, { enabled })    // lista paginada (carga al abrir el hilo)
+useCrearRespuesta()
+useBorrarMiRespuesta()
+useMarcarInteres()                        // OPTIMISTIC UPDATE
+useQuitarInteres()                        // OPTIMISTIC UPDATE
+
+// Control del autor
+useCerrarMiPregunta()
+useMarcarResuelta()
+useBorrarMiPregunta()
+useEditarMiPregunta()                     // invalida también el sondeo de Coyo
+
+// Histórico del autor
+useMisPreguntas()
 ```
+
+**Optimistic update en marcar/quitar interés:** los dos hooks parchean
+TODAS las queries del feed que contengan la pregunta (cualquier
+ciudad/paginación + `misPreguntas`) antes de la respuesta del server.
+Snapshot guardado en `onMutate` para rollback en `onError`. Invalidación
+final en `onSettled` para sincronizar con el conteo real. Esta es la
+única acción del Home con optimistic — crear pregunta/respuesta usan
+patrón normal (sin optimistic).
 
 **Sondeo en `useEstadoCoyo`:**
 
@@ -569,7 +791,7 @@ useEstadoCoyo(preguntaId, estadoInicial)  // sondeo cada 2s mientras pendiente/p
 - `refetchOnWindowFocus: false` (el intervalo ya está activo, sería redundante).
 - Cuando la pregunta llega a estado final, el hook invalida la query del feed para que las consumers que dependen de `feed.data` (ej. `useCoyoEstadoVisual` para apagar el "pensando" del Coyo animado) vean el cambio inmediato.
 
-**Render por estado (en `CardPregunta`):**
+**Render por estado de Coyo (en `CardPregunta`):**
 
 | `estadoCoyo` | Bloque renderizado |
 |---|---|
@@ -577,12 +799,38 @@ useEstadoCoyo(preguntaId, estadoInicial)  // sondeo cada 2s mientras pendiente/p
 | `listo` con grupos | `BloqueCoyoListo` — encabezado "Coyo encontró esto para ti" + texto + tarjetas agrupadas (Negocios → Ofertas → MarketPlace → Servicios), max 3 por grupo |
 | `listo` sin grupos | `BloqueCoyoListo` — encabezado **"Coyo dice"** (condicional) + solo el texto |
 | `no_aplica` | `BloqueCoyoNoAplica` — solo el texto de redirección o el `mensajeReformular` específico |
-| `sin_respuesta` | (sin bloque de Coyo) + leyenda "Esperando respuestas de la comunidad" |
+| `sin_respuesta` | (sin bloque de Coyo) — la pregunta queda abierta para que la comunidad responda |
 
 **Tarjetas (`TarjetaItemCoyo`):** imagen + título + subtítulo + chips de
 datos ricos (rating con estrella, "Verificado", "Abierto", condición,
 "Negociable", "Vence en N días"). Solo se renderiza el chip si el dato
 viene no-nulo desde el backend.
+
+### Componentes nuevos del Home
+
+| Componente | Responsabilidad |
+|---|---|
+| `BotonInteresComunidad` | Toggle "Yo también quiero saber". Estado base (slate) → estado activo (azul) con contador. Loader durante la mutación. Se oculta para el autor de la pregunta y para preguntas no-activas. |
+| `RespuestasComunidad` | Bloque colapsable: botón "Ver N respuestas" → lista cronológica + caja para responder. Si N=0 y la pregunta es activa, muestra CTA "Sé el primero en responder". Cada respuesta del usuario actual tiene botón "Borrar" (soft-delete). Textarea con Enter→enviar, Shift+Enter→nueva línea. |
+| `MenuAutorPregunta` | Dropdown (3 puntitos) visible solo al autor. 4 acciones con reglas de visibilidad: Editar (solo si 0 respuestas), Marcar resuelta (si no lo está), Cerrar (si activa), Eliminar (siempre, excepto si ya oculta). Cada acción destructiva pide confirmación con `ModalAdaptativo`. |
+| `ModalEditarPregunta` | Form con textarea (max 500) que solo guarda si hay cambios reales. Al éxito el backend re-dispara Coyo con el texto nuevo (resetea `estado_coyo='pendiente'`). |
+
+### Vista "Mis preguntas" (`/inicio/mis-preguntas`)
+
+Histórico del autor — TODAS sus preguntas (activa, cerrada, oculta).
+Cada card muestra:
+
+- Badge de estado: Activa (azul) / Cerrada (ámbar) / Eliminada (slate).
+- Badge "Resuelta" (verde) si `resueltaAt` está poblado.
+- Stats inline (X respuestas · Y personas interesadas).
+- `MenuAutorPregunta` con las mismas reglas que en el Home.
+- `RespuestasComunidad` accesible incluso para preguntas cerradas
+  (el autor puede leer lo que recibió). En `'oculta'` el bloque se
+  omite. La caja de responder solo aparece si la pregunta sigue
+  `'activa'`.
+
+Acceso desde el Home: link discreto "Mis preguntas →" al lado del
+título "Lo que pregunta la comunidad".
 
 ---
 
@@ -654,25 +902,47 @@ Prioridad (mayor a menor):
 
 ---
 
-## Tests de Coyo
+## Tests
+
+### Tests unitarios — filtros de Coyo
 
 Coyo tiene tests unitarios que cubren los dos helpers críticos del
-orquestador (los filtros de consistencia). Estos NO tocan Gemini ni BD —
-prueban funciones puras de detección de patrones.
+orquestador (los filtros de consistencia texto ↔ tarjetas). Estos NO
+tocan Gemini ni BD — prueban funciones puras de detección de patrones.
 
 | Archivo | Cubre |
 |---|---|
 | `apps/api/src/__tests__/coyo-filtro-caso-b.test.ts` | `geminiRedactoComoSinResultados` — 32 casos: positivos del CASO B, negativos del CASO A (no debe disparar), casos límite (solo una señal), variaciones de capitalización. |
 | `apps/api/src/__tests__/coyo-filtro-caso-a.test.ts` | `tituloMencionadoEnTexto` — 22 casos: items mencionados por Gemini, items omitidos (deben filtrarse), casos límite (título vacío, tokens stopwords, números). |
 
-Total: 54 tests, ejecutan en milisegundos. Cualquier cambio que rompa los
-patrones del filtro se detecta en CI antes de mergear.
-
-Ejecutar:
+Total: 54 tests, ejecutan en milisegundos. Cualquier cambio que rompa
+los patrones del filtro se detecta en CI antes de mergear.
 
 ```bash
 pnpm --filter api exec vitest run src/__tests__/coyo-filtro-caso-a.test.ts src/__tests__/coyo-filtro-caso-b.test.ts
 ```
+
+### Áreas sin tests dedicados (decisión de scope)
+
+Las siguientes funciones del Sprint 1 dependen de BD y/o del sistema de
+notificaciones — los tests unitarios puros tendrían poco valor frente al
+costo de mantener los mocks. Cobertura pendiente vía E2E con Playwright
+cuando el módulo gane volumen real de uso:
+
+- `notificacionesCoyo.service.ts` — resolverDestinatarioSucursal
+  (gerente con fallback al dueño) + las 4 funciones internas por tipo
+  de item. La lógica es serial-de-BD; un test E2E del flujo "publicar
+  pregunta → Coyo recomienda → comerciante recibe notificación" es más
+  efectivo que mockear users + sucursales + items.
+- `cerrarPreguntasVencidasDeCiudad` — el UPDATE depende de timestamps
+  reales en BD. Se podría probar con `pg_simulate_time()` pero agrega
+  complejidad sin haber visto un caso real de bug en esta fórmula.
+- Hooks de React Query con optimistic update (`useMarcarInteres`,
+  `useQuitarInteres`) — el test natural es E2E (click → verificar UI
+  cambia inmediato → mock falla → verificar rollback).
+
+Cuando aparezca un bug en cualquiera de estas áreas, agregar un test
+de regresión apuntando específicamente a ese caso.
 
 ---
 
@@ -811,17 +1081,18 @@ pnpm --filter api exec vitest run src/__tests__/coyo-filtro-caso-a.test.ts src/_
 
 Todas en `docs/migraciones/`:
 
-| Archivo | Aplicada en local | Aplicada en producción (Supabase) |
-|---|---|---|
-| `2026-05-24-preguntas-comunidad.sql` | ✅ | ✅ |
-| `2026-05-24-servicios-buscador-fts.sql` | ✅ | ✅ |
-| `2026-05-24-ofertas-buscador-fts.sql` | ✅ | ✅ |
-| `2026-05-24-coyo-respuesta-en-pregunta.sql` | ✅ | ✅ |
+| Archivo | Cubre | Local | Supabase prod |
+|---|---|---|---|
+| `2026-05-24-preguntas-comunidad.sql` | Tabla `preguntas_comunidad` + índices | ✅ | ✅ |
+| `2026-05-24-servicios-buscador-fts.sql` | FTS para buscador de servicios | ✅ | ✅ |
+| `2026-05-24-ofertas-buscador-fts.sql` | FTS para buscador de ofertas | ✅ | ✅ |
+| `2026-05-24-coyo-respuesta-en-pregunta.sql` | 4 columnas de Coyo + CHECK + índice parcial | ✅ | ✅ |
+| `2026-06-01-respuestas-interes-resuelta.sql` | Tablas `respuestas_preguntas_comunidad` + `preguntas_interesados` + columna `resuelta_at` | ✅ | ✅ |
+| `2026-06-01-notificaciones-coyo-comunidad.sql` | Extiende CHECKs de `notificaciones` con `pregunta_comunidad_respondida`, `coyo_recomendacion`, `pregunta_comunidad` | ✅ | ✅ |
 
-Las 4 migraciones están aplicadas en local y producción. La última agregó
-las 4 columnas de Coyo a `preguntas_comunidad` + CHECK + índice parcial.
-Es idempotente y compatible con la receta del wrapper `immutable_unaccent`
-que ya estaba en producción.
+Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
+`DROP CONSTRAINT IF EXISTS`) y compatibles con la receta del wrapper
+`immutable_unaccent` que ya estaba en producción.
 
 ---
 
@@ -829,15 +1100,18 @@ que ya estaba en producción.
 
 | Capa | Archivo |
 |---|---|
-| **BD** | `apps/api/src/db/schemas/schema.ts` (`preguntasComunidad`, líneas ~2565) |
-| **Backend — feed** | `services/preguntasComunidad.service.ts`, `controllers/preguntasComunidad.controller.ts`, `routes/preguntasComunidad.routes.ts`, `types/preguntasComunidad.types.ts` |
-| **Backend — Coyo** | `services/coyo/coyoIA.service.ts`, `services/coyo/orquestador.ts`, `services/coyo/buscadorUnificado.ts`, `services/coyo/categoriasCatalogo.service.ts`, `controllers/coyo.controller.ts`, `routes/coyo.routes.ts`, `validations/coyo.schema.ts` |
+| **BD** | `apps/api/src/db/schemas/schema.ts` (`preguntasComunidad`, `respuestasPreguntasComunidad`, `preguntasInteresados`) |
+| **Backend — feed** | `services/preguntasComunidad.service.ts`, `services/respuestasPreguntasComunidad.service.ts`, `services/interesPreguntasComunidad.service.ts`, `controllers/preguntasComunidad.controller.ts`, `routes/preguntasComunidad.routes.ts`, `types/preguntasComunidad.types.ts` |
+| **Backend — Coyo** | `services/coyo/coyoIA.service.ts`, `services/coyo/orquestador.ts`, `services/coyo/buscadorUnificado.ts`, `services/coyo/categoriasCatalogo.service.ts`, `services/coyo/notificacionesCoyo.service.ts`, `controllers/coyo.controller.ts`, `routes/coyo.routes.ts`, `validations/coyo.schema.ts` |
 | **Backend — buscadores** | `services/marketplace/buscador.ts`, `services/servicios/buscador.ts`, `services/ofertas/buscador.ts`, `services/negocios.service.ts` (`listarSucursalesCercanas`) |
 | **Backend — helpers compartidos** | `services/_helpers/busquedaFlexible.ts` |
+| **Backend — notificaciones** | `services/notificaciones.service.ts`, `types/notificaciones.types.ts` |
 | **Backend — config** | `config/env.ts` (`GEMINI_API_KEY`) |
 | **Backend — tests** | `__tests__/coyo-filtro-caso-a.test.ts`, `__tests__/coyo-filtro-caso-b.test.ts` |
-| **Frontend** | `pages/private/PaginaInicio.tsx`, `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
+| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx`, `pages/private/PaginaMisPreguntas.tsx`, `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
+| **Frontend — componentes Home** | `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx`, `components/home/ModalEditarPregunta.tsx` |
 | **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
+| **Frontend — notificaciones** | `components/layout/PanelNotificaciones.tsx` (mapeo de íconos + navegación), `types/notificaciones.ts` |
 | **Dependencia** | `@rive-app/react-canvas` (runtime open source, MIT), `@google/genai ^2.6.0` |
 | **Asset Rive** | `apps/web/public/coyo.riv` (export desde editor de Rive — incluye despiece SVG + 5 timelines + state machine de 2 layers) |
 | **Docs hermanos** | `docs/estandares/PATRON_BUSCADOR_FTS.md` (receta FTS portable), `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4 (visión) |
