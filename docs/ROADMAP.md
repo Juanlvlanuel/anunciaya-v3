@@ -109,6 +109,7 @@
   - Para **dueños** (con `negocioId != null, sucursalAsignada = null`): mismas reglas que gerentes, no cambio de correo mientras tengan negocio activo.
   - Para **usuarios personales** (sin negocio): todo editable incluido correo (con flujo de verificación).
 - [ ] **Tarjetas de resultados de Coyo clicables** — el bloque "Coyo encontró esto para ti" pinta tarjetas con `tipo + id` pero todavía NO navegan al detalle (negocio, marketplace, servicio, oferta). Decidir si abren modal o navegan fuera del Home, y cablear el `onClick` en `TarjetaItemCoyo` (`PaginaInicio.tsx`).
+- [ ] **Coyo: respuesta sensible para auto-daño / crisis emocional** — hoy si alguien escribe *"quiero morirme"* o similar, cae en `no_local` y Coyo responde con el texto fijo de redirección. Mal. Debe detectar crisis emocional y mostrar respuesta empática + línea de ayuda (México: 800-290-0024 Línea de la Vida, 24/7 gratis). Requiere: (a) prompt cuidadoso para detectar crisis sin falsos positivos, (b) texto validado idealmente con un experto en salud mental, (c) tal vez un nuevo `tipo='crisis'` en `PreguntaInterpretada`. Anotar como tarea de mayor cuidado, NO meter sin validación adecuada.
 - [x] ~~`coyo_respuesta_en_pregunta.sql` en producción~~ ✅ (24 May 2026, aplicada en Supabase)
 - [x] ~~`GEMINI_API_KEY` en Render~~ ✅ (24 May 2026, agregada al dashboard, Render redeployó automático)
 

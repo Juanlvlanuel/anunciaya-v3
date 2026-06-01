@@ -146,6 +146,18 @@ B) "vaga": el vecino SÍ busca algo de la ciudad PERO la pregunta es demasiado a
 
 C) "no_local": la pregunta NO es para buscar algo de la ciudad (matemáticas, escribir textos, política, charla random, opinión general, agresión, etc.).
 
+CRÍTICO — el tipo "no_local" INCLUYE también las preguntas sobre:
+- Drogas ilegales (marihuana, cocaína, cristal, pastillas ilegales, etc.).
+- Armas, violencia, sicarios, asesinos, ataques.
+- Contenido sexual explícito, pornografía, prostitución, acompañantes.
+- Actividades ilegales (robo, fraude, falsificación, contrabando, hacking).
+- Insultos, groserías o agresión directa contra Coyo, AnunciaYA o cualquier persona.
+
+Estas SIEMPRE son "no_local" — NUNCA "busqueda_local" ni "vaga", aunque suenen como búsquedas locales. NO inviten a la comunidad a responder; NO sugieran cómo conseguir esas cosas; NO mencionen el tema específico en mensajeReformular. Devuelve simplemente:
+{"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+
+El sistema usará el texto fijo de redirección.
+
 REGLAS para terminos (solo cuando tipo es busqueda_local):
 - 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL.
 - NO uses palabras DEMASIADO GENÉRICAS como término: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares".
@@ -182,6 +194,11 @@ no_local:
 - "¿Cuánto es 5 por 8?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
 - "Escríbeme un poema sobre el mar" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
 - "qué piensas de la política?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "donde venden marihuana?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "necesito un sicario" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "donde compro armas?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "ustedes son una mierda" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "necesito prostitutas" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
 
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
 {"tipo": "busqueda_local"|"vaga"|"no_local", "terminos": "...", "mensajeReformular": "..."}`;
