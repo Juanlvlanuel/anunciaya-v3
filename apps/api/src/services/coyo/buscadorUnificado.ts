@@ -142,6 +142,17 @@ interface RawNegocio {
     negocioId: string;
     negocioNombre: string;
     sucursalNombre: string | null;
+    /** `true` si esta sucursal es la Matriz del negocio. */
+    esPrincipal: boolean | null;
+    /** Total de sucursales activas del negocio (global, todas las
+     *  ciudades). */
+    totalSucursales: number | null;
+    /** Total de sucursales activas del negocio EN LA MISMA CIUDAD que
+     *  esta fila. Este es el que se usa para decidir si el subtítulo
+     *  debe distinguir matriz vs sucursal — si solo hay 1 sucursal en
+     *  la ciudad del vecino, no tiene sentido etiquetarla como matriz.
+     *  Lo provee `listarSucursalesCercanas`. */
+    totalSucursalesEnCiudad: number | null;
     ciudad: string;
     logoUrl: string | null;
     fotoPerfil: string | null;
@@ -288,6 +299,44 @@ function calcularDiasParaVencer(fechaFin: string | null | undefined): number | n
     return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
 }
 
+/**
+ * Construye el subtítulo de una tarjeta de Negocio según cuántas sucursales
+ * tenga el negocio EN LA MISMA CIUDAD del vecino:
+ *
+ *  - 1 sucursal en la ciudad:    "Puerto Peñasco"                  (solo ciudad)
+ *  - >1 sucursales y es matriz:  "Matriz · Puerto Peñasco"
+ *  - >1 sucursales y NO es matriz: "Sucursal Centro · Puerto Peñasco"
+ *    (donde "Sucursal Centro" es el nombre real de la sucursal)
+ *
+ * IMPORTANTE: usa `totalSucursalesEnCiudad`, NO `totalSucursales` (global).
+ * Si un negocio tiene 2 sucursales pero en ciudades distintas (ej. Farmacia
+ * X con Matriz en Peñasco + sucursal en Caborca), el vecino de Peñasco solo
+ * ve 1 sucursal en su ciudad, así que NO tiene sentido decir "Matriz" —
+ * solo "Puerto Peñasco". Caso reproducido el 2026-05-31 con Farmacia San
+ * Ángel (2 globales, 1 en Peñasco) → antes salía "Matriz · Peñasco"
+ * cuando debería ser solo "Peñasco".
+ *
+ * Sin esta diferenciación, dos sucursales del mismo negocio en la misma
+ * ciudad se veían idénticas en las tarjetas — el vecino no podía
+ * distinguirlas. Caso reproducido el 2026-05-31 con "Panaderia"
+ * (sucursales "Principal" y "Benito Juarez" en Peñasco) y "Panadería
+ * Tijuana" (sucursales "Panaderia Tijuana" y "Sucursal Centro" en Peñasco).
+ */
+function construirSubtituloNegocio(n: RawNegocio): string | null {
+    const ciudad = n.ciudad ?? null;
+    const totalEnCiudad = n.totalSucursalesEnCiudad ?? 1;
+
+    if (totalEnCiudad <= 1) {
+        return ciudad;
+    }
+
+    const etiqueta = n.esPrincipal
+        ? 'Matriz'
+        : n.sucursalNombre?.trim() || 'Sucursal';
+
+    return ciudad ? `${etiqueta} · ${ciudad}` : etiqueta;
+}
+
 function procesarNegocios(
     res: PromiseSettledResult<{ success: boolean; data: unknown[] }>,
 ): GrupoBusqueda {
@@ -300,7 +349,13 @@ function procesarNegocios(
         id: n.sucursalId,
         tipo: 'negocio' as const,
         titulo: n.negocioNombre,
-        subtitulo: n.ciudad ?? null,
+        // Cuando el negocio tiene MÁS DE UNA sucursal, distinguimos en
+        // el subtítulo qué sucursal es esta (matriz vs nombre puntual).
+        // Sin esto, dos sucursales del mismo negocio se veían idénticas
+        // en las tarjetas (mismo nombre, misma ciudad), causando que el
+        // vecino no supiera cuál era cuál. Si solo hay 1 sucursal,
+        // mantenemos el comportamiento previo (solo ciudad).
+        subtitulo: construirSubtituloNegocio(n),
         imagen: n.logoUrl ?? n.fotoPerfil ?? null,
         // Ricos propios
         rating: aNumeroOpcional(n.calificacionPromedio),

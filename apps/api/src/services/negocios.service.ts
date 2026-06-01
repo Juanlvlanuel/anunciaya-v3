@@ -116,8 +116,9 @@ function mapearSucursalResumen(row: SucursalResumenRow) {
         followed: row.followed,
         estaAbierto: row.esta_abierto,
 
-        // Conteo de sucursales
+        // Conteo de sucursales (global + por ciudad)
         totalSucursales: row.total_sucursales,
+        totalSucursalesEnCiudad: row.total_sucursales_en_ciudad,
     };
 }
 
@@ -370,13 +371,29 @@ export async function listarSucursalesCercanas(
                     LIMIT 1
                 ) as esta_abierto,
 
-                -- Total de sucursales activas del negocio
+                -- Total de sucursales activas del negocio (global,
+                -- todas las ciudades). Lo consumen los buscadores
+                -- estándar y Business Studio.
                 (
                     SELECT COUNT(*)::integer
                     FROM negocio_sucursales ns
                     WHERE ns.negocio_id = n.id
                     AND ns.activa = true
-                ) as total_sucursales
+                ) as total_sucursales,
+
+                -- Total de sucursales activas DEL MISMO NEGOCIO en la
+                -- misma ciudad de esta fila. Lo usa Coyo para decidir si
+                -- la tarjeta debe distinguir "Matriz" vs "Sucursal X":
+                -- si solo hay 1 sucursal en la ciudad del vecino, no
+                -- tiene sentido etiquetarla como matriz (no hay con qué
+                -- distinguirla).
+                (
+                    SELECT COUNT(*)::integer
+                    FROM negocio_sucursales ns
+                    WHERE ns.negocio_id = n.id
+                    AND ns.activa = true
+                    AND ns.ciudad = s.ciudad
+                ) as total_sucursales_en_ciudad
 
             FROM negocios n
             INNER JOIN negocio_sucursales s ON s.negocio_id = n.id

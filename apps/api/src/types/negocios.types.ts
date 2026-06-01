@@ -148,6 +148,15 @@ export interface SucursalResumenRow {
 
     // Conteo de sucursales del negocio (usado para decidir qué mostrar: Matriz/SucursalX/Categoría)
     total_sucursales: number;
+    /**
+     * Conteo de sucursales del negocio EN LA MISMA CIUDAD que esta fila.
+     * Necesario para decidir si una tarjeta de Coyo debe distinguir
+     * "Matriz" vs "Sucursal X": si el negocio tiene 2 sucursales pero en
+     * ciudades distintas (ej. Farmacia X con Matriz en Peñasco + sucursal
+     * en Caborca), desde el punto de vista del vecino de Peñasco solo
+     * hay 1 sucursal → no se debe etiquetar como "Matriz".
+     */
+    total_sucursales_en_ciudad: number;
 
     // Arrays anidados
     categorias: Array<{

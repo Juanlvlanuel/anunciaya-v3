@@ -387,13 +387,21 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
                 marketplace: { items: [], total: 0 },
                 servicios: { items: [], total: 0 },
             };
-        } else if (huboResultados) {
+        } else if (huboResultados && redaccion.disponible) {
             // ─── 6.6. Filtro CASO A v2: items no mencionados por Gemini ──
             // Si Gemini redactó CASO A (encontró cosas legítimas) pero el
             // buscador trajo items adicionales que Gemini NO mencionó en
             // el texto (porque los consideró irrelevantes semánticamente),
             // limpiamos esos items para que las tarjetas reflejen lo que
             // Coyo dijo.
+            //
+            // GUARDIA `redaccion.disponible`: solo aplicar cuando Gemini
+            // REALMENTE redactó el texto. Si Gemini falló (503/timeout/
+            // cuota) usamos `TEXTO_RESPALDO_CON_RESULTADOS` genérico que
+            // NO menciona ningún item — el filtro limpiaría TODO y el
+            // usuario vería un texto sin tarjetas, perdiendo los
+            // resultados legítimos del buscador. Preferimos mostrar las
+            // tarjetas con el texto de respaldo a no mostrar nada.
             //
             // Caso real (2026-05-31): pregunta "quien me ayuda con la
             // casa?" → Gemini extrajo "servicios hogar" → buscador trajo

@@ -376,6 +376,19 @@ item legítimo se filtra. Preferible quedarse corto (filtrar de más) a
 pasarse (mostrar items irrelevantes). Cuando aparezca un caso así,
 ampliar la heurística (ej. usar sinónimos por categoría).
 
+**Guardia: solo aplica si Gemini SÍ redactó.**
+
+Caso reproducido 2026-05-31 (tarde): Gemini se cayó con 503 → el
+orquestador usó `TEXTO_RESPALDO_CON_RESULTADOS` (*"Mira lo que
+encontré:"*) → el filtro CASO A v2 corrió contra ese texto genérico
+que NO menciona ningún ítem → filtró los 5 items legítimos del
+buscador → el vecino vio el texto seco sin tarjetas. Bug.
+
+**Mitigación:** el orquestador SOLO aplica el filtro CASO A v2
+cuando `redaccion.disponible === true`. Si Gemini falló, mantenemos
+los items intactos — preferible mostrar las tarjetas con el texto de
+respaldo a no mostrar nada.
+
 ---
 
 ## Tono y vocabulario de Coyo
