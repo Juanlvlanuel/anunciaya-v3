@@ -31,6 +31,7 @@ import {
     Star,
     BadgeCheck,
     Clock,
+    CheckCircle2,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -41,6 +42,8 @@ import {
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
 import { CoyoAnimado, type EstadoCoyoVisual } from '../../components/CoyoAnimado';
+import { BotonInteresComunidad } from '../../components/home/BotonInteresComunidad';
+import { RespuestasComunidad } from '../../components/home/RespuestasComunidad';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
 import type {
@@ -385,6 +388,7 @@ function SeccionFeed({ feed, nombreCiudad }: SeccionFeedProps) {
 // =============================================================================
 
 function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
+    const usuarioId = useAuthStore((s) => s.usuario?.id);
     const iniciales = obtenerIniciales(pregunta.autorNombre, pregunta.autorApellidos);
 
     const tiempo = (() => {
@@ -406,13 +410,13 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
     const respuestaCoyo = sondeo.data?.respuestaCoyo ?? pregunta.respuestaCoyo;
     const resultadosCoyo = sondeo.data?.resultadosCoyo ?? pregunta.resultadosCoyo;
 
-    // El mensaje "Esperando respuestas de la comunidad" solo tiene sentido
-    // cuando Coyo no encontró nada (sin_respuesta) — ahí la pregunta
-    // genuinamente vive para los vecinos. Para 'no_aplica' no tiene sentido
-    // (la pregunta no era para el pueblo). Para 'listo' tampoco lo
-    // mostramos hoy porque vecinosRespondieron siempre es 0 — cuando el
-    // backend traiga ese contador, podemos mostrarlo junto al bloque Coyo.
-    const mostrarEsperaComunidad = estadoCoyo === 'sin_respuesta';
+    // Reglas de visibilidad del botón "Yo también" y de la caja de respuesta:
+    //   - Solo si la pregunta sigue 'activa' (cerradas/ocultas no aceptan).
+    //   - El botón "Yo también" se oculta para el AUTOR (no tiene sentido
+    //     auto-marcarse interés en su propia pregunta).
+    const preguntaActiva = pregunta.estadoPregunta === 'activa';
+    const esAutor = !!usuarioId && usuarioId === pregunta.autorId;
+    const mostrarInteres = preguntaActiva && !esAutor;
 
     return (
         <li
@@ -437,14 +441,27 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                                 {tiempo}
                             </span>
                         )}
+                        {pregunta.resueltaAt && (
+                            <span
+                                className="inline-flex items-center gap-1 text-[11px] lg:text-xs font-semibold text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-full px-2 py-0.5"
+                                data-testid={`pregunta-resuelta-${pregunta.id}`}
+                            >
+                                <CheckCircle2
+                                    className="w-3 h-3"
+                                    strokeWidth={2.5}
+                                    aria-hidden="true"
+                                />
+                                Resuelta
+                            </span>
+                        )}
                     </div>
                     <p className="mt-1 text-sm lg:text-base text-slate-700 leading-relaxed wrap-break-word">
                         {pregunta.texto}
                     </p>
 
                     {/* Bloque Coyo: pensando / listo / no_aplica.
-                        Para 'sin_respuesta' no se muestra (cae al mensaje
-                        de espera de la comunidad abajo). */}
+                        Para 'sin_respuesta' no se muestra (es lo normal —
+                        la comunidad responde abajo). */}
                     {(estadoCoyo === 'pendiente' || estadoCoyo === 'procesando') && (
                         <div className="mt-3">
                             <BloqueCoyoPensando />
@@ -464,11 +481,27 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                         </div>
                     )}
 
-                    {mostrarEsperaComunidad && (
-                        <p className="mt-2 text-xs lg:text-sm text-slate-500">
-                            Esperando respuestas de la comunidad
-                        </p>
+                    {/* Barra de acciones de la comunidad: "yo también quiero
+                        saber" + toggle de respuestas. Solo visible si la
+                        pregunta sigue 'activa'. */}
+                    {preguntaActiva && (
+                        <div className="mt-3 flex items-center gap-2 flex-wrap">
+                            {mostrarInteres && (
+                                <BotonInteresComunidad
+                                    preguntaId={pregunta.id}
+                                    yoTambienInteresado={pregunta.yoTambienInteresado}
+                                    totalInteresados={pregunta.totalInteresados}
+                                />
+                            )}
+                        </div>
                     )}
+
+                    {/* Hilo de respuestas (colapsable, carga al abrir). */}
+                    <RespuestasComunidad
+                        preguntaId={pregunta.id}
+                        totalRespuestas={pregunta.totalRespuestas}
+                        puedeResponder={preguntaActiva}
+                    />
                 </div>
             </div>
         </li>

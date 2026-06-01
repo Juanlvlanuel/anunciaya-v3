@@ -104,9 +104,11 @@ export interface EstadoCoyoResponse {
 
 /**
  * Pregunta tal como la devuelve el backend en GET (feed) y POST (crear).
- * Incluye los datos del autor flatten y el estado de Coyo. Las preguntas
- * recién creadas vienen con `estadoCoyo='pendiente'` y los demás campos
- * de Coyo en `null` — el frontend sondea hasta que cambien.
+ * Incluye los datos del autor flatten, el estado de Coyo y los conteos
+ * de respuestas/interés (Sprint 1).
+ *
+ * Las preguntas recién creadas vienen con `estadoCoyo='pendiente'` y los
+ * demás campos de Coyo en `null` — el frontend sondea hasta que cambien.
  */
 export interface PreguntaComunidad {
     id: string;
@@ -128,6 +130,45 @@ export interface PreguntaComunidad {
     respuestaCoyo: string | null;
     resultadosCoyo: ResultadosCoyo | null;
     coyoProcesadoAt: string | null;
+
+    // ── Sprint 1: respuestas + interés + resuelta ──────────────────────────
+    /** Timestamp ISO si el autor la marcó como resuelta; null si no. */
+    resueltaAt: string | null;
+    /** Conteo de respuestas activas (no borradas). */
+    totalRespuestas: number;
+    /** Conteo de "yo también quiero saber" (idempotente — uno por usuario). */
+    totalInteresados: number;
+    /**
+     * `true` si el usuario actual ya marcó "yo también" en esta pregunta.
+     * `false` si no marcó, o si no hay sesión (el backend devuelve false
+     * cuando `usuarioId` no viene en el JWT).
+     */
+    yoTambienInteresado: boolean;
+}
+
+// =============================================================================
+// RESPUESTAS DE LA COMUNIDAD (Sprint 1)
+// =============================================================================
+
+export type EstadoRespuesta = 'activa' | 'borrada';
+
+/**
+ * Respuesta de un vecino a una pregunta del Home. Backend devuelve solo
+ * las `estado='activa'` (las borradas no llegan al frontend).
+ */
+export interface RespuestaPreguntaComunidad {
+    id: string;
+    preguntaId: string;
+    texto: string;
+    estado: EstadoRespuesta;
+    createdAt: string;
+    updatedAt: string;
+
+    // Datos del autor de la respuesta (flatten)
+    autorId: string;
+    autorNombre: string;
+    autorApellidos: string;
+    autorAvatarUrl: string | null;
 }
 
 // =============================================================================
@@ -144,4 +185,20 @@ export interface ListarPreguntasPorCiudadInput {
     ciudad: string;
     limit?: number;
     offset?: number;
+}
+
+export interface CrearRespuestaInput {
+    preguntaId: string;
+    texto: string;
+}
+
+export interface ListarRespuestasInput {
+    preguntaId: string;
+    limit?: number;
+    offset?: number;
+}
+
+export interface EditarPreguntaInput {
+    preguntaId: string;
+    textoNuevo: string;
 }

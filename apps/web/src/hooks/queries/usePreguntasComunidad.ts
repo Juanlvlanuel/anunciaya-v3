@@ -6,6 +6,21 @@
  * Hooks expuestos:
  *   - usePreguntasComunidadLista()  → feed de la ciudad activa del useGpsStore
  *   - useCrearPregunta()            → mutation: publicar pregunta + invalida feed
+ *   - useEstadoCoyo()               → sondeo del estado de Coyo de UNA pregunta
+ *
+ *   ── Sprint 1 — Respuestas + Interés ─────────────────────────────────────
+ *   - useRespuestas(preguntaId)     → lista de respuestas (paginada)
+ *   - useCrearRespuesta()           → mutation: responder + invalida lista + feed
+ *   - useBorrarMiRespuesta()        → mutation: soft-delete + invalida lista + feed
+ *   - useMarcarInteres()            → mutation: marcar interés + optimistic feed
+ *   - useQuitarInteres()            → mutation: quitar interés + optimistic feed
+ *
+ *   ── Sprint 1 — Control del Autor ────────────────────────────────────────
+ *   - useCerrarMiPregunta()         → mutation: estado='cerrada' + invalida feed
+ *   - useMarcarResuelta()           → mutation: resuelta_at=NOW() + invalida feed
+ *   - useBorrarMiPregunta()         → mutation: estado='oculta' + invalida feed
+ *   - useEditarMiPregunta()         → mutation: cambiar texto + re-dispara Coyo
+ *   - useMisPreguntas()             → histórico de preguntas del usuario actual
  *
  * Notas de diseño:
  *   - La ciudad se toma del `useGpsStore` (el frontend solo conoce la ciudad
@@ -13,8 +28,10 @@
  *     queda deshabilitado.
  *   - Sin Socket.io — refresco "ligero" vía `refetchOnWindowFocus: true` y el
  *     `staleTime` por defecto del proyecto (2 min).
- *   - Sin optimistic update en crear: el documento de patrón lo desaconseja
- *     para "crear desde cero" (genera complejidad sin ganancia perceptible).
+ *   - Sin optimistic update en crear pregunta/respuesta: el documento de
+ *     patrón lo desaconseja para "crear desde cero".
+ *   - Optimistic update SÍ en marcar/quitar interés: la acción es booleana y
+ *     el conteo cambia ±1 — el rollback es trivial si falla.
  *
  * Ubicación: apps/web/src/hooks/queries/usePreguntasComunidad.ts
  */
@@ -32,6 +49,9 @@ import {
     type CrearPreguntaInput,
     type EstadoCoyo,
     type EstadoCoyoResponse,
+    type RespuestaPreguntaComunidad,
+    type CrearRespuestaInput,
+    type EditarPreguntaInput,
 } from '../../types/preguntasComunidad';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { queryKeys } from '../../config/queryKeys';
@@ -185,5 +205,367 @@ export function useEstadoCoyo(preguntaId: string, estadoInicial: EstadoCoyo) {
         // El sondeo ya está corriendo en intervalo, no necesitamos también
         // refetch al focus (sería redundante y duplicaría requests).
         refetchOnWindowFocus: false,
+    });
+}
+
+// =============================================================================
+// RESPUESTAS DE LA COMUNIDAD (Sprint 1)
+// =============================================================================
+
+const LIMIT_RESPUESTAS_DEFAULT = 20;
+const OFFSET_RESPUESTAS_DEFAULT = 0;
+
+/**
+ * Lista las respuestas activas de una pregunta. El componente decide cuándo
+ * habilitarlo (típicamente al hacer click en "Ver N respuestas"), así que
+ * el hook acepta un flag `enabled` además del preguntaId.
+ *
+ * Las respuestas vienen en orden cronológico (la más vieja primero) — flujo
+ * natural de conversación. Backend limita a 50 por página.
+ */
+export function useRespuestas(
+    preguntaId: string,
+    opciones?: { limit?: number; offset?: number; enabled?: boolean },
+) {
+    const limit = opciones?.limit ?? LIMIT_RESPUESTAS_DEFAULT;
+    const offset = opciones?.offset ?? OFFSET_RESPUESTAS_DEFAULT;
+    const enabled = opciones?.enabled ?? true;
+
+    return useQuery({
+        queryKey: queryKeys.preguntasComunidad.respuestas(preguntaId, { limit, offset }),
+        queryFn: () =>
+            preguntasComunidadService
+                .listarRespuestas({ preguntaId, limit, offset })
+                .then((r) => r.data ?? []),
+        enabled: enabled && preguntaId.length > 0,
+        placeholderData: keepPreviousData,
+    });
+}
+
+/**
+ * Helper: invalida el feed por ciudad (para refrescar conteos
+ * totalRespuestas/totalInteresados) Y la lista de respuestas de la pregunta.
+ * Se usa después de cualquier mutación que toque respuestas.
+ */
+function invalidarFeedYRespuestas(
+    qc: ReturnType<typeof useQueryClient>,
+    preguntaId: string,
+) {
+    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+    qc.invalidateQueries({
+        queryKey: ['preguntasComunidad', 'respuestas', preguntaId],
+    });
+    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
+}
+
+/**
+ * Publica una respuesta. Al éxito invalida la lista de respuestas (para
+ * mostrar la nueva) y el feed (para actualizar el contador
+ * `totalRespuestas` de la card).
+ */
+export function useCrearRespuesta() {
+    const qc = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (
+            input: CrearRespuestaInput,
+        ): Promise<RespuestaPreguntaComunidad | undefined> => {
+            const res = await preguntasComunidadService.crearRespuesta(input);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al publicar la respuesta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: (_data, variables) => {
+            invalidarFeedYRespuestas(qc, variables.preguntaId);
+        },
+    });
+}
+
+/**
+ * Soft-delete de la propia respuesta. Solo el autor de la respuesta puede
+ * borrarla. Al éxito invalida la lista (para que desaparezca) y el feed
+ * (para que el contador `totalRespuestas` baje).
+ */
+export function useBorrarMiRespuesta() {
+    const qc = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (variables: { respuestaId: string; preguntaId: string }) => {
+            const res = await preguntasComunidadService.borrarMiRespuesta(
+                variables.respuestaId,
+            );
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al borrar la respuesta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: (_data, variables) => {
+            invalidarFeedYRespuestas(qc, variables.preguntaId);
+        },
+    });
+}
+
+// =============================================================================
+// INTERÉS ("yo también quiero saber") — Sprint 1
+// =============================================================================
+
+/**
+ * Aplica el delta optimista de interés a TODAS las queries del feed que
+ * contengan la pregunta (cualquier ciudad/paginación). Devuelve el snapshot
+ * previo para poder hacer rollback en onError.
+ *
+ * `delta = +1` (marcar) o `-1` (quitar). El optimistic update también
+ * cambia el booleano `yoTambienInteresado` al valor objetivo.
+ */
+function aplicarDeltaInteresOptimista(
+    qc: ReturnType<typeof useQueryClient>,
+    preguntaId: string,
+    delta: 1 | -1,
+): Map<readonly unknown[], PreguntaComunidad[] | undefined> {
+    const objetivo = delta === 1;
+    const snapshot = new Map<readonly unknown[], PreguntaComunidad[] | undefined>();
+
+    // Recorre TODAS las queries de feed (porCiudad) y misPreguntas, parchea
+    // la pregunta afectada. React Query devuelve [key, data] pairs.
+    const queriesFeed = qc.getQueriesData<PreguntaComunidad[]>({
+        queryKey: ['preguntasComunidad', 'porCiudad'],
+    });
+    const queriesMis = qc.getQueriesData<PreguntaComunidad[]>({
+        queryKey: ['preguntasComunidad', 'misPreguntas'],
+    });
+
+    for (const [key, data] of [...queriesFeed, ...queriesMis]) {
+        snapshot.set(key, data);
+        if (!data) continue;
+        const idx = data.findIndex((p) => p.id === preguntaId);
+        if (idx === -1) continue;
+        const actual = data[idx];
+        // Si el estado ya coincide con el objetivo, no tocamos nada (la
+        // mutación es idempotente y no debería cambiar el conteo).
+        if (actual.yoTambienInteresado === objetivo) continue;
+        const parchada: PreguntaComunidad = {
+            ...actual,
+            yoTambienInteresado: objetivo,
+            totalInteresados: Math.max(0, actual.totalInteresados + delta),
+        };
+        const nueva = [...data];
+        nueva[idx] = parchada;
+        qc.setQueryData(key, nueva);
+    }
+
+    return snapshot;
+}
+
+/** Marca interés del usuario en una pregunta (optimistic). */
+export function useMarcarInteres() {
+    const qc = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.marcarInteres(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al marcar interés',
+                );
+            }
+            return res.data;
+        },
+        // Optimistic: parchea el feed antes de que el server responda.
+        onMutate: async (preguntaId) => {
+            // Cancela cualquier refetch en vuelo del feed para que no
+            // sobrescriba nuestro patch optimista.
+            await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+            await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
+            const snapshot = aplicarDeltaInteresOptimista(qc, preguntaId, +1);
+            return { snapshot };
+        },
+        // Si falla, restauramos el snapshot previo.
+        onError: (_err, _preguntaId, ctx) => {
+            if (!ctx) return;
+            for (const [key, data] of ctx.snapshot.entries()) {
+                qc.setQueryData(key, data);
+            }
+        },
+        // Al final (éxito o error), invalida el feed para sincronizar con
+        // los conteos reales del servidor.
+        onSettled: () => {
+            qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+            qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
+        },
+    });
+}
+
+/** Quita interés del usuario en una pregunta (optimistic). */
+export function useQuitarInteres() {
+    const qc = useQueryClient();
+
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.quitarInteres(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al quitar interés',
+                );
+            }
+            return res.data;
+        },
+        onMutate: async (preguntaId) => {
+            await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+            await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
+            const snapshot = aplicarDeltaInteresOptimista(qc, preguntaId, -1);
+            return { snapshot };
+        },
+        onError: (_err, _preguntaId, ctx) => {
+            if (!ctx) return;
+            for (const [key, data] of ctx.snapshot.entries()) {
+                qc.setQueryData(key, data);
+            }
+        },
+        onSettled: () => {
+            qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+            qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
+        },
+    });
+}
+
+// =============================================================================
+// CONTROL DEL AUTOR (Sprint 1)
+// =============================================================================
+
+/**
+ * Helper: invalida feed + misPreguntas. Se usa después de cualquier acción
+ * del autor (cerrar/borrar/resolver/editar).
+ */
+function invalidarFeedYMisPreguntas(qc: ReturnType<typeof useQueryClient>) {
+    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
+}
+
+/** Autor cierra su pregunta (estado='cerrada'). Sale del feed. */
+export function useCerrarMiPregunta() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.cerrarMiPregunta(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al cerrar pregunta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: () => invalidarFeedYMisPreguntas(qc),
+    });
+}
+
+/** Autor marca su pregunta como resuelta (resuelta_at=NOW()). Sigue activa. */
+export function useMarcarResuelta() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.marcarResuelta(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al marcar resuelta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: () => invalidarFeedYMisPreguntas(qc),
+    });
+}
+
+/** Autor borra su pregunta (soft-delete, estado='oculta'). */
+export function useBorrarMiPregunta() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.borrarMiPregunta(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al borrar pregunta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: () => invalidarFeedYMisPreguntas(qc),
+    });
+}
+
+/**
+ * Autor edita el texto de su pregunta. Solo permitido si tiene 0 respuestas
+ * activas. El backend re-dispara Coyo con el texto nuevo (fire-and-forget),
+ * así que el cliente debe sondear de nuevo `estadoCoyo`.
+ */
+export function useEditarMiPregunta() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (input: EditarPreguntaInput) => {
+            const res = await preguntasComunidadService.editarMiPregunta(input);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al editar pregunta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: (_data, variables) => {
+            invalidarFeedYMisPreguntas(qc);
+            // Invalida también el sondeo de Coyo para que el cliente
+            // vuelva a pedirlo con el texto nuevo (la pregunta arranca
+            // de nuevo en estadoCoyo='pendiente').
+            qc.invalidateQueries({
+                queryKey: queryKeys.preguntasComunidad.estadoCoyo(variables.preguntaId),
+            });
+        },
+    });
+}
+
+// =============================================================================
+// MIS PREGUNTAS — vista histórico del autor
+// =============================================================================
+
+const LIMIT_MIS_DEFAULT = 20;
+const OFFSET_MIS_DEFAULT = 0;
+
+/**
+ * Devuelve TODAS las preguntas del usuario actual (activa, cerrada, oculta),
+ * más recientes primero. Útil para una ruta `/home/mis-preguntas`.
+ *
+ * El backend filtra por el `usuarioId` del JWT, así que no recibe
+ * parámetros de usuario — solo paginación.
+ */
+export function useMisPreguntas(opciones?: { limit?: number; offset?: number }) {
+    const limit = opciones?.limit ?? LIMIT_MIS_DEFAULT;
+    const offset = opciones?.offset ?? OFFSET_MIS_DEFAULT;
+
+    return useQuery({
+        queryKey: queryKeys.preguntasComunidad.misPreguntas({ limit, offset }),
+        queryFn: () =>
+            preguntasComunidadService
+                .listarMisPreguntas({ limit, offset })
+                .then((r) => r.data ?? []),
+        placeholderData: keepPreviousData,
     });
 }
