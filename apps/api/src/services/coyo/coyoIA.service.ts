@@ -125,7 +125,16 @@ const PROMPT_INTERPRETAR = `Lee la pregunta de un vecino de la ciudad y decide 2
 
 2. terminos: SOLO 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL de lo que busca. NO devuelvas sinónimos. NO devuelvas frases largas. Prefiere 1 palabra fuerte; máximo 3 SOLO si de verdad ayudan a precisar (ej. "cuidado mascotas" porque las dos juntas precisan el dominio). Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales de palabras anglo. Para palabras en español puedes usar singular o plural indistintamente.
 
-NO uses palabras DEMASIADO GENÉRICAS como término clave: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares". Estas palabras matchean cientos de negocios sin precisar el dominio y generan ruido. Si la pregunta del vecino es tan vaga que NO puedes identificar una categoría/sustantivo específico (ej. "tienen algo bueno?", "quien me ayuda con la casa?", "necesito un servicio"), clasifica como esBusquedaLocal=false en lugar de extraer una palabra vaga.
+NO uses palabras DEMASIADO GENÉRICAS como término clave: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares". Estas palabras matchean cientos de negocios sin precisar el dominio y generan ruido.
+
+SÍ debes INFERIR el dominio cuando la pregunta tenga UNA SOLA interpretación obvia aunque el sustantivo principal no esté explícito en la pregunta. Es parte de ser un buen asistente vecinal: anticipar lo que el vecino busca. Ejemplos de inferencia clara:
+- "no tengo ganas de cocinar" → busca restaurantes/comida a domicilio → terminos: "restaurantes"
+- "se me cayó algo en el ojo" → busca atención médica → terminos: "médico"
+- "el coche no arranca" → busca mecánico → terminos: "mecánico"
+- "se me rompió el cierre de la maleta" → busca taller de reparación → terminos: "reparación"
+- "tengo hambre" → busca comida → terminos: "comida" o "restaurantes"
+
+Si la pregunta es vaga con MÚLTIPLES interpretaciones razonables y no hay pista para elegir UNA (ej. "tienen algo bueno?", "quien me ayuda con la casa?" — la casa puede ser limpieza, plomería, electricidad, jardinería, mudanza), clasifica como esBusquedaLocal=false en lugar de inventar una sola interpretación.
 
 Si esBusquedaLocal es false, deja terminos como "".
 
@@ -135,6 +144,9 @@ Ejemplos:
 - "¿Dónde hay laptops?" → {"esBusquedaLocal": true, "terminos": "laptop"}
 - "Busco quien cuide a mi perro el fin" → {"esBusquedaLocal": true, "terminos": "cuidado mascotas"}
 - "Necesito un fotógrafo para mi boda" → {"esBusquedaLocal": true, "terminos": "fotógrafo bodas"}
+- "no tengo ganas de cocinar" → {"esBusquedaLocal": true, "terminos": "restaurantes"}
+- "el coche no arranca" → {"esBusquedaLocal": true, "terminos": "mecánico"}
+- "se me cayó algo en el ojo" → {"esBusquedaLocal": true, "terminos": "médico"}
 - "¿Cuánto es 5 por 8?" → {"esBusquedaLocal": false, "terminos": ""}
 - "Escríbeme un poema sobre el mar" → {"esBusquedaLocal": false, "terminos": ""}
 - "¿Tienen algo bueno?" → {"esBusquedaLocal": false, "terminos": ""}
