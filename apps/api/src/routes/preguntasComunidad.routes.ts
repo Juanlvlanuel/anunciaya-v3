@@ -15,6 +15,9 @@ import {
     crearPreguntaController,
     listarPreguntasPorCiudadController,
     obtenerEstadoCoyoController,
+    crearRespuestaController,
+    listarRespuestasController,
+    borrarMiRespuestaController,
 } from '../controllers/preguntasComunidad.controller.js';
 
 // Importar middlewares
@@ -57,6 +60,36 @@ router.get('/', listarPreguntasPorCiudadController);
  * que `estadoCoyo` deje de ser 'pendiente' o 'procesando'.
  */
 router.get('/:id/coyo', obtenerEstadoCoyoController);
+
+// =============================================================================
+// RESPUESTAS DE LA COMUNIDAD
+// =============================================================================
+// Sprint 1 — vecinos pueden responder a preguntas del Home. Sin threads
+// (no respuestas a respuestas) por diseño. Solo el autor de la respuesta
+// puede borrarla. Soft-delete con `estado='borrada'`.
+
+/**
+ * POST /api/preguntas-comunidad/:preguntaId/respuestas
+ * Crea una respuesta a una pregunta del Home.
+ * Body: { texto: string }
+ * usuarioId del token.
+ */
+router.post('/:preguntaId/respuestas', crearRespuestaController);
+
+/**
+ * GET /api/preguntas-comunidad/:preguntaId/respuestas?limit=20&offset=0
+ * Lista respuestas activas (estado='activa') de una pregunta,
+ * ordenadas cronológicamente ascendente (la más vieja primero — flujo
+ * natural de conversación).
+ */
+router.get('/:preguntaId/respuestas', listarRespuestasController);
+
+/**
+ * DELETE /api/preguntas-comunidad/respuestas/:respuestaId
+ * Soft-delete de una respuesta. Solo el autor de la respuesta puede
+ * borrarla — devuelve 403 si otro usuario lo intenta. Idempotente.
+ */
+router.delete('/respuestas/:respuestaId', borrarMiRespuestaController);
 
 // =============================================================================
 // EXPORTAR ROUTER

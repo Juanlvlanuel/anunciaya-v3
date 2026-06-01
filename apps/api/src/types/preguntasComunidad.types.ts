@@ -33,6 +33,13 @@ export interface ListarPreguntasPorCiudadInput {
     ciudad: string;
     limit?: number;
     offset?: number;
+    /**
+     * UUID del usuario que pide el feed. Si está presente, se pobla
+     * `yoTambienInteresado` por pregunta con un EXISTS sobre
+     * `preguntas_interesados`. Si no está, ese campo vuelve `false` para
+     * todas. Lo provee el controller a partir del JWT.
+     */
+    usuarioId?: string;
 }
 
 // =============================================================================

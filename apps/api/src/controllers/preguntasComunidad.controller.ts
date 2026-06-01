@@ -11,6 +11,11 @@ import {
     crearPregunta,
     listarPreguntasPorCiudad,
 } from '../services/preguntasComunidad.service.js';
+import {
+    crearRespuesta,
+    listarRespuestasPorPregunta,
+    borrarMiRespuesta,
+} from '../services/respuestasPreguntasComunidad.service.js';
 import { obtenerEstadoCoyo } from '../services/coyo/orquestador.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -83,8 +88,11 @@ export async function listarPreguntasPorCiudadController(req: Request, res: Resp
 
         const limit = parseInt(req.query.limit as string) || undefined;
         const offset = parseInt(req.query.offset as string) || undefined;
+        // Pasar el usuarioId al service para poblar `yoTambienInteresado`
+        // en cada pregunta del feed (EXISTS contra preguntas_interesados).
+        const usuarioId = obtenerUsuarioId(req);
 
-        const resultado = await listarPreguntasPorCiudad({ ciudad, limit, offset });
+        const resultado = await listarPreguntasPorCiudad({ ciudad, limit, offset, usuarioId });
 
         if (!resultado.success) {
             return res.status(resultado.code || 500).json({
@@ -146,6 +154,133 @@ export async function obtenerEstadoCoyoController(req: Request, res: Response) {
         });
     } catch (error) {
         console.error('Error en obtenerEstadoCoyoController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/preguntas-comunidad/:preguntaId/respuestas
+// =============================================================================
+
+export async function crearRespuestaController(req: Request, res: Response) {
+    try {
+        const usuarioId = obtenerUsuarioId(req);
+        const { preguntaId } = req.params;
+        const { texto } = (req.body ?? {}) as { texto?: unknown };
+
+        if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID de la pregunta no es un UUID válido',
+            });
+        }
+        if (typeof texto !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'texto es requerido (string)',
+            });
+        }
+
+        const resultado = await crearRespuesta({ preguntaId, usuarioId, texto });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(201).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en crearRespuestaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/preguntas-comunidad/:preguntaId/respuestas?limit=20&offset=0
+// =============================================================================
+
+export async function listarRespuestasController(req: Request, res: Response) {
+    try {
+        const { preguntaId } = req.params;
+        if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID de la pregunta no es un UUID válido',
+            });
+        }
+
+        const limit = parseInt(req.query.limit as string) || undefined;
+        const offset = parseInt(req.query.offset as string) || undefined;
+
+        const resultado = await listarRespuestasPorPregunta({
+            preguntaId,
+            limit,
+            offset,
+        });
+
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en listarRespuestasController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// DELETE /api/preguntas-comunidad/respuestas/:respuestaId
+// =============================================================================
+
+export async function borrarMiRespuestaController(req: Request, res: Response) {
+    try {
+        const usuarioId = obtenerUsuarioId(req);
+        const { respuestaId } = req.params;
+
+        if (!respuestaId || !UUID_REGEX.test(respuestaId)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID de la respuesta no es un UUID válido',
+            });
+        }
+
+        const resultado = await borrarMiRespuesta(respuestaId, usuarioId);
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en borrarMiRespuestaController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',

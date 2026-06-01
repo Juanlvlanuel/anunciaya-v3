@@ -12,7 +12,7 @@
 
 import { db } from '../db/index.js';
 import { preguntasComunidad, usuarios } from '../db/schemas/schema.js';
-import { eq, and, desc } from 'drizzle-orm';
+import { eq, and, desc, sql } from 'drizzle-orm';
 import type {
     CrearPreguntaInput,
     ListarPreguntasPorCiudadInput,
@@ -149,7 +149,13 @@ export async function crearPregunta(
 
 /**
  * Devuelve el feed de preguntas 'activa' de una ciudad, ordenadas de la más
- * nueva a la más vieja. Incluye datos básicos del autor (join con usuarios).
+ * nueva a la más vieja. Incluye:
+ *   - Datos básicos del autor (left join con `usuarios`).
+ *   - Campos de Coyo (respuesta, estado, resultados).
+ *   - `totalRespuestas` — count de respuestas activas (subquery).
+ *   - `totalInteresados` — count de "yo también" (subquery).
+ *   - `yoTambienInteresado` — EXISTS para el `usuarioId` actual (si vino).
+ *   - `resueltaAt` — null si el autor no la marcó como resuelta.
  */
 export async function listarPreguntasPorCiudad(
     input: ListarPreguntasPorCiudadInput
@@ -166,6 +172,14 @@ export async function listarPreguntasPorCiudad(
         const limit = Math.min(Math.max(1, Math.floor(limitRaw)), LIMIT_MAX);
         const offset = Math.max(0, Math.floor(offsetRaw));
 
+        // Subqueries inline para conteos y "yo también interesado".
+        // Más simple que joins agregados — Postgres optimiza cada subselect
+        // y se mantiene legible. Con los índices de `respuestas_preguntas_
+        // comunidad(pregunta_id, created_at) WHERE estado='activa'` y
+        // `preguntas_interesados(pregunta_id, usuario_id) PRIMARY KEY`,
+        // cada subquery es O(log n).
+        const usuarioId = input.usuarioId ?? null;
+
         const filas = await db
             .select({
                 id: preguntasComunidad.id,
@@ -173,6 +187,7 @@ export async function listarPreguntasPorCiudad(
                 ciudad: preguntasComunidad.ciudad,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
+                resueltaAt: preguntasComunidad.resueltaAt,
                 createdAt: preguntasComunidad.createdAt,
                 updatedAt: preguntasComunidad.updatedAt,
                 autorId: usuarios.id,
@@ -185,6 +200,26 @@ export async function listarPreguntasPorCiudad(
                 respuestaCoyo: preguntasComunidad.respuestaCoyo,
                 resultadosCoyo: preguntasComunidad.resultadosCoyo,
                 coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
+                // Conteos del Sprint 1 — subqueries inline
+                totalRespuestas: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM respuestas_preguntas_comunidad
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                      AND estado = 'activa'
+                )`,
+                totalInteresados: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM preguntas_interesados
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                )`,
+                yoTambienInteresado: usuarioId
+                    ? sql<boolean>`EXISTS (
+                        SELECT 1
+                        FROM preguntas_interesados
+                        WHERE pregunta_id = ${preguntasComunidad.id}
+                          AND usuario_id = ${usuarioId}::uuid
+                      )`
+                    : sql<boolean>`false`,
             })
             .from(preguntasComunidad)
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
@@ -215,14 +250,10 @@ export async function listarPreguntasPorCiudad(
             respuestaCoyo: f.respuestaCoyo,
             resultadosCoyo: f.resultadosCoyo,
             coyoProcesadoAt: f.coyoProcesadoAt,
-            // Campos nuevos del Sprint 1 — defaults por ahora.
-            // En la Fase 1.B (backend de respuestas + interés) este service
-            // se reescribe para agregar joins/subqueries y poblar los conteos
-            // reales + el flag `yoTambienInteresado` según el usuarioId actual.
-            resueltaAt: null,
-            totalRespuestas: 0,
-            totalInteresados: 0,
-            yoTambienInteresado: false,
+            resueltaAt: f.resueltaAt ?? null,
+            totalRespuestas: Number(f.totalRespuestas) || 0,
+            totalInteresados: Number(f.totalInteresados) || 0,
+            yoTambienInteresado: Boolean(f.yoTambienInteresado),
         }));
 
         return {
