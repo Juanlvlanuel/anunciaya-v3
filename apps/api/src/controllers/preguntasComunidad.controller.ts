@@ -10,12 +10,21 @@ import type { Request, Response } from 'express';
 import {
     crearPregunta,
     listarPreguntasPorCiudad,
+    cerrarMiPregunta,
+    borrarMiPregunta,
+    marcarResuelta,
+    editarMiPregunta,
+    listarMisPreguntas,
 } from '../services/preguntasComunidad.service.js';
 import {
     crearRespuesta,
     listarRespuestasPorPregunta,
     borrarMiRespuesta,
 } from '../services/respuestasPreguntasComunidad.service.js';
+import {
+    marcarInteres,
+    quitarInteres,
+} from '../services/interesPreguntasComunidad.service.js';
 import { obtenerEstadoCoyo } from '../services/coyo/orquestador.js';
 
 const UUID_REGEX = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
@@ -281,6 +290,259 @@ export async function borrarMiRespuestaController(req: Request, res: Response) {
         });
     } catch (error) {
         console.error('Error en borrarMiRespuestaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// HELPER COMÚN PARA ACCIONES DEL AUTOR SOBRE SU PREGUNTA
+// =============================================================================
+
+/**
+ * Valida UUID y devuelve `{ usuarioId, preguntaId }` o `null` si UUID inválido
+ * (ya respondió con 400 al cliente).
+ */
+function validarParamsAccionAutor(
+    req: Request,
+    res: Response,
+): { usuarioId: string; preguntaId: string } | null {
+    const usuarioId = obtenerUsuarioId(req);
+    const { preguntaId } = req.params;
+    if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
+        res.status(400).json({
+            success: false,
+            message: 'El ID de la pregunta no es un UUID válido',
+        });
+        return null;
+    }
+    return { usuarioId, preguntaId };
+}
+
+// =============================================================================
+// "YO TAMBIÉN QUIERO SABER" — POST/DELETE /api/preguntas-comunidad/:preguntaId/interes
+// =============================================================================
+
+export async function marcarInteresController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await marcarInteres({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en marcarInteresController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+export async function quitarInteresController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await quitarInteres({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en quitarInteresController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// CONTROL DEL AUTOR — cerrar / borrar / marcar resuelta / editar
+// =============================================================================
+
+export async function cerrarMiPreguntaController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await cerrarMiPregunta({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en cerrarMiPreguntaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+export async function borrarMiPreguntaController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await borrarMiPregunta({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en borrarMiPreguntaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+export async function marcarResueltaController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await marcarResuelta({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en marcarResueltaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+export async function editarMiPreguntaController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const { texto } = (req.body ?? {}) as { texto?: unknown };
+        if (typeof texto !== 'string') {
+            return res.status(400).json({
+                success: false,
+                message: 'texto es requerido (string)',
+            });
+        }
+
+        const resultado = await editarMiPregunta({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+            textoNuevo: texto,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en editarMiPreguntaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/preguntas-comunidad/mis-preguntas?limit=20&offset=0
+// =============================================================================
+
+export async function listarMisPreguntasController(req: Request, res: Response) {
+    try {
+        const usuarioId = obtenerUsuarioId(req);
+        const limit = parseInt(req.query.limit as string) || undefined;
+        const offset = parseInt(req.query.offset as string) || undefined;
+
+        const resultado = await listarMisPreguntas(usuarioId, limit, offset);
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en listarMisPreguntasController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',

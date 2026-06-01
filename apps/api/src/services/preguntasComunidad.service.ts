@@ -11,7 +11,11 @@
  */
 
 import { db } from '../db/index.js';
-import { preguntasComunidad, usuarios } from '../db/schemas/schema.js';
+import {
+    preguntasComunidad,
+    respuestasPreguntasComunidad,
+    usuarios,
+} from '../db/schemas/schema.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
 import type {
     CrearPreguntaInput,
@@ -20,6 +24,8 @@ import type {
     EstadoPregunta,
     EstadoCoyo,
     RespuestaServicio,
+    EditarPreguntaInput,
+    AccionAutorInput,
 } from '../types/preguntasComunidad.types.js';
 import { procesarPreguntaConCoyo } from './coyo/orquestador.js';
 
@@ -264,5 +270,397 @@ export async function listarPreguntasPorCiudad(
     } catch (error) {
         console.error('Error en listarPreguntasPorCiudad:', error);
         return { success: false, message: 'Error al listar preguntas', code: 500 };
+    }
+}
+
+// =============================================================================
+// CONTROL DEL AUTOR — Sprint 1.C
+// =============================================================================
+// El autor de una pregunta tiene 4 acciones sobre SU pregunta:
+//   - cerrarMiPregunta     → estado_pregunta = 'cerrada' (sale del feed pero
+//                            sigue accesible; no acepta más respuestas)
+//   - borrarMiPregunta     → estado_pregunta = 'oculta' (sale del feed; soft-delete
+//                            por consistencia con el patrón de Coyo)
+//   - marcarResuelta       → resuelta_at = NOW() (sigue activa pero con ✓)
+//   - editarMiPregunta     → cambiar el texto SOLO si tiene 0 respuestas; al
+//                            editar se re-dispara Coyo para que actualice su
+//                            respuesta acorde al nuevo texto
+// =============================================================================
+
+/**
+ * Verifica que la pregunta exista Y que el usuarioId del caller sea su autor.
+ * Devuelve la fila si todo OK, o un RespuestaServicio con error si no.
+ */
+async function verificarAutoria(
+    preguntaId: string,
+    usuarioId: string,
+): Promise<
+    | { ok: true; pregunta: { id: string; usuarioId: string; estadoPregunta: string } }
+    | { ok: false; error: RespuestaServicio<never> }
+> {
+    const [fila] = await db
+        .select({
+            id: preguntasComunidad.id,
+            usuarioId: preguntasComunidad.usuarioId,
+            estadoPregunta: preguntasComunidad.estadoPregunta,
+        })
+        .from(preguntasComunidad)
+        .where(eq(preguntasComunidad.id, preguntaId))
+        .limit(1);
+
+    if (!fila) {
+        return {
+            ok: false,
+            error: {
+                success: false,
+                message: 'La pregunta no existe',
+                code: 404,
+            },
+        };
+    }
+    if (fila.usuarioId !== usuarioId) {
+        return {
+            ok: false,
+            error: {
+                success: false,
+                message: 'Solo el autor puede modificar su pregunta',
+                code: 403,
+            },
+        };
+    }
+    return { ok: true, pregunta: fila };
+}
+
+/**
+ * El autor cierra su pregunta. Sale del feed (filtrado por
+ * estado_pregunta='activa') pero la fila se conserva en BD.
+ *
+ * Idempotente: si ya está cerrada u oculta, devuelve éxito sin tocar BD.
+ */
+export async function cerrarMiPregunta(
+    input: AccionAutorInput,
+): Promise<RespuestaServicio<{ cerrada: boolean }>> {
+    try {
+        const verif = await verificarAutoria(input.preguntaId, input.usuarioId);
+        if (!verif.ok) return verif.error;
+
+        if (verif.pregunta.estadoPregunta !== 'activa') {
+            return {
+                success: true,
+                message: 'La pregunta ya no estaba activa',
+                data: { cerrada: true },
+            };
+        }
+
+        await db
+            .update(preguntasComunidad)
+            .set({
+                estadoPregunta: 'cerrada',
+                updatedAt: sql`NOW()`,
+            })
+            .where(eq(preguntasComunidad.id, input.preguntaId));
+
+        return {
+            success: true,
+            message: 'Pregunta cerrada',
+            data: { cerrada: true },
+        };
+    } catch (error) {
+        console.error('Error en cerrarMiPregunta:', error);
+        return { success: false, message: 'Error al cerrar pregunta', code: 500 };
+    }
+}
+
+/**
+ * El autor borra su pregunta. Implementado como soft-delete
+ * (estado_pregunta='oculta') para mantener consistencia con el patrón de
+ * Coyo y conservar las respuestas que la comunidad ya dio (sin perder
+ * el trabajo de otros vecinos).
+ *
+ * Las respuestas quedan vivas en BD pero sin pregunta visible que las
+ * referencie en el feed.
+ */
+export async function borrarMiPregunta(
+    input: AccionAutorInput,
+): Promise<RespuestaServicio<{ borrada: boolean }>> {
+    try {
+        const verif = await verificarAutoria(input.preguntaId, input.usuarioId);
+        if (!verif.ok) return verif.error;
+
+        if (verif.pregunta.estadoPregunta === 'oculta') {
+            return {
+                success: true,
+                message: 'La pregunta ya estaba borrada',
+                data: { borrada: true },
+            };
+        }
+
+        await db
+            .update(preguntasComunidad)
+            .set({
+                estadoPregunta: 'oculta',
+                updatedAt: sql`NOW()`,
+            })
+            .where(eq(preguntasComunidad.id, input.preguntaId));
+
+        return {
+            success: true,
+            message: 'Pregunta borrada',
+            data: { borrada: true },
+        };
+    } catch (error) {
+        console.error('Error en borrarMiPregunta:', error);
+        return { success: false, message: 'Error al borrar pregunta', code: 500 };
+    }
+}
+
+/**
+ * El autor marca su pregunta como resuelta. La pregunta sigue siendo
+ * estado_pregunta='activa' (puede recibir más respuestas), pero queda
+ * marcada con `resuelta_at = NOW()`. El frontend la trata distinto
+ * (ícono ✓, ordenada al final del feed, etc.).
+ *
+ * Idempotente: si ya está marcada, no actualiza el timestamp.
+ */
+export async function marcarResuelta(
+    input: AccionAutorInput,
+): Promise<RespuestaServicio<{ resuelta: boolean; resueltaAt: string }>> {
+    try {
+        const verif = await verificarAutoria(input.preguntaId, input.usuarioId);
+        if (!verif.ok) return verif.error;
+
+        const [fila] = await db
+            .select({
+                resueltaAt: preguntasComunidad.resueltaAt,
+            })
+            .from(preguntasComunidad)
+            .where(eq(preguntasComunidad.id, input.preguntaId))
+            .limit(1);
+
+        if (fila?.resueltaAt) {
+            return {
+                success: true,
+                message: 'La pregunta ya estaba resuelta',
+                data: { resuelta: true, resueltaAt: fila.resueltaAt },
+            };
+        }
+
+        const [actualizada] = await db
+            .update(preguntasComunidad)
+            .set({
+                resueltaAt: sql`NOW()`,
+                updatedAt: sql`NOW()`,
+            })
+            .where(eq(preguntasComunidad.id, input.preguntaId))
+            .returning({ resueltaAt: preguntasComunidad.resueltaAt });
+
+        return {
+            success: true,
+            message: 'Pregunta marcada como resuelta',
+            data: {
+                resuelta: true,
+                resueltaAt: actualizada?.resueltaAt ?? new Date().toISOString(),
+            },
+        };
+    } catch (error) {
+        console.error('Error en marcarResuelta:', error);
+        return { success: false, message: 'Error al marcar resuelta', code: 500 };
+    }
+}
+
+/**
+ * El autor edita el texto de su pregunta. Solo permitido si la pregunta
+ * tiene 0 respuestas activas — si ya hay respuestas, editar el texto
+ * cambiaría el contexto y descontextualizaría las respuestas existentes.
+ *
+ * Al editar:
+ *   - Se actualiza el texto.
+ *   - Se resetean los campos de Coyo (`estado_coyo='pendiente'`,
+ *     `respuesta_coyo=null`, `resultados_coyo=null`, `coyo_procesado_at=null`).
+ *   - Se dispara `procesarPreguntaConCoyo` fire-and-forget para que Coyo
+ *     re-procese con el texto nuevo.
+ */
+export async function editarMiPregunta(
+    input: EditarPreguntaInput,
+): Promise<RespuestaServicio<{ editada: boolean }>> {
+    try {
+        const textoNuevo = (input.textoNuevo ?? '').trim();
+
+        if (textoNuevo.length === 0) {
+            return {
+                success: false,
+                message: 'El texto no puede estar vacío',
+                code: 400,
+            };
+        }
+        if (textoNuevo.length > TEXTO_MAX) {
+            return {
+                success: false,
+                message: `El texto excede el máximo de ${TEXTO_MAX} caracteres`,
+                code: 400,
+            };
+        }
+
+        const verif = await verificarAutoria(input.preguntaId, input.usuarioId);
+        if (!verif.ok) return verif.error;
+
+        if (verif.pregunta.estadoPregunta !== 'activa') {
+            return {
+                success: false,
+                message: 'Solo se pueden editar preguntas activas',
+                code: 409,
+            };
+        }
+
+        // Verificar que NO haya respuestas activas
+        const [conteoRespuestas] = await db
+            .select({
+                total: sql<number>`COUNT(*)::int`,
+            })
+            .from(respuestasPreguntasComunidad)
+            .where(
+                and(
+                    eq(respuestasPreguntasComunidad.preguntaId, input.preguntaId),
+                    eq(respuestasPreguntasComunidad.estado, 'activa'),
+                ),
+            );
+
+        const totalRespuestas = Number(conteoRespuestas?.total) || 0;
+        if (totalRespuestas > 0) {
+            return {
+                success: false,
+                message:
+                    'Esta pregunta ya recibió respuestas. Para mejorar tu pregunta, ciérrala y publica una nueva.',
+                code: 409,
+            };
+        }
+
+        // Actualizar texto + reset campos de Coyo para re-procesar
+        await db
+            .update(preguntasComunidad)
+            .set({
+                texto: textoNuevo,
+                estadoCoyo: 'pendiente',
+                respuestaCoyo: null,
+                resultadosCoyo: null,
+                coyoProcesadoAt: null,
+                updatedAt: sql`NOW()`,
+            })
+            .where(eq(preguntasComunidad.id, input.preguntaId));
+
+        // Re-disparar Coyo con el texto nuevo (fire-and-forget — no
+        // bloqueamos al usuario)
+        procesarPreguntaConCoyo(input.preguntaId).catch((err) => {
+            console.warn(
+                'Coyo orquestador falló (fire-and-forget) al re-procesar tras edición',
+                input.preguntaId,
+                err,
+            );
+        });
+
+        return {
+            success: true,
+            message: 'Pregunta editada — Coyo está re-procesando',
+            data: { editada: true },
+        };
+    } catch (error) {
+        console.error('Error en editarMiPregunta:', error);
+        return { success: false, message: 'Error al editar pregunta', code: 500 };
+    }
+}
+
+/**
+ * Lista TODAS las preguntas del usuario (activas, cerradas y ocultas),
+ * ordenadas de más reciente a más vieja. A diferencia del feed público,
+ * NO filtra por estado_pregunta — el autor ve su histórico completo
+ * para poder gestionarlas (reabrir, eliminar, ver resueltas, etc.).
+ *
+ * Pobla los mismos conteos que `listarPreguntasPorCiudad` (respuestas,
+ * interesados, yoTambienInteresado).
+ */
+export async function listarMisPreguntas(
+    usuarioId: string,
+    limit?: number,
+    offset?: number,
+): Promise<RespuestaServicio<PreguntaComunidadResponse[]>> {
+    try {
+        const limitRaw = limit ?? LIMIT_DEFAULT;
+        const offsetRaw = offset ?? 0;
+        const limitFinal = Math.min(Math.max(1, Math.floor(limitRaw)), LIMIT_MAX);
+        const offsetFinal = Math.max(0, Math.floor(offsetRaw));
+
+        const filas = await db
+            .select({
+                id: preguntasComunidad.id,
+                texto: preguntasComunidad.texto,
+                ciudad: preguntasComunidad.ciudad,
+                estado: preguntasComunidad.estado,
+                estadoPregunta: preguntasComunidad.estadoPregunta,
+                resueltaAt: preguntasComunidad.resueltaAt,
+                createdAt: preguntasComunidad.createdAt,
+                updatedAt: preguntasComunidad.updatedAt,
+                autorId: usuarios.id,
+                autorNombre: usuarios.nombre,
+                autorApellidos: usuarios.apellidos,
+                autorAvatarUrl: usuarios.avatarUrl,
+                estadoCoyo: preguntasComunidad.estadoCoyo,
+                respuestaCoyo: preguntasComunidad.respuestaCoyo,
+                resultadosCoyo: preguntasComunidad.resultadosCoyo,
+                coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
+                totalRespuestas: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM respuestas_preguntas_comunidad
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                      AND estado = 'activa'
+                )`,
+                totalInteresados: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM preguntas_interesados
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                )`,
+                yoTambienInteresado: sql<boolean>`EXISTS (
+                    SELECT 1
+                    FROM preguntas_interesados
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                      AND usuario_id = ${usuarioId}::uuid
+                )`,
+            })
+            .from(preguntasComunidad)
+            .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
+            .where(eq(preguntasComunidad.usuarioId, usuarioId))
+            .orderBy(desc(preguntasComunidad.createdAt))
+            .limit(limitFinal)
+            .offset(offsetFinal);
+
+        const preguntas: PreguntaComunidadResponse[] = filas.map((f) => ({
+            id: f.id,
+            texto: f.texto,
+            ciudad: f.ciudad,
+            estado: f.estado,
+            estadoPregunta: f.estadoPregunta as EstadoPregunta,
+            createdAt: f.createdAt ?? new Date().toISOString(),
+            updatedAt: f.updatedAt ?? new Date().toISOString(),
+            autorId: f.autorId ?? '',
+            autorNombre: f.autorNombre ?? '',
+            autorApellidos: f.autorApellidos ?? '',
+            autorAvatarUrl: f.autorAvatarUrl ?? null,
+            estadoCoyo: f.estadoCoyo as EstadoCoyo,
+            respuestaCoyo: f.respuestaCoyo,
+            resultadosCoyo: f.resultadosCoyo,
+            coyoProcesadoAt: f.coyoProcesadoAt,
+            resueltaAt: f.resueltaAt ?? null,
+            totalRespuestas: Number(f.totalRespuestas) || 0,
+            totalInteresados: Number(f.totalInteresados) || 0,
+            yoTambienInteresado: Boolean(f.yoTambienInteresado),
+        }));
+
+        return {
+            success: true,
+            message: 'Mis preguntas obtenidas',
+            data: preguntas,
+        };
+    } catch (error) {
+        console.error('Error en listarMisPreguntas:', error);
+        return { success: false, message: 'Error al listar mis preguntas', code: 500 };
     }
 }

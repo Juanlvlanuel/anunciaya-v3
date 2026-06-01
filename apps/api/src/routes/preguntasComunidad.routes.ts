@@ -18,6 +18,13 @@ import {
     crearRespuestaController,
     listarRespuestasController,
     borrarMiRespuestaController,
+    marcarInteresController,
+    quitarInteresController,
+    cerrarMiPreguntaController,
+    borrarMiPreguntaController,
+    marcarResueltaController,
+    editarMiPreguntaController,
+    listarMisPreguntasController,
 } from '../controllers/preguntasComunidad.controller.js';
 
 // Importar middlewares
@@ -52,6 +59,18 @@ router.post('/', crearPreguntaController);
  * más recientes primero, con datos básicos del autor.
  */
 router.get('/', listarPreguntasPorCiudadController);
+
+/**
+ * GET /api/preguntas-comunidad/mis-preguntas?limit=20&offset=0
+ * Devuelve TODAS las preguntas del usuario actual (activas, cerradas y
+ * ocultas), ordenadas de más reciente a más vieja. A diferencia del feed
+ * público, NO filtra por estado_pregunta — el autor ve su histórico
+ * completo.
+ *
+ * IMPORTANTE: esta ruta DEBE ir declarada ANTES de cualquier ruta con
+ * `:preguntaId` para que Express no intente interpretarla como UUID.
+ */
+router.get('/mis-preguntas', listarMisPreguntasController);
 
 /**
  * GET /api/preguntas-comunidad/:id/coyo
@@ -90,6 +109,57 @@ router.get('/:preguntaId/respuestas', listarRespuestasController);
  * borrarla — devuelve 403 si otro usuario lo intenta. Idempotente.
  */
 router.delete('/respuestas/:respuestaId', borrarMiRespuestaController);
+
+// =============================================================================
+// "YO TAMBIÉN QUIERO SABER" — toggle de interés en una pregunta
+// =============================================================================
+
+/**
+ * POST /api/preguntas-comunidad/:preguntaId/interes
+ * Marca al usuario actual como interesado en la pregunta. Idempotente.
+ */
+router.post('/:preguntaId/interes', marcarInteresController);
+
+/**
+ * DELETE /api/preguntas-comunidad/:preguntaId/interes
+ * Quita la marca de interés del usuario actual. Idempotente.
+ */
+router.delete('/:preguntaId/interes', quitarInteresController);
+
+// =============================================================================
+// CONTROL DEL AUTOR — solo el autor de la pregunta puede llamar estas
+// =============================================================================
+
+/**
+ * POST /api/preguntas-comunidad/:preguntaId/cerrar
+ * Cierra la pregunta (sale del feed, no acepta más respuestas).
+ * Solo el autor; idempotente.
+ */
+router.post('/:preguntaId/cerrar', cerrarMiPreguntaController);
+
+/**
+ * POST /api/preguntas-comunidad/:preguntaId/resolver
+ * Marca la pregunta como resuelta (resuelta_at = NOW()). La pregunta
+ * sigue activa pero el frontend la trata distinto (ícono ✓). Solo el
+ * autor; idempotente.
+ */
+router.post('/:preguntaId/resolver', marcarResueltaController);
+
+/**
+ * DELETE /api/preguntas-comunidad/:preguntaId
+ * Soft-delete de la pregunta (estado_pregunta = 'oculta'). Solo el
+ * autor; idempotente. Las respuestas se conservan en BD.
+ */
+router.delete('/:preguntaId', borrarMiPreguntaController);
+
+/**
+ * PATCH /api/preguntas-comunidad/:preguntaId
+ * Edita el texto de la pregunta. SOLO permitido si tiene 0 respuestas
+ * activas. Al editar se re-dispara Coyo para actualizar su respuesta.
+ * Solo el autor.
+ * Body: { texto: string }
+ */
+router.patch('/:preguntaId', editarMiPreguntaController);
 
 // =============================================================================
 // EXPORTAR ROUTER
