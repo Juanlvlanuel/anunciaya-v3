@@ -86,7 +86,7 @@ const TEXTO_RESPALDO_CON_RESULTADOS = 'Mira lo que encontré:';
  * en duda) que pasarse (ocultar tarjetas legítimas). Ver §Filtro de
  * consistencia texto-tarjeta en docs/arquitectura/Home_Coyo.md.
  */
-function geminiRedactoComoSinResultados(texto: string): boolean {
+export function geminiRedactoComoSinResultados(texto: string): boolean {
     const senalNegativa =
         /(no encontr[éeé]|no hay|por ahora no|ahorita no|todav[íi]a no|sin resultados|no aparec)/i;
     const senalComunidad =
