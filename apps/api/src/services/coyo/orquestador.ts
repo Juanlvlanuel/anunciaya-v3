@@ -270,11 +270,32 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
             return;
         }
 
-        // ─── 3. No-búsqueda-local → redirigir amable ─────────────────
-        if (!interpretacion.data.esBusquedaLocal) {
+        // ─── 3. Decidir según tipo ──────────────────────────────────
+        // 3 estados que clasifica Gemini:
+        //   - busqueda_local → continúa con búsqueda en las 4 áreas
+        //   - vaga → guarda el mensaje específico de reformular (con
+        //     sugerencias concretas) generado por Gemini en la misma
+        //     llamada; estado final = 'no_aplica'
+        //   - no_local → texto fijo de redirección; estado = 'no_aplica'
+        if (interpretacion.data.tipo === 'no_local') {
             await marcarEstadoFinal(preguntaId, {
                 estadoCoyo: 'no_aplica',
                 respuestaCoyo: TEXTO_REDIRECCION_NO_APLICA,
+                resultadosCoyo: null,
+            });
+            return;
+        }
+
+        if (interpretacion.data.tipo === 'vaga') {
+            // Usar el mensaje específico generado por Gemini con
+            // sugerencias concretas para reformular. Fallback al texto
+            // genérico si Gemini no devolvió nada (edge case).
+            const mensaje =
+                interpretacion.data.mensajeReformular.trim() ||
+                TEXTO_REDIRECCION_NO_APLICA;
+            await marcarEstadoFinal(preguntaId, {
+                estadoCoyo: 'no_aplica',
+                respuestaCoyo: mensaje,
                 resultadosCoyo: null,
             });
             return;

@@ -96,20 +96,39 @@ export type RespuestaIA<T> =
       };
 
 /**
+ * Tipo de pregunta — 3 estados que decide Gemini al interpretar.
+ */
+export type TipoPregunta = 'busqueda_local' | 'vaga' | 'no_local';
+
+/**
  * Output de `interpretarPregunta`.
  */
 export interface PreguntaInterpretada {
     /**
-     * `true` si la pregunta del vecino es para BUSCAR algo de su ciudad
-     * (un negocio, producto, servicio u oferta). `false` para cualquier
-     * otra cosa (matemáticas, escribir textos, política, charla random).
+     * Clasificación de la pregunta:
+     *  - `busqueda_local`: el vecino busca algo concreto de la ciudad
+     *    (dominio claro o inferible con UNA interpretación).
+     *  - `vaga`: SÍ busca algo de la ciudad PERO la pregunta es
+     *    demasiado ambigua (múltiples interpretaciones razonables sin
+     *    pista para elegir). Gemini genera `mensajeReformular` con
+     *    sugerencias específicas para que el vecino reformule.
+     *  - `no_local`: NO es búsqueda local (matemáticas, opiniones,
+     *    charla random, etc.).
      */
-    esBusquedaLocal: boolean;
+    tipo: TipoPregunta;
     /**
      * Palabras clave limpias para alimentar al buscador unificado.
-     * Cuando `esBusquedaLocal === false`, es string vacío.
+     * Cuando `tipo !== 'busqueda_local'`, es string vacío.
      */
     terminos: string;
+    /**
+     * Mensaje cálido + sugerencias concretas para que el vecino
+     * reformule la pregunta. Generado por Gemini parafraseando opciones
+     * razonables (ej. para "quien me ayuda con la casa?" sugiere
+     * plomería, electricidad, jardinería, etc.). Solo se devuelve
+     * cuando `tipo === 'vaga'`; vacío en los otros casos.
+     */
+    mensajeReformular: string;
 }
 
 // =============================================================================
@@ -119,41 +138,53 @@ export interface PreguntaInterpretada {
 // Le pide a Gemini que clasifique la pregunta del vecino y extraiga los
 // términos buscables. Devuelve JSON estricto.
 
-const PROMPT_INTERPRETAR = `Lee la pregunta de un vecino de la ciudad y decide 2 cosas:
+const PROMPT_INTERPRETAR = `Lee la pregunta de un vecino de la ciudad y clasifícala en UNO de estos 3 tipos:
 
-1. esBusquedaLocal: true si la pregunta es para BUSCAR algo de la ciudad (un negocio, un producto, un servicio, una oferta, alguien que ofrezca algo). false si es otra cosa (matemáticas, escribir textos, política, charla random, opinión general, etc.).
+A) "busqueda_local": el vecino busca algo concreto de la ciudad (un negocio, producto, servicio, oferta, alguien que ofrezca algo). El sustantivo/dominio es CLARO o INFERIBLE con UNA sola interpretación obvia.
 
-2. terminos: SOLO 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL de lo que busca. NO devuelvas sinónimos. NO devuelvas frases largas. Prefiere 1 palabra fuerte; máximo 3 SOLO si de verdad ayudan a precisar (ej. "cuidado mascotas" porque las dos juntas precisan el dominio). Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales de palabras anglo. Para palabras en español puedes usar singular o plural indistintamente.
+B) "vaga": el vecino SÍ busca algo de la ciudad PERO la pregunta es demasiado ambigua para identificar UN dominio específico (tiene múltiples interpretaciones razonables sin pista para elegir). En este caso debes generar un \`mensajeReformular\` cálido y específico para esa pregunta, sugiriendo opciones concretas que ayuden al vecino a reformular.
 
-NO uses palabras DEMASIADO GENÉRICAS como término clave: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares". Estas palabras matchean cientos de negocios sin precisar el dominio y generan ruido.
+C) "no_local": la pregunta NO es para buscar algo de la ciudad (matemáticas, escribir textos, política, charla random, opinión general, agresión, etc.).
 
-SÍ debes INFERIR el dominio cuando la pregunta tenga UNA SOLA interpretación obvia aunque el sustantivo principal no esté explícito en la pregunta. Es parte de ser un buen asistente vecinal: anticipar lo que el vecino busca. Ejemplos de inferencia clara:
-- "no tengo ganas de cocinar" → busca restaurantes/comida a domicilio → terminos: "restaurantes"
-- "se me cayó algo en el ojo" → busca atención médica → terminos: "médico"
-- "el coche no arranca" → busca mecánico → terminos: "mecánico"
-- "se me rompió el cierre de la maleta" → busca taller de reparación → terminos: "reparación"
-- "tengo hambre" → busca comida → terminos: "comida" o "restaurantes"
+REGLAS para terminos (solo cuando tipo es busqueda_local):
+- 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL.
+- NO uses palabras DEMASIADO GENÉRICAS como término: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares".
+- Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales anglo.
+- Para palabras en español puedes usar singular o plural indistintamente.
 
-Si la pregunta es vaga con MÚLTIPLES interpretaciones razonables y no hay pista para elegir UNA (ej. "tienen algo bueno?", "quien me ayuda con la casa?" — la casa puede ser limpieza, plomería, electricidad, jardinería, mudanza), clasifica como esBusquedaLocal=false en lugar de inventar una sola interpretación.
+INFERENCIA: si la pregunta tiene UNA SOLA interpretación obvia aunque el sustantivo no esté explícito, clasifica como busqueda_local con los términos inferidos. Es parte de ser un buen asistente vecinal:
+- "no tengo ganas de cocinar" → busqueda_local con terminos: "restaurantes"
+- "el coche no arranca" → busqueda_local con terminos: "mecánico"
+- "se me cayó algo en el ojo" → busqueda_local con terminos: "médico"
+- "tengo hambre" → busqueda_local con terminos: "restaurantes"
 
-Si esBusquedaLocal es false, deja terminos como "".
+REGLAS para mensajeReformular (solo cuando tipo es vaga):
+- 1-2 frases cálidas, mexicanas naturales, sin exagerar.
+- TUTEA siempre. NO uses "pueblo" ni "catálogo" — habla de "la ciudad" o "tu ciudad".
+- DEBE incluir OPCIONES CONCRETAS para que el vecino sepa qué decir. Sugiere 3-5 dominios razonables relacionados con la pregunta.
+- Si la pregunta es agresiva u ofensiva, NO te enganches — responde neutral y breve invitando a reformular bien.
 
-Ejemplos:
-- "¿Quién arregla una fuga de agua urgente?" → {"esBusquedaLocal": true, "terminos": "plomería"}
-- "¿Dónde venden tacos al pastor?" → {"esBusquedaLocal": true, "terminos": "tacos"}
-- "¿Dónde hay laptops?" → {"esBusquedaLocal": true, "terminos": "laptop"}
-- "Busco quien cuide a mi perro el fin" → {"esBusquedaLocal": true, "terminos": "cuidado mascotas"}
-- "Necesito un fotógrafo para mi boda" → {"esBusquedaLocal": true, "terminos": "fotógrafo bodas"}
-- "no tengo ganas de cocinar" → {"esBusquedaLocal": true, "terminos": "restaurantes"}
-- "el coche no arranca" → {"esBusquedaLocal": true, "terminos": "mecánico"}
-- "se me cayó algo en el ojo" → {"esBusquedaLocal": true, "terminos": "médico"}
-- "¿Cuánto es 5 por 8?" → {"esBusquedaLocal": false, "terminos": ""}
-- "Escríbeme un poema sobre el mar" → {"esBusquedaLocal": false, "terminos": ""}
-- "¿Tienen algo bueno?" → {"esBusquedaLocal": false, "terminos": ""}
-- "¿Quien me ayuda con la casa?" → {"esBusquedaLocal": false, "terminos": ""}
+EJEMPLOS de cada tipo:
+
+busqueda_local:
+- "¿Quién arregla una fuga de agua urgente?" → {"tipo": "busqueda_local", "terminos": "plomería", "mensajeReformular": ""}
+- "¿Dónde venden tacos al pastor?" → {"tipo": "busqueda_local", "terminos": "tacos", "mensajeReformular": ""}
+- "¿Dónde hay laptops?" → {"tipo": "busqueda_local", "terminos": "laptop", "mensajeReformular": ""}
+- "no tengo ganas de cocinar" → {"tipo": "busqueda_local", "terminos": "restaurantes", "mensajeReformular": ""}
+- "el coche no arranca" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": ""}
+
+vaga:
+- "¿Quien me ayuda con la casa?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Hola! Para echarte la mano dime de qué se trata: ¿necesitas plomero, electricista, jardinería, limpieza o ayuda con mudanza? Con un poquito más de detalle te ayudo mejor."}
+- "¿Tienen algo bueno?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Híjole, hay mucho en tu ciudad! Cuéntame qué tipo de cosa te interesa: ¿negocios, productos en venta, ofertas del día, servicios? Con un poquito más de pista te oriento."}
+- "no encuentro nada barato" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "Pues mira, ¿qué andas buscando barato? Dime si es comida, ropa, electrónica, herramientas o algún servicio en particular, y te echo un ojo."}
+
+no_local:
+- "¿Cuánto es 5 por 8?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "Escríbeme un poema sobre el mar" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "qué piensas de la política?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
 
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
-{"esBusquedaLocal": true|false, "terminos": "..."}`;
+{"tipo": "busqueda_local"|"vaga"|"no_local", "terminos": "...", "mensajeReformular": "..."}`;
 
 /**
  * Clasifica la pregunta del vecino y extrae términos buscables.
@@ -294,7 +325,11 @@ function esPreguntaInterpretada(v: unknown): v is PreguntaInterpretada {
     if (typeof v !== 'object' || v === null) return false;
     const obj = v as Record<string, unknown>;
     return (
-        typeof obj.esBusquedaLocal === 'boolean' &&
-        typeof obj.terminos === 'string'
+        typeof obj.tipo === 'string' &&
+        (obj.tipo === 'busqueda_local' ||
+            obj.tipo === 'vaga' ||
+            obj.tipo === 'no_local') &&
+        typeof obj.terminos === 'string' &&
+        typeof obj.mensajeReformular === 'string'
     );
 }

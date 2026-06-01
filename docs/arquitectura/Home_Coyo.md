@@ -75,7 +75,7 @@ es trivial y se autoapaga al llegar a estado final).
 | `procesando` | Coyo está trabajando |
 | `listo` | Coyo respondió (hay `respuesta_coyo`; `resultados_coyo` puede tener grupos vacíos si no encontró nada pero sí redactó) |
 | `sin_respuesta` | Coyo no pudo (IA caída + 0 resultados, o error inesperado). La pregunta vive para la comunidad |
-| `no_aplica` | La pregunta NO era búsqueda local (matemáticas, charla random). Coyo redirige amable |
+| `no_aplica` | Coyo redirige amable. Cubre 2 sub-casos: (a) `tipo='no_local'` — la pregunta no era búsqueda local (matemáticas, charla); (b) `tipo='vaga'` — sí es local pero demasiado ambigua (ej. *"quien me ayuda con la casa?"*); en este sub-caso `respuesta_coyo` contiene un mensaje específico generado por Gemini con sugerencias para reformular |
 
 **Índices:**
 
@@ -420,9 +420,19 @@ futuro se migra a otra LLM (Claude, GPT, etc.), solo se toca este archivo.
 
 ```typescript
 interpretarPregunta(texto: string): Promise<RespuestaIA<PreguntaInterpretada>>
-  // → { esBusquedaLocal: boolean, terminos: string }
-  // El prompt exige a Gemini 1-3 PALABRAS CLAVE esenciales (no sinónimos,
-  // no frases largas). Devuelve JSON estricto.
+  // → { tipo: 'busqueda_local' | 'vaga' | 'no_local', terminos: string, mensajeReformular: string }
+  //
+  // Gemini clasifica la pregunta en uno de 3 tipos:
+  //   - busqueda_local: dominio claro o inferible con UNA interpretación
+  //     obvia → devuelve `terminos` (1-3 palabras clave) para buscar.
+  //   - vaga: SÍ busca algo local PERO la pregunta es demasiado ambigua
+  //     (múltiples interpretaciones razonables sin pista). Gemini devuelve
+  //     en `mensajeReformular` un texto cálido y específico para ESA
+  //     pregunta sugiriendo opciones concretas que ayuden a reformular.
+  //   - no_local: matemáticas, opiniones, charla random, etc.
+  //
+  // El prompt incluye ejemplos de cada tipo y reglas explícitas (no usar
+  // palabras genéricas, inferir cuando hay UNA interpretación, etc.).
 
 redactarRespuestaCoyo(pregunta: string, resultados: unknown): Promise<RespuestaIA<string>>
   // → texto cálido (1-2 frases). El prompt tiene 2 casos:
@@ -473,7 +483,8 @@ lanza al caller (que es un fire-and-forget del service de crear).
 |---|---|---|
 | 1 | Pregunta no existe en BD | (return silencioso, no toca nada) |
 | 2 | `interpretarPregunta` devuelve `disponible: false` | `sin_respuesta` |
-| 3 | `esBusquedaLocal === false` (charla random) | `no_aplica` + texto fijo de redirección |
+| 3a | `tipo === 'no_local'` (matemáticas, charla random) | `no_aplica` + `TEXTO_REDIRECCION_NO_APLICA` (texto fijo) |
+| 3b | `tipo === 'vaga'` (local pero ambigua) | `no_aplica` + `mensajeReformular` (texto específico generado por Gemini con sugerencias para reformular) |
 | 4-5 | Hay ≥1 resultado y `redactarRespuestaCoyo` OK | `listo` + texto + resultados |
 | 4-5 | Hay ≥1 resultado pero redacción falló | `listo` + texto de respaldo `"Mira lo que encontré:"` + resultados |
 | 4-5 | 0 resultados y redacción OK | `listo` + texto cálido + resultados vacíos (front no pinta cards, solo el mensaje) |
