@@ -1,5 +1,5 @@
 
-import { pgTable, check, integer, varchar, type AnyPgColumn, index, uniqueIndex, foreignKey, unique, uuid, boolean, smallint, timestamp, numeric, text, date, serial, time, jsonb, bigserial, bigint } from "drizzle-orm/pg-core"
+import { pgTable, check, integer, varchar, type AnyPgColumn, index, uniqueIndex, foreignKey, unique, uuid, boolean, smallint, timestamp, numeric, text, date, serial, time, jsonb, bigserial, bigint, primaryKey } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
 export const regiones = pgTable("regiones", {
@@ -2576,6 +2576,10 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	resultadosCoyo: jsonb("resultados_coyo"),
 	estadoCoyo: varchar("estado_coyo", { length: 20 }).default('pendiente').notNull(),
 	coyoProcesadoAt: timestamp("coyo_procesado_at", { withTimezone: true, mode: 'string' }),
+	// Marcada como resuelta por el autor (agregada en 2026-06-01-respuestas-interes-resuelta.sql).
+	// `null` = no resuelta. La pregunta sigue siendo `estado_pregunta='activa'` (puede recibir
+	// más respuestas), pero el frontend la trata distinto (ícono ✓, ordenada al final, etc.).
+	resueltaAt: timestamp("resuelta_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_preguntas_comunidad_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_preguntas_comunidad_usuario").using("btree", table.usuarioId.asc().nullsLast()),
@@ -2587,4 +2591,81 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	}).onDelete("cascade"),
 	check("preguntas_comunidad_estado_pregunta_check", sql`(estado_pregunta)::text = ANY ((ARRAY['activa'::character varying, 'cerrada'::character varying, 'oculta'::character varying])::text[])`),
 	check("preguntas_comunidad_estado_coyo_check", sql`(estado_coyo)::text = ANY ((ARRAY['pendiente'::character varying, 'procesando'::character varying, 'listo'::character varying, 'sin_respuesta'::character varying, 'no_aplica'::character varying])::text[])`),
+]);
+
+// ============================================================================
+// RESPUESTAS DE LA COMUNIDAD A PREGUNTAS DEL HOME (Sprint 1 — 2026-06-01)
+// ============================================================================
+//
+// Cada fila es una respuesta de un vecino a una pregunta del Home. NO hay
+// respuestas a respuestas (sin threads) — diseño deliberado para mantener el
+// feed ordenado y evitar que se convierta en chat grupal.
+//
+// Migración: docs/migraciones/2026-06-01-respuestas-interes-resuelta.sql
+// ============================================================================
+export const respuestasPreguntasComunidad = pgTable("respuestas_preguntas_comunidad", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	preguntaId: uuid("pregunta_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	texto: varchar({ length: 1000 }).notNull(),
+	// `activa` por default; `borrada` cuando el autor de la respuesta la elimine
+	// (soft-delete para conservar orden cronológico).
+	estado: varchar({ length: 20 }).default('activa').notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	// Índice del feed por pregunta — más reciente primero, solo activas.
+	index("idx_respuestas_pregunta_fecha")
+		.using("btree", table.preguntaId.asc().nullsLast(), table.createdAt.desc().nullsFirst())
+		.where(sql`estado = 'activa'`),
+	// Para "mis respuestas" en el perfil del usuario.
+	index("idx_respuestas_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.preguntaId],
+		foreignColumns: [preguntasComunidad.id],
+		name: "fk_respuestas_preguntas_comunidad_pregunta"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_respuestas_preguntas_comunidad_usuario"
+	}).onDelete("cascade"),
+	check("respuestas_preguntas_comunidad_estado_check",
+		sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'borrada'::character varying])::text[])`),
+	check("respuestas_preguntas_comunidad_texto_len",
+		sql`length(trim(texto)) > 0 AND length(texto) <= 1000`),
+]);
+
+// ============================================================================
+// "YO TAMBIÉN QUIERO SABER" — interesados en una pregunta (Sprint 1 — 2026-06-01)
+// ============================================================================
+//
+// Cada fila es un vecino sumándose a una pregunta existente sin republicarla.
+// La PRIMARY KEY compuesta `(pregunta_id, usuario_id)` garantiza idempotencia:
+// un mismo usuario no puede sumarse dos veces a la misma pregunta. Toggle
+// natural: insertar o borrar.
+//
+// Migración: docs/migraciones/2026-06-01-respuestas-interes-resuelta.sql
+// ============================================================================
+export const preguntasInteresados = pgTable("preguntas_interesados", {
+	preguntaId: uuid("pregunta_id").notNull(),
+	usuarioId: uuid("usuario_id").notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	// Para "qué preguntas me interesan" desde el perfil del usuario.
+	index("idx_interesados_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+	primaryKey({
+		columns: [table.preguntaId, table.usuarioId],
+		name: "preguntas_interesados_pk"
+	}),
+	foreignKey({
+		columns: [table.preguntaId],
+		foreignColumns: [preguntasComunidad.id],
+		name: "fk_preguntas_interesados_pregunta"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.usuarioId],
+		foreignColumns: [usuarios.id],
+		name: "fk_preguntas_interesados_usuario"
+	}).onDelete("cascade"),
 ]);

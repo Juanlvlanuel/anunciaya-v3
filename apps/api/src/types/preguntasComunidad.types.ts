@@ -69,6 +69,84 @@ export interface PreguntaComunidadResponse {
      */
     resultadosCoyo: unknown | null;
     coyoProcesadoAt: string | null;
+
+    /**
+     * Si el autor marcó la pregunta como resuelta, fecha en ISO. `null` si
+     * no está resuelta. La pregunta sigue siendo `estadoPregunta='activa'`
+     * (puede recibir más respuestas) — el frontend la trata distinto.
+     */
+    resueltaAt: string | null;
+
+    // ── Métricas del feed agregadas para esta pregunta ────────────────────
+    /** Cantidad de respuestas activas (no borradas) que tiene la pregunta. */
+    totalRespuestas: number;
+    /** Cantidad de vecinos sumados con "yo también quiero saber". */
+    totalInteresados: number;
+    /** Si el usuario actual ya marcó interés en esta pregunta. */
+    yoTambienInteresado: boolean;
+}
+
+// =============================================================================
+// RESPUESTAS DE LA COMUNIDAD (Sprint 1 — 2026-06-01)
+// =============================================================================
+
+/** Estado de una respuesta. `borrada` es soft-delete del autor. */
+export type EstadoRespuesta = 'activa' | 'borrada';
+
+export interface CrearRespuestaInput {
+    preguntaId: string;
+    usuarioId: string;
+    texto: string;
+}
+
+export interface ListarRespuestasInput {
+    preguntaId: string;
+    limit?: number;
+    offset?: number;
+}
+
+/**
+ * Una respuesta de un vecino a una pregunta del Home. Incluye los datos
+ * básicos del autor (mismo patrón que `PreguntaComunidadResponse`) para
+ * que el frontend pinte la respuesta sin un round-trip extra.
+ */
+export interface RespuestaPreguntaComunidadResponse {
+    id: string;
+    preguntaId: string;
+    texto: string;
+    estado: EstadoRespuesta;
+    createdAt: string;
+    updatedAt: string;
+
+    // Autor de la respuesta
+    autorId: string;
+    autorNombre: string;
+    autorApellidos: string;
+    autorAvatarUrl: string | null;
+}
+
+// =============================================================================
+// "YO TAMBIÉN QUIERO SABER" (Sprint 1 — 2026-06-01)
+// =============================================================================
+
+export interface MarcarInteresInput {
+    preguntaId: string;
+    usuarioId: string;
+}
+
+// =============================================================================
+// CONTROL DEL AUTOR (Sprint 1 — 2026-06-01)
+// =============================================================================
+
+export interface EditarPreguntaInput {
+    preguntaId: string;
+    usuarioId: string;
+    textoNuevo: string;
+}
+
+export interface AccionAutorInput {
+    preguntaId: string;
+    usuarioId: string;
 }
 
 // =============================================================================

@@ -113,6 +113,11 @@ export async function crearPregunta(
             respuestaCoyo: nueva.respuestaCoyo ?? null,
             resultadosCoyo: nueva.resultadosCoyo ?? null,
             coyoProcesadoAt: nueva.coyoProcesadoAt ?? null,
+            // Campos nuevos del Sprint 1 — recién creada no tiene nada todavía.
+            resueltaAt: null,
+            totalRespuestas: 0,
+            totalInteresados: 0,
+            yoTambienInteresado: false,
         };
 
         // ─── DISPARO COYO EN SEGUNDO PLANO (fire-and-forget) ─────────
@@ -210,6 +215,14 @@ export async function listarPreguntasPorCiudad(
             respuestaCoyo: f.respuestaCoyo,
             resultadosCoyo: f.resultadosCoyo,
             coyoProcesadoAt: f.coyoProcesadoAt,
+            // Campos nuevos del Sprint 1 — defaults por ahora.
+            // En la Fase 1.B (backend de respuestas + interés) este service
+            // se reescribe para agregar joins/subqueries y poblar los conteos
+            // reales + el flag `yoTambienInteresado` según el usuarioId actual.
+            resueltaAt: null,
+            totalRespuestas: 0,
+            totalInteresados: 0,
+            yoTambienInteresado: false,
         }));
 
         return {
