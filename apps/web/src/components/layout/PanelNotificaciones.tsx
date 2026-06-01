@@ -51,6 +51,7 @@ const IcoTrash = (p: IconoWrapperProps) => <Icon icon="lucide:trash-2" {...p} />
 const IcoX = (p: IconoWrapperProps) => <Icon icon="lucide:x" {...p} />;
 const IcoCheckCircle = (p: IconoWrapperProps) => <Icon icon="lucide:check-circle" {...p} />;
 const IcoChartUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
+const IcoChat = (p: IconoWrapperProps) => <Icon icon={ICONOS.chat} {...p} />;
 
 // =============================================================================
 // TIPOS Y CONSTANTES
@@ -58,7 +59,18 @@ const IcoChartUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida}
 
 type FiltroNotificaciones = 'todas' | 'no-leidas';
 type BucketAntiguedad = 'today' | 'week' | 'month' | 'old';
-type FamiliaNotificacion = 'compra' | 'entregado' | 'pendiente' | 'resena' | 'alerta' | 'sistema';
+type FamiliaNotificacion =
+  | 'compra'
+  | 'entregado'
+  | 'pendiente'
+  | 'resena'
+  | 'alerta'
+  | 'sistema'
+  // ── Sprint 1.D — Home / Coyo ─────────────────────────────────────────
+  /** Vecino respondió tu pregunta del Home. Tile azul + glifo de chat. */
+  | 'comunidad'
+  /** Coyo te puso en sus resultados. Tile violeta + glifo Sparkle. */
+  | 'coyo';
 
 interface FamiliaConfig {
   tile: string;
@@ -87,6 +99,9 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   nuevo_marketplace: 'sistema',
   nuevo_servicio: 'sistema',
   sistema: 'sistema',
+  // ── Sprint 1.D — Home / Coyo ─────────────────────────────────────────
+  pregunta_comunidad_respondida: 'comunidad',
+  coyo_recomendacion: 'coyo',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -119,6 +134,16 @@ const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
     tile: 'linear-gradient(135deg, #64748b, #475569)', // slate
     badge: null,
     TileGlifo: IcoChartUp,
+  },
+  comunidad: {
+    tile: 'linear-gradient(135deg, #2563eb, #1d4ed8)', // blue — vecino que responde
+    badge: { bg: '#1d4ed8', Glifo: IcoChat },
+    TileGlifo: IcoChat,
+  },
+  coyo: {
+    tile: 'linear-gradient(135deg, #a855f7, #6366f1)', // violet→indigo — Coyo / IA
+    badge: { bg: '#a855f7', Glifo: IcoSparkle },
+    TileGlifo: IcoSparkle,
   },
 };
 
@@ -204,6 +229,19 @@ function limpiarMensajeComercial(mensaje: string, actorNombre: string): string {
 function obtenerRutaDestino(n: Notificacion): string | null {
   const { modo, referenciaTipo, referenciaId, tipo } = n;
   if (!referenciaTipo) return null;
+
+  // ── Sprint 1.D — Notificaciones del Home / Coyo ────────────────────────
+  // Tanto 'pregunta_comunidad_respondida' (modo personal) como
+  // 'coyo_recomendacion' (modo personal o comercial) usan
+  // referenciaTipo='pregunta_comunidad' apuntando a la pregunta. Hoy
+  // el Home no tiene deep-link individual a una pregunta — pasamos el
+  // id como query string para uso futuro (scroll-to-pregunta) sin
+  // romper el flujo actual.
+  if (referenciaTipo === 'pregunta_comunidad') {
+    const qs = referenciaId ? `?preguntaId=${referenciaId}` : '';
+    return `/inicio${qs}`;
+  }
+
   if (modo === 'personal') {
     switch (referenciaTipo) {
       case 'transaccion':

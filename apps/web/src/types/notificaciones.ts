@@ -29,7 +29,14 @@ export type TipoNotificacion =
   | 'nueva_resena'
   | 'sistema'
   | 'nuevo_marketplace'
-  | 'nuevo_servicio';
+  | 'nuevo_servicio'
+  // ── Sprint 1.D — Home / Coyo ──────────────────────────────────────────
+  /** Al autor de una pregunta cuando alguien responde en el Home. */
+  | 'pregunta_comunidad_respondida'
+  /** Al gerente (fallback dueño) cuando un item suyo aparece en los
+   *  resultados de Coyo. También a usuarios personales con items en
+   *  Marketplace o Servicios. */
+  | 'coyo_recomendacion';
 
 export type ReferenciaTipo =
   | 'transaccion'
@@ -39,7 +46,9 @@ export type ReferenciaTipo =
   | 'recompensa'
   | 'resena'
   | 'marketplace'
-  | 'servicio';
+  | 'servicio'
+  // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
+  | 'pregunta_comunidad';
 
 // =============================================================================
 // NOTIFICACIÓN
