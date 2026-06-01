@@ -95,6 +95,93 @@ export function geminiRedactoComoSinResultados(texto: string): boolean {
 }
 
 // =============================================================================
+// HELPER: detectar si Gemini MENCIONÓ el item en su texto (filtro CASO A v2)
+// =============================================================================
+
+/**
+ * Stopwords en español + tokens que NO discriminan items y por tanto no
+ * sirven para decidir si Gemini "mencionó" un item en su redacción.
+ *
+ * Lista corta a propósito — solo lo que aparece a menudo en títulos de
+ * AnunciaYA. Ampliar si se observa que un ítem legítimo se filtra por
+ * compartir todos sus tokens significativos con stopwords.
+ */
+const STOPWORDS_TITULO = new Set<string>([
+    'el', 'la', 'los', 'las',
+    'un', 'una', 'unos', 'unas',
+    'de', 'del', 'al',
+    'para', 'por', 'con', 'sin',
+    'que', 'cual',
+    'mi', 'tu', 'su', 'mis', 'tus', 'sus',
+    'es', 'son', 'esta', 'estan',
+    'lo', 'le', 'les',
+    'esto', 'este',
+]);
+
+/**
+ * Normaliza un string para comparación robusta: minúsculas + sin acentos
+ * (mediante NFD + strip de los combining marks U+0300..U+036F).
+ */
+function normalizarParaComparar(s: string): string {
+    return s
+        .toLowerCase()
+        .normalize('NFD')
+        .replace(/[̀-ͯ]/g, '');
+}
+
+/**
+ * Devuelve `true` si al menos un token significativo del `titulo`
+ * aparece literalmente (substring, accent-insensitive) en `texto`.
+ *
+ * Tokens significativos = palabras del título con MÁS de 3 letras,
+ * que no son stopwords ni números puros.
+ *
+ * Usado en el filtro CASO A v2: cuando Gemini redactó mencionando
+ * algunos items pero omitiendo otros (porque los consideró irrelevantes
+ * semánticamente), los items omitidos NO deben aparecer como tarjetas —
+ * contradiría el texto.
+ *
+ * Caso real (2026-05-31, tarde): pregunta *"quien me ayuda con la
+ * casa?"* → Gemini extrajo `'servicios hogar'` → el buscador trajo
+ * Plomería Express + Contadora Fernanda + Plomería residencial 24h
+ * (Contadora matcheó por categoría "Servicios", palabra demasiado
+ * genérica). Gemini redactó mencionando solo las plomerías. Sin este
+ * filtro, la tarjeta de "Contadora Fernanda" aparecía contradiciendo
+ * el texto.
+ *
+ * Heurística "al menos un token aparece" en vez de "todos los tokens
+ * aparecen": Gemini puede mencionar el negocio por una parte de su
+ * nombre (ej. dice "el Brujo" en vez de "Pollos El Brujo"). Con al
+ * menos un token significativo basta para considerar mencionado.
+ *
+ * Falsos negativos posibles: si Gemini parafrasea sin usar palabras del
+ * título (raro), el item se filtra. Preferible quedarse corto (filtrar
+ * de más) que pasarse (mostrar items irrelevantes).
+ *
+ * Ver §Filtro CASO A v2 en docs/arquitectura/Home_Coyo.md.
+ */
+export function tituloMencionadoEnTexto(titulo: string, texto: string): boolean {
+    if (!titulo) return true; // título vacío → no podemos decidir, mantener
+    if (!texto) return true; // texto vacío → no podemos decidir, mantener
+
+    const tokens = normalizarParaComparar(titulo)
+        .split(/\s+/)
+        .map((t) => t.replace(/[^\p{L}\p{N}]/gu, ''))
+        .filter(
+            (t) =>
+                t.length > 3 &&
+                !STOPWORDS_TITULO.has(t) &&
+                !/^\d+$/.test(t),
+        );
+
+    if (tokens.length === 0) return true; // título sin tokens distintivos → no filtrar
+
+    const textoNorm = normalizarParaComparar(texto);
+
+    return tokens.some((t) => textoNorm.includes(t));
+}
+
+// =============================================================================
 // HELPER: marcar estado final
 // =============================================================================
 
@@ -279,6 +366,94 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
                 marketplace: { items: [], total: 0 },
                 servicios: { items: [], total: 0 },
             };
+        } else if (huboResultados) {
+            // ─── 6.6. Filtro CASO A v2: items no mencionados por Gemini ──
+            // Si Gemini redactó CASO A (encontró cosas legítimas) pero el
+            // buscador trajo items adicionales que Gemini NO mencionó en
+            // el texto (porque los consideró irrelevantes semánticamente),
+            // limpiamos esos items para que las tarjetas reflejen lo que
+            // Coyo dijo.
+            //
+            // Caso real (2026-05-31): pregunta "quien me ayuda con la
+            // casa?" → Gemini extrajo "servicios hogar" → buscador trajo
+            // Plomería Express + Contadora Fernanda + Plomería residencial
+            // (Contadora matcheó por categoría "Servicios", palabra
+            // demasiado genérica). Gemini redactó mencionando solo las
+            // plomerías. Sin este filtro, la tarjeta de Contadora
+            // aparecía contradiciendo el texto.
+            //
+            // Ver §Filtro CASO A v2 en docs/arquitectura/Home_Coyo.md.
+            const filtrarItems = <T extends { titulo: string }>(
+                items: T[],
+            ): T[] => items.filter((i) => tituloMencionadoEnTexto(i.titulo, textoFinal));
+
+            const negociosFiltrados = filtrarItems(
+                resultadoBusqueda.resultados.negocios.items,
+            );
+            const ofertasFiltrados = filtrarItems(
+                resultadoBusqueda.resultados.ofertas.items,
+            );
+            const marketplaceFiltrados = filtrarItems(
+                resultadoBusqueda.resultados.marketplace.items,
+            );
+            const serviciosFiltrados = filtrarItems(
+                resultadoBusqueda.resultados.servicios.items,
+            );
+
+            const huboLimpieza =
+                negociosFiltrados.length !==
+                    resultadoBusqueda.resultados.negocios.items.length ||
+                ofertasFiltrados.length !==
+                    resultadoBusqueda.resultados.ofertas.items.length ||
+                marketplaceFiltrados.length !==
+                    resultadoBusqueda.resultados.marketplace.items.length ||
+                serviciosFiltrados.length !==
+                    resultadoBusqueda.resultados.servicios.items.length;
+
+            if (huboLimpieza) {
+                console.warn(
+                    'Coyo orquestador: items no mencionados por Gemini en CASO A — limpiando para consistencia visual',
+                    {
+                        preguntaId,
+                        conteosAntes: {
+                            negocios:
+                                resultadoBusqueda.resultados.negocios.items.length,
+                            ofertas:
+                                resultadoBusqueda.resultados.ofertas.items.length,
+                            marketplace:
+                                resultadoBusqueda.resultados.marketplace.items
+                                    .length,
+                            servicios:
+                                resultadoBusqueda.resultados.servicios.items
+                                    .length,
+                        },
+                        conteosDespues: {
+                            negocios: negociosFiltrados.length,
+                            ofertas: ofertasFiltrados.length,
+                            marketplace: marketplaceFiltrados.length,
+                            servicios: serviciosFiltrados.length,
+                        },
+                    },
+                );
+                resultadosParaGuardar = {
+                    negocios: {
+                        items: negociosFiltrados,
+                        total: negociosFiltrados.length,
+                    },
+                    ofertas: {
+                        items: ofertasFiltrados,
+                        total: ofertasFiltrados.length,
+                    },
+                    marketplace: {
+                        items: marketplaceFiltrados,
+                        total: marketplaceFiltrados.length,
+                    },
+                    servicios: {
+                        items: serviciosFiltrados,
+                        total: serviciosFiltrados.length,
+                    },
+                };
+            }
         }
 
         // ─── 7. Guardar todo y cerrar como listo ─────────────────────

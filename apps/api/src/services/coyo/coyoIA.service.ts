@@ -123,7 +123,11 @@ const PROMPT_INTERPRETAR = `Lee la pregunta de un vecino de la ciudad y decide 2
 
 1. esBusquedaLocal: true si la pregunta es para BUSCAR algo de la ciudad (un negocio, un producto, un servicio, una oferta, alguien que ofrezca algo). false si es otra cosa (matemáticas, escribir textos, política, charla random, opinión general, etc.).
 
-2. terminos: SOLO 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL de lo que busca. NO devuelvas sinónimos. NO devuelvas frases largas. Prefiere 1 palabra fuerte; máximo 3 SOLO si de verdad ayudan a precisar (ej. "cuidado mascotas" porque las dos juntas precisan el dominio). Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales de palabras anglo. Para palabras en español puedes usar singular o plural indistintamente. Si esBusquedaLocal es false, deja terminos como "".
+2. terminos: SOLO 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL de lo que busca. NO devuelvas sinónimos. NO devuelvas frases largas. Prefiere 1 palabra fuerte; máximo 3 SOLO si de verdad ayudan a precisar (ej. "cuidado mascotas" porque las dos juntas precisan el dominio). Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales de palabras anglo. Para palabras en español puedes usar singular o plural indistintamente.
+
+NO uses palabras DEMASIADO GENÉRICAS como término clave: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares". Estas palabras matchean cientos de negocios sin precisar el dominio y generan ruido. Si la pregunta del vecino es tan vaga que NO puedes identificar una categoría/sustantivo específico (ej. "tienen algo bueno?", "quien me ayuda con la casa?", "necesito un servicio"), clasifica como esBusquedaLocal=false en lugar de extraer una palabra vaga.
+
+Si esBusquedaLocal es false, deja terminos como "".
 
 Ejemplos:
 - "¿Quién arregla una fuga de agua urgente?" → {"esBusquedaLocal": true, "terminos": "plomería"}
@@ -133,6 +137,8 @@ Ejemplos:
 - "Necesito un fotógrafo para mi boda" → {"esBusquedaLocal": true, "terminos": "fotógrafo bodas"}
 - "¿Cuánto es 5 por 8?" → {"esBusquedaLocal": false, "terminos": ""}
 - "Escríbeme un poema sobre el mar" → {"esBusquedaLocal": false, "terminos": ""}
+- "¿Tienen algo bueno?" → {"esBusquedaLocal": false, "terminos": ""}
+- "¿Quien me ayuda con la casa?" → {"esBusquedaLocal": false, "terminos": ""}
 
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
 {"esBusquedaLocal": true|false, "terminos": "..."}`;

@@ -309,6 +309,75 @@ un CASO B que pasó sin filtrar, se amplió):
 
 ---
 
+## Filtro CASO A v2 — items no mencionados por Gemini
+
+Aprendizaje del 2026-05-31 (tarde): incluso con el filtro CASO B y el
+prompt ampliado, había un **tercer tipo de bug** detectable solo cuando
+Gemini extrae palabras genéricas que matchean por categoría pero el
+buscador trae items de varios dominios mezclados.
+
+Caso real reproducido:
+
+> Pregunta: *"quien me ayuda con la casa?"* → Gemini extrajo
+> `'servicios hogar'`. El buscador devolvió: Plomería Express +
+> **Contadora Fernanda** + Plomería residencial 24h. ¿Por qué la
+> Contadora? Su categoría es "Contadores / Servicios" — la palabra
+> "servicios" matcheó literalmente. Gemini redactó cálido mencionando
+> SOLO las plomerías (descartó la Contadora semánticamente porque
+> "no ayuda con la casa"), pero la tarjeta de Contadora aparecía
+> igual abajo del texto. Inconsistencia visual.
+
+**Diferencia con CASO B:** CASO B es "Gemini dice no encontré nada + invita
+a la comunidad". CASO A v2 es "Gemini SÍ encontró algo, menciona items
+específicos, pero omite otros que el buscador trajo". El filtro CASO B
+no detecta esto (el texto no es negativo).
+
+**Solución:** después de Gemini redactar y descartando CASO B, otra
+heurística `tituloMencionadoEnTexto(titulo, texto)` decide si cada
+item fue mencionado por Gemini. Items NO mencionados se limpian.
+
+```typescript
+// orquestador.ts (simplificado)
+} else if (huboResultados) {
+  // Filtro CASO A v2: solo conservar items mencionados por Gemini
+  const filtrarItems = items =>
+    items.filter(i => tituloMencionadoEnTexto(i.titulo, textoFinal));
+  resultadosParaGuardar = {
+    negocios: { items: filtrarItems(items.negocios), ... },
+    /* ... 4 áreas ... */
+  };
+}
+```
+
+**Heurística:**
+
+1. Extraer del título las **palabras con > 3 letras** que no sean
+   stopwords (`el`, `la`, `de`, `con`, etc.) ni números puros.
+2. Si **al menos una** de esas palabras aparece literalmente
+   (substring, accent-insensitive) en el texto de Gemini, considerar
+   el item "mencionado". Sin esa palabra, se filtra.
+
+**Por qué "al menos una" y no "todas":** Gemini puede mencionar un
+negocio por una parte de su nombre (ej. dice *"el Brujo"* en vez de
+*"Pollos El Brujo"*). Con al menos un token significativo coincidente
+basta para considerarlo mencionado.
+
+**Defensa adicional (D):** el prompt de `interpretarPregunta` ahora
+también pide explícitamente NO extraer palabras demasiado genéricas
+(`servicios`, `hogar`, `ayuda`, `algo`, `bueno`, `cosa`, etc.). Si la
+pregunta es muy vaga, clasificar como `esBusquedaLocal=false`. Esto
+ataca la **causa raíz** (mejor query), no solo el síntoma (filtro).
+
+**Trade-off conocido del filtro CASO A v2:**
+
+Si Gemini parafrasea sin usar ninguna palabra del título (ej.
+*"te recomiendo la inmobiliaria"* sin mencionar *"Casas del Sol"*), el
+item legítimo se filtra. Preferible quedarse corto (filtrar de más) a
+pasarse (mostrar items irrelevantes). Cuando aparezca un caso así,
+ampliar la heurística (ej. usar sinónimos por categoría).
+
+---
+
 ## Tono y vocabulario de Coyo
 
 Aprendizaje del 2026-05-31: Coyo originalmente decía "el pueblo" y "el
