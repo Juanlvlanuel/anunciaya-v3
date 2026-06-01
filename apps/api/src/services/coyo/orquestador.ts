@@ -29,12 +29,13 @@
 
 import { sql, eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { preguntasComunidad } from '../../db/schemas/schema.js';
+import { preguntasComunidad, usuarios } from '../../db/schemas/schema.js';
 import { interpretarPregunta, redactarRespuestaCoyo } from './coyoIA.service.js';
 import {
     buscarEnTodaLaApp,
     type ResultadoBusquedaUnificada,
 } from './buscadorUnificado.js';
+import { notificarItemsRecomendados } from './notificacionesCoyo.service.js';
 
 // =============================================================================
 // CONSTANTES
@@ -259,6 +260,7 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
             .where(eq(preguntasComunidad.id, preguntaId))
             .returning({
                 id: preguntasComunidad.id,
+                usuarioId: preguntasComunidad.usuarioId,
                 texto: preguntasComunidad.texto,
                 ciudad: preguntasComunidad.ciudad,
             });
@@ -531,6 +533,74 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
             respuestaCoyo: textoFinal,
             resultadosCoyo: resultadosParaGuardar,
         });
+
+        // ─── 8. Notificar a los items recomendados (fire-and-forget) ─
+        // Cada dueño/gerente/usuario cuyo item aparezca en `resultados-
+        // ParaGuardar` recibe una notificación "Coyo te recomendó". Solo
+        // tiene sentido cuando huboResultados (después de los filtros);
+        // si todo se limpió, no hay a quién notificar.
+        //
+        // Reglas detalladas en `notificacionesCoyo.service.ts`:
+        //   - Negocios/Ofertas/vacante-empresa → gerente de la sucursal
+        //     específica (fallback dueño si no hay gerente).
+        //   - Marketplace/servicio-persona/solicito → usuario personal
+        //     que publicó.
+        //   - Auto-notificación bloqueada (autor de la pregunta nunca se
+        //     auto-notifica).
+        //
+        // El helper nunca lanza. Si todas las notificaciones fallan, el
+        // flujo principal continúa normal.
+        const huboItemsParaNotificar =
+            resultadosParaGuardar.negocios.items.length +
+                resultadosParaGuardar.ofertas.items.length +
+                resultadosParaGuardar.marketplace.items.length +
+                resultadosParaGuardar.servicios.items.length >
+            0;
+        if (huboItemsParaNotificar) {
+            // Cargar datos del autor de la pregunta (nombre + avatar) para
+            // poder armar la notificación con actorNombre + actorImagenUrl.
+            try {
+                const [autor] = await db
+                    .select({
+                        id: usuarios.id,
+                        nombre: usuarios.nombre,
+                        apellidos: usuarios.apellidos,
+                        avatarUrl: usuarios.avatarUrl,
+                    })
+                    .from(usuarios)
+                    .where(eq(usuarios.id, pregunta.usuarioId))
+                    .limit(1);
+
+                if (autor) {
+                    // Fire-and-forget: no await — las notificaciones se
+                    // disparan en background. Si fallan, solo se loguean
+                    // (cada función interna ya tiene su try/catch).
+                    notificarItemsRecomendados(
+                        {
+                            preguntaId,
+                            textoPregunta: pregunta.texto,
+                            autor: {
+                                id: autor.id,
+                                nombre: autor.nombre,
+                                apellidos: autor.apellidos,
+                                avatarUrl: autor.avatarUrl,
+                            },
+                        },
+                        resultadosParaGuardar,
+                    ).catch((err) => {
+                        console.warn(
+                            'Coyo orquestador: notificarItemsRecomendados falló (fire-and-forget):',
+                            err,
+                        );
+                    });
+                }
+            } catch (err) {
+                console.warn(
+                    'Coyo orquestador: no se pudo cargar autor para notificar items:',
+                    err,
+                );
+            }
+        }
     } catch (error) {
         // Red de seguridad: cualquier error inesperado deja la pregunta
         // en sin_respuesta y se loguea. NUNCA propagamos hacia arriba.

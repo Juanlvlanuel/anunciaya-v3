@@ -34,7 +34,14 @@ export type TipoNotificacion =
   | 'marketplace_nueva_pregunta'
   | 'marketplace_pregunta_respondida'
   | 'servicios_nueva_pregunta'
-  | 'servicios_pregunta_respondida';
+  | 'servicios_pregunta_respondida'
+  // ── Sprint 1.D — Home / Coyo ────────────────────────────────────────────
+  /** Al autor de una pregunta cuando otro vecino responde en el Home. */
+  | 'pregunta_comunidad_respondida'
+  /** Al gerente de la sucursal (fallback dueño) cuando un item suyo aparece
+   *  en los resultados de Coyo. También a usuarios personales con items
+   *  en Marketplace o Servicios. */
+  | 'coyo_recomendacion';
 
 // Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =
@@ -46,7 +53,9 @@ export type ReferenciaTipo =
   | 'resena'
   | 'marketplace'
   | 'servicio'
-  | 'alerta';
+  | 'alerta'
+  // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
+  | 'pregunta_comunidad';
 
 export interface CrearNotificacionInput {
   usuarioId: string;

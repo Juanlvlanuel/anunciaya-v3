@@ -34,6 +34,7 @@ import type {
     RespuestaServicio,
     EstadoRespuesta,
 } from '../types/preguntasComunidad.types.js';
+import { crearNotificacion } from './notificaciones.service.js';
 
 // =============================================================================
 // CONSTANTES
@@ -79,9 +80,13 @@ export async function crearRespuesta(
 
         // Verificar que la pregunta existe y está activa (no cerrada ni
         // oculta). Las preguntas oculta/cerrada NO aceptan nuevas respuestas.
+        // También se trae `usuarioId` (autor de la pregunta) y `texto` para
+        // disparar la notificación al autor después del INSERT.
         const [pregunta] = await db
             .select({
                 id: preguntasComunidad.id,
+                usuarioId: preguntasComunidad.usuarioId,
+                texto: preguntasComunidad.texto,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
             })
             .from(preguntasComunidad)
@@ -145,6 +150,33 @@ export async function crearRespuesta(
             autorApellidos: autor.apellidos,
             autorAvatarUrl: autor.avatarUrl ?? null,
         };
+
+        // Notificación al autor de la pregunta — solo si quien responde es
+        // DISTINTO del autor (no auto-notificación cuando el autor responde
+        // a su propia pregunta). Fire-and-forget: si falla, se loguea pero
+        // NO bloqueamos la respuesta del usuario.
+        if (pregunta.usuarioId !== input.usuarioId) {
+            const nombreCompletoAutor = `${autor.nombre} ${autor.apellidos}`.trim();
+            const preview = nueva.texto.length > 100
+                ? `${nueva.texto.slice(0, 100)}…`
+                : nueva.texto;
+            crearNotificacion({
+                usuarioId: pregunta.usuarioId,
+                modo: 'personal',
+                tipo: 'pregunta_comunidad_respondida',
+                titulo: 'Respondieron tu pregunta',
+                mensaje: preview,
+                referenciaTipo: 'pregunta_comunidad',
+                referenciaId: pregunta.id,
+                actorImagenUrl: autor.avatarUrl ?? undefined,
+                actorNombre: nombreCompletoAutor || undefined,
+            }).catch((err) => {
+                console.warn(
+                    'No se pudo crear notificación pregunta_comunidad_respondida:',
+                    err,
+                );
+            });
+        }
 
         return {
             success: true,
