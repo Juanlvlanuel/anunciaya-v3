@@ -289,8 +289,23 @@ nuevo, se agrega el patrón al helper.
 
 - Negativa: `no encontré`, `no encontro`, `no hay`, `por ahora no`,
   `ahorita no`, `todavía no`, `sin resultados`, `no apareció/aparecen`.
-- Invitación a la comunidad: `deja tu pregunta`, `deja aquí tu
-  pregunta`, `comunidad`, `vecinos te ...`, `a la comunidad`.
+- Invitación a la comunidad (cualquiera de estas basta):
+  `deja(r) tu pregunta` / `deja(r) aquí tu pregunta` (imperativo e
+  infinitivo), `comunidad`, `algún vecino`, `vecino(s) te ...`,
+  `echa(r) (una) mano`, `alguien te puede/pueda`.
+
+**Historial de iteraciones de los patrones** (cada vez que apareció
+un CASO B que pasó sin filtrar, se amplió):
+
+- v1 (2026-05-31 mañana): patrones base — `deja tu pregunta`,
+  `comunidad`, `vecinos te`, `a la comunidad`.
+- v2 (2026-05-31 tarde): se observó que Gemini también escribe
+  *"puedes dejar tu pregunta y seguro algún vecino te echa la mano"*
+  (infinitivo + singular + "echar mano"). Caso real: pregunta
+  *"quien arregla aires acondicionados?"* dejó colada una tarjeta
+  de bicicleta en Marketplace. Se ampliaron los patrones para
+  capturar infinitivo (`dejar`), singular (`algún vecino`,
+  `vecino te`) y la expresión `echar (una) mano`.
 
 ---
 

@@ -90,7 +90,7 @@ function geminiRedactoComoSinResultados(texto: string): boolean {
     const senalNegativa =
         /(no encontr[éeé]|no hay|por ahora no|ahorita no|todav[íi]a no|sin resultados|no aparec)/i;
     const senalComunidad =
-        /(deja tu pregunta|deja aqu[íi] tu pregunta|comunidad|vecinos te |a la comunidad)/i;
+        /(deja(?:r)?\s+(?:tu|aqu[íi]\s+tu)\s+pregunta|comunidad|alg[úu]n\s+vecino|vecinos?\s+te\s|echa(?:r)?\s+(?:una\s+)?mano|alguien\s+te\s+(?:puede|pueda))/i;
     return senalNegativa.test(texto) && senalComunidad.test(texto);
 }
 
