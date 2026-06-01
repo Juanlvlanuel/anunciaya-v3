@@ -21,6 +21,7 @@
  */
 
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
+import { Link } from 'react-router-dom';
 import {
     Send,
     Loader2,
@@ -361,9 +362,18 @@ function SeccionFeed({ feed, nombreCiudad }: SeccionFeedProps) {
 
     return (
         <section className="max-w-3xl mx-auto w-full space-y-3 lg:space-y-4" data-testid="home-feed">
-            <h2 className="text-base lg:text-lg font-bold text-slate-800 px-1">
-                Lo que pregunta la comunidad
-            </h2>
+            <div className="flex items-baseline justify-between gap-3 px-1">
+                <h2 className="text-base lg:text-lg font-bold text-slate-800">
+                    Lo que pregunta la comunidad
+                </h2>
+                <Link
+                    to="/inicio/mis-preguntas"
+                    data-testid="home-link-mis-preguntas"
+                    className="text-xs lg:text-sm font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer transition-colors"
+                >
+                    Mis preguntas →
+                </Link>
+            </div>
 
             {!nombreCiudad ? (
                 <EstadoSinCiudad />
