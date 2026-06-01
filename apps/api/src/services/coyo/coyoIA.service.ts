@@ -171,6 +171,24 @@ REGLAS para terminos (solo cuando tipo es busqueda_local):
 - Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales anglo.
 - Para palabras en español puedes usar singular o plural indistintamente.
 
+ESTRATEGIA DE SINÓNIMOS: Cuando la pregunta usa un término GENÉRICO de categoría donde los productos suelen publicarse con marcas/sinónimos distintos, INCLUYE 1-2 sinónimos comunes como tokens adicionales. Esto permite que el buscador encuentre productos que NO usan exactamente esa palabra genérica.
+
+Ejemplos donde SÍ agregar sinónimos (el genérico raramente aparece literal en títulos):
+- "smartphones" / "celulares" → terminos: "smartphone celular" (productos se publican como "iPhone", "Samsung", "Galaxy")
+- "autos" / "carros" → terminos: "auto coche carro" (los 3 son comunes en México)
+- "ropa de bebé" → terminos: "bebé ropa"
+- "comida china" → terminos: "comida china"
+- "ropa" → terminos: "ropa playera" (productos específicos)
+
+Ejemplos donde NO agregar sinónimos (palabra ya específica, aparece literal en títulos):
+- "tacos" → terminos: "tacos"
+- "pizza" → terminos: "pizza"
+- "plomería" → terminos: "plomería"
+- "laptop" → terminos: "laptop"
+- "panadería" → terminos: "panadería"
+
+Tu juicio decide si el término es lo bastante genérico para merecer sinónimos. LIMITA a 3 tokens MÁXIMO total (incluyendo el original).
+
 INFERENCIA: si la pregunta tiene UNA SOLA interpretación obvia aunque el sustantivo no esté explícito, clasifica como busqueda_local con los términos inferidos. Es parte de ser un buen asistente vecinal:
 - "no tengo ganas de cocinar" → busqueda_local con terminos: "restaurantes"
 - "el coche no arranca" → busqueda_local con terminos: "mecánico"
@@ -189,6 +207,7 @@ busqueda_local:
 - "¿Quién arregla una fuga de agua urgente?" → {"tipo": "busqueda_local", "terminos": "plomería", "mensajeReformular": ""}
 - "¿Dónde venden tacos al pastor?" → {"tipo": "busqueda_local", "terminos": "tacos", "mensajeReformular": ""}
 - "¿Dónde hay laptops?" → {"tipo": "busqueda_local", "terminos": "laptop", "mensajeReformular": ""}
+- "venden smartphones?" → {"tipo": "busqueda_local", "terminos": "smartphone celular", "mensajeReformular": ""}
 - "no tengo ganas de cocinar" → {"tipo": "busqueda_local", "terminos": "restaurantes", "mensajeReformular": ""}
 - "el coche no arranca" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": ""}
 
