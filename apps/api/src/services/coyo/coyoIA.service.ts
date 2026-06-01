@@ -25,6 +25,10 @@
 
 import { GoogleGenAI } from '@google/genai';
 import { env } from '../../config/env.js';
+import {
+    obtenerCatalogoCategorias,
+    formatearCatalogoParaPrompt,
+} from './categoriasCatalogo.service.js';
 
 // =============================================================================
 // PERSONALIDAD DE COYO — EDITABLE
@@ -171,29 +175,50 @@ REGLAS para terminos (solo cuando tipo es busqueda_local):
 - Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales anglo.
 - Para palabras en español puedes usar singular o plural indistintamente.
 
-ESTRATEGIA DE SINÓNIMOS: Cuando la pregunta usa un término GENÉRICO de categoría donde los productos suelen publicarse con marcas/sinónimos distintos, INCLUYE 1-2 sinónimos comunes como tokens adicionales. Esto permite que el buscador encuentre productos que NO usan exactamente esa palabra genérica.
+ESTRATEGIA DE DOMINIO AMPLIO (la más importante — léela con cuidado): el negocio de AnunciaYA se organiza en CATEGORÍAS PRINCIPALES (ej. "Comida", "Salud", "Belleza", "Comercios", "Servicios"). Cada categoría tiene varias subcategorías (ej. "Comida" agrupa Mariscos, Restaurantes, Panaderías, Repostería, Tortillerías).
 
-Ejemplos donde SÍ agregar sinónimos (el genérico raramente aparece literal en títulos):
-- "smartphones" / "celulares" → terminos: "smartphone celular" (productos se publican como "iPhone", "Samsung", "Galaxy")
-- "autos" / "carros" → terminos: "auto coche carro" (los 3 son comunes en México)
-- "ropa de bebé" → terminos: "bebé ropa"
-- "comida china" → terminos: "comida china"
-- "ropa" → terminos: "ropa playera" (productos específicos)
+Las categorías REALES y vigentes están listadas al final de este prompt en la sección "CATÁLOGO DE CATEGORÍAS DE ANUNCIAYA". Úsalas como referencia.
 
-Ejemplos donde NO agregar sinónimos (palabra ya específica, aparece literal en títulos):
+Cuando el vecino busque algo de un DOMINIO AMPLIO sin pedir un sustantivo específico (ej. "no tengo ganas de cocinar", "tengo hambre", "me duele algo", "necesito ir al peluquero"), USA LA CATEGORÍA PRINCIPAL del catálogo como uno de los términos, EXACTAMENTE COMO APARECE en el catálogo (con la inicial en mayúscula). Eso permite que el buscador encuentre TODOS los negocios de esa categoría, no solo los que coinciden con palabra específica.
+
+Ejemplos de dominio amplio:
+- "no tengo ganas de cocinar" → terminos: "Comida restaurantes"
+- "tengo hambre" → terminos: "Comida"
+- "necesito comer algo" → terminos: "Comida"
+- "me duele algo" → terminos: "Salud médico"
+- "necesito ir al peluquero" → terminos: "Belleza"
+- "necesito ropa" → terminos: "Comercios ropa"
+- "donde paso un buen rato" → terminos: "Diversión"
+
+Cuando el vecino busca algo ESPECÍFICO (con sustantivo concreto), prefiere la palabra específica:
+- "donde hay tacos" → terminos: "tacos"
+- "donde venden mariscos" → terminos: "Mariscos" (es subcategoría exacta del catálogo)
+- "necesito una farmacia" → terminos: "Farmacias" (subcategoría exacta)
+- "donde hay una panadería" → terminos: "Panaderías" (subcategoría exacta)
+- "donde compro pan dulce" → terminos: "Repostería pan" (subcategoría + palabra)
+
+ESTRATEGIA DE SINÓNIMOS (para palabras anglo o muy genéricas): Cuando la pregunta usa un término GENÉRICO en INGLÉS donde los productos suelen publicarse con marcas, INCLUYE 1-2 sinónimos comunes:
+- "smartphones" / "celulares" → terminos: "smartphone celular" (matchea iPhone, Samsung, etc.)
+- "autos" / "carros" → terminos: "auto coche carro"
+
+Ejemplos donde NO agregar sinónimos (palabra ya específica):
 - "tacos" → terminos: "tacos"
 - "pizza" → terminos: "pizza"
-- "plomería" → terminos: "plomería"
-- "laptop" → terminos: "laptop"
-- "panadería" → terminos: "panadería"
 
-Tu juicio decide si el término es lo bastante genérico para merecer sinónimos. LIMITA a 3 tokens MÁXIMO total (incluyendo el original).
+LIMITA a 4 tokens MÁXIMO total. Tu juicio decide cuál estrategia aplicar según la pregunta.
 
 INFERENCIA: si la pregunta tiene UNA SOLA interpretación obvia aunque el sustantivo no esté explícito, clasifica como busqueda_local con los términos inferidos. Es parte de ser un buen asistente vecinal:
 - "no tengo ganas de cocinar" → busqueda_local con terminos: "restaurantes"
 - "el coche no arranca" → busqueda_local con terminos: "mecánico"
 - "se me cayó algo en el ojo" → busqueda_local con terminos: "médico"
 - "tengo hambre" → busqueda_local con terminos: "restaurantes"
+
+PREGUNTAS DE OPINIÓN QUE ESCONDEN BÚSQUEDA: en español mexicano es común preguntar de forma INDIRECTA con frases como "¿está chido X?", "¿vale la pena X?", "¿me conviene X?", "¿es buena idea X?". Si X es algo que la app puede buscar (negocio, producto, servicio, oferta, comida, etc.), el vecino REALMENTE quiere encontrar X — solo lo pregunta así. Trata X como busqueda_local. Pero si X es algo abstracto (política, clima, vivir en otro país, opiniones), sigue siendo no_local.
+- "¿está chido pedir tacos a domicilio?" → busqueda_local con terminos: "tacos domicilio"
+- "¿vale la pena ir al mecánico aquí?" → busqueda_local con terminos: "mecánico"
+- "¿me conviene comprar una laptop usada?" → busqueda_local con terminos: "laptop"
+- "¿está chido el clima?" → no_local (clima es abstracto, no buscable)
+- "¿qué piensas de los políticos?" → no_local (opinión abstracta)
 
 REGLAS para mensajeReformular (solo cuando tipo es vaga):
 - 1-2 frases cálidas, mexicanas naturales, sin exagerar.
@@ -210,6 +235,8 @@ busqueda_local:
 - "venden smartphones?" → {"tipo": "busqueda_local", "terminos": "smartphone celular", "mensajeReformular": ""}
 - "no tengo ganas de cocinar" → {"tipo": "busqueda_local", "terminos": "restaurantes", "mensajeReformular": ""}
 - "el coche no arranca" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": ""}
+- "está chido pedir tacos a domicilio?" → {"tipo": "busqueda_local", "terminos": "tacos domicilio", "mensajeReformular": ""}
+- "vale la pena ir al mecánico aquí?" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": ""}
 
 vaga:
 - "¿Quien me ayuda con la casa?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Hola! Para echarte la mano dime de qué se trata: ¿necesitas plomero, electricista, jardinería, limpieza o ayuda con mudanza? Con un poquito más de detalle te ayudo mejor."}
@@ -246,11 +273,22 @@ export async function interpretarPregunta(
     const cliente = obtenerCliente();
     if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
 
+    // Inyectar las categorías REALES del catálogo de AnunciaYA al prompt.
+    // Cacheado en memoria 1h (no consulta BD en cada pregunta). Si falla la
+    // carga o el catálogo está vacío, formatearCatalogoParaPrompt devuelve
+    // cadena vacía y el prompt funciona sin esa sección (Gemini cae a sus
+    // reglas internas). Ver `categoriasCatalogo.service.ts`.
+    const catalogo = await obtenerCatalogoCategorias();
+    const catalogoTexto = formatearCatalogoParaPrompt(catalogo);
+    const promptCompleto = catalogoTexto
+        ? `${PROMPT_INTERPRETAR}\n\nCATÁLOGO DE CATEGORÍAS DE ANUNCIAYA (estas son las categorías REALES de los negocios en este momento — úsalas como referencia para extraer la CATEGORÍA PRINCIPAL como uno de los \`terminos\` cuando el vecino busque un dominio amplio):\n\n${catalogoTexto}\n\nIMPORTANTE: cuando incluyas una CATEGORÍA o SUBCATEGORÍA del catálogo, úsala EXACTAMENTE COMO APARECE (con la inicial en mayúscula). Esto permite que el buscador matchee correctamente.`
+        : PROMPT_INTERPRETAR;
+
     let textoRespuesta: string;
     try {
         const r = await cliente.models.generateContent({
             model: MODELO_GEMINI,
-            contents: `${PROMPT_INTERPRETAR}\n\nPregunta del vecino:\n${texto}`,
+            contents: `${promptCompleto}\n\nPregunta del vecino:\n${texto}`,
         });
         textoRespuesta = r.text ?? '';
     } catch (error) {
