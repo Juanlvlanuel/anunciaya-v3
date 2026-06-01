@@ -47,6 +47,17 @@ TONO:
 - BREVE: 1 o 2 frases máximo. Vas al grano.
 - NO uses las palabras "pueblo" ni "catálogo" en tus respuestas. Habla de "tu ciudad" o "la ciudad". AnunciaYA funciona en múltiples ciudades — no todas son pueblos pequeños.
 
+EMPATÍA EMOCIONAL:
+- Si la pregunta del vecino transmite cansancio, dolor, urgencia, frustración u otra emoción (aunque sea sutil), RECONÓCELA antes de presentar opciones.
+- NO empieces con expresiones genéricas de entusiasmo ("¡Qué rico!", "¡Qué buena idea!") cuando el vecino claramente expresó cansancio o molestia — suena al revés.
+- Ejemplos de empatía bien encajada:
+   - "no tengo ganas de cocinar" → "¡Te entiendo, hoy a descansar!" / "¡Ay, qué flojera!" + opciones
+   - "se me arruinó el coche" → "¡Híjole, qué mala suerte!" / "Entiendo lo de tu coche" + opciones
+   - "me duele algo" → "Ojalá te sientas mejor pronto" + opciones
+   - "necesito X urgente" → "¡Vamos a resolverlo rápido!" + opciones
+   - "no encuentro nada barato" → "Te entiendo, vamos a buscar opciones accesibles" + opciones
+- Cuando NO haya emoción visible (pregunta neutra como "donde venden tacos"), responde directo sin forzar empatía.
+
 REGLAS SAGRADAS (NO ROMPER NUNCA):
 1. SOLO hablas de los resultados REALES que se te pasan en el prompt. NUNCA inventas negocios, precios, horarios, ratings, reseñas, ni recomendaciones que no estén en los datos.
 2. SÍ puedes y DEBES mencionar los datos ricos que vienen en los resultados (rating, total de reseñas, si está verificado, si está abierto ahorita, condición del artículo, días para vencer una oferta). Son información real y valiosa para el vecino.
@@ -59,7 +70,27 @@ REGLAS SAGRADAS (NO ROMPER NUNCA):
 // CLIENTE GEMINI (LAZY SINGLETON)
 // =============================================================================
 
-const MODELO_GEMINI = 'gemini-2.5-flash';
+/**
+ * Modelo principal — el más nuevo y de mejor calidad. Si Gemini está
+ * caído (503) o lento, se reintenta dentro del mismo modelo antes de
+ * caer al fallback.
+ */
+const MODELO_GEMINI_PRINCIPAL = 'gemini-2.5-flash';
+
+/**
+ * Modelo de respaldo cuando el principal agota reintentos. `2.0-flash`
+ * suele tener mejor disponibilidad porque ya está estabilizado.
+ * Sacrificamos algo de calidad de redacción a cambio de respuestas
+ * disponibles cuando el principal está saturado.
+ */
+const MODELO_GEMINI_FALLBACK = 'gemini-2.0-flash';
+
+/**
+ * Backoff de reintentos por modelo (ms). Tres intentos: inmediato,
+ * 1 segundo, 3 segundos. La mayoría de los 503 transitorios de Gemini
+ * se resuelven en pocos segundos.
+ */
+const DELAYS_REINTENTO_MS = [0, 1000, 3000];
 
 let clienteCache: GoogleGenAI | null = null;
 
@@ -76,6 +107,100 @@ function obtenerCliente(): GoogleGenAI | null {
         clienteCache = new GoogleGenAI({ apiKey: env.GEMINI_API_KEY });
     }
     return clienteCache;
+}
+
+// =============================================================================
+// HELPERS DE RESILIENCIA (RETRY + FALLBACK)
+// =============================================================================
+
+/**
+ * Determina si un error de Gemini es TRANSITORIO (vale la pena reintentar)
+ * o PERMANENTE (no tiene sentido reintentar).
+ *
+ *  - 5xx (503, 502, 500): servidor de Gemini saturado o caído → transitorio.
+ *  - 429: rate limit / cuota → transitorio (esperar y reintentar).
+ *  - 408: timeout → transitorio.
+ *  - 4xx (excepto 408/429): cliente erróneo (400 bad request, 401 sin auth,
+ *    403 sin permiso, 404 modelo no existe) → permanente, no reintentar.
+ *  - Sin status (network error, DNS, etc.) → asumir transitorio.
+ */
+function esErrorTransitorio(error: unknown): boolean {
+    if (error && typeof error === 'object' && 'status' in error) {
+        const status = (error as { status: unknown }).status;
+        if (typeof status === 'number') {
+            if (status >= 500) return true;
+            if (status === 429 || status === 408) return true;
+            return false;
+        }
+    }
+    // Errores sin status (red, DNS, timeout no tipado) → asumir transitorio.
+    return true;
+}
+
+/**
+ * Llama a Gemini con resiliencia: reintenta el modelo principal hasta 3
+ * veces con backoff (0s → 1s → 3s), y si todos los reintentos fallan
+ * con errores transitorios, intenta con el modelo de respaldo.
+ *
+ * Devuelve `{ texto, modelo }` si alguna llamada funcionó, o `null` si
+ * fallaron todas las combinaciones (modelo principal × 3 intentos +
+ * modelo fallback × 3 intentos = 6 intentos antes de rendirse).
+ *
+ * Los errores permanentes (4xx excepto 408/429) NO se reintentan y
+ * tampoco activan el fallback — devuelven `null` inmediatamente.
+ */
+async function llamarGeminiConReintento(
+    cliente: GoogleGenAI,
+    contents: string,
+): Promise<{ texto: string; modelo: string } | null> {
+    const modelos = [MODELO_GEMINI_PRINCIPAL, MODELO_GEMINI_FALLBACK];
+
+    for (const modelo of modelos) {
+        for (let intento = 0; intento < DELAYS_REINTENTO_MS.length; intento++) {
+            const delay = DELAYS_REINTENTO_MS[intento];
+            if (delay > 0) {
+                await new Promise((r) => setTimeout(r, delay));
+            }
+            try {
+                const r = await cliente.models.generateContent({
+                    model: modelo,
+                    contents,
+                });
+                if (intento > 0 || modelo !== MODELO_GEMINI_PRINCIPAL) {
+                    // Solo loguear cuando hubo recuperación (no en el path feliz)
+                    console.warn(
+                        `Coyo IA — recuperado con ${modelo} en intento ${intento + 1}`,
+                    );
+                }
+                return { texto: r.text ?? '', modelo };
+            } catch (error) {
+                const transitorio = esErrorTransitorio(error);
+                if (!transitorio) {
+                    // Error permanente (4xx) — no reintentar, no fallback.
+                    console.warn(
+                        `Coyo IA — error permanente en ${modelo}, no se reintenta:`,
+                        error,
+                    );
+                    return null;
+                }
+                const esUltimoIntento = intento === DELAYS_REINTENTO_MS.length - 1;
+                const esUltimoModelo = modelo === MODELO_GEMINI_FALLBACK;
+                if (esUltimoIntento && esUltimoModelo) {
+                    console.warn(
+                        `Coyo IA — agotados todos los reintentos en ${modelo}:`,
+                        error,
+                    );
+                } else if (esUltimoIntento) {
+                    console.warn(
+                        `Coyo IA — ${modelo} agotó reintentos, intentando ${MODELO_GEMINI_FALLBACK}...`,
+                    );
+                }
+                // Continúa con el siguiente intento (mismo modelo o siguiente)
+            }
+        }
+    }
+
+    return null;
 }
 
 // =============================================================================
@@ -284,17 +409,17 @@ export async function interpretarPregunta(
         ? `${PROMPT_INTERPRETAR}\n\nCATÁLOGO DE CATEGORÍAS DE ANUNCIAYA (estas son las categorías REALES de los negocios en este momento — úsalas como referencia para extraer la CATEGORÍA PRINCIPAL como uno de los \`terminos\` cuando el vecino busque un dominio amplio):\n\n${catalogoTexto}\n\nIMPORTANTE: cuando incluyas una CATEGORÍA o SUBCATEGORÍA del catálogo, úsala EXACTAMENTE COMO APARECE (con la inicial en mayúscula). Esto permite que el buscador matchee correctamente.`
         : PROMPT_INTERPRETAR;
 
-    let textoRespuesta: string;
-    try {
-        const r = await cliente.models.generateContent({
-            model: MODELO_GEMINI,
-            contents: `${promptCompleto}\n\nPregunta del vecino:\n${texto}`,
-        });
-        textoRespuesta = r.text ?? '';
-    } catch (error) {
-        console.warn('Coyo IA — interpretarPregunta falló al llamar a Gemini:', error);
+    const respuesta = await llamarGeminiConReintento(
+        cliente,
+        `${promptCompleto}\n\nPregunta del vecino:\n${texto}`,
+    );
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — interpretarPregunta agotó reintentos y fallback de Gemini',
+        );
         return { disponible: false, razon: 'error_gemini' };
     }
+    const textoRespuesta = respuesta.texto;
 
     try {
         const limpio = limpiarJsonDeGemini(textoRespuesta);
@@ -363,21 +488,21 @@ CASO B — Si TODOS los grupos vienen vacíos (sin items en ninguno): dilo con h
 
 RESPONDE SOLO con el texto de Coyo, SIN comillas envolventes, SIN bloques markdown, SIN encabezados, SIN explicaciones.`;
 
-    try {
-        const r = await cliente.models.generateContent({
-            model: MODELO_GEMINI,
-            contents: prompt,
-        });
-        const texto = (r.text ?? '').trim();
-        if (texto.length === 0) {
-            console.warn('Coyo IA — redactarRespuestaCoyo: Gemini devolvió texto vacío');
-            return { disponible: false, razon: 'error_parseo' };
-        }
-        return { disponible: true, data: texto };
-    } catch (error) {
-        console.warn('Coyo IA — redactarRespuestaCoyo falló al llamar a Gemini:', error);
+    const respuesta = await llamarGeminiConReintento(cliente, prompt);
+    if (respuesta === null) {
+        console.warn(
+            'Coyo IA — redactarRespuestaCoyo agotó reintentos y fallback de Gemini',
+        );
         return { disponible: false, razon: 'error_gemini' };
     }
+    const texto = respuesta.texto.trim();
+    if (texto.length === 0) {
+        console.warn(
+            'Coyo IA — redactarRespuestaCoyo: Gemini devolvió texto vacío',
+        );
+        return { disponible: false, razon: 'error_parseo' };
+    }
+    return { disponible: true, data: texto };
 }
 
 // =============================================================================
