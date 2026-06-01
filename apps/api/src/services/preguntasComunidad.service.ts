@@ -37,6 +37,68 @@ const TEXTO_MAX = 500;
 const LIMIT_DEFAULT = 20;
 const LIMIT_MAX = 50;
 
+/**
+ * Días sin actividad antes de que una pregunta se autocierre.
+ * "Actividad" = una respuesta NUEVA y activa. Likes, "yo también quiero saber"
+ * y resueltas NO resetean el timer (decisión de producto Sprint 1).
+ *
+ * Si la pregunta nunca tuvo respuestas, se mide desde su `created_at`.
+ */
+const DIAS_EXPIRACION = 14;
+
+// =============================================================================
+// EXPIRACIÓN PASIVA (Sprint 1.E)
+// =============================================================================
+
+/**
+ * Cierra todas las preguntas 'activa' de una ciudad que llevan más de
+ * DIAS_EXPIRACION sin actividad. Es un "cron pasivo" — se ejecuta al inicio
+ * de `listarPreguntasPorCiudad`, antes del SELECT del feed.
+ *
+ * Diseño:
+ *   - "Actividad" = una respuesta NUEVA y activa. La fecha de referencia es
+ *     `MAX(respuestas.created_at WHERE estado='activa')` para esa pregunta.
+ *     Si no hay respuestas, se usa `preguntas_comunidad.created_at`.
+ *   - El barrido es por ciudad para que solo el tráfico de esa ciudad pague
+ *     el costo, y para que el `WHERE ciudad = ...` use el índice existente.
+ *   - Idempotente: si no hay vencidas, el UPDATE afecta 0 filas y sale rápido.
+ *   - No relanza errores — si el UPDATE falla, el feed se sigue mostrando
+ *     normalmente (solo no se cierran preguntas en esta corrida).
+ *
+ * NOTA: las preguntas marcadas como `resuelta_at IS NOT NULL` también
+ * expiran — marcar resuelta NO extiende el timer (solo nuevas respuestas).
+ * Esto coincide con la decisión de producto y mantiene la regla simple:
+ * "14 días sin que nadie aporte algo nuevo, se autocierra".
+ */
+async function cerrarPreguntasVencidasDeCiudad(ciudad: string): Promise<void> {
+    try {
+        await db.execute(sql`
+            UPDATE preguntas_comunidad
+            SET estado_pregunta = 'cerrada',
+                updated_at = NOW()
+            WHERE ciudad = ${ciudad}
+              AND estado_pregunta = 'activa'
+              AND COALESCE(
+                  (
+                      SELECT MAX(created_at)
+                      FROM respuestas_preguntas_comunidad
+                      WHERE pregunta_id = preguntas_comunidad.id
+                        AND estado = 'activa'
+                  ),
+                  preguntas_comunidad.created_at
+              ) < NOW() - (${DIAS_EXPIRACION} || ' days')::interval
+        `);
+    } catch (error) {
+        // No relanzamos: el barrido es aditivo. Si falla, el feed se muestra
+        // igual (solo no se cerrarán preguntas vencidas en esta corrida).
+        console.warn(
+            'cerrarPreguntasVencidasDeCiudad falló (no bloqueante):',
+            ciudad,
+            error,
+        );
+    }
+}
+
 // =============================================================================
 // CREAR PREGUNTA
 // =============================================================================
@@ -177,6 +239,12 @@ export async function listarPreguntasPorCiudad(
         const offsetRaw = input.offset ?? 0;
         const limit = Math.min(Math.max(1, Math.floor(limitRaw)), LIMIT_MAX);
         const offset = Math.max(0, Math.floor(offsetRaw));
+
+        // ─── Cron pasivo: cerrar preguntas vencidas (>14 días sin
+        //     actividad) ANTES de leer el feed. await intencional para que
+        //     el SELECT no devuelva una pregunta que debería ser 'cerrada'.
+        //     Si falla, el feed se sigue mostrando (función no relanza).
+        await cerrarPreguntasVencidasDeCiudad(ciudad);
 
         // Subqueries inline para conteos y "yo también interesado".
         // Más simple que joins agregados — Postgres optimiza cada subselect
