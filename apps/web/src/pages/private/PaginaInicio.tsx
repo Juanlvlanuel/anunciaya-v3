@@ -21,7 +21,8 @@
  */
 
 import { useMemo, useState, type FormEvent, type KeyboardEvent } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { useSearchStore } from '../../stores/useSearchStore';
 import {
     Send,
     Loader2,
@@ -33,6 +34,7 @@ import {
     BadgeCheck,
     Clock,
     CheckCircle2,
+    ArrowRight,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -63,6 +65,67 @@ import type {
 
 const TEXTO_MAX = 500;
 const MS_24H = 24 * 60 * 60 * 1000;
+
+// =============================================================================
+// HELPERS DE NAVEGACIÓN (Sprint 2.A)
+// =============================================================================
+
+/**
+ * Construye la ruta del DETALLE de un item recomendado por Coyo. Se usa al
+ * hacer click en una tarjeta del bloque "Coyo encontró esto para ti".
+ *
+ * Convención por tipo:
+ *   - negocio     → /negocios/:sucursalId            (item.id = sucursalId)
+ *   - oferta      → /ofertas?oferta=:ofertaId         (deep link a la oferta;
+ *                   la sección Ofertas detecta el query y abre el detalle
+ *                   automáticamente)
+ *   - marketplace → /marketplace/articulo/:articuloId
+ *   - servicio    → /servicios/:publicacionId
+ */
+function rutaDetalleItemCoyo(item: ItemCoyo): string {
+    switch (item.tipo) {
+        case 'negocio':
+            return `/negocios/${item.id}`;
+        case 'oferta':
+            return `/ofertas?oferta=${item.id}`;
+        case 'marketplace':
+            return `/marketplace/articulo/${item.id}`;
+        case 'servicio':
+            return `/servicios/${item.id}`;
+    }
+}
+
+/**
+ * Ruta de la SECCIÓN completa para "Ver los N resultados" cuando Coyo trae
+ * más items de los 3 que muestra inline. La sección lee el `useSearchStore`
+ * para aplicar el query de la pregunta como filtro inicial.
+ */
+function rutaSeccionCoyo(tipo: TipoItemCoyo): string {
+    switch (tipo) {
+        case 'negocio':
+            return '/negocios';
+        case 'oferta':
+            return '/ofertas';
+        case 'marketplace':
+            return '/marketplace';
+        case 'servicio':
+            return '/servicios';
+    }
+}
+
+/** Nombre humano de cada sección para el link "Ver más". */
+function nombreSeccionCoyo(tipo: TipoItemCoyo): string {
+    switch (tipo) {
+        case 'negocio':
+            return 'Negocios';
+        case 'oferta':
+            return 'Ofertas';
+        case 'marketplace':
+            return 'MarketPlace';
+        case 'servicio':
+            return 'Servicios';
+    }
+}
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -489,6 +552,7 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                             <BloqueCoyoListo
                                 respuesta={respuestaCoyo}
                                 resultados={resultadosCoyo}
+                                textoPregunta={pregunta.texto}
                             />
                         </div>
                     )}
@@ -683,9 +747,13 @@ function BloqueCoyoNoAplica({ texto }: { texto: string }) {
 interface BloqueCoyoListoProps {
     respuesta: string | null;
     resultados: ResultadosCoyo | null;
+    /** Texto literal de la pregunta del vecino. Se usa como query inicial
+     *  cuando el usuario hace click en "Ver más resultados" para llevarlo
+     *  a la sección con el filtro aplicado. */
+    textoPregunta: string;
 }
 
-function BloqueCoyoListo({ respuesta, resultados }: BloqueCoyoListoProps) {
+function BloqueCoyoListo({ respuesta, resultados, textoPregunta }: BloqueCoyoListoProps) {
     // Solo grupos con items, en orden fijo (negocios primero por relevancia
     // del comercio local).
     const grupos = useMemo(() => {
@@ -725,29 +793,87 @@ function BloqueCoyoListo({ respuesta, resultados }: BloqueCoyoListoProps) {
 
             {grupos.length > 0 && (
                 <div className="space-y-3">
-                    {grupos.map(({ clave, titulo, grupo }) => (
-                        <div key={clave} className="space-y-1.5">
-                            <h4 className="text-[11px] lg:text-xs font-bold text-slate-500 uppercase tracking-wide px-0.5">
-                                {titulo}
-                                {grupo.total > grupo.items.length && (
-                                    <span className="ml-1 text-slate-400 normal-case font-medium">
-                                        ({grupo.total})
-                                    </span>
-                                )}
-                            </h4>
-                            <ul className="space-y-1.5">
-                                {grupo.items.slice(0, 3).map((item) => (
-                                    <TarjetaItemCoyo
-                                        key={`${item.tipo}-${item.id}`}
-                                        item={item}
+                    {grupos.map(({ clave, titulo, grupo }) => {
+                        const items = grupo.items.slice(0, 3);
+                        const hayMas = grupo.total > items.length;
+                        return (
+                            <div key={clave} className="space-y-1.5">
+                                <h4 className="text-[11px] lg:text-xs font-bold text-slate-500 uppercase tracking-wide px-0.5">
+                                    {titulo}
+                                    {hayMas && (
+                                        <span className="ml-1 text-slate-400 normal-case font-medium">
+                                            ({grupo.total})
+                                        </span>
+                                    )}
+                                </h4>
+                                <ul className="space-y-1.5">
+                                    {items.map((item) => (
+                                        <TarjetaItemCoyo
+                                            key={`${item.tipo}-${item.id}`}
+                                            item={item}
+                                        />
+                                    ))}
+                                </ul>
+                                {hayMas && (
+                                    <BotonVerMasResultados
+                                        tipo={clave}
+                                        totalRestantes={grupo.total - items.length}
+                                        textoPregunta={textoPregunta}
                                     />
-                                ))}
-                            </ul>
-                        </div>
-                    ))}
+                                )}
+                            </div>
+                        );
+                    })}
                 </div>
             )}
         </section>
+    );
+}
+
+// =============================================================================
+// "VER MÁS RESULTADOS" — link a la sección con el query de la pregunta
+// =============================================================================
+
+interface BotonVerMasResultadosProps {
+    tipo: TipoItemCoyo;
+    totalRestantes: number;
+    textoPregunta: string;
+}
+
+function BotonVerMasResultados({
+    tipo,
+    totalRestantes,
+    textoPregunta,
+}: BotonVerMasResultadosProps) {
+    const navigate = useNavigate();
+    const setQuery = useSearchStore((s) => s.setQuery);
+    const abrirBuscador = useSearchStore((s) => s.abrirBuscador);
+
+    const handleClick = () => {
+        // Setea el query en el store global ANTES de navegar — la sección
+        // destino lee el query del store y filtra automáticamente. Se abre
+        // el buscador para que el usuario VEA el query activo y pueda
+        // modificarlo o cerrarlo si quiere.
+        setQuery(textoPregunta);
+        abrirBuscador();
+        navigate(rutaSeccionCoyo(tipo));
+    };
+
+    const etiqueta =
+        totalRestantes === 1
+            ? `Ver 1 más en ${nombreSeccionCoyo(tipo)}`
+            : `Ver ${totalRestantes} más en ${nombreSeccionCoyo(tipo)}`;
+
+    return (
+        <button
+            type="button"
+            onClick={handleClick}
+            data-testid={`coyo-ver-mas-${tipo}`}
+            className="inline-flex items-center gap-1.5 mt-0.5 px-1 py-1 rounded-md text-xs lg:text-sm font-semibold text-blue-600 hover:text-blue-700 hover:bg-blue-50 lg:cursor-pointer transition-colors"
+        >
+            <span>{etiqueta}</span>
+            <ArrowRight className="w-3.5 h-3.5 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+        </button>
     );
 }
 
@@ -756,20 +882,34 @@ function BloqueCoyoListo({ respuesta, resultados }: BloqueCoyoListoProps) {
 // =============================================================================
 
 function TarjetaItemCoyo({ item }: { item: ItemCoyo }) {
+    const navigate = useNavigate();
+
+    const handleClick = () => {
+        navigate(rutaDetalleItemCoyo(item));
+    };
+
     return (
-        <li className="flex items-start gap-2.5 lg:gap-3 bg-white border border-slate-200 rounded-lg p-2 lg:p-2.5">
-            <ImagenItem url={item.imagen} alt={item.titulo} />
-            <div className="min-w-0 flex-1">
-                <p className="text-sm lg:text-base font-bold text-slate-800 truncate">
-                    {item.titulo}
-                </p>
-                {item.subtitulo && (
-                    <p className="text-xs lg:text-sm text-slate-500 truncate">
-                        {item.subtitulo}
+        <li>
+            <button
+                type="button"
+                onClick={handleClick}
+                data-testid={`coyo-tarjeta-${item.tipo}-${item.id}`}
+                aria-label={`Ver ${item.titulo}`}
+                className="w-full flex items-start gap-2.5 lg:gap-3 bg-white border border-slate-200 rounded-lg p-2 lg:p-2.5 text-left lg:cursor-pointer transition-colors lg:hover:border-blue-300 lg:hover:bg-blue-50/30 active:scale-[0.995]"
+            >
+                <ImagenItem url={item.imagen} alt={item.titulo} />
+                <div className="min-w-0 flex-1">
+                    <p className="text-sm lg:text-base font-bold text-slate-800 truncate">
+                        {item.titulo}
                     </p>
-                )}
-                <ChipsDatosRicos item={item} />
-            </div>
+                    {item.subtitulo && (
+                        <p className="text-xs lg:text-sm text-slate-500 truncate">
+                            {item.subtitulo}
+                        </p>
+                    )}
+                    <ChipsDatosRicos item={item} />
+                </div>
+            </button>
         </li>
     );
 }
