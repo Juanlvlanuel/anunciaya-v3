@@ -5,6 +5,8 @@ const origenesPermitidos = [
   'http://localhost:3000',
   'https://localhost:3000',
   'http://192.168.1.232:3000',
+  'http://192.168.1.83:3000',
+  'https://192.168.1.83:3000',
   'https://192.168.1.232:3000',
   process.env.FRONTEND_URL,
 ].filter(Boolean) as string[];
