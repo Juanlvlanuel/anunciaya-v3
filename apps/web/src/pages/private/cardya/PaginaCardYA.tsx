@@ -525,7 +525,7 @@ export function PaginaCardYA() {
                                             className="w-9 h-9 rounded-lg flex items-center justify-center"
                                             style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
                                         >
-                                            <Wallet className="w-4.5 h-4.5 text-black" strokeWidth={2.5} />
+                                            <Wallet className="w-5.5 h-5.5 text-black" strokeWidth={2.5} />
                                         </div>
                                         <span className="text-2xl font-extrabold text-white tracking-tight">
                                             Card<span className="text-amber-400">YA</span>
@@ -603,7 +603,7 @@ export function PaginaCardYA() {
                                             className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center"
                                             style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
                                         >
-                                            <Wallet className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-black" strokeWidth={2.5} />
+                                            <Wallet className="w-7 h-7 2xl:w-7.5 2xl:h-7.5 text-black" strokeWidth={2.5} />
                                         </div>
                                         <div className="flex items-baseline">
                                             <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">

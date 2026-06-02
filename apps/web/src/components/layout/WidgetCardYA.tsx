@@ -288,7 +288,7 @@ export function WidgetCardYA({ dark = false }: WidgetCardYAProps) {
               style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
             >
               <Wallet
-                className={`w-5 h-5 ${dark ? 'text-black' : 'text-slate-700'}`}
+                className={`w-5 h-5 ${dark ? 'text-black' : 'text-slate-900'}`}
                 strokeWidth={2.5}
               />
             </div>
