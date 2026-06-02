@@ -102,6 +102,13 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   // ── Sprint 1.D — Home / Coyo ─────────────────────────────────────────
   pregunta_comunidad_respondida: 'comunidad',
   coyo_recomendacion: 'coyo',
+  // ── Sprint 2.B' — A los interesados ───────────────────────────────────
+  // Misma familia visual que la notif del autor (mismo color azul +
+  // glifo de chat). El TÍTULO ("Respondieron una pregunta que sigues")
+  // diferencia el contexto al hacer click. Visualmente son hermanas
+  // porque ambas significan lo mismo: "hay actividad nueva en una
+  // pregunta donde te importa".
+  pregunta_comunidad_seguida_respondida: 'comunidad',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -811,10 +818,12 @@ function NotifRow({ notificacion, onClick, onEliminar }: NotifRowProps) {
     notificacion.modo === 'comercial' &&
     !!notificacion.actorNombre &&
     TIPOS_USUARIO_COMERCIAL.has(notificacion.tipo);
-  // Sprint 1.D — los 2 tipos del Home/Coyo usan jerarquía invertida
-  // (título arriba, mensaje destacado, nombre+tiempo en el pie).
+  // Sprint 1.D + 2.B' — los 3 tipos del Home/Coyo usan el layout
+  // compacto (nombre arriba, respuesta en 1 línea con ellipsis, tiempo
+  // abajo, sin título visible).
   const esTipoHomeCoyo =
     notificacion.tipo === 'pregunta_comunidad_respondida' ||
+    notificacion.tipo === 'pregunta_comunidad_seguida_respondida' ||
     notificacion.tipo === 'coyo_recomendacion';
 
   // ---------------------------------------------------------------------------

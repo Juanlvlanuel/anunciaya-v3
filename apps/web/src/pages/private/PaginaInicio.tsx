@@ -577,11 +577,15 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                         </div>
                     )}
 
-                    {/* Hilo de respuestas (colapsable, carga al abrir). */}
+                    {/* Hilo de respuestas (colapsable, carga al abrir).
+                        `esAutor` se usa para esconder la invitación a
+                        responder y la caja de respuesta — el autor no se
+                        autorresponde, solo lee lo que la comunidad le dice. */}
                     <RespuestasComunidad
                         preguntaId={pregunta.id}
                         totalRespuestas={pregunta.totalRespuestas}
                         puedeResponder={preguntaActiva}
+                        esAutor={esAutor}
                     />
                 </div>
             </div>
@@ -717,17 +721,28 @@ function obtenerIniciales(nombre: string, apellidos: string): string {
 // estaAbierto, condicion, días para vencer) — sin inventar.
 
 function BloqueCoyoPensando() {
+    // Sin contenedor — Coyo mini + texto van inline en el flujo de la card.
+    // Quitamos el panel azul claro porque la animación de "pensando" del
+    // Rive es suficiente para indicar que algo está pasando, y mantener el
+    // panel hacía que la card se viera "pesada" mientras solo se procesa.
+    //
+    // `aria-live="polite"` se preserva en el contenedor para que lectores
+    // de pantalla anuncien el cambio de estado.
     return (
-        <section
+        <div
             aria-live="polite"
-            className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3 lg:p-4"
+            className="flex items-center gap-2 text-slate-600"
         >
-            <div className="flex items-center gap-2 text-slate-600">
-                <Sparkles className="w-4 h-4 text-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" />
-                <span className="text-sm lg:text-base font-bold">Coyo está pensando</span>
-                <Loader2 className="w-3.5 h-3.5 text-slate-400 animate-spin shrink-0" aria-hidden="true" />
-            </div>
-        </section>
+            <CoyoAnimado
+                estado="pensando"
+                align="center"
+                alt="Coyo está pensando"
+                className="shrink-0 w-10 h-10 lg:w-12 lg:h-12"
+            />
+            <span className="text-sm lg:text-base font-bold">
+                Coyo está pensando…
+            </span>
+        </div>
     );
 }
 

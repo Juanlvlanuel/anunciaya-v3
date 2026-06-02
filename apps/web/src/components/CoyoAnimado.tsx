@@ -63,6 +63,14 @@ export type EstadoCoyoVisual =
 // PROPS
 // =============================================================================
 
+/**
+ * Alineamiento del artboard dentro del contenedor. El hero usa
+ * `bottomRight` para que la mano alzada del saludo no se recorte por arriba.
+ * Las versiones mini (en las cards) usan `center` para que Coyo quede al
+ * centro óptico del contenedor cuadrado.
+ */
+export type CoyoAlign = 'bottomRight' | 'center';
+
 interface CoyoAnimadoProps {
     /** Estado visual deseado (lo calcula `useCoyoEstadoVisual` o el padre). */
     estado: EstadoCoyoVisual;
@@ -81,6 +89,11 @@ interface CoyoAnimadoProps {
      * (`drop-shadow`) que no se expresan bien en Tailwind sin tema custom.
      */
     style?: React.CSSProperties;
+    /**
+     * Alineamiento del artboard. Default `bottomRight` (compatible con el
+     * uso histórico del hero). Las cards usan `center`.
+     */
+    align?: CoyoAlign;
 }
 
 // =============================================================================
@@ -99,15 +112,20 @@ export function CoyoAnimado({
     alt = 'Coyo, asistente de AnunciaYA',
     className,
     style,
+    align = 'bottomRight',
 }: CoyoAnimadoProps) {
-    // `Fit.Contain` + `Alignment.BottomRight` muestra TODO el artboard
-    // pegado al lado derecho-abajo del contenedor. Esto deja espacio ARRIBA
-    // para la mano alzada del saludo (evita que se recorte) y reduce el
-    // espacio horizontal entre Coyo y el bocadillo. Memoizamos el Layout
-    // para evitar reInit del runtime en cada render.
+    // `Fit.Contain` + alineamiento configurable. El hero usa `BottomRight`
+    // para que la mano alzada del saludo no se recorte por arriba. Las
+    // cards mini usan `Center` para que Coyo quede al centro óptico del
+    // contenedor cuadrado. Memoizamos el Layout para evitar reInit del
+    // runtime en cada render (Rive lo recalcula si la referencia cambia).
     const layout = useMemo(
-        () => new Layout({ fit: Fit.Contain, alignment: Alignment.BottomRight }),
-        []
+        () =>
+            new Layout({
+                fit: Fit.Contain,
+                alignment: align === 'center' ? Alignment.Center : Alignment.BottomRight,
+            }),
+        [align],
     );
 
     const { rive, RiveComponent } = useRive({

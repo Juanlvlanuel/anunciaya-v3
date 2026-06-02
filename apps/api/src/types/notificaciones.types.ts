@@ -41,7 +41,12 @@ export type TipoNotificacion =
   /** Al gerente de la sucursal (fallback dueño) cuando un item suyo aparece
    *  en los resultados de Coyo. También a usuarios personales con items
    *  en Marketplace o Servicios. */
-  | 'coyo_recomendacion';
+  | 'coyo_recomendacion'
+  // ── Sprint 2.B' — Home: notificación a interesados ──────────────────────
+  /** A los vecinos que marcaron "Yo también quiero saber" en una pregunta,
+   *  cuando otro vecino responde a esa pregunta. NO al autor (recibe su
+   *  propia notif distinta) ni al propio responder (no auto-notif). */
+  | 'pregunta_comunidad_seguida_respondida';
 
 // Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =

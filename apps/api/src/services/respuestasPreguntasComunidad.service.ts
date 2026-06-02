@@ -24,9 +24,10 @@ import { db } from '../db/index.js';
 import {
     respuestasPreguntasComunidad,
     preguntasComunidad,
+    preguntasInteresados,
     usuarios,
 } from '../db/schemas/schema.js';
-import { eq, and, asc, sql } from 'drizzle-orm';
+import { eq, and, asc, ne, sql } from 'drizzle-orm';
 import type {
     CrearRespuestaInput,
     ListarRespuestasInput,
@@ -107,6 +108,21 @@ export async function crearRespuesta(
                 code: 409,
             };
         }
+        // Defensa en profundidad: el autor de la pregunta NO puede
+        // responderse a sí mismo. El frontend ya esconde la caja de
+        // respuesta para el autor, pero validamos aquí también para evitar
+        // que un cliente malicioso o un caso edge (cambio de identidad,
+        // reuso de token) pueda saltarse la regla. Decisión de producto:
+        // el autor interactúa con la comunidad vía el menú de autor
+        // (cerrar / marcar resuelta / editar / borrar), no respondiendo
+        // a sí mismo.
+        if (pregunta.usuarioId === input.usuarioId) {
+            return {
+                success: false,
+                message: 'No puedes responder a tu propia pregunta',
+                code: 403,
+            };
+        }
 
         // Insert — estado queda en el default 'activa'
         const [nueva] = await db
@@ -151,15 +167,20 @@ export async function crearRespuesta(
             autorAvatarUrl: autor.avatarUrl ?? null,
         };
 
-        // Notificación al autor de la pregunta — solo si quien responde es
-        // DISTINTO del autor (no auto-notificación cuando el autor responde
-        // a su propia pregunta). Fire-and-forget: si falla, se loguea pero
-        // NO bloqueamos la respuesta del usuario.
+        // Datos compartidos para las 2 notificaciones (al autor + a los
+        // interesados). El preview es el inicio del texto de la respuesta,
+        // truncado a 100 chars con "…" si es más largo.
+        const nombreCompletoAutor = `${autor.nombre} ${autor.apellidos}`.trim();
+        const preview = nueva.texto.length > 100
+            ? `${nueva.texto.slice(0, 100)}…`
+            : nueva.texto;
+
+        // ── 1. Notificación al AUTOR de la pregunta ─────────────────────
+        // Solo si quien responde es DISTINTO del autor (no auto-notif).
+        // Aunque el chequeo de arriba ya bloquea ese caso devolviendo 403,
+        // mantenemos el guard aquí por defensa en profundidad. Fire-and-
+        // forget: si falla, se loguea pero NO rompe el flujo.
         if (pregunta.usuarioId !== input.usuarioId) {
-            const nombreCompletoAutor = `${autor.nombre} ${autor.apellidos}`.trim();
-            const preview = nueva.texto.length > 100
-                ? `${nueva.texto.slice(0, 100)}…`
-                : nueva.texto;
             crearNotificacion({
                 usuarioId: pregunta.usuarioId,
                 modo: 'personal',
@@ -176,6 +197,62 @@ export async function crearRespuesta(
                     err,
                 );
             });
+        }
+
+        // ── 2. Notificaciones a los INTERESADOS ─────────────────────────
+        // "Interesados" = todos los vecinos que marcaron "Yo también quiero
+        // saber" en esta pregunta. Cuando llega una respuesta nueva, cada
+        // uno recibe una notificación para que sepa que hay info nueva
+        // sin tener que estar revisando el Home.
+        //
+        // Exclusiones (en el WHERE del SELECT):
+        //   - El AUTOR de la pregunta: ya recibe la notif del bloque 1
+        //     con título distinto ("Respondió tu pregunta"). Aunque el
+        //     frontend no le deja marcar interés en su propia pregunta,
+        //     un caso edge podría dejar registro — defensa adicional.
+        //   - El RESPONDER: no se auto-notifica si él mismo está en la
+        //     lista de interesados (puede pasar si marcó interés y luego
+        //     decidió responder).
+        //
+        // Fire-and-forget en cada notif: si una falla, las demás siguen.
+        // Si la query de interesados falla, se loguea y no se rompe el
+        // flujo de creación de la respuesta.
+        try {
+            const interesados = await db
+                .select({ usuarioId: preguntasInteresados.usuarioId })
+                .from(preguntasInteresados)
+                .where(
+                    and(
+                        eq(preguntasInteresados.preguntaId, pregunta.id),
+                        ne(preguntasInteresados.usuarioId, input.usuarioId),
+                        ne(preguntasInteresados.usuarioId, pregunta.usuarioId),
+                    ),
+                );
+
+            for (const { usuarioId: interesadoId } of interesados) {
+                crearNotificacion({
+                    usuarioId: interesadoId,
+                    modo: 'personal',
+                    tipo: 'pregunta_comunidad_seguida_respondida',
+                    titulo: 'Respondieron una pregunta que sigues',
+                    mensaje: preview,
+                    referenciaTipo: 'pregunta_comunidad',
+                    referenciaId: pregunta.id,
+                    actorImagenUrl: autor.avatarUrl ?? undefined,
+                    actorNombre: nombreCompletoAutor || undefined,
+                }).catch((err) => {
+                    console.warn(
+                        'No se pudo crear notificación pregunta_comunidad_seguida_respondida para',
+                        interesadoId,
+                        err,
+                    );
+                });
+            }
+        } catch (err) {
+            console.warn(
+                'No se pudo cargar lista de interesados para notificar:',
+                err,
+            );
         }
 
         return {

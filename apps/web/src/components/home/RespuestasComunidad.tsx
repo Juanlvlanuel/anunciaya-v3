@@ -40,18 +40,40 @@ interface RespuestasComunidadProps {
     totalRespuestas: number;
     /** Si la pregunta no está 'activa', se oculta la caja de responder. */
     puedeResponder: boolean;
+    /**
+     * `true` si el caller es el AUTOR de la pregunta. Cuando lo es:
+     *   - NO se muestra el CTA "Sé el primero en responder" (no tiene
+     *     sentido invitar al autor a responderse a sí mismo).
+     *   - NO se muestra la caja para responder dentro del panel
+     *     expandido (el autor solo lee lo que la comunidad le dice).
+     *   - SÍ se muestra "Ver N respuestas" cuando ya hay respuestas
+     *     (el autor necesita poder leerlas).
+     *
+     * El autor de una pregunta interactúa con la comunidad vía el menú
+     * de autor (cerrar / marcar resuelta / editar / borrar), NO
+     * respondiéndose a sí mismo. Si quiere agregar contexto antes de
+     * tener respuestas, puede usar "Editar".
+     */
+    esAutor: boolean;
 }
 
 export function RespuestasComunidad({
     preguntaId,
     totalRespuestas,
     puedeResponder,
+    esAutor,
 }: RespuestasComunidadProps) {
     const [abierto, setAbierto] = useState(false);
 
-    // Si no hay respuestas y NO se puede responder (pregunta cerrada/oculta),
-    // no tiene sentido mostrar nada — el bloque entero desaparece.
-    if (totalRespuestas === 0 && !puedeResponder) {
+    // ¿El caller puede ESCRIBIR una respuesta? Solo si la pregunta está
+    // activa Y no es el autor. El autor lee pero no responde.
+    const puedeEscribir = puedeResponder && !esAutor;
+
+    // Si no hay respuestas y el caller no puede escribir, no hay nada que
+    // mostrar — el bloque entero desaparece. Esto cubre 2 casos:
+    //   - Pregunta cerrada/oculta sin respuestas (legacy).
+    //   - Autor mirando su propia pregunta sin respuestas (Sprint 2.B').
+    if (totalRespuestas === 0 && !puedeEscribir) {
         return null;
     }
 
@@ -78,9 +100,10 @@ export function RespuestasComunidad({
                                 : `Ver ${totalRespuestas} respuestas`}
                     </span>
                 </button>
-            ) : puedeResponder ? (
-                // Sin respuestas y se puede responder → abre el panel directamente
-                // mostrando solo la caja del input (sin link "Ver 0 respuestas").
+            ) : puedeEscribir ? (
+                // Sin respuestas y SE PUEDE escribir → "Sé el primero en
+                // responder". Este botón nunca le aparece al autor de la
+                // pregunta (esAutor=true → puedeEscribir=false).
                 <button
                     type="button"
                     onClick={() => setAbierto((v) => !v)}
@@ -102,7 +125,7 @@ export function RespuestasComunidad({
                     {totalRespuestas > 0 && (
                         <ListaRespuestas preguntaId={preguntaId} />
                     )}
-                    {puedeResponder && (
+                    {puedeEscribir && (
                         <CajaResponder preguntaId={preguntaId} />
                     )}
                 </div>

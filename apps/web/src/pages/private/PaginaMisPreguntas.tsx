@@ -191,10 +191,15 @@ function CardMiPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                 pero típicamente no llegan aquí porque las eliminadas se filtran
                 visualmente menos. */}
             {!estaOculta && (
+                // En "Mis preguntas" el caller SIEMPRE es el autor — el
+                // backend ya filtra por usuarioId del JWT. Pasamos esAutor
+                // hardcoded a true: el autor lee las respuestas que dejó
+                // la comunidad pero no se autorresponde.
                 <RespuestasComunidad
                     preguntaId={pregunta.id}
                     totalRespuestas={pregunta.totalRespuestas}
                     puedeResponder={estaActiva}
+                    esAutor={true}
                 />
             )}
 
