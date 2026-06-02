@@ -125,9 +125,8 @@
 
 ## 📅 Backlog Priorizado
 
-### Business Studio - Módulos Pendientes (1/13)
+### Business Studio — Módulos (13/13 ✅ completados)
 
-**Completados (12/13):**
 - ✅ Dashboard
 - ✅ Mi Perfil
 - ✅ Catálogo
@@ -140,12 +139,14 @@
 - ✅ Empleados (CRUD, 5 permisos, revocación sesiones, 5 Abr 2026)
 - ✅ Reportes (5 tabs, KPIs, funnels, XLSX, 12 Abr 2026)
 - ✅ Sucursales (CRUD multi-sucursal + gerentes + clonación auto, 16 Abr 2026)
-
-**Pendientes (1/13):**
-
-| # | Módulo | Tiempo Estimado | Depende de | Descripción |
-|---|--------|-----------------|------------|-------------|
-| 1 | **Vacantes** | ~2 días | Sección pública Servicios | Herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios |
+- ✅ **Vacantes** (17 May 2026 — herramienta del comerciante para publicar
+  vacantes que aparecen en el feed público de Servicios con
+  `tipo='vacante-empresa'`. Cada sucursal gestiona sus propias vacantes
+  desde su BS. Archivos: `apps/api/src/routes/vacantes.routes.ts`,
+  `services/vacantes.service.ts`, `controllers/vacantes.controller.ts`;
+  frontend en `pages/private/business-studio/vacantes/` con
+  `PaginaVacantes.tsx` + componentes en `componentes/`.
+  Tests: `__tests__/servicios-vacantes.test.ts`)
 
 ---
 
@@ -278,14 +279,14 @@
 |------|-----------------|
 | Sistema Lealtad + ChatYA + Promociones | ✅ Completado |
 | **Sección MarketPlace v1.6** | ✅ Completado (15 May 2026, flujos E2E probados) |
-| BS Módulos Pendientes (1/13: Vacantes) | ~2 días |
-| Sección pública restante (6.2: Servicios) | ~4 días |
-| Home — Pregúntale a Peñasco | por estimar (depende del diseño) |
+| **Sección pública Servicios v1.1** | ✅ Completado (17 May 2026) |
+| **Business Studio 13/13 (incluido Vacantes)** | ✅ Completado (17 May 2026) |
+| **Home — Pregúntale a Peñasco / Coyo (Fase 1 + Fase 2)** | ✅ Completado (24 May - 1 Jun 2026) |
 | Panel Admin (6.7) | ~14 días |
 | Pre-lanzamiento (7.1) | ~5 días |
 | Beta (7.2) | ~21 días |
-| **TOTAL OPTIMISTA** | **~6-8 semanas** |
-| **TOTAL REALISTA** | **~8-10 semanas** |
+| **TOTAL OPTIMISTA** | **~4-6 semanas** (solo Panel Admin + lanzamiento) |
+| **TOTAL REALISTA** | **~6-8 semanas** |
 
 **Fecha lanzamiento público proyectada:** Mayo-Junio 2026
 
@@ -319,8 +320,8 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** Al completar Sección Servicios (6.2) + Home con Pregúntale a Peñasco
-**Alcance:** Activación de BS Vacantes (alimenta Servicios) y arranque de Panel Admin
+**Fecha:** Al arrancar Panel Admin (6.7).
+**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). Próximo bloque: Panel Admin con sistema de vendedores + dashboard global + suscripciones Stripe LIVE, y luego beta privada en Puerto Peñasco (50 negocios piloto).
 
 ---
 
