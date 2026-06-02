@@ -39,6 +39,12 @@ const SALUDO_DURACION_MS = 2500;
  *  visible es esta constante + ~1s. */
 const RESPONDIENDO_DURACION_MS = 2500;
 
+/** Retardo antes de bajar a `idle`. Si en este lapso aparece otro estado
+ *  activo, el idle transitorio no se renderiza — elimina los micro-flashes
+ *  de idle entre estados (pensando↔respondiendo, gap post-crear). El costo
+ *  es ~este tiempo extra para volver a respirar al borrar el texto. */
+const IDLE_DELAY_MS = 250;
+
 // =============================================================================
 // HOOK
 // =============================================================================
@@ -144,36 +150,95 @@ export function useCoyoEstadoVisual({
     }, [preguntas, usuarioId]);
 
     // ──────────────────────────────────────────────────────────────────
-    // CÁLCULO DEL ESTADO FINAL — prioridad de mayor a menor.
+    // PENSANDO FORZADO POST-CREAR — cubre el hueco de red entre que se
+    // publica la pregunta (el POST termina, onSuccess limpia el input y
+    // `crearPendiente` vuelve a false) y que el refetch del feed la trae
+    // como 'pendiente'. Sin esto, Coyo cae a `idle` durante ese viaje de
+    // red (cientos de ms) y se ve atento→idle→pensando. El suavizado de
+    // idle (250ms) no alcanza a tapar el roundtrip; esta señal sí.
+    // ──────────────────────────────────────────────────────────────────
+    const [pensandoForzado, setPensandoForzado] = useState(false);
+    const crearPendienteAnteriorRef = useRef(false);
+
+    // Se enciende al arrancar una creación (crearPendiente false→true).
+    useEffect(() => {
+        if (crearPendiente && !crearPendienteAnteriorRef.current) {
+            setPensandoForzado(true);
+        }
+        crearPendienteAnteriorRef.current = crearPendiente;
+    }, [crearPendiente]);
+
+    // ──────────────────────────────────────────────────────────────────
+    // CÁLCULO DEL ESTADO DESEADO — prioridad de mayor a menor.
     //
     // Orden: saludo > respondiendo > pensando > atento > idle.
     // (saludo gana porque es el "primer impacto" del Home y dura poco.)
     // ──────────────────────────────────────────────────────────────────
 
-    if (mostrandoSaludo) return 'saludo';
+    // ¿Hay una pregunta del usuario procesándose en el feed?
+    const hayPreguntaProcesandoEnFeed =
+        !!preguntas
+        && !!usuarioId
+        && preguntas.some(
+            (p) =>
+                p.autorId === usuarioId
+                && (p.estadoCoyo === 'pendiente' || p.estadoCoyo === 'procesando')
+        );
 
-    if (mostrandoRespondiendo) return 'respondiendo';
+    // Apaga el pensando forzado cuando la pregunta ya aparece en el feed
+    // (el flujo normal toma el relevo) o tras un timeout de seguridad
+    // (por si la creación falló y la pregunta nunca llega al feed).
+    useEffect(() => {
+        if (!pensandoForzado) return;
+        if (hayPreguntaProcesandoEnFeed) {
+            setPensandoForzado(false);
+            return;
+        }
+        const timer = setTimeout(() => setPensandoForzado(false), 8000);
+        return () => clearTimeout(timer);
+    }, [pensandoForzado, hayPreguntaProcesandoEnFeed]);
 
-    // Pensando: si la mutación de crear está en vuelo, o hay alguna
-    // pregunta del usuario que aún está procesando.
+    // Pensando: mutación en vuelo, hueco post-crear, o pregunta del
+    // usuario aún procesándose en el feed.
     const hayPensando =
-        crearPendiente
-        || (!!preguntas
-            && !!usuarioId
-            && preguntas.some(
-                (p) =>
-                    p.autorId === usuarioId
-                    && (p.estadoCoyo === 'pendiente' || p.estadoCoyo === 'procesando')
-            ));
-    if (hayPensando) return 'pensando';
+        crearPendiente || pensandoForzado || hayPreguntaProcesandoEnFeed;
 
-    // NOTA: el estado `atento` se eliminó del flujo. La transición
-    // atento→pensando al presionar Enter era tan rápida (<200ms) que el
-    // ojo no la percibía y daba sensación de "brinco". Manteniendo solo
-    // saludo/pensando/respondiendo/idle, el flujo se siente más fluido.
-    // Si en el futuro se quiere recuperar atento con una animación más
-    // visible, agregar el return 'atento' aquí.
-    void textoInput;
+    let estadoDeseado: EstadoCoyoVisual;
+    if (mostrandoSaludo) {
+        estadoDeseado = 'saludo';
+    } else if (mostrandoRespondiendo) {
+        estadoDeseado = 'respondiendo';
+    } else if (hayPensando) {
+        estadoDeseado = 'pensando';
+    } else if (textoInput.trim().length > 0) {
+        // Atento: mientras haya texto en el input, Coyo ladea la cabeza
+        // (no solo mientras teclea — la condición es "hay texto", así que
+        // se mantiene atento aunque el usuario deje de escribir un momento).
+        estadoDeseado = 'atento';
+    } else {
+        estadoDeseado = 'idle';
+    }
 
-    return 'idle';
+    // ──────────────────────────────────────────────────────────────────
+    // SUAVIZADO DE LA CAÍDA A IDLE — evita el parpadeo entre estados.
+    //
+    // Los estados activos (saludo/respondiendo/pensando/atento) se aplican
+    // de inmediato. La bajada a `idle` se retrasa IDLE_DELAY_MS: si en ese
+    // lapso aparece otro estado activo, el idle transitorio NUNCA se
+    // renderiza. Esto mata los micro-flashes de idle que se colaban entre
+    // pensando↔respondiendo (respondiendo se enciende un render tarde) y en
+    // el gap post-crear (refetch del feed).
+    // ──────────────────────────────────────────────────────────────────
+    const [estadoVisible, setEstadoVisible] = useState<EstadoCoyoVisual>('saludo');
+
+    useEffect(() => {
+        if (estadoDeseado !== 'idle') {
+            setEstadoVisible(estadoDeseado);
+            return;
+        }
+        const timer = setTimeout(() => setEstadoVisible('idle'), IDLE_DELAY_MS);
+        return () => clearTimeout(timer);
+    }, [estadoDeseado]);
+
+    return estadoVisible;
 }

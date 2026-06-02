@@ -35,7 +35,6 @@ import PaginaServicioPublico from '../pages/public/PaginaServicioPublico';
 
 // Páginas privadas
 import PaginaInicio from '../pages/private/PaginaInicio';
-import PaginaMisPreguntas from '../pages/private/PaginaMisPreguntas';
 // TEMPORAL — galería de íconos. Mantener mientras se itera. BORRAR cuando todo esté final.
 import TestIconos from '../pages/private/TestIconos';
 // TEMPORAL — comparación de diseños para ModalInactividad. BORRAR cuando se elija.
@@ -270,11 +269,6 @@ const router = createBrowserRouter([
           {
             path: '/inicio',
             element: <PaginaInicio />,
-          },
-          // Histórico de preguntas del usuario (Sprint 1)
-          {
-            path: '/inicio/mis-preguntas',
-            element: <PaginaMisPreguntas />,
           },
 
           // Secciones principales (4 pilares)

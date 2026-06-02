@@ -1266,3 +1266,72 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
     animation: none !important;
   }
 }
+
+/* ============================================= */
+/* HOME / COYO — Rediseño feed conversacional     */
+/* coyoFloat: flotado de la mascota; send-bob/fly: */
+/* botón enviar; coyo-dots: "pensando"; coyo-ping: */
+/* punto "en vivo"; finger-bob: dedo del estado    */
+/* vacío; feed-highlight: resaltado al autoscroll. */
+/* mp-scroll: scrollbar fina del rail.             */
+/* ============================================= */
+
+@keyframes coyoFloat {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-7px); }
+}
+@keyframes coyoSendBob {
+  0%, 100% { transform: translate(0, 0); }
+  50% { transform: translate(1px, -2px); }
+}
+@keyframes coyoSendFly {
+  0% { transform: translate(0, 0) rotate(0); opacity: 1; }
+  60% { transform: translate(14px, -14px) rotate(8deg); opacity: 0; }
+  61% { transform: translate(-6px, 6px); opacity: 0; }
+  100% { transform: translate(0, 0); opacity: 1; }
+}
+@keyframes coyoDots {
+  0%, 80%, 100% { transform: translateY(0); opacity: .4; }
+  40% { transform: translateY(-3px); opacity: 1; }
+}
+@keyframes coyoPing {
+  0% { transform: scale(1); opacity: .6; }
+  75%, 100% { transform: scale(2.2); opacity: 0; }
+}
+@keyframes fingerBob {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(3px); }
+}
+@keyframes feedHi {
+  0% { outline-color: rgba(37, 99, 235, 0); }
+  15% { outline-color: rgba(37, 99, 235, .7); }
+  100% { outline-color: rgba(37, 99, 235, 0); }
+}
+
+.coyo-float { animation: coyoFloat 3.4s ease-in-out infinite; }
+.send-btn:hover .send-ico { animation: coyoSendBob 1.1s ease-in-out infinite; }
+.send-ico.flying { animation: coyoSendFly .5s ease-in forwards; }
+.coyo-dots span { animation: coyoDots 1.2s ease-in-out infinite; }
+.coyo-dots span:nth-child(2) { animation-delay: .15s; }
+.coyo-dots span:nth-child(3) { animation-delay: .3s; }
+.coyo-ping { animation: coyoPing 1.6s cubic-bezier(0, 0, .2, 1) infinite; }
+.finger-bob { animation: fingerBob 1.3s ease-in-out infinite; }
+.feed-highlight {
+  outline: 3px solid rgba(37, 99, 235, 0);
+  outline-offset: 3px;
+  border-radius: 0.75rem;
+  animation: feedHi 1.7s ease;
+}
+
+/* Scrollbar fina para la lista de "Mis preguntas" del rail */
+.mp-scroll { scrollbar-width: thin; }
+.mp-scroll::-webkit-scrollbar { width: 6px; }
+.mp-scroll::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.28); border-radius: 3px; }
+.mp-scroll::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.45); }
+.mp-scroll::-webkit-scrollbar-track { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  .coyo-float, .send-ico, .coyo-dots span, .coyo-ping, .finger-bob, .feed-highlight {
+    animation: none !important;
+  }
+}
