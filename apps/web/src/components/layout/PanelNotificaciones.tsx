@@ -546,33 +546,23 @@ const panelNotifCss = `
     font-size: 13.5px; font-weight: 500; letter-spacing: -0.005em;
     color: rgba(14,31,92,0.62);
   }
-  /* ── Sprint 1.D — Home / Coyo: jerarquía invertida ─────────────────────
-     Para las notificaciones de respuesta de comunidad y recomendación
-     de Coyo, queremos que el CONTENIDO (la respuesta del vecino o la
-     mención de Coyo) sea lo protagónico, no el actor. Estilos:
-       .pn-msg-quoted → la respuesta entre comillas, color más oscuro,
-                        sin clamp tan agresivo (3 líneas en vez de 2).
-       .pn-footer-actor → pie con "Nombre · tiempo" — nombre con peso
-                          ligero (no compite con el título). */
+  /* ── Sprint 1.D — Home / Coyo: respuesta en 1 línea con ellipsis ──────
+     Las notificaciones de respuesta de comunidad y recomendación de
+     Coyo usan layout clásico (nombre arriba) pero sin título visible y
+     con el mensaje entre comillas en UNA SOLA línea — si no cabe se
+     trunca con "…". El badge del avatar (chat azul / sparkle violeta)
+     ya diferencia el tipo de notificación. */
   .pn-msg-quoted {
-    margin-top: 4px;
+    margin-top: 2px;
     font-size: 14.5px; font-weight: 500; letter-spacing: -0.005em;
     color: rgba(14,31,92,0.86);
     line-height: 1.4;
-    display: -webkit-box;
-    -webkit-line-clamp: 3;
-    -webkit-box-orient: vertical;
+    white-space: nowrap;
     overflow: hidden;
+    text-overflow: ellipsis;
   }
   .pn-msg-quoted::before { content: '“'; margin-right: 2px; color: rgba(14,31,92,0.54); }
   .pn-msg-quoted::after  { content: '”'; margin-left: 2px;  color: rgba(14,31,92,0.54); }
-  .pn-footer-actor {
-    margin-top: 6px;
-    font-size: 13px; font-weight: 500; letter-spacing: -0.005em;
-    color: rgba(14,31,92,0.62);
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  }
-  .pn-footer-actor .pn-footer-name { color: #2244C8; font-weight: 600; }
 
   .pn-trash {
     all: unset; cursor: pointer;
@@ -900,26 +890,24 @@ function NotifRow({ notificacion, onClick, onEliminar }: NotifRowProps) {
 
       <div className="pn-body-wrap">
         {esTipoHomeCoyo ? (
-          // ── Jerarquía invertida para Home/Coyo: título arriba, mensaje
-          //    destacado en comillas, nombre+tiempo en el pie. El nombre del
-          //    autor pierde protagonismo (el contenido es lo importante).
+          // ── Home/Coyo: nombre arriba (con MISMO formato que el título de
+          //    notificación legacy — clase .pn-title — para consistencia
+          //    visual con el resto del panel) + respuesta en 1 línea con
+          //    ellipsis + tiempo. Sin título visible (el badge del avatar
+          //    y el contexto "Nombre · 'respuesta'" lo hacen obvio). El
+          //    título sigue presente en aria-label para lectores de
+          //    pantalla.
           <>
-            <div className="pn-title">
-              <span>{tituloVisible}</span>
-              {!notificacion.leida && <span className="pn-dot" aria-hidden="true" />}
-            </div>
+            {lineaPersona && (
+              <div className="pn-title">
+                <span>{lineaPersona}</span>
+                {!notificacion.leida && <span className="pn-dot" aria-hidden="true" />}
+              </div>
+            )}
             {mensajeVisible && (
               <div className="pn-msg-quoted">{mensajeVisible}</div>
             )}
-            <div className="pn-footer-actor">
-              {lineaPersona && (
-                <>
-                  <span className="pn-footer-name">{lineaPersona}</span>
-                  {' · '}
-                </>
-              )}
-              {tiempo}
-            </div>
+            <div className="pn-age">{tiempo}</div>
           </>
         ) : (
           // ── Layout legacy (resto de tipos): actor arriba, título, mensaje.
