@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 24 Mayo 2026
-> **Progreso global:** Home + Coyo (Fase 1 + Cerebro IA) ✅ — 4 de 4 secciones públicas listas + Home conversacional + BS al 100%
-> **Fase actual:** Próximo bloque = Panel Admin · Tarjetas Coyo clicables · Beta privada
+> **Última actualización:** 1 Junio 2026
+> **Progreso global:** Home + Coyo (Fase 1 + Cerebro IA + Comunidad + Polish UX) ✅ — 4 de 4 secciones públicas listas + Home conversacional completo + BS al 100%
+> **Fase actual:** Próximo bloque = Panel Admin · Beta privada
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (define las 4 secciones públicas y el alcance de v1)
 
 ---
@@ -21,8 +21,8 @@
 | **Promociones** (Ofertas + Cupones) | ✅ 100% | - |
 | **Mis Cupones + Guardados** (UI) | ✅ 100% | - |
 | **Business Studio** (5.4) | ✅ 100% (13/13 módulos) | Dashboard, Mi Perfil, Catálogo, Promociones, Puntos, Transacciones, Clientes, Opiniones, Alertas, Empleados, Reportes, Sucursales, **Vacantes** ✅ |
-| **Secciones Públicas** (6.x) | ✅ 100% (4/4) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest) · ✅ Home / Coyo Fase 1 + Cerebro IA (24 May 2026, ver `docs/arquitectura/Home_Coyo.md`) |
-| **Home — Pregúntale a Peñasco / Coyo** | ✅ Fase 1 + Cerebro IA | Feed conversacional + hero "Coyo te habla" + asistente con Gemini 2.5-flash que busca en las 4 áreas y responde cálido. Detalle: `docs/arquitectura/Home_Coyo.md`. **Pendiente:** tarjetas de resultados de Coyo aún NO son clicables (no llevan al perfil/publicación) |
+| **Secciones Públicas** (6.x) | ✅ 100% (4/4) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest) · ✅ Home / Coyo Fase 1 + Cerebro IA + Fase 2 Comunidad + Polish UX (1 Jun 2026, ver `docs/arquitectura/Home_Coyo.md`) |
+| **Home — Pregúntale a Peñasco / Coyo** | ✅ Fase 1 + Cerebro IA + Comunidad + Polish UX | Feed conversacional + hero "Coyo te habla" + asistente Gemini 2.5-flash + **respuestas de la comunidad** + **"yo también quiero saber"** + **control del autor** (cerrar/editar/marcar resuelta/borrar) + **notificaciones cross-rol** (autor, interesados, dueños de items recomendados) + **expiración pasiva 14 días** + **tarjetas clicables** + **Coyo mini animado en card** + **botón Reintentar** ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`. |
 | **Panel Admin** (6.7) | ⏳ 10% | Infra backend + sección Mantenimiento (reconcile R2) ✅. Pendiente: auth admin con roles (admin + vendedor), UI frontend, secciones Negocios/Usuarios/Reportes-Globales/Suscripciones/Auditoría/Vendedores-Comisiones (tabla `embajadores` ya existe) |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | Stripe LIVE, dominio, testing, beta 50 negocios |
 
@@ -40,7 +40,8 @@
 - [x] **Sección pública Ofertas** ✅ (1 May 2026 — feed editorial, multi-sucursal, swipe, analytics)
 - [x] **Sección pública MarketPlace v1.6** ✅ (15 May 2026 — compra-venta P2P, moderación autónoma, buscador potenciado, página pública compartible, **Mis Publicaciones (panel del vendedor)**, **Q&A estilo Mercado Libre con privacidad de pendientes**, flujos E2E probados)
 - [x] **Sección pública Servicios v1.1** ✅ (17 May 2026 — Sprints 7+8 cerrados: feed mezclado con widget de Clasificados, wizard 3 pasos para crear/editar, Mis Publicaciones, cron de expiración 30 días, reseñas, perfil del prestador con distribución de estrellas, moderación pasiva, **+ BS Vacantes (módulo en Business Studio para que negocios publiquen vacantes corporativas)**, 65 tests Vitest)
-- [x] **Home con Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** ✅ (24 May 2026 — feed conversacional con hero "Coyo te habla", asistente con Gemini 2.5-flash que interpreta la pregunta, busca en las 4 áreas vía buscador unificado y redacta respuesta cálida; modelo "publicar al instante + sondeo cada 2s" sin socket. Detalle: `docs/arquitectura/Home_Coyo.md`. Pendiente: tarjetas clicables)
+- [x] **Home con Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** ✅ (24 May 2026 — feed conversacional con hero "Coyo te habla", asistente con Gemini 2.5-flash que interpreta la pregunta, busca en las 4 áreas vía buscador unificado y redacta respuesta cálida; modelo "publicar al instante + sondeo cada 2s" sin socket. Detalle: `docs/arquitectura/Home_Coyo.md`.)
+- [x] **Home / Coyo — Fase 2 (Comunidad + Polish UX)** ✅ (1 Jun 2026 — el feed deja de ser solo "vecino → Coyo" y se vuelve "vecino → comunidad + Coyo". Respuestas de la comunidad en hilo plano, "Yo también quiero saber" con optimistic update, control del autor (cerrar/editar/marcar resuelta/borrar) con reglas estrictas, 3 tipos de notificación nuevos (al autor cuando responden, a interesados cuando responden, a dueños cuando Coyo recomienda su item con fallback gerente→dueño), expiración pasiva 14d sin cron, vista `/inicio/mis-preguntas`. Polish UX: tarjetas de Coyo clicables a su detalle + "Ver N más en X", Coyo Rive mini animado dentro de la card pensando, subtipos visuales `vaga` (ámbar) vs `no_local` (slate), empty state con 3 ejemplos, botón Reintentar ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`.)
 - [ ] Panel Admin funcional
 - [ ] Beta privada: 50 negocios piloto
 - [ ] Lanzamiento público
@@ -80,6 +81,8 @@
 | Sprint 24 | **MarketPlace v1.4 — Buscador MP global + filtros en Mis Guardados + sucursalId en ofertas**: polish UI cross-app, filtros de estado en Mis Guardados, buscador MarketPlace global (anclado al `useSearchStore`), duplicación de sucursal en chats, retiro total de `vendedor_marketplace` legacy | 12 May 2026 |
 | Sprint 25 | **MarketPlace v1.5 — Mis Publicaciones + Mis Guardados Marketplace funcional + wizard publicar rediseñado**: panel del vendedor `Mis Publicaciones` (filtros activas/pausadas/vendidas, acciones marcar como vendida/reactivar/eliminar), UI Servicios pre-cableada, Mis Guardados Marketplace 100% funcional con unificación visual de cards, wizard publicar rediseñado, P3 perfil ajustado, galería P2, cleanup R2, filtro permisivo de sucursal | 13 May 2026 |
 | Sprint 26 | **MarketPlace v1.6 — Q&A estilo Mercado Libre + privacidad de pendientes + cierre E2E**: rediseño completo de Q&A en detalle y feed (agrupación por comprador, badge "Pendiente", conector "L" entre pregunta y respuesta, nombre+1er apellido en bubbles), responder/preguntar inline sin modal (elimina `ModalHacerPregunta`), pendientes ajenas privadas (filtro backend en `obtenerPreguntasPublicas` + `top_preguntas` del feed), helpers compartidos `agruparPorComprador<T>` + `obtenerNombreCorto` en `utils/marketplace.ts`, mejor copy de notificaciones (incluye título del artículo), fix backend vendedor devuelve apellidos+avatar completos, Tooltip "Guardar publicación" en feed, flujos E2E probados (comprador + vendedor + Mis Publicaciones) | 14-15 May 2026 |
+| Sprint 27 | **Home / Coyo — Fase 2 Sprint 1 (Comunidad)**: 7 fases (A–G) en 8 commits. (A) migración SQL respuestas+interesados+resuelta_at + 2 índices, (B) backend respuestas con soft-delete + 5 conteos inline en el feed (`totalRespuestas`, `totalInteresados`, `yoTambienInteresado`, `resueltaAt`), (C) control del autor (cerrar/borrar/editar/marcar resuelta) — editar SOLO si totalRespuestas=0, edición resetea Coyo, (D) 2 tipos de notificación nuevos: `pregunta_comunidad_respondida` al autor + `coyo_recomendacion` al gerente con fallback dueño (negocios/ofertas/vacantes) o al usuario personal (marketplace/servicios), (E) **expiración pasiva 14d** sin cron Render — barrido inline al listar feed por ciudad usando `MAX(respuestas.created_at)` como referencia, (F1-F4) frontend completo: `BotonInteresComunidad` con optimistic update, `RespuestasComunidad` colapsable, `MenuAutorPregunta` con 3 modales de confirmación, `ModalEditarPregunta`, vista `/inicio/mis-preguntas`, mapeo de íconos en PanelNotificaciones (familia comunidad azul + coyo violeta), (G) doc Home_Coyo.md actualizada en presente. | 30 May - 1 Jun 2026 |
+| Sprint 28 | **Home / Coyo — Fase 2 Sprint 2 (Polish UX)**: 4 sub-fases. (2.A) tarjetas de Coyo clicables al detalle (negocios/ofertas/marketplace/servicios) + "Ver N más en X" al pie de cada grupo que cablea `useSearchStore.setQuery(textoPregunta) + abrirBuscador() + navigate(seccion)`, (2.B) Coyo Rive mini animado dentro de la card "pensando" (nueva prop `align` en `CoyoAnimado`), + bonus: autor de pregunta no se autorresponde (frontend + 403 en backend), + 3er tipo de notificación `pregunta_comunidad_seguida_respondida` que avisa a los interesados ("yo también") cuando alguien responde (cumple la promesa "Te avisaremos" del botón), (2.C) polish: ocultar `⭐ 0.0` cuando totalReseñas=0, subtipos visuales para `no_aplica` ("Coyo sugiere" ámbar para preguntas vagas + "Coyo aclara" slate para no_local), empty state mejorado con 3 ejemplos, (2.D) botón "Reintentar" cuando Coyo cayó en `sin_respuesta` por errores transitorios de Gemini — solo visible al autor, reusa la pregunta sin crear una nueva. | 1 Jun 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -97,7 +100,7 @@
 | Mis Guardados: Rediseño estilo CardYA (rose) | ✅ 100% | 23 Mar 2026 | `docs/arquitectura/Guardados.md` |
 | **Sección Ofertas Públicas v1.4** | ✅ 100% | 1 May 2026 | `docs/arquitectura/Ofertas.md` |
 | **Sección MarketPlace v1.6** (P2P, moderación autónoma, buscador potenciado, Mis Publicaciones, Q&A estilo ML, flujos E2E probados) | ✅ 100% (11 sprints) | 15 May 2026 | `docs/arquitectura/MarketPlace.md` |
-| **Home — Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** | ✅ Fase 1 + Cerebro IA | 24 May 2026 | `docs/arquitectura/Home_Coyo.md` |
+| **Home — Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA + Comunidad + Polish UX)** | ✅ Fase 1 + Fase 2 | 24 May - 1 Jun 2026 | `docs/arquitectura/Home_Coyo.md` |
 
 ### Pendientes menores
 
@@ -108,14 +111,15 @@
   - Para **gerentes** (con `sucursalAsignada != null`): bloquear cambio de correo (es la identidad vinculada al negocio). Permitir editar nombre, avatar, contraseña.
   - Para **dueños** (con `negocioId != null, sucursalAsignada = null`): mismas reglas que gerentes, no cambio de correo mientras tengan negocio activo.
   - Para **usuarios personales** (sin negocio): todo editable incluido correo (con flujo de verificación).
-- [ ] **Tarjetas de resultados de Coyo clicables** — el bloque "Coyo encontró esto para ti" pinta tarjetas con `tipo + id` pero todavía NO navegan al detalle (negocio, marketplace, servicio, oferta). Decidir si abren modal o navegan fuera del Home, y cablear el `onClick` en `TarjetaItemCoyo` (`PaginaInicio.tsx`).
+- [x] ~~**Tarjetas de resultados de Coyo clicables**~~ ✅ (1 Jun 2026 — Sprint 28 / Sprint 2.A del Home Fase 2). Cada tarjeta navega al detalle según tipo (`/negocios/:sucursalId`, `/ofertas?oferta=:id`, `/marketplace/articulo/:id`, `/servicios/:id`). Además se agregó "Ver N más en X" al pie de cada grupo cuando hay sobrantes del top 3 (cablea `useSearchStore` + navigate a la sección).
 - [ ] **Coyo: respuesta sensible para auto-daño / crisis emocional** — hoy si alguien escribe *"quiero morirme"* o similar, cae en `no_local` y Coyo responde con el texto fijo de redirección. Mal. Debe detectar crisis emocional y mostrar respuesta empática + línea de ayuda (México: 800-290-0024 Línea de la Vida, 24/7 gratis). Requiere: (a) prompt cuidadoso para detectar crisis sin falsos positivos, (b) texto validado idealmente con un experto en salud mental, (c) tal vez un nuevo `tipo='crisis'` en `PreguntaInterpretada`. Anotar como tarea de mayor cuidado, NO meter sin validación adecuada.
 - [x] ~~`coyo_respuesta_en_pregunta.sql` en producción~~ ✅ (24 May 2026, aplicada en Supabase)
 - [x] ~~`GEMINI_API_KEY` en Render~~ ✅ (24 May 2026, agregada al dashboard, Render redeployó automático)
+- [x] ~~3 migraciones SQL del Home Fase 2~~ ✅ (1 Jun 2026, aplicadas en local + Supabase prod): `2026-06-01-respuestas-interes-resuelta.sql`, `2026-06-01-notificaciones-coyo-comunidad.sql`, `2026-06-01-notif-pregunta-seguida.sql`.
 
 ---
 
-## ⏭️ Sprint siguiente: Panel Admin · Tarjetas Coyo clicables
+## ⏭️ Sprint siguiente: Panel Admin · Beta privada
 
 ---
 

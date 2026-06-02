@@ -151,6 +151,7 @@ POST    /api/preguntas-comunidad/:preguntaId/cerrar            cerrarMiPreguntaC
 POST    /api/preguntas-comunidad/:preguntaId/resolver          marcarResueltaController
 DELETE  /api/preguntas-comunidad/:preguntaId                   borrarMiPreguntaController
 PATCH   /api/preguntas-comunidad/:preguntaId                   editarMiPreguntaController
+POST    /api/preguntas-comunidad/:preguntaId/reintentar        reintentarMiPreguntaController  ← Sprint 2.D
 ```
 
 Orden de declaración importante en `routes.ts`: las rutas estáticas
@@ -169,7 +170,7 @@ dinámicas (`/:preguntaId/...`) — Express toma la primera que matchea.
 
 | Endpoint | Reglas |
 |---|---|
-| `crearRespuesta` | Texto 1–1000 chars. La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **Dispara notificación `pregunta_comunidad_respondida` al autor de la pregunta** (fire-and-forget, bloqueada si el responder es el propio autor). |
+| `crearRespuesta` | Texto 1–1000 chars. La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **El autor NO puede responder a su propia pregunta** — backend devuelve 403. Dispara **2 notificaciones** fire-and-forget: (1) `pregunta_comunidad_respondida` al autor de la pregunta, (2) `pregunta_comunidad_seguida_respondida` a TODOS los interesados (los que marcaron "Yo también quiero saber") excepto el responder y el autor. |
 | `listarRespuestas` | Solo `estado='activa'`, orden cronológico ascendente (la más vieja primero — flujo natural de conversación). |
 | `borrarMiRespuesta` | Soft-delete (estado='borrada'). **Solo el autor de la respuesta** puede borrarla — el autor de la PREGUNTA no cura el tablón (decisión de producto: confiar en la comunidad). Idempotente. |
 | `marcarInteres` / `quitarInteres` | Idempotentes: `INSERT ... ON CONFLICT DO NOTHING` / `DELETE`. Devuelven el conteo `totalInteresados` actualizado. Bloqueado en el frontend para el AUTOR de la pregunta (no tiene sentido auto-marcarse). |
@@ -177,6 +178,7 @@ dinámicas (`/:preguntaId/...`) — Express toma la primera que matchea.
 | `marcarResuelta` | El autor pone `resuelta_at=NOW()`. La pregunta sigue `'activa'` y puede recibir más respuestas, pero la UI muestra un badge "Resuelta". |
 | `borrarMiPregunta` | Soft-delete: `estado_pregunta='oculta'`. La pregunta y sus respuestas se conservan en BD pero desaparecen del feed. |
 | `editarMiPregunta` | **Solo si `totalRespuestas === 0`** — backend valida y devuelve 409 si ya hay respuestas activas. Al editar resetea los campos de Coyo (`estado_coyo='pendiente'`, demás a null) y re-dispara `procesarPreguntaConCoyo` fire-and-forget. |
+| `reintentarMiPregunta` | **Solo si `estado_coyo === 'sin_respuesta'`** — backend devuelve 409 si está en otro estado. Solo el autor; solo preguntas activas. Resetea los 4 campos de Coyo y re-dispara `procesarPreguntaConCoyo` fire-and-forget. Sprint 2.D. |
 
 ### Service centralizado `negocioManagement` (no aplica aquí)
 
@@ -614,8 +616,8 @@ un caso así, se amplía la heurística.
 
 ## Notificaciones del Home
 
-El Home dispara dos tipos de notificaciones al sistema de notificaciones
-de la app (mismo `crearNotificacion()` que el resto):
+El Home dispara **tres** tipos de notificaciones al sistema central
+(`crearNotificacion()`):
 
 ### 1. `pregunta_comunidad_respondida` — autor recibe respuesta
 
@@ -623,16 +625,40 @@ Cuando un vecino crea una respuesta a una pregunta, **fire-and-forget**:
 
 - Destinatario: el `usuarioId` del autor de la pregunta.
 - Modo: `'personal'`.
+- Título: **"Respondió tu pregunta"** (singular, casa con el nombre del
+  actor mostrado arriba).
 - `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
 - Mensaje: primeros 100 caracteres de la respuesta + `…`.
 - `actorNombre` + `actorImagenUrl`: datos del vecino que respondió.
 - Auto-notificación bloqueada: si el responder es el propio autor de la
-  pregunta, NO se envía nada.
+  pregunta, NO se envía nada (además el backend devuelve 403 en ese
+  caso — defensa en profundidad).
 
 Si el `crearNotificacion` falla (red, BD), solo se loguea — no rompe la
 creación de la respuesta.
 
-### 2. `coyo_recomendacion` — un item suyo aparece en los resultados de Coyo
+### 2. `pregunta_comunidad_seguida_respondida` — interesados reciben aviso
+
+Cumple la promesa "Te avisaremos" del botón "Yo también quiero saber".
+Después de la notificación al autor (bloque 1), se dispara también para
+**todos los interesados** (los que marcaron "yo también" en esa pregunta).
+
+- Destinatarios: `SELECT usuarioId FROM preguntas_interesados WHERE
+  pregunta_id = X AND usuario_id != responder AND usuario_id != autor`.
+  Las exclusiones evitan auto-notif al responder + duplicación al autor
+  (él ya recibe la del bloque 1 con título distinto).
+- Modo: `'personal'`.
+- Título: **"Respondieron una pregunta que sigues"**.
+- Mismo mensaje, `actorNombre`, `actorImagenUrl`, `referenciaTipo` y
+  `referenciaId` que el bloque 1.
+- Visualmente IDÉNTICA a la del autor en el panel — misma familia
+  `comunidad`, mismo color azul, mismo glifo de chat, mismo layout
+  compacto. La diferencia está en el TÍTULO interno (visible en
+  `aria-label` para lectores de pantalla pero no en el render).
+- Cada `crearNotificacion` es fire-and-forget independiente; un fallo
+  en uno no detiene a los demás.
+
+### 3. `coyo_recomendacion` — un item suyo aparece en los resultados de Coyo
 
 Cuando el orquestador llega a `'listo'` con al menos un item en
 `resultadosParaGuardar` (después de filtros CASO B / A v2), dispara
@@ -661,22 +687,29 @@ lógica gerente-con-fallback-dueño.
 
 ### CHECK constraints
 
-Los dos tipos están en `notificaciones_tipo_check` y `pregunta_comunidad`
-está en `notificaciones_referencia_tipo_check`. Migración:
-`docs/migraciones/2026-06-01-notificaciones-coyo-comunidad.sql`.
+Los tres tipos están en `notificaciones_tipo_check` y `pregunta_comunidad`
+está en `notificaciones_referencia_tipo_check`. Migraciones:
+`docs/migraciones/2026-06-01-notificaciones-coyo-comunidad.sql`
+(agregó los primeros dos + el referenciaTipo) y
+`docs/migraciones/2026-06-01-notif-pregunta-seguida.sql` (agregó el
+tercero).
 
 ### Frontend: íconos y navegación
 
-`PanelNotificaciones.tsx` mapea los dos tipos a familias visuales nuevas:
+`PanelNotificaciones.tsx` mapea los tres tipos a familias visuales:
 
 | Tipo | Familia | Tile (gradient) | Glifo |
 |---|---|---|---|
 | `pregunta_comunidad_respondida` | `comunidad` | azul (#2563eb → #1d4ed8) | `IcoChat` (chat-circle-dots) |
+| `pregunta_comunidad_seguida_respondida` | `comunidad` | azul (mismo) | `IcoChat` (mismo) |
 | `coyo_recomendacion` | `coyo` | violeta→índigo (#a855f7 → #6366f1) | `IcoSparkle` (sparkle-fill) |
 
-Click en cualquiera de las dos navega a `/inicio?preguntaId=<id>`. Hoy
-el Home no hace scroll-to-pregunta, pero el query param queda listo
-para activarse en el futuro sin romper el flujo actual.
+Los 3 tipos usan el **layout compacto del Home/Coyo**: nombre arriba
+(con clase `.pn-title` para consistencia con el resto del panel) +
+respuesta entre comillas en 1 línea con ellipsis + tiempo abajo. Sin
+título visible (queda en `aria-label`). Click en cualquiera navega a
+`/inicio?preguntaId=<id>` — el query param queda listo para
+scroll-to-pregunta en el futuro sin romper el flujo actual.
 
 ---
 
@@ -795,16 +828,91 @@ patrón normal (sin optimistic).
 
 | `estadoCoyo` | Bloque renderizado |
 |---|---|
-| `pendiente` o `procesando` | `BloqueCoyoPensando` — panel azul claro + Sparkles + "Coyo está pensando" + Loader2 animado |
-| `listo` con grupos | `BloqueCoyoListo` — encabezado "Coyo encontró esto para ti" + texto + tarjetas agrupadas (Negocios → Ofertas → MarketPlace → Servicios), max 3 por grupo |
+| `pendiente` o `procesando` | `BloqueCoyoPensando` — **Coyo Rive mini animado** (40-48px, estado `'pensando'`, mano en barbilla) + texto "Coyo está pensando…" **inline en el flujo de la card** (sin caja). La propia animación de Coyo transmite que está procesando, sin necesidad de spinner extra |
+| `listo` con grupos | `BloqueCoyoListo` — encabezado "Coyo encontró esto para ti" + texto + tarjetas agrupadas (Negocios → Ofertas → MarketPlace → Servicios), max 3 por grupo. Cada tarjeta **clicable al detalle** (ver §Tarjetas clicables abajo). Al pie de cada grupo, **"Ver N más en <Sección>"** cuando `total > items.length` |
 | `listo` sin grupos | `BloqueCoyoListo` — encabezado **"Coyo dice"** (condicional) + solo el texto |
-| `no_aplica` | `BloqueCoyoNoAplica` — solo el texto de redirección o el `mensajeReformular` específico |
-| `sin_respuesta` | (sin bloque de Coyo) — la pregunta queda abierta para que la comunidad responda |
+| `no_aplica` (subtipo `vaga`) | `BloqueCoyoNoAplica` — fondo **ámbar** + encabezado **"Coyo sugiere"** — tono constructivo, Coyo SÍ podría ayudar pero necesita más detalle |
+| `no_aplica` (subtipo `no_local`) | `BloqueCoyoNoAplica` — fondo **slate** + encabezado **"Coyo aclara"** — tono neutro, la pregunta no es búsqueda local |
+| `sin_respuesta` | `BloqueCoyoSinRespuesta` — fondo slate neutro + alerta "Coyo no pudo procesar tu pregunta". Botón **"Reintentar"** visible **solo al autor** (los vecinos solo ven la nota informativa). Click → reusa la pregunta original sin crear una nueva |
 
 **Tarjetas (`TarjetaItemCoyo`):** imagen + título + subtítulo + chips de
 datos ricos (rating con estrella, "Verificado", "Abierto", condición,
 "Negociable", "Vence en N días"). Solo se renderiza el chip si el dato
-viene no-nulo desde el backend.
+viene no-nulo desde el backend. **El chip de rating se oculta si
+`totalResenas === 0`** — un negocio sin reseñas tiene rating=0 por
+default en BD, y mostrar "⭐ 0.0" lo hacía ver mal calificado en lugar
+de "sin calificar".
+
+### Tarjetas clicables — navegación al detalle
+
+Cada `TarjetaItemCoyo` es un `<button>` dentro de `<li>` que al hacer
+click navega al detalle del item según su tipo:
+
+| Tipo | Ruta destino |
+|---|---|
+| `negocio` | `/negocios/${item.id}` (item.id = sucursalId) |
+| `oferta` | `/ofertas?oferta=${item.id}` (la página de Ofertas detecta el query y abre el modal de detalle) |
+| `marketplace` | `/marketplace/articulo/${item.id}` |
+| `servicio` | `/servicios/${item.id}` |
+
+Helpers `rutaDetalleItemCoyo(item)` y `rutaSeccionCoyo(tipo)` viven en
+`PaginaInicio.tsx`. UX: hover azul en desktop, `active:scale[0.995]`,
+`data-testid="coyo-tarjeta-${tipo}-${id}"` para tests E2E futuros,
+`aria-label="Ver ${titulo}"`.
+
+### "Ver más resultados" — escape al buscador
+
+Cuando `grupo.total > items.length` (Coyo trajo más resultados de los
+que muestra inline), aparece al pie del grupo el botón
+**"Ver N más en <Sección> →"**. Click:
+
+1. `useSearchStore.setQuery(textoPregunta)` — guarda la pregunta como
+   query global.
+2. `useSearchStore.abrirBuscador()` — para que el query sea visible
+   en la sección destino.
+3. `navigate(rutaSeccionCoyo(tipo))` — navega a `/negocios`,
+   `/ofertas`, `/marketplace` o `/servicios`.
+
+La sección destino lee el query del `useSearchStore` (patrón establecido
+del Navbar global) y filtra automáticamente. Si el usuario refresca la
+URL, el query se pierde (no está en URL) y la sección muestra todo —
+trade-off aceptado por simplicidad.
+
+### Botón Reintentar — recuperación ante fallos de IA
+
+Cuando Gemini cae los 6 intentos automáticos (3 con el principal + 3
+con el fallback) la pregunta queda en `estado_coyo='sin_respuesta'`.
+El autor ve un botón **"Reintentar"** que llama
+`POST /api/preguntas-comunidad/:preguntaId/reintentar`:
+
+1. Service `reintentarMiPregunta(input)` valida autoría + estado_coyo
+   correcto (solo `'sin_respuesta'`) + pregunta activa.
+2. Resetea los 4 campos de Coyo (`estadoCoyo='pendiente'`,
+   `respuestaCoyo=null`, `resultadosCoyo=null`, `coyoProcesadoAt=null`).
+3. Dispara `procesarPreguntaConCoyo(preguntaId)` fire-and-forget.
+4. El hook `useReintentarMiPregunta` invalida feed + misPreguntas + el
+   sondeo de Coyo de esa pregunta, así el polling arranca con el
+   nuevo estado pendiente.
+
+Visualmente: loader "Reintentando…" → toast verde → la card vuelve a
+"Coyo está pensando…" y sigue el flujo normal.
+
+### Empty state del feed — onboarding de ciudades nuevas
+
+Cuando una ciudad NO tiene preguntas activas todavía, `EstadoVacio`
+muestra:
+
+- Ícono Inbox azul + texto "Sé el primero en preguntarle a {Ciudad}".
+- Sub-texto que vende el valor: "Coyo te ayuda al instante y tus
+  vecinos pueden completar la respuesta."
+- Sección **"IDEAS PARA EMPEZAR"** con 3 ejemplos en italic con
+  sparkles ámbar:
+  * "¿Algún plomero confiable por aquí?"
+  * "¿Qué restaurante recomiendan para una cena?"
+  * "¿Dónde reparan laptops?"
+
+Los ejemplos no son clicables todavía (no auto-cargan al input). Si
+surge necesidad, son 3 líneas para cablearlo.
 
 ### Componentes nuevos del Home
 
@@ -888,7 +996,7 @@ Prioridad (mayor a menor):
 
 1. **Exclusividad de inputs:** antes de activar un boolean, se ponen todos los demás en `false`. Garantiza que nunca haya 2 estados activos al mismo tiempo.
 2. **Espera al salir de `respondiendo`:** si el estado anterior era `respondiendo` y se cambia a otro, se aplica el cambio con `setTimeout(250ms)` para que el ciclo de bocas termine en su frame base (`boca-cerrada` visible) y no se "congele" en un frame intermedio.
-3. **Layout fijo:** `Fit.Contain` + `Alignment.BottomRight` para que la mano alzada del saludo no se recorte por arriba.
+3. **Layout configurable:** `Fit.Contain` + alineamiento por prop `align` (`'bottomRight' | 'center'`, default `'bottomRight'`). El hero usa `bottomRight` para que la mano alzada del saludo no se recorte por arriba. Las cards mini en estado pensando usan `'center'` para que Coyo quede al centro óptico del contenedor cuadrado.
 4. **StrictMode-safe:** el efecto que dispara `saludo` no usa flag en `useRef` (en dev el efecto corre 2 veces; un flag bloquearía la segunda ejecución y `setMostrandoSaludo(false)` nunca se llamaría). En su lugar, `mostrandoSaludo` se inicializa en `true` y el `setTimeout` se cierra correctamente con el cleanup.
 
 **Cómo regenerar el `.riv`:**
@@ -1032,11 +1140,6 @@ de regresión apuntando específicamente a ese caso.
 
 ## Limitaciones y pendientes conocidos
 
-- **Las tarjetas de resultados de Coyo aún NO son clicables.** No llevan
-  al perfil del negocio, al detalle del artículo, etc. — pendiente de
-  diseñar (ruta + comportamiento de "abrir en modal" vs "navegar fuera
-  del Home"). El backend ya devuelve `tipo + id` listos para construir
-  el enlace.
 - **Negocios se filtra por nombre de ciudad, no por proximidad GPS.** La
   pregunta no captura `lat/lng`. Garantiza cero ciudades ajenas (objetivo
   innegociable) pero pierde precisión geográfica dentro de la ciudad.
@@ -1089,6 +1192,7 @@ Todas en `docs/migraciones/`:
 | `2026-05-24-coyo-respuesta-en-pregunta.sql` | 4 columnas de Coyo + CHECK + índice parcial | ✅ | ✅ |
 | `2026-06-01-respuestas-interes-resuelta.sql` | Tablas `respuestas_preguntas_comunidad` + `preguntas_interesados` + columna `resuelta_at` | ✅ | ✅ |
 | `2026-06-01-notificaciones-coyo-comunidad.sql` | Extiende CHECKs de `notificaciones` con `pregunta_comunidad_respondida`, `coyo_recomendacion`, `pregunta_comunidad` | ✅ | ✅ |
+| `2026-06-01-notif-pregunta-seguida.sql` | Extiende `notificaciones_tipo_check` con `pregunta_comunidad_seguida_respondida` (a interesados) | ✅ | ✅ |
 
 Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 `DROP CONSTRAINT IF EXISTS`) y compatibles con la receta del wrapper
@@ -1108,7 +1212,7 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 | **Backend — notificaciones** | `services/notificaciones.service.ts`, `types/notificaciones.types.ts` |
 | **Backend — config** | `config/env.ts` (`GEMINI_API_KEY`) |
 | **Backend — tests** | `__tests__/coyo-filtro-caso-a.test.ts`, `__tests__/coyo-filtro-caso-b.test.ts` |
-| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx`, `pages/private/PaginaMisPreguntas.tsx`, `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
+| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (con bloques internos `BloqueCoyoPensando`, `BloqueCoyoListo`, `BloqueCoyoNoAplica` con subtipos, `BloqueCoyoSinRespuesta`, `BotonVerMasResultados`, `EstadoVacio` con ejemplos), `pages/private/PaginaMisPreguntas.tsx`, `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts`, `stores/useSearchStore.ts` (consumido en "Ver más resultados") |
 | **Frontend — componentes Home** | `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx`, `components/home/ModalEditarPregunta.tsx` |
 | **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
 | **Frontend — notificaciones** | `components/layout/PanelNotificaciones.tsx` (mapeo de íconos + navegación), `types/notificaciones.ts` |

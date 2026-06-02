@@ -7,6 +7,191 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [1 Junio 2026] - Home / Coyo Fase 2 — Comunidad + Polish UX 🤝🦊
+
+El Home deja de ser solo "vecino → Coyo" y se vuelve **"vecino → comunidad + Coyo"**.
+Las preguntas reciben respuestas reales de otros vecinos, los interesados marcan
+"yo también quiero saber", el autor puede gestionar su pregunta (cerrar, editar,
+marcar resuelta, borrar), y las notificaciones cierran el círculo del feedback
+para los 3 roles (autor, interesados, dueños de items recomendados por Coyo).
+Cierre del Sprint 1 + Sprint 2 de la Fase 2.
+
+### Sprint 1 (Fase 2 / Comunidad) — 7 fases A–G
+
+**A. Migración SQL `2026-06-01-respuestas-interes-resuelta.sql`** (idempotente,
+aplicada en local + prod):
+- Tabla `respuestas_preguntas_comunidad` (id, pregunta_id, usuario_id, texto,
+  estado activa/borrada, timestamps). Soft-delete + CHECK length 1–1000.
+- Tabla `preguntas_interesados` (PK compuesta `pregunta_id, usuario_id` para
+  idempotencia con `ON CONFLICT DO NOTHING`).
+- Columna nueva `resuelta_at` en `preguntas_comunidad` (badge "Resuelta" sin
+  cerrar la pregunta).
+- 2 índices: `idx_respuestas_pregunta_creacion` (parcial WHERE estado='activa'),
+  `idx_respuestas_usuario`.
+
+**B. Backend respuestas + conteos en el feed**:
+- Service `respuestasPreguntasComunidad.service.ts` con `crearRespuesta`,
+  `listarRespuestasPorPregunta`, `borrarMiRespuesta` (solo el autor de la
+  respuesta — el autor de la pregunta NO cura el tablón).
+- 3 endpoints: `POST/GET /:preguntaId/respuestas`, `DELETE /respuestas/:respuestaId`.
+- `listarPreguntasPorCiudad` ahora devuelve 4 conteos via subqueries inline:
+  `totalRespuestas`, `totalInteresados`, `yoTambienInteresado`, `resueltaAt`.
+
+**C. Control del autor**:
+- 4 endpoints nuevos: `POST /:preguntaId/cerrar`, `POST /:preguntaId/resolver`,
+  `DELETE /:preguntaId` (soft-delete `estado_pregunta='oculta'`), `PATCH /:preguntaId`.
+- Vista `GET /mis-preguntas` — histórico del autor sin filtro por estado.
+- Service `interesPreguntasComunidad.service.ts` con `marcarInteres` (idempotente
+  vía `ON CONFLICT DO NOTHING`) y `quitarInteres`.
+- 2 endpoints: `POST/DELETE /:preguntaId/interes`.
+- **Editar texto solo si `totalRespuestas === 0`** (backend devuelve 409 si hay
+  respuestas — descontextualizaría las que ya recibió). Al editar, se resetean
+  los 4 campos de Coyo y se re-dispara `procesarPreguntaConCoyo` fire-and-forget.
+
+**D. Notificaciones cross-rol** — Migración SQL
+`2026-06-01-notificaciones-coyo-comunidad.sql` extiende los CHECK constraints
+con 2 valores nuevos:
+- `pregunta_comunidad_respondida` (modo personal) → al autor cuando un vecino
+  responde su pregunta. Auto-notif bloqueada (si el autor responde a sí mismo,
+  no se envía — además el backend ya devuelve 403 en ese caso).
+- `coyo_recomendacion` → al gerente de la sucursal cuyo item aparece en los
+  resultados de Coyo, con **fallback al dueño del negocio si la sucursal no
+  tiene gerente**. Modo `comercial` para negocios/ofertas/vacante-empresa;
+  modo `personal` para marketplace y servicios personales.
+- Helper `resolverDestinatarioSucursal(sucursalId)` centraliza la lógica
+  gerente-con-fallback-dueño. Todas las notificaciones son fire-and-forget
+  con `Promise.allSettled` (un fallo individual no detiene a los demás).
+- `referencia_tipo='pregunta_comunidad'` también agregado al CHECK.
+
+**E. Expiración pasiva 14 días — sin cron Render**:
+- Función privada `cerrarPreguntasVencidasDeCiudad(ciudad)` se ejecuta con
+  `await` al inicio de `listarPreguntasPorCiudad`, ANTES del SELECT del feed.
+- Fórmula: `COALESCE(MAX(respuestas.created_at WHERE estado='activa'),
+  preguntas_comunidad.created_at) < NOW() - INTERVAL '14 days'`.
+- Solo NUEVAS respuestas resetean el timer. Likes ("yo también") y `resuelta_at`
+  NO afectan. Las preguntas vencidas pasan a `estado_pregunta='cerrada'`.
+- Try/catch interno: si el UPDATE falla, el feed se sigue mostrando.
+
+**F. Frontend completo** (4 sub-fases F1–F4):
+- **F1**: tipos extendidos en `preguntasComunidad.ts`, service con 13 funciones,
+  query keys nuevas (`respuestas`, `misPreguntas`), 10 hooks de React Query.
+  **Optimistic update** en `useMarcarInteres` / `useQuitarInteres` con
+  snapshot+rollback en `onError` + invalidación en `onSettled`. Componentes
+  nuevos `BotonInteresComunidad.tsx` y `RespuestasComunidad.tsx`.
+- **F2**: menú del autor (3 puntitos) — `MenuAutorPregunta.tsx` con dropdown
+  y 4 acciones según estado de la pregunta; 3 modales de confirmación
+  (`ModalAdaptativo` para cerrar/resolver/borrar) + modal de edición
+  (`ModalEditarPregunta.tsx`).
+- **F3**: ruta nueva `/inicio/mis-preguntas` con `PaginaMisPreguntas.tsx`:
+  badges de estado (Activa/Cerrada/Eliminada), stats inline, mismas acciones
+  del autor. Link "Mis preguntas →" en el header del feed del Home.
+- **F4**: mapeo en `PanelNotificaciones.tsx` para los 2 tipos nuevos —
+  familias visuales `comunidad` (azul + chat) y `coyo` (violeta + sparkle).
+  Navegación al click: ambos van a `/inicio?preguntaId=<id>` (query string
+  listo para scroll-to-pregunta futuro).
+
+**G. Documentación**:
+- `docs/arquitectura/Home_Coyo.md` actualizado en presente (no como changelog).
+- Secciones nuevas: Tablas (3 ahora), Notificaciones del Home,
+  Expiración pasiva, Vista "Mis preguntas". Sección de Tests aclara qué
+  áreas NO tienen tests dedicados y por qué (decisión de scope — cubrir
+  vía E2E con Playwright cuando aparezcan bugs).
+
+### Sprint 2 (Fase 2 / Polish UX) — 4 sub-fases A–D
+
+**2.A — Tarjetas de Coyo clicables + "Ver más resultados"**:
+- Cada tarjeta del bloque "Coyo encontró esto para ti" navega al detalle según
+  tipo: `/negocios/:sucursalId`, `/ofertas?oferta=:id`, `/marketplace/articulo/:id`,
+  `/servicios/:id`. Hover azul, `active:scale[0.995]`, `data-testid` para tests
+  E2E futuros, `aria-label`.
+- Botón "Ver N más en <Sección>" al pie de cada grupo cuando `grupo.total >
+  items.length`. Click cablea `useSearchStore.setQuery(textoPregunta)` +
+  `abrirBuscador()` + `navigate(seccion)` — la sección destino abre con el
+  query aplicado.
+- Cierra la limitación histórica "Las tarjetas de resultados de Coyo aún NO son
+  clicables" que el ROADMAP registraba como pendiente.
+
+**2.B — Coyo Rive mini animado en card pensando + 2 mejoras descubiertas**:
+- Nueva prop `align?: 'bottomRight' | 'center'` en `CoyoAnimado` (default
+  preserva el comportamiento del hero). Las cards mini usan `'center'` para
+  que Coyo quede al centro óptico del contenedor cuadrado de ~40-48px.
+- `BloqueCoyoPensando` reemplaza el Sparkles + Loader2 por Coyo mini en
+  estado `'pensando'`. Sin contenedor azul claro — Coyo + texto inline en
+  el flujo de la card.
+- **Mejora extra 1 — Autor no se autorresponde**: nueva prop `esAutor` en
+  `RespuestasComunidad`. Si es autor: no se muestra CTA "Sé el primero en
+  responder" ni la caja para responder, pero sí "Ver N respuestas" cuando
+  hay. Backend devuelve 403 si el responder es el autor de la pregunta
+  (defensa en profundidad).
+- **Mejora extra 2 — Notificación a interesados**: migración SQL
+  `2026-06-01-notif-pregunta-seguida.sql` agrega el tipo
+  `pregunta_comunidad_seguida_respondida`. Cuando alguien responde, además
+  de la notif al autor, se envía a TODOS los que marcaron "Yo también
+  quiero saber" (excepto al responder mismo y al autor). Cumple la promesa
+  "Te avisaremos" que el botón ya mostraba. Visualmente idéntica a la del
+  autor (familia `comunidad`, color azul, glifo chat) — la diferencia
+  está solo en el título (en `aria-label` para a11y).
+
+**2.C — Polish visual**:
+- **#12 — Ocultar `⭐ 0.0`**: el chip de rating solo se muestra si `rating !==
+  null && totalResenas > 0` (negocios). Para ofertas se usa heurística
+  `negocioRating > 0` porque el buscador de Ofertas no expone totalResenas.
+  Un negocio sin reseñas tenía rating=0 por default y se veía mal calificado.
+- **#14 — Diferenciar `vaga` vs `no_local`**: helper
+  `detectarSubtipoNoAplica(texto)` busca verbos típicos de reformulación
+  ("prueba", "intenta", "reformul", "más específic", "por ejemplo", etc.).
+  - `vaga` → fondo ámbar claro + encabezado **"Coyo sugiere"** (tono
+    constructivo: Coyo SÍ podría ayudar, solo necesita más detalle).
+  - `no_local` → fondo slate claro + encabezado **"Coyo aclara"** (tono
+    neutro: la pregunta no es búsqueda local, redirige amablemente).
+- **#16 — Empty state del feed mejorado**: ícono Inbox azul, copy
+  "Sé el primero en preguntarle a {Ciudad}" + sección "IDEAS PARA EMPEZAR"
+  con 3 ejemplos en italic con sparkles ámbar para destrabar al primer
+  usuario de una ciudad nueva.
+
+**2.D — Reintentar pregunta cuando Coyo cayó en `sin_respuesta`**:
+- Endpoint nuevo `POST /api/preguntas-comunidad/:preguntaId/reintentar`.
+  Service `reintentarMiPregunta` verifica autoría + verifica
+  `estadoCoyo === 'sin_respuesta'` + pregunta activa → resetea los 4 campos
+  de Coyo → dispara `procesarPreguntaConCoyo` fire-and-forget.
+- Hook `useReintentarMiPregunta` invalida feed + misPreguntas + sondeo de
+  Coyo de esa pregunta para que vuelva a hacer polling.
+- Componente nuevo `BloqueCoyoSinRespuesta`: visible para todos cuando
+  `estadoCoyo === 'sin_respuesta'`. Mensaje distinto por rol; el botón
+  **Reintentar** (slate-700, ícono `RefreshCcw`) solo lo ve el autor.
+  Loader "Reintentando…" + toast verde al éxito. Estilo slate neutro (no
+  rojo — no es error del usuario sino inconveniente transitorio del
+  servicio).
+
+**Sprint 3 descartado** (era "Compartir pregunta" + "Feedback Coyo" + "Filtros
+del feed" + "Sugerencias autocompletar"). Decisión consciente — las preguntas
+son hiperlocales de 14d (no tiene sentido compartir links externos), Coyo no
+aprende de feedback ML, los filtros no aportan en feed por ciudad pequeña, y
+el autocompletar competiría con Coyo. Si surgen necesidades reales después de
+la beta, se reevalúan como hallazgos de campo.
+
+**Estado del Home / Coyo tras este bloque**: end-to-end completo para Puerto
+Peñasco beta. Flujo "vecino pregunta → Coyo responde con cards clicables al
+detalle → vecinos pueden responder o marcar 'yo también' → autor gestiona →
+sistema notifica a los 3 roles → expiración pasiva a los 14d". Sin
+dependencias externas críticas — Coyo es opcional (`GEMINI_API_KEY` puede
+faltar), expiración no necesita cron Render, las cards se autoapagan cuando
+Coyo llega a un estado final.
+
+**Archivos involucrados (resumen):**
+- BD: `apps/api/src/db/schemas/schema.ts` (3 tablas: preguntasComunidad,
+  respuestasPreguntasComunidad, preguntasInteresados; +3 CHECK constraints
+  actualizados).
+- Backend: 4 services + 1 controller + 1 routes (16 endpoints totales),
+  notificacionesCoyo.service.ts.
+- Frontend: PaginaInicio.tsx, PaginaMisPreguntas.tsx, 4 componentes nuevos
+  en `components/home/`, 13 funciones de service, 10 hooks RQ, mapeo en
+  PanelNotificaciones.tsx.
+- 3 migraciones SQL aplicadas en local + Supabase prod.
+- Doc maestro actualizado: `docs/arquitectura/Home_Coyo.md`.
+
+---
+
 ## [30 Mayo 2026] - Migración de entorno de desarrollo: de Docker local a la nube ☁️
 
 Se migró el entorno de desarrollo local de Docker (PostgreSQL + Redis en
