@@ -1,10 +1,9 @@
 /**
  * EstadosVacios.tsx — Estados vacíos del Home.
  * =============================================
- *  - FeedVacio: cuando no hay preguntas en la ciudad. Coyo (Rive) sobre un
+ *  - FeedVacio: cuando no hay preguntas en la ciudad. Cabeza de Coyo sobre un
  *    halo azul + botón "Hacer la primera pregunta" + chips de ejemplos que
  *    precargan el input. (Réplica del HTML del handoff.)
- *  - MisPreguntasVacioMovil: variante para el segmento "Mis preguntas" en móvil.
  *
  * Los callbacks (onEnfocar / onUsarEjemplo) los pasa PaginaInicio: el texto
  * del input vive en React (estado del padre), así que precargar un ejemplo
@@ -13,7 +12,7 @@
  * Ubicación: apps/web/src/components/home/EstadosVacios.tsx
  */
 
-import { Inbox, Sparkles } from 'lucide-react';
+import { Sparkles } from 'lucide-react';
 
 const EJEMPLOS = ['¿Algún plomero por el centro?', '¿Dónde reparan laptops?', '¿Tortillería a domicilio?'];
 
@@ -70,20 +69,6 @@ export function FeedVacio({ onEnfocar, onUsarEjemplo }: FeedVacioProps) {
                     </div>
                 </div>
             </div>
-        </div>
-    );
-}
-
-export function MisPreguntasVacioMovil() {
-    return (
-        <div className="flex flex-col items-center text-center px-4 py-12">
-            <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-blue-200 shadow-sm mb-3">
-                <Inbox size={26} strokeWidth={1.75} className="text-blue-500" />
-            </span>
-            <h4 className="text-base font-bold text-slate-800">Todavía no preguntas nada</h4>
-            <p className="mt-1 text-sm text-slate-500 font-medium max-w-[260px] leading-relaxed">
-                Usa el campo de arriba para preguntarle a Coyo. Tus preguntas aparecerán aquí.
-            </p>
         </div>
     );
 }

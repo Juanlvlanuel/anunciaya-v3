@@ -9,7 +9,7 @@
  * Ubicación: apps/web/src/components/home/navegacionCoyo.ts
  */
 
-import type { ItemCoyo, TipoItemCoyo } from '../../types/preguntasComunidad';
+import type { ItemCoyo } from '../../types/preguntasComunidad';
 
 /**
  * Ruta del DETALLE de un item recomendado por Coyo (click en una tarjeta).
@@ -28,34 +28,6 @@ export function rutaDetalleItemCoyo(item: ItemCoyo): string {
             return `/marketplace/articulo/${item.id}`;
         case 'servicio':
             return `/servicios/${item.id}`;
-    }
-}
-
-/** Ruta de la SECCIÓN completa (para "ver todo en X"). */
-export function rutaSeccionCoyo(tipo: TipoItemCoyo): string {
-    switch (tipo) {
-        case 'negocio':
-            return '/negocios';
-        case 'oferta':
-            return '/ofertas';
-        case 'marketplace':
-            return '/marketplace';
-        case 'servicio':
-            return '/servicios';
-    }
-}
-
-/** Nombre humano de cada sección. */
-export function nombreSeccionCoyo(tipo: TipoItemCoyo): string {
-    switch (tipo) {
-        case 'negocio':
-            return 'Negocios';
-        case 'oferta':
-            return 'Ofertas';
-        case 'marketplace':
-            return 'MarketPlace';
-        case 'servicio':
-            return 'Servicios';
     }
 }
 

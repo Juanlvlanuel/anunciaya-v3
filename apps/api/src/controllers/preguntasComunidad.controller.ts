@@ -15,7 +15,6 @@ import {
     marcarResuelta,
     editarMiPregunta,
     reintentarMiPregunta,
-    listarMisPreguntas,
 } from '../services/preguntasComunidad.service.js';
 import {
     crearRespuesta,
@@ -558,34 +557,3 @@ export async function editarMiPreguntaController(req: Request, res: Response) {
     }
 }
 
-// =============================================================================
-// GET /api/preguntas-comunidad/mis-preguntas?limit=20&offset=0
-// =============================================================================
-
-export async function listarMisPreguntasController(req: Request, res: Response) {
-    try {
-        const usuarioId = obtenerUsuarioId(req);
-        const limit = parseInt(req.query.limit as string) || undefined;
-        const offset = parseInt(req.query.offset as string) || undefined;
-
-        const resultado = await listarMisPreguntas(usuarioId, limit, offset);
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en listarMisPreguntasController:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-        });
-    }
-}

@@ -231,29 +231,6 @@ export async function editarMiPregunta({ preguntaId, textoNuevo }: EditarPregunt
 }
 
 // =============================================================================
-// MIS PREGUNTAS — vista histórico del autor (sin filtro por estado)
-// =============================================================================
-
-/**
- * GET /api/preguntas-comunidad/mis-preguntas?limit=...&offset=...
- *
- * Lista TODAS las preguntas del usuario actual (activa, cerrada y oculta).
- * Útil para una vista "Mis preguntas" donde el autor gestiona su histórico.
- */
-export async function listarMisPreguntas(opciones?: {
-    limit?: number;
-    offset?: number;
-}) {
-    const params = new URLSearchParams();
-    if (typeof opciones?.limit === 'number') params.set('limit', String(opciones.limit));
-    if (typeof opciones?.offset === 'number') params.set('offset', String(opciones.offset));
-    const qs = params.toString();
-    return get<PreguntaComunidad[]>(
-        `/preguntas-comunidad/mis-preguntas${qs ? `?${qs}` : ''}`,
-    );
-}
-
-// =============================================================================
 // EXPORT DEFAULT
 // =============================================================================
 
@@ -271,5 +248,4 @@ export default {
     reintentarMiPregunta,
     borrarMiPregunta,
     editarMiPregunta,
-    listarMisPreguntas,
 };

@@ -328,13 +328,6 @@ export const queryKeys = {
       paginacion: { limit: number; offset: number },
     ) =>
       ['preguntasComunidad', 'respuestas', preguntaId, paginacion] as const,
-    /**
-     * Histórico del autor (todas sus preguntas — activa, cerrada, oculta).
-     * El backend filtra por `usuarioId` del JWT, así que la key no necesita
-     * el usuarioId — pero sí la paginación.
-     */
-    misPreguntas: (paginacion: { limit: number; offset: number }) =>
-      ['preguntasComunidad', 'misPreguntas', paginacion] as const,
   },
 
 } as const;

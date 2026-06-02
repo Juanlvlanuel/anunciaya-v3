@@ -20,7 +20,6 @@
  *   - useMarcarResuelta()           → mutation: resuelta_at=NOW() + invalida feed
  *   - useBorrarMiPregunta()         → mutation: estado='oculta' + invalida feed
  *   - useEditarMiPregunta()         → mutation: cambiar texto + re-dispara Coyo
- *   - useMisPreguntas()             → histórico de preguntas del usuario actual
  *
  * Notas de diseño:
  *   - La ciudad se toma del `useGpsStore` (el frontend solo conoce la ciudad
@@ -255,7 +254,6 @@ function invalidarFeedYRespuestas(
     qc.invalidateQueries({
         queryKey: ['preguntasComunidad', 'respuestas', preguntaId],
     });
-    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
 }
 
 /**
@@ -334,16 +332,13 @@ function aplicarDeltaInteresOptimista(
     const objetivo = delta === 1;
     const snapshot = new Map<readonly unknown[], PreguntaComunidad[] | undefined>();
 
-    // Recorre TODAS las queries de feed (porCiudad) y misPreguntas, parchea
-    // la pregunta afectada. React Query devuelve [key, data] pairs.
+    // Recorre TODAS las queries del feed (porCiudad), parchea la pregunta
+    // afectada. React Query devuelve [key, data] pairs.
     const queriesFeed = qc.getQueriesData<PreguntaComunidad[]>({
         queryKey: ['preguntasComunidad', 'porCiudad'],
     });
-    const queriesMis = qc.getQueriesData<PreguntaComunidad[]>({
-        queryKey: ['preguntasComunidad', 'misPreguntas'],
-    });
 
-    for (const [key, data] of [...queriesFeed, ...queriesMis]) {
+    for (const [key, data] of queriesFeed) {
         snapshot.set(key, data);
         if (!data) continue;
         const idx = data.findIndex((p) => p.id === preguntaId);
@@ -386,7 +381,6 @@ export function useMarcarInteres() {
             // Cancela cualquier refetch en vuelo del feed para que no
             // sobrescriba nuestro patch optimista.
             await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
-            await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
             const snapshot = aplicarDeltaInteresOptimista(qc, preguntaId, +1);
             return { snapshot };
         },
@@ -401,7 +395,6 @@ export function useMarcarInteres() {
         // los conteos reales del servidor.
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
-            qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
         },
     });
 }
@@ -424,7 +417,6 @@ export function useQuitarInteres() {
         },
         onMutate: async (preguntaId) => {
             await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
-            await qc.cancelQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
             const snapshot = aplicarDeltaInteresOptimista(qc, preguntaId, -1);
             return { snapshot };
         },
@@ -436,7 +428,6 @@ export function useQuitarInteres() {
         },
         onSettled: () => {
             qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
-            qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
         },
     });
 }
@@ -446,12 +437,11 @@ export function useQuitarInteres() {
 // =============================================================================
 
 /**
- * Helper: invalida feed + misPreguntas. Se usa después de cualquier acción
- * del autor (cerrar/borrar/resolver/editar).
+ * Helper: invalida el feed por ciudad. Se usa después de cualquier acción
+ * del autor (cerrar/borrar/resolver/editar/reintentar).
  */
-function invalidarFeedYMisPreguntas(qc: ReturnType<typeof useQueryClient>) {
+function invalidarFeed(qc: ReturnType<typeof useQueryClient>) {
     qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
-    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
 }
 
 /** Autor cierra su pregunta (estado='cerrada'). Sale del feed. */
@@ -469,7 +459,7 @@ export function useCerrarMiPregunta() {
             }
             return res.data;
         },
-        onSuccess: () => invalidarFeedYMisPreguntas(qc),
+        onSuccess: () => invalidarFeed(qc),
     });
 }
 
@@ -488,7 +478,7 @@ export function useMarcarResuelta() {
             }
             return res.data;
         },
-        onSuccess: () => invalidarFeedYMisPreguntas(qc),
+        onSuccess: () => invalidarFeed(qc),
     });
 }
 
@@ -507,7 +497,7 @@ export function useBorrarMiPregunta() {
             }
             return res.data;
         },
-        onSuccess: () => invalidarFeedYMisPreguntas(qc),
+        onSuccess: () => invalidarFeed(qc),
     });
 }
 
@@ -538,7 +528,7 @@ export function useReintentarMiPregunta() {
             return res.data;
         },
         onSuccess: (_data, preguntaId) => {
-            invalidarFeedYMisPreguntas(qc);
+            invalidarFeed(qc);
             qc.invalidateQueries({
                 queryKey: queryKeys.preguntasComunidad.estadoCoyo(preguntaId),
             });
@@ -566,7 +556,7 @@ export function useEditarMiPregunta() {
             return res.data;
         },
         onSuccess: (_data, variables) => {
-            invalidarFeedYMisPreguntas(qc);
+            invalidarFeed(qc);
             // Invalida también el sondeo de Coyo para que el cliente
             // vuelva a pedirlo con el texto nuevo (la pregunta arranca
             // de nuevo en estadoCoyo='pendiente').
@@ -574,33 +564,5 @@ export function useEditarMiPregunta() {
                 queryKey: queryKeys.preguntasComunidad.estadoCoyo(variables.preguntaId),
             });
         },
-    });
-}
-
-// =============================================================================
-// MIS PREGUNTAS — vista histórico del autor
-// =============================================================================
-
-const LIMIT_MIS_DEFAULT = 20;
-const OFFSET_MIS_DEFAULT = 0;
-
-/**
- * Devuelve TODAS las preguntas del usuario actual (activa, cerrada, oculta),
- * más recientes primero. Útil para una ruta `/home/mis-preguntas`.
- *
- * El backend filtra por el `usuarioId` del JWT, así que no recibe
- * parámetros de usuario — solo paginación.
- */
-export function useMisPreguntas(opciones?: { limit?: number; offset?: number }) {
-    const limit = opciones?.limit ?? LIMIT_MIS_DEFAULT;
-    const offset = opciones?.offset ?? OFFSET_MIS_DEFAULT;
-
-    return useQuery({
-        queryKey: queryKeys.preguntasComunidad.misPreguntas({ limit, offset }),
-        queryFn: () =>
-            preguntasComunidadService
-                .listarMisPreguntas({ limit, offset })
-                .then((r) => r.data ?? []),
-        placeholderData: keepPreviousData,
     });
 }

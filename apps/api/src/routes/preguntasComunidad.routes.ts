@@ -25,7 +25,6 @@ import {
     marcarResueltaController,
     editarMiPreguntaController,
     reintentarMiPreguntaController,
-    listarMisPreguntasController,
 } from '../controllers/preguntasComunidad.controller.js';
 
 // Importar middlewares
@@ -60,18 +59,6 @@ router.post('/', crearPreguntaController);
  * más recientes primero, con datos básicos del autor.
  */
 router.get('/', listarPreguntasPorCiudadController);
-
-/**
- * GET /api/preguntas-comunidad/mis-preguntas?limit=20&offset=0
- * Devuelve TODAS las preguntas del usuario actual (activas, cerradas y
- * ocultas), ordenadas de más reciente a más vieja. A diferencia del feed
- * público, NO filtra por estado_pregunta — el autor ve su histórico
- * completo.
- *
- * IMPORTANTE: esta ruta DEBE ir declarada ANTES de cualquier ruta con
- * `:preguntaId` para que Express no intente interpretarla como UUID.
- */
-router.get('/mis-preguntas', listarMisPreguntasController);
 
 /**
  * GET /api/preguntas-comunidad/:id/coyo
