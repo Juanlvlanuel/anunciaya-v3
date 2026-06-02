@@ -198,6 +198,20 @@ export async function marcarResuelta(preguntaId: string) {
 }
 
 /**
+ * POST /api/preguntas-comunidad/:preguntaId/reintentar
+ *
+ * Sprint 2.D — reintenta a Coyo cuando cayó en `sin_respuesta`. Solo el
+ * autor y solo si `estado_coyo === 'sin_respuesta'` (backend valida).
+ * Resetea los campos de Coyo y re-dispara el orquestador.
+ */
+export async function reintentarMiPregunta(preguntaId: string) {
+    return post<{ reintentado: boolean }>(
+        `/preguntas-comunidad/${preguntaId}/reintentar`,
+        {},
+    );
+}
+
+/**
  * DELETE /api/preguntas-comunidad/:preguntaId — autor borra su pregunta
  * (soft-delete: estado_pregunta='oculta').
  */
@@ -254,6 +268,7 @@ export default {
     quitarInteres,
     cerrarMiPregunta,
     marcarResuelta,
+    reintentarMiPregunta,
     borrarMiPregunta,
     editarMiPregunta,
     listarMisPreguntas,

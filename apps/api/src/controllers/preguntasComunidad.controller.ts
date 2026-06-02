@@ -14,6 +14,7 @@ import {
     borrarMiPregunta,
     marcarResuelta,
     editarMiPregunta,
+    reintentarMiPregunta,
     listarMisPreguntas,
 } from '../services/preguntasComunidad.service.js';
 import {
@@ -472,6 +473,45 @@ export async function marcarResueltaController(req: Request, res: Response) {
         });
     } catch (error) {
         console.error('Error en marcarResueltaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+/**
+ * Sprint 2.D — Reintentar pregunta cuando Coyo cayó en `sin_respuesta`.
+ *
+ * POST /api/preguntas-comunidad/:preguntaId/reintentar
+ *
+ * Solo el autor. Solo válido si la pregunta está activa Y el
+ * `estado_coyo === 'sin_respuesta'`. El service resetea los campos de
+ * Coyo y dispara el orquestador de nuevo.
+ */
+export async function reintentarMiPreguntaController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await reintentarMiPregunta({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en reintentarMiPreguntaController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',

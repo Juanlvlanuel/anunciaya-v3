@@ -35,6 +35,7 @@ import {
     Clock,
     CheckCircle2,
     ArrowRight,
+    AlertTriangle,
 } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -42,6 +43,7 @@ import {
     usePreguntasComunidadLista,
     useCrearPregunta,
     useEstadoCoyo,
+    useReintentarMiPregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
 import { CoyoAnimado, type EstadoCoyoVisual } from '../../components/CoyoAnimado';
@@ -561,6 +563,14 @@ function CardPregunta({ pregunta }: { pregunta: PreguntaComunidad }) {
                             <BloqueCoyoNoAplica texto={respuestaCoyo} />
                         </div>
                     )}
+                    {estadoCoyo === 'sin_respuesta' && (
+                        <div className="mt-3">
+                            <BloqueCoyoSinRespuesta
+                                preguntaId={pregunta.id}
+                                esAutor={esAutor}
+                            />
+                        </div>
+                    )}
 
                     {/* Barra de acciones de la comunidad: "yo también quiero
                         saber" + toggle de respuestas. Solo visible si la
@@ -608,21 +618,55 @@ function EstadoSinCiudad() {
 }
 
 function EstadoVacio({ nombreCiudad }: { nombreCiudad: string }) {
+    // Sprint 2.C — item #16: empty state más cálido para ciudades nuevas.
+    // En lugar de un "vacío con icono", se muestran 3 ejemplos de preguntas
+    // típicas. Inspira al primer usuario sin obligarlo a inventar el
+    // formato — ya sabe que puede preguntar cosas concretas y cotidianas.
+    const ejemplos = [
+        '¿Algún plomero confiable por aquí?',
+        '¿Qué restaurante recomiendan para una cena?',
+        '¿Dónde reparan laptops?',
+    ];
+
     return (
-        <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8 text-center">
-            <div className="inline-flex w-12 h-12 lg:w-14 lg:h-14 items-center justify-center rounded-full bg-slate-50 border border-slate-200 mb-3">
-                <Inbox
-                    className="w-5 h-5 lg:w-6 lg:h-6 text-slate-400"
-                    strokeWidth={1.75}
-                    aria-hidden="true"
-                />
+        <div className="bg-white border border-slate-200 rounded-2xl p-6 lg:p-8">
+            <div className="text-center">
+                <div className="inline-flex w-12 h-12 lg:w-14 lg:h-14 items-center justify-center rounded-full bg-blue-50 border border-blue-100 mb-3">
+                    <Inbox
+                        className="w-5 h-5 lg:w-6 lg:h-6 text-blue-600"
+                        strokeWidth={1.75}
+                        aria-hidden="true"
+                    />
+                </div>
+                <p className="text-sm lg:text-base font-bold text-slate-800">
+                    Sé el primero en preguntarle a {nombreCiudad}
+                </p>
+                <p className="mt-1 text-xs lg:text-sm text-slate-500">
+                    Coyo te ayuda al instante y tus vecinos pueden completar
+                    la respuesta.
+                </p>
             </div>
-            <p className="text-sm lg:text-base font-bold text-slate-800">
-                Sé el primero en preguntar en {nombreCiudad}
-            </p>
-            <p className="mt-1 text-xs lg:text-sm text-slate-500">
-                Cuando alguien pregunte algo aquí, lo verás de inmediato.
-            </p>
+
+            <div className="mt-5 lg:mt-6 space-y-1.5">
+                <p className="text-[11px] lg:text-xs font-bold text-slate-500 uppercase tracking-wide">
+                    Ideas para empezar
+                </p>
+                <ul className="space-y-1">
+                    {ejemplos.map((ej) => (
+                        <li
+                            key={ej}
+                            className="flex items-start gap-2 text-xs lg:text-sm text-slate-600 italic"
+                        >
+                            <Sparkles
+                                className="w-3 h-3 lg:w-3.5 lg:h-3.5 text-amber-500 shrink-0 mt-1"
+                                strokeWidth={2.5}
+                                aria-hidden="true"
+                            />
+                            <span>{ej}</span>
+                        </li>
+                    ))}
+                </ul>
+            </div>
         </div>
     );
 }
@@ -720,6 +764,85 @@ function obtenerIniciales(nombre: string, apellidos: string): string {
 // tarjetas usan SOLO los datos ricos que vinieron (rating, verificado,
 // estaAbierto, condicion, días para vencer) — sin inventar.
 
+/**
+ * Sprint 2.D — Bloque cuando Coyo cayó en `sin_respuesta`.
+ *
+ * Visible tanto para el autor como para los vecinos cuando Gemini falló
+ * tras los 6 intentos automáticos. El botón "Reintentar" SOLO lo ve el
+ * autor — los vecinos solo ven la nota informativa.
+ *
+ * Estilo `slate` neutro (mismo lenguaje visual que "Coyo aclara" / errores
+ * suaves). Sin color rojo porque no es un error del usuario — es un
+ * inconveniente transitorio del servicio.
+ */
+function BloqueCoyoSinRespuesta({
+    preguntaId,
+    esAutor,
+}: {
+    preguntaId: string;
+    esAutor: boolean;
+}) {
+    const reintentar = useReintentarMiPregunta();
+
+    const handleReintentar = () => {
+        if (reintentar.isPending) return;
+        reintentar.mutate(preguntaId, {
+            onSuccess: () => {
+                notificar.exito('Reintentando — Coyo está procesando de nuevo');
+            },
+            onError: (err) => {
+                const mensaje =
+                    err instanceof Error ? err.message : 'No se pudo reintentar';
+                notificar.error(mensaje);
+            },
+        });
+    };
+
+    return (
+        <section className="bg-slate-100/80 border border-slate-200 rounded-2xl p-3 lg:p-4">
+            <div className="flex items-center gap-2 mb-1.5">
+                <AlertTriangle
+                    className="w-4 h-4 text-slate-500 shrink-0"
+                    strokeWidth={2.5}
+                    aria-hidden="true"
+                />
+                <span className="text-xs lg:text-sm font-bold text-slate-700">
+                    Coyo no pudo procesar tu pregunta
+                </span>
+            </div>
+            <p className="text-sm lg:text-base text-slate-700 leading-relaxed">
+                {esAutor
+                    ? 'Hubo un problema temporal con el asistente. Puedes intentar de nuevo.'
+                    : 'Coyo no pudo responder ahorita, pero los vecinos sí pueden ayudar.'}
+            </p>
+            {esAutor && (
+                <button
+                    type="button"
+                    onClick={handleReintentar}
+                    disabled={reintentar.isPending}
+                    data-testid={`coyo-reintentar-${preguntaId}`}
+                    className="mt-3 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-700 text-white text-xs lg:text-sm font-bold hover:bg-slate-800 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                >
+                    {reintentar.isPending ? (
+                        <>
+                            <Loader2
+                                className="w-3.5 h-3.5 animate-spin"
+                                aria-hidden="true"
+                            />
+                            Reintentando…
+                        </>
+                    ) : (
+                        <>
+                            <RefreshCcw className="w-3.5 h-3.5" aria-hidden="true" />
+                            Reintentar
+                        </>
+                    )}
+                </button>
+            )}
+        </section>
+    );
+}
+
 function BloqueCoyoPensando() {
     // Sin contenedor — Coyo mini + texto van inline en el flujo de la card.
     // Quitamos el panel azul claro porque la animación de "pensando" del
@@ -746,15 +869,73 @@ function BloqueCoyoPensando() {
     );
 }
 
+/**
+ * Sprint 2.C — item #14: heurística para distinguir un texto de Coyo del
+ * sub-tipo "vaga" (sugiere reformular) vs "no_local" (redirige). El
+ * backend hoy guarda los 2 como `estado_coyo='no_aplica'`, solo cambia
+ * el TEXTO de respuesta — `vaga` trae instrucciones generadas por Gemini
+ * para mejorar la pregunta, `no_local` trae un texto fijo de redirección.
+ *
+ * La heurística busca verbos típicos de sugerencia/reformulación ("prueba",
+ * "intenta", "sé más específic", etc.). Si encuentra cualquiera, se trata
+ * de una pregunta vaga. Si no, asumimos redirección no-local.
+ *
+ * No es perfecta, pero los 2 sub-tipos tienen estilos distintos en el
+ * prompt de Gemini, así que la heurística acierta en la práctica. Si en
+ * el futuro se vuelve frágil, se puede agregar un campo `subtipoCoyo`
+ * persistido en BD.
+ */
+function detectarSubtipoNoAplica(texto: string): 'vaga' | 'no_local' {
+    const normalizado = texto.toLowerCase();
+    const patronesVaga = [
+        'prueba',
+        'intenta',
+        'trata de',
+        'reformul',
+        'más específic',
+        'mas especific',
+        'por ejemplo',
+        'mejor pregunta',
+    ];
+    const esVaga = patronesVaga.some((p) => normalizado.includes(p));
+    return esVaga ? 'vaga' : 'no_local';
+}
+
 function BloqueCoyoNoAplica({ texto }: { texto: string }) {
+    const subtipo = detectarSubtipoNoAplica(texto);
+
+    // ── 'vaga' → tono "sugerencia constructiva" (ámbar) — Coyo ayuda a
+    //    refinar la pregunta para que sí pueda buscarla.
+    // ── 'no_local' → tono "neutro/redirección" (slate) — la pregunta
+    //    no es local; Coyo aclara amablemente y no insiste.
+    const tono =
+        subtipo === 'vaga'
+            ? {
+                  fondo: 'bg-amber-50/70 border-amber-200',
+                  iconoColor: 'text-amber-600',
+                  encabezado: 'Coyo sugiere',
+              }
+            : {
+                  fondo: 'bg-slate-100/80 border-slate-200',
+                  iconoColor: 'text-slate-500',
+                  encabezado: 'Coyo aclara',
+              };
+
     return (
-        <section className="bg-blue-50/60 border border-blue-100 rounded-2xl p-3 lg:p-4">
-            <div className="flex items-start gap-2">
-                <Sparkles className="w-4 h-4 text-amber-500 shrink-0 mt-0.5" strokeWidth={2.5} aria-hidden="true" />
-                <p className="text-sm lg:text-base text-slate-700 leading-relaxed">
-                    {texto}
-                </p>
+        <section className={`${tono.fondo} border rounded-2xl p-3 lg:p-4`}>
+            <div className="flex items-center gap-2 mb-1.5">
+                <Sparkles
+                    className={`w-4 h-4 shrink-0 ${tono.iconoColor}`}
+                    strokeWidth={2.5}
+                    aria-hidden="true"
+                />
+                <span className="text-xs lg:text-sm font-bold text-slate-700">
+                    {tono.encabezado}
+                </span>
             </div>
+            <p className="text-sm lg:text-base text-slate-700 leading-relaxed wrap-break-word">
+                {texto}
+            </p>
         </section>
     );
 }
@@ -958,8 +1139,20 @@ function ImagenItem({ url, alt }: { url: string | null; alt: string }) {
 function ChipsDatosRicos({ item }: { item: ItemCoyo }) {
     const chips: Array<{ clave: string; nodo: React.ReactNode }> = [];
 
-    // Rating + total de reseñas (negocio)
-    if (item.rating !== null) {
+    // Rating + total de reseñas (negocio).
+    // Sprint 2.C — item #12: ocultar el chip cuando NO hay reseñas reales.
+    // Un negocio sin ninguna reseña tiene rating=0 por defecto en BD, y
+    // mostrarlo como "⭐ 0.0" hacía ver al negocio como mal calificado
+    // cuando en realidad nunca ha sido calificado. La regla:
+    //   - totalResenas > 0  → SÍ mostrar el rating real.
+    //   - totalResenas <= 0 → no mostrar nada (incluido el 0.0).
+    // Como `totalResenas` puede venir null en algunos paths del backend,
+    // usamos fallback explícito y validamos > 0.
+    if (
+        item.rating !== null &&
+        item.totalResenas !== null &&
+        item.totalResenas > 0
+    ) {
         chips.push({
             clave: 'rating',
             nodo: (
@@ -967,9 +1160,7 @@ function ChipsDatosRicos({ item }: { item: ItemCoyo }) {
                     <Star className="w-3 h-3 text-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" fill="currentColor" />
                     <span>
                         {item.rating.toFixed(1)}
-                        {item.totalResenas !== null && item.totalResenas > 0 && (
-                            <span className="text-slate-400"> ({item.totalResenas})</span>
-                        )}
+                        <span className="text-slate-400"> ({item.totalResenas})</span>
                     </span>
                 </>
             ),
@@ -999,8 +1190,12 @@ function ChipsDatosRicos({ item }: { item: ItemCoyo }) {
             ),
         });
     }
-    // Rating del negocio (oferta)
-    if (item.negocioRating !== null) {
+    // Rating del negocio (oferta).
+    // Sprint 2.C — item #12: el buscador de Ofertas no expone totalResenas
+    // del negocio, así que aquí usamos la heurística "rating > 0" como
+    // proxy: un negocio sin reseñas tendrá rating=0 (valor por defecto).
+    // Solo mostramos el chip cuando hay un rating real.
+    if (item.negocioRating !== null && item.negocioRating > 0) {
         chips.push({
             clave: 'negocioRating',
             nodo: (

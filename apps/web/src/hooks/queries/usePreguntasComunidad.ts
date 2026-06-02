@@ -512,6 +512,41 @@ export function useBorrarMiPregunta() {
 }
 
 /**
+ * Sprint 2.D — Reintentar pregunta cuando Coyo cayó en `sin_respuesta`.
+ *
+ * Solo el autor; solo válido si `estado_coyo === 'sin_respuesta'` (backend
+ * valida). Resetea los 4 campos de Coyo y re-dispara el orquestador.
+ *
+ * Invalidaciones (mismo patrón que `useEditarMiPregunta`):
+ *   - Feed por ciudad + Mis preguntas → para que la card muestre el
+ *     nuevo estado pendiente/procesando.
+ *   - `estadoCoyo` de esa pregunta específica → para que el sondeo
+ *     arranque de nuevo.
+ */
+export function useReintentarMiPregunta() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.reintentarMiPregunta(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al reintentar pregunta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: (_data, preguntaId) => {
+            invalidarFeedYMisPreguntas(qc);
+            qc.invalidateQueries({
+                queryKey: queryKeys.preguntasComunidad.estadoCoyo(preguntaId),
+            });
+        },
+    });
+}
+
+/**
  * Autor edita el texto de su pregunta. Solo permitido si tiene 0 respuestas
  * activas. El backend re-dispara Coyo con el texto nuevo (fire-and-forget),
  * así que el cliente debe sondear de nuevo `estadoCoyo`.

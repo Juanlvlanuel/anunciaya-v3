@@ -638,6 +638,102 @@ export async function editarMiPregunta(
 }
 
 /**
+ * Sprint 2.D — Reintentar pregunta cuando Coyo cayó en `sin_respuesta`.
+ *
+ * Cuando Gemini está caído tras los 6 intentos automáticos (3 con el modelo
+ * principal + 3 con el fallback), la pregunta queda en `estado_coyo =
+ * 'sin_respuesta'` permanentemente. Esta función permite al AUTOR pedir
+ * un reintento manual sin tener que recrear la pregunta.
+ *
+ * Reglas:
+ *   - Solo el AUTOR de la pregunta puede reintentar (verificarAutoria).
+ *   - Solo se reintenta si `estado_coyo === 'sin_respuesta'`. Si está en
+ *     `pendiente`/`procesando` no tiene sentido (ya hay un orquestador
+ *     corriendo). Si está `listo` o `no_aplica`, tampoco — esos son
+ *     finales legítimos.
+ *   - La pregunta debe estar `estado_pregunta === 'activa'`. Cerradas u
+ *     ocultas no se reintentan.
+ *   - Resetea los 4 campos de Coyo y dispara `procesarPreguntaConCoyo`
+ *     fire-and-forget (mismo patrón que `editarMiPregunta`).
+ */
+export async function reintentarMiPregunta(
+    input: AccionAutorInput,
+): Promise<RespuestaServicio<{ reintentado: boolean }>> {
+    try {
+        const verif = await verificarAutoria(input.preguntaId, input.usuarioId);
+        if (!verif.ok) return verif.error;
+
+        if (verif.pregunta.estadoPregunta !== 'activa') {
+            return {
+                success: false,
+                message: 'Solo se pueden reintentar preguntas activas',
+                code: 409,
+            };
+        }
+
+        // Verificar el estado de Coyo — solo `sin_respuesta` permite reintento
+        const [filaCoyo] = await db
+            .select({
+                estadoCoyo: preguntasComunidad.estadoCoyo,
+            })
+            .from(preguntasComunidad)
+            .where(eq(preguntasComunidad.id, input.preguntaId))
+            .limit(1);
+
+        if (!filaCoyo) {
+            return {
+                success: false,
+                message: 'La pregunta no existe',
+                code: 404,
+            };
+        }
+
+        if (filaCoyo.estadoCoyo !== 'sin_respuesta') {
+            return {
+                success: false,
+                message:
+                    'Solo se puede reintentar cuando Coyo no pudo procesar la pregunta',
+                code: 409,
+            };
+        }
+
+        // Resetear los 4 campos de Coyo para que vuelva a procesarse
+        await db
+            .update(preguntasComunidad)
+            .set({
+                estadoCoyo: 'pendiente',
+                respuestaCoyo: null,
+                resultadosCoyo: null,
+                coyoProcesadoAt: null,
+                updatedAt: sql`NOW()`,
+            })
+            .where(eq(preguntasComunidad.id, input.preguntaId));
+
+        // Re-disparar Coyo fire-and-forget (mismo patrón que editarMiPregunta)
+        procesarPreguntaConCoyo(input.preguntaId).catch((err) => {
+            console.warn(
+                'Coyo orquestador falló (fire-and-forget) al reintentar',
+                input.preguntaId,
+                err,
+            );
+        });
+
+        return {
+            success: true,
+            message: 'Reintentando — Coyo está procesando de nuevo',
+            data: { reintentado: true },
+        };
+    } catch (error) {
+        console.error('Error en reintentarMiPregunta:', error);
+        return {
+            success: false,
+            message: 'Error al reintentar pregunta',
+            code: 500,
+        };
+    }
+}
+
+/**
  * Lista TODAS las preguntas del usuario (activas, cerradas y ocultas),
  * ordenadas de más reciente a más vieja. A diferencia del feed público,
  * NO filtra por estado_pregunta — el autor ve su histórico completo

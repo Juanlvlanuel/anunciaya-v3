@@ -24,6 +24,7 @@ import {
     borrarMiPreguntaController,
     marcarResueltaController,
     editarMiPreguntaController,
+    reintentarMiPreguntaController,
     listarMisPreguntasController,
 } from '../controllers/preguntasComunidad.controller.js';
 
@@ -160,6 +161,15 @@ router.delete('/:preguntaId', borrarMiPreguntaController);
  * Body: { texto: string }
  */
 router.patch('/:preguntaId', editarMiPreguntaController);
+
+/**
+ * POST /api/preguntas-comunidad/:preguntaId/reintentar
+ * Sprint 2.D — reintenta a Coyo cuando cayó en `sin_respuesta` (típicamente
+ * por errores transitorios de Gemini tras los 6 intentos automáticos).
+ * Resetea los 4 campos de Coyo y dispara el orquestador fire-and-forget.
+ * Solo el autor; solo si `estado_coyo === 'sin_respuesta'`.
+ */
+router.post('/:preguntaId/reintentar', reintentarMiPreguntaController);
 
 // =============================================================================
 // EXPORTAR ROUTER
