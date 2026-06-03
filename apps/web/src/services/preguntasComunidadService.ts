@@ -6,7 +6,6 @@
  * Endpoints consumidos:
  *   GET    /api/preguntas-comunidad?ciudad=<nombre>&limit=<n>&offset=<n>
  *   POST   /api/preguntas-comunidad
- *   GET    /api/preguntas-comunidad/mis-preguntas
  *   GET    /api/preguntas-comunidad/:id/coyo
  *
  *   POST   /api/preguntas-comunidad/:preguntaId/respuestas

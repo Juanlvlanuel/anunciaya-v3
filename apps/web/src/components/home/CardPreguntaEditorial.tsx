@@ -21,7 +21,7 @@
  * Ubicación: apps/web/src/components/home/CardPreguntaEditorial.tsx
  */
 
-import { useState, type FormEvent } from 'react';
+import { useState, memo, type FormEvent } from 'react';
 import {
     Sparkles,
     CheckCircle2,
@@ -314,7 +314,7 @@ interface CardPreguntaEditorialProps {
     pregunta: PreguntaComunidad;
 }
 
-export function CardPreguntaEditorial({ pregunta }: CardPreguntaEditorialProps) {
+function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
     const usuarioId = useAuthStore((s) => s.usuario?.id);
     const esAutor = !!usuarioId && usuarioId === pregunta.autorId;
     const preguntaActiva = pregunta.estadoPregunta === 'activa';
@@ -394,4 +394,8 @@ export function CardPreguntaEditorial({ pregunta }: CardPreguntaEditorialProps) 
     );
 }
 
+// Memoizado: el feed vive en PaginaInicio junto al input controlado de Coyo.
+// Sin memo, cada tecla re-renderiza TODAS las cards (con sus sondeos). Como
+// `pregunta` es estable entre renders del input, memo evita ese trabajo.
+export const CardPreguntaEditorial = memo(CardPreguntaEditorialBase);
 export default CardPreguntaEditorial;

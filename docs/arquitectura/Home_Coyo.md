@@ -124,7 +124,7 @@ pregunta que NO es suya. Idempotente por PK compuesta.
 
 | Pieza | Archivo |
 |---|---|
-| Service principal | `apps/api/src/services/preguntasComunidad.service.ts` (`crearPregunta`, `listarPreguntasPorCiudad`, `listarMisPreguntas`, control del autor) |
+| Service principal | `apps/api/src/services/preguntasComunidad.service.ts` (`crearPregunta`, `listarPreguntasPorCiudad`, control del autor) |
 | Service respuestas | `apps/api/src/services/respuestasPreguntasComunidad.service.ts` |
 | Service interés | `apps/api/src/services/interesPreguntasComunidad.service.ts` |
 | Service notificaciones de Coyo | `apps/api/src/services/coyo/notificacionesCoyo.service.ts` |
@@ -137,7 +137,6 @@ pregunta que NO es suya. Idempotente por PK compuesta.
 ```
 POST    /api/preguntas-comunidad                               crearPreguntaController
 GET     /api/preguntas-comunidad?ciudad=&limit=&offset=        listarPreguntasPorCiudadController
-GET     /api/preguntas-comunidad/mis-preguntas                 listarMisPreguntasController  ← histórico del autor
 GET     /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController   ← sondeo
 
 POST    /api/preguntas-comunidad/:preguntaId/respuestas        crearRespuestaController
@@ -155,15 +154,22 @@ POST    /api/preguntas-comunidad/:preguntaId/reintentar        reintentarMiPregu
 ```
 
 Orden de declaración importante en `routes.ts`: las rutas estáticas
-(`/mis-preguntas`, `/respuestas/:respuestaId`) van **antes** que las
-dinámicas (`/:preguntaId/...`) — Express toma la primera que matchea.
+(`/respuestas/:respuestaId`) van **antes** que las dinámicas
+(`/:preguntaId/...`) — Express toma la primera que matchea.
+
+> **Histórico del autor ("Mis preguntas").** El rediseño 2 columnas
+> reemplazó la página dedicada `/inicio/mis-preguntas` por un toggle
+> **Comunidad · Mis preguntas** en el encabezado del feed (filtra en
+> cliente las preguntas del usuario YA presentes en el feed). Por eso se
+> eliminó el endpoint `GET /mis-preguntas`, su controller y el service
+> `listarMisPreguntas`. El índice `idx_preguntas_comunidad_usuario` se
+> conserva (barato, útil para futuros reportes/Panel Admin).
 
 - `crearPregunta` hace `INSERT` y luego **fire-and-forget** a `procesarPreguntaConCoyo(nueva.id)` con `.catch(log)`. La publicación NO espera ni falla por Coyo.
 - `listarPreguntasPorCiudad`:
   - Filtra por `estadoPregunta = 'activa'` (las `'oculta'` no aparecen — útil para preguntas inapropiadas que Coyo cierra automáticamente).
   - Devuelve los 4 campos de Coyo + 3 conteos (`totalRespuestas`, `totalInteresados`, `yoTambienInteresado`) + `resueltaAt`, todos calculados con subqueries inline. Los índices de `respuestas_preguntas_comunidad` y la PK compuesta de `preguntas_interesados` mantienen cada subquery en O(log n).
   - **Antes** del SELECT ejecuta `cerrarPreguntasVencidasDeCiudad(ciudad)` — el "cron pasivo" de expiración 14d (ver §Expiración pasiva).
-- `listarMisPreguntas` NO filtra por estado — devuelve `'activa'`, `'cerrada'` y `'oculta'` para que el autor gestione su histórico (la vista `/inicio/mis-preguntas`).
 - `obtenerEstadoCoyo` devuelve solo los 4 campos de Coyo (`{ estadoCoyo, respuestaCoyo, resultadosCoyo, coyoProcesadoAt }`), usado por el polling.
 
 ### Respuestas, interés y control del autor
@@ -763,26 +769,113 @@ Constante editable: `DIAS_EXPIRACION = 14` (al inicio del service).
 
 ## Frontend
 
+> **Rediseño "2 columnas" (Jun 2026).** El Home pasó de un hero apilado +
+> página dedicada de "Mis preguntas" a un layout de dos columnas que usa
+> todo el ancho disponible entre las columnas laterales globales del
+> `MainLayout` (sin `max-w-7xl`):
+>
+> - **Desktop (≥ lg):** rail izquierdo *sticky* con Coyo (mascota + saludo
+>   tecleado + burbuja + input "Pregúntale a Coyo") alineado **arriba**
+>   (`justify-start`) y un **adorno decorativo** anclado a la base; feed a
+>   la derecha con toggle **Comunidad · Mis preguntas** en su encabezado.
+>   El conjunto rail + feed se **centra** en el espacio disponible
+>   (`lg:justify-center`, feed capeado a `lg:max-w-[760px]`) para repartir
+>   el sobrante a ambos lados.
+> - **Móvil (< lg):** Coyo protagonista arriba (sin input) con su adorno
+>   detrás, una barra *sticky* con el label "Pregúntale a Coyo" + input
+>   compacto + el mismo toggle, el feed debajo y un **botón flotante "ir
+>   arriba"** que aparece al bajar.
+>
+> El filtro "Mis preguntas" muestra las preguntas del usuario **presentes
+> en el feed** (no consulta backend — filtra en cliente por `autorId`).
+> La página `/inicio/mis-preguntas`, el `PanelMisPreguntas` y el
+> `ModalEditarPregunta` se **eliminaron**; la edición ahora es inline.
+
 | Pieza | Archivo |
 |---|---|
-| Página Home | `apps/web/src/pages/private/PaginaInicio.tsx` |
-| Página "Mis preguntas" | `apps/web/src/pages/private/PaginaMisPreguntas.tsx` (ruta `/inicio/mis-preguntas`) |
+| Página Home (orquestador 2 columnas) | `apps/web/src/pages/private/PaginaInicio.tsx` |
+| Área de pregunta (Coyo + saludo + burbuja + input) | `apps/web/src/components/home/AreaPreguntaCoyo.tsx` |
+| Adorno decorativo (huellas + cueva + sparkles) | `apps/web/src/components/home/AdornoRailCoyo.tsx` |
+| Card del feed (estilo "Editorial") | `apps/web/src/components/home/CardPreguntaEditorial.tsx` |
+| Tarjeta de resultado de Coyo (carrusel) | `apps/web/src/components/home/CardItemCoyo.tsx` |
+| Estado vacío del feed | `apps/web/src/components/home/EstadosVacios.tsx` |
+| Helpers de navegación/formato | `apps/web/src/components/home/navegacionCoyo.ts` |
+| Botón "Yo también quiero saber" | `apps/web/src/components/home/BotonInteresComunidad.tsx` |
+| Respuestas de la comunidad | `apps/web/src/components/home/RespuestasComunidad.tsx` |
+| Menú del autor + modal de confirmación | `apps/web/src/components/home/MenuAutorPregunta.tsx` |
 | Componente Coyo animado | `apps/web/src/components/CoyoAnimado.tsx` |
 | Hook estado visual de Coyo | `apps/web/src/hooks/useCoyoEstadoVisual.ts` |
 | Hooks RQ | `apps/web/src/hooks/queries/usePreguntasComunidad.ts` |
 | Service | `apps/web/src/services/preguntasComunidadService.ts` |
 | Types | `apps/web/src/types/preguntasComunidad.ts` |
 | Query keys | `apps/web/src/config/queryKeys.ts` (sección `preguntasComunidad`) |
-| Componentes Home | `apps/web/src/components/home/` (`BotonInteresComunidad.tsx`, `RespuestasComunidad.tsx`, `MenuAutorPregunta.tsx`, `ModalEditarPregunta.tsx`) |
 | Asset Rive | `apps/web/public/coyo.riv` |
 
-**Hero "Coyo te habla":** Coyo animado (`<CoyoAnimado>` con runtime de Rive)
-+ bocadillo con cola SVG (solo desktop) + saludo personalizado con
-`useAuthStore(s => s.usuario?.nombre) ?? 'vecino'` + label "Pregúntale a
-Coyo" + input + botón + stat "X vecinos preguntando hoy" (calculado del
-feed: autores únicos en últimas 24h). Coyo se monta visualmente sobre el
-bocadillo con `z-10` + margen negativo derecho para que la mano del saludo
-no quede cortada por el borde de la burbuja.
+### `AreaPreguntaCoyo` — el "rincón de Coyo"
+
+Layout VERTICAL centrado, reutilizado en desktop (rail) y móvil (arriba):
+
+- **Saludo tecleado** (`SaludoTecleado`): `«¡Hola, [nombre]!»` con efecto
+  máquina de escribir letra por letra (nombre en azul). El nombre sale de
+  `useAuthStore(s => s.usuario?.nombre) ?? 'vecino'`.
+- **Coyo animado** (`<CoyoAnimado>`, Rive) grande, con `align="center"`.
+- **Burbuja** debajo con pico SVG apuntando hacia Coyo + texto tecleado
+  *«¿Qué andas buscando hoy?»* (arranca tras terminar el saludo).
+- **Input** (`CoyoInput`): pill blanco controlado + botón circular de
+  enviar con gradiente de marca (`linear-gradient(135deg,#1e293b,#334155)`).
+  Es CONTROLADO — el texto vive en `PaginaInicio` para que
+  `useCoyoEstadoVisual` lo lea y encienda `atento`. En desktop el input
+  vive aquí (`conInput`); en móvil va aparte en la barra sticky
+  (`conInput={false}`).
+
+El tecleo respeta `prefers-reduced-motion` (muestra todo de inmediato).
+Se eliminó el stat "X vecinos preguntando hoy" del diseño anterior.
+
+### `AdornoRailCoyo` — guarida + rastro de huellas (decorativo)
+
+Adorno **puramente decorativo** (sin interacción, `aria-hidden`,
+`pointer-events-none`) que llena el espacio del rail cuando Coyo se alinea
+arriba. Da la sensación de que **Coyo viene de su guarida**. Exporta dos
+variantes (el padre las monta como `absolute inset-0` detrás del contenido,
+con el rail/bloque en `relative overflow-hidden`):
+
+| Variante | Vista | Composición |
+|---|---|---|
+| `AdornoRailCoyo` | Desktop | Cueva incrustada en el **borde inferior** (se hunde con `translate-y` para asomar poco) + rastro de huellas serpenteante que **sube** desde la boca hacia los pies de Coyo + sparkles. |
+| `AdornoCoyoMovil` | Móvil | Cueva incrustada en el **borde izquierdo** (el bloque rompe el padding con `-mx-4` para llegar a la orilla) + huellas en zigzag que salen de la boca hacia Coyo + sparkles. |
+
+- **Huellas:** SVG posicionadas por **porcentaje** (escalan con el alto del
+  contenedor); apuntan en la dirección de avance y la opacidad sube hacia la
+  pisada más reciente (cerca de Coyo).
+- **Cueva (`Cueva`):** vista de frente — roca con gradiente de volumen (luz
+  arriba, sombra abajo-derecha), **boca en arco vertical** con túnel 3D
+  (arcos concéntricos hacia un punto de fuga), roca trasera + faceta en
+  sombra + grietas para relieve, y una **máscara de desvanecido inferior**
+  para difuminar el corte de la base. `id` único por instancia evita IDs de
+  gradiente duplicados (se montan dos cuevas a la vez).
+
+### Botón "ir arriba" (móvil)
+
+`BotonIrArriba` (en `PaginaInicio`) — FAB que aparece al bajar más de 300px
+y hace *smooth-scroll* del contenedor `<main>` al tope. Igual patrón que el
+FAB de `PaginaNegocios`: `fixed right-4 z-30`, sube a `5rem` cuando el
+`BottomNav` está visible (vía `useHideOnScroll`), solo móvil (`lg:hidden`,
+montado por portal). Detecta la posición con `useScrollDirection` sobre el
+`mainScrollRef` de `useMainScrollStore`.
+
+### Rendimiento — memoización contra el input controlado
+
+El input de Coyo es **controlado** (su texto vive en `PaginaInicio`), así que
+cada tecla re-renderiza el árbol del Home. Para que el tecleo se sienta
+instantáneo, los componentes pesados están envueltos en `React.memo` y reciben
+props estables:
+
+- `CardPreguntaEditorial` y `CardItemCoyo` → `memo` (el feed y sus sondeos no
+  se re-renderizan al escribir; `pregunta`/`item` son refs estables del caché
+  de React Query).
+- `CoyoAnimado` → `memo` + su `style` del hero movido a una **constante
+  module-level** (`ESTILO_COYO_HERO`) para no invalidar el memo en cada
+  render. El runtime de Rive solo se re-procesa cuando cambia el `estado`.
 
 **Hooks de React Query:**
 
@@ -804,14 +897,12 @@ useCerrarMiPregunta()
 useMarcarResuelta()
 useBorrarMiPregunta()
 useEditarMiPregunta()                     // invalida también el sondeo de Coyo
-
-// Histórico del autor
-useMisPreguntas()
+useReintentarMiPregunta()                 // sin_respuesta → re-dispara Coyo
 ```
 
 **Optimistic update en marcar/quitar interés:** los dos hooks parchean
-TODAS las queries del feed que contengan la pregunta (cualquier
-ciudad/paginación + `misPreguntas`) antes de la respuesta del server.
+TODAS las queries del feed (`porCiudad`) que contengan la pregunta
+(cualquier ciudad/paginación) antes de la respuesta del server.
 Snapshot guardado en `onMutate` para rollback en `onError`. Invalidación
 final en `onSettled` para sincronizar con el conteo real. Esta es la
 única acción del Home con optimistic — crear pregunta/respuesta usan
@@ -824,29 +915,61 @@ patrón normal (sin optimistic).
 - `refetchOnWindowFocus: false` (el intervalo ya está activo, sería redundante).
 - Cuando la pregunta llega a estado final, el hook invalida la query del feed para que las consumers que dependen de `feed.data` (ej. `useCoyoEstadoVisual` para apagar el "pensando" del Coyo animado) vean el cambio inmediato.
 
-**Render por estado de Coyo (en `CardPregunta`):**
+### Card del feed — `CardPreguntaEditorial`
+
+Cada pregunta del feed es un `<li>` (estilo "Editorial") con:
+
+- **Header del autor:** `Avatar` (foto con lightbox `ModalImagenes`, o
+  fallback con gradiente azul de marca + iniciales) + nombre + tiempo
+  relativo + chip "Resuelta" (si `resueltaAt`) + `MenuAutorPregunta` (solo
+  al autor).
+- **Pregunta** grande. Si el autor activa "Editar", el texto se reemplaza
+  por el **editor inline** (`EditorPregunta`, un `<textarea>`) — sin modal.
+- **Respuesta de Coyo** (`RespuestaCoyo`): monta `useEstadoCoyo` para
+  sondear; si el feed ya trae estado final, no hace requests.
+- **Acciones** (`RespuestasComunidad`): trigger de respuestas a la
+  izquierda + "Yo también quiero saber" (`BotonInteresComunidad`) a la
+  derecha, en la misma fila.
+
+**Render por estado de Coyo (en `RespuestaCoyo`):**
 
 | `estadoCoyo` | Bloque renderizado |
 |---|---|
-| `pendiente` o `procesando` | `BloqueCoyoPensando` — **Coyo Rive mini animado** (40-48px, estado `'pensando'`, mano en barbilla) + texto "Coyo está pensando…" **inline en el flujo de la card** (sin caja). La propia animación de Coyo transmite que está procesando, sin necesidad de spinner extra |
-| `listo` con grupos | `BloqueCoyoListo` — encabezado "Coyo encontró esto para ti" + texto + tarjetas agrupadas (Negocios → Ofertas → MarketPlace → Servicios), max 3 por grupo. Cada tarjeta **clicable al detalle** (ver §Tarjetas clicables abajo). Al pie de cada grupo, **"Ver N más en <Sección>"** cuando `total > items.length` |
-| `listo` sin grupos | `BloqueCoyoListo` — encabezado **"Coyo dice"** (condicional) + solo el texto |
-| `no_aplica` (subtipo `vaga`) | `BloqueCoyoNoAplica` — fondo **ámbar** + encabezado **"Coyo sugiere"** — tono constructivo, Coyo SÍ podría ayudar pero necesita más detalle |
-| `no_aplica` (subtipo `no_local`) | `BloqueCoyoNoAplica` — fondo **slate** + encabezado **"Coyo aclara"** — tono neutro, la pregunta no es búsqueda local |
-| `sin_respuesta` | `BloqueCoyoSinRespuesta` — fondo slate neutro + alerta "Coyo no pudo procesar tu pregunta". Botón **"Reintentar"** visible **solo al autor** (los vecinos solo ven la nota informativa). Click → reusa la pregunta original sin crear una nueva |
+| `pendiente` o `procesando` | **Coyo Rive mini animado** (40-48px, estado `'pensando'`) + texto "Coyo está pensando" + 3 puntitos animados (`.coyo-dots`), **inline en el flujo de la card** (sin caja). La propia animación transmite que está procesando |
+| `listo` con resultados | Encabezado con `cabeza-coyo.webp` + **"Coyo encontró esto"** + texto + **carrusel ÚNICO horizontal** que mezcla negocios/ofertas/marketplace/servicios en un solo scroll (`itemsPlanosCoyo`, máx 3 por grupo, orden Negocios → Ofertas → MarketPlace → Servicios). Cada ítem es un `CardItemCoyo` clicable al detalle |
+| `listo` sin resultados | Encabezado **"Coyo dice"** + solo el texto |
+| `no_aplica` (subtipo `vaga`) | `BloqueNoAplica` — fondo **ámbar** + **"Coyo sugiere"** — Coyo SÍ podría ayudar pero necesita más detalle |
+| `no_aplica` (subtipo `no_local`) | `BloqueNoAplica` — fondo **slate** + **"Coyo aclara"** — la pregunta no es búsqueda local |
+| `sin_respuesta` | `BloqueSinRespuesta` — alerta "Coyo no pudo procesar tu pregunta". Botón **"Reintentar"** visible **solo al autor** (los vecinos solo ven la nota informativa). Click → `useReintentarMiPregunta` re-dispara Coyo sin crear una pregunta nueva |
 
-**Tarjetas (`TarjetaItemCoyo`):** imagen + título + subtítulo + chips de
-datos ricos (rating con estrella, "Verificado", "Abierto", condición,
-"Negociable", "Vence en N días"). Solo se renderiza el chip si el dato
-viene no-nulo desde el backend. **El chip de rating se oculta si
-`totalResenas === 0`** — un negocio sin reseñas tiene rating=0 por
+El subtipo de `no_aplica` se distingue en cliente con
+`detectarSubtipoNoAplica(texto)` (heurística por palabras; el backend
+guarda ambos como `estado_coyo='no_aplica'`).
+
+**Carrusel único vs grupos por sección.** El rediseño reemplazó los 4
+bloques agrupados (uno por sección, con su botón "Ver N más en
+<Sección>") por **un solo carrusel horizontal** con badge de tipo en cada
+tarjeta. Se eliminó por tanto el escape "Ver más resultados" al buscador
+global (`useSearchStore`) y los helpers `rutaSeccionCoyo` /
+`nombreSeccionCoyo` (código muerto borrado).
+
+### Tarjeta de resultado — `CardItemCoyo`
+
+Tamaño FIJO (`w-48 lg:w-52 h-60`) para que todas midan igual sin importar
+qué chips traiga el ítem: imagen (con placeholder diagonal si falta) +
+badge de tipo (Negocio/Oferta/Venta/Servicio) + título + subtítulo +
+**chips ricos** (`ChipsRicos`): rating con estrella, "Verificado",
+"Abierto/Cerrado", rating del negocio, "Vence en N días", condición,
+"Negociable". Solo se renderiza el chip si el dato viene no-nulo desde el
+backend. **El chip de rating se oculta si `totalResenas === 0`** — un
+negocio sin reseñas tiene rating=0 por
 default en BD, y mostrar "⭐ 0.0" lo hacía ver mal calificado en lugar
 de "sin calificar".
 
 ### Tarjetas clicables — navegación al detalle
 
-Cada `TarjetaItemCoyo` es un `<button>` dentro de `<li>` que al hacer
-click navega al detalle del item según su tipo:
+Cada `CardItemCoyo` es un `<button>` que al hacer click navega al detalle
+del item según su tipo:
 
 | Tipo | Ruta destino |
 |---|---|
@@ -855,28 +978,10 @@ click navega al detalle del item según su tipo:
 | `marketplace` | `/marketplace/articulo/${item.id}` |
 | `servicio` | `/servicios/${item.id}` |
 
-Helpers `rutaDetalleItemCoyo(item)` y `rutaSeccionCoyo(tipo)` viven en
-`PaginaInicio.tsx`. UX: hover azul en desktop, `active:scale[0.995]`,
-`data-testid="coyo-tarjeta-${tipo}-${id}"` para tests E2E futuros,
+El helper `rutaDetalleItemCoyo(item)` vive en `navegacionCoyo.ts` (antes
+inline en `PaginaInicio`). UX: hover azul en desktop, `active:scale-[0.99]`,
+`data-testid="coyo-tarjeta-${tipo}-${id}"` para tests E2E,
 `aria-label="Ver ${titulo}"`.
-
-### "Ver más resultados" — escape al buscador
-
-Cuando `grupo.total > items.length` (Coyo trajo más resultados de los
-que muestra inline), aparece al pie del grupo el botón
-**"Ver N más en <Sección> →"**. Click:
-
-1. `useSearchStore.setQuery(textoPregunta)` — guarda la pregunta como
-   query global.
-2. `useSearchStore.abrirBuscador()` — para que el query sea visible
-   en la sección destino.
-3. `navigate(rutaSeccionCoyo(tipo))` — navega a `/negocios`,
-   `/ofertas`, `/marketplace` o `/servicios`.
-
-La sección destino lee el query del `useSearchStore` (patrón establecido
-del Navbar global) y filtra automáticamente. Si el usuario refresca la
-URL, el query se pierde (no está en URL) y la sección muestra todo —
-trade-off aceptado por simplicidad.
 
 ### Botón Reintentar — recuperación ante fallos de IA
 
@@ -890,55 +995,58 @@ El autor ve un botón **"Reintentar"** que llama
 2. Resetea los 4 campos de Coyo (`estadoCoyo='pendiente'`,
    `respuestaCoyo=null`, `resultadosCoyo=null`, `coyoProcesadoAt=null`).
 3. Dispara `procesarPreguntaConCoyo(preguntaId)` fire-and-forget.
-4. El hook `useReintentarMiPregunta` invalida feed + misPreguntas + el
-   sondeo de Coyo de esa pregunta, así el polling arranca con el
-   nuevo estado pendiente.
+4. El hook `useReintentarMiPregunta` invalida el feed + el sondeo de
+   Coyo de esa pregunta, así el polling arranca con el nuevo estado
+   pendiente.
 
 Visualmente: loader "Reintentando…" → toast verde → la card vuelve a
 "Coyo está pensando…" y sigue el flujo normal.
 
-### Empty state del feed — onboarding de ciudades nuevas
+### Empty state del feed — `FeedVacio`
 
-Cuando una ciudad NO tiene preguntas activas todavía, `EstadoVacio`
-muestra:
+Cuando una ciudad NO tiene preguntas activas todavía, `FeedVacio`
+(`EstadosVacios.tsx`) muestra:
 
-- Ícono Inbox azul + texto "Sé el primero en preguntarle a {Ciudad}".
-- Sub-texto que vende el valor: "Coyo te ayuda al instante y tus
-  vecinos pueden completar la respuesta."
-- Sección **"IDEAS PARA EMPEZAR"** con 3 ejemplos en italic con
-  sparkles ámbar:
-  * "¿Algún plomero confiable por aquí?"
-  * "¿Qué restaurante recomiendan para una cena?"
-  * "¿Dónde reparan laptops?"
+- **Cabeza de Coyo** (`cabeza-coyo.webp`) sobre un halo azul radial.
+- Título "Aún no hay preguntas hoy" + sub-texto que vende el valor
+  ("Haz la primera pregunta del día y Coyo te responderá al instante…").
+- Botón **"Hacer la primera pregunta"** → enfoca el input de Coyo
+  (`onEnfocar`, hace scroll + focus al input correcto según desktop/móvil).
+- 3 **chips de ejemplo** (solo desktop) que **precargan el input**
+  (`onUsarEjemplo` → `setTexto` del padre + focus): *"¿Algún plomero por
+  el centro?"*, *"¿Dónde reparan laptops?"*, *"¿Tortillería a domicilio?"*.
 
-Los ejemplos no son clicables todavía (no auto-cargan al input). Si
-surge necesidad, son 3 líneas para cablearlo.
+El filtro "Mis preguntas" tiene su propio vacío (`MisPreguntasVacio`, en
+`PaginaInicio`) con ícono Inbox: *"Todavía no preguntas nada"*.
 
-### Componentes nuevos del Home
+### Componentes del Home
 
 | Componente | Responsabilidad |
 |---|---|
-| `BotonInteresComunidad` | Toggle "Yo también quiero saber". Estado base (slate) → estado activo (azul) con contador. Loader durante la mutación. Se oculta para el autor de la pregunta y para preguntas no-activas. |
-| `RespuestasComunidad` | Bloque colapsable: botón "Ver N respuestas" → lista cronológica + caja para responder. Si N=0 y la pregunta es activa, muestra CTA "Sé el primero en responder". Cada respuesta del usuario actual tiene botón "Borrar" (soft-delete). Textarea con Enter→enviar, Shift+Enter→nueva línea. |
-| `MenuAutorPregunta` | Dropdown (3 puntitos) visible solo al autor. 4 acciones con reglas de visibilidad: Editar (solo si 0 respuestas), Marcar resuelta (si no lo está), Cerrar (si activa), Eliminar (siempre, excepto si ya oculta). Cada acción destructiva pide confirmación con `ModalAdaptativo`. |
-| `ModalEditarPregunta` | Form con textarea (max 500) que solo guarda si hay cambios reales. Al éxito el backend re-dispara Coyo con el texto nuevo (resetea `estado_coyo='pendiente'`). |
+| `AreaPreguntaCoyo` | Coyo + saludo tecleado + burbuja + input "Pregúntale a Coyo". Reutilizado desktop (rail) / móvil (arriba). Exporta también `CoyoInput` (usado standalone en la barra sticky móvil). |
+| `CardPreguntaEditorial` | Card del feed: header del autor (avatar con lightbox + menú) + pregunta (con editor inline) + `RespuestaCoyo` + acciones de comunidad. Orquesta el sondeo de Coyo. |
+| `CardItemCoyo` | Tarjeta de resultado de tamaño fijo dentro del carrusel único de Coyo. Click → detalle. |
+| `EstadosVacios` (`FeedVacio`) | Estado vacío del feed con cabeza de Coyo + chips de ejemplo que precargan el input. |
+| `AdornoRailCoyo` / `AdornoCoyoMovil` | Adorno decorativo del rail: cueva (guarida) + rastro de huellas + sparkles. Sin interacción. |
+| `navegacionCoyo.ts` | Helpers puros: `rutaDetalleItemCoyo`, `detectarSubtipoNoAplica`, `obtenerIniciales`, `itemsPlanosCoyo`. |
+| `BotonInteresComunidad` | Toggle "Yo también quiero saber". Estado base (slate) → activo (azul) con contador. Loader durante la mutación. Se oculta para el autor y para preguntas no-activas. |
+| `RespuestasComunidad` | Bloque colapsable: trigger "Ver N respuestas" / "Responder" → lista cronológica + `CajaResponder` (input pill + botón circular). Avatares con lightbox. Cada respuesta del usuario actual tiene botón borrar (soft-delete). Acepta `accionDerecha` (ej. el botón "Yo también"). |
+| `MenuAutorPregunta` | Dropdown (3 puntitos) solo al autor. 4 acciones con reglas de visibilidad: Editar (solo si 0 respuestas → dispara edición inline vía `onEditar`), Marcar resuelta, Cerrar, Eliminar. Las 3 destructivas usan `ModalConfirmacion` (wrapper compacto sobre `ModalAdaptativo`: icono en círculo de color + título corto + 1 línea + Cancelar/Confirmar). |
 
-### Vista "Mis preguntas" (`/inicio/mis-preguntas`)
+### Histórico del autor — toggle "Comunidad · Mis preguntas"
 
-Histórico del autor — TODAS sus preguntas (activa, cerrada, oculta).
-Cada card muestra:
+El rediseño eliminó la página `/inicio/mis-preguntas`. En su lugar, el
+encabezado del feed tiene un toggle `SegmentoFeed` (en `PaginaInicio`):
 
-- Badge de estado: Activa (azul) / Cerrada (ámbar) / Eliminada (slate).
-- Badge "Resuelta" (verde) si `resueltaAt` está poblado.
-- Stats inline (X respuestas · Y personas interesadas).
-- `MenuAutorPregunta` con las mismas reglas que en el Home.
-- `RespuestasComunidad` accesible incluso para preguntas cerradas
-  (el autor puede leer lo que recibió). En `'oculta'` el bloque se
-  omite. La caja de responder solo aparece si la pregunta sigue
-  `'activa'`.
+- **Comunidad** → todas las preguntas activas de la ciudad.
+- **Mis preguntas** → filtra en cliente las del usuario presentes en el
+  feed (`p.autorId === usuarioId`). Solo muestra las que siguen en el
+  feed (activas); las cerradas/ocultas no aparecen — el feed solo trae
+  `estado_pregunta='activa'`.
 
-Acceso desde el Home: link discreto "Mis preguntas →" al lado del
-título "Lo que pregunta la comunidad".
+Mismo toggle en desktop (en `FeedHeader`) y móvil (en la barra sticky).
+La edición de una pregunta es **inline** (`EditorPregunta` dentro de la
+card), no una página ni un modal aparte.
 
 ---
 
@@ -975,9 +1083,9 @@ open source, MIT, sin dependencia con servidores de Rive en producción).
 | Nombre | Tipo | Disparo desde código |
 |---|---|---|
 | `saludo` | Trigger | `inputSaludo.fire()` — al montar el Home |
-| `atento` | Boolean | `inputAtento.value = true/false` — mientras el textarea tiene contenido |
-| `pensando` | Boolean | `inputPensando.value = true/false` — mientras hay pregunta del usuario en `pendiente`/`procesando` |
-| `respondiendo` | Boolean | `inputRespondiendo.value = true/false` — durante ~6s después de que una pregunta del usuario pasa a `listo` |
+| `atento` | Boolean | `inputAtento.value = true/false` — mientras el input de pregunta tiene contenido |
+| `pensando` | Boolean | `inputPensando.value = true/false` — mientras hay pregunta del usuario en `pendiente`/`procesando` (o el gap post-crear) |
+| `respondiendo` | Boolean | `inputRespondiendo.value = true/false` — durante ~2.5s después de que una pregunta del usuario pasa a `listo` |
 
 **Mapeo estado de la app → `EstadoCoyoVisual` (en `useCoyoEstadoVisual`):**
 
@@ -987,17 +1095,19 @@ Prioridad (mayor a menor):
 ```
 
 - `saludo`: bandera interna `mostrandoSaludo` true al montar el componente, se apaga con `setTimeout` tras `SALUDO_DURACION_MS = 2500ms`.
-- `respondiendo`: se detecta la transición de pregunta del usuario `procesando → listo` con un `Set` de IDs ya vistos. Se activa durante `RESPONDIENDO_DURACION_MS = 6000ms`.
-- `pensando`: `crear.isPending` o hay alguna `pregunta.autorId === usuarioId && (estadoCoyo === 'pendiente' || 'procesando')`.
-- `atento`: `texto.trim().length > 0`.
+- `respondiendo`: se detecta la transición de pregunta del usuario `procesando → listo` con un `Set` de IDs ya vistos. Se activa durante `RESPONDIENDO_DURACION_MS = 2500ms` (más el ~1s de Exit Time del ciclo de Rive).
+- `pensando`: `crear.isPending`, **`pensandoForzado`** (ver abajo), o hay alguna `pregunta.autorId === usuarioId && (estadoCoyo === 'pendiente' || 'procesando')`.
+- `atento`: `texto.trim().length > 0` — Coyo ladea la cabeza **mientras haya texto** en el input (no solo mientras teclea; se mantiene aunque el usuario pause).
 - `idle`: ninguno de los anteriores.
 
-**Mitigaciones técnicas dentro del componente:**
+**Mitigaciones técnicas dentro del hook/componente:**
 
-1. **Exclusividad de inputs:** antes de activar un boolean, se ponen todos los demás en `false`. Garantiza que nunca haya 2 estados activos al mismo tiempo.
-2. **Espera al salir de `respondiendo`:** si el estado anterior era `respondiendo` y se cambia a otro, se aplica el cambio con `setTimeout(250ms)` para que el ciclo de bocas termine en su frame base (`boca-cerrada` visible) y no se "congele" en un frame intermedio.
-3. **Layout configurable:** `Fit.Contain` + alineamiento por prop `align` (`'bottomRight' | 'center'`, default `'bottomRight'`). El hero usa `bottomRight` para que la mano alzada del saludo no se recorte por arriba. Las cards mini en estado pensando usan `'center'` para que Coyo quede al centro óptico del contenedor cuadrado.
-4. **StrictMode-safe:** el efecto que dispara `saludo` no usa flag en `useRef` (en dev el efecto corre 2 veces; un flag bloquearía la segunda ejecución y `setMostrandoSaludo(false)` nunca se llamaría). En su lugar, `mostrandoSaludo` se inicializa en `true` y el `setTimeout` se cierra correctamente con el cleanup.
+1. **Suavizado de la caída a `idle` (`IDLE_DELAY_MS = 250ms`):** los estados activos (saludo/respondiendo/pensando/atento) se aplican de inmediato, pero la bajada a `idle` se retrasa 250ms. Si en ese lapso aparece otro estado activo, el `idle` transitorio NUNCA se renderiza. Esto mata los micro-flashes de idle que se colaban entre `pensando ↔ respondiendo` (respondiendo se enciende un render tarde).
+2. **`pensandoForzado` — hueco de red post-crear:** al publicar, hay un viaje de red entre que el POST termina (`crearPendiente` vuelve a `false`) y que el refetch del feed trae la pregunta como `'pendiente'`. Sin esto, Coyo caería a `idle` durante ese gap y se vería `atento → idle → pensando`. La bandera se enciende al arrancar la creación y se apaga cuando la pregunta ya aparece procesándose en el feed (o por timeout de seguridad de 8s).
+3. **Exclusividad de inputs:** antes de activar un boolean, se ponen todos los demás en `false`. Garantiza que nunca haya 2 estados activos al mismo tiempo.
+4. **Espera al salir de `respondiendo`:** si el estado anterior era `respondiendo` y se cambia a otro, se aplica el cambio con `setTimeout(250ms)` para que el ciclo de bocas termine en su frame base (`boca-cerrada` visible) y no se "congele" en un frame intermedio.
+5. **Layout configurable:** `Fit.Contain` + alineamiento por prop `align` (`'bottomRight' | 'center'`, default `'bottomRight'`). El área de pregunta usa `center`; las cards mini en estado pensando también usan `'center'` para que Coyo quede al centro óptico del contenedor.
+6. **StrictMode-safe:** el efecto que dispara `saludo` no usa flag en `useRef` (en dev el efecto corre 2 veces; un flag bloquearía la segunda ejecución y `setMostrandoSaludo(false)` nunca se llamaría). En su lugar, `mostrandoSaludo` se inicializa en `true` y el `setTimeout` se cierra correctamente con el cleanup.
 
 **Cómo regenerar el `.riv`:**
 
@@ -1161,10 +1271,13 @@ de regresión apuntando específicamente a ese caso.
   implementado todavía.
 - **Tabla `regiones` no conectada.** Existe como catálogo pero ninguna
   parte del flujo la usa. Se conectará con el Panel Admin.
-- **Sin endpoint dedicado de "vecinos preguntando hoy".** El contador se
-  calcula en el frontend del feed cargado (autores únicos con `createdAt`
-  en las últimas 24h). Si crece el volumen, conviene exponerlo desde
-  backend.
+- **"Mis preguntas" se limita a las preguntas presentes en el feed.** El
+  toggle filtra en cliente (`autorId === usuarioId`) sobre el feed activo,
+  que solo trae `estado_pregunta='activa'`. El autor no puede ver desde el
+  Home sus preguntas cerradas/ocultas (antes existía la página dedicada
+  con su endpoint). Si se necesita el histórico completo, habría que
+  reintroducir un endpoint de "mis preguntas" o exponerlo en el Panel
+  Admin.
 - **Auto-daño / crisis emocional.** Una pregunta tipo *"quiero morirme"*
   hoy cae en `no_local` con texto fijo de redirección — insuficiente.
   Idealmente Coyo debería detectar crisis emocional y mostrar respuesta
@@ -1212,10 +1325,24 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 | **Backend — notificaciones** | `services/notificaciones.service.ts`, `types/notificaciones.types.ts` |
 | **Backend — config** | `config/env.ts` (`GEMINI_API_KEY`) |
 | **Backend — tests** | `__tests__/coyo-filtro-caso-a.test.ts`, `__tests__/coyo-filtro-caso-b.test.ts` |
-| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (con bloques internos `BloqueCoyoPensando`, `BloqueCoyoListo`, `BloqueCoyoNoAplica` con subtipos, `BloqueCoyoSinRespuesta`, `BotonVerMasResultados`, `EstadoVacio` con ejemplos), `pages/private/PaginaMisPreguntas.tsx`, `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts`, `stores/useSearchStore.ts` (consumido en "Ver más resultados") |
-| **Frontend — componentes Home** | `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx`, `components/home/ModalEditarPregunta.tsx` |
+| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (orquestador 2 columnas: `SegmentoFeed`, `FeedHeader`, `ContenidoFeed`, `MisPreguntasVacio`, `HomeMovil`), `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
+| **Frontend — componentes Home** | `components/home/AreaPreguntaCoyo.tsx`, `components/home/CardPreguntaEditorial.tsx`, `components/home/CardItemCoyo.tsx`, `components/home/EstadosVacios.tsx`, `components/home/AdornoRailCoyo.tsx`, `components/home/navegacionCoyo.ts`, `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx` |
+| **Frontend — scroll/perf** | `hooks/useScrollDirection.ts`, `hooks/useHideOnScroll.ts`, `stores/useMainScrollStore.ts` (botón "ir arriba"); `React.memo` en `CardPreguntaEditorial`, `CardItemCoyo`, `CoyoAnimado` |
 | **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
 | **Frontend — notificaciones** | `components/layout/PanelNotificaciones.tsx` (mapeo de íconos + navegación), `types/notificaciones.ts` |
 | **Dependencia** | `@rive-app/react-canvas` (runtime open source, MIT), `@google/genai ^2.6.0` |
 | **Asset Rive** | `apps/web/public/coyo.riv` (export desde editor de Rive — incluye despiece SVG + 5 timelines + state machine de 2 layers) |
 | **Docs hermanos** | `docs/estandares/PATRON_BUSCADOR_FTS.md` (receta FTS portable), `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4 (visión) |
+
+---
+
+> **Última revisión:** Jun 2026 — rediseño "2 columnas" del frontend
+> (rail Coyo + feed con toggle Comunidad · Mis preguntas, carrusel único
+> de resultados, edición inline, modales de confirmación compactos).
+> Eliminados: página `/inicio/mis-preguntas` + su endpoint backend,
+> `ModalEditarPregunta`, escape "Ver más resultados".
+> Añadidos después: adorno decorativo del rail (`AdornoRailCoyo` —
+> guarida + rastro de huellas), botón "ir arriba" móvil, centrado del
+> conjunto rail+feed en PC, y memoización (`React.memo`) del feed y de
+> Coyo para que el input controlado no genere lag al teclear. El backend
+> de Coyo (IA, orquestador, buscador, notificaciones, expiración) no cambió.

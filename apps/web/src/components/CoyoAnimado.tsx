@@ -26,7 +26,7 @@
  * Ubicación: apps/web/src/components/CoyoAnimado.tsx
  */
 
-import { useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo } from 'react';
 import {
     useRive,
     useStateMachineInput,
@@ -107,7 +107,7 @@ interface CoyoAnimadoProps {
  * vacío — no rompe la página. El padre puede mostrar el PNG como fallback
  * si quiere blindarse más, pero el caso normal es que `/coyo.riv` exista.
  */
-export function CoyoAnimado({
+function CoyoAnimadoBase({
     estado,
     alt = 'Coyo, asistente de AnunciaYA',
     className,
@@ -192,4 +192,8 @@ export function CoyoAnimado({
     );
 }
 
+// Memoizado: Coyo (Rive) vive junto al input controlado del Home. Sin memo,
+// cada tecla re-renderizaría el runtime de Rive. Con props estables (estado,
+// className, style, align), memo lo evita salvo cuando el estado cambia.
+export const CoyoAnimado = memo(CoyoAnimadoBase);
 export default CoyoAnimado;

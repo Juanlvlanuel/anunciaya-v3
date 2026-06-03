@@ -11,7 +11,7 @@
  * Ubicación: apps/web/src/components/home/CardItemCoyo.tsx
  */
 
-import { useState } from 'react';
+import { memo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Star, BadgeCheck, Clock, Image as ImageIcon } from 'lucide-react';
 import type { ItemCoyo } from '../../types/preguntasComunidad';
@@ -122,7 +122,7 @@ interface CardItemCoyoProps {
     item: ItemCoyo;
 }
 
-export function CardItemCoyo({ item }: CardItemCoyoProps) {
+function CardItemCoyoBase({ item }: CardItemCoyoProps) {
     const navigate = useNavigate();
 
     return (
@@ -155,4 +155,5 @@ export function CardItemCoyo({ item }: CardItemCoyoProps) {
     );
 }
 
+export const CardItemCoyo = memo(CardItemCoyoBase);
 export default CardItemCoyo;

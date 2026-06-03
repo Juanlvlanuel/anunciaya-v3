@@ -17,16 +17,21 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Users, History, RefreshCcw, Inbox } from 'lucide-react';
+import { createPortal } from 'react-dom';
+import { Users, History, RefreshCcw, Inbox, Sparkles, ArrowUp } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
+import { useMainScrollStore } from '../../stores/useMainScrollStore';
 import {
     usePreguntasComunidadLista,
     useCrearPregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
+import { useScrollDirection } from '../../hooks/useScrollDirection';
+import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 import { AreaPreguntaCoyo, CoyoInput } from '../../components/home/AreaPreguntaCoyo';
 import { CardPreguntaEditorial } from '../../components/home/CardPreguntaEditorial';
+import { AdornoRailCoyo, AdornoCoyoMovil } from '../../components/home/AdornoRailCoyo';
 import { FeedVacio } from '../../components/home/EstadosVacios';
 import { notificar } from '../../utils/notificaciones';
 import type { PreguntaComunidad } from '../../types/preguntasComunidad';
@@ -214,6 +219,45 @@ function ContenidoFeed({
 }
 
 // =============================================================================
+// BOTÓN "IR ARRIBA" (móvil) — FAB flotante para volver al inicio del feed
+// =============================================================================
+
+// Aparece al bajar (>300px) y hace smooth-scroll del contenedor <main> al top.
+// Mismo patrón que el FAB de PaginaNegocios: `right-4 z-30`, sube a `5rem`
+// cuando el BottomNav está visible para no quedar tapado. Solo móvil.
+function BotonIrArriba() {
+    const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+    const { scrollY } = useScrollDirection({ scrollRef: mainScrollRef ?? undefined });
+    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
+    const mostrar = scrollY > 300;
+
+    const irArriba = () => {
+        const el = mainScrollRef?.current;
+        if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
+        else window.scrollTo({ top: 0, behavior: 'smooth' });
+    };
+
+    return createPortal(
+        <button
+            type="button"
+            onClick={irArriba}
+            aria-label="Ir arriba"
+            data-testid="home-ir-arriba"
+            style={{
+                bottom: bottomNavVisible ? '5rem' : '1rem',
+                transition: 'bottom 300ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease-out',
+            }}
+            className={`lg:hidden fixed right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg active:scale-95 ${
+                mostrar ? 'opacity-100' : 'pointer-events-none opacity-0'
+            }`}
+        >
+            <ArrowUp className="h-6 w-6" strokeWidth={2.5} />
+        </button>,
+        document.body,
+    );
+}
+
+// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -284,17 +328,27 @@ export function PaginaInicio() {
     if (esMovil) {
         return (
             <div className="w-full max-w-[520px] mx-auto px-4 py-3">
-                {/* Coyo protagonista (scrollea) — sin input (va sticky abajo) */}
-                <div className="pt-1 pb-4">
-                    <AreaPreguntaCoyo
-                        nombreUsuario={nombreUsuario}
-                        estadoCoyo={estadoCoyoVisual}
-                        conInput={false}
-                    />
+                {/* Coyo protagonista (scrollea) — sin input (va sticky abajo).
+                    Adorno (huellitas + cueva + sparkles) detrás de la mascota.
+                    `-mx-4` rompe el padding del contenedor para que la cueva
+                    llegue a la orilla; el contenido recupera el padding con
+                    `px-4`. */}
+                <div className="relative overflow-hidden -mx-4 pt-1 pb-4">
+                    <AdornoCoyoMovil className="absolute inset-0 pointer-events-none" />
+                    <div className="relative z-10 px-4">
+                        <AreaPreguntaCoyo
+                            nombreUsuario={nombreUsuario}
+                            estadoCoyo={estadoCoyoVisual}
+                            conInput={false}
+                        />
+                    </div>
                 </div>
 
-                {/* Barra sticky: input compacto + segmento */}
-                <div className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-2.5 backdrop-blur-sm space-y-2.5">
+                {/* Barra sticky: label + input compacto + segmento */}
+                <div className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-2.5 backdrop-blur-sm space-y-2">
+                    <p className="flex items-center gap-2 pl-1 text-sm font-bold text-slate-600">
+                        <Sparkles size={16} strokeWidth={2.5} className="text-amber-500" /> Pregúntale a Coyo
+                    </p>
                     <CoyoInput
                         id="coyo-input-movil"
                         compact
@@ -319,6 +373,8 @@ export function PaginaInicio() {
                         onUsarEjemplo={usarEjemplo}
                     />
                 </div>
+
+                <BotonIrArriba />
             </div>
         );
     }
@@ -326,25 +382,29 @@ export function PaginaInicio() {
     // ── DESKTOP ──────────────────────────────────────────────────────────
     return (
         <div className="w-full px-4 lg:px-5 2xl:px-6 py-4 lg:py-6">
-            <div className="flex flex-col lg:flex-row gap-5 2xl:gap-7 items-start">
-                {/* Rail izquierdo: solo Coyo (mascota + burbujas + input + stat),
-                    centrado verticalmente en el alto disponible. */}
-                <div className="w-full lg:w-[336px] 2xl:w-[412px] shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100vh-7rem)] lg:flex lg:flex-col lg:justify-center">
-                    <AreaPreguntaCoyo
-                        nombreUsuario={nombreUsuario}
-                        estadoCoyo={estadoCoyoVisual}
-                        hayCiudad={hayCiudad}
-                        texto={texto}
-                        onTextoChange={setTexto}
-                        onEnviar={handleEnviar}
-                        enviando={crear.isPending}
-                        puedeEnviar={puedeEnviar}
-                    />
+            <div className="flex flex-col lg:flex-row lg:justify-center gap-5 2xl:gap-7 items-start">
+                {/* Rail izquierdo: Coyo (mascota + burbujas + input) alineado
+                    arriba + adorno decorativo (huellitas + pin) anclado a la
+                    base para llenar el espacio inferior. */}
+                <div className="w-full lg:w-[336px] 2xl:w-[412px] shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100vh-7rem)] lg:flex lg:flex-col lg:justify-start lg:pt-4 relative overflow-hidden">
+                    <AdornoRailCoyo className="hidden lg:block absolute inset-0 pointer-events-none" />
+                    <div className="relative z-10">
+                        <AreaPreguntaCoyo
+                            nombreUsuario={nombreUsuario}
+                            estadoCoyo={estadoCoyoVisual}
+                            hayCiudad={hayCiudad}
+                            texto={texto}
+                            onTextoChange={setTexto}
+                            onEnviar={handleEnviar}
+                            enviando={crear.isPending}
+                            puedeEnviar={puedeEnviar}
+                        />
+                    </div>
                 </div>
 
                 {/* Feed */}
-                <div className="w-full min-w-0 flex-1">
-                    <div className="w-full max-w-[760px] space-y-3 lg:space-y-4">
+                <div className="w-full min-w-0 flex-1 lg:max-w-[760px]">
+                    <div className="w-full space-y-3 lg:space-y-4">
                         <FeedHeader ciudad={nombreCiudad} segmento={segmento} onSegmento={setSegmento} />
                         <ContenidoFeed
                             hayCiudad={hayCiudad}

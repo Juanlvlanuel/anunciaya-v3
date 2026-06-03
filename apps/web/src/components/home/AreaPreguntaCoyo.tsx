@@ -21,6 +21,10 @@ import { CoyoAnimado, type EstadoCoyoVisual } from '../CoyoAnimado';
 
 const TEXTO_MAX = 500;
 
+// Estilo estable (referencia fija) para que el memo de CoyoAnimado no se
+// invalide en cada tecleo del input controlado.
+const ESTILO_COYO_HERO = { filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.15))' };
+
 // =============================================================================
 // CoyoInput — campo de pregunta (pill blanco + X + botón enviar circular)
 // =============================================================================
@@ -249,7 +253,7 @@ export function AreaPreguntaCoyo({
                     align="center"
                     alt="Coyo, asistente de AnunciaYA"
                     className="shrink-0 h-44 w-44 lg:h-48 lg:w-48 2xl:h-52 2xl:w-52 select-none overflow-visible transition-transform duration-300 ease-out lg:hover:-translate-y-2 lg:hover:rotate-6 lg:hover:scale-105"
-                    style={{ filter: 'drop-shadow(0 6px 10px rgba(15,23,42,0.15))' }}
+                    style={ESTILO_COYO_HERO}
                 />
                 <div
                     className="relative bg-white border-[3px] border-blue-200 rounded-2xl px-5 py-2.5"
