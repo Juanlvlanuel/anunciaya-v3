@@ -110,6 +110,40 @@ export function usePreguntasComunidadLista() {
 }
 
 // =============================================================================
+// MIS PREGUNTAS (historial completo del usuario — vista "Mis preguntas")
+// =============================================================================
+
+/**
+ * Vista "Mis preguntas" del Home: historial completo del usuario (activas +
+ * cerradas + ocultas), paginado con scroll infinito propio. Independiente del
+ * feed por ciudad — el backend filtra por el usuario del JWT.
+ *
+ * Se deja habilitado por defecto (no lazy) para que el badge del toggle tenga
+ * el `total` real desde que carga el Home, aunque el usuario esté en
+ * "Comunidad". Misma estructura de páginas que el feed.
+ */
+export function useMisPreguntasLista() {
+    return useInfiniteQuery({
+        queryKey: queryKeys.preguntasComunidad.misPreguntas(),
+        queryFn: ({ pageParam }) =>
+            preguntasComunidadService.listarMisPreguntas({
+                limit: LIMIT_DEFAULT,
+                offset: pageParam,
+            }),
+        initialPageParam: 0,
+        getNextPageParam: (ultimaPagina, todasLasPaginas) => {
+            const cargadas = todasLasPaginas.reduce(
+                (acc, p) => acc + p.preguntas.length,
+                0,
+            );
+            return cargadas < ultimaPagina.total ? cargadas : undefined;
+        },
+        placeholderData: keepPreviousData,
+        refetchOnWindowFocus: true,
+    });
+}
+
+// =============================================================================
 // DETALLE: una pregunta por id (deep-link de notificaciones)
 // =============================================================================
 
@@ -168,6 +202,10 @@ export function useCrearPregunta() {
             // sobre ['preguntasComunidad', 'porCiudad', ciudad, ...]).
             qc.invalidateQueries({
                 queryKey: ['preguntasComunidad', 'porCiudad', variables.ciudad],
+            });
+            // La pregunta nueva también debe aparecer en "Mis preguntas".
+            qc.invalidateQueries({
+                queryKey: ['preguntasComunidad', 'misPreguntas'],
             });
         },
     });
@@ -506,6 +544,9 @@ export function useQuitarInteres() {
  */
 function invalidarFeed(qc: ReturnType<typeof useQueryClient>) {
     qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
+    // También la vista "Mis preguntas" (su propia query) — para que
+    // cerrar/borrar/resolver/editar/reintentar se reflejen ahí de inmediato.
+    qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'misPreguntas'] });
 }
 
 /** Autor cierra su pregunta (estado='cerrada'). Sale del feed. */

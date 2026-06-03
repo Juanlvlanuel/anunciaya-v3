@@ -14,6 +14,7 @@ import { Router, type Router as RouterType } from 'express';
 import {
     crearPreguntaController,
     listarPreguntasPorCiudadController,
+    listarMisPreguntasController,
     obtenerPreguntaPorIdController,
     obtenerEstadoCoyoController,
     crearRespuestaController,
@@ -68,6 +69,14 @@ router.get('/', listarPreguntasPorCiudadController);
  * que `estadoCoyo` deje de ser 'pendiente' o 'procesando'.
  */
 router.get('/:id/coyo', obtenerEstadoCoyoController);
+
+/**
+ * GET /api/preguntas-comunidad/mis-preguntas
+ * Historial del autor autenticado (TODOS sus estados: activa/cerrada/oculta),
+ * paginado. DEBE ir ANTES de `/:id` para que Express no lo capture como un id
+ * dinámico (`/mis-preguntas` es estática, `/:id` es dinámica).
+ */
+router.get('/mis-preguntas', listarMisPreguntasController);
 
 /**
  * GET /api/preguntas-comunidad/:id

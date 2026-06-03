@@ -7,6 +7,34 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Junio 2026] - Home / Coyo — "Mis preguntas" como vista real (historial) 📋
+
+"Mis preguntas" deja de ser un filtro cliente del feed y pasa a ser una **vista
+real con su propio fetch**, mostrando el historial COMPLETO del autor.
+
+**Backend**: endpoint `GET /api/preguntas-comunidad/mis-preguntas`
+(`listarMisPreguntas` + controller). Devuelve TODAS las preguntas del usuario
+del JWT (cualquier estado: activa/cerrada/oculta), paginado, con
+`paginacion.total`. La ruta va **antes** de `/:id` (estática antes que
+dinámica).
+
+**Frontend**:
+- `services` → `listarMisPreguntas`; queryKey `misPreguntas`; hook
+  `useMisPreguntasLista` (`useInfiniteQuery`, habilitado siempre para que el
+  badge tenga el total real desde el inicio).
+- `PaginaInicio`: `queryActivo = segmento === 'mias' ? misPreguntasQuery :
+  feed`. El scroll infinito, el refresh y el sentinel operan sobre el segmento
+  activo; "Mis preguntas" tiene su **propio scroll infinito** (ya no filtra lo
+  cargado del feed). El badge muestra el **total exacto** de cada segmento.
+- `CardPreguntaEditorial`: badges de estado **Cerrada** (ámbar) y **Eliminada**
+  (slate) cuando la pregunta no está activa. El `MenuAutorPregunta` ya daba las
+  acciones correctas por estado (Cerrada → solo Eliminar; oculta → sin menú).
+- Las mutaciones del autor (cerrar/borrar/resolver/editar/reintentar) y crear
+  pregunta invalidan también `['preguntasComunidad','misPreguntas']` para que
+  la vista se refresque sola.
+
+---
+
 ## [3 Junio 2026] - Home / Coyo — feed modernizado (scroll infinito + refresh + badge) ♾️🔄
 
 El feed del Home se moderniza al estilo Facebook.

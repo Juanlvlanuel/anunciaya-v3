@@ -25,6 +25,7 @@ import { useGpsStore } from '../../stores/useGpsStore';
 import { useMainScrollStore } from '../../stores/useMainScrollStore';
 import {
     usePreguntasComunidadLista,
+    useMisPreguntasLista,
     useCrearPregunta,
     usePregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
@@ -362,6 +363,15 @@ export function PaginaInicio() {
         [feed.data],
     );
 
+    // Vista "Mis preguntas": historial completo del usuario (su propio fetch
+    // paginado, todos los estados). Habilitado siempre para que el badge del
+    // toggle tenga el total real desde que carga el Home.
+    const misPreguntasQuery = useMisPreguntasLista();
+    const misPreguntasData = useMemo(
+        () => misPreguntasQuery.data?.pages.flatMap((p) => p.preguntas) ?? [],
+        [misPreguntasQuery.data],
+    );
+
     // Deep-link de notificaciones: /inicio?preguntaId=<id> destaca esa pregunta
     // arriba del feed. Se pide aparte (no depende del feed ni de la paginación).
     //
@@ -435,24 +445,19 @@ export function PaginaInicio() {
 
     // Preguntas a mostrar según el segmento. "Mis preguntas" = las del usuario
     // presentes en el feed (mismo criterio desktop/móvil).
-    const misEnFeed = useMemo(
-        () => preguntas.filter((p) => !!usuarioId && p.autorId === usuarioId),
-        [preguntas, usuarioId],
-    );
-    // Evita duplicar la pregunta destacada si también está en el feed. Al
-    // cerrar el destacado (preguntaIdDestacada vacío) reaparece en su lugar.
+    // Lista según el segmento: Comunidad = feed por ciudad (sin la pregunta
+    // destacada para no duplicarla); Mis preguntas = historial propio completo.
     const preguntasMostradas = useMemo(() => {
-        const base = segmento === 'mias' ? misEnFeed : preguntas;
+        if (segmento === 'mias') return misPreguntasData;
         return preguntaIdDestacada
-            ? base.filter((p) => p.id !== preguntaIdDestacada)
-            : base;
-    }, [segmento, misEnFeed, preguntas, preguntaIdDestacada]);
+            ? preguntas.filter((p) => p.id !== preguntaIdDestacada)
+            : preguntas;
+    }, [segmento, misPreguntasData, preguntas, preguntaIdDestacada]);
 
-    // Conteos para el badge del toggle: Comunidad = total real del backend
-    // (COUNT de activas de la ciudad); Mis preguntas = las del usuario
-    // presentes en lo ya cargado del feed.
+    // Conteos del badge del toggle: ambos son el total REAL del backend.
     const totalComunidad = feed.data?.pages[0]?.total ?? 0;
-    const conteosSegmento = { comunidad: totalComunidad, mias: misEnFeed.length };
+    const totalMias = misPreguntasQuery.data?.pages[0]?.total ?? 0;
+    const conteosSegmento = { comunidad: totalComunidad, mias: totalMias };
 
     const esMovil = useEsMovil();
 
@@ -488,8 +493,11 @@ export function PaginaInicio() {
     // (el Home es un feed tipo Facebook, no un grid). Solo en "Comunidad"
     // (Mis preguntas es un filtro cliente sobre lo ya cargado). El root es el
     // <main> scrolleable cuando existe; si no, el viewport.
+    // Query del segmento activo: el scroll infinito, el refresh y el sentinel
+    // operan sobre Comunidad o Mis preguntas según el toggle.
+    const queryActivo = segmento === 'mias' ? misPreguntasQuery : feed;
     const sentinelaRef = useRef<HTMLDivElement | null>(null);
-    const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed;
+    const { hasNextPage, isFetchingNextPage, fetchNextPage } = queryActivo;
     useEffect(() => {
         const el = sentinelaRef.current;
         if (!el || !hasNextPage) return;
@@ -508,7 +516,7 @@ export function PaginaInicio() {
         return () => observer.disconnect();
     }, [hasNextPage, isFetchingNextPage, fetchNextPage, mainScrollRef, segmento]);
 
-    const sentinelFeed = segmento === 'comunidad' ? (
+    const sentinelFeed = (
         <>
             <div ref={sentinelaRef} aria-hidden="true" className="h-1" />
             {isFetchingNextPage && (
@@ -517,7 +525,7 @@ export function PaginaInicio() {
                 </div>
             )}
         </>
-    ) : null;
+    );
 
     // ── Refresh tipo Facebook ────────────────────────────────────────────
     // Móvil: pull-to-refresh (gesto) → feed.refetch().
@@ -527,7 +535,7 @@ export function PaginaInicio() {
     // volver a la pestaña (refetchOnWindowFocus, ya activo en el hook). El
     // spinner de PC se muestra cuando ese refetch ocurre (isRefetching).
     const pull = usePullToRefresh({
-        onRefresh: () => feed.refetch(),
+        onRefresh: () => queryActivo.refetch(),
         scrollRef: mainScrollRef,
         habilitado: esMovil,
     });
@@ -549,7 +557,7 @@ export function PaginaInicio() {
 
     // Indicador de refresco en PC: spinner arriba del feed mientras refetchea
     // (al entrar o al volver a la pestaña), sin contar la carga de más páginas.
-    const indicadorRefrescoPc = feed.isRefetching && !isFetchingNextPage && !publicandoPregunta ? (
+    const indicadorRefrescoPc = queryActivo.isRefetching && !isFetchingNextPage && !publicandoPregunta ? (
         <div className="flex items-center justify-center py-2" data-testid="home-refrescando" aria-hidden="true">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
         </div>
@@ -598,8 +606,8 @@ export function PaginaInicio() {
                 <div className="pt-4 space-y-4">
                     {bloqueDestacado}
                     <ContenidoFeed
-                        hayCiudad={hayCiudad}
-                        feed={feed}
+                        hayCiudad={segmento === 'mias' || hayCiudad}
+                        feed={queryActivo}
                         segmento={segmento}
                         preguntasMostradas={preguntasMostradas}
                         onEnfocar={enfocarInput}
@@ -626,7 +634,7 @@ export function PaginaInicio() {
                         <AreaPreguntaCoyo
                             nombreUsuario={nombreUsuario}
                             estadoCoyo={estadoCoyoVisual}
-                            hayCiudad={hayCiudad}
+                            hayCiudad={segmento === 'mias' || hayCiudad}
                             texto={texto}
                             onTextoChange={setTexto}
                             onEnviar={handleEnviar}
@@ -643,8 +651,8 @@ export function PaginaInicio() {
                         <FeedHeader ciudad={nombreCiudad} segmento={segmento} onSegmento={setSegmento} conteos={conteosSegmento} />
                         {indicadorRefrescoPc}
                         <ContenidoFeed
-                            hayCiudad={hayCiudad}
-                            feed={feed}
+                            hayCiudad={segmento === 'mias' || hayCiudad}
+                            feed={queryActivo}
                             segmento={segmento}
                             preguntasMostradas={preguntasMostradas}
                             onEnfocar={enfocarInput}

@@ -25,6 +25,8 @@ import { useState, memo, type FormEvent } from 'react';
 import {
     Sparkles,
     CheckCircle2,
+    XCircle,
+    Trash2,
     AlertTriangle,
     RefreshCcw,
     Loader2,
@@ -346,6 +348,24 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                         <p className="text-base font-bold text-slate-800 truncate leading-tight">{pregunta.autorNombre}</p>
                         {tiempo && <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">{tiempo}</p>}
                     </div>
+                    {/* Badges de estado — solo aparecen en "Mis preguntas"
+                        (el feed por ciudad solo trae activas). */}
+                    {pregunta.estadoPregunta === 'cerrada' && (
+                        <span
+                            className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-amber-700 bg-amber-100 rounded-full px-2 py-0.5 shrink-0"
+                            data-testid={`pregunta-cerrada-${pregunta.id}`}
+                        >
+                            <XCircle className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" /> Cerrada
+                        </span>
+                    )}
+                    {pregunta.estadoPregunta === 'oculta' && (
+                        <span
+                            className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 bg-slate-200 rounded-full px-2 py-0.5 shrink-0"
+                            data-testid={`pregunta-eliminada-${pregunta.id}`}
+                        >
+                            <Trash2 className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" /> Eliminada
+                        </span>
+                    )}
                     {resuelta && (
                         <span
                             className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5 shrink-0"

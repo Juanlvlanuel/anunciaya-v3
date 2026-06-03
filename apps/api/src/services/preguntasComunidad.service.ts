@@ -463,6 +463,113 @@ export async function obtenerPreguntaPorId(
 }
 
 // =============================================================================
+// MIS PREGUNTAS (historial del autor — todos los estados, paginado)
+// =============================================================================
+
+/**
+ * Devuelve TODAS las preguntas de un usuario (cualquier `estado_pregunta`:
+ * activa, cerrada, oculta), ordenadas de la más nueva a la más vieja, con el
+ * mismo shape que el feed + el total. Alimenta la vista "Mis preguntas" del
+ * Home (gestor del historial del autor).
+ *
+ * A diferencia del feed por ciudad: NO filtra por estado ni por ciudad — el
+ * usuario ve su historial completo para gestionarlo (editar/cerrar/resolver/
+ * eliminar) sin importar la ciudad activa. `yoTambienInteresado` siempre es
+ * `false` (el autor no marca interés en su propia pregunta).
+ */
+export async function listarMisPreguntas(input: {
+    usuarioId: string;
+    limit?: number;
+    offset?: number;
+}): Promise<RespuestaServicio<{ preguntas: PreguntaComunidadResponse[]; total: number }>> {
+    try {
+        const usuarioId = (input.usuarioId ?? '').trim();
+        if (usuarioId.length === 0) {
+            return { success: false, message: 'usuarioId es requerido', code: 400 };
+        }
+
+        const limitRaw = input.limit ?? LIMIT_DEFAULT;
+        const offsetRaw = input.offset ?? 0;
+        const limit = Math.min(Math.max(1, Math.floor(limitRaw)), LIMIT_MAX);
+        const offset = Math.max(0, Math.floor(offsetRaw));
+
+        const filas = await db
+            .select({
+                id: preguntasComunidad.id,
+                texto: preguntasComunidad.texto,
+                ciudad: preguntasComunidad.ciudad,
+                estado: preguntasComunidad.estado,
+                estadoPregunta: preguntasComunidad.estadoPregunta,
+                resueltaAt: preguntasComunidad.resueltaAt,
+                createdAt: preguntasComunidad.createdAt,
+                updatedAt: preguntasComunidad.updatedAt,
+                autorId: usuarios.id,
+                autorNombre: usuarios.nombre,
+                autorApellidos: usuarios.apellidos,
+                autorAvatarUrl: usuarios.avatarUrl,
+                estadoCoyo: preguntasComunidad.estadoCoyo,
+                respuestaCoyo: preguntasComunidad.respuestaCoyo,
+                resultadosCoyo: preguntasComunidad.resultadosCoyo,
+                coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
+                totalRespuestas: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM respuestas_preguntas_comunidad
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                      AND estado = 'activa'
+                )`,
+                totalInteresados: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM preguntas_interesados
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                )`,
+            })
+            .from(preguntasComunidad)
+            .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
+            .where(eq(preguntasComunidad.usuarioId, usuarioId))
+            .orderBy(desc(preguntasComunidad.createdAt))
+            .limit(limit)
+            .offset(offset);
+
+        const preguntas: PreguntaComunidadResponse[] = filas.map((f) => ({
+            id: f.id,
+            texto: f.texto,
+            ciudad: f.ciudad,
+            estado: f.estado,
+            estadoPregunta: f.estadoPregunta as EstadoPregunta,
+            createdAt: f.createdAt ?? new Date().toISOString(),
+            updatedAt: f.updatedAt ?? new Date().toISOString(),
+            autorId: f.autorId ?? '',
+            autorNombre: f.autorNombre ?? '',
+            autorApellidos: f.autorApellidos ?? '',
+            autorAvatarUrl: f.autorAvatarUrl ?? null,
+            estadoCoyo: f.estadoCoyo as EstadoCoyo,
+            respuestaCoyo: f.respuestaCoyo,
+            resultadosCoyo: f.resultadosCoyo,
+            coyoProcesadoAt: f.coyoProcesadoAt,
+            resueltaAt: f.resueltaAt ?? null,
+            totalRespuestas: Number(f.totalRespuestas) || 0,
+            totalInteresados: Number(f.totalInteresados) || 0,
+            yoTambienInteresado: false,
+        }));
+
+        const [conteo] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(preguntasComunidad)
+            .where(eq(preguntasComunidad.usuarioId, usuarioId));
+        const total = Number(conteo?.total) || 0;
+
+        return {
+            success: true,
+            message: 'Mis preguntas obtenidas',
+            data: { preguntas, total },
+        };
+    } catch (error) {
+        console.error('Error en listarMisPreguntas:', error);
+        return { success: false, message: 'Error al listar mis preguntas', code: 500 };
+    }
+}
+
+// =============================================================================
 // CONTROL DEL AUTOR — Sprint 1.C
 // =============================================================================
 // El autor de una pregunta tiene 4 acciones sobre SU pregunta:

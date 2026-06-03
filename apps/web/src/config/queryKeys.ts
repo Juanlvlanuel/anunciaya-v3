@@ -312,6 +312,13 @@ export const queryKeys = {
     porCiudad: (ciudad: string) =>
       ['preguntasComunidad', 'porCiudad', ciudad] as const,
     /**
+     * Vista "Mis preguntas" del Home — historial completo del usuario (todos
+     * los estados), paginado con useInfiniteQuery. Una sola key (el backend
+     * filtra por el usuario del JWT).
+     */
+    misPreguntas: () =>
+      ['preguntasComunidad', 'misPreguntas'] as const,
+    /**
      * Sondeo del estado de Coyo de UNA pregunta. El hook hace polling
      * con refetchInterval condicional (2s mientras 'pendiente'/'procesando',
      * detenido en estados finales). Key por preguntaId.

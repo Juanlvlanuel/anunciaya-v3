@@ -137,6 +137,7 @@ pregunta que NO es suya. Idempotente por PK compuesta.
 ```
 POST    /api/preguntas-comunidad                               crearPreguntaController
 GET     /api/preguntas-comunidad?ciudad=&limit=&offset=        listarPreguntasPorCiudadController
+GET     /api/preguntas-comunidad/mis-preguntas                 listarMisPreguntasController ← historial del autor
 GET     /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController   ← sondeo
 GET     /api/preguntas-comunidad/:id                           obtenerPreguntaPorIdController ← deep-link de notificaciones
 
@@ -886,6 +887,7 @@ props estables:
 ```typescript
 // Feed de la ciudad activa del useGpsStore
 usePreguntasComunidadLista()              // useInfiniteQuery — feed paginado (scroll infinito)
+useMisPreguntasLista()                    // useInfiniteQuery — historial completo del autor
 useCrearPregunta()
 useEstadoCoyo(preguntaId, estadoInicial)  // sondeo 2s mientras pendiente/procesando
 usePregunta(preguntaId)                   // UNA pregunta por id (deep-link de notificaciones)
@@ -1100,18 +1102,25 @@ navegan a `/inicio?preguntaId=<id>`. Al abrir el Home con ese parámetro,
 
 ### Histórico del autor — toggle "Comunidad · Mis preguntas"
 
-El rediseño eliminó la página `/inicio/mis-preguntas`. En su lugar, el
-encabezado del feed tiene un toggle `SegmentoFeed` (en `PaginaInicio`):
+El encabezado del feed tiene un toggle `SegmentoFeed` (en `PaginaInicio`):
 
-- **Comunidad** → todas las preguntas activas de la ciudad.
-- **Mis preguntas** → filtra en cliente las del usuario presentes en el
-  feed (`p.autorId === usuarioId`). Solo muestra las que siguen en el
-  feed (activas); las cerradas/ocultas no aparecen — el feed solo trae
-  `estado_pregunta='activa'`.
+- **Comunidad** → feed de preguntas activas de la ciudad (`usePreguntasComunidadLista`).
+- **Mis preguntas** → **vista real con su propio fetch** (`useMisPreguntasLista`
+  → `GET /mis-preguntas`): historial COMPLETO del usuario (activas + cerradas
+  + ocultas), paginado con **scroll infinito propio**. No es un filtro del feed.
 
-Mismo toggle en desktop (en `FeedHeader`) y móvil (en la barra sticky).
-La edición de una pregunta es **inline** (`EditorPregunta` dentro de la
-card), no una página ni un modal aparte.
+`PaginaInicio` define `queryActivo = segmento === 'mias' ? misPreguntasQuery :
+feed`, y el scroll infinito, el refresh y el sentinel operan sobre ese query.
+El badge del toggle muestra el **total real** de cada segmento (ambos del
+backend). La edición de una pregunta es **inline** (`EditorPregunta` dentro de
+la card). En "Mis preguntas" cada card trae su `MenuAutorPregunta` (gestión
+según estado) y un **badge de estado** (Cerrada / Eliminada) cuando no está
+activa. Mismo toggle en desktop (`FeedHeader`) y móvil (barra sticky).
+
+> **Histórico — evolución.** El rediseño 2 columnas había eliminado la página
+> `/inicio/mis-preguntas` y dejó "Mis preguntas" como un filtro cliente del
+> feed (solo veía activas presentes en el feed). La **Opción D** (Jun 2026)
+> recuperó el historial completo como vista real con endpoint propio.
 
 ---
 
@@ -1336,13 +1345,11 @@ de regresión apuntando específicamente a ese caso.
   implementado todavía.
 - **Tabla `regiones` no conectada.** Existe como catálogo pero ninguna
   parte del flujo la usa. Se conectará con el Panel Admin.
-- **"Mis preguntas" se limita a las preguntas presentes en el feed.** El
-  toggle filtra en cliente (`autorId === usuarioId`) sobre el feed activo,
-  que solo trae `estado_pregunta='activa'`. El autor no puede ver desde el
-  Home sus preguntas cerradas/ocultas (antes existía la página dedicada
-  con su endpoint). Si se necesita el histórico completo, habría que
-  reintroducir un endpoint de "mis preguntas" o exponerlo en el Panel
-  Admin.
+- **~~"Mis preguntas" se limita a las preguntas presentes en el feed.~~**
+  RESUELTO (Opción D, Jun 2026): "Mis preguntas" ahora es una vista real con
+  endpoint propio (`GET /mis-preguntas` + `useMisPreguntasLista`) que trae el
+  historial COMPLETO del autor (activas + cerradas + ocultas), paginado con
+  scroll infinito propio y badge con total real.
 - **Auto-daño / crisis emocional.** Una pregunta tipo *"quiero morirme"*
   hoy cae en `no_local` con texto fijo de redirección — insuficiente.
   Idealmente Coyo debería detectar crisis emocional y mostrar respuesta

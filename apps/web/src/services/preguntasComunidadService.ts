@@ -102,6 +102,39 @@ export async function obtenerPregunta(preguntaId: string) {
 }
 
 // =============================================================================
+// MIS PREGUNTAS (historial del autor — todos los estados, paginado)
+// =============================================================================
+
+/**
+ * GET /api/preguntas-comunidad/mis-preguntas?limit=&offset=
+ *
+ * Historial completo del usuario autenticado (activas + cerradas + ocultas),
+ * paginado. Mismo shape `{ preguntas, total }` que el feed por ciudad. El
+ * `usuarioId` lo toma el backend del JWT.
+ */
+export async function listarMisPreguntas({
+    limit,
+    offset,
+}: {
+    limit?: number;
+    offset?: number;
+}): Promise<{ preguntas: PreguntaComunidad[]; total: number }> {
+    const params = new URLSearchParams();
+    if (typeof limit === 'number') params.set('limit', String(limit));
+    if (typeof offset === 'number') params.set('offset', String(offset));
+    const qs = params.toString();
+    const resp = await api.get<{
+        success: boolean;
+        data?: PreguntaComunidad[];
+        paginacion?: { total: number; limit: number; offset: number };
+    }>(`/preguntas-comunidad/mis-preguntas${qs ? `?${qs}` : ''}`);
+    return {
+        preguntas: resp.data.data ?? [],
+        total: resp.data.paginacion?.total ?? 0,
+    };
+}
+
+// =============================================================================
 // SONDEO: estado de Coyo de una pregunta
 // =============================================================================
 
@@ -263,6 +296,7 @@ export async function editarMiPregunta({ preguntaId, textoNuevo }: EditarPregunt
 export default {
     crearPregunta,
     listarPreguntasPorCiudad,
+    listarMisPreguntas,
     obtenerPregunta,
     obtenerEstadoCoyo,
     crearRespuesta,

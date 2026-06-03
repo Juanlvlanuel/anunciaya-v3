@@ -10,6 +10,7 @@ import type { Request, Response } from 'express';
 import {
     crearPregunta,
     listarPreguntasPorCiudad,
+    listarMisPreguntas,
     obtenerPreguntaPorId,
     cerrarMiPregunta,
     borrarMiPregunta,
@@ -172,6 +173,49 @@ export async function obtenerEstadoCoyoController(req: Request, res: Response) {
         });
     } catch (error) {
         console.error('Error en obtenerEstadoCoyoController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/preguntas-comunidad/mis-preguntas  (historial del autor)
+// =============================================================================
+
+/**
+ * Devuelve TODAS las preguntas del usuario autenticado (cualquier estado),
+ * paginadas, con `paginacion.total`. Alimenta la vista "Mis preguntas" del
+ * Home. El `usuarioId` sale del JWT (no se acepta por query).
+ */
+export async function listarMisPreguntasController(req: Request, res: Response) {
+    try {
+        const usuarioId = obtenerUsuarioId(req);
+        const limit = parseInt(req.query.limit as string) || undefined;
+        const offset = parseInt(req.query.offset as string) || undefined;
+
+        const resultado = await listarMisPreguntas({ usuarioId, limit, offset });
+
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data?.preguntas ?? [],
+            paginacion: {
+                total: resultado.data?.total ?? 0,
+                limit: limit ?? 20,
+                offset: offset ?? 0,
+            },
+        });
+    } catch (error) {
+        console.error('Error en listarMisPreguntasController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',
