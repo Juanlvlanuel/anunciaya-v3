@@ -15,16 +15,17 @@ El feed del Home se moderniza al estilo Facebook.
 `useInfiniteQuery` (páginas de 20 por `offset`). El backend del feed ahora
 devuelve `paginacion.total` (COUNT de preguntas activas de la ciudad); el front
 infiere "hay más" comparando lo cargado contra el total. Sentinel +
-`IntersectionObserver` (`rootMargin: 300px`, root = el `<main>`) auto-cargan en
-PC y móvil, solo en el segmento "Comunidad". Antes el feed topaba en 20 sin
-forma de ver más. El optimistic update de interés se adaptó al caché de páginas
-(`InfiniteData`).
+`IntersectionObserver` (`rootMargin: 1200px` para carga anticipada ≈1-2
+pantallas antes del final, root = el `<main>`) auto-cargan en PC y móvil, solo
+en el segmento "Comunidad". Antes el feed topaba en 20 sin forma de ver más. El
+optimistic update de interés se adaptó al caché de páginas (`InfiniteData`).
 
 **Refresh tipo Facebook**: hook nuevo reutilizable `usePullToRefresh` —
 pull-to-refresh por gesto en móvil (resistencia + umbral 70px; `preventDefault`
-en `touchmove` mata el pull nativo del navegador) y auto-refresh al entrar en
-PC (`feed.refetch()` en mount + spinner mientras `isRefetching`). Pensado para
-que MarketPlace/Servicios lo adopten después.
+en `touchmove` mata el pull nativo del navegador). En PC NO se fuerza refetch en
+cada entrada: se deja que React Query refetchee al montar solo si los datos
+están viejos (`staleTime` 2 min) y al volver a la pestaña, con spinner mientras
+`isRefetching`. Pensado para que MarketPlace/Servicios lo adopten después.
 
 **Badge contador**: el toggle "Comunidad · Mis preguntas" muestra el número de
 publicaciones por segmento (Comunidad = `total` real del backend; Mis preguntas

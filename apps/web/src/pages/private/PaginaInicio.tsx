@@ -487,7 +487,10 @@ export function PaginaInicio() {
                     fetchNextPage();
                 }
             },
-            { root: mainScrollRef?.current ?? null, rootMargin: '300px' },
+            // rootMargin grande = carga ANTICIPADA: dispara ~1200px (≈1-2
+            // pantallas) antes de llegar al final, para que las nuevas cards
+            // ya estén listas cuando el usuario llega ahí (sin tirón).
+            { root: mainScrollRef?.current ?? null, rootMargin: '1200px' },
         );
         observer.observe(el);
         return () => observer.disconnect();
@@ -505,21 +508,17 @@ export function PaginaInicio() {
     ) : null;
 
     // ── Refresh tipo Facebook ────────────────────────────────────────────
-    // Móvil: pull-to-refresh (gesto). PC: refresca al entrar (auto). Ambos
-    // llaman feed.refetch(); el indicador visual difiere por plataforma.
+    // Móvil: pull-to-refresh (gesto) → feed.refetch().
+    // PC: NO forzamos refetch en cada entrada (sería un request por visita).
+    // Dejamos que React Query refetchee al montar SOLO si los datos están
+    // viejos (staleTime 2 min — proxy de "probablemente cambiaron") y al
+    // volver a la pestaña (refetchOnWindowFocus, ya activo en el hook). El
+    // spinner de PC se muestra cuando ese refetch ocurre (isRefetching).
     const pull = usePullToRefresh({
         onRefresh: () => feed.refetch(),
         scrollRef: mainScrollRef,
         habilitado: esMovil,
     });
-
-    // PC: refresca al entrar al Home (estilo Facebook). En móvil el refresh es
-    // por gesto, no automático. Solo al montar.
-    useEffect(() => {
-        if (esMovil) return;
-        feed.refetch();
-        // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, []);
 
     // Indicador del jalón (móvil): círculo que rota con el progreso y gira
     // mientras refresca. Su altura crece con el jalón y se recoge al soltar.

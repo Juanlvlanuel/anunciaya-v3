@@ -928,7 +928,8 @@ El feed del Home funciona al estilo Facebook (Jun 2026):
   (páginas de 20 por `offset`). El backend devuelve `paginacion.total` (COUNT de
   activas de la ciudad) y el front infiere "hay más" comparando lo cargado con
   el total. Un `<div>` sentinel al final + `IntersectionObserver`
-  (`rootMargin: 300px`, root = el `<main>`) dispara `fetchNextPage`. Auto-load
+  (`rootMargin: 1200px` → carga anticipada ~1-2 pantallas antes del final,
+  root = el `<main>`) dispara `fetchNextPage`. Auto-load
   en PC y móvil; solo en el segmento **Comunidad** ("Mis preguntas" filtra lo ya
   cargado). El caché es `{ pages: [{ preguntas, total }] }` → se aplana con
   `feed.data.pages.flatMap(p => p.preguntas)`, y el optimistic de interés parcha
@@ -938,8 +939,9 @@ El feed del Home funciona al estilo Facebook (Jun 2026):
   - **Móvil**: pull-to-refresh por gesto (resistencia + umbral 70px;
     `preventDefault` en `touchmove` mata el pull nativo del navegador).
     Indicador que rota con el progreso y gira al refrescar.
-  - **PC**: auto-refresh al entrar (`feed.refetch()` en mount) + spinner arriba
-    del feed mientras `isRefetching`.
+  - **PC**: refresco eficiente — NO se fuerza refetch en cada entrada; React
+    Query refetchea al montar solo si los datos están viejos (`staleTime` 2 min)
+    y al volver a la pestaña. Spinner arriba del feed mientras `isRefetching`.
 - **Badge contador** — `SegmentoFeed` muestra el número por segmento: Comunidad
   = `total` real del backend; Mis preguntas = las del usuario presentes en lo
   cargado. Se oculta si es 0; tope "99+".
