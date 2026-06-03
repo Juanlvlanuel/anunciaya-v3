@@ -209,16 +209,36 @@ export function useEstadoCoyo(preguntaId: string, estadoInicial: EstadoCoyo) {
         queryFn: async () => {
             const r = await preguntasComunidadService.obtenerEstadoCoyo(preguntaId);
             const data = r.data ?? null;
-            // Cuando la pregunta llega a estado final, invalidamos el feed
-            // para que las consumers que dependen de `feed.data` (ej.
-            // `useCoyoEstadoVisual` para apagar el "pensando" del Coyo
-            // animado en el hero) vean el nuevo estado. Sin esto, el feed
-            // se queda con la versión vieja y el Coyo del hero se queda
-            // "pensando" aunque la respuesta ya esté visible en la card.
+            // Cuando la pregunta llega a estado final: en vez de INVALIDAR el
+            // feed (que refetchea TODO y causa un "refresh" visible del área
+            // del feed justo cuando Coyo termina de pensar), PARCHAMOS solo
+            // esta pregunta en el caché con sus nuevos campos de Coyo. La card
+            // ya muestra la respuesta vía su propio sondeo; este parche es para
+            // que el Coyo del hero (useCoyoEstadoVisual, que lee feed.data)
+            // deje de "pensar". Sin refetch → sin recarga visual del feed.
             if (data && esEstadoCoyoFinal(data.estadoCoyo)) {
-                qc.invalidateQueries({
-                    queryKey: ['preguntasComunidad', 'porCiudad'],
-                });
+                qc.setQueriesData<FeedInfinitoCache>(
+                    { queryKey: ['preguntasComunidad', 'porCiudad'] },
+                    (cache) => {
+                        if (!cache?.pages) return cache;
+                        let cambio = false;
+                        const pages = cache.pages.map((pagina) => {
+                            const idx = pagina.preguntas.findIndex((p) => p.id === preguntaId);
+                            if (idx === -1) return pagina;
+                            cambio = true;
+                            const preguntas = [...pagina.preguntas];
+                            preguntas[idx] = {
+                                ...preguntas[idx],
+                                estadoCoyo: data.estadoCoyo,
+                                respuestaCoyo: data.respuestaCoyo,
+                                resultadosCoyo: data.resultadosCoyo,
+                                coyoProcesadoAt: data.coyoProcesadoAt,
+                            };
+                            return { ...pagina, preguntas };
+                        });
+                        return cambio ? { ...cache, pages } : cache;
+                    },
+                );
             }
             return data;
         },

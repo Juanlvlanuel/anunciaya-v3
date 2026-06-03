@@ -397,6 +397,11 @@ export function PaginaInicio() {
 
     const [texto, setTexto] = useState('');
     const [segmento, setSegmento] = useState<Segmento>('comunidad');
+    // Suprime el indicador de refresco mientras se publica una pregunta: la
+    // mutación invalida el feed → dispara un refetch (isRefetching=true) que
+    // NO es un "refresh" sino la consecuencia de publicar. Sin esto, al
+    // publicar aparecería el spinner de refresco junto a la pregunta nueva.
+    const [publicandoPregunta, setPublicandoPregunta] = useState(false);
 
     const estadoCoyoVisual = useCoyoEstadoVisual({
         usuarioId,
@@ -409,6 +414,7 @@ export function PaginaInicio() {
 
     const handleEnviar = () => {
         if (!puedeEnviar) return;
+        setPublicandoPregunta(true);
         crear.mutate(
             { texto: texto.trim(), ciudad: nombreCiudad, estado: estadoCiudad },
             {
@@ -417,6 +423,12 @@ export function PaginaInicio() {
                     notificar.error(
                         err instanceof Error ? err.message : 'No se pudo publicar la pregunta',
                     ),
+                onSettled: () => {
+                    // El feed se invalida en onSuccess → refetchea después. Se
+                    // mantiene la supresión un momento para cubrir ese refetch,
+                    // así el indicador de refresco no aparece al publicar.
+                    setTimeout(() => setPublicandoPregunta(false), 2000);
+                },
             },
         );
     };
@@ -537,7 +549,7 @@ export function PaginaInicio() {
 
     // Indicador de refresco en PC: spinner arriba del feed mientras refetchea
     // (al entrar o al volver a la pestaña), sin contar la carga de más páginas.
-    const indicadorRefrescoPc = feed.isRefetching && !isFetchingNextPage ? (
+    const indicadorRefrescoPc = feed.isRefetching && !isFetchingNextPage && !publicandoPregunta ? (
         <div className="flex items-center justify-center py-2" data-testid="home-refrescando" aria-hidden="true">
             <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
         </div>

@@ -918,7 +918,7 @@ patrón normal (sin optimistic).
 - `enabled: false` si `estadoInicial` ya es final → preguntas viejas del feed **no generan ningún request**.
 - `refetchInterval`: función que devuelve `2000` mientras `data?.estadoCoyo` sea pendiente/procesando, `false` cuando llega a estado final → **se detiene solo**.
 - `refetchOnWindowFocus: false` (el intervalo ya está activo, sería redundante).
-- Cuando la pregunta llega a estado final, el hook invalida la query del feed para que las consumers que dependen de `feed.data` (ej. `useCoyoEstadoVisual` para apagar el "pensando" del Coyo animado) vean el cambio inmediato.
+- Cuando la pregunta llega a estado final, el hook **parchea esa pregunta en el caché del feed** (`setQueriesData`, no `invalidateQueries`) con los nuevos campos de Coyo. Así las consumers que dependen de `feed.data` (ej. `useCoyoEstadoVisual`, para apagar el "pensando" del Coyo del hero) ven el cambio **sin refetch** — antes se invalidaba y eso refrescaba TODO el feed, causando una recarga visible justo cuando Coyo terminaba. La card ya muestra la respuesta vía su propio sondeo; este parche es solo para el hero.
 
 ### Feed: scroll infinito, refresh y badge
 
