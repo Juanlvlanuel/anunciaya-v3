@@ -10,8 +10,8 @@
  *   - Borrar pregunta    → siempre (excepto si ya está 'oculta')
  *
  * Cada acción destructiva pide confirmación con ModalAdaptativo (mismo patrón
- * que MisPublicaciones). El modal de edición es un componente aparte
- * (`ModalEditarPregunta`).
+ * que MisPublicaciones). La edición NO usa modal: se dispara `onEditar` y la
+ * card (`CardPreguntaEditorial`) muestra un editor inline.
  *
  * Cierre del dropdown:
  *   - Click fuera (mousedown listener con guard para ignorar el botón trigger).
@@ -39,7 +39,6 @@ import {
     type LucideIcon,
 } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
-import { ModalEditarPregunta } from './ModalEditarPregunta';
 import {
     useCerrarMiPregunta,
     useMarcarResuelta,
@@ -57,11 +56,13 @@ import type {
 
 interface MenuAutorPreguntaProps {
     pregunta: PreguntaComunidad;
+    /** Activa la edición inline de la pregunta (reemplaza el modal de editar). */
+    onEditar: () => void;
 }
 
-type Accion = 'cerrar' | 'resolver' | 'borrar' | 'editar';
+type Accion = 'cerrar' | 'resolver' | 'borrar';
 
-export function MenuAutorPregunta({ pregunta }: MenuAutorPreguntaProps) {
+export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps) {
     const [menuAbierto, setMenuAbierto] = useState(false);
     const [accionPendiente, setAccionPendiente] = useState<Accion | null>(null);
     const menuRef = useRef<HTMLDivElement>(null);
@@ -169,7 +170,7 @@ export function MenuAutorPregunta({ pregunta }: MenuAutorPreguntaProps) {
                     aria-label="Acciones de la pregunta"
                     data-testid={`pregunta-menu-${pregunta.id}`}
                     data-menu-toggle-pregunta={pregunta.id}
-                    className="inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-500 hover:bg-slate-100 hover:text-slate-700 lg:cursor-pointer transition-colors"
+                    className="inline-flex items-center justify-center w-8 h-8 rounded-full text-slate-600 hover:bg-slate-200 hover:text-slate-700 lg:cursor-pointer"
                 >
                     <MoreVertical className="w-4 h-4" strokeWidth={2.25} aria-hidden="true" />
                 </button>
@@ -177,7 +178,7 @@ export function MenuAutorPregunta({ pregunta }: MenuAutorPreguntaProps) {
                 {menuAbierto && (
                     <div
                         ref={menuRef}
-                        className="absolute right-0 top-9 z-20 w-52 overflow-hidden rounded-xl border border-slate-300 bg-white shadow-xl animate-in fade-in slide-in-from-top-2 duration-150"
+                        className="absolute right-0 top-9 z-20 w-52 overflow-hidden rounded-xl border-2 border-slate-300 bg-white shadow-lg animate-in fade-in slide-in-from-top-2 duration-150"
                         onClick={(e) => e.stopPropagation()}
                         role="menu"
                     >
@@ -185,7 +186,10 @@ export function MenuAutorPregunta({ pregunta }: MenuAutorPreguntaProps) {
                             <BotonMenu
                                 testId={`pregunta-menu-editar-${pregunta.id}`}
                                 icono={Pencil}
-                                onClick={() => abrirAccion('editar')}
+                                onClick={() => {
+                                    setMenuAbierto(false);
+                                    onEditar();
+                                }}
                             >
                                 Editar
                             </BotonMenu>
@@ -213,14 +217,14 @@ export function MenuAutorPregunta({ pregunta }: MenuAutorPreguntaProps) {
                         {puedeBorrar && (
                             <>
                                 {(puedeEditar || puedeResolver || puedeCerrar) && (
-                                    <div className="my-1 border-t border-slate-200" />
+                                    <div className="my-1 border-t border-slate-300" />
                                 )}
                                 <BotonMenu
                                     testId={`pregunta-menu-borrar-${pregunta.id}`}
                                     icono={Trash2}
                                     iconColor="text-red-600"
                                     textColor="text-red-600"
-                                    hoverClass="hover:bg-red-50"
+                                    hoverClass="hover:bg-red-100"
                                     onClick={() => abrirAccion('borrar')}
                                 >
                                     Eliminar
@@ -231,156 +235,138 @@ export function MenuAutorPregunta({ pregunta }: MenuAutorPreguntaProps) {
                 )}
             </div>
 
-            {/* ── Modal: editar texto ─────────────────────────────────────── */}
-            <ModalEditarPregunta
-                abierto={accionPendiente === 'editar'}
-                onCerrar={cerrarAccion}
-                preguntaId={pregunta.id}
-                textoInicial={pregunta.texto}
-            />
-
-            {/* ── Modal: confirmar cerrar ─────────────────────────────────── */}
-            <ModalAdaptativo
+            {/* Confirmación: cerrar */}
+            <ModalConfirmacion
                 abierto={accionPendiente === 'cerrar'}
                 onCerrar={cerrarAccion}
-                titulo={
-                    <div className="flex items-center gap-2">
-                        <XCircle className="w-4 h-4 lg:w-5 lg:h-5 text-amber-600" strokeWidth={2.5} />
-                        <span>Cerrar pregunta</span>
-                    </div>
-                }
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-sm lg:text-base text-slate-700">
-                        Tu pregunta saldrá del feed y ya no podrá recibir más respuestas.
-                        Las respuestas que ya te dejaron se conservan.
-                    </p>
-                    <div className="flex items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={cerrarAccion}
-                            disabled={cerrarMut.isPending}
-                            data-testid={`pregunta-cerrar-cancelar-${pregunta.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 lg:cursor-pointer disabled:opacity-50"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            onClick={confirmarCerrar}
-                            disabled={cerrarMut.isPending}
-                            data-testid={`pregunta-cerrar-confirmar-${pregunta.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-amber-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-amber-700 lg:cursor-pointer disabled:opacity-50 transition-colors"
-                        >
-                            {cerrarMut.isPending ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                                    Cerrando…
-                                </>
-                            ) : (
-                                'Sí, cerrar pregunta'
-                            )}
-                        </button>
-                    </div>
-                </div>
-            </ModalAdaptativo>
+                Icono={XCircle}
+                color="amber"
+                titulo="¿Cerrar pregunta?"
+                texto="Saldrá del feed y no recibirá más respuestas. Las que ya tienes se conservan."
+                textoBoton="Sí, cerrar"
+                textoCargando="Cerrando…"
+                onConfirmar={confirmarCerrar}
+                cargando={cerrarMut.isPending}
+                testIdCancelar={`pregunta-cerrar-cancelar-${pregunta.id}`}
+                testIdConfirmar={`pregunta-cerrar-confirmar-${pregunta.id}`}
+            />
 
-            {/* ── Modal: confirmar marcar resuelta ────────────────────────── */}
-            <ModalAdaptativo
+            {/* Confirmación: marcar resuelta */}
+            <ModalConfirmacion
                 abierto={accionPendiente === 'resolver'}
                 onCerrar={cerrarAccion}
-                titulo={
-                    <div className="flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4 lg:w-5 lg:h-5 text-emerald-600" strokeWidth={2.5} />
-                        <span>Marcar como resuelta</span>
-                    </div>
-                }
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-sm lg:text-base text-slate-700">
-                        Tu pregunta seguirá visible y puede recibir más respuestas, pero
-                        aparecerá con una etiqueta de "Resuelta" para que tus vecinos
-                        sepan que ya encontraste lo que buscabas.
-                    </p>
-                    <div className="flex items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={cerrarAccion}
-                            disabled={resolverMut.isPending}
-                            data-testid={`pregunta-resolver-cancelar-${pregunta.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 lg:cursor-pointer disabled:opacity-50"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            onClick={confirmarResolver}
-                            disabled={resolverMut.isPending}
-                            data-testid={`pregunta-resolver-confirmar-${pregunta.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-emerald-700 lg:cursor-pointer disabled:opacity-50 transition-colors"
-                        >
-                            {resolverMut.isPending ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                                    Guardando…
-                                </>
-                            ) : (
-                                'Sí, ya la resolví'
-                            )}
-                        </button>
-                    </div>
-                </div>
-            </ModalAdaptativo>
+                Icono={CheckCircle2}
+                color="emerald"
+                titulo="¿Marcar como resuelta?"
+                texto="Seguirá visible en el feed, pero con la etiqueta «Resuelta»."
+                textoBoton="Sí, resuelta"
+                textoCargando="Guardando…"
+                onConfirmar={confirmarResolver}
+                cargando={resolverMut.isPending}
+                testIdCancelar={`pregunta-resolver-cancelar-${pregunta.id}`}
+                testIdConfirmar={`pregunta-resolver-confirmar-${pregunta.id}`}
+            />
 
-            {/* ── Modal: confirmar borrar (destructivo) ───────────────────── */}
-            <ModalAdaptativo
+            {/* Confirmación: eliminar (destructivo) */}
+            <ModalConfirmacion
                 abierto={accionPendiente === 'borrar'}
                 onCerrar={cerrarAccion}
-                titulo={
-                    <div className="flex items-center gap-2">
-                        <Trash2 className="w-4 h-4 lg:w-5 lg:h-5 text-red-600" strokeWidth={2.5} />
-                        <span>Eliminar pregunta</span>
-                    </div>
-                }
-                ancho="sm"
-            >
-                <div className="space-y-4 p-4 lg:p-5">
-                    <p className="text-sm lg:text-base text-slate-700">
-                        Tu pregunta y todas sus respuestas desaparecerán del feed. Esta
-                        acción no se puede deshacer.
-                    </p>
-                    <div className="flex items-center justify-end gap-2">
-                        <button
-                            type="button"
-                            onClick={cerrarAccion}
-                            disabled={borrarMut.isPending}
-                            data-testid={`pregunta-borrar-cancelar-${pregunta.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-slate-100 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-200 lg:cursor-pointer disabled:opacity-50"
-                        >
-                            Cancelar
-                        </button>
-                        <button
-                            type="button"
-                            onClick={confirmarBorrar}
-                            disabled={borrarMut.isPending}
-                            data-testid={`pregunta-borrar-confirmar-${pregunta.id}`}
-                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-bold text-white shadow-md hover:bg-red-700 lg:cursor-pointer disabled:opacity-50 transition-colors"
-                        >
-                            {borrarMut.isPending ? (
-                                <>
-                                    <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                                    Eliminando…
-                                </>
-                            ) : (
-                                'Sí, eliminar'
-                            )}
-                        </button>
+                Icono={Trash2}
+                color="red"
+                titulo="¿Eliminar pregunta?"
+                texto="Se borrará del feed junto con sus respuestas. No se puede deshacer."
+                textoBoton="Sí, eliminar"
+                textoCargando="Eliminando…"
+                onConfirmar={confirmarBorrar}
+                cargando={borrarMut.isPending}
+                testIdCancelar={`pregunta-borrar-cancelar-${pregunta.id}`}
+                testIdConfirmar={`pregunta-borrar-confirmar-${pregunta.id}`}
+            />
+        </>
+    );
+}
+
+// =============================================================================
+// MODAL DE CONFIRMACIÓN (cerrar / resolver / eliminar) — diseño compacto
+// =============================================================================
+
+const COLOR_CONFIRMACION = {
+    amber: { iconoBg: 'bg-amber-100', iconoText: 'text-amber-600', boton: 'bg-amber-600 hover:bg-amber-700' },
+    emerald: { iconoBg: 'bg-emerald-100', iconoText: 'text-emerald-600', boton: 'bg-emerald-600 hover:bg-emerald-700' },
+    red: { iconoBg: 'bg-red-100', iconoText: 'text-red-600', boton: 'bg-red-600 hover:bg-red-700' },
+} as const;
+
+interface ModalConfirmacionProps {
+    abierto: boolean;
+    onCerrar: () => void;
+    Icono: LucideIcon;
+    color: keyof typeof COLOR_CONFIRMACION;
+    titulo: string;
+    texto: string;
+    textoBoton: string;
+    textoCargando: string;
+    onConfirmar: () => void;
+    cargando: boolean;
+    testIdCancelar: string;
+    testIdConfirmar: string;
+}
+
+function ModalConfirmacion({
+    abierto,
+    onCerrar,
+    Icono,
+    color,
+    titulo,
+    texto,
+    textoBoton,
+    textoCargando,
+    onConfirmar,
+    cargando,
+    testIdCancelar,
+    testIdConfirmar,
+}: ModalConfirmacionProps) {
+    const c = COLOR_CONFIRMACION[color];
+    return (
+        <ModalAdaptativo abierto={abierto} onCerrar={onCerrar} mostrarHeader={false} paddingContenido="none" ancho="sm">
+            <div className="p-5 lg:p-6">
+                <div className="flex items-start gap-3">
+                    <span className={`shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-full ${c.iconoBg}`}>
+                        <Icono className={`w-5 h-5 ${c.iconoText}`} strokeWidth={2.5} aria-hidden="true" />
+                    </span>
+                    <div className="min-w-0 flex-1">
+                        <h3 className="text-base lg:text-lg font-bold text-slate-900">{titulo}</h3>
+                        <p className="mt-1 text-sm lg:text-base font-medium text-slate-600 leading-relaxed">{texto}</p>
                     </div>
                 </div>
-            </ModalAdaptativo>
-        </>
+                <div className="mt-5 flex items-center justify-end gap-2">
+                    <button
+                        type="button"
+                        onClick={onCerrar}
+                        disabled={cargando}
+                        data-testid={testIdCancelar}
+                        className="inline-flex items-center gap-2 rounded-lg bg-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-300 lg:cursor-pointer disabled:opacity-50"
+                    >
+                        Cancelar
+                    </button>
+                    <button
+                        type="button"
+                        onClick={onConfirmar}
+                        disabled={cargando}
+                        data-testid={testIdConfirmar}
+                        className={`inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white shadow-md lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${c.boton}`}
+                    >
+                        {cargando ? (
+                            <>
+                                <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                                {textoCargando}
+                            </>
+                        ) : (
+                            textoBoton
+                        )}
+                    </button>
+                </div>
+            </div>
+        </ModalAdaptativo>
     );
 }
 
@@ -403,7 +389,7 @@ function BotonMenu({
     icono: Icon,
     iconColor = 'text-slate-600',
     textColor = 'text-slate-700',
-    hoverClass = 'hover:bg-slate-100',
+    hoverClass = 'hover:bg-slate-200',
     onClick,
     children,
 }: BotonMenuProps) {
@@ -413,7 +399,7 @@ function BotonMenu({
             data-testid={testId}
             onClick={onClick}
             role="menuitem"
-            className={`flex w-full cursor-pointer items-center gap-2.5 px-3 py-2 text-sm font-semibold transition-colors ${textColor} ${hoverClass}`}
+            className={`flex w-full lg:cursor-pointer items-center gap-2.5 px-3 py-2 text-sm font-semibold ${textColor} ${hoverClass}`}
         >
             <Icon className={`h-4 w-4 shrink-0 ${iconColor}`} strokeWidth={2.5} />
             {children}

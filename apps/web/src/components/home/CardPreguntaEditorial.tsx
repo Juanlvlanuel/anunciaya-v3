@@ -21,6 +21,7 @@
  * Ubicación: apps/web/src/components/home/CardPreguntaEditorial.tsx
  */
 
+import { useState, type FormEvent } from 'react';
 import {
     Sparkles,
     CheckCircle2,
@@ -31,6 +32,7 @@ import {
 import {
     useEstadoCoyo,
     useReintentarMiPregunta,
+    useEditarMiPregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { CoyoAnimado } from '../CoyoAnimado';
@@ -38,6 +40,7 @@ import { BotonInteresComunidad } from './BotonInteresComunidad';
 import { RespuestasComunidad } from './RespuestasComunidad';
 import { MenuAutorPregunta } from './MenuAutorPregunta';
 import { CardItemCoyo } from './CardItemCoyo';
+import { ModalImagenes } from '../ui/ModalImagenes';
 import { detectarSubtipoNoAplica, obtenerIniciales, itemsPlanosCoyo } from './navegacionCoyo';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
@@ -48,12 +51,28 @@ import type { PreguntaComunidad, EstadoCoyo } from '../../types/preguntasComunid
 // =============================================================================
 
 function Avatar({ url, alt, fallback }: { url: string | null; alt: string; fallback: string }) {
+    const [visorAbierto, setVisorAbierto] = useState(false);
     if (url) {
-        return <img src={url} alt={alt} className="shrink-0 w-9 h-9 rounded-full object-cover" />;
+        return (
+            <>
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setVisorAbierto(true);
+                    }}
+                    aria-label={`Ver foto de ${alt}`}
+                    className="shrink-0 rounded-full lg:cursor-pointer active:scale-[0.97]"
+                >
+                    <img src={url} alt={alt} className="w-10 h-10 rounded-full object-cover" />
+                </button>
+                <ModalImagenes images={[url]} isOpen={visorAbierto} onClose={() => setVisorAbierto(false)} />
+            </>
+        );
     }
     return (
         <div
-            className="shrink-0 w-9 h-9 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md"
+            className="shrink-0 w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold text-white shadow-md"
             style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
         >
             <span aria-hidden="true">{fallback}</span>
@@ -78,9 +97,9 @@ function BloqueSinRespuesta({ preguntaId, esAutor }: { preguntaId: string; esAut
     };
 
     return (
-        <div className="mt-3 pt-3 border-t border-slate-200">
+        <div className="mt-3 pt-3 border-t border-slate-300">
             <div className="flex items-center gap-2 mb-1">
-                <AlertTriangle className="w-4 h-4 text-slate-500 shrink-0" strokeWidth={2.5} aria-hidden="true" />
+                <AlertTriangle className="w-4 h-4 text-slate-600 shrink-0" strokeWidth={2.5} aria-hidden="true" />
                 <span className="text-sm font-bold text-slate-700">Coyo no pudo procesar tu pregunta</span>
             </div>
             <p className="text-sm lg:text-base text-slate-600 leading-relaxed">
@@ -94,7 +113,7 @@ function BloqueSinRespuesta({ preguntaId, esAutor }: { preguntaId: string; esAut
                     onClick={handleReintentar}
                     disabled={reintentar.isPending}
                     data-testid={`coyo-reintentar-${preguntaId}`}
-                    className="mt-2.5 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-700 text-white text-xs lg:text-sm font-bold hover:bg-slate-800 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="mt-2.5 inline-flex items-center gap-1.5 h-8 px-3 rounded-lg bg-slate-700 text-white text-sm lg:text-xs 2xl:text-sm font-bold hover:bg-slate-800 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {reintentar.isPending ? (
                         <>
@@ -117,8 +136,8 @@ function BloqueNoAplica({ texto }: { texto: string }) {
     const subtipo = detectarSubtipoNoAplica(texto);
     const tono =
         subtipo === 'vaga'
-            ? { fondo: 'bg-amber-50 border-amber-200', icono: 'text-amber-600', titulo: 'Coyo sugiere' }
-            : { fondo: 'bg-slate-100 border-slate-200', icono: 'text-slate-500', titulo: 'Coyo aclara' };
+            ? { fondo: 'bg-amber-100 border-amber-300', icono: 'text-amber-600', titulo: 'Coyo sugiere' }
+            : { fondo: 'bg-slate-200 border-slate-300', icono: 'text-slate-600', titulo: 'Coyo aclara' };
 
     return (
         <div className={`mt-3 rounded-xl border p-3 lg:p-3.5 ${tono.fondo}`}>
@@ -174,7 +193,7 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
     const encabezado = items.length > 0 ? 'Coyo encontró esto' : 'Coyo dice';
 
     return (
-        <div className="mt-3 pt-3 border-t border-slate-200">
+        <div className="mt-3 pt-3 border-t border-slate-300">
             <div className="flex items-center gap-1.5 mb-1.5">
                 <img
                     src="/cabeza-coyo.webp"
@@ -185,7 +204,7 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                 <span className="text-sm font-bold text-slate-700">{encabezado}</span>
             </div>
             {respuestaCoyo && (
-                <p className="text-sm lg:text-base text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
+                <p className="text-sm lg:text-base font-medium text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
             )}
             {items.length > 0 && (
                 <div className="-mx-1 px-1 flex gap-2.5 overflow-x-auto pb-1.5 mp-scroll">
@@ -195,6 +214,95 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                 </div>
             )}
         </div>
+    );
+}
+
+// =============================================================================
+// EDITOR INLINE DE LA PREGUNTA (reemplaza el modal de editar)
+// =============================================================================
+
+const TEXTO_MAX_PREGUNTA = 500;
+
+function EditorPregunta({
+    preguntaId,
+    textoInicial,
+    onCerrar,
+}: {
+    preguntaId: string;
+    textoInicial: string;
+    onCerrar: () => void;
+}) {
+    const [texto, setTexto] = useState(textoInicial);
+    const editar = useEditarMiPregunta();
+
+    const textoTrimmed = texto.trim();
+    const huboCambios = textoTrimmed !== textoInicial.trim();
+    const puedeGuardar = textoTrimmed.length > 0 && huboCambios && !editar.isPending;
+
+    const handleSubmit = (e: FormEvent<HTMLFormElement>) => {
+        e.preventDefault();
+        if (!puedeGuardar) return;
+        editar.mutate(
+            { preguntaId, textoNuevo: textoTrimmed },
+            {
+                onSuccess: () => {
+                    notificar.exito('Pregunta actualizada — Coyo está re-procesando');
+                    onCerrar();
+                },
+                onError: (err) =>
+                    notificar.error(err instanceof Error ? err.message : 'No se pudo editar la pregunta'),
+            },
+        );
+    };
+
+    return (
+        <form onSubmit={handleSubmit} className="mt-3 space-y-2">
+            <textarea
+                value={texto}
+                onChange={(e) => setTexto(e.target.value.slice(0, TEXTO_MAX_PREGUNTA))}
+                rows={3}
+                maxLength={TEXTO_MAX_PREGUNTA}
+                disabled={editar.isPending}
+                autoFocus
+                aria-label="Editar tu pregunta"
+                data-testid={`editar-pregunta-input-${preguntaId}`}
+                className="w-full resize-none bg-white rounded-xl px-4 py-3 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 border-2 border-slate-300 focus:border-slate-500 outline-none disabled:opacity-50"
+                style={{ boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}
+            />
+            <div className="flex items-center justify-between text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">
+                <span>{huboCambios ? 'Hay cambios sin guardar' : 'Aún no hay cambios'}</span>
+                <span>
+                    {textoTrimmed.length}/{TEXTO_MAX_PREGUNTA}
+                </span>
+            </div>
+            <div className="flex items-center justify-end gap-2">
+                <button
+                    type="button"
+                    onClick={onCerrar}
+                    disabled={editar.isPending}
+                    data-testid={`editar-pregunta-cancelar-${preguntaId}`}
+                    className="inline-flex items-center gap-2 rounded-lg bg-slate-200 px-4 py-2 text-sm font-bold text-slate-700 hover:bg-slate-300 lg:cursor-pointer disabled:opacity-50"
+                >
+                    Cancelar
+                </button>
+                <button
+                    type="submit"
+                    disabled={!puedeGuardar}
+                    data-testid={`editar-pregunta-guardar-${preguntaId}`}
+                    className="inline-flex items-center gap-2 rounded-lg px-4 py-2 text-sm font-bold text-white shadow-md lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+                >
+                    {editar.isPending ? (
+                        <>
+                            <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
+                            Guardando…
+                        </>
+                    ) : (
+                        'Guardar cambios'
+                    )}
+                </button>
+            </div>
+        </form>
     );
 }
 
@@ -212,6 +320,7 @@ export function CardPreguntaEditorial({ pregunta }: CardPreguntaEditorialProps) 
     const preguntaActiva = pregunta.estadoPregunta === 'activa';
     const mostrarInteres = preguntaActiva && !esAutor;
     const resuelta = pregunta.resueltaAt !== null;
+    const [editando, setEditando] = useState(false);
 
     const tiempo = (() => {
         try {
@@ -227,51 +336,59 @@ export function CardPreguntaEditorial({ pregunta }: CardPreguntaEditorialProps) 
         <li
             id={`feed-${pregunta.id}`}
             data-testid={`pregunta-${pregunta.id}`}
-            className="scroll-mt-24 bg-white rounded-xl p-4 lg:p-5 shadow-[0_1px_3px_rgba(15,23,42,0.06),0_8px_24px_-12px_rgba(15,23,42,0.10)]"
+            className="scroll-mt-24 bg-white rounded-xl p-4 lg:p-5 shadow-md"
         >
             {/* Header del autor */}
             <div className="flex items-center justify-between gap-2">
                 <div className="flex items-center gap-2.5 min-w-0">
                     <Avatar url={pregunta.autorAvatarUrl} alt={pregunta.autorNombre} fallback={iniciales} />
                     <div className="min-w-0">
-                        <p className="text-sm font-bold text-slate-800 truncate leading-tight">{pregunta.autorNombre}</p>
-                        {tiempo && <p className="text-xs text-slate-400 font-medium">{tiempo}</p>}
+                        <p className="text-base font-bold text-slate-800 truncate leading-tight">{pregunta.autorNombre}</p>
+                        {tiempo && <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">{tiempo}</p>}
                     </div>
                     {resuelta && (
                         <span
-                            className="inline-flex items-center gap-1 text-[11px] font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5 shrink-0"
+                            className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5 shrink-0"
                             data-testid={`pregunta-resuelta-${pregunta.id}`}
                         >
                             <CheckCircle2 className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" /> Resuelta
                         </span>
                     )}
                 </div>
-                {esAutor && <MenuAutorPregunta pregunta={pregunta} />}
+                {esAutor && <MenuAutorPregunta pregunta={pregunta} onEditar={() => setEditando(true)} />}
             </div>
 
-            {/* Pregunta */}
-            <p className="mt-3 text-lg lg:text-xl font-semibold text-slate-800 leading-snug text-balance wrap-break-word">
-                {pregunta.texto}
-            </p>
-
-            {/* Respuesta de Coyo */}
-            <RespuestaCoyo pregunta={pregunta} />
-
-            {/* Acciones de comunidad */}
-            {mostrarInteres && (
-                <div className="mt-3 flex items-center justify-end">
-                    <BotonInteresComunidad
-                        preguntaId={pregunta.id}
-                        yoTambienInteresado={pregunta.yoTambienInteresado}
-                        totalInteresados={pregunta.totalInteresados}
-                    />
-                </div>
+            {/* Pregunta (editable inline) */}
+            {editando ? (
+                <EditorPregunta
+                    preguntaId={pregunta.id}
+                    textoInicial={pregunta.texto}
+                    onCerrar={() => setEditando(false)}
+                />
+            ) : (
+                <p className="mt-3 text-lg lg:text-xl font-semibold text-slate-800 leading-snug text-balance wrap-break-word">
+                    {pregunta.texto}
+                </p>
             )}
+
+            {/* Respuesta de Coyo (oculta mientras se edita — al guardar se re-procesa) */}
+            {!editando && <RespuestaCoyo pregunta={pregunta} />}
+
+            {/* Acciones: trigger de respuestas (izq) + "Yo también" (der), misma fila */}
             <RespuestasComunidad
                 preguntaId={pregunta.id}
                 totalRespuestas={pregunta.totalRespuestas}
                 puedeResponder={preguntaActiva}
                 esAutor={esAutor}
+                accionDerecha={
+                    mostrarInteres ? (
+                        <BotonInteresComunidad
+                            preguntaId={pregunta.id}
+                            yoTambienInteresado={pregunta.yoTambienInteresado}
+                            totalInteresados={pregunta.totalInteresados}
+                        />
+                    ) : null
+                }
             />
         </li>
     );

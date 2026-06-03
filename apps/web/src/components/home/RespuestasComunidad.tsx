@@ -20,8 +20,8 @@
  * Ubicación: apps/web/src/components/home/RespuestasComunidad.tsx
  */
 
-import { useState, type KeyboardEvent, type FormEvent } from 'react';
-import { Send, Loader2, MessageSquare, Trash2 } from 'lucide-react';
+import { useRef, useState, type FormEvent } from 'react';
+import { Send, Loader2, MessageSquare, Trash2, Pointer, X } from 'lucide-react';
 import {
     useRespuestas,
     useCrearRespuesta,
@@ -30,6 +30,7 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
 import { formatearTiempoRelativo } from '../../utils/marketplace';
+import { ModalImagenes } from '../ui/ModalImagenes';
 import type { RespuestaPreguntaComunidad } from '../../types/preguntasComunidad';
 
 const TEXTO_MAX_RESPUESTA = 1000;
@@ -55,6 +56,8 @@ interface RespuestasComunidadProps {
      * tener respuestas, puede usar "Editar".
      */
     esAutor: boolean;
+    /** Acción opcional a la derecha del trigger (ej. botón "Yo también"). */
+    accionDerecha?: React.ReactNode;
 }
 
 export function RespuestasComunidad({
@@ -62,6 +65,7 @@ export function RespuestasComunidad({
     totalRespuestas,
     puedeResponder,
     esAutor,
+    accionDerecha,
 }: RespuestasComunidadProps) {
     const [abierto, setAbierto] = useState(false);
 
@@ -69,58 +73,63 @@ export function RespuestasComunidad({
     // activa Y no es el autor. El autor lee pero no responde.
     const puedeEscribir = puedeResponder && !esAutor;
 
-    // Si no hay respuestas y el caller no puede escribir, no hay nada que
-    // mostrar — el bloque entero desaparece. Esto cubre 2 casos:
-    //   - Pregunta cerrada/oculta sin respuestas (legacy).
-    //   - Autor mirando su propia pregunta sin respuestas (Sprint 2.B').
-    if (totalRespuestas === 0 && !puedeEscribir) {
+    // Sin trigger (ni respuestas ni poder escribir) y sin acción a la
+    // derecha → no hay nada que mostrar.
+    const hayTrigger = totalRespuestas > 0 || puedeEscribir;
+    if (!hayTrigger && !accionDerecha) {
         return null;
     }
 
+    const trigger =
+        totalRespuestas > 0 ? (
+            <button
+                type="button"
+                onClick={() => setAbierto((v) => !v)}
+                data-testid={`pregunta-toggle-respuestas-${preguntaId}`}
+                className="group inline-flex items-center gap-1.5 -ml-0.5 text-sm lg:text-xs 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
+                aria-expanded={abierto}
+                aria-controls={`respuestas-${preguntaId}`}
+            >
+                <MessageSquare className="w-3.5 h-3.5 shrink-0" strokeWidth={2.25} aria-hidden="true" />
+                <span>
+                    {abierto
+                        ? totalRespuestas === 1
+                            ? 'Ocultar respuesta'
+                            : 'Ocultar respuestas'
+                        : totalRespuestas === 1
+                            ? 'Ver respuesta (1)'
+                            : `Ver respuestas (${totalRespuestas})`}
+                </span>
+            </button>
+        ) : puedeEscribir ? (
+            // Sin respuestas y SE PUEDE escribir → "Responder" con dedo
+            // animado. Nunca le aparece al autor (esAutor → puedeEscribir=false).
+            <button
+                type="button"
+                onClick={() => setAbierto((v) => !v)}
+                data-testid={`pregunta-toggle-respuestas-${preguntaId}`}
+                className="group inline-flex items-center gap-1.5 -ml-0.5 text-sm lg:text-xs 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
+                aria-expanded={abierto}
+                aria-controls={`respuestas-${preguntaId}`}
+            >
+                <span aria-hidden="true" className="finger-bob inline-flex">
+                    <Pointer className="w-4 h-4 rotate-180" strokeWidth={2} />
+                </span>
+                <span>Responder</span>
+            </button>
+        ) : null;
+
     return (
         <div className="mt-3 space-y-2">
-            {/* Cabecera: botón para abrir/cerrar */}
-            {totalRespuestas > 0 ? (
-                <button
-                    type="button"
-                    onClick={() => setAbierto((v) => !v)}
-                    data-testid={`pregunta-toggle-respuestas-${preguntaId}`}
-                    className="inline-flex items-center gap-1.5 h-8 px-2 -ml-2 rounded-md text-xs lg:text-sm font-semibold text-slate-600 hover:bg-slate-100 lg:cursor-pointer transition-colors"
-                    aria-expanded={abierto}
-                    aria-controls={`respuestas-${preguntaId}`}
-                >
-                    <MessageSquare className="w-3.5 h-3.5 shrink-0" strokeWidth={2.25} aria-hidden="true" />
-                    <span>
-                        {abierto
-                            ? totalRespuestas === 1
-                                ? 'Ocultar respuesta'
-                                : 'Ocultar respuestas'
-                            : totalRespuestas === 1
-                                ? 'Ver 1 respuesta'
-                                : `Ver ${totalRespuestas} respuestas`}
-                    </span>
-                </button>
-            ) : puedeEscribir ? (
-                // Sin respuestas y SE PUEDE escribir → "Sé el primero en
-                // responder". Este botón nunca le aparece al autor de la
-                // pregunta (esAutor=true → puedeEscribir=false).
-                <button
-                    type="button"
-                    onClick={() => setAbierto((v) => !v)}
-                    data-testid={`pregunta-toggle-respuestas-${preguntaId}`}
-                    className="inline-flex items-center gap-1.5 h-8 px-2 -ml-2 rounded-md text-xs lg:text-sm font-semibold text-blue-600 hover:bg-blue-50 lg:cursor-pointer transition-colors"
-                    aria-expanded={abierto}
-                    aria-controls={`respuestas-${preguntaId}`}
-                >
-                    <MessageSquare className="w-3.5 h-3.5 shrink-0" strokeWidth={2.25} aria-hidden="true" />
-                    <span>{abierto ? 'Cancelar' : 'Sé el primero en responder'}</span>
-                </button>
-            ) : null}
+            <div className="flex items-center justify-between gap-2">
+                <div className="min-w-0">{trigger}</div>
+                {accionDerecha && <div className="shrink-0">{accionDerecha}</div>}
+            </div>
 
             {abierto && (
                 <div
                     id={`respuestas-${preguntaId}`}
-                    className="pl-3 lg:pl-4 border-l-2 border-slate-100 space-y-2.5"
+                    className="pl-3 lg:pl-4 border-l-2 border-slate-300 space-y-2.5"
                 >
                     {totalRespuestas > 0 && (
                         <ListaRespuestas preguntaId={preguntaId} />
@@ -165,7 +174,7 @@ function ListaRespuestas({ preguntaId }: { preguntaId: string }) {
 
     if (isError) {
         return (
-            <div className="text-xs lg:text-sm text-slate-500 py-2">
+            <div className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600 py-2">
                 No pudimos cargar las respuestas.{' '}
                 <button
                     type="button"
@@ -233,7 +242,7 @@ function ItemRespuesta({
 
     return (
         <li
-            className="flex items-start gap-2.5 bg-slate-50 rounded-lg p-2.5"
+            className="flex items-start gap-2.5 bg-slate-200 rounded-lg p-2.5"
             data-testid={`respuesta-${respuesta.id}`}
         >
             <AvatarMini
@@ -243,14 +252,14 @@ function ItemRespuesta({
             />
             <div className="min-w-0 flex-1">
                 <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-xs lg:text-sm font-bold text-slate-800 truncate">
+                    <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">
                         {respuesta.autorNombre}
                     </span>
                     {tiempo && (
-                        <span className="text-[11px] lg:text-xs text-slate-400">{tiempo}</span>
+                        <span className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">{tiempo}</span>
                     )}
                 </div>
-                <p className="mt-0.5 text-xs lg:text-sm text-slate-700 leading-relaxed wrap-break-word">
+                <p className="mt-0.5 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-700 leading-relaxed wrap-break-word">
                     {respuesta.texto}
                 </p>
             </div>
@@ -261,12 +270,12 @@ function ItemRespuesta({
                     disabled={borrar.isPending}
                     aria-label="Borrar mi respuesta"
                     data-testid={`respuesta-borrar-${respuesta.id}`}
-                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-md text-slate-400 hover:text-red-600 hover:bg-red-50 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-100 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                     {borrar.isPending ? (
-                        <Loader2 className="w-3.5 h-3.5 animate-spin" aria-hidden="true" />
+                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
                     ) : (
-                        <Trash2 className="w-3.5 h-3.5" strokeWidth={2} aria-hidden="true" />
+                        <Trash2 className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
                     )}
                 </button>
             )}
@@ -280,12 +289,15 @@ function ItemRespuesta({
 
 function CajaResponder({ preguntaId }: { preguntaId: string }) {
     const [texto, setTexto] = useState('');
+    const [flying, setFlying] = useState(false);
+    const ref = useRef<HTMLInputElement>(null);
     const crear = useCrearRespuesta();
 
     const puedeEnviar = texto.trim().length > 0 && !crear.isPending;
 
     const handleEnviar = () => {
         if (!puedeEnviar) return;
+        setFlying(true);
         crear.mutate(
             { preguntaId, texto: texto.trim() },
             {
@@ -306,39 +318,55 @@ function CajaResponder({ preguntaId }: { preguntaId: string }) {
         handleEnviar();
     };
 
-    const onKeyDown = (e: KeyboardEvent<HTMLTextAreaElement>) => {
-        // Enter sin Shift envía. Shift+Enter inserta salto de línea.
-        if (e.key === 'Enter' && !e.shiftKey) {
-            e.preventDefault();
-            handleEnviar();
-        }
-    };
-
     return (
-        <form onSubmit={onSubmit} className="flex items-start gap-2">
-            <textarea
-                value={texto}
-                onChange={(e) => setTexto(e.target.value.slice(0, TEXTO_MAX_RESPUESTA))}
-                onKeyDown={onKeyDown}
-                placeholder="Responde a tu vecino…"
-                rows={2}
-                disabled={crear.isPending}
-                maxLength={TEXTO_MAX_RESPUESTA}
-                aria-label="Tu respuesta"
-                data-testid={`respuesta-input-${preguntaId}`}
-                className="flex-1 min-w-0 resize-none bg-slate-100 rounded-lg px-3 py-2 text-xs lg:text-sm font-medium text-slate-800 placeholder:text-slate-500 border-2 border-slate-200 focus:border-blue-400 focus:bg-white outline-none transition-colors disabled:opacity-50"
-            />
+        <form onSubmit={onSubmit} className="flex items-center gap-2">
+            <div
+                className="flex-1 min-w-0 flex items-center gap-1.5 bg-white rounded-full border-2 border-slate-300 focus-within:border-slate-500 px-5 py-2"
+                style={{ boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}
+            >
+                <input
+                    ref={ref}
+                    type="text"
+                    value={texto}
+                    onChange={(e) => setTexto(e.target.value.slice(0, TEXTO_MAX_RESPUESTA))}
+                    placeholder="Responde a tu vecino…"
+                    maxLength={TEXTO_MAX_RESPUESTA}
+                    disabled={crear.isPending}
+                    aria-label="Tu respuesta"
+                    data-testid={`respuesta-input-${preguntaId}`}
+                    className="flex-1 min-w-0 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed"
+                />
+                {texto && !crear.isPending && (
+                    <button
+                        type="button"
+                        aria-label="Borrar"
+                        onClick={() => {
+                            setTexto('');
+                            ref.current?.focus();
+                        }}
+                        className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-500 hover:bg-slate-600 lg:cursor-pointer transition-colors"
+                    >
+                        <X className="w-3 h-3 text-white" strokeWidth={2.5} />
+                    </button>
+                )}
+            </div>
             <button
                 type="submit"
                 disabled={!puedeEnviar}
                 aria-label="Publicar respuesta"
                 data-testid={`respuesta-enviar-${preguntaId}`}
-                className="shrink-0 inline-flex items-center justify-center w-10 h-10 rounded-lg bg-blue-600 text-white hover:bg-blue-700 lg:cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed transition-opacity"
+                className="send-btn shrink-0 inline-flex items-center justify-center w-11 h-11 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 rounded-full text-white lg:cursor-pointer active:scale-[0.94] disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 3px 10px rgba(30,41,59,0.35)' }}
             >
                 {crear.isPending ? (
                     <Loader2 className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
                 ) : (
-                    <Send className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    <span
+                        className={`send-ico inline-flex ${flying ? 'flying' : ''}`}
+                        onAnimationEnd={() => setFlying(false)}
+                    >
+                        <Send className="w-4 h-4 shrink-0" aria-hidden="true" />
+                    </span>
                 )}
             </button>
         </form>
@@ -359,20 +387,39 @@ function AvatarMini({
     fallback: string;
 }) {
     const [errorImagen, setErrorImagen] = useState(false);
+    const [visorAbierto, setVisorAbierto] = useState(false);
     const mostrarImagen = !!url && !errorImagen;
 
+    if (mostrarImagen && url) {
+        return (
+            <>
+                <button
+                    type="button"
+                    onClick={(e) => {
+                        e.stopPropagation();
+                        setVisorAbierto(true);
+                    }}
+                    aria-label={`Ver foto de ${alt}`}
+                    className="shrink-0 w-9 h-9 rounded-full overflow-hidden shadow-md lg:cursor-pointer active:scale-[0.97]"
+                >
+                    <img
+                        src={url}
+                        alt={alt}
+                        className="w-full h-full object-cover"
+                        onError={() => setErrorImagen(true)}
+                    />
+                </button>
+                <ModalImagenes images={[url]} isOpen={visorAbierto} onClose={() => setVisorAbierto(false)} />
+            </>
+        );
+    }
+
     return (
-        <div className="shrink-0 w-7 h-7 rounded-full bg-white border border-slate-200 overflow-hidden flex items-center justify-center text-[10px] font-bold text-slate-500">
-            {mostrarImagen ? (
-                <img
-                    src={url}
-                    alt={alt}
-                    className="w-full h-full object-cover"
-                    onError={() => setErrorImagen(true)}
-                />
-            ) : (
-                <span aria-hidden="true">{fallback}</span>
-            )}
+        <div
+            className="shrink-0 w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white shadow-md"
+            style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+        >
+            <span aria-hidden="true">{fallback}</span>
         </div>
     );
 }

@@ -42,7 +42,7 @@ export function FeedVacio({ onEnfocar, onUsarEjemplo }: FeedVacioProps) {
                 </div>
                 <div>
                     <h3 className="text-lg lg:text-xl font-bold text-slate-800">Aún no hay preguntas hoy</h3>
-                    <p className="mt-1.5 text-sm lg:text-base text-slate-500 font-medium leading-relaxed">
+                    <p className="mt-1.5 text-sm lg:text-base text-slate-600 font-medium leading-relaxed">
                         Haz la primera pregunta del día y Coyo te responderá al instante con negocios, ofertas y
                         servicios de tu ciudad.
                     </p>
@@ -50,7 +50,7 @@ export function FeedVacio({ onEnfocar, onUsarEjemplo }: FeedVacioProps) {
                         type="button"
                         onClick={onEnfocar}
                         data-testid="feed-vacio-empezar"
-                        className="mt-5 inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-white text-[13px] font-bold bg-slate-600 hover:bg-slate-800 lg:cursor-pointer active:scale-[0.98]"
+                        className="mt-5 inline-flex items-center gap-1.5 h-9 px-4 rounded-full text-white text-sm font-bold bg-slate-600 hover:bg-slate-800 lg:cursor-pointer active:scale-[0.98]"
                         style={{ boxShadow: '0 3px 10px rgba(30,41,59,0.30)' }}
                     >
                         <Sparkles size={15} strokeWidth={2.5} /> Hacer la primera pregunta
@@ -61,7 +61,7 @@ export function FeedVacio({ onEnfocar, onUsarEjemplo }: FeedVacioProps) {
                                 key={ej}
                                 type="button"
                                 onClick={() => onUsarEjemplo(ej)}
-                                className="inline-flex items-center justify-center h-9 px-4 text-[13px] font-semibold text-slate-500 bg-white border border-slate-300 rounded-full hover:border-slate-400 hover:text-slate-700 lg:cursor-pointer transition-colors"
+                                className="inline-flex items-center justify-center h-9 px-4 text-sm font-semibold text-slate-600 bg-white border-2 border-slate-300 rounded-full hover:border-slate-400 hover:text-slate-700 lg:cursor-pointer"
                             >
                                 {ej}
                             </button>

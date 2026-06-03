@@ -54,7 +54,7 @@ function ChipsRicos({ item }: { item: ItemCoyo }) {
     }
     if (item.estaAbierto !== null) {
         chips.push(
-            <span key="a" className={`inline-flex items-center gap-1 ${item.estaAbierto ? 'text-emerald-600' : 'text-slate-500'}`}>
+            <span key="a" className={`inline-flex items-center gap-1 ${item.estaAbierto ? 'text-emerald-600' : 'text-slate-600'}`}>
                 <Clock className="w-3 h-3 shrink-0" strokeWidth={2.5} aria-hidden="true" />
                 <span>{item.estaAbierto ? 'Abierto' : 'Cerrado'}</span>
             </span>,
@@ -95,7 +95,7 @@ function ChipsRicos({ item }: { item: ItemCoyo }) {
 
     if (chips.length === 0) return null;
     return (
-        <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap text-[11px] lg:text-xs font-semibold text-slate-600">
+        <div className="flex items-center gap-x-2.5 gap-y-1 flex-wrap text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">
             {chips}
         </div>
     );
@@ -131,22 +131,22 @@ export function CardItemCoyo({ item }: CardItemCoyoProps) {
             onClick={() => navigate(rutaDetalleItemCoyo(item))}
             data-testid={`coyo-tarjeta-${item.tipo}-${item.id}`}
             aria-label={`Ver ${item.titulo}`}
-            className="group/card shrink-0 w-48 lg:w-52 h-60 flex flex-col text-left bg-white rounded-xl overflow-hidden ring-1 ring-slate-200/80 shadow-[0_2px_8px_rgba(15,23,42,0.06)] lg:hover:shadow-[0_10px_24px_rgba(15,23,42,0.12)] lg:hover:ring-slate-300 lg:cursor-pointer active:scale-[0.99] transition-all duration-200"
+            className="group/card shrink-0 w-48 lg:w-52 h-60 flex flex-col text-left bg-white rounded-xl overflow-hidden ring-1 ring-slate-300 shadow-sm lg:hover:shadow-md lg:hover:ring-blue-300 lg:cursor-pointer active:scale-[0.99] transition-all duration-200"
         >
             <div className="relative">
                 <ImagenItem url={item.imagen} alt={item.titulo} />
                 <span
-                    className="absolute top-2 left-2 inline-flex items-center text-[10px] font-bold text-white rounded-md px-2 py-0.5 shadow-sm"
+                    className="absolute top-2 left-2 inline-flex items-center text-sm lg:text-[11px] 2xl:text-sm font-bold text-white rounded-md px-2 py-0.5 shadow-sm"
                     style={{ background: 'rgba(15,23,42,0.82)' }}
                 >
                     {TIPO_LABEL[item.tipo]}
                 </span>
             </div>
             <div className="flex-1 min-h-0 p-3 flex flex-col gap-1">
-                <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 lg:group-hover/card:text-blue-700 transition-colors">
+                <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 lg:group-hover/card:text-blue-700">
                     {item.titulo}
                 </p>
-                {item.subtitulo && <p className="text-xs text-slate-500 truncate">{item.subtitulo}</p>}
+                {item.subtitulo && <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600 truncate">{item.subtitulo}</p>}
                 <div className="mt-auto">
                     <ChipsRicos item={item} />
                 </div>

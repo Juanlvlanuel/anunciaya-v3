@@ -87,7 +87,7 @@ export function CoyoInput({
                             onTextoChange('');
                             ref.current?.focus();
                         }}
-                        className="shrink-0 inline-flex items-center justify-center w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 rounded-full bg-slate-500 hover:bg-slate-600 lg:cursor-pointer transition-colors"
+                        className="shrink-0 inline-flex items-center justify-center w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 rounded-full bg-slate-500 hover:bg-slate-600 lg:cursor-pointer"
                     >
                         <X className="w-3.5 h-3.5 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5 text-white" strokeWidth={2.5} />
                     </button>

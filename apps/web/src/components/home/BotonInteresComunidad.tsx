@@ -85,11 +85,11 @@ export function BotonInteresComunidad({
             }
             className={[
                 'inline-flex items-center gap-1.5 h-8 px-3 rounded-full',
-                'text-xs lg:text-sm font-semibold transition-colors',
+                'text-sm lg:text-xs 2xl:text-sm font-semibold',
                 'lg:cursor-pointer active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed',
                 activo
                     ? 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200',
+                    : 'bg-slate-200 text-slate-600 hover:bg-slate-300',
             ].join(' ')}
         >
             {isLoading ? (

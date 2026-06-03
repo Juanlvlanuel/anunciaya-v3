@@ -62,7 +62,7 @@ function SegmentoFeed({
     className?: string;
 }) {
     return (
-        <div className={`flex gap-1 p-1 rounded-full bg-slate-200/70 border border-slate-300 ${className}`}>
+        <div className={`flex gap-1 p-1 rounded-full bg-slate-200 border-2 border-slate-300 ${className}`}>
             {(
                 [
                     ['comunidad', 'Comunidad', Users],
@@ -76,7 +76,7 @@ function SegmentoFeed({
                         type="button"
                         onClick={() => onChange(id)}
                         data-testid={`home-segmento-${id}`}
-                        className={`flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-full text-[13px] font-bold lg:cursor-pointer transition-colors ${activo ? 'text-white shadow-sm' : 'text-slate-600'}`}
+                        className={`flex-1 inline-flex items-center justify-center gap-1.5 h-9 px-3 rounded-full text-sm font-bold lg:cursor-pointer ${activo ? 'text-white shadow-sm' : 'text-slate-600'}`}
                         style={activo ? { background: 'linear-gradient(135deg, #1e293b, #334155)' } : undefined}
                     >
                         <Icon size={15} strokeWidth={2.25} />
@@ -104,7 +104,7 @@ function FeedHeader({
     return (
         <div className="flex items-center justify-between gap-3 px-1">
             <h2 className="min-w-0 text-lg lg:text-xl tracking-tight leading-tight truncate">
-                <span className="font-medium text-slate-500">Pregunta a </span>
+                <span className="font-medium text-slate-600">Pregunta a </span>
                 <span className="font-bold text-slate-800">{ciudad}</span>
             </h2>
             <SegmentoFeed segmento={segmento} onChange={onSegmento} className="shrink-0" />
@@ -125,7 +125,7 @@ function FeedCards({ preguntas }: { preguntas: PreguntaComunidad[] }) {
 function EstadoSinCiudad() {
     return (
         <div className="bg-white rounded-xl p-5 lg:p-6 text-center shadow-sm">
-            <p className="text-sm lg:text-base text-slate-600">
+            <p className="text-sm lg:text-base font-medium text-slate-600">
                 Activa tu ubicación para ver las preguntas de tu ciudad.
             </p>
         </div>
@@ -135,13 +135,13 @@ function EstadoSinCiudad() {
 function EstadoError({ onReintentar }: { onReintentar: () => void }) {
     return (
         <div className="bg-white rounded-xl p-5 lg:p-6 text-center shadow-sm">
-            <p className="text-sm lg:text-base text-slate-600">
+            <p className="text-sm lg:text-base font-medium text-slate-600">
                 No pudimos cargar las preguntas. Revisa tu conexión.
             </p>
             <button
                 type="button"
                 onClick={onReintentar}
-                className="mt-3 inline-flex items-center gap-1.5 text-xs lg:text-sm font-bold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
+                className="mt-3 inline-flex items-center gap-1.5 text-sm lg:text-xs 2xl:text-sm font-bold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
             >
                 <RefreshCcw className="w-3.5 h-3.5" aria-hidden="true" />
                 Reintentar
@@ -174,10 +174,10 @@ function MisPreguntasVacio() {
     return (
         <div className="flex flex-col items-center text-center py-12 lg:py-16">
             <span className="inline-flex items-center justify-center w-14 h-14 rounded-2xl bg-white border border-blue-200 shadow-sm mb-3">
-                <Inbox size={26} strokeWidth={1.75} className="text-blue-500" />
+                <Inbox size={26} strokeWidth={1.75} className="text-blue-600" />
             </span>
             <h4 className="text-base lg:text-lg font-bold text-slate-800">Todavía no preguntas nada</h4>
-            <p className="mt-1 text-sm text-slate-500 font-medium max-w-xs leading-relaxed">
+            <p className="mt-1 text-sm text-slate-600 font-medium max-w-xs leading-relaxed">
                 Pregúntale a Coyo y tus preguntas aparecerán aquí para que sigas las respuestas.
             </p>
         </div>
