@@ -4,6 +4,7 @@ import { useAuthStore } from '../stores/useAuthStore';
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { notificar } from '../utils/notificaciones';
 import { esTokenExpirado } from '../utils/tokenUtils';
+import { LogoAnimadoSaludo } from '../components/LogoAnimadoSaludo';
 
 interface RutaPrivadaProps {
   children: React.ReactNode;
@@ -89,9 +90,9 @@ export function RutaPrivada({ children }: RutaPrivadaProps) {
   if (!hidratado || cargando) {
     return (
       <div className="flex items-center justify-center min-h-screen">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-500">Verificando sesión...</span>
+        <div className="flex flex-col items-center gap-3">
+          <LogoAnimadoSaludo size={150} />
+          <span className="texto-shimmer text-base font-bold tracking-wide">Verificando sesión…</span>
         </div>
       </div>
     );

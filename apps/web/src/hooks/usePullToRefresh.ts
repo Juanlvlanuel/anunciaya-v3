@@ -44,6 +44,9 @@ export function usePullToRefresh({
 }: UsePullToRefreshOpciones) {
     const [distancia, setDistancia] = useState(0);
     const [refrescando, setRefrescando] = useState(false);
+    // Dedo en contacto jalando: el indicador sigue el dedo SIN transición
+    // mientras es true, y anima su salida/recogida cuando vuelve a false.
+    const [gestoActivo, setGestoActivo] = useState(false);
 
     // Refs para leer valores actuales dentro de los listeners sin recrearlos.
     const inicioY = useRef<number | null>(null);
@@ -63,6 +66,7 @@ export function usePullToRefresh({
             if (el.scrollTop <= 0) {
                 inicioY.current = e.touches[0].clientY;
                 jalando.current = true;
+                setGestoActivo(true);
             }
         };
 
@@ -76,6 +80,7 @@ export function usePullToRefresh({
                     setDistancia(0);
                 }
                 jalando.current = false;
+                setGestoActivo(false);
                 return;
             }
             // Está jalando hacia abajo desde el tope: prevenimos el pull nativo
@@ -87,22 +92,29 @@ export function usePullToRefresh({
         };
 
         const onTouchEnd = () => {
-            if (!jalando.current) return;
+            // Siempre apagamos el gesto al soltar — aunque no se haya jalado.
+            setGestoActivo(false);
+            const estabaJalando = jalando.current;
             jalando.current = false;
             inicioY.current = null;
 
-            if (distanciaRef.current >= UMBRAL_PX && !refrescandoRef.current) {
+            if (estabaJalando && distanciaRef.current >= UMBRAL_PX && !refrescandoRef.current) {
                 refrescandoRef.current = true;
                 setRefrescando(true);
                 distanciaRef.current = UMBRAL_PX;
                 setDistancia(UMBRAL_PX);
-                Promise.resolve(onRefreshRef.current()).finally(() => {
+                // Disparamos el refresco en segundo plano (no esperamos su
+                // promesa: si se cuelga, no debe dejar el indicador pegado).
+                Promise.resolve(onRefreshRef.current()).catch(() => {});
+                // La cabeza gira un tiempo ACOTADO y se recoge sí o sí.
+                setTimeout(() => {
                     refrescandoRef.current = false;
                     setRefrescando(false);
                     distanciaRef.current = 0;
                     setDistancia(0);
-                });
+                }, 1100);
             } else {
+                // No alcanzó el umbral (o no se jaló): reset total.
                 distanciaRef.current = 0;
                 setDistancia(0);
             }
@@ -111,21 +123,30 @@ export function usePullToRefresh({
         el.addEventListener('touchstart', onTouchStart, { passive: true });
         // passive:false para poder preventDefault y matar el pull nativo.
         el.addEventListener('touchmove', onTouchMove, { passive: false });
-        el.addEventListener('touchend', onTouchEnd);
-        el.addEventListener('touchcancel', onTouchEnd);
+        // touchend/cancel en WINDOW (no en el elemento): garantiza capturar
+        // el fin del gesto aunque el dedo se levante fuera del feed o el
+        // touchend no llegue al elemento — así el indicador no queda pegado.
+        window.addEventListener('touchend', onTouchEnd);
+        window.addEventListener('touchcancel', onTouchEnd);
 
         return () => {
             el.removeEventListener('touchstart', onTouchStart);
             el.removeEventListener('touchmove', onTouchMove);
-            el.removeEventListener('touchend', onTouchEnd);
-            el.removeEventListener('touchcancel', onTouchEnd);
+            window.removeEventListener('touchend', onTouchEnd);
+            window.removeEventListener('touchcancel', onTouchEnd);
         };
     }, [scrollRef, habilitado]);
 
     /** 0..1 — qué tan cerca del umbral va el jalón (para animar el indicador). */
     const progreso = Math.min(distancia / UMBRAL_PX, 1);
 
-    return { distancia, refrescando, progreso, umbralAlcanzado: distancia >= UMBRAL_PX };
+    return {
+        distancia,
+        refrescando,
+        progreso,
+        gestoActivo,
+        umbralAlcanzado: distancia >= UMBRAL_PX,
+    };
 }
 
 export default usePullToRefresh;

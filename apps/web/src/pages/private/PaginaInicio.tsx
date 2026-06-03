@@ -304,6 +304,64 @@ function BloquePreguntaDestacada({
 }
 
 // =============================================================================
+// INDICADOR DE REFRESCO — huellitas de Coyo caminando (pull móvil + auto PC)
+// =============================================================================
+
+// Fila de pisadas de Coyo (la misma pata azul del adorno del rail) que aparecen
+// en secuencia (`.huella-paso`) dando el efecto de "caminando". Entra/sale con
+// altura + opacidad (no se corta de golpe). Móvil: el carril sigue el jalón.
+// PC: altura fija mientras refresca.
+function IndicadorHuellitas({
+    visible,
+    altura,
+    sinTransicion,
+}: {
+    /** Si debe mostrarse (controla altura/opacidad para la animación de salida). */
+    visible: boolean;
+    /** Altura del carril (px). Móvil: sigue el jalón. PC: fijo. */
+    altura: number;
+    /** Sin transición mientras el dedo jala (para que siga el dedo en vivo). */
+    sinTransicion: boolean;
+}) {
+    return (
+        <div
+            className="flex items-center justify-center overflow-hidden"
+            style={{
+                height: visible ? altura : 0,
+                transition: sinTransicion
+                    ? 'none'
+                    : 'height 300ms cubic-bezier(0.34, 1.56, 0.64, 1)',
+            }}
+            aria-hidden="true"
+        >
+            <div
+                className="flex items-center gap-1.5"
+                style={{
+                    opacity: visible ? 1 : 0,
+                    transition: sinTransicion ? 'none' : 'opacity 200ms ease-out',
+                }}
+            >
+                {[0, 1, 2, 3].map((i) => (
+                    <svg
+                        key={i}
+                        viewBox="-14 -14 28 28"
+                        className="w-8 h-8 huella-paso"
+                        style={{ animationDelay: `${i * 0.14}s` }}
+                        fill="#d97534"
+                    >
+                        <ellipse cx="0" cy="5.5" rx="5.6" ry="7" />
+                        <circle cx="-5.6" cy="-3.2" r="2.3" />
+                        <circle cx="-1.9" cy="-6.6" r="2.3" />
+                        <circle cx="1.9" cy="-6.6" r="2.3" />
+                        <circle cx="5.6" cy="-3.2" r="2.3" />
+                    </svg>
+                ))}
+            </div>
+        </div>
+    );
+}
+
+// =============================================================================
 // BOTÓN "IR ARRIBA" (móvil) — FAB flotante para volver al inicio del feed
 // =============================================================================
 
@@ -534,34 +592,52 @@ export function PaginaInicio() {
     // viejos (staleTime 2 min — proxy de "probablemente cambiaron") y al
     // volver a la pestaña (refetchOnWindowFocus, ya activo en el hook). El
     // spinner de PC se muestra cuando ese refetch ocurre (isRefetching).
+    // Bandera del pull: se enciende al disparar el refresco por gesto y se
+    // apaga cuando el refetch del feed termina (isRefetching true→false). Así
+    // las huellitas "caminan" tras soltar SOLO cuando el refresco fue por pull
+    // (no en el auto-refresh de entrada).
+    const [refrescoPorPull, setRefrescoPorPull] = useState(false);
     const pull = usePullToRefresh({
-        onRefresh: () => queryActivo.refetch(),
+        onRefresh: () => {
+            setRefrescoPorPull(true);
+            return queryActivo.refetch();
+        },
         scrollRef: mainScrollRef,
         habilitado: esMovil,
     });
 
-    // Indicador del jalón (móvil): círculo que rota con el progreso y gira
-    // mientras refresca. Su altura crece con el jalón y se recoge al soltar.
-    const indicadorPull = pull.distancia > 0 || pull.refrescando ? (
-        <div
-            className="flex items-center justify-center overflow-hidden transition-[height] duration-150"
-            style={{ height: pull.refrescando ? 40 : pull.distancia }}
-            aria-hidden="true"
-        >
-            <div
-                className={`h-6 w-6 rounded-full border-2 border-slate-300 border-t-blue-500 ${pull.refrescando ? 'animate-spin' : ''}`}
-                style={pull.refrescando ? undefined : { transform: `rotate(${pull.progreso * 270}deg)`, opacity: pull.progreso }}
+    const refetchingPrevRef = useRef(false);
+    useEffect(() => {
+        const ahora = queryActivo.isRefetching;
+        if (refetchingPrevRef.current && !ahora) setRefrescoPorPull(false);
+        refetchingPrevRef.current = ahora;
+    }, [queryActivo.isRefetching]);
+
+    // Indicador del jalón (móvil): huellitas que aparecen mientras el dedo jala
+    // (siguen el jalón) y siguen "caminando" mientras el feed refresca por ese
+    // pull. Imposible que se quede pegado: depende del dedo (gestoActivo) y del
+    // estado real del refetch (isRefetching), ambos se apagan solos.
+    const caminandoPull = refrescoPorPull && queryActivo.isRefetching;
+    const indicadorPull = (
+        <IndicadorHuellitas
+            visible={(pull.gestoActivo && pull.distancia > 0) || caminandoPull}
+            altura={caminandoPull ? 52 : pull.distancia}
+            sinTransicion={pull.gestoActivo}
+        />
+    );
+
+    // Indicador de refresco en PC: huellitas caminando mientras refetchea (al
+    // entrar o al volver a la pestaña), sin contar carga de más páginas ni la
+    // publicación de una pregunta.
+    const indicadorRefrescoPc = (
+        <div data-testid="home-refrescando">
+            <IndicadorHuellitas
+                visible={queryActivo.isRefetching && !isFetchingNextPage && !publicandoPregunta}
+                altura={52}
+                sinTransicion={false}
             />
         </div>
-    ) : null;
-
-    // Indicador de refresco en PC: spinner arriba del feed mientras refetchea
-    // (al entrar o al volver a la pestaña), sin contar la carga de más páginas.
-    const indicadorRefrescoPc = queryActivo.isRefetching && !isFetchingNextPage && !publicandoPregunta ? (
-        <div className="flex items-center justify-center py-2" data-testid="home-refrescando" aria-hidden="true">
-            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
-        </div>
-    ) : null;
+    );
 
     // ── MÓVIL ────────────────────────────────────────────────────────────
     if (esMovil) {

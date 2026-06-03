@@ -944,11 +944,15 @@ El feed del Home funciona al estilo Facebook (Jun 2026):
 - **Refresh tipo Facebook** — hook reutilizable `usePullToRefresh`
   (`hooks/usePullToRefresh.ts`):
   - **Móvil**: pull-to-refresh por gesto (resistencia + umbral 70px;
-    `preventDefault` en `touchmove` mata el pull nativo del navegador).
-    Indicador que rota con el progreso y gira al refrescar.
+    `preventDefault` en `touchmove` mata el pull nativo; `touchend`/`cancel` en
+    `window` + reset garantizado para que el indicador nunca quede pegado).
   - **PC**: refresco eficiente — NO se fuerza refetch en cada entrada; React
     Query refetchea al montar solo si los datos están viejos (`staleTime` 2 min)
-    y al volver a la pestaña. Spinner arriba del feed mientras `isRefetching`.
+    y al volver a la pestaña.
+  - **Indicador** (`IndicadorHuellitas`): **huellitas de Coyo caminando** —
+    pisadas naranjas que aparecen en secuencia (`.huella-paso`) mientras jalas
+    y mientras el feed refresca (`isRefetching`). Depende solo del dedo y del
+    estado real del refetch (ambos se apagan solos → no se atasca).
 - **Badge contador** — `SegmentoFeed` muestra el número por segmento: Comunidad
   = `total` real del backend; Mis preguntas = las del usuario presentes en lo
   cargado. Se oculta si es 0; tope "99+".

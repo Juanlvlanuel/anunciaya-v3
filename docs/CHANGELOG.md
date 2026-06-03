@@ -7,6 +7,23 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Junio 2026] - Home / Coyo — refresh con huellitas + loader de sesión con el logo 🐾🦊
+
+- **Indicador de refresco con huellitas** (`IndicadorHuellitas` en
+  `PaginaInicio`): el pull-to-refresh móvil y el auto-refresh de PC pasan de un
+  spinner a las **huellitas de Coyo caminando** (pisadas naranjas que aparecen
+  en secuencia, `.huella-paso`). El hook `usePullToRefresh` se endureció
+  (`touchend`/`touchcancel` en `window` + reset garantizado) para que el
+  indicador **nunca quede pegado**.
+- **Loader de sesión con el logo**: el loader global "Verificando sesión…"
+  (`RutaPrivada`) reemplaza el spinner por el **logo 3D de AnunciaYA
+  "latiendo"** (`LogoAnimadoSaludo`: parpadeo difuminado + leve zoom,
+  `.logo-latido`) y el texto con efecto **shimmer** (`.texto-shimmer`). Assets
+  nuevos: `logo-anunciaya-3d.webp` (resultado) y `logo-anunciaya-trazo.svg`
+  (vector plano, reservado para un posible efecto de delineado a futuro).
+
+---
+
 ## [3 Junio 2026] - Home / Coyo — las resueltas se limpian del feed a los 7 días 🧹
 
 Las preguntas marcadas como **resueltas** ya no se quedan para siempre en el
