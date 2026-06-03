@@ -76,6 +76,21 @@ export async function listarPreguntasPorCiudad({
 }
 
 // =============================================================================
+// OBTENER UNA PREGUNTA POR ID (deep-link de notificaciones)
+// =============================================================================
+
+/**
+ * GET /api/preguntas-comunidad/:id
+ *
+ * Devuelve UNA pregunta 'activa' por su id, con el mismo shape que el feed.
+ * El Home la usa para destacar la pregunta a la que apunta una notificación
+ * (`/inicio?preguntaId=<id>`). Responde 404 si ya no está activa.
+ */
+export async function obtenerPregunta(preguntaId: string) {
+    return get<PreguntaComunidad>(`/preguntas-comunidad/${preguntaId}`);
+}
+
+// =============================================================================
 // SONDEO: estado de Coyo de una pregunta
 // =============================================================================
 
@@ -237,6 +252,7 @@ export async function editarMiPregunta({ preguntaId, textoNuevo }: EditarPregunt
 export default {
     crearPregunta,
     listarPreguntasPorCiudad,
+    obtenerPregunta,
     obtenerEstadoCoyo,
     crearRespuesta,
     listarRespuestas,

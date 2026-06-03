@@ -138,6 +138,7 @@ pregunta que NO es suya. Idempotente por PK compuesta.
 POST    /api/preguntas-comunidad                               crearPreguntaController
 GET     /api/preguntas-comunidad?ciudad=&limit=&offset=        listarPreguntasPorCiudadController
 GET     /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController   ← sondeo
+GET     /api/preguntas-comunidad/:id                           obtenerPreguntaPorIdController ← deep-link de notificaciones
 
 POST    /api/preguntas-comunidad/:preguntaId/respuestas        crearRespuestaController
 GET     /api/preguntas-comunidad/:preguntaId/respuestas        listarRespuestasController
@@ -155,7 +156,8 @@ POST    /api/preguntas-comunidad/:preguntaId/reintentar        reintentarMiPregu
 
 Orden de declaración importante en `routes.ts`: las rutas estáticas
 (`/respuestas/:respuestaId`) van **antes** que las dinámicas
-(`/:preguntaId/...`) — Express toma la primera que matchea.
+(`/:preguntaId/...`) — Express toma la primera que matchea. `GET /:id`
+(un segmento) convive con `GET /:id/coyo` (dos segmentos) sin chocar.
 
 > **Histórico del autor ("Mis preguntas").** El rediseño 2 columnas
 > reemplazó la página dedicada `/inicio/mis-preguntas` por un toggle
@@ -714,8 +716,10 @@ Los 3 tipos usan el **layout compacto del Home/Coyo**: nombre arriba
 (con clase `.pn-title` para consistencia con el resto del panel) +
 respuesta entre comillas en 1 línea con ellipsis + tiempo abajo. Sin
 título visible (queda en `aria-label`). Click en cualquiera navega a
-`/inicio?preguntaId=<id>` — el query param queda listo para
-scroll-to-pregunta en el futuro sin romper el flujo actual.
+`/inicio?preguntaId=<id>`, y el Home **destaca esa pregunta arriba del feed**
+(ver §Pregunta destacada). El `preguntaId` se consume una sola vez: el Home lo
+captura y limpia la URL, así el destacado es efímero (no reaparece al volver al
+Home, navegar con "atrás" ni recargar).
 
 ---
 
@@ -884,6 +888,7 @@ props estables:
 usePreguntasComunidadLista()
 useCrearPregunta()
 useEstadoCoyo(preguntaId, estadoInicial)  // sondeo 2s mientras pendiente/procesando
+usePregunta(preguntaId)                   // UNA pregunta por id (deep-link de notificaciones)
 
 // Respuestas + interés
 useRespuestas(preguntaId, { enabled })    // lista paginada (carga al abrir el hilo)
@@ -1018,6 +1023,40 @@ Cuando una ciudad NO tiene preguntas activas todavía, `FeedVacio`
 
 El filtro "Mis preguntas" tiene su propio vacío (`MisPreguntasVacio`, en
 `PaginaInicio`) con ícono Inbox: *"Todavía no preguntas nada"*.
+
+### Pregunta destacada (deep-link de notificaciones)
+
+Las tres notificaciones del Home (`coyo_recomendacion`,
+`pregunta_comunidad_respondida`, `pregunta_comunidad_seguida_respondida`)
+navegan a `/inicio?preguntaId=<id>`. Al abrir el Home con ese parámetro,
+`PaginaInicio`:
+
+1. **Captura** el `preguntaId` en estado local y **limpia la URL** de
+   inmediato (`setSearchParams(..., { replace: true })`). El destacado es
+   **efímero**: vive solo en esa visita. Si sales a otra sección y regresas
+   (logo o "atrás"), o recargas, ya no aparece — la URL quedó en `/inicio` sin
+   query. Un effect que observa `searchParams` capta también una notificación
+   nueva abierta sin salir del Home.
+2. Pide la pregunta con **`usePregunta(preguntaId)`** →
+   `GET /api/preguntas-comunidad/:id`. Es **independiente del feed**: funciona
+   aunque la pregunta esté fuera de las 20 que carga el feed o sea de otra
+   ciudad. Si ya no está `activa` (cerrada/oculta/expirada) el backend
+   devuelve 404 y el bloque muestra *"Esta pregunta ya no está disponible"*.
+3. Renderiza **`BloquePreguntaDestacada`** arriba del feed (mismo bloque en
+   desktop y móvil) reusando `CardPreguntaEditorial` — la card real, con su
+   Coyo, respuestas e interés. Encabezado *"✨ Apareciste en esta pregunta"*
+   (acento índigo, familia visual de Coyo) + botón X que la cierra (`onCerrar`
+   → limpia el estado local). Al capturar el id, sube el `<main>` al tope para
+   que el bloque quede a la vista.
+4. **Evita duplicado:** mientras está destacada, la pregunta se **filtra del
+   feed** (`preguntasMostradas`); al cerrarla reaparece en su lugar
+   cronológico.
+
+> Por qué un bloque destacado y no un scroll-to-pregunta: el scroll solo podría
+> "subir" lo que ya estaba en el feed (primeras 20, misma ciudad). El bloque,
+> al pedir la pregunta por id, **siempre la encuentra** sin importar paginación
+> ni ciudad. El endpoint `GET /:id` solo devuelve preguntas `activa` — no
+> expone cerradas/ocultas a terceros (coherente con el feed).
 
 ### Componentes del Home
 
@@ -1325,7 +1364,7 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 | **Backend — notificaciones** | `services/notificaciones.service.ts`, `types/notificaciones.types.ts` |
 | **Backend — config** | `config/env.ts` (`GEMINI_API_KEY`) |
 | **Backend — tests** | `__tests__/coyo-filtro-caso-a.test.ts`, `__tests__/coyo-filtro-caso-b.test.ts` |
-| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (orquestador 2 columnas: `SegmentoFeed`, `FeedHeader`, `ContenidoFeed`, `MisPreguntasVacio`, `HomeMovil`), `hooks/queries/usePreguntasComunidad.ts`, `services/preguntasComunidadService.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
+| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (orquestador 2 columnas: `SegmentoFeed`, `FeedHeader`, `ContenidoFeed`, `MisPreguntasVacio`, `BloquePreguntaDestacada`, `HomeMovil`), `hooks/queries/usePreguntasComunidad.ts` (`usePregunta`), `services/preguntasComunidadService.ts` (`obtenerPregunta`), `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
 | **Frontend — componentes Home** | `components/home/AreaPreguntaCoyo.tsx`, `components/home/CardPreguntaEditorial.tsx`, `components/home/CardItemCoyo.tsx`, `components/home/EstadosVacios.tsx`, `components/home/AdornoRailCoyo.tsx`, `components/home/navegacionCoyo.ts`, `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx` |
 | **Frontend — scroll/perf** | `hooks/useScrollDirection.ts`, `hooks/useHideOnScroll.ts`, `stores/useMainScrollStore.ts` (botón "ir arriba"); `React.memo` en `CardPreguntaEditorial`, `CardItemCoyo`, `CoyoAnimado` |
 | **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
@@ -1346,3 +1385,10 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 > conjunto rail+feed en PC, y memoización (`React.memo`) del feed y de
 > Coyo para que el input controlado no genere lag al teclear. El backend
 > de Coyo (IA, orquestador, buscador, notificaciones, expiración) no cambió.
+>
+> **Jun 2026 (después):** deep-link de notificaciones del Home → bloque
+> `BloquePreguntaDestacada` arriba del feed (endpoint `GET /:id` +
+> `obtenerPreguntaPorId`, hook `usePregunta`), efímero por visita (ver
+> §Pregunta destacada). Y en el Navbar global se ocultó el buscador del
+> header en `/inicio` (la sección es `'general'`, sin overlay; competía con
+> el input de Coyo) conservando su hueco para no reacomodar el header.

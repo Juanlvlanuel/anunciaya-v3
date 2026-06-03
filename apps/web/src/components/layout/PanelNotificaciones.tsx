@@ -240,10 +240,11 @@ function obtenerRutaDestino(n: Notificacion): string | null {
   // ── Sprint 1.D — Notificaciones del Home / Coyo ────────────────────────
   // Tanto 'pregunta_comunidad_respondida' (modo personal) como
   // 'coyo_recomendacion' (modo personal o comercial) usan
-  // referenciaTipo='pregunta_comunidad' apuntando a la pregunta. Hoy
-  // el Home no tiene deep-link individual a una pregunta — pasamos el
-  // id como query string para uso futuro (scroll-to-pregunta) sin
-  // romper el flujo actual.
+  // referenciaTipo='pregunta_comunidad' apuntando a la pregunta. El Home
+  // lee `?preguntaId` y DESTACA esa pregunta arriba del feed: la pide con
+  // GET /preguntas-comunidad/:id y la consume una sola vez (captura el id +
+  // limpia la URL, así el destacado es efímero). Ver Home_Coyo.md
+  // §Pregunta destacada.
   if (referenciaTipo === 'pregunta_comunidad') {
     const qs = referenciaId ? `?preguntaId=${referenciaId}` : '';
     return `/inicio${qs}`;

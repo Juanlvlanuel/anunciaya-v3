@@ -14,6 +14,7 @@ import { Router, type Router as RouterType } from 'express';
 import {
     crearPreguntaController,
     listarPreguntasPorCiudadController,
+    obtenerPreguntaPorIdController,
     obtenerEstadoCoyoController,
     crearRespuestaController,
     listarRespuestasController,
@@ -67,6 +68,15 @@ router.get('/', listarPreguntasPorCiudadController);
  * que `estadoCoyo` deje de ser 'pendiente' o 'procesando'.
  */
 router.get('/:id/coyo', obtenerEstadoCoyoController);
+
+/**
+ * GET /api/preguntas-comunidad/:id
+ * Devuelve UNA pregunta 'activa' por su id — deep-link de las notificaciones
+ * del Home (`/inicio?preguntaId=<id>`). Mismo shape que el feed. 404 si no
+ * existe o ya no está activa. Va DESPUÉS de `/:id/coyo` (distinto número de
+ * segmentos, no chocan) y de `GET /` (raíz).
+ */
+router.get('/:id', obtenerPreguntaPorIdController);
 
 // =============================================================================
 // RESPUESTAS DE LA COMUNIDAD

@@ -7,6 +7,42 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Junio 2026] - Home / Coyo — deep-link de notificaciones a la pregunta 🔔🦊
+
+Las tres notificaciones del Home (`coyo_recomendacion`,
+`pregunta_comunidad_respondida`, `pregunta_comunidad_seguida_respondida`) ya no
+solo llevan al Home: ahora **abren la pregunta referida DESTACADA arriba del
+feed**. Cierra el "query string listo para el futuro" que dejó el Sprint 1.D.
+
+**Backend**:
+- Endpoint nuevo `GET /api/preguntas-comunidad/:id` (`obtenerPreguntaPorId` +
+  `obtenerPreguntaPorIdController`). Devuelve UNA pregunta con el **mismo shape
+  que el feed** (autor + campos de Coyo + conteos + `yoTambienInteresado` +
+  `resueltaAt`). Solo preguntas `estado_pregunta='activa'`; 404 si no existe o
+  ya no está activa (no expone cerradas/ocultas a terceros). Va después de
+  `GET /:id/coyo` (distinto número de segmentos, no chocan).
+
+**Frontend**:
+- `services/preguntasComunidadService.ts` → `obtenerPregunta`; queryKey
+  `preguntasComunidad.detalle`; hook `usePregunta(preguntaId)` (`enabled` solo
+  con id, `retry: false` para no reintentar en 404).
+- `PaginaInicio` lee `?preguntaId`, lo **captura en estado local y limpia la
+  URL** de inmediato (`replace`). El destacado es **efímero**: vive solo en esa
+  visita — al salir a otra sección y volver (logo o "atrás"), o al recargar, ya
+  no aparece. Un effect que observa `searchParams` capta también una
+  notificación nueva abierta sin salir del Home.
+- Componente `BloquePreguntaDestacada` arriba del feed (PC + móvil) que reusa
+  `CardPreguntaEditorial` (la card real: Coyo, respuestas, interés). Encabezado
+  *"✨ Apareciste en esta pregunta"* (acento índigo, familia visual de Coyo) +
+  botón X que la cierra. Si la pregunta ya no está disponible muestra un aviso.
+- **Sin duplicado**: mientras está destacada, la pregunta se filtra del feed
+  (`preguntasMostradas`); al cerrarla reaparece en su lugar cronológico.
+- **Robusto**: funciona aunque la pregunta esté fuera de las 20 que carga el
+  feed o sea de otra ciudad (se pide por id, no depende del feed). Es la razón
+  de elegir este enfoque sobre un simple scroll-to-pregunta.
+
+---
+
 ## [1 Junio 2026] - Home / Coyo Fase 2 — Comunidad + Polish UX 🤝🦊
 
 El Home deja de ser solo "vecino → Coyo" y se vuelve **"vecino → comunidad + Coyo"**.

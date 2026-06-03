@@ -18,13 +18,15 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { createPortal } from 'react-dom';
-import { Users, History, RefreshCcw, Inbox, Sparkles, ArrowUp } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
+import { Users, History, RefreshCcw, Inbox, Sparkles, ArrowUp, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useMainScrollStore } from '../../stores/useMainScrollStore';
 import {
     usePreguntasComunidadLista,
     useCrearPregunta,
+    usePregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
 import { useScrollDirection } from '../../hooks/useScrollDirection';
@@ -219,6 +221,73 @@ function ContenidoFeed({
 }
 
 // =============================================================================
+// BLOQUE "Apareciste en esta pregunta" (deep-link de notificaciones)
+// =============================================================================
+
+// Cuando el Home se abre desde una notificación (`/inicio?preguntaId=<id>`),
+// la pregunta referida se muestra DESTACADA arriba del feed, reusando la card
+// real (con su Coyo, respuestas e interés). Es robusto ante paginación/ciudad:
+// la pregunta se pide aparte (usePregunta) y no depende de estar en el feed.
+function BloquePreguntaDestacada({
+    cargando,
+    error,
+    pregunta,
+    onCerrar,
+}: {
+    cargando: boolean;
+    error: boolean;
+    pregunta: PreguntaComunidad | null;
+    onCerrar: () => void;
+}) {
+    return (
+        <section
+            aria-label="Pregunta donde apareciste"
+            data-testid="home-pregunta-destacada"
+            className="rounded-2xl border-2 border-indigo-300 bg-indigo-100 p-2.5 lg:p-3"
+        >
+            <div className="flex items-center justify-between gap-2 px-1 mb-2">
+                <span className="inline-flex items-center gap-1.5 text-sm font-bold text-indigo-700">
+                    <Sparkles size={16} strokeWidth={2.5} className="text-indigo-500" />
+                    Apareciste en esta pregunta
+                </span>
+                <button
+                    type="button"
+                    onClick={onCerrar}
+                    aria-label="Cerrar"
+                    data-testid="home-destacada-cerrar"
+                    className="shrink-0 inline-flex items-center justify-center w-7 h-7 rounded-full text-indigo-600 hover:bg-indigo-200 lg:cursor-pointer"
+                >
+                    <X size={16} strokeWidth={2.5} />
+                </button>
+            </div>
+
+            {cargando ? (
+                <div className="bg-white rounded-xl p-4 shadow-md animate-pulse">
+                    <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-full bg-slate-200 shrink-0" />
+                        <div className="min-w-0 flex-1 space-y-2">
+                            <div className="h-3 w-1/3 bg-slate-200 rounded" />
+                            <div className="h-3 w-3/4 bg-slate-200 rounded" />
+                        </div>
+                    </div>
+                    <div className="mt-3 h-4 w-5/6 bg-slate-200 rounded" />
+                </div>
+            ) : error || !pregunta ? (
+                <div className="bg-white rounded-xl p-4 shadow-md">
+                    <p className="text-sm font-medium text-slate-600">
+                        Esta pregunta ya no está disponible — pudo cerrarse o eliminarse.
+                    </p>
+                </div>
+            ) : (
+                <ul>
+                    <CardPreguntaEditorial pregunta={pregunta} />
+                </ul>
+            )}
+        </section>
+    );
+}
+
+// =============================================================================
 // BOTÓN "IR ARRIBA" (móvil) — FAB flotante para volver al inicio del feed
 // =============================================================================
 
@@ -272,6 +341,39 @@ export function PaginaInicio() {
     const feed = usePreguntasComunidadLista();
     const crear = useCrearPregunta();
 
+    // Deep-link de notificaciones: /inicio?preguntaId=<id> destaca esa pregunta
+    // arriba del feed. Se pide aparte (no depende del feed ni de la paginación).
+    //
+    // El id se captura en estado LOCAL y la URL se limpia de inmediato, así el
+    // card es EFÍMERO: vive solo en esta visita al Home. Si sales a otra sección
+    // y regresas (por logo o "atrás"), o recargas, ya no reaparece — la URL
+    // quedó en `/inicio` sin query. El effect observa `searchParams` para
+    // capturar también una notificación nueva abierta sin salir del Home.
+    const [searchParams, setSearchParams] = useSearchParams();
+    const [preguntaIdDestacada, setPreguntaIdDestacada] = useState('');
+    const preguntaDestacada = usePregunta(preguntaIdDestacada);
+    const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+
+    useEffect(() => {
+        const id = searchParams.get('preguntaId');
+        if (!id) return;
+        setPreguntaIdDestacada(id);
+        const next = new URLSearchParams(searchParams);
+        next.delete('preguntaId');
+        setSearchParams(next, { replace: true });
+    }, [searchParams, setSearchParams]);
+
+    const cerrarDestacada = () => setPreguntaIdDestacada('');
+
+    // Al capturar un preguntaId (desde una notificación) sube el feed al tope
+    // para que el bloque destacado quede a la vista.
+    useEffect(() => {
+        if (!preguntaIdDestacada) return;
+        const el = mainScrollRef?.current;
+        if (el) el.scrollTo({ top: 0 });
+        else window.scrollTo({ top: 0 });
+    }, [preguntaIdDestacada, mainScrollRef]);
+
     const [texto, setTexto] = useState('');
     const [segmento, setSegmento] = useState<Segmento>('comunidad');
 
@@ -305,9 +407,27 @@ export function PaginaInicio() {
         () => preguntas.filter((p) => !!usuarioId && p.autorId === usuarioId),
         [preguntas, usuarioId],
     );
-    const preguntasMostradas = segmento === 'mias' ? misEnFeed : preguntas;
+    // Evita duplicar la pregunta destacada si también está en el feed. Al
+    // cerrar el destacado (preguntaIdDestacada vacío) reaparece en su lugar.
+    const preguntasMostradas = useMemo(() => {
+        const base = segmento === 'mias' ? misEnFeed : preguntas;
+        return preguntaIdDestacada
+            ? base.filter((p) => p.id !== preguntaIdDestacada)
+            : base;
+    }, [segmento, misEnFeed, preguntas, preguntaIdDestacada]);
 
     const esMovil = useEsMovil();
+
+    // Bloque destacado de la pregunta del deep-link (se monta arriba del feed en
+    // ambos layouts). Solo cuando hay preguntaId en la URL.
+    const bloqueDestacado = preguntaIdDestacada ? (
+        <BloquePreguntaDestacada
+            cargando={preguntaDestacada.isPending}
+            error={preguntaDestacada.isError}
+            pregunta={preguntaDestacada.data ?? null}
+            onCerrar={cerrarDestacada}
+        />
+    ) : null;
 
     // Enfoca el input de Coyo (botón "Hacer la primera pregunta" del vacío).
     const enfocarInput = () => {
@@ -363,7 +483,8 @@ export function PaginaInicio() {
                 </div>
 
                 {/* Contenido según segmento */}
-                <div className="pt-4">
+                <div className="pt-4 space-y-4">
+                    {bloqueDestacado}
                     <ContenidoFeed
                         hayCiudad={hayCiudad}
                         feed={feed}
@@ -405,6 +526,7 @@ export function PaginaInicio() {
                 {/* Feed */}
                 <div className="w-full min-w-0 flex-1 lg:max-w-[760px]">
                     <div className="w-full space-y-3 lg:space-y-4">
+                        {bloqueDestacado}
                         <FeedHeader ciudad={nombreCiudad} segmento={segmento} onSegmento={setSegmento} />
                         <ContenidoFeed
                             hayCiudad={hayCiudad}

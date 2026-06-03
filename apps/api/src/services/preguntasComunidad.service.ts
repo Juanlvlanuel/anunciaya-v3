@@ -342,6 +342,115 @@ export async function listarPreguntasPorCiudad(
 }
 
 // =============================================================================
+// OBTENER UNA PREGUNTA POR ID (deep-link de notificaciones del Home)
+// =============================================================================
+
+/**
+ * Devuelve UNA pregunta por su id con el MISMO shape que el feed (autor +
+ * campos de Coyo + conteos + `yoTambienInteresado` + `resueltaAt`).
+ *
+ * Uso: las notificaciones del Home (coyo_recomendacion, pregunta respondida,
+ * pregunta seguida) navegan a `/inicio?preguntaId=<id>`. El Home pide esta
+ * pregunta para destacarla arriba del feed, sin depender de que esté entre
+ * las primeras N del feed ni de que el usuario tenga esa misma ciudad activa.
+ *
+ * Solo devuelve preguntas `estado_pregunta='activa'` — las cerradas/ocultas/
+ * expiradas NO se exponen (coherente con el feed y con no enseñar preguntas
+ * ocultas a terceros). Si no existe o ya no está activa → 404.
+ */
+export async function obtenerPreguntaPorId(
+    preguntaId: string,
+    usuarioId?: string | null,
+): Promise<RespuestaServicio<PreguntaComunidadResponse>> {
+    try {
+        const id = (preguntaId ?? '').trim();
+        if (id.length === 0) {
+            return { success: false, message: 'El id de la pregunta es requerido', code: 400 };
+        }
+
+        const uid = usuarioId ?? null;
+
+        // Mismo SELECT que el feed pero acotado a una pregunta activa.
+        const [f] = await db
+            .select({
+                id: preguntasComunidad.id,
+                texto: preguntasComunidad.texto,
+                ciudad: preguntasComunidad.ciudad,
+                estado: preguntasComunidad.estado,
+                estadoPregunta: preguntasComunidad.estadoPregunta,
+                resueltaAt: preguntasComunidad.resueltaAt,
+                createdAt: preguntasComunidad.createdAt,
+                updatedAt: preguntasComunidad.updatedAt,
+                autorId: usuarios.id,
+                autorNombre: usuarios.nombre,
+                autorApellidos: usuarios.apellidos,
+                autorAvatarUrl: usuarios.avatarUrl,
+                estadoCoyo: preguntasComunidad.estadoCoyo,
+                respuestaCoyo: preguntasComunidad.respuestaCoyo,
+                resultadosCoyo: preguntasComunidad.resultadosCoyo,
+                coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
+                totalRespuestas: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM respuestas_preguntas_comunidad
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                      AND estado = 'activa'
+                )`,
+                totalInteresados: sql<number>`(
+                    SELECT COUNT(*)::int
+                    FROM preguntas_interesados
+                    WHERE pregunta_id = ${preguntasComunidad.id}
+                )`,
+                yoTambienInteresado: uid
+                    ? sql<boolean>`EXISTS (
+                        SELECT 1
+                        FROM preguntas_interesados
+                        WHERE pregunta_id = ${preguntasComunidad.id}
+                          AND usuario_id = ${uid}::uuid
+                      )`
+                    : sql<boolean>`false`,
+            })
+            .from(preguntasComunidad)
+            .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
+            .where(and(
+                eq(preguntasComunidad.id, id),
+                eq(preguntasComunidad.estadoPregunta, 'activa'),
+            ))
+            .limit(1);
+
+        if (!f) {
+            return { success: false, message: 'La pregunta no está disponible', code: 404 };
+        }
+
+        const pregunta: PreguntaComunidadResponse = {
+            id: f.id,
+            texto: f.texto,
+            ciudad: f.ciudad,
+            estado: f.estado,
+            estadoPregunta: f.estadoPregunta as EstadoPregunta,
+            createdAt: f.createdAt ?? new Date().toISOString(),
+            updatedAt: f.updatedAt ?? new Date().toISOString(),
+            autorId: f.autorId ?? '',
+            autorNombre: f.autorNombre ?? '',
+            autorApellidos: f.autorApellidos ?? '',
+            autorAvatarUrl: f.autorAvatarUrl ?? null,
+            estadoCoyo: f.estadoCoyo as EstadoCoyo,
+            respuestaCoyo: f.respuestaCoyo,
+            resultadosCoyo: f.resultadosCoyo,
+            coyoProcesadoAt: f.coyoProcesadoAt,
+            resueltaAt: f.resueltaAt ?? null,
+            totalRespuestas: Number(f.totalRespuestas) || 0,
+            totalInteresados: Number(f.totalInteresados) || 0,
+            yoTambienInteresado: Boolean(f.yoTambienInteresado),
+        };
+
+        return { success: true, message: 'Pregunta obtenida', data: pregunta };
+    } catch (error) {
+        console.error('Error en obtenerPreguntaPorId:', error);
+        return { success: false, message: 'Error al obtener pregunta', code: 500 };
+    }
+}
+
+// =============================================================================
 // CONTROL DEL AUTOR — Sprint 1.C
 // =============================================================================
 // El autor de una pregunta tiene 4 acciones sobre SU pregunta:

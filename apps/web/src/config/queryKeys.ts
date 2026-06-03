@@ -319,6 +319,12 @@ export const queryKeys = {
     estadoCoyo: (preguntaId: string) =>
       ['preguntasComunidad', 'estadoCoyo', preguntaId] as const,
     /**
+     * Una pregunta individual por id — deep-link de las notificaciones del
+     * Home (`/inicio?preguntaId=<id>`). El Home la destaca arriba del feed.
+     */
+    detalle: (preguntaId: string) =>
+      ['preguntasComunidad', 'detalle', preguntaId] as const,
+    /**
      * Respuestas de la comunidad para UNA pregunta. Paginadas.
      * Invalidar todas las páginas de una pregunta: prefix
      * `['preguntasComunidad', 'respuestas', preguntaId]`.

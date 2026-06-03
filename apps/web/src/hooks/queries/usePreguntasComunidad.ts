@@ -100,6 +100,32 @@ export function usePreguntasComunidadLista(opciones?: {
 }
 
 // =============================================================================
+// DETALLE: una pregunta por id (deep-link de notificaciones)
+// =============================================================================
+
+/**
+ * Trae UNA pregunta por su id. Lo usa el Home para destacar la pregunta a la
+ * que apunta una notificación (`/inicio?preguntaId=<id>`), sin depender de
+ * que esté entre las primeras 20 del feed ni de la ciudad activa.
+ *
+ *   - `enabled: false` cuando no hay id → no hace ningún request.
+ *   - `retry: false`: si la pregunta ya no está activa el backend devuelve
+ *     404; no tiene sentido reintentar — el componente muestra un aviso.
+ *   - Devuelve `null` si el backend respondió sin `data`.
+ */
+export function usePregunta(preguntaId: string) {
+    return useQuery<PreguntaComunidad | null>({
+        queryKey: queryKeys.preguntasComunidad.detalle(preguntaId),
+        queryFn: () =>
+            preguntasComunidadService
+                .obtenerPregunta(preguntaId)
+                .then((r) => r.data ?? null),
+        enabled: preguntaId.length > 0,
+        retry: false,
+    });
+}
+
+// =============================================================================
 // MUTACIÓN: crear pregunta
 // =============================================================================
 

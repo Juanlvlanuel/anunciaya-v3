@@ -10,6 +10,7 @@ import type { Request, Response } from 'express';
 import {
     crearPregunta,
     listarPreguntasPorCiudad,
+    obtenerPreguntaPorId,
     cerrarMiPregunta,
     borrarMiPregunta,
     marcarResuelta,
@@ -163,6 +164,53 @@ export async function obtenerEstadoCoyoController(req: Request, res: Response) {
         });
     } catch (error) {
         console.error('Error en obtenerEstadoCoyoController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/preguntas-comunidad/:id  (una pregunta — deep-link de notificaciones)
+// =============================================================================
+
+/**
+ * Devuelve UNA pregunta 'activa' por su id, con el mismo shape que el feed.
+ * El Home la consume para destacar la pregunta a la que apunta una
+ * notificación (`/inicio?preguntaId=<id>`). 404 si no existe o ya no está
+ * activa (cerrada/oculta/expirada).
+ */
+export async function obtenerPreguntaPorIdController(req: Request, res: Response) {
+    try {
+        const { id } = req.params;
+
+        if (!id || !UUID_REGEX.test(id)) {
+            return res.status(400).json({
+                success: false,
+                message: 'El ID de la pregunta no es un UUID válido',
+            });
+        }
+
+        // usuarioId del token para poblar `yoTambienInteresado` (mismo shape
+        // que el feed, aunque normalmente el recomendado no marcó interés).
+        const usuarioId = obtenerUsuarioId(req);
+        const resultado = await obtenerPreguntaPorId(id, usuarioId);
+
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en obtenerPreguntaPorIdController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',
