@@ -46,14 +46,23 @@ const LIMIT_MAX = 50;
  */
 const DIAS_EXPIRACION = 14;
 
+/**
+ * Días que una pregunta marcada como RESUELTA permanece en el feed antes de
+ * cerrarse automáticamente. Tras resolverla se queda un tiempo de gracia
+ * (referencia / por si llegan más aportes) y luego sale del feed público. Se
+ * conserva en "Mis preguntas" del autor con badge "Cerrada".
+ */
+const DIAS_EXPIRACION_RESUELTA = 7;
+
 // =============================================================================
 // EXPIRACIÓN PASIVA (Sprint 1.E)
 // =============================================================================
 
 /**
- * Cierra todas las preguntas 'activa' de una ciudad que llevan más de
- * DIAS_EXPIRACION sin actividad. Es un "cron pasivo" — se ejecuta al inicio
- * de `listarPreguntasPorCiudad`, antes del SELECT del feed.
+ * Cierra preguntas 'activa' de una ciudad por inactividad (DIAS_EXPIRACION
+ * días sin respuestas nuevas) O por estar resueltas desde hace tiempo
+ * (DIAS_EXPIRACION_RESUELTA días desde `resuelta_at`). Es un "cron pasivo" —
+ * se ejecuta al inicio de `listarPreguntasPorCiudad`, antes del SELECT.
  *
  * Diseño:
  *   - "Actividad" = una respuesta NUEVA y activa. La fecha de referencia es
@@ -65,10 +74,13 @@ const DIAS_EXPIRACION = 14;
  *   - No relanza errores — si el UPDATE falla, el feed se sigue mostrando
  *     normalmente (solo no se cierran preguntas en esta corrida).
  *
- * NOTA: las preguntas marcadas como `resuelta_at IS NOT NULL` también
- * expiran — marcar resuelta NO extiende el timer (solo nuevas respuestas).
- * Esto coincide con la decisión de producto y mantiene la regla simple:
- * "14 días sin que nadie aporte algo nuevo, se autocierra".
+ * Cierra por DOS razones (cualquiera basta):
+ *   1. Inactividad: DIAS_EXPIRACION (14) días sin una respuesta nueva activa.
+ *      Marcar resuelta NO extiende este timer.
+ *   2. Resuelta: DIAS_EXPIRACION_RESUELTA (7) días desde `resuelta_at`. Tras
+ *      resolverla la pregunta se queda un tiempo de gracia en el feed
+ *      (referencia / por si llegan más aportes) y luego se cierra sola — el
+ *      autor la conserva en "Mis preguntas" con badge "Cerrada".
  */
 async function cerrarPreguntasVencidasDeCiudad(ciudad: string): Promise<void> {
     try {
@@ -78,15 +90,21 @@ async function cerrarPreguntasVencidasDeCiudad(ciudad: string): Promise<void> {
                 updated_at = NOW()
             WHERE ciudad = ${ciudad}
               AND estado_pregunta = 'activa'
-              AND COALESCE(
-                  (
-                      SELECT MAX(created_at)
-                      FROM respuestas_preguntas_comunidad
-                      WHERE pregunta_id = preguntas_comunidad.id
-                        AND estado = 'activa'
-                  ),
-                  preguntas_comunidad.created_at
-              ) < NOW() - (${DIAS_EXPIRACION} || ' days')::interval
+              AND (
+                  COALESCE(
+                      (
+                          SELECT MAX(created_at)
+                          FROM respuestas_preguntas_comunidad
+                          WHERE pregunta_id = preguntas_comunidad.id
+                            AND estado = 'activa'
+                      ),
+                      preguntas_comunidad.created_at
+                  ) < NOW() - (${DIAS_EXPIRACION} || ' days')::interval
+                  OR (
+                      resuelta_at IS NOT NULL
+                      AND resuelta_at < NOW() - (${DIAS_EXPIRACION_RESUELTA} || ' days')::interval
+                  )
+              )
         `);
     } catch (error) {
         // No relanzamos: el barrido es aditivo. Si falla, el feed se muestra

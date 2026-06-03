@@ -7,6 +7,22 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Junio 2026] - Home / Coyo — las resueltas se limpian del feed a los 7 días 🧹
+
+Las preguntas marcadas como **resueltas** ya no se quedan para siempre en el
+feed público: se quedan un **tiempo de gracia de 7 días** (referencia / por si
+llegan más aportes) y luego se **cierran solas** (`estado_pregunta='cerrada'`),
+saliendo del feed. El autor las conserva en "Mis preguntas" con badge "Cerrada".
+
+- Se reusa el "cron pasivo" existente (`cerrarPreguntasVencidasDeCiudad`, que
+  corre al listar el feed). Ahora cierra por DOS razones: inactividad
+  (`DIAS_EXPIRACION` = 14 días sin respuestas nuevas) **o** resuelta hace
+  tiempo (`DIAS_EXPIRACION_RESUELTA` = 7 días desde `resuelta_at`).
+- Sin hard delete: la pregunta y sus respuestas se conservan en BD; solo sale
+  del feed.
+
+---
+
 ## [3 Junio 2026] - Home / Coyo — "Mis preguntas" como vista real (historial) 📋
 
 "Mis preguntas" deja de ser un filtro cliente del feed y pasa a ser una **vista

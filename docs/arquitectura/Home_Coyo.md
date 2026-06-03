@@ -724,11 +724,13 @@ Home, navegar con "atrás" ni recargar).
 
 ---
 
-## Expiración pasiva (14 días)
+## Expiración pasiva (14d inactividad · 7d resuelta)
 
-Las preguntas que pasan **14 días sin nuevas respuestas activas** se
-autocierran (`estado_pregunta='cerrada'`) y salen del feed público. El
-autor sigue viéndolas en `Mis preguntas` con badge "Cerrada". Las
+Las preguntas se autocierran (`estado_pregunta='cerrada'`) y salen del feed
+público por **dos** motivos: (1) **14 días sin nuevas respuestas activas**
+(inactividad), o (2) **7 días desde que el autor las marcó como resueltas**
+(las resueltas se quedan un tiempo de gracia en el feed y luego se limpian
+solas). El autor sigue viéndolas en `Mis preguntas` con badge "Cerrada". Las
 respuestas existentes se conservan.
 
 **Diseño "cron pasivo"** (sin cron de Render):
@@ -758,17 +760,20 @@ Si la diferencia con `NOW()` supera 14 días, la pregunta se cierra.
 
 **Reglas de producto incorporadas:**
 
-- Solo NUEVAS respuestas activas resetean el timer. Likes ("yo también
-  quiero saber") y `resuelta_at` NO afectan la expiración. La regla
-  queda simple: *"14 días sin que nadie aporte algo nuevo, se autocierra"*.
-- Una pregunta marcada como resuelta hace 20 días sin más respuestas
-  también expira — `resuelta_at` no es excepción.
+- Solo NUEVAS respuestas activas resetean el timer de **inactividad**. Likes
+  ("yo también quiero saber") no lo afectan. `resuelta_at` no resetea ese
+  timer, pero dispara su PROPIO cierre (ver siguiente regla).
+- Una pregunta marcada como **resuelta** se cierra a los
+  `DIAS_EXPIRACION_RESUELTA` (7) días de `resuelta_at`, sin importar la
+  actividad: tiempo de gracia para que sirva de referencia y luego se limpia
+  del feed (decisión de producto Jun 2026).
 
 Costo: una UPDATE por GET del feed. Para Puerto Peñasco (beta, <500
 preguntas activas) es despreciable. Si crece el volumen, se evalúa
 mover a un cron real.
 
-Constante editable: `DIAS_EXPIRACION = 14` (al inicio del service).
+Constantes editables (al inicio del service): `DIAS_EXPIRACION = 14`
+(inactividad) y `DIAS_EXPIRACION_RESUELTA = 7` (desde `resuelta_at`).
 
 ---
 
