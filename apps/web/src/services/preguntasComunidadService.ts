@@ -225,8 +225,9 @@ export async function borrarMiPregunta(preguntaId: string) {
  * Backend re-dispara Coyo con el texto nuevo (fire-and-forget).
  */
 export async function editarMiPregunta({ preguntaId, textoNuevo }: EditarPreguntaInput) {
+    // El backend espera el campo `texto` en el body (no `textoNuevo`).
     return patch<{ editada: boolean }>(`/preguntas-comunidad/${preguntaId}`, {
-        textoNuevo,
+        texto: textoNuevo,
     });
 }
 
