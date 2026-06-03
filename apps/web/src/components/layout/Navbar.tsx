@@ -383,6 +383,15 @@ export const Navbar = () => {
     : usuario?.nombre?.charAt(0).toUpperCase() || '?';
 
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
+  // En el Home (/inicio) el buscador del header es inerte: la sección es
+  // 'general' (sin overlay ni página que lea el query) y además compite
+  // visualmente con el input de Coyo. Se vuelve INVISIBLE solo aquí (no se
+  // desmonta) para conservar el ancho que ocupaba — así ubicación, tabs y
+  // acciones no se reacomodan: es "ocultar", no "quitar". Además se matan
+  // las transiciones del subárbol ([&_*]:transition-none!) porque la lupa y
+  // el pill usan transition-all (incluye `visibility`); sin esto, al navegar
+  // a /inicio se vería la animación de ocultarse en vez de desaparecer ya.
+  const esInicio = location.pathname === '/inicio';
 
   const NAV_ITEMS = esComercial
     ? NAV_ITEMS_BASE
@@ -478,7 +487,8 @@ export const Navbar = () => {
                     queda fuera del pill como elemento independiente. ===== */}
                 <div
                   ref={buscadorRef}
-                  className="relative flex items-center"
+                  className={`relative flex items-center ${esInicio ? 'invisible pointer-events-none [&_*]:transition-none!' : ''}`}
+                  aria-hidden={esInicio || undefined}
                   onMouseLeave={() => {
                     if (document.activeElement !== inputBuscadorRef.current && !searchQuery.trim()) {
                       setBuscadorExpandido(false);
