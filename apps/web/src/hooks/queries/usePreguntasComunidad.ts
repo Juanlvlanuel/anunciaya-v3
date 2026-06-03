@@ -37,9 +37,11 @@
 
 import {
     useQuery,
+    useInfiniteQuery,
     useMutation,
     useQueryClient,
     keepPreviousData,
+    type InfiniteData,
 } from '@tanstack/react-query';
 import * as preguntasComunidadService from '../../services/preguntasComunidadService';
 import {
@@ -60,7 +62,6 @@ import { queryKeys } from '../../config/queryKeys';
 // =============================================================================
 
 const LIMIT_DEFAULT = 20;
-const OFFSET_DEFAULT = 0;
 
 // =============================================================================
 // LISTA: feed de la ciudad activa
@@ -77,20 +78,29 @@ const OFFSET_DEFAULT = 0;
  *   - `placeholderData: keepPreviousData`: al cambiar de ciudad, mantiene la
  *     lista anterior visible hasta que llega la nueva (sin temblor).
  */
-export function usePreguntasComunidadLista(opciones?: {
-    limit?: number;
-    offset?: number;
-}) {
+export function usePreguntasComunidadLista() {
     const ciudad = useGpsStore((s) => s.ciudad?.nombre ?? '');
-    const limit = opciones?.limit ?? LIMIT_DEFAULT;
-    const offset = opciones?.offset ?? OFFSET_DEFAULT;
 
-    return useQuery({
-        queryKey: queryKeys.preguntasComunidad.porCiudad(ciudad, { limit, offset }),
-        queryFn: () =>
-            preguntasComunidadService
-                .listarPreguntasPorCiudad({ ciudad, limit, offset })
-                .then((r) => r.data ?? []),
+    return useInfiniteQuery({
+        queryKey: queryKeys.preguntasComunidad.porCiudad(ciudad),
+        queryFn: ({ pageParam }) =>
+            preguntasComunidadService.listarPreguntasPorCiudad({
+                ciudad,
+                limit: LIMIT_DEFAULT,
+                offset: pageParam,
+            }),
+        initialPageParam: 0,
+        // El siguiente offset = total de preguntas ya cargadas. Si eso sigue
+        // siendo menor que el `total` de la ciudad (COUNT del backend), hay
+        // más páginas; si ya las cargamos todas, devuelve undefined y el
+        // scroll infinito se detiene.
+        getNextPageParam: (ultimaPagina, todasLasPaginas) => {
+            const cargadas = todasLasPaginas.reduce(
+                (acc, p) => acc + p.preguntas.length,
+                0,
+            );
+            return cargadas < ultimaPagina.total ? cargadas : undefined;
+        },
         enabled: ciudad.length > 0,
         placeholderData: keepPreviousData,
         // Sobrescribe el default global (false) — el Home se beneficia de
@@ -350,37 +360,45 @@ export function useBorrarMiRespuesta() {
  * `delta = +1` (marcar) o `-1` (quitar). El optimistic update también
  * cambia el booleano `yoTambienInteresado` al valor objetivo.
  */
+/** Shape del caché del feed (useInfiniteQuery): páginas `{ preguntas, total }`. */
+type FeedInfinitoCache = InfiniteData<{ preguntas: PreguntaComunidad[]; total: number }>;
+
 function aplicarDeltaInteresOptimista(
     qc: ReturnType<typeof useQueryClient>,
     preguntaId: string,
     delta: 1 | -1,
-): Map<readonly unknown[], PreguntaComunidad[] | undefined> {
+): Map<readonly unknown[], FeedInfinitoCache | undefined> {
     const objetivo = delta === 1;
-    const snapshot = new Map<readonly unknown[], PreguntaComunidad[] | undefined>();
+    const snapshot = new Map<readonly unknown[], FeedInfinitoCache | undefined>();
 
-    // Recorre TODAS las queries del feed (porCiudad), parchea la pregunta
-    // afectada. React Query devuelve [key, data] pairs.
-    const queriesFeed = qc.getQueriesData<PreguntaComunidad[]>({
+    // Recorre TODAS las queries del feed (porCiudad). Ahora el feed es
+    // `useInfiniteQuery`, así que el caché es `{ pages: [{ preguntas, total }] }`:
+    // hay que parchar la pregunta DENTRO de la página que la contenga.
+    const queriesFeed = qc.getQueriesData<FeedInfinitoCache>({
         queryKey: ['preguntasComunidad', 'porCiudad'],
     });
 
     for (const [key, data] of queriesFeed) {
         snapshot.set(key, data);
-        if (!data) continue;
-        const idx = data.findIndex((p) => p.id === preguntaId);
-        if (idx === -1) continue;
-        const actual = data[idx];
-        // Si el estado ya coincide con el objetivo, no tocamos nada (la
-        // mutación es idempotente y no debería cambiar el conteo).
-        if (actual.yoTambienInteresado === objetivo) continue;
-        const parchada: PreguntaComunidad = {
-            ...actual,
-            yoTambienInteresado: objetivo,
-            totalInteresados: Math.max(0, actual.totalInteresados + delta),
-        };
-        const nueva = [...data];
-        nueva[idx] = parchada;
-        qc.setQueryData(key, nueva);
+        if (!data?.pages) continue;
+        let cambio = false;
+        const nuevasPaginas = data.pages.map((pagina) => {
+            const idx = pagina.preguntas.findIndex((p) => p.id === preguntaId);
+            if (idx === -1) return pagina;
+            const actual = pagina.preguntas[idx];
+            // Si el estado ya coincide con el objetivo, no tocamos nada (la
+            // mutación es idempotente y no debería cambiar el conteo).
+            if (actual.yoTambienInteresado === objetivo) return pagina;
+            cambio = true;
+            const nuevasPreguntas = [...pagina.preguntas];
+            nuevasPreguntas[idx] = {
+                ...actual,
+                yoTambienInteresado: objetivo,
+                totalInteresados: Math.max(0, actual.totalInteresados + delta),
+            };
+            return { ...pagina, preguntas: nuevasPreguntas };
+        });
+        if (cambio) qc.setQueryData(key, { ...data, pages: nuevasPaginas });
     }
 
     return snapshot;

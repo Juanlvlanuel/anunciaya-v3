@@ -306,11 +306,11 @@ export const queryKeys = {
   // ['preguntasComunidad', 'porCiudad', ciudad].
   preguntasComunidad: {
     all: () => ['preguntasComunidad'] as const,
-    porCiudad: (
-      ciudad: string,
-      paginacion: { limit: number; offset: number },
-    ) =>
-      ['preguntasComunidad', 'porCiudad', ciudad, paginacion] as const,
+    // Feed infinito por ciudad. La paginación la maneja `useInfiniteQuery`
+    // internamente (no va en la key). Invalidar todo el feed de una ciudad:
+    // prefix `['preguntasComunidad', 'porCiudad', ciudad]`.
+    porCiudad: (ciudad: string) =>
+      ['preguntasComunidad', 'porCiudad', ciudad] as const,
     /**
      * Sondeo del estado de Coyo de UNA pregunta. El hook hace polling
      * con refetchInterval condicional (2s mientras 'pendiente'/'procesando',

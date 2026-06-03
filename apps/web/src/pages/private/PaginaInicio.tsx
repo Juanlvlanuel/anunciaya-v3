@@ -16,7 +16,7 @@
  * Ubicación: apps/web/src/pages/private/PaginaInicio.tsx
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
 import { Users, History, RefreshCcw, Inbox, Sparkles, ArrowUp, X } from 'lucide-react';
@@ -31,6 +31,7 @@ import {
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
 import { useScrollDirection } from '../../hooks/useScrollDirection';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
+import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { AreaPreguntaCoyo, CoyoInput } from '../../components/home/AreaPreguntaCoyo';
 import { CardPreguntaEditorial } from '../../components/home/CardPreguntaEditorial';
 import { AdornoRailCoyo, AdornoCoyoMovil } from '../../components/home/AdornoRailCoyo';
@@ -63,10 +64,13 @@ function SegmentoFeed({
     segmento,
     onChange,
     className = '',
+    conteos,
 }: {
     segmento: Segmento;
     onChange: (s: Segmento) => void;
     className?: string;
+    /** Número de publicaciones por segmento — se muestra como badge en cada botón. */
+    conteos?: { comunidad: number; mias: number };
 }) {
     return (
         <div className={`flex gap-1 p-1 rounded-full bg-slate-200 border-2 border-slate-300 ${className}`}>
@@ -77,6 +81,7 @@ function SegmentoFeed({
                 ] as const
             ).map(([id, label, Icon]) => {
                 const activo = segmento === id;
+                const conteo = conteos ? conteos[id] : undefined;
                 return (
                     <button
                         key={id}
@@ -88,6 +93,14 @@ function SegmentoFeed({
                     >
                         <Icon size={15} strokeWidth={2.25} />
                         <span className="truncate">{label}</span>
+                        {typeof conteo === 'number' && conteo > 0 && (
+                            <span
+                                data-testid={`home-segmento-badge-${id}`}
+                                className={`inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full text-xs font-bold ${activo ? 'bg-white/25 text-white' : 'bg-slate-300 text-slate-700'}`}
+                            >
+                                {conteo > 99 ? '99+' : conteo}
+                            </span>
+                        )}
                     </button>
                 );
             })}
@@ -103,10 +116,12 @@ function FeedHeader({
     ciudad,
     segmento,
     onSegmento,
+    conteos,
 }: {
     ciudad: string;
     segmento: Segmento;
     onSegmento: (s: Segmento) => void;
+    conteos?: { comunidad: number; mias: number };
 }) {
     return (
         <div className="flex items-center justify-between gap-3 px-1">
@@ -114,7 +129,7 @@ function FeedHeader({
                 <span className="font-medium text-slate-600">Pregunta a </span>
                 <span className="font-bold text-slate-800">{ciudad}</span>
             </h2>
-            <SegmentoFeed segmento={segmento} onChange={onSegmento} className="shrink-0" />
+            <SegmentoFeed segmento={segmento} onChange={onSegmento} className="shrink-0" conteos={conteos} />
         </div>
     );
 }
@@ -341,6 +356,12 @@ export function PaginaInicio() {
     const feed = usePreguntasComunidadLista();
     const crear = useCrearPregunta();
 
+    // El feed es useInfiniteQuery → aplanamos sus páginas a un solo array.
+    const preguntas = useMemo(
+        () => feed.data?.pages.flatMap((p) => p.preguntas) ?? [],
+        [feed.data],
+    );
+
     // Deep-link de notificaciones: /inicio?preguntaId=<id> destaca esa pregunta
     // arriba del feed. Se pide aparte (no depende del feed ni de la paginación).
     //
@@ -381,7 +402,7 @@ export function PaginaInicio() {
         usuarioId,
         textoInput: texto,
         crearPendiente: crear.isPending,
-        preguntas: feed.data,
+        preguntas,
     });
 
     const puedeEnviar = texto.trim().length > 0 && hayCiudad && !crear.isPending;
@@ -402,7 +423,6 @@ export function PaginaInicio() {
 
     // Preguntas a mostrar según el segmento. "Mis preguntas" = las del usuario
     // presentes en el feed (mismo criterio desktop/móvil).
-    const preguntas = useMemo(() => feed.data ?? [], [feed.data]);
     const misEnFeed = useMemo(
         () => preguntas.filter((p) => !!usuarioId && p.autorId === usuarioId),
         [preguntas, usuarioId],
@@ -415,6 +435,12 @@ export function PaginaInicio() {
             ? base.filter((p) => p.id !== preguntaIdDestacada)
             : base;
     }, [segmento, misEnFeed, preguntas, preguntaIdDestacada]);
+
+    // Conteos para el badge del toggle: Comunidad = total real del backend
+    // (COUNT de activas de la ciudad); Mis preguntas = las del usuario
+    // presentes en lo ya cargado del feed.
+    const totalComunidad = feed.data?.pages[0]?.total ?? 0;
+    const conteosSegmento = { comunidad: totalComunidad, mias: misEnFeed.length };
 
     const esMovil = useEsMovil();
 
@@ -444,10 +470,85 @@ export function PaginaInicio() {
         setTimeout(enfocarInput, 0);
     };
 
+    // ── Scroll infinito ──────────────────────────────────────────────────
+    // Sentinel al final del feed + IntersectionObserver: cuando entra al
+    // viewport y hay más páginas, pide la siguiente. Auto-load en PC y móvil
+    // (el Home es un feed tipo Facebook, no un grid). Solo en "Comunidad"
+    // (Mis preguntas es un filtro cliente sobre lo ya cargado). El root es el
+    // <main> scrolleable cuando existe; si no, el viewport.
+    const sentinelaRef = useRef<HTMLDivElement | null>(null);
+    const { hasNextPage, isFetchingNextPage, fetchNextPage } = feed;
+    useEffect(() => {
+        const el = sentinelaRef.current;
+        if (!el || !hasNextPage) return;
+        const observer = new IntersectionObserver(
+            (entries) => {
+                if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+                    fetchNextPage();
+                }
+            },
+            { root: mainScrollRef?.current ?? null, rootMargin: '300px' },
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [hasNextPage, isFetchingNextPage, fetchNextPage, mainScrollRef, segmento]);
+
+    const sentinelFeed = segmento === 'comunidad' ? (
+        <>
+            <div ref={sentinelaRef} aria-hidden="true" className="h-1" />
+            {isFetchingNextPage && (
+                <div className="flex justify-center py-4" data-testid="home-cargando-mas">
+                    <div className="h-7 w-7 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
+                </div>
+            )}
+        </>
+    ) : null;
+
+    // ── Refresh tipo Facebook ────────────────────────────────────────────
+    // Móvil: pull-to-refresh (gesto). PC: refresca al entrar (auto). Ambos
+    // llaman feed.refetch(); el indicador visual difiere por plataforma.
+    const pull = usePullToRefresh({
+        onRefresh: () => feed.refetch(),
+        scrollRef: mainScrollRef,
+        habilitado: esMovil,
+    });
+
+    // PC: refresca al entrar al Home (estilo Facebook). En móvil el refresh es
+    // por gesto, no automático. Solo al montar.
+    useEffect(() => {
+        if (esMovil) return;
+        feed.refetch();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, []);
+
+    // Indicador del jalón (móvil): círculo que rota con el progreso y gira
+    // mientras refresca. Su altura crece con el jalón y se recoge al soltar.
+    const indicadorPull = pull.distancia > 0 || pull.refrescando ? (
+        <div
+            className="flex items-center justify-center overflow-hidden transition-[height] duration-150"
+            style={{ height: pull.refrescando ? 40 : pull.distancia }}
+            aria-hidden="true"
+        >
+            <div
+                className={`h-6 w-6 rounded-full border-2 border-slate-300 border-t-blue-500 ${pull.refrescando ? 'animate-spin' : ''}`}
+                style={pull.refrescando ? undefined : { transform: `rotate(${pull.progreso * 270}deg)`, opacity: pull.progreso }}
+            />
+        </div>
+    ) : null;
+
+    // Indicador de refresco en PC: spinner arriba del feed mientras refetchea
+    // (al entrar o al volver a la pestaña), sin contar la carga de más páginas.
+    const indicadorRefrescoPc = feed.isRefetching && !isFetchingNextPage ? (
+        <div className="flex items-center justify-center py-2" data-testid="home-refrescando" aria-hidden="true">
+            <div className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-500" />
+        </div>
+    ) : null;
+
     // ── MÓVIL ────────────────────────────────────────────────────────────
     if (esMovil) {
         return (
             <div className="w-full max-w-[520px] mx-auto px-4 py-3">
+                {indicadorPull}
                 {/* Coyo protagonista (scrollea) — sin input (va sticky abajo).
                     Adorno (huellitas + cueva + sparkles) detrás de la mascota.
                     `-mx-4` rompe el padding del contenedor para que la cueva
@@ -479,7 +580,7 @@ export function PaginaInicio() {
                         puedeEnviar={puedeEnviar}
                         placeholder={hayCiudad ? 'Escribe lo que buscas…' : 'Activa tu ubicación para preguntar'}
                     />
-                    <SegmentoFeed segmento={segmento} onChange={setSegmento} className="w-full" />
+                    <SegmentoFeed segmento={segmento} onChange={setSegmento} className="w-full" conteos={conteosSegmento} />
                 </div>
 
                 {/* Contenido según segmento */}
@@ -493,6 +594,7 @@ export function PaginaInicio() {
                         onEnfocar={enfocarInput}
                         onUsarEjemplo={usarEjemplo}
                     />
+                    {sentinelFeed}
                 </div>
 
                 <BotonIrArriba />
@@ -527,7 +629,8 @@ export function PaginaInicio() {
                 <div className="w-full min-w-0 flex-1 lg:max-w-[760px]">
                     <div className="w-full space-y-3 lg:space-y-4">
                         {bloqueDestacado}
-                        <FeedHeader ciudad={nombreCiudad} segmento={segmento} onSegmento={setSegmento} />
+                        <FeedHeader ciudad={nombreCiudad} segmento={segmento} onSegmento={setSegmento} conteos={conteosSegmento} />
+                        {indicadorRefrescoPc}
                         <ContenidoFeed
                             hayCiudad={hayCiudad}
                             feed={feed}
@@ -536,6 +639,7 @@ export function PaginaInicio() {
                             onEnfocar={enfocarInput}
                             onUsarEjemplo={usarEjemplo}
                         />
+                        {sentinelFeed}
                     </div>
                 </div>
             </div>

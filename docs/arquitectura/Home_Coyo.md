@@ -885,7 +885,7 @@ props estables:
 
 ```typescript
 // Feed de la ciudad activa del useGpsStore
-usePreguntasComunidadLista()
+usePreguntasComunidadLista()              // useInfiniteQuery — feed paginado (scroll infinito)
 useCrearPregunta()
 useEstadoCoyo(preguntaId, estadoInicial)  // sondeo 2s mientras pendiente/procesando
 usePregunta(preguntaId)                   // UNA pregunta por id (deep-link de notificaciones)
@@ -919,6 +919,30 @@ patrón normal (sin optimistic).
 - `refetchInterval`: función que devuelve `2000` mientras `data?.estadoCoyo` sea pendiente/procesando, `false` cuando llega a estado final → **se detiene solo**.
 - `refetchOnWindowFocus: false` (el intervalo ya está activo, sería redundante).
 - Cuando la pregunta llega a estado final, el hook invalida la query del feed para que las consumers que dependen de `feed.data` (ej. `useCoyoEstadoVisual` para apagar el "pensando" del Coyo animado) vean el cambio inmediato.
+
+### Feed: scroll infinito, refresh y badge
+
+El feed del Home funciona al estilo Facebook (Jun 2026):
+
+- **Scroll infinito** — `usePreguntasComunidadLista` es un `useInfiniteQuery`
+  (páginas de 20 por `offset`). El backend devuelve `paginacion.total` (COUNT de
+  activas de la ciudad) y el front infiere "hay más" comparando lo cargado con
+  el total. Un `<div>` sentinel al final + `IntersectionObserver`
+  (`rootMargin: 300px`, root = el `<main>`) dispara `fetchNextPage`. Auto-load
+  en PC y móvil; solo en el segmento **Comunidad** ("Mis preguntas" filtra lo ya
+  cargado). El caché es `{ pages: [{ preguntas, total }] }` → se aplana con
+  `feed.data.pages.flatMap(p => p.preguntas)`, y el optimistic de interés parcha
+  dentro de las páginas.
+- **Refresh tipo Facebook** — hook reutilizable `usePullToRefresh`
+  (`hooks/usePullToRefresh.ts`):
+  - **Móvil**: pull-to-refresh por gesto (resistencia + umbral 70px;
+    `preventDefault` en `touchmove` mata el pull nativo del navegador).
+    Indicador que rota con el progreso y gira al refrescar.
+  - **PC**: auto-refresh al entrar (`feed.refetch()` en mount) + spinner arriba
+    del feed mientras `isRefetching`.
+- **Badge contador** — `SegmentoFeed` muestra el número por segmento: Comunidad
+  = `total` real del backend; Mis preguntas = las del usuario presentes en lo
+  cargado. Se oculta si es 0; tope "99+".
 
 ### Card del feed — `CardPreguntaEditorial`
 

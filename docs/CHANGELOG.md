@@ -7,6 +7,31 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Junio 2026] - Home / Coyo — feed modernizado (scroll infinito + refresh + badge) ♾️🔄
+
+El feed del Home se moderniza al estilo Facebook.
+
+**Scroll infinito**: `usePreguntasComunidadLista` pasa de `useQuery` a
+`useInfiniteQuery` (páginas de 20 por `offset`). El backend del feed ahora
+devuelve `paginacion.total` (COUNT de preguntas activas de la ciudad); el front
+infiere "hay más" comparando lo cargado contra el total. Sentinel +
+`IntersectionObserver` (`rootMargin: 300px`, root = el `<main>`) auto-cargan en
+PC y móvil, solo en el segmento "Comunidad". Antes el feed topaba en 20 sin
+forma de ver más. El optimistic update de interés se adaptó al caché de páginas
+(`InfiniteData`).
+
+**Refresh tipo Facebook**: hook nuevo reutilizable `usePullToRefresh` —
+pull-to-refresh por gesto en móvil (resistencia + umbral 70px; `preventDefault`
+en `touchmove` mata el pull nativo del navegador) y auto-refresh al entrar en
+PC (`feed.refetch()` en mount + spinner mientras `isRefetching`). Pensado para
+que MarketPlace/Servicios lo adopten después.
+
+**Badge contador**: el toggle "Comunidad · Mis preguntas" muestra el número de
+publicaciones por segmento (Comunidad = `total` real del backend; Mis preguntas
+= las del usuario presentes en lo cargado).
+
+---
+
 ## [3 Junio 2026] - Home / Coyo — deep-link de notificaciones a la pregunta 🔔🦊
 
 Las tres notificaciones del Home (`coyo_recomendacion`,

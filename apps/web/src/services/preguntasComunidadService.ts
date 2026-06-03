@@ -25,7 +25,7 @@
  * Ubicación: apps/web/src/services/preguntasComunidadService.ts
  */
 
-import { del, get, patch, post } from './api';
+import { api, del, get, patch, post } from './api';
 import type {
     PreguntaComunidad,
     CrearPreguntaInput,
@@ -67,12 +67,23 @@ export async function listarPreguntasPorCiudad({
     ciudad,
     limit,
     offset,
-}: ListarPreguntasPorCiudadInput) {
+}: ListarPreguntasPorCiudadInput): Promise<{ preguntas: PreguntaComunidad[]; total: number }> {
     const params = new URLSearchParams();
     params.set('ciudad', ciudad);
     if (typeof limit === 'number') params.set('limit', String(limit));
     if (typeof offset === 'number') params.set('offset', String(offset));
-    return get<PreguntaComunidad[]>(`/preguntas-comunidad?${params.toString()}`);
+    // Usa `api.get` directo (no el helper `get<T>`, que solo expone `data`)
+    // para leer también `paginacion.total` — el feed lo necesita para el
+    // scroll infinito (saber si hay más) y el badge contador del toggle.
+    const resp = await api.get<{
+        success: boolean;
+        data?: PreguntaComunidad[];
+        paginacion?: { total: number; limit: number; offset: number };
+    }>(`/preguntas-comunidad?${params.toString()}`);
+    return {
+        preguntas: resp.data.data ?? [],
+        total: resp.data.paginacion?.total ?? 0,
+    };
 }
 
 // =============================================================================

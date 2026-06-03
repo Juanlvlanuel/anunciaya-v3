@@ -111,10 +111,18 @@ export async function listarPreguntasPorCiudadController(req: Request, res: Resp
             });
         }
 
+        // `data` sigue siendo el array de preguntas (no rompe consumidores
+        // viejos); `paginacion.total` es el COUNT de activas de la ciudad,
+        // que usa el frontend para el scroll infinito y el badge contador.
         return res.status(200).json({
             success: true,
             message: resultado.message,
-            data: resultado.data,
+            data: resultado.data?.preguntas ?? [],
+            paginacion: {
+                total: resultado.data?.total ?? 0,
+                limit: limit ?? 20,
+                offset: offset ?? 0,
+            },
         });
     } catch (error) {
         console.error('Error en listarPreguntasPorCiudadController:', error);

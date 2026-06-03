@@ -227,7 +227,7 @@ export async function crearPregunta(
  */
 export async function listarPreguntasPorCiudad(
     input: ListarPreguntasPorCiudadInput
-): Promise<RespuestaServicio<PreguntaComunidadResponse[]>> {
+): Promise<RespuestaServicio<{ preguntas: PreguntaComunidadResponse[]; total: number }>> {
     try {
         const ciudad = (input.ciudad ?? '').trim();
         if (ciudad.length === 0) {
@@ -330,10 +330,22 @@ export async function listarPreguntasPorCiudad(
             yoTambienInteresado: Boolean(f.yoTambienInteresado),
         }));
 
+        // Total de preguntas 'activa' de la ciudad — independiente de la
+        // paginación. Lo consume el frontend para el scroll infinito
+        // (saber si hay más páginas) y el badge contador del toggle.
+        const [conteo] = await db
+            .select({ total: sql<number>`COUNT(*)::int` })
+            .from(preguntasComunidad)
+            .where(and(
+                eq(preguntasComunidad.ciudad, ciudad),
+                eq(preguntasComunidad.estadoPregunta, 'activa'),
+            ));
+        const total = Number(conteo?.total) || 0;
+
         return {
             success: true,
             message: 'Preguntas obtenidas',
-            data: preguntas,
+            data: { preguntas, total },
         };
     } catch (error) {
         console.error('Error en listarPreguntasPorCiudad:', error);
