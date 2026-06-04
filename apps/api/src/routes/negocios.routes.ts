@@ -59,7 +59,7 @@ import {
 } from '../controllers/sucursales.controller';
 import { verificarToken } from '../middleware/auth';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware';
-import { verificarNegocio } from '../middleware/negocio.middleware';
+import { verificarNegocio, verificarPropietarioNegocio } from '../middleware/negocio.middleware';
 import { validarAccesoSucursal } from '../middleware/sucursal.middleware';
 
 const router: Router = Router();
@@ -482,52 +482,64 @@ router.post('/upload-imagen', verificarToken, async (req, res) => {
 });
 
 /**
- * DELETE /api/negocios/:id/logo
+ * DELETE /api/negocios/:negocioId/logo
  * Elimina el logo del negocio (pone NULL en BD)
- * 
+ * El logo es del NEGOCIO entero → solo el dueño (verificarPropietarioNegocio).
+ * Los gerentes reciben 403.
+ *
  * Response 200:
  * {
  *   "success": true,
  *   "message": "Logo eliminado correctamente"
  * }
  */
-router.delete('/:id/logo', eliminarLogoController);
+router.delete('/:negocioId/logo', verificarPropietarioNegocio, eliminarLogoController);
 
 /**
  * DELETE /api/negocios/:id/portada
- * Elimina la portada del negocio (pone NULL en BD)
- * 
+ * Elimina la portada de la SUCURSAL (pone NULL en BD).
+ * La portada es por-sucursal → dueño o gerente con acceso (validarAccesoSucursal).
+ * El sucursalId viaja por query (?sucursalId=), igual que el controller lo lee.
+ *
  * Response 200:
  * {
  *   "success": true,
  *   "message": "Portada eliminada correctamente"
  * }
  */
-router.delete('/:id/portada', eliminarPortadaController);
+router.delete('/:id/portada', validarAccesoSucursal, eliminarPortadaController);
 
 /**
- * DELETE /api/negocios/sucursal/:id/foto-perfil
- * Elimina la foto de perfil de la sucursal (pone NULL en BD)
- * 
+ * DELETE /api/negocios/sucursal/:sucursalId/foto-perfil
+ * Elimina la foto de perfil de la SUCURSAL (pone NULL en BD).
+ * Es por-sucursal → dueño o gerente con acceso (validarAccesoSucursal).
+ * El sucursalId viene en la URL; validarAccesoSucursal lo lee de params primero.
+ *
  * Response 200:
  * {
  *   "success": true,
  *   "message": "Foto de perfil eliminada correctamente"
  * }
  */
-router.delete('/sucursal/:id/foto-perfil', eliminarFotoPerfilController);
+router.delete('/sucursal/:sucursalId/foto-perfil', validarAccesoSucursal, eliminarFotoPerfilController);
 
 /**
  * DELETE /api/negocios/:negocioId/galeria/:imageId
- * Elimina una imagen específica de la galería
- * 
+ * Elimina una imagen específica de la galería.
+ *
+ * Cierre PARCIAL (tapón consciente): por ahora solo el dueño del negocio
+ * (verificarPropietarioNegocio sobre el :negocioId de la URL). Pendientes para
+ * una ronda dedicada de galería:
+ *   - permitir gerente con acceso a la sucursal (no solo dueño)
+ *   - validar imageId ∈ sucursal en el service eliminarImagenGaleria
+ *
  * Response 200:
  * {
  *   "success": true,
  *   "message": "Imagen eliminada de galería"
  * }
  */
-router.delete('/:negocioId/galeria/:imageId', eliminarImagenGaleriaController);
+router.delete('/:negocioId/galeria/:imageId', verificarPropietarioNegocio, eliminarImagenGaleriaController);
 
 // =============================================================================
 // EXPORTS

@@ -40,7 +40,11 @@ export async function validarAccesoSucursal(
     next: NextFunction
 ) {
     try {
-        const { sucursalId } = req.query;
+        // El sucursalId puede venir como parámetro de ruta (ej. /sucursal/:sucursalId/...)
+        // o por query string (?sucursalId=, lo agrega el interceptor Axios en modo
+        // comercial). Se lee de PARAMS PRIMERO: cuando el recurso a modificar está en
+        // la URL, ese id manda y no puede sobrescribirse por un query de otra sucursal.
+        const sucursalId = (req.params.sucursalId ?? req.query.sucursalId) as string | undefined;
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const userId = (req as any).usuario?.usuarioId;
         

@@ -264,7 +264,7 @@ export async function obtenerGaleriaController(req: Request, res: Response) {
  */
 export async function eliminarLogoController(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const { negocioId: id } = req.params;
 
         if (!id) {
             return res.status(400).json({
@@ -345,7 +345,7 @@ export async function eliminarImagenGaleriaController(req: Request, res: Respons
  */
 export async function eliminarFotoPerfilController(req: Request, res: Response) {
     try {
-        const { id } = req.params;
+        const { sucursalId: id } = req.params;
 
         if (!id) {
             return res.status(400).json({
