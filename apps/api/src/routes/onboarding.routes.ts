@@ -25,7 +25,7 @@ import {
   guardarBorradorArticulosController,
 } from '../controllers/onboarding.controller';
 import { verificarToken } from '../middleware/auth';
-// import { verificarPropietarioNegocio } from '../middleware/negocio.middleware'; // Crearemos después
+import { verificarPropietarioNegocio } from '../middleware/negocio.middleware';
 
 const router: Router = Router();
 
@@ -35,9 +35,11 @@ const router: Router = Router();
 // Todas las rutas requieren autenticación
 router.use(verificarToken);
 
-// NOTA: Descomentar cuando se cree negocio.middleware.ts
-// Todas las rutas requieren que el usuario sea dueño del negocio
-// router.use('/:negocioId', verificarPropietarioNegocio);
+// ============================================
+// RUTAS SIN :negocioId (solo requieren verificarToken)
+// Se registran ANTES del guard de propiedad para que NO sean capturadas
+// por el patrón '/:negocioId' (que las trataría como un negocioId).
+// ============================================
 
 // ============================================
 // OBTENER NEGOCIO DEL USUARIO AUTENTICADO
@@ -49,6 +51,44 @@ router.use(verificarToken);
  * Retorna: { success: true, data: { negocioId, nombre, esBorrador, onboardingCompletado } | null }
  */
 router.get('/mi-negocio', obtenerMiNegocio);
+
+// ============================================
+// UPLOAD DE IMÁGENES A R2 (presigned URL)
+// ============================================
+
+/**
+ * POST /api/onboarding/upload-imagen
+ * Genera presigned URL para subir imagen directamente a R2
+ * Body: { nombreArchivo: string, contentType: string, carpeta?: string }
+ */
+router.post('/upload-imagen', async (req, res) => {
+  const { generarPresignedUrl } = await import('../services/r2.service');
+  const { nombreArchivo, contentType, carpeta = 'onboarding' } = req.body;
+
+  if (!nombreArchivo || !contentType) {
+    res.status(400).json({ success: false, message: 'nombreArchivo y contentType son requeridos' });
+    return;
+  }
+
+  const carpetasPermitidas = ['logos', 'portadas', 'galeria', 'onboarding'];
+  const carpetaFinal = carpetasPermitidas.includes(carpeta) ? carpeta : 'onboarding';
+
+  const resultado = await generarPresignedUrl(
+    carpetaFinal,
+    nombreArchivo,
+    contentType,
+    300,
+    ['image/jpeg', 'image/png', 'image/webp']
+  );
+
+  res.status(resultado.code).json(resultado);
+});
+
+// ============================================
+// GUARD DE PROPIEDAD — a partir de aquí, toda ruta con :negocioId
+// exige que el usuario autenticado sea el dueño del negocio.
+// ============================================
+router.use('/:negocioId', verificarPropietarioNegocio);
 
 // ============================================
 // PASO 1: NOMBRE DEL NEGOCIO, CATEGORIA Y SUBCATEGORÍAS
@@ -113,38 +153,6 @@ router.post('/:negocioId/contacto', actualizarContacto);
  * }
  */
 router.post('/:negocioId/horarios', guardarHorarios);
-
-// ============================================
-// UPLOAD DE IMÁGENES A R2 (presigned URL)
-// ============================================
-
-/**
- * POST /api/onboarding/upload-imagen
- * Genera presigned URL para subir imagen directamente a R2
- * Body: { nombreArchivo: string, contentType: string, carpeta?: string }
- */
-router.post('/upload-imagen', async (req, res) => {
-  const { generarPresignedUrl } = await import('../services/r2.service');
-  const { nombreArchivo, contentType, carpeta = 'onboarding' } = req.body;
-
-  if (!nombreArchivo || !contentType) {
-    res.status(400).json({ success: false, message: 'nombreArchivo y contentType son requeridos' });
-    return;
-  }
-
-  const carpetasPermitidas = ['logos', 'portadas', 'galeria', 'onboarding'];
-  const carpetaFinal = carpetasPermitidas.includes(carpeta) ? carpeta : 'onboarding';
-
-  const resultado = await generarPresignedUrl(
-    carpetaFinal,
-    nombreArchivo,
-    contentType,
-    300,
-    ['image/jpeg', 'image/png', 'image/webp']
-  );
-
-  res.status(resultado.code).json(resultado);
-});
 
 // ============================================
 // PASO 5: IMÁGENES

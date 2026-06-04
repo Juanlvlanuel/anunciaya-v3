@@ -498,14 +498,9 @@ export const crearArticulos = async (req: Request, res: Response) => {
 export const finalizar = async (req: Request, res: Response) => {
     try {
         const { negocioId } = req.params;
-        const { usuarioId } = req.body;
-
-        if (!usuarioId) {
-            return res.status(400).json({
-                success: false,
-                message: 'usuarioId es requerido',
-            });
-        }
+        // La identidad SIEMPRE viene del token, nunca del body. Si el cliente
+        // manda un usuarioId en el body, se ignora por completo.
+        const usuarioId = req.usuario!.usuarioId;
 
         // Usa finalizarOnboarding del onboarding.service (específico del wizard)
         const result = await finalizarOnboarding(negocioId, usuarioId);
