@@ -29,6 +29,7 @@ import { usuarios, negocios, negocioSucursales, embajadores } from '../db/schema
 import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
+import { obtenerConfigNumero } from './configuracion.service.js';
 import { eq, and } from 'drizzle-orm';
 
 // =============================================================================
@@ -179,8 +180,8 @@ export async function crearCheckoutSession(
 
         // Configuración de la suscripción
         subscription_data: {
-            // Trial de 7 días gratis
-            trial_period_days: 7,
+            // Duración del trial: se lee de configuracionSistema (default 14 días)
+            trial_period_days: await obtenerConfigNumero('trial_duracion_dias', 14),
 
             // Metadata que se guarda en la suscripción
             metadata: {
@@ -303,7 +304,8 @@ export async function crearCheckoutUpgrade(
         ],
 
         subscription_data: {
-            trial_period_days: 7,
+            // Duración del trial: se lee de configuracionSistema (default 14 días)
+            trial_period_days: await obtenerConfigNumero('trial_duracion_dias', 14),
             metadata: {
                 usuarioId,
                 correo,
@@ -409,10 +411,24 @@ export async function procesarWebhook(
             break;
         }
 
+        case 'invoice.payment_succeeded': {
+            // Renovación cobrada (o primer cobro al terminar el trial) → al_corriente
+            const invoice = event.data.object as Stripe.Invoice;
+            await manejarRenovacionPagada(invoice);
+            break;
+        }
+
+        case 'invoice.payment_failed': {
+            // Falló el cobro de la renovación → entra en gracia
+            const invoice = event.data.object as Stripe.Invoice;
+            await manejarCobroFallido(invoice);
+            break;
+        }
+
         case 'customer.subscription.updated': {
-            // Manejar renovaciones, cambios de plan, etc.
-            console.log('🔄 Suscripción actualizada:', event.data.object.id);
-            // TODO: Implementar lógica de actualización en el futuro
+            // Solo refresca las fechas del periodo. El ESTADO lo gobiernan los invoice.*
+            const subscription = event.data.object as Stripe.Subscription;
+            await manejarSuscripcionActualizada(subscription);
             break;
         }
 
@@ -920,11 +936,12 @@ async function procesarCancelacionSuscripcion(
                 .update(negocios)
                 .set({
                     esBorrador: true,                  // Despublicar del directorio
+                    estadoMembresia: 'cancelado',      // Estado de membresía: cancelado
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(negocios.id, negocio.id));
 
-            console.log(`📦 Negocio despublicado: ${negocio.nombre}`);
+            console.log(`📦 Negocio despublicado y cancelado: ${negocio.nombre}`);
         }
 
         // Logging para auditoría
@@ -938,6 +955,166 @@ async function procesarCancelacionSuscripcion(
     } catch (error) {
         console.error('❌ Error procesando cancelación de suscripción:', error);
         throw error;
+    }
+}
+
+// =============================================================================
+// FUNCIONES AUXILIARES: WEBHOOK DE RENOVACIONES (estado de membresía)
+// =============================================================================
+
+/** Convierte un timestamp Unix (segundos) de Stripe a ISO string, o null. */
+function unixAISO(segundos: number | null | undefined): string | null {
+    return segundos ? new Date(segundos * 1000).toISOString() : null;
+}
+
+/** Extrae el id de cliente de Stripe (string) de un campo `customer`. */
+function idCliente(customer: string | { id: string } | null | undefined): string | null {
+    if (!customer) return null;
+    return typeof customer === 'string' ? customer : customer.id;
+}
+
+/**
+ * Resuelve el negocio (y su usuario) a partir de identificadores de Stripe.
+ * Camino del join (1:1): stripeSubscriptionId | stripeCustomerId → usuario → negocio.
+ *
+ * @returns { usuario, negocio } o null si no se encuentra
+ */
+async function obtenerNegocioDesdeStripe(
+    opts: { suscripcionId?: string | null; clienteId?: string | null }
+): Promise<{ usuario: typeof usuarios.$inferSelect; negocio: typeof negocios.$inferSelect } | null> {
+    const filtro = opts.suscripcionId
+        ? eq(usuarios.stripeSubscriptionId, opts.suscripcionId)
+        : opts.clienteId
+            ? eq(usuarios.stripeCustomerId, opts.clienteId)
+            : null;
+
+    if (!filtro) return null;
+
+    const [usuario] = await db.select().from(usuarios).where(filtro).limit(1);
+    if (!usuario) return null;
+
+    const [negocio] = await db
+        .select()
+        .from(negocios)
+        .where(eq(negocios.usuarioId, usuario.id))
+        .limit(1);
+    if (!negocio) return null;
+
+    return { usuario, negocio };
+}
+
+/**
+ * invoice.payment_succeeded — la renovación (o el primer cobro tras el trial) se cobró.
+ * Estado → al_corriente. Actualiza vencimiento/próximo cobro y LIMPIA las fechas de gracia.
+ */
+async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
+    try {
+        // Acceso defensivo (API 2025-11 clover: algunos campos se movieron de lugar).
+        const inv = invoice as unknown as {
+            customer?: string | { id: string } | null;
+            lines?: { data?: Array<{ period?: { end?: number } }> };
+        };
+        const clienteId = idCliente(inv.customer);
+        const finPeriodo = unixAISO(inv.lines?.data?.[0]?.period?.end);
+
+        const res = await obtenerNegocioDesdeStripe({ clienteId });
+        if (!res) {
+            console.log('ℹ️ Renovación pagada sin negocio asociado (cliente):', clienteId);
+            return;
+        }
+
+        await db
+            .update(negocios)
+            .set({
+                estadoMembresia: 'al_corriente',
+                fechaVencimiento: finPeriodo,
+                fechaProximoCobro: finPeriodo,
+                fechaInicioGracia: null,
+                fechaLimiteGracia: null,
+                updatedAt: new Date().toISOString(),
+            })
+            .where(eq(negocios.id, res.negocio.id));
+
+        console.log(`✅ Renovación pagada → al_corriente: ${res.negocio.nombre} (vence ${finPeriodo})`);
+    } catch (error) {
+        console.error('❌ Error en manejarRenovacionPagada:', error);
+    }
+}
+
+/**
+ * invoice.payment_failed — falló el cobro de la renovación.
+ * Si el negocio estaba al_corriente, pasa a en_gracia y fija las fechas de gracia
+ * (solo la primera vez; los reintentos de Stripe NO reinician el plazo). El negocio
+ * SIGUE visible/funcionando.
+ */
+async function manejarCobroFallido(invoice: Stripe.Invoice): Promise<void> {
+    try {
+        const inv = invoice as unknown as { customer?: string | { id: string } | null };
+        const clienteId = idCliente(inv.customer);
+
+        const res = await obtenerNegocioDesdeStripe({ clienteId });
+        if (!res) {
+            console.log('ℹ️ Cobro fallido sin negocio asociado (cliente):', clienteId);
+            return;
+        }
+
+        // Solo se entra en gracia desde "al_corriente". Si ya está en_gracia,
+        // suspendido o cancelado, no se reinicia el plazo ni se revive.
+        if (res.negocio.estadoMembresia !== 'al_corriente') {
+            console.log(`ℹ️ Cobro fallido ignorado (estado actual: ${res.negocio.estadoMembresia}): ${res.negocio.nombre}`);
+            return;
+        }
+
+        const ahora = new Date();
+        // Periodo de gracia: se lee de configuracionSistema (default 14 días)
+        const diasGracia = await obtenerConfigNumero('periodo_gracia_cobro_dias', 14);
+        const limite = new Date(ahora.getTime() + diasGracia * 24 * 60 * 60 * 1000);
+
+        await db
+            .update(negocios)
+            .set({
+                estadoMembresia: 'en_gracia',
+                fechaInicioGracia: ahora.toISOString(),
+                fechaLimiteGracia: limite.toISOString(),
+                updatedAt: ahora.toISOString(),
+            })
+            .where(eq(negocios.id, res.negocio.id));
+
+        console.log(`⚠️ Cobro fallido → en_gracia hasta ${limite.toISOString()}: ${res.negocio.nombre}`);
+    } catch (error) {
+        console.error('❌ Error en manejarCobroFallido:', error);
+    }
+}
+
+/**
+ * customer.subscription.updated — solo refresca las fechas del periodo.
+ * NO cambia el estado de membresía (eso lo gobiernan los eventos invoice.*).
+ */
+async function manejarSuscripcionActualizada(subscription: Stripe.Subscription): Promise<void> {
+    try {
+        // Acceso defensivo: en clover current_period_end vive a nivel de item.
+        const sub = subscription as unknown as {
+            current_period_end?: number;
+            items?: { data?: Array<{ current_period_end?: number }> };
+        };
+        const finPeriodo = unixAISO(sub.items?.data?.[0]?.current_period_end ?? sub.current_period_end);
+        if (!finPeriodo) return;
+
+        const res = await obtenerNegocioDesdeStripe({ suscripcionId: subscription.id });
+        if (!res) return;
+
+        await db
+            .update(negocios)
+            .set({
+                fechaVencimiento: finPeriodo,
+                fechaProximoCobro: finPeriodo,
+                updatedAt: new Date().toISOString(),
+            })
+            .where(eq(negocios.id, res.negocio.id));
+
+        console.log(`🔄 Suscripción actualizada → fechas refrescadas (vence ${finPeriodo}): ${res.negocio.nombre}`);
+    } catch (error) {
+        console.error('❌ Error en manejarSuscripcionActualizada:', error);
     }
 }
 

@@ -150,6 +150,11 @@ export const negocios = pgTable("negocios", {
 	onboardingCompletado: boolean("onboarding_completado").default(false).notNull(),
 	participaPuntos: boolean('participa_puntos').default(true).notNull(),
 	fechaPrimerPago: date("fecha_primer_pago"),
+	estadoMembresia: varchar("estado_membresia", { length: 20 }).default('al_corriente').notNull(),
+	fechaVencimiento: timestamp("fecha_vencimiento", { withTimezone: true, mode: 'string' }),
+	fechaProximoCobro: timestamp("fecha_proximo_cobro", { withTimezone: true, mode: 'string' }),
+	fechaInicioGracia: timestamp("fecha_inicio_gracia", { withTimezone: true, mode: 'string' }),
+	fechaLimiteGracia: timestamp("fecha_limite_gracia", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_negocios_activo").using("btree", table.activo.asc().nullsLast()),
 	index("idx_negocios_embajador").using("btree", table.embajadorId.asc().nullsLast()).where(sql`(embajador_id IS NOT NULL)`),
@@ -159,6 +164,7 @@ export const negocios = pgTable("negocios", {
 	index("idx_negocios_onboarding").using("btree", table.onboardingCompletado.asc().nullsLast()).where(sql`(onboarding_completado = false)`),
 	index("idx_negocios_region").using("btree", table.regionId.asc().nullsLast()).where(sql`(region_id IS NOT NULL)`),
 	index("idx_negocios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
+	index("idx_negocios_estado_membresia").using("btree", table.estadoMembresia.asc().nullsLast()),
 	foreignKey({
 		columns: [table.embajadorId],
 		foreignColumns: [embajadores.id],
@@ -174,6 +180,7 @@ export const negocios = pgTable("negocios", {
 		foreignColumns: [usuarios.id],
 		name: "negocios_usuario_id_fkey"
 	}).onDelete("cascade"),
+	check("negocios_estado_membresia_check", sql`(estado_membresia)::text = ANY ((ARRAY['al_corriente'::character varying, 'en_gracia'::character varying, 'suspendido'::character varying, 'cancelado'::character varying])::text[])`),
 ]);
 
 export const negocioSucursales = pgTable("negocio_sucursales", {
