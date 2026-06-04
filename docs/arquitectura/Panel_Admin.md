@@ -1,6 +1,6 @@
 # 🛡️ Panel Admin — Arquitectura
 
-**Última actualización:** 4 Junio 2026
+**Última actualización:** 3 Junio 2026
 **Estado:** 🚧 Diseño completo · Infraestructura backend mínima · UI sin construir
 **Progreso:** Diseño 100% · Backend 10% · Frontend 0%
 
@@ -119,11 +119,11 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
 2. **Métricas** — detalle de actividad. De negocios (ventas ScanYA, clientes, canjes) y de usuarios. Lo medible **hoy** se construye ya; la analítica de comportamiento (tiempo por sección, recorridos de navegación) es un módulo posterior porque **hoy no se captura** — requiere instrumentar seguimiento de eventos.
 3. **Negocios** — **ficha completa** de cada negocio (datos, contacto, estado, membresía, vendedor que lo trajo). Crear (alta asistida), aprobar, suspender/bloquear, degradar. **Asignar / reasignar el vendedor** del negocio a mano — contraparte de la atribución automática: cubre negocios sin código, ventas en efectivo o correcciones. SuperAdmin sobre cualquier negocio; Gerente sobre los de su región; cada cambio queda en **auditoría** (es dinero: define quién cobra comisión). **Solo SuperAdmin:** cancelar, y un **botón para marcar la membresía como pagada a mano** (cortesías, pagos fuera de Stripe).
 4. **Usuarios** — **ficha completa** de cada usuario. Suspender, **bloquear acceso a toda la app**, reactivar — **solo SuperAdmin** (los usuarios-cliente no tienen región hoy; ver Cimientos). **Solo SuperAdmin:** botón para **promover** cuenta personal→comercial o **degradar** comercial→personal a mano.
-5. **Suscripciones / membresías** — precio de membresía, promos de pago (ej. 3 meses con descuento, pago anual), regalar meses gratis a negocios puntuales, historial completo de pagos, y **tiempos configurables**: periodo de gracia para cobros vencidos y duración del trial (hoy 7 días fijos → editable). Los tiempos viven en Configuración.
+5. **Suscripciones / membresías** — precio de membresía, promos de pago (ej. 3 meses con descuento, pago anual), regalar meses gratis a negocios puntuales, historial completo de pagos, y **tiempos configurables**: periodo de gracia para cobros vencidos y duración del trial (hoy 14 días → editable desde el Panel). Los tiempos viven en `configuracionSistema` (la tabla ya tiene `trial_duracion_dias=14` y otras configs de trials/pagos).
 6. **Vendedores y comisiones** — la red completa: alta/baja, regiones, comisiones, cortes de efectivo. (Ver Motor de venta + Comisiones.)
 7. **Publicidad** — **segunda fuente de ingresos.** Los comerciantes pagan por aparecer en los carruseles de la columna derecha de la app (Anuncios, Patrocinadores, Fundadores). **Asignación por ciudad, individual** — un negocio paga por aparecer en la ciudad X; puede también pagar por aparecer en **todas** las ciudades donde opera AY. **Precios configurables** (por ciudad, ya que no valen igual). **Métricas:** uso/KPIs de los carruseles, qué negocios pautan, y **cuánto generan**. El Gerente gestiona la publicidad de su región; los precios los fija el SuperAdmin.
 8. **Ciudades** — habilitar/agregar ciudades para expandir la app **sin tocar código**. (Ver Cimientos: hoy las ciudades están hardcodeadas.)
-9. **Configuración** — valores editables sin código (textos/banners, toggles de funciones, límites/umbrales, **la escalera de comisiones**, **periodo de gracia de cobros** y **duración del trial**). Se apoya en la tabla `configuracionSistema` (clave-valor, ya existe).
+9. **Configuración** — valores editables sin código (textos/banners, toggles de funciones, límites/umbrales, **la escalera de comisiones**, **periodo de gracia de cobros** y **duración del trial**). Se apoyará en la tabla `configuracionSistema` (clave-valor, ya poblada) — pero hoy **es decorativa**: ningún código la lee y falta crear el helper `obtenerConfig()`. Conectarla es trabajo pendiente (ver Cimientos). Además, varios valores hoy están **hardcodeados** (ej. el trial cobra a 7 días aunque la tabla diga 14).
 10. **Equipo y accesos** — crear/administrar las cuentas internas. Aquí viven los 3 niveles.
 11. **Sistema** — Mantenimiento (reconcile R2, único operativo hoy) + Auditoría (bitácora de quién hizo qué).
 
@@ -138,18 +138,6 @@ Cómo nace una venta y cómo se enlaza un negocio a su vendedor. **Dos caminos, 
 2. El negocio se registra y paga con su propia tarjeta → directo a Stripe.
 3. El sistema **lee la referencia y graba la atribución** en el negocio.
 - El vendedor nunca toca dinero. Limpio.
-
-> **El código se comparte solo por link, nunca se teclea (decisión 4 Jun 2026).** En el
-> Panel, el vendedor copiará su link de registro con un botón ("copiar mi link"); el
-> comerciante solo hace click. Como el código **nunca pasa por un teclado humano**, no
-> hay riesgo de error de mayúsculas/tipeo: la resolución del referido
-> (`resolverEmbajadorPorCodigo` en `pago.service.ts`) es **exacta / case-sensitive** y
-> NO se normaliza a mayúsculas. Solo si algún día se agrega un campo donde el comerciante
-> teclee el código a mano, ahí habría que normalizar (en captura y guardado).
->
-> **Estado del código de referido:** el formato es libre (varchar 50, único). `JUAN01`
-> y similares son solo ejemplos de prueba sembrados a mano en DEV; la generación/edición
-> formal de códigos vivirá en el módulo de Vendedores del Panel.
 
 ### Camino B — pago en efectivo (registro del vendedor)
 1. El vendedor cobra en efectivo y **registra al negocio desde su Panel**.
@@ -215,6 +203,10 @@ Pago único por cada negocio nuevo que firma y que **se concreta** (tarjeta paga
 - **Se recalcula cada mes** según los activos de ese mes. El negocio es del vendedor **de por vida** (atribución no se borra), pero **el pago se gana mes a mes**: si cae bajo su mínimo, ese mes no cobra; si remonta, se reactiva solo.
 - **"Activo" = membresía pagada al corriente.** Así el cálculo es automático: pagó = cuenta; no pagó = no cuenta. El incentivo natural del vendedor es que no se le caiga ningún negocio → eso ES el "mantenimiento" buscado, sin medirlo a mano.
 
+**Estados de membresía (4):** `al corriente` · `en gracia` · `suspendido` · `cancelado`.
+- **En gracia** = le falló el cobro pero sigue dentro de su plazo de gracia. El negocio **sigue funcionando y visible**, marcado como "en riesgo" para que el vendedor corra a salvarlo.
+- **Para comisiones:** `en gracia` **todavía cuenta como activo** (no se castiga al vendedor por un tropiezo temporal). Solo deja de contar cuando cae a `suspendido` (se acabó la gracia sin pagar).
+
 ### Configuración de la escalera
 - **Una escalera global**, editable **solo por SuperAdmin** (vive en Configuración).
 - Diseñada para poder tener **varias** en el futuro (por zona o por vendedor) sin reconstruir — hoy una sola, global.
@@ -255,10 +247,11 @@ Hallazgos del inventario (3 Jun 2026). Varios son **base** del Panel, no adornos
 
 | Pendiente | Estado | Impacto |
 |---|---|---|
-| **Atribución vendedor↔negocio en el checkout** | 🟩 Camino A hecho (4 Jun 2026) | El link `?ref=<codigoReferido>` ya se captura en el registro, viaja en la metadata de Stripe y, en el webhook (`pago.service.ts` → `manejarCheckoutCompletado` + helper `resolverEmbajadorPorCodigo`), resuelve el embajador activo y llena `negocios.embajadorId`, `negocios.regionId` y `usuarios.referidoPor` en la misma operación. Si el código falta o es inválido, el negocio entra sin atribución (campos en `null`) — una venta nunca se bloquea. **Pendiente:** Camino B (upgrade personal→comercial) y la creación de embajadores desde el Panel (hoy se siembran a mano en DEV). Ver §Motor de venta. |
+| **Atribución vendedor↔negocio en el checkout** | 🟥 NO existe | El checkout Stripe **no captura** `codigoReferido` ni setea `negocios.embajadorId`. El schema YA tiene las columnas (`negocios.embajadorId`, `usuarios.referidoPor`) pero nada las llena. **Es la primera piedra de toda la sección de vendedores** — sin esto no hay comisiones que calcular. |
 | **Rol de equipo en cuentas + auth del Panel** | 🟥 NO existe | Hoy solo el secreto `x-admin-secret`. Falta el concepto de rol (superadmin/gerente/vendedor) y el login del Panel que lo revalida. |
 | **Enforcement de `usuarios.estado`** | 🟥 decorativo | Los campos `estado/motivoCambioEstado/fechaCambioEstado` existen pero **ningún código los lee**. Suspender/bloquear no tiene efecto hasta que el login/middleware lo chequee. |
-| **Webhook `subscription.updated`** | 🟥 sin implementar | Renovaciones/fallos de pago no actualizan estado → "activo = al corriente" no funciona sin esto. Base de las comisiones recurrentes. |
+| **Webhook `subscription.updated`** | 🟥 sin implementar | Renovaciones/fallos de pago no actualizan estado → "activo = al corriente" no funciona sin esto. Base de las comisiones recurrentes. **El diagnóstico reveló que es más grande de lo previsto** — son 3 rondas: (1) crear el **estado de membresía** (no existe campo de al corriente/vencido/gracia/suspendido ni fecha de vencimiento → **lleva migración**); (2) el **webhook** real (escuchar `invoice.payment_succeeded` / `invoice.payment_failed`, no solo `subscription.updated`); (3) conectar configs. |
+| **Configs decorativas + helper `obtenerConfig()`** | 🟥 NO existe | `configuracionSistema` está poblada pero **ningún código la lee** (igual que `usuarios.estado`). Falta el helper central `obtenerConfig(clave)`. Valores hoy hardcodeados: **trial cobra a 7 días aunque la tabla diga 14**; el periodo de gracia ni existe como clave. `dias_retencion_pago` (=7) **NO** es la gracia — es del camino de efectivo ("retener antes de liberar al negocio"); la gracia será una **clave nueva**. |
 | **Comisiones: schema en % vs decisión en monto fijo** | 🟧 ajuste | El schema dormido (`embajadores.porcentaje_recurrente`, `embajador_comisiones.porcentaje`) modela **porcentaje**. La decisión es **monto fijo + escalera**. Requiere ajustar schema (escalera de escalones, recurrente como monto) al despertar el módulo. |
 | **Migración de ciudades a BD** | 🟧 hardcodeado | La lista de ciudades vive en `apps/web/src/data/ciudadesPopulares` (frontend). Para habilitar ciudades desde el Panel hay que **mudarla a BD** (tabla `regiones`/ciudades) y que el buscador lea de ahí. |
 | **Seguridad: galería DELETE solo-dueño** | 🟧 parcial | Cierre parcial aplicado (commit `c3d5951`). Falta: permitir gerente + validar `imageId ∈ sucursal` en `eliminarImagenGaleria`. |
@@ -278,7 +271,7 @@ Tablas ya creadas pero **dormidas** (base del Panel — no eliminar):
 | `usuarios.esEmbajador` / `usuarios.referidoPor` (→ embajadores.id) | Marca de vendedor y referidor | dormida |
 | `negocios.embajadorId` / `negocios.regionId` | **Atribución** del negocio a su vendedor y región | dormida — el checkout no la llena |
 | `embajadorComisiones` (embajadorId, negocioId, tipo[primer_pago/recurrente], porcentaje, montoBase, montoComision, estado[pendiente/pagada/cancelada]) | Comisiones | dormida — modela %, hay que ajustar a monto fijo |
-| `configuracionSistema` (clave-valor) | Config global sin código | **se usa** — base de la sección Configuración |
+| `configuracionSistema` (clave-valor) | Config global sin código | **decorativa** — la tabla está poblada (tipo/categoría/unidad/min/max) pero **ningún código la lee todavía**. No existe helper `obtenerConfig()`. Base futura de la sección Configuración. |
 
 Tablas/columnas **nuevas a crear** (conceptos; nombres exactos a definir en implementación):
 - Rol de equipo en cuentas (superadmin / gerente / vendedor), independiente de `usuarios.perfil`

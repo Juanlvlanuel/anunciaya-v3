@@ -5,8 +5,83 @@ Todas las novedades notables del proyecto están documentadas en este archivo.
 El formato está basado en [Keep a Changelog](https://keepachangelog.com/es/1.0.0/),
 y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es/).
 
+
 ---
 
+## [4 Junio 2026] - Panel Admin · Cimiento F0: estado de membresía + webhook de renovaciones 💳🔄
+
+Segundo cimiento de la Fase 0 del Panel Admin. Se construye el "dónde guardar" el
+estado de pago de cada negocio y la lógica que lo mantiene al día con Stripe. Base
+de "activo = membresía al corriente", que a su vez sostiene las comisiones recurrentes
+de los vendedores. **Solo aplicado en DEV — sin push ni migración a producción todavía**
+(sube junto cuando el bloque de pagos esté completo). Ver `docs/arquitectura/Panel_Admin.md`.
+
+**Estado de membresía (Ronda 1 — migración).** 5 columnas nuevas en `negocios`:
+- `estado_membresia` `varchar(20)` con CHECK de 4 valores: `al_corriente` / `en_gracia` / `suspendido` / `cancelado` (default `al_corriente`).
+- `fecha_vencimiento`, `fecha_proximo_cobro`, `fecha_inicio_gracia`, `fecha_limite_gracia` (`timestamptz` NULL).
+- La **fecha límite de gracia se fija UNA VEZ** al entrar en gracia (no se deriva de la config cada vez): si más adelante se cambia el periodo de gracia, los negocios que ya estaban en gracia conservan su plazo original.
+- Migración idempotente en `docs/migraciones/2026-06-04-estado-membresia-negocios.sql`. Los 21 negocios de DEV quedaron en `al_corriente` con fechas NULL; ninguno roto.
+- Decisiones: el trial cuenta como `al_corriente` (sin estado separado); no se reusaron `fechaPrimerPago`/`mesesGratisRestantes`/`tieneModoComercial` (significados distintos). Schema Drizzle actualizado.
+
+**Webhook de renovaciones (Ronda 2 — lógica).** En `pago.service.ts`:
+- **Nuevo** `invoice.payment_succeeded` → `al_corriente`, escribe vencimiento/próximo cobro, limpia fechas de gracia.
+- **Nuevo** `invoice.payment_failed` → `en_gracia` (solo la 1ª vez; reintentos de Stripe no reinician el plazo), fija inicio y límite de gracia. El negocio **sigue visible**.
+- **Llenado** `customer.subscription.updated` → solo refresca fechas del periodo (no toca el estado).
+- **Actualizado** `customer.subscription.deleted` → además marca `cancelado`.
+- Separación clave para idempotencia: los `invoice.*` mandan el ESTADO; `subscription.updated` solo las FECHAS. No se pisan sin importar el orden de llegada.
+- Helper `obtenerNegocioPorSuscripcion()` (join `stripeSubscriptionId` → usuario → negocio). Resuelto el detalle de la API `clover`: `current_period_end` se lee a nivel de item con respaldo a la raíz.
+- **Cron nuevo** `suscripciones-gracia.cron.ts` (+ service), diario: pasa a `suspendido` los negocios en gracia con `fecha_limite_gracia` vencida (Stripe no avisa eso; es fecha nuestra). Cierra el ciclo de los 4 estados.
+- Para comisiones: `en_gracia` cuenta como activo; `suspendido`/`cancelado` no.
+- Gracia temporal `DIAS_GRACIA_TEMPORAL = 7`, marcada como TEMPORAL hasta la Ronda 3 (donde se leerá de `configuracionSistema` y se cuadrará en 14 días con los reintentos de Stripe).
+
+Probado E2E en DEV con eventos firmados (HMAC) recorriendo al_corriente → en_gracia → suspendido. DEV restaurado a `al_corriente` tras las pruebas.
+
+---
+
+## [4 Junio 2026] - Panel Admin · Cimiento F0: atribución vendedor↔negocio (Camino A) 🤝🔗
+
+Primer cimiento de la Fase 0 del Panel Admin: ligar un negocio al vendedor (embajador)
+que lo trajo, para poder calcular comisiones. **Camino A (pago con tarjeta vía link).**
+**Solo DEV, sin push.** Sin migración (las columnas ya existían dormidas).
+
+- El vendedor comparte `…/registro?plan=comercial&ref=<codigoReferido>`.
+- El front captura el `?ref=` y lo manda al checkout; **viaja en la metadata de Stripe** (el negocio nace en el webhook, después del pago).
+- En `manejarCheckoutCompletado`, el helper `resolverEmbajadorPorCodigo()` busca un embajador **activo** y, si existe, llena en la misma operación: `negocios.embajadorId`, `negocios.regionId` y `usuarios.referidoPor`.
+- **Regla crítica:** si el código falta, está mal escrito o el vendedor no está activo → la venta entra igual con atribución `null`. Un ref inválido **nunca** bloquea un registro.
+- Archivos: `pago.service.ts`, `pago.controller.ts` (backend); `PaginaRegistro.tsx`, `pagoService.ts` (frontend). Sin endpoints ni columnas nuevas.
+- Validado E2E en DEV con Stripe test: con `?ref=JUAN01` los 3 campos quedan poblados; con código inválido, negocio creado y los 3 en `null`.
+- Pendiente: **Camino B** (atribución por efectivo, registro del vendedor) en otra ronda.
+
+---
+
+## [4 Junio 2026] - Seguridad · DELETE de imágenes de negocios con guard de propiedad 🖼️🛡️
+
+Cierre del hueco más expuesto detectado en el inventario: endpoints de borrado de
+imágenes que no exigían ni sesión iniciada (cualquiera podía borrar imágenes de
+cualquier negocio). **En producción** (commit `c3d5951`).
+
+- `DELETE /:negocioId/logo` → `verificarPropietarioNegocio` (solo dueño; el logo es del negocio entero). Ruta renombrada `:id`→`:negocioId` (URL idéntica para el front).
+- `DELETE /portada` y `DELETE /sucursal/:sucursalId/foto-perfil` → `validarAccesoSucursal` (dueño o gerente de esa sucursal).
+- `DELETE /:negocioId/galeria/:imageId` → cierre parcial con `verificarPropietarioNegocio` (solo dueño por ahora).
+- El middleware `validarAccesoSucursal` ahora lee el `sucursalId` de `params` primero y luego de `query` (`req.params.sucursalId ?? req.query.sucursalId`) — cambio retrocompatible, ninguna de las ~10 rutas que ya lo usan se ve afectada. Params primero por seguridad (que la URL mande sobre la query).
+- Pendientes anotados para una ronda dedicada de galería: permitir gerente, validar `imageId ∈ sucursal` en `eliminarImagenGaleria`, y los POST gemelos de subida (`foto-perfil` y `logo`) que tienen el mismo hueco.
+- Archivos: `negocios.routes.ts`, `negocios.controller.ts`, `sucursal.middleware.ts`.
+
+---
+
+## [4 Junio 2026] - Seguridad · Onboarding con guard de propiedad 🔒
+
+Las rutas de onboarding solo validaban que hubiera sesión iniciada, no que el negocio
+fuera del usuario: cualquier usuario logueado podía editar o publicar un negocio ajeno
+pasando un `negocioId` distinto. **En producción** (commit `df54bb8`).
+
+- Activado `verificarPropietarioNegocio` (middleware que ya existía pero estaba comentado) en todas las rutas de onboarding con `:negocioId`. Reordenadas las rutas exentas (`/mi-negocio`, `/upload-imagen`) **antes** del guard.
+- `finalizar` ahora toma el `usuarioId` del **token**, no del body — la identidad nunca viene del cliente.
+- Resultado: un `negocioId` ajeno responde 403 antes de tocar nada; el dueño legítimo pasa sin fricción.
+- Lección documentada en `LECCIONES_TECNICAS.md` (sección Autenticación y Permisos): `router.use('/:param', guard)` hace match de prefijo y captura las rutas hermanas de primer nivel, por lo que las rutas exentas deben registrarse antes del guard; y autenticar ≠ autorizar.
+- Archivos: `onboarding.routes.ts`, `onboarding.controller.ts`.
+
+---
 ## [3 Junio 2026] - Home / Coyo — refresh con huellitas + loader de sesión con el logo 🐾🦊
 
 - **Indicador de refresco con huellitas** (`IndicadorHuellitas` en
