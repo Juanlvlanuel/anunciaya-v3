@@ -779,6 +779,7 @@ interface NumberInputProps {
 
 function NumberInput({ value, min, max, step = 1, onChange }: NumberInputProps) {
     const inputId = useId();
+    const inputRef = useRef<HTMLInputElement>(null);
     const increment = () => onChange(value + step > max ? min : value + step);
     const decrement = () => onChange(value - step < min ? max : value - step);
     const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -788,10 +789,30 @@ function NumberInput({ value, min, max, step = 1, onChange }: NumberInputProps) 
         onChange(val);
     };
 
+    // Rueda del mouse (solo PC): girar el scroll sobre el input sube/baja el valor.
+    // Se usa un listener nativo con passive:false para poder frenar el scroll de la
+    // página mientras se ajusta. La lógica vive en un ref para no re-suscribir en
+    // cada render y evitar valores obsoletos (stale closure).
+    const ajustarRef = useRef<(delta: number) => void>(() => {});
+    ajustarRef.current = (delta: number) => {
+        if (delta < 0) onChange(value + step > max ? min : value + step);
+        else onChange(value - step < min ? max : value - step);
+    };
+    useEffect(() => {
+        const el = inputRef.current;
+        if (!el) return;
+        const alGirarRueda = (e: WheelEvent) => {
+            e.preventDefault();
+            ajustarRef.current(e.deltaY);
+        };
+        el.addEventListener('wheel', alGirarRueda, { passive: false });
+        return () => el.removeEventListener('wheel', alGirarRueda);
+    }, []);
+
     return (
         <div className="relative flex-1">
-            <input id={inputId} name={inputId} type="number" value={value.toString().padStart(2, '0')} onChange={handleChange}
-                className="w-full text-center text-base lg:text-sm 2xl:text-base font-medium h-11 lg:h-10 2xl:h-11 px-3 bg-slate-100 rounded-lg focus:outline-none border-2 border-slate-300"
+            <input ref={inputRef} id={inputId} name={inputId} type="number" value={value.toString().padStart(2, '0')} onChange={handleChange}
+                className="w-full text-center text-base lg:text-sm 2xl:text-base font-medium text-slate-800 h-11 lg:h-10 2xl:h-11 px-3 bg-slate-100 rounded-lg focus:outline-none border-2 border-slate-300 [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden"
                 style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }} />
             <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
                 <button type="button" onClick={increment} className="w-5 h-4 rounded bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center cursor-pointer">

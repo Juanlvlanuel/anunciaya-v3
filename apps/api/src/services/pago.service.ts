@@ -25,11 +25,11 @@ import Stripe from 'stripe';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
-import { usuarios, negocios, negocioSucursales } from '../db/schemas/schema.js';
+import { usuarios, negocios, negocioSucursales, embajadores } from '../db/schemas/schema.js';
 import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 
 // =============================================================================
 // TIPOS
@@ -49,6 +49,8 @@ interface DatosCheckout {
     // Campos opcionales para registro con Google
     esRegistroGoogle?: boolean;
     googleIdToken?: string;
+    // Código de referido del vendedor (link `?ref=`). Opcional.
+    codigoReferido?: string;
 }
 
 /**
@@ -118,7 +120,7 @@ interface DatosUsuarioWebhook {
 export async function crearCheckoutSession(
     datos: DatosCheckout
 ): Promise<RespuestaCheckout> {
-    const { correo, nombreNegocio, datosRegistro, esRegistroGoogle, googleIdToken } = datos;
+    const { correo, nombreNegocio, datosRegistro, esRegistroGoogle, googleIdToken, codigoReferido } = datos;
 
     const datosRedisKey = `temp:registro:${correo}`;
 
@@ -196,6 +198,10 @@ export async function crearCheckoutSession(
             apellidos: datosRegistro.apellidos,
             telefono: datosRegistro.telefono,
             tipo: 'registro_comercial',
+            // Código del vendedor: viaja en la metadata para sobrevivir el paso
+            // por Stripe y poder atribuir el negocio en el webhook. Solo se
+            // incluye si vino; si no, no se atribuye.
+            ...(codigoReferido && { codigoReferido }),
         },
 
         // Email prellenado en el formulario de Stripe
@@ -440,6 +446,49 @@ interface DatosRegistroRedis {
 }
 
 // =============================================================================
+// FUNCIÓN AUXILIAR: RESOLVER ATRIBUCIÓN AL VENDEDOR
+// =============================================================================
+
+/**
+ * Resuelve un código de referido al embajador (vendedor) que lo trajo.
+ *
+ * Busca un embajador ACTIVO cuyo código coincida. Si el código viene vacío,
+ * no existe, o el embajador no está activo, devuelve null — el registro
+ * continúa SIN atribución. Regla crítica: un código mal escrito NUNCA puede
+ * impedir una venta; ante cualquier duda, el negocio entra con embajador null.
+ *
+ * @param codigo - Código de referido capturado del link `?ref=`
+ * @returns { embajadorId, regionId } o null si no se pudo atribuir
+ */
+async function resolverEmbajadorPorCodigo(
+    codigo: string | undefined | null
+): Promise<{ embajadorId: string; regionId: string } | null> {
+    if (!codigo) return null;
+
+    try {
+        const [embajador] = await db
+            .select({ id: embajadores.id, regionId: embajadores.regionId })
+            .from(embajadores)
+            .where(and(
+                eq(embajadores.codigoReferido, codigo),
+                eq(embajadores.estado, 'activo')
+            ))
+            .limit(1);
+
+        if (!embajador) {
+            console.log('⚠️ Código de referido sin coincidencia activa:', codigo);
+            return null;
+        }
+
+        return { embajadorId: embajador.id, regionId: embajador.regionId };
+    } catch (error) {
+        // Ante cualquier fallo al resolver, NO romper el registro: sin atribución.
+        console.error('❌ Error resolviendo embajador por código:', error);
+        return null;
+    }
+}
+
+// =============================================================================
 // FUNCIÓN AUXILIAR: MANEJAR CHECKOUT COMPLETADO
 // =============================================================================
 
@@ -519,6 +568,17 @@ async function manejarCheckoutCompletado(
     }
 
     // -------------------------------------------------------------------------
+    // PASO 3.5: Resolver atribución al vendedor (si vino código de referido)
+    // -------------------------------------------------------------------------
+    // El código viaja en la metadata de la sesión de Stripe. Si no resuelve,
+    // `atribucion` es null y tanto el usuario como el negocio quedan sin
+    // vendedor (referidoPor / embajadorId / regionId en null).
+    const atribucion = await resolverEmbajadorPorCodigo(metadata.codigoReferido);
+    if (atribucion) {
+        console.log('🤝 Atribución al embajador:', atribucion.embajadorId);
+    }
+
+    // -------------------------------------------------------------------------
     // PASO 4: Crear usuario comercial en PostgreSQL (CON CONTRASEÑA)
     // -------------------------------------------------------------------------
     const [nuevoUsuario] = await db
@@ -539,6 +599,7 @@ async function manejarCheckoutCompletado(
             autenticadoPorGoogle: datosRegistro.esRegistroGoogle || false,
             tieneModoComercial: true,      // 🆕 Usuario pagó, tiene acceso
             modoActivo: 'comercial',
+            referidoPor: atribucion?.embajadorId ?? null, // Vendedor que lo trajo
         })
         .returning();
 
@@ -557,6 +618,8 @@ async function manejarCheckoutCompletado(
             esBorrador: true,
             verificado: false,
             participaPuntos: false,
+            embajadorId: atribucion?.embajadorId ?? null, // Vendedor que trajo el negocio
+            regionId: atribucion?.regionId ?? null,        // Región del vendedor
         })
         .returning();
 

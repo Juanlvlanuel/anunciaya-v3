@@ -99,6 +99,12 @@ export function PaginaRegistro() {
   const correoInicial =
     (location.state as { correo?: string } | null)?.correo ?? '';
 
+  // Código de referido del vendedor que trajo al negocio (link `?ref=`).
+  // Es un parámetro de URL, no un campo del formulario. Si no viene o está
+  // vacío, queda undefined y el registro sigue normal (sin atribución).
+  const codigoReferido =
+    new URLSearchParams(location.search).get('ref')?.trim() || undefined;
+
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMBIO: Obtener datosGooglePendiente y limpiarDatosGooglePendiente del store
   // ═══════════════════════════════════════════════════════════════════════════
@@ -467,6 +473,7 @@ export function PaginaRegistro() {
         nombreNegocio,
         datosRegistro,
         ...(googleIdToken && { esRegistroGoogle: true, googleIdToken }),
+        ...(codigoReferido && { codigoReferido }),
       });
 
       if (!respuesta.success|| !respuesta.data) {

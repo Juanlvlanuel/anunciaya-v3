@@ -64,6 +64,75 @@ const GRADIENTES_TIPO = {
   servicio: { bg: 'linear-gradient(135deg, #1e293b, #1e3a5f)', shadow: 'rgba(30,58,95,0.4)', handle: 'rgba(255,255,255,0.4)' },
 };
 
+// Graduación del precio: las flechas y la rueda del mouse suben/bajan de $0.10 en $0.10.
+const PRECIO_STEP = 0.1;
+
+// =============================================================================
+// SUBCOMPONENTE: Input de precio con stepper
+// Flechas custom (mismo estilo que Horarios) + rueda del mouse en PC, sin las
+// flechas nativas del navegador. Teclear con centavos sigue permitido.
+// =============================================================================
+
+interface PrecioStepperProps {
+  id: string;
+  value: string;
+  onChange: (valor: string) => void;
+  invalido?: boolean;
+  inputClassName: string;
+  dolarClassName: string;
+}
+
+function PrecioStepper({ id, value, onChange, invalido = false, inputClassName, dolarClassName }: PrecioStepperProps) {
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  const ajustar = (direccion: 1 | -1) => {
+    const actual = parseFloat(value) || 0;
+    let nuevo = Math.round((actual + direccion * PRECIO_STEP) * 100) / 100;
+    if (nuevo < 0) nuevo = 0;
+    onChange(nuevo.toFixed(2));
+  };
+
+  // Rueda del mouse (PC): listener nativo con passive:false para frenar el scroll
+  // de la página al ajustar. La lógica vive en un ref para no re-suscribir ni usar
+  // valores obsoletos (stale closure).
+  const ajustarRef = useRef<(deltaY: number) => void>(() => {});
+  ajustarRef.current = (deltaY: number) => ajustar(deltaY < 0 ? 1 : -1);
+  useEffect(() => {
+    const el = inputRef.current;
+    if (!el) return;
+    const alGirarRueda = (e: WheelEvent) => { e.preventDefault(); ajustarRef.current(e.deltaY); };
+    el.addEventListener('wheel', alGirarRueda, { passive: false });
+    return () => el.removeEventListener('wheel', alGirarRueda);
+  }, []);
+
+  return (
+    <div className="relative">
+      <span className={dolarClassName}>$</span>
+      <input
+        ref={inputRef}
+        id={id}
+        name={id}
+        type="number"
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder="0.00"
+        min="0"
+        step="0.1"
+        className={`${inputClassName} ${invalido ? 'border-red-400' : 'border-slate-300'} [&::-webkit-inner-spin-button]:hidden [&::-webkit-outer-spin-button]:hidden`}
+        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+      />
+      <div className="absolute right-1.5 top-1/2 -translate-y-1/2 flex flex-col gap-0.5">
+        <button type="button" onClick={() => ajustar(1)} className="w-5 h-4 rounded bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center cursor-pointer">
+          <svg className="w-3 h-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M5 15l7-7 7 7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+        <button type="button" onClick={() => ajustar(-1)} className="w-5 h-4 rounded bg-slate-200 hover:bg-slate-300 border border-slate-300 flex items-center justify-center cursor-pointer">
+          <svg className="w-3 h-3 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M19 9l-7 7-7-7" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" /></svg>
+        </button>
+      </div>
+    </div>
+  );
+}
+
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
@@ -443,21 +512,14 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                       <label htmlFor="input-precio-articulo" className="block text-sm font-bold text-slate-700 mb-1.5">
                         Precio <span className="text-red-500">*</span>
                       </label>
-                      <div className="relative">
-                        <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base font-medium">$</span>
-                        <input
-                          id="input-precio-articulo"
-                          name="input-precio-articulo"
-                          type="number"
-                          value={precioStr}
-                          onChange={(e) => setPrecioStr(e.target.value)}
-                          placeholder="0.00"
-                          min="0"
-                          step="0.01"
-                          className={`w-full h-11 pl-7 pr-3 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium text-slate-800 placeholder:text-slate-500 ${precioVacio ? 'border-red-400' : 'border-slate-300'}`}
-                          style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                        />
-                      </div>
+                      <PrecioStepper
+                        id="input-precio-articulo"
+                        value={precioStr}
+                        onChange={setPrecioStr}
+                        invalido={precioVacio}
+                        dolarClassName="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-base font-medium"
+                        inputClassName="w-full h-11 pl-7 pr-9 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base font-medium text-slate-800 placeholder:text-slate-500"
+                      />
                       {precioVacio && (
                         <p className="text-xs text-red-500 font-medium mt-1">El precio no puede estar vacío</p>
                       )}
@@ -589,21 +651,14 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                     <label htmlFor="input-precio-articulo-desktop" className="block text-xs 2xl:text-sm font-bold text-slate-700 mb-1.5">
                       Precio <span className="text-red-500">*</span>
                     </label>
-                    <div className="relative">
-                      <span className="absolute left-2.5 2xl:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm 2xl:text-base font-medium">$</span>
-                      <input
-                        id="input-precio-articulo-desktop"
-                        name="input-precio-articulo-desktop"
-                        type="number"
-                        value={precioStr}
-                        onChange={(e) => setPrecioStr(e.target.value)}
-                        placeholder="0.00"
-                        min="0"
-                        step="0.01"
-                        className={`w-full h-10 2xl:h-11 pl-6 2xl:pl-7 pr-2.5 2xl:pr-3 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 ${precioVacio ? 'border-red-400' : 'border-slate-300'}`}
-                        style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
-                      />
-                    </div>
+                    <PrecioStepper
+                      id="input-precio-articulo-desktop"
+                      value={precioStr}
+                      onChange={setPrecioStr}
+                      invalido={precioVacio}
+                      dolarClassName="absolute left-2.5 2xl:left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm 2xl:text-base font-medium"
+                      inputClassName="w-full h-10 2xl:h-11 pl-6 2xl:pl-7 pr-9 bg-slate-100 border-2 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                    />
                     {precioVacio && (
                       <p className="text-xs 2xl:text-sm text-red-500 font-medium mt-1">El precio no puede estar vacío</p>
                     )}
@@ -622,8 +677,8 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                       touchAction: 'pan-y',
                     }}
                   >
-                    {mostrarInputNueva ? (
-                      <div className="p-2 border-b border-slate-200">
+                    {(mostrarInputNueva || categoriasExistentes.length === 0) ? (
+                      <div className="p-2">
                         <input
                           id="input-categoria-nueva"
                           name="input-categoria-nueva"
@@ -639,11 +694,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                             } else if (e.key === 'Escape') {
                               setCategoriaNueva('');
                               setMostrarInputNueva(false);
+                              if (categoriasExistentes.length === 0) setMostrarDropdown(false);
                             }
                           }}
                           placeholder="Escribe la categoría…"
                           autoFocus
-                          className="w-full px-3 py-1.5 border border-blue-300 rounded text-sm lg:text-xs 2xl:text-sm focus:outline-none focus:ring-2 focus:ring-slate-500"
+                          className="w-full h-11 lg:h-10 2xl:h-11 px-4 lg:px-3 2xl:px-4 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                          style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
                         />
                         <div className="flex gap-1 mt-1.5">
                           <button
@@ -656,14 +713,14 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                                 setMostrarDropdown(false);
                               }
                             }}
-                            className="flex-1 px-2 py-1.5 bg-blue-600 text-white rounded text-sm lg:text-xs 2xl:text-sm font-medium hover:bg-blue-700 cursor-pointer"
+                            className="flex-1 px-2 py-1.5 bg-linear-to-r from-slate-700 to-slate-800 text-white border-2 border-transparent rounded-lg text-sm lg:text-xs 2xl:text-sm font-bold hover:from-slate-800 hover:to-slate-900 transition-all duration-150 cursor-pointer"
                           >
                             Agregar
                           </button>
                           <button
                             type="button"
-                            onClick={() => { setCategoriaNueva(''); setMostrarInputNueva(false); }}
-                            className="flex-1 px-2 py-1.5 bg-slate-100 text-slate-600 rounded text-sm lg:text-xs 2xl:text-sm font-medium hover:bg-slate-200 cursor-pointer"
+                            onClick={() => { setCategoriaNueva(''); setMostrarInputNueva(false); if (categoriasExistentes.length === 0) setMostrarDropdown(false); }}
+                            className="flex-1 px-2 py-1.5 bg-transparent text-slate-600 border-2 border-slate-400 rounded-lg text-sm lg:text-xs 2xl:text-sm font-bold hover:bg-slate-50 hover:border-slate-500 transition-all duration-150 cursor-pointer"
                           >
                             Cancelar
                           </button>
@@ -688,13 +745,13 @@ export function ModalArticulo({ articulo, categoriasExistentes = [], tipoInicial
                             </div>
                           )}
                         </div>
-                        <div className="border-t border-slate-200 bg-white">
+                        <div className="border-t border-slate-200">
                           <button
                             type="button"
                             onClick={() => setMostrarInputNueva(true)}
-                            className="w-full flex items-center gap-2 px-3 py-2 bg-blue-50 hover:bg-blue-100 text-left text-sm lg:text-xs 2xl:text-sm text-blue-600 font-semibold cursor-pointer"
+                            className="w-full flex items-center gap-2 px-3 py-2 text-left text-sm lg:text-xs 2xl:text-sm text-slate-600 hover:bg-slate-50 hover:text-slate-800 font-medium cursor-pointer"
                           >
-                            <Plus className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 shrink-0" />
+                            <Plus className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 shrink-0 text-slate-500" />
                             Agregar nueva
                           </button>
                         </div>

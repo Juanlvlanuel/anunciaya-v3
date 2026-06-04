@@ -31,6 +31,9 @@ export interface DatosCheckout {
   // Campos opcionales para registro con Google
   esRegistroGoogle?: boolean;
   googleIdToken?: string;
+  // Código de referido del vendedor (link `?ref=`). Opcional: si no viene,
+  // el negocio se crea sin atribución.
+  codigoReferido?: string;
 }
 
 /**
