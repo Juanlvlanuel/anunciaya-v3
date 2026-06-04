@@ -27,6 +27,11 @@ export interface PayloadToken {
   // ChatYA usa este valor como identidad comercial del gerente cuando está en
   // modo comercial, para que opere "como el negocio" (igual que ScanYA).
   negocioUsuarioId?: string | null;
+  // Rol de equipo del Panel Admin (null = usuario normal). El frontend lo usa
+  // para decidir el destino al iniciar sesión; el backend revalida en BD.
+  rolEquipo?: string | null; // 'superadmin' | 'gerente' | 'vendedor' | null
+  // Región del equipo (gerente: usuarios.region_id; vendedor: embajadores.region_id).
+  regionId?: string | null;
 }
 
 /**

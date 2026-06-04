@@ -20,7 +20,7 @@ import { env } from '../config/env.js';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
-import { usuarios, usuarioCodigosRespaldo, negocios } from '../db/schemas/schema.js';
+import { usuarios, usuarioCodigosRespaldo, negocios, embajadores } from '../db/schemas/schema.js';
 import { obtenerDatosNegocio, DatosNegocio } from './negocios.service.js';
 import {
   enviarCodigoVerificacion,
@@ -43,6 +43,26 @@ async function resolverNegocioUsuarioId(negocioId: string | null, sucursalAsigna
     .where(eq(negocios.id, negocioId))
     .limit(1);
   return neg?.usuarioId ?? null;
+}
+
+/**
+ * Resuelve la región del miembro de equipo según su rol (una fuente por rol):
+ * gerente → usuarios.region_id · vendedor → embajadores.region_id · resto → null.
+ * Para usuarios normales (rolEquipo null) retorna null sin tocar la BD.
+ */
+async function resolverRegionEquipo(
+  usuario: { id: string; rolEquipo: string | null; regionId: string | null },
+): Promise<string | null> {
+  if (usuario.rolEquipo === 'gerente') return usuario.regionId ?? null;
+  if (usuario.rolEquipo === 'vendedor') {
+    const [emb] = await db
+      .select({ regionId: embajadores.regionId })
+      .from(embajadores)
+      .where(eq(embajadores.usuarioId, usuario.id))
+      .limit(1);
+    return emb?.regionId ?? null;
+  }
+  return null; // superadmin o usuario normal
 }
 import type {
   RegistroInput,
@@ -776,6 +796,26 @@ export async function loginUsuario(
       .where(eq(usuarios.id, usuario.id));
 
     // -------------------------------------------------------------------------
+    // Enforcement de estado: una cuenta no-activa no puede iniciar sesión.
+    // (Credenciales válidas, pero acceso bloqueado.) Mensaje según el estado.
+    // -------------------------------------------------------------------------
+    if (usuario.estado !== 'activo') {
+      return usuario.estado === 'suspendido'
+        ? {
+            success: false,
+            message: 'Tu cuenta fue suspendida. Contacta a soporte.',
+            code: 403,
+            errorCode: 'CUENTA_SUSPENDIDA',
+          }
+        : {
+            success: false,
+            message: 'Tu cuenta está inactiva.',
+            code: 403,
+            errorCode: 'CUENTA_INACTIVA',
+          };
+    }
+
+    // -------------------------------------------------------------------------
     // Obtener datos del negocio (si tiene)
     // -------------------------------------------------------------------------
     let onboardingCompletado = false;
@@ -864,6 +904,8 @@ export async function loginUsuario(
       modoActivo: usuario.modoActivo || 'personal',
       sucursalAsignada: usuario.sucursalAsignada || null,
       negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
+      rolEquipo: usuario.rolEquipo || null,
+      regionId: await resolverRegionEquipo(usuario),
     };
 
     const tokens = generarTokens(payload);
@@ -972,10 +1014,15 @@ export async function refrescarToken(
       .where(eq(usuarios.id, resultado.payload.usuarioId))
       .limit(1);
 
-    if (!usuario || usuario.estado !== 'activo') {
+    if (!usuario) {
+      return { success: false, message: 'Sesión inválida', code: 401 };
+    }
+    if (usuario.estado !== 'activo') {
       return {
         success: false,
-        message: 'Usuario no encontrado o inactivo',
+        message: usuario.estado === 'suspendido'
+          ? 'Tu cuenta fue suspendida. Contacta a soporte.'
+          : 'Tu cuenta está inactiva.',
         code: 401,
       };
     }
@@ -996,6 +1043,8 @@ export async function refrescarToken(
       modoActivo: usuario.modoActivo || 'personal',
       sucursalAsignada: usuario.sucursalAsignada || null,
       negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
+      rolEquipo: usuario.rolEquipo || null,
+      regionId: await resolverRegionEquipo(usuario),
     };
 
     const nuevosTokens = generarTokens(payload);

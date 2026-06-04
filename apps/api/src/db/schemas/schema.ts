@@ -91,6 +91,10 @@ export const usuarios = pgTable("usuarios", {
 	// (filtrado por contexto 'servicio_publicacion'). Lo pobla un cron
 	// mensual (TODO). Por ahora NULL para todos.
 	servicioTiempoRespuestaMinutos: integer("servicio_tiempo_respuesta_minutos"),
+	// Rol de equipo del Panel Admin (null = usuario normal). Capa encima de `perfil`.
+	rolEquipo: varchar("rol_equipo", { length: 20 }),
+	// Región del GERENTE (el vendedor usa embajadores.regionId; superadmin/normal = null).
+	regionId: uuid("region_id").references((): AnyPgColumn => regiones.id, { onDelete: 'set null' }),
 }, (table) => [
 	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
 	index("idx_usuarios_created_at").using("btree", table.createdAt.asc().nullsLast()),
@@ -105,6 +109,8 @@ export const usuarios = pgTable("usuarios", {
 	index("idx_usuarios_modo_comercial").using("btree", table.tieneModoComercial.asc().nullsLast(), table.modoActivo.asc().nullsLast()).where(sql`(tiene_modo_comercial = true)`),
 	index("idx_usuarios_negocio_id").using("btree", table.negocioId.asc().nullsLast()).where(sql`(negocio_id IS NOT NULL)`),
 	index("idx_usuarios_sucursal_asignada").using("btree", table.sucursalAsignada.asc().nullsLast()).where(sql`(sucursal_asignada IS NOT NULL)`),
+	index("idx_usuarios_rol_equipo").using("btree", table.rolEquipo.asc().nullsLast()).where(sql`(rol_equipo IS NOT NULL)`),
+	index("idx_usuarios_region_id").using("btree", table.regionId.asc().nullsLast()).where(sql`(region_id IS NOT NULL)`),
 	uniqueIndex("usuarios_alias_unique").using("btree", table.alias.asc().nullsLast()).where(sql`(alias IS NOT NULL)`),
 	unique("usuarios_correo_unique").on(table.correo),
 	check("usuarios_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'inactivo'::character varying, 'suspendido'::character varying])::text[])`),
@@ -113,6 +119,7 @@ export const usuarios = pgTable("usuarios", {
 	check("usuarios_perfil_check", sql`(perfil)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("usuarios_modo_activo_check", sql`(modo_activo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
 	check("usuarios_modo_comercial_logico_check", sql`((modo_activo)::text = 'comercial'::text AND tiene_modo_comercial = true) OR (modo_activo)::text = 'personal'::text`),
+	check("usuarios_rol_equipo_check", sql`(rol_equipo)::text = ANY ((ARRAY['superadmin'::character varying, 'gerente'::character varying, 'vendedor'::character varying])::text[])`),
 ]);
 
 export const usuarioCodigosRespaldo = pgTable("usuario_codigos_respaldo", {
