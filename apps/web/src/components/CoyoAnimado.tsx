@@ -26,13 +26,14 @@
  * Ubicación: apps/web/src/components/CoyoAnimado.tsx
  */
 
-import { memo, useEffect, useMemo } from 'react';
+import { memo, useEffect, useMemo, useRef } from 'react';
 import {
     useRive,
     useStateMachineInput,
     Layout,
     Fit,
     Alignment,
+    EventType,
 } from '@rive-app/react-canvas';
 
 // =============================================================================
@@ -143,7 +144,7 @@ function CoyoAnimadoBase({
 
     useEffect(() => {
         // Si Rive aún no cargó (primer render), no intentamos tocar inputs.
-        if (!rive || !inputSaludo || !inputAtento || !inputPensando || !inputRespondiendo) {
+        if (!rive || !inputAtento || !inputPensando || !inputRespondiendo) {
             return;
         }
 
@@ -158,12 +159,9 @@ function CoyoAnimadoBase({
         inputPensando.value = false;
         inputRespondiendo.value = false;
 
-        // Activar el nuevo estado.
+        // Activar el nuevo estado. El saludo (trigger) lo maneja su propio
+        // efecto de abajo, no este switch.
         switch (estado) {
-            case 'saludo':
-                // Trigger: dispara una vez, la state machine vuelve sola.
-                inputSaludo.fire();
-                break;
             case 'atento':
                 inputAtento.value = true;
                 break;
@@ -173,9 +171,53 @@ function CoyoAnimadoBase({
             case 'respondiendo':
                 inputRespondiendo.value = true;
                 break;
-            // 'idle' → todos los booleans en false, queda solo Layer 1.
+            // 'saludo' / 'idle' → todos los booleans en false, queda Layer 1.
         }
-    }, [estado, rive, inputSaludo, inputAtento, inputPensando, inputRespondiendo]);
+    }, [estado, rive, inputAtento, inputPensando, inputRespondiendo]);
+
+    // SALUDO — trigger one-shot al cargar el Home. Timing delicado: al cargar
+    // el .riv los inputs (`useStateMachineInput`) se resuelven en renders
+    // sucesivos, así que este efecto re-ejecuta varias veces. Dos trampas:
+    //   (a) disparar en cada corrida → Coyo se queda "pegado" con la mano alzada
+    //       (re-fires que reinician la animación).
+    //   (b) disparar con un setTimeout + cleanup → cada re-ejecución cancela el
+    //       timer antes de que dispare → el brazo NUNCA se mueve.
+    // Solución: marcar el guard en la PRIMERA corrida válida y disparar UNA vez
+    // tras un retardo, SIN cleanup que lo cancele. El retardo da tiempo a que la
+    // state machine procese su primer frame (si no, el trigger se pierde). El
+    // `fire()` usa el input MÁS RECIENTE (ref) para sobrevivir a StrictMode /
+    // recargas internas de Rive.
+    // Refs frescas para leerlas dentro del listener de Rive sin re-suscribir.
+    const inputSaludoRef = useRef(inputSaludo);
+    inputSaludoRef.current = inputSaludo;
+    const estadoRef = useRef(estado);
+    estadoRef.current = estado;
+    const saludoYaDisparadoRef = useRef(false);
+
+    // SALUDO — trigger one-shot al cargar el Home. La transición neutro→saludo
+    // de la state machine SOLO ocurre si el trigger se dispara cuando la SM ya
+    // está en su estado neutro (Layer 2 vacío). Dispararlo a ciegas por tiempo
+    // lo pierde (la SM aún no llegó a neutro) y Coyo no mueve el brazo. Por eso
+    // escuchamos `StateChange` y disparamos `fire()` en cuanto la SM reporta
+    // neutro, UNA sola vez (el guard evita que se quede "pegado" con re-fires).
+    useEffect(() => {
+        if (!rive) return;
+        const onState = (event: { data?: unknown }) => {
+            const estados = event.data;
+            const enNeutro = Array.isArray(estados) && estados.some((s) => s === '');
+            if (
+                enNeutro
+                && !saludoYaDisparadoRef.current
+                && estadoRef.current === 'saludo'
+                && inputSaludoRef.current
+            ) {
+                inputSaludoRef.current.fire();
+                saludoYaDisparadoRef.current = true;
+            }
+        };
+        rive.on(EventType.StateChange, onState);
+        return () => rive.off(EventType.StateChange, onState);
+    }, [rive]);
 
     return (
         <div

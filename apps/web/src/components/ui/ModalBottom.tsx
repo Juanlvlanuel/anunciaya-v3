@@ -184,9 +184,32 @@ export function ModalBottom({
     [cerrarConEscape, handleCerrar, cerrando]
   );
 
+  // Evita que el MISMO gesto que ABRE el modal lo cierre al instante: en
+  // móvil el click/tap de apertura puede propagarse al overlay recién montado
+  // (race de eventos touch — p. ej. abrir desde un ítem del MenuDrawer).
+  // Armamos el cierre-al-tocar-fuera tras un pequeño margen, cuando el gesto
+  // de apertura ya terminó.
+  const armadoCierreFueraRef = useRef(false);
+  useEffect(() => {
+    if (!abierto) {
+      armadoCierreFueraRef.current = false;
+      return;
+    }
+    armadoCierreFueraRef.current = false;
+    const t = window.setTimeout(() => {
+      armadoCierreFueraRef.current = true;
+    }, 350);
+    return () => window.clearTimeout(t);
+  }, [abierto]);
+
   // Click en overlay
   const handleClickOverlay = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (e.target === e.currentTarget && cerrarAlClickFuera && !cerrando) {
+    if (
+      e.target === e.currentTarget &&
+      cerrarAlClickFuera &&
+      !cerrando &&
+      armadoCierreFueraRef.current
+    ) {
       handleCerrar();
     }
   };

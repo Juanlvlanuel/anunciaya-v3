@@ -150,7 +150,8 @@ DELETE  /api/preguntas-comunidad/:preguntaId/interes           quitarInteresCont
 
 POST    /api/preguntas-comunidad/:preguntaId/cerrar            cerrarMiPreguntaController
 POST    /api/preguntas-comunidad/:preguntaId/resolver          marcarResueltaController
-DELETE  /api/preguntas-comunidad/:preguntaId                   borrarMiPreguntaController
+DELETE  /api/preguntas-comunidad/:preguntaId                   borrarMiPreguntaController        ← soft-delete (oculta)
+DELETE  /api/preguntas-comunidad/:preguntaId/permanente        eliminarPermanenteMiPreguntaController ← hard-delete
 PATCH   /api/preguntas-comunidad/:preguntaId                   editarMiPreguntaController
 POST    /api/preguntas-comunidad/:preguntaId/reintentar        reintentarMiPreguntaController  ← Sprint 2.D
 ```
@@ -160,13 +161,14 @@ Orden de declaración importante en `routes.ts`: las rutas estáticas
 (`/:preguntaId/...`) — Express toma la primera que matchea. `GET /:id`
 (un segmento) convive con `GET /:id/coyo` (dos segmentos) sin chocar.
 
-> **Histórico del autor ("Mis preguntas").** El rediseño 2 columnas
-> reemplazó la página dedicada `/inicio/mis-preguntas` por un toggle
-> **Comunidad · Mis preguntas** en el encabezado del feed (filtra en
-> cliente las preguntas del usuario YA presentes en el feed). Por eso se
-> eliminó el endpoint `GET /mis-preguntas`, su controller y el service
-> `listarMisPreguntas`. El índice `idx_preguntas_comunidad_usuario` se
-> conserva (barato, útil para futuros reportes/Panel Admin).
+> **Histórico del autor ("Mis preguntas").** El encabezado del feed tiene un
+> toggle **Comunidad · Mis preguntas**. "Mis preguntas" es una **vista real con
+> endpoint propio** (`GET /mis-preguntas` → `listarMisPreguntas`): trae el
+> historial COMPLETO del autor (activas + cerradas + ocultas), paginado con
+> scroll infinito propio (Opción D, Jun 2026). El índice
+> `idx_preguntas_comunidad_usuario` sostiene esa consulta. (El rediseño 2
+> columnas previo lo había degradado a un filtro cliente del feed; la Opción D
+> lo recuperó como endpoint real.)
 
 - `crearPregunta` hace `INSERT` y luego **fire-and-forget** a `procesarPreguntaConCoyo(nueva.id)` con `.catch(log)`. La publicación NO espera ni falla por Coyo.
 - `listarPreguntasPorCiudad`:
@@ -186,6 +188,7 @@ Orden de declaración importante en `routes.ts`: las rutas estáticas
 | `cerrarMiPregunta` | El autor cambia `estado_pregunta='cerrada'`. La pregunta sale del feed pero las respuestas se conservan. |
 | `marcarResuelta` | El autor pone `resuelta_at=NOW()`. La pregunta sigue `'activa'` y puede recibir más respuestas, pero la UI muestra un badge "Resuelta". |
 | `borrarMiPregunta` | Soft-delete: `estado_pregunta='oculta'`. La pregunta y sus respuestas se conservan en BD pero desaparecen del feed. |
+| `eliminarPermanenteMiPregunta` | **Hard-delete** (DELETE real de la fila). Solo válido sobre preguntas YA eliminadas (`estado_pregunta='oculta'`) — devuelve 409 si está en otro estado. Respuestas e interesados caen en **cascada** (FK `ON DELETE CASCADE`). Solo el autor. Es el 2º paso deliberado de la "papelera" desde Mis preguntas (las preguntas del Home NO tienen archivos en R2, así que el borrado es limpio). |
 | `editarMiPregunta` | **Solo si `totalRespuestas === 0`** — backend valida y devuelve 409 si ya hay respuestas activas. Al editar resetea los campos de Coyo (`estado_coyo='pendiente'`, demás a null) y re-dispara `procesarPreguntaConCoyo` fire-and-forget. |
 | `reintentarMiPregunta` | **Solo si `estado_coyo === 'sin_respuesta'`** — backend devuelve 409 si está en otro estado. Solo el autor; solo preguntas activas. Resetea los 4 campos de Coyo y re-dispara `procesarPreguntaConCoyo` fire-and-forget. Sprint 2.D. |
 
@@ -779,33 +782,37 @@ Constantes editables (al inicio del service): `DIAS_EXPIRACION = 14`
 
 ## Frontend
 
-> **Rediseño "2 columnas" (Jun 2026).** El Home pasó de un hero apilado +
-> página dedicada de "Mis preguntas" a un layout de dos columnas que usa
-> todo el ancho disponible entre las columnas laterales globales del
-> `MainLayout` (sin `max-w-7xl`):
+> **Rediseño "2 columnas" + escena "Casa de Coyo" (Jun 2026).** El Home es un
+> layout de dos columnas que usa todo el ancho disponible entre las columnas
+> laterales del `MainLayout` (sin `max-w-7xl`). El rincón de Coyo es una
+> **escena ilustrada** (`EscenaCoyo` — ver §Escena "Casa de Coyo") con ambiente
+> según la hora del día:
 >
-> - **Desktop (≥ lg):** rail izquierdo *sticky* con Coyo (mascota + saludo
->   tecleado + burbuja + input "Pregúntale a Coyo") alineado **arriba**
->   (`justify-start`) y un **adorno decorativo** anclado a la base; feed a
->   la derecha con toggle **Comunidad · Mis preguntas** en su encabezado.
->   El conjunto rail + feed se **centra** en el espacio disponible
->   (`lg:justify-center`, feed capeado a `lg:max-w-[760px]`) para repartir
->   el sobrante a ambos lados.
-> - **Móvil (< lg):** Coyo protagonista arriba (sin input) con su adorno
->   detrás, una barra *sticky* con el label "Pregúntale a Coyo" + input
->   compacto + el mismo toggle, el feed debajo y un **botón flotante "ir
->   arriba"** que aparece al bajar.
+> - **Desktop (≥ lg):** rail izquierdo *sticky* con la **escena completa**
+>   (saludo tecleado + burbuja + input "Pregúntale a Coyo" + Coyo Rive saliendo
+>   de su cueva + cielo/sol/luna/lámparas/letrero según la hora). Feed a la
+>   derecha con header dinámico + toggle **Comunidad · Mis preguntas**. El
+>   conjunto rail + feed se **centra** (`lg:justify-center`, feed capeado a
+>   `lg:max-w-[760px]`).
+> - **Móvil (< lg):** la **misma escena** como hero (con el input dentro), que
+>   pega al header (sin franja del fondo). Al scrollear hacia abajo, el input
+>   **se desliza** a una barra *sticky* junto al toggle (ver §Móvil), y la vista
+>   hace **auto-scroll** a la pregunta recién enviada. Botón flotante "ir
+>   arriba" al bajar.
 >
-> El filtro "Mis preguntas" muestra las preguntas del usuario **presentes
-> en el feed** (no consulta backend — filtra en cliente por `autorId`).
-> La página `/inicio/mis-preguntas`, el `PanelMisPreguntas` y el
-> `ModalEditarPregunta` se **eliminaron**; la edición ahora es inline.
+> "Mis preguntas" es una **vista real con endpoint propio** (no filtro cliente
+> — ver §Histórico). La página `/inicio/mis-preguntas`, el `PanelMisPreguntas`
+> y el `ModalEditarPregunta` se **eliminaron**; la edición es inline.
 
 | Pieza | Archivo |
 |---|---|
 | Página Home (orquestador 2 columnas) | `apps/web/src/pages/private/PaginaInicio.tsx` |
-| Área de pregunta (Coyo + saludo + burbuja + input) | `apps/web/src/components/home/AreaPreguntaCoyo.tsx` |
-| Adorno decorativo (huellas + cueva + sparkles) | `apps/web/src/components/home/AdornoRailCoyo.tsx` |
+| **Escena "Casa de Coyo" (PC + móvil)** | `apps/web/src/components/home/escena-coyo/EscenaCoyo.tsx` |
+| Tokens de la escena (paletas por ambiente + `hexA`) | `apps/web/src/components/home/escena-coyo/coyoTokens.ts` |
+| Ambiente por hora (Día/Atardecer/Noche) | `apps/web/src/components/home/escena-coyo/useAmbient.ts` |
+| Adornos SVG de la escena (lámpara, arbusto, cactus, hongo, letrero…) | `apps/web/src/components/home/escena-coyo/CoyoDecor.tsx` |
+| Subcomponentes de Coyo reutilizados por la escena | `apps/web/src/components/home/AreaPreguntaCoyo.tsx` (exporta `CoyoInput`, `SaludoTecleado`, `TextoTecleado`) |
+| Adorno decorativo del rail (legado — sin uso tras la escena) | `apps/web/src/components/home/AdornoRailCoyo.tsx` |
 | Card del feed (estilo "Editorial") | `apps/web/src/components/home/CardPreguntaEditorial.tsx` |
 | Tarjeta de resultado de Coyo (carrusel) | `apps/web/src/components/home/CardItemCoyo.tsx` |
 | Estado vacío del feed | `apps/web/src/components/home/EstadosVacios.tsx` |
@@ -821,48 +828,72 @@ Constantes editables (al inicio del service): `DIAS_EXPIRACION = 14`
 | Query keys | `apps/web/src/config/queryKeys.ts` (sección `preguntasComunidad`) |
 | Asset Rive | `apps/web/public/coyo.riv` |
 
-### `AreaPreguntaCoyo` — el "rincón de Coyo"
+### Escena "Casa de Coyo" (`EscenaCoyo`)
 
-Layout VERTICAL centrado, reutilizado en desktop (rail) y móvil (arriba):
+El rincón de Coyo (rail en PC y hero en móvil) es una **escena ilustrada** que
+combina arte (cerro + cueva + cielo) con los componentes VIVOS de la app
+(saludo tecleado, burbuja, input real y Coyo Rive). Vive en
+`components/home/escena-coyo/`. Reemplazó al hero apilado + `AdornoRailCoyo`.
 
-- **Saludo tecleado** (`SaludoTecleado`): `«¡Hola, [nombre]!»` con efecto
-  máquina de escribir letra por letra (nombre en azul). El nombre sale de
-  `useAuthStore(s => s.usuario?.nombre) ?? 'vecino'`.
-- **Coyo animado** (`<CoyoAnimado>`, Rive) grande, con `align="center"`.
-- **Burbuja** debajo con pico SVG apuntando hacia Coyo + texto tecleado
-  *«¿Qué andas buscando hoy?»* (arranca tras terminar el saludo).
-- **Input** (`CoyoInput`): pill blanco controlado + botón circular de
-  enviar con gradiente de marca (`linear-gradient(135deg,#1e293b,#334155)`).
-  Es CONTROLADO — el texto vive en `PaginaInicio` para que
-  `useCoyoEstadoVisual` lo lea y encienda `atento`. En desktop el input
-  vive aquí (`conInput`); en móvil va aparte en la barra sticky
-  (`conInput={false}`).
+**Ambiente por hora (`useAmbient`).** El cielo, el sol/luna, las paletas y los
+adornos cambian según la hora local — **100% automático, sin selector en
+producción**. `ambientFor(date)` devuelve uno de 3 ambientes:
 
-El tecleo respeta `prefers-reduced-motion` (muestra todo de inmediato).
-Se eliminó el stat "X vecinos preguntando hoy" del diseño anterior.
+| Hora local | Ambiente (`Variant`) |
+|---|---|
+| 08:00–17:59 | `grass` — Día (sol, cerro verde) |
+| 06:00–07:59 y 18:00–19:59 | `sand` — Amanecer/Atardecer (sol cálido, cerro arena) |
+| 20:00–05:59 | `night` — Noche (luna, cerro azul oscuro, lámparas encendidas, hongos con glow) |
 
-### `AdornoRailCoyo` — guarida + rastro de huellas (decorativo)
+`useAmbient()` recalcula cada 60s y al volver la pestaña a foco. Las paletas
+(cielo, cerro, cueva) están en `coyoTokens.ts` (`PALETTES`); el helper
+`hexA(hex, alfa)` arma los rgba de las sombras. (En noche, el cerro exterior se
+oscureció a propósito para que su silueta se separe del cielo.)
 
-Adorno **puramente decorativo** (sin interacción, `aria-hidden`,
-`pointer-events-none`) que llena el espacio del rail cuando Coyo se alinea
-arriba. Da la sensación de que **Coyo viene de su guarida**. Exporta dos
-variantes (el padre las monta como `absolute inset-0` detrás del contenido,
-con el rail/bloque en `relative overflow-hidden`):
+**Composición (de arriba a abajo):**
 
-| Variante | Vista | Composición |
-|---|---|---|
-| `AdornoRailCoyo` | Desktop | Cueva incrustada en el **borde inferior** (se hunde con `translate-y` para asomar poco) + rastro de huellas serpenteante que **sube** desde la boca hacia los pies de Coyo + sparkles. |
-| `AdornoCoyoMovil` | Móvil | Cueva incrustada en el **borde izquierdo** (el bloque rompe el padding con `-mx-4` para llegar a la orilla) + huellas en zigzag que salen de la boca hacia Coyo + sparkles. |
+- **Saludo tecleado** + **burbuja** "¿Qué andas buscando hoy?" + label
+  "Pregúntale a **Coyo**" (Coyo en su naranja de marca `#d97534`) + **input**
+  (`CoyoInput`) — todos reusados desde `AreaPreguntaCoyo`. Tipografía **Nunito**
+  (cargada en `index.html`, usada SOLO dentro de la escena).
+- **Coyo Rive saliendo de la cueva** (`CoyoEmerge`): el `<CoyoAnimado>` (con
+  sus estados) sobre un fondo de cueva en dos capas (`ColumnHill` back/front)
+  con un gradiente que funde las patas, para que parezca que **emerge de la
+  guarida**. Animación `cdc-bob` (flota suave). Cargado a la derecha para no
+  tapar el letrero.
+- **Adornos por ambiente** (`CoyoDecor`): sol/luna con halo, lámparas que se
+  balancean pendularmente (`cdc-sway`), arbustos/cactus/hongos, sparkles, y el
+  **letrero "Casa de Coyo"** (por encima de Coyo y su sombra, `zIndex` 3).
 
-- **Huellas:** SVG posicionadas por **porcentaje** (escalan con el alto del
-  contenedor); apuntan en la dirección de avance y la opacidad sube hacia la
-  pisada más reciente (cerca de Coyo).
-- **Cueva (`Cueva`):** vista de frente — roca con gradiente de volumen (luz
-  arriba, sombra abajo-derecha), **boca en arco vertical** con túnel 3D
-  (arcos concéntricos hacia un punto de fuga), roca trasera + faceta en
-  sombra + grietas para relieve, y una **máscara de desvanecido inferior**
-  para difuminar el corte de la base. `id` único por instancia evita IDs de
-  gradiente duplicados (se montan dos cuevas a la vez).
+**Input inline (`CoyoInput`).** Pill ancha y redondeada con el botón de enviar
+**dentro** a la derecha (gradiente oscuro de marca), no separado. Controlado —
+el texto vive en `PaginaInicio` para que `useCoyoEstadoVisual` encienda
+`atento`. En móvil (`compact`) sube el tamaño de texto/altura para que las
+proporciones cuadren.
+
+> Las keyframes de la escena (`cdc-sway`, `cdc-bob`, `cdc-twinkle`, `cdc-float`)
+> viven en `index.css` bajo `[data-coyo-scene]`, con `prefers-reduced-motion`
+> respetado. La paleta `flat` y el selector manual de ambientes existieron solo
+> durante el diseño; se eliminaron.
+
+### Móvil — escena hero + input que se desliza a sticky
+
+En móvil la **misma escena** es el hero (con el input dentro), y pega al header
+(`-mx-4 -mt-px` + esquinas superiores rectas) para no dejar franja del fondo de
+la página. El input NO puede ser `position: sticky` real porque la escena tiene
+`overflow: hidden` (recorta la cueva). Solución **híbrida**:
+
+- Un `IntersectionObserver` sobre `#coyo-input-movil` (el input dentro de la
+  escena) detecta cuándo sale de vista al scrollear.
+- Cuando sale, una barra *sticky* (con el toggle) muestra un input que **se
+  desliza hacia abajo** (`grid-template-rows 0fr→1fr` + opacity) — se ve como el
+  mismo input bajando, no como uno nuevo que aparece de golpe.
+
+**Auto-scroll a la pregunta nueva (móvil).** Al enviar, `PaginaInicio` guarda
+el id de la pregunta y: (1) **centra** el card recién creado (Coyo "pensando")
+en la vista; (2) un `ResizeObserver` re-scrollea (`block: 'nearest'`) cuando el
+card crece con la respuesta de Coyo, para que **no quede cortado**. Se
+desengancha solo a los 30s.
 
 ### Botón "ir arriba" (móvil)
 
@@ -883,9 +914,11 @@ props estables:
 - `CardPreguntaEditorial` y `CardItemCoyo` → `memo` (el feed y sus sondeos no
   se re-renderizan al escribir; `pregunta`/`item` son refs estables del caché
   de React Query).
-- `CoyoAnimado` → `memo` + su `style` del hero movido a una **constante
-  module-level** (`ESTILO_COYO_HERO`) para no invalidar el memo en cada
-  render. El runtime de Rive solo se re-procesa cuando cambia el `estado`.
+- `CoyoAnimado` → `memo`: el runtime de Rive solo se re-procesa cuando cambia
+  el `estado`. Para no invalidar ese memo en cada tecla (el input controlado
+  re-renderiza la escena), su `style` se mantiene **estable**: en
+  `EscenaCoyo`/`CoyoEmerge` con `useMemo([night, width])`; en el hero anterior
+  con la constante module-level `ESTILO_COYO_HERO` (en `AreaPreguntaCoyo`).
 
 **Hooks de React Query:**
 
@@ -907,7 +940,8 @@ useQuitarInteres()                        // OPTIMISTIC UPDATE
 // Control del autor
 useCerrarMiPregunta()
 useMarcarResuelta()
-useBorrarMiPregunta()
+useBorrarMiPregunta()                     // soft-delete (estado='oculta')
+useEliminarPermanenteMiPregunta()         // hard-delete (solo sobre 'oculta')
 useEditarMiPregunta()                     // invalida también el sondeo de Coyo
 useReintentarMiPregunta()                 // sin_respuesta → re-dispara Coyo
 ```
@@ -977,9 +1011,9 @@ Cada pregunta del feed es un `<li>` (estilo "Editorial") con:
 
 | `estadoCoyo` | Bloque renderizado |
 |---|---|
-| `pendiente` o `procesando` | **Coyo Rive mini animado** (40-48px, estado `'pensando'`) + texto "Coyo está pensando" + 3 puntitos animados (`.coyo-dots`), **inline en el flujo de la card** (sin caja). La propia animación transmite que está procesando |
-| `listo` con resultados | Encabezado con `cabeza-coyo.webp` + **"Coyo encontró esto"** + texto + **carrusel ÚNICO horizontal** que mezcla negocios/ofertas/marketplace/servicios en un solo scroll (`itemsPlanosCoyo`, máx 3 por grupo, orden Negocios → Ofertas → MarketPlace → Servicios). Cada ítem es un `CardItemCoyo` clicable al detalle |
-| `listo` sin resultados | Encabezado **"Coyo dice"** + solo el texto |
+| `pendiente` o `procesando` | **Coyo Rive mini animado** (64/80px, estado `'pensando'`) + texto "**Coyo** está pensando" (Coyo en su naranja de marca `#d97534`) + 3 puntitos **naranjas** animados (`.coyo-dots`), **inline en el flujo de la card** (sin caja). La propia animación transmite que está procesando |
+| `listo` con resultados | Encabezado con `cabeza-coyo.webp` (44/48px) + **"Coyo encontró esto"** (Coyo en naranja de marca) + texto + **carrusel ÚNICO horizontal** que mezcla negocios/ofertas/marketplace/servicios en un solo scroll (`itemsPlanosCoyo`, máx 3 por grupo, orden Negocios → Ofertas → MarketPlace → Servicios). Cada ítem es un `CardItemCoyo` clicable al detalle |
+| `listo` sin resultados | Encabezado **"Coyo dice"** (mismo trato: cabeza + Coyo en naranja) + solo el texto |
 | `no_aplica` (subtipo `vaga`) | `BloqueNoAplica` — fondo **ámbar** + **"Coyo sugiere"** — Coyo SÍ podría ayudar pero necesita más detalle |
 | `no_aplica` (subtipo `no_local`) | `BloqueNoAplica` — fondo **slate** + **"Coyo aclara"** — la pregunta no es búsqueda local |
 | `sin_respuesta` | `BloqueSinRespuesta` — alerta "Coyo no pudo procesar tu pregunta". Botón **"Reintentar"** visible **solo al autor** (los vecinos solo ven la nota informativa). Click → `useReintentarMiPregunta` re-dispara Coyo sin crear una pregunta nueva |
@@ -1099,15 +1133,16 @@ navegan a `/inicio?preguntaId=<id>`. Al abrir el Home con ese parámetro,
 
 | Componente | Responsabilidad |
 |---|---|
-| `AreaPreguntaCoyo` | Coyo + saludo tecleado + burbuja + input "Pregúntale a Coyo". Reutilizado desktop (rail) / móvil (arriba). Exporta también `CoyoInput` (usado standalone en la barra sticky móvil). |
+| `AreaPreguntaCoyo` | Módulo de subcomponentes reutilizados por `EscenaCoyo`: `CoyoInput` (input inline controlado), `SaludoTecleado`, `TextoTecleado` (efecto máquina de escribir). Ya NO se monta como hero — lo reemplazó la escena. |
+| `EscenaCoyo` | Escena "Casa de Coyo" (rail PC + hero móvil): cielo/cerro/cueva por ambiente + Coyo Rive saliendo de la cueva + saludo/burbuja/input vivos. Ver §Escena "Casa de Coyo". |
 | `CardPreguntaEditorial` | Card del feed: header del autor (avatar con lightbox + menú) + pregunta (con editor inline) + `RespuestaCoyo` + acciones de comunidad. Orquesta el sondeo de Coyo. |
 | `CardItemCoyo` | Tarjeta de resultado de tamaño fijo dentro del carrusel único de Coyo. Click → detalle. |
 | `EstadosVacios` (`FeedVacio`) | Estado vacío del feed con cabeza de Coyo + chips de ejemplo que precargan el input. |
-| `AdornoRailCoyo` / `AdornoCoyoMovil` | Adorno decorativo del rail: cueva (guarida) + rastro de huellas + sparkles. Sin interacción. |
+| `AdornoRailCoyo` / `AdornoCoyoMovil` | **Legado, sin uso** tras la escena: era el adorno decorativo del rail anterior (cueva + huellas + sparkles). `EscenaCoyo` lo reemplazó. |
 | `navegacionCoyo.ts` | Helpers puros: `rutaDetalleItemCoyo`, `detectarSubtipoNoAplica`, `obtenerIniciales`, `itemsPlanosCoyo`. |
 | `BotonInteresComunidad` | Toggle "Yo también quiero saber". Estado base (slate) → activo (azul) con contador. Loader durante la mutación. Se oculta para el autor y para preguntas no-activas. |
-| `RespuestasComunidad` | Bloque colapsable: trigger "Ver N respuestas" / "Responder" → lista cronológica + `CajaResponder` (input pill + botón circular). Avatares con lightbox. Cada respuesta del usuario actual tiene botón borrar (soft-delete). Acepta `accionDerecha` (ej. el botón "Yo también"). |
-| `MenuAutorPregunta` | Dropdown (3 puntitos) solo al autor. 4 acciones con reglas de visibilidad: Editar (solo si 0 respuestas → dispara edición inline vía `onEditar`), Marcar resuelta, Cerrar, Eliminar. Las 3 destructivas usan `ModalConfirmacion` (wrapper compacto sobre `ModalAdaptativo`: icono en círculo de color + título corto + 1 línea + Cancelar/Confirmar). |
+| `RespuestasComunidad` | Bloque colapsable: trigger "Ver N respuestas" o **"Responder" ↔ "Cancelar"** (dinámico — al abrir el cuadro cambia a "Cancelar" con ícono X) → lista cronológica + `CajaResponder` (input pill + botón circular). Avatares con lightbox. Cada respuesta del usuario actual tiene botón borrar (soft-delete). Acepta `accionDerecha` (ej. el botón "Yo también"). |
+| `MenuAutorPregunta` | Dropdown (3 puntitos) solo al autor. Acciones con reglas de visibilidad: Editar (solo si 0 respuestas → edición inline vía `onEditar`), Marcar resuelta, Cerrar, Eliminar (soft, si NO está `oculta`), y **"Borrar para siempre"** (hard-delete, SOLO en las ya eliminadas/`oculta`). Las destructivas usan `ModalConfirmacion` (wrapper compacto sobre `ModalAdaptativo`: icono en círculo de color + título corto + 1 línea + Cancelar/Confirmar). |
 
 ### Histórico del autor — toggle "Comunidad · Mis preguntas"
 
@@ -1120,11 +1155,17 @@ El encabezado del feed tiene un toggle `SegmentoFeed` (en `PaginaInicio`):
 
 `PaginaInicio` define `queryActivo = segmento === 'mias' ? misPreguntasQuery :
 feed`, y el scroll infinito, el refresh y el sentinel operan sobre ese query.
-El badge del toggle muestra el **total real** de cada segmento (ambos del
-backend). La edición de una pregunta es **inline** (`EditorPregunta` dentro de
-la card). En "Mis preguntas" cada card trae su `MenuAutorPregunta` (gestión
-según estado) y un **badge de estado** (Cerrada / Eliminada) cuando no está
-activa. Mismo toggle en desktop (`FeedHeader`) y móvil (barra sticky).
+El **encabezado del feed es dinámico** según el segmento: Comunidad → "**[ciudad]**
+pregunta" (es la ciudad la que pregunta a la comunidad); Mis preguntas →
+"**Mis** preguntas" — así no choca con "Pregúntale a Coyo" del rail. El badge
+del toggle muestra el **total real** de cada segmento (ambos del backend). La
+edición de una pregunta es **inline** (`EditorPregunta` dentro de la card). En
+"Mis preguntas" cada card trae su `MenuAutorPregunta` (gestión según estado) y
+un **badge de estado** (Cerrada ámbar / Eliminada **roja**) cuando no está
+activa. Las preguntas **eliminadas** (`oculta`) se distinguen con **fondo y
+borde rojo tenue** (`bg-red-50/70 ring-red-200`); desde ahí el menú ofrece
+"**Borrar para siempre**" (hard-delete). Mismo toggle en desktop (`FeedHeader`)
+y móvil (barra sticky).
 
 > **Histórico — evolución.** El rediseño 2 columnas había eliminado la página
 > `/inicio/mis-preguntas` y dejó "Mis preguntas" como un filtro cliente del
@@ -1191,6 +1232,7 @@ Prioridad (mayor a menor):
 4. **Espera al salir de `respondiendo`:** si el estado anterior era `respondiendo` y se cambia a otro, se aplica el cambio con `setTimeout(250ms)` para que el ciclo de bocas termine en su frame base (`boca-cerrada` visible) y no se "congele" en un frame intermedio.
 5. **Layout configurable:** `Fit.Contain` + alineamiento por prop `align` (`'bottomRight' | 'center'`, default `'bottomRight'`). El área de pregunta usa `center`; las cards mini en estado pensando también usan `'center'` para que Coyo quede al centro óptico del contenedor.
 6. **StrictMode-safe:** el efecto que dispara `saludo` no usa flag en `useRef` (en dev el efecto corre 2 veces; un flag bloquearía la segunda ejecución y `setMostrandoSaludo(false)` nunca se llamaría). En su lugar, `mostrandoSaludo` se inicializa en `true` y el `setTimeout` se cierra correctamente con el cleanup.
+7. **Saludo enganchado al estado neutro de Rive (`CoyoAnimado`):** la transición `neutro → saludo` de la state machine **solo** ocurre si el trigger `saludo` se dispara cuando la SM **ya está en su estado neutro** (Layer 2 vacío, `['']`). Dos formas que NO funcionan: (a) dispararlo a ciegas por tiempo (`setTimeout`) lo pierde —la SM aún no llegó a neutro— y Coyo **no mueve el brazo**; (b) dispararlo en cada corrida del efecto (los inputs de Rive se resuelven en renders sucesivos) lo reinicia una y otra vez → Coyo se queda **"pegado" con la mano alzada**. **Solución:** escuchar el evento `StateChange` de Rive (`rive.on(EventType.StateChange, …)`) y llamar `inputSaludo.fire()` **una sola vez** en cuanto la SM reporta neutro. Las refs (`estadoRef`, `inputSaludoRef`) permiten leer estado/input frescos dentro del listener sin re-suscribir. (Diagnosticado leyendo los `stateChange` de la SM: el `fire()` por tiempo ocurría antes del primer neutro y la transición nunca se ejecutaba.) El efecto de los booleans (`atento`/`pensando`/`respondiendo`) quedó separado del saludo.
 
 **Cómo regenerar el `.riv`:**
 
@@ -1406,8 +1448,9 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 | **Backend — notificaciones** | `services/notificaciones.service.ts`, `types/notificaciones.types.ts` |
 | **Backend — config** | `config/env.ts` (`GEMINI_API_KEY`) |
 | **Backend — tests** | `__tests__/coyo-filtro-caso-a.test.ts`, `__tests__/coyo-filtro-caso-b.test.ts` |
-| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (orquestador 2 columnas: `SegmentoFeed`, `FeedHeader`, `ContenidoFeed`, `MisPreguntasVacio`, `BloquePreguntaDestacada`, `HomeMovil`), `hooks/queries/usePreguntasComunidad.ts` (`usePregunta`), `services/preguntasComunidadService.ts` (`obtenerPregunta`), `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
-| **Frontend — componentes Home** | `components/home/AreaPreguntaCoyo.tsx`, `components/home/CardPreguntaEditorial.tsx`, `components/home/CardItemCoyo.tsx`, `components/home/EstadosVacios.tsx`, `components/home/AdornoRailCoyo.tsx`, `components/home/navegacionCoyo.ts`, `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx` |
+| **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (orquestador 2 columnas: `SegmentoFeed`, `FeedHeader`, `ContenidoFeed`, `MisPreguntasVacio`, `BloquePreguntaDestacada`, `IndicadorHuellitas`; layouts móvil/desktop inline), `hooks/queries/usePreguntasComunidad.ts` (`usePregunta`, `useMisPreguntasLista`, `useEliminarPermanenteMiPregunta`), `services/preguntasComunidadService.ts` (`obtenerPregunta`, `listarMisPreguntas`, `eliminarPermanenteMiPregunta`), `hooks/usePullToRefresh.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
+| **Frontend — escena Coyo** | `components/home/escena-coyo/EscenaCoyo.tsx`, `components/home/escena-coyo/coyoTokens.ts`, `components/home/escena-coyo/useAmbient.ts`, `components/home/escena-coyo/CoyoDecor.tsx` (+ keyframes `cdc-*` en `index.css`, fuente Nunito en `index.html`) |
+| **Frontend — componentes Home** | `components/home/AreaPreguntaCoyo.tsx` (exporta `CoyoInput`/`SaludoTecleado`/`TextoTecleado`), `components/home/CardPreguntaEditorial.tsx`, `components/home/CardItemCoyo.tsx`, `components/home/EstadosVacios.tsx`, `components/home/AdornoRailCoyo.tsx` (legado, sin uso), `components/home/navegacionCoyo.ts`, `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx` |
 | **Frontend — scroll/perf** | `hooks/useScrollDirection.ts`, `hooks/useHideOnScroll.ts`, `stores/useMainScrollStore.ts` (botón "ir arriba"); `React.memo` en `CardPreguntaEditorial`, `CardItemCoyo`, `CoyoAnimado` |
 | **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
 | **Frontend — notificaciones** | `components/layout/PanelNotificaciones.tsx` (mapeo de íconos + navegación), `types/notificaciones.ts` |
@@ -1434,3 +1477,17 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 > §Pregunta destacada). Y en el Navbar global se ocultó el buscador del
 > header en `/inicio` (la sección es `'general'`, sin overlay; competía con
 > el input de Coyo) conservando su hueco para no reacomodar el header.
+>
+> **Jun 2026 (escena "Casa de Coyo" + hard-delete):** el rincón de Coyo pasó a
+> ser la **escena ilustrada** `EscenaCoyo` (cielo/cerro/cueva por ambiente de
+> hora vía `useAmbient`, Coyo Rive saliendo de la cueva, input inline, fuente
+> Nunito, adornos `CoyoDecor`) en PC y móvil. En **móvil**: escena hero pegada
+> al header, input que **se desliza a sticky** al scrollear, y **auto-scroll**
+> a la pregunta recién enviada. **Header del feed dinámico** ("[ciudad]
+> pregunta" / "Mis preguntas"). **Personalidad de Coyo en el feed** (pensando /
+> encontró-esto con "Coyo" en naranja de marca y tamaños mayores). Botón
+> **"Responder" ↔ "Cancelar"**. **Borrado permanente** (hard-delete) de
+> preguntas ya eliminadas — papelera de 2 pasos (`eliminarPermanenteMiPregunta`,
+> `DELETE /:id/permanente`) con la card eliminada distinguida en **rojo**.
+> `AreaPreguntaCoyo` quedó como módulo de subcomponentes; `AdornoRailCoyo`, sin
+> uso. El backend de Coyo (IA, orquestador, buscador) no cambió.

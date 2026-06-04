@@ -24,6 +24,7 @@ import {
     quitarInteresController,
     cerrarMiPreguntaController,
     borrarMiPreguntaController,
+    eliminarPermanenteMiPreguntaController,
     marcarResueltaController,
     editarMiPreguntaController,
     reintentarMiPreguntaController,
@@ -158,6 +159,14 @@ router.post('/:preguntaId/resolver', marcarResueltaController);
  * autor; idempotente. Las respuestas se conservan en BD.
  */
 router.delete('/:preguntaId', borrarMiPreguntaController);
+
+/**
+ * DELETE /api/preguntas-comunidad/:preguntaId/permanente
+ * Borrado PERMANENTE (hard-delete) de la pregunta. Solo aplica a preguntas
+ * ya eliminadas (estado_pregunta='oculta'). Borra la fila + sus respuestas e
+ * intereses en cascada. Solo el autor.
+ */
+router.delete('/:preguntaId/permanente', eliminarPermanenteMiPreguntaController);
 
 /**
  * PATCH /api/preguntas-comunidad/:preguntaId

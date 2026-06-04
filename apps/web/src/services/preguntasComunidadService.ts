@@ -278,6 +278,14 @@ export async function borrarMiPregunta(preguntaId: string) {
 }
 
 /**
+ * DELETE /api/preguntas-comunidad/:preguntaId/permanente — borrado PERMANENTE.
+ * Solo aplica a preguntas ya eliminadas (estado='oculta'). Irreversible.
+ */
+export async function eliminarPermanenteMiPregunta(preguntaId: string) {
+    return del<{ eliminada: boolean }>(`/preguntas-comunidad/${preguntaId}/permanente`);
+}
+
+/**
  * PATCH /api/preguntas-comunidad/:preguntaId — autor edita el texto.
  * Solo permitido si la pregunta tiene 0 respuestas activas.
  * Backend re-dispara Coyo con el texto nuevo (fire-and-forget).

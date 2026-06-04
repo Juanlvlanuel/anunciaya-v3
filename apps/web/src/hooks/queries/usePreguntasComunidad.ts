@@ -606,6 +606,26 @@ export function useBorrarMiPregunta() {
     });
 }
 
+/** Autor borra su pregunta de forma PERMANENTE (hard-delete). Solo válido
+ *  sobre preguntas ya eliminadas (estado='oculta'). Irreversible. */
+export function useEliminarPermanenteMiPregunta() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (preguntaId: string) => {
+            const res = await preguntasComunidadService.eliminarPermanenteMiPregunta(preguntaId);
+            if (!res.success) {
+                throw new Error(
+                    (res as unknown as { error?: string }).error
+                        ?? res.message
+                        ?? 'Error al eliminar permanentemente la pregunta',
+                );
+            }
+            return res.data;
+        },
+        onSuccess: () => invalidarFeed(qc),
+    });
+}
+
 /**
  * Sprint 2.D — Reintentar pregunta cuando Coyo cayó en `sin_respuesta`.
  *

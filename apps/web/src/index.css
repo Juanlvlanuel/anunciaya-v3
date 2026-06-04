@@ -650,6 +650,22 @@ body {
 }
 
 /* ============================================= */
+/* ANIMACIONES - Escena "Casa de Coyo"           */
+/* Chispas (twinkle), puntitos (float), respiro  */
+/* de Coyo (bob) y balanceo pendular de faroles  */
+/* (sway). Del design handoff. Ver escena-coyo/. */
+/* ============================================= */
+@keyframes cdc-twinkle { 0%, 100% { transform: scale(.7);  opacity: .4 } 50% { transform: scale(1.1); opacity: 1 } }
+@keyframes cdc-float   { 0%, 100% { transform: translateY(0) }           50% { transform: translateY(-7px) } }
+@keyframes cdc-bob     { 0%, 100% { transform: translateY(0) }           50% { transform: translateY(-5px) } }
+@keyframes cdc-sway    { 0%, 100% { transform: rotate(-4deg) }           50% { transform: rotate(4deg) } }
+
+@media (prefers-reduced-motion: reduce) {
+  [data-coyo-scene] *,
+  [data-coyo-scene] { animation: none !important; }
+}
+
+/* ============================================= */
 /* ANIMACIÓN - Sacudir (vibración para iconos)   */
 /* ============================================= */
 

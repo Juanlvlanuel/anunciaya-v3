@@ -58,15 +58,16 @@ export function CoyoInput({
         onEnviar();
     };
 
-    // Altura estándar de la app: 44px (laptop/desktop), 48px en móvil para que
-    // el input protagonista del Home destaque y evite el auto-zoom de iOS.
-    const dims = compact ? 'h-12 px-4' : 'h-11 lg:h-10 2xl:h-11 px-5';
+    // Pill ancha estilo escena (personalidad handoff): generosa, redondeada,
+    // con el botón de enviar INLINE a la derecha dentro de la misma cápsula.
+    const altura = compact ? 'h-16' : 'h-16';
+    const tamBoton = compact ? 'w-11 h-11' : 'w-10 h-10';
 
     return (
-        <form className="flex items-center gap-2" onSubmit={handleSubmit}>
+        <form onSubmit={handleSubmit}>
             <div
-                className={`flex-1 min-w-0 flex items-center gap-1.5 bg-white rounded-full border-2 border-slate-300 focus-within:border-slate-500 ${dims}`}
-                style={{ boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}
+                className={`flex items-center gap-2 bg-white rounded-full border-2 border-slate-200 focus-within:border-slate-400 pl-6 pr-2 ${altura}`}
+                style={{ boxShadow: '0 6px 18px rgba(40,70,120,0.10)' }}
             >
                 <input
                     id={id}
@@ -81,7 +82,7 @@ export function CoyoInput({
                     autoCorrect="off"
                     spellCheck={false}
                     data-testid="home-pregunta-input"
-                    className="flex-1 min-w-0 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    className={`flex-1 min-w-0 bg-transparent outline-none font-medium text-slate-800 placeholder:text-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed ${compact ? 'text-lg' : 'text-base 2xl:text-lg'}`}
                 />
                 {texto && !enviando && (
                     <button
@@ -91,30 +92,28 @@ export function CoyoInput({
                             onTextoChange('');
                             ref.current?.focus();
                         }}
-                        className="shrink-0 inline-flex items-center justify-center w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 rounded-full bg-slate-500 hover:bg-slate-600 lg:cursor-pointer"
+                        className={`shrink-0 inline-flex items-center justify-center rounded-full bg-slate-400 hover:bg-slate-500 lg:cursor-pointer ${compact ? 'w-7 h-7' : 'w-6 h-6'}`}
                     >
-                        <X className="w-3.5 h-3.5 lg:w-2.5 lg:h-2.5 2xl:w-3.5 2xl:h-3.5 text-white" strokeWidth={2.5} />
+                        <X className={`text-white ${compact ? 'w-4 h-4' : 'w-3.5 h-3.5'}`} strokeWidth={2.5} />
                     </button>
                 )}
+                <button
+                    type="submit"
+                    disabled={!puedeEnviar}
+                    aria-label="Publicar pregunta"
+                    data-testid="home-pregunta-enviar"
+                    className={`send-btn shrink-0 inline-flex items-center justify-center rounded-full text-white lg:cursor-pointer active:scale-[0.94] disabled:opacity-50 disabled:cursor-not-allowed ${tamBoton}`}
+                    style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 3px 10px rgba(30,41,59,0.35)' }}
+                >
+                    {enviando ? (
+                        <Loader2 className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
+                    ) : (
+                        <span className="send-ico inline-flex">
+                            <Send size={19} aria-hidden="true" />
+                        </span>
+                    )}
+                </button>
             </div>
-            <button
-                type="submit"
-                disabled={!puedeEnviar}
-                aria-label="Publicar pregunta"
-                data-testid="home-pregunta-enviar"
-                className={`send-btn shrink-0 inline-flex items-center justify-center rounded-full text-white lg:cursor-pointer active:scale-[0.94] disabled:opacity-50 disabled:cursor-not-allowed ${
-                    compact ? 'w-12 h-12' : 'w-11 h-11 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11'
-                }`}
-                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 3px 10px rgba(30,41,59,0.35)' }}
-            >
-                {enviando ? (
-                    <Loader2 className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
-                ) : (
-                    <span className="send-ico inline-flex">
-                        <Send size={18} aria-hidden="true" />
-                    </span>
-                )}
-            </button>
         </form>
     );
 }
@@ -154,7 +153,7 @@ function useTecleado(texto: string, velocidad = 65, retrasoMs = 0): number {
 }
 
 /** Texto simple tecleado letra por letra (con cursor mientras escribe). */
-function TextoTecleado({
+export function TextoTecleado({
     texto,
     retrasoMs = 0,
     className,
@@ -179,7 +178,7 @@ function TextoTecleado({
 }
 
 /** "¡Hola, [nombre]!" tecleado letra por letra (nombre en azul) + cursor. */
-function SaludoTecleado({ nombre }: { nombre: string }) {
+export function SaludoTecleado({ nombre, night = false }: { nombre: string; night?: boolean }) {
     const prefijo = '¡Hola, ';
     const sufijo = '!';
     const completo = `${prefijo}${nombre}${sufijo}`;
@@ -192,18 +191,18 @@ function SaludoTecleado({ nombre }: { nombre: string }) {
 
     return (
         <h1
-            className="text-2xl 2xl:text-3xl font-bold text-slate-900 tracking-tight"
+            className={`text-2xl 2xl:text-3xl font-extrabold tracking-tight ${night ? 'text-white' : 'text-slate-900'}`}
             aria-label={completo}
         >
             <span aria-hidden>{prefijo.slice(0, finPre)}</span>
-            <span aria-hidden className="text-blue-600">
+            <span aria-hidden className={night ? 'text-blue-300' : 'text-blue-600'}>
                 {nombre.slice(0, finNom)}
             </span>
             <span aria-hidden>{sufijo.slice(0, finSuf)}</span>
             {tecleando && (
                 <span
                     aria-hidden
-                    className="ml-0.5 inline-block w-[2px] h-[0.95em] translate-y-[2px] bg-slate-700 animate-pulse"
+                    className={`ml-0.5 inline-block w-[2px] h-[0.95em] translate-y-[2px] animate-pulse ${night ? 'bg-blue-200' : 'bg-slate-700'}`}
                 />
             )}
         </h1>

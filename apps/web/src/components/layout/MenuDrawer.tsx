@@ -508,8 +508,14 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   };
 
   const handleAbrirUbicacion = () => {
-    abrirModalUbicacion();
+    // Cerramos el drawer PRIMERO y abrimos el modal un instante después.
+    // El drawer limpia su entrada de history con un history.back() diferido
+    // (setTimeout 0); si el modal se montara en el mismo gesto, ese back
+    // retrocedería la entrada que el modal acaba de empujar y lo cerraría al
+    // instante. Este pequeño desfase deja que el drawer termine su limpieza
+    // antes de que el modal toque el history.
     onClose();
+    window.setTimeout(abrirModalUbicacion, 130);
   };
 
   const handleCerrarSesion = () => {

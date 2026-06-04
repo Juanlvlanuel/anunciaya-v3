@@ -43,6 +43,7 @@ import {
     useCerrarMiPregunta,
     useMarcarResuelta,
     useBorrarMiPregunta,
+    useEliminarPermanenteMiPregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { notificar } from '../../utils/notificaciones';
 import type {
@@ -60,7 +61,7 @@ interface MenuAutorPreguntaProps {
     onEditar: () => void;
 }
 
-type Accion = 'cerrar' | 'resolver' | 'borrar';
+type Accion = 'cerrar' | 'resolver' | 'borrar' | 'eliminar-permanente';
 
 export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps) {
     const [menuAbierto, setMenuAbierto] = useState(false);
@@ -70,6 +71,7 @@ export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps
     const cerrarMut = useCerrarMiPregunta();
     const resolverMut = useMarcarResuelta();
     const borrarMut = useBorrarMiPregunta();
+    const eliminarPermanenteMut = useEliminarPermanenteMiPregunta();
 
     // Cerrar el dropdown al click afuera (mismo patrón que CardArticuloMio).
     // El `data-menu-toggle-pregunta` identifica el botón de ESTA pregunta sin
@@ -97,11 +99,13 @@ export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps
     const puedeResolver = estaActiva && !yaResuelta;
     const puedeCerrar = estaActiva;
     const puedeBorrar = !yaOculta;
+    // Borrado permanente: solo en las YA eliminadas (segundo paso de papelera).
+    const puedeEliminarPermanente = yaOculta;
 
     // Si NO hay ninguna acción disponible, no renderizamos el trigger
     // (típicamente ocurre cuando la pregunta ya está 'oculta'). El padre
     // se vería extraño con un botón inerte.
-    const hayAcciones = puedeEditar || puedeResolver || puedeCerrar || puedeBorrar;
+    const hayAcciones = puedeEditar || puedeResolver || puedeCerrar || puedeBorrar || puedeEliminarPermanente;
     if (!hayAcciones) return null;
 
     const handleToggleMenu = (e: ReactMouseEvent) => {
@@ -154,6 +158,20 @@ export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps
             onError: (err) => {
                 const mensaje =
                     err instanceof Error ? err.message : 'No se pudo eliminar la pregunta';
+                notificar.error(mensaje);
+            },
+        });
+    };
+
+    const confirmarEliminarPermanente = () => {
+        eliminarPermanenteMut.mutate(pregunta.id, {
+            onSuccess: () => {
+                notificar.exito('Pregunta borrada permanentemente');
+                cerrarAccion();
+            },
+            onError: (err) => {
+                const mensaje =
+                    err instanceof Error ? err.message : 'No se pudo borrar permanentemente';
                 notificar.error(mensaje);
             },
         });
@@ -231,6 +249,18 @@ export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps
                                 </BotonMenu>
                             </>
                         )}
+                        {puedeEliminarPermanente && (
+                            <BotonMenu
+                                testId={`pregunta-menu-eliminar-permanente-${pregunta.id}`}
+                                icono={Trash2}
+                                iconColor="text-red-600"
+                                textColor="text-red-600"
+                                hoverClass="hover:bg-red-100"
+                                onClick={() => abrirAccion('eliminar-permanente')}
+                            >
+                                Borrar para siempre
+                            </BotonMenu>
+                        )}
                     </div>
                 )}
             </div>
@@ -281,6 +311,22 @@ export function MenuAutorPregunta({ pregunta, onEditar }: MenuAutorPreguntaProps
                 cargando={borrarMut.isPending}
                 testIdCancelar={`pregunta-borrar-cancelar-${pregunta.id}`}
                 testIdConfirmar={`pregunta-borrar-confirmar-${pregunta.id}`}
+            />
+
+            {/* Confirmación: borrado permanente (destructivo IRREVERSIBLE) */}
+            <ModalConfirmacion
+                abierto={accionPendiente === 'eliminar-permanente'}
+                onCerrar={cerrarAccion}
+                Icono={Trash2}
+                color="red"
+                titulo="¿Borrar para siempre?"
+                texto="La pregunta y sus respuestas se eliminarán definitivamente de la base de datos. Esta acción NO se puede deshacer."
+                textoBoton="Sí, borrar para siempre"
+                textoCargando="Borrando…"
+                onConfirmar={confirmarEliminarPermanente}
+                cargando={eliminarPermanenteMut.isPending}
+                testIdCancelar={`pregunta-eliminar-permanente-cancelar-${pregunta.id}`}
+                testIdConfirmar={`pregunta-eliminar-permanente-confirmar-${pregunta.id}`}
             />
         </>
     );

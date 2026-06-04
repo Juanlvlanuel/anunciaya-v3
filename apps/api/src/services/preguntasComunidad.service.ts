@@ -729,6 +729,45 @@ export async function borrarMiPregunta(
 }
 
 /**
+ * Borrado PERMANENTE (hard-delete) de la pregunta del autor. A diferencia de
+ * `borrarMiPregunta` (soft, estado_pregunta='oculta'), aquí se ELIMINA la fila
+ * de BD. Las respuestas y los registros de interés se borran en cascada (FK
+ * onDelete: 'cascade').
+ *
+ * Solo aplica a preguntas YA eliminadas (estado_pregunta='oculta'): es el
+ * segundo paso deliberado de la "papelera" desde Mis preguntas. Solo el autor.
+ */
+export async function eliminarPermanenteMiPregunta(
+    input: AccionAutorInput,
+): Promise<RespuestaServicio<{ eliminada: boolean }>> {
+    try {
+        const verif = await verificarAutoria(input.preguntaId, input.usuarioId);
+        if (!verif.ok) return verif.error;
+
+        if (verif.pregunta.estadoPregunta !== 'oculta') {
+            return {
+                success: false,
+                message: 'Solo puedes borrar permanentemente una pregunta que ya eliminaste',
+                code: 409,
+            };
+        }
+
+        await db
+            .delete(preguntasComunidad)
+            .where(eq(preguntasComunidad.id, input.preguntaId));
+
+        return {
+            success: true,
+            message: 'Pregunta eliminada permanentemente',
+            data: { eliminada: true },
+        };
+    } catch (error) {
+        console.error('Error en eliminarPermanenteMiPregunta:', error);
+        return { success: false, message: 'Error al eliminar permanentemente la pregunta', code: 500 };
+    }
+}
+
+/**
  * El autor marca su pregunta como resuelta. La pregunta sigue siendo
  * estado_pregunta='activa' (puede recibir más respuestas), pero queda
  * marcada con `resuelta_at = NOW()`. El frontend la trata distinto

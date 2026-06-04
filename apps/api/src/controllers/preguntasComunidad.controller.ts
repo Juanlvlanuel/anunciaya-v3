@@ -14,6 +14,7 @@ import {
     obtenerPreguntaPorId,
     cerrarMiPregunta,
     borrarMiPregunta,
+    eliminarPermanenteMiPregunta,
     marcarResuelta,
     editarMiPregunta,
     reintentarMiPregunta,
@@ -542,6 +543,36 @@ export async function borrarMiPreguntaController(req: Request, res: Response) {
         });
     } catch (error) {
         console.error('Error en borrarMiPreguntaController:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error interno del servidor',
+        });
+    }
+}
+
+export async function eliminarPermanenteMiPreguntaController(req: Request, res: Response) {
+    try {
+        const params = validarParamsAccionAutor(req, res);
+        if (!params) return;
+
+        const resultado = await eliminarPermanenteMiPregunta({
+            preguntaId: params.preguntaId,
+            usuarioId: params.usuarioId,
+        });
+        if (!resultado.success) {
+            return res.status(resultado.code || 500).json({
+                success: false,
+                message: resultado.message,
+            });
+        }
+
+        return res.status(200).json({
+            success: true,
+            message: resultado.message,
+            data: resultado.data,
+        });
+    } catch (error) {
+        console.error('Error en eliminarPermanenteMiPreguntaController:', error);
         return res.status(500).json({
             success: false,
             message: 'Error interno del servidor',

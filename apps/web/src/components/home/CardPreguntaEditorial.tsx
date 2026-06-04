@@ -165,18 +165,21 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
 
     if (estadoCoyo === 'pendiente' || estadoCoyo === 'procesando') {
         return (
-            <div className="mt-3 flex items-center gap-2 text-slate-600" aria-live="polite">
+            <div className="mt-3 flex items-center gap-2.5 text-slate-600" aria-live="polite">
                 <CoyoAnimado
                     estado="pensando"
                     align="center"
                     alt="Coyo está pensando"
-                    className="shrink-0 w-10 h-10 lg:w-12 lg:h-12"
+                    className="shrink-0 w-16 h-16 lg:w-20 lg:h-20"
                 />
-                <span className="text-sm font-bold">Coyo está pensando</span>
-                <span className="coyo-dots inline-flex gap-0.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
-                    <span className="w-1.5 h-1.5 rounded-full bg-slate-400" />
+                <span className="text-base lg:text-lg font-extrabold">
+                    <span style={{ color: '#d97534' }}>Coyo</span>
+                    <span className="text-slate-600"> está pensando</span>
+                </span>
+                <span className="coyo-dots inline-flex gap-1">
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#d97534' }} />
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#d97534' }} />
+                    <span className="w-2 h-2 rounded-full" style={{ background: '#d97534' }} />
                 </span>
             </div>
         );
@@ -196,14 +199,17 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
 
     return (
         <div className="mt-3 pt-3 border-t border-slate-300">
-            <div className="flex items-center gap-1.5 mb-1.5">
+            <div className="flex items-center gap-2 mb-1.5">
                 <img
                     src="/cabeza-coyo.webp"
                     alt=""
                     aria-hidden="true"
-                    className="w-7 h-7 shrink-0 object-contain"
+                    className="w-11 h-11 lg:w-12 lg:h-12 shrink-0 object-contain"
                 />
-                <span className="text-sm font-bold text-slate-700">{encabezado}</span>
+                <span className="text-base lg:text-lg font-extrabold">
+                    <span style={{ color: '#d97534' }}>Coyo</span>
+                    <span className="text-slate-700">{encabezado.replace('Coyo', '')}</span>
+                </span>
             </div>
             {respuestaCoyo && (
                 <p className="text-sm lg:text-base font-medium text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
@@ -338,7 +344,11 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
         <li
             id={`feed-${pregunta.id}`}
             data-testid={`pregunta-${pregunta.id}`}
-            className="scroll-mt-24 bg-white rounded-xl p-4 lg:p-5 shadow-md"
+            className={`scroll-mt-24 rounded-xl p-4 lg:p-5 ${
+                pregunta.estadoPregunta === 'oculta'
+                    ? 'bg-red-50/70 ring-1 ring-red-200 shadow-sm'
+                    : 'bg-white shadow-md'
+            }`}
         >
             {/* Header del autor */}
             <div className="flex items-center justify-between gap-2">
@@ -360,7 +370,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                     )}
                     {pregunta.estadoPregunta === 'oculta' && (
                         <span
-                            className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700 bg-slate-200 rounded-full px-2 py-0.5 shrink-0"
+                            className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5 shrink-0"
                             data-testid={`pregunta-eliminada-${pregunta.id}`}
                         >
                             <Trash2 className="w-3 h-3" strokeWidth={2.5} aria-hidden="true" /> Eliminada

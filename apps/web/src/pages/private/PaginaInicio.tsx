@@ -33,9 +33,9 @@ import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
 import { useScrollDirection } from '../../hooks/useScrollDirection';
 import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
-import { AreaPreguntaCoyo, CoyoInput } from '../../components/home/AreaPreguntaCoyo';
+import { CoyoInput } from '../../components/home/AreaPreguntaCoyo';
 import { CardPreguntaEditorial } from '../../components/home/CardPreguntaEditorial';
-import { AdornoRailCoyo, AdornoCoyoMovil } from '../../components/home/AdornoRailCoyo';
+import { EscenaCoyo } from '../../components/home/escena-coyo/EscenaCoyo';
 import { FeedVacio } from '../../components/home/EstadosVacios';
 import { notificar } from '../../utils/notificaciones';
 import type { PreguntaComunidad } from '../../types/preguntasComunidad';
@@ -127,8 +127,17 @@ function FeedHeader({
     return (
         <div className="flex items-center justify-between gap-3 px-1">
             <h2 className="min-w-0 text-lg lg:text-xl tracking-tight leading-tight truncate">
-                <span className="font-medium text-slate-600">Pregunta a </span>
-                <span className="font-bold text-slate-800">{ciudad}</span>
+                {segmento === 'mias' ? (
+                    <>
+                        <span className="font-medium text-slate-600">Mis </span>
+                        <span className="font-bold text-slate-800">preguntas</span>
+                    </>
+                ) : (
+                    <>
+                        <span className="font-bold text-slate-800">{ciudad}</span>
+                        <span className="font-medium text-slate-600"> pregunta</span>
+                    </>
+                )}
             </h2>
             <SegmentoFeed segmento={segmento} onChange={onSegmento} className="shrink-0" conteos={conteos} />
         </div>
@@ -442,6 +451,24 @@ export function PaginaInicio() {
     const [preguntaIdDestacada, setPreguntaIdDestacada] = useState('');
     const preguntaDestacada = usePregunta(preguntaIdDestacada);
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+    // Refs para el auto-scroll móvil a la pregunta recién enviada.
+    const barraStickyRef = useRef<HTMLDivElement>(null);
+    const feedMovilRef = useRef<HTMLDivElement>(null);
+    // Scrollea un elemento hasta JUSTO debajo de la barra sticky (mide su alto
+    // real, así no lo tapa). Opera sobre el <main> scrolleable; cae a
+    // scrollIntoView si no existe.
+    const scrollAVer = (el: HTMLElement, comportamiento: ScrollBehavior = 'smooth') => {
+        const scroller = mainScrollRef?.current;
+        const offsetBarra = (barraStickyRef.current?.offsetHeight ?? 0) + 8;
+        if (!scroller) {
+            el.scrollIntoView({ behavior: comportamiento, block: 'start' });
+            return;
+        }
+        const rectEl = el.getBoundingClientRect();
+        const rectScroller = scroller.getBoundingClientRect();
+        const top = scroller.scrollTop + (rectEl.top - rectScroller.top) - offsetBarra;
+        scroller.scrollTo({ top: Math.max(0, top), behavior: comportamiento });
+    };
 
     useEffect(() => {
         const id = searchParams.get('preguntaId');
@@ -483,10 +510,21 @@ export function PaginaInicio() {
     const handleEnviar = () => {
         if (!puedeEnviar) return;
         setPublicandoPregunta(true);
+        // Móvil: baja de INMEDIATO a la zona del feed (donde caerá la pregunta)
+        // al presionar enviar, sin esperar la respuesta del backend. El ajuste
+        // fino al card exacto lo hace el efecto de `preguntaRecienId`.
+        if (esMovil && feedMovilRef.current) {
+            scrollAVer(feedMovilRef.current);
+        }
         crear.mutate(
             { texto: texto.trim(), ciudad: nombreCiudad, estado: estadoCiudad },
             {
-                onSuccess: () => setTexto(''),
+                onSuccess: (data) => {
+                    setTexto('');
+                    // Móvil: el input está arriba y la pregunta cae en el feed
+                    // de abajo → marcamos su id para auto-scrollear hacia ella.
+                    if (esMovil) setPreguntaRecienId(data?.id ?? null);
+                },
                 onError: (err) =>
                     notificar.error(
                         err instanceof Error ? err.message : 'No se pudo publicar la pregunta',
@@ -585,6 +623,70 @@ export function PaginaInicio() {
         </>
     );
 
+    // ── Input sticky (móvil) ─────────────────────────────────────────────
+    // El input vive DENTRO de la escena hero. Al scrollear hacia abajo y salir
+    // de vista, reaparece pegado arriba (barra sticky). Observamos el propio
+    // input del hero (#coyo-input-movil): mientras se vea, sticky oculto.
+    const [mostrarInputSticky, setMostrarInputSticky] = useState(false);
+    useEffect(() => {
+        if (!esMovil) {
+            setMostrarInputSticky(false);
+            return;
+        }
+        const el = document.getElementById('coyo-input-movil');
+        if (!el) return;
+        const observer = new IntersectionObserver(
+            ([entry]) => setMostrarInputSticky(!entry.isIntersecting),
+            { root: mainScrollRef?.current ?? null },
+        );
+        observer.observe(el);
+        return () => observer.disconnect();
+    }, [esMovil, mainScrollRef]);
+
+    // ── Auto-scroll a la pregunta recién enviada (móvil) ─────────────────
+    // 1) Al enviar, centra el card nuevo (Coyo "pensando") en la vista.
+    // 2) Un ResizeObserver re-scrollea cuando el card crece (llega la
+    //    respuesta de Coyo) para que no quede cortado. Se desengancha solo.
+    const [preguntaRecienId, setPreguntaRecienId] = useState<string | null>(null);
+    useEffect(() => {
+        if (!esMovil || !preguntaRecienId) return;
+        let cancelado = false;
+        let ro: ResizeObserver | null = null;
+        const timers: number[] = [];
+        let intentos = 0;
+
+        const enganchar = () => {
+            if (cancelado) return;
+            const el = document.getElementById(`feed-${preguntaRecienId}`);
+            if (!el) {
+                // El card aún no está en el DOM (el feed refetchea): reintenta.
+                if (intentos++ < 40) timers.push(window.setTimeout(enganchar, 60));
+                return;
+            }
+            // Ajuste fino: lleva el card a justo debajo de la barra sticky
+            // (alto medido), así "Coyo está pensando" queda visible completo.
+            scrollAVer(el);
+            ro = new ResizeObserver(() => {
+                if (cancelado) return;
+                // Al crecer con la respuesta, re-encuadra el card.
+                scrollAVer(el);
+            });
+            ro.observe(el);
+            // Tras un rato la respuesta ya llegó: dejamos de seguir el card.
+            timers.push(window.setTimeout(() => {
+                ro?.disconnect();
+                setPreguntaRecienId(null);
+            }, 30000));
+        };
+        enganchar();
+
+        return () => {
+            cancelado = true;
+            timers.forEach((t) => window.clearTimeout(t));
+            ro?.disconnect();
+        };
+    }, [esMovil, preguntaRecienId]);
+
     // ── Refresh tipo Facebook ────────────────────────────────────────────
     // Móvil: pull-to-refresh (gesto) → feed.refetch().
     // PC: NO forzamos refetch en cada entrada (sería un request por visita).
@@ -642,44 +744,58 @@ export function PaginaInicio() {
     // ── MÓVIL ────────────────────────────────────────────────────────────
     if (esMovil) {
         return (
-            <div className="w-full max-w-[520px] mx-auto px-4 py-3">
+            <div className="w-full max-w-[520px] mx-auto px-4 pb-3">
                 {indicadorPull}
-                {/* Coyo protagonista (scrollea) — sin input (va sticky abajo).
-                    Adorno (huellitas + cueva + sparkles) detrás de la mascota.
-                    `-mx-4` rompe el padding del contenedor para que la cueva
-                    llegue a la orilla; el contenido recupera el padding con
-                    `px-4`. */}
-                <div className="relative overflow-hidden -mx-4 pt-1 pb-4">
-                    <AdornoCoyoMovil className="absolute inset-0 pointer-events-none" />
-                    <div className="relative z-10 px-4">
-                        <AreaPreguntaCoyo
-                            nombreUsuario={nombreUsuario}
-                            estadoCoyo={estadoCoyoVisual}
-                            conInput={false}
-                        />
-                    </div>
-                </div>
-
-                {/* Barra sticky: label + input compacto + segmento */}
-                <div className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-2.5 backdrop-blur-sm space-y-2">
-                    <p className="flex items-center gap-2 pl-1 text-sm font-bold text-slate-600">
-                        <Sparkles size={16} strokeWidth={2.5} className="text-amber-500" /> Pregúntale a Coyo
-                    </p>
-                    <CoyoInput
-                        id="coyo-input-movil"
+                {/* HERO: escena "Casa de Coyo" completa CON input dentro (igual
+                    que PC). `-mx-4 -mt-px` para que la escena llegue a la orilla
+                    y pegue al header (sin franja del fondo de la página). El
+                    input lleva id 'coyo-input-movil' (enfoque + observer sticky). */}
+                <div className="relative overflow-hidden -mx-4 -mt-px">
+                    <EscenaCoyo
                         compact
+                        nombreUsuario={nombreUsuario}
+                        estadoCoyo={estadoCoyoVisual}
+                        hayCiudad={hayCiudad}
+                        idInput="coyo-input-movil"
                         texto={texto}
                         onTextoChange={setTexto}
                         onEnviar={handleEnviar}
                         enviando={crear.isPending}
                         puedeEnviar={puedeEnviar}
-                        placeholder={hayCiudad ? 'Escribe lo que buscas…' : 'Activa tu ubicación para preguntar'}
                     />
+                </div>
+
+                {/* Barra sticky: el toggle siempre pegado; el input se DESLIZA
+                    hacia abajo (grid 0fr→1fr + opacity) cuando el de la escena
+                    sale de vista al scrollear — se ve como un mismo input que
+                    baja, no como uno nuevo que aparece de golpe. */}
+                <div ref={barraStickyRef} className="sticky top-0 z-30 -mx-4 px-4 pt-2 pb-2.5 backdrop-blur-sm">
+                    <div
+                        className="grid transition-all duration-200 ease-out"
+                        style={{
+                            gridTemplateRows: mostrarInputSticky ? '1fr' : '0fr',
+                            opacity: mostrarInputSticky ? 1 : 0,
+                        }}
+                        aria-hidden={!mostrarInputSticky}
+                    >
+                        <div className="overflow-hidden pb-2">
+                            <CoyoInput
+                                id="coyo-input-movil-sticky"
+                                compact
+                                texto={texto}
+                                onTextoChange={setTexto}
+                                onEnviar={handleEnviar}
+                                enviando={crear.isPending}
+                                puedeEnviar={puedeEnviar}
+                                placeholder={hayCiudad ? 'Escribe lo que buscas…' : 'Activa tu ubicación para preguntar'}
+                            />
+                        </div>
+                    </div>
                     <SegmentoFeed segmento={segmento} onChange={setSegmento} className="w-full" conteos={conteosSegmento} />
                 </div>
 
                 {/* Contenido según segmento */}
-                <div className="pt-4 space-y-4">
+                <div ref={feedMovilRef} className="pt-4 space-y-4 scroll-mt-28">
                     {bloqueDestacado}
                     <ContenidoFeed
                         hayCiudad={segmento === 'mias' || hayCiudad}
@@ -704,20 +820,17 @@ export function PaginaInicio() {
                 {/* Rail izquierdo: Coyo (mascota + burbujas + input) alineado
                     arriba + adorno decorativo (huellitas + pin) anclado a la
                     base para llenar el espacio inferior. */}
-                <div className="w-full lg:w-[336px] 2xl:w-[412px] shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100vh-7rem)] lg:flex lg:flex-col lg:justify-start lg:pt-4 relative overflow-hidden">
-                    <AdornoRailCoyo className="hidden lg:block absolute inset-0 pointer-events-none" />
-                    <div className="relative z-10">
-                        <AreaPreguntaCoyo
-                            nombreUsuario={nombreUsuario}
-                            estadoCoyo={estadoCoyoVisual}
-                            hayCiudad={segmento === 'mias' || hayCiudad}
-                            texto={texto}
-                            onTextoChange={setTexto}
-                            onEnviar={handleEnviar}
-                            enviando={crear.isPending}
-                            puedeEnviar={puedeEnviar}
-                        />
-                    </div>
+                <div className="w-full lg:w-[336px] 2xl:w-[412px] shrink-0 self-start lg:sticky lg:top-4 lg:h-[calc(100vh-7rem)]">
+                    <EscenaCoyo
+                        nombreUsuario={nombreUsuario}
+                        estadoCoyo={estadoCoyoVisual}
+                        hayCiudad={hayCiudad}
+                        texto={texto}
+                        onTextoChange={setTexto}
+                        onEnviar={handleEnviar}
+                        enviando={crear.isPending}
+                        puedeEnviar={puedeEnviar}
+                    />
                 </div>
 
                 {/* Feed */}

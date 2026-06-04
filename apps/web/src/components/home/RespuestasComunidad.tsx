@@ -112,10 +112,12 @@ export function RespuestasComunidad({
                 aria-expanded={abierto}
                 aria-controls={`respuestas-${preguntaId}`}
             >
-                <span aria-hidden="true" className="finger-bob inline-flex">
-                    <Pointer className="w-4 h-4 rotate-180" strokeWidth={2} />
+                <span aria-hidden="true" className={abierto ? 'inline-flex' : 'finger-bob inline-flex'}>
+                    {abierto
+                        ? <X className="w-4 h-4" strokeWidth={2.5} />
+                        : <Pointer className="w-4 h-4 rotate-180" strokeWidth={2} />}
                 </span>
-                <span>Responder</span>
+                <span>{abierto ? 'Cancelar' : 'Responder'}</span>
             </button>
         ) : null;
 
