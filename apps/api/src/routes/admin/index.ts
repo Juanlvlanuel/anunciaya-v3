@@ -18,8 +18,14 @@
 import { Router } from 'express';
 import { requierePanel } from '../../middleware/panel.middleware.js';
 import mantenimientoRoutes from './mantenimiento.routes.js';
+import sesionRoutes from './sesion.routes.js';
 
 const router: Router = Router();
+
+// ─── Identidad del Panel (los 3 roles) ──────────────────────────────────────────
+// Se monta ANTES del gate global de superadmin: GET /api/admin/yo debe responder a
+// superadmin/gerente/vendedor (cada uno trae su propio requierePanel en sesion.routes).
+router.use('/', sesionRoutes);
 
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)
