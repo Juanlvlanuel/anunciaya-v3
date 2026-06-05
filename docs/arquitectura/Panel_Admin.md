@@ -120,6 +120,7 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
 3. **Negocios** — **ficha completa** de cada negocio (datos, contacto, estado, membresía, vendedor que lo trajo). Crear (alta asistida), aprobar, suspender/bloquear, degradar. **Asignar / reasignar el vendedor** del negocio a mano — contraparte de la atribución automática: cubre negocios sin código, ventas en efectivo o correcciones. SuperAdmin sobre cualquier negocio; Gerente sobre los de su región; cada cambio queda en **auditoría** (es dinero: define quién cobra comisión). **Solo SuperAdmin:** cancelar, y un **botón para marcar la membresía como pagada a mano** (cortesías, pagos fuera de Stripe).
 4. **Usuarios** — **ficha completa** de cada usuario. Suspender, **bloquear acceso a toda la app**, reactivar — **solo SuperAdmin** (los usuarios-cliente no tienen región hoy; ver Cimientos). **Solo SuperAdmin:** botón para **promover** cuenta personal→comercial o **degradar** comercial→personal a mano.
 5. **Suscripciones / membresías** — precio de membresía, promos de pago (ej. 3 meses con descuento, pago anual), regalar meses gratis a negocios puntuales, historial completo de pagos, y **tiempos configurables**: periodo de gracia para cobros vencidos y duración del trial (hoy 14 días → editable desde el Panel). Los tiempos viven en `configuracionSistema` (la tabla ya tiene `trial_duracion_dias=14` y otras configs de trials/pagos).
+   - **Visibilidad para el negocio (feature firme):** cada negocio ve su **estado de membresía y fecha de vencimiento en su propio Business Studio** ("activo hasta X"). Es buena UX (el negocio quiere saber hasta cuándo pagó) **y** la defensa principal contra el robo invisible del efectivo: si pagó y ve "vencido", reclama a AnunciaYA. Reusa las 5 columnas de estado de membresía del webhook.
 6. **Vendedores y comisiones** — la red completa: alta/baja, regiones, comisiones, cortes de efectivo. (Ver Motor de venta + Comisiones.)
 7. **Publicidad** — **segunda fuente de ingresos.** Los comerciantes pagan por aparecer en los carruseles de la columna derecha de la app (Anuncios, Patrocinadores, Fundadores). **Asignación por ciudad, individual** — un negocio paga por aparecer en la ciudad X; puede también pagar por aparecer en **todas** las ciudades donde opera AY. **Precios configurables** (por ciudad, ya que no valen igual). **Métricas:** uso/KPIs de los carruseles, qué negocios pautan, y **cuánto generan**. El Gerente gestiona la publicidad de su región; los precios los fija el SuperAdmin.
 8. **Ciudades** — habilitar/agregar ciudades para expandir la app **sin tocar código**. (Ver Cimientos: hoy las ciudades están hardcodeadas.)
@@ -141,15 +142,31 @@ Cómo nace una venta y cómo se enlaza un negocio a su vendedor. **Dos caminos, 
 
 ### Camino B — pago en efectivo (registro del vendedor)
 1. El vendedor cobra en efectivo y **registra al negocio desde su Panel**.
-2. El cobro entra como **"efectivo pendiente de entrega"** — el negocio **NO** se activa todavía.
-3. El negocio se activa y la comisión se libera **solo cuando se confirma la entrega** del dinero.
-4. **Quién confirma:** SuperAdmin (cualquiera) o el Gerente Regional (solo de sus vendedores).
+2. **El negocio se ACTIVA de inmediato** al registrarse el cobro. El negocio pagó de buena fe (al representante de AnunciaYA) → su membresía corre normal, su reputación intacta. **NO depende de ninguna confirmación.**
+3. Lo que queda "pendiente" NO es el negocio, es **la entrega del dinero por parte del vendedor**: el cobro queda como **"efectivo por entregar"** a nombre del vendedor.
+4. **La comisión del vendedor** sí se libera solo cuando **confirma la entrega** del dinero (esto lo incentiva a entregarlo). Si no entrega: pierde su comisión, queda faltante a su nombre, se le despide. **El negocio nunca se ve afectado.**
+5. **Quién confirma la entrega:** SuperAdmin (cualquiera) o el Gerente Regional (solo de sus vendedores).
 - **Corte de caja por vendedor:** reportado vs. entregado vs. pendiente. Sin esto el efectivo es un agujero negro.
-- Filosofía: se permite el efectivo (abre más cierres). El robo se castiga solo — el negocio no se activa sin confirmar, el vendedor no cobra comisión y queda con faltante visible. "Roba una vez y pierde su recurrente."
+- Filosofía corregida: el riesgo del robo lo absorbe **AnunciaYA (tú)**, NO el negocio. "Roba una vez → pierde comisión + despido", pero el negocio que pagó queda activo siempre.
 
 > **Por qué se permite el efectivo:** en el mercado objetivo, exigir tarjeta cierra puertas. El
-> candado de "pendiente de entrega + confirmación" honra la regla de "solo roba una vez" haciéndola
-> mecánica, no un deseo.
+> negocio que paga en efectivo está protegido (se activa al instante); el candado de "entrega
+> pendiente + confirmación" recae sobre el **vendedor**, no sobre el negocio.
+
+> ⚠️ **PENDIENTE a implementar en el Camino B — el "robo invisible":**
+> El caso peor no es "registra y no entrega" (ese ya queda con faltante visible). Es el vendedor
+> que **cobra en efectivo y NUNCA registra la venta** — para el sistema, esa venta no existe, y el
+> negocio cree que pagó. El sistema no puede detectar un robo que nunca se registró.
+>
+> **Defensas ELEGIDAS (decisión tomada) — se construyen junto con el Camino B:**
+> 1. **Comprobante automático al negocio** al registrar el cobro (recibo por correo/SMS/in-app: "recibimos tu pago de $X, tu membresía está activa hasta Y"). Hace que registrar sea inseparable de cobrar: si el negocio no recibe comprobante, esa es la señal de alarma.
+> 2. **Visibilidad del estado de membresía en el Business Studio del negocio** (ve "activo hasta X" con su fecha de vencimiento). Convierte al negocio en auditor: si pagó en efectivo y su BS dice "vencido", reclama a AnunciaYA (no al vendedor) → se cacha el robo. Reusa las 5 columnas de estado de membresía ya creadas.
+>
+> Estas dos atacan el robo de raíz: solo funciona si el negocio **no se entera**; con comprobante + visibilidad, **siempre se entera**.
+>
+> **Capa futura (no prioritaria):** conciliación contra el mapa/cartera del v2 (cruzar lo reportado por el vendedor vs. negocios visitados vs. lo que los negocios dicen haber pagado).
+> **Descartado:** pedir que el negocio confirme cada pago — le da trabajo que no hará; las dos defensas elegidas ya lo cubren sin pedirle nada.
+> El robo no se previene al 100% (riesgo inherente del efectivo, ya aceptado), pero estas defensas lo hacen **detectable y de una sola vez**.
 
 ### Atribución manual (contraparte obligatoria)
 Como la venta **nunca se bloquea** por falta de código, un negocio puede nacer **sin vendedor** (`embajadorId` null) — link mal tecleado, registro directo, etc. Por eso la atribución se puede **asignar / reasignar a mano** desde la sección Negocios: SuperAdmin sobre cualquiera, Gerente sobre su región, con registro en auditoría. Sin esto, un negocio huérfano jamás podría pagarle a su vendedor real.
@@ -206,6 +223,7 @@ Pago único por cada negocio nuevo que firma y que **se concreta** (tarjeta paga
 **Estados de membresía (4):** `al corriente` · `en gracia` · `suspendido` · `cancelado`.
 - **En gracia** = le falló el cobro pero sigue dentro de su plazo de gracia. El negocio **sigue funcionando y visible**, marcado como "en riesgo" para que el vendedor corra a salvarlo.
 - **Para comisiones:** `en gracia` **todavía cuenta como activo** (no se castiga al vendedor por un tropiezo temporal). Solo deja de contar cuando cae a `suspendido` (se acabó la gracia sin pagar).
+- **Estado guardado en `negocios`** (5 columnas nuevas): `estado_membresia` + `fecha_vencimiento`, `fecha_proximo_cobro`, `fecha_inicio_gracia`, `fecha_limite_gracia`. La **fecha límite de gracia se calcula y se fija UNA VEZ** al entrar en gracia (no se deriva de la config cada vez): si se cambia el periodo de gracia en el Panel, los negocios que ya estaban en gracia conservan su plazo original; solo los nuevos usan el nuevo número.
 
 ### Configuración de la escalera
 - **Una escalera global**, editable **solo por SuperAdmin** (vive en Configuración).
@@ -252,11 +270,13 @@ Hallazgos del inventario (3 Jun 2026). Varios son **base** del Panel, no adornos
 | **Enforcement de `usuarios.estado`** | 🟥 decorativo | Los campos `estado/motivoCambioEstado/fechaCambioEstado` existen pero **ningún código los lee**. Suspender/bloquear no tiene efecto hasta que el login/middleware lo chequee. |
 | **Webhook `subscription.updated`** | 🟥 sin implementar | Renovaciones/fallos de pago no actualizan estado → "activo = al corriente" no funciona sin esto. Base de las comisiones recurrentes. **El diagnóstico reveló que es más grande de lo previsto** — son 3 rondas: (1) crear el **estado de membresía** (no existe campo de al corriente/vencido/gracia/suspendido ni fecha de vencimiento → **lleva migración**); (2) el **webhook** real (escuchar `invoice.payment_succeeded` / `invoice.payment_failed`, no solo `subscription.updated`); (3) conectar configs. |
 | **Configs decorativas + helper `obtenerConfig()`** | 🟥 NO existe | `configuracionSistema` está poblada pero **ningún código la lee** (igual que `usuarios.estado`). Falta el helper central `obtenerConfig(clave)`. Valores hoy hardcodeados: **trial cobra a 7 días aunque la tabla diga 14**; el periodo de gracia ni existe como clave. `dias_retencion_pago` (=7) **NO** es la gracia — es del camino de efectivo ("retener antes de liberar al negocio"); la gracia será una **clave nueva**. |
-| **Comisiones: schema en % vs decisión en monto fijo** | 🟧 ajuste | El schema dormido (`embajadores.porcentaje_recurrente`, `embajador_comisiones.porcentaje`) modela **porcentaje**. La decisión es **monto fijo + escalera**. Requiere ajustar schema (escalera de escalones, recurrente como monto) al despertar el módulo. |
+| **Región del miembro de equipo: una fuente por rol** | 🟩 decidido | **Gerente** → su región vive en `usuarios.region_id` (columna nueva). **Vendedor** → su región vive en `embajadores.region_id` (su tabla, ya existe). **NO se replica** el dato en ambos lados (evita desincronización). El Panel lee la región según el rol. SuperAdmin y usuarios normales → sin región. |
+| **`embajadores` tiene porcentajes viejos** | 🟧 ajuste | La tabla (hoy vacía) tiene `porcentaje_primer_pago` y `porcentaje_recurrente` del diseño viejo de %. La decisión es **monto fijo** → quitarlos al construir comisiones. Mantener `region_id`, `codigo_referido`, `estado`. Revisar si `negocios_registrados` se guarda o se calcula. |
 | **Migración de ciudades a BD** | 🟧 hardcodeado | La lista de ciudades vive en `apps/web/src/data/ciudadesPopulares` (frontend). Para habilitar ciudades desde el Panel hay que **mudarla a BD** (tabla `regiones`/ciudades) y que el buscador lea de ahí. |
 | **Seguridad: galería DELETE solo-dueño** | 🟧 parcial | Cierre parcial aplicado (commit `c3d5951`). Falta: permitir gerente + validar `imageId ∈ sucursal` en `eliminarImagenGaleria`. |
 | **Seguridad: POST gemelos sin guard** | 🟧 pendiente | `POST /sucursal/:id/foto-perfil` y `POST /:id/logo` (subir) usan `req.params.id` sin guard de propiedad — mismo hueco que ya se cerró en los DELETE. |
 | **Región/ciudad en `usuarios`** | 🟦 futuro | La tabla `usuarios` **no tiene** columna de ciudad/región (confirmado). Para delegar la gestión de usuarios a gerentes por región se necesita: crear la **página de perfil de usuario** (no existe; ahí irían género/avatar/ciudad), agregar la columna de ubicación y poblarla. Por eso **hoy suspender usuarios = solo SuperAdmin**. |
+| **Defensas del efectivo (robo invisible)** | 🟦 futuro · Camino B | El negocio se activa al registrarse el cobro (NO depende de confirmación). El riesgo es el vendedor que cobra y **nunca registra**. **Defensas elegidas (decisión tomada), se construyen con el Camino B:** (1) **comprobante automático al negocio** al registrar el cobro, (2) **visibilidad del estado de membresía en el BS del negocio** (el negocio se vuelve auditor). Conciliación contra el mapa = capa futura del v2. Pedir confirmación al negocio = descartado. Detalle en §Motor de venta → Camino B y §Suscripciones. |
 
 ---
 
@@ -350,6 +370,7 @@ apps/api/src/
 - **Suspender usuarios = solo SuperAdmin.** Los usuarios-cliente no tienen región hoy; bloquear abusivos es tema de plataforma, no de zona. Delegarlo a gerentes requiere primero ubicación en `usuarios`.
 - **Publicidad = segunda fuente de ingresos.** Pauta por ciudad (o todas), precios configurables por el SuperAdmin, con métricas de cuánto genera.
 - **Atribución manual además de la automática.** La venta nunca se bloquea por falta de código → un negocio puede entrar sin vendedor; su atribución se asigna/reasigna luego desde Negocios (SuperAdmin / Gerente su región), con auditoría.
+- **El efectivo nunca afecta al negocio.** Un negocio que paga en efectivo se activa de inmediato (pagó de buena fe). El riesgo del robo lo absorbe AnunciaYA, no el negocio: lo condicionado a la entrega es la **comisión del vendedor**, no la activación. Contra el "robo invisible" (cobrar y no registrar) se eligieron dos defensas: **comprobante automático al negocio** + **visibilidad del estado de membresía en su Business Studio** (el negocio como auditor). Pedir confirmación al negocio se descartó; la conciliación contra el mapa queda para el v2.
 
 ### Heredadas (se conservan)
 - **Sub-carpeta `admin/` en cada capa:** mantiene la convención del proyecto (archivos por tipo) agrupando por sub-dominio cuando crece el volumen.
