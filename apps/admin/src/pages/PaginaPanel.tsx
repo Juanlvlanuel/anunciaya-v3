@@ -17,6 +17,7 @@ import { iconoDeSeccion } from '../config/iconosPanel';
 import { itemsParaRol, etiquetaDe, type RolPanel } from '../data/menuPanel';
 import { LayoutEscritorio } from '../components/shell/LayoutEscritorio';
 import { LayoutMovil } from '../components/shell/LayoutMovil';
+import PaginaSeguridad from './PaginaSeguridad';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -69,8 +70,11 @@ function PaginaPanel() {
 
   const rol = usuario.rolEquipo as RolPanel;
   const items = itemsParaRol(rol);
+  // "seguridad" es una sección especial (Mi cuenta), no está en el menú lateral.
+  const esSeguridad = seccionActivaId === 'seguridad';
   const itemActivo = items.find((i) => i.id === seccionActivaId) ?? items[0];
-  const titulo = etiquetaDe(itemActivo, rol);
+  const titulo = esSeguridad ? 'Seguridad' : etiquetaDe(itemActivo, rol);
+  const iconoClave = esSeguridad ? 'seguridad' : itemActivo.icono;
   const nombre =
     [usuario.nombre, usuario.apellidos].filter(Boolean).join(' ') || usuario.correo || 'Usuario';
 
@@ -80,7 +84,11 @@ function PaginaPanel() {
     navigate('/', { replace: true });
   };
 
-  const contenido = <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />;
+  const contenido = esSeguridad ? (
+    <PaginaSeguridad />
+  ) : (
+    <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
+  );
 
   if (esEscritorio) {
     return (
@@ -88,9 +96,9 @@ function PaginaPanel() {
         rol={rol}
         nombre={nombre}
         avatarUrl={usuario.avatarUrl}
-        seccionActivaId={itemActivo.id}
+        seccionActivaId={seccionActivaId}
         tituloSeccion={titulo}
-        iconoSeccionClave={itemActivo.icono}
+        iconoSeccionClave={iconoClave}
         onSeleccionar={setSeccion}
         regionActivaId={regionActivaId}
         onCambiarRegion={setRegion}
@@ -108,7 +116,7 @@ function PaginaPanel() {
       rol={rol}
       nombre={nombre}
       avatarUrl={usuario.avatarUrl}
-      seccionActivaId={itemActivo.id}
+      seccionActivaId={seccionActivaId}
       onSeleccionar={setSeccion}
       regionActivaId={regionActivaId}
       tema={tema}

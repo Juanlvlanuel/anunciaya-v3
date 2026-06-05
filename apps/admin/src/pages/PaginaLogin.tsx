@@ -1,10 +1,11 @@
 /**
  * PaginaLogin.tsx
  * ================
- * Pantalla de acceso al Panel. Orquesta las 3 sub-vistas (acceso, 2FA,
- * recuperar) sobre la tarjeta centrada con fondo decorativo. El acceso es REAL:
- * llama POST /auth/login (el mismo login de la app). 2FA y recuperar son UI
- * lista; su lógica se cablea después.
+ * Acceso al Panel. Orquesta acceso, 2FA del Panel y recuperar.
+ * Flujo: /auth/login (contraseña) → /api/admin/yo (rol + ¿2FA pendiente?).
+ *  - Si la cuenta es de equipo y NO requiere 2FA → entra.
+ *  - Si es SuperAdmin con 2FA del Panel prendido → pide el TOTP y, al verificarlo,
+ *    reemplaza los tokens por los "marcados" y entra.
  *
  * Ubicación: apps/admin/src/pages/PaginaLogin.tsx
  */
@@ -14,7 +15,8 @@ import { Navigate, useNavigate } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { Sun, Moon } from 'lucide-react';
 import { acceder } from '../services/authPanelService';
-import { obtenerYoPanel } from '../services/sesionPanelService';
+import { obtenerYoPanel, type SesionPanel } from '../services/sesionPanelService';
+import { verificar2fa } from '../services/seguridad2faService';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
 import { CLAVE_ACCESS_TOKEN } from '../services/api';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
@@ -39,6 +41,29 @@ function PaginaLogin() {
   const [mensajeError, setMensajeError] = useState<string>();
   const [cargando, setCargando] = useState(false);
 
+  // Datos de la sesión guardados entre el login y el paso de 2FA del Panel.
+  const [sesion2fa, setSesion2fa] = useState<SesionPanel | null>(null);
+  const [error2fa, setError2fa] = useState(false);
+  const [cargando2fa, setCargando2fa] = useState(false);
+
+  /** Construye el usuario del store a partir de la respuesta de /api/admin/yo. */
+  function entrarConSesion(d: SesionPanel, accessToken: string, refreshToken: string) {
+    iniciarSesion(
+      {
+        id: d.usuarioId ?? '',
+        nombre: d.nombre ?? '',
+        apellidos: d.apellidos ?? '',
+        correo: d.correo ?? correo,
+        avatarUrl: d.avatarUrl,
+        rolEquipo: d.rolEquipo,
+        regionId: d.regionId,
+      },
+      accessToken,
+      refreshToken,
+    );
+    navigate('/inicio', { replace: true });
+  }
+
   async function onEnviar(correoForm: string, contrasena: string) {
     setError(false);
     setMensajeError(undefined);
@@ -53,15 +78,19 @@ function PaginaLogin() {
         return;
       }
 
-      // Cuenta con 2FA → mostrar verificación (lógica se cablea después).
+      // 2FA GENERAL de AnunciaYA (no el del Panel). El equipo del Panel no debería
+      // tenerlo; si lo tiene, avisamos en lugar de entrar a medias.
       if (respuesta.data.requiere2FA) {
-        setPantalla('dospasos');
+        setError(true);
+        setMensajeError(
+          'Esta cuenta tiene verificación en dos pasos de AnunciaYA. El Panel usa su propio 2FA; desactiva el general para entrar.',
+        );
         return;
       }
 
       const { usuario, accessToken, refreshToken } = respuesta.data;
 
-      // 2) Guardar el token para que /api/admin/yo viaje autenticado.
+      // 2) Guardar el token para que /api/admin/yo (y /2fa/verificar) viajen autenticados.
       localStorage.setItem(CLAVE_ACCESS_TOKEN, accessToken);
 
       // 3) Validar el rol de equipo en el backend (guard real del Panel).
@@ -87,22 +116,18 @@ function PaginaLogin() {
         return;
       }
 
-      // 4) Sesión válida con rol → guardar y entrar al shell.
-      const d = sesion.data;
-      iniciarSesion(
-        {
-          id: d.usuarioId ?? usuario.id,
-          nombre: d.nombre ?? usuario.nombre,
-          apellidos: d.apellidos ?? '',
-          correo: d.correo ?? correoForm,
-          avatarUrl: d.avatarUrl,
-          rolEquipo: d.rolEquipo,
-          regionId: d.regionId,
-        },
-        accessToken,
-        refreshToken,
-      );
-      navigate('/inicio', { replace: true });
+      // 4) ¿SuperAdmin con 2FA del Panel pendiente? → pedir el TOTP.
+      if (sesion.data.panel2faPendiente) {
+        setSesion2fa(sesion.data);
+        setCorreo(sesion.data.correo ?? correoForm);
+        setError2fa(false);
+        setPantalla('dospasos');
+        return;
+      }
+
+      // 5) Sin 2FA → entrar directo.
+      void usuario; // datos ya vienen de /api/admin/yo
+      entrarConSesion(sesion.data, accessToken, refreshToken);
     } catch (e) {
       const err = e as AxiosError<{ message?: string }>;
       setError(true);
@@ -116,10 +141,30 @@ function PaginaLogin() {
     }
   }
 
+  /** Verifica el TOTP del Panel: si es válido, recibe tokens marcados y entra. */
+  async function onVerificarPanel2fa(codigo: string) {
+    if (!sesion2fa) return;
+    setError2fa(false);
+    setCargando2fa(true);
+    try {
+      const r = await verificar2fa(codigo);
+      if (!r.success || !r.data) {
+        setError2fa(true);
+        return;
+      }
+      entrarConSesion(sesion2fa, r.data.accessToken, r.data.refreshToken);
+    } catch {
+      setError2fa(true);
+    } finally {
+      setCargando2fa(false);
+    }
+  }
+
   function irA(p: Pantalla) {
     setPantalla(p);
     setError(false);
     setMensajeError(undefined);
+    setError2fa(false);
   }
 
   // Si ya hay sesión del Panel hidratada, saltar el login.
@@ -162,7 +207,13 @@ function PaginaLogin() {
             />
           )}
           {pantalla === 'dospasos' && (
-            <VerificacionDosPasos correo={correo} onVolver={() => irA('acceso')} />
+            <VerificacionDosPasos
+              correo={correo}
+              onVolver={() => irA('acceso')}
+              onVerificar={onVerificarPanel2fa}
+              error={error2fa}
+              cargando={cargando2fa}
+            />
           )}
           {pantalla === 'recuperar' && <RecuperarContrasena onVolver={() => irA('acceso')} />}
         </div>

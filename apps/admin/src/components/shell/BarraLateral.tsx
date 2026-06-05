@@ -1,17 +1,19 @@
 /**
  * BarraLateral.tsx
  * =================
- * Sidebar del shell escritorio (variante Inset): grupos + ítems con estado
- * activo "barra", contadores, y al pie el usuario en sesión + cerrar sesión.
- * Fondo transparente sobre el lienzo.
+ * Sidebar del shell escritorio (Inset): grupos + ítems con estado activo "barra",
+ * contadores, y al pie el "Mi cuenta" (avatar que abre un menú con Seguridad —
+ * solo SuperAdmin — y Cerrar sesión).
  *
  * Ubicación: apps/admin/src/components/shell/BarraLateral.tsx
  */
 
-import { LogOut } from 'lucide-react';
+import { useState } from 'react';
+import { LogOut, ShieldCheck, ChevronUp } from 'lucide-react';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { gruposParaRol, etiquetaDe, type RolPanel } from '../../data/menuPanel';
 import { AvatarUsuario } from './AvatarUsuario';
+import { useClickFuera } from '../../hooks/useClickFuera';
 
 interface BarraLateralProps {
   rol: RolPanel;
@@ -37,6 +39,8 @@ export function BarraLateral({
   onCerrarSesion,
 }: BarraLateralProps) {
   const grupos = gruposParaRol(rol);
+  const [menuAbierto, setMenuAbierto] = useState(false);
+  const refMenu = useClickFuera<HTMLDivElement>(() => setMenuAbierto(false), menuAbierto);
 
   return (
     <div className="flex h-full flex-col">
@@ -55,9 +59,7 @@ export function BarraLateral({
                   data-testid={`nav-${it.id}`}
                   onClick={() => onSeleccionar(it.id)}
                   className={`relative mb-0.5 flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[13.5px] transition ${
-                    activo
-                      ? 'bg-marca-suave font-semibold text-marca'
-                      : 'text-texto-2 hover:bg-marca-suave'
+                    activo ? 'bg-marca-suave font-semibold text-marca' : 'text-texto-2 hover:bg-marca-suave'
                   }`}
                 >
                   {activo && <span className="absolute bottom-1.5 left-0 top-1.5 w-[3px] rounded-r bg-marca" />}
@@ -75,23 +77,48 @@ export function BarraLateral({
         ))}
       </nav>
 
-      <div className="border-t border-borde p-2.5">
-        <div className="flex items-center gap-2.5 rounded-[10px] px-2 py-1.5">
+      {/* Mi cuenta — avatar con menú (Seguridad + Cerrar sesión) */}
+      <div className="relative border-t border-borde p-2.5" ref={refMenu}>
+        {menuAbierto && (
+          <div className="animar-entrada absolute inset-x-2.5 bottom-[calc(100%-4px)] z-30 rounded-[12px] border border-borde bg-superficie p-1.5 shadow-pop-panel">
+            <button
+              type="button"
+              data-testid="menu-seguridad"
+              onClick={() => {
+                onSeleccionar('seguridad');
+                setMenuAbierto(false);
+              }}
+              className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-sm font-medium text-texto-2 transition hover:bg-marca-suave"
+            >
+              <ShieldCheck size={17} className="text-texto-3" /> Seguridad
+            </button>
+            <button
+              type="button"
+              data-testid="cerrar-sesion-escritorio"
+              onClick={onCerrarSesion}
+              className="flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-sm font-medium text-peligro transition hover:bg-peligro-suave"
+            >
+              <LogOut size={17} /> Cerrar sesión
+            </button>
+          </div>
+        )}
+
+        <button
+          type="button"
+          data-testid="menu-cuenta"
+          onClick={() => setMenuAbierto((v) => !v)}
+          className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 transition hover:bg-marca-suave"
+        >
           <AvatarUsuario nombre={nombre} avatarUrl={avatarUrl} tam={40} />
-          <span className="flex flex-1 flex-col overflow-hidden">
+          <span className="flex flex-1 flex-col overflow-hidden text-left">
             <span className="truncate text-[13px] font-semibold text-texto">{nombre}</span>
             <span className="truncate text-[12px] text-texto-2">{ETIQUETA_ROL[rol]}</span>
           </span>
-          <button
-            type="button"
-            data-testid="cerrar-sesion-escritorio"
-            onClick={onCerrarSesion}
-            aria-label="Cerrar sesión"
-            className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-texto-3 transition hover:bg-peligro hover:text-white"
-          >
-            <LogOut size={17} />
-          </button>
-        </div>
+          <ChevronUp
+            size={16}
+            className={`shrink-0 text-texto-3 transition-transform ${menuAbierto ? '' : 'rotate-180'}`}
+          />
+        </button>
       </div>
     </div>
   );

@@ -35,6 +35,7 @@ export const ICONOS_SECCION: Record<string, LucideIcon> = {
   configuracion: SlidersHorizontal,
   equipo: ShieldCheck,
   sistema: Server,
+  seguridad: ShieldCheck,
 };
 
 /** Devuelve el componente de ícono para una clave; LayoutGrid como fallback. */

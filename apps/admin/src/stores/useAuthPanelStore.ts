@@ -47,6 +47,7 @@ interface EstadoAuthPanel {
     accessToken: string,
     refreshToken: string,
   ) => void;
+  setTokens: (accessToken: string, refreshToken: string) => void;
   cerrarSesion: () => void;
   hidratar: () => void;
 }
@@ -75,6 +76,12 @@ export const useAuthPanelStore = create<EstadoAuthPanel>((set, get) => ({
     localStorage.setItem(CLAVES.refreshToken, refreshToken);
     localStorage.setItem(CLAVES.usuario, JSON.stringify(usuario));
     set({ usuario, accessToken, refreshToken, hidratado: true });
+  },
+
+  setTokens: (accessToken, refreshToken) => {
+    localStorage.setItem(CLAVES.accessToken, accessToken);
+    localStorage.setItem(CLAVES.refreshToken, refreshToken);
+    set({ accessToken, refreshToken });
   },
 
   cerrarSesion: () => {

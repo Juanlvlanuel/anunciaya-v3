@@ -19,6 +19,8 @@ export interface SesionPanel {
   avatarUrl: string | null;
   rolEquipo: RolEquipo | null;
   regionId: string | null;
+  /** true = SuperAdmin con 2FA del Panel prendido cuyo token aún no pasó el TOTP. */
+  panel2faPendiente?: boolean;
 }
 
 /** Pide la identidad del Panel al backend. */

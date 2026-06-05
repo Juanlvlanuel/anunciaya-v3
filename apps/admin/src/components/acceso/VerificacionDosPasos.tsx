@@ -1,22 +1,30 @@
 /**
  * VerificacionDosPasos.tsx
  * =========================
- * Pantalla de 2FA (solo SuperAdmin). UI calcada del handoff: emblema escudo + 6
- * casillas con auto-avance y pegado. La LÓGICA de verificación se cablea después
- * (acordado) — por ahora la pantalla es solo visual.
+ * Paso de verificación TOTP (6 casillas con auto-avance y pegado). Lo usa el
+ * login del Panel cuando el SuperAdmin tiene el 2FA del Panel prendido.
  *
  * Ubicación: apps/admin/src/components/acceso/VerificacionDosPasos.tsx
  */
 
 import { useRef, useState } from 'react';
-import { ArrowLeft, ShieldCheck } from 'lucide-react';
+import { ArrowLeft, ShieldCheck, TriangleAlert } from 'lucide-react';
 
 interface VerificacionDosPasosProps {
   correo: string;
   onVolver: () => void;
+  onVerificar: (codigo: string) => void;
+  error?: boolean;
+  cargando?: boolean;
 }
 
-export function VerificacionDosPasos({ correo, onVolver }: VerificacionDosPasosProps) {
+export function VerificacionDosPasos({
+  correo,
+  onVolver,
+  onVerificar,
+  error = false,
+  cargando = false,
+}: VerificacionDosPasosProps) {
   const [codigo, setCodigo] = useState(['', '', '', '', '', '']);
   const refs = useRef<Array<HTMLInputElement | null>>([]);
 
@@ -47,7 +55,7 @@ export function VerificacionDosPasos({ correo, onVolver }: VerificacionDosPasosP
     <form
       onSubmit={(e) => {
         e.preventDefault();
-        /* Lógica de verificación pendiente de cablear. */
+        onVerificar(codigo.join(''));
       }}
     >
       <button
@@ -66,11 +74,26 @@ export function VerificacionDosPasos({ correo, onVolver }: VerificacionDosPasosP
       <div className="mb-6 text-center">
         <h1 className="text-[22px] font-bold tracking-[-0.3px] text-texto">Verificación en dos pasos</h1>
         <p className="mt-1 text-sm text-texto-3">
-          Ingresa el código de 6 dígitos enviado a
-          <br />
-          <b className="text-texto-2">{correo || 'tu correo'}</b>
+          Ingresa el código de 6 dígitos de tu app de autenticación
+          {correo ? (
+            <>
+              {' '}para <b className="text-texto-2">{correo}</b>
+            </>
+          ) : null}
         </p>
       </div>
+
+      {error && (
+        <div
+          role="alert"
+          className="animar-entrada mb-4 flex items-start gap-2 rounded-[11px] border border-[color-mix(in_srgb,var(--panel-danger)_30%,transparent)] bg-peligro-suave p-3 text-sm text-texto-2"
+        >
+          <TriangleAlert size={18} className="mt-0.5 shrink-0 text-peligro" />
+          <div>
+            <b className="text-texto">Código incorrecto.</b> Verifica los 6 dígitos e inténtalo otra vez.
+          </div>
+        </div>
+      )}
 
       <div className="mb-6 flex justify-center gap-2" onPaste={onPegar}>
         {codigo.map((d, i) => (
@@ -95,14 +118,17 @@ export function VerificacionDosPasos({ correo, onVolver }: VerificacionDosPasosP
       <button
         type="submit"
         data-testid="dospasos-verificar"
-        className="w-full rounded-[12px] bg-marca py-3 text-sm font-semibold text-marca-contraste shadow-[0_6px_16px_-6px_var(--panel-brand)] transition hover:brightness-105 active:translate-y-px"
+        disabled={cargando}
+        className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-marca py-3 text-sm font-semibold text-marca-contraste shadow-[0_6px_16px_-6px_var(--panel-brand)] transition hover:brightness-105 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-85"
       >
-        Verificar e ingresar
+        {cargando ? (
+          <>
+            <span className="spinner-panel" /> Verificando…
+          </>
+        ) : (
+          'Verificar e ingresar'
+        )}
       </button>
-
-      <p className="mt-3 text-center text-sm text-texto-3">
-        ¿No llegó? <button type="button" className="font-semibold text-marca hover:underline">Reenviar código</button> · disponible en 0:30
-      </p>
     </form>
   );
 }

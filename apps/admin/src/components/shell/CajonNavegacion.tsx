@@ -7,7 +7,7 @@
  * Ubicación: apps/admin/src/components/shell/CajonNavegacion.tsx
  */
 
-import { X, Sun, Moon, LogOut, LayoutDashboard } from 'lucide-react';
+import { X, Sun, Moon, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { gruposParaRol, etiquetaDe, type RolPanel } from '../../data/menuPanel';
 import type { Tema } from '../../utils/tema';
@@ -101,23 +101,36 @@ export function CajonNavegacion({
           ))}
         </nav>
 
-        <div className="flex items-center gap-2 border-t border-borde p-3">
+        <div className="border-t border-borde p-3">
           <button
             type="button"
-            onClick={onAlternarTema}
-            aria-label="Cambiar tema"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border-2 border-borde-fuerte text-texto-3 transition hover:text-texto"
+            data-testid="menu-seguridad-movil"
+            onClick={() => {
+              onSeleccionar('seguridad');
+              onCerrar();
+            }}
+            className="mb-2 flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left text-sm font-medium text-texto-2 transition hover:bg-marca-suave"
           >
-            {tema === 'oscuro' ? <Sun size={18} /> : <Moon size={18} />}
+            <ShieldCheck size={18} className="text-texto-3" /> Seguridad
           </button>
-          <button
-            type="button"
-            data-testid="cerrar-sesion-movil"
-            onClick={onCerrarSesion}
-            className="flex h-10 flex-1 items-center justify-center gap-2 rounded-[10px] border-2 border-peligro/40 text-sm font-semibold text-peligro transition hover:bg-peligro-suave"
-          >
-            <LogOut size={17} /> Cerrar sesión
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={onAlternarTema}
+              aria-label="Cambiar tema"
+              className="grid h-10 w-10 shrink-0 place-items-center rounded-lg border-2 border-borde-fuerte text-texto-3 transition hover:text-texto"
+            >
+              {tema === 'oscuro' ? <Sun size={18} /> : <Moon size={18} />}
+            </button>
+            <button
+              type="button"
+              data-testid="cerrar-sesion-movil"
+              onClick={onCerrarSesion}
+              className="flex h-10 flex-1 items-center justify-center gap-2 rounded-[10px] border-2 border-peligro/40 text-sm font-semibold text-peligro transition hover:bg-peligro-suave"
+            >
+              <LogOut size={17} /> Cerrar sesión
+            </button>
+          </div>
         </div>
       </aside>
     </>
