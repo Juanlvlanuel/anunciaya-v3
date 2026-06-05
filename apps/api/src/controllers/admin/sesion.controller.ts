@@ -62,6 +62,9 @@ export async function getYoPanelController(req: Request, res: Response): Promise
                 avatarUrl: datos?.avatarUrl ?? null,
                 rolEquipo: panel.rolEquipo,
                 regionId: panel.regionId,
+                // El frontend usa esto para saber si debe pedir el TOTP del Panel:
+                // superadmin con 2FA prendido cuyo token aún no pasó la verificación.
+                panel2faPendiente: panel.panel2faHabilitado && !panel.panel2faOk,
             },
         });
     } catch (error) {

@@ -35,7 +35,7 @@ import { generarTokens, type PayloadToken, verificarRefreshToken } from '../util
  * del gerente para que opere "como el negocio" desde su sucursal (igual que ScanYA).
  * Devuelve null para dueños o usuarios sin negocio.
  */
-async function resolverNegocioUsuarioId(negocioId: string | null, sucursalAsignada: string | null): Promise<string | null> {
+export async function resolverNegocioUsuarioId(negocioId: string | null, sucursalAsignada: string | null): Promise<string | null> {
   if (!sucursalAsignada || !negocioId) return null;
   const [neg] = await db
     .select({ usuarioId: negocios.usuarioId })
@@ -50,7 +50,7 @@ async function resolverNegocioUsuarioId(negocioId: string | null, sucursalAsigna
  * gerente → usuarios.region_id · vendedor → embajadores.region_id · resto → null.
  * Para usuarios normales (rolEquipo null) retorna null sin tocar la BD.
  */
-async function resolverRegionEquipo(
+export async function resolverRegionEquipo(
   usuario: { id: string; rolEquipo: string | null; regionId: string | null },
 ): Promise<string | null> {
   if (usuario.rolEquipo === 'gerente') return usuario.regionId ?? null;
@@ -1045,6 +1045,9 @@ export async function refrescarToken(
       negocioUsuarioId: await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada),
       rolEquipo: usuario.rolEquipo || null,
       regionId: await resolverRegionEquipo(usuario),
+      // Propaga la marca del 2FA del Panel: si el token venía verificado, el nuevo
+      // también lo está (si no, el gate del Panel volvería a pedir 2FA al refrescar).
+      panel2fa: resultado.payload.panel2fa,
     };
 
     const nuevosTokens = generarTokens(payload);

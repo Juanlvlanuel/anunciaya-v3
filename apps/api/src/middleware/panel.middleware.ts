@@ -34,6 +34,8 @@ export interface UsuarioPanel {
     rolEquipo: RolEquipo;
     regionId: string | null;
     viaSecret: boolean;
+    panel2faHabilitado: boolean; // el superadmin tiene el 2FA del Panel prendido
+    panel2faOk: boolean;         // el token actual ya pasó el 2FA del Panel
 }
 
 declare global {
@@ -49,13 +51,17 @@ declare global {
  * Protege rutas del Panel Admin revalidando el rol de equipo contra la BD.
  * @param rolesPermitidos roles que pueden pasar (p.ej. ['superadmin'])
  */
-export function requierePanel(rolesPermitidos: RolEquipo[]) {
+export function requierePanel(
+    rolesPermitidos: RolEquipo[],
+    opciones?: { exigir2FA?: boolean },
+) {
+    const exigir2FA = opciones?.exigir2FA !== false; // default: sí exige
     return async (req: Request, res: Response, next: NextFunction): Promise<void> => {
         // --- Camino legacy: x-admin-secret (Mantenimiento R2 / scripts) ---
         const secreto = env.ADMIN_SECRET;
         const recibido = req.header('x-admin-secret');
         if (secreto && recibido && recibido === secreto) {
-            req.usuarioPanel = { usuarioId: null, rolEquipo: 'superadmin', regionId: null, viaSecret: true };
+            req.usuarioPanel = { usuarioId: null, rolEquipo: 'superadmin', regionId: null, viaSecret: true, panel2faHabilitado: false, panel2faOk: true };
             next();
             return;
         }
@@ -77,7 +83,7 @@ export function requierePanel(rolesPermitidos: RolEquipo[]) {
 
         // Revalidar rol y estado contra la BD (fuente de verdad).
         const [u] = await db
-            .select({ rolEquipo: usuarios.rolEquipo, regionId: usuarios.regionId, estado: usuarios.estado })
+            .select({ rolEquipo: usuarios.rolEquipo, regionId: usuarios.regionId, estado: usuarios.estado, panel2faHabilitado: usuarios.panel2faHabilitado })
             .from(usuarios)
             .where(eq(usuarios.id, usuarioId))
             .limit(1);
@@ -93,6 +99,20 @@ export function requierePanel(rolesPermitidos: RolEquipo[]) {
         }
         if (!u.rolEquipo || !rolesPermitidos.includes(u.rolEquipo as RolEquipo)) {
             res.status(403).json({ success: false, message: 'Acceso denegado: rol de equipo insuficiente' });
+            return;
+        }
+
+        // --- Candado 2FA del Panel (solo superadmin con el 2FA prendido) ---
+        // El token solo trae la marca panel2fa tras pasar /api/admin/2fa/verificar.
+        // Las rutas exentas (/yo, /2fa/verificar) usan { exigir2FA: false } para poder
+        // descubrir y completar el 2FA sin quedar bloqueadas.
+        const panel2faOk = resultado.payload.panel2fa === true;
+        if (exigir2FA && u.panel2faHabilitado && !panel2faOk) {
+            res.status(403).json({
+                success: false,
+                message: 'Se requiere verificación en dos pasos del Panel',
+                errorCode: 'PANEL_2FA_REQUERIDO',
+            });
             return;
         }
 
@@ -114,6 +134,8 @@ export function requierePanel(rolesPermitidos: RolEquipo[]) {
             rolEquipo: u.rolEquipo as RolEquipo,
             regionId,
             viaSecret: false,
+            panel2faHabilitado: u.panel2faHabilitado,
+            panel2faOk,
         };
         next();
     };

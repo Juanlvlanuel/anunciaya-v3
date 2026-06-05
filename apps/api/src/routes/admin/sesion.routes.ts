@@ -18,9 +18,11 @@ import { getYoPanelController } from '../../controllers/admin/sesion.controller.
 
 const router: Router = Router();
 
+// `exigir2FA: false`: /yo debe poder responder aunque el superadmin tenga el 2FA
+// del Panel pendiente — es justo donde el frontend descubre que debe pedir el TOTP.
 router.get(
     '/yo',
-    requierePanel(['superadmin', 'gerente', 'vendedor']),
+    requierePanel(['superadmin', 'gerente', 'vendedor'], { exigir2FA: false }),
     getYoPanelController,
 );
 

@@ -54,6 +54,10 @@ export const usuarios = pgTable("usuarios", {
 	dobleFactorSecreto: varchar("doble_factor_secreto", { length: 64 }),
 	dobleFactorHabilitado: boolean("doble_factor_habilitado").default(false),
 	dobleFactorConfirmado: boolean("doble_factor_confirmado").default(false),
+	// 2FA del Panel Admin (solo SuperAdmin) — separado de doble_factor_* para que
+	// prenderlo NUNCA afecte el login de AnunciaYA. Ver migración 2026-06-04-panel-2fa.sql.
+	panel2faHabilitado: boolean("panel_2fa_habilitado").default(false).notNull(),
+	panel2faSecreto: varchar("panel_2fa_secreto", { length: 64 }),
 	telefono: varchar({ length: 20 }),
 	ciudad: varchar({ length: 100 }),
 	perfil: varchar({ length: 20 }).default('personal').notNull(),
