@@ -345,7 +345,13 @@ El gate del Panel ya **no** depende solo del `x-admin-secret`. Construido:
 3. **Gate dual durante la transición** (`routes/admin/index.ts`): acepta `x-admin-secret` (legacy, reconcile R2) **O** un JWT con rol válido. El `requireAdminSecret` original se conserva dentro del dual y se retira cuando todo migre al rol.
 4. **`GET /api/admin/yo`** (`controllers/admin/sesion.controller.ts` + `routes/admin/sesion.routes.ts`): identidad del Panel. Responde a los **3 roles** (se monta **antes** del gate global de superadmin) y devuelve `rolEquipo` + `regionId` + datos básicos. Es el guard que usa el frontend para decidir el acceso: si la cuenta no tiene rol de equipo → 403.
 
-- Operaciones sensibles (dinero, borrados, alta de cuentas) podrán exigir **2FA** encima del rol (pendiente; la UI de 2FA ya existe en el login, falta cablear la lógica).
+### 2FA del Panel — IMPLEMENTADA (opcional, por cuenta)
+Verificación en dos pasos (TOTP, Google Authenticator) **en la puerta del Panel**, **separada** del 2FA general de AnunciaYA para no afectar el login de la app:
+- **Columnas propias** en `usuarios`: `panel_2fa_habilitado` + `panel_2fa_secreto` (migración `docs/migraciones/2026-06-04-panel-2fa.sql`). NO se reusa `doble_factor_*`. **Sin códigos de respaldo** (salida de emergencia = apagar `panel_2fa_habilitado` en BD a mano).
+- **Opcional para los 3 roles:** cada cuenta de equipo (superadmin / gerente / vendedor) lo prende o apaga desde **Mi cuenta → Seguridad**.
+- **Candado real "en la puerta":** el JWT lleva un claim `panel2fa` que solo ponen los tokens emitidos por `/api/admin/2fa/verificar`; el refresh lo **propaga**. `requierePanel` **exige** ese claim cuando la cuenta tiene el 2FA prendido (segundo parámetro `{ exigir2FA }`, default `true`). **Exentas:** `/yo` y `/2fa/verificar` (para poder descubrir y completar el 2FA). Tener la contraseña + un token sin la marca **no** abre el Panel.
+- **Endpoints** (`controllers/admin/seguridad.controller.ts` + `services/admin/seguridad.service.ts` + `routes/admin/seguridad.routes.ts`): `POST /2fa/generar` (QR), `/2fa/activar` (confirma y prende), `/2fa/desactivar`, `/2fa/verificar` (en la puerta), `GET /2fa/estado`. Reusa `otplib` + `qrcode` (mismo patrón que el 2FA general).
+- **Activar y verificar emiten tokens ya marcados** (`panel2fa: true`) para que la cuenta no quede bloqueada a sí misma tras prender el 2FA.
 
 ---
 
@@ -355,7 +361,9 @@ App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 202
 
 - **Stack/cableado:** React 19 + Vite + Tailwind v4 (tokens vía `@theme` en `index.css`) + React Query + Zustand, **versiones idénticas a `apps/web`**. Puerto dev **3100**, proxy `/api` → backend local (sin CORS en dev). `tsconfig` extiende `tsconfig.base.json`; alias `@` y `@anunciaya/shared`. `vercel.json` con rewrite SPA. Tipografía **IBM Plex Sans**.
 - **Sesión aislada:** prefijo de localStorage propio (`ayadmin_`) + store propio (`useAuthPanelStore`), independiente de la sesión de la app pública.
-- **Login (`/`):** acceso real contra `/auth/login` (mismo login de siempre); tras autenticar, valida el rol con `GET /api/admin/yo` (sin rol → "sin acceso al Panel"). 2FA y recuperar contraseña **como UI lista, sin lógica cableada**. "Recordar mi correo" guarda **solo el correo**.
+- **Login (`/`):** acceso real contra `/auth/login`; tras autenticar, valida el rol con `GET /api/admin/yo` (sin rol → "sin acceso al Panel"). **Recuperar contraseña** funciona (código de 6 dígitos por correo, reusa `/auth/olvide-contrasena` + `/auth/restablecer-contrasena`). **2FA del Panel** cableado: si la cuenta lo tiene prendido, tras la contraseña se pide el TOTP. "Recordar mi correo" guarda **solo el correo**.
+- **Refresh automático:** el axios del Panel renueva el token con `/auth/refresh` ante un 401 (con cola para refresh simultáneos); si falla, cierra sesión. La sesión ya no se cae sola.
+- **Seguridad (Mi cuenta):** pantalla con el interruptor del **2FA del Panel**, accesible desde el menú del **avatar** (sidebar escritorio / cajón móvil), para los 3 roles.
 - **Shell (`/inicio`) — RESPONSIVE (no por rol):** en pantalla grande (`lg:`+) vista **escritorio** (header negro + sidebar + panel flotante "inset"); en móvil vista **móvil** (header + saludo/región + **tab-bar** inferior, o **cajón** vía "Más" cuando el rol ve >5 secciones). El **rol solo filtra** el menú/alcance (qué secciones, etiquetas "Mi cartera"/"Mis comisiones", selector de región vs región fija).
 - **Tema claro/oscuro** con toggle (variables CSS por `data-tema`).
 - **Datos demo (placeholder) por ahora:** nombres de región, contadores del menú y la bandeja de pendientes. Se conectan a datos reales al construir las secciones.

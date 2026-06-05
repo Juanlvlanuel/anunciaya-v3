@@ -8,6 +8,41 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [4 Junio 2026] - Panel Admin · Cabos del shell: recuperar + refresh + 2FA en la puerta 🔐
+
+Cierre de los tres cabos sueltos del shell del Panel (`apps/admin`), reusando al máximo lo
+que el backend ya tenía. **Solo DEV** (la migración del 2FA ya se corrió en dev y prod).
+
+**Recuperar contraseña (frontend).** Reusa los endpoints existentes `/auth/olvide-contrasena`
+y `/auth/restablecer-contrasena` (código de 6 dígitos por correo). La pantalla pasó de "UI sin
+lógica" al flujo real: correo → código + nueva contraseña → éxito.
+
+**Refresh token automático (frontend).** El axios del Panel renueva el token con `/auth/refresh`
+ante un 401, con cola para refresh simultáneos; si falla, cierra sesión y manda a `/`. La sesión
+del Panel ya no se cae sola.
+
+**2FA del Panel — real "en la puerta", opcional para los 3 roles.** TOTP (Google Authenticator)
+**separado** del 2FA general de AnunciaYA (no afecta el login de la app):
+- Migración `2026-06-04-panel-2fa.sql`: 2 columnas nuevas en `usuarios` (`panel_2fa_habilitado`,
+  `panel_2fa_secreto`), **separadas** de `doble_factor_*`. Corrida en dev + prod. Sin códigos de
+  respaldo (salida de emergencia = apagar el flag en BD a mano).
+- **Candado real:** claim `panel2fa` en el JWT que solo ponen los tokens de `/api/admin/2fa/verificar`;
+  el refresh lo propaga. `requierePanel` lo exige cuando la cuenta tiene el 2FA prendido (opción
+  `exigir2FA`, default true); exentas `/yo` y `/2fa/verificar`. Con la contraseña + un token sin la
+  marca NO se abre el Panel.
+- **Endpoints** (`controllers/admin/seguridad.controller.ts` + service + routes): generar (QR),
+  activar, desactivar, verificar, estado. Reusa `otplib` + `qrcode`. Activar y verificar emiten
+  tokens ya marcados (la cuenta no se bloquea a sí misma al prender).
+- **Frontend:** pantalla **Seguridad** (interruptor + QR) en el menú del **avatar** (sidebar / cajón),
+  paso de TOTP en el login, para superadmin/gerente/vendedor (cada uno opcional).
+- Tocado con str_replace mínimo en el login compartido: `jwt.ts` (claim), `panel.middleware.ts`
+  (candado), `auth.service.ts` (propaga la marca al refrescar).
+
+Verificado E2E en DEV (activar con QR, reentrar pidiendo código, apagar). Type-check + build de
+`apps/admin` y type-check de `apps/api` en verde. `apps/web` intacta.
+
+---
+
 ## [4 Junio 2026] - Panel Admin · Frontend del Panel: shell responsive + login 🛡️🖥️
 
 Primer frontend del Panel Admin: una app web **aparte** (`apps/admin`), espejo de

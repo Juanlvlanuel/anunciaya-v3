@@ -24,7 +24,8 @@
 ## 🖥️ Fase 1 — Motor (secciones del Panel)
 
 - [x] ✅ **UI del Panel — esqueleto/shell** — app `apps/admin` (espejo de `apps/web`, puerto 3100). Login (`/`) contra `/auth/login` + validación de rol via `GET /api/admin/yo`; shell **responsive** (`/inicio`): escritorio (header negro + sidebar + panel flotante) y móvil (header + saludo/región + tab-bar con "Más" + cajón). Menú filtrado por rol, selector de región y bandeja de pendientes. Tema claro/oscuro, IBM Plex Sans, sesión aislada (`ayadmin_`). Verificado en DEV (type-check + build) y **pusheado a `main`**.
-  - [ ] 🟡 **Pendiente del shell:** lógica real de **2FA y recuperar contraseña** (hoy UI lista sin cablear), **refresh token** en el cliente admin, y **datos reales** (nombres de región, contadores del menú y bandeja de pendientes hoy son demo).
+  - [x] ✅ **Cabos del shell cerrados** — **recuperar contraseña** (código de 6 dígitos por correo, reusa `/auth/olvide-contrasena` + `/auth/restablecer-contrasena`), **refresh token automático** en el axios del Panel (renueva con `/auth/refresh` ante 401, con cola), y **2FA del Panel** (TOTP en la puerta, **opcional para los 3 roles**, candado real vía claim `panel2fa` en el JWT + columnas `panel_2fa_*`; migración corrida en dev + prod). Pantalla **Seguridad** en el menú del avatar. Probado en DEV.
+  - [ ] 🟡 **Pendiente del shell:** **datos reales** (nombres de región, contadores del menú y bandeja de pendientes hoy son demo).
   - [ ] 🟡 **Despliegue del Panel** — proyecto Vercel propio (Root `apps/admin`) + subdominio `admin.anunciaya.mx` + sumar el origen al CORS de `apps/api` (prod).
 - [ ] 🟡 **Sección Negocios** — ficha completa, aprobar/suspender, asignar/reasignar vendedor a mano, botón "marcar pagado" (solo SuperAdmin), cancelar (solo SuperAdmin).
 - [ ] 🟡 **Sección Usuarios** — ficha, suspender/bloquear (solo SuperAdmin), promover/degradar cuenta.
