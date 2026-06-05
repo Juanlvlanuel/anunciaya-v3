@@ -1,7 +1,7 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
 > **Última actualización:** 4 Junio 2026
-> **Progreso global:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin** (diseño 100%, construyendo cimientos Fase 0).
+> **Progreso global:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin** (diseño 100%, Fase 0 completa, frontend shell+login construido; construyendo las secciones internas).
 > **Fase actual:** Panel Admin **ANTES** de la beta (la beta necesita vendedores + cobros del Panel para operar).
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (4 secciones públicas) + `docs/arquitectura/Panel_Admin.md` (diseño completo del Panel: 3 niveles, motor de venta, comisiones, mapa v2).
 
@@ -23,7 +23,7 @@
 | **Business Studio** (5.4) | ✅ 100% (13/13 módulos) | Dashboard, Mi Perfil, Catálogo, Promociones, Puntos, Transacciones, Clientes, Opiniones, Alertas, Empleados, Reportes, Sucursales, **Vacantes** ✅ |
 | **Secciones Públicas** (6.x) | ✅ 100% (4/4) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest) · ✅ Home / Coyo Fase 1 + Cerebro IA + Fase 2 Comunidad + Polish UX (1 Jun 2026, ver `docs/arquitectura/Home_Coyo.md`) |
 | **Home — Pregúntale a Peñasco / Coyo** | ✅ Fase 1 + Cerebro IA + Comunidad + Polish UX | Feed conversacional + hero "Coyo te habla" + asistente Gemini 2.5-flash + **respuestas de la comunidad** + **"yo también quiero saber"** + **control del autor** (cerrar/editar/marcar resuelta/borrar) + **notificaciones cross-rol** (autor, interesados, dueños de items recomendados) + **expiración pasiva 14 días** + **tarjetas clicables** + **Coyo mini animado en card** + **botón Reintentar** ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`. |
-| **Panel Admin** (6.7) | ⏳ ~20% · **diseño 100%** | Diseño completo en `docs/arquitectura/Panel_Admin.md` (3 niveles: SuperAdmin → Gerente Regional → Vendedor; motor de venta tarjeta/efectivo; comisiones monto-fijo + escalera; mapa de territorios v2). **Fase 0 (cimientos) en curso:** atribución vendedor↔negocio ✅ (dev), estado de membresía 5 columnas ✅ (dev), webhook renovaciones + ciclo 4 estados + cron de gracia ✅ (dev). Pendiente Fase 0: Ronda 3 (conectar `configuracionSistema` + helper `obtenerConfig` + trial 7→14 + gracia 14d), enforcement de `usuarios.estado`, rol de equipo + auth del Panel. Luego: UI del Panel (brief en `Brief_Diseno_Panel_Admin.md`) y secciones. |
+| **Panel Admin** (6.7) | ⏳ ~35% · **diseño 100%** | Diseño completo en `docs/arquitectura/Panel_Admin.md` (3 niveles: SuperAdmin → Gerente Regional → Vendedor; motor de venta tarjeta/efectivo; comisiones monto-fijo + escalera; mapa de territorios v2). **Fase 0 (cimientos) ✅ COMPLETA (dev + producción):** atribución vendedor↔negocio, estado de membresía (5 columnas + ciclo 4 estados + cron de gracia), webhook de renovaciones, configs conectadas (helper `obtenerConfig`, trial/gracia 14d), rol de equipo + auth del Panel (`requierePanel`), enforcement de `usuarios.estado`; superadmin sembrado en prod. **Frontend del Panel ✅ (dev):** app `apps/admin` con login + shell responsive (escritorio/móvil) + `GET /api/admin/yo`. **En curso:** las 11 secciones internas + despliegue (Vercel + subdominio `admin.anunciaya.mx`). |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | **Va DESPUÉS del Panel** (necesita vendedores + cobros). Stripe LIVE (config de reintentos/correos hecha en TEST; falta verificar empresa + replicar en producción), dominio, testing, beta 50 negocios |
 
 ---
@@ -42,7 +42,7 @@
 - [x] **Sección pública Servicios v1.1** ✅ (17 May 2026 — Sprints 7+8 cerrados: feed mezclado con widget de Clasificados, wizard 3 pasos para crear/editar, Mis Publicaciones, cron de expiración 30 días, reseñas, perfil del prestador con distribución de estrellas, moderación pasiva, **+ BS Vacantes (módulo en Business Studio para que negocios publiquen vacantes corporativas)**, 65 tests Vitest)
 - [x] **Home con Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** ✅ (24 May 2026 — feed conversacional con hero "Coyo te habla", asistente con Gemini 2.5-flash que interpreta la pregunta, busca en las 4 áreas vía buscador unificado y redacta respuesta cálida; modelo "publicar al instante + sondeo cada 2s" sin socket. Detalle: `docs/arquitectura/Home_Coyo.md`.)
 - [x] **Home / Coyo — Fase 2 (Comunidad + Polish UX)** ✅ (1 Jun 2026 — el feed deja de ser solo "vecino → Coyo" y se vuelve "vecino → comunidad + Coyo". Respuestas de la comunidad en hilo plano, "Yo también quiero saber" con optimistic update, control del autor (cerrar/editar/marcar resuelta/borrar) con reglas estrictas, 3 tipos de notificación nuevos (al autor cuando responden, a interesados cuando responden, a dueños cuando Coyo recomienda su item con fallback gerente→dueño), expiración pasiva 14d sin cron, vista `/inicio/mis-preguntas`. Polish UX: tarjetas de Coyo clicables a su detalle + "Ver N más en X", Coyo Rive mini animado dentro de la card pensando, subtipos visuales `vaga` (ámbar) vs `no_local` (slate), empty state con 3 ejemplos, botón Reintentar ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`.)
-- [~] **Panel Admin** — diseño 100% (`Panel_Admin.md`); cimientos Fase 0 en curso (atribución, estado de membresía, webhook ya en dev). **Va antes de la beta.**
+- [~] **Panel Admin** — diseño 100% (`Panel_Admin.md`); **Fase 0 completa (dev + prod)** + **frontend shell+login** (`apps/admin`) + `GET /api/admin/yo`. En curso: las secciones internas. **Va antes de la beta.**
 - [x] **Arreglos de seguridad** ✅ (4 Jun 2026 — onboarding + DELETE de imágenes, en producción)
 - [ ] Beta privada: 50 negocios piloto (después del Panel)
 - [ ] Lanzamiento público
@@ -88,6 +88,9 @@
 | Seguridad 2 | **DELETE de imágenes con guard** — logo (dueño), portada/foto-perfil (dueño o gerente), galería (cierre parcial). En producción (`c3d5951`). Detalle en CHANGELOG. | 4 Jun 2026 |
 | Panel F0-A | **Atribución vendedor↔negocio (Camino A)** — `?ref=` vía metadata Stripe → llena `embajadorId`/`regionId`/`referidoPor`; ref inválido nunca bloquea la venta. Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
 | Panel F0-B | **Estado de membresía + webhook de renovaciones** — 5 columnas en `negocios` + ciclo de 4 estados + cron de gracia. Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
+| Panel F0-C | **Configs conectadas (Ronda 3)** — helper `obtenerConfig()` + clave `periodo_gracia_cobro_dias=14` + trial/gracia 7→14. Bloque de pagos completo. | 4 Jun 2026 |
+| Panel F0-D | **Rol de equipo + auth del Panel + enforcement de `usuarios.estado`** — `rol_equipo`/`region_id`, rol en JWT, `requierePanel` (revalida BD + región), gate dual, login bloquea cuentas no-activas. **Fase 0 completa; pusheada a prod + migraciones corridas + superadmin sembrado.** | 4 Jun 2026 |
+| Panel F1 | **Frontend del Panel: shell responsive + login** — app `apps/admin` (espejo de `apps/web`, puerto 3100), login real + `GET /api/admin/yo`, shell escritorio/móvil, tema claro/oscuro, sesión aislada (`ayadmin_`). Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -125,11 +128,13 @@
 
 ---
 
-## ⏭️ Sprint siguiente: Panel Admin (cimientos Fase 0) → luego beta privada
+## ⏭️ Sprint siguiente: Panel Admin (Fase 1 — secciones internas) → luego beta privada
 
-> Orden actualizado (4 Jun 2026): el Panel Admin va **antes** de la beta. Frente activo:
-> cerrar la Fase 0 de cimientos (falta Ronda 3 de configs, enforcement de estado, rol +
-> auth del Panel), luego construir las secciones del Panel, y recién entonces la beta.
+> Orden actualizado (4 Jun 2026): el Panel Admin va **antes** de la beta. **Fase 0
+> (cimientos) ✅ completa (dev + prod)** y el **frontend del Panel (shell + login) ✅
+> construido** (`apps/admin` + `GET /api/admin/yo`). Frente activo: las **secciones
+> internas** del Panel (Negocios, Usuarios, Suscripciones, Vendedores + comisiones,
+> Equipo y accesos…) + despliegue (Vercel + subdominio), y recién entonces la beta.
 
 ---
 
@@ -221,7 +226,7 @@
 **Vendedores v2 (diseñado, construcción diferida):** mapa de territorios — gerente dibuja zonas a mano, vendedor ve su cartera + prospectos, mini-CRM. PostGIS + MapLibre.
 
 **Orden de construcción (fases):**
-- **Fase 0 — Cimientos:** atribución ✅(dev) · estado de membresía ✅(dev) · webhook renovaciones + cron gracia ✅(dev) · **pendiente:** Ronda 3 configs (helper + trial 7→14 + gracia 14d), enforcement `usuarios.estado`, rol de equipo + auth del Panel.
+- **Fase 0 — Cimientos ✅ COMPLETA (dev + prod):** atribución · estado de membresía · webhook renovaciones + cron gracia · configs conectadas (helper `obtenerConfig`, trial/gracia 14d) · enforcement `usuarios.estado` · rol de equipo + auth del Panel (`requierePanel`). + **Frontend: shell + login (`apps/admin`) y `GET /api/admin/yo` ✅ (dev).**
 - **Fase 1 — Motor:** Negocios · Usuarios · Suscripciones · Vendedores+comisiones · Equipo y accesos.
 - **Fase 1.5 — Operación:** Métricas · Resumen · Ciudades (migración de ciudades hardcodeadas a BD) · Configuración · Publicidad.
 - **Fase 2 — Vendedores v2:** mapa de territorios.
@@ -350,8 +355,8 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 
 ## 📅 Próxima Revisión
 
-**Fecha:** Al cerrar la Fase 0 del Panel Admin (cimientos).
-**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin, antes de la beta.** Diseño 100% (`Panel_Admin.md`). En curso los cimientos (atribución, estado de membresía y webhook ya en dev; falta configs, enforcement de estado, rol+auth). Después: secciones del Panel → beta privada en Puerto Peñasco (50 negocios) con vendedores ya operando.
+**Fecha:** Al cerrar las primeras secciones internas del Panel Admin.
+**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin, antes de la beta. Fase 0 (cimientos) ✅ completa (dev + prod) + frontend shell+login ✅** (`apps/admin` + `GET /api/admin/yo`). En curso: las secciones internas del Panel. Después: beta privada en Puerto Peñasco (50 negocios) con vendedores ya operando.
 
 ---
 
