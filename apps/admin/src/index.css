@@ -1,0 +1,247 @@
+@import "tailwindcss";
+
+/* =============================================================================
+   PANEL ADMIN — Registro de tokens como utilidades (Tailwind v4)
+   =============================================================================
+   En Tailwind v4 las utilidades de color se generan desde `@theme`, no desde
+   tailwind.config.js. Mapeamos cada token a su variable de tema (definida más
+   abajo en :root / [data-tema]). Con `inline`, la utilidad usa la variable
+   directamente, así el color cambia solo al alternar claro/oscuro.
+   Genera: bg-superficie, text-texto, border-borde, bg-marca, shadow-tarjeta-panel, … */
+@theme inline {
+  --color-lienzo: var(--panel-canvas);
+  --color-superficie: var(--panel-surface);
+  --color-superficie-2: var(--panel-surface-2);
+  --color-barra: var(--panel-bar);
+  --color-borde: var(--panel-border);
+  --color-borde-fuerte: var(--panel-border-strong);
+  --color-campo: var(--panel-field);
+  --color-campo-borde: var(--panel-field-border);
+  --color-texto: var(--panel-text);
+  --color-texto-2: var(--panel-text-2);
+  --color-texto-3: var(--panel-text-3);
+  --color-texto-4: var(--panel-text-4);
+  --color-marca: var(--panel-brand);
+  --color-marca-2: var(--panel-brand-2);
+  --color-marca-contraste: var(--panel-brand-contrast);
+  --color-marca-suave: var(--panel-brand-weak);
+  --color-peligro: var(--panel-danger);
+  --color-peligro-suave: var(--panel-danger-weak);
+  --color-ok: var(--panel-ok);
+  --color-etiqueta-grupo: var(--panel-group-label);
+
+  --font-sans: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --shadow-tarjeta-panel: var(--panel-shadow-card);
+  --shadow-pop-panel: var(--panel-shadow-pop);
+}
+
+/* =============================================================================
+   PANEL ADMIN — Tokens de tema (claro/oscuro)
+   =============================================================================
+   La paleta sobria del Panel vive como variables CSS para que el modo
+   claro/oscuro cambie con un atributo `data-tema` en <html>. tailwind.config.js
+   mapea estas variables a utilidades en español (bg-superficie, text-marca, …).
+   Valores tomados del handoff de diseño (variante "Inset"). */
+
+:root,
+[data-tema="claro"] {
+  color-scheme: light;
+  --panel-bg: #f5f6f8;
+  --panel-canvas: #e5f1ff;
+  --panel-surface: #ffffff;
+  --panel-surface-2: #f7f9fc;
+  --panel-border: #e6e8ee;
+  --panel-border-strong: #d7dae2;
+  --panel-field: #f4f6fa;
+  --panel-field-border: #dfe3ea;
+  --panel-text: #0a0a0b;
+  --panel-text-2: #45454a;
+  --panel-text-3: #84848a;
+  --panel-text-4: #a6a6ac;
+  --panel-brand: #2563eb;
+  --panel-brand-2: #1a36ad;
+  --panel-brand-contrast: #ffffff;
+  --panel-brand-weak: color-mix(in srgb, var(--panel-brand) 11%, transparent);
+  --panel-hover: color-mix(in srgb, var(--panel-brand) 13%, transparent);
+  --panel-ring: color-mix(in srgb, var(--panel-brand) 32%, transparent);
+  --panel-danger: #e0322f;
+  --panel-danger-weak: color-mix(in srgb, var(--panel-danger) 12%, transparent);
+  --panel-ok: #0e8a52;
+  --panel-group-label: #0431b9;
+  --panel-bar: #0e0f13;
+  --panel-shadow-card: 0 1px 3px rgba(16, 18, 26, 0.05), 0 18px 50px -18px rgba(16, 24, 55, 0.32);
+  --panel-shadow-pop: 0 1px 2px rgba(20, 22, 28, 0.04), 0 8px 24px -8px rgba(20, 22, 28, 0.18);
+}
+
+[data-tema="oscuro"] {
+  color-scheme: dark;
+  --panel-bg: #0c0c0e;
+  --panel-canvas: #0a0d16;
+  --panel-surface: #16181d;
+  --panel-surface-2: #1c1f25;
+  --panel-border: #2a2d34;
+  --panel-border-strong: #353941;
+  --panel-field: #1f232b;
+  --panel-field-border: #353941;
+  --panel-text: #f2f3f5;
+  --panel-text-2: #a4a7af;
+  --panel-text-3: #777b83;
+  --panel-text-4: #5a5d65;
+  --panel-brand: #5a8dff;
+  --panel-brand-2: #2f6bf0;
+  --panel-brand-contrast: #0b1220;
+  --panel-danger: #ff6360;
+  --panel-ok: #34c77b;
+  --panel-shadow-card: 0 1px 3px rgba(0, 0, 0, 0.4), 0 18px 50px -18px rgba(0, 0, 0, 0.6);
+  --panel-shadow-pop: 0 1px 2px rgba(0, 0, 0, 0.3), 0 8px 24px -8px rgba(0, 0, 0, 0.5);
+}
+
+/* =============================================================================
+   BASE
+   ============================================================================= */
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  font-family: "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+  background: var(--panel-canvas);
+  color: var(--panel-text);
+  -webkit-font-smoothing: antialiased;
+}
+
+/* =============================================================================
+   CURSOR POINTER — solo en vista PC (>= 1024px = breakpoint lg)
+   =============================================================================
+   En escritorio (con mouse) los elementos clicables muestran la manita. En móvil
+   (táctil) no aplica. Centralizado aquí para no repetir cursor-pointer en cada
+   botón. Los deshabilitados quedan fuera (conservan su cursor de no permitido). */
+@media (min-width: 1024px) {
+  button:not(:disabled),
+  a[href],
+  select,
+  summary,
+  [role="button"],
+  input[type="checkbox"],
+  input[type="radio"],
+  label:has(input[type="checkbox"]),
+  label:has(input[type="radio"]) {
+    cursor: pointer;
+  }
+}
+
+/* =============================================================================
+   AUTOFILL del navegador — respetar el tema
+   =============================================================================
+   El autocompletado de Chrome pinta su propio fondo (que no sigue nuestras
+   variables y persiste oscuro al volver a claro). Forzamos fondo y texto del
+   tema con la técnica del box-shadow inset. Como usan variables, cambian solos
+   al alternar claro/oscuro. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus {
+  -webkit-text-fill-color: var(--panel-text);
+  -webkit-box-shadow: 0 0 0 1000px var(--panel-field) inset;
+  caret-color: var(--panel-text);
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* =============================================================================
+   AUXILIARES — animaciones, spinner y decorado del login
+   ============================================================================= */
+
+@keyframes panel-fadein {
+  from { opacity: 0; transform: translateY(5px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animar-entrada {
+  animation: panel-fadein 0.22s ease;
+}
+
+@keyframes entrada-login {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.985);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+.entrada-login {
+  animation: entrada-login 0.42s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .entrada-login {
+    animation: none;
+  }
+}
+
+@keyframes panel-spin {
+  to { transform: rotate(360deg); }
+}
+
+.spinner-panel {
+  width: 17px;
+  height: 17px;
+  border: 2px solid color-mix(in srgb, var(--panel-brand-contrast) 40%, transparent);
+  border-top-color: var(--panel-brand-contrast);
+  border-radius: 999px;
+  animation: panel-spin 0.65s linear infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animar-entrada { animation: none; }
+  .spinner-panel { animation-duration: 1.4s; }
+}
+
+/* Ambiente decorativo del fondo del login (blobs + rejilla). Solo estético. */
+.fondo-login {
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.fondo-login::before,
+.fondo-login::after {
+  content: "";
+  position: absolute;
+  width: 540px;
+  height: 540px;
+  border-radius: 999px;
+  filter: blur(8px);
+  opacity: 0.5;
+}
+
+.fondo-login::before {
+  top: -180px;
+  right: -120px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--panel-brand) 26%, transparent), transparent 62%);
+}
+
+.fondo-login::after {
+  bottom: -200px;
+  left: -140px;
+  background: radial-gradient(circle, color-mix(in srgb, var(--panel-brand-2) 22%, transparent), transparent 62%);
+}
+
+.rejilla-login {
+  position: absolute;
+  inset: 0;
+  background-image:
+    linear-gradient(color-mix(in srgb, var(--panel-text) 5%, transparent) 1px, transparent 1px),
+    linear-gradient(90deg, color-mix(in srgb, var(--panel-text) 5%, transparent) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 70% 60% at 50% 42%, #000 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse 70% 60% at 50% 42%, #000 0%, transparent 72%);
+}

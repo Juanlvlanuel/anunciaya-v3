@@ -20,6 +20,13 @@
       "runtimeExecutable": "pnpm",
       "runtimeArgs": ["--filter", "@anunciaya/api", "dev"],
       "port": 4000
+    },
+    {
+      "name": "Admin (Vite)",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["--filter", "@anunciaya/admin", "dev"],
+      "port": 3100,
+      "autoPort": true
     }
   ]
 }
