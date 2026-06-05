@@ -29,7 +29,7 @@ const iniciarServidor = async () => {
       console.log('');
       console.log('🚀 AnunciaYA API v3.0.0');
       console.log(`📡 Servidor corriendo en http://localhost:${PORT}`);
-      console.log(`🌐 Red local: http://192.168.1.232:${PORT}`);
+      console.log(`🌐 Red local: http://192.168.1.83:${PORT}`);
       console.log(`❤️  Health check: http://localhost:${PORT}/api/health`);
       console.log('');
     });
