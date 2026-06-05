@@ -8,6 +8,56 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [4 Junio 2026] - Panel Admin · Frontend del Panel: shell responsive + login 🛡️🖥️
+
+Primer frontend del Panel Admin: una app web **aparte** (`apps/admin`), espejo de
+`apps/web`, con el **login** y el **shell** (esqueleto navegable por rol). Las 11
+secciones internas siguen pendientes. **Solo DEV** (sin deploy ni subdominio todavía).
+Ver `docs/arquitectura/Panel_Admin.md` §Frontend del Panel.
+
+**App nueva `apps/admin`.** React 19 + Vite + Tailwind v4 (tokens vía `@theme`) + React
+Query + Zustand, **versiones idénticas a `apps/web`**. Puerto dev `3100`, proxy `/api` →
+backend local (sin CORS en dev). Tipografía IBM Plex Sans. `vercel.json` con rewrite SPA.
+**Sesión aislada** con prefijo de localStorage propio (`ayadmin_`) y store propio,
+independiente de la app pública.
+
+**Login (`/`).** Acceso real contra `/auth/login` (el mismo login de siempre). Tras
+autenticar, valida el rol de equipo con el nuevo `GET /api/admin/yo`: si la cuenta no
+tiene rol → "sin acceso al Panel". 2FA y recuperar contraseña como **UI lista, sin lógica
+cableada**. "Recordar mi correo" guarda **solo el correo** (nunca la contraseña).
+Animación de entrada del card; tema claro/oscuro con toggle. El CORS de `apps/api` no se
+tocó: el proxy de Vite reenvía la petición sin `Origin` (caso que el backend ya permite).
+
+**Shell (`/inicio`) — responsive, NO por rol.** En pantalla grande, vista escritorio
+(header negro + sidebar + panel flotante "inset"); en móvil, vista móvil (header +
+saludo/región + tab-bar inferior, o cajón vía "Más" cuando el rol ve >5 secciones). El
+**rol solo filtra** el menú/alcance (qué secciones, etiquetas "Mi cartera"/"Mis
+comisiones", selector de región vs región fija). Selector de región y bandeja de
+pendientes con **datos demo** por ahora.
+
+**Backend — `GET /api/admin/yo`** (`controllers/admin/sesion.controller.ts` +
+`routes/admin/sesion.routes.ts`). Identidad del Panel: reusa `requierePanel`, responde a
+los **3 roles** (montado **antes** del gate global de superadmin) y devuelve `rolEquipo` +
+`regionId` + datos básicos. Es el guard que usa el frontend. Registro de la ruta en
+`routes/admin/index.ts` con `str_replace` mínimo (sin tocar lo existente).
+
+Verificado en DEV (type-check + build de `apps/admin`; type-check de `apps/api`). `apps/web`
+no se tocó (salvo favicon, abajo). Pendiente: lógica de 2FA/recuperar, refresh token en el
+cliente admin, datos reales, y **despliegue** (proyecto Vercel propio + subdominio
+`admin.anunciaya.mx` + CORS prod). Ver `PENDIENTES_PanelAdmin.md`.
+
+---
+
+## [4 Junio 2026] - Web · Favicon del sitio actualizado 🎨
+
+- El favicon de la pestaña de AnunciaYA (`apps/web`) pasa a `favicon2.png` (ícono del
+  apretón de manos recortado, que llena mejor el cuadro de la pestaña). El Panel
+  (`apps/admin`) usa el mismo ícono y título de pestaña "AnunciaYA - Panel".
+- Nota: el borrado de `favicon.png` y sus referencias restantes (`apple-touch-icon`,
+  MS-tile) quedaron anotados como pendiente menor.
+
+---
+
 ## [4 Junio 2026] - Panel Admin · Cimiento F0: estado de membresía + webhook de renovaciones 💳🔄
 
 Segundo cimiento de la Fase 0 del Panel Admin. Se construye el "dónde guardar" el

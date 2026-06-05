@@ -1,8 +1,8 @@
 # 🛡️ Panel Admin — Arquitectura
 
-**Última actualización:** 3 Junio 2026
-**Estado:** 🚧 Diseño completo · Infraestructura backend mínima · UI sin construir
-**Progreso:** Diseño 100% · Backend 10% · Frontend 0%
+**Última actualización:** 4 Junio 2026
+**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · 11 secciones internas sin construir
+**Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas 0%
 
 > Este documento reemplaza la versión anterior (que describía solo 2 roles y auth separada).
 > El diseño de los 3 niveles, el motor de venta/comisiones y el mapa de territorios se
@@ -66,7 +66,7 @@ Manda sobre todo. Ve todas las regiones. Guarda las "llaves" que nadie más toca
 ### 🗺️ Gerente Regional (= "Administrador")
 Dueño de **su región**. Su trabajo central es gestionar a **su equipo de vendedores**. Ve y opera solo lo de su región:
 - Alta / baja de **sus** vendedores; asignar territorio (ver Vendedores v2)
-- Ver todos los negocios de su región; **aprobar**, **suspender/bloquear** (NO cancelar — eso es del SuperAdmin)
+- Ver todos los negocios de su región; **suspender/bloquear** (NO cancelar — eso es del SuperAdmin)
 - Suspender / bloquear **usuarios** de su región
 - Ver métricas y desempeño de su región completa
 - Ver el historial de suscripciones/pagos de los negocios de su región (solo lectura)
@@ -99,7 +99,7 @@ Leyenda: **Total** = plataforma completa · **Su región** = limitado a su regi�
 |---|---|---|---|
 | **Resumen / inicio** | Total | Su región | Lo suyo |
 | **Métricas** | Total | Su región | Lo suyo |
-| **Negocios** | Total (incl. cancelar) | Su región (aprobar/suspender, NO cancelar) | Crear + ver lo suyo |
+| **Negocios** | Total (incl. cancelar) | Su región (suspender, NO cancelar) | Crear + ver lo suyo |
 | **Usuarios** | Total | — | — |
 | **Suscripciones** | Total | Solo ver (su región) | — |
 | **Vendedores y comisiones** | Total (fija montos) | Su equipo (ve, NO fija montos) | Las suyas |
@@ -116,8 +116,9 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
 ## Las 11 secciones
 
 1. **Resumen / inicio** — tablero de bienvenida con los números gruesos (negocios activos, usuarios, ventas del mes, ingresos por membresías), filtrado por el alcance del rol.
+   - **Cola de pendientes (centro de trabajo, NO notificaciones tipo feed):** lista de tareas accionables del admin. Regla: si al hacer clic te lleva a HACER algo, entra; si solo informa, no. Items reales (todos dependen del Camino B/comisiones, aún por construir): **efectivo por confirmar** (entregas de vendedores), **negocios en gracia** (fallaron cobro, por suspenderse — el gerente puede salvarlos), **vendedores con faltante** (cobraron y no entregaron). **NO incluye "negocios por aprobar"** (no existe aprobación, los negocios se publican solos) ni avisos informativos (esos van a Sistema). Ícono: preferir "tareas/bandeja" sobre campana. En el esqueleto es visual con datos de muestra; la lógica se conecta al construir cada sección.
 2. **Métricas** — detalle de actividad. De negocios (ventas ScanYA, clientes, canjes) y de usuarios. Lo medible **hoy** se construye ya; la analítica de comportamiento (tiempo por sección, recorridos de navegación) es un módulo posterior porque **hoy no se captura** — requiere instrumentar seguimiento de eventos.
-3. **Negocios** — **ficha completa** de cada negocio (datos, contacto, estado, membresía, vendedor que lo trajo). Crear (alta asistida), aprobar, suspender/bloquear, degradar. **Asignar / reasignar el vendedor** del negocio a mano — contraparte de la atribución automática: cubre negocios sin código, ventas en efectivo o correcciones. SuperAdmin sobre cualquier negocio; Gerente sobre los de su región; cada cambio queda en **auditoría** (es dinero: define quién cobra comisión). **Solo SuperAdmin:** cancelar, y un **botón para marcar la membresía como pagada a mano** (cortesías, pagos fuera de Stripe).
+3. **Negocios** — **ficha completa** de cada negocio (datos, contacto, estado, membresía, vendedor que lo trajo). Crear (alta asistida), suspender/bloquear, degradar. **Los negocios se publican automáticamente** al pagar + completar onboarding — NO hay aprobación manual (decisión: Modelo A, publicación automática, sin fricción). **Asignar / reasignar el vendedor** del negocio a mano — contraparte de la atribución automática: cubre negocios sin código, ventas en efectivo o correcciones. SuperAdmin sobre cualquier negocio; Gerente sobre los de su región; cada cambio queda en **auditoría** (es dinero: define quién cobra comisión). **Solo SuperAdmin:** cancelar, y un **botón para marcar la membresía como pagada a mano** (cortesías, pagos fuera de Stripe).
 4. **Usuarios** — **ficha completa** de cada usuario. Suspender, **bloquear acceso a toda la app**, reactivar — **solo SuperAdmin** (los usuarios-cliente no tienen región hoy; ver Cimientos). **Solo SuperAdmin:** botón para **promover** cuenta personal→comercial o **degradar** comercial→personal a mano.
 5. **Suscripciones / membresías** — precio de membresía, promos de pago (ej. 3 meses con descuento, pago anual), regalar meses gratis a negocios puntuales, historial completo de pagos, y **tiempos configurables**: periodo de gracia para cobros vencidos y duración del trial (hoy 14 días → editable desde el Panel). Los tiempos viven en `configuracionSistema` (la tabla ya tiene `trial_duracion_dias=14` y otras configs de trials/pagos).
    - **Visibilidad para el negocio (feature firme):** cada negocio ve su **estado de membresía y fecha de vencimiento en su propio Business Studio** ("activo hasta X"). Es buena UX (el negocio quiere saber hasta cuándo pagó) **y** la defensa principal contra el robo invisible del efectivo: si pagó y ve "vencido", reclama a AnunciaYA. Reusa las 5 columnas de estado de membresía del webhook.
@@ -312,19 +313,24 @@ Los archivos del Panel Admin viven en sub-carpetas `admin/` dentro de las 3 capa
 apps/api/src/
 ├── controllers/admin/
 │   ├── mantenimiento.controller.ts          ← existe
+│   ├── sesion.controller.ts                 ← existe (GET /api/admin/yo)
 │   └── (futuro) negocios, usuarios, suscripciones, vendedores,
 │       comisiones, metricas-globales, ciudades, configuracion,
 │       publicidad, equipo, auditoria
 ├── services/admin/
 │   └── mantenimiento.service.ts             ← existe
 ├── routes/admin/
-│   ├── index.ts                             ← agregador (aplica el gate global)
-│   └── mantenimiento.routes.ts              ← existe
+│   ├── index.ts                             ← agregador (gate global + monta /yo antes)
+│   ├── mantenimiento.routes.ts              ← existe
+│   └── sesion.routes.ts                     ← existe (/yo, 3 roles)
 ├── middleware/
-│   └── adminSecret.middleware.ts            ← transversal (gate temporal)
+│   ├── panel.middleware.ts                  ← gate real por rol (requierePanel)
+│   └── adminSecret.middleware.ts            ← legacy (gate temporal, dentro del dual)
 └── utils/
     └── imageRegistry.ts                     ← transversal
 ```
+
+El **frontend** del Panel vive en su propia app: `apps/admin/` (ver §Frontend del Panel).
 
 **Regla:** sub-carpeta `admin/` cuando hay 2+ archivos o el dominio es puramente admin. Middleware/utils transversales → carpeta raíz.
 
@@ -332,16 +338,30 @@ apps/api/src/
 
 ## Seguridad / Autenticación
 
-### Hoy — gate temporal `requireAdminSecret`
-`apps/api/src/middleware/adminSecret.middleware.ts` valida el header `x-admin-secret` contra `env.ADMIN_SECRET`: sin la env → `503`; sin/mal header → `401`; ok → `next()`. Aplicado global a `/api/admin/*` desde `routes/admin/index.ts`. Hoy solo cubre Mantenimiento R2. Por defecto el Panel está **apagado** si no existe `ADMIN_SECRET`.
+### Auth real con rol — IMPLEMENTADA (Fase 0)
+El gate del Panel ya **no** depende solo del `x-admin-secret`. Construido:
+1. **Rol de equipo** (`usuarios.rol_equipo`: superadmin / gerente / vendedor) + `usuarios.region_id`, sobre la misma tabla `usuarios` (sin tabla separada ni login aparte). El rol viaja en el JWT (login + refresh).
+2. Middleware **`requierePanel(roles[])`** (`apps/api/src/middleware/panel.middleware.ts`): **revalida el rol contra la BD** en cada petición (quitar/cambiar el rol surte efecto al instante), corta cuentas no-activas (enforcement de `usuarios.estado`), y resuelve la región según el rol (gerente→`usuarios.region_id`, vendedor→`embajadores.region_id`, superadmin→null). Deja `req.usuarioPanel = { usuarioId, rolEquipo, regionId, viaSecret }`.
+3. **Gate dual durante la transición** (`routes/admin/index.ts`): acepta `x-admin-secret` (legacy, reconcile R2) **O** un JWT con rol válido. El `requireAdminSecret` original se conserva dentro del dual y se retira cuando todo migre al rol.
+4. **`GET /api/admin/yo`** (`controllers/admin/sesion.controller.ts` + `routes/admin/sesion.routes.ts`): identidad del Panel. Responde a los **3 roles** (se monta **antes** del gate global de superadmin) y devuelve `rolEquipo` + `regionId` + datos básicos. Es el guard que usa el frontend para decidir el acceso: si la cuenta no tiene rol de equipo → 403.
 
-### Futuro — auth real con rol (reemplaza la idea anterior de tabla/JWT separados)
-**Decisión actualizada:** NO se crea una tabla `admin_usuarios` ni un login separado. En su lugar:
-1. Agregar **rol de equipo** al concepto de cuenta existente (superadmin / gerente / vendedor), sobre la misma tabla `usuarios`.
-2. El Panel (`admin.anunciaya.mx`) usa el **mismo login**; al entrar, un middleware (`verificarRolPanel` / similar) **revalida el rol** y, para gerente/vendedor, **filtra por región** (equivalente al patrón multi-sucursal donde el gerente solo ve su sucursal).
-3. Reemplazar `requireAdminSecret` por ese middleware en la ruta agregadora.
-4. **Los controllers y services NO cambian** — solo cambia el middleware de `routes/admin/index.ts`. Cambio quirúrgico.
-- Operaciones sensibles (dinero, borrados, alta de cuentas) pueden exigir 2FA encima del rol.
+- Operaciones sensibles (dinero, borrados, alta de cuentas) podrán exigir **2FA** encima del rol (pendiente; la UI de 2FA ya existe en el login, falta cablear la lógica).
+
+---
+
+## Frontend del Panel (`apps/admin`)
+
+App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 2026.
+
+- **Stack/cableado:** React 19 + Vite + Tailwind v4 (tokens vía `@theme` en `index.css`) + React Query + Zustand, **versiones idénticas a `apps/web`**. Puerto dev **3100**, proxy `/api` → backend local (sin CORS en dev). `tsconfig` extiende `tsconfig.base.json`; alias `@` y `@anunciaya/shared`. `vercel.json` con rewrite SPA. Tipografía **IBM Plex Sans**.
+- **Sesión aislada:** prefijo de localStorage propio (`ayadmin_`) + store propio (`useAuthPanelStore`), independiente de la sesión de la app pública.
+- **Login (`/`):** acceso real contra `/auth/login` (mismo login de siempre); tras autenticar, valida el rol con `GET /api/admin/yo` (sin rol → "sin acceso al Panel"). 2FA y recuperar contraseña **como UI lista, sin lógica cableada**. "Recordar mi correo" guarda **solo el correo**.
+- **Shell (`/inicio`) — RESPONSIVE (no por rol):** en pantalla grande (`lg:`+) vista **escritorio** (header negro + sidebar + panel flotante "inset"); en móvil vista **móvil** (header + saludo/región + **tab-bar** inferior, o **cajón** vía "Más" cuando el rol ve >5 secciones). El **rol solo filtra** el menú/alcance (qué secciones, etiquetas "Mi cartera"/"Mis comisiones", selector de región vs región fija).
+- **Tema claro/oscuro** con toggle (variables CSS por `data-tema`).
+- **Datos demo (placeholder) por ahora:** nombres de región, contadores del menú y la bandeja de pendientes. Se conectan a datos reales al construir las secciones.
+- **Estructura:** `pages/` (PaginaLogin, PaginaPanel), `components/acceso/` (login), `components/shell/` (layouts, header, sidebar, tab-bar, cajón, selector de región, pendientes), `data/menuPanel.ts` (menú + roles + demo), `router/` (RutaPanel guard), `services/` (api aislado, authPanel, sesionPanel), `stores/`, `hooks/`, `config/`, `utils/`.
+
+> **Despliegue (pendiente, manual):** proyecto Vercel propio con Root Directory `apps/admin`; subdominio `admin.anunciaya.mx` (Namecheap + Vercel); sumar ese origen al CORS de `apps/api` (en dev no hace falta: el proxy de Vite lo evita).
 
 ---
 
@@ -371,6 +391,8 @@ apps/api/src/
 - **Publicidad = segunda fuente de ingresos.** Pauta por ciudad (o todas), precios configurables por el SuperAdmin, con métricas de cuánto genera.
 - **Atribución manual además de la automática.** La venta nunca se bloquea por falta de código → un negocio puede entrar sin vendedor; su atribución se asigna/reasigna luego desde Negocios (SuperAdmin / Gerente su región), con auditoría.
 - **El efectivo nunca afecta al negocio.** Un negocio que paga en efectivo se activa de inmediato (pagó de buena fe). El riesgo del robo lo absorbe AnunciaYA, no el negocio: lo condicionado a la entrega es la **comisión del vendedor**, no la activación. Contra el "robo invisible" (cobrar y no registrar) se eligieron dos defensas: **comprobante automático al negocio** + **visibilidad del estado de membresía en su Business Studio** (el negocio como auditor). Pedir confirmación al negocio se descartó; la conciliación contra el mapa queda para el v2.
+- **Sin aprobación de negocios (Modelo A).** Los negocios se publican automáticamente al pagar + completar onboarding; ningún admin los revisa antes. Menos fricción, coherente con cómo ya funciona el sistema. Por eso "negocios por aprobar" NO existe como tarea ni en la cola de pendientes.
+- **Cola de pendientes = centro de trabajo, no notificaciones.** El Panel no tiene feed de notificaciones (eso es de la app de cliente). Tiene una cola de tareas accionables: efectivo por confirmar, negocios en gracia, vendedores con faltante. Regla: si lleva a hacer algo, entra; si solo informa, va a Sistema.
 
 ### Heredadas (se conservan)
 - **Sub-carpeta `admin/` en cada capa:** mantiene la convención del proyecto (archivos por tipo) agrupando por sub-dominio cuando crece el volumen.
@@ -383,8 +405,12 @@ apps/api/src/
 
 | Archivo | Propósito |
 |---------|-----------|
-| `apps/api/src/middleware/adminSecret.middleware.ts` | Gate temporal del Panel |
-| `apps/api/src/routes/admin/index.ts` | Agregador — aplica gate global, registra sub-rutas |
+| `apps/admin/` | **Frontend del Panel** (app aparte; ver §Frontend del Panel) |
+| `apps/api/src/middleware/panel.middleware.ts` | **Gate real por rol** (`requierePanel`) — revalida en BD, resuelve región |
+| `apps/api/src/controllers/admin/sesion.controller.ts` | `GET /api/admin/yo` — identidad del Panel (3 roles) |
+| `apps/api/src/routes/admin/sesion.routes.ts` | Ruta `/yo` (montada antes del gate global) |
+| `apps/api/src/middleware/adminSecret.middleware.ts` | Gate legacy (dentro del gate dual) |
+| `apps/api/src/routes/admin/index.ts` | Agregador — gate global + monta `/yo` antes, registra sub-rutas |
 | `apps/api/src/routes/admin/mantenimiento.routes.ts` | Rutas de Mantenimiento |
 | `apps/api/src/controllers/admin/mantenimiento.controller.ts` | Controllers de Mantenimiento |
 | `apps/api/src/services/admin/mantenimiento.service.ts` | Lógica del reconcile R2 |
