@@ -1,0 +1,233 @@
+/**
+ * admin/negocios.controller.ts
+ * ============================
+ * Controllers de la sección Negocios del Panel Admin (Entrega 1 — solo lectura).
+ * Solo leen query/params, llaman al service y arman la respuesta camelCase.
+ * El acceso y el rol ya los validó `requierePanel` en la ruta.
+ *
+ * Ubicación: apps/api/src/controllers/admin/negocios.controller.ts
+ */
+
+import type { Request, Response } from 'express';
+import {
+    listarNegocios,
+    obtenerDetalleNegocio,
+    listarVendedoresFiltro,
+    listarCiudades,
+    ESTADOS_PAGO,
+    ORDENES,
+    type EstadoPago,
+    type OrdenNegocios,
+} from '../../services/admin/negocios.service.js';
+import {
+    suspenderNegocio,
+    reactivarNegocio,
+    reasignarVendedor,
+} from '../../services/admin/negocios-acciones.service.js';
+
+const POR_PAGINA_DEFAULT = 20;
+const POR_PAGINA_MAX = 100;
+
+/** Convierte un query param suelto a entero positivo con tope, o el default. */
+function enteroPositivo(valor: unknown, porDefecto: number, maximo?: number): number {
+    const n = Number(valor);
+    if (!Number.isFinite(n) || n < 1) return porDefecto;
+    const entero = Math.floor(n);
+    return maximo ? Math.min(entero, maximo) : entero;
+}
+
+// =============================================================================
+// GET /api/admin/negocios
+// =============================================================================
+
+export async function listarNegociosController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!; // garantizado por requierePanel
+
+        const busquedaRaw = typeof req.query.busqueda === 'string' ? req.query.busqueda.trim() : '';
+        const estadoPagoRaw = typeof req.query.estadoPago === 'string' ? req.query.estadoPago : '';
+        const vendedorIdRaw = typeof req.query.vendedorId === 'string' ? req.query.vendedorId.trim() : '';
+        const ciudadRaw = typeof req.query.ciudad === 'string' ? req.query.ciudad.trim() : '';
+        const ordenRaw = typeof req.query.orden === 'string' ? req.query.orden : '';
+
+        const estadoPago = ESTADOS_PAGO.includes(estadoPagoRaw as EstadoPago)
+            ? (estadoPagoRaw as EstadoPago)
+            : undefined;
+        const orden = ORDENES.includes(ordenRaw as OrdenNegocios)
+            ? (ordenRaw as OrdenNegocios)
+            : undefined;
+
+        const resultado = await listarNegocios(panel, {
+            busqueda: busquedaRaw || undefined,
+            estadoPago,
+            vendedorId: vendedorIdRaw || undefined,
+            ciudad: ciudadRaw || undefined,
+            orden,
+            pagina: enteroPositivo(req.query.pagina, 1),
+            porPagina: enteroPositivo(req.query.porPagina, POR_PAGINA_DEFAULT, POR_PAGINA_MAX),
+        });
+
+        res.status(200).json({ success: true, message: 'Negocios obtenidos', data: resultado });
+    } catch (error) {
+        console.error('Error en listarNegociosController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener los negocios',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/vendedores
+// =============================================================================
+
+export async function listarVendedoresFiltroController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const vendedores = await listarVendedoresFiltro(panel);
+        res.status(200).json({ success: true, message: 'Vendedores obtenidos', data: vendedores });
+    } catch (error) {
+        console.error('Error en listarVendedoresFiltroController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener los vendedores',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/ciudades
+// =============================================================================
+
+export async function listarCiudadesController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const ciudades = await listarCiudades(panel);
+        res.status(200).json({ success: true, message: 'Ciudades obtenidas', data: ciudades });
+    } catch (error) {
+        console.error('Error en listarCiudadesController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener las ciudades',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/:id
+// =============================================================================
+
+export async function obtenerDetalleNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+
+        const detalle = await obtenerDetalleNegocio(panel, id);
+        if (!detalle) {
+            res.status(404).json({ success: false, message: 'Negocio no encontrado' });
+            return;
+        }
+
+        res.status(200).json({ success: true, message: 'Negocio obtenido', data: detalle });
+    } catch (error) {
+        console.error('Error en obtenerDetalleNegocioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener el negocio',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/suspender   (superadmin + gerente · motivo obligatorio)
+// =============================================================================
+
+export async function suspenderNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+        if (!motivo) {
+            res.status(400).json({ success: false, message: 'El motivo es obligatorio para suspender.' });
+            return;
+        }
+        const r = await suspenderNegocio(panel, id, motivo);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Negocio suspendido', data: r.negocio });
+    } catch (error) {
+        console.error('Error en suspenderNegocioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al suspender el negocio',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/reactivar   (superadmin + gerente · motivo opcional)
+// =============================================================================
+
+export async function reactivarNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+        const r = await reactivarNegocio(panel, id, motivo || null);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Negocio reactivado', data: r.negocio });
+    } catch (error) {
+        console.error('Error en reactivarNegocioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al reactivar el negocio',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/reasignar-vendedor   (superadmin + gerente · motivo opcional)
+// Body: { embajadorId: string | null, motivo? }  ·  embajadorId null/'' = quitar vendedor
+// =============================================================================
+
+export async function reasignarVendedorController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+        const bruto = req.body?.embajadorId;
+        const embajadorId = bruto === null || bruto === undefined || bruto === '' ? null : bruto;
+        if (embajadorId !== null && typeof embajadorId !== 'string') {
+            res.status(400).json({ success: false, message: 'embajadorId inválido' });
+            return;
+        }
+        const r = await reasignarVendedor(panel, id, embajadorId, motivo || null);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: embajadorId ? 'Vendedor reasignado' : 'Vendedor quitado',
+            data: r.negocio,
+        });
+    } catch (error) {
+        console.error('Error en reasignarVendedorController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al reasignar el vendedor',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}

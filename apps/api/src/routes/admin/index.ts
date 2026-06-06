@@ -20,6 +20,7 @@ import { requierePanel } from '../../middleware/panel.middleware.js';
 import mantenimientoRoutes from './mantenimiento.routes.js';
 import sesionRoutes from './sesion.routes.js';
 import seguridadRoutes from './seguridad.routes.js';
+import negociosRoutes from './negocios.routes.js';
 
 const router: Router = Router();
 
@@ -32,6 +33,11 @@ router.use('/', sesionRoutes);
 // También ANTES del gate global: /2fa/verificar debe poder otorgar la marca sin
 // quedar bloqueado por el propio candado (cada ruta trae su requierePanel propio).
 router.use('/', seguridadRoutes);
+
+// ─── Negocios (los 3 roles, alcance por rol) ─────────────────────────────────────
+// ANTES del gate global de superadmin: la sección la usan también gerente y
+// vendedor; cada ruta trae su propio requierePanel con los roles permitidos.
+router.use('/negocios', negociosRoutes);
 
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)

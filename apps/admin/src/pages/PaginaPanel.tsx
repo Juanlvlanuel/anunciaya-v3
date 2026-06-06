@@ -18,6 +18,7 @@ import { itemsParaRol, etiquetaDe, type RolPanel } from '../data/menuPanel';
 import { LayoutEscritorio } from '../components/shell/LayoutEscritorio';
 import { LayoutMovil } from '../components/shell/LayoutMovil';
 import PaginaSeguridad from './PaginaSeguridad';
+import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -86,6 +87,8 @@ function PaginaPanel() {
 
   const contenido = esSeguridad ? (
     <PaginaSeguridad />
+  ) : seccionActivaId === 'negocios' ? (
+    <SeccionNegocios rol={rol} />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );
