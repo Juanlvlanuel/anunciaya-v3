@@ -234,7 +234,7 @@ function NavButton({ item, replace = false }: NavButtonProps) {
     <NavLink
       to={item.to}
       replace={replace}
-      className={({ isActive }) =>
+      className={({ isActive }: { isActive: boolean }) =>
         `relative flex flex-col items-center gap-0 px-3 py-1.5 rounded-lg transition-all duration-200 active:scale-90 ${isActive
           ? 'text-white'
           : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'

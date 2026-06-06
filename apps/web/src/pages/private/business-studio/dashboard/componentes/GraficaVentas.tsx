@@ -220,7 +220,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
                   axisLine={false}
                   tickLine={false}
                   tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 600 }}
-                  tickFormatter={(value) => {
+                  tickFormatter={(value: number) => {
                     if (value >= 1000) {
                       return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
                     }
@@ -329,7 +329,7 @@ export default function GraficaVentas({ datos, vertical = false, embedded = fals
                 axisLine={false}
                 tickLine={false}
                 tick={{ fill: '#475569', fontSize: tickFontSize, fontWeight: 600 }}
-                tickFormatter={(value) => {
+                tickFormatter={(value: number) => {
                   if (value >= 1000) {
                     return `$${(value / 1000).toFixed(value >= 10000 ? 0 : 1)}k`;
                   }

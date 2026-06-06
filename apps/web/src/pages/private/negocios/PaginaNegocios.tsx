@@ -489,7 +489,7 @@ function MapaNegocio({
             icon={getIconoMarker(negocio.sucursalId)}
             eventHandlers={{
               click: () => handleSeleccionarNegocio(negocio.sucursalId),
-              add: (e) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
+              add: (e: L.LeafletEvent) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
               popupclose: () => { setNegocioSeleccionadoId(null); },
             }}
           >

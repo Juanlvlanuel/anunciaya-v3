@@ -506,7 +506,7 @@ export const Navbar = () => {
                       hover:text-white hover:scale-110
                       ${!buscadorExpandido ? 'search-icon-pulse' : 'text-white'}
                     `}
-                    onMouseDown={(e) => {
+                    onMouseDown={(e: React.MouseEvent<SVGSVGElement>) => {
                       e.preventDefault(); // Evita que el input pierda foco
                       if (buscadorExpandido) {
                         // Cerrar
