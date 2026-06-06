@@ -36,6 +36,13 @@ export interface ProgresoNivel {
 // =============================================================================
 
 /**
+ * Estado de circulación del negocio (lo deriva el backend con el helper central).
+ * Sirve para avisar al cliente cuando un negocio está fuera de servicio,
+ * SIN ocultarle su saldo. 'suspendido' = temporal; 'cancelado' = definitivo.
+ */
+export type EstadoCirculacion = 'en_circulacion' | 'suspendido' | 'cancelado';
+
+/**
  * Billetera del usuario en un negocio específico.
  * Retornado por: GET /api/cardya/mis-puntos
  */
@@ -56,6 +63,8 @@ export interface BilleteraNegocio {
   negocioUsuarioId: string | null;
   negocioSucursalId: string | null;
   whatsappContacto: string | null;
+  /** Estado de circulación del negocio (para avisar "no disponible" sin ocultar el saldo). */
+  estadoCirculacion?: EstadoCirculacion;
 }
 
 /**
@@ -154,6 +163,8 @@ export interface Voucher {
   expiraAt: string;
   usadoAt: string | null;
   createdAt: string;
+  /** Estado de circulación del negocio dueño del voucher (suspendido = "congelado"). */
+  estadoCirculacion?: EstadoCirculacion;
 }
 
 export interface FiltrosVouchers {

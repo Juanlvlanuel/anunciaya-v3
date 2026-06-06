@@ -9,7 +9,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Store, ChevronRight } from 'lucide-react';
+import { Store, ChevronRight, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../../../config/iconos';
 
@@ -109,6 +109,28 @@ export default function CardBilletera({
   );
 
 
+  // ─── Badge de circulación (negocio fuera de servicio) ───
+  // Reutiliza el patrón de badge esquina de CardRecompensaCliente:
+  // rojo "Agotado" → cancelado; dark "Bloqueado" → suspendido.
+  const circulacion = billetera.estadoCirculacion;
+  const badgeCirculacion = circulacion === 'cancelado' ? (
+    <div
+      className="absolute top-2 right-2 px-2 py-0.5 rounded-lg flex items-center gap-1 bg-red-500 z-10"
+      style={{ boxShadow: '0 2px 8px rgba(239,68,68,0.4)' }}
+    >
+      <AlertCircle className="w-3 h-3 text-white" strokeWidth={2.5} />
+      <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-white">Ya no disponible</span>
+    </div>
+  ) : circulacion === 'suspendido' ? (
+    <div
+      className="absolute top-2 right-2 px-2 py-0.5 rounded-lg flex items-center gap-1 backdrop-blur-sm z-10"
+      style={{ background: 'rgba(30,41,59,0.85)', boxShadow: '0 2px 8px rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)' }}
+    >
+      <AlertTriangle className="w-3 h-3 text-white/80" strokeWidth={2.5} />
+      <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-white/90">No disponible</span>
+    </div>
+  ) : null;
+
   // ─── Barra de progreso ───
   const esNivelMaximo = billetera.nivelActual === 'oro';
 
@@ -198,6 +220,7 @@ export default function CardBilletera({
             className="absolute inset-y-0 right-0 w-8 pointer-events-none"
             style={{ background: 'linear-gradient(to left, rgba(255,255,255,0.3), transparent)' }}
           />
+          {badgeCirculacion}
         </div>
 
         {/* Línea separadora vertical con gradiente */}
@@ -298,6 +321,7 @@ export default function CardBilletera({
             className="absolute inset-x-0 bottom-0 h-16 pointer-events-none"
             style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.4), transparent)' }}
           />
+          {badgeCirculacion}
           {/* Logo + Nombre sobre la imagen */}
           <div className="absolute bottom-2.5 left-3.5 right-3.5 flex items-center gap-2 min-w-0">
             {billetera.negocioLogo && (

@@ -936,12 +936,36 @@ async function procesarCancelacionSuscripcion(
                 .update(negocios)
                 .set({
                     esBorrador: true,                  // Despublicar del directorio
+                    activo: false,                     // Sacar de circulación (visibilidad)
                     estadoMembresia: 'cancelado',      // Estado de membresía: cancelado
                     updatedAt: new Date().toISOString(),
                 })
                 .where(eq(negocios.id, negocio.id));
 
             console.log(`📦 Negocio despublicado y cancelado: ${negocio.nombre}`);
+
+            // Grupo 1 (Tanda 2): devolver los puntos de los vouchers PENDIENTES de
+            // este negocio. El cliente gastó puntos por una recompensa que ya no
+            // podrá recibir → se le reintegran. La función es idempotente; va
+            // aislada en try/catch para que un fallo aquí NO rompa la cancelación
+            // (que es lo crítico del webhook).
+            try {
+                const { revertirVouchersPendientesPorCancelacion } = await import('./puntos.service.js');
+                const reversion = await revertirVouchersPendientesPorCancelacion(negocio.id);
+                if (reversion.vouchersRevertidos > 0) {
+                    console.log(`↩️ Cancelación: ${reversion.vouchersRevertidos} vouchers revertidos, ${reversion.puntosDevueltos} pts devueltos (${negocio.nombre}).`);
+                }
+            } catch (errReversion) {
+                console.error('❌ Error devolviendo puntos de vouchers tras cancelación:', errReversion);
+            }
+
+            // Aviso persistente al dueño (centro de notificaciones, modo personal).
+            try {
+                const { notificarNegocioFueraDeCirculacion } = await import('./notificaciones.service.js');
+                await notificarNegocioFueraDeCirculacion(negocio.id);
+            } catch (errNotif) {
+                console.error('❌ Error notificando cancelación al dueño:', errNotif);
+            }
         }
 
         // Logging para auditoría
@@ -1023,10 +1047,26 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
             return;
         }
 
+        // ── Cinturón anti-republicación (Panel · Entrega 2) ──────────────────────
+        // El REGRESO por pago solo enciende la visibilidad (`activo=true`) si la ÚNICA
+        // razón de estar oculto era el pago. Si el negocio está suspendido/archivado
+        // A MANO desde el Panel (estado_admin != 'activo'), el pago actualiza el EJE
+        // DE PAGO (estado_membresia + fechas) pero NO lo reaparece: la decisión manual
+        // manda. Apagar `activo` lo hacen el cron de gracia y la cancelación; aquí solo
+        // se permite ENCENDER en el caso seguro.
+        const puedeReaparecer = res.negocio.estadoAdmin === 'activo';
+        if (!puedeReaparecer) {
+            console.log(
+                `🔒 Pago recibido en negocio con estado_admin='${res.negocio.estadoAdmin}': se actualiza el pago pero NO se republica (${res.negocio.nombre}).`,
+            );
+        }
+
         await db
             .update(negocios)
             .set({
                 estadoMembresia: 'al_corriente',
+                // Reaparece SOLO si su única razón de ocultamiento era el pago.
+                ...(puedeReaparecer ? { activo: true } : {}),
                 fechaVencimiento: finPeriodo,
                 fechaProximoCobro: finPeriodo,
                 fechaInicioGracia: null,
@@ -1036,6 +1076,16 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
             .where(eq(negocios.id, res.negocio.id));
 
         console.log(`✅ Renovación pagada → al_corriente: ${res.negocio.nombre} (vence ${finPeriodo})`);
+
+        // Si el negocio reapareció por el pago, borrar el aviso de "fuera de circulación".
+        if (puedeReaparecer) {
+            try {
+                const { limpiarNotificacionNegocioFueraDeCirculacion } = await import('./notificaciones.service.js');
+                await limpiarNotificacionNegocioFueraDeCirculacion(res.negocio.id);
+            } catch (errNotif) {
+                console.error('❌ Error limpiando notificación tras reactivación por pago:', errNotif);
+            }
+        }
     } catch (error) {
         console.error('❌ Error en manejarRenovacionPagada:', error);
     }

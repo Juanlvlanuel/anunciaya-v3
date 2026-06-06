@@ -7,7 +7,7 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/ModalDetalleBilletera.tsx
  */
 
-import { Store, ChevronRight, Zap } from 'lucide-react';
+import { Store, ChevronRight, Zap, AlertTriangle, AlertCircle } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../../../config/iconos';
 
@@ -219,6 +219,29 @@ export default function ModalDetalleBilletera({
 
       {/* ── Contenido ── */}
       <div className="flex-1 overflow-y-auto p-3 lg:p-4 2xl:p-5">
+
+        {/* Aviso de negocio fuera de circulación (no oculta el saldo) */}
+        {billetera.estadoCirculacion === 'cancelado' ? (
+          <div
+            className="flex items-center gap-2.5 p-2.5 rounded-xl mb-2.5 lg:mb-3"
+            style={{ background: 'linear-gradient(135deg, #fef2f2, #fee2e2)', border: '2px solid #fecaca' }}
+          >
+            <AlertCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0" strokeWidth={2} style={{ color: '#dc2626' }} />
+            <p className="text-[13px] lg:text-[11px] 2xl:text-sm font-bold" style={{ color: '#991b1b' }}>
+              Este negocio ya no está disponible. Conservas tus puntos en tu cuenta.
+            </p>
+          </div>
+        ) : billetera.estadoCirculacion === 'suspendido' ? (
+          <div
+            className="flex items-center gap-2.5 p-2.5 rounded-xl mb-2.5 lg:mb-3"
+            style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '2px solid #fde68a' }}
+          >
+            <AlertTriangle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0" strokeWidth={2} style={{ color: '#d97706' }} />
+            <p className="text-[13px] lg:text-[11px] 2xl:text-sm font-bold" style={{ color: '#92400e' }}>
+              Este negocio está temporalmente no disponible. Tus puntos te esperan.
+            </p>
+          </div>
+        ) : null}
 
         {/* Puntos + Progreso en grid dark */}
         <div className={`grid ${nivelesActivos ? 'grid-cols-1' : 'grid-cols-2'} gap-2 mb-2.5 lg:mb-3 2xl:mb-4`}>

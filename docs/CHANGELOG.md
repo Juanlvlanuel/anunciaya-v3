@@ -8,6 +8,189 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [5 Junio 2026] - Negocio fuera de circulación · Grupos 2/3/4 (contenido, interacción, avisos) 🔒
+
+Cierre de los últimos rincones del tema "negocio fuera de circulación" (los que NO miraban
+`negocios.activo`). Mecánico: casi todo es "agregar el filtro de activo que faltaba", reusando
+`estaFueraDeCirculacion`. **Solo DEV, sin commit. Sin migración.**
+
+**Grupo 2 — Vacantes de empresa** (`servicios.service.ts`). Las vacantes de empresa
+(`tipo='vacante-empresa'`, atadas a un negocio) ya no aparecen si su negocio está fuera: filtro
+`AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)` en `obtenerFeed` (recientes y cercanos),
+`obtenerFeedInfinito` (query principal + el COUNT, al que le faltaban los JOINs) y
+`obtenerPublicacionPorId` (link directo → 404). Las publicaciones de persona física no se tocan.
+> Las ofertas ya estaban cubiertas por la raíz (feed y detalle por UUID filtran `n.activo`). La
+> oferta por código (`GET /api/ofertas/publico/:codigo`) quedó **anotada como bug aparte**: busca
+> un campo `o.codigo` inexistente → siempre falla (código muerto, no es grieta de circulación).
+
+**Grupo 3 — Interacción.**
+- **ChatYA** (`chatya.service.ts`): un negocio fuera frena el chat por **ambos lados**. Helper
+  `circulacionDeSucursal` + candado en `enviarMensaje` (la conversación SIGUE visible; solo se
+  bloquea el envío de cliente y negocio) y en `crearObtenerConversacion` (cierra la rendija del
+  chat nuevo por id). Mensaje según motivo.
+- **Reseñas** (`resenas.service.ts`): `crearResena` rechaza con 403 si el negocio está fuera.
+- **Guardar** (`guardados.service.ts`): `agregarGuardado` bloquea guardar **ofertas** y
+  **vacantes-empresa** de negocios fuera; `obtenerGuardados` las **OCULTA** de Mis Guardados
+  (ocultar, no borrar → si el negocio reactiva, el guardado reaparece solo). Persona física no se
+  toca. (La verificación reveló que estas vías SÍ existían fuera del perfil, en contra de lo que
+  se creía.)
+
+**Grupo 4 — Avisos** (`notificaciones.service.ts`): corte central en `crearNotificacion` — si
+`modo='comercial'` y el negocio está fuera de circulación, **no se genera** la notificación
+operativa (stock_bajo, voucher_pendiente, puntos_ganados, voucher_cobrado, alerta_seguridad,
+nueva_resena, coyo_recomendacion). **Verificado** que NO afecta la notificación de suspensión al
+dueño (`negocio_fuera_circulacion`, `modo='personal'`) ni las personales del cliente.
+
+Type-check de `apps/api` en verde. Probado en dev. Pendientes anotados (fuera de scope): el bug de
+la oferta por código, y el contador de Mis Guardados de ofertas (inconsistencia pre-existente).
+
+---
+
+## [5 Junio 2026] - Bloqueo del modo comercial para negocios fuera de circulación 🔒🏪
+
+Cierre del último hueco del tema "negocio fuera de circulación", ahora del lado del DUEÑO: un
+negocio suspendido/cancelado le cerraba las puertas públicas pero le dejaba abierta su "oficina"
+(Business Studio, ScanYA). **Solo DEV, sin commit.** Decisión: bloqueo TOTAL del modo comercial
+para cualquier negocio con `activo=false` (parejo, sin distinguir motivo); el pago de
+reactivación vivirá a nivel app desde el modo personal (feature aparte, aún no construido).
+
+**Candado (backend, reusa `estaFueraDeCirculacion` del helper central).**
+- `cambiarModo` (`auth.service.ts`): rechaza el cambio a comercial si el negocio está fuera y
+  devuelve el `message` que el frontend muestra como TOAST. (El cancelado ya quedaba bloqueado
+  por `tieneModoComercial=false`; este candado cierra el SUSPENDIDO, que lo mantiene en `true`.)
+- `verificarNegocio` (`negocio.middleware.ts`): bloquea con 403 todas las rutas de Business
+  Studio de golpe (dueño y gerente). ScanYA ya estaba cerrado (Grupo 1).
+
+**Aviso al dueño — dos piezas distintas.**
+- TOAST (efímero): sale solo del `message` del backend (el frontend ya tenía
+  `notificar.error(error.message)` cableado en `ToggleModoUsuario`/`ModoGuard`). Cero código
+  nuevo de frontend.
+- NOTIFICACIÓN PERSISTENTE: nuevo tipo `'negocio_fuera_circulacion'` en el centro de
+  notificaciones del MODO PERSONAL del dueño, con texto según motivo (suspendido = "regulariza
+  para reactivar"; cancelado = más definitivo). Helper central
+  `notificarNegocioFueraDeCirculacion()` enganchado en los 3 eventos que apagan el negocio:
+  suspensión manual (`negocios-acciones.service`), impago (`gracia.ts`) y cancelación
+  (`pago.service`). Al REACTIVAR (Panel, o pago que hace reaparecer) se BORRA la notificación
+  (`limpiarNotificacionNegocioFueraDeCirculacion()`).
+
+**Migración:** `docs/migraciones/2026-06-05-notificaciones-tipo-negocio-fuera-circulacion.sql`
+agrega el tipo nuevo al CHECK de `notificaciones` (archivo generado, correr en dev Y prod; el
+bloqueo del modo comercial funciona sin ella, solo la notificación la necesita).
+
+Type-check de `apps/api` en verde. Probado en dev (bloqueo + toast + notificación + borrado al
+reactivar). Pendiente anotado: refuerzo del `ModoGuard`/`authStore` para sacar al instante una
+sesión ya abierta (caso de borde), y la sección de pago de reactivación a nivel app.
+
+---
+
+## [5 Junio 2026] - Negocio "fuera de circulación": una sola verdad (`activo`) 🚦
+
+Un negocio puede salir de circulación de varias formas (impago, cancelación, suspensión manual
+desde el Panel) y **cada rincón de la app miraba campos distintos**, así que "suspender" no se
+comportaba igual en todos lados. Se unificó el criterio: **`negocios.activo = false` es la ÚNICA
+verdad de visibilidad**; el MOTIVO vive aparte en `estado_membresia` / `estado_admin`. **Solo DEV,
+sin commit/push.** Reporte: `docs/reportes/REPORTE_Tanda2_Negocio_Fuera_Circulacion.md`.
+
+**Raíz — toda salida de circulación apaga `activo` (Tanda 1).** Cambio quirúrgico en código de
+pagos en producción, sin tocar la lógica de cobro:
+- Cron de gracia (`services/suscripciones/gracia.ts`): al suspender por impago vencido, ahora
+  también `activo=false`.
+- Webhook de cancelación (`services/pago.service.ts` · `procesarCancelacionSuscripcion`): al
+  cancelar, ahora `activo=false` (junto a `es_borrador=true` + `estado_membresia='cancelado'`).
+- **El regreso** (`manejarRenovacionPagada`): al pagar, reenciende `activo=true` SOLO si la única
+  razón de estar oculto era el pago (respeta `estado_admin`: un pago NO revive una suspensión o
+  archivado **a mano**). Sin migración de esquema; backfill SQL opcional preparado
+  (`docs/migraciones/2026-06-05-backfill-activo-negocios-fuera-circulacion.sql`). Probado E2E en
+  dev: cae→se oculta, paga→reaparece, suspendido-a-mano-paga→NO reaparece, cancelado→se oculta.
+
+**Helper central de estado.** `utils/estadoNegocio.ts` con `clasificarCirculacion()` →
+`en_circulacion | suspendido | cancelado` (cancelado = `estado_membresia='cancelado'` o
+`estado_admin='archivado'`; suspendido = fuera sin ser cancelado; **no** se usa `es_borrador`, que
+es ambiguo con onboarding). Único lugar con la regla; reusado en backend y reflejado en el front.
+
+**Candados de interacción (Tanda 2 · Grupo 1).** Un negocio fuera ya no puede operar ni cobrar:
+- **ScanYA** (`services/scanya.service.ts`): candado de `activo` en login dueño/gerente, login
+  empleado, refresh de token (corta sesiones ya abiertas) y otorgar puntos (barrera dura: aunque
+  siga la sesión, no acumula).
+- **CardYA** (`services/cardya.service.ts`): el canje (`generarVoucher`) se corta ANTES de
+  descontar puntos; el catálogo de recompensas oculta negocios fuera; billeteras/detalle/vouchers
+  exponen `estadoCirculacion` (el saldo NUNCA se oculta).
+- **Devolución de puntos:** función nueva `revertirVouchersPendientesPorCancelacion`
+  (`services/puntos.service.ts`) — al cancelar un negocio, devuelve los puntos de sus vouchers
+  pendientes (estado→`cancelado` + reintegro a la billetera), transacción por voucher y
+  anti-doble-conteo (`WHERE estado='pendiente'`). Disparada en PUSH desde el webhook de
+  cancelación; reusa el patrón probado de `expirarVouchersVencidos`.
+
+Regla de oro respetada: al cliente nunca se le quitan puntos a escondidas — **suspendido** = el
+voucher se congela (sigue válido); **cancelado** = puntos devueltos; ver saldo/historial siempre.
+
+**Capa visual (CardYA + Cupones), reusando componentes/tokens existentes (sin pantallas nuevas).**
+- CardYA: badge esquina en `CardBilletera`, banner en `ModalDetalleBilletera`, aviso + badge de
+  header en `ModalDetalleVoucher` y chip "No disponible" en `TablaHistorialVouchers`. Suspendido =
+  amber (temporal); cancelado = rojo (definitivo).
+- Cupones / "Mis Cupones": el backend (`services/ofertas.service.ts`) deriva `estadoCirculacion`
+  con el helper y **bloquea revelar el código solo si el negocio está cancelado** (suspendido sí
+  revela); el front lo marca en `CardCupon` y `ModalDetalleCupon`.
+
+**Fixes detectados al probar en dev.**
+- Catálogo de recompensas: el filtro `negocios.activo` se perdía porque varios `.where()` con
+  `.$dynamic()` se sobrescribían entre sí; se migró al patrón de **array de condiciones** del
+  proyecto (un solo `.where(and(...))`). De paso quedó corregido el filtro `recompensas.activa`.
+- Badge del header del modal de voucher: ahora dice "No disponible" (no "Pendiente") para un
+  voucher pendiente de negocio suspendido, consistente con la lista.
+
+Type-check de `apps/api` y `apps/web` en verde. **Sin commit/push.** Pendientes anotados: Grupos
+2/3/4 del mapa (oferta por código, vacantes, chat ya abierto, reseñas/guardar, notificaciones) y
+el sub-paso "congelar el reloj" (extender `expira_at` por el tiempo suspendido).
+
+---
+
+## [5 Junio 2026] - Panel Admin · Sección Negocios (Entrega 1 — VER) 🏪👁️
+
+Primera **sección de contenido** del Panel Admin: la vista de administración sobre todos los
+negocios de la plataforma. **Solo lectura** (la Entrega 2 — acciones, migraciones y Stripe —
+NO se tocó). **Solo DEV, sin push.** Detalle: `docs/reportes/REPORTE_Negocios_Entrega1_VER.md`.
+
+**Componentes base reutilizables del Panel (nuevos en `apps/admin`).** Para que toda sección
+futura los reuse, **replicados** (no importados) de `apps/web` con los tokens del Panel:
+- `hooks/useBackNativo.ts`: el botón **atrás nativo** (Android/iOS/navegador) cierra primero el
+  modal/overlay sin salir de la sección (patrón `pushState`/`popstate`, robusto ante anidados).
+- `components/ui/ModalAdaptativo.tsx`: modal **centrado en escritorio / bottom-sheet con arrastre
+  en móvil**, con animaciones de entrada (telón fade, modal fade+scale, sheet sube) y atrás nativo.
+
+**Tabla + ficha (frontend), calcadas de `Handoff/negocios_section`.** Tabla en escritorio /
+tarjetas en móvil: columnas nombre (+ciudad debajo), vendedor (avatar), estado de pago (badge),
+próximo cobro y alta. Toolbar con buscador, **chips de estado con conteos**, y filtros de
+**vendedor**, **ciudad** y **Ordenar**. **Ficha administrativa** (modal/bottom-sheet): membresía
++ fechas, vendedor atribuido (con código de referido), dueño de la cuenta y datos del negocio;
+las **4 acciones** (marcar pagado / reasignar / suspender / cancelar) van como **UI deshabilitada**
+(Entrega 2). Archivos: `components/negocios/{SeccionNegocios,FichaNegocio,estadoPago,avatares,
+MenuFiltro}.tsx`, `services/negociosService.ts`, `hooks/queries/useNegociosAdmin.ts`,
+`config/queryKeys.ts`; enganche en `pages/PaginaPanel.tsx` (sin ruta nueva). **Sin categoría** en
+todo el Panel de Negocios (se retoma en Métricas).
+
+**Apertura instantánea de la ficha.** La ficha abre con los datos que ya trae la fila
+(*placeholder*) y rellena el resto al vuelo; además **prefetch** al pasar el mouse / tocar la fila.
+Sin pantalla de "Cargando…".
+
+**Backend (`apps/api`) — todo GET, solo lectura.** `services/admin/negocios.service.ts` +
+`controllers/admin/negocios.controller.ts` + `routes/admin/negocios.routes.ts`, registrado en
+`routes/admin/index.ts` **antes** del gate global de superadmin (la sección la usan los 3 roles,
+cada ruta con su `requierePanel([roles])`). Endpoints: `GET /api/admin/negocios` (tabla paginada
++ conteos), `/vendedores`, `/ciudades`, `/:id` (ficha). **Alcance por rol** en el service
+(SuperAdmin = plataforma, Gerente = su región, Vendedor = su cartera). **Orden, conteos y
+paginado corren en servidor** (por el paginado simple, 20/pág). La **ciudad** sale de la sucursal
+principal (join; `'Por configurar'` = "Sin ciudad") y el **vendedor** de `embajadores → usuarios`
+(filtro incluye "Sin asignar").
+
+**Pulido de tokens.** `apps/admin/src/index.css`: los tonos de texto tenue (`texto-3`/`texto-4`)
+se hicieron más legibles en todo el Panel (claro más oscuro, oscuro más claro).
+
+Type-check de `apps/api` y build de `apps/admin` en verde. `apps/web` intacta (no se importó nada
+de ahí). Pendientes menores: contador del menú y selector de región siguen demo.
+
+---
+
 ## [4 Junio 2026] - Panel Admin · Cabos del shell: recuperar + refresh + 2FA en la puerta 🔐
 
 Cierre de los tres cabos sueltos del shell del Panel (`apps/admin`), reusando al máximo lo

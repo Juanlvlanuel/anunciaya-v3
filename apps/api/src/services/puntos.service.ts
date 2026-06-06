@@ -1480,6 +1480,101 @@ export async function expirarVouchersVencidos(
 }
 
 // -----------------------------------------------------------------------------
+// 11a-bis. REVERTIR VOUCHERS PENDIENTES POR CANCELACIÓN DEL NEGOCIO
+// -----------------------------------------------------------------------------
+
+/**
+ * Devuelve los puntos de los vouchers PENDIENTES de un negocio que sale de
+ * circulación de forma DEFINITIVA (cancelado/archivado): el cliente gastó puntos
+ * por una recompensa que ya no podrá recibir, así que se le reintegran.
+ *
+ * Reutiliza el patrón de `expirarVouchersVencidos`, con dos refuerzos por tocar
+ * saldos reales:
+ *   1. Transacción por voucher (voucher + billetera, atómico).
+ *   2. UPDATE condicional `WHERE estado='pendiente'`: si la función corre dos
+ *      veces (p. ej. un reintento del webhook), el segundo pase NO encuentra el
+ *      voucher en 'pendiente' y NO vuelve a devolver puntos. Anti-doble-conteo.
+ *
+ * No toca vouchers 'usado'/'expirado'/'cancelado'. Igual que el patrón existente,
+ * solo suma a `puntos_disponibles` (no altera `puntos_canjeados_total`).
+ *
+ * Se dispara en PUSH desde el webhook de cancelación; queda lista para la futura
+ * cancelación manual del Panel.
+ *
+ * @param negocioId - ID del negocio cancelado
+ * @returns Cantidad de vouchers revertidos y puntos devueltos
+ */
+export async function revertirVouchersPendientesPorCancelacion(
+  negocioId: string
+): Promise<{ vouchersRevertidos: number; puntosDevueltos: number }> {
+  let vouchersRevertidos = 0;
+  let puntosDevueltos = 0;
+
+  try {
+    const pendientes = await db
+      .select({
+        id: vouchersCanje.id,
+        puntosUsados: vouchersCanje.puntosUsados,
+        billeteraId: vouchersCanje.billeteraId,
+        usuarioId: vouchersCanje.usuarioId,
+      })
+      .from(vouchersCanje)
+      .where(
+        and(
+          eq(vouchersCanje.negocioId, negocioId),
+          eq(vouchersCanje.estado, 'pendiente')
+        )
+      );
+
+    for (const voucher of pendientes) {
+      // Atómico: marcar cancelado + devolver puntos. El UPDATE condicional sobre
+      // estado='pendiente' garantiza que solo se devuelva UNA vez.
+      const devuelto = await db.transaction(async (tx) => {
+        const marcado = await tx
+          .update(vouchersCanje)
+          .set({ estado: 'cancelado' })
+          .where(
+            and(
+              eq(vouchersCanje.id, voucher.id),
+              eq(vouchersCanje.estado, 'pendiente')
+            )
+          )
+          .returning({ id: vouchersCanje.id });
+
+        if (marcado.length === 0) return false; // otro proceso ya lo tomó
+
+        await tx
+          .update(puntosBilletera)
+          .set({
+            puntosDisponibles: sql`puntos_disponibles + ${voucher.puntosUsados}`,
+          })
+          .where(eq(puntosBilletera.id, voucher.billeteraId));
+
+        return true;
+      });
+
+      if (!devuelto) continue;
+
+      // Limpiar la notificación "voucher_pendiente" del negocio (ya no se entregará).
+      await eliminarNotificacionesPorReferencia({
+        tipo: 'voucher_pendiente',
+        referenciaTipo: 'voucher',
+        referenciaId: voucher.id,
+      });
+
+      vouchersRevertidos++;
+      puntosDevueltos += voucher.puntosUsados;
+
+      console.log(`[Cancelación] Voucher ${voucher.id} cancelado. Devueltos ${voucher.puntosUsados} pts al usuario ${voucher.usuarioId}`);
+    }
+  } catch (error) {
+    console.error('[Cancelación] Error al revertir vouchers del negocio:', error);
+  }
+
+  return { vouchersRevertidos, puntosDevueltos };
+}
+
+// -----------------------------------------------------------------------------
 // 11b. EXPIRAR PUNTOS POR INACTIVIDAD (por usuario individual)
 // -----------------------------------------------------------------------------
 

@@ -25,6 +25,8 @@ export type TipoNotificacion =
   | 'stock_bajo'
   | 'nueva_resena'
   | 'sistema'
+  /** Al DUEÑO cuando su negocio sale de circulación (suspendido o cancelado). */
+  | 'negocio_fuera_circulacion'
   | 'nuevo_marketplace'
   | 'nuevo_servicio'
   | 'alerta_seguridad'

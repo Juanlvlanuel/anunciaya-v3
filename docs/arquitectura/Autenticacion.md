@@ -1,7 +1,7 @@
 # 🔐 AnunciaYA v3.0 - Sistema de Autenticación
 
-**Última actualización:** 06 Mayo 2026  
-**Versión:** 5.2 (Login con CTA crear cuenta + autoComplete + Header/Footer públicos compartidos)
+**Última actualización:** 5 Junio 2026  
+**Versión:** 5.3 (Candado de modo comercial para negocios fuera de circulación)
 
 ---
 
@@ -721,6 +721,25 @@ Frontend:
 
 **Nota:** Refresh token NO cambia, solo access token.
 
+### 🔒 Candado: negocio fuera de circulación
+
+Un negocio **fuera de circulación** (`activo=false`: suspensión manual, impago o cancelación)
+**no puede entrar al modo comercial** — bloqueo PAREJO, sin distinguir motivo. Dos capas backend,
+ambas reusan `estaFueraDeCirculacion()` del helper central `utils/estadoNegocio.ts`:
+
+- **`cambiarModo`** (`auth.service.ts`): antes de actualizar `modo_activo`, si el destino es
+  `comercial` y el negocio está fuera, devuelve `{ success:false, message, code:403 }`. Ese
+  `message` lo muestra el frontend como **toast** (`ToggleModoUsuario` / `ModoGuard` ya hacen
+  `notificar.error(error.message)`). El cancelado además ya queda bloqueado por
+  `tieneModoComercial=false`; el candado cierra el **suspendido**, que lo mantiene en `true`.
+- **`verificarNegocio`** (`negocio.middleware.ts`): bloquea con `403`
+  (`code: 'NEGOCIO_FUERA_CIRCULACION'`) **todas** las rutas de Business Studio de golpe (dueño y
+  gerente), cerrando una sesión que ya estuviera abierta. ScanYA tiene su propio candado.
+
+> El **pago de reactivación** vivirá a nivel app desde el **modo personal** (feature aparte),
+> así un negocio fuera puede pagar sin entrar al comercial. Aparte, se envía una
+> **notificación persistente** al dueño (ver `Notificaciones.md` → "Negocio fuera de circulación").
+
 ---
 
 ## 🛡️ Middlewares de Autorización
@@ -741,8 +760,10 @@ Frontend:
 
 **3. `verificarNegocio()`**
 - Archivo: `/apps/api/src/middleware/negocio.middleware.ts`
-- Propósito: Valida que usuario tenga negocio
+- Propósito: Valida que usuario tenga negocio **y que esté en circulación**
 - Inyecta: `req.negocioId`
+- Candado: si el negocio está fuera de circulación (`estaFueraDeCirculacion`), responde `403`
+  (`code: 'NEGOCIO_FUERA_CIRCULACION'`) — cierra todo Business Studio (dueño y gerente).
 
 **4. `validarAccesoSucursal()`**
 - Archivo: `/apps/api/src/middleware/sucursal.middleware.ts`

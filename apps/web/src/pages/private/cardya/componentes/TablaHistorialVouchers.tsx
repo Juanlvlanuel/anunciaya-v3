@@ -109,6 +109,16 @@ function fechaDinamica(voucher: Voucher): { label: string; fecha: string } {
   }
 }
 
+/** Presentación del chip de estado. Un voucher PENDIENTE de un negocio
+ *  SUSPENDIDO se muestra como "No disponible" (congelado) en vez de "Pendiente". */
+function presentacionEstado(voucher: Voucher): { label: string; clases: string } {
+  if (voucher.estado === 'pendiente' && voucher.estadoCirculacion === 'suspendido') {
+    return { label: 'No disponible', clases: 'bg-amber-100 text-amber-700' };
+  }
+  const c = ESTADO_CONFIG[voucher.estado];
+  return { label: c.label, clases: c.clases };
+}
+
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
@@ -204,7 +214,7 @@ export default function TablaHistorialVouchers({
         ) : (
           <div className="space-y-2.5">
             {vouchersOrdenados.map((voucher) => {
-              const estadoConf = ESTADO_CONFIG[voucher.estado];
+              const estadoConf = presentacionEstado(voucher);
 
 
               return (
@@ -416,7 +426,7 @@ export default function TablaHistorialVouchers({
                 <tbody>
                 {(() => {
                   return vouchersOrdenados.map((voucher, idx) => {
-                    const config = ESTADO_CONFIG[voucher.estado];
+                    const config = presentacionEstado(voucher);
                     const bgFila = idx % 2 === 0 ? 'bg-white' : 'bg-slate-100';
 
                     return (

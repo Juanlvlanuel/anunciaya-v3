@@ -22,6 +22,7 @@ import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
 import { usuarios, usuarioCodigosRespaldo, negocios, embajadores } from '../db/schemas/schema.js';
 import { obtenerDatosNegocio, DatosNegocio } from './negocios.service.js';
+import { estaFueraDeCirculacion, clasificarCirculacion, mensajeBloqueoModoComercial } from '../utils/estadoNegocio.js';
 import {
   enviarCodigoVerificacion,
   reenviarCodigoVerificacion,
@@ -2589,6 +2590,29 @@ export async function cambiarModo(
         message: 'Necesitas una suscripción comercial activa para cambiar a modo comercial',
         code: 403,
       };
+    }
+
+    // Candado de circulación: un negocio fuera de circulación (activo=false) NO
+    // puede entrar al modo comercial. Bloqueo PAREJO (suspensión manual, impago o
+    // cancelación). El `message` lo muestra el frontend como toast.
+    if (nuevoModo === 'comercial' && usuario.negocioId) {
+      const [negEstado] = await db
+        .select({
+          activo: negocios.activo,
+          estadoMembresia: negocios.estadoMembresia,
+          estadoAdmin: negocios.estadoAdmin,
+        })
+        .from(negocios)
+        .where(eq(negocios.id, usuario.negocioId))
+        .limit(1);
+
+      if (negEstado && estaFueraDeCirculacion(negEstado)) {
+        return {
+          success: false,
+          message: mensajeBloqueoModoComercial(clasificarCirculacion(negEstado)),
+          code: 403,
+        };
+      }
     }
 
     // Actualizar modo_activo en PostgreSQL

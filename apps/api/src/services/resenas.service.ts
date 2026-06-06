@@ -15,6 +15,7 @@ import {
     negocios,
 } from '../db/schemas/schema.js';
 import { crearNotificacion } from './notificaciones.service.js';
+import { estaFueraDeCirculacion } from '../utils/estadoNegocio.js';
 import type { CrearResenaInput, ResponderResenaInput } from '../validations/resenas.schema.js';
 
 // =============================================================================
@@ -309,15 +310,26 @@ export async function crearResena(
 
         const transaccionId = verificacion.data.transaccionId!;
 
-        // 2. Obtener negocioId
+        // 2. Obtener negocioId + estado de circulación del negocio
         const [sucursal] = await db
-            .select({ negocioId: negocioSucursales.negocioId })
+            .select({
+                negocioId: negocioSucursales.negocioId,
+                activo: negocios.activo,
+                estadoMembresia: negocios.estadoMembresia,
+                estadoAdmin: negocios.estadoAdmin,
+            })
             .from(negocioSucursales)
+            .innerJoin(negocios, eq(negocios.id, negocioSucursales.negocioId))
             .where(eq(negocioSucursales.id, datos.sucursalId))
             .limit(1);
 
         if (!sucursal) {
             return { success: false, message: 'Sucursal no encontrada', code: 404 };
+        }
+
+        // Candado de circulación: no se puede reseñar un negocio fuera de circulación.
+        if (estaFueraDeCirculacion(sucursal)) {
+            return { success: false, message: 'Este negocio no está disponible para reseñas.', code: 403 };
         }
 
         // 3. Insertar reseña

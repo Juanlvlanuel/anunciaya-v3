@@ -31,6 +31,7 @@ import { negocios, puntosBilletera, notificaciones } from '../db/schemas/schema'
 import { emitirAUsuario } from '../socket.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
+import { clasificarCirculacion } from '../utils/estadoNegocio.js';
 
 // =============================================================================
 // GENERAR URL DE UPLOAD PARA IMAGEN DE OFERTA (R2)
@@ -2430,6 +2431,9 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
         n.usuario_id as negocio_usuario_id,
         n.nombre as negocio_nombre,
         n.logo_url as negocio_logo,
+        n.activo as negocio_activo,
+        n.estado_membresia as negocio_estado_membresia,
+        n.estado_admin as negocio_estado_admin,
         o.sucursal_id,
         ns.nombre as sucursal_nombre,
         ns.foto_perfil as sucursal_foto_perfil
@@ -2461,9 +2465,28 @@ export async function obtenerMisCupones(usuarioId: string, filtroEstado?: string
 
     const resultado = await db.execute(query);
 
+    // Derivar el estado de circulación del negocio dueño con el helper CENTRAL
+    // (sin duplicar la regla) y NO exponer los campos crudos de estado del negocio.
+    const data = (resultado.rows as Array<Record<string, unknown>>).map((fila) => {
+      const estadoCirculacion = clasificarCirculacion({
+        activo: fila.negocio_activo as boolean | null,
+        estadoMembresia: fila.negocio_estado_membresia as string,
+        estadoAdmin: fila.negocio_estado_admin as string,
+      });
+      delete fila.negocio_activo;
+      delete fila.negocio_estado_membresia;
+      delete fila.negocio_estado_admin;
+      return { ...fila, estadoCirculacion };
+    })
+      // Ocultar cupones de negocios CANCELADOS (definitivo): el negocio no vuelve y
+      // el cupón ya no sirve → sería ruido en "Mis Cupones". Los SUSPENDIDOS sí se
+      // muestran (marcados); si el negocio no vuelve, el cupón se autolimpia al
+      // vencer (fecha_fin, que ya filtra esta misma consulta).
+      .filter((c) => c.estadoCirculacion !== 'cancelado');
+
     return {
       success: true,
-      data: resultado.rows,
+      data,
     };
   } catch (error) {
     console.error('Error al obtener mis cupones:', error);
@@ -2496,8 +2519,13 @@ export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: str
     }
 
     const query = sql`
-      SELECT ou.codigo_personal, ou.estado, ou.oferta_id
+      SELECT ou.codigo_personal, ou.estado, ou.oferta_id,
+             n.activo as negocio_activo,
+             n.estado_membresia as negocio_estado_membresia,
+             n.estado_admin as negocio_estado_admin
       FROM oferta_usuarios ou
+      JOIN ofertas o ON o.id = ou.oferta_id
+      JOIN negocios n ON n.id = o.negocio_id
       WHERE ou.id = ${ofertaUsuarioId}
         AND ou.usuario_id = ${usuarioId}
       LIMIT 1
@@ -2513,6 +2541,18 @@ export async function revelarCodigoCupon(ofertaUsuarioId: string, usuarioId: str
 
     if (cupon.estado === 'revocado') {
       return { success: false, error: 'Este cupón fue revocado', code: 400 };
+    }
+
+    // Candado de circulación (Opción 3): si el negocio está CANCELADO (definitivo),
+    // no tiene sentido revelar un código inservible. Si está SUSPENDIDO (temporal),
+    // se permite — el cliente podrá usarlo cuando el negocio vuelva.
+    const circulacion = clasificarCirculacion({
+      activo: cupon.negocio_activo as boolean | null,
+      estadoMembresia: cupon.negocio_estado_membresia as string,
+      estadoAdmin: cupon.negocio_estado_admin as string,
+    });
+    if (circulacion === 'cancelado') {
+      return { success: false, error: 'Este negocio ya no está disponible', code: 409 };
     }
 
     return {

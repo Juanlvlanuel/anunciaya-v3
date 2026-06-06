@@ -17,6 +17,7 @@
 import { db } from '../../db/index.js';
 import { negocios } from '../../db/schemas/schema.js';
 import { and, eq, lt } from 'drizzle-orm';
+import { notificarNegocioFueraDeCirculacion } from '../notificaciones.service.js';
 
 /**
  * Suspende los negocios con periodo de gracia vencido.
@@ -28,7 +29,10 @@ export async function suspenderGraciasVencidas(): Promise<{ suspendidos: number;
 
         const filas = await db
             .update(negocios)
-            .set({ estadoMembresia: 'suspendido', updatedAt: ahora })
+            // `activo=false` saca al negocio de circulación. Casi toda la app filtra
+            // visibilidad por `activo`, así que con esto la suspensión por impago se
+            // comporta igual que la manual. El MOTIVO sigue en `estado_membresia`.
+            .set({ estadoMembresia: 'suspendido', activo: false, updatedAt: ahora })
             .where(
                 and(
                     eq(negocios.estadoMembresia, 'en_gracia'),
@@ -36,6 +40,11 @@ export async function suspenderGraciasVencidas(): Promise<{ suspendidos: number;
                 ),
             )
             .returning({ id: negocios.id });
+
+        // Aviso persistente a cada dueño suspendido (centro de notificaciones, modo personal).
+        for (const fila of filas) {
+            await notificarNegocioFueraDeCirculacion(fila.id);
+        }
 
         return { suspendidos: filas.length, errores: 0 };
     } catch (error) {

@@ -219,6 +219,19 @@ export default function ModalDetalleCupon({
                         <div className="flex-1 min-w-0">
                             <p className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800 truncate">{cupon.negocioNombre}</p>
                             {cupon.sucursalNombre && cupon.sucursalNombre !== cupon.negocioNombre && <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium truncate">{cupon.sucursalNombre}</p>}
+                            {/* Aviso de circulación junto al logo (semejante a la franja del card) */}
+                            {cupon.estadoCirculacion === 'suspendido' && (
+                                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'rgba(245,158,11,0.95)' }}>
+                                    <AlertTriangle className="w-3 h-3 shrink-0" strokeWidth={2.5} />
+                                    Negocio suspendido
+                                </span>
+                            )}
+                            {cupon.estadoCirculacion === 'cancelado' && (
+                                <span className="inline-flex items-center gap-1 mt-1 px-2 py-0.5 rounded-full text-[11px] font-bold text-white" style={{ background: 'rgba(220,38,38,0.95)' }}>
+                                    <AlertTriangle className="w-3 h-3 shrink-0" strokeWidth={2.5} />
+                                    Negocio ya no disponible
+                                </span>
+                            )}
                         </div>
                         {cupon.negocioUsuarioId && (
                             <Tooltip text="ChatYA" position="bottom" className="max-lg:hidden">
@@ -291,8 +304,8 @@ export default function ModalDetalleCupon({
                         </div>
                     )}
 
-                    {/* Sección código — compacta */}
-                    {esActivo && (
+                    {/* Sección código — compacta (oculta si el negocio está cancelado: no tiene caso revelar) */}
+                    {esActivo && cupon.estadoCirculacion !== 'cancelado' && (
                         <div className="p-3 lg:p-2.5 2xl:p-3 bg-slate-200 rounded-xl">
                             <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800 mb-2 lg:mb-1.5 2xl:mb-2">Código de Cupón</p>
 

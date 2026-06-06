@@ -10,8 +10,14 @@
 
 ---
 
-**Última actualización:** 13 Mayo 2026
+**Última actualización:** 5 Junio 2026
 **Estado:** ✅ 100% Operacional (Negocios, Ofertas, Marketplace)
+
+> **Negocio fuera de circulación (Jun 2026):** guardar y listar respetan el estado del negocio.
+> `agregarGuardado` bloquea guardar **ofertas** y **vacantes-empresa** de negocios fuera
+> (`activo=false`); `obtenerGuardados` las **OCULTA** de la lista (no las borra → si el negocio
+> reactiva, el guardado reaparece solo). Las publicaciones de persona física no se tocan. Reusa
+> `estaFueraDeCirculacion` del helper central. Ver `Notificaciones.md`/`ChatYA.md` para el resto del tema.
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - `hooks/queries/useMisGuardados.ts`

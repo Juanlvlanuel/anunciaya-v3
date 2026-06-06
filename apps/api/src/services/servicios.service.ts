@@ -696,6 +696,8 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             WHERE sp.id = ${publicacionId}
               AND sp.estado != 'eliminada'
               AND sp.deleted_at IS NULL
+              -- Vacante de empresa de negocio fuera de circulación → 404 (link directo)
+              AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)
             LIMIT 1
         `);
 
@@ -827,6 +829,9 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
               ${filtroModo}
+              -- Ocultar vacantes de empresa cuyo negocio está fuera de circulación
+              -- (las publicaciones de persona física no tienen negocio → siempre visibles)
+              AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)
             ORDER BY sp.created_at DESC
             LIMIT 10
         `);
@@ -849,6 +854,8 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
               ${filtroModo}
+              -- Ocultar vacantes de empresa de negocios fuera de circulación
+              AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)
               AND ST_DWithin(
                   sp.ubicacion_aproximada::geography,
                   ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography,
@@ -963,6 +970,8 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
               ${filtroModalidad}
               ${filtroCategoria}
               ${filtroUrgente}
+              -- Ocultar vacantes de empresa de negocios fuera de circulación
+              AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)
             ${ordenSql}
             LIMIT ${limite}
             OFFSET ${offset}
@@ -971,6 +980,8 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
         const [{ total }] = (await db.execute<{ total: number }>(sql`
             SELECT COUNT(*)::int AS total
             FROM servicios_publicaciones sp
+            LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
+            LEFT JOIN negocios n           ON n.id = s.negocio_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
               AND sp.ciudad = ${ciudad}
@@ -979,6 +990,8 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
               ${filtroModalidad}
               ${filtroCategoria}
               ${filtroUrgente}
+              -- Mismo filtro que la query principal (consistencia del total)
+              AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)
         `)).rows as Array<{ total: number }>;
 
         const items: PublicacionFeedRow[] = (

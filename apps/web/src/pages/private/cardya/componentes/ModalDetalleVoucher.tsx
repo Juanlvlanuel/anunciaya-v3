@@ -106,6 +106,11 @@ export default function ModalDetalleVoucher({
 
   const config = ESTADO_CONFIG[voucher.estado];
   const esPendiente = voucher.estado === 'pendiente';
+  // Consistencia con la lista: un voucher PENDIENTE de un negocio SUSPENDIDO se
+  // muestra como "No disponible" (congelado) también en el badge del header.
+  const esPendienteSuspendido = esPendiente && voucher.estadoCirculacion === 'suspendido';
+  const badgeLabel = esPendienteSuspendido ? 'No disponible' : config.label;
+  const badgeClases = esPendienteSuspendido ? 'bg-amber-100 text-amber-700' : config.badgeClases;
 
   const handleCancelar = () => {
     onCancelarVoucher?.(voucher);
@@ -152,9 +157,9 @@ export default function ModalDetalleVoucher({
                 Detalle del voucher
               </h2>
               <span
-                className={`text-sm lg:text-[11px] 2xl:text-sm font-bold px-2 py-0.5 rounded-full shrink-0 ${config.badgeClases}`}
+                className={`text-sm lg:text-[11px] 2xl:text-sm font-bold px-2 py-0.5 rounded-full shrink-0 ${badgeClases}`}
               >
-                {config.label}
+                {badgeLabel}
               </span>
             </div>
             <p className="text-sm lg:text-[11px] 2xl:text-sm text-amber-400/80 font-bold truncate">
@@ -265,6 +270,19 @@ export default function ModalDetalleVoucher({
             )}
           </div>
         </div>
+
+        {/* Negocio suspendido: el voucher pendiente queda "congelado" hasta que vuelva */}
+        {voucher.estado === 'pendiente' && voucher.estadoCirculacion === 'suspendido' && (
+          <div
+            className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 p-2.5 lg:p-2 2xl:p-3 rounded-xl lg:rounded-lg 2xl:rounded-xl mb-2.5 lg:mb-1.5 2xl:mb-3"
+            style={{ background: 'linear-gradient(135deg, #fffbeb, #fef3c7)', border: '2px solid #fde68a' }}
+          >
+            <AlertTriangle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0" strokeWidth={2} style={{ color: '#d97706' }} />
+            <p className="text-[13px] lg:text-[11px] 2xl:text-sm font-bold" style={{ color: '#92400e' }}>
+              Negocio temporalmente no disponible. Podrás usar este voucher cuando vuelva.
+            </p>
+          </div>
+        )}
 
         {/* Vencimiento destacado - solo pendiente y expirado */}
         {(voucher.estado === 'pendiente' || voucher.estado === 'expirado') && (() => {

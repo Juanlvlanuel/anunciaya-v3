@@ -54,6 +54,7 @@ import {
     obtenerAvisoTurnoAutoCerrado,
     type AvisoTurnoAutoCerrado,
 } from './scanya-cierre-auto.service.js';
+import { MENSAJE_SCANYA_FUERA } from '../utils/estadoNegocio.js';
 
 // =============================================================================
 // TIPOS DE RESPUESTA
@@ -228,6 +229,7 @@ export async function loginDueno(
                     onboardingCompletado: negocios.onboardingCompletado,
                     participaPuntos: negocios.participaPuntos,
                     usuarioId: negocios.usuarioId,
+                    activo: negocios.activo,
                 })
                 .from(negocios)
                 .where(eq(negocios.id, usuario.negocioId!))
@@ -256,6 +258,12 @@ export async function loginDueno(
                     message: 'El sistema de puntos (CardYA) no está activo para este negocio. Actívalo en Business Studio → Mi Perfil.',
                     code: 403,
                 };
+            }
+
+            // Candado de circulación: un negocio fuera de circulación (activo=false)
+            // no puede entrar a ScanYA. Cubre dueño y gerente (ambos entran por aquí).
+            if (negocioEncontrado.activo === false) {
+                return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
             }
 
             negocio = negocioEncontrado;
@@ -671,6 +679,7 @@ export async function loginEmpleado(
                 logoUrl: negocios.logoUrl,
                 participaPuntos: negocios.participaPuntos,
                 usuarioId: negocios.usuarioId,
+                activo: negocios.activo,
             })
             .from(negocios)
             .where(eq(negocios.id, sucursal.negocioId))
@@ -701,6 +710,11 @@ export async function loginEmpleado(
                 message: 'El sistema de puntos (CardYA) no está activo para este negocio',
                 code: 403,
             };
+        }
+
+        // Candado de circulación: negocio fuera (activo=false) no puede entrar a ScanYA.
+        if (negocio.activo === false) {
+            return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
         }
 
         // -------------------------------------------------------------------------
@@ -964,7 +978,7 @@ export async function refrescarTokenScanYA(
 
         // Verificar que el negocio aún exista
         const [negocio] = await db
-            .select({ id: negocios.id, nombre: negocios.nombre })
+            .select({ id: negocios.id, nombre: negocios.nombre, activo: negocios.activo })
             .from(negocios)
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
@@ -975,6 +989,12 @@ export async function refrescarTokenScanYA(
                 message: 'Negocio no encontrado',
                 code: 404,
             };
+        }
+
+        // Candado de circulación: corta sesiones vivas. Si el negocio cayó fuera
+        // (activo=false) después de iniciar sesión, el siguiente refresh lo expulsa.
+        if (negocio.activo === false) {
+            return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
         }
 
         // Si es empleado, verificar que aún esté activo
@@ -1959,7 +1979,7 @@ export async function otorgarPuntos(
         // Paso 1.5: Verificar que el negocio tenga CardYA activo
         // -------------------------------------------------------------------------
         const [negocioCheck] = await db
-            .select({ participaPuntos: negocios.participaPuntos })
+            .select({ participaPuntos: negocios.participaPuntos, activo: negocios.activo })
             .from(negocios)
             .where(eq(negocios.id, payload.negocioId))
             .limit(1);
@@ -1970,6 +1990,12 @@ export async function otorgarPuntos(
                 message: 'El sistema de puntos (CardYA) no está activo para este negocio',
                 code: 403,
             };
+        }
+
+        // Candado de circulación (barrera dura): aunque la sesión de ScanYA siga
+        // viva, un negocio fuera de circulación (activo=false) NO otorga puntos.
+        if (negocioCheck.activo === false) {
+            return { success: false, message: MENSAJE_SCANYA_FUERA, code: 403 };
         }
 
         // -------------------------------------------------------------------------

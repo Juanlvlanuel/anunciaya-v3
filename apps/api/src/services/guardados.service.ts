@@ -23,8 +23,9 @@
  * ✅ JOIN con negocio_sucursales para obtener whatsapp de la sucursal
  */
 
-import { eq, and, sql } from 'drizzle-orm';
+import { eq, and, sql, or, ne } from 'drizzle-orm';
 import { db } from '../db';
+import { estaFueraDeCirculacion } from '../utils/estadoNegocio.js';
 import {
     guardados,
     ofertas,
@@ -75,6 +76,47 @@ export async function agregarGuardado(params: AgregarGuardadoParams) {
                 success: false,
                 message: 'Ya está en guardados',
             };
+        }
+
+        // Candado de circulación: no se puede guardar una oferta de un negocio
+        // fuera de circulación.
+        if (entityType === 'oferta') {
+            const [ofe] = await db
+                .select({
+                    activo: negocios.activo,
+                    estadoMembresia: negocios.estadoMembresia,
+                    estadoAdmin: negocios.estadoAdmin,
+                })
+                .from(ofertas)
+                .innerJoin(negocios, eq(negocios.id, ofertas.negocioId))
+                .where(eq(ofertas.id, entityId))
+                .limit(1);
+            if (ofe && estaFueraDeCirculacion(ofe)) {
+                return { success: false, message: 'Este negocio no está disponible.', code: 403 };
+            }
+        }
+
+        // Candado de circulación: tampoco se puede guardar una VACANTE-EMPRESA de un
+        // negocio fuera de circulación. El innerJoin + tipo='vacante-empresa' deja
+        // fuera las publicaciones de persona física (que no tienen negocio).
+        if (entityType === 'servicio') {
+            const [vac] = await db
+                .select({
+                    activo: negocios.activo,
+                    estadoMembresia: negocios.estadoMembresia,
+                    estadoAdmin: negocios.estadoAdmin,
+                })
+                .from(serviciosPublicaciones)
+                .innerJoin(negocioSucursales, eq(negocioSucursales.id, serviciosPublicaciones.sucursalId))
+                .innerJoin(negocios, eq(negocios.id, negocioSucursales.negocioId))
+                .where(and(
+                    eq(serviciosPublicaciones.id, entityId),
+                    eq(serviciosPublicaciones.tipo, 'vacante-empresa')
+                ))
+                .limit(1);
+            if (vac && estaFueraDeCirculacion(vac)) {
+                return { success: false, message: 'Este negocio no está disponible.', code: 403 };
+            }
         }
 
         // Crear nuevo guardado
@@ -303,6 +345,9 @@ export async function obtenerGuardados(
                 .where(and(
                     ...condiciones,
                     eq(ofertas.activo, true),
+                    // Ocultar guardados cuyo negocio está fuera de circulación (no se
+                    // borran: si el negocio reactiva, el guardado reaparece solo).
+                    eq(negocios.activo, true),
                     sql`(${ofertas.fechaFin} IS NULL OR ${ofertas.fechaFin} >= CURRENT_DATE)`
                 ))
                 .orderBy(sql`${guardados.createdAt} DESC`)
@@ -545,6 +590,9 @@ export async function obtenerGuardados(
                   -- Guardados. La fila en guardados se mantiene en BD
                   -- por si la publicación vuelve a 'activa' después.
                   AND p.estado = 'activa'
+                  -- Ocultar vacantes de empresa de negocios fuera de circulación
+                  -- (las publicaciones de persona física no tienen negocio → visibles)
+                  AND (p.tipo <> 'vacante-empresa' OR n.activo = true)
                 ORDER BY g.created_at DESC
                 LIMIT ${limite}
                 OFFSET ${offsetSql}
@@ -658,11 +706,18 @@ export async function obtenerGuardados(
                     serviciosPublicaciones,
                     eq(serviciosPublicaciones.id, guardados.entityId),
                 )
+                .leftJoin(negocioSucursales, eq(negocioSucursales.id, serviciosPublicaciones.sucursalId))
+                .leftJoin(negocios, eq(negocios.id, negocioSucursales.negocioId))
                 .where(
                     and(
                         eq(guardados.usuarioId, userId),
                         eq(guardados.entityType, 'servicio'),
                         eq(serviciosPublicaciones.estado, 'activa'),
+                        // Mismo filtro que la lista: ocultar vacantes-empresa de negocios fuera
+                        or(
+                            ne(serviciosPublicaciones.tipo, 'vacante-empresa'),
+                            eq(negocios.activo, true),
+                        ),
                     ),
                 );
             const total = Number(count);

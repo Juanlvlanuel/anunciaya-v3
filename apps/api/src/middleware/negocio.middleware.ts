@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import { db } from '../db';
 import { negocios } from '../db/schemas/schema';
 import { eq, sql } from 'drizzle-orm';
+import { estaFueraDeCirculacion } from '../utils/estadoNegocio.js';
 
 // ============================================
 // MIDDLEWARE: VERIFICAR PROPIETARIO DEL NEGOCIO
@@ -144,13 +145,27 @@ export const verificarNegocio = async (
 
         // Buscar el negocio del usuario (puede ser dueño o empleado)
         const [negocio] = await db
-            .select({ id: negocios.id })
+            .select({
+                id: negocios.id,
+                activo: negocios.activo,
+                estadoMembresia: negocios.estadoMembresia,
+                estadoAdmin: negocios.estadoAdmin,
+            })
             .from(negocios)
             .where(eq(negocios.usuarioId, usuarioId))
             .limit(1);
 
         // Si tiene negocio propio (es dueño)
         if (negocio) {
+            // Candado de circulación: un negocio fuera de circulación no puede
+            // operar el modo comercial (cierra todo Business Studio de golpe).
+            if (estaFueraDeCirculacion(negocio)) {
+                return res.status(403).json({
+                    success: false,
+                    message: 'Tu negocio está fuera de servicio.',
+                    code: 'NEGOCIO_FUERA_CIRCULACION',
+                });
+            }
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             (req as any).negocioId = negocio.id;
             return next();
@@ -170,9 +185,31 @@ export const verificarNegocio = async (
             });
         }
 
+        const negocioIdGerente = queryUsuario.rows[0].negocio_id as string;
+
+        // Candado de circulación también para gerentes: cargar el estado del
+        // negocio asociado y bloquear si está fuera de circulación.
+        const [negGerente] = await db
+            .select({
+                activo: negocios.activo,
+                estadoMembresia: negocios.estadoMembresia,
+                estadoAdmin: negocios.estadoAdmin,
+            })
+            .from(negocios)
+            .where(eq(negocios.id, negocioIdGerente))
+            .limit(1);
+
+        if (negGerente && estaFueraDeCirculacion(negGerente)) {
+            return res.status(403).json({
+                success: false,
+                message: 'Tu negocio está fuera de servicio.',
+                code: 'NEGOCIO_FUERA_CIRCULACION',
+            });
+        }
+
         // Inyectar negocioId del empleado
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        (req as any).negocioId = queryUsuario.rows[0].negocio_id;
+        (req as any).negocioId = negocioIdGerente;
 
         next();
     } catch (error) {

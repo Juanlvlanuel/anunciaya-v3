@@ -381,6 +381,41 @@ Algunas notificaciones no tienen `referenciaTipo` (ej: cambio de sistema de nive
 
 ---
 
+## Negocio fuera de circulación (aviso persistente al dueño)
+
+Cuando un negocio sale de circulación (`activo=false`), su DUEÑO recibe una notificación
+**persistente** en su centro de notificaciones del **modo personal**. (El bloqueo del modo
+comercial vive en `Autenticacion.md` → "Candado: negocio fuera de circulación".)
+
+- **Tipo:** `negocio_fuera_circulacion` · **modo:** `personal` · `referenciaId = negocioId`.
+- **Texto según motivo** (helper `textoNotificacionFuera` en `utils/estadoNegocio.ts`):
+  - *suspendido* → **"Tu negocio está suspendido"** / "No está visible. Regulariza tu membresía para reactivarlo."
+  - *cancelado* → **"Tu negocio fue dado de baja"** / "Tu suscripción se canceló y tu negocio salió de circulación."
+  - Sin enlace a "pagar aquí": esa sección (pago a nivel app) aún no existe.
+- **Helper central:** `notificarNegocioFueraDeCirculacion(negocioId)` (en `notificaciones.service.ts`)
+  carga el negocio, clasifica con `clasificarCirculacion` y crea la notificación al dueño.
+- **Se dispara en los 3 eventos que apagan el negocio:**
+  - suspensión manual → `admin/negocios-acciones.service.ts` (`suspenderNegocio`)
+  - impago (cron) → `suscripciones/gracia.ts` (`suspenderGraciasVencidas`, por cada negocio)
+  - cancelación (webhook) → `pago.service.ts` (`procesarCancelacionSuscripcion`)
+- **Se BORRA al reactivar:** `limpiarNotificacionNegocioFueraDeCirculacion(negocioId)` (usa
+  `eliminarNotificacionesPorReferencia`), enganchado en `reactivarNegocio` (Panel) y en
+  `manejarRenovacionPagada` cuando el negocio reaparece.
+- **Migración:** `docs/migraciones/2026-06-05-notificaciones-tipo-negocio-fuera-circulacion.sql`
+  agrega el tipo al CHECK `notificaciones_tipo_check`.
+
+### Corte de notificaciones OPERATIVAS (Grupo 4)
+
+Aparte del aviso al dueño, un negocio fuera de circulación **deja de generar sus notificaciones
+operativas** (las del modo comercial: `stock_bajo`, `voucher_pendiente`, `puntos_ganados`,
+`voucher_cobrado`, `alerta_seguridad`, `nueva_resena`, `coyo_recomendacion`) — son ruido para un
+negocio que no opera. El corte es **central**, dentro de `crearNotificacion`: si `modo='comercial'`
+y `negocioId` apunta a un negocio fuera de circulación (`estaFueraDeCirculacion`), la función
+retorna temprano sin crear ni emitir. **No afecta** la notificación de suspensión (`modo='personal'`)
+ni las personales del cliente.
+
+---
+
 ## Catálogo de Notificaciones
 
 ### Personales (al cliente)

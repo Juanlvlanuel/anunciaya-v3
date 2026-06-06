@@ -40,6 +40,8 @@ export interface CuponCliente {
   sucursalFotoPerfil: string | null;
   limiteUsosPorUsuario: number | null;
   usosRealizados: number;
+  /** Estado de circulación del negocio dueño del cupón (el backend lo deriva con el helper central). */
+  estadoCirculacion?: 'en_circulacion' | 'suspendido' | 'cancelado';
 }
 
 // =============================================================================

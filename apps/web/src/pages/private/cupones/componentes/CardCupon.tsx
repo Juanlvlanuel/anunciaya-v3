@@ -86,6 +86,22 @@ export default function CardCupon({
         </div>
     );
 
+    // Aviso de circulación como FRANJA en la parte de arriba (sobre la foto).
+    // Los cancelados ya no llegan (se ocultan en el backend); el rojo queda como
+    // defensa. suspendido = amber (temporal).
+    const franjaCirculacion = cupon.estadoCirculacion === 'cancelado' ? (
+        <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-center gap-1 py-1 lg:py-1.5" style={{ background: 'rgba(220,38,38,0.95)' }}>
+            <AlertTriangle className="w-3.5 h-3.5 text-white shrink-0" strokeWidth={2.5} />
+            <span className="text-[12px] font-bold text-white">Negocio ya no disponible</span>
+        </div>
+    ) : cupon.estadoCirculacion === 'suspendido' ? (
+        <div className="absolute top-0 inset-x-0 z-10 flex items-center justify-center gap-1 py-1 lg:py-1.5" style={{ background: 'rgba(245,158,11,0.95)' }}>
+            <AlertTriangle className="w-3.5 h-3.5 text-white shrink-0" strokeWidth={2.5} />
+            <span className="text-[12px] font-bold text-white">Negocio suspendido</span>
+        </div>
+    ) : null;
+    const tieneFranja = !!franjaCirculacion;
+
     return (
         <>
             {/* ── MOBILE ── */}
@@ -103,8 +119,9 @@ export default function CardCupon({
                 <div className="w-36 shrink-0 relative overflow-hidden">
                     {imagenCupon}
                     <div className="absolute inset-y-0 right-0 w-8 pointer-events-none" style={{ background: 'linear-gradient(to left, rgba(255,255,255,0.3), transparent)' }} />
-                    {/* Logo negocio — arriba izquierda */}
-                    <div className="absolute top-2 left-2">
+                    {franjaCirculacion}
+                    {/* Logo negocio — arriba izquierda (baja si hay franja) */}
+                    <div className={`absolute ${tieneFranja ? 'top-9' : 'top-2'} left-2`}>
                         {cupon.negocioLogo ? (
                             <img src={cupon.negocioLogo} alt={cupon.negocioNombre} className="w-12 h-12 rounded-full object-cover border-2 border-white/50 shadow-md" />
                         ) : (
@@ -113,11 +130,13 @@ export default function CardCupon({
                             </div>
                         )}
                     </div>
-                    {/* Badge estado — abajo izquierda */}
-                    <div className={`absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-lg flex items-center gap-1 ${badge.clases}`}>
-                        <BadgeIcono className="w-3 h-3" />
-                        <span className="text-[12px] font-bold">{badge.label}</span>
-                    </div>
+                    {/* Badge estado — abajo izquierda (oculto si el negocio está fuera) */}
+                    {!tieneFranja && (
+                        <div className={`absolute bottom-1.5 left-1.5 px-2 py-0.5 rounded-lg flex items-center gap-1 ${badge.clases}`}>
+                            <BadgeIcono className="w-3 h-3" />
+                            <span className="text-[12px] font-bold">{badge.label}</span>
+                        </div>
+                    )}
                 </div>
 
                 {/* Línea separadora */}
@@ -177,7 +196,8 @@ export default function CardCupon({
                 <div className="w-full h-32 2xl:h-40 relative overflow-hidden">
                     {imagenCupon}
                     <div className="absolute inset-x-0 bottom-0 h-20 pointer-events-none" style={{ background: 'linear-gradient(to top, rgba(0,0,0,0.5), transparent)' }} />
-                    {badgeEstadoEl}
+                    {franjaCirculacion}
+                    {!tieneFranja && badgeEstadoEl}
                     {/* Negocio overlay */}
                     <div className="absolute bottom-2.5 left-3.5 right-3.5">
                         <div className="flex items-center gap-2.5 min-w-0">

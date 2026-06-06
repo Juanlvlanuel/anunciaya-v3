@@ -19,6 +19,7 @@ import type {
     RespuestaServicio,
     ModoNotificacion,
 } from '../types/notificaciones.types.js';
+import { clasificarCirculacion, textoNotificacionFuera, estaFueraDeCirculacion } from '../utils/estadoNegocio.js';
 
 // =============================================================================
 // CREAR NOTIFICACIÓN
@@ -32,6 +33,25 @@ export async function crearNotificacion(
     input: CrearNotificacionInput
 ): Promise<RespuestaServicio<NotificacionResponse>> {
     try {
+        // Grupo 4: no generar notificaciones OPERATIVAS (modo='comercial') para un
+        // negocio FUERA de circulación — son ruido para un negocio que no opera. NO
+        // afecta la notificación de suspensión (modo='personal') ni las personales
+        // del cliente (que nunca entran a este condicional).
+        if (input.modo === 'comercial' && input.negocioId) {
+            const [negEstado] = await db
+                .select({
+                    activo: negocios.activo,
+                    estadoMembresia: negocios.estadoMembresia,
+                    estadoAdmin: negocios.estadoAdmin,
+                })
+                .from(negocios)
+                .where(eq(negocios.id, input.negocioId))
+                .limit(1);
+            if (negEstado && estaFueraDeCirculacion(negEstado)) {
+                return { success: true, message: 'Notificación omitida: negocio fuera de circulación' };
+            }
+        }
+
         const [nueva] = await db
             .insert(notificaciones)
             .values({
@@ -172,6 +192,60 @@ export async function eliminarNotificacionesPorReferencia(filtro: {
     } catch (error) {
         console.error('Error en eliminarNotificacionesPorReferencia:', error);
     }
+}
+
+// =============================================================================
+// NEGOCIO FUERA DE CIRCULACIÓN (aviso persistente al dueño)
+// =============================================================================
+
+/**
+ * Crea la notificación persistente al DUEÑO cuando su negocio sale de circulación
+ * (suspendido o cancelado). Se dispara desde los 3 eventos que apagan el negocio:
+ * suspensión manual (Panel), impago (cron de gracia) y cancelación (webhook).
+ * El texto se adapta al motivo con el helper central (clasificarCirculacion).
+ */
+export async function notificarNegocioFueraDeCirculacion(negocioId: string): Promise<void> {
+    try {
+        const [neg] = await db
+            .select({
+                usuarioId: negocios.usuarioId,
+                activo: negocios.activo,
+                estadoMembresia: negocios.estadoMembresia,
+                estadoAdmin: negocios.estadoAdmin,
+            })
+            .from(negocios)
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+
+        if (!neg) return;
+
+        const estado = clasificarCirculacion(neg);
+        if (estado === 'en_circulacion') return; // seguridad: solo si está fuera
+
+        const { titulo, mensaje } = textoNotificacionFuera(estado);
+        await crearNotificacion({
+            usuarioId: neg.usuarioId,
+            modo: 'personal',
+            tipo: 'negocio_fuera_circulacion',
+            titulo,
+            mensaje,
+            negocioId,
+            referenciaId: negocioId,
+        });
+    } catch (error) {
+        console.error('Error en notificarNegocioFueraDeCirculacion:', error);
+    }
+}
+
+/**
+ * Borra la notificación de "negocio fuera de circulación" cuando el negocio se
+ * reactiva (reactivación manual del Panel, o un pago que lo hace reaparecer).
+ */
+export async function limpiarNotificacionNegocioFueraDeCirculacion(negocioId: string): Promise<void> {
+    await eliminarNotificacionesPorReferencia({
+        referenciaId: negocioId,
+        tipo: 'negocio_fuera_circulacion',
+    });
 }
 
 // =============================================================================

@@ -1,6 +1,12 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.4 — Actualizado 2026-05-09 — **MÓDULO COMPLETADO ✅**
+> **Versión:** v7.5 — Actualizado 2026-06-05 — **MÓDULO COMPLETADO ✅**
+>
+> **Cambios v7.5 (5 Jun 2026):** candado de "negocio fuera de circulación" — si la conversación
+> involucra un negocio con `activo=false`, se bloquea el ENVÍO por **ambos lados** (`enviarMensaje`)
+> y la creación de chat nuevo (`crearObtenerConversacion`); la conversación sigue **visible** (no se
+> borra). Helper `circulacionDeSucursal` (chatya.service.ts) que reusa `estaFueraDeCirculacion` /
+> `clasificarCirculacion`. Mensaje según motivo (suspendido vs cancelado).
 >
 > **Cambios v7.4 (09 May 2026 — noche):**
 > - **Preview de contexto en input** — la card del recurso aparece arriba del input como mini-card "tipo attachment" + borrador pre-cargado; se persiste en BD solo al enviar. Reemplazó el patrón previo de `mensajeContextoOptimista` en el chat. Ver §4.13.1.
@@ -13,8 +19,8 @@
 >
 > **Cambios v7.2 (mayo 2026):** mensaje contextual de MarketPlace (§4.6, §4.13.1), columna `articulo_marketplace_id`, borrador inicial en chats temporales (§4.23), patrón "navegar desde overlay sin flash" (ver `LECCIONES_TECNICAS.md`).
 
-**Fecha:** 09 Mayo 2026
-**Versión:** 7.4
+**Fecha:** 05 Junio 2026
+**Versión:** 7.5
 **Proyecto:** AnunciaYA v3.0  
 **Chat de origen:** Chat Cerebro del Proyecto (Opus 4.6)  
 **Propósito:** Documento de referencia para implementar ChatYA en múltiples sesiones de chat. Contiene TODAS las decisiones, especificaciones, progreso y referencia técnica completa.

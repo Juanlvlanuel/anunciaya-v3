@@ -1,7 +1,7 @@
 # 🏷️ Promociones — Ofertas y Cupones
 
-**Última actualización:** 17 Abril 2026
-**Versión:** 3.1
+**Última actualización:** 5 Junio 2026
+**Versión:** 3.2
 **Estado:** ✅ Operacional (Ofertas públicas + Cupones privados + ChatYA + Tiempo real)
 
 > **DATOS DEL SERVIDOR (React Query):**
@@ -66,7 +66,8 @@ Este documento describe la **arquitectura del módulo de Promociones**:
 14. [Limpieza Cascada](#limpieza-cascada)
 15. [Recompensas N+1](#recompensas-n1)
 16. [Frontend — Componentes](#frontend--componentes)
-17. [Decisiones de Diseño](#decisiones-de-diseño)
+17. [Negocio fuera de circulación](#negocio-fuera-de-circulación)
+18. [Decisiones de Diseño](#decisiones-de-diseño)
 
 ---
 
@@ -769,7 +770,34 @@ Tracking de compras acumuladas por usuario por recompensa.
 
 ---
 
-## 17. Decisiones de Diseño
+## 17. Negocio fuera de circulación
+
+"Mis Cupones" respeta el principio global: **`negocios.activo = false` = fuera de circulación**,
+con el motivo en `estado_membresia` / `estado_admin`, clasificado por el helper central
+`apps/api/src/utils/estadoNegocio.ts` (`clasificarCirculacion()` → `en_circulacion | suspendido |
+cancelado`). El cupón **nunca desaparece**: siempre se ve, con su aviso.
+
+**Backend** (`ofertas.service.ts`):
+- `obtenerMisCupones` — hace JOIN con `negocios`, deriva `estadoCirculacion` con el helper (sin
+  duplicar la regla) y **OCULTA los cupones de negocios CANCELADOS** (el negocio no vuelve → el
+  cupón es ruido sin valor). Los suspendidos sí se devuelven (marcados); si el negocio no vuelve,
+  el cupón se autolimpia al vencer (`fecha_fin`, que esta misma consulta ya filtra).
+- `revelarCodigoCupon` — defensa: rechaza revelar (409) si el negocio está cancelado.
+
+**Frontend** (`CardCupon.tsx`):
+- El aviso del negocio **suspendido** es una **franja sobre la foto** ("Negocio suspendido", amber);
+  mientras está la franja, se oculta el badge de estado del cupón. `ModalDetalleCupon` mantiene su
+  banner amber para el suspendido.
+
+**Política (decisión):** **suspendido = se conserva y se MARCA** (franja); **cancelado = se OCULTA**
+de Mis Cupones. A diferencia de las recompensas del catálogo (que se ocultan por ser un
+*escaparate* aún no propio), el cupón es un **regalo ya recibido** (como un voucher): por eso solo
+el **cancelado** (definitivo, sin valor) se quita; el suspendido se queda. Coherente con el eje
+suspendido/cancelado. Detalle: `docs/reportes/REPORTE_Tanda2_Negocio_Fuera_Circulacion.md`.
+
+---
+
+## 18. Decisiones de Diseño
 
 ### ¿Por qué no un módulo separado de Cupones?
 - Ofertas y cupones comparten 90% de la estructura (tipo, valor, fechas, imagen)

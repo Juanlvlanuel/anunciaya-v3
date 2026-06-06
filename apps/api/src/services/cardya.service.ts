@@ -41,6 +41,7 @@ import type {
   FiltrosVouchers,
 } from '../types/cardya.types.js';
 import { crearNotificacion, eliminarNotificacionesPorReferencia, obtenerSucursalPrincipal, notificarNegocioCompleto } from './notificaciones.service.js';
+import { clasificarCirculacion, mensajeNegocioNoDisponible } from '../utils/estadoNegocio.js';
 
 // =============================================================================
 // BILLETERAS Y PUNTOS
@@ -64,6 +65,9 @@ export async function obtenerBilleterasPorUsuario(
         negocioUsuarioId: negocios.usuarioId,
         negocioSucursalId: negocioSucursales.id,
         whatsappContacto: negocioSucursales.whatsapp,
+        negocioActivo: negocios.activo,
+        negocioEstadoMembresia: negocios.estadoMembresia,
+        negocioEstadoAdmin: negocios.estadoAdmin,
         nivelesActivos: puntosConfiguracion.nivelesActivos,
         nivelBronceMin: puntosConfiguracion.nivelBronceMin,
         nivelBronceMax: puntosConfiguracion.nivelBronceMax,
@@ -124,6 +128,11 @@ export async function obtenerBilleterasPorUsuario(
         negocioUsuarioId: b.negocioUsuarioId ?? null,
         negocioSucursalId: b.negocioSucursalId ?? null,
         whatsappContacto: b.whatsappContacto ?? null,
+        estadoCirculacion: clasificarCirculacion({
+          activo: b.negocioActivo,
+          estadoMembresia: b.negocioEstadoMembresia,
+          estadoAdmin: b.negocioEstadoAdmin,
+        }),
       };
     });
 
@@ -152,6 +161,9 @@ export async function obtenerDetalleNegocioBilletera(
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
         negocioUsuarioId: negocios.usuarioId,
+        negocioActivo: negocios.activo,
+        negocioEstadoMembresia: negocios.estadoMembresia,
+        negocioEstadoAdmin: negocios.estadoAdmin,
         nivelesActivos: puntosConfiguracion.nivelesActivos,
         nivelBronceMin: puntosConfiguracion.nivelBronceMin,
         nivelBronceMax: puntosConfiguracion.nivelBronceMax,
@@ -293,6 +305,11 @@ export async function obtenerDetalleNegocioBilletera(
       whatsappContacto: sucursalPrincipal[0]?.whatsapp ?? null,
       negocioUsuarioId: billetera.negocioUsuarioId ?? null,
       negocioSucursalId: sucursalPrincipal[0]?.id ?? null,
+      estadoCirculacion: clasificarCirculacion({
+        activo: billetera.negocioActivo,
+        estadoMembresia: billetera.negocioEstadoMembresia,
+        estadoAdmin: billetera.negocioEstadoAdmin,
+      }),
     };
 
     return { success: true, message: 'Detalle obtenido correctamente', data: detalle };
@@ -311,8 +328,23 @@ export async function obtenerRecompensasDisponibles(
   filtros?: FiltrosRecompensas
 ): Promise<RespuestaServicio<RecompensaDisponible[]>> {
   try {
+    // Candado de circulación: TODAS las condiciones se acumulan en un array y se
+    // aplican en un único .where(and(...)). Con el patrón anterior (varios .where()
+    // + $dynamic), un filtro de ciudad/negocio SOBRESCRIBÍA el WHERE base y el
+    // candado de `negocios.activo` (y `recompensas.activa`) se perdía.
+    const condiciones = [
+      eq(recompensas.activa, true),
+      eq(negocios.activo, true),
+    ];
+    if (filtros?.negocioId) {
+      condiciones.push(eq(recompensas.negocioId, filtros.negocioId));
+    }
+    if (filtros?.ciudad) {
+      condiciones.push(sql`${negocioSucursales.ciudad} ILIKE ${filtros.ciudad + '%'}`);
+    }
+
     // Query base con JOIN a sucursales para obtener ciudad
-    let query = db
+    const resultados = await db
       .select({
         id: recompensas.id,
         negocioId: recompensas.negocioId,
@@ -357,23 +389,12 @@ export async function obtenerRecompensasDisponibles(
           eq(recompensaProgreso.usuarioId, usuarioId)
         )
       )
-      .where(eq(recompensas.activa, true))
-      .$dynamic();
-
-    // Filtro por negocio específico
-    if (filtros?.negocioId) {
-      query = query.where(eq(recompensas.negocioId, filtros.negocioId));
-    }
-
-    // Filtro por ciudad (búsqueda flexible - encuentra "Puerto Peñasco" en "Puerto Peñasco, Sonora")
-    if (filtros?.ciudad) {
-      query = query.where(
-        sql`${negocioSucursales.ciudad} ILIKE ${filtros.ciudad + '%'}`
-      );
-    }
-
-    // Ordenar: primero negocios donde el usuario tiene puntos, luego por puntos requeridos
-    const resultados = await query.orderBy(
+      // Un solo WHERE con TODAS las condiciones (incluido el candado de circulación
+      // `negocios.activo = true`). Recompensas de negocios fuera de circulación NO
+      // aparecen en el catálogo (el cliente igual ve su saldo en "Mis Puntos").
+      .where(and(...condiciones))
+      // Ordenar: primero negocios donde el usuario tiene puntos, luego por puntos requeridos
+      .orderBy(
       // Primero los que tienen billetera (puntos > 0)
       sql`CASE WHEN ${puntosBilletera.puntosDisponibles} > 0 THEN 0 ELSE 1 END`,
       // Dentro de cada grupo, por puntos disponibles desc (los que más tienen primero)
@@ -443,6 +464,24 @@ export async function generarVoucher(
     }
 
     const recomp = recompensa[0];
+
+    // Candado de circulación: si el negocio está fuera de circulación, no se permite
+    // generar el canje. Se corta ANTES de descontar puntos. El mensaje distingue
+    // suspendido ("temporalmente no disponible") de cancelado ("ya no está disponible").
+    const [negocioEstado] = await db
+      .select({
+        activo: negocios.activo,
+        estadoMembresia: negocios.estadoMembresia,
+        estadoAdmin: negocios.estadoAdmin,
+      })
+      .from(negocios)
+      .where(eq(negocios.id, recomp.negocioId))
+      .limit(1);
+
+    const circulacion = negocioEstado ? clasificarCirculacion(negocioEstado) : 'cancelado';
+    if (circulacion !== 'en_circulacion') {
+      return { success: false, message: mensajeNegocioNoDisponible(circulacion), code: 409 };
+    }
 
     if (!recomp.activa) {
       return { success: false, message: 'Esta recompensa no está disponible', code: 400 };
@@ -758,6 +797,9 @@ export async function obtenerVouchersPorUsuario(
         negocioId: negocios.id,
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
+        negocioActivo: negocios.activo,
+        negocioEstadoMembresia: negocios.estadoMembresia,
+        negocioEstadoAdmin: negocios.estadoAdmin,
       })
       .from(vouchersCanje)
       .innerJoin(recompensas, eq(vouchersCanje.recompensaId, recompensas.id))
@@ -810,6 +852,11 @@ export async function obtenerVouchersPorUsuario(
           usadoAt: v.usadoAt,
           createdAt: v.createdAt ?? new Date().toISOString(),
           canjeadoPorNombre,
+          estadoCirculacion: clasificarCirculacion({
+            activo: v.negocioActivo,
+            estadoMembresia: v.negocioEstadoMembresia,
+            estadoAdmin: v.negocioEstadoAdmin,
+          }),
         };
       })
     );

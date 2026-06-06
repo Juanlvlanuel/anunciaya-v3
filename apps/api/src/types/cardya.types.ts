@@ -13,6 +13,8 @@
  *   - Historial de transacciones
  */
 
+import type { EstadoCirculacion } from '../utils/estadoNegocio.js';
+
 // =============================================================================
 // RESPUESTA GENÉRICA
 // =============================================================================
@@ -61,6 +63,8 @@ export interface BilleteraNegocio {
   negocioUsuarioId: string | null;
   negocioSucursalId: string | null;
   whatsappContacto: string | null;
+  /** Estado de circulación del negocio — para pintar "no disponible" en CardYA. */
+  estadoCirculacion?: EstadoCirculacion;
 }
 
 /**
@@ -134,6 +138,8 @@ export interface Voucher {
   expiraAt: string;
   usadoAt: string | null;
   createdAt: string;
+  /** Estado de circulación del negocio dueño del voucher (suspendido = "congelado"). */
+  estadoCirculacion?: EstadoCirculacion;
 }
 
 // =============================================================================

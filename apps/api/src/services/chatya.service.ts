@@ -25,6 +25,7 @@ import {
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
 import { emitirAUsuario } from '../socket.js';
+import { clasificarCirculacion, mensajeNegocioNoDisponible, type EstadoCirculacion } from '../utils/estadoNegocio.js';
 import type {
     ModoChatYA,
     ContextoTipo,
@@ -642,6 +643,26 @@ export async function obtenerConversacion(
 // 3. CREAR O OBTENER CONVERSACIÓN
 // =============================================================================
 
+/**
+ * Estado de circulación del negocio asociado a una sucursal (o null si no hay
+ * sucursal/negocio). Usado por el candado de ChatYA: si el negocio está fuera de
+ * circulación, no se puede iniciar ni enviar en la conversación.
+ */
+async function circulacionDeSucursal(sucursalId: string | null | undefined): Promise<EstadoCirculacion | null> {
+    if (!sucursalId) return null;
+    const [neg] = await db
+        .select({
+            activo: negocios.activo,
+            estadoMembresia: negocios.estadoMembresia,
+            estadoAdmin: negocios.estadoAdmin,
+        })
+        .from(negocioSucursales)
+        .innerJoin(negocios, eq(negocioSucursales.negocioId, negocios.id))
+        .where(eq(negocioSucursales.id, sucursalId))
+        .limit(1);
+    return neg ? clasificarCirculacion(neg) : null;
+}
+
 export async function crearObtenerConversacion(
     input: CrearConversacionInput,
     usuarioId: string
@@ -671,6 +692,18 @@ export async function crearObtenerConversacion(
         const bloqueado = await existeBloqueo(ladoYo, ladoOtro);
         if (bloqueado) {
             return { success: false, message: 'No puedes iniciar conversación con este usuario', code: 403 };
+        }
+
+        // Candado de circulación: no se puede iniciar conversación con un negocio
+        // FUERA de circulación (cierra también la rendija del chat nuevo por id).
+        const sucComercialNueva = input.participante1Modo === 'comercial'
+            ? input.participante1SucursalId
+            : input.participante2Modo === 'comercial'
+                ? input.participante2SucursalId
+                : null;
+        const circNueva = await circulacionDeSucursal(sucComercialNueva);
+        if (circNueva && circNueva !== 'en_circulacion') {
+            return { success: false, message: mensajeNegocioNoDisponible(circNueva), code: 403 };
         }
 
         // Buscar conversación existente (en cualquier dirección).
@@ -1995,6 +2028,19 @@ export async function enviarMensaje(
         const bloqueado = await existeBloqueo(ladoEmisor, ladoOtro);
         if (bloqueado) {
             return { success: false, message: 'No puedes enviar mensajes en esta conversación', code: 403 };
+        }
+
+        // Candado de circulación: si la conversación involucra un negocio FUERA de
+        // circulación, NINGÚN lado puede enviar (ni cliente ni negocio). La
+        // conversación sigue VISIBLE; solo se bloquea el ENVÍO.
+        const sucComercial = conv.participante1Modo === 'comercial'
+            ? conv.participante1SucursalId
+            : conv.participante2Modo === 'comercial'
+                ? conv.participante2SucursalId
+                : null;
+        const circulacion = await circulacionDeSucursal(sucComercial);
+        if (circulacion && circulacion !== 'en_circulacion') {
+            return { success: false, message: mensajeNegocioNoDisponible(circulacion), code: 403 };
         }
 
         // Insertar mensaje

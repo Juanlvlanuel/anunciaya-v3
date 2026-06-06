@@ -1,7 +1,7 @@
 # 💳 CardYA - Sistema de Lealtad para Clientes
 
-**Última actualización:** 17 Abril 2026
-**Versión:** 2.1
+**Última actualización:** 5 Junio 2026
+**Versión:** 2.2
 **Estado:** ✅ 100% Operacional
 
 > **DATOS DEL SERVIDOR (React Query):**
@@ -57,7 +57,8 @@ Este documento describe la **arquitectura del sistema CardYA**:
 12. [Integración con ScanYA](#integración-con-scanya)
 13. [Flujos de Usuario](#flujos-de-usuario)
 14. [Recompensas N+1 (Compras Frecuentes)](#recompensas-n1-compras-frecuentes)
-15. [Decisiones Arquitectónicas](#decisiones-arquitectónicas)
+15. [Negocio fuera de circulación](#negocio-fuera-de-circulación)
+16. [Decisiones Arquitectónicas](#decisiones-arquitectónicas)
 
 ---
 
@@ -799,6 +800,40 @@ puntosCanjeadosTotal: sql`GREATEST(${puntosBilletera.puntosCanjeadosTotal} - ${v
 **Por qué `GREATEST(..., 0)`:** el check constraint de la columna exige `>= 0`. En billeteras legacy, el `puntos_canjeados_total` almacenado puede ser menor que la suma real de vouchers canjeados (inconsistencias históricas). Sin `GREATEST`, la resta rompe el constraint. El clamp a 0 es seguro: un total negativo no tiene sentido semántico.
 
 Ver `docs/estandares/LECCIONES_TECNICAS.md` → sección "SQL y Base de Datos".
+
+---
+
+## 🚦 Negocio fuera de circulación
+
+CardYA respeta el principio global del proyecto: **`negocios.activo = false` = fuera de
+circulación**. El MOTIVO vive en `estado_membresia` / `estado_admin` y se clasifica con el helper
+central `apps/api/src/utils/estadoNegocio.ts` (`clasificarCirculacion()` → `en_circulacion |
+suspendido | cancelado`; cancelado = `estado_membresia='cancelado'` o `estado_admin='archivado'`).
+**Regla de oro:** al cliente nunca se le quitan puntos a escondidas — o los usa cuando el negocio
+vuelve, o se le devuelven, pero **siempre ve su saldo**.
+
+| Rincón | Comportamiento |
+|--------|----------------|
+| **Mis Puntos / billeteras** (`obtenerBilleterasPorUsuario`) | El saldo SIEMPRE se ve. Expone `estadoCirculacion`; la card pinta un badge (amber = suspendido, rojo = cancelado). |
+| **Detalle de billetera** (`obtenerDetalleNegocioBilletera`) | Banner de aviso amber/rojo, sin ocultar saldo ni historial. |
+| **Catálogo de recompensas** (`obtenerRecompensasDisponibles`) | OCULTA las recompensas de negocios fuera (`... AND negocios.activo = true`). |
+| **Generar canje** (`generarVoucher`) | Se bloquea ANTES de descontar puntos si el negocio está fuera (mensaje según motivo). |
+| **Lista / detalle de vouchers** (`obtenerVouchersPorUsuario`) | Un voucher pendiente de negocio suspendido se marca "No disponible" (lista + badge del header del modal). |
+| **ScanYA** | El negocio fuera no puede entrar ni otorgar puntos (candado de `activo` en login, refresh de token y `otorgarPuntos`). |
+
+**Voucher pendiente cuando el negocio cae fuera DESPUÉS de canjear:**
+- **Suspendido (temporal):** el voucher se **congela** (sigue válido). Como el negocio no entra a
+  ScanYA y no hay cron global de expiración, no se expira ni se cobra; el cliente lo ve marcado
+  "temporalmente no disponible".
+- **Cancelado (definitivo):** se **devuelven los puntos**. `revertirVouchersPendientesPorCancelacion(negocioId)`
+  (`puntos.service.ts`) pasa los vouchers `pendiente` a `cancelado` y reintegra `puntosUsados` a la
+  billetera, en transacción por voucher y con anti-doble-conteo (`WHERE estado='pendiente'`). Se
+  dispara en **PUSH** desde el webhook de cancelación de Stripe (`pago.service.ts`).
+
+**Lección técnica (filtro de query):** `obtenerRecompensasDisponibles` arma **todas** las
+condiciones en un array y aplica un único `.where(and(...condiciones))`. Con el patrón anterior
+(varios `.where()` + `.$dynamic()`), un filtro de ciudad/negocio **sobrescribía** el WHERE base y
+el candado de `activo` se perdía. Detalle: `docs/reportes/REPORTE_Tanda2_Negocio_Fuera_Circulacion.md`.
 
 ---
 
