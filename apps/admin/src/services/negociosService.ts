@@ -51,6 +51,8 @@ export interface NegocioFila {
   estadoAdmin: string;
   proximoCobro: string | null;
   alta: string | null;
+  /** Total de sucursales (incluida la matriz). > 1 ⇒ tiene secundarias. */
+  totalSucursales: number;
 }
 
 export interface ListaNegocios {
@@ -76,6 +78,10 @@ export interface NegocioDetalle {
   mesesGratisRestantes: number;
   estadoPago: string;
   estadoAdmin: string;
+  /** tarjeta | manual — cómo se cobra hoy la membresía. */
+  metodoCobro: string;
+  /** El dueño tiene una suscripción de Stripe (para decidir Pausar/Cancelar/Marcar pagado). */
+  tieneSuscripcionStripe: boolean;
   fechaVencimiento: string | null;
   fechaProximoCobro: string | null;
   fechaInicioGracia: string | null;
@@ -98,6 +104,40 @@ export interface VendedorFiltro {
   id: string;
   nombre: string;
   codigoReferido: string;
+}
+
+/** Una sucursal en la fila expandida de la tabla. */
+export interface SucursalFila {
+  id: string;
+  nombre: string;
+  esPrincipal: boolean;
+  ciudad: string | null;
+  regionNombre: string | null;
+  activa: boolean;
+}
+
+/** Detalle de una sucursal para el modal (sin membresía ni acciones). */
+export interface SucursalDetalle {
+  id: string;
+  negocioId: string;
+  nombre: string;
+  esPrincipal: boolean;
+  activa: boolean;
+  ciudad: string | null;
+  estado: string | null;
+  regionId: string | null;
+  regionNombre: string | null;
+  direccion: string | null;
+  telefono: string | null;
+  whatsapp: string | null;
+  correo: string | null;
+  creadoEn: string | null;
+  gerenteNombre: string | null;
+  gerenteCorreo: string | null;
+  gerenteTelefono: string | null;
+  vendedorId: string | null;
+  vendedorNombre: string | null;
+  vendedorCodigo: string | null;
 }
 
 export interface ParametrosLista {
@@ -142,23 +182,65 @@ export async function listarCiudades(): Promise<string[]> {
   return data.data ?? [];
 }
 
-// =============================================================================
-// ACCIONES (Entrega 2 · Parada 1) — escritura, sin Stripe
-// =============================================================================
-
-export async function suspenderNegocio(id: string, motivo: string): Promise<void> {
-  await api.post(`/admin/negocios/${id}/suspender`, { motivo });
+/** Sucursales de un negocio (matriz primero) — para expandir la fila. */
+export async function listarSucursalesNegocio(id: string): Promise<SucursalFila[]> {
+  const { data } = await api.get<RespuestaAPI<SucursalFila[]>>(`/admin/negocios/${id}/sucursales`);
+  return data.data ?? [];
 }
 
-export async function reactivarNegocio(id: string, motivo?: string): Promise<void> {
-  await api.post(`/admin/negocios/${id}/reactivar`, { motivo });
+/** Detalle de una sucursal — para el modal. */
+export async function obtenerDetalleSucursal(id: string, sucursalId: string): Promise<SucursalDetalle | null> {
+  const { data } = await api.get<RespuestaAPI<SucursalDetalle>>(`/admin/negocios/${id}/sucursales/${sucursalId}`);
+  return data.data ?? null;
 }
 
-/** embajadorId = null → quitar vendedor (sin asignar). */
+// =============================================================================
+// ACCIONES (Entrega 2) — escritura
+// =============================================================================
+
+/** Respuesta de las acciones que tocan Stripe. `advertenciaStripe` != null ⇒ el cambio
+ *  en BD se aplicó pero la parte de Stripe NO se completó (mostrar como advertencia). */
+export interface ResultadoAccionAdmin {
+  advertenciaStripe: string | null;
+}
+
+/** Respuesta cruda de la API para acciones (data + posible advertenciaStripe). */
+type RespuestaAccion = RespuestaAPI<unknown> & { advertenciaStripe?: string | null };
+
+/** Pausa (suspende) — además pausa el cobro en Stripe si hay suscripción. */
+export async function suspenderNegocio(id: string, motivo: string): Promise<ResultadoAccionAdmin> {
+  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/suspender`, { motivo });
+  return { advertenciaStripe: data.advertenciaStripe ?? null };
+}
+
+/** Reactiva (des-pausa) — además reanuda el cobro en Stripe si hay suscripción. */
+export async function reactivarNegocio(id: string, motivo?: string): Promise<ResultadoAccionAdmin> {
+  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/reactivar`, { motivo });
+  return { advertenciaStripe: data.advertenciaStripe ?? null };
+}
+
+/** embajadorId = null → quitar vendedor (sin asignar). Sin Stripe. */
 export async function reasignarVendedor(
   id: string,
   embajadorId: string | null,
   motivo?: string,
 ): Promise<void> {
   await api.post(`/admin/negocios/${id}/reasignar-vendedor`, { embajadorId, motivo });
+}
+
+/** Marcar pagado (SOLO superadmin). `hasta` = fecha ISO de vencimiento; `pausarStripe`
+ *  = pausar el cobro de la tarjeta (toggle del diálogo). */
+export async function marcarPagado(
+  id: string,
+  hasta: string,
+  pausarStripe: boolean,
+): Promise<ResultadoAccionAdmin> {
+  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/marcar-pagado`, { hasta, pausarStripe });
+  return { advertenciaStripe: data.advertenciaStripe ?? null };
+}
+
+/** Cancelar (SOLO superadmin · motivo obligatorio) — corta Stripe + degrada al dueño. */
+export async function cancelarNegocio(id: string, motivo: string): Promise<ResultadoAccionAdmin> {
+  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/cancelar`, { motivo });
+  return { advertenciaStripe: data.advertenciaStripe ?? null };
 }

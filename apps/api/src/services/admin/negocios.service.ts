@@ -10,7 +10,7 @@
  *
  * ALCANCE POR ROL (calcado de la matriz de Panel_Admin.md):
  *   - superadmin → toda la plataforma
- *   - gerente    → solo su región (negocios.region_id = su región)
+ *   - gerente    → solo su región (deducida: sucursal MATRIZ → ciudad → región)
  *   - vendedor   → solo su cartera (negocios.embajador_id = su embajador)
  *
  * La ciudad NO vive en `negocios`: se toma de la sucursal principal
@@ -24,14 +24,13 @@
  * Ubicación: apps/api/src/services/admin/negocios.service.ts
  */
 
-import { and, eq, ne, ilike, desc, asc, or, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
+import { and, eq, ne, ilike, desc, asc, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import {
     negocios,
     negocioSucursales,
     usuarios,
     embajadores,
-    regiones,
 } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 
@@ -91,6 +90,8 @@ export interface NegocioFila {
     estadoAdmin: string;
     proximoCobro: string | null;
     alta: string | null;
+    /** Total de sucursales (incluida la matriz). > 1 ⇒ tiene secundarias. */
+    totalSucursales: number;
 }
 
 export interface ListaNegocios {
@@ -119,6 +120,10 @@ export interface NegocioDetalle {
     estadoPago: string;
     // Estado administrativo (Panel): activo / suspendido / archivado
     estadoAdmin: string;
+    // Método de cobro (tarjeta / manual) y si el dueño tiene suscripción de Stripe
+    // (para que el SuperAdmin sepa qué hará Marcar pagado / Cancelar / Pausar).
+    metodoCobro: string;
+    tieneSuscripcionStripe: boolean;
     fechaVencimiento: string | null;
     fechaProximoCobro: string | null;
     fechaInicioGracia: string | null;
@@ -175,13 +180,38 @@ async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | null | 'vaci
 
     if (panel.rolEquipo === 'gerente') {
         if (!panel.regionId) return 'vacio';
-        return eq(negocios.regionId, panel.regionId);
+        // VISIBILIDAD = MANDO: el negocio tiene su sucursal MATRIZ (es_principal) en una
+        // ciudad de mi región (EXISTS correlacionado, NO duplica filas). Deduce la región
+        // desde la ciudad; ya no lee `negocios.region_id` (se elimina en el Paso 10).
+        // ⚠️ DEBE COINCIDIR con el MANDO de `cargarNegocioConAlcance` en
+        // negocios-acciones.service.ts (mismo predicado matriz → ciudad → región). Si tocas
+        // uno, toca el otro.
+        return sql`EXISTS (
+            SELECT 1 FROM negocio_sucursales ns
+            JOIN ciudades c ON c.id = ns.ciudad_id
+            WHERE ns.negocio_id = ${negocios.id} AND ns.es_principal = true AND c.region_id = ${panel.regionId}
+        )`;
     }
 
     // vendedor → su cartera
     const embajadorId = await resolverEmbajadorId(panel.usuarioId);
     if (!embajadorId) return 'vacio';
     return eq(negocios.embajadorId, embajadorId);
+}
+
+/**
+ * Alcance de LECTURA con el filtro GLOBAL de región del Panel (solo superadmin).
+ * Si el superadmin manda `?regionId=`, devuelve un panel que actúa como GERENTE de
+ * esa región para las CONSULTAS (lista, conteos, ciudades, vendedores, ficha) — es
+ * "ver el Panel como el gerente de esa región" (lente de visibilidad). El superadmin
+ * CONSERVA todas sus acciones: las mutaciones usan el panel ORIGINAL, no este.
+ * Gerente/vendedor IGNORAN el query → su alcance es siempre su token (seguridad).
+ */
+export function panelConFiltroRegion(panel: UsuarioPanel, regionIdRaw: unknown): UsuarioPanel {
+    if (panel.rolEquipo !== 'superadmin') return panel;
+    const regionId = typeof regionIdRaw === 'string' && regionIdRaw.trim() ? regionIdRaw.trim() : null;
+    if (!regionId) return panel; // superadmin sin filtro = ve todo
+    return { ...panel, rolEquipo: 'gerente', regionId };
 }
 
 // =============================================================================
@@ -228,15 +258,22 @@ function ordenarPor(orden?: OrdenNegocios): SQL[] {
     }
 }
 
-/** Condición de ciudad sobre la sucursal principal (o undefined si no se filtra). */
+/** Condición de ciudad (D3): "negocios con ALGUNA sucursal en esa ciudad" (EXISTS por
+ *  cualquier sucursal, no solo la principal; no duplica). */
 function condicionCiudad(ciudad?: string): SQL | undefined {
     if (ciudad === CIUDAD_SIN) {
-        return or(
-            isNull(negocioSucursales.ciudad),
-            eq(negocioSucursales.ciudad, CIUDAD_PLACEHOLDER),
-        );
+        return sql`EXISTS (
+            SELECT 1 FROM negocio_sucursales ns
+            WHERE ns.negocio_id = ${negocios.id}
+              AND (ns.ciudad IS NULL OR ns.ciudad = ${CIUDAD_PLACEHOLDER})
+        )`;
     }
-    if (ciudad) return eq(negocioSucursales.ciudad, ciudad);
+    if (ciudad) {
+        return sql`EXISTS (
+            SELECT 1 FROM negocio_sucursales ns
+            WHERE ns.negocio_id = ${negocios.id} AND ns.ciudad = ${ciudad}
+        )`;
+    }
     return undefined;
 }
 
@@ -309,6 +346,8 @@ export async function listarNegocios(
             ciudad: negocioSucursales.ciudad,
             vendedorNombre: usuarios.nombre,
             vendedorApellidos: usuarios.apellidos,
+            // Conteo de sucursales SIN multiplicar filas (subquery escalar, no JOIN).
+            totalSucursales: sql<number>`(SELECT COUNT(*) FROM negocio_sucursales ns WHERE ns.negocio_id = ${negocios.id})`,
         })
         .from(negocios)
         .leftJoin(negocioSucursales, joinPrincipal)
@@ -331,6 +370,7 @@ export async function listarNegocios(
         estadoAdmin: f.estadoAdmin,
         proximoCobro: f.proximoCobro ?? null,
         alta: f.alta ?? null,
+        totalSucursales: Number(f.totalSucursales),
     }));
 
     return { items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina, conteos };
@@ -370,6 +410,7 @@ export async function obtenerDetalleNegocio(
             mesesGratisRestantes: negocios.mesesGratisRestantes,
             estadoPago: negocios.estadoMembresia,
             estadoAdmin: negocios.estadoAdmin,
+            metodoCobro: negocios.metodoCobro,
             fechaVencimiento: negocios.fechaVencimiento,
             fechaProximoCobro: negocios.fechaProximoCobro,
             fechaInicioGracia: negocios.fechaInicioGracia,
@@ -379,9 +420,9 @@ export async function obtenerDetalleNegocio(
             duenoApellidos: usuarios.apellidos,
             duenoCorreo: usuarios.correo,
             duenoTelefono: usuarios.telefono,
+            duenoStripeSubId: usuarios.stripeSubscriptionId,
             // Atribución
             vendedorId: negocios.embajadorId,
-            regionId: negocios.regionId,
         })
         .from(negocios)
         .leftJoin(usuarios, eq(usuarios.id, negocios.usuarioId))
@@ -411,15 +452,21 @@ export async function obtenerDetalleNegocio(
         }
     }
 
-    // Región
+    // Región DEDUCIDA de la sucursal MATRIZ (es_principal → ciudad → región).
+    // Ya no se lee `negocios.region_id` (se elimina en el Paso 10).
+    let regionId: string | null = null;
     let regionNombre: string | null = null;
-    if (fila.regionId) {
-        const [r] = await db
-            .select({ nombre: regiones.nombre, estado: regiones.estado })
-            .from(regiones)
-            .where(eq(regiones.id, fila.regionId))
-            .limit(1);
-        regionNombre = r ? `${r.nombre}, ${r.estado}` : null;
+    const filasRegion = (await db.execute(sql`
+        SELECT r.id::text AS region_id, r.nombre AS region_nombre
+        FROM negocio_sucursales ns
+        JOIN ciudades c ON c.id = ns.ciudad_id
+        JOIN regiones r ON r.id = c.region_id
+        WHERE ns.negocio_id = ${negocioId} AND ns.es_principal = true
+        LIMIT 1
+    `)).rows as Array<{ region_id: string; region_nombre: string }>;
+    if (filasRegion[0]) {
+        regionId = filasRegion[0].region_id;
+        regionNombre = filasRegion[0].region_nombre;
     }
 
     // Sucursal principal (ubicación)
@@ -454,6 +501,8 @@ export async function obtenerDetalleNegocio(
         mesesGratisRestantes: fila.mesesGratisRestantes,
         estadoPago: fila.estadoPago,
         estadoAdmin: fila.estadoAdmin,
+        metodoCobro: fila.metodoCobro,
+        tieneSuscripcionStripe: !!fila.duenoStripeSubId,
         fechaVencimiento: fila.fechaVencimiento ?? null,
         fechaProximoCobro: fila.fechaProximoCobro ?? null,
         fechaInicioGracia: fila.fechaInicioGracia ?? null,
@@ -464,7 +513,7 @@ export async function obtenerDetalleNegocio(
         vendedorId: fila.vendedorId ?? null,
         vendedorNombre,
         vendedorCodigo,
-        regionId: fila.regionId ?? null,
+        regionId,
         regionNombre,
         ciudad: suc?.ciudad ?? null,
         estado: suc?.estado ?? null,
@@ -487,7 +536,13 @@ export async function listarVendedoresFiltro(panel: UsuarioPanel): Promise<Vende
     const condiciones: SQL[] = [];
     if (panel.rolEquipo === 'gerente') {
         if (!panel.regionId) return [];
-        condiciones.push(eq(embajadores.regionId, panel.regionId));
+        // Vendedores que cubren al menos una ciudad de la región del gerente (la región del
+        // vendedor se deduce de `embajador_ciudades`, ya no de embajadores.region_id).
+        condiciones.push(sql`EXISTS (
+            SELECT 1 FROM embajador_ciudades ec
+            JOIN ciudades c ON c.id = ec.ciudad_id
+            WHERE ec.embajador_id = ${embajadores.id} AND c.region_id = ${panel.regionId}
+        )`);
     }
 
     const where = condiciones.length ? and(...condiciones) : undefined;
@@ -521,6 +576,26 @@ export async function listarVendedoresFiltro(panel: UsuarioPanel): Promise<Vende
  * — esos caen en la opción fija "Sin ciudad" del frontend.
  */
 export async function listarCiudades(panel: UsuarioPanel): Promise<string[]> {
+    // GERENTE: SOLO las ciudades de SU región (ciudades.region_id = panel.regionId) que
+    // sean SEDE de al menos una sucursal MATRIZ (es_principal). Mismo criterio que la
+    // VISIBILIDAD de la tabla (condicionAlcance): así el filtro no ofrece ciudades donde el
+    // gerente no ve ningún negocio (ni ciudades de sucursales secundarias de otra región).
+    if (panel.rolEquipo === 'gerente') {
+        if (!panel.regionId) return [];
+        const filasGer = (await db.execute(sql`
+            SELECT DISTINCT s.ciudad
+            FROM negocio_sucursales s
+            JOIN ciudades c ON c.id = s.ciudad_id
+            WHERE c.region_id = ${panel.regionId}
+              AND s.es_principal = true
+              AND s.ciudad IS NOT NULL AND s.ciudad <> ${CIUDAD_PLACEHOLDER} AND s.ciudad <> ''
+            ORDER BY s.ciudad
+        `)).rows as Array<{ ciudad: string }>;
+        return filasGer.map((f) => f.ciudad).filter((c): c is string => !!c);
+    }
+
+    // SUPERADMIN / VENDEDOR: ciudades de las sucursales dentro de su alcance
+    // (superadmin = todas; vendedor = las de su cartera por embajador_id).
     const alcance = await condicionAlcance(panel);
     if (alcance === 'vacio') return [];
 
@@ -534,11 +609,158 @@ export async function listarCiudades(panel: UsuarioPanel): Promise<string[]> {
     const filas = await db
         .selectDistinct({ ciudad: negocioSucursales.ciudad })
         .from(negocios)
-        .innerJoin(negocioSucursales, joinPrincipal)
+        .innerJoin(negocioSucursales, eq(negocioSucursales.negocioId, negocios.id))
         .where(and(...cond))
         .orderBy(asc(negocioSucursales.ciudad));
 
     return filas
         .map((f) => f.ciudad)
         .filter((c): c is string => !!c);
+}
+
+// =============================================================================
+// 5. SUCURSALES (lista por negocio + detalle de una sucursal)
+// =============================================================================
+
+export interface SucursalFila {
+    id: string;
+    nombre: string;
+    esPrincipal: boolean;
+    ciudad: string | null;
+    regionNombre: string | null;
+    activa: boolean;
+}
+
+export interface SucursalDetalle {
+    id: string;
+    negocioId: string;
+    nombre: string;
+    esPrincipal: boolean;
+    activa: boolean;
+    // Ubicación de la sucursal
+    ciudad: string | null;
+    estado: string | null;
+    regionId: string | null;
+    regionNombre: string | null;
+    direccion: string | null;
+    telefono: string | null;
+    whatsapp: string | null;
+    correo: string | null;
+    creadoEn: string | null;
+    // Gerente asignado (usuarios.sucursal_asignada = sucursal). 0 o 1.
+    gerenteNombre: string | null;
+    gerenteCorreo: string | null;
+    gerenteTelefono: string | null;
+    // Vendedor del NEGOCIO (informativo; el mismo para todas las sucursales).
+    vendedorId: string | null;
+    vendedorNombre: string | null;
+    vendedorCodigo: string | null;
+}
+
+/** ¿El negocio es visible para el panel? (respeta el alcance del rol). */
+async function negocioVisibleParaPanel(panel: UsuarioPanel, negocioId: string): Promise<boolean> {
+    const alcance = await condicionAlcance(panel);
+    if (alcance === 'vacio') return false;
+    const cond: SQL[] = [eq(negocios.id, negocioId)];
+    if (alcance) cond.push(alcance);
+    const [row] = await db.select({ id: negocios.id }).from(negocios).where(and(...cond)).limit(1);
+    return !!row;
+}
+
+/**
+ * Sucursales de un negocio (matriz primero), respetando el alcance del rol. Si el
+ * negocio no está en el alcance del panel devuelve [] (no filtra a medias).
+ */
+export async function listarSucursalesNegocio(panel: UsuarioPanel, negocioId: string): Promise<SucursalFila[]> {
+    if (!(await negocioVisibleParaPanel(panel, negocioId))) return [];
+    const filas = (await db.execute(sql`
+        SELECT s.id::text AS id, s.nombre, s.es_principal, s.ciudad, s.activa, r.nombre AS region_nombre
+        FROM negocio_sucursales s
+        LEFT JOIN ciudades c ON c.id = s.ciudad_id
+        LEFT JOIN regiones r ON r.id = c.region_id
+        WHERE s.negocio_id = ${negocioId}
+        ORDER BY s.es_principal DESC, s.ciudad
+    `)).rows as Array<{
+        id: string; nombre: string; es_principal: boolean; ciudad: string | null;
+        activa: boolean; region_nombre: string | null;
+    }>;
+    return filas.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        esPrincipal: f.es_principal,
+        ciudad: f.ciudad ?? null,
+        regionNombre: f.region_nombre ?? null,
+        activa: f.activa,
+    }));
+}
+
+/**
+ * Detalle de UNA sucursal de un negocio (modal del Panel): datos de la sucursal +
+ * región + gerente asignado (usuarios.sucursal_asignada) + vendedor del negocio
+ * (informativo). Respeta el alcance del rol. null si no existe / fuera de alcance.
+ */
+export async function obtenerDetalleSucursal(
+    panel: UsuarioPanel,
+    negocioId: string,
+    sucursalId: string,
+): Promise<SucursalDetalle | null> {
+    if (!(await negocioVisibleParaPanel(panel, negocioId))) return null;
+
+    const filas = (await db.execute(sql`
+        SELECT s.id::text AS id, s.negocio_id::text AS negocio_id, s.nombre, s.es_principal, s.activa,
+               s.ciudad, s.estado, s.direccion, s.telefono, s.whatsapp, s.correo, s.created_at,
+               r.id::text AS region_id, r.nombre AS region_nombre,
+               g.nombre AS g_nombre, g.apellidos AS g_apellidos, g.correo AS g_correo, g.telefono AS g_telefono
+        FROM negocio_sucursales s
+        LEFT JOIN ciudades c ON c.id = s.ciudad_id
+        LEFT JOIN regiones r ON r.id = c.region_id
+        LEFT JOIN usuarios g ON g.sucursal_asignada = s.id
+        WHERE s.id = ${sucursalId} AND s.negocio_id = ${negocioId}
+        LIMIT 1
+    `)).rows as Array<{
+        id: string; negocio_id: string; nombre: string; es_principal: boolean; activa: boolean;
+        ciudad: string | null; estado: string | null; direccion: string | null; telefono: string | null;
+        whatsapp: string | null; correo: string | null; created_at: string | null;
+        region_id: string | null; region_nombre: string | null;
+        g_nombre: string | null; g_apellidos: string | null; g_correo: string | null; g_telefono: string | null;
+    }>;
+    const f = filas[0];
+    if (!f) return null;
+
+    // Vendedor del negocio (el mismo para todas las sucursales).
+    const vend = (await db.execute(sql`
+        SELECT e.id::text AS vendedor_id, u.nombre AS v_nombre, u.apellidos AS v_apellidos, e.codigo_referido AS v_codigo
+        FROM negocios n
+        LEFT JOIN embajadores e ON e.id = n.embajador_id
+        LEFT JOIN usuarios u ON u.id = e.usuario_id
+        WHERE n.id = ${negocioId}
+        LIMIT 1
+    `)).rows as Array<{ vendedor_id: string | null; v_nombre: string | null; v_apellidos: string | null; v_codigo: string | null }>;
+    const v = vend[0];
+
+    const gerenteNombre = f.g_nombre ? `${f.g_nombre} ${f.g_apellidos ?? ''}`.trim() : null;
+    const vendedorNombre = v?.v_nombre ? `${v.v_nombre} ${v.v_apellidos ?? ''}`.trim() : null;
+
+    return {
+        id: f.id,
+        negocioId: f.negocio_id,
+        nombre: f.nombre,
+        esPrincipal: f.es_principal,
+        activa: f.activa,
+        ciudad: f.ciudad ?? null,
+        estado: f.estado ?? null,
+        regionId: f.region_id ?? null,
+        regionNombre: f.region_nombre ?? null,
+        direccion: f.direccion ?? null,
+        telefono: f.telefono ?? null,
+        whatsapp: f.whatsapp ?? null,
+        correo: f.correo ?? null,
+        creadoEn: f.created_at ?? null,
+        gerenteNombre,
+        gerenteCorreo: f.g_correo ?? null,
+        gerenteTelefono: f.g_telefono ?? null,
+        vendedorId: v?.vendedor_id ?? null,
+        vendedorNombre,
+        vendedorCodigo: v?.v_codigo ?? null,
+    };
 }

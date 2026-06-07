@@ -222,6 +222,14 @@ export async function notificarNegocioFueraDeCirculacion(negocioId: string): Pro
         const estado = clasificarCirculacion(neg);
         if (estado === 'en_circulacion') return; // seguridad: solo si está fuera
 
+        // Idempotente (B6): este aviso lo pueden disparar el Panel, el webhook y el cron
+        // para el mismo negocio. Se borra el previo del mismo tipo/referencia y se recrea,
+        // así nunca se duplica (y al recrear se actualiza el texto si cambió el motivo).
+        await eliminarNotificacionesPorReferencia({
+            referenciaId: negocioId,
+            tipo: 'negocio_fuera_circulacion',
+        });
+
         const { titulo, mensaje } = textoNotificacionFuera(estado);
         await crearNotificacion({
             usuarioId: neg.usuarioId,

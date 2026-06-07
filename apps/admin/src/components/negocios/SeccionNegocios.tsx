@@ -7,21 +7,23 @@
  *   - Móvil: buscador, chips de estado (carrusel), filtro de ciudad y tarjetas.
  *
  * Alcance por rol lo aplica el backend. El front solo oculta la columna/filtro de
- * vendedor para el rol vendedor. Orden, conteos y paginado corren en servidor.
+ * vendedor para el rol vendedor, y la opción "Sin ciudad" para no-superadmin. Orden,
+ * conteos y paginado corren en servidor.
  *
  * Ubicación: apps/admin/src/components/negocios/SeccionNegocios.tsx
  */
 
-import { useEffect, useMemo, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Store, MapPin, User, ArrowUpDown } from 'lucide-react';
+import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, User, ArrowUpDown } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
-import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio } from '../../hooks/queries/useNegociosAdmin';
-import type { OrdenNegocios, NegocioFila, ConteosEstado } from '../../services/negociosService';
+import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio, useSucursalesNegocio } from '../../hooks/queries/useNegociosAdmin';
+import type { OrdenNegocios, NegocioFila, SucursalFila, ConteosEstado } from '../../services/negociosService';
 import { metaEstado, BadgeEstadoPago, estadoEfectivo } from './estadoPago';
 import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
 import { MenuFiltro, type OpcionMenu } from './MenuFiltro';
 import { FichaNegocio } from './FichaNegocio';
+import { FichaSucursal } from './FichaSucursal';
 
 const POR_PAGINA = 20;
 const SIN = '__none';
@@ -70,7 +72,16 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const [orden, setOrden] = useState<OrdenNegocios>('nombre_az');
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<NegocioFila | null>(null);
+  const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
+  const [sucursalSel, setSucursalSel] = useState<{ negocioId: string; sucursal: SucursalFila } | null>(null);
   const prefetchNegocio = usePrefetchNegocio();
+  const toggleExpandir = (id: string) =>
+    setExpandidos((prev) => {
+      const n = new Set(prev);
+      if (n.has(id)) n.delete(id);
+      else n.add(id);
+      return n;
+    });
 
   useEffect(() => {
     const t = setTimeout(() => setBusquedaDeb(busqueda.trim()), 350);
@@ -126,7 +137,10 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
   const opcionesCiudad: OpcionMenu[] = [
     { valor: '', etiqueta: 'Todas las ciudades' },
-    { valor: SIN, etiqueta: 'Sin ciudad' },
+    // "Sin ciudad" SOLO para superadmin: un gerente ve solo negocios con matriz en su
+    // región (siempre con ciudad) y un vendedor su cartera; los negocios sin ciudad
+    // (matriz huérfana) solo los ve el superadmin.
+    ...(rol === 'superadmin' ? [{ valor: SIN, etiqueta: 'Sin ciudad' }] : []),
     ...(ciudades ?? []).map((c) => ({
       valor: c,
       etiqueta: c,
@@ -164,6 +178,9 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
   const ficha = seleccionado ? (
     <FichaNegocio previo={seleccionado} onCerrar={() => setSeleccionado(null)} />
+  ) : null;
+  const modalSucursal = sucursalSel ? (
+    <FichaSucursal negocioId={sucursalSel.negocioId} sucursal={sucursalSel.sucursal} onCerrar={() => setSucursalSel(null)} />
   ) : null;
 
   // ── Vista MÓVIL ─────────────────────────────────────────────────────────────
@@ -222,7 +239,19 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
           ) : (
             <div className="flex flex-col gap-2.5">
               {items.map((n) => (
-                <CardNegocio key={n.id} n={n} mostrarVendedor={mostrarVendedor} onAbrir={() => setSeleccionado(n)} onPrefetch={() => prefetchNegocio(n.id)} />
+                <Fragment key={n.id}>
+                  <CardNegocio
+                    n={n}
+                    mostrarVendedor={mostrarVendedor}
+                    expandido={expandidos.has(n.id)}
+                    onAbrir={() => setSeleccionado(n)}
+                    onToggle={() => toggleExpandir(n.id)}
+                    onPrefetch={() => prefetchNegocio(n.id)}
+                  />
+                  {expandidos.has(n.id) && (
+                    <SucursalesMovil negocioId={n.id} onAbrir={(suc) => setSucursalSel({ negocioId: n.id, sucursal: suc })} />
+                  )}
+                </Fragment>
               ))}
             </div>
           )}
@@ -230,14 +259,15 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
         {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
         {ficha}
+        {modalSucursal}
       </div>
     );
   }
 
   // ── Vista ESCRITORIO ────────────────────────────────────────────────────────
   const cols = mostrarVendedor
-    ? 'minmax(220px,2.4fr) 1.3fr 1.1fr 1fr 0.9fr 28px'
-    : 'minmax(220px,2.4fr) 1.1fr 1fr 0.9fr 28px';
+    ? 'minmax(220px,2.4fr) 1.3fr 1.1fr 1fr 0.9fr 92px 28px'
+    : 'minmax(220px,2.4fr) 1.1fr 1fr 0.9fr 92px 28px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -323,6 +353,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
           <span>Estado de pago</span>
           <span>Próximo cobro</span>
           <span>Alta</span>
+          <span>Sucursales</span>
           <span />
         </div>
 
@@ -335,7 +366,25 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
             <EstadoMensaje texto={rol === 'vendedor' ? 'No tienes negocios en tu cartera todavía.' : 'Sin resultados. Ajusta la búsqueda o los filtros.'} />
           ) : (
             items.map((n) => (
-              <FilaNegocio key={n.id} n={n} cols={cols} mostrarVendedor={mostrarVendedor} onAbrir={() => setSeleccionado(n)} onPrefetch={() => prefetchNegocio(n.id)} />
+              <Fragment key={n.id}>
+                <FilaNegocio
+                  n={n}
+                  cols={cols}
+                  mostrarVendedor={mostrarVendedor}
+                  expandido={expandidos.has(n.id)}
+                  onAbrir={() => setSeleccionado(n)}
+                  onToggle={() => toggleExpandir(n.id)}
+                  onPrefetch={() => prefetchNegocio(n.id)}
+                />
+                {expandidos.has(n.id) && (
+                  <FilasSucursales
+                    negocioId={n.id}
+                    cols={cols}
+                    mostrarVendedor={mostrarVendedor}
+                    onAbrir={(suc) => setSucursalSel({ negocioId: n.id, sucursal: suc })}
+                  />
+                )}
+              </Fragment>
             ))
           )}
         </div>
@@ -343,6 +392,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
       {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
       {ficha}
+      {modalSucursal}
     </div>
   );
 }
@@ -371,24 +421,37 @@ function FilaNegocio({
   n,
   cols,
   mostrarVendedor,
+  expandido,
   onAbrir,
+  onToggle,
   onPrefetch,
 }: {
   n: NegocioFila;
   cols: string;
   mostrarVendedor: boolean;
+  expandido: boolean;
   onAbrir: () => void;
+  onToggle: () => void;
   onPrefetch: () => void;
 }) {
   const ciudad = ciudadVisible(n.ciudad);
+  const tieneSecundarias = n.totalSucursales > 1;
   return (
-    <button
-      type="button"
+    // div (no <button>) para poder anidar el botón de expandir sin HTML inválido.
+    <div
+      role="button"
+      tabIndex={0}
       data-testid={`negocio-fila-${n.id}`}
       onClick={onAbrir}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter' || e.key === ' ') {
+          e.preventDefault();
+          onAbrir();
+        }
+      }}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
-      className="grid w-full items-center gap-3.5 border-b border-borde px-3 py-3 text-left transition last:border-b-0 hover:bg-marca-suave"
+      className="grid w-full cursor-pointer items-center gap-3.5 border-b border-borde px-3 py-3 text-left transition last:border-b-0 hover:bg-marca-suave focus:bg-marca-suave focus:outline-none"
       style={{ gridTemplateColumns: cols }}
     >
       <span className="flex min-w-0 items-center gap-3">
@@ -409,43 +472,214 @@ function FilaNegocio({
       <span><BadgeEstadoPago estado={estadoEfectivo(n.estadoAdmin, n.estadoPago)} /></span>
       <span className={`text-[13px] ${n.proximoCobro ? 'text-texto-2' : 'text-texto-4'}`}>{fechaCorta(n.proximoCobro)}</span>
       <span className="text-[13px] text-texto-2">{fechaCorta(n.alta)}</span>
+      {/* Sucursales: "No" o "Sí" con flecha de expandir (no abre el modal del negocio). */}
+      <span>
+        {tieneSecundarias ? (
+          <button
+            type="button"
+            data-testid={`negocio-sucursales-${n.id}`}
+            aria-expanded={expandido}
+            onClick={(e) => {
+              e.stopPropagation();
+              onToggle();
+            }}
+            className="inline-flex items-center gap-1 rounded-[8px] border border-borde px-2 py-1 text-[12px] font-semibold text-texto-2 transition hover:bg-superficie-2"
+          >
+            <ChevronRight size={13} className={`shrink-0 transition-transform ${expandido ? 'rotate-90' : ''}`} />
+            Sí
+          </button>
+        ) : (
+          <span className="text-[12px] text-texto-4">No</span>
+        )}
+      </span>
       <span className="flex justify-end text-texto-4"><ChevronRight size={17} /></span>
-    </button>
+    </div>
   );
 }
 
-function CardNegocio({ n, mostrarVendedor, onAbrir, onPrefetch }: { n: NegocioFila; mostrarVendedor: boolean; onAbrir: () => void; onPrefetch: () => void }) {
-  const ciudad = ciudadVisible(n.ciudad);
+/** Filas de sucursales SECUNDARIAS desplegadas bajo la fila del negocio (escritorio). */
+function FilasSucursales({
+  negocioId,
+  cols,
+  mostrarVendedor,
+  onAbrir,
+}: {
+  negocioId: string;
+  cols: string;
+  mostrarVendedor: boolean;
+  onAbrir: (s: SucursalFila) => void;
+}) {
+  const { data, isLoading } = useSucursalesNegocio(negocioId, true);
+  const secundarias = (data ?? []).filter((s) => !s.esPrincipal);
+
+  if (isLoading) {
+    return (
+      <div className="border-b border-borde bg-superficie-2 px-3 py-2 pl-14 text-[12px] text-texto-3">
+        Cargando sucursales…
+      </div>
+    );
+  }
+  if (secundarias.length === 0) {
+    return (
+      <div className="border-b border-borde bg-superficie-2 px-3 py-2 pl-14 text-[12px] text-texto-4">
+        Sin sucursales adicionales.
+      </div>
+    );
+  }
   return (
-    <button
-      type="button"
-      data-testid={`negocio-card-${n.id}`}
-      onClick={onAbrir}
-      onTouchStart={onPrefetch}
-      onMouseEnter={onPrefetch}
-      className="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie p-3 text-left transition active:bg-marca-suave"
-    >
-      <AvatarNegocio nombre={n.nombre} tam={42} />
-      <span className="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span className="truncate text-[14.5px] font-semibold text-texto">{n.nombre}</span>
-        <span className="flex items-center gap-2 text-[12px] text-texto-3">
-          <span className="truncate">{ciudad ?? 'Sin ciudad'}</span>
-          {mostrarVendedor && (
-            <>
-              <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-texto-4" />
-              <span className="inline-flex min-w-0 items-center gap-1">
-                <User size={12} className="shrink-0" />
-                <span className="truncate">{n.vendedorNombre ?? 'Sin asignar'}</span>
+    <>
+      {secundarias.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          data-testid={`sucursal-fila-${s.id}`}
+          onClick={() => onAbrir(s)}
+          className="grid w-full items-center gap-3.5 border-b border-borde bg-superficie-2 px-3 py-2.5 text-left transition hover:bg-marca-suave"
+          style={{ gridTemplateColumns: cols }}
+        >
+          <span className="flex min-w-0 items-center gap-2 pl-8">
+            <CornerDownRight size={14} className="shrink-0 text-texto-4" />
+            <span className="flex min-w-0 flex-col">
+              <span className="inline-flex items-center gap-1.5 truncate text-[13px] font-medium text-texto-2">
+                {s.nombre}
+                {!s.activa && (
+                  <span className="rounded-full bg-superficie px-1.5 py-0.5 text-[10px] font-semibold text-texto-4">Inactiva</span>
+                )}
               </span>
-            </>
-          )}
+              <span className="inline-flex items-center gap-1 text-[11.5px] text-texto-3">
+                <MapPin size={11} className="shrink-0" />
+                {[s.ciudad, s.regionNombre].filter(Boolean).join(' · ') || 'Sin ubicación'}
+              </span>
+            </span>
+          </span>
+          {mostrarVendedor && <span />}
+          <span />
+          <span />
+          <span />
+          <span />
+          <span className="flex justify-end text-texto-4"><ChevronRight size={15} /></span>
+        </button>
+      ))}
+    </>
+  );
+}
+
+function CardNegocio({
+  n,
+  mostrarVendedor,
+  expandido,
+  onAbrir,
+  onToggle,
+  onPrefetch,
+}: {
+  n: NegocioFila;
+  mostrarVendedor: boolean;
+  expandido: boolean;
+  onAbrir: () => void;
+  onToggle: () => void;
+  onPrefetch: () => void;
+}) {
+  const ciudad = ciudadVisible(n.ciudad);
+  const secundarias = n.totalSucursales - 1;
+  return (
+    <div className="overflow-hidden rounded-[14px] border border-borde bg-superficie">
+      {/* Cuerpo clickeable (abre el modal del negocio). div, no <button>, para poder
+          anidar el botón de expandir sucursales sin HTML inválido. */}
+      <div
+        role="button"
+        tabIndex={0}
+        data-testid={`negocio-card-${n.id}`}
+        onClick={onAbrir}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            onAbrir();
+          }
+        }}
+        onTouchStart={onPrefetch}
+        onMouseEnter={onPrefetch}
+        className="flex items-center gap-3 p-3 text-left transition active:bg-marca-suave"
+      >
+        <AvatarNegocio nombre={n.nombre} tam={42} />
+        <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span className="truncate text-[14.5px] font-semibold text-texto">{n.nombre}</span>
+          <span className="flex items-center gap-2 text-[12px] text-texto-3">
+            <span className="truncate">{ciudad ?? 'Sin ciudad'}</span>
+            {mostrarVendedor && (
+              <>
+                <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-texto-4" />
+                <span className="inline-flex min-w-0 items-center gap-1">
+                  <User size={12} className="shrink-0" />
+                  <span className="truncate">{n.vendedorNombre ?? 'Sin asignar'}</span>
+                </span>
+              </>
+            )}
+          </span>
         </span>
-      </span>
-      <span className="flex shrink-0 flex-col items-end gap-1.5">
-        <BadgeEstadoPago estado={estadoEfectivo(n.estadoAdmin, n.estadoPago)} small />
-        <ChevronRight size={16} className="text-texto-4" />
-      </span>
-    </button>
+        <span className="flex shrink-0 flex-col items-end gap-1.5">
+          <BadgeEstadoPago estado={estadoEfectivo(n.estadoAdmin, n.estadoPago)} small />
+          <ChevronRight size={16} className="text-texto-4" />
+        </span>
+      </div>
+
+      {/* Pie: control de sucursales secundarias (solo si tiene). */}
+      {secundarias > 0 && (
+        <button
+          type="button"
+          data-testid={`negocio-sucursales-${n.id}`}
+          aria-expanded={expandido}
+          onClick={onToggle}
+          className="flex w-full items-center justify-between border-t border-borde px-3 py-2 text-left transition active:bg-marca-suave"
+        >
+          <span className="inline-flex items-center gap-1.5 text-[12.5px] font-semibold text-texto-2">
+            <Store size={13} className="shrink-0 text-texto-3" />
+            {secundarias} {secundarias === 1 ? 'sucursal' : 'sucursales'}
+          </span>
+          <ChevronRight size={15} className={`shrink-0 text-texto-4 transition-transform ${expandido ? 'rotate-90' : ''}`} />
+        </button>
+      )}
+    </div>
+  );
+}
+
+/** Sucursales secundarias desplegadas bajo la card (móvil). */
+function SucursalesMovil({ negocioId, onAbrir }: { negocioId: string; onAbrir: (s: SucursalFila) => void }) {
+  const { data, isLoading } = useSucursalesNegocio(negocioId, true);
+  const secundarias = (data ?? []).filter((s) => !s.esPrincipal);
+
+  if (isLoading) {
+    return <div className="pl-4 text-[12px] text-texto-3">Cargando sucursales…</div>;
+  }
+  if (secundarias.length === 0) {
+    return <div className="pl-4 text-[12px] text-texto-4">Sin sucursales adicionales.</div>;
+  }
+  return (
+    <div className="flex flex-col gap-2 pl-4">
+      {secundarias.map((s) => (
+        <button
+          key={s.id}
+          type="button"
+          data-testid={`sucursal-card-${s.id}`}
+          onClick={() => onAbrir(s)}
+          className="flex items-center gap-2.5 rounded-[12px] border border-borde bg-superficie-2 p-2.5 text-left transition active:bg-marca-suave"
+        >
+          <CornerDownRight size={15} className="shrink-0 text-texto-4" />
+          <span className="flex min-w-0 flex-1 flex-col gap-0.5">
+            <span className="inline-flex items-center gap-1.5 truncate text-[13.5px] font-medium text-texto">
+              {s.nombre}
+              {!s.activa && (
+                <span className="rounded-full bg-superficie px-1.5 py-0.5 text-[10px] font-semibold text-texto-4">Inactiva</span>
+              )}
+            </span>
+            <span className="inline-flex items-center gap-1 text-[12px] text-texto-3">
+              <MapPin size={11} className="shrink-0" />
+              {[s.ciudad, s.regionNombre].filter(Boolean).join(' · ') || 'Sin ubicación'}
+            </span>
+          </span>
+          <ChevronRight size={15} className="shrink-0 text-texto-4" />
+        </button>
+      ))}
+    </div>
   );
 }
 

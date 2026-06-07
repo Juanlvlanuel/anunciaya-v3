@@ -17,7 +17,6 @@ import { useState, type ReactNode } from 'react';
 import {
   X,
   ExternalLink,
-  MapPin,
   User,
   CreditCard,
   Store,
@@ -32,11 +31,14 @@ import {
   useSuspenderNegocio,
   useReactivarNegocio,
   useReasignarVendedor,
+  useMarcarPagado,
+  useCancelarNegocio,
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { DialogoReasignar } from './DialogoReasignar';
+import { DialogoMarcarPagado } from './DialogoMarcarPagado';
 import { BadgeEstadoPago, estadoEfectivo } from './estadoPago';
 import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
@@ -65,6 +67,8 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
     mesesGratisRestantes: 0,
     estadoPago: f.estadoPago,
     estadoAdmin: f.estadoAdmin,
+    metodoCobro: 'tarjeta',
+    tieneSuscripcionStripe: false,
     fechaVencimiento: null,
     fechaProximoCobro: f.proximoCobro,
     fechaInicioGracia: null,
@@ -86,13 +90,13 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
 
 const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
-function fecha(valor: string | null): string {
+export function fecha(valor: string | null): string {
   if (!valor) return '—';
   const d = new Date(valor);
   return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
 }
 
-function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
+export function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
   return (
     <div className="flex items-start justify-between gap-4 py-1.5">
       <span className="shrink-0 text-[13px] text-texto-3">{etiqueta}</span>
@@ -101,7 +105,7 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
   );
 }
 
-function Seccion({ titulo, icono: Icono, children }: { titulo: string; icono: typeof User; children: ReactNode }) {
+export function Seccion({ titulo, icono: Icono, children }: { titulo: string; icono: typeof User; children: ReactNode }) {
   return (
     <div className="border-b border-borde px-5 py-4 last:border-b-0">
       <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
@@ -140,7 +144,7 @@ function BotonAccion({
       data-testid={testid}
       onClick={onClick}
       disabled={disabled}
-      title={disabled ? 'Disponible en la siguiente entrega' : undefined}
+      title={disabled ? 'No disponible para un negocio cancelado' : undefined}
       className={`${base} ${estilos[variante]}`}
     >
       <Icono size={16} /> {etiqueta}
@@ -153,18 +157,22 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   // `data` siempre existe (placeholder de la fila o datos reales) → ficha al instante.
   const n = data ?? placeholderDesdeFila(previo);
 
-  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar'>(null);
+  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar'>(null);
   const suspender = useSuspenderNegocio();
   const reactivar = useReactivarNegocio();
   const reasignar = useReasignarVendedor();
+  const marcarPagado = useMarcarPagado();
+  const cancelar = useCancelarNegocio();
   const cerrarDialogo = () => setDialogo(null);
 
   const suspendido = n.estadoAdmin === 'suspendido';
   const archivado = n.estadoAdmin === 'archivado';
 
   // Solo SuperAdmin y Gerente pueden actuar; el vendedor ve la ficha solo lectura.
+  // Marcar pagado y Cancelar son EXCLUSIVOS de SuperAdmin.
   const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
   const puedeActuar = rol === 'superadmin' || rol === 'gerente';
+  const esSuperadmin = rol === 'superadmin';
 
   return (
     <>
@@ -211,6 +219,8 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                 <Dato etiqueta="Estado de pago" valor={<BadgeEstadoPago estado={n.estadoPago} small />} />
                 <Dato etiqueta="Vence" valor={fecha(n.fechaVencimiento)} />
                 <Dato etiqueta="Próximo cobro" valor={fecha(n.fechaProximoCobro)} />
+                <Dato etiqueta="Método de cobro" valor={n.metodoCobro === 'manual' ? 'Manual' : 'Tarjeta'} />
+                <Dato etiqueta="Suscripción Stripe" valor={n.tieneSuscripcionStripe ? 'Activa' : '—'} />
                 {n.estadoPago === 'en_gracia' && <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />}
                 <Dato etiqueta="Primer pago" valor={fecha(n.fechaPrimerPago)} />
                 {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
@@ -262,18 +272,22 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
           )}
         </div>
 
-        {/* Footer: acciones (solo SuperAdmin/Gerente). Marcar pagado y Cancelar
-            siguen deshabilitados (Parada 2). */}
+        {/* Footer: acciones según permisos. Marcar pagado y Cancelar son exclusivos de
+            SuperAdmin; Pausar y Reasignar también las usa el Gerente (su región). */}
         {puedeActuar && (
           <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5 lg:flex lg:items-center">
-            <BotonAccion icono={CheckCircle2} etiqueta="Marcar pagado" variante="primary" testid="ficha-accion-marcar-pagado" disabled />
+            {esSuperadmin && (
+              <BotonAccion icono={CheckCircle2} etiqueta="Marcar pagado" variante="primary" testid="ficha-accion-marcar-pagado" onClick={() => setDialogo('marcar-pagado')} disabled={archivado} />
+            )}
             <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} />
             {suspendido ? (
               <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} />
             ) : (
-              <BotonAccion icono={PauseCircle} etiqueta="Suspender" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} />
+              <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} />
             )}
-            <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" disabled />
+            {esSuperadmin && (
+              <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} />
+            )}
           </div>
         )}
       </div>
@@ -283,9 +297,9 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       <DialogoConfirmar
         abierto
         onCerrar={cerrarDialogo}
-        titulo="Suspender negocio"
-        mensaje="El negocio dejará de mostrarse en la app mientras esté suspendido. Es reversible y no afecta su estado de pago. El motivo queda registrado."
-        textoConfirmar="Suspender"
+        titulo="Pausar membresía"
+        mensaje="El negocio dejará de mostrarse en la app mientras esté pausado, y se pausará el cobro de su tarjeta en Stripe (sin generar deuda). Es reversible. El motivo queda registrado."
+        textoConfirmar="Pausar"
         requiereMotivo
         cargando={suspender.isPending}
         onConfirmar={(motivo) => suspender.mutate({ id: previo.id, motivo }, { onSuccess: cerrarDialogo })}
@@ -295,8 +309,8 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       <DialogoConfirmar
         abierto
         onCerrar={cerrarDialogo}
-        titulo="Reactivar negocio"
-        mensaje="El negocio volverá a mostrarse en la app."
+        titulo="Reactivar membresía"
+        mensaje="El negocio volverá a mostrarse en la app y se reanudará el cobro de su tarjeta en Stripe (el ciclo sigue de aquí en adelante, sin cobrar lo pausado)."
         textoConfirmar="Reactivar"
         mostrarMotivo
         cargando={reactivar.isPending}
@@ -312,6 +326,31 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         onConfirmar={(embajadorId, motivo) =>
           reasignar.mutate({ id: previo.id, embajadorId, motivo: motivo || undefined }, { onSuccess: cerrarDialogo })
         }
+      />
+    )}
+    {dialogo === 'marcar-pagado' && (
+      <DialogoMarcarPagado
+        abierto
+        onCerrar={cerrarDialogo}
+        vencimientoActual={n.fechaVencimiento}
+        tieneSuscripcion={n.tieneSuscripcionStripe}
+        cargando={marcarPagado.isPending}
+        onConfirmar={(hasta, pausarStripe) =>
+          marcarPagado.mutate({ id: previo.id, hasta, pausarStripe }, { onSuccess: cerrarDialogo })
+        }
+      />
+    )}
+    {dialogo === 'cancelar' && (
+      <DialogoConfirmar
+        abierto
+        onCerrar={cerrarDialogo}
+        titulo="Cancelar negocio"
+        variante="danger"
+        mensaje="Baja definitiva (recuperable): se archiva el negocio, se corta su suscripción en Stripe, la cuenta del dueño baja a personal y se devuelven los puntos de los vales pendientes. No se borran datos. El motivo queda registrado."
+        textoConfirmar="Cancelar negocio"
+        requiereMotivo
+        cargando={cancelar.isPending}
+        onConfirmar={(motivo) => cancelar.mutate({ id: previo.id, motivo }, { onSuccess: cerrarDialogo })}
       />
     )}
     </>

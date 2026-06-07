@@ -21,6 +21,19 @@ function mensajeError(error: unknown, porDefecto: string): string {
   return e?.response?.data?.message ?? porDefecto;
 }
 
+/**
+ * Avisa el resultado de una acción que toca Stripe (§4.3): éxito normal si Stripe se
+ * completó, o ADVERTENCIA visible si el cambio en BD se aplicó pero Stripe NO se cortó/
+ * pausó (para que el admin lo corrija a mano). Nunca se entierra en un log.
+ */
+function avisarResultado(res: { advertenciaStripe: string | null }, mensajeExito: string) {
+  if (res.advertenciaStripe) {
+    toast.advertencia(`${mensajeExito}. ${res.advertenciaStripe} Revísalo a mano en Stripe.`);
+  } else {
+    toast.exito(mensajeExito);
+  }
+}
+
 /** Tabla paginada de negocios (con filtros). */
 export function useNegociosLista(filtros: ParametrosLista) {
   return useQuery({
@@ -84,6 +97,30 @@ export function useCiudadesFiltro() {
   });
 }
 
+/** Sucursales de un negocio (al expandir la fila). `habilitado` = solo se pide al abrir. */
+export function useSucursalesNegocio(id: string, habilitado: boolean) {
+  return useQuery({
+    queryKey: queryKeys.negocios.sucursales(id),
+    queryFn: () => negociosService.listarSucursalesNegocio(id),
+    enabled: habilitado,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
+/** Detalle de una sucursal (modal). `placeholder` muestra el modal al instante. */
+export function useSucursalDetalle(
+  id: string | null,
+  sucursalId: string | null,
+  placeholder?: negociosService.SucursalDetalle,
+) {
+  return useQuery({
+    queryKey: queryKeys.negocios.sucursal(id ?? '', sucursalId ?? ''),
+    queryFn: () => negociosService.obtenerDetalleSucursal(id as string, sucursalId as string),
+    enabled: !!id && !!sucursalId,
+    placeholderData: placeholder,
+  });
+}
+
 // =============================================================================
 // MUTACIONES (Entrega 2 · Parada 1) — refrescan tabla + ficha e informan por toast
 // =============================================================================
@@ -102,11 +139,11 @@ export function useSuspenderNegocio() {
   return useMutation({
     mutationFn: ({ id, motivo }: { id: string; motivo: string }) =>
       negociosService.suspenderNegocio(id, motivo),
-    onSuccess: (_d, { id }) => {
+    onSuccess: (res, { id }) => {
       refrescar(id);
-      toast.exito('Negocio suspendido');
+      avisarResultado(res, 'Membresía pausada');
     },
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo suspender el negocio')),
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo pausar la membresía')),
   });
 }
 
@@ -115,11 +152,11 @@ export function useReactivarNegocio() {
   return useMutation({
     mutationFn: ({ id, motivo }: { id: string; motivo?: string }) =>
       negociosService.reactivarNegocio(id, motivo),
-    onSuccess: (_d, { id }) => {
+    onSuccess: (res, { id }) => {
       refrescar(id);
-      toast.exito('Negocio reactivado');
+      avisarResultado(res, 'Membresía reactivada');
     },
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo reactivar el negocio')),
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo reactivar la membresía')),
   });
 }
 
@@ -133,5 +170,33 @@ export function useReasignarVendedor() {
       toast.exito(embajadorId ? 'Vendedor reasignado' : 'Vendedor quitado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo reasignar el vendedor')),
+  });
+}
+
+/** Marcar pagado (SOLO superadmin). `hasta` = fecha ISO; `pausarStripe` = toggle del diálogo. */
+export function useMarcarPagado() {
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ id, hasta, pausarStripe }: { id: string; hasta: string; pausarStripe: boolean }) =>
+      negociosService.marcarPagado(id, hasta, pausarStripe),
+    onSuccess: (res, { id }) => {
+      refrescar(id);
+      avisarResultado(res, 'Membresía marcada como pagada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo marcar como pagada')),
+  });
+}
+
+/** Cancelar (SOLO superadmin · motivo obligatorio). Corta Stripe + degrada al dueño. */
+export function useCancelarNegocio() {
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) =>
+      negociosService.cancelarNegocio(id, motivo),
+    onSuccess: (res, { id }) => {
+      refrescar(id);
+      avisarResultado(res, 'Negocio cancelado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo cancelar el negocio')),
   });
 }

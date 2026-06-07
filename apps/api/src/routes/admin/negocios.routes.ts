@@ -25,9 +25,13 @@ import {
     listarVendedoresFiltroController,
     listarCiudadesController,
     obtenerDetalleNegocioController,
+    listarSucursalesNegocioController,
+    obtenerDetalleSucursalController,
     suspenderNegocioController,
     reactivarNegocioController,
     reasignarVendedorController,
+    marcarPagadoController,
+    cancelarNegocioController,
 } from '../../controllers/admin/negocios.controller.js';
 
 const router: Router = Router();
@@ -40,10 +44,18 @@ router.get('/ciudades', requierePanel(['superadmin', 'gerente', 'vendedor']), li
 
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerDetalleNegocioController);
 
-// ─── Acciones (Entrega 2 · Parada 1) — escritura, sin Stripe ────────────────────
-// Marcar pagado y cancelar (Parada 2, solo SuperAdmin) NO se montan todavía.
+// Sucursales del negocio (lista para expandir la fila + detalle para el modal).
+router.get('/:id/sucursales', requierePanel(['superadmin', 'gerente', 'vendedor']), listarSucursalesNegocioController);
+router.get('/:id/sucursales/:sucursalId', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerDetalleSucursalController);
+
+// ─── Acciones (Entrega 2) — escritura ───────────────────────────────────────────
+// Pausar (suspender) y Reasignar: superadmin + gerente (alcance de región en el service).
+// Pausar/Reactivar además accionan Stripe (Parada 2).
 router.post('/:id/suspender', requierePanel(['superadmin', 'gerente']), suspenderNegocioController);
 router.post('/:id/reactivar', requierePanel(['superadmin', 'gerente']), reactivarNegocioController);
 router.post('/:id/reasignar-vendedor', requierePanel(['superadmin', 'gerente']), reasignarVendedorController);
+// Marcar pagado y Cancelar: SOLO superadmin (Parada 2).
+router.post('/:id/marcar-pagado', requierePanel(['superadmin']), marcarPagadoController);
+router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioController);
 
 export default router;

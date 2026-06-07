@@ -14,6 +14,9 @@ import {
     obtenerDetalleNegocio,
     listarVendedoresFiltro,
     listarCiudades,
+    listarSucursalesNegocio,
+    obtenerDetalleSucursal,
+    panelConFiltroRegion,
     ESTADOS_PAGO,
     ORDENES,
     type EstadoPago,
@@ -23,6 +26,8 @@ import {
     suspenderNegocio,
     reactivarNegocio,
     reasignarVendedor,
+    marcarPagado,
+    cancelarNegocio,
 } from '../../services/admin/negocios-acciones.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
@@ -42,7 +47,8 @@ function enteroPositivo(valor: unknown, porDefecto: number, maximo?: number): nu
 
 export async function listarNegociosController(req: Request, res: Response): Promise<void> {
     try {
-        const panel = req.usuarioPanel!; // garantizado por requierePanel
+        // Filtro global de región (solo superadmin); gerente/vendedor lo ignoran.
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
 
         const busquedaRaw = typeof req.query.busqueda === 'string' ? req.query.busqueda.trim() : '';
         const estadoPagoRaw = typeof req.query.estadoPago === 'string' ? req.query.estadoPago : '';
@@ -84,7 +90,7 @@ export async function listarNegociosController(req: Request, res: Response): Pro
 
 export async function listarVendedoresFiltroController(req: Request, res: Response): Promise<void> {
     try {
-        const panel = req.usuarioPanel!;
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
         const vendedores = await listarVendedoresFiltro(panel);
         res.status(200).json({ success: true, message: 'Vendedores obtenidos', data: vendedores });
     } catch (error) {
@@ -103,7 +109,7 @@ export async function listarVendedoresFiltroController(req: Request, res: Respon
 
 export async function listarCiudadesController(req: Request, res: Response): Promise<void> {
     try {
-        const panel = req.usuarioPanel!;
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
         const ciudades = await listarCiudades(panel);
         res.status(200).json({ success: true, message: 'Ciudades obtenidas', data: ciudades });
     } catch (error) {
@@ -122,7 +128,7 @@ export async function listarCiudadesController(req: Request, res: Response): Pro
 
 export async function obtenerDetalleNegocioController(req: Request, res: Response): Promise<void> {
     try {
-        const panel = req.usuarioPanel!;
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
         const { id } = req.params;
 
         const detalle = await obtenerDetalleNegocio(panel, id);
@@ -137,6 +143,50 @@ export async function obtenerDetalleNegocioController(req: Request, res: Respons
         res.status(500).json({
             success: false,
             message: 'Error al obtener el negocio',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/:id/sucursales   (los 3 roles · lista para expandir)
+// =============================================================================
+
+export async function listarSucursalesNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const { id } = req.params;
+        const data = await listarSucursalesNegocio(panel, id);
+        res.status(200).json({ success: true, message: 'Sucursales obtenidas', data });
+    } catch (error) {
+        console.error('Error en listarSucursalesNegocioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener las sucursales',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/:id/sucursales/:sucursalId   (los 3 roles · modal)
+// =============================================================================
+
+export async function obtenerDetalleSucursalController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const { id, sucursalId } = req.params;
+        const detalle = await obtenerDetalleSucursal(panel, id, sucursalId);
+        if (!detalle) {
+            res.status(404).json({ success: false, message: 'Sucursal no encontrada' });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Sucursal obtenida', data: detalle });
+    } catch (error) {
+        console.error('Error en obtenerDetalleSucursalController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener la sucursal',
             error: error instanceof Error ? error.message : String(error),
         });
     }
@@ -227,6 +277,84 @@ export async function reasignarVendedorController(req: Request, res: Response): 
         res.status(500).json({
             success: false,
             message: 'Error al reasignar el vendedor',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/marcar-pagado   (SOLO superadmin)
+// Body: { hasta: string (ISO, fecha de vencimiento), pausarStripe?: boolean }
+// =============================================================================
+
+export async function marcarPagadoController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+
+        const hastaRaw = typeof req.body?.hasta === 'string' ? req.body.hasta.trim() : '';
+        const pausarStripe = req.body?.pausarStripe === true;
+
+        const fecha = new Date(hastaRaw);
+        if (!hastaRaw || Number.isNaN(fecha.getTime())) {
+            res.status(400).json({ success: false, message: 'La fecha de vencimiento es inválida.' });
+            return;
+        }
+        if (fecha.getTime() <= Date.now()) {
+            res.status(400).json({ success: false, message: 'La fecha de vencimiento debe ser futura.' });
+            return;
+        }
+
+        const r = await marcarPagado(panel, id, { hasta: fecha.toISOString(), pausarStripe });
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Membresía marcada como pagada',
+            data: r.negocio,
+            advertenciaStripe: r.advertenciaStripe ?? null,
+        });
+    } catch (error) {
+        console.error('Error en marcarPagadoController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al marcar como pagado',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/cancelar   (SOLO superadmin · motivo obligatorio)
+// =============================================================================
+
+export async function cancelarNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+        if (!motivo) {
+            res.status(400).json({ success: false, message: 'El motivo es obligatorio para cancelar.' });
+            return;
+        }
+        const r = await cancelarNegocio(panel, id, motivo);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: 'Negocio cancelado',
+            data: r.negocio,
+            advertenciaStripe: r.advertenciaStripe ?? null,
+        });
+    } catch (error) {
+        console.error('Error en cancelarNegocioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al cancelar el negocio',
             error: error instanceof Error ? error.message : String(error),
         });
     }
