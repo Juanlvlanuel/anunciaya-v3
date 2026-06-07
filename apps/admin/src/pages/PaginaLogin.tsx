@@ -57,6 +57,7 @@ function PaginaLogin() {
         avatarUrl: d.avatarUrl,
         rolEquipo: d.rolEquipo,
         regionId: d.regionId,
+        regionNombre: d.regionNombre,
       },
       accessToken,
       refreshToken,

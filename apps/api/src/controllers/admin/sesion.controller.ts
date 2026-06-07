@@ -4,7 +4,7 @@
  * "¿Quién soy yo en el Panel?" — datos de la sesión del Panel Admin.
  *
  * Reusa lo que ya resolvió `requierePanel` (en `req.usuarioPanel`): rol de equipo
- * y región (gerente → usuarios.region_id, vendedor → embajadores.region_id,
+ * y región (gerente → usuarios.region_id, vendedor → embajador_ciudades deducida,
  * superadmin → null). Aquí solo se agregan los datos básicos del usuario para
  * pintar el avatar/nombre en el shell. Forma de respuesta camelCase, igual que
  * el resto de la API.
@@ -15,7 +15,7 @@
 import type { Request, Response } from 'express';
 import { eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { usuarios } from '../../db/schemas/schema.js';
+import { usuarios, regiones } from '../../db/schemas/schema.js';
 
 // =============================================================================
 // GET /api/admin/yo
@@ -51,6 +51,18 @@ export async function getYoPanelController(req: Request, res: Response): Promise
             datos = u ?? null;
         }
 
+        // Nombre de la región (para pintarla en el header del Panel). Solo si el rol
+        // tiene región resuelta (gerente: usuarios.region_id; vendedor: deducida).
+        let regionNombre: string | null = null;
+        if (panel.regionId) {
+            const [r] = await db
+                .select({ nombre: regiones.nombre })
+                .from(regiones)
+                .where(eq(regiones.id, panel.regionId))
+                .limit(1);
+            regionNombre = r?.nombre ?? null;
+        }
+
         res.status(200).json({
             success: true,
             message: 'Sesión del Panel',
@@ -62,6 +74,7 @@ export async function getYoPanelController(req: Request, res: Response): Promise
                 avatarUrl: datos?.avatarUrl ?? null,
                 rolEquipo: panel.rolEquipo,
                 regionId: panel.regionId,
+                regionNombre,
                 // El frontend usa esto para saber si debe pedir el TOTP del Panel:
                 // superadmin con 2FA prendido cuyo token aún no pasó la verificación.
                 panel2faPendiente: panel.panel2faHabilitado && !panel.panel2faOk,

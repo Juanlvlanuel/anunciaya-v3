@@ -11,6 +11,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
+import { useFiltroRegion } from '../stores/useFiltroRegion';
 import { useEsEscritorio } from '../hooks/useEsEscritorio';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
 import { iconoDeSeccion } from '../config/iconosPanel';
@@ -46,7 +47,11 @@ function PaginaPanel() {
 
   const [tema, setTema] = useState<Tema>(obtenerTema());
   const [seccionActivaId, setSeccion] = useState('resumen');
-  const [regionActivaId, setRegion] = useState('all');
+  // Filtro global de región (solo el superadmin lo cambia). '' = toda la plataforma.
+  const regionFiltro = useFiltroRegion((s) => s.regionId);
+  const setRegionFiltro = useFiltroRegion((s) => s.setRegion);
+  const regionActivaId = regionFiltro ?? '';
+  const onCambiarRegion = (id: string) => setRegionFiltro(id || null);
 
   // Si por algo entramos sin rol de equipo, no hay menú que mostrar.
   if (!usuario?.rolEquipo) {
@@ -104,7 +109,7 @@ function PaginaPanel() {
         iconoSeccionClave={iconoClave}
         onSeleccionar={setSeccion}
         regionActivaId={regionActivaId}
-        onCambiarRegion={setRegion}
+        onCambiarRegion={onCambiarRegion}
         tema={tema}
         onAlternarTema={onAlternarTema}
         onCerrarSesion={onCerrarSesion}

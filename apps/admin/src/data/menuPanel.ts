@@ -121,21 +121,6 @@ export function etiquetaDe(item: ItemMenu, rol: RolPanel): string {
 // DATOS DEMO (placeholders hasta cablear datos reales)
 // =============================================================================
 
-export interface RegionDemo {
-  id: string;
-  nombre: string;
-  sub: string;
-}
-
-export const REGIONES_DEMO: RegionDemo[] = [
-  { id: 'all', nombre: 'Toda la plataforma', sub: '6 regiones · 38 ciudades' },
-  { id: 'centro', nombre: 'Región Centro', sub: 'CDMX · Toluca · Pachuca' },
-  { id: 'occidente', nombre: 'Región Occidente', sub: 'Guadalajara · Morelia' },
-  { id: 'norte', nombre: 'Región Norte', sub: 'Monterrey · Saltillo' },
-  { id: 'bajio', nombre: 'Región Bajío', sub: 'Querétaro · León' },
-  { id: 'sureste', nombre: 'Región Sureste', sub: 'Mérida · Cancún' },
-];
-
 export interface ItemPendiente {
   titulo: string;
   subtitulo: string;

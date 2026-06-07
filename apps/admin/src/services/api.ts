@@ -13,6 +13,7 @@
 
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
+import { useFiltroRegion } from '../stores/useFiltroRegion';
 
 const BASE_URL = import.meta.env.VITE_API_URL || '/api';
 const TIMEOUT = 10000;
@@ -29,11 +30,19 @@ export const api: AxiosInstance = axios.create({
   },
 });
 
-// Adjunta el token del Panel si existe.
+// Adjunta el token del Panel si existe + el filtro global de región (solo superadmin).
 api.interceptors.request.use((config) => {
   const token = localStorage.getItem(CLAVE_ACCESS_TOKEN);
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
+  }
+  // Filtro GLOBAL de región: "ver el Panel como el gerente de esa región". Solo el
+  // superadmin lo manda (?regionId=) a las rutas /admin/*; el backend lo aplica solo a
+  // las LECTURAS y solo si el rol es superadmin (un gerente lo ignoraría de todos modos).
+  const rol = useAuthPanelStore.getState().usuario?.rolEquipo;
+  const regionId = useFiltroRegion.getState().regionId;
+  if (rol === 'superadmin' && regionId && config.url?.startsWith('/admin')) {
+    config.params = { ...(config.params as Record<string, unknown> | undefined), regionId };
   }
   return config;
 });

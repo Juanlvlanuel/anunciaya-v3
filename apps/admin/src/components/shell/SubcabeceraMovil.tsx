@@ -8,7 +8,9 @@
  */
 
 import { MapPin, ChevronDown } from 'lucide-react';
-import { REGIONES_DEMO, type RolPanel } from '../../data/menuPanel';
+import type { RolPanel } from '../../data/menuPanel';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
+import { useRegionesPanel } from '../../hooks/queries/useRegionesPanel';
 
 interface SubcabeceraMovilProps {
   rol: RolPanel;
@@ -18,10 +20,14 @@ interface SubcabeceraMovilProps {
 
 export function SubcabeceraMovil({ rol, nombre, regionActivaId }: SubcabeceraMovilProps) {
   const primerNombre = nombre.trim().split(/\s+/)[0] || nombre;
+  const regionNombre = useAuthPanelStore((s) => s.usuario?.regionNombre);
+  const { data: regiones } = useRegionesPanel(rol === 'superadmin');
   const region =
     rol === 'superadmin'
-      ? (REGIONES_DEMO.find((r) => r.id === regionActivaId) ?? REGIONES_DEMO[0]).nombre
-      : 'Tu región';
+      ? (regionActivaId
+          ? (regiones?.find((r) => r.id === regionActivaId)?.nombre ?? 'Región')
+          : 'Toda la plataforma')
+      : (regionNombre ?? 'Sin región');
 
   return (
     <div className="flex items-center justify-between gap-3 bg-superficie px-5 pb-3 pt-4">

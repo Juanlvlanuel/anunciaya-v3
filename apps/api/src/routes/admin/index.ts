@@ -21,6 +21,7 @@ import mantenimientoRoutes from './mantenimiento.routes.js';
 import sesionRoutes from './sesion.routes.js';
 import seguridadRoutes from './seguridad.routes.js';
 import negociosRoutes from './negocios.routes.js';
+import regionesRoutes from './regiones.routes.js';
 
 const router: Router = Router();
 
@@ -47,6 +48,9 @@ router.use(requierePanel(['superadmin']));
 
 // ─── Sub-secciones ────────────────────────────────────────────────────────────
 router.use('/mantenimiento', mantenimientoRoutes);
+
+// Regiones para el filtro global del Panel (solo superadmin, ya cubierto por el gate).
+router.use('/regiones', regionesRoutes);
 
 // A futuro, agregar aquí:
 // router.use('/negocios', negociosRoutes);

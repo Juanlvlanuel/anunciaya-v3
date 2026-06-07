@@ -11,9 +11,10 @@
     "db:up": "docker-compose up -d",
     "db:down": "docker-compose down",
     "db:logs": "docker-compose logs -f",
-    "type:check": "pnpm type:check:api && pnpm type:check:web",
+    "type:check": "pnpm type:check:api && pnpm type:check:web && pnpm type:check:admin",
     "type:check:api": "pnpm --filter api exec tsc --noEmit",
-    "type:check:web": "pnpm --filter web exec tsc --noEmit"
+    "type:check:web": "pnpm --filter web exec tsc --noEmit",
+    "type:check:admin": "pnpm --filter admin exec tsc --noEmit"
   },
   "packageManager": "pnpm@10.24.0",
   "engines": {

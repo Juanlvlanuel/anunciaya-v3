@@ -13,6 +13,7 @@
  */
 
 import { create } from 'zustand';
+import { queryClient } from '../config/queryClient';
 
 const PREFIJO = 'ayadmin_';
 const CLAVES = {
@@ -32,6 +33,7 @@ export interface UsuarioPanel {
   avatarUrl?: string | null;
   rolEquipo?: RolEquipo | null;
   regionId?: string | null;
+  regionNombre?: string | null;
 }
 
 interface EstadoAuthPanel {
@@ -72,6 +74,9 @@ export const useAuthPanelStore = create<EstadoAuthPanel>((set, get) => ({
   },
 
   iniciarSesion: (usuario, accessToken, refreshToken) => {
+    // Cinturón: por si se entra sin pasar por un logout previo (p. ej. token caducado
+    // y se vuelve a loguear) — no heredar caché de datos de otra sesión.
+    queryClient.clear();
     localStorage.setItem(CLAVES.accessToken, accessToken);
     localStorage.setItem(CLAVES.refreshToken, refreshToken);
     localStorage.setItem(CLAVES.usuario, JSON.stringify(usuario));
@@ -85,6 +90,10 @@ export const useAuthPanelStore = create<EstadoAuthPanel>((set, get) => ({
   },
 
   cerrarSesion: () => {
+    // Raíz del fix: borrar TODA la caché de React Query para no arrastrar datos del
+    // usuario anterior (lista/ciudades/vendedores/detalle) a la siguiente sesión.
+    // Cubre todos los caminos de salida (logout, /yo falla, refresh falla en api.ts).
+    queryClient.clear();
     localStorage.removeItem(CLAVES.accessToken);
     localStorage.removeItem(CLAVES.refreshToken);
     localStorage.removeItem(CLAVES.usuario);
