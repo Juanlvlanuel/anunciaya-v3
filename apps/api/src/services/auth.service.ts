@@ -57,7 +57,7 @@ export async function resolverRegionEquipo(
   if (usuario.rolEquipo === 'gerente') return usuario.regionId ?? null;
   if (usuario.rolEquipo === 'vendedor') {
     // La región del vendedor se DEDUCE de las ciudades que cubre (embajador_ciudades);
-    // ya no se lee embajadores.region_id (se elimina en el Paso 10). La cobertura es de
+    // ya no se lee embajadores.region_id (se eliminó en el Paso 10). La cobertura es de
     // una sola región (lo garantiza el trigger), así que basta una fila.
     const filas = (await db.execute(sql`
       SELECT c.region_id::text AS region_id

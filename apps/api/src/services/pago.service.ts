@@ -637,7 +637,7 @@ async function manejarCheckoutCompletado(
             participaPuntos: false,
             embajadorId: atribucion?.embajadorId ?? null, // Vendedor que trajo el negocio
             // La región se DEDUCE de la ciudad de la(s) sucursal(es); ya no se escribe aquí
-            // (negocios.region_id se elimina en el Paso 10).
+            // (negocios.region_id se eliminó en el Paso 10).
         })
         .returning();
 

@@ -1,7 +1,7 @@
 # 🛡️ Panel Admin — Arquitectura
 
 **Última actualización:** 7 Junio 2026
-**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Negocios (Entrega 1 VER + Entrega 2 ACTUAR + sucursales + filtro de región del superadmin) construida** (dev, commiteado sin push) · **Modelo ciudad↔región rediseñado** (código completo; falta ejecutar el DROP SQL del Paso 10) · 10 secciones internas restantes
+**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Negocios (Entrega 1 VER + Entrega 2 ACTUAR + sucursales + filtro de región del superadmin) construida** (dev, commiteado sin push) · **Modelo ciudad↔región rediseñado** (completo en dev + prod, incluido el DROP del Paso 10) · 10 secciones internas restantes
 **Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas: **Negocios (VER + ACTUAR) ✅** · resto 0%
 
 > Este documento reemplaza la versión anterior (que describía solo 2 roles y auth separada).
@@ -96,7 +96,7 @@ Reglas del modelo:
 - **Alcance del Gerente** (deducido por sucursal→ciudad→región, con `EXISTS` para no duplicar negocios multi-zona): **visibilidad = mando**, ambos por la **sucursal MATRIZ** (`es_principal`). Un negocio aparece en el Panel **solo en la región de su matriz**; sobre todos los que ve, puede actuar (pausar/reactivar). Un negocio con sucursales secundarias en otra región **no** asoma en esa otra región — las sucursales se ven como **detalle de la ficha**, no como negocios sueltos (decisión 7 Jun: se unificó visibilidad y mando por matriz; antes la visibilidad era por cualquier sucursal).
 - Extensible: partir/fusionar regiones reasignando ciudades, sin tocar negocios ni vendedores.
 
-> **Migración (estado, 7 Jun 2026):** la separación está construida en BD y código (tabla `ciudades` poblada, `regiones` adelgazada, `embajador_ciudades` + trigger, `negocio_sucursales.ciudad_id`, alcance del Panel por matriz, atribución sin región). El **código del Paso 10** ya retiró `negocios.region_id` y `embajadores.region_id` del schema/relations/middleware (commiteado, dev). **Pendiente:** ejecutar el **SQL `DROP`** de esas columnas en BD (`docs/migraciones/paso10-drop-region-id-viejas.sql`, snapshot antes) + la UI del Panel para gestionar/agrupar ciudades. Pasos en `PENDIENTES_PanelAdmin.md`.
+> **Migración (estado, 7 Jun 2026):** **COMPLETA en BD y código, dev + prod** (tabla `ciudades` poblada, `regiones` adelgazada, `embajador_ciudades` + trigger, `negocio_sucursales.ciudad_id`, alcance del Panel por matriz, atribución sin región). El **Paso 10** (DROP de `negocios.region_id` y `embajadores.region_id`) ya corrió en dev y prod — solo queda `usuarios.region_id`; las tablas de respaldo `_backup_*` se eliminaron. **Pendiente menor:** la UI del Panel para gestionar/agrupar ciudades. Detalle en `PENDIENTES_PanelAdmin.md`.
 
 ---
 

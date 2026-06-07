@@ -182,7 +182,7 @@ async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | null | 'vaci
         if (!panel.regionId) return 'vacio';
         // VISIBILIDAD = MANDO: el negocio tiene su sucursal MATRIZ (es_principal) en una
         // ciudad de mi región (EXISTS correlacionado, NO duplica filas). Deduce la región
-        // desde la ciudad; ya no lee `negocios.region_id` (se elimina en el Paso 10).
+        // desde la ciudad; ya no lee `negocios.region_id` (se eliminó en el Paso 10).
         // ⚠️ DEBE COINCIDIR con el MANDO de `cargarNegocioConAlcance` en
         // negocios-acciones.service.ts (mismo predicado matriz → ciudad → región). Si tocas
         // uno, toca el otro.
@@ -453,7 +453,7 @@ export async function obtenerDetalleNegocio(
     }
 
     // Región DEDUCIDA de la sucursal MATRIZ (es_principal → ciudad → región).
-    // Ya no se lee `negocios.region_id` (se elimina en el Paso 10).
+    // Ya no se lee `negocios.region_id` (se eliminó en el Paso 10).
     let regionId: string | null = null;
     let regionNombre: string | null = null;
     const filasRegion = (await db.execute(sql`

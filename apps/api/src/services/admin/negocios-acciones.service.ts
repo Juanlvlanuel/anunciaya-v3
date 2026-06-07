@@ -290,7 +290,7 @@ export async function reasignarVendedor(
     const ahora = new Date().toISOString();
     const [act] = await db
         .update(negocios)
-        // Solo cambia el vendedor (dinero). Ya NO escribe region_id (se elimina en el Paso 10).
+        // Solo cambia el vendedor (dinero). Ya NO escribe region_id (se eliminó en el Paso 10).
         .set({ embajadorId, updatedAt: ahora })
         .where(eq(negocios.id, negocioId))
         .returning({
