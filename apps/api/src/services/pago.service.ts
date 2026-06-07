@@ -474,16 +474,16 @@ interface DatosRegistroRedis {
  * impedir una venta; ante cualquier duda, el negocio entra con embajador null.
  *
  * @param codigo - Código de referido capturado del link `?ref=`
- * @returns { embajadorId, regionId } o null si no se pudo atribuir
+ * @returns { embajadorId } o null si no se pudo atribuir
  */
 async function resolverEmbajadorPorCodigo(
     codigo: string | undefined | null
-): Promise<{ embajadorId: string; regionId: string } | null> {
+): Promise<{ embajadorId: string } | null> {
     if (!codigo) return null;
 
     try {
         const [embajador] = await db
-            .select({ id: embajadores.id, regionId: embajadores.regionId })
+            .select({ id: embajadores.id })
             .from(embajadores)
             .where(and(
                 eq(embajadores.codigoReferido, codigo),
@@ -496,7 +496,8 @@ async function resolverEmbajadorPorCodigo(
             return null;
         }
 
-        return { embajadorId: embajador.id, regionId: embajador.regionId };
+        // Solo el embajador (dinero/atribución). La región del negocio se deduce de su ciudad.
+        return { embajadorId: embajador.id };
     } catch (error) {
         // Ante cualquier fallo al resolver, NO romper el registro: sin atribución.
         console.error('❌ Error resolviendo embajador por código:', error);
@@ -588,7 +589,7 @@ async function manejarCheckoutCompletado(
     // -------------------------------------------------------------------------
     // El código viaja en la metadata de la sesión de Stripe. Si no resuelve,
     // `atribucion` es null y tanto el usuario como el negocio quedan sin
-    // vendedor (referidoPor / embajadorId / regionId en null).
+    // vendedor (referidoPor / embajadorId en null; la región se deduce de la ciudad).
     const atribucion = await resolverEmbajadorPorCodigo(metadata.codigoReferido);
     if (atribucion) {
         console.log('🤝 Atribución al embajador:', atribucion.embajadorId);
@@ -635,7 +636,8 @@ async function manejarCheckoutCompletado(
             verificado: false,
             participaPuntos: false,
             embajadorId: atribucion?.embajadorId ?? null, // Vendedor que trajo el negocio
-            regionId: atribucion?.regionId ?? null,        // Región del vendedor
+            // La región se DEDUCE de la ciudad de la(s) sucursal(es); ya no se escribe aquí
+            // (negocios.region_id se elimina en el Paso 10).
         })
         .returning();
 

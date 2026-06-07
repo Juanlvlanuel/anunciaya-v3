@@ -14,17 +14,17 @@
  *
  * Región (una fuente por rol, sin duplicar):
  *   - gerente  → usuarios.region_id
- *   - vendedor → embajadores.region_id
+ *   - vendedor → embajador_ciudades (deducida; el trigger garantiza una sola región)
  *   - superadmin → null (ve todo)
  *
  * Ubicación: apps/api/src/middleware/panel.middleware.ts
  */
 
 import type { Request, Response, NextFunction } from 'express';
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
-import { usuarios, embajadores } from '../db/schemas/schema.js';
+import { usuarios } from '../db/schemas/schema.js';
 import { verificarAccessToken } from '../utils/jwt.js';
 
 export type RolEquipo = 'superadmin' | 'gerente' | 'vendedor';
@@ -121,12 +121,18 @@ export function requierePanel(
         if (u.rolEquipo === 'gerente') {
             regionId = u.regionId ?? null;
         } else if (u.rolEquipo === 'vendedor') {
-            const [emb] = await db
-                .select({ regionId: embajadores.regionId })
-                .from(embajadores)
-                .where(eq(embajadores.usuarioId, usuarioId))
-                .limit(1);
-            regionId = emb?.regionId ?? null;
+            // La región del vendedor se DEDUCE de las ciudades que cubre (embajador_ciudades),
+            // ya no de embajadores.region_id (eliminada en el Paso 10). El trigger garantiza
+            // una sola región por vendedor, así que basta una fila.
+            const filas = (await db.execute(sql`
+                SELECT c.region_id::text AS region_id
+                FROM embajadores e
+                JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+                JOIN ciudades c ON c.id = ec.ciudad_id
+                WHERE e.usuario_id = ${usuarioId}
+                LIMIT 1
+            `)).rows as Array<{ region_id: string }>;
+            regionId = filas[0]?.region_id ?? null;
         }
 
         req.usuarioPanel = {

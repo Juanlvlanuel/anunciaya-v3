@@ -14,6 +14,7 @@
 
 import { eq, and, sql, inArray } from 'drizzle-orm';
 import { db } from '../db';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import {
     negocios,
     asignacionSubcategorias,
@@ -305,6 +306,7 @@ export const actualizarSucursal = async (
             .update(negocioSucursales)
             .set({
                 ciudad: data.ciudad,
+                ciudadId: await resolverCiudadId(data.ciudad), // resuelve texto → ciudad_id (por slug)
                 estado: data.estado,
                 direccion: data.direccion,
                 ubicacion: sql`ST_GeogFromText(${ubicacionPostGIS})`,
@@ -1142,6 +1144,7 @@ export const crearSucursal = async (
 				negocioId,
 				nombre: datos.nombre,
 				ciudad: datos.ciudad,
+				ciudadId: await resolverCiudadId(datos.ciudad), // resuelve texto → ciudad_id (por slug)
 				estado: datos.estado,
 				direccion: datos.direccion || null,
 				telefono: datos.telefono || null,

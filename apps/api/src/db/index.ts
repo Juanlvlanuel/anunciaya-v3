@@ -5,9 +5,15 @@ import * as schema from './schemas/schema.js';
 
 const { Pool } = pg;
 
-// Pool de conexiones a PostgreSQL
+// Pool de conexiones a PostgreSQL.
+// Límites conservadores para no saturar el pooler de Supabase (session mode, ~15 conexiones
+// TOTALES para todo el proyecto): pocas conexiones por proceso + liberación de las inactivas.
+// Así los reinicios del watcher (tsx) en dev no acumulan conexiones zombi.
 const pool = new Pool({
   connectionString: getDatabaseUrl(),
+  max: 5,                          // máx. conexiones por proceso (el default de pg es 10)
+  idleTimeoutMillis: 10_000,       // cierra conexiones inactivas a los 10 s
+  connectionTimeoutMillis: 10_000, // falla rápido si no hay conexión libre (en vez de colgarse)
 });
 
 // Bandera para mostrar mensaje solo una vez
@@ -32,3 +38,20 @@ export const db = drizzle(pool, {
 });
 
 export { pool };
+
+// Cierre limpio del pool al apagar/reiniciar el proceso (incluido el restart del watcher
+// `tsx` en dev): libera las conexiones en el pooler de Supabase para no dejar sesiones zombi
+// que agoten el límite (session mode). Sin esto, un proceso muerto abruptamente deja
+// conexiones colgadas hasta que el pooler las detecte (minutos).
+let cerrandoPool = false;
+async function cerrarPool(): Promise<void> {
+  if (cerrandoPool) return;
+  cerrandoPool = true;
+  try {
+    await pool.end();
+  } catch {
+    // ignorar errores al cerrar el pool
+  }
+}
+process.once('SIGTERM', () => { void cerrarPool().finally(() => process.exit(0)); });
+process.once('SIGINT', () => { void cerrarPool().finally(() => process.exit(0)); });

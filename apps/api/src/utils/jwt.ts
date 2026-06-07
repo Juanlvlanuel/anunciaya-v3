@@ -30,7 +30,7 @@ export interface PayloadToken {
   // Rol de equipo del Panel Admin (null = usuario normal). El frontend lo usa
   // para decidir el destino al iniciar sesión; el backend revalida en BD.
   rolEquipo?: string | null; // 'superadmin' | 'gerente' | 'vendedor' | null
-  // Región del equipo (gerente: usuarios.region_id; vendedor: embajadores.region_id).
+  // Región del equipo (gerente: usuarios.region_id; vendedor: deducida de embajador_ciudades).
   regionId?: string | null;
   // Marca de "este token pasó el 2FA del Panel". Solo la ponen los tokens emitidos
   // por /api/admin/2fa/verificar; el refresh la propaga. El gate del Panel la exige

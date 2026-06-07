@@ -2,23 +2,21 @@
 import { pgTable, check, integer, varchar, type AnyPgColumn, index, uniqueIndex, foreignKey, unique, uuid, boolean, smallint, timestamp, numeric, text, date, serial, time, jsonb, bigserial, bigint, primaryKey } from "drizzle-orm/pg-core"
 import { sql } from "drizzle-orm"
 
+// `regiones` es un AGRUPADOR de ciudades (no una entidad con ubicación): el estado y
+// el país viven en `ciudades`. Solo: id, nombre (único), activa, created_at.
 export const regiones = pgTable("regiones", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	nombre: varchar({ length: 100 }).notNull(),
-	estado: varchar({ length: 100 }).notNull(),
-	pais: varchar({ length: 100 }).default('México').notNull(),
 	activa: boolean().default(true).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_regiones_activa").using("btree", table.activa.asc().nullsLast()).where(sql`(activa = true)`),
-	index("idx_regiones_estado").using("btree", table.estado.asc().nullsLast()),
-	unique("regiones_nombre_estado_unique").on(table.nombre, table.estado),
+	unique("regiones_nombre_unique").on(table.nombre),
 ]);
 
 export const embajadores = pgTable("embajadores", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
-	regionId: uuid("region_id").notNull(),
 	codigoReferido: varchar("codigo_referido", { length: 50 }).notNull(),
 	porcentajePrimerPago: numeric("porcentaje_primer_pago", { precision: 5, scale: 2 }).default('30.00').notNull(),
 	porcentajeRecurrente: numeric("porcentaje_recurrente", { precision: 5, scale: 2 }).default('15.00').notNull(),
@@ -28,13 +26,7 @@ export const embajadores = pgTable("embajadores", {
 }, (table) => [
 	index("idx_embajadores_codigo").using("btree", table.codigoReferido.asc().nullsLast()),
 	index("idx_embajadores_estado").using("btree", table.estado.asc().nullsLast()).where(sql`((estado)::text = 'activo'::text)`),
-	index("idx_embajadores_region").using("btree", table.regionId.asc().nullsLast()),
 	uniqueIndex("idx_embajadores_usuario").using("btree", table.usuarioId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.regionId],
-		foreignColumns: [regiones.id],
-		name: "fk_embajadores_region"
-	}).onDelete("restrict"),
 	unique("embajadores_codigo_referido_key").on(table.codigoReferido),
 	check("embajadores_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'inactivo'::character varying, 'suspendido'::character varying])::text[])`),
 	check("embajadores_negocios_check", sql`negocios_registrados >= 0`),
@@ -97,7 +89,7 @@ export const usuarios = pgTable("usuarios", {
 	servicioTiempoRespuestaMinutos: integer("servicio_tiempo_respuesta_minutos"),
 	// Rol de equipo del Panel Admin (null = usuario normal). Capa encima de `perfil`.
 	rolEquipo: varchar("rol_equipo", { length: 20 }),
-	// Región del GERENTE (el vendedor usa embajadores.regionId; superadmin/normal = null).
+	// Región del GERENTE (el vendedor se deduce de embajador_ciudades; superadmin/normal = null).
 	regionId: uuid("region_id").references((): AnyPgColumn => regiones.id, { onDelete: 'set null' }),
 }, (table) => [
 	index("idx_usuarios_correo_verificado").using("btree", table.correoVerificado.asc().nullsLast()),
@@ -157,7 +149,6 @@ export const negocios = pgTable("negocios", {
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	mesesGratisRestantes: integer("meses_gratis_restantes").default(0).notNull(),
 	embajadorId: uuid("embajador_id"),
-	regionId: uuid("region_id"),
 	onboardingCompletado: boolean("onboarding_completado").default(false).notNull(),
 	participaPuntos: boolean('participa_puntos').default(true).notNull(),
 	fechaPrimerPago: date("fecha_primer_pago"),
@@ -178,18 +169,12 @@ export const negocios = pgTable("negocios", {
 	index("idx_negocios_fecha_primer_pago").using("btree", table.fechaPrimerPago.asc().nullsLast()).where(sql`(fecha_primer_pago IS NOT NULL)`),
 	index("idx_negocios_meses_gratis").using("btree", table.mesesGratisRestantes.asc().nullsLast()).where(sql`(meses_gratis_restantes > 0)`),
 	index("idx_negocios_onboarding").using("btree", table.onboardingCompletado.asc().nullsLast()).where(sql`(onboarding_completado = false)`),
-	index("idx_negocios_region").using("btree", table.regionId.asc().nullsLast()).where(sql`(region_id IS NOT NULL)`),
 	index("idx_negocios_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
 	index("idx_negocios_estado_membresia").using("btree", table.estadoMembresia.asc().nullsLast()),
 	foreignKey({
 		columns: [table.embajadorId],
 		foreignColumns: [embajadores.id],
 		name: "fk_negocios_embajador"
-	}).onDelete("set null"),
-	foreignKey({
-		columns: [table.regionId],
-		foreignColumns: [regiones.id],
-		name: "fk_negocios_region"
 	}).onDelete("set null"),
 	foreignKey({
 		columns: [table.usuarioId],
@@ -228,6 +213,9 @@ export const negocioSucursales = pgTable("negocio_sucursales", {
 	esPrincipal: boolean('es_principal').default(false).notNull(),
 	direccion: varchar({ length: 250 }),
 	ciudad: varchar({ length: 120 }).notNull(),
+	// FK a `ciudades` (catálogo). La columna ya existe en BD (migración del Paso 4); la
+	// región se deduce ciudad_id → ciudades.region_id. El texto `ciudad` se conserva.
+	ciudadId: uuid("ciudad_id"),
 	estado: varchar({ length: 100 }).notNull().default('Por configurar'),
 	ubicacion: text("ubicacion"),
 	telefono: varchar({ length: 20 }),

@@ -14,6 +14,7 @@
 
 import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import {
     negocios,
     asignacionSubcategorias,
@@ -523,7 +524,10 @@ export const guardarBorradorSucursal = async (
         };
 
         // Actualiza si viene el campo (permite null o string)
-        if (data.ciudad !== undefined) updateData.ciudad = data.ciudad || null;
+        if (data.ciudad !== undefined) {
+            updateData.ciudad = data.ciudad || null;
+            updateData.ciudadId = await resolverCiudadId(data.ciudad); // texto → ciudad_id (por slug)
+        }
         if (data.estado !== undefined) updateData.estado = data.estado || null;
         if (data.direccion !== undefined) updateData.direccion = data.direccion || null;
         if (data.zonaHoraria !== undefined) updateData.zonaHoraria = data.zonaHoraria || null;

@@ -20,7 +20,7 @@ import { env } from '../config/env.js';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
-import { usuarios, usuarioCodigosRespaldo, negocios, embajadores } from '../db/schemas/schema.js';
+import { usuarios, usuarioCodigosRespaldo, negocios } from '../db/schemas/schema.js';
 import { obtenerDatosNegocio, DatosNegocio } from './negocios.service.js';
 import { estaFueraDeCirculacion, clasificarCirculacion, mensajeBloqueoModoComercial } from '../utils/estadoNegocio.js';
 import {
@@ -48,7 +48,7 @@ export async function resolverNegocioUsuarioId(negocioId: string | null, sucursa
 
 /**
  * Resuelve la región del miembro de equipo según su rol (una fuente por rol):
- * gerente → usuarios.region_id · vendedor → embajadores.region_id · resto → null.
+ * gerente → usuarios.region_id · vendedor → embajador_ciudades (deducida) · resto → null.
  * Para usuarios normales (rolEquipo null) retorna null sin tocar la BD.
  */
 export async function resolverRegionEquipo(
@@ -56,12 +56,18 @@ export async function resolverRegionEquipo(
 ): Promise<string | null> {
   if (usuario.rolEquipo === 'gerente') return usuario.regionId ?? null;
   if (usuario.rolEquipo === 'vendedor') {
-    const [emb] = await db
-      .select({ regionId: embajadores.regionId })
-      .from(embajadores)
-      .where(eq(embajadores.usuarioId, usuario.id))
-      .limit(1);
-    return emb?.regionId ?? null;
+    // La región del vendedor se DEDUCE de las ciudades que cubre (embajador_ciudades);
+    // ya no se lee embajadores.region_id (se elimina en el Paso 10). La cobertura es de
+    // una sola región (lo garantiza el trigger), así que basta una fila.
+    const filas = (await db.execute(sql`
+      SELECT c.region_id::text AS region_id
+      FROM embajadores e
+      JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+      JOIN ciudades c ON c.id = ec.ciudad_id
+      WHERE e.usuario_id = ${usuario.id}
+      LIMIT 1
+    `)).rows as Array<{ region_id: string }>;
+    return filas[0]?.region_id ?? null;
   }
   return null; // superadmin o usuario normal
 }
