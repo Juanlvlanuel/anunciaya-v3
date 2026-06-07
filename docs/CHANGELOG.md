@@ -8,6 +8,27 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [7 Junio 2026] - Panel Admin · Migración ciudad↔región, Entrega 2 (Parada 2), filtro de región y sucursales 🗺️🏪
+
+Tanda grande del Panel Admin, **commiteada en dev (4 commits locales, sin push)**. tsc + lint en verde (`apps/api` y `apps/admin`).
+
+**Migración ciudad↔región** (cimiento de territorio). Se separan dos conceptos antes mezclados en `regiones`:
+- Nueva tabla `ciudades` (catálogo real, poblada desde `ciudadesPopulares`) + `embajador_ciudades` (cobertura del vendedor, 1+ ciudades de **una misma región**, con trigger) + `negocio_sucursales.ciudad_id`.
+- `regiones` adelgazada a agrupador (sin `estado`/`pais`, `unique(nombre)`). La región se **deduce** ciudad→región; nadie la guarda a mano (salvo `usuarios.region_id` del gerente).
+- **Paso 10 (código):** retiradas `negocios.region_id` y `embajadores.region_id` del schema/relations/middleware (región del vendedor del Panel → `embajador_ciudades`). **SQL `DROP` pendiente** (`docs/migraciones/paso10-drop-region-id-viejas.sql`).
+
+**Alcance del Panel por matriz.** La visibilidad pasó de "cualquier sucursal" a **solo la sucursal matriz** (`es_principal`): un negocio aparece solo en la región de su matriz; **visibilidad = mando**. `listarCiudades` del gerente y "Sin ciudad" del filtro también se alinearon.
+
+**Sección Negocios — Entrega 2 (Parada 2, con Stripe):** **Marcar pagado** (solo SuperAdmin; plazo + toggle de `pause_collection`) y **Cancelar** (solo SuperAdmin; corta Stripe + degrada al dueño a personal + devuelve puntos, fuente de verdad síncrona). Pausar/Reactivar alineadas con Stripe.
+
+**Filtro global de región del superadmin + región en el header.** Gerente/vendedor ven el nombre real de su región (`/api/admin/yo` → `regionNombre`). SuperAdmin: selector con regiones reales (`GET /api/admin/regiones`) que acota TODO el Panel (`?regionId=`, lente de visibilidad, persistente; conserva sus acciones — `panelConFiltroRegion`).
+
+**Sucursales en tabla/ficha (escritorio + móvil).** Columna "Sucursales" Sí/No expandible (subquery escalar, sin romper el conteo) → filas de secundarias (ciudad·región) → **modal de detalle de sucursal** (`FichaSucursal`: Vendedor del negocio + **Gerente Asignado** `usuarios.sucursal_asignada` + datos de la sucursal; sin membresía ni acciones). Endpoints `GET /admin/negocios/:id/sucursales` (+ `/:sucursalId`).
+
+**Apoyo:** fix del pool de conexiones (`db/index.ts`), scripts de seed (dev), consolidación del catálogo de ciudades en `packages/shared` (Camino A). Sin push; el SQL del Paso 10 y de la migración quedan para ejecutar.
+
+---
+
 ## [5 Junio 2026] - Negocio fuera de circulación · Grupos 2/3/4 (contenido, interacción, avisos) 🔒
 
 Cierre de los últimos rincones del tema "negocio fuera de circulación" (los que NO miraban
