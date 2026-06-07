@@ -1,7 +1,7 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 4 Junio 2026
-> **Progreso global:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin** (diseño 100%, Fase 0 completa, frontend shell+login construido; construyendo las secciones internas).
+> **Última actualización:** 5 Junio 2026
+> **Progreso global:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin** (diseño 100%, Fase 0 completa, frontend shell+login en prod; **sección Negocios arrancada: Entrega 1 VER + Parada 1 de acciones en prod**). **Cerrado en paralelo:** frente transversal "negocio fuera de circulación" (toda salida de circulación apaga `negocios.activo`; candados en ScanYA/CardYA/ChatYA/Notificaciones/modo comercial; en prod).
 > **Fase actual:** Panel Admin **ANTES** de la beta (la beta necesita vendedores + cobros del Panel para operar).
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (4 secciones públicas) + `docs/arquitectura/Panel_Admin.md` (diseño completo del Panel: 3 niveles, motor de venta, comisiones, mapa v2).
 
@@ -23,7 +23,7 @@
 | **Business Studio** (5.4) | ✅ 100% (13/13 módulos) | Dashboard, Mi Perfil, Catálogo, Promociones, Puntos, Transacciones, Clientes, Opiniones, Alertas, Empleados, Reportes, Sucursales, **Vacantes** ✅ |
 | **Secciones Públicas** (6.x) | ✅ 100% (4/4) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest) · ✅ Home / Coyo Fase 1 + Cerebro IA + Fase 2 Comunidad + Polish UX (1 Jun 2026, ver `docs/arquitectura/Home_Coyo.md`) |
 | **Home — Pregúntale a Peñasco / Coyo** | ✅ Fase 1 + Cerebro IA + Comunidad + Polish UX | Feed conversacional + hero "Coyo te habla" + asistente Gemini 2.5-flash + **respuestas de la comunidad** + **"yo también quiero saber"** + **control del autor** (cerrar/editar/marcar resuelta/borrar) + **notificaciones cross-rol** (autor, interesados, dueños de items recomendados) + **expiración pasiva 14 días** + **tarjetas clicables** + **Coyo mini animado en card** + **botón Reintentar** ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`. |
-| **Panel Admin** (6.7) | ⏳ ~35% · **diseño 100%** | Diseño completo en `docs/arquitectura/Panel_Admin.md` (3 niveles: SuperAdmin → Gerente Regional → Vendedor; motor de venta tarjeta/efectivo; comisiones monto-fijo + escalera; mapa de territorios v2). **Fase 0 (cimientos) ✅ COMPLETA (dev + producción):** atribución vendedor↔negocio, estado de membresía (5 columnas + ciclo 4 estados + cron de gracia), webhook de renovaciones, configs conectadas (helper `obtenerConfig`, trial/gracia 14d), rol de equipo + auth del Panel (`requierePanel`), enforcement de `usuarios.estado`; superadmin sembrado en prod. **Frontend del Panel ✅ (dev):** app `apps/admin` con login + shell responsive (escritorio/móvil) + `GET /api/admin/yo` + **cabos del shell cerrados** (recuperar contraseña, refresh token automático, **2FA del Panel TOTP en la puerta — opcional para los 3 roles**). **En curso:** las 11 secciones internas + despliegue (Vercel + subdominio `admin.anunciaya.mx`). |
+| **Panel Admin** (6.7) | ⏳ ~45% · **diseño 100%** | Diseño completo en `docs/arquitectura/Panel_Admin.md` (3 niveles: SuperAdmin → Gerente Regional → Vendedor; motor de venta tarjeta/efectivo; comisiones monto-fijo + escalera; mapa de territorios v2). **Fase 0 (cimientos) ✅ COMPLETA (dev + producción):** atribución vendedor↔negocio, estado de membresía (5 columnas + ciclo 4 estados + cron de gracia), webhook de renovaciones, configs conectadas (helper `obtenerConfig`, trial/gracia 14d), rol de equipo + auth del Panel (`requierePanel`), enforcement de `usuarios.estado`; superadmin sembrado en prod. **Frontend del Panel ✅ (prod):** app `apps/admin` con login + shell responsive (escritorio/móvil) + `GET /api/admin/yo` + **cabos del shell cerrados** (recuperar contraseña, refresh token automático, **2FA del Panel TOTP en la puerta — opcional para los 3 roles**). **Sección Negocios ✅ arrancada (prod):** Entrega 1 (VER: tabla + ficha, solo lectura, alcance por rol, componentes base `ModalAdaptativo`+`useBackNativo`) + Entrega 2 **Parada 1** (acciones sin Stripe: suspender, reactivar, reasignar vendedor + migración `estado_admin`/`metodo_cobro`/`admin_auditoria` + auditoría + guard del webhook). **En curso:** Negocios Parada 2 (marcar pagado + cancelar, con Stripe, solo SuperAdmin) + resto de secciones internas + despliegue (Vercel + subdominio `admin.anunciaya.mx`). |
 | **Lanzamiento Beta** (7.x) | ⏳ 50% | **Va DESPUÉS del Panel** (necesita vendedores + cobros). Stripe LIVE (config de reintentos/correos hecha en TEST; falta verificar empresa + replicar en producción), dominio, testing, beta 50 negocios |
 
 ---
@@ -42,7 +42,8 @@
 - [x] **Sección pública Servicios v1.1** ✅ (17 May 2026 — Sprints 7+8 cerrados: feed mezclado con widget de Clasificados, wizard 3 pasos para crear/editar, Mis Publicaciones, cron de expiración 30 días, reseñas, perfil del prestador con distribución de estrellas, moderación pasiva, **+ BS Vacantes (módulo en Business Studio para que negocios publiquen vacantes corporativas)**, 65 tests Vitest)
 - [x] **Home con Pregúntale a Peñasco + Coyo (Fase 1 + Cerebro IA)** ✅ (24 May 2026 — feed conversacional con hero "Coyo te habla", asistente con Gemini 2.5-flash que interpreta la pregunta, busca en las 4 áreas vía buscador unificado y redacta respuesta cálida; modelo "publicar al instante + sondeo cada 2s" sin socket. Detalle: `docs/arquitectura/Home_Coyo.md`.)
 - [x] **Home / Coyo — Fase 2 (Comunidad + Polish UX)** ✅ (1 Jun 2026 — el feed deja de ser solo "vecino → Coyo" y se vuelve "vecino → comunidad + Coyo". Respuestas de la comunidad en hilo plano, "Yo también quiero saber" con optimistic update, control del autor (cerrar/editar/marcar resuelta/borrar) con reglas estrictas, 3 tipos de notificación nuevos (al autor cuando responden, a interesados cuando responden, a dueños cuando Coyo recomienda su item con fallback gerente→dueño), expiración pasiva 14d sin cron, vista `/inicio/mis-preguntas`. Polish UX: tarjetas de Coyo clicables a su detalle + "Ver N más en X", Coyo Rive mini animado dentro de la card pensando, subtipos visuales `vaga` (ámbar) vs `no_local` (slate), empty state con 3 ejemplos, botón Reintentar ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`.)
-- [~] **Panel Admin** — diseño 100% (`Panel_Admin.md`); **Fase 0 completa (dev + prod)** + **frontend shell+login** (`apps/admin`) + `GET /api/admin/yo`. En curso: las secciones internas. **Va antes de la beta.**
+- [~] **Panel Admin** — diseño 100% (`Panel_Admin.md`); **Fase 0 completa (dev + prod)** + **frontend shell+login** (`apps/admin`) + `GET /api/admin/yo` + **sección Negocios arrancada (Entrega 1 VER + Parada 1 de acciones, en prod)**. En curso: Negocios Parada 2 + resto de secciones internas. **Va antes de la beta.**
+- [x] **Frente transversal "negocio fuera de circulación"** ✅ (5 Jun 2026 — toda salida de circulación apaga `negocios.activo`; candados en ScanYA, CardYA con devolución de puntos al cancelar, ChatYA, reseñas/guardar, notificaciones operativas y modo comercial del dueño; en prod, migraciones corridas)
 - [x] **Arreglos de seguridad** ✅ (4 Jun 2026 — onboarding + DELETE de imágenes, en producción)
 - [ ] Beta privada: 50 negocios piloto (después del Panel)
 - [ ] Lanzamiento público
@@ -86,12 +87,15 @@
 | Sprint 28 | **Home / Coyo — Fase 2 Sprint 2 (Polish UX)**: 4 sub-fases. (2.A) tarjetas de Coyo clicables al detalle (negocios/ofertas/marketplace/servicios) + "Ver N más en X" al pie de cada grupo que cablea `useSearchStore.setQuery(textoPregunta) + abrirBuscador() + navigate(seccion)`, (2.B) Coyo Rive mini animado dentro de la card "pensando" (nueva prop `align` en `CoyoAnimado`), + bonus: autor de pregunta no se autorresponde (frontend + 403 en backend), + 3er tipo de notificación `pregunta_comunidad_seguida_respondida` que avisa a los interesados ("yo también") cuando alguien responde (cumple la promesa "Te avisaremos" del botón), (2.C) polish: ocultar `⭐ 0.0` cuando totalReseñas=0, subtipos visuales para `no_aplica` ("Coyo sugiere" ámbar para preguntas vagas + "Coyo aclara" slate para no_local), empty state mejorado con 3 ejemplos, (2.D) botón "Reintentar" cuando Coyo cayó en `sin_respuesta` por errores transitorios de Gemini — solo visible al autor, reusa la pregunta sin crear una nueva. | 1 Jun 2026 |
 | Seguridad 1 | **Onboarding: guard de propiedad** — `verificarPropietarioNegocio` en rutas `/:negocioId` + `finalizar` usa `usuarioId` del token. En producción (`df54bb8`). Detalle en CHANGELOG. | 4 Jun 2026 |
 | Seguridad 2 | **DELETE de imágenes con guard** — logo (dueño), portada/foto-perfil (dueño o gerente), galería (cierre parcial). En producción (`c3d5951`). Detalle en CHANGELOG. | 4 Jun 2026 |
-| Panel F0-A | **Atribución vendedor↔negocio (Camino A)** — `?ref=` vía metadata Stripe → llena `embajadorId`/`regionId`/`referidoPor`; ref inválido nunca bloquea la venta. Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
-| Panel F0-B | **Estado de membresía + webhook de renovaciones** — 5 columnas en `negocios` + ciclo de 4 estados + cron de gracia. Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
+| Panel F0-A | **Atribución vendedor↔negocio (Camino A)** — `?ref=` vía metadata Stripe → llena `embajadorId`/`regionId`/`referidoPor`; ref inválido nunca bloquea la venta. En producción. Detalle en CHANGELOG. | 4 Jun 2026 |
+| Panel F0-B | **Estado de membresía + webhook de renovaciones** — 5 columnas en `negocios` + ciclo de 4 estados + cron de gracia. En producción. Detalle en CHANGELOG. | 4 Jun 2026 |
 | Panel F0-C | **Configs conectadas (Ronda 3)** — helper `obtenerConfig()` + clave `periodo_gracia_cobro_dias=14` + trial/gracia 7→14. Bloque de pagos completo. | 4 Jun 2026 |
 | Panel F0-D | **Rol de equipo + auth del Panel + enforcement de `usuarios.estado`** — `rol_equipo`/`region_id`, rol en JWT, `requierePanel` (revalida BD + región), gate dual, login bloquea cuentas no-activas. **Fase 0 completa; pusheada a prod + migraciones corridas + superadmin sembrado.** | 4 Jun 2026 |
-| Panel F1 | **Frontend del Panel: shell responsive + login** — app `apps/admin` (espejo de `apps/web`, puerto 3100), login real + `GET /api/admin/yo`, shell escritorio/móvil, tema claro/oscuro, sesión aislada (`ayadmin_`). Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
-| Panel F1.1 | **Cabos del shell** — recuperar contraseña (código 6 dígitos), refresh token automático, y **2FA del Panel TOTP en la puerta** (claim `panel2fa` + columnas `panel_2fa_*`, opcional para los 3 roles; migración corrida dev + prod). Solo dev. Detalle en CHANGELOG. | 4 Jun 2026 |
+| Panel F1 | **Frontend del Panel: shell responsive + login** — app `apps/admin` (espejo de `apps/web`, puerto 3100), login real + `GET /api/admin/yo`, shell escritorio/móvil, tema claro/oscuro, sesión aislada (`ayadmin_`). En producción. Detalle en CHANGELOG. | 4 Jun 2026 |
+| Panel F1.1 | **Cabos del shell** — recuperar contraseña (código 6 dígitos), refresh token automático, y **2FA del Panel TOTP en la puerta** (claim `panel2fa` + columnas `panel_2fa_*`, opcional para los 3 roles; migración corrida dev + prod). En producción. Detalle en CHANGELOG. | 4 Jun 2026 |
+| Panel Neg-1 | **Sección Negocios — Entrega 1 (VER)** — tabla (nombre/ciudad/vendedor/estado de pago/próximo cobro/alta) + buscador + filtros (estado con conteos, vendedor, ciudad) + orden + paginado de servidor; ficha administrativa (modal/bottom-sheet) con alcance por rol; componentes base `ModalAdaptativo`+`useBackNativo`. Recalcada con diseño de Claude Design. En producción. Detalle en CHANGELOG + `docs/reportes/REPORTE_Negocios_Entrega1_VER.md`. | 5 Jun 2026 |
+| Panel Neg-2.1 | **Sección Negocios — Entrega 2 Parada 1 (acciones sin Stripe)** — suspender (super+gerente; `estado_admin='suspendido'`+`activo=false`, motivo obligatorio), reactivar, reasignar vendedor; migración `negocios.metodo_cobro`+`estado_admin`+tabla `admin_auditoria`; guard en webhook (un pago no revive suspensión manual). En producción (migración corrida en prod). Pendiente: Parada 2 (marcar pagado + cancelar, con Stripe). Detalle en CHANGELOG. | 5 Jun 2026 |
+| Transversal | **Negocio "fuera de circulación" en toda la app** — `negocios.activo=false` como única verdad de visibilidad (helper `estadoNegocio.ts`). Raíz: impago y cancelación ahora apagan `activo`; el pago reaparece respetando `estado_admin`. Candados: ScanYA (4 puntos), CardYA (canje + catálogo + devolución de puntos al cancelar + capa visual), modo comercial del dueño (bloqueo + toast + notificación persistente), vacantes de empresa, ChatYA (ambos lados + chat nuevo), reseñas/guardar, notificaciones operativas. En producción (migraciones corridas). Pendiente: probar Grupos 2-4 en dev + caso cancelado visual. Detalle en CHANGELOG + `docs/reportes/REPORTE_Tanda2_Negocio_Fuera_Circulacion.md`. | 5 Jun 2026 |
 
 > Detalle completo en el CHANGELOG.
 
@@ -131,11 +135,13 @@
 
 ## ⏭️ Sprint siguiente: Panel Admin (Fase 1 — secciones internas) → luego beta privada
 
-> Orden actualizado (4 Jun 2026): el Panel Admin va **antes** de la beta. **Fase 0
-> (cimientos) ✅ completa (dev + prod)** y el **frontend del Panel (shell + login) ✅
-> construido** (`apps/admin` + `GET /api/admin/yo`). Frente activo: las **secciones
-> internas** del Panel (Negocios, Usuarios, Suscripciones, Vendedores + comisiones,
-> Equipo y accesos…) + despliegue (Vercel + subdominio), y recién entonces la beta.
+> Orden actualizado (5 Jun 2026): el Panel Admin va **antes** de la beta. **Fase 0
+> (cimientos) ✅ completa (dev + prod)**, el **frontend del Panel (shell + login) ✅
+> en prod** (`apps/admin` + `GET /api/admin/yo`), y la **sección Negocios ✅ arrancada
+> (Entrega 1 VER + Parada 1 de acciones, en prod)**. Frente activo: **Negocios Parada 2**
+> (marcar pagado + cancelar, con Stripe) y el **resto de secciones internas** (Usuarios,
+> Suscripciones, Vendedores + comisiones, Equipo y accesos…) + despliegue (Vercel +
+> subdominio), y recién entonces la beta.
 
 ---
 
@@ -228,7 +234,7 @@
 
 **Orden de construcción (fases):**
 - **Fase 0 — Cimientos ✅ COMPLETA (dev + prod):** atribución · estado de membresía · webhook renovaciones + cron gracia · configs conectadas (helper `obtenerConfig`, trial/gracia 14d) · enforcement `usuarios.estado` · rol de equipo + auth del Panel (`requierePanel`). + **Frontend: shell + login (`apps/admin`) y `GET /api/admin/yo` ✅ (dev).**
-- **Fase 1 — Motor:** Negocios · Usuarios · Suscripciones · Vendedores+comisiones · Equipo y accesos.
+- **Fase 1 — Motor:** **Negocios ✅ arrancada (Entrega 1 VER + Parada 1 de acciones, en prod; falta Parada 2: marcar pagado + cancelar con Stripe)** · Usuarios · Suscripciones · Vendedores+comisiones · Equipo y accesos.
 - **Fase 1.5 — Operación:** Métricas · Resumen · Ciudades (migración de ciudades hardcodeadas a BD) · Configuración · Publicidad.
 - **Fase 2 — Vendedores v2:** mapa de territorios.
 
@@ -357,7 +363,7 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 ## 📅 Próxima Revisión
 
 **Fecha:** Al cerrar las primeras secciones internas del Panel Admin.
-**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin, antes de la beta. Fase 0 (cimientos) ✅ completa (dev + prod) + frontend shell+login ✅** (`apps/admin` + `GET /api/admin/yo`). En curso: las secciones internas del Panel. Después: beta privada en Puerto Peñasco (50 negocios) con vendedores ya operando.
+**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2). **Frente activo: Panel Admin, antes de la beta. Fase 0 (cimientos) ✅ completa (dev + prod) + frontend shell+login ✅ (en prod) + sección Negocios ✅ arrancada (Entrega 1 VER + Parada 1 de acciones)** (`apps/admin` + `GET /api/admin/yo`). Cerrado en paralelo: frente transversal "negocio fuera de circulación" (en prod). En curso: Negocios Parada 2 + resto de secciones internas. Después: beta privada en Puerto Peñasco (50 negocios) con vendedores ya operando.
 
 ---
 

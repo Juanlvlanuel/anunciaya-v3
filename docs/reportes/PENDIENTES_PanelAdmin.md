@@ -2,7 +2,7 @@
 
 > Checklist de lo que falta para el Panel Admin y su sistema de vendedores/ventas.
 > El **diseño** vive en `Panel_Admin.md`; aquí está **lo que falta hacer**.
-> Última actualización: 4 Junio 2026.
+> Última actualización: 7 Junio 2026.
 >
 > Leyenda: 🔴 bloqueante / base · 🟡 importante · 🟢 mejora · ✅ hecho
 
@@ -29,11 +29,11 @@
   - [ ] 🟡 **Despliegue del Panel** — proyecto Vercel propio (Root `apps/admin`) + subdominio `admin.anunciaya.mx` + sumar el origen al CORS de `apps/api` (prod).
 - **Sección Negocios** — se construye por entregas:
   - [x] ✅ **Entrega 1 (VER, solo lectura)** — tabla (nombre/ciudad/vendedor/estado de pago/próximo cobro/alta) con buscador + filtros (estado con conteos, vendedor, ciudad) + orden + paginado de servidor; **ficha administrativa** (modal en escritorio / bottom-sheet en móvil) con alcance por rol. Componentes base reutilizables del Panel creados (`ModalAdaptativo` + `useBackNativo`). 5 Jun 2026, dev, **sin push**. Detalle: `docs/reportes/REPORTE_Negocios_Entrega1_VER.md`.
-  - [ ] 🟡 **Entrega 2 (ACTUAR)** — las 4 acciones con su lógica: **marcar pagado / reactivar manual** (solo SuperAdmin; pausa el cobro de Stripe con `pause_collection`), **suspender** (SuperAdmin + Gerente su región; suspensión manual que el webhook respeta), **cancelar** (solo SuperAdmin; soft-delete recuperable + corta Stripe + degrada la cuenta a personal), **reasignar vendedor** (SuperAdmin / Gerente su región, con auditoría). Requiere migraciones: `negocios.metodo_cobro`, marca de suspensión/archivado, tabla `admin_auditoria`. **NO existe "aprobar"** (Modelo A: publicación automática al pagar + onboarding).
+  - [x] ✅ **Entrega 2 (ACTUAR)** — las 4 acciones construidas en DEV (tsc/lint OK, sin push): **Marcar pagado** (solo SuperAdmin; diálogo con plazo por meses/fecha exacta + toggle condicional de `pause_collection`; `metodo_cobro` manual/tarjeta), **Pausar membresía** (antes "Suspender"; SuperAdmin + Gerente su región; oculta el negocio **+ pausa el cobro en Stripe** `pause_collection` behavior 'void' sin deuda; reactivar reanuda), **Cancelar** (solo SuperAdmin; soft-delete `estado_admin='archivado'` + corta Stripe + degrada al dueño a personal + devuelve puntos de vales — la acción del Panel es la fuente de verdad, síncrona e idempotente), **Reasignar vendedor** (SuperAdmin / Gerente su región; valida cobertura por `embajador_ciudades`; con auditoría). Migraciones ya aplicadas en dev: `negocios.metodo_cobro`, `negocios.estado_admin`, `admin_auditoria`. El alcance del Gerente usa el modelo nuevo ciudad↔región (visibilidad por sucursal / mando por matriz). **NO existe "aprobar"** (Modelo A).
 - [ ] 🟡 **Sección Usuarios** — ficha, suspender/bloquear (solo SuperAdmin), promover/degradar cuenta.
 - [ ] 🟡 **Sección Suscripciones** — precio, promos, meses gratis, historial, tiempos (gracia/trial). **Incluye: visibilidad del estado de membresía en el BS del negocio** (ver defensas del efectivo).
 - [ ] 🟡 **Sección Vendedores y comisiones** — alta/baja, regiones, escalera de comisiones, cortes de efectivo.
-  - [ ] 🟡 **Rediseñar la tabla `embajadores`** (hoy vacía, seguro modificar) — **quitar `porcentaje_primer_pago` y `porcentaje_recurrente`** (son del diseño viejo de %; la decisión es **monto fijo**). Revisar si `negocios_registrados` se guarda o se calcula (los contadores guardados se desincronizan). Mantener: `region_id` (= fuente de la región del vendedor), `codigo_referido`, `estado`. Hacer junto con el módulo de comisiones.
+  - [ ] 🟡 **Rediseñar la tabla `embajadores`** — **quitar `porcentaje_primer_pago` y `porcentaje_recurrente`** (diseño viejo de %; la decisión es **monto fijo**). Revisar si `negocios_registrados` se guarda o se calcula. **`region_id` ya NO es la fuente de la región del vendedor** — eso ahora sale de `embajador_ciudades`; la columna `embajadores.region_id` se elimina en el **Paso 10** de la migración ciudad↔región. Mantener: `codigo_referido`, `estado`. Hacer junto con el módulo de comisiones.
 - [ ] 🟡 **Sección Equipo y accesos** — crear/administrar cuentas internas (los 3 niveles).
 
 ---
@@ -42,9 +42,31 @@
 
 - [ ] 🟢 **Métricas globales** — lo medible hoy (la analítica de comportamiento es proyecto aparte).
 - [ ] 🟢 **Resumen / inicio** — tablero con números gruesos.
-- [ ] 🟡 **Ciudades** — migrar la lista hardcodeada (`data/ciudadesPopulares`) a BD + UI para habilitar ciudades sin código + que el buscador lea de BD.
+- [ ] 🟡 **Ciudades — UI del Panel** — la migración a BD **ya está hecha** (tabla `ciudades` poblada; ver §Migración ciudad↔región). Falta: **UI** para habilitar/agrupar ciudades en regiones sin código, y que el buscador del onboarding lea de BD (hoy lee del catálogo + mapea a `ciudad_id` al guardar).
+  - [ ] 🟡 **Consolidar el catálogo de ciudades (Camino B — cierre)** — el **Camino A ya se hizo**: `packages/shared/.../ciudadesPopulares.ts` se completó (= web, con Sonoyta + `estadosMexico` + `buscarEstados`) y el seed de ciudades lee de shared; el duplicado de `web` sigue vivo pero **sin descuadre**. **Falta el Camino B:** convertir `apps/web/.../ciudadesPopulares.ts` en re-export de `@anunciaya/shared` + alias `@anunciaya/shared` en `apps/web/vite.config.ts` + dep `workspace:*` en `apps/web/package.json` (los 8 importadores no cambian). Validar con `pnpm --filter @anunciaya/web build`. Riesgo bajo-medio (toca el bundler de web).
 - [ ] 🟢 **Configuración** — UI para editar las configs (ya con el helper de la Ronda 3).
 - [ ] 🟡 **Publicidad** — carruseles por ciudad, precios configurables, opción "todas las ciudades", métricas de ingresos.
+
+---
+
+## 🏙️ Migración ciudad↔región (cimiento del modelo de territorio)
+
+> Separa **ciudad** (lugar concreto) de **región** (agrupador de ciudades). Modelo y reglas en `Panel_Admin.md` §Concepto de "región" y "ciudad". Construido en DEV (sin push).
+
+- [x] ✅ **Paso 1** — tabla `ciudades` (nombre/estado/pais/`slug` único/coords/alias/importancia/activa/region_id).
+- [x] ✅ **Paso 2** — `ciudades` poblada (70) desde `ciudadesPopulares` de `packages/shared`, por slug (`seed-ciudades.ts`).
+- [x] ✅ **Paso 3** — tabla `embajador_ciudades` (PK compuesta) + trigger "una sola región".
+- [x] ✅ **Paso 4** — `negocio_sucursales.ciudad_id` (FK → ciudades, nullable).
+- [x] ✅ **Paso 5** — `regiones` adelgazada (sin `estado`/`pais`, `unique(nombre)`); 2 regiones de ejemplo (Sonora-Norte = Peñasco+Sonoyta, Sonora-Centro = Caborca); regiones-ciudad viejas borradas.
+- [x] ✅ **Paso 6** — texto `negocio_sucursales.ciudad` → `ciudad_id` por slug (41/43; 2 quedan null por "Por configurar"/NULL).
+- [x] ✅ **Paso 7** — `embajador_ciudades` poblada (Vendedor Prueba cubre Peñasco+Sonoyta).
+- [x] ✅ **Paso 8** — alcance del Panel deducido por sucursal→ciudad→región (**visibilidad** `EXISTS` por sucursal; **mando** por matriz); atribución sin región (checkout/reasignar dejan de escribir `region_id`); región del vendedor deducida de `embajador_ciudades`.
+- [x] ✅ **Paso 9** — onboarding/sucursales resuelven y guardan `ciudad_id` al guardar la ubicación (helper `resolverCiudadId` por slug). El texto `ciudad` se conserva y se mantiene en sincronía.
+- [ ] 🔴 **Paso 10 (pendiente)** — `DROP COLUMN` de `negocios.region_id` y `embajadores.region_id` (+ quitarlas de `schema.ts`). Ya nadie las usa; es la limpieza final. Hacer tras probar el Panel a fondo (snapshot antes).
+- [ ] 🟢 **Fase 2 (futuro)** — migrar las **lecturas** de `negocio_sucursales.ciudad` (texto) a `ciudad_id → ciudades.nombre` (feed público, perfil de sucursal, ScanYA, ofertas/servicios…) para algún día eliminar la columna de texto.
+- [x] ✅ **Apoyo — gerentes de prueba en DEV** — `gerente.norte@test.com` / `gerente.centro@test.com` (`seed-gerentes-dev.ts`) para validar permisos.
+- [x] ✅ **Apoyo — fix de pool de conexiones** — `db/index.ts` (`max:5` + `idleTimeoutMillis` + cierre del pool en SIGTERM/SIGINT) para que los reinicios del watcher en dev no agoten el pooler de Supabase (session mode, 15 conexiones).
+- [x] ✅ **Apoyo — fix de caché del Panel entre sesiones** — `queryClient.clear()` en `cerrarSesion()`/`iniciarSesion()` del Panel (`useAuthPanelStore`), para no arrastrar datos del usuario previo al cambiar de sesión.
 
 ---
 
