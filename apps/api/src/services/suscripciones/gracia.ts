@@ -32,7 +32,8 @@ export async function suspenderGraciasVencidas(): Promise<{ suspendidos: number;
             // `activo=false` saca al negocio de circulación. Casi toda la app filtra
             // visibilidad por `activo`, así que con esto la suspensión por impago se
             // comporta igual que la manual. El MOTIVO sigue en `estado_membresia`.
-            .set({ estadoMembresia: 'suspendido', activo: false, updatedAt: ahora })
+            // `fechaProximoCobro=null`: ya suspendido, no habrá más intentos de cobro.
+            .set({ estadoMembresia: 'suspendido', activo: false, fechaProximoCobro: null, updatedAt: ahora })
             .where(
                 and(
                     eq(negocios.estadoMembresia, 'en_gracia'),

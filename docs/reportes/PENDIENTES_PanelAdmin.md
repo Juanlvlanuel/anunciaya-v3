@@ -10,7 +10,7 @@
 
 ## 🏗️ Fase 0 — Cimientos (antes de construir el Panel)
 
-- [x] ✅ **Atribución vendedor↔negocio (Camino A, tarjeta)** — `?ref=` por metadata Stripe → `embajadorId`/`regionId`/`referidoPor`. Probado en DEV. *(sin push a prod)*
+- [x] ✅ **Atribución vendedor↔negocio (Camino A, tarjeta)** — `?ref=` por metadata Stripe → `embajadorId`/`referidoPor` (región deducida de la ciudad; `regionId` se quitó en el Paso 10). Probado en DEV. *(sin push a prod)*
 - [x] ✅ **Estado de membresía** — 5 columnas en `negocios` + ciclo de 4 estados. Probado en DEV. *(sin push)*
 - [x] ✅ **Webhook de renovaciones + cron de gracia** — `invoice.*` + `subscription.*` + cron diario de suspensión. Probado en DEV. *(sin push)*
 - [x] ✅ **Ronda 3 — configs conectadas** — helper `obtenerConfig()` (3 funciones + cache 5min), clave nueva `periodo_gracia_cobro_dias=14`, trial 7→14, gracia 7→14. Probado en DEV (lee 14, fallback no truena). **Bloque de pagos COMPLETO.**
@@ -34,8 +34,19 @@
   - [x] ✅ **Alcance por matriz (refinamiento)** — la visibilidad del Panel pasó de "cualquier sucursal" a **solo matriz** (`es_principal`): un negocio aparece solo en la región de su matriz; visibilidad = mando. `listarCiudades` del gerente también por matriz; "Sin ciudad" del filtro solo para superadmin.
   - [x] ✅ **Filtro global de región del superadmin** — selector en el header con regiones reales (`GET /api/admin/regiones`) que acota TODO el Panel (`?regionId=`, lente de visibilidad solo en lecturas, persistente; el superadmin conserva sus acciones). Backend `panelConFiltroRegion()`; front `useFiltroRegion` + interceptor de axios.
   - [x] ✅ **Sucursales en tabla/ficha** — columna "Sucursales" Sí/No expandible (subquery escalar, no rompe el conteo) → filas de secundarias (ciudad·región, chip Inactiva) → **modal de detalle de sucursal** (`FichaSucursal`: Vendedor del negocio + **Gerente Asignado** `usuarios.sucursal_asignada` + datos de la sucursal; sin membresía ni acciones). Escritorio y móvil. Endpoints `GET /admin/negocios/:id/sucursales` + `/:sucursalId`.
+  - [ ] 🟡 **Mejoras pendientes de la Parada 2 (acciones con Stripe)** — detectadas en el diagnóstico de revisión (7 Jun 2026). El **Hallazgo 1 ya se corrigió** (los controllers de **Pausar/Reactivar** se tragaban `advertenciaStripe`: si Stripe fallaba al pausar/reanudar el cobro, la UI mostraba éxito normal y el dueño podía seguir cobrándose en silencio; ahora ambos reenvían `advertenciaStripe` igual que Marcar pagado/Cancelar). Quedan para verificar/endurecer antes de probar a fondo:
+    - [ ] 🟡 **Fecha de "Marcar pagado" vs webhook con suscripción** — en un negocio CON suscripción de Stripe, `marcarPagado` escribe `fecha_vencimiento`/`fecha_proximo_cobro = hasta`, pero al pausar/reanudar se dispara `customer.subscription.updated`, que los **sobrescribe** con el `current_period_end` real de Stripe (`pago.service.ts` → `manejarSuscripcionActualizada`). La fecha elegida a mano solo es durable en negocios **sin** suscripción. **Verificar en DEV** (marcar a una fecha lejana en un negocio con tarjeta y ver si sobrevive) y decidir si el handler debe respetar las fechas fijadas manualmente.
+    - [ ] 🟡 **Consistencia Cancelar manual ↔ webhook** — la cancelación manual del Panel pone `estado_admin='archivado'` (no toca `es_borrador`); el webhook `customer.subscription.deleted` pone `es_borrador=true` (no toca `estado_admin`). Según quién gane la carrera de timing (la limpieza de `stripe_subscription_id` se hace **al final** a propósito, vs. la llegada del webhook) el estado final difiere; además hay posible **doble notificación** "fuera de circulación" si ambos caminos corren en paralelo. Unificar campos/criterio entre los dos caminos.
+    - [ ] 🟢 **Transaccionalidad de Cancelar** — `cancelarNegocio` corta Stripe **primero** (irreversible) y luego hace varios UPDATE sueltos (degradar al dueño, archivar el negocio, revertir vouchers) sin transacción. Si un UPDATE falla tras el corte, queda estado parcial (Stripe cancelado / BD activa); es recuperable reintentando (la acción es idempotente) pero no automático. Evaluar envolver los pasos de BD en una transacción.
+    - [ ] 🟢 **Lock de servidor anti doble-click** — las 4 acciones validan estado con un guard (`409`) pero sin lock; dos requests **simultáneos** pasan el guard antes del primer write → no hay doble cobro ni doble devolución (todo es idempotente), pero sí posible doble auditoría / doble notificación. El botón del diálogo ya se deshabilita con `isPending` (mitiga el caso normal); endurecer en backend solo si se quiere blindar del todo.
 - [ ] 🟡 **Sección Usuarios** — ficha, suspender/bloquear (solo SuperAdmin), promover/degradar cuenta.
-- [ ] 🟡 **Sección Suscripciones** — precio, promos, meses gratis, historial, tiempos (gracia/trial). **Incluye: visibilidad del estado de membresía en el BS del negocio** (ver defensas del efectivo).
+- [ ] 🟡 **Sección Suscripciones** — precio, promos, meses gratis, historial, tiempos (gracia/trial). **Incluye: visibilidad del estado de membresía para el dueño en su página de cuenta/perfil** (NO en el BS — debe verse desde el **modo Personal**, porque al vencer la cuenta baja a personal; ver defensas del efectivo).
+  - [ ] 🟡 **Bitácora de eventos de pago en el Panel** — centralizar TODO lo de pagos/suscripciones/membresías dentro del Panel para **no tener que salir a Stripe**. Diseño acordado (8 jun 2026):
+    - **Tabla de log de eventos**: el webhook (`pago.service.ts`) registra CADA evento al procesarlo — cobro exitoso, cobro fallido, entró en gracia, suspendido, cancelado, fin de trial, reembolso, contracargo — con `negocio`, `monto`, `fecha`, `tipo` y `estado resultante`.
+    - **Sección UI** (dentro de Suscripciones): listar/filtrar por **negocio, tipo de evento y fecha**; historial completo de membresía por negocio.
+    - **Unificar con `admin_auditoria`** (acciones humanas: marcar pagado, pausar, cancelar) → foto completa: lo que hizo **Stripe** + lo que hicieron **admin/gerentes**.
+    - **Sinergia con idempotencia**: la tabla con `event.id` como PK también sirve de guard anti-duplicados **persistente** (hoy el webhook lo hace con Redis, ver `procesarWebhook`) → dos pájaros de un tiro; migrar el dedup de Redis a esta tabla.
+    - **Alcance**: guardar lo esencial de cada evento; para detalle fino (recibo PDF/metadata) un **link opcional** al recibo de Stripe, no como flujo principal.
 - [ ] 🟡 **Sección Vendedores y comisiones** — alta/baja, regiones, escalera de comisiones, cortes de efectivo.
   - [ ] 🟡 **Rediseñar la tabla `embajadores`** — **quitar `porcentaje_primer_pago` y `porcentaje_recurrente`** (diseño viejo de %; la decisión es **monto fijo**). Revisar si `negocios_registrados` se guarda o se calcula. **`region_id` ya NO es la fuente de la región del vendedor** — eso ahora sale de `embajador_ciudades`; la columna `embajadores.region_id` se elimina en el **Paso 10** de la migración ciudad↔región. Mantener: `codigo_referido`, `estado`. Hacer junto con el módulo de comisiones.
 - [ ] 🟡 **Sección Equipo y accesos** — crear/administrar cuentas internas (los 3 niveles).
@@ -70,6 +81,7 @@
 - [x] ✅ **Paso 10 — SQL** — `DROP COLUMN` de `negocios.region_id` y `embajadores.region_id` ejecutado en **DEV y PROD** (verificado: solo queda `usuarios.region_id`). Tablas de respaldo `_backup_*_20260606` eliminadas en ambos. Comentarios del código pasados a tiempo pasado. **Migración ciudad↔región CERRADA (dev + prod).**
 - [ ] 🟢 **Fase 2 (futuro)** — migrar las **lecturas** de `negocio_sucursales.ciudad` (texto) a `ciudad_id → ciudades.nombre` (feed público, perfil de sucursal, ScanYA, ofertas/servicios…) para algún día eliminar la columna de texto.
 - [x] ✅ **Apoyo — gerentes de prueba en DEV** — `gerente.norte@test.com` / `gerente.centro@test.com` (`seed-gerentes-dev.ts`) para validar permisos.
+- [x] ✅ **Apoyo — vendedor de prueba en DEV** — `vendedor.prueba@dev.local` / `Vendedor1234*` (`rol_equipo='vendedor'`, embajador `JUAN01`, cobertura Peñasco+Sonoyta → Sonora-Norte; `seed-vendedor-prueba.ts`). Atribución Camino A re-validada E2E el 7-jun: registro con `?ref=JUAN01` → negocio "Negocio de Prueba" con `embajador_id` apuntando a JUAN01, visible en su cartera del Panel (badge del menú aún DEMO=19).
 - [x] ✅ **Apoyo — fix de pool de conexiones** — `db/index.ts` (`max:5` + `idleTimeoutMillis` + cierre del pool en SIGTERM/SIGINT) para que los reinicios del watcher en dev no agoten el pooler de Supabase (session mode, 15 conexiones).
 - [x] ✅ **Apoyo — fix de caché del Panel entre sesiones** — `queryClient.clear()` en `cerrarSesion()`/`iniciarSesion()` del Panel (`useAuthPanelStore`), para no arrastrar datos del usuario previo al cambiar de sesión.
 
@@ -82,7 +94,7 @@
 - [ ] 🟡 **Comisión condicionada a la entrega** — la comisión del vendedor se libera al confirmar entrega (SuperAdmin o Gerente de su región). El negocio nunca se ve afectado.
 - [ ] 🔴 **Defensas contra el "robo invisible"** (vendedor cobra y nunca registra) — **decisión tomada, construir junto con el Camino B:**
   - [ ] **Comprobante automático al negocio** al registrar el cobro (recibo correo/SMS/in-app: "membresía activa hasta X").
-  - [ ] **Visibilidad del estado de membresía en el BS del negocio** ("activo hasta X") — el negocio como auditor. Reusa las 5 columnas de estado de membresía.
+  - [ ] **Visibilidad del estado de membresía en la página de cuenta/perfil del dueño** ("activo hasta X") — el negocio como auditor. **Va FUERA del BS, accesible desde el modo Personal** (al vencer, la cuenta baja a personal y el dueño debe poder ver/gestionar su pago). Reusa las 5 columnas de estado de membresía.
   - [ ] *(futuro v2)* Conciliación contra el mapa/cartera.
   - [x] ~~Pedir confirmación al negocio en cada pago~~ → **descartado** (le da trabajo que no hará).
 - [ ] 🟡 **Revisar `dias_retencion_pago`** (config existente, hoy decorativa) — decidir si sirve para el flujo de efectivo, se ajusta o se descarta.
@@ -112,7 +124,7 @@
 
 ## 👤 Dependencias de otras partes de la app
 
-- [ ] 🟡 **Página de perfil del usuario** (`/perfil`) — no existe. Necesaria para capturar ciudad/región del usuario → desbloquearía delegar la gestión de usuarios a gerentes por región (hoy suspender usuarios = solo SuperAdmin porque `usuarios` no tiene región).
+- [ ] 🟡 **Página de cuenta/perfil del usuario** (`/perfil` o `/configuracion`) — no existe. Página dedicada **accesible desde el modo Personal**, donde el usuario gestiona: cambiar contraseña, activar **2FA**, teléfono, dirección, género, ciudad, avatar **y su SUSCRIPCIÓN** (estado "activo hasta X" + botón **reactivar/gestionar pago** vía Customer Portal de Stripe). **Debe vivir en Personal** porque al vencer la cuenta baja a personal y el dueño tiene que poder ver y reactivar su pago **sin** depender del Business Studio (comercial). Además, capturar ciudad/región aquí desbloquea delegar la gestión de usuarios a gerentes por región (hoy suspender usuarios = solo SuperAdmin porque `usuarios` no tiene región).
 
 ---
 

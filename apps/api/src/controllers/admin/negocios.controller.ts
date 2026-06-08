@@ -210,7 +210,12 @@ export async function suspenderNegocioController(req: Request, res: Response): P
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;
         }
-        res.status(200).json({ success: true, message: 'Negocio suspendido', data: r.negocio });
+        res.status(200).json({
+            success: true,
+            message: 'Negocio suspendido',
+            data: r.negocio,
+            advertenciaStripe: r.advertenciaStripe ?? null,
+        });
     } catch (error) {
         console.error('Error en suspenderNegocioController:', error);
         res.status(500).json({
@@ -235,7 +240,12 @@ export async function reactivarNegocioController(req: Request, res: Response): P
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;
         }
-        res.status(200).json({ success: true, message: 'Negocio reactivado', data: r.negocio });
+        res.status(200).json({
+            success: true,
+            message: 'Negocio reactivado',
+            data: r.negocio,
+            advertenciaStripe: r.advertenciaStripe ?? null,
+        });
     } catch (error) {
         console.error('Error en reactivarNegocioController:', error);
         res.status(500).json({

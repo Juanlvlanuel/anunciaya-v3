@@ -30,7 +30,7 @@ import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
 import { obtenerConfigNumero } from './configuracion.service.js';
-import { eq, and } from 'drizzle-orm';
+import { eq, and, sql } from 'drizzle-orm';
 
 // =============================================================================
 // TIPOS
@@ -402,6 +402,23 @@ export async function procesarWebhook(
     }
 
     // -------------------------------------------------------------------------
+    // PASO 1.5: Idempotencia — Stripe entrega "at least once". Si ya procesamos
+    // este event.id, salir. Se MARCA al final (solo si el handler terminó sin lanzar),
+    // para que un fallo que re-lanza deje que Stripe reintente y se reprocese.
+    // Fail-open: si Redis está caído, se procesa igual (mejor un posible duplicado
+    // que perder el evento).
+    // -------------------------------------------------------------------------
+    const claveEvento = `stripe:evt:${event.id}`;
+    try {
+        if (await redis.get(claveEvento)) {
+            console.log(`↩️ Evento Stripe ya procesado, ignorado: ${event.id} (${event.type})`);
+            return;
+        }
+    } catch (e) {
+        console.error('⚠️ Redis no disponible para dedup de webhook (se procesa igual):', e);
+    }
+
+    // -------------------------------------------------------------------------
     // PASO 2: Procesar evento según su tipo
     // -------------------------------------------------------------------------
     switch (event.type) {
@@ -438,9 +455,22 @@ export async function procesarWebhook(
             break;
         }
 
+        case 'customer.subscription.trial_will_end': {
+            // Stripe avisa ~3 días antes de que termine el trial.
+            const subscription = event.data.object as Stripe.Subscription;
+            await manejarTrialPorTerminar(subscription);
+            break;
+        }
+
         default:
             console.log(`ℹ️ Evento no manejado: ${event.type}`);
     }
+
+    // Marcar como procesado SOLO si llegamos aquí sin lanzar (TTL 3 días). Si un handler
+    // lanzó, no se marca → Stripe reintenta y se reprocesa.
+    try {
+        await redis.set(claveEvento, '1', 'EX', 60 * 60 * 72);
+    } catch { /* dedup best-effort: no es crítico */ }
 }
 // =============================================================================
 // NUEVO TIPO (agregar después de DatosUsuarioWebhook, línea ~74)
@@ -776,36 +806,70 @@ async function manejarUpgradeCompletado(
     }
 
     // -------------------------------------------------------------------------
-    // PASO 3: Crear negocio
+    // PASO 3: Negocio — REVIVIR el archivado si el usuario ya tuvo uno (re-registro tras
+    // una cancelación MANUAL del Panel) o CREAR uno nuevo (upgrade de un personal sin
+    // negocio previo). Evita negocios huérfanos y respeta el 1:1 usuario→negocio.
     // -------------------------------------------------------------------------
-    const [nuevoNegocio] = await db
-        .insert(negocios)
-        .values({
-            usuarioId: usuario.id,
-            nombre: nombreNegocio || 'Mi Negocio',
-            esBorrador: true,
-            verificado: false,
-            participaPuntos: false,
-        })
-        .returning();
+    const [negocioPrevio] = await db
+        .select()
+        .from(negocios)
+        .where(eq(negocios.usuarioId, usuario.id))
+        .limit(1);
 
-    console.log('✅ Negocio creado:', nuevoNegocio.id);
+    let nuevoNegocio: typeof negocios.$inferSelect;
+    let sucursalPrincipal: typeof negocioSucursales.$inferSelect;
 
-    // -------------------------------------------------------------------------
-    // PASO 4: Crear sucursal principal
-    // -------------------------------------------------------------------------
-    const [sucursalPrincipal] = await db
-        .insert(negocioSucursales)
-        .values({
-            negocioId: nuevoNegocio.id,
-            nombre: nombreNegocio || 'Mi Negocio',
-            esPrincipal: true,
-            ciudad: 'Por configurar',
-            activa: true,
-        })
-        .returning();
+    if (negocioPrevio) {
+        // Revivir: sale del archivo. Si ya había completado onboarding vuelve visible;
+        // si no, queda en borrador para retomar el wizard.
+        const visible = negocioPrevio.onboardingCompletado === true;
+        [nuevoNegocio] = await db
+            .update(negocios)
+            .set({
+                nombre: nombreNegocio || negocioPrevio.nombre,
+                estadoAdmin: 'activo',
+                estadoMembresia: 'al_corriente',
+                activo: visible,
+                esBorrador: !visible,
+                updatedAt: new Date().toISOString(),
+            })
+            .where(eq(negocios.id, negocioPrevio.id))
+            .returning();
+        console.log('♻️ Negocio archivado revivido en upgrade:', nuevoNegocio.id);
 
-    console.log('✅ Sucursal principal creada:', sucursalPrincipal.id);
+        // Reusar su sucursal principal (no crear otra); si por algún motivo no existe, crearla.
+        const [sucExistente] = await db
+            .select()
+            .from(negocioSucursales)
+            .where(and(eq(negocioSucursales.negocioId, nuevoNegocio.id), eq(negocioSucursales.esPrincipal, true)))
+            .limit(1);
+        if (sucExistente) {
+            sucursalPrincipal = sucExistente;
+        } else {
+            [sucursalPrincipal] = await db
+                .insert(negocioSucursales)
+                .values({ negocioId: nuevoNegocio.id, nombre: nombreNegocio || 'Mi Negocio', esPrincipal: true, ciudad: 'Por configurar', activa: true })
+                .returning();
+        }
+    } else {
+        [nuevoNegocio] = await db
+            .insert(negocios)
+            .values({
+                usuarioId: usuario.id,
+                nombre: nombreNegocio || 'Mi Negocio',
+                esBorrador: true,
+                verificado: false,
+                participaPuntos: false,
+            })
+            .returning();
+        console.log('✅ Negocio creado:', nuevoNegocio.id);
+
+        [sucursalPrincipal] = await db
+            .insert(negocioSucursales)
+            .values({ negocioId: nuevoNegocio.id, nombre: nombreNegocio || 'Mi Negocio', esPrincipal: true, ciudad: 'Por configurar', activa: true })
+            .returning();
+        console.log('✅ Sucursal principal creada:', sucursalPrincipal.id);
+    }
 
     // -------------------------------------------------------------------------
     // PASO 5: Actualizar usuario (activar modo comercial)
@@ -884,14 +948,14 @@ async function manejarUpgradeCompletado(
 // =============================================================================
 
 /**
- * Procesa la cancelación de una suscripción comercial.
- * 
- * Este evento se dispara cuando:
- * - El usuario cancela su suscripción manualmente
- * - Stripe cancela automáticamente por falta de pago
- * - La suscripción expira sin renovarse
- * 
- * @param subscription - Objeto de suscripción de Stripe
+ * Procesa customer.subscription.deleted, distinguiendo el MOTIVO:
+ * - 'cancellation_requested' (baja DELIBERADA del Panel/API): baja completa →
+ *   degrada al dueño a personal + archiva + cancela membresía + revierte vouchers.
+ * - cualquier otro (impago/disputa: Stripe canceló la sub): se trata como SUSPENSIÓN
+ *   (recuperable, el dueño sigue comercial). Decisión de producto: el impago NUNCA
+ *   cancela; solo el botón manual del Panel cancela.
+ *
+ * @param subscription - Objeto de suscripción de Stripe (cancelada)
  */
 async function procesarCancelacionSuscripcion(
     subscription: Stripe.Subscription
@@ -913,6 +977,34 @@ async function procesarCancelacionSuscripcion(
 
         console.log(`👤 Usuario encontrado: ${usuario.correo} (${usuario.id})`);
 
+        // ── Guard: el IMPAGO nunca debe terminar en CANCELADO (decisión de producto) ──
+        // subscription.deleted llega por (1) cancelación DELIBERADA del Panel/API
+        // (cancellation_details.reason = 'cancellation_requested') o (2) Stripe cancelando
+        // por impago/disputa. Solo la baja MANUAL debe cancelar+degradar; el impago solo
+        // SUSPENDE (recuperable, el dueño sigue comercial).
+        // [Refuerzo recomendado: configurar el dunning de Stripe en 'leave unpaid' para que
+        //  este evento ni siquiera llegue por impago.]
+        const motivoCancelacion = (subscription as unknown as { cancellation_details?: { reason?: string | null } })
+            .cancellation_details?.reason;
+        if (motivoCancelacion !== 'cancellation_requested') {
+            const [negImpago] = await db.select().from(negocios).where(eq(negocios.usuarioId, usuario.id)).limit(1);
+            if (negImpago) {
+                await db
+                    .update(negocios)
+                    .set({ estadoMembresia: 'suspendido', activo: false, updatedAt: new Date().toISOString() })
+                    .where(eq(negocios.id, negImpago.id));
+                try {
+                    const { notificarNegocioFueraDeCirculacion } = await import('./notificaciones.service.js');
+                    await notificarNegocioFueraDeCirculacion(negImpago.id);
+                } catch (errNotif) {
+                    console.error('❌ Error notificando suspensión por impago:', errNotif);
+                }
+            }
+            console.log(`⚠️ subscription.deleted por impago (reason='${motivoCancelacion ?? 'desconocido'}') → SUSPENDIDO, NO cancelado (dueño sigue comercial): ${usuario.correo}`);
+            return;
+        }
+
+        // ── Cancelación DELIBERADA (admin/API): baja completa (degradar + archivar) ──
         // Desactivar modo comercial y forzar cambio a personal
         await db
             .update(usuarios)
@@ -1039,9 +1131,12 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
         const inv = invoice as unknown as {
             customer?: string | { id: string } | null;
             lines?: { data?: Array<{ period?: { end?: number } }> };
+            amount_paid?: number;
         };
         const clienteId = idCliente(inv.customer);
         const finPeriodo = unixAISO(inv.lines?.data?.[0]?.period?.end);
+        // Cobro REAL = monto > 0. El invoice de $0 del trial NO debe sellar "Cliente desde".
+        const esCobroReal = (inv.amount_paid ?? 0) > 0;
 
         const res = await obtenerNegocioDesdeStripe({ clienteId });
         if (!res) {
@@ -1073,6 +1168,8 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
                 fechaProximoCobro: finPeriodo,
                 fechaInicioGracia: null,
                 fechaLimiteGracia: null,
+                // "Cliente desde": sella la fecha del PRIMER cobro real (COALESCE → solo la 1ª vez).
+                ...(esCobroReal ? { fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, CURRENT_DATE)` } : {}),
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, res.negocio.id));
@@ -1090,19 +1187,26 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
         }
     } catch (error) {
         console.error('❌ Error en manejarRenovacionPagada:', error);
+        throw error; // propaga → el controller responde 500 → Stripe reintenta (no perder el cobro)
     }
 }
 
 /**
  * invoice.payment_failed — falló el cobro de la renovación.
- * Si el negocio estaba al_corriente, pasa a en_gracia y fija las fechas de gracia
- * (solo la primera vez; los reintentos de Stripe NO reinician el plazo). El negocio
- * SIGUE visible/funcionando.
+ * Primer fallo (desde al_corriente): pasa a en_gracia y fija el plazo de gracia UNA vez.
+ * En CADA fallo (incluidos los reintentos) refresca `fechaProximoCobro` con el próximo
+ * reintento de Stripe (`next_payment_attempt`), SIN reiniciar el plazo. `fechaVencimiento`
+ * se queda fija (cuándo se le acabó lo pagado). El negocio SIGUE visible en gracia.
  */
 async function manejarCobroFallido(invoice: Stripe.Invoice): Promise<void> {
     try {
-        const inv = invoice as unknown as { customer?: string | { id: string } | null };
+        const inv = invoice as unknown as {
+            customer?: string | { id: string } | null;
+            next_payment_attempt?: number | null;
+        };
         const clienteId = idCliente(inv.customer);
+        // Fecha del PRÓXIMO reintento que programó Stripe (null si ya no reintentará).
+        const proximoReintento = unixAISO(inv.next_payment_attempt);
 
         const res = await obtenerNegocioDesdeStripe({ clienteId });
         if (!res) {
@@ -1110,31 +1214,44 @@ async function manejarCobroFallido(invoice: Stripe.Invoice): Promise<void> {
             return;
         }
 
-        // Solo se entra en gracia desde "al_corriente". Si ya está en_gracia,
-        // suspendido o cancelado, no se reinicia el plazo ni se revive.
-        if (res.negocio.estadoMembresia !== 'al_corriente') {
-            console.log(`ℹ️ Cobro fallido ignorado (estado actual: ${res.negocio.estadoMembresia}): ${res.negocio.nombre}`);
+        // Suspendido o cancelado: la morosidad ya se resolvió por otra vía. No tocar.
+        if (res.negocio.estadoMembresia === 'suspendido' || res.negocio.estadoMembresia === 'cancelado') {
+            console.log(`ℹ️ Cobro fallido ignorado (estado: ${res.negocio.estadoMembresia}): ${res.negocio.nombre}`);
             return;
         }
 
         const ahora = new Date();
-        // Periodo de gracia: se lee de configuracionSistema (default 14 días)
-        const diasGracia = await obtenerConfigNumero('periodo_gracia_cobro_dias', 14);
-        const limite = new Date(ahora.getTime() + diasGracia * 24 * 60 * 60 * 1000);
 
+        if (res.negocio.estadoMembresia === 'al_corriente') {
+            // PRIMER fallo: entra en gracia (el plazo se fija UNA vez). `fechaVencimiento`
+            // (cuándo se le acabó lo pagado) se queda FIJA; `fechaProximoCobro` pasa a ser
+            // el próximo reintento de Stripe.
+            const diasGracia = await obtenerConfigNumero('periodo_gracia_cobro_dias', 14);
+            const limite = new Date(ahora.getTime() + diasGracia * 24 * 60 * 60 * 1000);
+            await db
+                .update(negocios)
+                .set({
+                    estadoMembresia: 'en_gracia',
+                    fechaInicioGracia: ahora.toISOString(),
+                    fechaLimiteGracia: limite.toISOString(),
+                    fechaProximoCobro: proximoReintento,
+                    updatedAt: ahora.toISOString(),
+                })
+                .where(eq(negocios.id, res.negocio.id));
+            console.log(`⚠️ Cobro fallido → en_gracia hasta ${limite.toISOString()} (reintento ${proximoReintento ?? 'sin más'}): ${res.negocio.nombre}`);
+            return;
+        }
+
+        // Reintento posterior (ya en_gracia): NO reinicia el plazo de gracia, solo
+        // refresca cuándo será el siguiente intento de cobro.
         await db
             .update(negocios)
-            .set({
-                estadoMembresia: 'en_gracia',
-                fechaInicioGracia: ahora.toISOString(),
-                fechaLimiteGracia: limite.toISOString(),
-                updatedAt: ahora.toISOString(),
-            })
+            .set({ fechaProximoCobro: proximoReintento, updatedAt: ahora.toISOString() })
             .where(eq(negocios.id, res.negocio.id));
-
-        console.log(`⚠️ Cobro fallido → en_gracia hasta ${limite.toISOString()}: ${res.negocio.nombre}`);
+        console.log(`↻ Reintento fallido (sigue en gracia, próximo intento ${proximoReintento ?? 'sin más'}): ${res.negocio.nombre}`);
     } catch (error) {
         console.error('❌ Error en manejarCobroFallido:', error);
+        throw error; // propaga → 500 → Stripe reintenta (no perder el evento de morosidad)
     }
 }
 
@@ -1167,6 +1284,44 @@ async function manejarSuscripcionActualizada(subscription: Stripe.Subscription):
         console.log(`🔄 Suscripción actualizada → fechas refrescadas (vence ${finPeriodo}): ${res.negocio.nombre}`);
     } catch (error) {
         console.error('❌ Error en manejarSuscripcionActualizada:', error);
+        throw error; // propaga → 500 → Stripe reintenta (no perder el refresco de fechas)
+    }
+}
+
+/**
+ * customer.subscription.trial_will_end — Stripe lo dispara ~3 días antes de que termine
+ * el trial. Avisa al DUEÑO, in-app (notificación de AnunciaYA), en AMBOS modos
+ * (personal y comercial), que su prueba está por terminar y se cobrará la membresía.
+ */
+async function manejarTrialPorTerminar(subscription: Stripe.Subscription): Promise<void> {
+    try {
+        const res = await obtenerNegocioDesdeStripe({ suscripcionId: subscription.id });
+        if (!res) {
+            console.log('ℹ️ trial_will_end sin negocio asociado:', subscription.id);
+            return;
+        }
+
+        // Fecha legible del fin de trial (es-MX, mes abreviado).
+        const trialEnd = (subscription as unknown as { trial_end?: number | null }).trial_end;
+        const meses = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+        let fechaTxt = 'pronto';
+        if (trialEnd) {
+            const d = new Date(trialEnd * 1000);
+            fechaTxt = `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
+        }
+
+        const titulo = 'Tu prueba gratis termina pronto';
+        const mensaje = `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($449/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
+
+        const { crearNotificacion } = await import('./notificaciones.service.js');
+        // In-app en AMBOS modos, a nivel negocio (sin sucursalId → visible en cualquier sucursal).
+        await crearNotificacion({ usuarioId: res.usuario.id, modo: 'personal', tipo: 'sistema', titulo, mensaje, negocioId: res.negocio.id });
+        await crearNotificacion({ usuarioId: res.usuario.id, modo: 'comercial', tipo: 'sistema', titulo, mensaje, negocioId: res.negocio.id });
+
+        console.log(`🔔 Aviso de fin de trial (ambos modos) → ${res.usuario.correo} (vence ${fechaTxt})`);
+    } catch (error) {
+        console.error('❌ Error en manejarTrialPorTerminar:', error);
+        throw error; // propaga → 500 → Stripe reintenta (no perder el aviso)
     }
 }
 

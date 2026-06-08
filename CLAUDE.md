@@ -298,7 +298,8 @@ docs/
 │   ├── Guardados.md
 │   ├── MenuDrawer.md           ← drawer de perfil del usuario (desktop + móvil) + adaptaciones del handoff
 │   ├── Panel_Admin.md          ← infraestructura admin del sistema
-│   └── Mantenimiento_R2.md     ← reconcile de imágenes huérfanas (sub-sección Mantenimiento del Panel Admin)
+│   ├── Mantenimiento_R2.md     ← reconcile de imágenes huérfanas (sub-sección Mantenimiento del Panel Admin)
+│   └── Pagos_Suscripciones.md  ← membresía $449/mes: webhook Stripe, estados de membresía, gracia, acciones Parada 2
 ├── migraciones/                → SQL one-shot que debe ejecutarse manualmente (ej. tabla r2_reconcile_log)
 ├── legacy/                     → Documentos históricos
 └── reportes/                   → Reportes de auditorías UX y tokens por módulo

@@ -88,12 +88,15 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
   };
 }
 
-const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 
 export function fecha(valor: string | null): string {
   if (!valor) return '—';
-  const d = new Date(valor);
-  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
+  // date-only (YYYY-MM-DD) → parsear como local para no retroceder un día por zona horaria.
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(valor) ? `${valor}T00:00:00` : valor;
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '—';
+  return `${String(d.getDate()).padStart(2, '0')} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
 export function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
@@ -217,12 +220,22 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             <>
               <Seccion titulo="Membresía" icono={CreditCard}>
                 <Dato etiqueta="Estado de pago" valor={<BadgeEstadoPago estado={n.estadoPago} small />} />
-                <Dato etiqueta="Vence" valor={fecha(n.fechaVencimiento)} />
-                <Dato etiqueta="Próximo cobro" valor={fecha(n.fechaProximoCobro)} />
+                {/* Al corriente: vencimiento y próximo cobro son la misma fecha → un solo renglón. */}
+                {n.estadoPago === 'al_corriente' && (
+                  <Dato etiqueta="Próximo cobro" valor={fecha(n.fechaProximoCobro)} />
+                )}
+                {/* En gracia: ya difieren — venció, próximo reintento de Stripe y límite de gracia. */}
+                {n.estadoPago === 'en_gracia' && (
+                  <>
+                    <Dato etiqueta="Venció" valor={fecha(n.fechaInicioGracia)} />
+                    <Dato etiqueta="Reintento" valor={fecha(n.fechaProximoCobro)} />
+                    <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />
+                  </>
+                )}
                 <Dato etiqueta="Método de cobro" valor={n.metodoCobro === 'manual' ? 'Manual' : 'Tarjeta'} />
                 <Dato etiqueta="Suscripción Stripe" valor={n.tieneSuscripcionStripe ? 'Activa' : '—'} />
-                {n.estadoPago === 'en_gracia' && <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />}
-                <Dato etiqueta="Primer pago" valor={fecha(n.fechaPrimerPago)} />
+                <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />
+                {n.fechaPrimerPago && <Dato etiqueta="Primer Pago" valor={fecha(n.fechaPrimerPago)} />}
                 {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
               </Seccion>
 
@@ -265,7 +278,6 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                     ) : ('—')
                   }
                 />
-                <Dato etiqueta="Alta" valor={fecha(n.creadoEn)} />
                 <Dato etiqueta="Onboarding" valor={n.onboardingCompletado ? 'Completado' : 'Pendiente'} />
               </Seccion>
             </>

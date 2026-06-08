@@ -8,6 +8,33 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [8 Junio 2026] - Pagos · Endurecimiento del ciclo de membresía + doc de arquitectura 💳🔒
+
+Sesión de validación E2E del bloque de pagos/suscripciones (Stripe test + DEV) y endurecimiento del webhook. tsc + lint en verde (`apps/api` y `apps/admin`). **Sin push.**
+
+**Webhook (`pago.service.ts`) más robusto:**
+- **No pierde eventos:** los handlers `invoice.*` y `subscription.updated` ahora **re-lanzan** los errores reales → el endpoint responde 500 → Stripe reintenta (antes los tragaban en silencio).
+- **Idempotencia:** guard por `event.id` en Redis (`stripe:evt:*`), se marca al terminar OK, *fail-open* si Redis cae.
+- **Impago NUNCA cancela:** `procesarCancelacionSuscripcion` distingue `cancellation_details.reason`; si no es `'cancellation_requested'` (= impago/disputa) deja **suspendido** + dueño comercial. La cancelación solo llega por el botón manual del Panel. (Refuerzo: dunning de Stripe en "marcar impagada".)
+- **Re-registro sin huérfanos:** `manejarUpgradeCompletado` **revive** el negocio archivado si el usuario ya tuvo uno (respeta el 1:1).
+- **`fecha_primer_pago`** se sella en el primer cobro real (`amount_paid>0`, `COALESCE`).
+- **Aviso de fin de trial:** nuevo handler `customer.subscription.trial_will_end` → notificación in-app al dueño en ambos modos.
+- **`manejarCobroFallido`** captura `next_payment_attempt` (los reintentos no reinician la gracia); el cron limpia `fecha_proximo_cobro` al suspender.
+
+**Panel — ficha del negocio (`FichaNegocio.tsx`):**
+- Fechas por estado: al corriente → "Próximo cobro" (un renglón); en gracia → "Venció / Reintento / Gracia hasta"; suspendido/cancelado → sin fechas de cobro.
+- Etiquetas "Inicio Trial" / "Primer Pago"; formato `DD Mmm YYYY`; fix de zona horaria en fechas date-only.
+- **Hallazgo 1 corregido** (`negocios.controller.ts`): suspender/reactivar reenvían `advertenciaStripe` (antes un fallo de Stripe se veía como éxito).
+
+**Documentación:**
+- Nuevo `docs/arquitectura/Pagos_Suscripciones.md` (arquitectura completa del bloque).
+- Corregidas menciones obsoletas: la atribución ya no escribe `regionId` (Paso 10); el estado de membresía va en la **página de cuenta/perfil (modo Personal)**, NO en el BS.
+- Pendientes anotados: bitácora de eventos de pago en el Panel, página de cuenta + reactivar pago, copy del trial, reembolsos/contracargos, infra de prod.
+
+**Scripts de prueba (DEV, abortan en prod):** `seed-vendedor-prueba`, `seed-negocios-estados-dev`, `probar-ciclo-morosidad`, `probar-acciones-parada2`, `diagnostico-stripe-suscripcion`, entre otros.
+
+---
+
 ## [7 Junio 2026] - Panel Admin · Migración ciudad↔región, Entrega 2 (Parada 2), filtro de región y sucursales 🗺️🏪
 
 Tanda grande del Panel Admin, **commiteada en dev (4 commits locales, sin push)**. tsc + lint en verde (`apps/api` y `apps/admin`).
@@ -366,11 +393,13 @@ que lo trajo, para poder calcular comisiones. **Camino A (pago con tarjeta vía 
 
 - El vendedor comparte `…/registro?plan=comercial&ref=<codigoReferido>`.
 - El front captura el `?ref=` y lo manda al checkout; **viaja en la metadata de Stripe** (el negocio nace en el webhook, después del pago).
-- En `manejarCheckoutCompletado`, el helper `resolverEmbajadorPorCodigo()` busca un embajador **activo** y, si existe, llena en la misma operación: `negocios.embajadorId`, `negocios.regionId` y `usuarios.referidoPor`.
+- En `manejarCheckoutCompletado`, el helper `resolverEmbajadorPorCodigo()` busca un embajador **activo** y, si existe, llena en la misma operación: `negocios.embajadorId` y `usuarios.referidoPor`.
 - **Regla crítica:** si el código falta, está mal escrito o el vendedor no está activo → la venta entra igual con atribución `null`. Un ref inválido **nunca** bloquea un registro.
 - Archivos: `pago.service.ts`, `pago.controller.ts` (backend); `PaginaRegistro.tsx`, `pagoService.ts` (frontend). Sin endpoints ni columnas nuevas.
-- Validado E2E en DEV con Stripe test: con `?ref=JUAN01` los 3 campos quedan poblados; con código inválido, negocio creado y los 3 en `null`.
+- Validado E2E en DEV con Stripe test: con `?ref=JUAN01` ambos campos quedan poblados; con código inválido, negocio creado y ambos en `null`.
 - Pendiente: **Camino B** (atribución por efectivo, registro del vendedor) en otra ronda.
+
+> **Actualización (7 Jun 2026):** originalmente esta atribución también escribía `negocios.regionId`; esa columna se **eliminó en el Paso 10** de la migración ciudad↔región. Hoy solo se escriben **2 campos** (`negocios.embajadorId` + `usuarios.referidoPor`); la región del negocio se **deduce** de la ciudad de su sucursal matriz. Re-validado E2E en DEV con Stripe test (registro `?ref=JUAN01` → negocio "Negocio de Prueba" atribuido a JUAN01, `embajador_id` poblado).
 
 ---
 
