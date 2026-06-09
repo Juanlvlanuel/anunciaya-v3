@@ -93,3 +93,47 @@ export async function cancelarSuscripcion(subscriptionId: string): Promise<Resul
         return { ok: false, aviso: `No se pudo cancelar la suscripción en Stripe (${mensajeError(error)}).` };
     }
 }
+
+/**
+ * Empuja el próximo cobro de la tarjeta a una fecha futura ("Marcar pagado" · Opción A).
+ * El comerciante pagó por adelantado (efectivo/transferencia) o se le da cortesía, así que
+ * se DIFIERE el cobro N meses CON retoma automática: al llegar `trial_end`, Stripe factura
+ * y cobra solo el método guardado (NO es una pausa indefinida; el ciclo retoma por sí mismo).
+ *
+ * Mecanismo (verificado contra la doc de Stripe):
+ *   - `trial_end` ABSOLUTO (unix) → Stripe mueve el billing_cycle_anchor a esa fecha. Mientras
+ *     dura, la sub queda `trialing` y no se cobra; al vencer, emite invoice y cobra automático.
+ *     Bonus: el `customer.subscription.updated` que dispara trae `current_period_end = trial_end`,
+ *     así que `manejarSuscripcionActualizada` escribe la fecha CORRECTA (disuelve el Hallazgo 2).
+ *   - `proration_behavior: 'none'` → no prorratea el tramo (no cobra nada ahora).
+ *   - `pause_collection: ''` → limpia cualquier pausa residual (p.ej. de una suspensión previa)
+ *     para que el cobro SÍ retome al vencer en vez de quedar pausado.
+ *
+ * Defensiva (§4.3): NUNCA lanza. Si la fecha es inválida, la sub ya está cancelada, o Stripe
+ * rechaza la fecha (máx. 2 años desde el ancla), devuelve { ok:false, aviso } y el caller
+ * aplica su cambio en BD igual y muestra la advertencia.
+ *
+ * @param subscriptionId La suscripción del dueño.
+ * @param hastaISO       Fecha (ISO) hasta la que queda cubierto = nuevo `trial_end`.
+ */
+export async function empujarCobroSuscripcion(subscriptionId: string, hastaISO: string): Promise<ResultadoStripe> {
+    const trialEndUnix = Math.floor(Date.parse(hastaISO) / 1000);
+    if (Number.isNaN(trialEndUnix)) {
+        return { ok: false, aviso: 'La fecha para empujar el cobro es inválida.' };
+    }
+    try {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        if (sub.status === 'canceled') {
+            return { ok: false, aviso: 'La suscripción ya estaba cancelada en Stripe; no se pudo empujar el cobro.' };
+        }
+        await stripe.subscriptions.update(subscriptionId, {
+            trial_end: trialEndUnix,            // absoluto: hoy + N meses ya calculado por el caller
+            proration_behavior: 'none',         // no prorratea ni cobra nada ahora
+            pause_collection: '',               // limpia pausa residual → el cobro retoma al vencer
+        });
+        return { ok: true };
+    } catch (error) {
+        console.error('[Stripe] Error empujando cobro de suscripción', subscriptionId, error);
+        return { ok: false, aviso: `No se pudo empujar el cobro en Stripe (${mensajeError(error)}).` };
+    }
+}

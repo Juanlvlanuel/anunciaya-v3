@@ -30,11 +30,11 @@
 
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { negocios, embajadores, usuarios } from '../../db/schemas/schema.js';
+import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion } from '../notificaciones.service.js';
-import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion } from '../suscripciones/acciones-stripe.js';
+import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
 
 // =============================================================================
 // TIPOS
@@ -317,11 +317,15 @@ export async function reasignarVendedor(
 // =============================================================================
 
 export interface OpcionesMarcarPagado {
-    /** Fecha (ISO) hasta la que queda al corriente: escribe vencimiento y próximo cobro. */
+    /** Fecha (ISO) hasta la que queda al corriente: escribe vencimiento y próximo cobro,
+     *  y (con suscripción) es el nuevo trial_end que se empuja en Stripe. */
     hasta: string;
-    /** Toggle del diálogo: pausar el cobro automático de la tarjeta. Solo tiene efecto si
-     *  el negocio tiene suscripción de Stripe; sin suscripción se ignora. */
-    pausarStripe: boolean;
+    /** Cómo pagó: efectivo/transferencia (ingreso, lleva monto) o cortesía (sin monto). */
+    concepto: 'efectivo' | 'transferencia' | 'cortesia';
+    /** Monto cobrado (MXN). Solo efectivo/transferencia; en cortesía va null. */
+    monto?: number | null;
+    /** N meses elegidos (modo "por meses"); null en "fecha exacta". Solo para el registro. */
+    meses?: number | null;
 }
 
 export async function marcarPagado(
@@ -339,42 +343,71 @@ export async function marcarPagado(
     }
 
     const tieneSuscripcion = !!neg.stripeSubscriptionId;
-    // Toggle ON + con suscripción → pausa la tarjeta (cortesía) y método 'manual'. Cualquier
-    // otro caso con suscripción → método 'tarjeta' y se asegura de que el cobro siga corriendo
-    // (p.ej. si venía pausado de una suspensión previa). Sin suscripción → siempre 'manual'.
-    const debePausar = tieneSuscripcion && opciones.pausarStripe;
-    const nuevoMetodoCobro: 'tarjeta' | 'manual' =
-        tieneSuscripcion && !opciones.pausarStripe ? 'tarjeta' : 'manual';
+
+    // Guard v1 (Opción A): con suscripción, "Marcar pagado" SOLO opera sobre negocios al
+    // corriente. Si está en gracia/suspendido hay un cobro pendiente en Stripe (factura
+    // abierta / reintentos), y empujar el ancla podría chocar con ese cobro → la
+    // regularización del moroso se resuelve en una versión posterior. Sin suscripción no
+    // hay factura de Stripe, así que ese caso NO lleva guard (sigue como hoy).
+    if (tieneSuscripcion && neg.estadoMembresia !== 'al_corriente') {
+        return {
+            ok: false,
+            status: 409,
+            mensaje: 'Este negocio tiene un cobro pendiente en Stripe; aún no se puede marcar pagado por adelantado. La regularización de pagos atrasados llegará en una versión posterior.',
+        };
+    }
+
+    // Con suscripción → 'tarjeta' (el cobro se difiere pero retoma SOLO al vencer el plazo).
+    // Sin suscripción → 'manual' (no hay tarjeta que retome; es un registro en nuestra BD).
+    const nuevoMetodoCobro: 'tarjeta' | 'manual' = tieneSuscripcion ? 'tarjeta' : 'manual';
+    // Cortesía nunca lleva monto (decisión de producto + CHECK en BD).
+    const montoRegistrado = opciones.concepto === 'cortesia' ? null : (opciones.monto ?? null);
 
     const ahora = new Date().toISOString();
-    const [act] = await db
-        .update(negocios)
-        .set({
-            estadoAdmin: 'activo',
-            activo: true,
-            estadoMembresia: 'al_corriente',
-            metodoCobro: nuevoMetodoCobro,
-            fechaVencimiento: opciones.hasta,
-            fechaProximoCobro: opciones.hasta,
-            fechaInicioGracia: null,
-            fechaLimiteGracia: null,
-            updatedAt: ahora,
-        })
-        .where(eq(negocios.id, negocioId))
-        .returning({
-            id: negocios.id,
-            estadoAdmin: negocios.estadoAdmin,
-            activo: negocios.activo,
-            embajadorId: negocios.embajadorId,
+
+    // Atómico: activar el negocio + dejar el registro contable van juntos o no van. Stripe
+    // queda FUERA de la transacción (es externo; §4.3: la BD manda aunque Stripe falle).
+    const act = await db.transaction(async (tx) => {
+        const [actualizado] = await tx
+            .update(negocios)
+            .set({
+                estadoAdmin: 'activo',
+                activo: true,
+                estadoMembresia: 'al_corriente',
+                metodoCobro: nuevoMetodoCobro,
+                fechaVencimiento: opciones.hasta,
+                fechaProximoCobro: opciones.hasta,
+                fechaInicioGracia: null,
+                fechaLimiteGracia: null,
+                updatedAt: ahora,
+            })
+            .where(eq(negocios.id, negocioId))
+            .returning({
+                id: negocios.id,
+                estadoAdmin: negocios.estadoAdmin,
+                activo: negocios.activo,
+                embajadorId: negocios.embajadorId,
+            });
+
+        // Registro contable/histórico del pago manual (primer ladrillo de la bitácora).
+        await tx.insert(pagosMembresia).values({
+            negocioId,
+            monto: montoRegistrado != null ? String(montoRegistrado) : null,
+            concepto: opciones.concepto,
+            mesesCubiertos: opciones.meses ?? null,
+            periodoHasta: opciones.hasta,
+            registradoPor: panel.usuarioId,
         });
 
-    // Stripe: sincroniza el cobro con la intención del admin (BD ya quedó activa; §4.3).
+        return actualizado;
+    });
+
+    // Stripe (fuera de la transacción): EMPUJA el próximo cobro a `hasta` (trial_end absoluto)
+    // con retoma automática al vencer. Defensiva (§4.3): si falla, la BD ya quedó aplicada.
     let advertenciaStripe: string | null = null;
     if (tieneSuscripcion) {
-        const r = debePausar
-            ? await pausarCobroSuscripcion(neg.stripeSubscriptionId!)
-            : await reanudarCobroSuscripcion(neg.stripeSubscriptionId!);
-        if (!r.ok) advertenciaStripe = r.aviso ?? 'No se pudo sincronizar el cobro en Stripe.';
+        const r = await empujarCobroSuscripcion(neg.stripeSubscriptionId!, opciones.hasta);
+        if (!r.ok) advertenciaStripe = r.aviso ?? 'No se pudo empujar el cobro en Stripe.';
     }
 
     await registrarAuditoria(panel, {
@@ -393,7 +426,8 @@ export async function marcarPagado(
             estadoMembresia: 'al_corriente',
             metodoCobro: nuevoMetodoCobro,
             hasta: opciones.hasta,
-            pausarStripe: debePausar,
+            concepto: opciones.concepto,
+            monto: montoRegistrado,
         },
         motivo: null,
     });

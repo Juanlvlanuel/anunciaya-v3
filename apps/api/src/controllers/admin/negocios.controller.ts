@@ -294,7 +294,8 @@ export async function reasignarVendedorController(req: Request, res: Response): 
 
 // =============================================================================
 // POST /api/admin/negocios/:id/marcar-pagado   (SOLO superadmin)
-// Body: { hasta: string (ISO, fecha de vencimiento), pausarStripe?: boolean }
+// Body: { hasta: string (ISO), concepto: 'efectivo'|'transferencia'|'cortesia',
+//         monto?: number, meses?: number }
 // =============================================================================
 
 export async function marcarPagadoController(req: Request, res: Response): Promise<void> {
@@ -302,9 +303,8 @@ export async function marcarPagadoController(req: Request, res: Response): Promi
         const panel = req.usuarioPanel!;
         const { id } = req.params;
 
+        // --- Fecha (hasta): obligatoria, futura y ≤ 2 años (tope de trial_end de Stripe) ---
         const hastaRaw = typeof req.body?.hasta === 'string' ? req.body.hasta.trim() : '';
-        const pausarStripe = req.body?.pausarStripe === true;
-
         const fecha = new Date(hastaRaw);
         if (!hastaRaw || Number.isNaN(fecha.getTime())) {
             res.status(400).json({ success: false, message: 'La fecha de vencimiento es inválida.' });
@@ -314,8 +314,42 @@ export async function marcarPagadoController(req: Request, res: Response): Promi
             res.status(400).json({ success: false, message: 'La fecha de vencimiento debe ser futura.' });
             return;
         }
+        const MAX_MS = 730 * 24 * 60 * 60 * 1000; // 2 años (límite de Stripe para trial_end)
+        if (fecha.getTime() > Date.now() + MAX_MS) {
+            res.status(400).json({ success: false, message: 'La fecha no puede exceder 2 años (límite de Stripe).' });
+            return;
+        }
 
-        const r = await marcarPagado(panel, id, { hasta: fecha.toISOString(), pausarStripe });
+        // --- Concepto: efectivo | transferencia | cortesía ---
+        const concepto = req.body?.concepto;
+        if (concepto !== 'efectivo' && concepto !== 'transferencia' && concepto !== 'cortesia') {
+            res.status(400).json({ success: false, message: 'Concepto inválido (efectivo, transferencia o cortesía).' });
+            return;
+        }
+
+        // --- Monto: solo efectivo/transferencia; opcional, pero si viene debe ser ≥ 0. Cortesía → null ---
+        let monto: number | null = null;
+        if (concepto !== 'cortesia' && req.body?.monto != null) {
+            const m = Number(req.body.monto);
+            if (Number.isNaN(m) || m < 0) {
+                res.status(400).json({ success: false, message: 'El monto debe ser un número mayor o igual a 0.' });
+                return;
+            }
+            monto = m;
+        }
+
+        // --- Meses: opcional (solo registro), entero ≥ 1 si viene ---
+        let meses: number | null = null;
+        if (req.body?.meses != null) {
+            const mm = Number(req.body.meses);
+            if (!Number.isInteger(mm) || mm < 1) {
+                res.status(400).json({ success: false, message: 'Los meses deben ser un entero mayor o igual a 1.' });
+                return;
+            }
+            meses = mm;
+        }
+
+        const r = await marcarPagado(panel, id, { hasta: fecha.toISOString(), concepto, monto, meses });
         if (!r.ok) {
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;

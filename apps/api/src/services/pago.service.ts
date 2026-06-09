@@ -1293,7 +1293,7 @@ async function manejarSuscripcionActualizada(subscription: Stripe.Subscription):
  * el trial. Avisa al DUEÑO, in-app (notificación de AnunciaYA), en AMBOS modos
  * (personal y comercial), que su prueba está por terminar y se cobrará la membresía.
  */
-async function manejarTrialPorTerminar(subscription: Stripe.Subscription): Promise<void> {
+export async function manejarTrialPorTerminar(subscription: Stripe.Subscription): Promise<void> {
     try {
         const res = await obtenerNegocioDesdeStripe({ suscripcionId: subscription.id });
         if (!res) {
@@ -1310,15 +1310,41 @@ async function manejarTrialPorTerminar(subscription: Stripe.Subscription): Promi
             fechaTxt = `${d.getDate()} ${meses[d.getMonth()]} ${d.getFullYear()}`;
         }
 
-        const titulo = 'Tu prueba gratis termina pronto';
-        const mensaje = `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($449/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
+        // ¿Este trial que termina nació de un "Registrar pago" manual (Opción A)? Lo sabemos si hay
+        // un pago de membresía cuyo periodo cubierto coincide (mismo instante) con el fin de trial.
+        // Distingue el copy y, en cortesía, SUPRIME el aviso (el dueño no paga ese periodo).
+        let conceptoManual: string | null = null;
+        if (trialEnd) {
+            const filas = (await db.execute(sql`
+                SELECT concepto FROM pagos_membresia
+                WHERE negocio_id = ${res.negocio.id}
+                  AND ABS(EXTRACT(EPOCH FROM periodo_hasta) - ${trialEnd}) <= 5
+                ORDER BY created_at DESC
+                LIMIT 1
+            `)).rows as Array<{ concepto: string }>;
+            conceptoManual = filas[0]?.concepto ?? null;
+        }
+
+        // Cortesía: el dueño NO paga este periodo → avisarle de un cobro sería incorrecto. Suprimir.
+        if (conceptoManual === 'cortesia') {
+            console.log(`🔕 trial_will_end suprimido (cortesía) → ${res.usuario.correo}`);
+            return;
+        }
+
+        // Pago manual (efectivo/transferencia): avisa del próximo cobro SIN llamarlo "prueba gratis".
+        // Trial de alta (sin pago manual cubriendo este periodo): conserva el copy de prueba gratis.
+        const esPagoManual = conceptoManual === 'efectivo' || conceptoManual === 'transferencia';
+        const titulo = esPagoManual ? 'Tu membresía se renueva pronto' : 'Tu prueba gratis termina pronto';
+        const mensaje = esPagoManual
+            ? `El periodo que cubriste vence el ${fechaTxt}. Ese día se cobrará tu membresía ($449/mes) a la tarjeta registrada. Revisa que esté vigente para no perder el servicio.`
+            : `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($449/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
 
         const { crearNotificacion } = await import('./notificaciones.service.js');
         // In-app en AMBOS modos, a nivel negocio (sin sucursalId → visible en cualquier sucursal).
         await crearNotificacion({ usuarioId: res.usuario.id, modo: 'personal', tipo: 'sistema', titulo, mensaje, negocioId: res.negocio.id });
         await crearNotificacion({ usuarioId: res.usuario.id, modo: 'comercial', tipo: 'sistema', titulo, mensaje, negocioId: res.negocio.id });
 
-        console.log(`🔔 Aviso de fin de trial (ambos modos) → ${res.usuario.correo} (vence ${fechaTxt})`);
+        console.log(`🔔 Aviso de fin de trial (${esPagoManual ? 'pago manual' : 'prueba'}, ambos modos) → ${res.usuario.correo} (vence ${fechaTxt})`);
     } catch (error) {
         console.error('❌ Error en manejarTrialPorTerminar:', error);
         throw error; // propaga → 500 → Stripe reintenta (no perder el aviso)

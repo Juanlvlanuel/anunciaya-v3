@@ -3,7 +3,7 @@
  * ========================================================
  * Ejercita las 4 acciones del Panel "Parada 2" contra una suscripción de Stripe
  * REAL, llamando a los services reales y verificando el efecto en Stripe + BD:
- *   1. marcarPagado (toggle pausarStripe ON → pause_collection 'void'; OFF → reanuda)
+ *   1. marcarPagado (Opción A: empuja trial_end N meses; concepto efectivo/cortesía)
  *   2. suspenderNegocio  → pause_collection 'void' + activo=false
  *   3. reactivarNegocio  → pause_collection vacío + activo=true
  *   4. cancelarNegocio   → subscription.cancel + dueño a personal + subId limpiado
@@ -103,14 +103,14 @@ async function main() {
     const negA = await crearNegocio(CORREO_A, 'Acciones', sub.id, customer.id);
     console.log(`\nNegocio A: ${negA} · sub ${sub.id} (status=${sub.status})`);
 
-    // 1) marcar pagado — toggle ON (pausa tarjeta)
-    let r = await marcarPagado(panel, negA, { hasta: new Date(Date.now() + 90 * 86400000).toISOString(), pausarStripe: true });
-    console.log('\n1a) marcarPagado pausarStripe=TRUE →', r.ok ? 'ok' : r);
+    // 1) marcar pagado — efectivo con monto (Opción A: empuja trial_end, retoma solo)
+    let r = await marcarPagado(panel, negA, { hasta: new Date(Date.now() + 90 * 86400000).toISOString(), concepto: 'efectivo', monto: 449, meses: 3 });
+    console.log('\n1a) marcarPagado efectivo $449 (3m) →', r.ok ? 'ok' : r);
     console.log('    Stripe:', await enStripe(sub.id), '· BD:', await bd(negA), '· aviso:', (r as { advertenciaStripe?: string }).advertenciaStripe ?? null);
 
-    // 1b) marcar pagado — toggle OFF (reanuda tarjeta)
-    r = await marcarPagado(panel, negA, { hasta: new Date(Date.now() + 90 * 86400000).toISOString(), pausarStripe: false });
-    console.log('1b) marcarPagado pausarStripe=FALSE →', r.ok ? 'ok' : r);
+    // 1b) marcar pagado — cortesía sin monto (también empuja el cobro; sigue retomando)
+    r = await marcarPagado(panel, negA, { hasta: new Date(Date.now() + 90 * 86400000).toISOString(), concepto: 'cortesia' });
+    console.log('1b) marcarPagado cortesía →', r.ok ? 'ok' : r);
     console.log('    Stripe:', await enStripe(sub.id), '· BD:', await bd(negA));
 
     // 2) suspender (pausa cobro en Stripe + activo=false)

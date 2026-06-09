@@ -8,6 +8,27 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [9 Junio 2026] - Pagos · "Registrar pago" con cobro adelantado (Opción A) + rediseño de la ficha 💳✨
+
+Rediseño de "Marcar pagado" → **"Registrar pago"** para negocios con suscripción: en vez de pausar la tarjeta, **empuja el próximo cobro N meses con `trial_end`** y la tarjeta **retoma sola** al vencer. Esto **disuelve el Hallazgo 2** (la fecha ya no la pisa el webhook). tsc + lint en verde (`apps/api` y `apps/admin`). **Sin push.**
+
+**Backend (Opción A):**
+- Nueva tabla **`pagos_membresia`** (bitácora de pagos manuales: concepto efectivo/transferencia/cortesía, monto, meses, `periodo_hasta`, `registrado_por`) — migración `2026-06-09-pagos-membresia.sql`. Primer ladrillo de la "bitácora de pagos".
+- Nueva helper **`empujarCobroSuscripcion`** (`acciones-stripe.ts`): `trial_end` absoluto + `proration_behavior:'none'` + limpia `pause_collection`. Defensiva (§4.3); las helpers `pausar/reanudar/cancelar` quedan intactas.
+- **`marcarPagado`** rediseñado: guard v1 (con sub solo si `al_corriente`, si no → 409), `metodo_cobro` `tarjeta`/`manual`, transacción `UPDATE negocios` + `INSERT pagos_membresia`, empuje a Stripe, validación tope 2 años en el controller.
+- **`manejarTrialPorTerminar`** ramifica el copy según el pago manual: cortesía **suprime** el aviso; efectivo/transferencia avisa del cobro (sin "prueba gratis"); trial de alta sin cambios.
+
+**Panel (`apps/admin`):**
+- Modal **`DialogoMarcarPagado`** rediseñado: concepto (efectivo/transferencia/cortesía) + monto obligatorio (oculto en cortesía) + plazo (meses/fecha, máx 2 años) + caja-resumen.
+- **`FichaNegocio`** rediseñada: cuerpo en **2 columnas con mini-cards** (sin scroll vertical en desktop), chips sobrios (Método/Stripe/Onboarding), botón "Registrar pago" deshabilitado con tooltip si no está al corriente.
+- Nuevo componente UI **`Tooltip`** del Panel (portal, fondo invertido claro/oscuro, solo escritorio).
+
+**Verificación (scripts DEV):** `probar-empujar-cobro`, `probar-marcar-pagado`, `probar-aviso-trial` — todos en verde.
+
+**Documentación:** `Pagos_Suscripciones.md` v1.1 (§2 tabla `pagos_membresia`, §9.1 Registrar pago, §10 copy ramificado, **Hallazgo 2 → RESUELTO**).
+
+---
+
 ## [8 Junio 2026] - Pagos · Endurecimiento del ciclo de membresía + doc de arquitectura 💳🔒
 
 Sesión de validación E2E del bloque de pagos/suscripciones (Stripe test + DEV) y endurecimiento del webhook. tsc + lint en verde (`apps/api` y `apps/admin`). **Sin push.**

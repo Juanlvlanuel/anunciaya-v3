@@ -228,14 +228,22 @@ export async function reasignarVendedor(
   await api.post(`/admin/negocios/${id}/reasignar-vendedor`, { embajadorId, motivo });
 }
 
-/** Marcar pagado (SOLO superadmin). `hasta` = fecha ISO de vencimiento; `pausarStripe`
- *  = pausar el cobro de la tarjeta (toggle del diálogo). */
-export async function marcarPagado(
-  id: string,
-  hasta: string,
-  pausarStripe: boolean,
-): Promise<ResultadoAccionAdmin> {
-  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/marcar-pagado`, { hasta, pausarStripe });
+/** Concepto del pago manual: ingreso (efectivo/transferencia) o cortesía (sin monto). */
+export type ConceptoPago = 'efectivo' | 'transferencia' | 'cortesia';
+
+export interface DatosMarcarPagado {
+  /** Fecha ISO de vencimiento (= trial_end empujado en Stripe si hay suscripción). */
+  hasta: string;
+  concepto: ConceptoPago;
+  /** Monto en MXN; solo efectivo/transferencia (en cortesía va undefined). */
+  monto?: number;
+  /** N meses elegidos en "Por meses"; undefined en "Fecha exacta" (solo registro). */
+  meses?: number;
+}
+
+/** Marcar pagado (SOLO superadmin). Con suscripción empuja el próximo cobro a `hasta`. */
+export async function marcarPagado(id: string, datos: DatosMarcarPagado): Promise<ResultadoAccionAdmin> {
+  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/marcar-pagado`, datos);
   return { advertenciaStripe: data.advertenciaStripe ?? null };
 }
 

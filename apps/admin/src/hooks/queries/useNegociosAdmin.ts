@@ -173,12 +173,12 @@ export function useReasignarVendedor() {
   });
 }
 
-/** Marcar pagado (SOLO superadmin). `hasta` = fecha ISO; `pausarStripe` = toggle del diálogo. */
+/** Marcar pagado (SOLO superadmin). Con suscripción empuja el próximo cobro a `hasta`. */
 export function useMarcarPagado() {
   const refrescar = useRefrescarNegocio();
   return useMutation({
-    mutationFn: ({ id, hasta, pausarStripe }: { id: string; hasta: string; pausarStripe: boolean }) =>
-      negociosService.marcarPagado(id, hasta, pausarStripe),
+    mutationFn: (vars: { id: string } & negociosService.DatosMarcarPagado) =>
+      negociosService.marcarPagado(vars.id, { hasta: vars.hasta, concepto: vars.concepto, monto: vars.monto, meses: vars.meses }),
     onSuccess: (res, { id }) => {
       refrescar(id);
       avisarResultado(res, 'Membresía marcada como pagada');

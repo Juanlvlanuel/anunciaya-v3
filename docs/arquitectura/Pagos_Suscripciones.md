@@ -4,8 +4,9 @@
 > negocio, el ciclo de vida (trial → cobro → gracia → suspensión), las acciones del
 > Panel que tocan Stripe y los puntos de extensión pendientes.
 >
-> **Estado:** lógica completa y validada en DEV (8 Jun 2026). Falta infraestructura de
-> producción (ver §12). Versión 1.0.
+> **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
+> **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
+> sola; ver §9.1). Falta infraestructura de producción (ver §12). Versión 1.1.
 >
 > Archivos núcleo: `apps/api/src/services/pago.service.ts` (webhook + checkout),
 > `services/admin/negocios-acciones.service.ts` + `services/suscripciones/acciones-stripe.ts`
@@ -44,6 +45,18 @@
 | `metodo_cobro` | `tarjeta` / `manual` |
 | `embajador_id` | Vendedor atribuido |
 | `fecha_vencimiento` · `fecha_proximo_cobro` · `fecha_inicio_gracia` · `fecha_limite_gracia` · `fecha_primer_pago` | Fechas del ciclo (ver §6, §7) |
+
+**`pagos_membresia`** (bitácora de pagos manuales — primer ladrillo de la bitácora pendiente §12):
+| Campo | Para qué |
+|---|---|
+| `negocio_id` | Negocio (FK, `ON DELETE CASCADE`) |
+| `concepto` | `efectivo` / `transferencia` (ingreso) / `cortesia` (sin monto; un CHECK exige `monto IS NULL`) |
+| `monto` | MXN del pago registrado (NULL en cortesía) |
+| `meses_cubiertos` | N elegido en "por meses" (NULL en "fecha exacta") |
+| `periodo_hasta` | Vencimiento aplicado (= `trial_end` empujado en Stripe) |
+| `registrado_por` | Admin que registró (FK `usuarios`, `ON DELETE SET NULL`) |
+
+> Cada "Registrar pago" (§9.1) inserta una fila aquí, en la **misma transacción** que activa el negocio. Antes el dato contable se perdía: solo quedaba la acción en `admin_auditoria`, sin monto ni concepto.
 
 ---
 
@@ -93,7 +106,7 @@ Endpoint: `POST /api/pagos/webhook` (con `express.raw` — el body crudo es nece
 | `invoice.payment_failed` | `manejarCobroFallido` | → `en_gracia` (§7) |
 | `customer.subscription.updated` | `manejarSuscripcionActualizada` | Refresca `fecha_vencimiento`/`fecha_proximo_cobro` (NO el estado) |
 | `customer.subscription.deleted` | `procesarCancelacionSuscripcion` | Cancelación (§7/§8, distingue motivo) |
-| `customer.subscription.trial_will_end` | `manejarTrialPorTerminar` | Aviso in-app de fin de trial (§10) |
+| `customer.subscription.trial_will_end` | `manejarTrialPorTerminar` | Aviso in-app de fin de trial, con copy **ramificado** según el pago manual (§10) |
 
 ---
 
@@ -104,6 +117,8 @@ Endpoint: `POST /api/pagos/webhook` (con `express.raw` — el body crudo es nece
 3. **Renovaciones mensuales:** cada `invoice.payment_succeeded` refresca las fechas al siguiente periodo.
 
 > Detalle: `fecha_vencimiento` y `fecha_proximo_cobro` son **la misma fecha** mientras el negocio está al corriente (el próximo cobro ES al vencer). Solo difieren en gracia (§7). La ficha del Panel muestra **un solo renglón** ("Próximo cobro") al corriente.
+>
+> **Cobro adelantado por "Registrar pago" (§9.1):** al registrar un pago manual a N meses, el cobro se difiere con `trial_end` y la sub queda `trialing` hasta esa fecha; al vencer, Stripe factura y cobra la tarjeta sola (vuelve a `al_corriente` vía `invoice.payment_succeeded`). Durante ese periodo `current_period_end = trial_end`, así que las fechas de la BD reflejan la fecha empujada (esto **disuelve el Hallazgo 2**).
 
 ---
 
@@ -149,19 +164,41 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 
 | Acción | Rol | Efecto BD | Efecto Stripe |
 |---|---|---|---|
-| **Marcar pagado** | superadmin | `al_corriente` + `activo` + fechas + `metodo_cobro` | toggle: pausa (`pause_collection: void`) o reanuda |
+| **Registrar pago** (§9.1) | superadmin | `al_corriente` + `activo` + fechas + `metodo_cobro` + fila en `pagos_membresia` | **con sub:** empuja el cobro a la fecha (`trial_end`) → retoma solo. **sin sub:** solo BD |
 | **Pausar** | super + gerente | `estado_admin='suspendido'`, `activo=false` | `pause_collection: void` (sin deuda) |
 | **Reactivar** | super + gerente | `estado_admin='activo'`, `activo=true` | limpia `pause_collection` |
 | **Cancelar** | superadmin | §8 | `subscriptions.cancel` |
 
-**Defensa §4.3 — Stripe falla, no se aborta:** los helpers de Stripe **nunca lanzan** (devuelven `{ ok, aviso }`). Si Stripe falla, la BD **se aplica igual** y el service propaga `advertenciaStripe`, que el controller devuelve y el Panel muestra como **advertencia** (no como éxito silencioso). Validado en vivo con un `subId` inválido.
+**Defensa §4.3 — Stripe falla, no se aborta:** los helpers de Stripe **nunca lanzan** (devuelven `{ ok, aviso }`). Si Stripe falla, la BD **se aplica igual** y el service propaga `advertenciaStripe`, que el controller devuelve y el Panel muestra como **advertencia** (no como éxito silencioso). Validado en vivo con un `subId` inválido (Hallazgo 1 ya corregido: Pausar/Reactivar también reenvían `advertenciaStripe`).
+
+> **⚠️ Deuda conocida de la Parada 2 (verificada 9 Jun 2026, siguen vigentes, severidad baja — detalle y plan en `PENDIENTES_PanelAdmin.md`):**
+> - **Hallazgo 2 — RESUELTO (9 Jun 2026)** con el rediseño "Registrar pago" → Opción A (§9.1): al empujar con `trial_end`, el `current_period_end` que trae `customer.subscription.updated` ES la fecha empujada, así que `manejarSuscripcionActualizada` escribe la fecha correcta (verificado en vivo con `probar-empujar-cobro.ts`). Ya no hay pisada.
+> - **Hallazgo 3 — cancelar manual vs webhook `deleted`:** `esBorrador`/`estadoAdmin`/`perfil` divergen según el timing de la carrera. La visibilidad (`activo=false`) es consistente en ambos caminos; la divergencia es en campos administrativos secundarios. Pendiente unificar.
+> - **Hallazgo 4 — cancelar no transaccional:** corta Stripe primero y luego hace UPDATEs sueltos sin `db.transaction`. Ventana de inconsistencia si el proceso muere a mitad (recuperable reintentando, es idempotente). Pendiente envolver los UPDATEs de BD en transacción.
+
+### 9.1 Registrar pago (Opción A — empuja el cobro y retoma solo)
+
+"Registrar pago" (antes "Marcar pagado"; **SOLO superadmin**) cubre cuando el comerciante pagó por adelantado (**efectivo/transferencia**) o se le da **cortesía**. El plazo se elige por meses (chips 1/3/6/12) o fecha exacta (máx **2 años**, tope de Stripe; validado en modal y controller).
+
+**Flujo (`marcarPagado` en `negocios-acciones.service.ts`):**
+1. **Guard v1:** con suscripción, solo opera sobre negocios `al_corriente`. Si está en gracia/suspendido (cobro pendiente en Stripe) → **409**; la regularización del moroso llega en una versión posterior. Sin suscripción no hay guard (sigue como antes).
+2. **Transacción** (`db.transaction`): activa el negocio (`estado_admin='activo'`, `activo=true`, `estado_membresia='al_corriente'`, `fechas=hasta`, limpia gracia) **+** inserta la fila en `pagos_membresia`. `metodo_cobro` queda **`'tarjeta'`** con sub (el cobro retoma solo) / **`'manual'`** sin ella.
+3. **Stripe (fuera de la transacción, §4.3):** `empujarCobroSuscripcion(subId, hasta)` → `subscriptions.update({ trial_end: <unix de hasta>, proration_behavior: 'none', pause_collection: '' })`. Difiere el cobro a esa fecha y limpia cualquier pausa residual → al vencer, la tarjeta retoma sola. Defensiva: si Stripe falla, la BD ya quedó aplicada y se propaga `advertenciaStripe`.
+4. **Aviso de fin de trial** (§10): al acercarse la fecha, el copy se ramifica según el concepto (cortesía suprime; efectivo/transferencia avisa del cobro).
+
+**Concepto** (efectivo/transferencia = ingreso; cortesía = sin monto) y **monto** se guardan en `pagos_membresia`. A efectos de Stripe los tres son idénticos (empujar N meses); la diferencia es solo de **registro contable**.
+
+> El frontend del Panel: modal `DialogoMarcarPagado.tsx` (concepto + monto + plazo) y la ficha `FichaNegocio.tsx` (botón "Registrar pago", deshabilitado con tooltip si el negocio no está al corriente — espejo del guard 409).
 
 ---
 
 ## 10. Notificaciones
 
 - **Negocio fuera de circulación** (`negocio_fuera_circulacion`): al dueño cuando se suspende o cancela (idempotente: borra y recrea).
-- **Fin de trial** (`trial_will_end`): notificación in-app de AnunciaYA (tipo `sistema`) al dueño, en **ambos modos** (personal y comercial), ~3 días antes del primer cobro.
+- **Fin de trial** (`trial_will_end`): notificación in-app (tipo `sistema`) al dueño, en **ambos modos**, ~3 días antes del cobro. **Copy ramificado** según el pago manual que cubría el periodo (busca en `pagos_membresia` el pago cuyo `periodo_hasta` coincide con el `trial_end`):
+  - **cortesía** → se **suprime** el aviso (el dueño no paga ese periodo).
+  - **efectivo/transferencia** → *"Tu membresía se renueva pronto… ese día se cobrará a tu tarjeta"* (sin "prueba gratis").
+  - **trial de alta** (sin pago manual cubriendo el periodo) → copy original *"Tu prueba gratis termina pronto"*.
 
 ---
 
@@ -181,7 +218,7 @@ Pendiente replicar **todo en modo live** + verificar la empresa en Stripe (§12)
 ## 12. Pendientes / extensiones
 
 - **Página de cuenta/perfil del usuario** (fuera del BS, **accesible desde modo Personal**): cambiar contraseña, 2FA, datos personales, avatar **y su suscripción** (estado + **botón reactivar pago** vía Customer Portal de Stripe). Crítico para que un negocio impago se recupere solo.
-- **Bitácora de eventos de pago en el Panel**: tabla de log (el webhook registra cada evento) + sección UI con filtros, unificada con `admin_auditoria`. Sinergia: migrar el dedup de idempotencia de Redis a esa tabla.
+- **Bitácora de eventos de pago en el Panel**: el primer ladrillo ya existe — la tabla `pagos_membresia` (§2) registra cada "Registrar pago" manual. Falta: registrar también los eventos de Stripe (webhook) + sección UI con filtros, unificada con `admin_auditoria`. Sinergia: migrar el dedup de idempotencia de Redis a esa tabla.
 - **Copy del trial**: el texto del front debe **leer el valor de config** (no un número fijo) para no desincronizarse.
 - **Reembolsos / contracargos** (`charge.refunded` / `charge.dispute.created`): hoy se manejan manualmente en Stripe; handler automático opcional a futuro.
 - **SCA/3DS** (`payment_action_required`): cubierto de facto por el ciclo de gracia (si no se autentica, cae como impago); aviso temprano opcional a futuro.
@@ -196,6 +233,9 @@ Requiere `stripe listen --forward-to localhost:4000/api/pagos/webhook` + backend
 - `seed-negocios-estados-dev.ts` — siembra negocios por estado (ver la ficha en cada estado).
 - `probar-ciclo-morosidad.ts <crear|fallar|reintento|suspender|...>` — recorre el ciclo de morosidad con eventos reales, paso a paso.
 - `probar-acciones-parada2.ts` — ejercita las 4 acciones del Panel contra Stripe real + la defensa §4.3.
+- `probar-empujar-cobro.ts` — verifica `empujarCobroSuscripcion` (trial_end exacto, pausa limpia, el webhook escribe la fecha, tope 2 años).
+- `probar-marcar-pagado.ts` — los 3 escenarios de "Registrar pago" (al corriente con sub, guard 409 en gracia, sin sub).
+- `probar-aviso-trial.ts` — copy ramificado de `trial_will_end` (efectivo/transferencia/cortesía/alta). **NO requiere Stripe** (mock de la sub).
 - `diagnostico-stripe-suscripcion.ts` — estado real de una suscripción (solo lectura).
 
 > Para recorrer el calendario completo de reintentos/trial sin esperar días: **Stripe Test Clock** (pendiente de montar).

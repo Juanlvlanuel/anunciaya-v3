@@ -37,6 +37,7 @@ import {
 import type { NegocioFila, NegocioDetalle } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
+import { Tooltip } from '../ui/Tooltip';
 import { DialogoReasignar } from './DialogoReasignar';
 import { DialogoMarcarPagado } from './DialogoMarcarPagado';
 import { BadgeEstadoPago, estadoEfectivo } from './estadoPago';
@@ -101,7 +102,7 @@ export function fecha(valor: string | null): string {
 
 export function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
   return (
-    <div className="flex items-start justify-between gap-4 py-1.5">
+    <div className="flex items-center justify-between gap-4 py-1">
       <span className="shrink-0 text-[13px] text-texto-3">{etiqueta}</span>
       <span className="text-right text-[13.5px] font-medium text-texto">{valor ?? '—'}</span>
     </div>
@@ -110,12 +111,28 @@ export function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }
 
 export function Seccion({ titulo, icono: Icono, children }: { titulo: string; icono: typeof User; children: ReactNode }) {
   return (
-    <div className="border-b border-borde px-5 py-4 last:border-b-0">
-      <div className="mb-2 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
-        <Icono size={14} /> {titulo}
+    <div className="rounded-[12px] border border-borde bg-superficie-2 px-4 py-3.5">
+      <div className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
+        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[8px] bg-marca-suave text-marca">
+          <Icono size={14} />
+        </span>
+        {titulo}
       </div>
       {children}
     </div>
+  );
+}
+
+/** Chip sobrio (pill + punto de color) para valores binarios — reusa el lenguaje del badge de estado. */
+function ChipDato({ texto, activo, testid }: { texto: string; activo: boolean; testid?: string }) {
+  return (
+    <span
+      data-testid={testid}
+      className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11.5px] font-medium text-texto-2"
+    >
+      <span className="h-[6px] w-[6px] shrink-0 rounded-full" style={{ background: activo ? 'var(--panel-ok)' : 'var(--panel-text-4)' }} />
+      {texto}
+    </span>
   );
 }
 
@@ -127,6 +144,8 @@ function BotonAccion({
   testid,
   onClick,
   disabled = false,
+  tooltipDisabled,
+  soloIcono = false,
 }: {
   icono: typeof User;
   etiqueta: string;
@@ -134,25 +153,37 @@ function BotonAccion({
   testid: string;
   onClick?: () => void;
   disabled?: boolean;
+  /** Tooltip cuando está deshabilitado; si no se pasa, usa el de "negocio cancelado". */
+  tooltipDisabled?: string;
+  /** Solo icono (cuadrado) + tooltip con la etiqueta. Para compactar el footer en 1 línea. */
+  soloIcono?: boolean;
 }) {
-  const base = 'inline-flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-2.5 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
+  const base = 'inline-flex items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
+  const dims = soloIcono ? 'h-10 w-10 shrink-0' : 'px-3 py-2.5';
   const estilos: Record<'primary' | 'ghost' | 'danger', string> = {
-    primary: 'bg-marca text-marca-contraste lg:flex-1',
+    primary: 'bg-marca text-marca-contraste',
     ghost: 'border border-borde-fuerte bg-superficie text-texto',
     danger: 'border border-peligro/40 bg-superficie text-peligro',
   };
-  return (
+  // Tooltip: la razón del bloqueo si está deshabilitado; el nombre de la acción si es icon-only.
+  const textoTooltip = disabled
+    ? (tooltipDisabled ?? 'No disponible para un negocio cancelado')
+    : (soloIcono ? etiqueta : undefined);
+  const boton = (
     <button
       type="button"
       data-testid={testid}
       onClick={onClick}
       disabled={disabled}
-      title={disabled ? 'No disponible para un negocio cancelado' : undefined}
-      className={`${base} ${estilos[variante]}`}
+      aria-label={soloIcono ? etiqueta : undefined}
+      className={`${base} ${dims} ${estilos[variante]}`}
     >
-      <Icono size={16} /> {etiqueta}
+      <Icono size={16} /> {!soloIcono && etiqueta}
     </button>
   );
+  return textoTooltip
+    ? <Tooltip text={textoTooltip} className={soloIcono ? 'shrink-0' : undefined}>{boton}</Tooltip>
+    : boton;
 }
 
 export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
@@ -170,6 +201,9 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
 
   const suspendido = n.estadoAdmin === 'suspendido';
   const archivado = n.estadoAdmin === 'archivado';
+  // Espejo del guard 409 del backend: con suscripción, "Marcar pagado" solo si está al corriente
+  // (en gracia/suspendido hay un cobro pendiente en Stripe que regularizar primero).
+  const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';
 
   // Solo SuperAdmin y Gerente pueden actuar; el vendedor ve la ficha solo lectura.
   // Marcar pagado y Cancelar son EXCLUSIVOS de SuperAdmin.
@@ -184,7 +218,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       onCerrar={onCerrar}
       mostrarHeader={false}
       sinScrollInterno
-      ancho="lg"
+      ancho="xl"
       alturaMaxima="xl"
       discriminador="ficha-negocio"
     >
@@ -209,15 +243,16 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
           </button>
         </div>
 
-        {/* Cuerpo */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        {/* Cuerpo: 2 columnas en desktop (sin scroll), 1 columna en móvil (bottom-sheet scrollea). */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:overflow-visible">
           {isError && (
-            <div className="border-b border-borde px-5 py-2 text-center text-[12px] text-peligro">
+            <div className="mb-3 rounded-[10px] border border-borde px-3 py-2 text-center text-[12px] text-peligro">
               No se pudo cargar el detalle completo.
             </div>
           )}
-          {(
-            <>
+          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
+            {/* Columna izquierda */}
+            <div className="flex flex-col gap-3">
               <Seccion titulo="Membresía" icono={CreditCard}>
                 <Dato etiqueta="Estado de pago" valor={<BadgeEstadoPago estado={n.estadoPago} small />} />
                 {/* Al corriente: vencimiento y próximo cobro son la misma fecha → un solo renglón. */}
@@ -232,8 +267,8 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                     <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />
                   </>
                 )}
-                <Dato etiqueta="Método de cobro" valor={n.metodoCobro === 'manual' ? 'Manual' : 'Tarjeta'} />
-                <Dato etiqueta="Suscripción Stripe" valor={n.tieneSuscripcionStripe ? 'Activa' : '—'} />
+                <Dato etiqueta="Método de cobro" valor={<ChipDato testid="chip-metodo" texto={n.metodoCobro === 'manual' ? 'Manual' : 'Tarjeta'} activo={n.metodoCobro !== 'manual'} />} />
+                <Dato etiqueta="Suscripción Stripe" valor={<ChipDato testid="chip-stripe" texto={n.tieneSuscripcionStripe ? 'Activa' : 'Sin suscripción'} activo={n.tieneSuscripcionStripe} />} />
                 <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />
                 {n.fechaPrimerPago && <Dato etiqueta="Primer Pago" valor={fecha(n.fechaPrimerPago)} />}
                 {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
@@ -257,7 +292,10 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                   </div>
                 )}
               </Seccion>
+            </div>
 
+            {/* Columna derecha */}
+            <div className="flex flex-col gap-3">
               <Seccion titulo="Dueño de la cuenta" icono={User}>
                 <Dato etiqueta="Nombre" valor={n.duenoNombre ?? '—'} />
                 <Dato etiqueta="Correo" valor={n.duenoCorreo ?? '—'} />
@@ -278,28 +316,39 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                     ) : ('—')
                   }
                 />
-                <Dato etiqueta="Onboarding" valor={n.onboardingCompletado ? 'Completado' : 'Pendiente'} />
+                <Dato etiqueta="Onboarding" valor={<ChipDato testid="chip-onboarding" texto={n.onboardingCompletado ? 'Completado' : 'Pendiente'} activo={n.onboardingCompletado} />} />
               </Seccion>
-            </>
-          )}
+            </div>
+          </div>
         </div>
 
         {/* Footer: acciones según permisos. Marcar pagado y Cancelar son exclusivos de
             SuperAdmin; Pausar y Reasignar también las usa el Gerente (su región). */}
         {puedeActuar && (
-          <div className="grid shrink-0 grid-cols-2 gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5 lg:flex lg:items-center">
+          <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
             {esSuperadmin && (
-              <BotonAccion icono={CheckCircle2} etiqueta="Marcar pagado" variante="primary" testid="ficha-accion-marcar-pagado" onClick={() => setDialogo('marcar-pagado')} disabled={archivado} />
+              <BotonAccion
+                icono={CheckCircle2}
+                etiqueta="Registrar pago"
+                variante="primary"
+                testid="ficha-accion-registrar-pago"
+                onClick={() => setDialogo('marcar-pagado')}
+                disabled={archivado || cobroPendiente}
+                tooltipDisabled={!archivado && cobroPendiente ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.' : undefined}
+              />
             )}
-            <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} />
-            {suspendido ? (
-              <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} />
-            ) : (
-              <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} />
-            )}
-            {esSuperadmin && (
-              <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} />
-            )}
+            {/* Acciones secundarias: icon-only + tooltip, empujadas a la derecha → 1 línea siempre. */}
+            <div className="ml-auto flex items-center gap-2">
+              <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} soloIcono />
+              {suspendido ? (
+                <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} soloIcono />
+              ) : (
+                <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} soloIcono />
+              )}
+              {esSuperadmin && (
+                <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} soloIcono />
+              )}
+            </div>
           </div>
         )}
       </div>
@@ -344,11 +393,12 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       <DialogoMarcarPagado
         abierto
         onCerrar={cerrarDialogo}
+        nombreNegocio={n.nombre}
         vencimientoActual={n.fechaVencimiento}
         tieneSuscripcion={n.tieneSuscripcionStripe}
         cargando={marcarPagado.isPending}
-        onConfirmar={(hasta, pausarStripe) =>
-          marcarPagado.mutate({ id: previo.id, hasta, pausarStripe }, { onSuccess: cerrarDialogo })
+        onConfirmar={(hasta, datos) =>
+          marcarPagado.mutate({ id: previo.id, hasta, ...datos }, { onSuccess: cerrarDialogo })
         }
       />
     )}

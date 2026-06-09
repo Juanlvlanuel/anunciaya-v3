@@ -206,6 +206,32 @@ export const adminAuditoria = pgTable("admin_auditoria", {
 	index("idx_admin_auditoria_created").using("btree", table.createdAt.asc().nullsLast()),
 ]);
 
+// Bitácora de pagos de membresía (Panel Admin · Parada 2 · Opción A). Registra cada
+// "Marcar pagado" manual: efectivo/transferencia (ingreso) o cortesía (sin monto).
+// Primer ladrillo de la bitácora de pagos. El empuje del cobro en Stripe (trial_end)
+// y el estado del negocio viven en `negocios`; aquí solo el registro contable/histórico.
+//   - concepto: efectivo | transferencia | cortesia
+//   - monto: NULL en cortesía (CHECK lo exige); meses_cubiertos: NULL en "fecha exacta"
+//   - periodo_hasta: vencimiento aplicado (= trial_end empujado en Stripe)
+export const pagosMembresia = pgTable("pagos_membresia", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	negocioId: uuid("negocio_id").notNull().references((): AnyPgColumn => negocios.id, { onDelete: 'cascade' }),
+	monto: numeric({ precision: 10, scale: 2 }),
+	concepto: varchar({ length: 20 }).notNull(),
+	fechaPago: timestamp("fecha_pago", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	mesesCubiertos: integer("meses_cubiertos"),
+	periodoHasta: timestamp("periodo_hasta", { withTimezone: true, mode: 'string' }).notNull(),
+	registradoPor: uuid("registrado_por").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }),
+	nota: varchar({ length: 500 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_pagos_membresia_negocio").using("btree", table.negocioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_pagos_membresia_periodo").using("btree", table.negocioId.asc().nullsLast(), table.periodoHasta.asc().nullsLast()),
+	check("pagos_membresia_concepto_check", sql`(concepto)::text = ANY ((ARRAY['efectivo'::character varying, 'transferencia'::character varying, 'cortesia'::character varying])::text[])`),
+	check("pagos_membresia_monto_check", sql`(monto IS NULL) OR (monto >= (0)::numeric)`),
+	check("pagos_membresia_cortesia_sin_monto_check", sql`((concepto)::text <> 'cortesia'::text) OR (monto IS NULL)`),
+]);
+
 export const negocioSucursales = pgTable("negocio_sucursales", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	negocioId: uuid('negocio_id').notNull().references(() => negocios.id, { onDelete: 'cascade' }),
