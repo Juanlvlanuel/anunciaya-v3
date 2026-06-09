@@ -18,6 +18,7 @@ import { usuarios } from './db/schemas/schema.js';
 import { eq } from 'drizzle-orm';
 import { verificarAccessToken } from './utils/jwt.js';
 import { verificarAccessTokenScanYA } from './utils/jwtScanYA.js';
+import { esOrigenPermitido } from './middleware/cors.js';
 
 let io: SocketServer | null = null;
 
@@ -28,7 +29,16 @@ let io: SocketServer | null = null;
 export function inicializarSocket(httpServer: HttpServer): SocketServer {
   io = new SocketServer(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      // Reutiliza la misma validación de orígenes que el CORS de Express
+      // (localhost, IPs de la LAN y ngrok) para que ChatYA y las notificaciones
+      // en tiempo real funcionen también desde otras computadoras de la red.
+      origin: (origin, callback) => {
+        if (esOrigenPermitido(origin)) {
+          callback(null, true);
+        } else {
+          callback(new Error('No permitido por CORS'));
+        }
+      },
       methods: ['GET', 'POST'],
       credentials: true,
     },
