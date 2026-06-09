@@ -304,7 +304,24 @@
       "Bash(node -e \"const s=require\\('./package.json'\\).scripts; console.log\\(JSON.stringify\\(s,null,2\\)\\)\")",
       "Bash(Get-ChildItem -Path \"E:\\\\AnunciaYA\\\\anunciaya\\\\apps\\\\web\\\\src\" -Filter \"*.tsx\" -Recurse)",
       "Bash(Select-String -Pattern \"ModoGuard|requiereModo\" -List)",
-      "Bash(Select-Object Path)"
+      "Bash(Select-Object Path)",
+      "Bash(git ls-tree *)",
+      "Bash(echo \"=== exit diff: $? \\(0=IDÉNTICOS\\) ===\")",
+      "Bash(echo \"exit: $? \\(0 = contenido idéntico\\)\")",
+      "Bash(echo \"tsc shared exit: $?  \\(sin 'error TS' = OK\\)\")",
+      "Bash(grep -v \"//\\\\|idx_\\\\|index\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const j=JSON.parse\\(fs.readFileSync\\('we5tic3ep.output','utf8'\\)\\);console.log\\(j.result.C_adversarial\\)\")",
+      "Bash(xargs -0 grep -l \"useState\\\\|useMemo\")",
+      "Bash(node -e \"const fs=require\\('fs'\\);const j=JSON.parse\\(fs.readFileSync\\('wm8pwr7ri.output','utf8'\\)\\);console.log\\(j.result.B_inventario\\)\")",
+      "Bash(grep -E \"\\\\.\\(ts|js\\)$\")",
+      "Bash(git --no-pager diff HEAD -- package.json)",
+      "Bash(git --no-pager diff HEAD -- .claude/settings.local.json)",
+      "Bash(git --no-pager log --oneline -5)",
+      "Bash(git --no-pager log --oneline origin/main..main)",
+      "PowerShell(pnpm --filter @anunciaya/api exec tsc --noEmit)",
+      "PowerShell(Write-Output \"=== ngrok ===\"; \\(Get-Command ngrok -ErrorAction SilentlyContinue\\).Source; ngrok version 2>&1 | Select-Object -First 2; Write-Output \"=== stripe.exe en disco ===\"; where.exe stripe 2>&1; Write-Output \"=== scoop apps ===\"; if \\(Test-Path \"$env:USERPROFILE\\\\scoop\\\\apps\"\\) { Get-ChildItem \"$env:USERPROFILE\\\\scoop\\\\apps\" -Name | Where-Object { $_ -match 'stripe|ngrok' } })",
+      "PowerShell(try { New-NetFirewallRule -DisplayName \"AnunciaYA Dev 3000\" -Direction Inbound -LocalPort 3000 -Protocol TCP -Action Allow -ErrorAction Stop | Out-Null; Write-Output \"OK: Regla creada correctamente\" } catch { Write-Output \"ERROR: $\\($_.Exception.Message\\)\" })",
+      "Bash(set -e)"
     ]
   },
   "disableAllHooks": true
