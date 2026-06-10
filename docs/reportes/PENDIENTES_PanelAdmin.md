@@ -2,7 +2,7 @@
 
 > Checklist de lo que falta para el Panel Admin y su sistema de vendedores/ventas.
 > El **diseño** vive en `Panel_Admin.md`; aquí está **lo que falta hacer**.
-> Última actualización: 7 Junio 2026.
+> Última actualización: 10 Junio 2026.
 >
 > Leyenda: 🔴 bloqueante / base · 🟡 importante · 🟢 mejora · ✅ hecho
 
@@ -89,7 +89,9 @@
 
 ## 💵 Camino B — Pago en efectivo (atribución por efectivo)
 
-- [ ] 🔴 **Alta de un negocio que paga en efectivo DESDE EL INICIO** — hueco de fondo (detectado 9 jun 2026): **hoy un negocio solo puede nacer pagando con tarjeta** (todo el alta cuelga del checkout de Stripe → el negocio se crea dentro del webhook `checkout.session.completed`). NO existe forma de dar de alta un negocio cuyo primer pago es efectivo/transferencia. **Ojo:** "Marcar pagado" (la acción del Panel) NO resuelve esto — actúa sobre un negocio que YA existe; si nunca se creó (porque nunca pagó con tarjeta), no hay nada que marcar. Falta diseñar el flujo de **alta manual sin Stripe** (decisión de producto pendiente: ¿botón "Registrar negocio" en el Panel solo super/gerente?, ¿el onboarding público con opción "pago en efectivo"?, ¿lo registra el vendedor que lo captó y se atribuye la venta?). Implicaciones a decidir: quién da el alta, cómo se atribuye al vendedor, si Stripe queda fuera del todo. Va junto con el resto del Camino B.
+- [x] ✅ **Alta de un negocio que paga en efectivo DESDE EL INICIO** (HECHO 10 jun 2026, commiteado y pusheado a main) — resuelto el hueco de fondo: antes **un negocio solo podía nacer pagando con tarjeta** (el alta colgaba del checkout de Stripe → el negocio se creaba dentro del webhook `checkout.session.completed`). Ahora existe **alta manual sin Stripe**: botón **"Registrar negocio"** en la toolbar de la sección Negocios del Panel, disponible para **SuperAdmin, Gerente (su región) y Vendedor (su región)** → diálogo `DialogoRegistrarNegocio.tsx`. Endpoint **`POST /api/admin/negocios/alta-manual`** (`altaManualNegocio.service.ts`) que en una transacción crea usuario+negocio+sucursal reusando el helper compartido **`crearNegocioConDueno`** (extraído del webhook, sin regresión), con **concepto efectivo / transferencia / CORTESÍA** (cortesía = alta gratis por X meses, monto NULL y sin `fecha_primer_pago`). El negocio nace con **`metodo_cobro='manual'`** (sin `stripeCustomerId`/`stripeSubscriptionId`, el webhook nunca le llega); la **cuenta del dueño nace SIN contraseña (modelo C)** que el dueño define en su **primer ingreso con código por correo** (`correoVerificado=true`). El pago se registra en **`pagos_membresia`**, con auditoría y correo de bienvenida (best-effort). Atribución del vendedor: el vendedor se auto-atribuye; gerente/superadmin lo eligen de una lista (candado de región para el gerente). En el Panel: **ficha adaptada al método manual** (muestra "Vigencia hasta", oculta lo de Stripe) + **historial de pagos** (`GET /admin/negocios/:id/pagos`, hook `usePagosNegocio`). Harnesses DEV con datos reales (`probar-alta-manual.ts`, `probar-alta-manual-vendedor.ts`, `probar-login-sin-contrasena.ts`, `probar-pagos-negocio.ts`, `probar-alta-tarjeta.ts`). Commits `f9b197a` (pagos) + `494d739` (onboarding).
+- [ ] 🟡 **Fase 3 — cron para EXPIRAR negocios manuales al vencer** — falta el job que mueva los negocios de alta manual por su `fecha_vencimiento` (`al_corriente → en_gracia → suspendido`). Hoy **solo el webhook de Stripe escribe `'en_gracia'`**; los negocios manuales (`metodo_cobro='manual'`, sin suscripción) no tienen quién los venza al pasar su fecha de vencimiento. Va junto con el alta manual.
+- [ ] 🟡 **Fase 4 — editar el correo del dueño desde el Panel** — si el vendedor tecleó mal el correo al dar el alta manual, el dueño **nunca recibe el código para crear su contraseña** (no puede entrar). Falta una acción en el Panel para corregir el correo del dueño y reenviarle el código.
 - [ ] 🟡 **Registro de cobro en efectivo desde el Panel del vendedor** — el negocio se **activa al instante** (no depende de confirmación).
 - [ ] 🟡 **"Efectivo por entregar" + corte de caja por vendedor** — reportado vs. entregado vs. pendiente.
 - [ ] 🟡 **Comisión condicionada a la entrega** — la comisión del vendedor se libera al confirmar entrega (SuperAdmin o Gerente de su región). El negocio nunca se ve afectado.
@@ -150,3 +152,13 @@
 - [x] Decisiones cerradas: efectivo no afecta al negocio + defensas anti robo invisible; región una fuente por rol (sin replicar); rol de equipo como columna en `usuarios`; primer superadmin sembrado a mano.
 - [x] **App `apps/admin` (frontend del Panel)** — andamiaje espejo de `apps/web` + login + shell responsive (escritorio + móvil), tema claro/oscuro, sesión aislada `ayadmin_`. Verificado (type-check + build) y pusheado a `main`.
 - [x] **`GET /api/admin/yo`** — endpoint de identidad del Panel (reusa `requierePanel`, responde a los 3 roles). Pusheado a `main`.
+
+---
+
+## ✅ Cerrado en la sesión del 10 Jun 2026
+
+- [x] **Alta manual de negocios sin Stripe (efectivo / transferencia / CORTESÍA)** — backend (`POST /api/admin/negocios/alta-manual`, `altaManualNegocio.service.ts`, schema Zod, `pagos_membresia`, catálogo de ciudades) + Panel (`DialogoRegistrarNegocio.tsx`, botón "Registrar negocio", ficha del método manual). Disponible para SuperAdmin, Gerente y Vendedor con candado de región; atribución del vendedor (auto o por lista). El negocio nace con `metodo_cobro='manual'`, fuera de Stripe.
+- [x] **Crear contraseña en primer ingreso (modelo C)** — la cuenta del dueño nace sin contraseña (`correoVerificado=true`); el login web detecta `CUENTA_SIN_CONTRASENA` (409) y abre la vista "Crea tu contraseña" con código por correo + enlace **"¿Primera vez?"** debajo del botón Iniciar Sesión. `auth.service.ts` (login + `solicitarRecuperacion`), plantilla `enviarCodigoCrearContrasena`, copy "crear" vs "recuperar" en `VistaLogin`/`VistaRecuperar`/`ModalLogin` + locales `es/en`.
+- [x] **Helper `crearNegocioConDueno` extraído del webhook** — `negocioManagement.service.ts`; lo usan AMBOS flujos (alta con tarjeta vía webhook `checkout.session.completed` + alta manual), sin regresión (validada por harness).
+- [x] **Tabla `pagos_membresia` + historial de pagos en la ficha** — registra cada pago manual (`monto`, `concepto`, `meses_cubiertos`, `periodo_hasta`, `registrado_por`, `fecha_pago`; CHECK monto NULL en cortesía); `GET /admin/negocios/:id/pagos` + sub-componente `HistorialPagos` con hook `usePagosNegocio`.
+- [x] **Todo commiteado y pusheado a `main`** — commits `f9b197a` (`feat(pagos)`) + `494d739` (`feat(onboarding)`).

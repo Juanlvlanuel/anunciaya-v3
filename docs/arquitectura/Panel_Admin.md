@@ -1,8 +1,8 @@
 # 🛡️ Panel Admin — Arquitectura
 
-**Última actualización:** 7 Junio 2026
-**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Negocios (Entrega 1 VER + Entrega 2 ACTUAR + sucursales + filtro de región del superadmin) construida** (en producción) · **Modelo ciudad↔región rediseñado** (completo en dev + prod, incluido el DROP del Paso 10) · 10 secciones internas restantes
-**Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas: **Negocios (VER + ACTUAR) ✅** · resto 0%
+**Última actualización:** 10 Junio 2026
+**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Negocios (Entrega 1 VER + Entrega 2 ACTUAR + sucursales + filtro de región del superadmin) construida** (en producción) · **Alta manual de negocios sin Stripe (efectivo/transferencia/cortesía) + crear contraseña en primer ingreso construida** (en producción) · **Modelo ciudad↔región rediseñado** (completo en dev + prod, incluido el DROP del Paso 10) · 10 secciones internas restantes
+**Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas: **Negocios (VER + ACTUAR) ✅** · **Alta manual sin Stripe ✅** · resto 0%
 
 > Este documento reemplaza la versión anterior (que describía solo 2 roles y auth separada).
 > El diseño de los 3 niveles, el motor de venta/comisiones y el mapa de territorios se
@@ -151,7 +151,7 @@ Cuatro botones, dos propósitos: **dos mantienen viva la cuenta** (Marcar pagado
 > - No confundir `estado_admin` (lo administrativo, lo ponen estos botones) con `estado_membresia` (al_corriente / en_gracia / suspendido / cancelado), que es el **ciclo de pago automático de Stripe** y vive aparte. La **visibilidad** la manda siempre `negocios.activo` (ver §Negocio fuera de circulación).
 
 ### 1. Marcar pagado · SOLO SuperAdmin
-**Seguro rápido para activar la cuenta de un comerciante a mano.** Pone el negocio en circulación (`estado_admin='activo'` + `activo=true`), lo deja al corriente y marca `metodo_cobro='manual'` (señal de "este cobro lo llevo yo, que Stripe no toque la tarjeta"). Casos de uso:
+**Seguro rápido para activar la cuenta de un comerciante a mano.** Pone el negocio en circulación (`estado_admin='activo'` + `activo=true`), lo deja al corriente y marca `metodo_cobro='manual'` (señal de "este cobro lo llevo yo, que Stripe no toque la tarjeta"). **Complementario al alta manual:** Marcar pagado actúa sobre un negocio que **ya existe** (renueva/extiende su vigencia), mientras que el **alta manual** (botón "Registrar negocio", ver §Motor de venta → Camino B) **crea el negocio desde cero** sin Stripe. Casos de uso:
 - **Cortesías / meses gratis** a un negocio puntual.
 - **Problemas de comunicación**: el cobro se hizo pero el sistema no lo registró → reactivar sin que el comerciante espere.
 - **Robo de membresía del vendedor**: responderle al comerciante de inmediato reactivándole la cuenta, mientras se resuelve con el vendedor por separado.
@@ -204,6 +204,9 @@ Cómo nace una venta y cómo se enlaza un negocio a su vendedor. **Dos caminos, 
 - El vendedor nunca toca dinero. Limpio.
 
 ### Camino B — pago en efectivo (registro del vendedor)
+
+> ✅ **YA CONSTRUIDO (10 Jun 2026) — el alta manual sin Stripe (botón "Registrar negocio"):** un negocio ya puede **nacer desde el Panel sin pasar por Stripe**. Lo puede dar de alta SuperAdmin, Gerente (su región) o Vendedor (su región, auto-atribuido). El negocio nace con `metodo_cobro='manual'` (sin `stripeCustomerId` ni `stripeSubscriptionId` — el webhook nunca le llega) y la cuenta del dueño nace **sin contraseña (modelo C)**: la define en su primer ingreso con un código por correo (ver §Seguridad). El **concepto** del pago es `efectivo`, `transferencia` o **`cortesia`** (alta gratis por X meses, monto NULL, sin `fecha_primer_pago`). Esto cubre el hueco que antes era bloqueante: **el "alta desde el inicio"** de un negocio que paga en efectivo (antes solo podía nacer pagando con tarjeta vía el webhook). Lo que sigue pendiente del Camino B es lo de **abajo**: el corte de caja, el "efectivo por entregar" y la comisión condicionada a la confirmación de la entrega.
+
 1. El vendedor cobra en efectivo y **registra al negocio desde su Panel**.
 2. **El negocio se ACTIVA de inmediato** al registrarse el cobro. El negocio pagó de buena fe (al representante de AnunciaYA) → su membresía corre normal, su reputación intacta. **NO depende de ninguna confirmación.**
 3. Lo que queda "pendiente" NO es el negocio, es **la entrega del dinero por parte del vendedor**: el cobro queda como **"efectivo por entregar"** a nombre del vendedor.
@@ -354,6 +357,7 @@ Tablas ya creadas pero **dormidas** (base del Panel — no eliminar):
 | `embajador_ciudades` (embajador_id, ciudad_id) PK compuesta + trigger "una región" | Cobertura del vendedor (1+ ciudades, misma región) | **viva** — poblada en dev |
 | `negocio_sucursales.ciudad_id` (→ ciudades) | Ancla de la sucursal a una ciudad; la región se deduce | **viva** — poblada (41/43 en dev); se llena al guardar ubicación |
 | `negocios.metodo_cobro` (tarjeta/manual) · `negocios.estado_admin` (activo/suspendido/archivado) | Eje administrativo del Panel (Parada 1/2) | **vivas** |
+| `pagos_membresia` (monto, `concepto` efectivo/transferencia/cortesia, meses_cubiertos, periodo_hasta, registrado_por→usuarios, fecha_pago) · CHECK: en `cortesia` el monto debe ser NULL | Registra cada pago de membresía **manual** del alta sin Stripe (10 Jun 2026) | **viva** |
 | `admin_auditoria` (actor, acción, entidad, antes/después, motivo) | Bitácora de acciones sensibles del Panel | **viva** |
 | `embajadores` (usuarioId, codigoReferido, porcentajes viejos, estado, negociosRegistrados; `region_id` **se elimina** — Paso 10) | Vendedores con código referido; la región sale de `embajador_ciudades` | parcial — atribución activa, comisiones dormidas |
 | `usuarios.esEmbajador` / `usuarios.referidoPor` (→ embajadores.id) | Marca de vendedor y referidor | `referidoPor` se llena en el checkout |
@@ -361,6 +365,8 @@ Tablas ya creadas pero **dormidas** (base del Panel — no eliminar):
 | `negocios.embajadorId` (`negocios.region_id` **se elimina** — Paso 10) | **Atribución** al vendedor; la región del negocio se deduce de la ciudad de su sucursal | parcial |
 | `embajadorComisiones` (embajadorId, negocioId, tipo, montoBase, montoComision, estado) | Comisiones | dormida — modela %, ajustar a monto fijo |
 | `configuracionSistema` (clave-valor) | Config global sin código | poblada; el helper `obtenerConfig()` ya la lee (Ronda 3). Falta la **UI** de la sección Configuración |
+
+> **Helper compartido `crearNegocioConDueno(ejecutor, datos)`** (`services/negocioManagement.service.ts`): crea usuario + negocio + sucursal en una transacción y nace la cuenta del dueño con `contrasenaHash=null` + `correoVerificado=true`. **Lo usan AMBOS flujos de alta** — el **alta con tarjeta** (webhook `checkout.session.completed` en `pago.service.ts`) y el **alta manual** sin Stripe — extraído del webhook sin regresión para no duplicar lógica.
 
 Tablas/columnas **nuevas a crear** (conceptos; nombres exactos a definir en implementación):
 - Rol de equipo en cuentas (superadmin / gerente / vendedor), independiente de `usuarios.perfil`
@@ -412,6 +418,11 @@ El gate del Panel ya **no** depende solo del `x-admin-secret`. Construido:
 2. Middleware **`requierePanel(roles[])`** (`apps/api/src/middleware/panel.middleware.ts`): **revalida el rol contra la BD** en cada petición (quitar/cambiar el rol surte efecto al instante), corta cuentas no-activas (enforcement de `usuarios.estado`), y resuelve la región según el rol (gerente→`usuarios.region_id`, vendedor→deducida de `embajador_ciudades`, superadmin→null). Deja `req.usuarioPanel = { usuarioId, rolEquipo, regionId, viaSecret }`.
 3. **Gate dual durante la transición** (`routes/admin/index.ts`): acepta `x-admin-secret` (legacy, reconcile R2) **O** un JWT con rol válido. El `requireAdminSecret` original se conserva dentro del dual y se retira cuando todo migre al rol.
 4. **`GET /api/admin/yo`** (`controllers/admin/sesion.controller.ts` + `routes/admin/sesion.routes.ts`): identidad del Panel. Responde a los **3 roles** (se monta **antes** del gate global de superadmin) y devuelve `rolEquipo` + `regionId` + datos básicos. Es el guard que usa el frontend para decidir el acceso: si la cuenta no tiene rol de equipo → 403.
+
+### Cuenta sin contraseña (modelo C — alta manual) — IMPLEMENTADA (10 Jun 2026)
+La cuenta del dueño dada de alta **manualmente** desde el Panel nace **sin contraseña** (`contrasenaHash=null`, `correoVerificado=true`, perfil comercial): la define en su **primer ingreso** con un código por correo, sin que el vendedor maneje credenciales.
+- **Login (`auth.service.ts → loginUsuario`):** una cuenta sin contraseña que **no** es de Google responde **409 `CUENTA_SIN_CONTRASENA`**; el frontend la lleva a la vista "Crea tu contraseña".
+- **Recuperación (`solicitarRecuperacion`):** también envía el código a estas cuentas y elige la **plantilla** según `contrasenaHash`: "crear contraseña" si es `null` (alta manual) vs. "restablecer contraseña" si ya tenía una. Plantillas en `utils/email.ts` (`enviarCodigoCrearContrasena`).
 
 ### 2FA del Panel — IMPLEMENTADA (opcional, por cuenta)
 Verificación en dos pasos (TOTP, Google Authenticator) **en la puerta del Panel**, **separada** del 2FA general de AnunciaYA para no afectar el login de la app:
@@ -470,6 +481,10 @@ App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 202
 - **Sin aprobación de negocios (Modelo A).** Los negocios se publican automáticamente al pagar + completar onboarding; ningún admin los revisa antes. Menos fricción, coherente con cómo ya funciona el sistema. Por eso "negocios por aprobar" NO existe como tarea ni en la cola de pendientes.
 - **Cola de pendientes = centro de trabajo, no notificaciones.** El Panel no tiene feed de notificaciones (eso es de la app de cliente). Tiene una cola de tareas accionables: efectivo por confirmar, negocios en gracia, vendedores con faltante. Regla: si lleva a hacer algo, entra; si solo informa, va a Sistema.
 
+### Nuevas (10 Jun 2026)
+- **Alta manual de negocios sin Stripe.** Un negocio puede nacer desde el Panel (botón "Registrar negocio") sin pasar por Stripe, con `metodo_cobro='manual'`. **Quién:** SuperAdmin, Gerente (su región) y Vendedor (su región). **Atribución:** el vendedor que da el alta se **auto-atribuye**; gerente/superadmin eligen al vendedor de una lista (candado de región para el gerente) y sin vendedor no bloquea. **Concepto:** `efectivo`, `transferencia` o **`cortesia`** (alta gratis por X meses, monto NULL, sin `fecha_primer_pago`). Cubre el "alta desde el inicio" del Camino B que antes era bloqueante.
+- **Cuenta del dueño sin contraseña (modelo C).** En el alta manual la cuenta nace sin contraseña (`contrasenaHash=null`, `correoVerificado=true`); el dueño la define en su **primer ingreso** con un código por correo. El login devuelve **409 `CUENTA_SIN_CONTRASENA`** y `solicitarRecuperacion` elige plantilla "crear" vs. "restablecer". Así el vendedor nunca maneja credenciales del comerciante.
+
 ### Heredadas (se conservan)
 - **Sub-carpeta `admin/` en cada capa:** mantiene la convención del proyecto (archivos por tipo) agrupando por sub-dominio cuando crece el volumen.
 - **El log de reconcile no registra GET:** un GET es lectura; solo las ejecuciones POST crean fila → log limpio.
@@ -482,6 +497,10 @@ App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 202
 | Archivo | Propósito |
 |---------|-----------|
 | `apps/admin/` | **Frontend del Panel** (app aparte; ver §Frontend del Panel) |
+| `apps/admin/src/components/negocios/DialogoRegistrarNegocio.tsx` | **Formulario "Registrar negocio"** (Panel) — alta manual sin Stripe (Negocio/Dueño/Cobro/Vendedor) |
+| `apps/api/src/services/admin/altaManualNegocio.service.ts` | **Lógica del alta manual** — transacción usuario+negocio+sucursal, sella fechas, inserta `pagos_membresia`, auditoría y correo de bienvenida; `listarCatalogoCiudades` |
+| `apps/api/src/validations/admin/altaManualNegocio.schema.ts` | **Validación Zod** del alta manual (correo×2, concepto, monto/cortesía, meses, embajador) |
+| `apps/api/src/services/negocioManagement.service.ts` | Servicio CRUD centralizado + **helper `crearNegocioConDueno`** (compartido por alta-tarjeta y alta-manual) |
 | `apps/api/src/middleware/panel.middleware.ts` | **Gate real por rol** (`requierePanel`) — revalida en BD, resuelve región |
 | `apps/api/src/controllers/admin/sesion.controller.ts` | `GET /api/admin/yo` — identidad del Panel (3 roles) |
 | `apps/api/src/routes/admin/sesion.routes.ts` | Ruta `/yo` (montada antes del gate global) |
