@@ -363,6 +363,9 @@ export function ColumnaIzquierda() {
   // Gerentes NUNCA ven onboarding — tratar como completado
   const onboardingCompletado = !!usuario?.sucursalAsignada || (usuario?.onboardingCompletado ?? false);
   const participaPuntos = usuario?.participaPuntos ?? true;
+  // ScanYA requiere CardYA activa (participaPuntos) Y el onboarding terminado (igual que el backend).
+  const scanyaHabilitado = participaPuntos && onboardingCompletado;
+  const hintScanyaBloqueado = !onboardingCompletado ? 'Completa tu registro primero' : 'Activa CardYA primero';
   const esGerente = !!usuario?.sucursalAsignada;
   const sucursalPrincipalId = useAuthStore((s) => s.sucursalPrincipalId);
   const sucursalParaPerfil = esGerente ? usuario?.sucursalActiva : (sucursalPrincipalId || usuario?.sucursalActiva);
@@ -453,8 +456,8 @@ export function ColumnaIzquierda() {
           <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
         </button>
 
-        {/* ScanYA - Deshabilitado si CardYA no está activo */}
-        {participaPuntos ? (
+        {/* ScanYA - Habilitado solo con CardYA activa Y onboarding terminado (alineado al backend) */}
+        {scanyaHabilitado ? (
           <button
             onClick={() => navigate('/scanya')}
             className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
@@ -481,7 +484,7 @@ export function ColumnaIzquierda() {
             </div>
             <div className="flex-1 min-w-0 leading-tight text-left">
               <span className="font-bold text-slate-500 text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 -mt-0.5 block">Activa CardYA primero</span>
+              <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 -mt-0.5 block">{hintScanyaBloqueado}</span>
             </div>
             <Lock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500" />
           </div>

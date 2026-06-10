@@ -34,7 +34,7 @@ import { useNavigate } from 'react-router-dom';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { notificar } from '@/utils/notificaciones';
-import { Spinner } from '@/components/ui';
+import { LogoAnimadoSaludo } from '@/components/LogoAnimadoSaludo';
 import { LayoutOnboarding, ModalPausar } from './componentes';
 import { PasoCategoria, PasoUbicacion, PasoContacto, PasoHorarios, PasoImagenes, PasoMetodosPago, PasoPuntos, PasoProductos } from './pasos';
 
@@ -165,9 +165,9 @@ export function PaginaOnboarding() {
   if (inicializando) {
     return (
       <div className="min-h-screen bg-linear-to-br from-blue-50 to-slate-50 flex items-center justify-center">
-        <div className="text-center">
-          <Spinner tamanio="lg" />
-          <p className="mt-4 text-sm text-slate-600">Cargando onboarding...</p>
+        <div className="flex flex-col items-center gap-3">
+          <LogoAnimadoSaludo size={150} />
+          <span className="texto-shimmer text-base font-bold tracking-wide">Preparando tu negocio…</span>
         </div>
       </div>
     );

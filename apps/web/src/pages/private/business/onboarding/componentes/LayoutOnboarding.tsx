@@ -13,7 +13,7 @@
  */
 
 import { ReactNode, useState, useRef, useEffect } from 'react';
-import { Home, Image as ImageIcon, ShoppingCart, LogOut } from 'lucide-react';
+import { Home, Image as ImageIcon, ShoppingCart, LogOut, Store } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
@@ -237,16 +237,17 @@ export function LayoutOnboarding({
           <Link to="/inicio" className="shrink-0">
             <img src="/logo-anunciaya-azul.webp" alt="AnunciaYA" className="h-9 2xl:h-11 w-auto object-contain hover:scale-110 transition-transform" />
           </Link>
-          <span className="text-white/90 text-base 2xl:text-lg font-semibold">
+          <span className="flex items-center gap-2 text-white/95 text-base 2xl:text-lg font-semibold">
+            <Store className="w-5 h-5 2xl:w-6 2xl:h-6 shrink-0" />
             Configuración del negocio
           </span>
           <div className="flex items-center gap-2 2xl:gap-3">
-            <button onClick={onPausar} className="flex items-center gap-2 px-4 2xl:px-5 py-2 2xl:py-2.5 rounded-lg bg-white/15 border-2 border-white/30 text-white hover:bg-white/25 transition-all cursor-pointer text-sm 2xl:text-base font-semibold shadow-sm">
-              <Clock className="w-4 h-4 2xl:w-5 2xl:h-5" />
+            <button onClick={onPausar} className="flex items-center gap-1.5 px-3 2xl:px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white hover:bg-white/25 hover:border-white/40 transition-all cursor-pointer text-[13px] 2xl:text-sm font-semibold shadow-sm backdrop-blur-sm">
+              <Clock className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
               <span>Pausar</span>
             </button>
-            <button onClick={handleCerrarSesion} className="flex items-center gap-2 px-4 2xl:px-5 py-2 2xl:py-2.5 rounded-lg bg-white/15 border-2 border-white/30 text-white hover:bg-white/25 transition-all cursor-pointer text-sm 2xl:text-base font-semibold shadow-sm">
-              <LogOut className="w-4 h-4 2xl:w-5 2xl:h-5" />
+            <button onClick={handleCerrarSesion} className="flex items-center gap-1.5 px-3 2xl:px-3.5 py-1.5 rounded-full bg-white/15 border border-white/25 text-white hover:bg-white/25 hover:border-white/40 transition-all cursor-pointer text-[13px] 2xl:text-sm font-semibold shadow-sm backdrop-blur-sm">
+              <LogOut className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" />
               <span>Cerrar Sesión</span>
             </button>
           </div>

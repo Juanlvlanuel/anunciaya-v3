@@ -17,3 +17,4 @@ export { LayoutOnboarding } from './LayoutOnboarding';
 export { IndicadorPasos } from './IndicadorPasos';
 export { BotonesNavegacion } from './BotonesNavegacion';
 export { ModalPausar } from './ModalPausar';
+export { CargandoPaso } from './CargandoPaso';

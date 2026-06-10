@@ -31,6 +31,8 @@ interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   variante?: 'primario' | 'secundario' | 'outline' | 'outlineGray' | 'ghost' | 'danger' | 'success';
   /** Tamaño del botón */
   tamanio?: 'sm' | 'md' | 'lg';
+  /** Radio de las esquinas (default: 'xl') */
+  redondez?: 'xl' | 'full';
   /** ¿Está cargando? Muestra spinner y deshabilita */
   cargando?: boolean;
   /** ¿Ocupar todo el ancho? */
@@ -50,7 +52,7 @@ interface BotonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
  */
 const estilosBase = `
   inline-flex items-center justify-center gap-2
-  font-bold rounded-xl cursor-pointer
+  font-bold cursor-pointer
   transition-all duration-150
   focus:outline-none
   disabled:opacity-50 disabled:cursor-not-allowed disabled:shadow-none
@@ -109,6 +111,14 @@ const tamanios = {
   lg: 'px-6 py-3 text-base',
 };
 
+/**
+ * Radio de esquinas (default 'xl' — preserva el estilo de toda la app)
+ */
+const redondeces = {
+  xl: 'rounded-xl',
+  full: 'rounded-full',
+};
+
 // =============================================================================
 // COMPONENTE
 // =============================================================================
@@ -117,6 +127,7 @@ export function Boton({
   children,
   variante = 'primario',
   tamanio = 'md',
+  redondez = 'xl',
   cargando = false,
   fullWidth = false,
   iconoIzquierda,
@@ -139,6 +150,7 @@ export function Boton({
         ${estilosBase}
         ${variantes[variante]}
         ${tamanios[tamanio]}
+        ${redondeces[redondez]}
         ${fullWidth ? 'w-full' : ''}
         ${className}
       `.trim()}

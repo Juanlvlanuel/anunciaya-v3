@@ -21,7 +21,7 @@
  */
 
 import { useState, useEffect } from 'react';
-import { Check, Loader2 } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
@@ -31,6 +31,7 @@ const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 const TrendingUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.tendenciaSubida} {...p} />;
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
+import { CargandoPaso } from '../componentes';
 
 // =============================================================================
 // CACHÉ
@@ -135,12 +136,7 @@ export function PasoPuntos() {
     // ---------------------------------------------------------------------------
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
-                <div className="text-center">
-                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
-                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
-                </div>
-            </div>
+            <CargandoPaso />
         );
     }
 

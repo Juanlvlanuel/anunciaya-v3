@@ -476,6 +476,9 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   const paleta = PALETAS_DRAWER[modo];
   const indicadorX = modo === 'personal' ? '0%' : '100%';
   const participaPuntos = usuario.participaPuntos ?? true;
+  // ScanYA requiere CardYA activa (participaPuntos) Y el onboarding terminado (igual que el backend).
+  const onboardingCompletado = !!usuario.sucursalAsignada || (usuario.onboardingCompletado ?? false);
+  const scanyaHabilitado = participaPuntos && onboardingCompletado;
 
   const inicialPersonal = usuario.nombre?.charAt(0).toUpperCase() || 'U';
   const inicialNegocio = (usuario.sucursalAsignada
@@ -619,11 +622,11 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         tile: TILE.scanya,
         iconoImagen: '/IconoScanYA.webp',
         alt: 'ScanYA',
-        onClick: participaPuntos
+        onClick: scanyaHabilitado
           ? () => handleNavegar('/scanya')
           : () => {},
-        bloqueado: !participaPuntos,
-        hintBloqueado: 'Activa CardYA',
+        bloqueado: !scanyaHabilitado,
+        hintBloqueado: !onboardingCompletado ? 'Completa tu registro' : 'Activa CardYA',
       },
       {
         id: 'biz',

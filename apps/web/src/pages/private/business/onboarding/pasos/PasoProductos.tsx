@@ -17,13 +17,14 @@
  */
 
 import { useState, useEffect } from 'react';
-import { ShoppingCart, Plus, Edit2, Trash2, Copy, Loader2, Scissors } from 'lucide-react';
+import { ShoppingCart, Plus, Edit2, Trash2, Copy, Scissors } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Package = (p: IconoWrapperProps) => <Icon icon={ICONOS.producto} {...p} />;
+import { CargandoPaso } from '../componentes';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { api } from '@/services/api';
 import { ModalArticulo } from '@/pages/private/business-studio/catalogo/ModalArticulo';
@@ -287,12 +288,7 @@ export function PasoProductos() {
     // ---------------------------------------------------------------------------
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
-                <div className="text-center">
-                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
-                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
-                </div>
-            </div>
+            <CargandoPaso />
         );
     }
 

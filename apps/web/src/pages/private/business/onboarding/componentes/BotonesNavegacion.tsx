@@ -44,7 +44,7 @@ export function BotonesNavegacion() {
   const esUltimoPaso = pasoActual === 8;
 
   // Texto e icono del botón "Siguiente"
-  const textoSiguiente = esUltimoPaso ? 'Finalizar configuración' : 'Siguiente paso';
+  const textoSiguiente = esUltimoPaso ? 'Finalizar' : 'Siguiente paso';
   const iconoSiguiente = esUltimoPaso ? (
     <Check className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
   ) : (
@@ -202,6 +202,7 @@ export function BotonesNavegacion() {
           onClick={handleAnterior}
           variante="outlineGray"
           tamanio="lg"
+          redondez="full"
           disabled={cargando || guardando}
           iconoIzquierda={<ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
           className="flex-1 lg:w-full px-4 lg:px-5 2xl:px-6 py-2 lg:py-2.5 2xl:py-3 text-sm lg:text-sm 2xl:text-base cursor-pointer"
@@ -216,6 +217,7 @@ export function BotonesNavegacion() {
         onClick={handleSiguiente}
         variante={varianteSiguiente}
         tamanio="lg"
+        redondez="full"
         cargando={cargando || guardando}
         disabled={siguienteDeshabilitado || cargando || guardando}
         iconoDerecha={!cargando && !guardando ? iconoSiguiente : undefined}

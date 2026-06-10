@@ -30,6 +30,7 @@ import { notificar } from '@/utils/notificaciones';
 import { api } from '@/services/api';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
 import { ModalImagenes } from '@/components/ui';
+import { CargandoPaso } from '../componentes';
 
 // =============================================================================
 // TIPOS
@@ -690,12 +691,7 @@ export function PasoImagenes() {
 
     if (cargandoDatos) {
         return (
-            <div className="flex items-center justify-center py-8 lg:py-10 2xl:py-12">
-                <div className="text-center">
-                    <Loader2 className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 animate-spin text-slate-600 mx-auto mb-2 lg:mb-3" />
-                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-slate-600">Cargando...</p>
-                </div>
-            </div>
+            <CargandoPaso />
         );
     }
 
