@@ -1,16 +1,23 @@
 /**
  * routes/admin/negocios.routes.ts
  * ===============================
- * Rutas de la sección Negocios del Panel Admin (Entrega 1 — solo lectura).
+ * Rutas de la sección Negocios del Panel Admin: lectura (tabla/ficha/sucursales/
+ * pagos/filtros), acciones de escritura (pausar/reactivar/reasignar/registrar
+ * pago/cancelar/editar correo) y alta manual en efectivo.
  *
  * Cada ruta trae su propio `requierePanel([roles])` porque la sección la usan
  * los 3 roles con distinto alcance (el alcance fino lo aplica el service). Por
  * eso este router se monta ANTES del gate global de superadmin en
  * `routes/admin/index.ts` (igual que /yo y /2fa).
  *
- *   GET /            → los 3 roles (tabla, con alcance por rol)
- *   GET /vendedores  → superadmin + gerente (filtro "por vendedor")
- *   GET /:id         → los 3 roles (ficha, con alcance por rol)
+ *   GET   /            → los 3 roles (tabla, con alcance por rol)
+ *   GET   /vendedores  → superadmin + gerente (filtro "por vendedor")
+ *   GET   /:id         → los 3 roles (ficha, con alcance por rol)
+ *   POST  /:id/{marcar-pagado,suspender,reactivar,reasignar-vendedor}
+ *                      → superadmin + gerente (alcance de región en el service)
+ *   POST  /:id/cancelar       → solo superadmin
+ *   PATCH /:id/correo-dueno   → superadmin + gerente
+ *   POST  /alta-manual        → los 3 roles (vendedor se auto-atribuye)
  *
  * Nota de orden: /vendedores se declara ANTES de /:id para que "vendedores" no
  * caiga en el comodín del id.

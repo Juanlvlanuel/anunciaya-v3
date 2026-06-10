@@ -5,8 +5,8 @@
  *  - superadmin → selector interactivo (cambia el ámbito de datos).
  *  - gerente/vendedor → región fija: el nombre real de SU región (del store).
  *
- * El selector del superadmin usa regiones DEMO por ahora (Parte 2 lo conecta al
- * backend). Vive sobre la barra negra → usa blancos translúcidos (no tokens de
+ * El selector del superadmin usa las regiones REALES del backend (GET /api/admin/regiones
+ * vía useRegionesPanel). Vive sobre la barra negra → usa blancos translúcidos (no tokens de
  * tema); el menú desplegable sí usa superficie clara.
  *
  * Ubicación: apps/admin/src/components/shell/SelectorRegion.tsx

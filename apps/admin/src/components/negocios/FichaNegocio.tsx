@@ -1,14 +1,16 @@
 /**
  * FichaNegocio.tsx
  * =================
- * Ficha ADMINISTRATIVA de un negocio (VER, solo lectura) — calcada del diseño.
- * Usa el ModalAdaptativo base del Panel (centrado en escritorio, bottom-sheet en
- * móvil, con atrás nativo). Layout: cabecera (avatar + nombre + badge) / cuerpo
- * con scroll (Membresía, Vendedor atribuido, Dueño, Negocio) / footer fijo con
- * las 4 acciones.
+ * Ficha ADMINISTRATIVA de un negocio — calcada del diseño. Usa el ModalAdaptativo
+ * base del Panel (centrado en escritorio, bottom-sheet en móvil, con atrás nativo).
+ * Layout: cabecera (avatar + nombre + badge) / cuerpo con scroll (Membresía,
+ * Vendedor atribuido, Dueño, Negocio) / footer fijo con las acciones.
  *
- * Las 4 acciones son UI visual SIN lógica (deshabilitadas con tooltip): su
- * funcionamiento llega en la Entrega 2. Sin métricas de actividad ni categoría.
+ * Acciones del footer según rol (el backend es la fuente de verdad):
+ *   - Registrar pago · Pausar/Reactivar · Reasignar · Editar correo → superadmin + gerente
+ *   - Cancelar → solo superadmin
+ *   - Vendedor → ficha en solo-lectura (sin footer)
+ * Sin métricas de actividad ni categoría.
  *
  * Ubicación: apps/admin/src/components/negocios/FichaNegocio.tsx
  */

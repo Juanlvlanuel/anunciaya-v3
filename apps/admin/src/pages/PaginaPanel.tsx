@@ -3,7 +3,7 @@
  * ================
  * Shell del Panel. Elige la vista escritorio o móvil según el viewport (no por
  * rol — responsive). El rol (del store, traído por /api/admin/yo) filtra el menú
- * y el alcance. Las 11 secciones son placeholders por ahora.
+ * y el alcance. Negocios ya está construida; las demás secciones son placeholders por ahora.
  *
  * Ubicación: apps/admin/src/pages/PaginaPanel.tsx
  */

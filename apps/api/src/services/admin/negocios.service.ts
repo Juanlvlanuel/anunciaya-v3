@@ -1,7 +1,7 @@
 /**
  * admin/negocios.service.ts
  * =========================
- * Lógica de la sección Negocios del Panel Admin (Entrega 1 — solo lectura).
+ * Lecturas de la sección Negocios del Panel Admin (tabla, ficha, sucursales, pagos, filtros).
  *
  * Tres lecturas:
  *   1. listarNegocios       — tabla paginada (nombre / ciudad / vendedor / estado de pago)
@@ -18,8 +18,9 @@
  * resuelve por `embajador_id → embajadores → usuarios`. (Sin categoría: por
  * decisión, la categoría se retoma en la futura sección Métricas.)
  *
- * Solo lectura: este service NO modifica datos. Las acciones (suspender,
- * cancelar, marcar pagado, reasignar) son de la Entrega 2.
+ * Solo lecturas: este service NO modifica datos. Las escrituras viven en
+ * `negocios-acciones.service.ts` (suspender/reactivar/reasignar/marcar pagado/
+ * cancelar/editar correo) y `altaManualNegocio.service.ts` (alta en efectivo).
  *
  * Ubicación: apps/api/src/services/admin/negocios.service.ts
  */

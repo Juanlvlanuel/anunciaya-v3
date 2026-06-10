@@ -1,9 +1,11 @@
 /**
  * admin/negocios.controller.ts
  * ============================
- * Controllers de la sección Negocios del Panel Admin (Entrega 1 — solo lectura).
- * Solo leen query/params, llaman al service y arman la respuesta camelCase.
- * El acceso y el rol ya los validó `requierePanel` en la ruta.
+ * Controllers de la sección Negocios del Panel Admin: lecturas (tabla, ficha,
+ * sucursales, pagos, filtros), acciones de escritura (pausar/reactivar/reasignar/
+ * registrar pago/cancelar/editar correo) y alta manual. Leen query/params/body,
+ * llaman al service y arman la respuesta camelCase. El acceso y el rol ya los
+ * validó `requierePanel` en la ruta.
  *
  * Ubicación: apps/api/src/controllers/admin/negocios.controller.ts
  */
@@ -325,7 +327,7 @@ export async function reasignarVendedorController(req: Request, res: Response): 
 }
 
 // =============================================================================
-// POST /api/admin/negocios/:id/marcar-pagado   (SOLO superadmin)
+// POST /api/admin/negocios/:id/marcar-pagado   (superadmin + gerente · alcance de región)
 // Body: { hasta: string (ISO), concepto: 'efectivo'|'transferencia'|'cortesia',
 //         monto?: number, meses?: number }
 // =============================================================================

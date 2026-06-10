@@ -89,7 +89,7 @@ anunciaya/
 
 > **Servicios** cubre servicios e intangibles con dos modos (Ofrezco / Solicito), incluye empleos. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
 
-> **Panel Admin ≠ Business Studio**: el Panel Admin es para el equipo interno de AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. Cross-negocio: aprobar/suspender negocios, mantenimiento, reportes globales, gestión de ventas y comisiones. BS es para dueños de UN negocio. Panel Admin tiene múltiples roles (admin, vendedor) con permisos distintos. Convención de carpetas: `controllers/admin/`, `services/admin/`, `routes/admin/` con `index.ts` agregador. Ver `docs/arquitectura/Panel_Admin.md`.
+> **Panel Admin ≠ Business Studio**: el Panel Admin es para el equipo interno de AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. Cross-negocio: aprobar/suspender negocios, mantenimiento, reportes globales, gestión de ventas y comisiones. BS es para dueños de UN negocio. Panel Admin tiene múltiples roles (admin, vendedor) con permisos distintos. Convención de carpetas: `controllers/admin/`, `services/admin/`, `routes/admin/` con `index.ts` agregador. Ver `docs/arquitectura/Panel_Admin/Panel_Admin.md`.
 
 ---
 
@@ -142,7 +142,7 @@ Los archivos (imágenes, audios, documentos) viven en Cloudflare R2. El proyecto
 2. **Agregar cualquier columna nueva con URL de imagen al `IMAGE_REGISTRY`** en `apps/api/src/utils/imageRegistry.ts`. Si no está ahí, el Recolector la tratará como huérfana y podría borrar archivos en uso.
 3. **Soft-deletes que sobrescriban campos con URLs** (ej. chat): capturar URLs antes del UPDATE y limpiar storage después con reference count.
 
-Ver detalle completo: `docs/arquitectura/Mantenimiento_R2.md` y `docs/arquitectura/Panel_Admin.md`.
+Ver detalle completo: `docs/arquitectura/Mantenimiento_R2.md` y `docs/arquitectura/Panel_Admin/Panel_Admin.md`.
 
 ### Multi-Sucursal
 
@@ -297,7 +297,9 @@ docs/
 │   ├── Clientes_Transacciones.md
 │   ├── Guardados.md
 │   ├── MenuDrawer.md           ← drawer de perfil del usuario (desktop + móvil) + adaptaciones del handoff
-│   ├── Panel_Admin.md          ← infraestructura admin del sistema
+│   ├── Panel_Admin/            ← Panel Admin del sistema (carpeta)
+│   │   ├── Panel_Admin.md      ← infraestructura/diseño general del Panel
+│   │   └── Negocios.md         ← módulo Negocios (roles por jerarquía, alcance, alta manual)
 │   ├── Mantenimiento_R2.md     ← reconcile de imágenes huérfanas (sub-sección Mantenimiento del Panel Admin)
 │   └── Pagos_Suscripciones.md  ← membresía $449/mes: webhook Stripe, estados de membresía, gracia, acciones Parada 2
 ├── migraciones/                → SQL one-shot que debe ejecutarse manualmente (ej. tabla r2_reconcile_log)

@@ -77,7 +77,7 @@ interface Usuario {
 | ScanYA | ❌ | ✅ |
 | Mi Negocio | ❌ | ✅ |
 
-> **Tercer ámbito — Panel Admin:** operaciones cross-negocio reservadas al equipo interno AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. No pertenece al modo Personal ni Comercial del usuario final. Tiene múltiples roles (admin, vendedor) con permisos estrictos: admin accede a todo (Mantenimiento, Reportes globales, gestión de negocios/usuarios), vendedor solo a prospectos y comisiones de su región asignada (tabla `embajadores`). Gestionado con auth separada (hoy `x-admin-secret` temporal; futuro: JWT con rol). Namespace de APIs `/api/admin/*`. Primera sección operativa: Mantenimiento → reconcile de archivos huérfanos en R2. Ver `docs/arquitectura/Panel_Admin.md`.
+> **Tercer ámbito — Panel Admin:** operaciones cross-negocio reservadas al equipo interno AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. No pertenece al modo Personal ni Comercial del usuario final. Tiene múltiples roles (admin, vendedor) con permisos estrictos: admin accede a todo (Mantenimiento, Reportes globales, gestión de negocios/usuarios), vendedor solo a prospectos y comisiones de su región asignada (tabla `embajadores`). Gestionado con auth separada (hoy `x-admin-secret` temporal; futuro: JWT con rol). Namespace de APIs `/api/admin/*`. Primera sección operativa: Mantenimiento → reconcile de archivos huérfanos en R2. Ver `docs/arquitectura/Panel_Admin/Panel_Admin.md`.
 
 ### Flujo de Activación Comercial
 

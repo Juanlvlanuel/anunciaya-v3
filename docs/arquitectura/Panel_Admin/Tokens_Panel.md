@@ -1,0 +1,182 @@
+# Panel Admin — Tokens y Sistema de Diseño
+
+> **Qué es:** el sistema de diseño del **Panel** (`apps/admin`) — colores, tipografía, radios,
+> sombras, componentes base y reglas visuales. Es la **referencia única** para construir cualquier
+> sección nueva del Panel con el mismo estilo.
+>
+> ⚠️ **NO confundir con la app pública.** `docs/estandares/TOKENS_GLOBALES.md` y
+> `TOKENS_COMPONENTES.md` son de **`apps/web`** (la app de AnunciaYA). El Panel es una app aparte
+> con su **propio** estilo y **no** los usa. Este documento es el equivalente, pero del Panel.
+>
+> **Referencia visual canónica:** el módulo **Negocios** (`apps/admin/src/components/negocios/`).
+> Cualquier módulo nuevo se calca de él.
+>
+> **Fuente de verdad de los tokens:** `apps/admin/src/index.css` (bloque `@theme` + variables de
+> tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
+> los demás docs: el código manda, el doc lo refleja).
+>
+> **Última actualización:** 10 Junio 2026 (extraído del código actual de Negocios + `index.css`).
+
+---
+
+## 0. Cómo funcionan los tokens (Tailwind v4)
+
+- Las utilidades de color se generan desde **`@theme inline`** en `index.css`, **no** desde
+  `tailwind.config.js` (ese archivo solo acota el escaneo de clases). Cada token mapea a una
+  variable de tema (`--panel-*`), así el color cambia solo al alternar claro/oscuro.
+- **Tema claro/oscuro:** atributo **`data-tema`** en `<html>` (`claro` / `oscuro`). Las variables
+  CSS cambian de valor; las utilidades no cambian de nombre.
+- **Tipografía:** **IBM Plex Sans** (texto) e **IBM Plex Mono** (badges/código). Peso base **500**.
+
+---
+
+## 1. Color
+
+Utilidades en español (Tailwind: `bg-`, `text-`, `border-` según corresponda) → variable → valor en
+cada tema. Tomado de `index.css`.
+
+| Utilidad | Para qué | Claro | Oscuro |
+|---|---|---|---|
+| `lienzo` | Fondo de la app (canvas) | `#e5f1ff` | `#0a0d16` |
+| `superficie` | Tarjetas, modales, paneles | `#ffffff` | `#16181d` |
+| `superficie-2` | Superficie alterna (zonas sutiles) | `#f7f9fc` | `#1c1f25` |
+| `barra` | Header negro / barra superior | `#0e0f13` | `#0e0f13` (fija) |
+| `borde` | Bordes sutiles | `#e6e8ee` | `#2a2d34` |
+| `borde-fuerte` | Bordes marcados (botón secundario, paginación) | `#d7dae2` | `#353941` |
+| `campo` | Fondo de inputs | `#f4f6fa` | `#1f232b` |
+| `campo-borde` | Borde de inputs | `#dfe3ea` | `#353941` |
+| `texto` | Texto principal | `#0a0a0b` | `#f2f3f5` |
+| `texto-2` | Texto secundario | `#45454a` | `#a4a7af` |
+| `texto-3` | Terciario / labels | `#5f6168` | `#9499a1` |
+| `texto-4` | Placeholder / deshabilitado | `#82838b` | `#7d818a` |
+| `marca` | Azul de marca (acento único) | `#2563eb` | `#5a8dff` |
+| `marca-2` | Azul oscuro (gradiente/decorado) | `#1a36ad` | `#2f6bf0` |
+| `marca-contraste` | Texto/ícono sobre fondo marca | `#ffffff` | `#0b1220` |
+| `marca-suave` | Fondo hover/activo del acento | marca 11% | (recalcula con marca oscura) |
+| `peligro` | Acción destructiva | `#e0322f` | `#ff6360` |
+| `peligro-suave` | Fondo destructivo sutil | peligro 12% | (recalcula) |
+| `ok` | Éxito / positivo | `#0e8a52` | `#34c77b` |
+| `etiqueta-grupo` | Encabezado de grupo de menú | `#0431b9` | `#0431b9` |
+
+**Variables sin utilidad** (se usan con `var()` en clases arbitrarias, p. ej. focus de inputs):
+- `--panel-hover` (marca 13%) → anillo de foco corto: `focus:[box-shadow:0_0_0_3px_var(--panel-hover)]`
+- `--panel-ring` (marca 32%) → anillo de foco amplio: `focus:[box-shadow:0_0_0_4px_var(--panel-ring)]`
+- `--panel-bg` (`#f5f6f8` / `#0c0c0e`) — fondo base alterno.
+
+> **Regla de acento:** neutro (lienzo/superficie/texto) + **un** acento (`marca`). Nada de paletas
+> pastel saturadas. El `peligro` solo para destructivo; el `ok` solo para estados positivos.
+
+---
+
+## 2. Tipografía
+
+- **`font-sans`** → IBM Plex Sans · **`font-mono`** → IBM Plex Mono (badges, códigos, datos monoespaciados).
+- **Peso base 500.** Jerarquía por **peso** (500 / 600 / 700), no por saltos grandes de tamaño.
+- **Tamaños usados en Negocios** (densos, B2B): `text-sm` (14px) para cuerpo · `text-[13.5px]` /
+  `text-[13px]` para tablas/fichas/diálogos · `text-[11px]` (mono) para badges/etiquetas pequeñas.
+
+---
+
+## 3. Radios (`rounded`)
+
+| Radio | Dónde se usa |
+|---|---|
+| `rounded-full` | Chips de estado, buscador, pills, contadores |
+| `rounded-[12px]` | Contenedor de modal/diálogo, dropdowns |
+| `rounded-[11px]` | Inputs (login) |
+| `rounded-[10px]` | Inputs y botones de diálogo (lo más común) |
+| `rounded-[9px]` | Botones de paginación, ítems de menú/dropdown |
+
+> Bordes ≤ 1px (`border` / `border-2` solo en casos puntuales como el input del código 2FA). Nada de
+> bordes gruesos tipo videojuego.
+
+---
+
+## 4. Sombras
+
+- **`shadow-tarjeta-panel`** — tarjetas / superficies flotantes (panel "inset" del escritorio).
+- **`shadow-pop-panel`** — dropdowns, menús, popovers.
+
+---
+
+## 5. Patrones de componente (calcados de Negocios)
+
+**Botones**
+- **Primario:** `bg-marca text-marca-contraste` (+ `hover:brightness-105`, `active:translate-y-px`).
+- **Secundario:** `border border-borde-fuerte bg-superficie text-texto hover:bg-marca-suave`.
+- **Peligro:** variante destructiva con `peligro`.
+- **Deshabilitado:** `disabled:opacity-50 disabled:cursor-not-allowed` (en paginación se usa `opacity-45`).
+
+**Inputs**
+```
+border border-campo-borde bg-campo text-texto placeholder:text-texto-4
+focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]
+```
+Variante de anillo amplio (login/seguridad): `focus:[box-shadow:0_0_0_4px_var(--panel-ring)]`.
+
+**Header / barra negra:** vive sobre `bg-barra` (negro fijo) → usa **blancos translúcidos**
+(`text-white/90`, `/70`, `/60`, `bg-white/10`, `border-white/15`), **no** los tokens de tema. El
+menú que despliega sí vuelve a `superficie` clara. Es el caso típico de **variante móvil/desktop**.
+
+**`data-testid` obligatorio** en todo elemento interactivo (igual que en la app).
+
+---
+
+## 6. Componentes base reutilizables (no reinventar)
+
+Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/` (y `negocios/` los específicos):
+
+| Componente | Archivo | Rol |
+|---|---|---|
+| `ModalAdaptativo` | `components/ui/ModalAdaptativo.tsx` | Centrado en `lg:`+ / bottom-sheet con drag en móvil. Prop `centrado` para diálogos sobre una ficha. Animación de entrada propia (telón + modal/sheet). |
+| `DialogoConfirmar` | `components/ui/DialogoConfirmar.tsx` | Confirmación genérica con motivo **opcional u obligatorio**. |
+| `Toaster` + `useToastPanel` | `components/ui/Toaster.tsx` · `stores/useToastPanel.ts` | Toast pill (arriba, centrado) con `toast.exito/error/advertencia/info`. Mismo espíritu que `notificar.*` de la app, con tokens del Panel. |
+| `MenuFiltro` | `components/negocios/MenuFiltro.tsx` | Dropdown botón + menú con check (filtros). |
+| `avatares` | `components/negocios/avatares.tsx` | Avatar con color por hash del nombre. |
+| Ficha instantánea | (patrón) | La ficha abre con un **placeholder** armado de la fila + **prefetch en hover/touch**; React Query rellena al vuelo. Reusar en toda ficha del Panel. |
+
+---
+
+## 7. Tema claro/oscuro
+
+- Atributo `data-tema` en `<html>` (`utils/tema.ts` lo alterna). Las variables CSS cambian; las
+  utilidades no. El **autofill** del navegador se fuerza a respetar el tema (técnica de box-shadow inset).
+
+---
+
+## 8. Movimiento (animaciones)
+
+- **`.animar-entrada`** — fade-in sutil 0.22s (dropdowns, popovers).
+- **`ModalAdaptativo`** — keyframes propios de entrada (telón fade + modal scale/fade en escritorio,
+  subir-sheet en móvil).
+- **`.entrada-login`** (0.42s) y **`.spinner-panel`** (spinner de marca).
+- **`prefers-reduced-motion`** respetado en todas.
+
+---
+
+## 9. Responsive
+
+- **Breakpoints:** `base` / `lg:` (1024px) / `2xl:` (1536px). Misma regla que la app: si usas `lg:`,
+  **incluye `2xl:`** (sin él, la laptop afecta al monitor grande). No usar `sm:`/`md:`/`xl:` en código nuevo.
+- **`cursor-pointer` solo en `≥1024px`** (manita en escritorio con mouse; en móvil táctil no aplica) —
+  ya centralizado en `index.css`, no repetir por botón.
+- **Variantes móvil/desktop** cuando el contenedor cambia de fondo por breakpoint (ej. barra negra
+  translúcida en móvil vs. card clara en escritorio).
+
+---
+
+## 10. Estética (vale igual que en la app)
+
+Herramienta **B2B profesional** (Linear / Stripe / Notion), **no** caricaturesca: listas densas
+inline, íconos 14–16px **sin** círculos pastel, jerarquía por **peso** (no por tamaño), color neutro
++ **un** acento (`marca`). Nada de emojis como datos, ni gradientes/sombras exageradas.
+
+---
+
+## Referencias
+
+- **Tokens (fuente):** `apps/admin/src/index.css` · escaneo: `apps/admin/tailwind.config.js`.
+- **Referencia visual canónica:** componentes de **Negocios** (`SeccionNegocios`, `FichaNegocio`,
+  `DialogoRegistrarNegocio`, `DialogoMarcarPagado`, `estadoPago`, etc.).
+- **Documento hermano:** [`Panel_Admin.md`](Panel_Admin.md) (arquitectura del Panel).
+- **NO** es esto: `docs/estandares/TOKENS_GLOBALES.md` / `TOKENS_COMPONENTES.md` → esos son de `apps/web`.

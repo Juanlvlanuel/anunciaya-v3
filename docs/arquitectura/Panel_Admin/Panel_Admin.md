@@ -1,8 +1,8 @@
 # 🛡️ Panel Admin — Arquitectura
 
 **Última actualización:** 10 Junio 2026
-**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Negocios (Entrega 1 VER + Entrega 2 ACTUAR + sucursales + filtro de región del superadmin) construida** (en producción) · **Alta manual de negocios sin Stripe (efectivo/transferencia/cortesía) + crear contraseña en primer ingreso construida** (en producción) · **Cron de expiración de manuales (Fase 3) + editar correo del dueño (Fase 4) construidos** (en producción) · **Modelo ciudad↔región rediseñado** (completo en dev + prod, incluido el DROP del Paso 10) · 10 secciones internas restantes
-**Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas: **Negocios (VER + ACTUAR) ✅** · **Alta manual sin Stripe ✅** · **Cron de expiración de manuales (Fase 3) ✅** · **Editar correo del dueño (Fase 4) ✅** · resto 0%
+**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Sección Negocios construida y en producción** → su documento propio: [`Negocios.md`](Negocios.md) · **Modelo ciudad↔región rediseñado** (completo en dev + prod, incluido el DROP del Paso 10) · 10 secciones internas restantes
+**Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas: **Negocios ✅** (detalle en [`Negocios.md`](Negocios.md)) · resto 0%
 
 > Este documento reemplaza la versión anterior (que describía solo 2 roles y auth separada).
 > El diseño de los 3 niveles, el motor de venta/comisiones y el mapa de territorios se
@@ -127,8 +127,7 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
 1. **Resumen / inicio** — tablero de bienvenida con los números gruesos (negocios activos, usuarios, ventas del mes, ingresos por membresías), filtrado por el alcance del rol.
    - **Cola de pendientes (centro de trabajo, NO notificaciones tipo feed):** lista de tareas accionables del admin. Regla: si al hacer clic te lleva a HACER algo, entra; si solo informa, no. Items reales (todos dependen del Camino B/comisiones, aún por construir): **efectivo por confirmar** (entregas de vendedores), **negocios en gracia** (fallaron cobro, por suspenderse — el gerente puede salvarlos), **vendedores con faltante** (cobraron y no entregaron). **NO incluye "negocios por aprobar"** (no existe aprobación, los negocios se publican solos) ni avisos informativos (esos van a Sistema). Ícono: preferir "tareas/bandeja" sobre campana. En el esqueleto es visual con datos de muestra; la lógica se conecta al construir cada sección.
 2. **Métricas** — detalle de actividad. De negocios (ventas ScanYA, clientes, canjes) y de usuarios. Lo medible **hoy** se construye ya; la analítica de comportamiento (tiempo por sección, recorridos de navegación) es un módulo posterior porque **hoy no se captura** — requiere instrumentar seguimiento de eventos.
-3. **Negocios** — **ficha completa** de cada negocio (datos, contacto, estado, membresía, vendedor que lo trajo). **Los negocios se publican automáticamente** al pagar + completar onboarding — NO hay aprobación manual (decisión: Modelo A, publicación automática, sin fricción). Desde la ficha, **4 acciones** (detalle en §Las 4 acciones de la ficha de Negocios): **Marcar pagado** (activar la cuenta a mano, solo SuperAdmin), **Reasignar vendedor** (atribución manual), **Pausar membresía** y **Cancelar**. Pausar y Cancelar **sacan al negocio de circulación y cortan el cobro** — se diferencian en el cajón donde queda (pausado = "quizás vuelve"; archivado = "ya no vuelve, pero se guarda su historial"). Cada cambio queda en **auditoría** (es dinero: define quién cobra comisión y a quién se cobra).
-   > **Estado:** **Entrega 1 (VER) + Entrega 2 (ACTUAR)** construidas y EN PRODUCCIÓN. **VER:** tabla (nombre/ciudad/vendedor/estado de pago/próximo cobro/**sucursales**/alta) con buscador + filtros (estado con conteos, vendedor, ciudad) + orden + paginado de servidor, y **ficha administrativa** (modal/bottom-sheet) con alcance por rol. **ACTUAR:** las **4 acciones operativas** con su lógica de Stripe y auditoría (Marcar pagado, Reasignar, Pausar membresía, Cancelar — ver §Las 4 acciones). El alcance del Gerente es por **sucursal matriz** (visibilidad = mando; ver §Concepto de "región" y "ciudad"). **Sucursales:** columna "Sucursales" Sí/No que despliega las secundarias (ciudad·región) y abre un **modal de detalle de sucursal** (sin membresía ni acciones; con su Gerente Asignado), en escritorio y móvil. **Filtro de región del superadmin:** un selector global en el header acota TODO el Panel a una región (ver §Filtro global de región).
+3. **Negocios** — ver, administrar y dar de alta los negocios que pagan membresía. **Tiene documento propio:** 📄 **[`Negocios.md`](Negocios.md)** (lista y filtros, ficha, acciones de la membresía, alta manual sin Stripe, y la tabla de permisos por rol). Decisión de diseño relevante: **los negocios se publican automáticamente** al pagar + completar onboarding — NO hay aprobación manual (Modelo A). **Estado: construida y en producción.**
 4. **Usuarios** — **ficha completa** de cada usuario. Suspender, **bloquear acceso a toda la app**, reactivar — **solo SuperAdmin** (los usuarios-cliente no tienen región hoy; ver Cimientos). **Solo SuperAdmin:** botón para **promover** cuenta personal→comercial o **degradar** comercial→personal a mano.
 5. **Suscripciones / membresías** — precio de membresía, promos de pago (ej. 3 meses con descuento, pago anual), regalar meses gratis a negocios puntuales, historial completo de pagos, y **tiempos configurables**: periodo de gracia para cobros vencidos y duración del trial (hoy 14 días → editable desde el Panel). Los tiempos viven en `configuracionSistema` (la tabla ya tiene `trial_duracion_dias=14` y otras configs de trials/pagos).
    - **Visibilidad para el negocio (feature firme):** cada negocio ve su **estado de membresía y fecha de vencimiento en su página de cuenta/perfil** ("activo hasta X") — **fuera del BS, accesible desde el modo Personal** (al vencer, la cuenta baja a personal). Es buena UX (el negocio quiere saber hasta cuándo pagó) **y** la defensa principal contra el robo invisible del efectivo: si pagó y ve "vencido", reclama a AnunciaYA. Reusa las 5 columnas de estado de membresía del webhook.
@@ -141,43 +140,18 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
 
 ---
 
-## Las 4 acciones de la ficha de Negocios
+## Acciones de la ficha de Negocios → ver `Negocios.md`
 
-Cuatro botones, dos propósitos: **dos mantienen viva la cuenta** (Marcar pagado, Reasignar) y **dos sacan al negocio de circulación cortando el cobro** (Pausar membresía, Cancelar). Las cuatro quedan registradas en auditoría.
+El detalle de las acciones de la ficha de un negocio (registrar pago, pausar, reactivar,
+reasignar vendedor, cancelar y editar el correo del dueño) — qué hace cada una, quién la
+puede ejecutar y cómo aplica el alcance regional — vive en el documento del módulo:
+📄 **[`Negocios.md`](Negocios.md)**.
 
-> **Nota de nombres (importante).** Lo que el usuario LEE en el botón puede diferir de cómo se llama el estado por dentro:
-> - **"Pausar membresía"** es la etiqueta nueva del botón que controla el estado interno `estado_admin='suspendido'`. Se renombró desde "Suspender" porque ese término comunicaba mal: el propósito real es **pausar el cobro**, no castigar.
-> - **"Cancelar"** controla `estado_admin='archivado'`.
-> - No confundir `estado_admin` (lo administrativo, lo ponen estos botones) con `estado_membresia` (al_corriente / en_gracia / suspendido / cancelado), que es el **ciclo de pago automático de Stripe** y vive aparte. La **visibilidad** la manda siempre `negocios.activo` (ver §Negocio fuera de circulación).
-
-### 1. Marcar pagado · SuperAdmin + Gerente (su región)
-**Seguro rápido para activar la cuenta de un comerciante a mano.** Pone el negocio en circulación (`estado_admin='activo'` + `activo=true`), lo deja al corriente y marca `metodo_cobro='manual'` (señal de "este cobro lo llevo yo, que Stripe no toque la tarjeta"). **Complementario al alta manual:** Marcar pagado actúa sobre un negocio que **ya existe** (renueva/extiende su vigencia), mientras que el **alta manual** (botón "Registrar negocio", ver §Motor de venta → Camino B) **crea el negocio desde cero** sin Stripe. Casos de uso:
-- **Cortesías / meses gratis** a un negocio puntual.
-- **Problemas de comunicación**: el cobro se hizo pero el sistema no lo registró → reactivar sin que el comerciante espere.
-- **Robo de membresía del vendedor**: responderle al comerciante de inmediato reactivándole la cuenta, mientras se resuelve con el vendedor por separado.
-- **Pagos en efectivo / fuera de Stripe** (Camino B).
-
-> Es el contrapeso humano del cobro automático: cuando algo falla o se regala, se activa a mano. **Antes era solo SuperAdmin; desde el 10 Jun 2026 también el Gerente sobre su región** (acotado por `cargarNegocioConAlcance`, igual que pausar/reasignar) — para no embotellar los cobros de cada región en una sola persona. **Cancelar sigue siendo exclusivo de SuperAdmin.** **Implementado (Parada 2):** el diálogo deja elegir el plazo (por meses o fecha exacta, mostrando el vencimiento actual) y, **solo si el negocio tiene suscripción de Stripe**, ofrece un toggle "pausar el cobro de la tarjeta" (apagado por defecto): apagado → la tarjeta sigue cobrándose y `metodo_cobro='tarjeta'`; encendido → pausa el cobro (`pause_collection`) y `metodo_cobro='manual'`. Sin suscripción → siempre manual, sin tocar Stripe.
-
-### 2. Reasignar vendedor · SuperAdmin (cualquiera) / Gerente (su región)
-Asigna o cambia el vendedor atribuido al negocio. Contraparte manual de la atribución automática del `?ref=`: cubre negocios sin código, ventas en efectivo o correcciones. Es dinero (define quién cobra comisión) → queda en auditoría. **No toca Stripe ni la visibilidad.**
-
-### 3. Pausar membresía · SuperAdmin + Gerente (su región)
-**Estado "quizás vuelve".** Pausa COMPLETAMENTE la membresía: **no más cobros.** El negocio sale de circulación (`estado_admin='suspendido'` + `activo=false`, se esconde de toda la app) y su suscripción de Stripe se **pausa** (`pause_collection`): la tarjeta deja de cobrarse mientras dure la pausa. Reactivar es un clic — el negocio reaparece (respetando el estado) y el cobro se **reanuda de ahí en adelante**, sin deuda acumulada ni mes perdonado.
-- **Cuándo:** el negocio dijo de palabra "ya no quiero salir por ahora", una pausa por temporada, una disputa temporal mientras se resuelve.
-- **Puntos del cliente:** los vales pendientes se **congelan** (siguen esperando; nadie los expira). Si se reactiva a tiempo, siguen vivos.
-- **La cuenta del dueño NO se degrada:** sigue siendo comercial, solo queda bloqueada de entrar a Business Studio mientras está pausada (candado de modo comercial). Al reactivar, vuelve a entrar.
-- **También desde el perfil del dueño (pendiente):** un negocio con tarjeta podrá pausarse a sí mismo desde su propia cuenta. El botón del dueño hará lo mismo que este; la decisión de hoy es su cimiento.
-
-### 4. Cancelar · SOLO SuperAdmin
-**Estado "ya no vuelve" (pero guardamos su historial).** Soft-delete recuperable: el negocio se archiva (`estado_admin='archivado'` + `activo=false`) y **NO se borran sus datos**. Corta la suscripción de Stripe de raíz (`cancel`) y, por ser una baja definitiva, además: **degrada la cuenta del dueño a personal** (pierde el acceso comercial; **nunca se le expulsa** — conserva su cuenta, sus puntos e historial como cliente) y **devuelve a los clientes los puntos** de los vales pendientes que tenían en ese negocio (ya no podrán canjear ahí).
-- **Cuándo:** baja segura ("ya no vuelvo"), negocio que cerró o quebró, o expulsión (vetado / problemático).
-- **Diferencia con Pausar:** ambas cortan el cobro; lo que cambia es el cajón donde queda el negocio y qué tan fácil vuelve. **Pausada = dormida**, vuelve con un clic. **Cancelada = archivada**; si el negocio se arrepiente, vuelve como **alta nueva** (la suscripción de Stripe ya no se reanuda — se contrata de nuevo).
-
-> **La acción del Panel es la fuente de verdad.** Ella misma hace el corte en Stripe, la degradación de la cuenta y la devolución de puntos, de forma síncrona e idempotente; el webhook de Stripe queda solo como refuerzo. Así se cubre también a los negocios **sin Stripe** (efectivo/cortesía, donde el webhook nunca llega) y se evitan las carreras de tiempo. **Orden de operaciones:** cortar en Stripe → degradar cuenta / devolver puntos / archivar → limpiar el enlace de suscripción **al final** (si se borra antes, el webhook llega "ciego" y no hace su parte de refuerzo).
-
-### Acción complementaria — Editar correo del dueño · SuperAdmin + Gerente (su región) — IMPLEMENTADA (10 Jun 2026, Fase 4)
-**Rescate de un alta manual con el correo mal tecleado.** `PATCH /api/admin/negocios/:id/correo-dueno` corrige el correo de la cuenta del dueño cuando el vendedor lo escribió mal al darlo de alta. SuperAdmin sobre cualquier negocio, Gerente acotado a su región (alcance en el service). El correo nuevo **nace sin verificar** (`correoVerificado=false`) y la acción **reenvía el código** al correo corregido; la respuesta **informa si el envío salió o no** (`correoEnviado`), para que el Panel muestre un toast distinto según "enviado" o "falló". Valida **unicidad** (409 si el correo ya existe) y queda en **auditoría** (`negocio_cambiar_correo_dueno`). En la ficha vive como botón **"Editar correo"** en la sección Dueño (diálogo `DialogoEditarCorreo`).
+> **Recordatorio de diseño que afecta a todo el Panel — dos ejes de estado separados:**
+> `estado_admin` (lo administrativo: activo / suspendido / archivado, lo ponen las acciones
+> humanas) es distinto de `estado_membresia` (el ciclo de pago: al_corriente / en_gracia /
+> suspendido / cancelado). La **visibilidad** en la app la manda siempre `negocios.activo`, y
+> **un pago automático no revive una decisión humana**. Detalle en `Pagos_Suscripciones.md`.
 
 ---
 
@@ -208,9 +182,7 @@ Cómo nace una venta y cómo se enlaza un negocio a su vendedor. **Dos caminos, 
 
 ### Camino B — pago en efectivo (registro del vendedor)
 
-> ✅ **YA CONSTRUIDO (10 Jun 2026) — el alta manual sin Stripe (botón "Registrar negocio"):** un negocio ya puede **nacer desde el Panel sin pasar por Stripe**. Lo puede dar de alta SuperAdmin, Gerente (su región) o Vendedor (su región, auto-atribuido). El negocio nace con `metodo_cobro='manual'` (sin `stripeCustomerId` ni `stripeSubscriptionId` — el webhook nunca le llega) y la cuenta del dueño nace **sin contraseña (modelo C)**: la define en su primer ingreso con un código por correo (ver §Seguridad). El **concepto** del pago es `efectivo`, `transferencia` o **`cortesia`** (alta gratis por X meses, monto NULL, sin `fecha_primer_pago`). Esto cubre el hueco que antes era bloqueante: **el "alta desde el inicio"** de un negocio que paga en efectivo (antes solo podía nacer pagando con tarjeta vía el webhook). Lo que sigue pendiente del Camino B es lo de **abajo**: el corte de caja, el "efectivo por entregar" y la comisión condicionada a la confirmación de la entrega.
-
-> ✅ **YA CONSTRUIDO (10 Jun 2026, Fase 3) — el cron de expiración de manuales:** como un negocio manual no tiene webhook de Stripe que dispare el impago, un **cron diario** (`expirarManualesVencidos`) cubre ese hueco: los negocios `metodo_cobro='manual'` con `fecha_vencimiento` ya pasada pasan de `al_corriente` → `en_gracia` (misma fórmula y config `periodo_gracia_cobro_dias` que el webhook de tarjeta). La transición `en_gracia` → `suspendido` la **hereda el cron de gracia existente** (`suspenderGraciasVencidas`, que no filtra por método de cobro). No degrada la cuenta del dueño ni toca `fecha_proximo_cobro` (campo de Stripe). Al entrar en gracia **avisa al dueño** con una notificación nueva `'membresia_en_gracia'` (idempotente — se emite una sola vez en la corrida que transiciona; se limpia al salir de gracia). Migración del CHECK de tipos de notificación aplicada en dev y prod (`docs/migraciones/2026-06-10-notificaciones-tipo-membresia-en-gracia.sql`).
+> ✅ **El alta manual sin Stripe (botón "Registrar negocio") YA ESTÁ CONSTRUIDA** (10 Jun 2026, en producción): un negocio puede nacer desde el Panel sin pasar por Stripe (`metodo_cobro='manual'`), cobrado en efectivo/transferencia/cortesía, con la cuenta del dueño naciendo sin contraseña (modelo C), y un cron diario que vigila el vencimiento de los manuales. **El flujo completo (las 6 fases, paso a paso) está documentado en 📄 [`Negocios.md`](Negocios.md) §8 y su Apéndice E.** Lo que sigue pendiente del Camino B es lo de **abajo**: el corte de caja, el "efectivo por entregar" y la comisión condicionada a la confirmación de la entrega.
 
 1. El vendedor cobra en efectivo y **registra al negocio desde su Panel**.
 2. **El negocio se ACTIVA de inmediato** al registrarse el cobro. El negocio pagó de buena fe (al representante de AnunciaYA) → su membresía corre normal, su reputación intacta. **NO depende de ninguna confirmación.**
@@ -424,14 +396,14 @@ El gate del Panel ya **no** depende solo del `x-admin-secret`. Construido:
 3. **Gate dual durante la transición** (`routes/admin/index.ts`): acepta `x-admin-secret` (legacy, reconcile R2) **O** un JWT con rol válido. El `requireAdminSecret` original se conserva dentro del dual y se retira cuando todo migre al rol.
 4. **`GET /api/admin/yo`** (`controllers/admin/sesion.controller.ts` + `routes/admin/sesion.routes.ts`): identidad del Panel. Responde a los **3 roles** (se monta **antes** del gate global de superadmin) y devuelve `rolEquipo` + `regionId` + datos básicos. Es el guard que usa el frontend para decidir el acceso: si la cuenta no tiene rol de equipo → 403.
 
-### Cuenta sin contraseña (modelo C — alta manual) — IMPLEMENTADA (10 Jun 2026)
-La cuenta del dueño dada de alta **manualmente** desde el Panel nace **sin contraseña** (`contrasenaHash=null`, perfil comercial): la define en su **primer ingreso** con un código por correo, sin que el vendedor maneje credenciales.
-- **Login (`auth.service.ts → loginUsuario`):** una cuenta sin contraseña que **no** es de Google responde **409 `CUENTA_SIN_CONTRASENA`**; el frontend la lleva a la vista "Crea tu contraseña".
-- **Recuperación (`solicitarRecuperacion`):** también envía el código a estas cuentas y elige la **plantilla** según `contrasenaHash`: "crear contraseña" si es `null` (alta manual) vs. "restablecer contraseña" si ya tenía una. Plantillas en `utils/email.ts` (`enviarCodigoCrearContrasena`).
-- **Verificación del correo refinada (10 Jun 2026):** el alta manual nace con **`correoVerificado=false`** (a diferencia del alta con tarjeta, que nace `true` — el helper `crearNegocioConDueno` lo recibe por parámetro). El correo se marca **verificado al crear la contraseña** (`restablecerContrasena`): es coherente — el correo queda probado cuando el dueño usa el código que solo llega a su bandeja (prueba de posesión).
-
-### Aviso temprano de correo duplicado (alta manual) — IMPLEMENTADO (10 Jun 2026)
-`GET /api/admin/negocios/existe-correo?correo=` (los 3 roles, tras `requierePanel`) responde **solo un booleano** (no expone datos del usuario) usando la **misma normalización** que el alta. El formulario de "Registrar negocio" lo consulta `onBlur` del correo: si ya existe avisa "Este correo ya está registrado" y **bloquea el botón** mientras está duplicado o verificando. Es solo **aviso temprano** — el **409** del alta (misma comparación) sigue como red de seguridad.
+### Cuenta sin contraseña (modelo C — alta manual)
+Las cuentas dadas de alta **manualmente** desde el Panel nacen **sin contraseña**: el dueño la
+define en su primer ingreso con un código por correo (el login responde **409
+`CUENTA_SIN_CONTRASENA`** y lo lleva a "Crea tu contraseña"; el correo se marca verificado al
+crear la contraseña). Es parte del flujo de alta manual del **módulo Negocios** — el detalle
+(plantillas "crear" vs. "restablecer", verificación del correo y el aviso temprano de correo
+duplicado) vive en 📄 **[`Negocios.md`](Negocios.md)**. Núcleo de auth en `auth.service.ts`
+(`loginUsuario`, `solicitarRecuperacion`, `restablecerContrasena`).
 
 ### 2FA del Panel — IMPLEMENTADA (opcional, por cuenta)
 Verificación en dos pasos (TOTP, Google Authenticator) **en la puerta del Panel**, **separada** del 2FA general de AnunciaYA para no afectar el login de la app:
@@ -490,11 +462,10 @@ App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 202
 - **Sin aprobación de negocios (Modelo A).** Los negocios se publican automáticamente al pagar + completar onboarding; ningún admin los revisa antes. Menos fricción, coherente con cómo ya funciona el sistema. Por eso "negocios por aprobar" NO existe como tarea ni en la cola de pendientes.
 - **Cola de pendientes = centro de trabajo, no notificaciones.** El Panel no tiene feed de notificaciones (eso es de la app de cliente). Tiene una cola de tareas accionables: efectivo por confirmar, negocios en gracia, vendedores con faltante. Regla: si lleva a hacer algo, entra; si solo informa, va a Sistema.
 
-### Nuevas (10 Jun 2026)
-- **Alta manual de negocios sin Stripe.** Un negocio puede nacer desde el Panel (botón "Registrar negocio") sin pasar por Stripe, con `metodo_cobro='manual'`. **Quién:** SuperAdmin, Gerente (su región) y Vendedor (su región). **Atribución:** el vendedor que da el alta se **auto-atribuye**; gerente/superadmin eligen al vendedor de una lista (candado de región para el gerente) y sin vendedor no bloquea. **Concepto:** `efectivo`, `transferencia` o **`cortesia`** (alta gratis por X meses, monto NULL, sin `fecha_primer_pago`). Cubre el "alta desde el inicio" del Camino B que antes era bloqueante.
-- **Cuenta del dueño sin contraseña (modelo C).** En el alta manual la cuenta nace sin contraseña (`contrasenaHash=null`); el dueño la define en su **primer ingreso** con un código por correo. El login devuelve **409 `CUENTA_SIN_CONTRASENA`** y `solicitarRecuperacion` elige plantilla "crear" vs. "restablecer". Así el vendedor nunca maneja credenciales del comerciante. **El correo del alta manual nace sin verificar y se marca verificado al crear la contraseña** (prueba de posesión; tarjeta sigue naciendo verificado).
-- **Cron de expiración de manuales (Fase 3).** Los negocios sin Stripe no tienen webhook de impago → un **cron diario** los pasa de `al_corriente` → `en_gracia` al vencer (misma fórmula que el webhook), avisando al dueño con la notificación nueva `'membresia_en_gracia'`. La suspensión la **hereda el cron de gracia** existente; no se duplica esa lógica.
-- **Editar correo del dueño (Fase 4).** Acción del Panel (SuperAdmin + Gerente su región) para **rescatar un alta manual con el correo mal tecleado**. El correo nuevo nace **sin verificar** y se reenvía el código; la respuesta informa si el envío salió o falló (toast distinto). Unicidad (409) y auditoría.
+### Nuevas (10 Jun 2026) — módulo Negocios
+Las decisiones del alta manual sin Stripe (efectivo/transferencia/cortesía), la cuenta del
+dueño sin contraseña (modelo C), el cron de expiración de manuales y editar el correo del
+dueño se documentan con su "por qué" en 📄 **[`Negocios.md`](Negocios.md)**.
 
 ### Heredadas (se conservan)
 - **Sub-carpeta `admin/` en cada capa:** mantiene la convención del proyecto (archivos por tipo) agrupando por sub-dominio cuando crece el volumen.
@@ -508,13 +479,7 @@ App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 202
 | Archivo | Propósito |
 |---------|-----------|
 | `apps/admin/` | **Frontend del Panel** (app aparte; ver §Frontend del Panel) |
-| `apps/admin/src/components/negocios/DialogoRegistrarNegocio.tsx` | **Formulario "Registrar negocio"** (Panel) — alta manual sin Stripe (Negocio/Dueño/Cobro/Vendedor); aviso temprano de correo duplicado `onBlur` |
-| `apps/admin/src/components/negocios/DialogoEditarCorreo.tsx` | **Diálogo "Editar correo"** (Panel) — rescate del correo del dueño; toast distinto según envío del código (enviado/falló) |
-| `apps/api/src/services/admin/altaManualNegocio.service.ts` | **Lógica del alta manual** — transacción usuario+negocio+sucursal (`correoVerificado=false`), sella fechas, inserta `pagos_membresia`, auditoría y correo de bienvenida; `listarCatalogoCiudades`; `existeCorreo` (aviso temprano) |
-| `apps/api/src/services/admin/negocios-acciones.service.ts` | Lógica de las 4 acciones de la ficha + `cambiarCorreoDueno` (Fase 4 — correo nuevo sin verificar, reenvía el código y devuelve `correoEnviado`, unicidad 409, auditoría `negocio_cambiar_correo_dueno`) |
-| `apps/api/src/services/suscripciones/vencimientos-manuales.ts` | **Fase 3** — `expirarManualesVencidos`: manuales vencidos `al_corriente`→`en_gracia` + aviso `'membresia_en_gracia'` |
-| `apps/api/src/cron/suscripciones-vencimientos-manuales.cron.ts` | **Cron diario** que dispara `expirarManualesVencidos` |
-| `apps/api/src/validations/admin/altaManualNegocio.schema.ts` | **Validación Zod** del alta manual (correo×2, concepto, monto/cortesía, meses, embajador) |
+| **(módulo Negocios)** | Los archivos de la sección Negocios — rutas, controller, services (lecturas, acciones, alta manual), validación Zod y componentes del Panel — se listan en 📄 [`Negocios.md`](Negocios.md) → Apéndice A |
 | `apps/api/src/services/negocioManagement.service.ts` | Servicio CRUD centralizado + **helper `crearNegocioConDueno`** (compartido por alta-tarjeta y alta-manual) |
 | `apps/api/src/middleware/panel.middleware.ts` | **Gate real por rol** (`requierePanel`) — revalida en BD, resuelve región |
 | `apps/api/src/controllers/admin/sesion.controller.ts` | `GET /api/admin/yo` — identidad del Panel (3 roles) |

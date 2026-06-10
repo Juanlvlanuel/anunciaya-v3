@@ -395,7 +395,7 @@ export async function reasignarVendedor(
 }
 
 // =============================================================================
-// MARCAR PAGADO (activación manual — SOLO SuperAdmin)
+// MARCAR PAGADO (activación manual — SuperAdmin + Gerente · alcance de región)
 // =============================================================================
 
 export interface OpcionesMarcarPagado {
