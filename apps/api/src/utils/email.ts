@@ -295,7 +295,7 @@ function plantillaBase(nombre: string, contenido: string): string {
           <tr>
             <td style="padding: 20px 32px; text-align: center; background: linear-gradient(135deg, #02143D 10%, #001E70 50%, #034AE3 100%);">
               <a href="${env.FRONTEND_URL}" target="_blank" rel="noopener" style="display: inline-block; text-decoration: none; border: 0;">
-                <img src="${LOGO_URL}" alt="AnunciaYA" width="180" style="display: inline-block; max-width: 180px; height: auto; border: 0;" />
+                <img src="${LOGO_URL}" alt="AnunciaYA" width="240" style="display: inline-block; max-width: 240px; height: auto; border: 0;" />
               </a>
             </td>
           </tr>
