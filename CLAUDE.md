@@ -91,6 +91,8 @@ anunciaya/
 
 > **Panel Admin ≠ Business Studio**: el Panel Admin es para el equipo interno de AnunciaYA **+ vendedores/embajadores externos** que venden membresías a comerciantes. Cross-negocio: aprobar/suspender negocios, mantenimiento, reportes globales, gestión de ventas y comisiones. BS es para dueños de UN negocio. Panel Admin tiene múltiples roles (admin, vendedor) con permisos distintos. Convención de carpetas: `controllers/admin/`, `services/admin/`, `routes/admin/` con `index.ts` agregador. Ver `docs/arquitectura/Panel_Admin/Panel_Admin.md`.
 
+> **Cómo trabajar en el Panel (al retomar en una sesión nueva):** el chat es desechable; el estado vive en el repo. Lee primero el **tablero** `docs/arquitectura/Panel_Admin/Tablero_Modulos.md` (en qué módulo y fase voy), el **carril** `docs/estandares/FLUJO_MODULO_PANEL.md` (el proceso de 4 fases) y los **2 docs del módulo activo** (`<Modulo>.md` = qué es · `<Modulo>_Pendientes.md` = qué falta). Cada módulo se construye con el carril y se **calca de Negocios** (plantilla de oro). Diseño del Panel: `docs/arquitectura/Panel_Admin/Tokens_Panel.md` (NO `docs/estandares/TOKENS_GLOBALES.md`, que es de `apps/web`). Al **cerrar** sesión, actualiza el checklist del módulo + el tablero + la memoria de estado, y haz commit.
+
 ---
 
 ## Patrones de Arquitectura
