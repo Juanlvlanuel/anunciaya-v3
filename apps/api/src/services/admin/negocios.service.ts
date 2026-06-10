@@ -694,6 +694,53 @@ export async function listarSucursalesNegocio(panel: UsuarioPanel, negocioId: st
     }));
 }
 
+/** Una fila del historial de pagos de membresía (bitácora de pagos_membresia). */
+export interface PagoMembresiaFila {
+    id: string;
+    monto: string | null;
+    concepto: string;
+    fechaPago: string | null;
+    periodoHasta: string | null;
+    mesesCubiertos: number | null;
+    nota: string | null;
+    /** Nombre de quién registró el pago (usuarios.registrado_por); null si la cuenta se borró. */
+    registradoPorNombre: string | null;
+}
+
+/**
+ * Historial de pagos de membresía de un negocio (bitácora pagos_membresia), respetando el
+ * alcance del rol. Cada fila trae concepto (efectivo/transferencia/cortesía), monto y quién lo
+ * registró. Útil para la ficha del método MANUAL. [] si el negocio no está en el alcance.
+ */
+export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string): Promise<PagoMembresiaFila[]> {
+    if (!(await negocioVisibleParaPanel(panel, negocioId))) return [];
+    const filas = (await db.execute(sql`
+        SELECT pm.id::text AS id, pm.monto::text AS monto, pm.concepto,
+               pm.fecha_pago::text AS fecha_pago, pm.periodo_hasta::text AS periodo_hasta,
+               pm.meses_cubiertos AS meses_cubiertos, pm.nota,
+               u.nombre AS u_nombre, u.apellidos AS u_apellidos
+        FROM pagos_membresia pm
+        LEFT JOIN usuarios u ON u.id = pm.registrado_por
+        WHERE pm.negocio_id = ${negocioId}
+        ORDER BY pm.created_at DESC
+    `)).rows as Array<{
+        id: string; monto: string | null; concepto: string;
+        fecha_pago: string | null; periodo_hasta: string | null;
+        meses_cubiertos: number | null; nota: string | null;
+        u_nombre: string | null; u_apellidos: string | null;
+    }>;
+    return filas.map((f) => ({
+        id: f.id,
+        monto: f.monto ?? null,
+        concepto: f.concepto,
+        fechaPago: f.fecha_pago ?? null,
+        periodoHasta: f.periodo_hasta ?? null,
+        mesesCubiertos: f.meses_cubiertos ?? null,
+        nota: f.nota ?? null,
+        registradoPorNombre: f.u_nombre ? `${f.u_nombre} ${f.u_apellidos ?? ''}`.trim() : null,
+    }));
+}
+
 /**
  * Detalle de UNA sucursal de un negocio (modal del Panel): datos de la sucursal +
  * región + gerente asignado (usuarios.sucursal_asignada) + vendedor del negocio

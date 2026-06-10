@@ -1650,6 +1650,130 @@ export const eliminarSucursal = async (sucursalId: string) => {
 };
 
 // ============================================
+// ALTA DE NEGOCIO + DUEÑO (creación inicial)
+// ============================================
+
+/**
+ * Ejecutor de BD: acepta el `db` global (escrituras sueltas, como el webhook de Stripe)
+ * o una transacción `tx` (alta manual atómica del Panel). Ambos comparten insert/update.
+ */
+type EjecutorBD = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0];
+
+/**
+ * Datos para crear un negocio comercial con su cuenta dueña y su sucursal principal.
+ * Reúne lo que VARÍA entre el alta por tarjeta (webhook Stripe) y el alta manual del Panel;
+ * las constantes (perfil 'comercial', membresía 1, esBorrador true, etc.) viven dentro del helper.
+ */
+export interface DatosAltaNegocio {
+    // Dueño
+    nombre: string;
+    apellidos: string;
+    correo: string;
+    telefono: string | null;
+    /** Hash bcrypt; null en Google (tarjeta) o en alta sin contraseña (manual, modelo C). */
+    contrasenaHash: string | null;
+    autenticadoPorGoogle?: boolean;          // default false
+    stripeCustomerId?: string | null;        // null en alta manual
+    stripeSubscriptionId?: string | null;    // null en alta manual
+    /** Vendedor atribuido: se escribe en usuarios.referidoPor y en negocios.embajadorId. */
+    embajadorId?: string | null;
+    requiereCambioContrasena?: boolean;      // default false
+    // Negocio
+    nombreNegocio: string;
+    metodoCobro?: 'tarjeta' | 'manual';      // default del schema: 'tarjeta'
+    // Sucursal principal
+    ciudad?: string;                         // default 'Por configurar'
+    ciudadId?: string | null;                // default null
+}
+
+/**
+ * Crea, EN ESTE ORDEN, el usuario dueño (perfil comercial), el negocio (borrador) y su
+ * sucursal principal, y enlaza usuarios.negocio_id. Centraliza el patrón de alta que antes
+ * vivía inline en el webhook de Stripe (manejarCheckoutCompletado), para que el webhook y el
+ * alta manual del Panel compartan exactamente la misma creación (CLAUDE.md: no duplicar).
+ *
+ * NO valida correo duplicado, NO resuelve la atribución del vendedor y NO toca Redis/Stripe/
+ * tokens: eso es responsabilidad de cada caller. Acepta `db` (escrituras sueltas, como hoy el
+ * webhook) o una transacción `tx` (alta manual atómica).
+ *
+ * El objeto `usuario` devuelto refleja el INSERT: su `negocioId` aún es null aunque en BD ya
+ * quedó enlazado por el UPDATE final. Usa `negocio.id` si necesitas el id del negocio.
+ *
+ * @param ejecutor - `db` global o una transacción Drizzle
+ * @param datos - Datos del dueño, negocio y ciudad de la sucursal principal
+ * @returns Las tres filas creadas
+ */
+export async function crearNegocioConDueno(
+    ejecutor: EjecutorBD,
+    datos: DatosAltaNegocio,
+): Promise<{
+    usuario: typeof usuarios.$inferSelect;
+    negocio: typeof negocios.$inferSelect;
+    sucursal: typeof negocioSucursales.$inferSelect;
+}> {
+    const ahora = new Date().toISOString();
+
+    // 1) Usuario dueño (perfil comercial). Constantes del alta comercial; el resto desde `datos`.
+    const [usuario] = await ejecutor
+        .insert(usuarios)
+        .values({
+            nombre: datos.nombre,
+            apellidos: datos.apellidos,
+            correo: datos.correo,
+            contrasenaHash: datos.contrasenaHash,
+            telefono: datos.telefono,
+            perfil: 'comercial',
+            membresia: 1,
+            correoVerificado: true,
+            correoVerificadoAt: ahora,
+            estado: 'activo',
+            stripeCustomerId: datos.stripeCustomerId ?? null,
+            stripeSubscriptionId: datos.stripeSubscriptionId ?? null,
+            autenticadoPorGoogle: datos.autenticadoPorGoogle ?? false,
+            tieneModoComercial: true,
+            modoActivo: 'comercial',
+            referidoPor: datos.embajadorId ?? null,
+            requiereCambioContrasena: datos.requiereCambioContrasena ?? false,
+        })
+        .returning();
+
+    // 2) Negocio (borrador hasta completar onboarding). metodoCobro: omitido => default schema 'tarjeta'.
+    const [negocio] = await ejecutor
+        .insert(negocios)
+        .values({
+            usuarioId: usuario.id,
+            nombre: datos.nombreNegocio,
+            esBorrador: true,
+            verificado: false,
+            participaPuntos: false,
+            embajadorId: datos.embajadorId ?? null,
+            ...(datos.metodoCobro ? { metodoCobro: datos.metodoCobro } : {}),
+        })
+        .returning();
+
+    // 3) Sucursal principal. ciudad/ciudadId: 'Por configurar'/null por defecto (igual que el webhook).
+    const [sucursal] = await ejecutor
+        .insert(negocioSucursales)
+        .values({
+            negocioId: negocio.id,
+            nombre: datos.nombreNegocio,
+            esPrincipal: true,
+            ciudad: datos.ciudad ?? 'Por configurar',
+            ciudadId: datos.ciudadId ?? null,
+            activa: true,
+        })
+        .returning();
+
+    // 4) Enlazar negocio_id al usuario (mismo orden que el webhook: después de crear la sucursal).
+    await ejecutor
+        .update(usuarios)
+        .set({ negocioId: negocio.id })
+        .where(eq(usuarios.id, usuario.id));
+
+    return { usuario, negocio, sucursal };
+}
+
+// ============================================
 // EXPORTS
 // ============================================
 

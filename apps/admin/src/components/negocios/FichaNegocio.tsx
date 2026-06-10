@@ -25,6 +25,7 @@ import {
   PauseCircle,
   PlayCircle,
   Ban,
+  Receipt,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
@@ -33,6 +34,7 @@ import {
   useReasignarVendedor,
   useMarcarPagado,
   useCancelarNegocio,
+  usePagosNegocio,
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
@@ -186,6 +188,35 @@ function BotonAccion({
     : boton;
 }
 
+const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía' };
+
+/** Lista densa del historial de pagos de membresía (ficha del método manual). */
+function HistorialPagos({ negocioId }: { negocioId: string }) {
+  const { data, isLoading } = usePagosNegocio(negocioId, true);
+  if (isLoading) return <p className="text-[12.5px] text-texto-3">Cargando pagos…</p>;
+  const pagos = data ?? [];
+  if (pagos.length === 0) return <p className="text-[12.5px] text-texto-4">Sin pagos registrados.</p>;
+  return (
+    <div className="flex flex-col divide-y divide-borde">
+      {pagos.map((p) => (
+        <div key={p.id} data-testid={`pago-${p.id}`} className="flex items-baseline justify-between gap-3 py-1.5">
+          <div className="flex min-w-0 flex-col">
+            <span className="text-[13.5px] font-semibold text-texto">
+              {p.monto != null ? FMT_MONTO.format(Number(p.monto)) : 'Cortesía'}
+              <span className="ml-2 text-[12px] font-normal text-texto-3">{CONCEPTO_LABEL[p.concepto] ?? p.concepto}</span>
+            </span>
+            <span className="text-[11.5px] text-texto-4">
+              {fecha(p.fechaPago)}
+              {p.registradoPorNombre ? ` · por ${p.registradoPorNombre}` : ''}
+            </span>
+          </div>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const { data, isError } = useNegocioDetalle(previo.id, placeholderDesdeFila(previo));
   // `data` siempre existe (placeholder de la fila o datos reales) → ficha al instante.
@@ -201,6 +232,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
 
   const suspendido = n.estadoAdmin === 'suspendido';
   const archivado = n.estadoAdmin === 'archivado';
+  const esManual = n.metodoCobro === 'manual';
   // Espejo del guard 409 del backend: con suscripción, "Marcar pagado" solo si está al corriente
   // (en gracia/suspendido hay un cobro pendiente en Stripe que regularizar primero).
   const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';
@@ -255,24 +287,37 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             <div className="flex flex-col gap-3">
               <Seccion titulo="Membresía" icono={CreditCard}>
                 <Dato etiqueta="Estado de pago" valor={<BadgeEstadoPago estado={n.estadoPago} small />} />
-                {/* Al corriente: vencimiento y próximo cobro son la misma fecha → un solo renglón. */}
+                {/* Al corriente: en manual mostramos "Vigencia hasta" (fecha de vencimiento). */}
                 {n.estadoPago === 'al_corriente' && (
-                  <Dato etiqueta="Próximo cobro" valor={fecha(n.fechaProximoCobro)} />
+                  <Dato
+                    etiqueta={esManual ? 'Vigencia hasta' : 'Próximo cobro'}
+                    valor={fecha(esManual ? n.fechaVencimiento : n.fechaProximoCobro)}
+                  />
                 )}
-                {/* En gracia: ya difieren — venció, próximo reintento de Stripe y límite de gracia. */}
+                {/* En gracia: venció + (solo tarjeta) reintento de Stripe + límite de gracia. */}
                 {n.estadoPago === 'en_gracia' && (
                   <>
                     <Dato etiqueta="Venció" valor={fecha(n.fechaInicioGracia)} />
-                    <Dato etiqueta="Reintento" valor={fecha(n.fechaProximoCobro)} />
+                    {!esManual && <Dato etiqueta="Reintento" valor={fecha(n.fechaProximoCobro)} />}
                     <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />
                   </>
                 )}
                 <Dato etiqueta="Método de cobro" valor={<ChipDato testid="chip-metodo" texto={n.metodoCobro === 'manual' ? 'Manual' : 'Tarjeta'} activo={n.metodoCobro !== 'manual'} />} />
-                <Dato etiqueta="Suscripción Stripe" valor={<ChipDato testid="chip-stripe" texto={n.tieneSuscripcionStripe ? 'Activa' : 'Sin suscripción'} activo={n.tieneSuscripcionStripe} />} />
-                <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />
+                {/* Conceptos de ciclo Stripe (Suscripción / Inicio Trial): solo aplican a tarjeta. */}
+                {!esManual && (
+                  <Dato etiqueta="Suscripción Stripe" valor={<ChipDato testid="chip-stripe" texto={n.tieneSuscripcionStripe ? 'Activa' : 'Sin suscripción'} activo={n.tieneSuscripcionStripe} />} />
+                )}
+                {!esManual && <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />}
                 {n.fechaPrimerPago && <Dato etiqueta="Primer Pago" valor={fecha(n.fechaPrimerPago)} />}
                 {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
               </Seccion>
+
+              {/* Historial de pagos manuales (efectivo/transferencia) — solo método manual. */}
+              {esManual && (
+                <Seccion titulo="Historial de pagos" icono={Receipt}>
+                  <HistorialPagos negocioId={previo.id} />
+                </Seccion>
+              )}
 
               <Seccion titulo="Vendedor atribuido" icono={User}>
                 {n.vendedorId && n.vendedorNombre ? (

@@ -39,6 +39,11 @@ export interface DatosAuth {
   email: string;
   /** Token temporal de 2FA (devuelto por el backend) */
   tokenTemporal2FA: string;
+  /**
+   * Cuenta de alta manual que aún NO tiene contraseña y la define por primera vez.
+   * Hace que la vista 'recuperar' muestre copy de "crear" en vez de "restablecer".
+   */
+  modoDefinir?: boolean;
 }
 
 // =============================================================================
@@ -135,7 +140,12 @@ export function ModalLogin() {
   // Render
   // ---------------------------------------------------------------------------
 
-  const { Icono, titulo, subtitulo } = VISTAS_CONFIG[vistaActual];
+  const { Icono, titulo: tituloBase, subtitulo: subtituloBase } = VISTAS_CONFIG[vistaActual];
+  // En "modo definir" (cuenta de alta manual que crea su contraseña por primera vez), la vista
+  // 'recuperar' habla de CREAR, no de restablecer. El header usa literales (igual que VISTAS_CONFIG).
+  const esDefinirContrasena = vistaActual === 'recuperar' && !!datosAuth.modoDefinir;
+  const titulo = esDefinirContrasena ? 'Crea tu contraseña' : tituloBase;
+  const subtitulo = esDefinirContrasena ? 'Defínela para entrar a tu cuenta' : subtituloBase;
 
   return (
     <ModalAdaptativo
@@ -201,6 +211,7 @@ export function ModalLogin() {
           {vistaActual === 'recuperar' && (
             <VistaRecuperar
               emailInicial={datosAuth.email}
+              modoDefinir={datosAuth.modoDefinir}
               onCambiarVista={cambiarVista}
               onActualizarDatos={actualizarDatos}
             />

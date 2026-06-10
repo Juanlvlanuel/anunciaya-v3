@@ -126,6 +126,11 @@ export function VistaLogin({
           // Caso especial: el correo no existe en BD → ofrecer crear cuenta
           if (response.errorCode === 'CORREO_NO_REGISTRADO') {
             setCorreoNoRegistrado(email);
+          } else if (response.errorCode === 'CUENTA_SIN_CONTRASENA') {
+            // Cuenta de alta manual que aún no define su contraseña: llevarla a CREARLA
+            // (mismo flujo de código por correo que recuperar, con copy de "crear").
+            onActualizarDatos({ email, modoDefinir: true });
+            onCambiarVista('recuperar');
           } else {
             notificar.error(response.message || t('login.error'));
           }
@@ -187,7 +192,9 @@ export function VistaLogin({
             <button
               type="button"
               onClick={() => {
-                onActualizarDatos({ email });
+                // Recuperación normal: copy de "restablecer" (modoDefinir en false explícito
+                // para no arrastrar el modo si se venía de CUENTA_SIN_CONTRASENA).
+                onActualizarDatos({ email, modoDefinir: false });
                 onCambiarVista('recuperar');
               }}
               className="text-base font-semibold text-blue-600 hover:underline lg:cursor-pointer"
@@ -274,8 +281,26 @@ export function VistaLogin({
         </button>
       </form>
 
-      {/* Footer */}
+      {/* Acceso para dueños de alta manual que aún no definen su contraseña:
+          lleva DIRECTO a "Crea tu contraseña" (mismo flujo modoDefinir que el 409),
+          sin teclear una contraseña falsa ni consultar al backend (sin enumeración). */}
       <p className="mt-6 text-center text-base font-medium text-slate-600">
+        {t('login.primeraVez')}{' '}
+        <button
+          type="button"
+          data-testid="btn-crear-contrasena-primera-vez"
+          onClick={() => {
+            onActualizarDatos({ email, modoDefinir: true });
+            onCambiarVista('recuperar');
+          }}
+          className="font-semibold text-blue-600 hover:underline lg:cursor-pointer"
+        >
+          {t('login.creaContrasena')}
+        </button>
+      </p>
+
+      {/* Footer */}
+      <p className="mt-3 text-center text-base font-medium text-slate-600">
         {t('login.sinCuenta')}{' '}
         <button
           type="button"

@@ -25,6 +25,8 @@ export const queryKeys = {
     detalle: (id: string) => ['negocios', 'detalle', id] as const,
     vendedores: () => ['negocios', 'vendedores'] as const,
     ciudades: () => ['negocios', 'ciudades'] as const,
+    catalogoCiudades: () => ['negocios', 'catalogo-ciudades'] as const,
+    pagos: (id: string) => ['negocios', 'pagos', id] as const,
     sucursales: (id: string) => ['negocios', 'sucursales', id] as const,
     sucursal: (id: string, sucursalId: string) => ['negocios', 'sucursal', id, sucursalId] as const,
   },

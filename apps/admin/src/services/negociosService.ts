@@ -252,3 +252,69 @@ export async function cancelarNegocio(id: string, motivo: string): Promise<Resul
   const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/cancelar`, { motivo });
   return { advertenciaStripe: data.advertenciaStripe ?? null };
 }
+
+// =============================================================================
+// ALTA MANUAL + CATÁLOGO DE CIUDADES + HISTORIAL DE PAGOS (Fase 5)
+// =============================================================================
+
+/** Ciudad del catálogo para el selector del alta (el backend ya la acota por región/rol). */
+export interface CiudadCatalogo {
+  id: string;
+  nombre: string;
+  estado: string;
+}
+
+/** Catálogo de ciudades activas por región para el SELECTOR del alta (≠ filtro de tabla). */
+export async function catalogoCiudades(): Promise<CiudadCatalogo[]> {
+  const { data } = await api.get<RespuestaAPI<CiudadCatalogo[]>>('/admin/negocios/catalogo-ciudades');
+  return data.data ?? [];
+}
+
+/** Concepto del alta manual: ingreso (efectivo/transferencia) o cortesía (sin monto). */
+export type ConceptoAlta = 'efectivo' | 'transferencia' | 'cortesia';
+
+/** Payload del alta manual de un negocio en efectivo/transferencia (sin Stripe). */
+export interface DatosAltaManual {
+  nombreNegocio: string;
+  ciudadId: string;
+  nombre: string;
+  apellidos: string;
+  correo: string;
+  /** Se captura dos veces; el backend revalida la igualdad. */
+  confirmarCorreo: string;
+  telefono: string;
+  concepto: ConceptoAlta;
+  /** Monto en MXN; solo efectivo/transferencia (en cortesía va undefined). */
+  monto?: number;
+  meses: number;
+  /** Vendedor elegido (gerente/superadmin). El vendedor se auto-atribuye → no lo manda. */
+  embajadorId?: string | null;
+}
+
+/** Alta manual (superadmin/gerente/vendedor). Devuelve el negocio y dueño creados. */
+export async function altaManualNegocio(datos: DatosAltaManual): Promise<{ negocioId: string; usuarioId: string }> {
+  const { data } = await api.post<RespuestaAPI<{ negocioId: string; usuarioId: string }>>(
+    '/admin/negocios/alta-manual',
+    datos,
+  );
+  if (!data.data) throw new Error(data.message || 'No se pudo registrar el negocio');
+  return data.data;
+}
+
+/** Una fila del historial de pagos de membresía (ficha del método manual). */
+export interface PagoMembresia {
+  id: string;
+  monto: string | null;
+  concepto: string;
+  fechaPago: string | null;
+  periodoHasta: string | null;
+  mesesCubiertos: number | null;
+  nota: string | null;
+  registradoPorNombre: string | null;
+}
+
+/** Historial de pagos de membresía de un negocio (bitácora). */
+export async function listarPagosNegocio(id: string): Promise<PagoMembresia[]> {
+  const { data } = await api.get<RespuestaAPI<PagoMembresia[]>>(`/admin/negocios/${id}/pagos`);
+  return data.data ?? [];
+}

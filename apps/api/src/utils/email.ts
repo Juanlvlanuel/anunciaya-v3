@@ -134,6 +134,35 @@ function plantillaRecuperacion(nombre: string, codigo: string): string {
   return plantillaBase(nombre, contenido);
 }
 
+/**
+ * Genera el HTML para el email de CREAR contraseña por primera vez (cuenta dada de alta
+ * sin contraseña — modelo C). Mismo mecanismo de código de 6 dígitos que la recuperación,
+ * pero con copy de "crear" (no "restablecer"), correcto para quien nunca tuvo contraseña.
+ * @param nombre - Nombre del usuario para personalizar
+ * @param codigo - Código de 6 dígitos
+ */
+function plantillaCrearContrasena(nombre: string, codigo: string): string {
+  const contenido = `
+    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Para entrar a tu cuenta de AnunciaYA solo falta <strong>crear tu contrase&ntilde;a</strong>. Usa este c&oacute;digo de verificaci&oacute;n:
+    </p>
+
+    <div style="background-color: #e2e8f0; border: 1px solid #94a3b8; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 20px;">
+      <div style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0f172a;">
+        ${codigo}
+      </div>
+      <p style="margin: 12px 0 0; font-size: 12px; color: #334155; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+        Expira en 15 minutos
+      </p>
+    </div>
+
+    <p style="margin: 0; font-size: 13px; color: #64748b;">
+      Si no esperabas este mensaje, puedes ignorarlo de forma segura.
+    </p>`;
+
+  return plantillaBase(nombre, contenido);
+}
+
 // =============================================================================
 // FUNCIÓN GENÉRICA DE ENVÍO
 // =============================================================================
@@ -272,6 +301,23 @@ export async function enviarCodigoRecuperacion(
     correo,
     `${codigo} - Recupera tu contraseña de AnunciaYA`,
     plantillaRecuperacion(nombre, codigo)
+  );
+}
+
+/**
+ * Envía el código para CREAR la contraseña por primera vez (cuenta dada de alta sin
+ * contraseña). Mismo mecanismo de código de 6 dígitos que la recuperación, con copy de
+ * "crear" en vez de "restablecer".
+ */
+export async function enviarCodigoCrearContrasena(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  return enviarEmail(
+    correo,
+    `${codigo} - Crea tu contraseña de AnunciaYA`,
+    plantillaCrearContrasena(nombre, codigo)
   );
 }
 
@@ -457,6 +503,43 @@ export async function enviarEmailGerenteRevocado(
   return enviarEmail(
     correo,
     `Tu acceso como gerente ha sido revocado - ${nombreNegocio}`,
+    plantillaBase(nombre, contenido)
+  );
+}
+
+// =============================================================================
+// EMAIL DE BIENVENIDA (alta manual de negocio en efectivo/transferencia)
+// =============================================================================
+
+/**
+ * Email: bienvenida al dueño de un negocio dado de alta MANUALMENTE desde el Panel.
+ * La cuenta nace SIN contraseña (modelo C): el dueño la define en su primer ingreso usando
+ * la opción de crear/recuperar contraseña (código al correo). No incluye credenciales.
+ */
+export async function enviarEmailBienvenida(
+  correo: string,
+  nombre: string,
+  nombreNegocio: string
+): Promise<ResultadoEmail> {
+  const contenido = `
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      &iexcl;Tu negocio <strong>&quot;${escape(nombreNegocio)}&quot;</strong> ya est&aacute; dado de alta en AnunciaYA y tu membres&iacute;a est&aacute; activa!
+    </p>
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Para entrar a tu panel necesitas <strong>crear tu contrase&ntilde;a</strong>. Abre AnunciaYA, elige <strong>Iniciar sesi&oacute;n</strong>, escribe este correo (<strong>${correo}</strong>) y usa la opci&oacute;n de <strong>crear / recuperar contrase&ntilde;a</strong>: te enviaremos un c&oacute;digo a este correo para definirla.
+    </p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${env.FRONTEND_URL}" target="_blank" rel="noopener" style="display: inline-block; background-color: #034AE3; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 8px;">
+        Ir a AnunciaYA
+      </a>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #64748b;">
+      Despu&eacute;s de definir tu contrase&ntilde;a, completa los datos de tu negocio (ubicaci&oacute;n, horarios y fotos) para que aparezca en el directorio.
+    </p>`;
+
+  return enviarEmail(
+    correo,
+    'Tu negocio ya está en AnunciaYA',
     plantillaBase(nombre, contenido)
   );
 }

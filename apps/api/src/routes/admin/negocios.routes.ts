@@ -32,6 +32,9 @@ import {
     reasignarVendedorController,
     marcarPagadoController,
     cancelarNegocioController,
+    catalogoCiudadesController,
+    altaManualController,
+    listarPagosNegocioController,
 } from '../../controllers/admin/negocios.controller.js';
 
 const router: Router = Router();
@@ -42,11 +45,18 @@ router.get('/vendedores', requierePanel(['superadmin', 'gerente']), listarVended
 
 router.get('/ciudades', requierePanel(['superadmin', 'gerente', 'vendedor']), listarCiudadesController);
 
+// Catálogo de ciudades para el SELECTOR del alta (catálogo completo por región, no solo las
+// que ya son sede). Antes de /:id para que "catalogo-ciudades" no caiga en el comodín del id.
+router.get('/catalogo-ciudades', requierePanel(['superadmin', 'gerente', 'vendedor']), catalogoCiudadesController);
+
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerDetalleNegocioController);
 
 // Sucursales del negocio (lista para expandir la fila + detalle para el modal).
 router.get('/:id/sucursales', requierePanel(['superadmin', 'gerente', 'vendedor']), listarSucursalesNegocioController);
 router.get('/:id/sucursales/:sucursalId', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerDetalleSucursalController);
+
+// Historial de pagos de membresía (bitácora) — para la ficha del método manual.
+router.get('/:id/pagos', requierePanel(['superadmin', 'gerente', 'vendedor']), listarPagosNegocioController);
 
 // ─── Acciones (Entrega 2) — escritura ───────────────────────────────────────────
 // Pausar (suspender) y Reasignar: superadmin + gerente (alcance de región en el service).
@@ -57,5 +67,9 @@ router.post('/:id/reasignar-vendedor', requierePanel(['superadmin', 'gerente']),
 // Marcar pagado y Cancelar: SOLO superadmin (Parada 2).
 router.post('/:id/marcar-pagado', requierePanel(['superadmin']), marcarPagadoController);
 router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioController);
+
+// Alta MANUAL de negocio en efectivo/transferencia (sin Stripe): los 3 roles, con alcance
+// de región en el service (vendedor se auto-atribuye; gerente acotado a su región).
+router.post('/alta-manual', requierePanel(['superadmin', 'gerente', 'vendedor']), altaManualController);
 
 export default router;

@@ -30,6 +30,7 @@ import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
 import { obtenerConfigNumero } from './configuracion.service.js';
+import { crearNegocioConDueno } from './negocioManagement.service.js';
 import { eq, and, sql } from 'drizzle-orm';
 
 // =============================================================================
@@ -626,78 +627,28 @@ async function manejarCheckoutCompletado(
     }
 
     // -------------------------------------------------------------------------
-    // PASO 4: Crear usuario comercial en PostgreSQL (CON CONTRASEÑA)
+    // PASO 4-5: Crear usuario dueño + negocio + sucursal principal
     // -------------------------------------------------------------------------
-    const [nuevoUsuario] = await db
-        .insert(usuarios)
-        .values({
-            nombre: datosRegistro.nombre,
-            apellidos: datosRegistro.apellidos,
-            correo: datosRegistro.correo,
-            contrasenaHash: datosRegistro.contrasenaHash || null, // null para usuarios Google
-            telefono: datosRegistro.telefono,
-            perfil: 'comercial',
-            membresia: 1, // Membresía básica comercial
-            correoVerificado: true, // Ya fue verificado antes del pago
-            correoVerificadoAt: new Date().toISOString(),
-            estado: 'activo',
-            stripeCustomerId: session.customer as string,
-            stripeSubscriptionId: session.subscription as string,
-            autenticadoPorGoogle: datosRegistro.esRegistroGoogle || false,
-            tieneModoComercial: true,      // 🆕 Usuario pagó, tiene acceso
-            modoActivo: 'comercial',
-            referidoPor: atribucion?.embajadorId ?? null, // Vendedor que lo trajo
-        })
-        .returning();
-
-    console.log('✅ Usuario creado:', nuevoUsuario.id);
-
-    // -------------------------------------------------------------------------
-    // PASO 5: Crear negocio asociado
-    // -------------------------------------------------------------------------
+    // Creación centralizada en crearNegocioConDueno (negocioManagement.service), compartida
+    // con el alta manual del Panel. El webhook conserva sus escrituras SUELTAS pasando `db`
+    // como ejecutor y omitiendo metodoCobro/ciudad → defaults 'tarjeta'/'Por configurar' (sin
+    // cambio de comportamiento). El UPDATE de negocio_id al dueño ocurre dentro del helper.
     const nombreNegocio = datosRegistro.nombreNegocio || metadata.nombreNegocio || 'Mi Negocio';
 
-    const [nuevoNegocio] = await db
-        .insert(negocios)
-        .values({
-            usuarioId: nuevoUsuario.id,
-            nombre: nombreNegocio,
-            esBorrador: true,
-            verificado: false,
-            participaPuntos: false,
-            embajadorId: atribucion?.embajadorId ?? null, // Vendedor que trajo el negocio
-            // La región se DEDUCE de la ciudad de la(s) sucursal(es); ya no se escribe aquí
-            // (negocios.region_id se eliminó en el Paso 10).
-        })
-        .returning();
+    const { usuario: nuevoUsuario, negocio: nuevoNegocio } = await crearNegocioConDueno(db, {
+        nombre: datosRegistro.nombre,
+        apellidos: datosRegistro.apellidos,
+        correo: datosRegistro.correo,
+        telefono: datosRegistro.telefono,
+        contrasenaHash: datosRegistro.contrasenaHash || null, // null para usuarios Google
+        autenticadoPorGoogle: datosRegistro.esRegistroGoogle || false,
+        stripeCustomerId: session.customer as string,
+        stripeSubscriptionId: session.subscription as string,
+        embajadorId: atribucion?.embajadorId ?? null, // Vendedor que lo trajo
+        nombreNegocio,
+    });
 
-    console.log('✅ Negocio creado:', nuevoNegocio.id);
-
-    // -------------------------------------------------------------------------
-    // PASO 5.1: 🆕 CREAR SUCURSAL PRINCIPAL AUTOMÁTICAMENTE
-    // -------------------------------------------------------------------------
-    const [sucursalPrincipal] = await db
-        .insert(negocioSucursales)
-        .values({
-            negocioId: nuevoNegocio.id,
-            nombre: nombreNegocio,  // Mismo nombre del negocio
-            esPrincipal: true,
-            ciudad: 'Por configurar',  // Se completa en onboarding paso 2
-            activa: true,
-        })
-        .returning();
-
-    console.log('✅ Sucursal principal creada:', sucursalPrincipal.id);
-
-    // -------------------------------------------------------------------------
-    // PASO 5.5: Asignar negocio_id al usuario ← AGREGAR ESTO
-    // -------------------------------------------------------------------------
-    await db
-        .update(usuarios)
-        .set({ negocioId: nuevoNegocio.id })
-        .where(eq(usuarios.id, nuevoUsuario.id));
-
-    console.log('✅ Usuario actualizado con negocio_id:', nuevoNegocio.id);
+    console.log('✅ Usuario + negocio + sucursal creados:', nuevoUsuario.id, nuevoNegocio.id);
 
     // -------------------------------------------------------------------------
     // PASO 6: Generar tokens JWT

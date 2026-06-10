@@ -55,8 +55,8 @@ export function MenuFiltro({
 
   const claseBoton = plano
     ? 'inline-flex items-center gap-1.5 text-[12.5px] text-texto-3 transition hover:text-texto'
-    : `inline-flex items-center gap-2 rounded-[10px] border border-borde bg-superficie-2 font-medium text-texto transition hover:bg-marca-suave ${
-        compacto ? 'px-2.5 py-2 text-[12.5px]' : 'px-3 py-2.5 text-[13px]'
+    : `inline-flex items-center gap-2 rounded-full border border-borde bg-superficie-2 font-medium text-texto transition hover:bg-marca-suave ${
+        compacto ? 'px-3 py-2 text-[12.5px]' : 'px-3.5 py-2.5 text-[13px]'
       }`;
 
   return (

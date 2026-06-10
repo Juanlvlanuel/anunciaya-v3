@@ -27,6 +27,7 @@ import {
   enviarCodigoVerificacion,
   reenviarCodigoVerificacion,
   enviarCodigoRecuperacion,
+  enviarCodigoCrearContrasena,
 } from '../utils/email.js';
 import { generarTokens, type PayloadToken, verificarRefreshToken } from '../utils/jwt.js';
 
@@ -764,12 +765,23 @@ export async function loginUsuario(
       };
     }
 
-    // Verificar contraseña
+    // Verificar contraseña. Una cuenta SIN hash puede ser:
+    //  - de Google/Facebook (autenticadoPorGoogle) → se la invita a entrar con Google (igual que antes).
+    //  - de alta manual (sin contraseña aún, no-Google) → errorCode CUENTA_SIN_CONTRASENA para que el
+    //    front la mande a CREAR su contraseña (código al correo vía solicitarRecuperacion).
     if (!usuario.contrasenaHash) {
+      if (usuario.autenticadoPorGoogle) {
+        return {
+          success: false,
+          message: 'Esta cuenta usa inicio de sesión con Google o Facebook',
+          code: 400,
+        };
+      }
       return {
         success: false,
-        message: 'Esta cuenta usa inicio de sesión con Google o Facebook',
-        code: 400,
+        message: 'Aún no has definido tu contraseña. Te enviaremos un código a tu correo para crearla.',
+        code: 409,
+        errorCode: 'CUENTA_SIN_CONTRASENA',
       };
     }
 
@@ -1295,6 +1307,7 @@ export async function solicitarRecuperacion(
         correo: usuarios.correo,
         estado: usuarios.estado,
         contrasenaHash: usuarios.contrasenaHash,
+        autenticadoPorGoogle: usuarios.autenticadoPorGoogle,
       })
       .from(usuarios)
       .where(eq(usuarios.correo, datos.correo))
@@ -1314,9 +1327,12 @@ export async function solicitarRecuperacion(
     }
 
     // -------------------------------------------------------------------------
-    // Paso 3: Verificar que la cuenta use contraseña (no OAuth)
+    // Paso 3: Cuentas SIN contraseña.
+    //  - Google (autenticadoPorGoogle): NO se puede recuperar → se invita a entrar con Google.
+    //  - Sin contraseña NO-Google (alta manual): NO se bloquea; sigue al envío del código para
+    //    CREAR su contraseña por primera vez (el copy del correo se elige en el Paso 7).
     // -------------------------------------------------------------------------
-    if (!usuario.contrasenaHash) {
+    if (!usuario.contrasenaHash && usuario.autenticadoPorGoogle) {
       return {
         success: true,
         message: 'Esta cuenta fue creada con Google. Inicia sesión con el botón de Google.',
@@ -1358,13 +1374,14 @@ export async function solicitarRecuperacion(
     }
 
     // -------------------------------------------------------------------------
-    // Paso 7: Enviar email con código
+    // Paso 7: Enviar email con código. Si la cuenta NUNCA tuvo contraseña (contrasenaHash
+    // null → alta manual) el copy es "crea tu contraseña"; si ya tenía hash, es recuperación.
+    // (En este punto, sin hash sólo puede ser una cuenta no-Google: las de Google se cortan
+    //  en el Paso 3.)
     // -------------------------------------------------------------------------
-    const resultadoEmail = await enviarCodigoRecuperacion(
-      datos.correo,
-      usuario.nombre,
-      codigo
-    );
+    const resultadoEmail = usuario.contrasenaHash
+      ? await enviarCodigoRecuperacion(datos.correo, usuario.nombre, codigo)
+      : await enviarCodigoCrearContrasena(datos.correo, usuario.nombre, codigo);
 
     if (!resultadoEmail.success) {
       console.warn('Error al enviar email de recuperación:', datos.correo);

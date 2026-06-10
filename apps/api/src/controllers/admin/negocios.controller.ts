@@ -16,6 +16,7 @@ import {
     listarCiudades,
     listarSucursalesNegocio,
     obtenerDetalleSucursal,
+    listarPagosNegocio,
     panelConFiltroRegion,
     ESTADOS_PAGO,
     ORDENES,
@@ -29,6 +30,14 @@ import {
     marcarPagado,
     cancelarNegocio,
 } from '../../services/admin/negocios-acciones.service.js';
+import {
+    altaManualNegocio,
+    listarCatalogoCiudades,
+} from '../../services/admin/altaManualNegocio.service.js';
+import {
+    altaManualNegocioSchema,
+    formatearErroresZod,
+} from '../../validations/admin/altaManualNegocio.schema.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -187,6 +196,26 @@ export async function obtenerDetalleSucursalController(req: Request, res: Respon
         res.status(500).json({
             success: false,
             message: 'Error al obtener la sucursal',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/:id/pagos   (los 3 roles · historial de pagos manuales)
+// =============================================================================
+
+export async function listarPagosNegocioController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const { id } = req.params;
+        const data = await listarPagosNegocio(panel, id);
+        res.status(200).json({ success: true, message: 'Pagos obtenidos', data });
+    } catch (error) {
+        console.error('Error en listarPagosNegocioController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener los pagos',
             error: error instanceof Error ? error.message : String(error),
         });
     }
@@ -399,6 +428,67 @@ export async function cancelarNegocioController(req: Request, res: Response): Pr
         res.status(500).json({
             success: false,
             message: 'Error al cancelar el negocio',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/catalogo-ciudades   (los 3 roles · selector del alta)
+// =============================================================================
+
+export async function catalogoCiudadesController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const ciudades = await listarCatalogoCiudades(panel);
+        res.status(200).json({ success: true, message: 'Catálogo de ciudades', data: ciudades });
+    } catch (error) {
+        console.error('Error en catalogoCiudadesController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener el catálogo de ciudades',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/alta-manual   (superadmin + gerente + vendedor)
+// Crea, sin Stripe, el negocio en efectivo/transferencia + su dueño (sin contraseña)
+// + su sucursal con ciudad real + el primer pago. Atribución del vendedor: auto (vendedor)
+// o del body (gerente/superadmin).
+// =============================================================================
+
+export async function altaManualController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+
+        const validacion = altaManualNegocioSchema.safeParse(req.body);
+        if (!validacion.success) {
+            res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+            return;
+        }
+
+        const r = await altaManualNegocio(panel, validacion.data);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+
+        res.status(201).json({
+            success: true,
+            message: 'Negocio dado de alta',
+            data: { negocioId: r.negocioId, usuarioId: r.usuarioId },
+        });
+    } catch (error) {
+        console.error('Error en altaManualController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al dar de alta el negocio',
             error: error instanceof Error ? error.message : String(error),
         });
     }

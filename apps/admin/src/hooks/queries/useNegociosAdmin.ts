@@ -97,6 +97,26 @@ export function useCiudadesFiltro() {
   });
 }
 
+/** Catálogo de ciudades (por región) para el SELECTOR del alta manual. */
+export function useCatalogoCiudades(habilitado: boolean) {
+  return useQuery({
+    queryKey: queryKeys.negocios.catalogoCiudades(),
+    queryFn: () => negociosService.catalogoCiudades(),
+    enabled: habilitado,
+    staleTime: 1000 * 60 * 10, // catálogo, cambia poco
+  });
+}
+
+/** Historial de pagos de membresía de un negocio (ficha del método manual). */
+export function usePagosNegocio(id: string, habilitado: boolean) {
+  return useQuery({
+    queryKey: queryKeys.negocios.pagos(id),
+    queryFn: () => negociosService.listarPagosNegocio(id),
+    enabled: habilitado,
+    staleTime: 1000 * 60,
+  });
+}
+
 /** Sucursales de un negocio (al expandir la fila). `habilitado` = solo se pide al abrir. */
 export function useSucursalesNegocio(id: string, habilitado: boolean) {
   return useQuery({
@@ -198,5 +218,18 @@ export function useCancelarNegocio() {
       avisarResultado(res, 'Negocio cancelado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo cancelar el negocio')),
+  });
+}
+
+/** Alta MANUAL de un negocio en efectivo/transferencia (sin Stripe). Refresca la lista. */
+export function useAltaManualNegocio() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (datos: negociosService.DatosAltaManual) => negociosService.altaManualNegocio(datos),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.all() });
+      toast.exito('Negocio registrado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo registrar el negocio')),
   });
 }

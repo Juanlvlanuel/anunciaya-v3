@@ -14,7 +14,7 @@
  */
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, User, ArrowUpDown } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, User, ArrowUpDown, Plus } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio, useSucursalesNegocio } from '../../hooks/queries/useNegociosAdmin';
@@ -24,6 +24,7 @@ import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
 import { MenuFiltro, type OpcionMenu } from './MenuFiltro';
 import { FichaNegocio } from './FichaNegocio';
 import { FichaSucursal } from './FichaSucursal';
+import { DialogoRegistrarNegocio } from './DialogoRegistrarNegocio';
 
 const POR_PAGINA = 20;
 const SIN = '__none';
@@ -72,6 +73,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const [orden, setOrden] = useState<OrdenNegocios>('nombre_az');
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<NegocioFila | null>(null);
+  const [mostrarAlta, setMostrarAlta] = useState(false);
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [sucursalSel, setSucursalSel] = useState<{ negocioId: string; sucursal: SucursalFila } | null>(null);
   const prefetchNegocio = usePrefetchNegocio();
@@ -161,7 +163,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
         placeholder="Buscar por nombre…"
-        className="w-full rounded-[10px] border border-borde bg-superficie-2 py-2.5 pl-9 pr-9 text-[13.5px] font-medium text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
+        className="w-full rounded-full border border-borde bg-superficie-2 py-2.5 pl-10 pr-9 text-[13.5px] font-medium text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
       />
       {busqueda && (
         <button
@@ -182,6 +184,9 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const modalSucursal = sucursalSel ? (
     <FichaSucursal negocioId={sucursalSel.negocioId} sucursal={sucursalSel.sucursal} onCerrar={() => setSucursalSel(null)} />
   ) : null;
+  const dialogoAlta = mostrarAlta ? (
+    <DialogoRegistrarNegocio abierto onCerrar={() => setMostrarAlta(false)} mostrarVendedor={mostrarVendedor} />
+  ) : null;
 
   // ── Vista MÓVIL ─────────────────────────────────────────────────────────────
   if (!esEscritorio) {
@@ -189,23 +194,30 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
       <div className="flex h-full min-h-0 flex-col p-4">
         <div className="mb-2.5 shrink-0">{buscador}</div>
 
-        {/* Chips estado (carrusel) */}
+        {/* Chips estado (carrusel) — pills teñidos del color de cada estado al activarse. */}
         <div className="mb-2 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
           {TABS_ESTADO.map((t) => {
             const activo = estadoPago === t.id;
-            const dot = t.id ? metaEstado(t.id).color : null;
+            const color = t.id ? metaEstado(t.id).color : 'var(--panel-brand)';
             return (
               <button
                 key={t.id || 'todos'}
                 type="button"
                 data-testid={`negocios-filtro-estado-${t.id || 'todos'}`}
                 onClick={() => setEstadoPago(t.id)}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${
-                  activo ? 'border-marca bg-marca text-white' : 'border-borde bg-superficie text-texto-2'
-                }`}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition"
+                style={
+                  activo
+                    ? {
+                        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+                        borderColor: `color-mix(in srgb, ${color} 34%, transparent)`,
+                        color,
+                      }
+                    : undefined
+                }
               >
-                {dot && <span className="h-[7px] w-[7px] rounded-full" style={{ background: activo ? '#fff' : dot }} />}
-                {t.label} <span className="text-[11px] opacity-80">{conteoDe(t.id)}</span>
+                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
+                {t.label} <span className="text-[11px] opacity-70">{conteoDe(t.id)}</span>
               </button>
             );
           })}
@@ -227,6 +239,16 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
             compacto
           />
         </div>
+
+        {/* Registrar negocio (ancho, sobre la lista) */}
+        <button
+          type="button"
+          data-testid="negocios-registrar"
+          onClick={() => setMostrarAlta(true)}
+          className="mb-2.5 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-marca px-3 py-2.5 text-[13px] font-semibold text-marca-contraste transition active:opacity-90"
+        >
+          <Plus size={15} /> Registrar negocio
+        </button>
 
         {/* Lista de cards */}
         <div className="min-h-0 flex-1 overflow-y-auto">
@@ -260,6 +282,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
         {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
         {ficha}
         {modalSucursal}
+        {dialogoAlta}
       </div>
     );
   }
@@ -271,30 +294,73 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* Toolbar */}
-      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-3">
+      {/* Toolbar: buscador (izq) + filtros y acción primaria (der) */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="min-w-[220px] max-w-[360px] flex-1">{buscador}</div>
 
-        {/* Chips estado segmentados */}
-        <div className="inline-flex items-center gap-1 rounded-[11px] border border-borde bg-superficie-2 p-[3px]">
+        <div className="flex flex-wrap items-center gap-3">
+          {mostrarVendedor && (
+            <MenuFiltro
+              testid="negocios-filtro-vendedor"
+              icono={<User size={16} />}
+              etiquetaBoton={etiquetaVendedor}
+              opciones={opcionesVendedor}
+              valor={vendedorId}
+              onCambiar={setVendedorId}
+            />
+          )}
+          <MenuFiltro
+            testid="negocios-filtro-ciudad"
+            icono={<MapPin size={16} />}
+            etiquetaBoton={etiquetaCiudad}
+            opciones={opcionesCiudad}
+            valor={ciudad}
+            onCambiar={setCiudad}
+          />
+          <button
+            type="button"
+            data-testid="negocios-registrar"
+            onClick={() => setMostrarAlta(true)}
+            className="inline-flex items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:opacity-90"
+          >
+            <Plus size={16} /> Registrar negocio
+          </button>
+        </div>
+      </div>
+
+      {/* Subhead: chips de estado (izq) + total y ordenar (der) */}
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
+        {/* Chips de estado: pills sueltos, teñidos del color de cada estado al activarse. */}
+        <div className="flex flex-wrap items-center gap-2">
           {TABS_ESTADO.map((t) => {
             const activo = estadoPago === t.id;
-            const dot = t.id ? metaEstado(t.id).color : null;
+            const color = t.id ? metaEstado(t.id).color : 'var(--panel-brand)';
             return (
               <button
                 key={t.id || 'todos'}
                 type="button"
                 data-testid={`negocios-filtro-estado-${t.id || 'todos'}`}
                 onClick={() => setEstadoPago(t.id)}
-                className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-[8px] px-2.5 py-1.5 text-[12.5px] font-semibold transition ${
-                  activo ? 'bg-superficie text-marca shadow-[0_1px_2px_rgba(20,22,28,0.06)]' : 'text-texto-2 hover:text-texto'
-                }`}
+                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+                style={
+                  activo
+                    ? {
+                        background: `color-mix(in srgb, ${color} 12%, transparent)`,
+                        borderColor: `color-mix(in srgb, ${color} 34%, transparent)`,
+                        color,
+                      }
+                    : undefined
+                }
               >
-                {dot && <span className="h-[7px] w-[7px] rounded-full" style={{ background: dot }} />}
+                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
                 {t.label}
                 <span
-                  className={`min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold ${activo ? 'bg-marca-suave text-marca' : 'text-texto-3'}`}
-                  style={!activo ? { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)' } : undefined}
+                  className="min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
+                  style={
+                    activo
+                      ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color }
+                      : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }
+                  }
                 >
                   {conteoDe(t.id)}
                 </span>
@@ -303,43 +369,22 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
           })}
         </div>
 
-        {mostrarVendedor && (
+        <div className="flex shrink-0 items-center gap-3">
+          <span className="text-[13px] text-texto-3" data-testid="negocios-total">
+            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'negocio' : 'negocios'}
+            {hayFiltro ? ' · filtrado' : ''}
+            {isFetching && !isLoading ? ' · actualizando…' : ''}
+          </span>
           <MenuFiltro
-            testid="negocios-filtro-vendedor"
-            icono={<User size={16} />}
-            etiquetaBoton={etiquetaVendedor}
-            opciones={opcionesVendedor}
-            valor={vendedorId}
-            onCambiar={setVendedorId}
+            testid="negocios-orden"
+            icono={<ArrowUpDown size={15} />}
+            etiquetaBoton={<>Ordenar: {etiquetaOrden}</>}
+            opciones={OPCIONES_ORDEN.map((o) => ({ valor: o.valor, etiqueta: o.etiqueta }))}
+            valor={orden}
+            onCambiar={(v) => setOrden(v as OrdenNegocios)}
+            anchoMenu={200}
           />
-        )}
-        <MenuFiltro
-          testid="negocios-filtro-ciudad"
-          icono={<MapPin size={16} />}
-          etiquetaBoton={etiquetaCiudad}
-          opciones={opcionesCiudad}
-          valor={ciudad}
-          onCambiar={setCiudad}
-        />
-      </div>
-
-      {/* Subhead: total + ordenar */}
-      <div className="mb-2 flex shrink-0 items-center justify-between">
-        <span className="text-[13px] text-texto-3" data-testid="negocios-total">
-          <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'negocio' : 'negocios'}
-          {hayFiltro ? ' · filtrado' : ''}
-          {isFetching && !isLoading ? ' · actualizando…' : ''}
-        </span>
-        <MenuFiltro
-          testid="negocios-orden"
-          plano
-          icono={<ArrowUpDown size={15} />}
-          etiquetaBoton={<>Ordenar: {etiquetaOrden}</>}
-          opciones={OPCIONES_ORDEN.map((o) => ({ valor: o.valor, etiqueta: o.etiqueta }))}
-          valor={orden}
-          onCambiar={(v) => setOrden(v as OrdenNegocios)}
-          anchoMenu={200}
-        />
+        </div>
       </div>
 
       {/* Tabla */}
@@ -393,6 +438,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
       {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
       {ficha}
       {modalSucursal}
+      {dialogoAlta}
     </div>
   );
 }

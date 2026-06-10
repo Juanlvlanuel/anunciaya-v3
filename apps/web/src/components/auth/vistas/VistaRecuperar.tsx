@@ -25,6 +25,8 @@ import type { VistaAuth, DatosAuth } from '../ModalLogin';
 
 interface VistaRecuperarProps {
   emailInicial: string;
+  /** true cuando la cuenta DEFINE su contraseña por primera vez (alta manual): copy de "crear". */
+  modoDefinir?: boolean;
   onCambiarVista: (vista: VistaAuth) => void;
   onActualizarDatos: (datos: Partial<DatosAuth>) => void;
 }
@@ -40,6 +42,7 @@ const CODIGO_REGEX = /^\d{6}$/;
 
 export function VistaRecuperar({
   emailInicial,
+  modoDefinir = false,
   onCambiarVista,
   onActualizarDatos,
 }: VistaRecuperarProps) {
@@ -86,15 +89,15 @@ export function VistaRecuperar({
             notificar.info('Si el correo está registrado, recibirás un código en breve.');
           }
         } else {
-          notificar.error(response.message || t('recuperar.error'));
+          notificar.error(response.message || t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
         }
       } catch {
-        notificar.error(t('recuperar.error'));
+        notificar.error(t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
       } finally {
         setCargando(false);
       }
     },
-    [email, formularioPaso1Valido, cargando, t]
+    [email, formularioPaso1Valido, cargando, modoDefinir, t]
   );
 
   const handleRestablecer = useCallback(
@@ -111,21 +114,22 @@ export function VistaRecuperar({
         });
 
         if (response.success) {
-          notificar.exito(t('recuperar.exito'));
+          notificar.exito(t(modoDefinir ? 'recuperar.exitoDefinir' : 'recuperar.exito'));
           setTimeout(() => {
-            onActualizarDatos({ email });
+            // Vuelve al login con el correo precargado (sin auto-login). Apaga el flag.
+            onActualizarDatos({ email, modoDefinir: false });
             onCambiarVista('login');
           }, 500);
         } else {
-          notificar.error(response.message || t('recuperar.error'));
+          notificar.error(response.message || t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
         }
       } catch {
-        notificar.error(t('recuperar.error'));
+        notificar.error(t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
       } finally {
         setCargando(false);
       }
     },
-    [email, codigo, nuevaPassword, formularioPaso2Valido, cargando, onCambiarVista, onActualizarDatos, t]
+    [email, codigo, nuevaPassword, formularioPaso2Valido, cargando, modoDefinir, onCambiarVista, onActualizarDatos, t]
   );
 
   const handleReenviar = useCallback(async () => {
@@ -136,14 +140,14 @@ export function VistaRecuperar({
       if (response.success) {
         notificar.exito(t('recuperar.codigoEnviado'));
       } else {
-        notificar.error(response.message || t('recuperar.error'));
+        notificar.error(response.message || t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
       }
     } catch {
-      notificar.error(t('recuperar.error'));
+      notificar.error(t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
     } finally {
       setCargando(false);
     }
-  }, [email, cargando, t]);
+  }, [email, cargando, modoDefinir, t]);
 
   const handleCambioCodigo = useCallback((valor: string) => {
     const valorLimpio = valor.replace(/[^0-9]/g, '');
@@ -203,7 +207,7 @@ export function VistaRecuperar({
       {paso === 1 && (
         <form onSubmit={handleEnviarCodigo}>
           <p className="text-base font-medium text-slate-600 mb-5">
-            {t('recuperar.subtitulo')}
+            {t(modoDefinir ? 'recuperar.subtituloDefinir' : 'recuperar.subtitulo')}
           </p>
 
           <div className="mb-6">
@@ -276,7 +280,7 @@ export function VistaRecuperar({
           {/* Nueva contraseña */}
           <div className="mb-5">
             <label className="block text-base font-bold text-slate-700 mb-2">
-              {t('recuperar.nuevaContrasena')}
+              {t(modoDefinir ? 'recuperar.nuevaContrasenaDefinir' : 'recuperar.nuevaContrasena')}
             </label>
             <div className={claseWrapper(nuevaPassword, passwordValida)} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
               <Lock className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
@@ -342,7 +346,9 @@ export function VistaRecuperar({
             disabled={!formularioPaso2Valido || cargando}
             className={claseBotonSubmit(formularioPaso2Valido)}
           >
-            {cargando ? t('recuperar.restableciendo') : t('recuperar.botonRestablecer')}
+            {cargando
+              ? t(modoDefinir ? 'recuperar.creandoDefinir' : 'recuperar.restableciendo')
+              : t(modoDefinir ? 'recuperar.botonDefinir' : 'recuperar.botonRestablecer')}
           </button>
         </form>
       )}
