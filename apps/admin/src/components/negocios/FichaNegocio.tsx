@@ -26,6 +26,7 @@ import {
   PlayCircle,
   Ban,
   Receipt,
+  Mail,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
@@ -35,6 +36,7 @@ import {
   useMarcarPagado,
   useCancelarNegocio,
   usePagosNegocio,
+  useCambiarCorreoDueno,
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
@@ -42,6 +44,7 @@ import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
 import { DialogoReasignar } from './DialogoReasignar';
 import { DialogoMarcarPagado } from './DialogoMarcarPagado';
+import { DialogoEditarCorreo } from './DialogoEditarCorreo';
 import { BadgeEstadoPago, estadoEfectivo } from './estadoPago';
 import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
@@ -222,12 +225,13 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   // `data` siempre existe (placeholder de la fila o datos reales) → ficha al instante.
   const n = data ?? placeholderDesdeFila(previo);
 
-  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar'>(null);
+  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar' | 'editar-correo'>(null);
   const suspender = useSuspenderNegocio();
   const reactivar = useReactivarNegocio();
   const reasignar = useReasignarVendedor();
   const marcarPagado = useMarcarPagado();
   const cancelar = useCancelarNegocio();
+  const cambiarCorreo = useCambiarCorreoDueno();
   const cerrarDialogo = () => setDialogo(null);
 
   const suspendido = n.estadoAdmin === 'suspendido';
@@ -345,6 +349,16 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                 <Dato etiqueta="Nombre" valor={n.duenoNombre ?? '—'} />
                 <Dato etiqueta="Correo" valor={n.duenoCorreo ?? '—'} />
                 <Dato etiqueta="Teléfono" valor={n.duenoTelefono ?? '—'} />
+                {puedeActuar && !archivado && (
+                  <button
+                    type="button"
+                    data-testid="ficha-editar-correo"
+                    onClick={() => setDialogo('editar-correo')}
+                    className="mt-2.5 inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12.5px] font-semibold text-texto transition hover:bg-marca-suave"
+                  >
+                    <Mail size={14} /> Editar correo
+                  </button>
+                )}
               </Seccion>
 
               <Seccion titulo="Negocio" icono={Store}>
@@ -458,6 +472,17 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         requiereMotivo
         cargando={cancelar.isPending}
         onConfirmar={(motivo) => cancelar.mutate({ id: previo.id, motivo }, { onSuccess: cerrarDialogo })}
+      />
+    )}
+    {dialogo === 'editar-correo' && (
+      <DialogoEditarCorreo
+        abierto
+        onCerrar={cerrarDialogo}
+        correoActual={n.duenoCorreo}
+        cargando={cambiarCorreo.isPending}
+        onConfirmar={(correoNuevo) =>
+          cambiarCorreo.mutate({ id: previo.id, correoNuevo }, { onSuccess: cerrarDialogo })
+        }
       />
     )}
     </>

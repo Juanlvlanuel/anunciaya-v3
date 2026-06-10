@@ -270,6 +270,28 @@ export async function catalogoCiudades(): Promise<CiudadCatalogo[]> {
   return data.data ?? [];
 }
 
+/** ¿Ya existe una cuenta con ese correo? (aviso temprano del alta; solo booleano, sin datos). */
+export async function existeCorreo(correo: string): Promise<boolean> {
+  const { data } = await api.get<RespuestaAPI<{ existe: boolean }>>('/admin/negocios/existe-correo', {
+    params: { correo },
+  });
+  return data.data?.existe ?? false;
+}
+
+/** Resultado de cambiar el correo del dueño: `correoEnviado` = si el código se reenvió o no. */
+export interface ResultadoCambioCorreo {
+  correoEnviado: boolean;
+}
+
+/** Corrige el correo del dueño (rescate de alta manual) y reenvía el código al correo nuevo. */
+export async function cambiarCorreoDueno(id: string, correoNuevo: string): Promise<ResultadoCambioCorreo> {
+  const { data } = await api.patch<RespuestaAPI<{ correoEnviado: boolean }>>(
+    `/admin/negocios/${id}/correo-dueno`,
+    { correoNuevo },
+  );
+  return { correoEnviado: data.data?.correoEnviado ?? false };
+}
+
 /** Concepto del alta manual: ingreso (efectivo/transferencia) o cortesía (sin monto). */
 export type ConceptoAlta = 'efectivo' | 'transferencia' | 'cortesia';
 

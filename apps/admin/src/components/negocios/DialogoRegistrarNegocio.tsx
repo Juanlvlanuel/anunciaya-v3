@@ -13,11 +13,12 @@
  * Ubicación: apps/admin/src/components/negocios/DialogoRegistrarNegocio.tsx
  */
 
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import { X, Store, User, CreditCard, UserPlus } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { Seccion } from './FichaNegocio';
 import { useCatalogoCiudades, useVendedoresFiltro, useAltaManualNegocio } from '../../hooks/queries/useNegociosAdmin';
+import { existeCorreo } from '../../services/negociosService';
 import type { ConceptoAlta, DatosAltaManual } from '../../services/negociosService';
 
 // Inputs blancos (bg-superficie) para que contrasten sobre la tarjeta gris de <Seccion>.
@@ -67,6 +68,10 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, mostrarVendedor }: 
   const [mesesOtro, setMesesOtro] = useState('');
   // Vendedor
   const [vendedorSel, setVendedorSel] = useState('');
+  // Chequeo de correo en vivo (aviso temprano de duplicado)
+  const [verificandoCorreo, setVerificandoCorreo] = useState(false);
+  const [correoDuplicado, setCorreoDuplicado] = useState(false);
+  const correoRef = useRef('');
 
   // ── Validación derivada (booleans; el botón se deshabilita mientras algo no sea válido) ──
   const nombreNegocioValido = nombreNegocio.trim().length >= 2 && nombreNegocio.trim().length <= 120;
@@ -96,7 +101,25 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, mostrarVendedor }: 
     telValido &&
     montoValido &&
     mesesValido &&
+    !correoDuplicado &&
+    !verificandoCorreo &&
     !alta.isPending;
+
+  // Al salir del campo correo (con formato válido) consulta si ya existe → aviso temprano.
+  const handleBlurCorreo = async () => {
+    const c = correo.trim().toLowerCase();
+    if (!EMAIL_REGEX.test(c)) { setCorreoDuplicado(false); return; }
+    setVerificandoCorreo(true);
+    try {
+      const existe = await existeCorreo(c);
+      // anti-race: aplica solo si el correo no cambió mientras se consultaba
+      if (correoRef.current.trim().toLowerCase() === c) setCorreoDuplicado(existe);
+    } catch {
+      setCorreoDuplicado(false); // si la consulta falla, no bloqueamos (el 409 del alta es la red de seguridad)
+    } finally {
+      setVerificandoCorreo(false);
+    }
+  };
 
   const enviar = () => {
     if (!puedeEnviar) return;
@@ -211,10 +234,21 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, mostrarVendedor }: 
                   type="email"
                   data-testid="alta-correo"
                   value={correo}
-                  onChange={(e) => setCorreo(e.target.value)}
+                  onChange={(e) => { setCorreo(e.target.value); correoRef.current = e.target.value; setCorreoDuplicado(false); }}
+                  onBlur={handleBlurCorreo}
                   placeholder="correo@ejemplo.com"
                   className={CLASE_CAMPO}
                 />
+                {verificandoCorreo && (
+                  <p className="mt-1 text-[12px] font-medium text-texto-4" data-testid="alta-correo-verificando">
+                    Verificando…
+                  </p>
+                )}
+                {correoDuplicado && !verificandoCorreo && (
+                  <p className="mt-1 text-[12px] font-medium text-peligro" data-testid="alta-correo-duplicado">
+                    Este correo ya está registrado en AnunciaYA.
+                  </p>
+                )}
               </div>
               <div className="mb-3">
                 <label className={LABEL}>Confirmar correo</label>

@@ -58,6 +58,22 @@ export async function listarCatalogoCiudades(panel: UsuarioPanel): Promise<Ciuda
 }
 
 // =============================================================================
+// CHEQUEO DE CORREO EN VIVO (aviso temprano del formulario de alta)
+// =============================================================================
+
+/**
+ * ¿Ya existe una cuenta con ese correo? Replica EXACTAMENTE la comprobación del 409 del alta
+ * manual (misma comparación) para que el aviso en vivo prediga el resultado del envío. El correo
+ * debe llegar YA normalizado (lowercase/trim, igual que el schema Zod del alta). Responde solo un
+ * booleano — no expone datos del usuario.
+ */
+export async function existeCorreo(correo: string): Promise<boolean> {
+    return (await db.execute(
+        sql`SELECT 1 FROM usuarios WHERE correo = ${correo} LIMIT 1`,
+    )).rows.length > 0;
+}
+
+// =============================================================================
 // ALTA MANUAL (escritura)
 // =============================================================================
 
@@ -146,6 +162,7 @@ export async function altaManualNegocio(
             correo: datos.correo,
             telefono: datos.telefono,
             contrasenaHash: null,            // modelo C: cuenta sin contraseña (la define en su 1er ingreso)
+            correoVerificado: false,         // modelo C: el correo NO se verificó antes; se verifica al crear la contraseña
             autenticadoPorGoogle: false,
             stripeCustomerId: null,          // sin Stripe
             stripeSubscriptionId: null,      // sin Stripe

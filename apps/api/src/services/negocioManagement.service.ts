@@ -1678,6 +1678,9 @@ export interface DatosAltaNegocio {
     /** Vendedor atribuido: se escribe en usuarios.referidoPor y en negocios.embajadorId. */
     embajadorId?: string | null;
     requiereCambioContrasena?: boolean;      // default false
+    /** ¿El correo nace verificado? default true (tarjeta: el correo se verifica antes del
+     *  checkout). El alta manual pasa false (modelo C: se verifica al crear la contraseña). */
+    correoVerificado?: boolean;
     // Negocio
     nombreNegocio: string;
     metodoCobro?: 'tarjeta' | 'manual';      // default del schema: 'tarjeta'
@@ -1724,8 +1727,9 @@ export async function crearNegocioConDueno(
             telefono: datos.telefono,
             perfil: 'comercial',
             membresia: 1,
-            correoVerificado: true,
-            correoVerificadoAt: ahora,
+            // default true (tarjeta) — el alta manual pasa false (modelo C: se verifica al crear la contraseña).
+            correoVerificado: datos.correoVerificado ?? true,
+            correoVerificadoAt: (datos.correoVerificado ?? true) ? ahora : null,
             estado: 'activo',
             stripeCustomerId: datos.stripeCustomerId ?? null,
             stripeSubscriptionId: datos.stripeSubscriptionId ?? null,

@@ -22,6 +22,8 @@ import { db } from '../src/db/index.js';
 import type { UsuarioPanel } from '../src/middleware/panel.middleware.js';
 import type { AltaManualNegocioInput } from '../src/validations/admin/altaManualNegocio.schema.js';
 import { altaManualNegocio, listarCatalogoCiudades } from '../src/services/admin/altaManualNegocio.service.js';
+import { restablecerContrasena, loginUsuario } from '../src/services/auth.service.js';
+import { guardarCodigoRecuperacion } from '../src/utils/tokenStore.js';
 
 const ok = (b: boolean) => (b ? '✓' : '✗');
 
@@ -110,7 +112,7 @@ async function main() {
     verificar("perfil = 'comercial'", u?.perfil === 'comercial', u?.perfil);
     verificar('contrasenaHash = null (sin contraseña)', u?.contrasena_hash === null);
     verificar('requiereCambioContrasena = false', u?.requiere_cambio_contrasena === false);
-    verificar('correoVerificado = true', u?.correo_verificado === true);
+    verificar('correoVerificado = false (modelo C: se verifica al crear contraseña)', u?.correo_verificado === false);
     verificar('sin stripeCustomerId', u?.stripe_customer_id === null);
     verificar('sin stripeSubscriptionId', u?.stripe_subscription_id === null);
     verificar('tieneModoComercial = true', u?.tiene_modo_comercial === true);
@@ -220,6 +222,25 @@ async function main() {
     verificar("concepto = 'cortesia'", pc?.concepto === 'cortesia', pc?.concepto);
     verificar('mesesCubiertos = 6', pc?.meses_cubiertos === 6, String(pc?.meses_cubiertos));
   }
+
+  // ── 6) Crear contraseña marca verificado + login entra (modelo C, E2E) ────
+  // Reusa el dueño del [1] (correoVerificado=false, sin contraseña). Simula el código
+  // sin depender de SES: lo guarda en Redis y luego define la contraseña.
+  console.log('\n[6] Crear contraseña → correo verificado → login entra');
+  const codigoCrear = '654321';
+  const nuevaPass = 'Prueba1234';
+  await guardarCodigoRecuperacion(correo, codigoCrear);
+  const rReset = await restablecerContrasena({ correo, codigo: codigoCrear, nuevaContrasena: nuevaPass });
+  verificar('restablecer/crear contraseña ok', rReset.success === true, JSON.stringify(rReset));
+  const [uPost] = (await db.execute(sql`
+    SELECT correo_verificado, correo_verificado_at, contrasena_hash
+    FROM usuarios WHERE correo = ${correo}
+  `)).rows as Array<{ correo_verificado: boolean; correo_verificado_at: string | null; contrasena_hash: string | null }>;
+  verificar('correoVerificado = true tras crear contraseña', uPost?.correo_verificado === true);
+  verificar('correoVerificadoAt seteado', !!uPost?.correo_verificado_at);
+  verificar('contrasenaHash seteado', !!uPost?.contrasena_hash);
+  const rLogin = await loginUsuario({ correo, contrasena: nuevaPass });
+  verificar('login entra (success, sin 403/409)', rLogin.success === true, rLogin.success ? 'ok' : `code=${rLogin.code}`);
 
   // Limpieza (los correos 3 no crearon nada porque fallaron antes de insertar).
   await limpiar(correo);

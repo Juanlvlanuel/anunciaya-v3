@@ -221,6 +221,28 @@ export function useCancelarNegocio() {
   });
 }
 
+/**
+ * Cambiar el correo del dueño (rescate de alta manual). Distingue el resultado del reenvío:
+ * éxito si el código salió al nuevo correo; ADVERTENCIA si el correo cambió pero el código no
+ * se pudo enviar (el admin debe reintentar — el dueño sigue sin recibirlo).
+ */
+export function useCambiarCorreoDueno() {
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ id, correoNuevo }: { id: string; correoNuevo: string }) =>
+      negociosService.cambiarCorreoDueno(id, correoNuevo),
+    onSuccess: (res, { id }) => {
+      refrescar(id);
+      if (res.correoEnviado) {
+        toast.exito('Correo actualizado y código enviado al nuevo correo.');
+      } else {
+        toast.advertencia('Correo actualizado, pero el código no se pudo enviar. Reinténtalo.');
+      }
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo cambiar el correo')),
+  });
+}
+
 /** Alta MANUAL de un negocio en efectivo/transferencia (sin Stripe). Refresca la lista. */
 export function useAltaManualNegocio() {
   const qc = useQueryClient();

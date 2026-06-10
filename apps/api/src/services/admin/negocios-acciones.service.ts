@@ -35,6 +35,9 @@ import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion } from '../notificaciones.service.js';
 import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
+import { randomInt } from 'crypto';
+import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
+import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion } from '../../utils/email.js';
 
 // =============================================================================
 // TIPOS
@@ -120,6 +123,85 @@ async function cargarNegocioConAlcance(
     }
 
     return { ok: true, negocio: neg };
+}
+
+// =============================================================================
+// CAMBIAR CORREO DEL DUEÑO (Fase 4 · rescatar alta manual con correo mal tecleado)
+// =============================================================================
+
+export type ResultadoCambioCorreo =
+    | { ok: true; correoEnviado: boolean }
+    | { ok: false; status: number; mensaje: string };
+
+/**
+ * Corrige el correo del DUEÑO de un negocio (caso: el vendedor lo tecleó mal en el alta manual y el
+ * dueño nunca recibió el código para crear su contraseña). El cambio se guarda SIEMPRE; el correo
+ * nuevo nace SIN verificar (modelo C: se verifica cuando el dueño cree su contraseña con el código).
+ * Reenvía el código al correo corregido (best-effort) y DEVUELVE si el envío salió o no — a
+ * diferencia de solicitarRecuperacion, que oculta el éxito por seguridad — para que el admin sepa
+ * si el dueño ya lo recibió o debe reintentar. SuperAdmin (cualquiera) / Gerente (su región).
+ */
+export async function cambiarCorreoDueno(
+    panel: UsuarioPanel,
+    negocioId: string,
+    correoNuevo: string,            // ya normalizado (lowercase/trim) por el schema Zod del controller
+): Promise<ResultadoCambioCorreo> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+
+    const usuarioId = cargado.negocio.usuarioId;
+
+    const [dueno] = await db
+        .select({ correo: usuarios.correo, nombre: usuarios.nombre, contrasenaHash: usuarios.contrasenaHash })
+        .from(usuarios)
+        .where(eq(usuarios.id, usuarioId))
+        .limit(1);
+    if (!dueno) return { ok: false, status: 404, mensaje: 'No se encontró la cuenta del dueño.' };
+
+    if (dueno.correo === correoNuevo) {
+        return { ok: false, status: 409, mensaje: 'El dueño ya tiene ese correo.' };
+    }
+
+    // Unicidad: el correo nuevo no debe pertenecer a OTRA cuenta.
+    const enUso = (await db.execute(
+        sql`SELECT 1 FROM usuarios WHERE correo = ${correoNuevo} AND id <> ${usuarioId} LIMIT 1`,
+    )).rows.length > 0;
+    if (enUso) return { ok: false, status: 409, mensaje: 'Ya existe una cuenta con ese correo.' };
+
+    const ahora = new Date().toISOString();
+
+    // El correo nuevo nace SIN verificar (se verifica al crear la contraseña con el código).
+    await db
+        .update(usuarios)
+        .set({ correo: correoNuevo, correoVerificado: false, correoVerificadoAt: null, updatedAt: ahora })
+        .where(eq(usuarios.id, usuarioId));
+
+    await registrarAuditoria(panel, {
+        accion: 'negocio_cambiar_correo_dueno',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: { correo: dueno.correo },
+        datosNuevos: { correo: correoNuevo },
+        motivo: null,
+    });
+
+    // Reenvío del código al correo corregido (best-effort). Capturamos el resultado REAL del envío
+    // para informar al admin (el cambio ya quedó guardado, falle o no el correo).
+    let correoEnviado = false;
+    try {
+        const codigo = String(randomInt(100000, 1000000));
+        const guardado = await guardarCodigoRecuperacion(correoNuevo, codigo);
+        if (guardado) {
+            const env = dueno.contrasenaHash
+                ? await enviarCodigoRecuperacion(correoNuevo, dueno.nombre, codigo)
+                : await enviarCodigoCrearContrasena(correoNuevo, dueno.nombre, codigo);
+            correoEnviado = env.success;
+        }
+    } catch (error) {
+        console.error('Error reenviando el código tras cambiar el correo del dueño:', error);
+    }
+
+    return { ok: true, correoEnviado };
 }
 
 // =============================================================================

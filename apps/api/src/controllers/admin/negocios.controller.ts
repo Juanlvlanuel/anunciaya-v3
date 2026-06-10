@@ -9,6 +9,7 @@
  */
 
 import type { Request, Response } from 'express';
+import { z } from 'zod';
 import {
     listarNegocios,
     obtenerDetalleNegocio,
@@ -29,10 +30,12 @@ import {
     reasignarVendedor,
     marcarPagado,
     cancelarNegocio,
+    cambiarCorreoDueno,
 } from '../../services/admin/negocios-acciones.service.js';
 import {
     altaManualNegocio,
     listarCatalogoCiudades,
+    existeCorreo,
 } from '../../services/admin/altaManualNegocio.service.js';
 import {
     altaManualNegocioSchema,
@@ -449,6 +452,64 @@ export async function catalogoCiudadesController(req: Request, res: Response): P
             message: 'Error al obtener el catálogo de ciudades',
             error: error instanceof Error ? error.message : String(error),
         });
+    }
+}
+
+// =============================================================================
+// PATCH /api/admin/negocios/:id/correo-dueno   (superadmin + gerente)
+// Corrige el correo del dueño (rescate de alta manual). Devuelve si el código se reenvió.
+// =============================================================================
+
+const cambiarCorreoBodySchema = z.object({
+    correoNuevo: z.string().email('Correo inválido').trim().toLowerCase(),
+});
+
+export async function cambiarCorreoDuenoController(req: Request, res: Response): Promise<void> {
+    try {
+        const parsed = cambiarCorreoBodySchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ success: false, message: 'Correo inválido' });
+            return;
+        }
+        const resultado = await cambiarCorreoDueno(req.usuarioPanel!, req.params.id, parsed.data.correoNuevo);
+        if (!resultado.ok) {
+            res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+            return;
+        }
+        res.status(200).json({
+            success: true,
+            message: resultado.correoEnviado
+                ? 'Correo actualizado y código enviado al nuevo correo'
+                : 'Correo actualizado, pero el código no se pudo enviar',
+            data: { correoEnviado: resultado.correoEnviado },
+        });
+    } catch (error) {
+        console.error('Error en cambiarCorreoDuenoController:', error);
+        res.status(500).json({ success: false, message: 'Error al cambiar el correo del dueño' });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/existe-correo?correo=   (los 3 roles · aviso temprano del alta)
+// Responde SOLO un booleano (no expone datos del usuario). Misma normalización que el alta.
+// =============================================================================
+
+const existeCorreoQuerySchema = z.object({
+    correo: z.string().email().trim().toLowerCase(),
+});
+
+export async function existeCorreoController(req: Request, res: Response): Promise<void> {
+    try {
+        const parsed = existeCorreoQuerySchema.safeParse(req.query);
+        if (!parsed.success) {
+            res.status(400).json({ success: false, message: 'Correo inválido' });
+            return;
+        }
+        const existe = await existeCorreo(parsed.data.correo);
+        res.status(200).json({ success: true, message: 'ok', data: { existe } });
+    } catch (error) {
+        console.error('Error en existeCorreoController:', error);
+        res.status(500).json({ success: false, message: 'Error al verificar el correo' });
     }
 }
 

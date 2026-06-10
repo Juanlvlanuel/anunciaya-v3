@@ -1470,6 +1470,11 @@ export async function restablecerContrasena(
       .update(usuarios)
       .set({
         contrasenaHash: nuevaContrasenaHash,
+        // Usar el código (enviado a ese correo) PRUEBA posesión → marcar el correo verificado.
+        // Clave para el alta manual (modelo C): la cuenta nace sin verificar y queda verificada aquí.
+        // Para quien ya estaba verificado (recuperación normal) es idempotente.
+        correoVerificado: true,
+        correoVerificadoAt: new Date().toISOString(),
         intentosFallidos: 0,        // Resetear intentos
         bloqueadoHasta: null,       // Quitar bloqueo si había
         updatedAt: new Date().toISOString(),

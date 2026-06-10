@@ -35,6 +35,8 @@ import {
     catalogoCiudadesController,
     altaManualController,
     listarPagosNegocioController,
+    existeCorreoController,
+    cambiarCorreoDuenoController,
 } from '../../controllers/admin/negocios.controller.js';
 
 const router: Router = Router();
@@ -48,6 +50,10 @@ router.get('/ciudades', requierePanel(['superadmin', 'gerente', 'vendedor']), li
 // Catálogo de ciudades para el SELECTOR del alta (catálogo completo por región, no solo las
 // que ya son sede). Antes de /:id para que "catalogo-ciudades" no caiga en el comodín del id.
 router.get('/catalogo-ciudades', requierePanel(['superadmin', 'gerente', 'vendedor']), catalogoCiudadesController);
+
+// Chequeo de existencia de correo (aviso temprano del alta): solo booleano, sin datos del usuario.
+// Antes de /:id para que "existe-correo" no caiga en el comodín del id.
+router.get('/existe-correo', requierePanel(['superadmin', 'gerente', 'vendedor']), existeCorreoController);
 
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerDetalleNegocioController);
 
@@ -67,6 +73,8 @@ router.post('/:id/reasignar-vendedor', requierePanel(['superadmin', 'gerente']),
 // Marcar pagado y Cancelar: SOLO superadmin (Parada 2).
 router.post('/:id/marcar-pagado', requierePanel(['superadmin']), marcarPagadoController);
 router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioController);
+// Editar el correo del dueño (rescate de alta manual): superadmin + gerente (alcance en el service).
+router.patch('/:id/correo-dueno', requierePanel(['superadmin', 'gerente']), cambiarCorreoDuenoController);
 
 // Alta MANUAL de negocio en efectivo/transferencia (sin Stripe): los 3 roles, con alcance
 // de región en el service (vendedor se auto-atribuye; gerente acotado a su región).
