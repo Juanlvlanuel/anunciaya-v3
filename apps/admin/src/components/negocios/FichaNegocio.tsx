@@ -242,7 +242,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';
 
   // Solo SuperAdmin y Gerente pueden actuar; el vendedor ve la ficha solo lectura.
-  // Marcar pagado y Cancelar son EXCLUSIVOS de SuperAdmin.
+  // Marcar pagado: SuperAdmin + Gerente (su región). Cancelar: EXCLUSIVO de SuperAdmin.
   const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
   const puedeActuar = rol === 'superadmin' || rol === 'gerente';
   const esSuperadmin = rol === 'superadmin';
@@ -385,7 +385,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             SuperAdmin; Pausar y Reasignar también las usa el Gerente (su región). */}
         {puedeActuar && (
           <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
-            {esSuperadmin && (
+            {puedeActuar && (
               <BotonAccion
                 icono={CheckCircle2}
                 etiqueta="Registrar pago"
