@@ -17,9 +17,11 @@ import nodemailer from 'nodemailer';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { env } from '../config/env.js';
 
-// URL pública del logo de AnunciaYA en R2 (para incluir en emails).
+// URL pública del logo de AnunciaYA (para incluir en emails).
 // Usar URL pública (no base64) porque Gmail bloquea data: URIs desde 2013.
-const LOGO_URL = 'https://pub-e2d7b5cee341434dbe2884e04b368108.r2.dev/brand/anunciaya-logo2.png';
+// Se construye desde BRAND_ASSETS_URL (dominio propio del bucket R2) en vez de
+// hardcodear pub-…r2.dev, que sufre rate-limit y rompe el logo en Gmail/Yahoo.
+const LOGO_URL = `${env.BRAND_ASSETS_URL}/brand/anunciaya-logo2.png`;
 
 // =============================================================================
 // CONFIGURACIÓN DE PROVEEDORES

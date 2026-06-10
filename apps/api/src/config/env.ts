@@ -66,6 +66,21 @@ const esquemaEnv = z.object({
   R2_BUCKET_NAME: z.string().min(1, 'R2_BUCKET_NAME es requerido'),
   R2_PUBLIC_URL: z.string().url('R2_PUBLIC_URL debe ser una URL válida'),
 
+  // -------- Assets de marca (logo en correos) --------
+  // Dominio propio conectado al bucket R2 para servir los assets de marca
+  // (logo) que se incrustan en los correos. SEPARADA de R2_PUBLIC_URL a
+  // propósito: el dominio pub-…r2.dev de desarrollo sufre rate-limit (429) y
+  // los proxies de Gmail/Yahoo muestran el logo roto. Un dominio custom
+  // (ej. https://cdn.anunciaya.mx) lo resuelve.
+  // ⚠️ NO consolidar con R2_PUBLIC_URL: esa la usa el reconcile de
+  // mantenimiento (imageRegistry.ts) para reconocer las URLs ya guardadas en
+  // la BD; cambiarla trataría esos archivos como huérfanos. El default deja el
+  // valor histórico para no romper entornos donde no se defina.
+  BRAND_ASSETS_URL: z
+    .string()
+    .url('BRAND_ASSETS_URL debe ser una URL válida')
+    .default('https://pub-e2d7b5cee341434dbe2884e04b368108.r2.dev'),
+
   // -------- Admin (protección temporal hasta que haya panel de admins) --------
   // Secreto compartido que el cliente (Postman, cURL, futuro panel admin) debe
   // enviar en el header `x-admin-secret` para acceder a endpoints de mantenimiento.

@@ -66,6 +66,8 @@ No hay campos pendientes — scan exhaustivo del schema.
 - **`array`** — columna `text[]` con múltiples URLs (ej. `articulos.imagenes_adicionales`)
 - **`text-scan-urls`** — columna texto/varchar **o JSONB** donde pueden aparecer URLs embebidas. Se extraen con regex que matchea el dominio R2 configurado en `env.R2_PUBLIC_URL`. Hace cast `::text` automático, así que funciona también con columnas JSONB de estructura variable (ej. `marketplace.imagenes`). Casos de uso: `chat_mensajes.contenido` (URL directa o JSON con imagen) y `marketplace.imagenes` (JSONB)
 
+> ⚠️ **No consolidar `R2_PUBLIC_URL` con `BRAND_ASSETS_URL`**: existe una variable aparte `BRAND_ASSETS_URL` (dominio de assets de marca para los correos), separada **a propósito** de `R2_PUBLIC_URL`. No las unifiques en una sola: el reconcile depende de que `R2_PUBLIC_URL` coincida con el dominio incrustado en las URLs ya guardadas en la BD (es justo el dominio que matchea el regex de `text-scan-urls`). Unirlas haría que el reconcile deje de reconocer las URLs viejas y las trate como huérfanas, con riesgo de borrarlas.
+
 ### Carpetas protegidas
 
 `CARPETAS_PROTEGIDAS` en `imageRegistry.ts` lista carpetas de R2 que el reconcile **nunca toca**, aunque los archivos no aparezcan referenciados en BD. Son assets del equipo (no de usuarios):
