@@ -229,6 +229,11 @@ export async function notificarNegocioFueraDeCirculacion(negocioId: string): Pro
             referenciaId: negocioId,
             tipo: 'negocio_fuera_circulacion',
         });
+        // Al salir de circulación, el aviso de "membresía venció / en gracia" ya no aplica.
+        await eliminarNotificacionesPorReferencia({
+            referenciaId: negocioId,
+            tipo: 'membresia_en_gracia',
+        });
 
         const { titulo, mensaje } = textoNotificacionFuera(estado);
         await crearNotificacion({
@@ -254,6 +259,51 @@ export async function limpiarNotificacionNegocioFueraDeCirculacion(negocioId: st
         referenciaId: negocioId,
         tipo: 'negocio_fuera_circulacion',
     });
+    // El aviso de "membresía venció / en gracia" tampoco aplica si el negocio reaparece o paga.
+    await eliminarNotificacionesPorReferencia({
+        referenciaId: negocioId,
+        tipo: 'membresia_en_gracia',
+    });
+}
+
+// =============================================================================
+// MEMBRESÍA EN GRACIA (aviso temprano al dueño: "venció, ponte al día")
+// =============================================================================
+
+/**
+ * Aviso persistente al DUEÑO cuando su negocio MANUAL pasa a `en_gracia`: su membresía venció y
+ * aún tiene unos días para pagar antes de que lo suspendan. En efectivo no hay cobro automático
+ * que lo rescate, por eso se avisa. Idempotente (borra el previo del mismo tipo/referencia y
+ * recrea, así nunca se duplica entre corridas del cron).
+ */
+export async function notificarMembresiaEnGracia(negocioId: string): Promise<void> {
+    try {
+        const [neg] = await db
+            .select({ usuarioId: negocios.usuarioId })
+            .from(negocios)
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+
+        if (!neg) return;
+
+        await eliminarNotificacionesPorReferencia({
+            referenciaId: negocioId,
+            tipo: 'membresia_en_gracia',
+        });
+
+        await crearNotificacion({
+            usuarioId: neg.usuarioId,
+            modo: 'personal',
+            tipo: 'membresia_en_gracia',
+            titulo: 'Tu membresía venció',
+            mensaje:
+                'Tu membresía de AnunciaYA venció. Tienes unos días para ponerte al día y que tu negocio siga apareciendo. Pasado ese plazo, dejará de mostrarse hasta que renueves tu pago.',
+            negocioId,
+            referenciaId: negocioId,
+        });
+    } catch (error) {
+        console.error('Error en notificarMembresiaEnGracia:', error);
+    }
 }
 
 // =============================================================================

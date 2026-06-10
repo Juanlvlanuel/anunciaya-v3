@@ -27,6 +27,8 @@ export type TipoNotificacion =
   | 'sistema'
   /** Al DUEÑO cuando su negocio sale de circulación (suspendido o cancelado). */
   | 'negocio_fuera_circulacion'
+  /** Al DUEÑO cuando su negocio MANUAL entra en gracia (membresía venció, ponerse al día). */
+  | 'membresia_en_gracia'
   | 'nuevo_marketplace'
   | 'nuevo_servicio'
   | 'alerta_seguridad'
