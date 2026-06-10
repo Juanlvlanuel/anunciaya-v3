@@ -178,7 +178,7 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 
 ### 9.1 Registrar pago (Opción A — empuja el cobro y retoma solo)
 
-"Registrar pago" (antes "Marcar pagado"; **SOLO superadmin**) cubre cuando el comerciante pagó por adelantado (**efectivo/transferencia**) o se le da **cortesía**. El plazo se elige por meses (chips 1/3/6/12) o fecha exacta (máx **2 años**, tope de Stripe; validado en modal y controller).
+"Registrar pago" (antes "Marcar pagado"; **SuperAdmin + Gerente de su región** — antes solo SuperAdmin, ampliado el 10 Jun 2026 y acotado por `cargarNegocioConAlcance`; **Cancelar sigue exclusivo de SuperAdmin**) cubre cuando el comerciante pagó por adelantado (**efectivo/transferencia**) o se le da **cortesía**. El plazo se elige por meses (chips 1/3/6/12) o fecha exacta (máx **2 años**, tope de Stripe; validado en modal y controller).
 
 **Flujo (`marcarPagado` en `negocios-acciones.service.ts`):**
 1. **Guard v1:** con suscripción, solo opera sobre negocios `al_corriente`. Si está en gracia/suspendido (cobro pendiente en Stripe) → **409**; la regularización del moroso llega en una versión posterior. Sin suscripción no hay guard (sigue como antes).

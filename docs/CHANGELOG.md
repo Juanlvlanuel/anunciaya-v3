@@ -8,6 +8,52 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [10 Junio 2026] - Pagos · Alta manual sin Stripe (efectivo/transferencia/cortesía) + crear contraseña (Modelo C) + cron de manuales + onboarding 💵🔑🛠️
+
+Sesión grande del Panel: dar de **alta negocios cobrados en efectivo/transferencia/cortesía SIN pasar por Stripe**, con la cuenta del dueño naciendo **sin contraseña** (la crea en su primer ingreso). 6 fases + mejoras de onboarding. **En producción** (commit-push 10 Jun; redeploy de Vercel/Render). Commits: `f9b197a` (alta manual + crear contraseña), `494d739` (onboarding), `6d5c16f` (cron Fase 3), `8c79ee8` (correo del dueño), `908324e` (docs).
+
+**Alta manual sin Stripe (Fases 1 y 5):**
+- Nuevo endpoint **`POST /api/admin/negocios/alta-manual`** + botón **"Registrar negocio"** en el Panel (super/gerente/vendedor). Crea **usuario + negocio + sucursal** en una sola transacción con el helper compartido **`crearNegocioConDueno`** (extraído del webhook de Stripe, sin regresión).
+- `metodo_cobro='manual'`, sin Stripe. Concepto **efectivo / transferencia / cortesía** (cortesía = gratis, `monto` NULL en `pagos_membresia`).
+- **Atribución del vendedor:** automática si el rol es vendedor; del body con **candado de región** si es gerente/superadmin.
+- Catálogo de ciudades (`GET catalogo-ciudades`). Panel: nuevo **`DialogoRegistrarNegocio`**, ficha del método manual ("Vigencia hasta", oculta lo de Stripe) e historial de pagos (`GET /:id/pagos`).
+
+**Crear contraseña en el primer ingreso — Modelo C (Fases 2 y 6):**
+- La cuenta del dueño **nace sin contraseña**; el login devuelve **409 `CUENTA_SIN_CONTRASENA`**.
+- `solicitarRecuperacion` envía código y **elige la plantilla** "crear contraseña" (**`enviarCodigoCrearContrasena`**) vs "recuperar" según exista `contrasenaHash`.
+- Frontend público (`apps/web`): **`VistaLogin`** detecta `CUENTA_SIN_CONTRASENA` → vista **"Crea tu contraseña"** + enlace **"¿Primera vez?"** bajo el botón Iniciar Sesión (locales `es`/`en`).
+
+**Verificación de correo al crear la contraseña (refinamiento):**
+- El alta manual nace con **`correoVerificado=false`** (SOLO manual; tarjeta sigue `true` vía parámetro de `crearNegocioConDueno`).
+- Se marca **verificado=true al crear la contraseña** (`restablecerContrasena`): el correo se verifica cuando el dueño usa el código (prueba de posesión).
+
+**Aviso temprano de correo duplicado (validación en vivo):**
+- Nuevo endpoint **`GET /api/admin/negocios/existe-correo`** (solo booleano, `requierePanel` 3 roles, misma comparación que el 409 del alta).
+- Frontend: **`onBlur`** en el formulario de alta avisa **"Este correo ya está registrado"** y bloquea el botón mientras está duplicado/verificando. Solo aviso temprano; el 409 sigue como red de seguridad.
+
+**Fase 3 — Cron de expiración de manuales + aviso de gracia:**
+- Cron diario (**`suscripciones-vencimientos-manuales.cron`** → `expirarManualesVencidos`): los negocios manuales con `fecha_vencimiento` vencida pasan de **al_corriente → en_gracia** (misma fórmula/config que el webhook). La transición **en_gracia → suspendido** la hereda el cron de gracia existente.
+- Aviso al dueño al entrar en gracia: **nuevo tipo de notificación `'membresia_en_gracia'`** (idempotente; se limpia al salir de gracia). No degrada la cuenta del dueño ni toca `fecha_proximo_cobro`. **Migración del CHECK de notificaciones ya aplicada en dev y prod.**
+
+**Fase 4 — Editar correo del dueño:**
+- Nuevo endpoint **`PATCH /api/admin/negocios/:id/correo-dueno`** (super + gerente, alcance de región): corrige el correo (rescate de alta manual mal tecleada). El correo nuevo nace **sin verificar**, reenvía el código y **devuelve si el envío salió o no** (el Panel muestra toast distinto enviado/falló). Unicidad (409). Auditoría `'negocio_cambiar_correo_dueno'`.
+- Panel: nuevo **`DialogoEditarCorreo`** + botón **"Editar correo"** en la sección Dueño de la ficha.
+
+**Mejoras de onboarding (UX):**
+- **Loaders de marca:** loader fullscreen con logo animado + shimmer; loader de paso centralizado en **`CargandoPaso`** (antes duplicado en los 8 pasos).
+- **Header** con icono en el título + botones **Pausar / Cerrar Sesión** como pills full-rounded.
+- Botones de navegación full-rounded (nueva prop **`redondez`** en el componente `Boton`); el botón del último paso ahora dice **"Finalizar"**.
+- **Gate de ScanYA** en el menú (`ColumnaIzquierda` + `MenuDrawer`): exige **CardYA activa Y onboarding completo** (alineado al backend).
+
+**Permisos — Registrar pago para Gerentes:**
+- La acción **"Registrar pago"** (Marcar pagado), antes exclusiva de SuperAdmin, ahora también la pueden hacer los **Gerentes sobre su región** (acotado por `cargarNegocioConAlcance`, igual que pausar/reasignar). **Cancelar sigue siendo solo SuperAdmin.** Ruta `POST /:id/marcar-pagado` → `['superadmin','gerente']`; el botón aparece en la ficha para super + gerente.
+
+**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`.
+
+**Pendiente de infra (no código):** SES fuera de sandbox + DKIM/DMARC + dominio propio R2 para el logo de los correos.
+
+---
+
 ## [9 Junio 2026] - Pagos · "Registrar pago" con cobro adelantado (Opción A) + rediseño de la ficha 💳✨
 
 Rediseño de "Marcar pagado" → **"Registrar pago"** para negocios con suscripción: en vez de pausar la tarjeta, **empuja el próximo cobro N meses con `trial_end`** y la tarjeta **retoma sola** al vencer. Esto **disuelve el Hallazgo 2** (la fecha ya no la pisa el webhook). tsc + lint en verde (`apps/api` y `apps/admin`). **Sin push.**
