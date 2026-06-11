@@ -21,6 +21,7 @@ import { LayoutEscritorio } from '../components/shell/LayoutEscritorio';
 import { LayoutMovil } from '../components/shell/LayoutMovil';
 import PaginaSeguridad from './PaginaSeguridad';
 import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
+import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -99,6 +100,8 @@ function PaginaPanel() {
     <PaginaSeguridad />
   ) : seccionActivaId === 'negocios' ? (
     <SeccionNegocios rol={rol} />
+  ) : seccionActivaId === 'usuarios' ? (
+    <SeccionUsuarios />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

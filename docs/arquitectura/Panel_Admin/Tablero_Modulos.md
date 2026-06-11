@@ -22,8 +22,9 @@
 
 - **Cimientos (transversal):** ✅ completos (rol + auth `requierePanel`, atribución, estado de
   membresía + webhook + cron de gracia, configs con `obtenerConfig`). **Shell + login del Panel:** ✅ en prod.
-- **En construcción ahora mismo:** ninguno.
-- **Siguiente sugerido:** **Usuarios** (arrancar por la Fase 0 del carril).
+- **En construcción ahora mismo:** **Usuarios** — **Fase 0 (Definir) cerrada** (mini-spec,
+  decisiones, criterios y alcance V1 acordados en `Usuarios_Pendientes.md`). Sin migración SQL.
+- **Siguiente paso:** Usuarios **Fase 1 — VER** (backend de lectura → frontend de lectura → Gate 1).
 
 ---
 
@@ -34,7 +35,7 @@
 | 1 | Resumen / inicio | ⬜ | 0 | — |
 | 2 | Métricas | ⬜ | 0 | — |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · pulido/verificación pendiente | `Negocios.md` · `Negocios_Pendientes.md` |
-| 4 | Usuarios | ⬜ | 0 · *siguiente sugerido* | — |
+| 4 | **Usuarios** | 🟡 | 0 ✓ · **1 VER siguiente** | `Usuarios_Pendientes.md` |
 | 5 | Suscripciones / membresías | ⬜ | 0 | — |
 | 6 | Vendedores y comisiones | ⬜ | 0 | — |
 | 7 | Publicidad | ⬜ | 0 | — |
@@ -50,8 +51,12 @@
 - **3 · Negocios** — en prod (VER + 6 acciones + alta manual). Pendientes en su checklist: riesgos de
   las acciones con Stripe, regularizar tarjeta morosa, paginar historial de pagos, verificación a fondo.
   (Cerrado: vendedor-no-cortesía, editar pago del historial y contador del menú real — 10 jun.)
-- **4 · Usuarios** — ficha + suspender/bloquear (solo SuperAdmin) + promover/degradar cuenta. Hoy
-  `usuarios` no tiene región → suspender = solo SuperAdmin hasta que exista ubicación en `usuarios`.
+- **4 · Usuarios** — **Fase 0 cerrada** (ver `Usuarios_Pendientes.md`). Mesa de ayuda + moderación de
+  personas. **Permiso partido:** *soporte* (ver expediente + diagnóstico de acceso + rescates:
+  desbloquear, reenviar verificación/contraseña, corregir correo) = **super + gerente** (cross-región,
+  auditado); *moderación* (suspender/reactivar) = **solo super**. Vendedor fuera en V1. Expediente =
+  tarjeta de resumen (no explorador). Sin migración. V2: denuncias, deep-link desde Negocios,
+  promover/degradar, apretar cross-región cuando `usuarios` tenga región.
 - **5 · Suscripciones** — precio/promos/meses gratis/historial + tiempos (gracia/trial) + **bitácora de
   eventos de pago** (Stripe + manuales, unificada) + visibilidad de membresía en el perfil del dueño.
   Aquí vive el historial financiero **completo** (el de la ficha de Negocios es solo un resumen manual).

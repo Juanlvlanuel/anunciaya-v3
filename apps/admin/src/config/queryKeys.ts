@@ -18,6 +18,16 @@ export interface FiltrosNegociosKey {
   porPagina?: number;
 }
 
+/** Filtros que entran en la clave de la lista de usuarios. */
+export interface FiltrosUsuariosKey {
+  busqueda?: string;
+  estado?: string;
+  tipo?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 export const queryKeys = {
   negocios: {
     all: () => ['negocios'] as const,
@@ -30,6 +40,11 @@ export const queryKeys = {
     pagos: (id: string) => ['negocios', 'pagos', id] as const,
     sucursales: (id: string) => ['negocios', 'sucursales', id] as const,
     sucursal: (id: string, sucursalId: string) => ['negocios', 'sucursal', id, sucursalId] as const,
+  },
+  usuarios: {
+    all: () => ['usuarios'] as const,
+    lista: (filtros: FiltrosUsuariosKey) => ['usuarios', 'lista', filtros] as const,
+    detalle: (id: string) => ['usuarios', 'detalle', id] as const,
   },
   regiones: {
     all: () => ['regiones'] as const,

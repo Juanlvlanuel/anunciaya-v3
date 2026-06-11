@@ -21,6 +21,7 @@ import mantenimientoRoutes from './mantenimiento.routes.js';
 import sesionRoutes from './sesion.routes.js';
 import seguridadRoutes from './seguridad.routes.js';
 import negociosRoutes from './negocios.routes.js';
+import usuariosRoutes from './usuarios.routes.js';
 import regionesRoutes from './regiones.routes.js';
 
 const router: Router = Router();
@@ -40,6 +41,12 @@ router.use('/', seguridadRoutes);
 // vendedor; cada ruta trae su propio requierePanel con los roles permitidos.
 router.use('/negocios', negociosRoutes);
 
+// ─── Usuarios (superadmin + gerente para lectura/soporte) ────────────────────────
+// ANTES del gate global de superadmin: la sección la usa también el gerente
+// (soporte/rescates). La moderación (suspender/reactivar) será solo superadmin (Fase 2);
+// cada ruta trae su propio requierePanel con los roles permitidos.
+router.use('/usuarios', usuariosRoutes);
+
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)
 // O un JWT con rol_equipo='superadmin' (revalidado en BD). Reemplaza a
@@ -53,8 +60,6 @@ router.use('/mantenimiento', mantenimientoRoutes);
 router.use('/regiones', regionesRoutes);
 
 // A futuro, agregar aquí:
-// router.use('/negocios', negociosRoutes);
-// router.use('/usuarios', usuariosRoutes);
 // router.use('/reportes-globales', reportesGlobalesRoutes);
 // router.use('/suscripciones', suscripcionesRoutes);
 // router.use('/auditoria', auditoriaRoutes);
