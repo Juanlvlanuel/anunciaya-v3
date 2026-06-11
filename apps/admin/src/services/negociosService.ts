@@ -340,3 +340,27 @@ export async function listarPagosNegocio(id: string): Promise<PagoMembresia[]> {
   const { data } = await api.get<RespuestaAPI<PagoMembresia[]>>(`/admin/negocios/${id}/pagos`);
   return data.data ?? [];
 }
+
+/** Campos editables de una fila del historial (corrección contable; no toca la vigencia). */
+export interface DatosEditarPago {
+  concepto: ConceptoPago;
+  /** Monto en MXN; solo efectivo/transferencia (en cortesía va undefined). */
+  monto?: number;
+  /** Meses que cubrió ese pago (1–36). */
+  meses: number;
+}
+
+/** Corrige una fila del historial de pagos (concepto/monto/meses). Super + gerente (su región). */
+export async function editarPagoMembresia(
+  negocioId: string,
+  pagoId: string,
+  datos: DatosEditarPago,
+): Promise<void> {
+  await api.patch(`/admin/negocios/${negocioId}/pagos/${pagoId}`, datos);
+}
+
+/** Total de negocios del alcance del rol (para el contador del menú). */
+export async function contarNegocios(): Promise<number> {
+  const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/negocios/conteo');
+  return data.data?.total ?? 0;
+}

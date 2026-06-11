@@ -43,6 +43,16 @@ export function useNegociosLista(filtros: ParametrosLista) {
   });
 }
 
+/** Total de negocios del alcance (contador del menú). Se refresca al cambiar de región
+ *  (useFiltroRegion invalida `negocios.all()`) y al alta/baja de un negocio. */
+export function useConteoNegocios() {
+  return useQuery({
+    queryKey: queryKeys.negocios.conteo(),
+    queryFn: () => negociosService.contarNegocios(),
+    staleTime: 1000 * 60,
+  });
+}
+
 /**
  * Ficha administrativa de un negocio. Acepta un `placeholder` (datos parciales
  * que ya trae la fila de la lista) para que el modal se vea AL INSTANTE y rellene
@@ -240,6 +250,23 @@ export function useCambiarCorreoDueno() {
       }
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo cambiar el correo')),
+  });
+}
+
+/** Editar una fila del historial de pagos (concepto/monto/meses). Invalida historial + ficha +
+ *  lista (corregir los meses puede trasladar la vigencia del negocio). */
+export function useEditarPago() {
+  const qc = useQueryClient();
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ negocioId, pagoId, datos }: { negocioId: string; pagoId: string; datos: negociosService.DatosEditarPago }) =>
+      negociosService.editarPagoMembresia(negocioId, pagoId, datos),
+    onSuccess: (_d, { negocioId }) => {
+      refrescar(negocioId);
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.pagos(negocioId) });
+      toast.exito('Pago actualizado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo actualizar el pago')),
   });
 }
 

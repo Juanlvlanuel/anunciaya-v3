@@ -20,6 +20,7 @@ import {
     listarSucursalesNegocio,
     obtenerDetalleSucursal,
     listarPagosNegocio,
+    contarNegocios,
     panelConFiltroRegion,
     ESTADOS_PAGO,
     ORDENES,
@@ -33,6 +34,7 @@ import {
     marcarPagado,
     cancelarNegocio,
     cambiarCorreoDueno,
+    editarPagoMembresia,
 } from '../../services/admin/negocios-acciones.service.js';
 import {
     altaManualNegocio,
@@ -43,6 +45,7 @@ import {
     altaManualNegocioSchema,
     formatearErroresZod,
 } from '../../validations/admin/altaManualNegocio.schema.js';
+import { editarPagoSchema } from '../../validations/admin/editarPago.schema.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -223,6 +226,53 @@ export async function listarPagosNegocioController(req: Request, res: Response):
             message: 'Error al obtener los pagos',
             error: error instanceof Error ? error.message : String(error),
         });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/negocios/conteo   (los 3 roles · total para el contador del menú)
+// =============================================================================
+
+export async function contarNegociosController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const total = await contarNegocios(panel);
+        res.status(200).json({ success: true, message: 'Conteo obtenido', data: { total } });
+    } catch (error) {
+        console.error('Error en contarNegociosController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener el conteo' });
+    }
+}
+
+// =============================================================================
+// PATCH /api/admin/negocios/:id/pagos/:pagoId   (super + gerente · editar un pago)
+// =============================================================================
+
+export async function editarPagoController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id, pagoId } = req.params;
+
+        const validacion = editarPagoSchema.safeParse(req.body);
+        if (!validacion.success) {
+            res.status(400).json({
+                success: false,
+                message: 'Datos inválidos',
+                errores: formatearErroresZod(validacion.error),
+            });
+            return;
+        }
+
+        const r = await editarPagoMembresia(panel, id, pagoId, validacion.data);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+
+        res.status(200).json({ success: true, message: 'Pago actualizado' });
+    } catch (error) {
+        console.error('Error en editarPagoController:', error);
+        res.status(500).json({ success: false, message: 'Error al editar el pago' });
     }
 }
 

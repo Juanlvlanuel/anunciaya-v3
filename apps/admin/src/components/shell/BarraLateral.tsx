@@ -22,6 +22,8 @@ interface BarraLateralProps {
   nombre: string;
   avatarUrl?: string | null;
   onCerrarSesion: () => void;
+  /** Contadores reales por id de sección (ej. { negocios: 248 }). Cae al estático si falta. */
+  contadores?: Partial<Record<string, number>>;
 }
 
 const ETIQUETA_ROL: Record<RolPanel, string> = {
@@ -37,6 +39,7 @@ export function BarraLateral({
   nombre,
   avatarUrl,
   onCerrarSesion,
+  contadores,
 }: BarraLateralProps) {
   const grupos = gruposParaRol(rol);
   const [menuAbierto, setMenuAbierto] = useState(false);
@@ -50,7 +53,7 @@ export function BarraLateral({
             <div className="px-2.5 pb-1.5 pt-1 text-[13px] font-semibold text-etiqueta-grupo">{g.etiqueta}</div>
             {g.items.map((it) => {
               const activo = it.id === seccionActivaId;
-              const contador = it.contadorPorRol?.[rol];
+              const contador = contadores?.[it.id] ?? it.contadorPorRol?.[rol];
               const Icono = iconoDeSeccion(it.icono);
               return (
                 <button

@@ -26,6 +26,7 @@ interface LayoutMovilProps {
   tema: Tema;
   onAlternarTema: () => void;
   onCerrarSesion: () => void;
+  contadores?: Partial<Record<string, number>>;
   children: ReactNode;
 }
 
@@ -61,6 +62,7 @@ export function LayoutMovil(props: LayoutMovilProps) {
           tema={props.tema}
           onAlternarTema={props.onAlternarTema}
           onCerrarSesion={props.onCerrarSesion}
+          contadores={props.contadores}
         />
       )}
     </div>

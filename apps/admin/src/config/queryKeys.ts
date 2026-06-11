@@ -21,6 +21,7 @@ export interface FiltrosNegociosKey {
 export const queryKeys = {
   negocios: {
     all: () => ['negocios'] as const,
+    conteo: () => ['negocios', 'conteo'] as const,
     lista: (filtros: FiltrosNegociosKey) => ['negocios', 'lista', filtros] as const,
     detalle: (id: string) => ['negocios', 'detalle', id] as const,
     vendedores: () => ['negocios', 'vendedores'] as const,

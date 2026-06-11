@@ -27,6 +27,7 @@ interface LayoutEscritorioProps {
   tema: Tema;
   onAlternarTema: () => void;
   onCerrarSesion: () => void;
+  contadores?: Partial<Record<string, number>>;
   children: ReactNode;
 }
 
@@ -51,6 +52,7 @@ export function LayoutEscritorio(props: LayoutEscritorioProps) {
           nombre={props.nombre}
           avatarUrl={props.avatarUrl}
           onCerrarSesion={props.onCerrarSesion}
+          contadores={props.contadores}
         />
       </aside>
 

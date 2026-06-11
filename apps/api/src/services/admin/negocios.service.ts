@@ -215,6 +215,22 @@ export function panelConFiltroRegion(panel: UsuarioPanel, regionIdRaw: unknown):
     return { ...panel, rolEquipo: 'gerente', regionId };
 }
 
+/**
+ * Total de negocios en el ALCANCE del rol (para el contador del menú). Sin filtros: el conteo
+ * "bruto" de lo que el rol ve (super = todos o la región del filtro global; gerente = su región;
+ * vendedor = su cartera). Usa el MISMO predicado de alcance que la lista (`condicionAlcance`); el
+ * filtro de región del superadmin lo aplica el controller vía `panelConFiltroRegion`.
+ */
+export async function contarNegocios(panel: UsuarioPanel): Promise<number> {
+    const alcance = await condicionAlcance(panel);
+    if (alcance === 'vacio') return 0;
+    const [fila] = await db
+        .select({ total: count() })
+        .from(negocios)
+        .where(alcance ?? undefined);
+    return Number(fila?.total ?? 0);
+}
+
 // =============================================================================
 // 1. LISTA PAGINADA
 // =============================================================================

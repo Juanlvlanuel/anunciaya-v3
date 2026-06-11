@@ -28,10 +28,11 @@
  * Ubicación: apps/api/src/services/admin/negocios-acciones.service.ts
  */
 
-import { eq, sql } from 'drizzle-orm';
+import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
+import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion } from '../notificaciones.service.js';
 import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
@@ -614,4 +615,98 @@ export async function cancelarNegocio(
     }
 
     return { ok: true, negocio: act, advertenciaStripe };
+}
+
+// =============================================================================
+// EDITAR UN PAGO DEL HISTORIAL (corregir concepto/monto/meses — super + gerente)
+// =============================================================================
+
+export type ResultadoEdicionPago =
+    | { ok: true }
+    | { ok: false; status: number; mensaje: string };
+
+/**
+ * Corrige una fila de `pagos_membresia` (concepto, monto y meses cubiertos) — p. ej. se capturó
+ * "efectivo" cuando era "transferencia", o el monto/los meses están mal. NO cambia el
+ * `metodo_cobro` ni toca Stripe. Cortesía ⇒ monto NULL (decisión + CHECK).
+ *
+ * Vigencia: el periodo que cubre el pago se recalcula SIEMPRE (= `fecha_pago` + meses), así cada
+ * guardado deja el dato consistente (aunque los meses no cambien respecto al valor previo). Y si
+ * ese pago es el MÁS RECIENTE del negocio (el que define la vigencia vigente), se traslada
+ * `fecha_vencimiento`/`fecha_proximo_cobro`. Para pagos antiguos solo se corrige el registro (la
+ * vigencia la define un pago posterior).
+ *
+ * Alcance: SuperAdmin (cualquiera) / Gerente (su región). El pago debe pertenecer al negocio.
+ */
+export async function editarPagoMembresia(
+    panel: UsuarioPanel,
+    negocioId: string,
+    pagoId: string,
+    datos: EditarPagoInput,
+): Promise<ResultadoEdicionPago> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+
+    // El pago debe existir Y pertenecer a ESTE negocio (evita editar el de otro vía URL).
+    const [pago] = await db
+        .select({
+            id: pagosMembresia.id,
+            concepto: pagosMembresia.concepto,
+            monto: pagosMembresia.monto,
+            mesesCubiertos: pagosMembresia.mesesCubiertos,
+            fechaPago: pagosMembresia.fechaPago,
+            periodoHasta: pagosMembresia.periodoHasta,
+        })
+        .from(pagosMembresia)
+        .where(and(eq(pagosMembresia.id, pagoId), eq(pagosMembresia.negocioId, negocioId)))
+        .limit(1);
+    if (!pago) return { ok: false, status: 404, mensaje: 'Pago no encontrado en este negocio.' };
+
+    // Cortesía nunca lleva monto (decisión de producto + CHECK en BD).
+    const montoNuevo = datos.concepto === 'cortesia' ? null : (datos.monto ?? null);
+
+    // El periodo que cubre el pago SIEMPRE se deriva de cuándo se pagó + los meses indicados
+    // (así cada guardado deja el dato consistente, aunque los meses no cambien respecto al previo).
+    const base = pago.fechaPago ? new Date(pago.fechaPago) : new Date();
+    base.setMonth(base.getMonth() + datos.meses);
+    const nuevoPeriodoHasta = base.toISOString();
+
+    // ¿este pago es el MÁS RECIENTE del negocio? → es el que define "Vigencia hasta".
+    const [reciente] = (await db.execute(sql`
+        SELECT id::text AS id FROM pagos_membresia
+        WHERE negocio_id = ${negocioId}
+        ORDER BY fecha_pago DESC, created_at DESC LIMIT 1
+    `)).rows as Array<{ id: string }>;
+    const trasladaVigencia = reciente?.id === pagoId;
+
+    // Atómico: el pago corregido + (si aplica) el traslado de la vigencia van juntos.
+    await db.transaction(async (tx) => {
+        await tx
+            .update(pagosMembresia)
+            .set({
+                concepto: datos.concepto,
+                monto: montoNuevo != null ? String(montoNuevo) : null,
+                mesesCubiertos: datos.meses,
+                periodoHasta: nuevoPeriodoHasta,
+            })
+            .where(eq(pagosMembresia.id, pagoId));
+
+        if (trasladaVigencia) {
+            await tx
+                .update(negocios)
+                .set({ fechaVencimiento: nuevoPeriodoHasta, fechaProximoCobro: nuevoPeriodoHasta, updatedAt: new Date().toISOString() })
+                .where(eq(negocios.id, negocioId));
+        }
+    });
+
+    await registrarAuditoria(panel, {
+        accion: 'negocio_editar_pago',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: { pagoId, concepto: pago.concepto, monto: pago.monto, mesesCubiertos: pago.mesesCubiertos, periodoHasta: pago.periodoHasta },
+        datosNuevos: { pagoId, concepto: datos.concepto, monto: montoNuevo, mesesCubiertos: datos.meses, periodoHasta: nuevoPeriodoHasta, vigenciaTrasladada: trasladaVigencia },
+        motivo: null,
+    });
+
+    return { ok: true };
 }

@@ -185,7 +185,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
     <FichaSucursal negocioId={sucursalSel.negocioId} sucursal={sucursalSel.sucursal} onCerrar={() => setSucursalSel(null)} />
   ) : null;
   const dialogoAlta = mostrarAlta ? (
-    <DialogoRegistrarNegocio abierto onCerrar={() => setMostrarAlta(false)} mostrarVendedor={mostrarVendedor} />
+    <DialogoRegistrarNegocio abierto onCerrar={() => setMostrarAlta(false)} rol={rol} />
   ) : null;
 
   // ── Vista MÓVIL ─────────────────────────────────────────────────────────────

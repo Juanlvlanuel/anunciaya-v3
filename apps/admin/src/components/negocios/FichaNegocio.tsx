@@ -29,6 +29,7 @@ import {
   Ban,
   Receipt,
   Mail,
+  Pencil,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
@@ -39,13 +40,15 @@ import {
   useCancelarNegocio,
   usePagosNegocio,
   useCambiarCorreoDueno,
+  useEditarPago,
 } from '../../hooks/queries/useNegociosAdmin';
-import type { NegocioFila, NegocioDetalle } from '../../services/negociosService';
+import type { NegocioFila, NegocioDetalle, PagoMembresia } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
 import { DialogoReasignar } from './DialogoReasignar';
 import { DialogoMarcarPagado } from './DialogoMarcarPagado';
+import { DialogoEditarPago } from './DialogoEditarPago';
 import { DialogoEditarCorreo } from './DialogoEditarCorreo';
 import { BadgeEstadoPago, estadoEfectivo } from './estadoPago';
 import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
@@ -196,29 +199,60 @@ function BotonAccion({
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía' };
 
-/** Lista densa del historial de pagos de membresía (ficha del método manual). */
-function HistorialPagos({ negocioId }: { negocioId: string }) {
+/** Lista densa del historial de pagos de membresía (ficha del método manual).
+ *  Con permiso (super/gerente) cada fila trae un botón para corregir concepto/monto/meses. */
+function HistorialPagos({ negocioId, puedeActuar }: { negocioId: string; puedeActuar: boolean }) {
   const { data, isLoading } = usePagosNegocio(negocioId, true);
+  const [editando, setEditando] = useState<PagoMembresia | null>(null);
+  const editar = useEditarPago();
   if (isLoading) return <p className="text-[12.5px] text-texto-3">Cargando pagos…</p>;
   const pagos = data ?? [];
   if (pagos.length === 0) return <p className="text-[12.5px] text-texto-4">Sin pagos registrados.</p>;
   return (
-    <div className="flex flex-col divide-y divide-borde">
-      {pagos.map((p) => (
-        <div key={p.id} data-testid={`pago-${p.id}`} className="flex items-baseline justify-between gap-3 py-1.5">
-          <div className="flex min-w-0 flex-col">
-            <span className="text-[13.5px] font-semibold text-texto">
-              {p.monto != null ? FMT_MONTO.format(Number(p.monto)) : 'Cortesía'}
-              <span className="ml-2 text-[12px] font-normal text-texto-3">{CONCEPTO_LABEL[p.concepto] ?? p.concepto}</span>
-            </span>
-            <span className="text-[11.5px] text-texto-4">
-              {fecha(p.fechaPago)}
-              {p.registradoPorNombre ? ` · por ${p.registradoPorNombre}` : ''}
-            </span>
+    <>
+      <div className="flex flex-col divide-y divide-borde">
+        {pagos.map((p) => (
+          <div key={p.id} data-testid={`pago-${p.id}`} className="flex items-center justify-between gap-3 py-1.5">
+            <div className="flex min-w-0 flex-col">
+              <span className="text-[13.5px] font-semibold text-texto">
+                {p.monto != null ? FMT_MONTO.format(Number(p.monto)) : 'Cortesía'}
+                <span className="ml-2 text-[12px] font-normal text-texto-3">{CONCEPTO_LABEL[p.concepto] ?? p.concepto}</span>
+              </span>
+              <span className="text-[11.5px] text-texto-4">
+                {fecha(p.fechaPago)}
+                {p.registradoPorNombre ? ` · por ${p.registradoPorNombre}` : ''}
+              </span>
+            </div>
+            {puedeActuar && (
+              <button
+                type="button"
+                data-testid={`pago-editar-${p.id}`}
+                onClick={() => setEditando(p)}
+                aria-label="Editar pago"
+                className="shrink-0 rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca"
+              >
+                <Pencil size={14} />
+              </button>
+            )}
           </div>
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+      {editando && (
+        <DialogoEditarPago
+          key={editando.id}
+          abierto
+          pago={editando}
+          cargando={editar.isPending}
+          onCerrar={() => setEditando(null)}
+          onConfirmar={(datos) =>
+            editar.mutate(
+              { negocioId, pagoId: editando.id, datos },
+              { onSuccess: () => setEditando(null) },
+            )
+          }
+        />
+      )}
+    </>
   );
 }
 
@@ -321,7 +355,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
               {/* Historial de pagos manuales (efectivo/transferencia) — solo método manual. */}
               {esManual && (
                 <Seccion titulo="Historial de pagos" icono={Receipt}>
-                  <HistorialPagos negocioId={previo.id} />
+                  <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} />
                 </Seccion>
               )}
 

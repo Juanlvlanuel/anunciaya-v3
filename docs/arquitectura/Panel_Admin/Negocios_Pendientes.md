@@ -16,7 +16,8 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho
 >
-> **Última actualización:** 10 Junio 2026 (nace de la auditoría código↔documentación).
+> **Última actualización:** 10 Junio 2026 — cerrados "vendedor no puede dar cortesía", "corregir un
+> pago del historial" (editar concepto/monto/meses + traslado de vigencia) y "contador del menú real".
 
 ---
 
@@ -72,26 +73,6 @@ verificación y corrección de desfases** — no reconstrucción.
   decidir si/ cuándo se construye el flujo de regularización del moroso de tarjeta.
   Archivo: `negocios-acciones.service.ts` (guard) · `FichaNegocio.tsx` (`cobroPendiente`).
 
-- [ ] 🟡 **El vendedor NO debe poder crear negocios manuales de cortesía.** Hoy el alta manual
-  (`altaManualNegocio`) deja a los 3 roles usar el concepto `cortesia` (alta gratis). Una cortesía
-  **regala** membresía → debe ser decisión de Gerente/SuperAdmin, no del vendedor de calle (riesgo
-  de abuso/pérdida de ingreso). **Acción:** restringir `concepto='cortesia'` a superadmin/gerente
-  en el alta manual — validación en el service **y** ocultar/deshabilitar la opción en el formulario
-  cuando el rol es vendedor. Archivos: `services/admin/altaManualNegocio.service.ts` ·
-  `validations/admin/altaManualNegocio.schema.ts` · `DialogoRegistrarNegocio.tsx`.
-
-- [ ] 🟡 **Corregir el concepto (y monto) de un pago ya registrado.** Cada fila del historial
-  guarda su concepto (efectivo/transferencia/cortesía) y monto, pero **queda inmutable**: si un pago
-  se capturó como "efectivo" cuando era "transferencia" (o el monto está mal), no hay forma de
-  corregirlo (ya anotado como "mejora futura" en la FAQ de `Negocios.md`). **Acción:** permitir
-  **editar una fila de `pagos_membresia`** desde el historial de la ficha — el `concepto` y el
-  `monto` que lo acompaña, respetando el CHECK "cortesía ⇒ monto NULL". Endpoint nuevo (p. ej.
-  `PATCH /admin/negocios/:id/pagos/:pagoId`) con el mismo alcance por rol que las acciones (super +
-  gerente su región) y **registro en `admin_auditoria`**. UI: botón "editar" por fila en
-  `HistorialPagos` → diálogo con selector de concepto/monto. **No** cambia el `metodo_cobro` del
-  negocio (eso sería otra cosa). Archivos: `pagos_membresia` · `negocios-acciones.service.ts` ·
-  ficha (`HistorialPagos`).
-
 - [ ] 🟢 **Acotar el historial de pagos de la ficha a "últimos N + ver todos".** Hoy
   `listarPagosNegocio` trae **todas** las filas sin `LIMIT` (bien para el volumen de la beta). Cuando
   un negocio acumule años de renovaciones, paginar o mostrar "últimos N + ver todos" para no cargar
@@ -101,9 +82,8 @@ verificación y corrección de desfases** — no reconstrucción.
 
 ## 3. Datos demo que tocan la pantalla Negocios
 
-- [ ] ⬜ **Contador del menú de Negocios (248/64/19) sigue DEMO.** Vive en `data/menuPanel.ts`
-  (`contadorPorRol`). Conectarlo al total real toca el shell (pasar el total por props a las
-  barras). **Acción:** conectar al conteo real de la sección.
+Ninguno: el contador del menú ya usa el **conteo real** (`GET /admin/negocios/conteo` →
+`contarNegocios`, mismo alcance que la lista). ✅ (10 jun 2026)
 
 ---
 

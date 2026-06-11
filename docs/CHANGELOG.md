@@ -14,7 +14,7 @@ Sesión grande del Panel: dar de **alta negocios cobrados en efectivo/transferen
 
 **Alta manual sin Stripe (Fases 1 y 5):**
 - Nuevo endpoint **`POST /api/admin/negocios/alta-manual`** + botón **"Registrar negocio"** en el Panel (super/gerente/vendedor). Crea **usuario + negocio + sucursal** en una sola transacción con el helper compartido **`crearNegocioConDueno`** (extraído del webhook de Stripe, sin regresión).
-- `metodo_cobro='manual'`, sin Stripe. Concepto **efectivo / transferencia / cortesía** (cortesía = gratis, `monto` NULL en `pagos_membresia`).
+- `metodo_cobro='manual'`, sin Stripe. Concepto **efectivo / transferencia / cortesía** (cortesía = gratis, `monto` NULL en `pagos_membresia`). **Ajuste posterior (10 jun):** la **cortesía** solo la dan **gerente/superadmin** — el vendedor no ve esa opción y el service la rechaza (403).
 - **Atribución del vendedor:** automática si el rol es vendedor; del body con **candado de región** si es gerente/superadmin.
 - Catálogo de ciudades (`GET catalogo-ciudades`). Panel: nuevo **`DialogoRegistrarNegocio`**, ficha del método manual ("Vigencia hasta", oculta lo de Stripe) e historial de pagos (`GET /:id/pagos`).
 
@@ -48,7 +48,14 @@ Sesión grande del Panel: dar de **alta negocios cobrados en efectivo/transferen
 **Permisos — Registrar pago para Gerentes:**
 - La acción **"Registrar pago"** (Marcar pagado), antes exclusiva de SuperAdmin, ahora también la pueden hacer los **Gerentes sobre su región** (acotado por `cargarNegocioConAlcance`, igual que pausar/reasignar). **Cancelar sigue siendo solo SuperAdmin.** Ruta `POST /:id/marcar-pagado` → `['superadmin','gerente']`; el botón aparece en la ficha para super + gerente.
 
-**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`.
+**Editar un pago del historial + selector de pago mejorado:**
+- Nuevo **`PATCH /api/admin/negocios/:id/pagos/:pagoId`** (`editarPagoMembresia`, super + gerente su región, auditoría `negocio_editar_pago`): corrige **concepto/monto/meses** de una fila de `pagos_membresia` (respeta el CHECK cortesía⇒monto NULL). Al guardar **recalcula el periodo** (`fecha_pago + meses`) y **traslada la vigencia** del negocio (`fecha_vencimiento`/`fecha_proximo_cobro`) si es su pago más reciente — vigencia real que el cron de manuales usa para vencer→gracia→suspensión.
+- Panel: nuevo **`DialogoEditarPago`** + botón lápiz por fila en `HistorialPagos`. Selector de meses con **chips + campo solo-enteros** (fuera el botón "Otro"), **monto autocalculado** del precio de membresía (`precioPorMeses`, 12 m = ×10) y **editable con `step 0.1`** (scroll por décimas). Mismo patrón aplicado a `DialogoMarcarPagado`.
+
+**Contador real del menú de Negocios:**
+- Nuevo **`GET /api/admin/negocios/conteo`** (`contarNegocios`, mismo alcance que la lista): total de negocios del rol (super=todos · gerente=su región · vendedor=su cartera), respeta el filtro global de región. Hook **`useConteoNegocios`** → `PaginaPanel` baja el total a las barras (`BarraLateral`/`CajonNavegacion`); se quitó el demo **248/64/19** de `menuPanel.ts`.
+
+**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`, `probar-editar-pago`, `probar-conteo-negocios`.
 
 **Pendiente de infra (no código):** SES fuera de sandbox + DKIM/DMARC + dominio propio R2 para el logo de los correos.
 

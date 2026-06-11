@@ -13,6 +13,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
 import { useFiltroRegion } from '../stores/useFiltroRegion';
 import { useEsEscritorio } from '../hooks/useEsEscritorio';
+import { useConteoNegocios } from '../hooks/queries/useNegociosAdmin';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
 import { iconoDeSeccion } from '../config/iconosPanel';
 import { itemsParaRol, etiquetaDe, type RolPanel } from '../data/menuPanel';
@@ -52,6 +53,10 @@ function PaginaPanel() {
   const setRegionFiltro = useFiltroRegion((s) => s.setRegion);
   const regionActivaId = regionFiltro ?? '';
   const onCambiarRegion = (id: string) => setRegionFiltro(id || null);
+
+  // Contador real del menú de Negocios (total del alcance; respeta el filtro de región del super).
+  const { data: totalNegocios } = useConteoNegocios();
+  const contadores = totalNegocios != null ? { negocios: totalNegocios } : undefined;
 
   // Si por algo entramos sin rol de equipo, no hay menú que mostrar.
   if (!usuario?.rolEquipo) {
@@ -113,6 +118,7 @@ function PaginaPanel() {
         tema={tema}
         onAlternarTema={onAlternarTema}
         onCerrarSesion={onCerrarSesion}
+        contadores={contadores}
       >
         {contenido}
       </LayoutEscritorio>
@@ -130,6 +136,7 @@ function PaginaPanel() {
       tema={tema}
       onAlternarTema={onAlternarTema}
       onCerrarSesion={onCerrarSesion}
+      contadores={contadores}
     >
       {contenido}
     </LayoutMovil>

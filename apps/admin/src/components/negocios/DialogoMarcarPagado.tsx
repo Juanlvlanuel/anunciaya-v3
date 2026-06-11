@@ -1,12 +1,13 @@
 /**
  * DialogoMarcarPagado.tsx
  * ========================
- * Diálogo "Registrar pago" de la membresía (Parada 2 · SOLO SuperAdmin).
+ * Diálogo "Registrar pago" de la membresía (Parada 2 · SuperAdmin + Gerente).
  *
- * Plazo en dos formas: por MESES (chips 1/3/6/12) o FECHA EXACTA (calendario, máx 2 años).
- * Concepto: efectivo / transferencia (llevan monto obligatorio) o cortesía (sin monto).
- * Con suscripción de Stripe, al confirmar se EMPUJA el próximo cobro a la fecha elegida
- * (trial_end) y la tarjeta retoma sola al vencer. Sin suscripción: solo registro en BD.
+ * Plazo en dos formas: por MESES (chips 1/3/6/12 + campo de enteros) o FECHA EXACTA (calendario,
+ * máx 2 años). Concepto: efectivo / transferencia (llevan monto) o cortesía (sin monto). En modo
+ * "por meses" el MONTO se autocalcula del precio de membresía (editable; scroll por décimas).
+ * Con suscripción de Stripe, al confirmar se EMPUJA el próximo cobro a la fecha elegida (trial_end)
+ * y la tarjeta retoma sola al vencer. Sin suscripción: solo registro en BD.
  *
  * Ubicación: apps/admin/src/components/negocios/DialogoMarcarPagado.tsx
  */
@@ -14,14 +15,20 @@
 import { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { precioPorMeses } from './membresia';
 
 const CLASE_CAMPO =
   'w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]';
+
+/** Campo numérico estrecho de meses (centrado), a juego con los chips. */
+const CLASE_MESES =
+  'h-[34px] w-16 rounded-[9px] border border-campo-borde bg-campo px-2 text-center text-[13px] font-semibold text-texto outline-none transition focus:border-marca focus:bg-superficie';
 
 /** Etiqueta de sección (densa, uppercase) — jerarquía por peso, no por tamaño. */
 const SECCION = 'mb-1.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4';
 
 const OPCIONES_MESES = [1, 3, 6, 12];
+const MAX_MESES = 36;
 
 const OPCIONES_CONCEPTO = [
   { valor: 'efectivo', etiqueta: 'Efectivo' },
@@ -91,16 +98,19 @@ export function DialogoMarcarPagado({
   onConfirmar,
 }: DialogoMarcarPagadoProps) {
   const [modo, setModo] = useState<'meses' | 'fecha'>('meses');
-  const [meses, setMeses] = useState(1);
+  const [mesesStr, setMesesStr] = useState('1');
   const [fechaManual, setFechaManual] = useState('');
   const [concepto, setConcepto] = useState<Concepto>('efectivo');
-  const [monto, setMonto] = useState('');
+  const [monto, setMonto] = useState(String(precioPorMeses(1)));
 
   const venceActual = vencimientoActual ? new Date(vencimientoActual) : null;
 
+  const mesesNum = Number(mesesStr);
+  const mesesValido = Number.isInteger(mesesNum) && mesesNum >= 1 && mesesNum <= MAX_MESES;
+
   const hastaDate =
     modo === 'meses'
-      ? sumarMeses(meses)
+      ? (mesesValido ? sumarMeses(mesesNum) : null)
       : fechaManual
         ? new Date(`${fechaManual}T23:59:59`)
         : null;
@@ -119,12 +129,32 @@ export function DialogoMarcarPagado({
 
   const puedeConfirmar = hastaValida && montoValido;
 
+  // Cambiar los meses recalcula el monto sugerido (salvo cortesía). El campo solo acepta enteros.
+  const aplicarMeses = (valor: string) => {
+    const soloDigitos = valor.replace(/\D/g, '');
+    setMesesStr(soloDigitos);
+    const n = Number(soloDigitos);
+    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1) setMonto(String(precioPorMeses(n)));
+  };
+
+  // Pasar a efectivo/transferencia (en modo meses) precarga el precio sugerido.
+  const aplicarConcepto = (c: Concepto) => {
+    setConcepto(c);
+    if (c !== 'cortesia' && modo === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+  };
+
+  // Volver a "Por meses" recalcula el monto sugerido del periodo actual.
+  const aplicarModo = (m: 'meses' | 'fecha') => {
+    setModo(m);
+    if (m === 'meses' && concepto !== 'cortesia' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+  };
+
   const confirmar = () => {
     if (!puedeConfirmar || !hastaDate) return;
     onConfirmar(hastaDate.toISOString(), {
       concepto,
       monto: pideMonto ? montoNum : undefined,
-      meses: modo === 'meses' ? meses : undefined,
+      meses: modo === 'meses' ? mesesNum : undefined,
     });
   };
 
@@ -161,22 +191,36 @@ export function DialogoMarcarPagado({
         {/* Plazo */}
         <div className={SECCION}>Plazo</div>
         <div className="mb-3 flex rounded-[10px] border border-borde p-0.5">
-          <button type="button" data-testid="marcar-modo-meses" onClick={() => setModo('meses')} className={segmento(modo === 'meses')}>
+          <button type="button" data-testid="marcar-modo-meses" onClick={() => aplicarModo('meses')} className={segmento(modo === 'meses')}>
             Por meses
           </button>
-          <button type="button" data-testid="marcar-modo-fecha" onClick={() => setModo('fecha')} className={segmento(modo === 'fecha')}>
+          <button type="button" data-testid="marcar-modo-fecha" onClick={() => aplicarModo('fecha')} className={segmento(modo === 'fecha')}>
             Fecha exacta
           </button>
         </div>
 
         {modo === 'meses' ? (
-          <div className="flex flex-wrap gap-2" data-testid="marcar-meses">
-            {OPCIONES_MESES.map((m) => (
-              <button key={m} type="button" data-testid={`marcar-mes-${m}`} onClick={() => setMeses(m)} className={chip(meses === m)}>
-                {m} {m === 1 ? 'mes' : 'meses'}
-              </button>
-            ))}
-          </div>
+          <>
+            <div className="flex flex-wrap items-center gap-2" data-testid="marcar-meses">
+              {OPCIONES_MESES.map((m) => (
+                <button key={m} type="button" data-testid={`marcar-mes-${m}`} onClick={() => aplicarMeses(String(m))} className={chip(mesesNum === m)}>
+                  {m} {m === 1 ? 'mes' : 'meses'}
+                </button>
+              ))}
+              <input
+                type="text"
+                inputMode="numeric"
+                data-testid="marcar-mes-input"
+                value={mesesStr}
+                onChange={(e) => aplicarMeses(e.target.value)}
+                aria-label="Meses"
+                className={CLASE_MESES}
+              />
+            </div>
+            {mesesStr !== '' && !mesesValido && (
+              <p className="mt-1 text-[11.5px] font-medium text-peligro">Indica un número entero entre 1 y 36.</p>
+            )}
+          </>
         ) : (
           <input
             type="date"
@@ -198,7 +242,7 @@ export function DialogoMarcarPagado({
                 key={c.valor}
                 type="button"
                 data-testid={`marcar-concepto-${c.valor}`}
-                onClick={() => setConcepto(c.valor)}
+                onClick={() => aplicarConcepto(c.valor)}
                 className={chip(concepto === c.valor)}
               >
                 {c.etiqueta}
@@ -207,7 +251,7 @@ export function DialogoMarcarPagado({
           </div>
         </div>
 
-        {/* Monto (solo efectivo/transferencia; obligatorio > 0) */}
+        {/* Monto (solo efectivo/transferencia; autocalculado, editable; scroll por décimas) */}
         {pideMonto && (
           <div className="mt-4">
             <div className={SECCION}>Monto</div>
@@ -217,7 +261,7 @@ export function DialogoMarcarPagado({
                 type="number"
                 inputMode="decimal"
                 min="0"
-                step="0.01"
+                step="0.1"
                 data-testid="marcar-monto"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}

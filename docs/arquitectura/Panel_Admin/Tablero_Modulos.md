@@ -48,8 +48,8 @@
 ## Notas por módulo (contexto para arrancar)
 
 - **3 · Negocios** — en prod (VER + 6 acciones + alta manual). Pendientes en su checklist: riesgos de
-  las acciones con Stripe, regularizar tarjeta morosa, vendedor-no-cortesía, editar concepto de un pago,
-  contador del menú en demo, verificación a fondo.
+  las acciones con Stripe, regularizar tarjeta morosa, paginar historial de pagos, verificación a fondo.
+  (Cerrado: vendedor-no-cortesía, editar pago del historial y contador del menú real — 10 jun.)
 - **4 · Usuarios** — ficha + suspender/bloquear (solo SuperAdmin) + promover/degradar cuenta. Hoy
   `usuarios` no tiene región → suspender = solo SuperAdmin hasta que exista ubicación en `usuarios`.
 - **5 · Suscripciones** — precio/promos/meses gratis/historial + tiempos (gracia/trial) + **bitácora de

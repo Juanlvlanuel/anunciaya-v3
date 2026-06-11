@@ -127,8 +127,9 @@ Si haces clic en un renglón, se abre la **ficha** — el expediente del negocio
 
 - **Encabezado:** nombre y una etiqueta de color con su estado.
 - **Membresía:** su estado de pago y las fechas relevantes. Aquí cambia un poco según cómo
-  paga: si es de **efectivo** ves "Vigencia hasta" y un **historial de pagos**; si es de
-  **tarjeta** ves "Próximo cobro" y datos de su suscripción.
+  paga: si es de **efectivo** ves "Vigencia hasta" y un **historial de pagos** (cada fila se
+  puede corregir con el botón de editar); si es de **tarjeta** ves "Próximo cobro" y datos de
+  su suscripción.
 - **Vendedor atribuido:** quién lo registró.
 - **Dueño de la cuenta:** nombre, correo y teléfono del dueño (con un botón para corregir
   el correo, si tienes permiso).
@@ -151,6 +152,7 @@ región" o "su cartera", puede pero solo dentro de su territorio:
 | Filtrar por vendedor | Sí | Su región | — |
 | **Dar de alta un negocio (efectivo)** | Sí | Su región | Su región |
 | **Registrar un pago** | Sí | Su región | — |
+| **Corregir un pago** del historial | Sí | Su región | — |
 | **Pausar** una membresía | Sí | Su región | — |
 | **Reactivar** una membresía | Sí | Su región | — |
 | **Reasignar** el vendedor | Sí | Su región | — |
@@ -297,11 +299,17 @@ No desde "Reactivar" (eso es solo para los *pausados*). Cancelar es una baja arc
 uno cancelado sería prácticamente darlo de alta de nuevo.
 
 **Le cobré de más / de menos. ¿Puedo corregir el historial?**
-Hoy el historial es un registro de lo que se capturó; cada "Registrar pago" agrega un
-renglón. (Editar o anular un pago ya registrado es una mejora futura.)
+Sí. Cada fila del historial tiene un botón de **editar** para corregir el **concepto**
+(efectivo/transferencia/cortesía), el **monto** y los **meses cubiertos** de ese pago. Si cambias
+los meses, la **"Vigencia hasta"** del negocio se recorre sola (cuando es su pago más reciente);
+esa vigencia es real: el cron de manuales la usa para vencer → gracia → suspensión. Solo
+SuperAdmin y Gerente (de su región), y queda en auditoría. *Anular/borrar* un pago sí sigue
+siendo mejora futura.
 
 **¿Qué es una "cortesía"?**
 Un alta o renovación **gratis**: se regala el tiempo de membresía sin cobrar. No lleva monto.
+Como **regala** ingreso, solo un **gerente o superadmin** puede darla: el vendedor no ve esa
+opción en el formulario de alta, y si la forzara, el servidor la rechaza.
 
 **¿Por qué a veces el botón "Registrar pago" está apagado?**
 Porque ese negocio paga con tarjeta y **tiene un cobro pendiente** en Stripe. Primero hay que
@@ -364,13 +372,14 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/:id` | GET | super · gerente · vendedor | por alcance; fuera de alcance → 404 |
 | `/negocios/:id/sucursales[/:sucursalId]` | GET | super · gerente · vendedor | por alcance |
 | `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance |
+| `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente |
 | `/negocios/:id/marcar-pagado` | POST | super · gerente | gerente=su región |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
 | `/negocios/:id/reactivar` | POST | super · gerente | motivo opcional |
 | `/negocios/:id/reasignar-vendedor` | POST | super · gerente | gerente: el vendedor nuevo debe cubrir su región |
 | `/negocios/:id/correo-dueno` | PATCH | super · gerente | gerente=su región |
 | `/negocios/:id/cancelar` | POST | **solo super** | — |
-| `/negocios/alta-manual` | POST | super · gerente · vendedor | vendedor se auto-atribuye; ciudad de su región |
+| `/negocios/alta-manual` | POST | super · gerente · vendedor | vendedor se auto-atribuye; ciudad de su región; **cortesía solo super/gerente** |
 
 ## C. Cómo se calcula el alcance regional
 
@@ -426,8 +435,9 @@ estado, y viajan como array `{estado,total}` (no objeto: el middleware snake→c
 
 ## E. Alta manual — detalle del flujo
 
-`POST /negocios/alta-manual` (los 3 roles). El service: (1) rechaza correo duplicado (409); (2) valida la
-ciudad (existe/activa/de su región para gerente y vendedor); (3) resuelve el vendedor (auto si rol
+`POST /negocios/alta-manual` (los 3 roles). El service: (0) si el concepto es **cortesía** y el rol es
+**vendedor**, corta con 403 (regalar membresía es de gerente/superadmin); (1) rechaza correo duplicado (409);
+(2) valida la ciudad (existe/activa/de su región para gerente y vendedor); (3) resuelve el vendedor (auto si rol
 vendedor; del body con candado de región si gerente/superadmin); (4) calcula vencimiento = hoy + N meses;
 (5) en **una transacción** crea usuario+negocio+sucursal vía `crearNegocioConDueno` (`metodo_cobro='manual'`,
 sin Stripe, `contrasena_hash=null`, `correo_verificado=false`, sucursal con `ciudad_id` real) y registra el
@@ -440,7 +450,8 @@ y notifica (`membresia_en_gracia`); de ahí, el cron de gracia los suspende.
 Toda acción sensible llama `registrarAuditoria(panel, {...})` → `admin_auditoria` (actor, rol, acción,
 entidad, snapshot antes/después, motivo). Nunca rompe la acción principal (si el insert falla, se loggea y
 sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactivar`,
-`negocio_reasignar_vendedor`, `negocio_cancelar`, `negocio_cambiar_correo_dueno`, `negocio_alta_manual`.
+`negocio_reasignar_vendedor`, `negocio_cancelar`, `negocio_cambiar_correo_dueno`, `negocio_alta_manual`,
+`negocio_editar_pago`.
 
 ## G. Referencias
 
@@ -451,4 +462,4 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 
 ---
 
-*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases) y la ampliación de "Registrar pago" a gerentes.*
+*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin y la edición de pagos del historial (concepto/monto/meses + traslado de vigencia).*

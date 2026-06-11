@@ -5,9 +5,10 @@
  * (sin Stripe). Consume POST /admin/negocios/alta-manual y GET /admin/negocios/catalogo-ciudades.
  *
  * Captura: datos del negocio (nombre, ciudad del catálogo por región), datos del dueño
- * (nombre, apellidos, correo ×2, teléfono) y el cobro (concepto efectivo/transferencia,
- * monto, meses). El selector de vendedor solo se muestra a superadmin/gerente; el vendedor
- * se auto-atribuye en el backend (sin selector). Reusa el lenguaje visual del modal de detalle
+ * (nombre, apellidos, correo ×2, teléfono) y el cobro (concepto efectivo/transferencia/cortesía,
+ * monto, meses). El selector de vendedor y la opción de cortesía solo se muestran a
+ * superadmin/gerente; el vendedor se auto-atribuye en el backend y no puede regalar membresías
+ * (el candado real vive en el service). Reusa el lenguaje visual del modal de detalle
  * (ModalAdaptativo + secciones <Seccion> en tarjeta con ícono), calcado de FichaNegocio.
  *
  * Ubicación: apps/admin/src/components/negocios/DialogoRegistrarNegocio.tsx
@@ -20,6 +21,7 @@ import { Seccion } from './FichaNegocio';
 import { useCatalogoCiudades, useVendedoresFiltro, useAltaManualNegocio } from '../../hooks/queries/useNegociosAdmin';
 import { existeCorreo } from '../../services/negociosService';
 import type { ConceptoAlta, DatosAltaManual } from '../../services/negociosService';
+import type { RolPanel } from '../../data/menuPanel';
 
 // Inputs blancos (bg-superficie) para que contrasten sobre la tarjeta gris de <Seccion>.
 const CLASE_CAMPO =
@@ -42,11 +44,17 @@ const chip = (activo: boolean) =>
 interface DialogoRegistrarNegocioProps {
   abierto: boolean;
   onCerrar: () => void;
-  /** El selector de vendedor solo se muestra a superadmin/gerente (vendedor se auto-atribuye). */
-  mostrarVendedor: boolean;
+  /** Rol del operador: el vendedor no elige vendedor (se auto-atribuye) ni puede dar cortesía. */
+  rol: RolPanel;
 }
 
-export function DialogoRegistrarNegocio({ abierto, onCerrar, mostrarVendedor }: DialogoRegistrarNegocioProps) {
+export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegistrarNegocioProps) {
+  // El vendedor de calle no elige vendedor (se auto-atribuye) ni puede regalar cortesías.
+  const esVendedor = rol === 'vendedor';
+  const mostrarVendedor = !esVendedor;
+  const permiteCortesia = !esVendedor;
+  const conceptosDisponibles = permiteCortesia ? CONCEPTOS : CONCEPTOS.filter((c) => c.valor !== 'cortesia');
+
   const { data: ciudades } = useCatalogoCiudades(abierto);
   const { data: vendedores } = useVendedoresFiltro(mostrarVendedor);
   const alta = useAltaManualNegocio();
@@ -288,7 +296,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, mostrarVendedor }: 
               <div className="mb-3">
                 <label className={LABEL}>¿Cómo pagó?</label>
                 <div className="flex flex-wrap gap-2" data-testid="alta-concepto">
-                  {CONCEPTOS.map((c) => (
+                  {conceptosDisponibles.map((c) => (
                     <button
                       key={c.valor}
                       type="button"
