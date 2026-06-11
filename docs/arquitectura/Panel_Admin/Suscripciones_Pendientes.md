@@ -3,9 +3,9 @@
 > **Qué es este documento:** la **única fuente de verdad** de lo que falta por hacer en la
 > **pantalla Suscripciones** del Panel Admin. Es el mapa de trabajo del módulo mientras se construye.
 >
-> **Documento hermano (aún no existe):** `Suscripciones.md` describirá **qué ES y cómo funciona**
-> (lo ya construido). Nace en la **Fase 3 (Cerrar)**. Hasta entonces, la definición del módulo
-> vive aquí abajo (§Definición — Fase 0).
+> **Documento hermano:** 📄 [`Suscripciones.md`](Suscripciones.md) — describe **qué ES y cómo funciona**
+> (lo ya construido); es la fuente de "qué es". Este documento queda para los **pendientes** (lo que
+> falta) y la definición histórica de Fase 0.
 >
 > **Regla de oro (para que no se desfasen):** cuando un pendiente de aquí se termina, se
 > **borra de este checklist** y, si cambió el comportamiento, se documenta en `Suscripciones.md`.
@@ -20,13 +20,13 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho
 >
-> **Última actualización:** 11 Junio 2026 — **Fase 1 (VER) COMPLETA**: Gate 1 verde (harness A–J TODO OK). Como es solo lectura, se salta la Fase 2 → siguiente: **Fase 3 (Cerrar)**.
+> **Última actualización:** 11 Junio 2026 — **Módulo CERRADO (bitácora V1)**: Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices). Quedan solo pendientes menores (§Fuera de V1).
 
 ---
 
 ## Estado del módulo
 
-**Fase 1 (VER) — código completo.** Alcance V1: **la Bitácora financiera global** (el "libro mayor"
+**CERRADO — bitácora V1 (Fase 1 + Gate 1 verdes; Fase 2 saltada; Fase 3 cerrada).** Alcance V1: **la Bitácora financiera global** (el "libro mayor"
 de la membresía); las demás piezas quedan fuera de V1 (ver §Fuera de V1). Hecho y type-checked
 (tsc + build verdes): **(1)** migración `eventos_pago` + schema Drizzle; **(2)** persistencia — helper
 defensivo `services/suscripciones/eventos-pago.ts` + INSERT en los 3 handlers del webhook
@@ -180,10 +180,10 @@ Fase 1 — VER
 Fase 2 — ACTUAR  → SE SALTA (módulo de solo lectura)
 
 Fase 3 — Cerrar
-- [ ] Doc canónico Suscripciones.md (2 capas)
-- [ ] Vaciar este checklist + sacar del PENDIENTES global (puntero)
-- [ ] Índices (tablero, Panel_Admin.md, ROADMAP, memoria, kit claude.ai)
-- [ ] Commit a main
+- [x] Doc canónico Suscripciones.md (2 capas) ✅
+- [x] Checklist cerrado (este doc) — quedan solo pendientes menores (§Fuera de V1)
+- [x] Índices: tablero ✅ · Panel_Admin.md ✅ · ROADMAP ✅ · memoria ✅ · kit claude.ai (regenerar al avanzar)
+- [~] Commit a main → lo incluye el commit del chat de Usuarios (árbol compartido)
 ```
 
 **Notas técnicas para Fase 1:**
