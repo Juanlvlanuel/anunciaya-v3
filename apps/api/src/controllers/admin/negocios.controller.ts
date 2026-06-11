@@ -217,7 +217,9 @@ export async function listarPagosNegocioController(req: Request, res: Response):
     try {
         const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
         const { id } = req.params;
-        const data = await listarPagosNegocio(panel, id);
+        const limiteRaw = Number(req.query.limite);
+        const limite = Number.isFinite(limiteRaw) && limiteRaw > 0 ? limiteRaw : undefined;
+        const data = await listarPagosNegocio(panel, id, limite);
         res.status(200).json({ success: true, message: 'Pagos obtenidos', data });
     } catch (error) {
         console.error('Error en listarPagosNegocioController:', error);

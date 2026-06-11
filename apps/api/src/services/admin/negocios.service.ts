@@ -729,8 +729,10 @@ export interface PagoMembresiaFila {
  * alcance del rol. Cada fila trae concepto (efectivo/transferencia/cortesía), monto y quién lo
  * registró. Útil para la ficha del método MANUAL. [] si el negocio no está en el alcance.
  */
-export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string): Promise<PagoMembresiaFila[]> {
+export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string, limite?: number): Promise<PagoMembresiaFila[]> {
     if (!(await negocioVisibleParaPanel(panel, negocioId))) return [];
+    // `limite` acota a los N más recientes (para el "ver todos" de la ficha); sin él, todos.
+    const limitSql = limite && limite > 0 ? sql` LIMIT ${limite}` : sql``;
     const filas = (await db.execute(sql`
         SELECT pm.id::text AS id, pm.monto::text AS monto, pm.concepto,
                pm.fecha_pago::text AS fecha_pago, pm.periodo_hasta::text AS periodo_hasta,
@@ -739,7 +741,7 @@ export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string)
         FROM pagos_membresia pm
         LEFT JOIN usuarios u ON u.id = pm.registrado_por
         WHERE pm.negocio_id = ${negocioId}
-        ORDER BY pm.created_at DESC
+        ORDER BY pm.created_at DESC${limitSql}
     `)).rows as Array<{
         id: string; monto: string | null; concepto: string;
         fecha_pago: string | null; periodo_hasta: string | null;

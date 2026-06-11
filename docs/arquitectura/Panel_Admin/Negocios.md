@@ -127,9 +127,9 @@ Si haces clic en un renglón, se abre la **ficha** — el expediente del negocio
 
 - **Encabezado:** nombre y una etiqueta de color con su estado.
 - **Membresía:** su estado de pago y las fechas relevantes. Aquí cambia un poco según cómo
-  paga: si es de **efectivo** ves "Vigencia hasta" y un **historial de pagos** (cada fila se
-  puede corregir con el botón de editar); si es de **tarjeta** ves "Próximo cobro" y datos de
-  su suscripción.
+  paga: si es de **efectivo** ves "Vigencia hasta" y un **historial de pagos** (los últimos 5
+  con un "ver todos"; cada fila se puede corregir con el botón de editar); si es de **tarjeta**
+  ves "Próximo cobro" y datos de su suscripción.
 - **Vendedor atribuido:** quién lo registró.
 - **Dueño de la cuenta:** nombre, correo y teléfono del dueño (con un botón para corregir
   el correo, si tienes permiso).
@@ -371,7 +371,7 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/existe-correo` | GET | super · gerente · vendedor | solo booleano |
 | `/negocios/:id` | GET | super · gerente · vendedor | por alcance; fuera de alcance → 404 |
 | `/negocios/:id/sucursales[/:sucursalId]` | GET | super · gerente · vendedor | por alcance |
-| `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance |
+| `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance; `?limite=N` → los N más recientes (paginación del historial) |
 | `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente |
 | `/negocios/:id/marcar-pagado` | POST | super · gerente | gerente=su región |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
@@ -422,10 +422,10 @@ ignoran el query siempre.
 - **Editar correo** (`cambiarCorreoDueno`): cambia `usuarios.correo` (nace sin verificar), reenvía el
   código (plantilla "crear contraseña" o "recuperar" según exista `contrasena_hash`) y devuelve si el
   envío salió. Unicidad → 409.
-- **Cancelar**: corta la suscripción en Stripe, degrada al dueño a personal (`tiene_modo_comercial=false`,
-  `modo_activo='personal'`), `estado_admin='archivado'` + `activo=false` + `estado_membresia='cancelado'`,
-  devuelve puntos de vales pendientes, notifica, y limpia `stripe_subscription_id` al final. Motivo
-  obligatorio.
+- **Cancelar**: corta la suscripción en Stripe; **en una transacción** degrada al dueño a personal
+  (`tiene_modo_comercial=false`, `modo_activo='personal'`) y archiva el negocio (`estado_admin='archivado'`
+  + `activo=false` + `estado_membresia='cancelado'`) —ambos van juntos o no van—; luego devuelve puntos de
+  vales pendientes (idempotente), notifica, y limpia `stripe_subscription_id` al final. Motivo obligatorio.
 
 **Estado efectivo** (chips/badge): el eje administrativo manda sobre el de pago — `archivado→cancelado`,
 `suspendido(admin)→suspendido`; si está activo, vale `estado_membresia`. Vive en SQL (`ESTADO_EFECTIVO`)
@@ -462,4 +462,4 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 
 ---
 
-*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin y la edición de pagos del historial (concepto/monto/meses + traslado de vigencia).*
+*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional y la paginación del historial de pagos.*

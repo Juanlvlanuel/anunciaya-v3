@@ -16,8 +16,9 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho
 >
-> **Última actualización:** 10 Junio 2026 — cerrados "vendedor no puede dar cortesía", "corregir un
-> pago del historial" (editar concepto/monto/meses + traslado de vigencia) y "contador del menú real".
+> **Última actualización:** 10 Junio 2026 — cerrados: cortesía solo gerente/super, editar pago del
+> historial (concepto/monto/meses + vigencia), contador del menú real, **Cancelar transaccional** y
+> **paginar el historial de pagos** (últimos 5 + "ver todos").
 
 ---
 
@@ -50,12 +51,6 @@ verificación y corrección de desfases** — no reconstrucción.
   estado final difiere; además puede haber **doble notificación** "fuera de circulación".
   **Acción:** unificar campos/criterio entre los dos caminos.
 
-- [ ] 🟢 **Transaccionalidad de Cancelar.** `cancelarNegocio` corta Stripe **primero**
-  (irreversible) y luego hace varios UPDATE sueltos (degradar dueño, archivar negocio, revertir
-  vouchers) **sin** transacción. Si un UPDATE falla tras el corte, queda estado parcial (Stripe
-  cancelado / BD a medias). Es recuperable reintentando (idempotente), no automático.
-  **Acción:** evaluar envolver los pasos de BD en una transacción.
-
 - [ ] 🟢 **Lock de servidor anti doble-click.** Las 4 acciones validan estado con guard (409)
   pero sin lock; dos requests simultáneos pasan el guard antes del primer write → no hay doble
   cobro/devolución (todo idempotente), pero sí posible doble auditoría/notificación. El botón ya
@@ -72,11 +67,6 @@ verificación y corrección de desfases** — no reconstrucción.
   botón con tooltip ("Tiene un cobro pendiente en Stripe; primero regulariza su pago."). **Acción:**
   decidir si/ cuándo se construye el flujo de regularización del moroso de tarjeta.
   Archivo: `negocios-acciones.service.ts` (guard) · `FichaNegocio.tsx` (`cobroPendiente`).
-
-- [ ] 🟢 **Acotar el historial de pagos de la ficha a "últimos N + ver todos".** Hoy
-  `listarPagosNegocio` trae **todas** las filas sin `LIMIT` (bien para el volumen de la beta). Cuando
-  un negocio acumule años de renovaciones, paginar o mostrar "últimos N + ver todos" para no cargar
-  de más. Archivos: `listarPagosNegocio` (añadir límite/paginación) · ficha (`HistorialPagos`).
 
 ---
 

@@ -547,36 +547,43 @@ export async function cancelarNegocio(
         if (!r.ok) advertenciaStripe = r.aviso ?? 'No se pudo cancelar la suscripción en Stripe.';
     }
 
-    // 2) Degradar al dueño a personal COMPLETO (igual que revocarGerente), en el MISMO set
-    //    (respeta el CHECK usuarios_modo_comercial_logico_check). Se MANTIENE negocioId: el
-    //    archivado es recuperable y el negocio debe recordar a su dueño. NUNCA se expulsa a la
-    //    persona (conserva cuenta, puntos e historial como cliente).
-    await db
-        .update(usuarios)
-        .set({
-            tieneModoComercial: false,
-            modoActivo: 'personal',
-            perfil: 'personal',
-            updatedAt: ahora,
-        })
-        .where(eq(usuarios.id, neg.usuarioId));
+    // 2+3) Degradar al dueño y archivar el negocio van JUNTOS (transacción atómica): si uno
+    //    falla, no queda el estado partido (dueño personal con negocio aún activo, o al revés).
+    //    Stripe (paso 1) y los vouchers (paso 4, idempotente) quedan FUERA, por ser externos /
+    //    con su propia transacción.
+    //    - Degradar al dueño a personal COMPLETO (igual que revocarGerente), en el MISMO set
+    //      (respeta el CHECK usuarios_modo_comercial_logico_check). Se MANTIENE negocioId: el
+    //      archivado es recuperable y el negocio debe recordar a su dueño. NUNCA se expulsa a la
+    //      persona (conserva cuenta, puntos e historial como cliente).
+    //    - Archivar el negocio (soft-delete recuperable): fuera de circulación + cancelado.
+    const act = await db.transaction(async (tx) => {
+        await tx
+            .update(usuarios)
+            .set({
+                tieneModoComercial: false,
+                modoActivo: 'personal',
+                perfil: 'personal',
+                updatedAt: ahora,
+            })
+            .where(eq(usuarios.id, neg.usuarioId));
 
-    // 3) Archivar el negocio (soft-delete recuperable): fuera de circulación + cancelado.
-    const [act] = await db
-        .update(negocios)
-        .set({
-            estadoAdmin: 'archivado',
-            activo: false,
-            estadoMembresia: 'cancelado',
-            updatedAt: ahora,
-        })
-        .where(eq(negocios.id, negocioId))
-        .returning({
-            id: negocios.id,
-            estadoAdmin: negocios.estadoAdmin,
-            activo: negocios.activo,
-            embajadorId: negocios.embajadorId,
-        });
+        const [archivado] = await tx
+            .update(negocios)
+            .set({
+                estadoAdmin: 'archivado',
+                activo: false,
+                estadoMembresia: 'cancelado',
+                updatedAt: ahora,
+            })
+            .where(eq(negocios.id, negocioId))
+            .returning({
+                id: negocios.id,
+                estadoAdmin: negocios.estadoAdmin,
+                activo: negocios.activo,
+                embajadorId: negocios.embajadorId,
+            });
+        return archivado;
+    });
 
     // 4) Devolver a los clientes los puntos de sus vales PENDIENTES en este negocio
     //    (idempotente). Import dinámico: mismo patrón que el webhook, evita ciclos de módulo.

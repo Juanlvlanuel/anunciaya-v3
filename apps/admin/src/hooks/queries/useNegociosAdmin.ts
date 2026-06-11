@@ -117,11 +117,12 @@ export function useCatalogoCiudades(habilitado: boolean) {
   });
 }
 
-/** Historial de pagos de membresía de un negocio (ficha del método manual). */
-export function usePagosNegocio(id: string, habilitado: boolean) {
+/** Historial de pagos de un negocio. `limite` acota a los N más recientes (para "ver todos");
+ *  la key incluye el límite, pero invalidar `pagos(id)` (prefijo) refresca todas las variantes. */
+export function usePagosNegocio(id: string, habilitado: boolean, limite?: number) {
   return useQuery({
-    queryKey: queryKeys.negocios.pagos(id),
-    queryFn: () => negociosService.listarPagosNegocio(id),
+    queryKey: [...queryKeys.negocios.pagos(id), limite ?? 'todos'],
+    queryFn: () => negociosService.listarPagosNegocio(id, limite),
     enabled: habilitado,
     staleTime: 1000 * 60,
   });

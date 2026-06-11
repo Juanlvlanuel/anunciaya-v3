@@ -198,20 +198,26 @@ function BotonAccion({
 
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía' };
+/** Pagos visibles antes del botón "Ver todos" en el historial de la ficha. */
+const PAGOS_INICIAL = 5;
 
 /** Lista densa del historial de pagos de membresía (ficha del método manual).
  *  Con permiso (super/gerente) cada fila trae un botón para corregir concepto/monto/meses. */
 function HistorialPagos({ negocioId, puedeActuar }: { negocioId: string; puedeActuar: boolean }) {
-  const { data, isLoading } = usePagosNegocio(negocioId, true);
+  const [verTodos, setVerTodos] = useState(false);
+  // Pide N+1 para saber si hay más sin traer todo; "Ver todos" re-consulta sin límite.
+  const { data, isLoading } = usePagosNegocio(negocioId, true, verTodos ? undefined : PAGOS_INICIAL + 1);
   const [editando, setEditando] = useState<PagoMembresia | null>(null);
   const editar = useEditarPago();
   if (isLoading) return <p className="text-[12.5px] text-texto-3">Cargando pagos…</p>;
   const pagos = data ?? [];
   if (pagos.length === 0) return <p className="text-[12.5px] text-texto-4">Sin pagos registrados.</p>;
+  const hayMas = !verTodos && pagos.length > PAGOS_INICIAL;
+  const visibles = verTodos ? pagos : pagos.slice(0, PAGOS_INICIAL);
   return (
     <>
       <div className="flex flex-col divide-y divide-borde">
-        {pagos.map((p) => (
+        {visibles.map((p) => (
           <div key={p.id} data-testid={`pago-${p.id}`} className="flex items-center justify-between gap-3 py-1.5">
             <div className="flex min-w-0 flex-col">
               <span className="text-[13.5px] font-semibold text-texto">
@@ -237,6 +243,16 @@ function HistorialPagos({ negocioId, puedeActuar }: { negocioId: string; puedeAc
           </div>
         ))}
       </div>
+      {hayMas && (
+        <button
+          type="button"
+          data-testid="pagos-ver-todos"
+          onClick={() => setVerTodos(true)}
+          className="mt-2 text-[12px] font-semibold text-marca transition hover:underline"
+        >
+          Ver todos los pagos
+        </button>
+      )}
       {editando && (
         <DialogoEditarPago
           key={editando.id}

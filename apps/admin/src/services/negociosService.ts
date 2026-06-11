@@ -335,9 +335,11 @@ export interface PagoMembresia {
   registradoPorNombre: string | null;
 }
 
-/** Historial de pagos de membresía de un negocio (bitácora). */
-export async function listarPagosNegocio(id: string): Promise<PagoMembresia[]> {
-  const { data } = await api.get<RespuestaAPI<PagoMembresia[]>>(`/admin/negocios/${id}/pagos`);
+/** Historial de pagos de membresía de un negocio (bitácora). `limite` acota a los N más recientes. */
+export async function listarPagosNegocio(id: string, limite?: number): Promise<PagoMembresia[]> {
+  const { data } = await api.get<RespuestaAPI<PagoMembresia[]>>(`/admin/negocios/${id}/pagos`, {
+    params: limite ? { limite } : undefined,
+  });
   return data.data ?? [];
 }
 

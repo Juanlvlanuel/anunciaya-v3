@@ -55,7 +55,11 @@ Sesión grande del Panel: dar de **alta negocios cobrados en efectivo/transferen
 **Contador real del menú de Negocios:**
 - Nuevo **`GET /api/admin/negocios/conteo`** (`contarNegocios`, mismo alcance que la lista): total de negocios del rol (super=todos · gerente=su región · vendedor=su cartera), respeta el filtro global de región. Hook **`useConteoNegocios`** → `PaginaPanel` baja el total a las barras (`BarraLateral`/`CajonNavegacion`); se quitó el demo **248/64/19** de `menuPanel.ts`.
 
-**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`, `probar-editar-pago`, `probar-conteo-negocios`.
+**Robustez de Negocios:**
+- **Cancelar transaccional:** en `cancelarNegocio`, degradar al dueño + archivar el negocio van en una `db.transaction` (Stripe y la reversión de vouchers quedan fuera, por externos/idempotentes) — se evita el estado parcial si un UPDATE falla.
+- **Historial de pagos paginado:** `listarPagosNegocio` acepta `?limite=N`; la ficha muestra los últimos **5 + "Ver todos"** (pide N+1 para detectar más y re-consulta sin límite al expandir).
+
+**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`, `probar-editar-pago`, `probar-conteo-negocios`, `probar-pagos-limite`.
 
 **Pendiente de infra (no código):** SES fuera de sandbox + DKIM/DMARC + dominio propio R2 para el logo de los correos.
 

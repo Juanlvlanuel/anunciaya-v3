@@ -49,8 +49,9 @@
 ## Notas por módulo (contexto para arrancar)
 
 - **3 · Negocios** — en prod (VER + 6 acciones + alta manual). Pendientes en su checklist: riesgos de
-  las acciones con Stripe, regularizar tarjeta morosa, paginar historial de pagos, verificación a fondo.
-  (Cerrado: vendedor-no-cortesía, editar pago del historial y contador del menú real — 10 jun.)
+  las acciones con Stripe (fecha vs webhook · consistencia cancelar↔webhook · lock), regularizar
+  tarjeta morosa, verificación a fondo. (Cerrados 10 jun: cortesía, editar pago del historial,
+  contador del menú real, Cancelar transaccional, paginar historial.)
 - **4 · Usuarios** — **Fase 0 cerrada** (ver `Usuarios_Pendientes.md`). Mesa de ayuda + moderación de
   personas. **Permiso partido:** *soporte* (ver expediente + diagnóstico de acceso + rescates:
   desbloquear, reenviar verificación/contraseña, corregir correo) = **super + gerente** (cross-región,
