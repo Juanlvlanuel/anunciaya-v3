@@ -31,6 +31,7 @@ import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
 import { obtenerConfigNumero } from './configuracion.service.js';
 import { crearNegocioConDueno } from './negocioManagement.service.js';
+import { registrarEventoPago } from './suscripciones/eventos-pago.js';
 import { eq, and, sql } from 'drizzle-orm';
 
 // =============================================================================
@@ -432,14 +433,14 @@ export async function procesarWebhook(
         case 'invoice.payment_succeeded': {
             // Renovación cobrada (o primer cobro al terminar el trial) → al_corriente
             const invoice = event.data.object as Stripe.Invoice;
-            await manejarRenovacionPagada(invoice);
+            await manejarRenovacionPagada(invoice, event.id);
             break;
         }
 
         case 'invoice.payment_failed': {
             // Falló el cobro de la renovación → entra en gracia
             const invoice = event.data.object as Stripe.Invoice;
-            await manejarCobroFallido(invoice);
+            await manejarCobroFallido(invoice, event.id);
             break;
         }
 
@@ -452,7 +453,7 @@ export async function procesarWebhook(
 
         case 'customer.subscription.deleted': {
             const subscription = event.data.object as Stripe.Subscription;
-            await procesarCancelacionSuscripcion(subscription);
+            await procesarCancelacionSuscripcion(subscription, event.id);
             break;
         }
 
@@ -909,7 +910,8 @@ async function manejarUpgradeCompletado(
  * @param subscription - Objeto de suscripción de Stripe (cancelada)
  */
 export async function procesarCancelacionSuscripcion(
-    subscription: Stripe.Subscription
+    subscription: Stripe.Subscription,
+    eventId?: string
 ): Promise<void> {
     try {
         console.log('🚫 Procesando cancelación de suscripción:', subscription.id);
@@ -1011,6 +1013,17 @@ export async function procesarCancelacionSuscripcion(
             } catch (errNotif) {
                 console.error('❌ Error notificando cancelación al dueño:', errNotif);
             }
+
+            // Bitácora financiera: registra la cancelación DELIBERADA (baja completa). El
+            // camino de impago (arriba) NO registra cancelación: ahí solo se suspende.
+            await registrarEventoPago({
+                negocioId: negocio.id,
+                tipo: 'cancelacion',
+                origen: 'stripe',
+                fechaEvento: new Date().toISOString(),
+                stripeEventId: eventId ?? null,
+                metadata: { subscriptionId: subscription.id, motivo: 'cancellation_requested' },
+            });
         }
 
         // Logging para auditoría
@@ -1076,7 +1089,7 @@ async function obtenerNegocioDesdeStripe(
  * invoice.payment_succeeded — la renovación (o el primer cobro tras el trial) se cobró.
  * Estado → al_corriente. Actualiza vencimiento/próximo cobro y LIMPIA las fechas de gracia.
  */
-async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
+async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string): Promise<void> {
     try {
         // Acceso defensivo (API 2025-11 clover: algunos campos se movieron de lugar).
         const inv = invoice as unknown as {
@@ -1127,6 +1140,21 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
 
         console.log(`✅ Renovación pagada → al_corriente: ${res.negocio.nombre} (vence ${finPeriodo})`);
 
+        // Bitácora financiera (libro mayor): registra el cobro REAL (monto>0). El invoice de
+        // $0 del trial NO es un movimiento de dinero → no se registra. Defensivo: no rompe el
+        // webhook ni provoca reintento si el INSERT de bitácora falla.
+        if (esCobroReal) {
+            await registrarEventoPago({
+                negocioId: res.negocio.id,
+                tipo: 'cobro_exitoso',
+                origen: 'stripe',
+                monto: (inv.amount_paid ?? 0) / 100,
+                fechaEvento: new Date().toISOString(),
+                stripeEventId: eventId ?? null,
+                metadata: { customerId: clienteId, finPeriodo },
+            });
+        }
+
         // Si el negocio reapareció por el pago, borrar el aviso de "fuera de circulación".
         if (puedeReaparecer) {
             try {
@@ -1149,7 +1177,7 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice): Promise<void> {
  * reintento de Stripe (`next_payment_attempt`), SIN reiniciar el plazo. `fechaVencimiento`
  * se queda fija (cuándo se le acabó lo pagado). El negocio SIGUE visible en gracia.
  */
-async function manejarCobroFallido(invoice: Stripe.Invoice): Promise<void> {
+async function manejarCobroFallido(invoice: Stripe.Invoice, eventId?: string): Promise<void> {
     try {
         const inv = invoice as unknown as {
             customer?: string | { id: string } | null;
@@ -1170,6 +1198,17 @@ async function manejarCobroFallido(invoice: Stripe.Invoice): Promise<void> {
             console.log(`ℹ️ Cobro fallido ignorado (estado: ${res.negocio.estadoMembresia}): ${res.negocio.nombre}`);
             return;
         }
+
+        // Bitácora financiera: registra el intento de cobro fallido (sin monto: no se cobró).
+        // Cada fallo es un event.id distinto → una fila por intento. Defensivo.
+        await registrarEventoPago({
+            negocioId: res.negocio.id,
+            tipo: 'cobro_fallido',
+            origen: 'stripe',
+            fechaEvento: new Date().toISOString(),
+            stripeEventId: eventId ?? null,
+            metadata: { customerId: clienteId, proximoReintento, estadoPrevio: res.negocio.estadoMembresia },
+        });
 
         const ahora = new Date();
 
