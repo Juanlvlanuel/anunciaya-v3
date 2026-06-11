@@ -9,11 +9,18 @@
  * Ubicación: apps/admin/src/hooks/queries/useUsuariosAdmin.ts
  */
 
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '../../config/queryKeys';
 import * as usuariosService from '../../services/usuariosService';
 import type { ParametrosLista, UsuarioExpediente } from '../../services/usuariosService';
+import { toast } from '../../stores/useToastPanel';
+
+/** Extrae el mensaje de error del backend (o uno por defecto). */
+function mensajeError(error: unknown, porDefecto: string): string {
+  const e = error as { response?: { data?: { message?: string } } };
+  return e?.response?.data?.message ?? porDefecto;
+}
 
 /** Tabla paginada de usuarios (con filtros). */
 export function useUsuariosLista(filtros: ParametrosLista) {
@@ -54,4 +61,92 @@ export function usePrefetchUsuario() {
     },
     [qc],
   );
+}
+
+// =============================================================================
+// MUTACIONES (Fase 2) — refrescan lista + expediente e informan por toast
+// =============================================================================
+
+/** Invalida la lista (todas las variantes) y el expediente del usuario afectado. */
+function useRefrescarUsuario() {
+  const qc = useQueryClient();
+  return (id: string) => {
+    qc.invalidateQueries({ queryKey: queryKeys.usuarios.all() });
+    qc.invalidateQueries({ queryKey: queryKeys.usuarios.detalle(id) });
+  };
+}
+
+/** Soporte: desbloquear intentos fallidos. */
+export function useDesbloquearIntentos() {
+  const refrescar = useRefrescarUsuario();
+  return useMutation({
+    mutationFn: (id: string) => usuariosService.desbloquearIntentos(id),
+    onSuccess: (_d, id) => {
+      refrescar(id);
+      toast.exito('Cuenta desbloqueada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo desbloquear la cuenta')),
+  });
+}
+
+/** Soporte: enviar acceso (crear/restablecer contraseña). Distingue el tipo y si el correo salió. */
+export function useEnviarAcceso() {
+  const refrescar = useRefrescarUsuario();
+  return useMutation({
+    mutationFn: (id: string) => usuariosService.enviarAcceso(id),
+    onSuccess: (res, id) => {
+      refrescar(id);
+      const queHace = res.tipo === 'crear' ? 'crear su contraseña' : 'restablecer su contraseña';
+      if (res.correoEnviado) {
+        toast.exito(`Correo enviado para ${queHace}.`);
+      } else {
+        toast.advertencia('No se pudo enviar el correo de acceso. Reinténtalo.');
+      }
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo enviar el acceso')),
+  });
+}
+
+/** Soporte: corregir el correo de la cuenta (reenvía el código al correo nuevo). */
+export function useCambiarCorreoUsuario() {
+  const refrescar = useRefrescarUsuario();
+  return useMutation({
+    mutationFn: ({ id, correoNuevo }: { id: string; correoNuevo: string }) =>
+      usuariosService.cambiarCorreoUsuario(id, correoNuevo),
+    onSuccess: (res, { id }) => {
+      refrescar(id);
+      if (res.correoEnviado) {
+        toast.exito('Correo actualizado y código enviado al nuevo correo.');
+      } else {
+        toast.advertencia('Correo actualizado, pero el código no se pudo enviar. Reinténtalo.');
+      }
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo cambiar el correo')),
+  });
+}
+
+/** Moderación (solo super): suspender. */
+export function useSuspenderUsuario() {
+  const refrescar = useRefrescarUsuario();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo: string }) => usuariosService.suspenderUsuario(id, motivo),
+    onSuccess: (_d, { id }) => {
+      refrescar(id);
+      toast.exito('Cuenta suspendida');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo suspender la cuenta')),
+  });
+}
+
+/** Moderación (solo super): reactivar. */
+export function useReactivarUsuario() {
+  const refrescar = useRefrescarUsuario();
+  return useMutation({
+    mutationFn: ({ id, motivo }: { id: string; motivo?: string }) => usuariosService.reactivarUsuario(id, motivo),
+    onSuccess: (_d, { id }) => {
+      refrescar(id);
+      toast.exito('Cuenta reactivada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo reactivar la cuenta')),
+  });
 }

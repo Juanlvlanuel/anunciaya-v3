@@ -160,9 +160,16 @@ Fase 1 — VER
       cuentas suspendidas/bloqueadas (no hay en dev → se cubre en Fase 2) y el 403 de vendedor.
 
 Fase 2 — ACTUAR
-- [ ] Backend acciones (soporte super+gerente + moderación solo super + auditoría + guards + auth reusado)
-- [ ] Frontend acciones (diálogos base + mutaciones con invalidación + acciones por rol)
-- [ ] GATE 2: verificado con datos reales + tsc/build ✅ + criterios de acción marcados
+- [x] Backend acciones (usuarios-acciones.service + 5 controllers + 5 rutas; soporte super+gerente +
+      moderación solo super + auditoría + guards; tsc verde; verificado con harness
+      `scripts/probar-usuarios-acciones.ts` — 5 acciones + guards + auditoría, se autolimpia)
+- [x] Frontend acciones (usuariosService + 5 mutaciones RQ con invalidación + footer de la ficha por
+      rol: soporte super+gerente / moderación solo super; reusa DialogoConfirmar + DialogoEditarCorreo
+      parametrizado; tsc + build verde)
+- [x] GATE 2: backend verificado con harness (5 acciones + guards + auditoría) + revisión visual (footer
+      por rol + tooltips del Panel) + tsc/build verde. Pendiente menor: confirmar en UI que suspender al
+      dueño de un negocio NO oculta el negocio (por diseño solo toca `usuarios.estado`) y el login real de
+      una cuenta suspendida.
 - [ ] PULIDO VISUAL (Tokens_Panel.md, responsive lg/2xl, variantes, consistencia)
 
 Fase 3 — Cerrar

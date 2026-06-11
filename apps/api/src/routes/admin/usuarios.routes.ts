@@ -22,12 +22,26 @@ import { requierePanel } from '../../middleware/panel.middleware.js';
 import {
     listarUsuariosController,
     obtenerExpedienteController,
+    desbloquearIntentosController,
+    enviarAccesoController,
+    cambiarCorreoController,
+    suspenderUsuarioController,
+    reactivarUsuarioController,
 } from '../../controllers/admin/usuarios.controller.js';
 
 const router: Router = Router();
 
+// ─── Lectura ─────────────────────────────────────────────────────────────────
 router.get('/', requierePanel(['superadmin', 'gerente']), listarUsuariosController);
-
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerExpedienteController);
+
+// ─── Soporte (rescates de acceso) — superadmin + gerente ─────────────────────────
+router.post('/:id/desbloquear', requierePanel(['superadmin', 'gerente']), desbloquearIntentosController);
+router.post('/:id/enviar-acceso', requierePanel(['superadmin', 'gerente']), enviarAccesoController);
+router.patch('/:id/correo', requierePanel(['superadmin', 'gerente']), cambiarCorreoController);
+
+// ─── Moderación (suspender / reactivar) — SOLO superadmin ────────────────────────
+router.post('/:id/suspender', requierePanel(['superadmin']), suspenderUsuarioController);
+router.post('/:id/reactivar', requierePanel(['superadmin']), reactivarUsuarioController);
 
 export default router;

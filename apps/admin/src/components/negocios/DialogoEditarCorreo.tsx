@@ -22,9 +22,21 @@ interface DialogoEditarCorreoProps {
   correoActual: string | null;
   cargando: boolean;
   onConfirmar: (correoNuevo: string) => void;
+  /** Título del diálogo. Default: el del dueño de un negocio. */
+  titulo?: string;
+  /** Texto explicativo. Default: el del rescate de alta manual. */
+  descripcion?: string;
 }
 
-export function DialogoEditarCorreo({ abierto, onCerrar, correoActual, cargando, onConfirmar }: DialogoEditarCorreoProps) {
+export function DialogoEditarCorreo({
+  abierto,
+  onCerrar,
+  correoActual,
+  cargando,
+  onConfirmar,
+  titulo = 'Editar correo del dueño',
+  descripcion = 'Corrige el correo del dueño. Le reenviaremos el código para crear su contraseña al correo nuevo.',
+}: DialogoEditarCorreoProps) {
   const [correo, setCorreo] = useState('');
   const correoNorm = correo.trim().toLowerCase();
   const valido = EMAIL_REGEX.test(correoNorm) && correoNorm !== (correoActual ?? '').toLowerCase();
@@ -41,7 +53,7 @@ export function DialogoEditarCorreo({ abierto, onCerrar, correoActual, cargando,
       <div className="flex flex-col" data-testid="dialogo-editar-correo">
         {/* Header */}
         <div className="flex shrink-0 items-center justify-between border-b border-borde px-5 py-4">
-          <span className="text-[16px] font-bold text-texto">Editar correo del dueño</span>
+          <span className="text-[16px] font-bold text-texto">{titulo}</span>
           <button
             type="button"
             data-testid="editar-correo-cerrar"
@@ -55,9 +67,7 @@ export function DialogoEditarCorreo({ abierto, onCerrar, correoActual, cargando,
 
         {/* Cuerpo */}
         <div className="flex flex-col gap-3 p-5">
-          <p className="text-[12.5px] leading-snug text-texto-3">
-            Corrige el correo del dueño. Le reenviaremos el código para crear su contraseña al correo nuevo.
-          </p>
+          <p className="text-[12.5px] leading-snug text-texto-3">{descripcion}</p>
           {correoActual && (
             <div className="rounded-[10px] border border-borde bg-superficie-2 px-3 py-2 text-[12.5px] text-texto-3">
               Correo actual: <span className="font-medium text-texto-2">{correoActual}</span>

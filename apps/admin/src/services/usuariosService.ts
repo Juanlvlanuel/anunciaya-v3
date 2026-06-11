@@ -148,3 +148,44 @@ export async function obtenerExpediente(id: string): Promise<UsuarioExpediente |
   const { data } = await api.get<RespuestaAPI<UsuarioExpediente>>(`/admin/usuarios/${id}`);
   return data.data ?? null;
 }
+
+// =============================================================================
+// ACCIONES (Fase 2) — soporte (super + gerente) y moderación (solo super)
+// =============================================================================
+
+/** Tipo de correo de acceso que se reenvió: crear (modelo C) o restablecer contraseña. */
+export interface ResultadoEnvioAcceso {
+  correoEnviado: boolean;
+  tipo: 'crear' | 'restablecer';
+}
+
+export interface ResultadoCambioCorreo {
+  correoEnviado: boolean;
+}
+
+/** Soporte: limpia el bloqueo por intentos fallidos. */
+export async function desbloquearIntentos(id: string): Promise<void> {
+  await api.post(`/admin/usuarios/${id}/desbloquear`);
+}
+
+/** Soporte: reenvía el código para crear/restablecer la contraseña. Devuelve si salió y de qué tipo. */
+export async function enviarAcceso(id: string): Promise<ResultadoEnvioAcceso> {
+  const { data } = await api.post<RespuestaAPI<ResultadoEnvioAcceso>>(`/admin/usuarios/${id}/enviar-acceso`);
+  return data.data ?? { correoEnviado: false, tipo: 'crear' };
+}
+
+/** Soporte: corrige el correo de la cuenta y reenvía el código al correo nuevo. */
+export async function cambiarCorreoUsuario(id: string, correoNuevo: string): Promise<ResultadoCambioCorreo> {
+  const { data } = await api.patch<RespuestaAPI<{ correoEnviado: boolean }>>(`/admin/usuarios/${id}/correo`, { correoNuevo });
+  return { correoEnviado: data.data?.correoEnviado ?? false };
+}
+
+/** Moderación (solo super): suspende el acceso a toda la app. Motivo obligatorio. */
+export async function suspenderUsuario(id: string, motivo: string): Promise<void> {
+  await api.post(`/admin/usuarios/${id}/suspender`, { motivo });
+}
+
+/** Moderación (solo super): reactiva la cuenta. Motivo opcional. */
+export async function reactivarUsuario(id: string, motivo?: string): Promise<void> {
+  await api.post(`/admin/usuarios/${id}/reactivar`, { motivo });
+}

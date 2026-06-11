@@ -25,11 +25,27 @@ import {
   BadgeCheck,
   CheckCircle2,
   AlertTriangle,
+  Send,
+  Unlock,
+  Mail,
+  Ban,
+  PlayCircle,
 } from 'lucide-react';
-import { useUsuarioExpediente } from '../../hooks/queries/useUsuariosAdmin';
+import {
+  useUsuarioExpediente,
+  useDesbloquearIntentos,
+  useEnviarAcceso,
+  useCambiarCorreoUsuario,
+  useSuspenderUsuario,
+  useReactivarUsuario,
+} from '../../hooks/queries/useUsuariosAdmin';
 import type { UsuarioFila, UsuarioExpediente } from '../../services/usuariosService';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { VisorImagen } from '../ui/VisorImagen';
+import { DialogoConfirmar } from '../ui/DialogoConfirmar';
+import { Tooltip } from '../ui/Tooltip';
+import { DialogoEditarCorreo } from '../negocios/DialogoEditarCorreo';
 import { Seccion, Dato, fecha } from '../negocios/FichaNegocio';
 import { BadgeEstadoUsuario, metaEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
@@ -136,6 +152,24 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
   const d = u.diagnostico;
   const s = u.sombreros;
   const [verAvatar, setVerAvatar] = useState(false);
+  const [dialogo, setDialogo] = useState<null | 'enviar-acceso' | 'suspender' | 'reactivar' | 'editar-correo'>(null);
+  const cerrarDialogo = () => setDialogo(null);
+
+  // El permiso real lo decide el backend; la UI solo refleja. Soporte = super + gerente;
+  // moderación (suspender/reactivar) = solo super y nunca sobre cuentas de equipo.
+  const rol = useAuthPanelStore((st) => st.usuario?.rolEquipo);
+  const puedeActuar = rol === 'superadmin' || rol === 'gerente';
+  const esSuperadmin = rol === 'superadmin';
+
+  const desbloquear = useDesbloquearIntentos();
+  const enviarAcc = useEnviarAcceso();
+  const cambiarCorreo = useCambiarCorreoUsuario();
+  const suspender = useSuspenderUsuario();
+  const reactivar = useReactivarUsuario();
+
+  const bloqueado = d.bloqueadoPorIntentos;
+  const suspendido = u.estado === 'suspendido';
+  const esEquipo = !!s.rolEquipo;
 
   // Razones por las que NO puede iniciar sesión (derivadas del diagnóstico).
   const razones: string[] = [];
@@ -302,8 +336,125 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
             </div>
           </div>
         </div>
+
+        {/* Footer: soporte (super + gerente) y moderación (solo super). El vendedor no llega aquí. */}
+        {puedeActuar && (
+          <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
+            <button
+              type="button"
+              data-testid="ficha-usuario-enviar-acceso"
+              onClick={() => setDialogo('enviar-acceso')}
+              className="inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-3 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:brightness-105"
+            >
+              <Send size={16} /> Enviar acceso
+            </button>
+            <div className="ml-auto flex items-center gap-2">
+              {bloqueado && (
+                <Tooltip text="Desbloquear intentos" className="shrink-0">
+                  <button
+                    type="button"
+                    data-testid="ficha-usuario-desbloquear"
+                    onClick={() => desbloquear.mutate(u.id)}
+                    disabled={desbloquear.isPending}
+                    aria-label="Desbloquear intentos"
+                    className="grid h-10 w-10 place-items-center rounded-[10px] border border-borde-fuerte bg-superficie text-texto transition hover:bg-marca-suave disabled:opacity-50"
+                  >
+                    <Unlock size={16} />
+                  </button>
+                </Tooltip>
+              )}
+              <Tooltip text="Corregir correo" className="shrink-0">
+                <button
+                  type="button"
+                  data-testid="ficha-usuario-editar-correo"
+                  onClick={() => setDialogo('editar-correo')}
+                  aria-label="Corregir correo"
+                  className="grid h-10 w-10 place-items-center rounded-[10px] border border-borde-fuerte bg-superficie text-texto transition hover:bg-marca-suave"
+                >
+                  <Mail size={16} />
+                </button>
+              </Tooltip>
+              {esSuperadmin && !esEquipo && (
+                suspendido ? (
+                  <Tooltip text="Reactivar cuenta" className="shrink-0">
+                    <button
+                      type="button"
+                      data-testid="ficha-usuario-reactivar"
+                      onClick={() => setDialogo('reactivar')}
+                      aria-label="Reactivar cuenta"
+                      className="grid h-10 w-10 place-items-center rounded-[10px] border border-borde-fuerte bg-superficie text-texto transition hover:bg-marca-suave"
+                    >
+                      <PlayCircle size={16} />
+                    </button>
+                  </Tooltip>
+                ) : (
+                  <Tooltip text="Suspender cuenta" className="shrink-0">
+                    <button
+                      type="button"
+                      data-testid="ficha-usuario-suspender"
+                      onClick={() => setDialogo('suspender')}
+                      aria-label="Suspender cuenta"
+                      className="grid h-10 w-10 place-items-center rounded-[10px] border border-peligro/40 bg-superficie text-peligro transition hover:bg-peligro-suave"
+                    >
+                      <Ban size={16} />
+                    </button>
+                  </Tooltip>
+                )
+              )}
+            </div>
+          </div>
+        )}
       </div>
     </ModalAdaptativo>
+
+    {dialogo === 'enviar-acceso' && (
+      <DialogoConfirmar
+        abierto
+        onCerrar={cerrarDialogo}
+        titulo="Enviar acceso"
+        mensaje={`Se enviará un correo a ${u.correo} con el código para ${d.tieneContrasena ? 'restablecer' : 'crear'} su contraseña.`}
+        textoConfirmar="Enviar correo"
+        cargando={enviarAcc.isPending}
+        onConfirmar={() => enviarAcc.mutate(u.id, { onSuccess: cerrarDialogo })}
+      />
+    )}
+    {dialogo === 'suspender' && (
+      <DialogoConfirmar
+        abierto
+        onCerrar={cerrarDialogo}
+        titulo="Suspender cuenta"
+        variante="danger"
+        mensaje="La cuenta no podrá iniciar sesión en ninguna parte de la app hasta que se reactive. Sus datos, puntos e historial se conservan. El motivo queda registrado."
+        textoConfirmar="Suspender"
+        requiereMotivo
+        cargando={suspender.isPending}
+        onConfirmar={(motivo) => suspender.mutate({ id: u.id, motivo }, { onSuccess: cerrarDialogo })}
+      />
+    )}
+    {dialogo === 'reactivar' && (
+      <DialogoConfirmar
+        abierto
+        onCerrar={cerrarDialogo}
+        titulo="Reactivar cuenta"
+        mensaje="La cuenta volverá a poder iniciar sesión en la app."
+        textoConfirmar="Reactivar"
+        mostrarMotivo
+        cargando={reactivar.isPending}
+        onConfirmar={(motivo) => reactivar.mutate({ id: u.id, motivo: motivo || undefined }, { onSuccess: cerrarDialogo })}
+      />
+    )}
+    {dialogo === 'editar-correo' && (
+      <DialogoEditarCorreo
+        abierto
+        onCerrar={cerrarDialogo}
+        correoActual={u.correo}
+        titulo="Editar correo de la cuenta"
+        descripcion="Corrige el correo de la cuenta. Le reenviaremos el código de acceso (crear o restablecer su contraseña) al correo nuevo."
+        cargando={cambiarCorreo.isPending}
+        onConfirmar={(correoNuevo) => cambiarCorreo.mutate({ id: u.id, correoNuevo }, { onSuccess: cerrarDialogo })}
+      />
+    )}
+
     <VisorImagen
       src={u.avatarUrl}
       alt={u.nombreCompleto || u.correo}
