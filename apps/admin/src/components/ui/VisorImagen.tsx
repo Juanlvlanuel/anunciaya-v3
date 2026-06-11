@@ -15,19 +15,21 @@
  * Ubicación: apps/admin/src/components/ui/VisorImagen.tsx
  */
 
-import { useEffect } from 'react';
+import { useEffect, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 interface VisorImagenProps {
-  /** URL de la imagen. Si es null/vacía, el visor no se muestra. */
+  /** URL de la imagen. Si es null/vacía, se muestra `fallback` (si lo hay). */
   src: string | null;
   alt?: string;
   abierto: boolean;
   onCerrar: () => void;
+  /** Qué mostrar a pantalla completa cuando NO hay `src` (ej. el avatar de iniciales en grande). */
+  fallback?: ReactNode;
 }
 
-export function VisorImagen({ src, alt = '', abierto, onCerrar }: VisorImagenProps) {
+export function VisorImagen({ src, alt = '', abierto, onCerrar, fallback }: VisorImagenProps) {
   // Escape para cerrar + bloqueo de scroll del body mientras está abierto.
   useEffect(() => {
     if (!abierto) return;
@@ -43,7 +45,7 @@ export function VisorImagen({ src, alt = '', abierto, onCerrar }: VisorImagenPro
     };
   }, [abierto, onCerrar]);
 
-  if (!abierto || !src) return null;
+  if (!abierto || (!src && !fallback)) return null;
 
   return createPortal(
     <div
@@ -63,12 +65,16 @@ export function VisorImagen({ src, alt = '', abierto, onCerrar }: VisorImagenPro
       >
         <X size={20} />
       </button>
-      <img
-        src={src}
-        alt={alt}
-        onClick={(e) => e.stopPropagation()}
-        className="max-h-[88vh] max-w-[92vw] rounded-[14px] object-contain shadow-2xl"
-      />
+      {src ? (
+        <img
+          src={src}
+          alt={alt}
+          onClick={(e) => e.stopPropagation()}
+          className="max-h-[88vh] max-w-[92vw] rounded-[14px] object-contain shadow-2xl"
+        />
+      ) : (
+        <div onClick={(e) => e.stopPropagation()}>{fallback}</div>
+      )}
     </div>,
     document.body,
   );

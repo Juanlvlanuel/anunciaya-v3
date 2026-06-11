@@ -62,8 +62,12 @@ real). Lo de abajo son **3 pendientes menores de backlog** — bajo impacto; uno
 No son de la pantalla Negocios; se anotan aquí solo para no perderlos hasta que tengan su propio
 documento:
 
-- **Motor de venta en efectivo (Camino B):** registrar cobro del vendedor, "efectivo por entregar",
-  corte de caja → checklist de **Vendedores y comisiones**.
+- **Motor de venta en efectivo (Camino B) — control del efectivo del vendedor:** el vendedor ya
+  **registra cobros en efectivo de sus negocios manuales** (altas Y renovaciones, vía "Registrar
+  pago", acotado a su cartera + solo manuales + sin cortesía — 10 jun 2026). Lo que **falta** es el
+  candado del efectivo: marcar cada cobro como **"efectivo por entregar"** a nombre del vendedor,
+  **corte de caja** (reportado vs. entregado) y la **comisión condicionada a la entrega** → checklist
+  de **Vendedores y comisiones**.
 - **Defensas anti "robo invisible"** (comprobante automático + visibilidad de membresía en el
   perfil del dueño) → checklist de **Suscripciones**.
 - **Historial financiero completo (tarjeta + efectivo + eventos de Stripe):** vive en la futura

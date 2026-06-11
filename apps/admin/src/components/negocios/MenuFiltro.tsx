@@ -33,6 +33,8 @@ interface MenuFiltroProps {
   compacto?: boolean;
   /** Botón de texto plano (para el "Ordenar"), sin recuadro. */
   plano?: boolean;
+  /** Botón cuadrado solo con el ícono (sin etiqueta ni chevron). Para barras compactas (móvil). */
+  soloIcono?: boolean;
   testid?: string;
   /** Ancho mínimo del menú (px). Default 220. */
   anchoMenu?: number;
@@ -47,13 +49,18 @@ export function MenuFiltro({
   alineacion = 'derecha',
   compacto = false,
   plano = false,
+  soloIcono = false,
   testid,
   anchoMenu = 220,
 }: MenuFiltroProps) {
   const [abierto, setAbierto] = useState(false);
   const ref = useClickFuera<HTMLDivElement>(() => setAbierto(false), abierto);
 
-  const claseBoton = plano
+  const claseBoton = soloIcono
+    ? `inline-flex shrink-0 items-center justify-center rounded-full border bg-superficie-2 transition hover:bg-marca-suave ${
+        valor ? 'border-marca/40 text-marca' : 'border-borde text-texto-3'
+      } ${compacto ? 'h-10 w-10' : 'h-11 w-11'}`
+    : plano
     ? 'inline-flex items-center gap-1.5 text-[12.5px] text-texto-3 transition hover:text-texto'
     : `inline-flex items-center gap-2 rounded-full border border-borde bg-superficie-2 font-medium text-texto transition hover:bg-marca-suave ${
         compacto ? 'px-3 py-2 text-[12.5px]' : 'px-3.5 py-2.5 text-[13px]'
@@ -68,12 +75,18 @@ export function MenuFiltro({
         onClick={() => setAbierto((v) => !v)}
         className={claseBoton}
       >
-        {icono && <span className="text-texto-3">{icono}</span>}
-        <span className={compacto ? 'max-w-[150px] truncate' : undefined}>{etiquetaBoton}</span>
-        <ChevronDown
-          size={plano ? 14 : 15}
-          className={`text-texto-3 transition-transform ${abierto ? 'rotate-180' : ''}`}
-        />
+        {soloIcono ? (
+          icono
+        ) : (
+          <>
+            {icono && <span className="text-texto-3">{icono}</span>}
+            <span className={compacto ? 'max-w-[150px] truncate' : undefined}>{etiquetaBoton}</span>
+            <ChevronDown
+              size={plano ? 14 : 15}
+              className={`text-texto-3 transition-transform ${abierto ? 'rotate-180' : ''}`}
+            />
+          </>
+        )}
       </button>
 
       {abierto && (

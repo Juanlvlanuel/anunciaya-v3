@@ -15,6 +15,7 @@ import { z } from 'zod';
 import {
     listarUsuarios,
     obtenerExpediente,
+    contarUsuarios,
     ESTADOS_USUARIO,
     TIPOS_USUARIO,
     ORDENES_USUARIO,
@@ -39,6 +40,14 @@ function enteroPositivo(valor: unknown, porDefecto: number, maximo?: number): nu
     if (!Number.isFinite(n) || n < 1) return porDefecto;
     const entero = Math.floor(n);
     return maximo ? Math.min(entero, maximo) : entero;
+}
+
+/** Región efectiva para la consulta. El gerente usa SIEMPRE su región del token (ignora ?regionId por
+ *  seguridad); el superadmin usa la "lente" ?regionId si la mandó (si no, ve toda la plataforma). */
+function regionDeConsulta(req: Request): string | undefined {
+    if (req.usuarioPanel?.rolEquipo === 'gerente') return req.usuarioPanel.regionId ?? undefined;
+    const q = req.query.regionId;
+    return typeof q === 'string' && q.trim() ? q.trim() : undefined;
 }
 
 // =============================================================================
@@ -69,6 +78,8 @@ export async function listarUsuariosController(req: Request, res: Response): Pro
             orden,
             pagina: enteroPositivo(req.query.pagina, 1),
             porPagina: enteroPositivo(req.query.porPagina, POR_PAGINA_DEFAULT, POR_PAGINA_MAX),
+            rolSolicitante: req.usuarioPanel?.rolEquipo,
+            regionSolicitante: regionDeConsulta(req),
         });
 
         res.status(200).json({ success: true, message: 'Usuarios obtenidos', data: resultado });
@@ -90,7 +101,7 @@ export async function obtenerExpedienteController(req: Request, res: Response): 
     try {
         const { id } = req.params;
 
-        const expediente = await obtenerExpediente(id);
+        const expediente = await obtenerExpediente(id, req.usuarioPanel?.rolEquipo, regionDeConsulta(req));
         if (!expediente) {
             res.status(404).json({ success: false, message: 'Usuario no encontrado' });
             return;
@@ -104,6 +115,20 @@ export async function obtenerExpedienteController(req: Request, res: Response): 
             message: 'Error al obtener el usuario',
             error: error instanceof Error ? error.message : String(error),
         });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/usuarios/conteo   (super + gerente · total para el badge del menú)
+// =============================================================================
+
+export async function contarUsuariosController(req: Request, res: Response): Promise<void> {
+    try {
+        const total = await contarUsuarios(req.usuarioPanel?.rolEquipo, regionDeConsulta(req));
+        res.status(200).json({ success: true, message: 'Conteo obtenido', data: { total } });
+    } catch (error) {
+        console.error('Error en contarUsuariosController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener el conteo' });
     }
 }
 

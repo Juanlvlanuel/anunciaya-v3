@@ -37,14 +37,14 @@ cada tema. Tomado de `index.css`.
 
 | Utilidad | Para qué | Claro | Oscuro |
 |---|---|---|---|
-| `lienzo` | Fondo de la app (canvas) | `#e5f1ff` | `#0a0d16` |
-| `superficie` | Tarjetas, modales, paneles | `#ffffff` | `#16181d` |
-| `superficie-2` | Superficie alterna (zonas sutiles) | `#f7f9fc` | `#1c1f25` |
+| `lienzo` | Fondo de la app (canvas) | `#e5f1ff` | `#06070b` |
+| `superficie` | Tarjetas, modales, paneles | `#ffffff` | `#0d0e12` |
+| `superficie-2` | Superficie alterna (zonas sutiles) | `#f7f9fc` | `#14151a` |
 | `barra` | Header negro / barra superior | `#0e0f13` | `#0e0f13` (fija) |
-| `borde` | Bordes sutiles | `#e6e8ee` | `#2a2d34` |
-| `borde-fuerte` | Bordes marcados (botón secundario, paginación) | `#d7dae2` | `#353941` |
+| `borde` | Bordes (grosor 1.5px, ver §3) | `#d2d6df` | `#383c45` |
+| `borde-fuerte` | Bordes marcados (botón secundario, paginación) | `#bdc2ce` | `#474c57` |
 | `campo` | Fondo de inputs | `#f4f6fa` | `#1f232b` |
-| `campo-borde` | Borde de inputs | `#dfe3ea` | `#353941` |
+| `campo-borde` | Borde de inputs | `#c9ced9` | `#41454f` |
 | `texto` | Texto principal | `#0a0a0b` | `#f2f3f5` |
 | `texto-2` | Texto secundario | `#45454a` | `#a4a7af` |
 | `texto-3` | Terciario / labels | `#5f6168` | `#9499a1` |
@@ -61,7 +61,7 @@ cada tema. Tomado de `index.css`.
 **Variables sin utilidad** (se usan con `var()` en clases arbitrarias, p. ej. focus de inputs):
 - `--panel-hover` (marca 13%) → anillo de foco corto: `focus:[box-shadow:0_0_0_3px_var(--panel-hover)]`
 - `--panel-ring` (marca 32%) → anillo de foco amplio: `focus:[box-shadow:0_0_0_4px_var(--panel-ring)]`
-- `--panel-bg` (`#f5f6f8` / `#0c0c0e`) — fondo base alterno.
+- `--panel-bg` (`#f5f6f8` / `#050506`) — fondo base alterno.
 
 > **Regla de acento:** neutro (lienzo/superficie/texto) + **un** acento (`marca`). Nada de paletas
 > pastel saturadas. El `peligro` solo para destructivo; el `ok` solo para estados positivos.
@@ -87,8 +87,10 @@ cada tema. Tomado de `index.css`.
 | `rounded-[10px]` | Inputs y botones de diálogo (lo más común) |
 | `rounded-[9px]` | Botones de paginación, ítems de menú/dropdown |
 
-> Bordes ≤ 1px (`border` / `border-2` solo en casos puntuales como el input del código 2FA). Nada de
-> bordes gruesos tipo videojuego.
+> **Grosor de borde: 1.5px** — variable `--grosor-borde` en `index.css`, que sobrescribe (sin `@layer`,
+> para ganar sobre Tailwind) las utilidades `border` / `border-t/b/l/r` / `border-x/y` y `lg:border-t`
+> de **todo** el Panel desde un solo lugar. `border-2`+ se reserva para casos puntuales (ej. el input
+> del código 2FA). Sin bordes gruesos tipo videojuego.
 
 ---
 

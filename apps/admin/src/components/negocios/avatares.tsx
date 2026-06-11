@@ -8,6 +8,7 @@
  * Ubicación: apps/admin/src/components/negocios/avatares.tsx
  */
 
+import { useState } from 'react';
 import { UserPlus } from 'lucide-react';
 
 const PALETA = ['#2563eb', '#0e7c66', '#b3541e', '#5b5bd6', '#b03a86', '#0e7490'];
@@ -25,20 +26,26 @@ export function iniciales(nombre: string): string {
   return ((p[0]?.[0] ?? '') + (p[1]?.[0] ?? '')).toUpperCase() || '?';
 }
 
-/** Avatar cuadrado del negocio (fondo tenue del color, texto del color). */
-export function AvatarNegocio({ nombre, tam = 38 }: { nombre: string; tam?: number }) {
-  const color = colorDeNombre(nombre);
+/** Avatar cuadrado del negocio: el LOGO real si existe (con fallback a iniciales si la carga
+ *  falla), si no las iniciales sobre el color tenue. Borde sutil para dar definición al logo. */
+export function AvatarNegocio({ nombre, logoUrl, tam = 38 }: { nombre: string; logoUrl?: string | null; tam?: number }) {
+  const [error, setError] = useState(false);
+  if (logoUrl && !error) {
+    return (
+      <img
+        src={logoUrl}
+        alt={nombre}
+        onError={() => setError(true)}
+        className="shrink-0 rounded-full border border-borde bg-superficie object-cover"
+        style={{ width: tam, height: tam }}
+      />
+    );
+  }
+  // Sin logo: mismo estilo que el avatar de usuario (círculo sólido + iniciales blancas).
   return (
     <span
-      className="inline-flex shrink-0 items-center justify-center font-semibold"
-      style={{
-        width: tam,
-        height: tam,
-        borderRadius: Math.round(tam * 0.26),
-        fontSize: Math.round(tam * 0.34),
-        background: `color-mix(in srgb, ${color} 16%, var(--panel-surface))`,
-        color,
-      }}
+      className="inline-flex shrink-0 items-center justify-center rounded-full font-semibold text-white"
+      style={{ width: tam, height: tam, fontSize: Math.round(tam * 0.36), background: colorDeNombre(nombre) }}
     >
       {iniciales(nombre)}
     </span>

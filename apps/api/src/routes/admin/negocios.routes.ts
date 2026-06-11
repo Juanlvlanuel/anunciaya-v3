@@ -83,7 +83,9 @@ router.post('/:id/suspender', requierePanel(['superadmin', 'gerente']), suspende
 router.post('/:id/reactivar', requierePanel(['superadmin', 'gerente']), reactivarNegocioController);
 router.post('/:id/reasignar-vendedor', requierePanel(['superadmin', 'gerente']), reasignarVendedorController);
 // Marcar pagado: superadmin + gerente (alcance de region en el service). Cancelar: SOLO superadmin (Parada 2).
-router.post('/:id/marcar-pagado', requierePanel(['superadmin', 'gerente']), marcarPagadoController);
+// Registrar pago: super + gerente (cualquier negocio de su alcance). El VENDEDOR también, pero
+// SOLO en sus negocios MANUALES (sin tarjeta) y sin cortesía — el service lo blinda.
+router.post('/:id/marcar-pagado', requierePanel(['superadmin', 'gerente', 'vendedor']), marcarPagadoController);
 router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioController);
 // Editar el correo del dueño (rescate de alta manual): superadmin + gerente (alcance en el service).
 router.patch('/:id/correo-dueno', requierePanel(['superadmin', 'gerente']), cambiarCorreoDuenoController);

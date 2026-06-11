@@ -6,8 +6,9 @@
  * instante con un placeholder de la fila + prefetch en hover; React Query rellena.
  *
  * Layout: cabecera (avatar + nombre/correo + badge de estado) / cuerpo 2 columnas:
- *   - Izquierda: Acceso (diagnóstico) · Identidad · Actividad
- *   - Derecha:   Roles y actividad · Tipo de cuenta · Moderación
+ *   - Izquierda: Acceso (diagnóstico + métodos de login/2FA) · Identidad
+ *   - Derecha:   Roles (sombreros + modo comercial + id) · Actividad
+ * Las acciones (soporte + moderación) van en el footer.
  *
  * SIN footer de acciones: el soporte (rescates) y la moderación (suspender/reactivar)
  * llegan en la Fase 2. Reusa los helpers de presentación de FichaNegocio.
@@ -22,13 +23,14 @@ import {
   User,
   Clock,
   Layers,
-  BadgeCheck,
   CheckCircle2,
   AlertTriangle,
   Unlock,
   Mail,
   Ban,
   PlayCircle,
+  Copy,
+  Check,
 } from 'lucide-react';
 import {
   useUsuarioExpediente,
@@ -73,6 +75,7 @@ function placeholderDesdeFila(f: UsuarioFila): UsuarioExpediente {
     fechaNacimiento: null,
     createdAt: f.createdAt,
     ultimaConexion: f.ultimaConexion,
+    ultimoAccesoPanel: null,
     estado: f.estado,
     perfil: f.perfil,
     membresia: 1,
@@ -112,24 +115,41 @@ function placeholderDesdeFila(f: UsuarioFila): UsuarioExpediente {
   };
 }
 
-const GENERO_LABEL: Record<string, string> = {
-  masculino: 'Masculino',
-  femenino: 'Femenino',
-  otro: 'Otro',
-  no_especificado: 'No especificado',
-};
-
 const ROL_EQUIPO_LABEL: Record<string, string> = {
   superadmin: 'SuperAdmin',
-  gerente: 'Gerente',
+  gerente: 'Gerente regional',
   vendedor: 'Vendedor',
 };
 
-const FMT_NUM = new Intl.NumberFormat('es-MX');
-
-function capitalizar(s: string | null): string {
-  if (!s) return '—';
-  return s.charAt(0).toUpperCase() + s.slice(1);
+/** Dato con botón de copiar al portapapeles (correo, id…). `mono` para identificadores técnicos. */
+function DatoCopiable({ etiqueta, valor, mono = false, testid }: { etiqueta: string; valor: string; mono?: boolean; testid?: string }) {
+  const [copiado, setCopiado] = useState(false);
+  const copiar = () => {
+    navigator.clipboard?.writeText(valor).then(
+      () => {
+        setCopiado(true);
+        setTimeout(() => setCopiado(false), 1500);
+      },
+      () => {},
+    );
+  };
+  return (
+    <Dato
+      etiqueta={etiqueta}
+      valor={
+        <button
+          type="button"
+          data-testid={testid}
+          onClick={copiar}
+          title={valor}
+          className={`inline-flex max-w-[200px] items-center gap-1.5 rounded-[7px] border border-borde bg-superficie px-2 py-0.5 text-texto-2 transition hover:bg-marca-suave ${mono ? 'font-mono text-[11px]' : 'text-[12px]'}`}
+        >
+          <span className="truncate">{valor}</span>
+          {copiado ? <Check size={13} className="shrink-0 text-ok" /> : <Copy size={13} className="shrink-0 text-texto-4" />}
+        </button>
+      }
+    />
+  );
 }
 
 /** Chip sobrio (pill + punto de color) para valores binarios (verificado / no). */
@@ -193,19 +213,15 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
       <div className="flex h-full min-h-0 flex-col" data-testid="ficha-usuario">
         {/* Cabecera */}
         <div className="flex shrink-0 items-center gap-3 border-b border-borde px-5 py-4">
-          {u.avatarUrl ? (
-            <button
-              type="button"
-              data-testid="ficha-usuario-avatar"
-              onClick={() => setVerAvatar(true)}
-              aria-label="Ver foto de perfil"
-              className="shrink-0 rounded-full transition hover:opacity-90 focus:outline-none focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
-            >
-              <AvatarUsuario nombre={u.nombreCompleto || u.correo} avatarUrl={u.avatarUrl} tam={46} />
-            </button>
-          ) : (
+          <button
+            type="button"
+            data-testid="ficha-usuario-avatar"
+            onClick={() => setVerAvatar(true)}
+            aria-label="Ver foto de perfil"
+            className="shrink-0 rounded-full transition hover:opacity-90 focus:outline-none focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
+          >
             <AvatarUsuario nombre={u.nombreCompleto || u.correo} avatarUrl={u.avatarUrl} tam={46} />
-          )}
+          </button>
           <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
             <span className="truncate text-[17px] font-bold tracking-[-0.2px] text-texto" data-testid="ficha-usuario-nombre">
               {u.nombreCompleto || '(Sin nombre)'}
@@ -270,6 +286,10 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
                   <ChipBinario texto={d.correoVerificado ? 'Correo verificado' : 'Correo sin verificar'} activo={d.correoVerificado} testid="chip-correo-verif" />
                   {d.bloqueadoPorIntentos && <ChipBinario texto="Bloqueado por intentos" activo={false} testid="chip-bloqueado" />}
                   {d.requiereCambioContrasena && <ChipBinario texto="Debe cambiar contraseña" activo={false} testid="chip-cambio-contrasena" />}
+                  {u.autenticadoPorGoogle && <ChipBinario texto="Google" activo testid="chip-google" />}
+                  {u.autenticadoPorFacebook && <ChipBinario texto="Facebook" activo testid="chip-facebook" />}
+                  {u.dobleFactorHabilitado && <ChipBinario texto="2FA app" activo testid="chip-2fa-app" />}
+                  {u.panel2faHabilitado && <ChipBinario texto="2FA Panel" activo testid="chip-2fa-panel" />}
                 </div>
                 {d.intentosFallidos > 0 && (
                   <p className="mt-2 text-[11.5px] text-texto-4">Intentos fallidos: {d.intentosFallidos}</p>
@@ -278,18 +298,17 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
 
               <Seccion titulo="Identidad" icono={User}>
                 <Dato etiqueta="Nombre" valor={u.nombreCompleto || '—'} />
-                <Dato etiqueta="Correo" valor={u.correo} />
+                <DatoCopiable etiqueta="Correo" valor={u.correo} testid="ficha-usuario-copiar-correo" />
                 <Dato etiqueta="Alias" valor={u.alias ?? '—'} />
                 <Dato etiqueta="Teléfono" valor={u.telefono ?? '—'} />
                 <Dato etiqueta="Ciudad" valor={u.ciudad ?? '—'} />
-                <Dato etiqueta="Género" valor={u.genero ? (GENERO_LABEL[u.genero] ?? u.genero) : '—'} />
                 <Dato etiqueta="Nacimiento" valor={fecha(u.fechaNacimiento)} />
               </Seccion>
             </div>
 
             {/* Columna derecha */}
             <div className="flex flex-col gap-3">
-              <Seccion titulo="Roles y actividad" icono={Layers}>
+              <Seccion titulo="Roles" icono={Layers}>
                 {sinSombrerosEspeciales && <Dato etiqueta="Rol" valor="Cliente" />}
                 {s.esDueno && <Dato etiqueta="Dueño de negocio" valor={s.negocioNombre ?? 'Sí'} />}
                 {s.esEmpleado && <Dato etiqueta="Empleado" valor={`En ${s.totalEmpleos} ${s.totalEmpleos === 1 ? 'negocio' : 'negocios'}`} />}
@@ -300,38 +319,14 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
                   />
                 )}
                 {s.rolEquipo && <Dato etiqueta="Rol de equipo" valor={ROL_EQUIPO_LABEL[s.rolEquipo] ?? s.rolEquipo} />}
-                <Dato
-                  etiqueta="Puntos (CardYA)"
-                  valor={
-                    s.totalBilleterasPuntos > 0
-                      ? `${FMT_NUM.format(s.saldoPuntos)} pts · ${s.totalBilleterasPuntos} ${s.totalBilleterasPuntos === 1 ? 'billetera' : 'billeteras'}`
-                      : 'Sin puntos'
-                  }
-                />
-                <Dato etiqueta="Reseñas escritas" valor={FMT_NUM.format(s.totalResenas)} />
-              </Seccion>
-
-              <Seccion titulo="Tipo de cuenta" icono={BadgeCheck}>
-                <Dato etiqueta="Perfil" valor={capitalizar(u.perfil)} />
-                <Dato etiqueta="Modo activo" valor={capitalizar(u.modoActivo)} />
-                <Dato etiqueta="Modo comercial" valor={<ChipBinario texto={u.tieneModoComercial ? 'Disponible' : 'No'} activo={u.tieneModoComercial} testid="chip-modo-comercial" />} />
-                <div className="mt-2 flex flex-wrap gap-1.5">
-                  <ChipBinario texto="Correo" activo={u.correoVerificado} />
-                  <ChipBinario texto="Teléfono" activo={u.telefonoVerificado} />
-                  {u.autenticadoPorGoogle && <ChipBinario texto="Google" activo />}
-                  {u.autenticadoPorFacebook && <ChipBinario texto="Facebook" activo />}
-                  <ChipBinario texto="2FA app" activo={u.dobleFactorHabilitado} />
-                  {u.panel2faHabilitado && <ChipBinario texto="2FA Panel" activo />}
-                </div>
+                <Dato etiqueta="Modo comercial" valor={<ChipBinario texto={u.tieneModoComercial ? 'Disponible' : 'No disponible'} activo={u.tieneModoComercial} testid="chip-modo-comercial" />} />
+                <DatoCopiable etiqueta="ID de cuenta" valor={u.id} mono testid="ficha-usuario-copiar-id" />
               </Seccion>
 
               <Seccion titulo="Actividad" icono={Clock}>
                 <Dato etiqueta="Última conexión" valor={fecha(u.ultimaConexion)} />
+                {esEquipo && <Dato etiqueta="Último acceso al Panel" valor={fecha(u.ultimoAccesoPanel)} />}
                 <Dato etiqueta="Registro" valor={fecha(u.createdAt)} />
-                <Dato
-                  etiqueta="Reputación"
-                  valor={u.totalCalificaciones > 0 ? `${u.calificacionPromedio} ★ (${u.totalCalificaciones})` : 'Sin calificaciones'}
-                />
               </Seccion>
             </div>
           </div>
@@ -463,6 +458,7 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
       alt={u.nombreCompleto || u.correo}
       abierto={verAvatar}
       onCerrar={() => setVerAvatar(false)}
+      fallback={<AvatarUsuario nombre={u.nombreCompleto || u.correo} avatarUrl={null} tam={200} />}
     />
     </>
   );

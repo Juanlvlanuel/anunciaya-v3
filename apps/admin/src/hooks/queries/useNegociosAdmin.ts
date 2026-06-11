@@ -206,12 +206,16 @@ export function useReasignarVendedor() {
 
 /** Marcar pagado (SOLO superadmin). Con suscripción empuja el próximo cobro a `hasta`. */
 export function useMarcarPagado() {
+  const qc = useQueryClient();
   const refrescar = useRefrescarNegocio();
   return useMutation({
     mutationFn: (vars: { id: string } & negociosService.DatosMarcarPagado) =>
       negociosService.marcarPagado(vars.id, { hasta: vars.hasta, concepto: vars.concepto, monto: vars.monto, meses: vars.meses }),
     onSuccess: (res, { id }) => {
       refrescar(id);
+      // "Registrar pago" crea un evento `pago_manual` en la bitácora financiera (Suscripciones):
+      // invalidarla para que el pago aparezca ahí sin recargar la página.
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });
       avisarResultado(res, 'Membresía marcada como pagada');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo marcar como pagada')),

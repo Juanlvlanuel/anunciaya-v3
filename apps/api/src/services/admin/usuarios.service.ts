@@ -8,10 +8,16 @@
  *   2. obtenerExpediente  — ficha-RESUMEN de una persona: sus "sombreros" (dueño/empleado/vendedor/
  *                           equipo) + contadores (puntos, reseñas) + diagnóstico de acceso.
  *
- * ALCANCE: superadmin + gerente ven TODOS los usuarios (sin filtro regional — los usuarios-cliente
- * no tienen región hoy; ver Panel_Admin.md §Cimientos). El control de acceso lo hace
- * `requierePanel(['superadmin','gerente'])` en la ruta. El filtro global de región (?regionId) NO
- * aplica a usuarios: se ignora a propósito.
+ * ALCANCE (visibilidad por jerarquía + región, ver `condicionVisibilidad`):
+ *   - superadmin → ve a TODOS; con la LENTE de región (?regionId) acota a esa región (dueños/gerentes
+ *                  de sucursal de negocios de la región + vendedores + el gerente regional de la región;
+ *                  los clientes, sin región, se ven todos).
+ *   - gerente    → NUNCA ve superadmin ni gerentes (ni a sí mismo). Ve los CLIENTES puros (sin negocio)
+ *                  de toda la plataforma (no tienen región estructurada), y los COMERCIANTES y VENDEDORES
+ *                  SOLO de SU región (comerciante: por la sucursal MATRIZ de su negocio, igual que el
+ *                  módulo Negocios; vendedor: por embajador_ciudades, igual que panel.middleware).
+ * El acceso a la sección lo controla `requierePanel(['superadmin','gerente'])` en la ruta. La lente
+ * ?regionId solo la usa el superadmin; el gerente usa SIEMPRE la región de su token (ignora el query).
  *
  * SEGURIDAD: este service NUNCA expone secretos (contrasena_hash, *_secreto, codigo_verificacion).
  * Solo devuelve booleanos derivados (tieneContrasena, etc.).
@@ -25,7 +31,7 @@
  * Ubicación: apps/api/src/services/admin/usuarios.service.ts
  */
 
-import { and, eq, asc, desc, ilike, or, isNotNull, count, sql, type SQL } from 'drizzle-orm';
+import { and, eq, asc, desc, ilike, or, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { usuarios, negocios } from '../../db/schemas/schema.js';
 
@@ -37,8 +43,10 @@ import { usuarios, negocios } from '../../db/schemas/schema.js';
 export const ESTADOS_USUARIO = ['activo', 'suspendido', 'inactivo'] as const;
 export type EstadoUsuario = (typeof ESTADOS_USUARIO)[number];
 
-/** "Tipos" para el filtro de la lista (no son mutuamente excluyentes; se aplican como predicado). */
-export const TIPOS_USUARIO = ['personal', 'comercial', 'equipo', 'vendedor'] as const;
+/** "Roles" para el filtro de la lista (no son mutuamente excluyentes; se aplican como predicado).
+ *  Coinciden con la columna "Rol": Usuario (cliente puro), Comerciante (dueño), Gerente de sucursal
+ *  (encargado), Vendedor, Gerente (del Panel). */
+export const TIPOS_USUARIO = ['usuario', 'comerciante', 'gerente_sucursal', 'vendedor', 'gerente'] as const;
 export type TipoUsuario = (typeof TIPOS_USUARIO)[number];
 
 /** Opciones de orden de la tabla (corre en servidor por el paginado). */
@@ -59,6 +67,8 @@ export interface FiltrosUsuarios {
     orden?: OrdenUsuarios;
     pagina: number;        // 1-based
     porPagina: number;
+    rolSolicitante?: string;          // rol del que consulta (para la visibilidad por jerarquía)
+    regionSolicitante?: string | null; // región del que consulta (acota los vendedores para el gerente)
 }
 
 /** Conteos por estado para los chips (reflejan los filtros activos EXCEPTO el de estado).
@@ -79,7 +89,8 @@ export interface UsuarioFila {
     estado: string;           // activo | suspendido | inactivo
     rolEquipo: string | null; // superadmin | gerente | vendedor | null
     esEmbajador: boolean;
-    esDueno: boolean;         // tiene negocio asociado
+    esDueno: boolean;            // ligado a un negocio (dueño o gerente de sucursal)
+    esGerenteSucursal: boolean;  // tiene sucursal asignada → es encargado, NO el dueño
     ultimaConexion: string | null;
     createdAt: string | null;
 }
@@ -134,7 +145,8 @@ export interface UsuarioExpediente {
     genero: string | null;
     fechaNacimiento: string | null;
     createdAt: string | null;
-    ultimaConexion: string | null;
+    ultimaConexion: string | null;       // última actividad en la app AnunciaYA (Socket.io)
+    ultimoAccesoPanel: string | null;    // última vez que abrió el Panel (solo cuentas de equipo)
     // Estado administrativo (lo muestra el badge de la cabecera de la ficha)
     estado: string;
     // Tipo de cuenta
@@ -166,17 +178,66 @@ function nombreCompleto(nombre: string | null, apellidos: string | null): string
     return `${nombre ?? ''} ${apellidos ?? ''}`.trim();
 }
 
-/** Predicado del filtro "tipo" (los tipos no son exclusivos; cada uno es un EXISTS lógico). */
+/** Condición de visibilidad de la lista según QUIÉN consulta:
+ *  - superadmin SIN lente de región → ve a TODOS (undefined).
+ *  - superadmin CON lente (?regionId) → ve esa región completa: dueños/gerentes de sucursal de negocios
+ *    de la región, vendedores de la región, el GERENTE REGIONAL de la región, y los clientes (sin
+ *    región) todos. No oculta nada por jerarquía: es el super "viendo como" esa región.
+ *  - gerente → NUNCA superadmin ni gerentes (ni a sí mismo); clientes todos; dueños/gerentes de sucursal
+ *    y vendedores SOLO de SU región (la de su token). Gerente sin región: solo clientes.
+ *  Las deducciones de región son las mismas del resto del Panel (negocio → sucursal MATRIZ → ciudad;
+ *  vendedor → embajador_ciudades; gerente regional → usuarios.region_id). */
+function condicionVisibilidad(rolSolicitante?: string, regionSolicitante?: string | null): SQL | undefined {
+    // Cliente "puro": sin rol de equipo y sin negocio → no tiene región, siempre visible.
+    const clientePuro = and(isNull(usuarios.rolEquipo), isNull(usuarios.negocioId));
+    // Dueño o gerente de sucursal cuyo negocio (sucursal MATRIZ) está en la región dada.
+    const negocioEnRegion = (region: string): SQL => sql`(${usuarios.rolEquipo} IS NULL AND ${usuarios.negocioId} IS NOT NULL AND EXISTS (
+        SELECT 1 FROM negocio_sucursales ns
+        JOIN ciudades c ON c.id = ns.ciudad_id
+        WHERE ns.negocio_id = usuarios.negocio_id AND ns.es_principal = true AND c.region_id = ${region}
+    ))`;
+    // Vendedor que cubre alguna ciudad de la región dada.
+    const vendedorEnRegion = (region: string): SQL => sql`(${usuarios.rolEquipo} = 'vendedor' AND EXISTS (
+        SELECT 1 FROM embajadores e
+        JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+        JOIN ciudades c ON c.id = ec.ciudad_id
+        WHERE e.usuario_id = usuarios.id AND c.region_id = ${region}
+    ))`;
+
+    if (rolSolicitante === 'gerente') {
+        if (!regionSolicitante) return clientePuro;
+        return or(clientePuro, negocioEnRegion(regionSolicitante), vendedorEnRegion(regionSolicitante));
+    }
+
+    if (rolSolicitante === 'superadmin' && regionSolicitante) {
+        // Lente de región del super: la región completa, incluido SU gerente regional.
+        return or(
+            clientePuro,
+            negocioEnRegion(regionSolicitante),
+            vendedorEnRegion(regionSolicitante),
+            and(eq(usuarios.rolEquipo, 'gerente'), eq(usuarios.regionId, regionSolicitante)),
+        );
+    }
+
+    return undefined; // superadmin sin lente: toda la plataforma
+}
+
+/** Predicado del filtro "rol" (no exclusivos entre sí; cada uno es un EXISTS lógico). */
 function condicionTipo(tipo?: TipoUsuario): SQL | undefined {
     switch (tipo) {
-        case 'personal':
-            return eq(usuarios.perfil, 'personal');
-        case 'comercial':
-            return eq(usuarios.perfil, 'comercial');
-        case 'equipo':
-            return isNotNull(usuarios.rolEquipo);
+        case 'usuario':
+            // Cliente "puro": sin rol de equipo y sin negocio propio.
+            return and(isNull(usuarios.rolEquipo), isNull(usuarios.negocioId));
+        case 'comerciante':
+            // Dueño real: ligado a un negocio pero SIN sucursal asignada.
+            return and(isNotNull(usuarios.negocioId), isNull(usuarios.sucursalAsignada));
+        case 'gerente_sucursal':
+            // Encargado de una sucursal (no es el dueño).
+            return isNotNull(usuarios.sucursalAsignada);
         case 'vendedor':
-            return eq(usuarios.esEmbajador, true);
+            return eq(usuarios.rolEquipo, 'vendedor');
+        case 'gerente':
+            return eq(usuarios.rolEquipo, 'gerente');
         default:
             return undefined;
     }
@@ -221,12 +282,14 @@ function ordenarPor(orden?: OrdenUsuarios): SQL[] {
 // =============================================================================
 
 export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsuarios> {
+    const condVisibilidad = condicionVisibilidad(filtros.rolSolicitante, filtros.regionSolicitante);
     const condBusqueda = condicionBusqueda(filtros.busqueda);
     const condTipo = condicionTipo(filtros.tipo);
 
-    // BASE = búsqueda + tipo (SIN estado). Sobre esta base se calculan los conteos por estado,
-    // para que cada chip cuadre con lo demás filtrado.
+    // BASE = visibilidad + búsqueda + tipo (SIN estado). Sobre esta base se calculan los conteos por
+    // estado, para que cada chip cuadre con lo demás filtrado (y NO cuente cuentas que no se ven).
     const base: SQL[] = [];
+    if (condVisibilidad) base.push(condVisibilidad);
     if (condBusqueda) base.push(condBusqueda);
     if (condTipo) base.push(condTipo);
 
@@ -270,6 +333,7 @@ export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsu
             rolEquipo: usuarios.rolEquipo,
             esEmbajador: usuarios.esEmbajador,
             negocioId: usuarios.negocioId,
+            sucursalAsignada: usuarios.sucursalAsignada,
             ultimaConexion: usuarios.ultimaConexion,
             createdAt: usuarios.createdAt,
         })
@@ -290,6 +354,7 @@ export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsu
         rolEquipo: f.rolEquipo ?? null,
         esEmbajador: f.esEmbajador,
         esDueno: f.negocioId != null,
+        esGerenteSucursal: f.sucursalAsignada != null,
         ultimaConexion: f.ultimaConexion ?? null,
         createdAt: f.createdAt ?? null,
     }));
@@ -298,10 +363,23 @@ export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsu
 }
 
 // =============================================================================
+// CONTEO GENERAL (badge del menú) — total de usuarios sin filtros
+// =============================================================================
+
+/** Total de usuarios para el contador del menú (respeta la visibilidad por jerarquía y región del solicitante). */
+export async function contarUsuarios(rolSolicitante?: string, regionSolicitante?: string | null): Promise<number> {
+    const [{ total }] = await db
+        .select({ total: count() })
+        .from(usuarios)
+        .where(condicionVisibilidad(rolSolicitante, regionSolicitante));
+    return Number(total);
+}
+
+// =============================================================================
 // 2. EXPEDIENTE 360 (RESUMEN)
 // =============================================================================
 
-export async function obtenerExpediente(usuarioId: string): Promise<UsuarioExpediente | null> {
+export async function obtenerExpediente(usuarioId: string, rolSolicitante?: string, regionSolicitante?: string | null): Promise<UsuarioExpediente | null> {
     // Usuario base + nombre del negocio (si es dueño). NO se selecciona ningún secreto;
     // de contrasena_hash solo se deriva el booleano `tieneContrasena`.
     const [u] = await db
@@ -318,6 +396,7 @@ export async function obtenerExpediente(usuarioId: string): Promise<UsuarioExped
             fechaNacimiento: usuarios.fechaNacimiento,
             createdAt: usuarios.createdAt,
             ultimaConexion: usuarios.ultimaConexion,
+            ultimoAccesoPanel: usuarios.ultimoAccesoPanel,
             estado: usuarios.estado,
             perfil: usuarios.perfil,
             membresia: usuarios.membresia,
@@ -343,9 +422,11 @@ export async function obtenerExpediente(usuarioId: string): Promise<UsuarioExped
         })
         .from(usuarios)
         .leftJoin(negocios, eq(negocios.id, usuarios.negocioId))
-        .where(eq(usuarios.id, usuarioId))
+        .where(and(eq(usuarios.id, usuarioId), condicionVisibilidad(rolSolicitante, regionSolicitante)))
         .limit(1);
 
+    // Sin fila = no existe O el solicitante no tiene permiso de verlo (gerente ante super/gerente/
+    // vendedor de otra región). En ambos casos respondemos 404 (no se filtra la existencia).
     if (!u) return null;
 
     // Contadores de los sombreros en UNA sola ida a BD (subqueries escalares).
@@ -403,6 +484,7 @@ export async function obtenerExpediente(usuarioId: string): Promise<UsuarioExped
         fechaNacimiento: u.fechaNacimiento ?? null,
         createdAt: u.createdAt ?? null,
         ultimaConexion: u.ultimaConexion ?? null,
+        ultimoAccesoPanel: u.ultimoAccesoPanel ?? null,
         estado: u.estado,
         perfil: u.perfil,
         membresia: u.membresia,

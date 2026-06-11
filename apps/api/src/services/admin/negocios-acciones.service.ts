@@ -30,10 +30,11 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
+import { negocios, embajadores, usuarios, pagosMembresia, eventosPago } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
+import { resolverEmbajadorId } from './negocios.service.js';
 import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion } from '../notificaciones.service.js';
 import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
 import { randomInt } from 'crypto';
@@ -120,6 +121,15 @@ async function cargarNegocioConAlcance(
         `)).rows as Array<{ tiene_mando: boolean }>;
         if (!filas[0]?.tiene_mando) {
             return { ok: false, status: 403, mensaje: 'El negocio no está bajo tu mando: su sucursal matriz no está en tu región' };
+        }
+    }
+
+    // VENDEDOR: solo sobre los negocios de SU cartera (mismo embajador atribuido). Sin esto, un
+    // vendedor podría actuar sobre cualquier negocio (el `if gerente` no lo cubre).
+    if (panel.rolEquipo === 'vendedor') {
+        const embId = await resolverEmbajadorId(panel.usuarioId);
+        if (!embId || neg.embajadorId !== embId) {
+            return { ok: false, status: 403, mensaje: 'El negocio no está en tu cartera.' };
         }
     }
 
@@ -425,6 +435,18 @@ export async function marcarPagado(
         return { ok: false, status: 409, mensaje: 'El negocio está cancelado/archivado; no se puede marcar pagado.' };
     }
 
+    // El VENDEDOR solo registra cobros en EFECTIVO de sus negocios MANUALES (sin tarjeta) y nunca
+    // cortesía: los de tarjeta los cobra Stripe (no debe tocarlos) y regalar membresía es de
+    // gerente/superadmin. Su cartera ya la valida cargarNegocioConAlcance.
+    if (panel.rolEquipo === 'vendedor') {
+        if (neg.stripeSubscriptionId) {
+            return { ok: false, status: 403, mensaje: 'Este negocio cobra con tarjeta (Stripe); no puedes registrarle un pago manual.' };
+        }
+        if (opciones.concepto === 'cortesia') {
+            return { ok: false, status: 403, mensaje: 'Solo un gerente o administrador puede registrar una cortesía.' };
+        }
+    }
+
     const tieneSuscripcion = !!neg.stripeSubscriptionId;
 
     // Guard v1 (Opción A): con suscripción, "Marcar pagado" SOLO opera sobre negocios al
@@ -473,13 +495,27 @@ export async function marcarPagado(
             });
 
         // Registro contable/histórico del pago manual (primer ladrillo de la bitácora).
-        await tx.insert(pagosMembresia).values({
+        const [pagoManual] = await tx.insert(pagosMembresia).values({
             negocioId,
             monto: montoRegistrado != null ? String(montoRegistrado) : null,
             concepto: opciones.concepto,
             mesesCubiertos: opciones.meses ?? null,
             periodoHasta: opciones.hasta,
             registradoPor: panel.usuarioId,
+        }).returning({ id: pagosMembresia.id });
+
+        // Gemelo en la bitácora financiera global (libro mayor), en la MISMA transacción: el
+        // registro contable y el del libro mayor van juntos o no van. referencia_id apunta a la
+        // fila de pagos_membresia. Cortesía = sin monto. (origen='manual' → stripe_event_id NULL.)
+        await tx.insert(eventosPago).values({
+            negocioId,
+            tipo: 'pago_manual',
+            origen: 'manual',
+            monto: montoRegistrado != null ? String(montoRegistrado) : null,
+            fechaEvento: ahora,
+            actorId: panel.usuarioId,
+            referenciaId: pagoManual?.id ?? null,
+            metadata: { concepto: opciones.concepto, meses: opciones.meses ?? null, hasta: opciones.hasta, metodoCobro: nuevoMetodoCobro },
         });
 
         return actualizado;

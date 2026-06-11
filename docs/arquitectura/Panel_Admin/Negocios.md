@@ -134,8 +134,9 @@ Si haces clic en un renglón, se abre la **ficha** — el expediente del negocio
 - **Dueño de la cuenta:** nombre, correo y teléfono del dueño (con un botón para corregir
   el correo, si tienes permiso).
 - **Negocio:** ubicación, dirección, sitio web, si terminó su onboarding.
-- **Footer con las acciones** (registrar pago, pausar, etc.), que aparece **solo si tu rol
-  puede actuar**. El vendedor no ve este footer: para él la ficha es de pura lectura.
+- **Footer con las acciones** (registrar pago, pausar, etc.). Super/gerente ven todas; el
+  **vendedor solo ve "Registrar pago"** y únicamente en sus negocios de **método manual** (el
+  resto de la ficha es de lectura para él).
 
 ---
 
@@ -151,7 +152,7 @@ región" o "su cartera", puede pero solo dentro de su territorio:
 | Ver sucursales e historial de pagos | Sí | Su región | Su cartera |
 | Filtrar por vendedor | Sí | Su región | — |
 | **Dar de alta un negocio (efectivo)** | Sí | Su región | Su región |
-| **Registrar un pago** | Sí | Su región | — |
+| **Registrar un pago** | Sí | Su región | Sus negocios manuales |
 | **Corregir un pago** del historial | Sí | Su región | — |
 | **Pausar** una membresía | Sí | Su región | — |
 | **Reactivar** una membresía | Sí | Su región | — |
@@ -159,8 +160,9 @@ región" o "su cartera", puede pero solo dentro de su territorio:
 | **Corregir el correo** del dueño | Sí | Su región | — |
 | **Cancelar** (dar de baja) un negocio | **Solo él** | — | — |
 
-En resumen: el **vendedor solo ve y da de alta**; el **gerente administra su región**; el
-**superadmin hace todo**, y **cancelar es exclusivo del superadmin**.
+En resumen: el **vendedor ve, da de alta y registra pagos en efectivo de sus negocios manuales**
+(no toca los de tarjeta ni da cortesías); el **gerente administra su región**; el **superadmin
+hace todo**, y **cancelar es exclusivo del superadmin**.
 
 ---
 
@@ -373,7 +375,7 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/:id/sucursales[/:sucursalId]` | GET | super · gerente · vendedor | por alcance |
 | `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance; `?limite=N` → los N más recientes (paginación del historial) |
 | `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente |
-| `/negocios/:id/marcar-pagado` | POST | super · gerente | gerente=su región |
+| `/negocios/:id/marcar-pagado` | POST | super · gerente · vendedor | gerente=su región; **vendedor=solo sus negocios manuales, sin cortesía** (los de tarjeta los cobra Stripe) |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
 | `/negocios/:id/reactivar` | POST | super · gerente | motivo opcional |
 | `/negocios/:id/reasignar-vendedor` | POST | super · gerente | gerente: el vendedor nuevo debe cubrir su región |
@@ -412,7 +414,9 @@ ignoran el query siempre.
   `trial_end` (la tarjeta retoma sola), `metodo_cobro='tarjeta'`, **guard**: solo si está
   `al_corriente` (si no → 409). Sin suscripción → solo BD, `metodo_cobro='manual'`. Concepto
   efectivo/transferencia (con monto) o cortesía (sin monto). Fecha futura ≤ 2 años. Un negocio
-  archivado no se revive aquí (409).
+  archivado no se revive aquí (409). **El vendedor** puede usarlo solo en **sus** negocios
+  **manuales** (sin suscripción → 403 si tiene tarjeta) y **sin cortesía** (→ 403); su cartera la
+  valida `cargarNegocioConAlcance` (`embajadorId` del negocio = su embajador).
 - **Pausar** (`suspender`): `activo=false` + `estado_admin='suspendido'`; pausa el cobro en Stripe
   (`pause_collection 'void'`); notifica al dueño. Motivo obligatorio. 409 si ya está suspendido/archivado.
 - **Reactivar**: revierte (`activo=true` + `estado_admin='activo'`); reanuda Stripe; limpia el aviso.
@@ -462,4 +466,4 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 
 ---
 
-*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional y la paginación del historial de pagos.*
+*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos y "Registrar pago" para el vendedor en sus negocios manuales.*

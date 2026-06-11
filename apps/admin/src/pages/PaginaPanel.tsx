@@ -8,12 +8,14 @@
  * Ubicación: apps/admin/src/pages/PaginaPanel.tsx
  */
 
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
 import { useFiltroRegion } from '../stores/useFiltroRegion';
 import { useEsEscritorio } from '../hooks/useEsEscritorio';
 import { useConteoNegocios } from '../hooks/queries/useNegociosAdmin';
+import { useConteoUsuarios } from '../hooks/queries/useUsuariosAdmin';
+import { useContadorPanel } from '../stores/useContadorPanel';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
 import { iconoDeSeccion } from '../config/iconosPanel';
 import { itemsParaRol, etiquetaDe, type RolPanel } from '../data/menuPanel';
@@ -22,6 +24,7 @@ import { LayoutMovil } from '../components/shell/LayoutMovil';
 import PaginaSeguridad from './PaginaSeguridad';
 import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
 import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
+import { SeccionSuscripciones } from '../components/suscripciones/SeccionSuscripciones';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -41,6 +44,16 @@ function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: 
   );
 }
 
+/** Recuerda la última sección abierta entre recargas (clave de localStorage). */
+const CLAVE_SECCION = 'panel:seccion';
+function leerSeccionInicial(): string {
+  try {
+    return localStorage.getItem(CLAVE_SECCION) || 'resumen';
+  } catch {
+    return 'resumen';
+  }
+}
+
 function PaginaPanel() {
   const navigate = useNavigate();
   const usuario = useAuthPanelStore((s) => s.usuario);
@@ -48,16 +61,46 @@ function PaginaPanel() {
   const esEscritorio = useEsEscritorio();
 
   const [tema, setTema] = useState<Tema>(obtenerTema());
-  const [seccionActivaId, setSeccion] = useState('resumen');
+  // Sección activa: arranca en la última recordada y se persiste en cada cambio.
+  const [seccionActivaId, setSeccionRaw] = useState<string>(leerSeccionInicial);
+  const setSeccion = useCallback((id: string) => {
+    setSeccionRaw(id);
+    try {
+      localStorage.setItem(CLAVE_SECCION, id);
+    } catch {
+      /* ignore */
+    }
+  }, []);
   // Filtro global de región (solo el superadmin lo cambia). '' = toda la plataforma.
   const regionFiltro = useFiltroRegion((s) => s.regionId);
   const setRegionFiltro = useFiltroRegion((s) => s.setRegion);
   const regionActivaId = regionFiltro ?? '';
   const onCambiarRegion = (id: string) => setRegionFiltro(id || null);
 
-  // Contador real del menú de Negocios (total del alcance; respeta el filtro de región del super).
+  // Contadores del menú: Negocios = conteo general del alcance; Usuarios = total de la sección
+  // (refleja los filtros aplicados; lo publica SeccionUsuarios en el store).
   const { data: totalNegocios } = useConteoNegocios();
-  const contadores = totalNegocios != null ? { negocios: totalNegocios } : undefined;
+  const { data: totalUsuariosGeneral } = useConteoUsuarios();
+  const totalUsuariosFiltrado = useContadorPanel((s) => s.usuarios);
+  // Filtrado (de la sección activa) si lo hay; si no, el conteo general (visible desde el inicio).
+  const totalUsuarios = totalUsuariosFiltrado ?? totalUsuariosGeneral;
+  const contadores = useMemo(() => {
+    const c: Record<string, number> = {};
+    if (totalNegocios != null) c.negocios = totalNegocios;
+    if (totalUsuarios != null) c.usuarios = totalUsuarios;
+    return Object.keys(c).length ? c : undefined;
+  }, [totalNegocios, totalUsuarios]);
+
+  // Menú según el rol. Si la sección recordada (de una recarga) no aplica a este
+  // rol, se cae a la primera del menú; "seguridad" (Mi cuenta) siempre es válida.
+  const rolMenu = (usuario?.rolEquipo ?? null) as RolPanel | null;
+  const items = useMemo(() => (rolMenu ? itemsParaRol(rolMenu) : []), [rolMenu]);
+  useEffect(() => {
+    if (!items.length) return;
+    if (seccionActivaId !== 'seguridad' && !items.some((i) => i.id === seccionActivaId)) {
+      setSeccion(items[0]?.id ?? 'resumen');
+    }
+  }, [items, seccionActivaId, setSeccion]);
 
   // Si por algo entramos sin rol de equipo, no hay menú que mostrar.
   if (!usuario?.rolEquipo) {
@@ -81,7 +124,6 @@ function PaginaPanel() {
   }
 
   const rol = usuario.rolEquipo as RolPanel;
-  const items = itemsParaRol(rol);
   // "seguridad" es una sección especial (Mi cuenta), no está en el menú lateral.
   const esSeguridad = seccionActivaId === 'seguridad';
   const itemActivo = items.find((i) => i.id === seccionActivaId) ?? items[0];
@@ -102,6 +144,8 @@ function PaginaPanel() {
     <SeccionNegocios rol={rol} />
   ) : seccionActivaId === 'usuarios' ? (
     <SeccionUsuarios />
+  ) : seccionActivaId === 'suscripciones' ? (
+    <SeccionSuscripciones rol={rol} />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

@@ -82,6 +82,7 @@ export const usuarios = pgTable("usuarios", {
 	negocioId: uuid('negocio_id').references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
 	sucursalAsignada: uuid('sucursal_asignada').references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'set null' }),
 	ultimaConexion: timestamp("ultima_conexion", { withTimezone: true, mode: 'string' }),
+	ultimoAccesoPanel: timestamp("ultimo_acceso_panel", { withTimezone: true, mode: 'string' }),
 	requiereCambioContrasena: boolean("requiere_cambio_contrasena").default(false).notNull(),
 	// Sprint 7.5 — Mediana del tiempo de respuesta del usuario en ChatYA
 	// (filtrado por contexto 'servicio_publicacion'). Lo pobla un cron
@@ -230,6 +231,38 @@ export const pagosMembresia = pgTable("pagos_membresia", {
 	check("pagos_membresia_concepto_check", sql`(concepto)::text = ANY ((ARRAY['efectivo'::character varying, 'transferencia'::character varying, 'cortesia'::character varying])::text[])`),
 	check("pagos_membresia_monto_check", sql`(monto IS NULL) OR (monto >= (0)::numeric)`),
 	check("pagos_membresia_cortesia_sin_monto_check", sql`((concepto)::text <> 'cortesia'::text) OR (monto IS NULL)`),
+]);
+
+// Bitácora financiera global (Panel Admin · módulo Suscripciones). El "libro mayor" de la
+// membresía: un renglón por cada movimiento de dinero/membresía, de DOS orígenes:
+//   - origen='stripe': lo persiste el webhook (cobro_exitoso / cobro_fallido / cancelacion).
+//     Antes esos eventos se perdían (solo pasaban por el webhook sin guardarse).
+//   - origen='manual': lo persiste "Registrar pago" del Panel (tipo='pago_manual'), gemelo de
+//     la fila contable en `pagos_membresia` (referencia_id → pagos_membresia.id).
+// stripe_event_id (UNIQUE) = idempotencia: un event.id reentregado por Stripe no duplica fila
+// (INSERT ... onConflictDoNothing). NULL en manual (los NULL son distintos → conviven).
+// Ver docs/arquitectura/Panel_Admin/Suscripciones_Pendientes.md y Pagos_Suscripciones.md §12.
+export const eventosPago = pgTable("eventos_pago", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	negocioId: uuid("negocio_id").notNull().references((): AnyPgColumn => negocios.id, { onDelete: 'cascade' }),
+	tipo: varchar({ length: 30 }).notNull(),            // cobro_exitoso | cobro_fallido | cancelacion | pago_manual
+	origen: varchar({ length: 10 }).notNull(),          // stripe | manual
+	monto: numeric({ precision: 10, scale: 2 }),        // NULL si no aplica (fallido/cancelación/cortesía)
+	moneda: varchar({ length: 3 }).default('MXN').notNull(),
+	fechaEvento: timestamp("fecha_evento", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	actorId: uuid("actor_id").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }), // NULL si automático de Stripe
+	stripeEventId: varchar("stripe_event_id", { length: 255 }), // event.id de Stripe (NULL en manual)
+	referenciaId: uuid("referencia_id"),                // FK suave → pagos_membresia.id (en pago_manual)
+	metadata: jsonb(),                                  // extras: invoice/subscription/customer, concepto, reintento...
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_eventos_pago_fecha").using("btree", table.fechaEvento.desc().nullsFirst()),
+	index("idx_eventos_pago_negocio").using("btree", table.negocioId.asc().nullsLast(), table.fechaEvento.desc().nullsFirst()),
+	index("idx_eventos_pago_tipo").using("btree", table.tipo.asc().nullsLast()),
+	uniqueIndex("idx_eventos_pago_stripe_event").using("btree", table.stripeEventId.asc().nullsLast()),
+	check("eventos_pago_tipo_check", sql`(tipo)::text = ANY ((ARRAY['cobro_exitoso'::character varying, 'cobro_fallido'::character varying, 'cancelacion'::character varying, 'pago_manual'::character varying])::text[])`),
+	check("eventos_pago_origen_check", sql`(origen)::text = ANY ((ARRAY['stripe'::character varying, 'manual'::character varying])::text[])`),
+	check("eventos_pago_monto_check", sql`(monto IS NULL) OR (monto >= (0)::numeric)`),
 ]);
 
 export const negocioSucursales = pgTable("negocio_sucursales", {

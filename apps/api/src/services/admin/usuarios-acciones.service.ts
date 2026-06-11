@@ -56,6 +56,9 @@ interface UsuarioCargado {
     id: string;
     estado: string;
     rolEquipo: string | null;
+    negocioId: string | null;
+    regionNegocio: string | null;  // región deducida si es comerciante (sucursal matriz), null si no
+    regionVendedor: string | null; // región deducida si es vendedor (embajador_ciudades), null si no
     correo: string;
     nombre: string;
     contrasenaHash: string | null;
@@ -74,11 +77,49 @@ async function cargarUsuario(usuarioId: string): Promise<UsuarioCargado | null> 
             contrasenaHash: usuarios.contrasenaHash,
             intentosFallidos: usuarios.intentosFallidos,
             bloqueadoHasta: usuarios.bloqueadoHasta,
+            negocioId: usuarios.negocioId,
+            // Región del negocio (sucursal matriz, igual que el módulo Negocios); null si no es comerciante.
+            // Refs a la tabla externa CALIFICADAS (usuarios.col): en subquery dentro del SELECT, drizzle
+            // no prefija ${usuarios.x}, y "id"/"negocio_id" chocarían con las tablas del JOIN (42702).
+            regionNegocio: sql<string | null>`(
+                SELECT c.region_id::text FROM negocio_sucursales ns
+                JOIN ciudades c ON c.id = ns.ciudad_id
+                WHERE ns.negocio_id = usuarios.negocio_id AND ns.es_principal = true LIMIT 1
+            )`,
+            // Región del vendedor (deducida de embajador_ciudades, igual que panel.middleware); null si no es vendedor.
+            regionVendedor: sql<string | null>`(
+                SELECT c.region_id::text FROM embajadores e
+                JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+                JOIN ciudades c ON c.id = ec.ciudad_id
+                WHERE e.usuario_id = usuarios.id LIMIT 1
+            )`,
         })
         .from(usuarios)
         .where(eq(usuarios.id, usuarioId))
         .limit(1);
     return u ?? null;
+}
+
+/** Visibilidad por jerarquía: un GERENTE no puede actuar sobre cuentas de superadmin ni de gerente
+ *  (incluida la suya). El superadmin actúa sobre cualquiera. Devuelve el error o null si está permitido. */
+function fueraDeAlcance(
+    panel: UsuarioPanel,
+    target: UsuarioCargado,
+): { ok: false; status: number; mensaje: string } | null {
+    if (panel.rolEquipo !== 'gerente') return null; // el superadmin actúa sobre cualquiera
+    // Nunca sobre superadmin ni gerente (incluida su propia cuenta).
+    if (target.rolEquipo === 'superadmin' || target.rolEquipo === 'gerente') {
+        return { ok: false, status: 403, mensaje: 'No tienes acceso a esta cuenta.' };
+    }
+    // Comerciante (cliente con negocio): solo los de MI región. Cliente puro (sin negocio): permitido.
+    if (target.rolEquipo == null && target.negocioId != null && (!panel.regionId || target.regionNegocio !== panel.regionId)) {
+        return { ok: false, status: 403, mensaje: 'Ese comercio no es de tu región.' };
+    }
+    // Vendedores: solo los de SU región (misma deducción que la lista).
+    if (target.rolEquipo === 'vendedor' && (!panel.regionId || target.regionVendedor !== panel.regionId)) {
+        return { ok: false, status: 403, mensaje: 'Ese vendedor no es de tu región.' };
+    }
+    return null;
 }
 
 /**
@@ -119,6 +160,9 @@ export async function desbloquearIntentos(
     const u = await cargarUsuario(usuarioId);
     if (!u) return { ok: false, status: 404, mensaje: 'Usuario no encontrado.' };
 
+    const sinAlcance = fueraDeAlcance(panel, u);
+    if (sinAlcance) return sinAlcance;
+
     const bloqueado = !!u.bloqueadoHasta && new Date(u.bloqueadoHasta).getTime() > Date.now();
     if (!bloqueado && (u.intentosFallidos ?? 0) === 0) {
         return { ok: false, status: 409, mensaje: 'La cuenta no está bloqueada por intentos.' };
@@ -158,6 +202,9 @@ export async function generarCodigoAcceso(
     const u = await cargarUsuario(usuarioId);
     if (!u) return { ok: false, status: 404, mensaje: 'Usuario no encontrado.' };
 
+    const sinAlcance = fueraDeAlcance(panel, u);
+    if (sinAlcance) return sinAlcance;
+
     // Sin contraseña (modelo C) → crear; con contraseña → restablecer.
     const tipo: 'crear' | 'restablecer' = u.contrasenaHash ? 'restablecer' : 'crear';
     const { codigo, correoEnviado } = await prepararCodigoAcceso(u.correo, u.nombre, tipo);
@@ -186,6 +233,9 @@ export async function cambiarCorreoUsuario(
 ): Promise<ResultadoCambioCorreo> {
     const u = await cargarUsuario(usuarioId);
     if (!u) return { ok: false, status: 404, mensaje: 'Usuario no encontrado.' };
+
+    const sinAlcance = fueraDeAlcance(panel, u);
+    if (sinAlcance) return sinAlcance;
 
     if (u.correo === correoNuevo) {
         return { ok: false, status: 409, mensaje: 'La cuenta ya tiene ese correo.' };

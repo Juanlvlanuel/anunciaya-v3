@@ -52,10 +52,10 @@
   --panel-canvas: #e5f1ff;
   --panel-surface: #ffffff;
   --panel-surface-2: #f7f9fc;
-  --panel-border: #e6e8ee;
-  --panel-border-strong: #d7dae2;
+  --panel-border: #d2d6df;
+  --panel-border-strong: #bdc2ce;
   --panel-field: #f4f6fa;
-  --panel-field-border: #dfe3ea;
+  --panel-field-border: #c9ced9;
   --panel-text: #0a0a0b;
   --panel-text-2: #45454a;
   --panel-text-3: #5f6168;
@@ -77,14 +77,14 @@
 
 [data-tema="oscuro"] {
   color-scheme: dark;
-  --panel-bg: #0c0c0e;
-  --panel-canvas: #0a0d16;
-  --panel-surface: #16181d;
-  --panel-surface-2: #1c1f25;
-  --panel-border: #2a2d34;
-  --panel-border-strong: #353941;
+  --panel-bg: #050506;
+  --panel-canvas: #06070b;
+  --panel-surface: #0d0e12;
+  --panel-surface-2: #14151a;
+  --panel-border: #383c45;
+  --panel-border-strong: #474c57;
   --panel-field: #1f232b;
-  --panel-field-border: #353941;
+  --panel-field-border: #41454f;
   --panel-text: #f2f3f5;
   --panel-text-2: #a4a7af;
   --panel-text-3: #9499a1;
@@ -114,6 +114,26 @@ body {
   background: var(--panel-canvas);
   color: var(--panel-text);
   -webkit-font-smoothing: antialiased;
+}
+
+/* =============================================================================
+   GROSOR DE BORDES — 1.5px (decisión de diseño: más presencia que el 1px de Tailwind)
+   =============================================================================
+   Sobrescribe las utilidades base de borde para TODO el Panel de un solo lugar.
+   Reglas sin @layer → ganan sobre las utilidades de Tailwind (que viven en capas).
+   `border-2`+ (casos puntuales) NO se tocan. Para ajustar el grosor: cambia --grosor-borde. */
+:root {
+  --grosor-borde: 1.5px;
+}
+.border { border-width: var(--grosor-borde); }
+.border-x { border-left-width: var(--grosor-borde); border-right-width: var(--grosor-borde); }
+.border-y { border-top-width: var(--grosor-borde); border-bottom-width: var(--grosor-borde); }
+.border-t { border-top-width: var(--grosor-borde); }
+.border-r { border-right-width: var(--grosor-borde); }
+.border-b { border-bottom-width: var(--grosor-borde); }
+.border-l { border-left-width: var(--grosor-borde); }
+@media (min-width: 1024px) {
+  .lg\:border-t { border-top-width: var(--grosor-borde); }
 }
 
 /* =============================================================================

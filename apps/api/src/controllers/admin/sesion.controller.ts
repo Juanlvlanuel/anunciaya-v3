@@ -38,6 +38,13 @@ export async function getYoPanelController(req: Request, res: Response): Promise
         // que no tiene usuarioId).
         let datos: { nombre: string; apellidos: string; correo: string; avatarUrl: string | null } | null = null;
         if (panel.usuarioId) {
+            // Registra el acceso al Panel (señal de actividad del equipo). Fire-and-forget:
+            // no esperamos el UPDATE para no demorar /yo. Distinto de `ultima_conexion` (app).
+            db.update(usuarios)
+                .set({ ultimoAccesoPanel: new Date().toISOString() })
+                .where(eq(usuarios.id, panel.usuarioId))
+                .catch((err) => console.error('Error registrando último acceso al Panel:', err));
+
             const [u] = await db
                 .select({
                     nombre: usuarios.nombre,

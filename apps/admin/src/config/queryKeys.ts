@@ -28,6 +28,19 @@ export interface FiltrosUsuariosKey {
   porPagina?: number;
 }
 
+/** Filtros que entran en la clave de la bitácora financiera (eventos de pago). */
+export interface FiltrosSuscripcionesKey {
+  busqueda?: string;
+  tipo?: string;
+  origen?: string;
+  negocioId?: string;
+  desde?: string;
+  hasta?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 export const queryKeys = {
   negocios: {
     all: () => ['negocios'] as const,
@@ -43,8 +56,14 @@ export const queryKeys = {
   },
   usuarios: {
     all: () => ['usuarios'] as const,
+    conteo: () => ['usuarios', 'conteo'] as const,
     lista: (filtros: FiltrosUsuariosKey) => ['usuarios', 'lista', filtros] as const,
     detalle: (id: string) => ['usuarios', 'detalle', id] as const,
+  },
+  suscripciones: {
+    all: () => ['suscripciones'] as const,
+    lista: (filtros: FiltrosSuscripcionesKey) => ['suscripciones', 'lista', filtros] as const,
+    detalle: (id: string) => ['suscripciones', 'detalle', id] as const,
   },
   regiones: {
     all: () => ['regiones'] as const,

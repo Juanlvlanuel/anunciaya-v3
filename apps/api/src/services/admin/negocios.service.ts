@@ -84,6 +84,7 @@ export interface ConteosEstado {
 export interface NegocioFila {
     id: string;
     nombre: string;
+    logoUrl: string | null;
     ciudad: string | null;
     vendedorId: string | null;
     vendedorNombre: string | null;
@@ -161,7 +162,7 @@ export interface VendedorFiltro {
  * Resuelve el embajador (vendedor) de un usuario. Devuelve null si la cuenta no
  * tiene embajador asociado.
  */
-async function resolverEmbajadorId(usuarioId: string | null): Promise<string | null> {
+export async function resolverEmbajadorId(usuarioId: string | null): Promise<string | null> {
     if (!usuarioId) return null;
     const [emb] = await db
         .select({ id: embajadores.id })
@@ -355,6 +356,7 @@ export async function listarNegocios(
         .select({
             id: negocios.id,
             nombre: negocios.nombre,
+            logoUrl: negocios.logoUrl,
             estadoPago: negocios.estadoMembresia,
             estadoAdmin: negocios.estadoAdmin,
             vendedorId: negocios.embajadorId,
@@ -378,6 +380,7 @@ export async function listarNegocios(
     const items: NegocioFila[] = filas.map((f) => ({
         id: f.id,
         nombre: f.nombre,
+        logoUrl: f.logoUrl ?? null,
         ciudad: f.ciudad ?? null,
         vendedorId: f.vendedorId ?? null,
         vendedorNombre: f.vendedorNombre

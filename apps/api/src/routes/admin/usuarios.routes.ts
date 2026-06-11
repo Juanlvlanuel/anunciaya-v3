@@ -22,6 +22,7 @@ import { requierePanel } from '../../middleware/panel.middleware.js';
 import {
     listarUsuariosController,
     obtenerExpedienteController,
+    contarUsuariosController,
     desbloquearIntentosController,
     codigoAccesoController,
     cambiarCorreoController,
@@ -33,6 +34,8 @@ const router: Router = Router();
 
 // ─── Lectura ─────────────────────────────────────────────────────────────────
 router.get('/', requierePanel(['superadmin', 'gerente']), listarUsuariosController);
+// /conteo antes de /:id para que "conteo" no caiga en el comodín del id.
+router.get('/conteo', requierePanel(['superadmin', 'gerente']), contarUsuariosController);
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerExpedienteController);
 
 // ─── Soporte (rescates de acceso) — superadmin + gerente ─────────────────────────

@@ -44,6 +44,7 @@ export type EstadoAdmin = 'activo' | 'suspendido' | 'archivado';
 export interface NegocioFila {
   id: string;
   nombre: string;
+  logoUrl: string | null;
   ciudad: string | null;
   vendedorId: string | null;
   vendedorNombre: string | null;

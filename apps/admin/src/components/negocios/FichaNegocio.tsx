@@ -44,6 +44,7 @@ import {
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle, PagoMembresia } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { VisorImagen } from '../ui/VisorImagen';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
 import { DialogoReasignar } from './DialogoReasignar';
@@ -67,7 +68,7 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
     id: f.id,
     nombre: f.nombre,
     descripcion: null,
-    logoUrl: null,
+    logoUrl: f.logoUrl,
     sitioWeb: null,
     activo: null,
     esBorrador: null,
@@ -278,6 +279,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const n = data ?? placeholderDesdeFila(previo);
 
   const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar' | 'editar-correo'>(null);
+  const [verLogo, setVerLogo] = useState(false);
   const suspender = useSuspenderNegocio();
   const reactivar = useReactivarNegocio();
   const reasignar = useReasignarVendedor();
@@ -293,11 +295,12 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   // (en gracia/suspendido hay un cobro pendiente en Stripe que regularizar primero).
   const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';
 
-  // Solo SuperAdmin y Gerente pueden actuar; el vendedor ve la ficha solo lectura.
-  // Marcar pagado: SuperAdmin + Gerente (su región). Cancelar: EXCLUSIVO de SuperAdmin.
+  // SuperAdmin y Gerente actúan sobre toda la ficha. El vendedor solo puede "Registrar pago" en
+  // SUS negocios MANUALES (su cartera); el resto de la ficha es de lectura para él. El backend lo blinda.
   const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
   const puedeActuar = rol === 'superadmin' || rol === 'gerente';
   const esSuperadmin = rol === 'superadmin';
+  const puedeRegistrarPago = puedeActuar || (rol === 'vendedor' && esManual);
 
   return (
     <>
@@ -313,7 +316,15 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       <div className="flex h-full min-h-0 flex-col" data-testid="ficha-negocio">
         {/* Cabecera */}
         <div className="flex shrink-0 items-center gap-3 border-b border-borde px-5 py-4">
-          <AvatarNegocio nombre={n.nombre} tam={46} />
+          <button
+            type="button"
+            data-testid="ficha-logo"
+            onClick={() => setVerLogo(true)}
+            aria-label="Ver logo del negocio"
+            className="shrink-0 rounded-full transition hover:opacity-90 focus:outline-none focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
+          >
+            <AvatarNegocio nombre={n.nombre} logoUrl={n.logoUrl} tam={46} />
+          </button>
           <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
             <span className="truncate text-[17px] font-bold tracking-[-0.2px] text-texto" data-testid="ficha-nombre">
               {n.nombre}
@@ -433,33 +444,34 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
           </div>
         </div>
 
-        {/* Footer: acciones según permisos. Marcar pagado y Cancelar son exclusivos de
-            SuperAdmin; Pausar y Reasignar también las usa el Gerente (su región). */}
-        {puedeActuar && (
+        {/* Footer: "Registrar pago" lo ve super/gerente (cualquier negocio de su alcance) y el
+            vendedor (solo sus negocios manuales). Pausar/Reactivar/Reasignar/Cancelar son de
+            super/gerente; Cancelar solo super. */}
+        {puedeRegistrarPago && (
           <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
+            <BotonAccion
+              icono={CheckCircle2}
+              etiqueta="Registrar pago"
+              variante="primary"
+              testid="ficha-accion-registrar-pago"
+              onClick={() => setDialogo('marcar-pagado')}
+              disabled={archivado || cobroPendiente}
+              tooltipDisabled={!archivado && cobroPendiente ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.' : undefined}
+            />
+            {/* Acciones secundarias (solo super/gerente): icon-only + tooltip, a la derecha → 1 línea. */}
             {puedeActuar && (
-              <BotonAccion
-                icono={CheckCircle2}
-                etiqueta="Registrar pago"
-                variante="primary"
-                testid="ficha-accion-registrar-pago"
-                onClick={() => setDialogo('marcar-pagado')}
-                disabled={archivado || cobroPendiente}
-                tooltipDisabled={!archivado && cobroPendiente ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.' : undefined}
-              />
+              <div className="ml-auto flex items-center gap-2">
+                <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} soloIcono />
+                {suspendido ? (
+                  <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} soloIcono />
+                ) : (
+                  <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} soloIcono />
+                )}
+                {esSuperadmin && (
+                  <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} soloIcono />
+                )}
+              </div>
             )}
-            {/* Acciones secundarias: icon-only + tooltip, empujadas a la derecha → 1 línea siempre. */}
-            <div className="ml-auto flex items-center gap-2">
-              <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} soloIcono />
-              {suspendido ? (
-                <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} soloIcono />
-              ) : (
-                <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} soloIcono />
-              )}
-              {esSuperadmin && (
-                <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} soloIcono />
-              )}
-            </div>
           </div>
         )}
       </div>
@@ -507,6 +519,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         nombreNegocio={n.nombre}
         vencimientoActual={n.fechaVencimiento}
         tieneSuscripcion={n.tieneSuscripcionStripe}
+        permiteCortesia={rol !== 'vendedor'}
         cargando={marcarPagado.isPending}
         onConfirmar={(hasta, datos) =>
           marcarPagado.mutate({ id: previo.id, hasta, ...datos }, { onSuccess: cerrarDialogo })
@@ -537,6 +550,13 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         }
       />
     )}
+    <VisorImagen
+      src={n.logoUrl}
+      alt={n.nombre}
+      abierto={verLogo}
+      onCerrar={() => setVerLogo(false)}
+      fallback={<AvatarNegocio nombre={n.nombre} tam={200} />}
+    />
     </>
   );
 }

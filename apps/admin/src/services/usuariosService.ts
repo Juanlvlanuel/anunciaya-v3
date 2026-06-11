@@ -20,7 +20,7 @@ import { api, type RespuestaAPI } from './api';
 // =============================================================================
 
 export type EstadoUsuario = 'activo' | 'suspendido' | 'inactivo';
-export type TipoUsuario = 'personal' | 'comercial' | 'equipo' | 'vendedor';
+export type TipoUsuario = 'usuario' | 'comerciante' | 'gerente_sucursal' | 'vendedor' | 'gerente';
 
 export type OrdenUsuarios =
   | 'nombre_az'
@@ -47,6 +47,7 @@ export interface UsuarioFila {
   rolEquipo: string | null;
   esEmbajador: boolean;
   esDueno: boolean;
+  esGerenteSucursal: boolean;
   ultimaConexion: string | null;
   createdAt: string | null;
 }
@@ -100,6 +101,7 @@ export interface UsuarioExpediente {
   fechaNacimiento: string | null;
   createdAt: string | null;
   ultimaConexion: string | null;
+  ultimoAccesoPanel: string | null;
   estado: string;
   perfil: string;
   membresia: number;
@@ -147,6 +149,12 @@ export async function listarUsuarios(params: ParametrosLista): Promise<ListaUsua
 export async function obtenerExpediente(id: string): Promise<UsuarioExpediente | null> {
   const { data } = await api.get<RespuestaAPI<UsuarioExpediente>>(`/admin/usuarios/${id}`);
   return data.data ?? null;
+}
+
+/** Total de usuarios (sin filtros) para el badge del menú. */
+export async function contarUsuarios(): Promise<number> {
+  const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/usuarios/conteo');
+  return data.data?.total ?? 0;
 }
 
 // =============================================================================

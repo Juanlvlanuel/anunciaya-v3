@@ -31,6 +31,15 @@ export function useUsuariosLista(filtros: ParametrosLista) {
   });
 }
 
+/** Total de usuarios del alcance (badge del menú). Carga al abrir el Panel. */
+export function useConteoUsuarios() {
+  return useQuery({
+    queryKey: queryKeys.usuarios.conteo(),
+    queryFn: () => usuariosService.contarUsuarios(),
+    staleTime: 1000 * 60,
+  });
+}
+
 /**
  * Expediente 360 de un usuario. Acepta un `placeholder` (datos parciales que ya
  * trae la fila de la lista) para que la ficha se vea AL INSTANTE y rellene el

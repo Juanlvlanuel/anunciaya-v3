@@ -13,10 +13,11 @@
  * Ubicación: apps/admin/src/components/negocios/SeccionNegocios.tsx
  */
 
-import { Fragment, useEffect, useMemo, useState } from 'react';
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, User, ArrowUpDown, Plus } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
+import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio, useSucursalesNegocio } from '../../hooks/queries/useNegociosAdmin';
 import type { OrdenNegocios, NegocioFila, SucursalFila, ConteosEstado } from '../../services/negociosService';
 import { metaEstado, BadgeEstadoPago, estadoEfectivo } from './estadoPago';
@@ -77,6 +78,15 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [sucursalSel, setSucursalSel] = useState<{ negocioId: string; sucursal: SucursalFila } | null>(null);
   const prefetchNegocio = usePrefetchNegocio();
+
+  // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
+  const listaRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : listaRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl]);
+
   const toggleExpandir = (id: string) =>
     setExpandidos((prev) => {
       const n = new Set(prev);
@@ -191,8 +201,31 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   // ── Vista MÓVIL ─────────────────────────────────────────────────────────────
   if (!esEscritorio) {
     return (
-      <div className="flex h-full min-h-0 flex-col p-4">
-        <div className="mb-2.5 shrink-0">{buscador}</div>
+      <div className="flex h-full min-h-0 flex-col px-5 pt-4 pb-1.5">
+        {/* Buscador + filtro de ciudad (icono) + registrar (icono) */}
+        <div className="mb-2.5 flex shrink-0 items-center gap-2">
+          <div className="flex-1">{buscador}</div>
+          <MenuFiltro
+            testid="negocios-filtro-ciudad"
+            icono={<MapPin size={18} />}
+            etiquetaBoton={etiquetaCiudad}
+            opciones={opcionesCiudad}
+            valor={ciudad}
+            onCambiar={setCiudad}
+            alineacion="derecha"
+            soloIcono
+          />
+          <button
+            type="button"
+            data-testid="negocios-registrar"
+            onClick={() => setMostrarAlta(true)}
+            aria-label="Registrar negocio"
+            title="Registrar negocio"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste transition active:opacity-90"
+          >
+            <Plus size={18} />
+          </button>
+        </div>
 
         {/* Chips estado (carrusel) — pills teñidos del color de cada estado al activarse. */}
         <div className="mb-2 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -223,35 +256,8 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
           })}
         </div>
 
-        {/* Total + ciudad */}
-        <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-          <span className="text-[12.5px] text-texto-3">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'negocio' : 'negocios'}
-          </span>
-          <MenuFiltro
-            testid="negocios-filtro-ciudad"
-            icono={<MapPin size={16} />}
-            etiquetaBoton={etiquetaCiudad}
-            opciones={opcionesCiudad}
-            valor={ciudad}
-            onCambiar={setCiudad}
-            alineacion="derecha"
-            compacto
-          />
-        </div>
-
-        {/* Registrar negocio (ancho, sobre la lista) */}
-        <button
-          type="button"
-          data-testid="negocios-registrar"
-          onClick={() => setMostrarAlta(true)}
-          className="mb-2.5 inline-flex w-full shrink-0 items-center justify-center gap-1.5 rounded-full bg-marca px-3 py-2.5 text-[13px] font-semibold text-marca-contraste transition active:opacity-90"
-        >
-          <Plus size={15} /> Registrar negocio
-        </button>
-
         {/* Lista de cards */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
             <EstadoMensaje texto="Cargando negocios…" />
           ) : isError ? (
@@ -501,7 +507,7 @@ function FilaNegocio({
       style={{ gridTemplateColumns: cols }}
     >
       <span className="flex min-w-0 items-center gap-3">
-        <AvatarNegocio nombre={n.nombre} tam={38} />
+        <AvatarNegocio nombre={n.nombre} logoUrl={n.logoUrl} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{n.nombre}</span>
           <span className={`inline-flex items-center gap-1 text-[12px] ${ciudad ? 'text-texto-3' : 'text-texto-4'}`}>
@@ -646,7 +652,7 @@ function CardNegocio({
         onMouseEnter={onPrefetch}
         className="flex items-center gap-3 p-3 text-left transition active:bg-marca-suave"
       >
-        <AvatarNegocio nombre={n.nombre} tam={42} />
+        <AvatarNegocio nombre={n.nombre} logoUrl={n.logoUrl} tam={42} />
         <span className="flex min-w-0 flex-1 flex-col gap-0.5">
           <span className="truncate text-[14.5px] font-semibold text-texto">{n.nombre}</span>
           <span className="flex items-center gap-2 text-[12px] text-texto-3">
@@ -745,7 +751,7 @@ function Paginacion({
   setPagina: (fn: (p: number) => number) => void;
 }) {
   return (
-    <div className="mt-3 flex shrink-0 items-center justify-between border-t border-borde pt-3 text-[12.5px] text-texto-3">
+    <div className="mt-3 flex shrink-0 items-center justify-between text-[12.5px] text-texto-3 lg:pt-1">
       <span data-testid="negocios-rango">
         {desde}–{hasta} de {total}
       </span>
@@ -755,7 +761,7 @@ function Paginacion({
           data-testid="negocios-anterior"
           onClick={() => setPagina((p) => Math.max(1, p - 1))}
           disabled={pagina <= 1}
-          className="inline-flex items-center gap-1 rounded-[9px] border border-borde-fuerte px-2.5 py-1.5 font-medium text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-texto-2"
+          className="inline-flex items-center gap-1 rounded-full bg-marca-suave px-4 py-2.5 font-semibold lg:px-2.5 lg:py-1.5 text-marca transition hover:bg-marca hover:text-marca-contraste disabled:cursor-not-allowed disabled:opacity-45"
         >
           <ChevronLeft size={14} /> Anterior
         </button>
@@ -765,7 +771,7 @@ function Paginacion({
           data-testid="negocios-siguiente"
           onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
           disabled={pagina >= totalPaginas}
-          className="inline-flex items-center gap-1 rounded-[9px] border border-borde-fuerte px-2.5 py-1.5 font-medium text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-texto-2"
+          className="inline-flex items-center gap-1 rounded-full bg-marca-suave px-4 py-2.5 font-semibold lg:px-2.5 lg:py-1.5 text-marca transition hover:bg-marca hover:text-marca-contraste disabled:cursor-not-allowed disabled:opacity-45"
         >
           Siguiente <ChevronRight size={14} />
         </button>

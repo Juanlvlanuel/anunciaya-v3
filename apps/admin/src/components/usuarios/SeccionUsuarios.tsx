@@ -13,9 +13,12 @@
  * Ubicación: apps/admin/src/components/usuarios/SeccionUsuarios.tsx
  */
 
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Search, X, ChevronLeft, ChevronRight, Users, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
+import { useScrollPanel } from '../../stores/useScrollPanel';
+import { useContadorPanel } from '../../stores/useContadorPanel';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { useUsuariosLista, usePrefetchUsuario } from '../../hooks/queries/useUsuariosAdmin';
 import type { OrdenUsuarios, UsuarioFila, ConteosEstado } from '../../services/usuariosService';
 import { metaEstadoUsuario, BadgeEstadoUsuario } from './estadoUsuario';
@@ -33,11 +36,12 @@ const TABS_ESTADO = [
 ] as const;
 
 const OPCIONES_TIPO: OpcionMenu[] = [
-  { valor: '', etiqueta: 'Todos los tipos' },
-  { valor: 'personal', etiqueta: 'Personal' },
-  { valor: 'comercial', etiqueta: 'Comercial' },
-  { valor: 'equipo', etiqueta: 'Equipo' },
+  { valor: '', etiqueta: 'Todos' },
+  { valor: 'usuario', etiqueta: 'Usuario' },
+  { valor: 'comerciante', etiqueta: 'Dueño' },
+  { valor: 'gerente_sucursal', etiqueta: 'Gerente de sucursal' },
   { valor: 'vendedor', etiqueta: 'Vendedor' },
+  { valor: 'gerente', etiqueta: 'Gerente regional' },
 ];
 
 const OPCIONES_ORDEN: { valor: OrdenUsuarios; etiqueta: string }[] = [
@@ -58,25 +62,14 @@ function fechaCorta(iso: string | null): string {
   return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
 }
 
-const PERFIL_LABEL: Record<string, string> = { personal: 'Personal', comercial: 'Comercial' };
-const ROL_EQUIPO_LABEL: Record<string, string> = { superadmin: 'SuperAdmin', gerente: 'Gerente', vendedor: 'Vendedor' };
+const ROL_EQUIPO_LABEL: Record<string, string> = { superadmin: 'SuperAdmin', gerente: 'Gerente regional', vendedor: 'Vendedor' };
 
-/** Chip mini neutro para los "sombreros" del usuario (Dueño / Equipo / Vendedor). */
-function ChipMini({ texto }: { texto: string }) {
-  return (
-    <span className="inline-flex items-center rounded-full border border-borde bg-superficie-2 px-1.5 py-0.5 text-[10.5px] font-semibold text-texto-3">
-      {texto}
-    </span>
-  );
-}
-
-/** Lista de "sombreros" de un usuario como chips (vacía si solo es cliente). */
-function sombrerosDe(n: UsuarioFila): string[] {
-  const chips: string[] = [];
-  if (n.esDueno) chips.push('Dueño');
-  if (n.rolEquipo) chips.push(ROL_EQUIPO_LABEL[n.rolEquipo] ?? n.rolEquipo);
-  if (n.esEmbajador) chips.push('Vendedor');
-  return chips;
+/** Rol principal de la cuenta para la columna "Rol" (prioridad: equipo > vendedor > dueño > usuario). */
+function rolPrincipal(n: UsuarioFila): string {
+  if (n.rolEquipo) return ROL_EQUIPO_LABEL[n.rolEquipo] ?? n.rolEquipo;
+  if (n.esGerenteSucursal) return 'Gerente de sucursal';
+  if (n.esDueno) return 'Dueño';
+  return 'Usuario';
 }
 
 export function SeccionUsuarios() {
@@ -90,6 +83,14 @@ export function SeccionUsuarios() {
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<UsuarioFila | null>(null);
   const prefetchUsuario = usePrefetchUsuario();
+
+  // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
+  const listaRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : listaRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl]);
 
   useEffect(() => {
     const t = setTimeout(() => setBusquedaDeb(busqueda.trim()), 350);
@@ -114,6 +115,14 @@ export function SeccionUsuarios() {
 
   const { data, isLoading, isError, isFetching } = useUsuariosLista(filtros);
 
+  // Publica el total YA FILTRADO para el badge del menú; al salir, se limpia para que el badge
+  // vuelva al conteo general.
+  const setContadorUsuarios = useContadorPanel((s) => s.setUsuarios);
+  useEffect(() => {
+    if (data) setContadorUsuarios(data.total);
+  }, [data, setContadorUsuarios]);
+  useEffect(() => () => setContadorUsuarios(null), [setContadorUsuarios]);
+
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const conteos = data?.conteos ?? CONTEOS_CERO;
@@ -125,7 +134,15 @@ export function SeccionUsuarios() {
   const conteoDe = (id: string): number =>
     id === '' ? conteos.total : (conteos.porEstado.find((c) => c.estado === id)?.total ?? 0);
 
-  const etiquetaTipo = OPCIONES_TIPO.find((o) => o.valor === tipo)?.etiqueta ?? 'Todos los tipos';
+  // El dropdown de roles se acopla a la visibilidad: un gerente no ve gerentes (ni superadmin),
+  // así que el filtro "Gerente" no le aplica y se le oculta. El superadmin ve todas las opciones.
+  const rolPanel = useAuthPanelStore((s) => s.usuario?.rolEquipo);
+  const opcionesTipo = useMemo(
+    () => (rolPanel === 'gerente' ? OPCIONES_TIPO.filter((o) => o.valor !== 'gerente') : OPCIONES_TIPO),
+    [rolPanel],
+  );
+
+  const etiquetaTipo = OPCIONES_TIPO.find((o) => o.valor === tipo)?.etiqueta ?? 'Todos';
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Nombre (A–Z)';
 
   const buscador = (
@@ -157,7 +174,7 @@ export function SeccionUsuarios() {
       testid="usuarios-filtro-tipo"
       icono={<SlidersHorizontal size={16} />}
       etiquetaBoton={etiquetaTipo}
-      opciones={OPCIONES_TIPO}
+      opciones={opcionesTipo}
       valor={tipo}
       onCambiar={setTipo}
     />
@@ -170,8 +187,20 @@ export function SeccionUsuarios() {
   // ── Vista MÓVIL ─────────────────────────────────────────────────────────────
   if (!esEscritorio) {
     return (
-      <div className="flex h-full min-h-0 flex-col p-4">
-        <div className="mb-2.5 shrink-0">{buscador}</div>
+      <div className="flex h-full min-h-0 flex-col px-5 pt-4 pb-1.5">
+        <div className="mb-2.5 flex shrink-0 items-center gap-2">
+          <div className="flex-1">{buscador}</div>
+          <MenuFiltro
+            testid="usuarios-filtro-tipo"
+            icono={<SlidersHorizontal size={18} />}
+            etiquetaBoton={etiquetaTipo}
+            opciones={opcionesTipo}
+            valor={tipo}
+            onCambiar={setTipo}
+            soloIcono
+            alineacion="derecha"
+          />
+        </div>
 
         <div className="mb-2 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
           {TABS_ESTADO.map((t) => {
@@ -201,14 +230,7 @@ export function SeccionUsuarios() {
           })}
         </div>
 
-        <div className="mb-2.5 flex shrink-0 items-center justify-between gap-2">
-          <span className="text-[12.5px] text-texto-3">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'usuario' : 'usuarios'}
-          </span>
-          {filtroTipo}
-        </div>
-
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
             <EstadoMensaje texto="Cargando usuarios…" />
           ) : isError ? (
@@ -231,7 +253,7 @@ export function SeccionUsuarios() {
   }
 
   // ── Vista ESCRITORIO ────────────────────────────────────────────────────────
-  const cols = 'minmax(220px,2.4fr) 1.5fr 1fr 1.1fr 0.95fr 28px';
+  const cols = 'minmax(220px,2.4fr) 1.3fr 1fr 1.1fr 0.95fr 28px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -306,7 +328,7 @@ export function SeccionUsuarios() {
           style={{ gridTemplateColumns: cols }}
         >
           <span>Usuario</span>
-          <span>Cuenta</span>
+          <span>Rol</span>
           <span>Estado</span>
           <span>Última conexión</span>
           <span>Registro</span>
@@ -337,22 +359,6 @@ export function SeccionUsuarios() {
 // =============================================================================
 // SUB-COMPONENTES
 // =============================================================================
-
-function CeldaCuenta({ n }: { n: UsuarioFila }) {
-  const chips = sombrerosDe(n);
-  return (
-    <span className="flex min-w-0 flex-col gap-1">
-      <span className="text-[13px] text-texto-2">{PERFIL_LABEL[n.perfil] ?? n.perfil}</span>
-      {chips.length > 0 && (
-        <span className="flex flex-wrap gap-1">
-          {chips.map((c) => (
-            <ChipMini key={c} texto={c} />
-          ))}
-        </span>
-      )}
-    </span>
-  );
-}
 
 function FilaUsuario({
   n,
@@ -389,7 +395,9 @@ function FilaUsuario({
           <span className="truncate text-[12px] text-texto-3">{n.correo}</span>
         </span>
       </span>
-      <span className="min-w-0"><CeldaCuenta n={n} /></span>
+      <span className="min-w-0 truncate">
+        <span className={`text-[13px] font-medium ${n.rolEquipo ? 'text-marca' : 'text-texto-2'}`}>{rolPrincipal(n)}</span>
+      </span>
       <span><BadgeEstadoUsuario estado={n.estado} small /></span>
       <span className={`text-[13px] ${n.ultimaConexion ? 'text-texto-2' : 'text-texto-4'}`}>{fechaCorta(n.ultimaConexion)}</span>
       <span className="text-[13px] text-texto-2">{fechaCorta(n.createdAt)}</span>
@@ -399,7 +407,6 @@ function FilaUsuario({
 }
 
 function CardUsuario({ n, onAbrir, onPrefetch }: { n: UsuarioFila; onAbrir: () => void; onPrefetch: () => void }) {
-  const chips = sombrerosDe(n);
   return (
     <div
       role="button"
@@ -419,13 +426,7 @@ function CardUsuario({ n, onAbrir, onPrefetch }: { n: UsuarioFila; onAbrir: () =
       <AvatarUsuario nombre={n.nombre || n.correo} avatarUrl={n.avatarUrl} tam={42} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14.5px] font-semibold text-texto">{n.nombre || '(Sin nombre)'}</span>
-        <span className="truncate text-[12px] text-texto-3">{n.correo}</span>
-        <span className="mt-0.5 flex flex-wrap items-center gap-1">
-          <ChipMini texto={PERFIL_LABEL[n.perfil] ?? n.perfil} />
-          {chips.map((c) => (
-            <ChipMini key={c} texto={c} />
-          ))}
-        </span>
+        <span className="truncate text-[12.5px] text-texto-3">{n.correo}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1.5">
         <BadgeEstadoUsuario estado={n.estado} small />
@@ -451,7 +452,7 @@ function Paginacion({
   setPagina: (fn: (p: number) => number) => void;
 }) {
   return (
-    <div className="mt-3 flex shrink-0 items-center justify-between border-borde text-[12.5px] text-texto-3 lg:border-t lg:pt-3">
+    <div className="mt-3 flex shrink-0 items-center justify-between text-[12.5px] text-texto-3 lg:pt-1">
       <span data-testid="usuarios-rango">
         {desde}–{hasta} de {total}
       </span>
@@ -461,7 +462,7 @@ function Paginacion({
           data-testid="usuarios-anterior"
           onClick={() => setPagina((p) => Math.max(1, p - 1))}
           disabled={pagina <= 1}
-          className="inline-flex items-center gap-1 rounded-[9px] border border-borde-fuerte px-2.5 py-1.5 font-medium text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-texto-2"
+          className="inline-flex items-center gap-1 rounded-full bg-marca-suave px-4 py-2.5 font-semibold lg:px-2.5 lg:py-1.5 text-marca transition hover:bg-marca hover:text-marca-contraste disabled:cursor-not-allowed disabled:opacity-45"
         >
           <ChevronLeft size={14} /> Anterior
         </button>
@@ -471,7 +472,7 @@ function Paginacion({
           data-testid="usuarios-siguiente"
           onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
           disabled={pagina >= totalPaginas}
-          className="inline-flex items-center gap-1 rounded-[9px] border border-borde-fuerte px-2.5 py-1.5 font-medium text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-45 disabled:hover:bg-transparent disabled:hover:text-texto-2"
+          className="inline-flex items-center gap-1 rounded-full bg-marca-suave px-4 py-2.5 font-semibold lg:px-2.5 lg:py-1.5 text-marca transition hover:bg-marca hover:text-marca-contraste disabled:cursor-not-allowed disabled:opacity-45"
         >
           Siguiente <ChevronRight size={14} />
         </button>

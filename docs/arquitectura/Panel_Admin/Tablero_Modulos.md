@@ -14,7 +14,7 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 10 Junio 2026.
+> **Última actualización:** 11 Junio 2026.
 
 ---
 
@@ -22,9 +22,13 @@
 
 - **Cimientos (transversal):** ✅ completos (rol + auth `requierePanel`, atribución, estado de
   membresía + webhook + cron de gracia, configs con `obtenerConfig`). **Shell + login del Panel:** ✅ en prod.
-- **En construcción ahora mismo:** **Usuarios** — **Fase 0 (Definir) cerrada** (mini-spec,
-  decisiones, criterios y alcance V1 acordados en `Usuarios_Pendientes.md`). Sin migración SQL.
-- **Siguiente paso:** Usuarios **Fase 1 — VER** (backend de lectura → frontend de lectura → Gate 1).
+- **Recién cerrado:** **Usuarios** — módulo completo (VER + acciones + visibilidad por jerarquía y
+  región + lente del superadmin + expediente depurado + métrica "último acceso al Panel"). Doc
+  canónico [`Usuarios.md`](Usuarios.md) escrito. Migración manual: `usuarios_ultimo_acceso_panel.sql`.
+- **Recién cerrado (11 jun):** **Suscripciones — bitácora financiera V1** (libro mayor de eventos de
+  pago: cobros Stripe + pagos manuales + cancelaciones, solo lectura, KPIs, alcance por rol). Fase 1
+  completa + Gate 1 verde; Fase 2 se salta (solo lectura). Doc canónico [`Suscripciones.md`](Suscripciones.md).
+- **Siguiente sugerido:** Vendedores y comisiones, o los *quick-wins* Ciudades / Configuración (backend listo, falta UI).
 
 ---
 
@@ -35,8 +39,8 @@
 | 1 | Resumen / inicio | ⬜ | 0 | — |
 | 2 | Métricas | ⬜ | 0 | — |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · pulido/verificación pendiente | `Negocios.md` · `Negocios_Pendientes.md` |
-| 4 | **Usuarios** | 🟡 | 0 ✓ · **1 VER siguiente** | `Usuarios_Pendientes.md` |
-| 5 | Suscripciones / membresías | ⬜ | 0 | — |
+| 4 | **Usuarios** | ✅ | ✔ Cerrado · pulido/verificación pendiente | `Usuarios.md` · `Usuarios_Pendientes.md` |
+| 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 6 | Vendedores y comisiones | ⬜ | 0 | — |
 | 7 | Publicidad | ⬜ | 0 | — |
 | 8 | Ciudades | 🟡 | BD lista, falta UI (entra por Fase 1) | — |
@@ -52,15 +56,19 @@
   (acciones de tarjeta contra Stripe real). Pendientes menores (backlog): regularizar tarjeta morosa ·
   lock anti doble-click. (Cerrados 10 jun: cortesía, editar pago, contador real, Cancelar transaccional,
   paginar historial, verificación §4, fecha-vs-webhook, consistencia cancelar↔webhook.)
-- **4 · Usuarios** — **Fase 0 cerrada** (ver `Usuarios_Pendientes.md`). Mesa de ayuda + moderación de
-  personas. **Permiso partido:** *soporte* (ver expediente + diagnóstico de acceso + rescates:
-  desbloquear, reenviar verificación/contraseña, corregir correo) = **super + gerente** (cross-región,
-  auditado); *moderación* (suspender/reactivar) = **solo super**. Vendedor fuera en V1. Expediente =
-  tarjeta de resumen (no explorador). Sin migración. V2: denuncias, deep-link desde Negocios,
-  promover/degradar, apretar cross-región cuando `usuarios` tenga región.
-- **5 · Suscripciones** — precio/promos/meses gratis/historial + tiempos (gracia/trial) + **bitácora de
-  eventos de pago** (Stripe + manuales, unificada) + visibilidad de membresía en el perfil del dueño.
-  Aquí vive el historial financiero **completo** (el de la ficha de Negocios es solo un resumen manual).
+- **4 · Usuarios** — **en uso** (doc canónico [`Usuarios.md`](Usuarios.md)). Mesa de ayuda + moderación
+  de personas. **Permiso partido:** *soporte* (desbloquear, código de acceso, corregir correo) =
+  **super + gerente**; *moderación* (suspender/reactivar) = **solo super**. **Gerente acotado por
+  región** (clientes todos; dueños/encargados/vendedores de su región; nunca otros gerentes) +
+  **lente de región** del superadmin. Taxonomía de roles en la columna Rol; expediente = tarjeta de
+  resumen depurada (correo/ID copiables). Migración: `usuarios_ultimo_acceso_panel.sql`. Pendiente:
+  pulido visual final. V2: denuncias, deep-link desde Negocios, promover/degradar.
+- **5 · Suscripciones** — **bitácora financiera V1 construida y en uso** (doc [`Suscripciones.md`](Suscripciones.md)):
+  el libro mayor de eventos de pago (`eventos_pago`) — cobros Stripe + pagos manuales + cancelaciones, solo
+  lectura, con KPIs y alcance por rol. Aquí vive el historial financiero **completo** (el de la ficha de
+  Negocios es solo un resumen). **Resto del módulo pendiente:** precio/promos/meses gratis + tiempos
+  configurables (gracia/trial) + visibilidad de membresía en el perfil del dueño. Pendientes menores de la
+  bitácora: deep-link a Negocios, re-sync al editar pago, migración en prod.
 - **6 · Vendedores y comisiones** — alta/baja, escalera de comisiones (monto fijo), corte de efectivo;
   rediseñar tabla `embajadores` (quitar porcentajes viejos).
 - **8 · Ciudades** — tabla `ciudades` poblada; falta la **UI** para habilitar/agrupar ciudades en regiones.

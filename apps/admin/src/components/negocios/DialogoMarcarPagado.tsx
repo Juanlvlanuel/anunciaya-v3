@@ -84,6 +84,8 @@ interface DialogoMarcarPagadoProps {
   vencimientoActual: string | null;
   /** ¿El dueño tiene suscripción de Stripe? Controla el texto del efecto. */
   tieneSuscripcion: boolean;
+  /** Si false, oculta la opción de cortesía (el vendedor no puede regalar membresías). */
+  permiteCortesia?: boolean;
   cargando?: boolean;
   onConfirmar: (hastaISO: string, datos: DatosPago) => void;
 }
@@ -94,9 +96,11 @@ export function DialogoMarcarPagado({
   nombreNegocio,
   vencimientoActual,
   tieneSuscripcion,
+  permiteCortesia = true,
   cargando = false,
   onConfirmar,
 }: DialogoMarcarPagadoProps) {
+  const conceptos = permiteCortesia ? OPCIONES_CONCEPTO : OPCIONES_CONCEPTO.filter((c) => c.valor !== 'cortesia');
   const [modo, setModo] = useState<'meses' | 'fecha'>('meses');
   const [mesesStr, setMesesStr] = useState('1');
   const [fechaManual, setFechaManual] = useState('');
@@ -237,7 +241,7 @@ export function DialogoMarcarPagado({
         <div className="mt-4">
           <div className={SECCION}>¿Cómo pagó?</div>
           <div className="flex flex-wrap gap-2" data-testid="marcar-concepto">
-            {OPCIONES_CONCEPTO.map((c) => (
+            {conceptos.map((c) => (
               <button
                 key={c.valor}
                 type="button"

@@ -51,7 +51,7 @@ export function SelectorRegion({ rol, regionActivaId, onCambiar }: SelectorRegio
         type="button"
         data-testid="selector-region"
         onClick={() => setAbierto((v) => !v)}
-        className="flex items-center gap-2 rounded-[10px] border border-white/15 bg-white/10 px-3.5 py-2 text-sm text-white transition hover:bg-white/[0.17]"
+        className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-sm text-white transition hover:bg-white/[0.17]"
       >
         {actual.id === '' ? <Globe size={16} className="text-white/70" /> : <MapPin size={16} className="text-white/70" />}
         <span className="font-semibold">{actual.nombre}</span>
@@ -60,7 +60,6 @@ export function SelectorRegion({ rol, regionActivaId, onCambiar }: SelectorRegio
 
       {abierto && (
         <div className="animar-entrada absolute right-0 z-30 mt-2 w-[268px] rounded-[12px] border border-borde bg-superficie p-1.5 shadow-pop-panel">
-          <div className="px-2.5 py-1.5 text-sm font-semibold text-texto-3">Ámbito de la plataforma</div>
           {opciones.map((r, i) => (
             <div key={r.id || 'all'}>
               {i === 1 && <div className="my-1 h-px bg-borde" />}
