@@ -196,16 +196,27 @@ Cómo nace una venta y cómo se enlaza un negocio a su vendedor. **Dos caminos, 
 > negocio que paga en efectivo está protegido (se activa al instante); el candado de "entrega
 > pendiente + confirmación" recae sobre el **vendedor**, no sobre el negocio.
 
-> ⚠️ **PENDIENTE a implementar en el Camino B — el "robo invisible":**
+> ⚠️ **El "robo invisible" (y sus defensas):**
 > El caso peor no es "registra y no entrega" (ese ya queda con faltante visible). Es el vendedor
 > que **cobra en efectivo y NUNCA registra la venta** — para el sistema, esa venta no existe, y el
 > negocio cree que pagó. El sistema no puede detectar un robo que nunca se registró.
 >
-> **Defensas ELEGIDAS (decisión tomada) — se construyen junto con el Camino B:**
-> 1. **Comprobante automático al negocio** al registrar el cobro (recibo por correo/SMS/in-app: "recibimos tu pago de $X, tu membresía está activa hasta Y"). Hace que registrar sea inseparable de cobrar: si el negocio no recibe comprobante, esa es la señal de alarma.
-> 2. **Visibilidad del estado de membresía en la página de cuenta/perfil del dueño** (ve "activo hasta X" con su fecha de vencimiento) — **fuera del BS, accesible desde el modo Personal**. Convierte al negocio en auditor: si pagó en efectivo y su BS dice "vencido", reclama a AnunciaYA (no al vendedor) → se cacha el robo. Reusa las 5 columnas de estado de membresía ya creadas.
+> **Defensas ELEGIDAS (decisión tomada):**
+> 1. ✅ **Comprobante automático al negocio — CONSTRUIDO (11 Jun 2026).** Al registrar **cualquier**
+>    pago (renovación o alta manual) el dueño recibe un **correo de comprobante** con un **recibo PDF
+>    descargable**: molde de marca con logo, marca de agua y datos fiscales del emisor, **folio
+>    secuencial** (`#00001…`, una secuencia de Postgres global a todos los vendedores), guardado en R2.
+>    Hace que registrar sea inseparable de cobrar: si el negocio no recibe comprobante, esa es la señal
+>    de alarma. Todo **best-effort** (si el correo o el PDF fallan, el cobro ya quedó). Detalle en
+>    📄 [`Negocios.md`](Negocios.md) §6 y Apéndice D.
+> 2. ⬜ **Visibilidad del estado de membresía en la página de cuenta/perfil del dueño** (PENDIENTE) —
+>    ve "activo hasta X" con su fecha de vencimiento, **fuera del BS, accesible desde el modo Personal**.
+>    Convierte al negocio en auditor: si pagó en efectivo y su cuenta dice "vencido", reclama a AnunciaYA
+>    (no al vendedor) → se cacha el robo. Reusa las 5 columnas de estado de membresía ya creadas.
 >
-> Estas dos atacan el robo de raíz: solo funciona si el negocio **no se entera**; con comprobante + visibilidad, **siempre se entera**.
+> Las dos atacan el robo de raíz: solo funciona si el negocio **no se entera**; con comprobante +
+> visibilidad, **siempre se entera**. (Con la Defensa 1 ya en pie, el negocio recibe constancia escrita
+> de cada pago; falta la Defensa 2 para que pueda consultarlo por su cuenta.)
 >
 > **Capa futura (no prioritaria):** conciliación contra el mapa/cartera del v2 (cruzar lo reportado por el vendedor vs. negocios visitados vs. lo que los negocios dicen haber pagado).
 > **Descartado:** pedir que el negocio confirme cada pago — le da trabajo que no hará; las dos defensas elegidas ya lo cubren sin pedirle nada.

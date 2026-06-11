@@ -508,6 +508,153 @@ export async function enviarEmailGerenteRevocado(
 }
 
 // =============================================================================
+// COMPROBANTE DE PAGO DE MEMBRESÍA (defensa Camino B — "robo invisible")
+// =============================================================================
+
+/**
+ * Datos del pago para armar el comprobante / bloque-recibo que recibe el DUEÑO del
+ * negocio cuando alguien (vendedor, gerente o admin) registra un pago manual.
+ */
+export interface DatosComprobantePago {
+  /** Nombre del negocio cuya membresía se renovó/activó. */
+  nombreNegocio: string;
+  /** Cómo se registró: ingreso real (efectivo/transferencia) o cortesía (sin dinero). */
+  concepto: 'efectivo' | 'transferencia' | 'cortesia';
+  /** Monto cobrado en MXN. NULL/omitido en cortesía (no hubo cobro). */
+  monto?: number | null;
+  /** Vigencia: fecha (ISO) hasta la que queda activa la membresía. */
+  hasta: string;
+  /** URL del recibo PDF en R2 (opcional). Si viene, el correo muestra el botón de descarga;
+   *  si no (falló la generación/subida), el correo va igual sin botón. */
+  reciboUrl?: string | null;
+}
+
+/** Botón "Descargar tu recibo (PDF)" — devuelve '' si no hay URL. */
+function botonDescargaRecibo(reciboUrl?: string | null): string {
+  if (!reciboUrl) return '';
+  return `
+    <div style="text-align: center; margin: 0 0 20px;">
+      <a href="${reciboUrl}" target="_blank" rel="noopener" style="display: inline-block; border: 1px solid #034AE3; color: #034AE3; text-decoration: none; font-size: 14px; font-weight: 600; padding: 10px 22px; border-radius: 8px;">
+        Descargar tu recibo (PDF)
+      </a>
+    </div>`;
+}
+
+/** Texto legible del concepto del pago. */
+function conceptoLegible(concepto: DatosComprobantePago['concepto']): string {
+  if (concepto === 'transferencia') return 'Transferencia';
+  if (concepto === 'cortesia') return 'Cortes&iacute;a';
+  return 'Efectivo';
+}
+
+/** Formatea un monto MXN como "$449.00 MXN". */
+function formatearMontoMXN(monto: number): string {
+  const n = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(monto);
+  return `${n} MXN`;
+}
+
+/**
+ * Formatea una fecha ISO como "12 de julio de 2026". Se interpreta en UTC para que la
+ * fecha mostrada coincida con la guardada (la vigencia se almacena con `.toISOString()`),
+ * evitando corrimientos de un día por zona horaria del servidor.
+ */
+function formatearFechaLarga(iso: string): string {
+  const f = new Intl.DateTimeFormat('es-MX', {
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+  }).format(new Date(iso));
+  return f;
+}
+
+/**
+ * Bloque-recibo (HTML) con el detalle del pago: negocio, concepto, monto (si aplica) y
+ * vigencia. Reutilizado por el comprobante de renovación y por el correo de bienvenida del
+ * alta manual. El monto se omite en cortesía (no hubo cobro de dinero).
+ */
+function bloqueReciboMembresia(datos: DatosComprobantePago): string {
+  const esCortesia = datos.concepto === 'cortesia';
+  const conceptoTexto = esCortesia ? 'Membres&iacute;a de cortes&iacute;a' : 'Pago de Membres&iacute;a';
+  const filaMonto = (!esCortesia && datos.monto != null)
+    ? `
+      <tr>
+        <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Monto</td>
+        <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-align: right;">${formatearMontoMXN(datos.monto)}</td>
+      </tr>`
+    : '';
+  const filaFormaPago = !esCortesia
+    ? `
+      <tr>
+        <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Forma de pago</td>
+        <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${conceptoLegible(datos.concepto)}</td>
+      </tr>`
+    : '';
+
+  return `
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; margin-bottom: 20px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Negocio</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${escape(datos.nombreNegocio)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Concepto</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${conceptoTexto}</td>
+        </tr>${filaMonto}${filaFormaPago}
+        <tr>
+          <td style="padding: 10px 0 0; font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0;">Membres&iacute;a activa hasta</td>
+          <td style="padding: 10px 0 0; font-size: 15px; color: #034AE3; font-weight: 700; text-align: right; border-top: 1px solid #e2e8f0;">${formatearFechaLarga(datos.hasta)}</td>
+        </tr>
+      </table>
+    </div>`;
+}
+
+/**
+ * Plantilla (HTML) del comprobante de pago de membresía. Exportada para que el harness de
+ * verificación pueda renderizarla sin enviar correo. El copy se ramifica: efectivo/transferencia
+ * confirma un pago recibido; cortesía informa la activación sin mencionar dinero.
+ */
+export function plantillaComprobantePago(nombre: string, datos: DatosComprobantePago): string {
+  const esCortesia = datos.concepto === 'cortesia';
+
+  const intro = esCortesia
+    ? `Activamos la membres&iacute;a de tu negocio en AnunciaYA como <strong>cortes&iacute;a</strong>. Aqu&iacute; tienes el detalle:`
+    : `Confirmamos que recibimos tu pago de la membres&iacute;a de AnunciaYA. <strong>Guarda este correo como tu comprobante.</strong>`;
+
+  const cierre = esCortesia
+    ? `Cualquier duda sobre tu membres&iacute;a, est&aacute;s en buenas manos: cont&aacute;ctanos cuando lo necesites.`
+    : `Este correo es tu <strong>comprobante oficial</strong>. Si registraste un pago y <strong>no</strong> recibiste este mensaje, av&iacute;sanos de inmediato &mdash; siempre debe llegarte una constancia.`;
+
+  const contenido = `
+    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
+      ${intro}
+    </p>
+    ${bloqueReciboMembresia(datos)}
+    ${botonDescargaRecibo(datos.reciboUrl)}
+    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #64748b;">
+      ${cierre}
+    </p>`;
+
+  return plantillaBase(nombre, contenido);
+}
+
+/**
+ * Envía el comprobante de pago de membresía al DUEÑO del negocio. Defensa del Camino B
+ * (pago en efectivo): hace que registrar un cobro sea inseparable de que el negocio reciba
+ * constancia con su vigencia → si pagó y no le llega, esa es la alarma. Best-effort: el
+ * llamador debe envolverlo en try/catch para que un fallo de correo no rompa el cobro ya registrado.
+ */
+export async function enviarComprobantePagoMembresia(
+  correo: string,
+  nombre: string,
+  datos: DatosComprobantePago
+): Promise<ResultadoEmail> {
+  const asunto = datos.concepto === 'cortesia'
+    ? 'Tu membresía de AnunciaYA está activa'
+    : 'Comprobante de pago — tu membresía de AnunciaYA';
+
+  return enviarEmail(correo, asunto, plantillaComprobantePago(nombre, datos));
+}
+
+// =============================================================================
 // EMAIL DE BIENVENIDA (alta manual de negocio en efectivo/transferencia)
 // =============================================================================
 
@@ -515,16 +662,24 @@ export async function enviarEmailGerenteRevocado(
  * Email: bienvenida al dueño de un negocio dado de alta MANUALMENTE desde el Panel.
  * La cuenta nace SIN contraseña (modelo C): el dueño la define en su primer ingreso usando
  * la opción de crear/recuperar contraseña (código al correo). No incluye credenciales.
+ *
+ * Incluye el bloque-recibo del PRIMER PAGO (defensa Camino B): el dueño recibe en el mismo
+ * correo la constancia de su pago + vigencia, sin un segundo correo.
  */
-export async function enviarEmailBienvenida(
-  correo: string,
+/** Plantilla (HTML) de la bienvenida del alta manual. Exportada para que el harness la
+ *  renderice sin enviar correo. Incluye el bloque-recibo del primer pago. */
+export function plantillaBienvenida(
   nombre: string,
-  nombreNegocio: string
-): Promise<ResultadoEmail> {
+  correo: string,
+  nombreNegocio: string,
+  datosPago: DatosComprobantePago
+): string {
   const contenido = `
     <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
       &iexcl;Tu negocio <strong>&quot;${escape(nombreNegocio)}&quot;</strong> ya est&aacute; dado de alta en AnunciaYA y tu membres&iacute;a est&aacute; activa!
     </p>
+    ${bloqueReciboMembresia(datosPago)}
+    ${botonDescargaRecibo(datosPago.reciboUrl)}
     <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
       Para entrar a tu panel necesitas <strong>crear tu contrase&ntilde;a</strong>. Abre AnunciaYA, elige <strong>Iniciar sesi&oacute;n</strong>, escribe este correo (<strong>${correo}</strong>) y usa la opci&oacute;n de <strong>crear / recuperar contrase&ntilde;a</strong>: te enviaremos un c&oacute;digo a este correo para definirla.
     </p>
@@ -537,10 +692,19 @@ export async function enviarEmailBienvenida(
       Despu&eacute;s de definir tu contrase&ntilde;a, completa los datos de tu negocio (ubicaci&oacute;n, horarios y fotos) para que aparezca en el directorio.
     </p>`;
 
+  return plantillaBase(nombre, contenido);
+}
+
+export async function enviarEmailBienvenida(
+  correo: string,
+  nombre: string,
+  nombreNegocio: string,
+  datosPago: DatosComprobantePago
+): Promise<ResultadoEmail> {
   return enviarEmail(
     correo,
     'Tu negocio ya está en AnunciaYA',
-    plantillaBase(nombre, contenido)
+    plantillaBienvenida(nombre, correo, nombreNegocio, datosPago)
   );
 }
 

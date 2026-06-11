@@ -23,6 +23,8 @@ import { negocios, pagosMembresia, embajadores } from '../../db/schemas/schema.j
 import { crearNegocioConDueno } from '../negocioManagement.service.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { enviarEmailBienvenida } from '../../utils/email.js';
+import { generarReciboPagoPDF } from '../../utils/reciboPdf.js';
+import { subirArchivo } from '../r2.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { AltaManualNegocioInput } from '../../validations/admin/altaManualNegocio.schema.js';
 
@@ -195,16 +197,16 @@ export async function altaManualNegocio(
             })
             .where(eq(negocios.id, negocio.id));
 
-        await tx.insert(pagosMembresia).values({
+        const [pagoManual] = await tx.insert(pagosMembresia).values({
             negocioId: negocio.id,
             monto: montoRegistrado != null ? String(montoRegistrado) : null,
             concepto: datos.concepto,
             mesesCubiertos: datos.meses,
             periodoHasta: vencISO,
             registradoPor: panel.usuarioId,
-        });
+        }).returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
 
-        return { negocioId: negocio.id, usuarioId: negocio.usuarioId };
+        return { negocioId: negocio.id, usuarioId: negocio.usuarioId, pagoId: pagoManual?.id ?? null, folio: pagoManual?.folio ?? null };
     });
 
     // -------------------------------------------------------------------------
@@ -231,10 +233,55 @@ export async function altaManualNegocio(
     });
 
     // -------------------------------------------------------------------------
-    // 7) Correo de bienvenida (best-effort: si falla NO revierte el alta ya confirmada).
+    // 7) Correo de bienvenida + comprobante del PRIMER PAGO (best-effort: si falla NO
+    //    revierte el alta ya confirmada). El bloque-recibo (monto + vigencia) viaja en el
+    //    mismo correo de bienvenida — defensa Camino B sin un segundo correo en el alta.
     // -------------------------------------------------------------------------
+    const montoComprobante = datos.concepto === 'cortesia' ? null : (datos.monto ?? null);
+
+    // Recibo PDF del PRIMER pago → R2 (best-effort). Si falla, la bienvenida va sin botón.
+    let reciboUrl: string | undefined;
     try {
-        await enviarEmailBienvenida(datos.correo, datos.nombre, datos.nombreNegocio);
+        // Sucursal matriz recién creada (nombre/dirección) y quién registró el alta.
+        const [suc] = (await db.execute(sql`
+            SELECT nombre, direccion, telefono, correo
+            FROM negocio_sucursales
+            WHERE negocio_id = ${creado.negocioId} AND es_principal = true
+            LIMIT 1
+        `)).rows as Array<{ nombre: string | null; direccion: string | null; telefono: string | null; correo: string | null }>;
+        const [actor] = (await db.execute(sql`
+            SELECT TRIM(CONCAT(nombre, ' ', COALESCE(apellidos, ''))) AS nombre
+            FROM usuarios WHERE id = ${panel.usuarioId} LIMIT 1
+        `)).rows as Array<{ nombre: string }>;
+
+        const pdf = await generarReciboPagoPDF({
+            folio: creado.folio != null ? String(creado.folio) : String(creado.pagoId ?? creado.negocioId),
+            nombreNegocio: datos.nombreNegocio,
+            sucursal: suc?.nombre ?? null,
+            nombreDueno: `${datos.nombre} ${datos.apellidos}`.trim(),
+            direccionNegocio: suc?.direccion ?? null,
+            telefonoNegocio: datos.telefono ?? suc?.telefono ?? null,
+            correoNegocio: datos.correo ?? suc?.correo ?? null,
+            concepto: datos.concepto,
+            monto: montoComprobante,
+            periodoMeses: datos.meses,
+            hasta: vencISO,
+            atendio: actor?.nombre ?? null,
+        });
+        const sub = await subirArchivo(pdf, 'recibos', 'recibo.pdf', 'application/pdf');
+        if (sub.success && sub.data?.url) reciboUrl = sub.data.url;
+    } catch {
+        console.error('Error al generar/subir el recibo PDF (alta manual)');
+    }
+
+    try {
+        await enviarEmailBienvenida(datos.correo, datos.nombre, datos.nombreNegocio, {
+            nombreNegocio: datos.nombreNegocio,
+            concepto: datos.concepto,
+            monto: montoComprobante,
+            hasta: vencISO,
+            reciboUrl,
+        });
     } catch {
         console.error('Error al enviar el correo de bienvenida del alta manual');
     }

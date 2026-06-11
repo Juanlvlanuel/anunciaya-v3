@@ -213,6 +213,8 @@ export function useMarcarPagado() {
       negociosService.marcarPagado(vars.id, { hasta: vars.hasta, concepto: vars.concepto, monto: vars.monto, meses: vars.meses }),
     onSuccess: (res, { id }) => {
       refrescar(id);
+      // El pago recién registrado debe aparecer al instante en el "Historial de pagos" de la ficha.
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.pagos(id) });
       // "Registrar pago" crea un evento `pago_manual` en la bitácora financiera (Suscripciones):
       // invalidarla para que el pago aparezca ahí sin recargar la página.
       qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });

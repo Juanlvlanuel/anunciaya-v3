@@ -118,6 +118,12 @@ La bitácora se alimenta de **dos orígenes**, que juntos dan la foto completa:
 > **invoice de $0** (el de la prueba gratis) **no** ensucia la bitácora — solo se registran los
 > cobros reales.
 
+> 📧 **Comprobante al dueño:** cada **pago manual** además dispara, al instante, un **correo de
+> comprobante** con un **recibo PDF descargable** (folio correlativo, datos fiscales, monto, vigencia)
+> — es la **Defensa 1 del Camino B** contra el "robo invisible". Eso vive en **"Registrar pago"**
+> (módulo Negocios), no en esta bitácora; aquí el pago solo **se refleja** como un evento más. Ver
+> [`Negocios.md`](Negocios.md) §6 y [`Panel_Admin.md`](Panel_Admin.md) §Camino B.
+
 ---
 
 ## 7. Preguntas frecuentes

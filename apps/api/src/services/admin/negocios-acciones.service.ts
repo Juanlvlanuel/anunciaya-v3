@@ -39,7 +39,9 @@ import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCi
 import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
 import { randomInt } from 'crypto';
 import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
-import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion } from '../../utils/email.js';
+import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobantePagoMembresia } from '../../utils/email.js';
+import { generarReciboPagoPDF } from '../../utils/reciboPdf.js';
+import { subirArchivo } from '../r2.service.js';
 
 // =============================================================================
 // TIPOS
@@ -72,6 +74,12 @@ type NegocioCargado = {
     metodoCobro: string;
     /** Suscripción de Stripe del DUEÑO (vive en `usuarios`, no en `negocios`). */
     stripeSubscriptionId: string | null;
+    /** Nombre del negocio — para el comprobante de pago al dueño. */
+    nombreNegocio: string;
+    /** Correo del DUEÑO (destinatario del comprobante). */
+    correoDueno: string | null;
+    /** Nombre del DUEÑO (saludo del comprobante). */
+    nombreDueno: string | null;
 };
 
 /** Carga el negocio y valida el alcance del actor. Devuelve el negocio, o un
@@ -91,8 +99,11 @@ async function cargarNegocioConAlcance(
             embajadorId: negocios.embajadorId,
             estadoMembresia: negocios.estadoMembresia,
             metodoCobro: negocios.metodoCobro,
-            // La suscripción de Stripe vive en el DUEÑO (join 1:1 negocio → usuario).
+            nombreNegocio: negocios.nombre,
+            // La suscripción de Stripe y los datos de contacto viven en el DUEÑO (join 1:1).
             stripeSubscriptionId: usuarios.stripeSubscriptionId,
+            correoDueno: usuarios.correo,
+            nombreDueno: usuarios.nombre,
         })
         .from(negocios)
         .leftJoin(usuarios, eq(usuarios.id, negocios.usuarioId))
@@ -472,7 +483,7 @@ export async function marcarPagado(
 
     // Atómico: activar el negocio + dejar el registro contable van juntos o no van. Stripe
     // queda FUERA de la transacción (es externo; §4.3: la BD manda aunque Stripe falle).
-    const act = await db.transaction(async (tx) => {
+    const { negocio: act, pagoId, folio: pagoFolio } = await db.transaction(async (tx) => {
         const [actualizado] = await tx
             .update(negocios)
             .set({
@@ -502,7 +513,7 @@ export async function marcarPagado(
             mesesCubiertos: opciones.meses ?? null,
             periodoHasta: opciones.hasta,
             registradoPor: panel.usuarioId,
-        }).returning({ id: pagosMembresia.id });
+        }).returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
 
         // Gemelo en la bitácora financiera global (libro mayor), en la MISMA transacción: el
         // registro contable y el del libro mayor van juntos o no van. referencia_id apunta a la
@@ -518,7 +529,7 @@ export async function marcarPagado(
             metadata: { concepto: opciones.concepto, meses: opciones.meses ?? null, hasta: opciones.hasta, metodoCobro: nuevoMetodoCobro },
         });
 
-        return actualizado;
+        return { negocio: actualizado, pagoId: pagoManual?.id ?? null, folio: pagoManual?.folio ?? null };
     });
 
     // Stripe (fuera de la transacción): EMPUJA el próximo cobro a `hasta` (trial_end absoluto)
@@ -553,6 +564,60 @@ export async function marcarPagado(
 
     // Reaparece en circulación → borrar el aviso de "fuera de circulación" del dueño.
     await limpiarNotificacionNegocioFueraDeCirculacion(negocioId);
+
+    // Comprobante al DUEÑO (defensa Camino B — "robo invisible"): que el negocio reciba
+    // constancia de su pago + vigencia haga que registrar el cobro sea inseparable de que el
+    // negocio se entere. Best-effort en TODO: ni el PDF ni el correo revierten el pago ya asentado.
+    if (neg.correoDueno) {
+        // 1) Recibo PDF → R2 (carpeta `recibos/`, protegida en imageRegistry). Si falla, el
+        //    correo se manda igual SIN el botón de descarga (reciboUrl queda undefined).
+        let reciboUrl: string | undefined;
+        try {
+            // Datos extra para el recibo: sucursal matriz (dirección/teléfono/correo) y quién atendió.
+            const [suc] = (await db.execute(sql`
+                SELECT nombre, direccion, telefono, correo
+                FROM negocio_sucursales
+                WHERE negocio_id = ${negocioId} AND es_principal = true
+                LIMIT 1
+            `)).rows as Array<{ nombre: string | null; direccion: string | null; telefono: string | null; correo: string | null }>;
+            const [actor] = (await db.execute(sql`
+                SELECT TRIM(CONCAT(nombre, ' ', COALESCE(apellidos, ''))) AS nombre
+                FROM usuarios WHERE id = ${panel.usuarioId} LIMIT 1
+            `)).rows as Array<{ nombre: string }>;
+
+            const pdf = await generarReciboPagoPDF({
+                folio: pagoFolio != null ? String(pagoFolio) : String(pagoId ?? act.id),
+                nombreNegocio: neg.nombreNegocio,
+                sucursal: suc?.nombre ?? null,
+                nombreDueno: neg.nombreDueno,
+                direccionNegocio: suc?.direccion ?? null,
+                telefonoNegocio: suc?.telefono ?? null,
+                correoNegocio: suc?.correo ?? neg.correoDueno,
+                concepto: opciones.concepto,
+                monto: montoRegistrado,
+                periodoMeses: opciones.meses ?? null,
+                hasta: opciones.hasta,
+                atendio: actor?.nombre ?? null,
+            });
+            const sub = await subirArchivo(pdf, 'recibos', 'recibo.pdf', 'application/pdf');
+            if (sub.success && sub.data?.url) reciboUrl = sub.data.url;
+        } catch {
+            console.error('Error al generar/subir el recibo PDF (marcarPagado)');
+        }
+
+        // 2) Correo del comprobante (con el botón de descarga si el PDF quedó arriba).
+        try {
+            await enviarComprobantePagoMembresia(neg.correoDueno, neg.nombreDueno ?? '', {
+                nombreNegocio: neg.nombreNegocio,
+                concepto: opciones.concepto,
+                monto: montoRegistrado,
+                hasta: opciones.hasta,
+                reciboUrl,
+            });
+        } catch {
+            console.error('Error al enviar el comprobante de pago de membresía (marcarPagado)');
+        }
+    }
 
     return { ok: true, negocio: act, advertenciaStripe };
 }

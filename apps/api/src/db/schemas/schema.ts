@@ -216,6 +216,10 @@ export const adminAuditoria = pgTable("admin_auditoria", {
 //   - periodo_hasta: vencimiento aplicado (= trial_end empujado en Stripe)
 export const pagosMembresia = pgTable("pagos_membresia", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
+	// Folio secuencial GLOBAL del recibo (00001, 00002…). Lo asigna una secuencia de Postgres
+	// (default en BD), compartida entre todos los vendedores/gerentes/superadmin. Ver migración
+	// docs/migraciones/2026-06-11-folio-recibo.sql.
+	folio: integer('folio'),
 	negocioId: uuid("negocio_id").notNull().references((): AnyPgColumn => negocios.id, { onDelete: 'cascade' }),
 	monto: numeric({ precision: 10, scale: 2 }),
 	concepto: varchar({ length: 20 }).notNull(),

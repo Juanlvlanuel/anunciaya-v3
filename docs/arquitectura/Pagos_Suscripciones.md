@@ -6,7 +6,8 @@
 >
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
-> sola; ver §9.1). Falta infraestructura de producción (ver §12). Versión 1.1.
+> sola; ver §9.1). Falta infraestructura de producción (ver §12). Versión 1.2 (11 Jun 2026: columna
+> `folio` en `pagos_membresia` + comprobante automático con recibo PDF, §2 y §10).
 >
 > Archivos núcleo: `apps/api/src/services/pago.service.ts` (webhook + checkout),
 > `services/admin/negocios-acciones.service.ts` + `services/suscripciones/acciones-stripe.ts`
@@ -49,6 +50,7 @@
 **`pagos_membresia`** (bitácora de pagos manuales — primer ladrillo de la bitácora pendiente §12):
 | Campo | Para qué |
 |---|---|
+| `folio` | **Folio correlativo del recibo** (`#00001…`); default `nextval` de la secuencia global `pagos_membresia_folio_seq` (atómica entre todos los vendedores). Migración `2026-06-11-folio-recibo.sql` |
 | `negocio_id` | Negocio (FK, `ON DELETE CASCADE`) |
 | `concepto` | `efectivo` / `transferencia` (ingreso) / `cortesia` (sin monto; un CHECK exige `monto IS NULL`) |
 | `monto` | MXN del pago registrado (NULL en cortesía) |
@@ -194,6 +196,12 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 
 ## 10. Notificaciones
 
+- **Comprobante de pago** (correo + recibo PDF): al registrar un pago manual (§9.1 / alta manual), el
+  dueño recibe **al instante** un correo de comprobante con un **recibo PDF descargable** (folio
+  correlativo, datos fiscales del emisor, monto, forma de pago, vigencia), guardado en R2 (`recibos/`).
+  Es la **Defensa 1 del Camino B** contra el "robo invisible": registrar un cobro queda inseparable de
+  que el negocio reciba constancia. Best-effort (si el correo/PDF fallan, el cobro ya quedó). Generador:
+  `utils/reciboPdf.ts` (pdf-lib sobre molde de marca); detalle en `Panel_Admin/Negocios.md` §6 y Ap. D.
 - **Negocio fuera de circulación** (`negocio_fuera_circulacion`): al dueño cuando se suspende o cancela (idempotente: borra y recrea).
 - **Fin de trial** (`trial_will_end`): notificación in-app (tipo `sistema`) al dueño, en **ambos modos**, ~3 días antes del cobro. **Copy ramificado** según el pago manual que cubría el periodo (busca en `pagos_membresia` el pago cuyo `periodo_hasta` coincide con el `trial_end`):
   - **cortesía** → se **suprime** el aviso (el dueño no paga ese periodo).

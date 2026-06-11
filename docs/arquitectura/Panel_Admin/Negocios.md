@@ -9,7 +9,7 @@
 > sin contexto. La segunda (el **Apéndice técnico** al final) es la referencia para quien
 > va a tocar el código: archivos, endpoints, permisos y detalles internos.
 >
-> **Estado:** desplegado y en uso. Última actualización: 10 Junio 2026.
+> **Estado:** desplegado y en uso. Última actualización: 11 Junio 2026.
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) describe el Panel **completo**
 > (el "caparazón": login, roles, regiones, las demás secciones). Este documento es solo
@@ -127,9 +127,13 @@ Si haces clic en un renglón, se abre la **ficha** — el expediente del negocio
 
 - **Encabezado:** nombre y una etiqueta de color con su estado.
 - **Membresía:** su estado de pago y las fechas relevantes. Aquí cambia un poco según cómo
-  paga: si es de **efectivo** ves "Vigencia hasta" y un **historial de pagos** (los últimos 5
-  con un "ver todos"; cada fila se puede corregir con el botón de editar); si es de **tarjeta**
-  ves "Próximo cobro" y datos de su suscripción.
+  paga: si es de **efectivo** ves "Vigencia hasta"; si es de **tarjeta** ves "Próximo cobro" y
+  datos de su suscripción.
+- **Historial de pagos:** la lista de pagos manuales (los últimos 5 con un "ver todos"; cada fila
+  se puede corregir con el botón de editar). Aparece **siempre** en los negocios de efectivo, y
+  **también en los de tarjeta** si alguna vez se les registró un pago manual (un admin puede
+  "Registrar pago" en un negocio con tarjeta). En un negocio de tarjeta sin pagos manuales, la
+  sección no se muestra.
 - **Vendedor atribuido:** quién lo registró.
 - **Dueño de la cuenta:** nombre, correo y teléfono del dueño (con un botón para corregir
   el correo, si tienes permiso).
@@ -183,6 +187,15 @@ Si el negocio paga con **tarjeta**, esta acción también le avisa a Stripe que 
 cubierto hasta esa fecha. Pero si el negocio de tarjeta **debe dinero** (está en gracia o
 suspendido), el sistema **no te deja** registrarle un pago adelantado — primero hay que
 regularizar lo que debe en Stripe (el botón se ve apagado y te lo explica).
+
+> 📧 **Comprobante automático (defensa anti "robo invisible").** Al registrar el pago, el dueño
+> del negocio recibe **al instante** un **correo de comprobante** con un **recibo PDF descargable**:
+> trae el **folio** (correlativo `#00001…`), el logo y los datos fiscales de AnunciaYA, el negocio,
+> la forma de pago, el monto y hasta cuándo queda activa la membresía. Así el negocio **siempre tiene
+> constancia** de lo que pagó — y si *no* le llega un comprobante, esa es justo la señal de que algo no
+> se registró. Aplica a **efectivo, transferencia y cortesía** (la cortesía va sin monto). Todo es
+> *best-effort*: si el correo o el PDF fallaran, el pago ya quedó registrado igual. Lo registra cualquier
+> rol que cobre (vendedor, gerente o super). Ver Apéndice D.
 
 ### Pausar la membresía
 **Para qué:** esconder temporalmente un negocio de la app (deja de aparecer), sin darlo de
@@ -249,7 +262,9 @@ manual" (nada de tarjeta) y se registra ese primer pago en su historial. El venc
 calcula solito: hoy + los meses que se pagaron.
 
 **3. La cuenta del dueño nace sin contraseña.** A propósito: nadie le inventa una contraseña
-al dueño. En su lugar, le llega un **correo de bienvenida**.
+al dueño. En su lugar, le llega un **correo de bienvenida** — que además incluye el **recibo del
+primer pago** (mismo bloque y PDF descargable que el comprobante de §6), así el negocio recibe su
+constancia desde el alta, en un solo correo.
 
 **4. El dueño crea su propia contraseña la primera vez que entra.** Cuando intenta entrar a
 la app, el sistema detecta que aún no tiene contraseña y lo manda a la pantalla **"Crea tu
@@ -344,6 +359,9 @@ negocios cuya sede cae en tu territorio.
 | `services/admin/altaManualNegocio.service.ts` | Alta manual + catálogo de ciudades + chequeo de correo en vivo |
 | `services/admin/auditoria.service.ts` | `registrarAuditoria` → tabla `admin_auditoria` |
 | `validations/admin/altaManualNegocio.schema.ts` | Zod del body del alta |
+| `utils/reciboPdf.ts` | Genera el **recibo PDF** (pdf-lib) estampando los datos sobre el molde de marca `assets/recibo/plantilla-recibo.pdf` (coordenadas extraídas con `scripts/extraer-coords-recibo.ts`) |
+| `utils/email.ts` | `enviarComprobantePagoMembresia` (correo del comprobante + bloque-recibo + botón de descarga); `enviarEmailBienvenida` incluye el bloque en el alta |
+| `services/r2.service.ts` → `subirArchivo` | Sube el recibo PDF a R2 (carpeta `recibos/`, **protegida** en `utils/imageRegistry.ts` → el recolector no la toca) |
 
 Las acciones que tocan Stripe pasan por `services/suscripciones/acciones-stripe.ts` (helpers
 defensivas: si Stripe falla, la BD manda y se devuelve `advertenciaStripe`). El "Modelo C"
@@ -417,6 +435,14 @@ ignoran el query siempre.
   archivado no se revive aquí (409). **El vendedor** puede usarlo solo en **sus** negocios
   **manuales** (sin suscripción → 403 si tiene tarjeta) y **sin cortesía** (→ 403); su cartera la
   valida `cargarNegocioConAlcance` (`embajadorId` del negocio = su embajador).
+  La fila de `pagos_membresia` lleva un **`folio` correlativo** (default `nextval` de la secuencia
+  global `pagos_membresia_folio_seq`; migración `docs/migraciones/2026-06-11-folio-recibo.sql`) que se
+  devuelve con `returning`. **Tras** confirmar el pago (fuera de la transacción, **best-effort**):
+  genera el **recibo PDF** (`reciboPdf.ts`, con folio + sucursal matriz + actor), lo sube a R2
+  (`subirArchivo` → `recibos/`) y envía el **comprobante por correo** (`enviarComprobantePagoMembresia`)
+  con el link de descarga. Si el PDF/correo fallan, el cobro ya quedó asentado (se loggea y sigue).
+  El **front** invalida `negocios.pagos(id)` además de la lista → el pago aparece al instante en el
+  *Historial de pagos* de la ficha (que se muestra en manual siempre, y en tarjeta si hay pagos manuales).
 - **Pausar** (`suspender`): `activo=false` + `estado_admin='suspendido'`; pausa el cobro en Stripe
   (`pause_collection 'void'`); notifica al dueño. Motivo obligatorio. 409 si ya está suspendido/archivado.
 - **Reactivar**: revierte (`activo=true` + `estado_admin='activo'`); reanuda Stripe; limpia el aviso.
@@ -445,7 +471,8 @@ estado, y viajan como array `{estado,total}` (no objeto: el middleware snake→c
 vendedor; del body con candado de región si gerente/superadmin); (4) calcula vencimiento = hoy + N meses;
 (5) en **una transacción** crea usuario+negocio+sucursal vía `crearNegocioConDueno` (`metodo_cobro='manual'`,
 sin Stripe, `contrasena_hash=null`, `correo_verificado=false`, sucursal con `ciudad_id` real) y registra el
-primer pago; (6) auditoría + correo de bienvenida (best-effort). Apoyos: `catalogo-ciudades` (selector) y
+primer pago (con su `folio`); (6) auditoría + **recibo PDF a R2** + correo de bienvenida que **incluye el
+recibo del primer pago** (mismo bloque/PDF que §D; todo best-effort). Apoyos: `catalogo-ciudades` (selector) y
 `existe-correo` (aviso en vivo). El cron `expirarManualesVencidos` pasa los manuales vencidos a `en_gracia`
 y notifica (`membresia_en_gracia`); de ahí, el cron de gracia los suspende.
 
@@ -466,4 +493,4 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 
 ---
 
-*Última actualización: 10 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos y "Registrar pago" para el vendedor en sus negocios manuales.*
+*Última actualización: 11 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos, "Registrar pago" para el vendedor en sus negocios manuales, y el **comprobante automático** (Defensa 1 del Camino B): correo + **recibo PDF descargable** con **folio secuencial** al registrar cualquier pago, historial de pagos visible también en negocios de tarjeta con pagos manuales (+ su refresco al instante).*

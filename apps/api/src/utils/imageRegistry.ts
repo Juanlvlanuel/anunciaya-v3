@@ -44,7 +44,8 @@ export interface ImageField {
  * ⚠️ Toda carpeta nueva que contenga assets no-users debe listarse aquí.
  */
 export const CARPETAS_PROTEGIDAS = new Set<string>([
-    'brand',   // Logos y assets de la marca AnunciaYA (subidos por el equipo)
+    'brand',     // Logos y assets de la marca AnunciaYA (subidos por el equipo)
+    'recibos',   // Recibos PDF de pago de membresía (documentos permanentes; no se referencian en BD)
     // Agregar aquí según aparezcan: 'templates', 'static', 'email-assets', etc.
 ]);
 
