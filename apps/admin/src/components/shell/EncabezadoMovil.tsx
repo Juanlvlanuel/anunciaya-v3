@@ -21,7 +21,7 @@ interface EncabezadoMovilProps {
 
 export function EncabezadoMovil({ rol, nombre, avatarUrl }: EncabezadoMovilProps) {
   return (
-    <div className="flex items-center gap-3 bg-[#0e0f13] px-5 py-4">
+    <div className="flex items-center gap-3 bg-barra px-5 py-4">
       <img src={LOGO_OSCURO} alt="AnunciaYA" className="h-[48px] w-auto" />
       <div className="flex-1" />
       <div className="flex items-center gap-5">

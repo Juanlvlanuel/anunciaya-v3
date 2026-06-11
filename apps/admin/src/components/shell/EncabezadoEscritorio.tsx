@@ -39,7 +39,7 @@ export function EncabezadoEscritorio({
   const IconoSeccion = iconoDeSeccion(iconoSeccionClave);
 
   return (
-    <header className="col-span-2 row-start-1 flex items-center bg-[#0e0f13] pr-8">
+    <header className="col-span-2 row-start-1 flex items-center bg-barra pr-8">
       {/* Marca (sobre la columna del sidebar) */}
       <div className="flex w-[314px] shrink-0 items-center gap-3 pl-7">
         <img src={LOGO_OSCURO} alt="AnunciaYA" className="h-[42px] w-auto shrink-0" />
