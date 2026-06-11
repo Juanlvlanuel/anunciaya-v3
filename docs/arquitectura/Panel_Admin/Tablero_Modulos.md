@@ -53,9 +53,11 @@
 ## Notas por módulo (contexto para arrancar)
 
 - **3 · Negocios** — en prod (VER + 6 acciones + alta manual), **verificado de punta a punta**
-  (acciones de tarjeta contra Stripe real). Pendientes menores (backlog): regularizar tarjeta morosa ·
-  lock anti doble-click. (Cerrados 10 jun: cortesía, editar pago, contador real, Cancelar transaccional,
-  paginar historial, verificación §4, fecha-vs-webhook, consistencia cancelar↔webhook.)
+  (acciones de tarjeta contra Stripe real). El **vendedor ya registra pagos en efectivo de sus
+  negocios manuales** (su cartera, sin tarjeta ni cortesía). Pendientes menores (backlog): regularizar
+  tarjeta morosa · lock anti doble-click · monto read-only (bloqueado por precio configurable).
+  (Cerrados: cortesía, editar pago, contador real, cancelar transaccional, paginar historial,
+  verificación §4, fecha/consistencia descartadas, pago del vendedor.)
 - **4 · Usuarios** — **en uso** (doc canónico [`Usuarios.md`](Usuarios.md)). Mesa de ayuda + moderación
   de personas. **Permiso partido:** *soporte* (desbloquear, código de acceso, corregir correo) =
   **super + gerente**; *moderación* (suspender/reactivar) = **solo super**. **Gerente acotado por
