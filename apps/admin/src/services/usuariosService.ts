@@ -153,10 +153,11 @@ export async function obtenerExpediente(id: string): Promise<UsuarioExpediente |
 // ACCIONES (Fase 2) — soporte (super + gerente) y moderación (solo super)
 // =============================================================================
 
-/** Tipo de correo de acceso que se reenvió: crear (modelo C) o restablecer contraseña. */
-export interface ResultadoEnvioAcceso {
-  correoEnviado: boolean;
+/** Resultado de generar un código de acceso: el código (para dictarlo), el tipo y si el correo salió. */
+export interface ResultadoCodigoAcceso {
+  codigo: string;
   tipo: 'crear' | 'restablecer';
+  correoEnviado: boolean;
 }
 
 export interface ResultadoCambioCorreo {
@@ -168,10 +169,10 @@ export async function desbloquearIntentos(id: string): Promise<void> {
   await api.post(`/admin/usuarios/${id}/desbloquear`);
 }
 
-/** Soporte: reenvía el código para crear/restablecer la contraseña. Devuelve si salió y de qué tipo. */
-export async function enviarAcceso(id: string): Promise<ResultadoEnvioAcceso> {
-  const { data } = await api.post<RespuestaAPI<ResultadoEnvioAcceso>>(`/admin/usuarios/${id}/enviar-acceso`);
-  return data.data ?? { correoEnviado: false, tipo: 'crear' };
+/** Soporte: genera el código para crear/restablecer la contraseña y lo devuelve (para dictarlo). */
+export async function generarCodigoAcceso(id: string): Promise<ResultadoCodigoAcceso | null> {
+  const { data } = await api.post<RespuestaAPI<ResultadoCodigoAcceso>>(`/admin/usuarios/${id}/codigo-acceso`);
+  return data.data ?? null;
 }
 
 /** Soporte: corrige el correo de la cuenta y reenvía el código al correo nuevo. */

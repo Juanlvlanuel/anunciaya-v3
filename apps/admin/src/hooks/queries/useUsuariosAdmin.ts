@@ -89,21 +89,16 @@ export function useDesbloquearIntentos() {
   });
 }
 
-/** Soporte: enviar acceso (crear/restablecer contraseña). Distingue el tipo y si el correo salió. */
-export function useEnviarAcceso() {
+/** Soporte: generar código de acceso (crear/restablecer contraseña). El código se muestra en un modal
+ *  para dictarlo, así que NO hay toast de éxito (el modal es el feedback). */
+export function useGenerarCodigoAcceso() {
   const refrescar = useRefrescarUsuario();
   return useMutation({
-    mutationFn: (id: string) => usuariosService.enviarAcceso(id),
-    onSuccess: (res, id) => {
+    mutationFn: (id: string) => usuariosService.generarCodigoAcceso(id),
+    onSuccess: (_res, id) => {
       refrescar(id);
-      const queHace = res.tipo === 'crear' ? 'crear su contraseña' : 'restablecer su contraseña';
-      if (res.correoEnviado) {
-        toast.exito(`Correo enviado para ${queHace}.`);
-      } else {
-        toast.advertencia('No se pudo enviar el correo de acceso. Reinténtalo.');
-      }
     },
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo enviar el acceso')),
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo generar el código de acceso')),
   });
 }
 

@@ -23,7 +23,7 @@ import {
     listarUsuariosController,
     obtenerExpedienteController,
     desbloquearIntentosController,
-    enviarAccesoController,
+    codigoAccesoController,
     cambiarCorreoController,
     suspenderUsuarioController,
     reactivarUsuarioController,
@@ -37,7 +37,7 @@ router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerExpedienteCo
 
 // ─── Soporte (rescates de acceso) — superadmin + gerente ─────────────────────────
 router.post('/:id/desbloquear', requierePanel(['superadmin', 'gerente']), desbloquearIntentosController);
-router.post('/:id/enviar-acceso', requierePanel(['superadmin', 'gerente']), enviarAccesoController);
+router.post('/:id/codigo-acceso', requierePanel(['superadmin', 'gerente']), codigoAccesoController);
 router.patch('/:id/correo', requierePanel(['superadmin', 'gerente']), cambiarCorreoController);
 
 // ─── Moderación (suspender / reactivar) — SOLO superadmin ────────────────────────

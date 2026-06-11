@@ -24,7 +24,7 @@ import {
 } from '../../services/admin/usuarios.service.js';
 import {
     desbloquearIntentos,
-    enviarAcceso,
+    generarCodigoAcceso,
     cambiarCorreoUsuario,
     suspenderUsuario,
     reactivarUsuario,
@@ -126,25 +126,25 @@ export async function desbloquearIntentosController(req: Request, res: Response)
 }
 
 // =============================================================================
-// POST /api/admin/usuarios/:id/enviar-acceso   (super + gerente)
-// Reenvía el código para crear/restablecer la contraseña. Devuelve si salió y de qué tipo.
+// POST /api/admin/usuarios/:id/codigo-acceso   (super + gerente)
+// Genera el código para crear/restablecer la contraseña y lo DEVUELVE (para dictarlo al usuario).
 // =============================================================================
 
-export async function enviarAccesoController(req: Request, res: Response): Promise<void> {
+export async function codigoAccesoController(req: Request, res: Response): Promise<void> {
     try {
-        const r = await enviarAcceso(req.usuarioPanel!, req.params.id);
+        const r = await generarCodigoAcceso(req.usuarioPanel!, req.params.id);
         if (!r.ok) {
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;
         }
         res.status(200).json({
             success: true,
-            message: r.correoEnviado ? 'Correo de acceso enviado' : 'No se pudo enviar el correo de acceso',
-            data: { correoEnviado: r.correoEnviado, tipo: r.tipo },
+            message: 'Código de acceso generado',
+            data: { codigo: r.codigo, tipo: r.tipo, correoEnviado: r.correoEnviado },
         });
     } catch (error) {
-        console.error('Error en enviarAccesoController:', error);
-        res.status(500).json({ success: false, message: 'Error al enviar el acceso' });
+        console.error('Error en codigoAccesoController:', error);
+        res.status(500).json({ success: false, message: 'Error al generar el código de acceso' });
     }
 }
 

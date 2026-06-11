@@ -25,7 +25,6 @@ import {
   BadgeCheck,
   CheckCircle2,
   AlertTriangle,
-  Send,
   Unlock,
   Mail,
   Ban,
@@ -34,7 +33,7 @@ import {
 import {
   useUsuarioExpediente,
   useDesbloquearIntentos,
-  useEnviarAcceso,
+  useGenerarCodigoAcceso,
   useCambiarCorreoUsuario,
   useSuspenderUsuario,
   useReactivarUsuario,
@@ -49,6 +48,7 @@ import { DialogoEditarCorreo } from '../negocios/DialogoEditarCorreo';
 import { Seccion, Dato, fecha } from '../negocios/FichaNegocio';
 import { BadgeEstadoUsuario, metaEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
+import { DialogoCodigoAcceso } from './DialogoCodigoAcceso';
 
 interface FichaUsuarioProps {
   /** Fila que se abrió: sirve de placeholder para mostrar la ficha al instante. */
@@ -152,7 +152,7 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
   const d = u.diagnostico;
   const s = u.sombreros;
   const [verAvatar, setVerAvatar] = useState(false);
-  const [dialogo, setDialogo] = useState<null | 'enviar-acceso' | 'suspender' | 'reactivar' | 'editar-correo'>(null);
+  const [dialogo, setDialogo] = useState<null | 'codigo-acceso' | 'suspender' | 'reactivar' | 'editar-correo'>(null);
   const cerrarDialogo = () => setDialogo(null);
 
   // El permiso real lo decide el backend; la UI solo refleja. Soporte = super + gerente;
@@ -162,7 +162,7 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
   const esSuperadmin = rol === 'superadmin';
 
   const desbloquear = useDesbloquearIntentos();
-  const enviarAcc = useEnviarAcceso();
+  const generarCodigo = useGenerarCodigoAcceso();
   const cambiarCorreo = useCambiarCorreoUsuario();
   const suspender = useSuspenderUsuario();
   const reactivar = useReactivarUsuario();
@@ -342,11 +342,11 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
           <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
             <button
               type="button"
-              data-testid="ficha-usuario-enviar-acceso"
-              onClick={() => setDialogo('enviar-acceso')}
+              data-testid="ficha-usuario-codigo-acceso"
+              onClick={() => setDialogo('codigo-acceso')}
               className="inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-3 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:brightness-105"
             >
-              <Send size={16} /> Enviar acceso
+              <KeyRound size={16} /> Código de acceso
             </button>
             <div className="ml-auto flex items-center gap-2">
               {bloqueado && (
@@ -407,15 +407,18 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
       </div>
     </ModalAdaptativo>
 
-    {dialogo === 'enviar-acceso' && (
-      <DialogoConfirmar
+    {dialogo === 'codigo-acceso' && (
+      <DialogoCodigoAcceso
         abierto
-        onCerrar={cerrarDialogo}
-        titulo="Enviar acceso"
-        mensaje={`Se enviará un correo a ${u.correo} con el código para ${d.tieneContrasena ? 'restablecer' : 'crear'} su contraseña.`}
-        textoConfirmar="Enviar correo"
-        cargando={enviarAcc.isPending}
-        onConfirmar={() => enviarAcc.mutate(u.id, { onSuccess: cerrarDialogo })}
+        onCerrar={() => {
+          cerrarDialogo();
+          generarCodigo.reset();
+        }}
+        nombre={u.nombreCompleto}
+        correo={u.correo}
+        cargando={generarCodigo.isPending}
+        resultado={generarCodigo.data ?? null}
+        onGenerar={() => generarCodigo.mutate(u.id)}
       />
     )}
     {dialogo === 'suspender' && (

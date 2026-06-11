@@ -40,8 +40,8 @@ export type ResultadoAccionUsuario =
     | { ok: true }
     | { ok: false; status: number; mensaje: string };
 
-export type ResultadoEnvioAcceso =
-    | { ok: true; correoEnviado: boolean; tipo: 'crear' | 'restablecer' }
+export type ResultadoCodigoAcceso =
+    | { ok: true; codigo: string; tipo: 'crear' | 'restablecer'; correoEnviado: boolean }
     | { ok: false; status: number; mensaje: string };
 
 export type ResultadoCambioCorreo =
@@ -81,26 +81,31 @@ async function cargarUsuario(usuarioId: string): Promise<UsuarioCargado | null> 
     return u ?? null;
 }
 
-/** Reenvía el código de acceso al correo dado (best-effort). 'crear' (modelo C, sin contraseña)
- *  o 'restablecer' (ya tiene contraseña). Devuelve si el envío salió. No lanza. */
-async function reenviarCodigoAcceso(
+/**
+ * Genera un código de acceso, lo guarda (tokenStore, igual que el self-service de crear/restablecer
+ * contraseña) e intenta enviarlo por correo (best-effort). Devuelve el CÓDIGO (para que el agente lo
+ * dicte al usuario cuando el correo no llega) y si el envío salió. `codigo=null` si no se pudo guardar.
+ * 'crear' = cuenta sin contraseña (modelo C) · 'restablecer' = cuenta con contraseña. No lanza.
+ */
+async function prepararCodigoAcceso(
     correo: string,
     nombre: string,
     tipo: 'crear' | 'restablecer',
-): Promise<boolean> {
+): Promise<{ codigo: string | null; correoEnviado: boolean }> {
+    const codigo = String(randomInt(100000, 1000000));
+    const guardado = await guardarCodigoRecuperacion(correo, codigo);
+    if (!guardado) return { codigo: null, correoEnviado: false };
+    let correoEnviado = false;
     try {
-        const codigo = String(randomInt(100000, 1000000));
-        const guardado = await guardarCodigoRecuperacion(correo, codigo);
-        if (!guardado) return false;
         const env =
             tipo === 'crear'
                 ? await enviarCodigoCrearContrasena(correo, nombre, codigo)
                 : await enviarCodigoRecuperacion(correo, nombre, codigo);
-        return env.success;
+        correoEnviado = env.success;
     } catch (error) {
-        console.error('Error reenviando el código de acceso:', error);
-        return false;
+        console.error('Error enviando el código de acceso por correo:', error);
     }
+    return { codigo, correoEnviado };
 }
 
 // =============================================================================
@@ -138,30 +143,36 @@ export async function desbloquearIntentos(
 }
 
 // =============================================================================
-// SOPORTE — Enviar acceso (crear / restablecer contraseña) (super + gerente)
+// SOPORTE — Código de acceso (crear / restablecer contraseña) (super + gerente)
 // =============================================================================
 
-export async function enviarAcceso(
+/**
+ * Genera un código de acceso para la cuenta y lo DEVUELVE (para que el agente lo dicte al usuario
+ * cuando el correo no llega) — además de enviarlo por correo. Es más robusto que el self-service:
+ * no depende de que el correo llegue. El código (un solo uso, expira) NO se guarda en la auditoría.
+ */
+export async function generarCodigoAcceso(
     panel: UsuarioPanel,
     usuarioId: string,
-): Promise<ResultadoEnvioAcceso> {
+): Promise<ResultadoCodigoAcceso> {
     const u = await cargarUsuario(usuarioId);
     if (!u) return { ok: false, status: 404, mensaje: 'Usuario no encontrado.' };
 
     // Sin contraseña (modelo C) → crear; con contraseña → restablecer.
     const tipo: 'crear' | 'restablecer' = u.contrasenaHash ? 'restablecer' : 'crear';
-    const correoEnviado = await reenviarCodigoAcceso(u.correo, u.nombre, tipo);
+    const { codigo, correoEnviado } = await prepararCodigoAcceso(u.correo, u.nombre, tipo);
+    if (!codigo) return { ok: false, status: 500, mensaje: 'No se pudo generar el código. Reinténtalo.' };
 
     await registrarAuditoria(panel, {
-        accion: 'usuario_enviar_acceso',
+        accion: 'usuario_generar_codigo_acceso',
         entidadTipo: 'usuario',
         entidadId: usuarioId,
         datosPrevios: null,
-        datosNuevos: { tipo, correoEnviado },
+        datosNuevos: { tipo, correoEnviado }, // el código NO se audita (seguridad)
         motivo: null,
     });
 
-    return { ok: true, correoEnviado, tipo };
+    return { ok: true, codigo, tipo, correoEnviado };
 }
 
 // =============================================================================
@@ -204,7 +215,7 @@ export async function cambiarCorreoUsuario(
 
     // Reenvío del código al correo corregido (best-effort; el cambio ya quedó guardado).
     const tipo: 'crear' | 'restablecer' = u.contrasenaHash ? 'restablecer' : 'crear';
-    const correoEnviado = await reenviarCodigoAcceso(correoNuevo, u.nombre, tipo);
+    const { correoEnviado } = await prepararCodigoAcceso(correoNuevo, u.nombre, tipo);
 
     return { ok: true, correoEnviado };
 }

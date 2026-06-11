@@ -20,7 +20,7 @@ import { db } from '../src/db/index.js';
 import type { UsuarioPanel } from '../src/middleware/panel.middleware.js';
 import {
     desbloquearIntentos,
-    enviarAcceso,
+    generarCodigoAcceso,
     cambiarCorreoUsuario,
     suspenderUsuario,
     reactivarUsuario,
@@ -77,10 +77,11 @@ async function main(): Promise<void> {
     console.log(`\nUsuario de prueba creado: ${id} (${correoPrueba})`);
 
     try {
-        console.log('\n[1] enviarAcceso — cuenta sin contraseña → tipo "crear"');
-        const acc = await enviarAcceso(panelSuper, id);
+        console.log('\n[1] generarCodigoAcceso — cuenta sin contraseña → tipo "crear" + código');
+        const acc = await generarCodigoAcceso(panelSuper, id);
         verificar('ok', acc.ok === true);
         verificar('tipo = crear', acc.ok && acc.tipo === 'crear', acc.ok ? acc.tipo : '');
+        verificar('devuelve código de 6 dígitos', acc.ok && /^\d{6}$/.test(acc.codigo), acc.ok ? acc.codigo : '');
 
         console.log('\n[2] desbloquearIntentos');
         const sin = await desbloquearIntentos(panelSuper, id);

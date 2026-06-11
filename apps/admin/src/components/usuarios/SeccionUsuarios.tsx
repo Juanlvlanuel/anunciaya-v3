@@ -451,7 +451,7 @@ function Paginacion({
   setPagina: (fn: (p: number) => number) => void;
 }) {
   return (
-    <div className="mt-3 flex shrink-0 items-center justify-between border-t border-borde pt-3 text-[12.5px] text-texto-3">
+    <div className="mt-3 flex shrink-0 items-center justify-between border-borde text-[12.5px] text-texto-3 lg:border-t lg:pt-3">
       <span data-testid="usuarios-rango">
         {desde}–{hasta} de {total}
       </span>
