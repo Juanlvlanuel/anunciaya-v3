@@ -59,7 +59,9 @@ Sesión grande del Panel: dar de **alta negocios cobrados en efectivo/transferen
 - **Cancelar transaccional:** en `cancelarNegocio`, degradar al dueño + archivar el negocio van en una `db.transaction` (Stripe y la reversión de vouchers quedan fuera, por externos/idempotentes) — se evita el estado parcial si un UPDATE falla.
 - **Historial de pagos paginado:** `listarPagosNegocio` acepta `?limite=N`; la ficha muestra los últimos **5 + "Ver todos"** (pide N+1 para detectar más y re-consulta sin límite al expandir).
 
-**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`, `probar-editar-pago`, `probar-conteo-negocios`, `probar-pagos-limite`.
+**Verificación a fondo de Negocios (§4 cerrado):** las acciones de tarjeta (marcar pagado / pausar / reactivar / cancelar) se probaron contra **Stripe real** (`probar-acciones-parada2`). Dos riesgos teóricos quedaron **descartados** con datos reales: "fecha vs webhook" (`marcarPagado` empuja `trial_end=X` y Stripe deja `current_period_end=X`, justo lo que el webhook reescribe → la fecha sobrevive; `probar-fecha-vs-webhook`) y "consistencia Cancelar ↔ webhook" (en cualquier orden el negocio queda archivado + oculto + cancelado; el webhook tardío no encuentra al usuario y el de carrera solo añade `es_borrador=true` sin contradecir; `probar-cancelar-vs-webhook`). **Negocios queda verificado de punta a punta.**
+
+**Verificación (scripts DEV con datos reales):** `probar-alta-manual(-vendedor)`, `probar-alta-tarjeta`, `probar-login-sin-contrasena`, `probar-pagos-negocio`, `probar-existe-correo`, `probar-vencimiento-manual`, `probar-cambiar-correo-dueno`, `probar-editar-pago`, `probar-conteo-negocios`, `probar-pagos-limite`, `probar-fecha-vs-webhook`, `probar-cancelar-vs-webhook`.
 
 **Pendiente de infra (no código):** SES fuera de sandbox + DKIM/DMARC + dominio propio R2 para el logo de los correos.
 

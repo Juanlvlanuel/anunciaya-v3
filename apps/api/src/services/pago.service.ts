@@ -908,7 +908,7 @@ async function manejarUpgradeCompletado(
  *
  * @param subscription - Objeto de suscripción de Stripe (cancelada)
  */
-async function procesarCancelacionSuscripcion(
+export async function procesarCancelacionSuscripcion(
     subscription: Stripe.Subscription
 ): Promise<void> {
     try {
