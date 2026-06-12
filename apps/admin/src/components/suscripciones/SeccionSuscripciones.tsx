@@ -3,8 +3,8 @@
  * ========================
  * Sección Suscripciones del Panel = la BITÁCORA FINANCIERA global (libro mayor de la
  * membresía). Solo lectura. Calcada de SeccionNegocios.
- *   - Escritorio (lg:+): KPIs + toolbar (búsqueda, origen, periodo) + chips de tipo con
- *     conteos + "Ordenar" + tabla + paginación.
+ *   - Escritorio (lg:+): buscador + KPIs discretos (mismo renglón) + chips de tipo con
+ *     conteos, filtros (origen, periodo) y "Ordenar" + tabla + paginación.
  *   - Móvil: KPIs + buscador + filtros (icono) + chips de tipo (carrusel) + cards.
  *
  * Alcance por rol lo aplica el backend (super = todo · gerente = su región · vendedor 403).
@@ -255,29 +255,13 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* KPIs */}
-      <div className="mb-3">{kpis}</div>
-
-      {/* Toolbar: buscador (izq) + filtros (der) */}
-      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
+      {/* Buscador (izq) + KPIs discretos (der) — mismo renglón */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3">
         <div className="min-w-[220px] max-w-[360px] flex-1">{buscador}</div>
-        <div className="flex flex-wrap items-center gap-3">
-          <MenuFiltro
-            testid="suscripciones-filtro-origen"
-            icono={<Layers size={16} />}
-            etiquetaBoton={etiquetaOrigen}
-            opciones={OPCIONES_ORIGEN}
-            valor={origen}
-            onCambiar={setOrigen}
-          />
-          <MenuFiltro
-            testid="suscripciones-filtro-periodo"
-            icono={<Calendar size={16} />}
-            etiquetaBoton={etiquetaPeriodo}
-            opciones={OPCIONES_PERIODO}
-            valor={periodo}
-            onCambiar={setPeriodo}
-          />
+        <div className="flex shrink-0 items-stretch divide-x divide-borde">
+          <KpiInline etiqueta="Ingresos" valor={FMT_MONTO.format(conteos.ingresos)} acento="ok" testid="suscripciones-kpi-ingresos" />
+          <KpiInline etiqueta="Cobros fallidos" valor={String(conteos.fallidos)} acento={conteos.fallidos > 0 ? 'danger' : undefined} testid="suscripciones-kpi-fallidos" />
+          <KpiInline etiqueta="Movimientos" valor={String(conteos.total)} testid="suscripciones-kpi-total" />
         </div>
       </div>
 
@@ -316,6 +300,24 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
             {isFetching && !isLoading ? ' · actualizando…' : ''}
           </span>
           <MenuFiltro
+            testid="suscripciones-filtro-origen"
+            icono={<Layers size={16} />}
+            etiquetaBoton={etiquetaOrigen}
+            opciones={OPCIONES_ORIGEN}
+            valor={origen}
+            onCambiar={setOrigen}
+            tam="chip"
+          />
+          <MenuFiltro
+            testid="suscripciones-filtro-periodo"
+            icono={<Calendar size={16} />}
+            etiquetaBoton={etiquetaPeriodo}
+            opciones={OPCIONES_PERIODO}
+            valor={periodo}
+            onCambiar={setPeriodo}
+            tam="chip"
+          />
+          <MenuFiltro
             testid="suscripciones-orden"
             icono={<ArrowUpDown size={15} />}
             etiquetaBoton={<>Ordenar: {etiquetaOrden}</>}
@@ -323,6 +325,7 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
             valor={orden}
             onCambiar={(v) => setOrden(v as OrdenEvento)}
             anchoMenu={210}
+            tam="chip"
           />
         </div>
       </div>
@@ -371,6 +374,17 @@ function KpiCard({ etiqueta, valor, acento, testid }: { etiqueta: string; valor:
     <div data-testid={testid} className="min-w-0 rounded-[12px] border border-borde bg-superficie-2 px-3.5 py-2.5 lg:px-4 lg:py-3">
       <p className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</p>
       <p className="mt-0.5 truncate text-[17px] font-bold lg:text-[19px]" style={{ color }}>{valor}</p>
+    </div>
+  );
+}
+
+/** KPI discreto inline (escritorio): etiqueta chica + valor, sin card. Va en el renglón del buscador. */
+function KpiInline({ etiqueta, valor, acento, testid }: { etiqueta: string; valor: string; acento?: 'ok' | 'danger'; testid?: string }) {
+  const color = acento === 'ok' ? 'var(--panel-ok)' : acento === 'danger' ? 'var(--panel-danger)' : 'var(--panel-text)';
+  return (
+    <div data-testid={testid} className="flex min-w-0 flex-col justify-center px-5 leading-tight first:pl-0 last:pr-0">
+      <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
+      <span className="truncate text-[22px] font-bold leading-tight" style={{ color }}>{valor}</span>
     </div>
   );
 }

@@ -38,6 +38,8 @@ interface MenuFiltroProps {
   testid?: string;
   /** Ancho mínimo del menú (px). Default 220. */
   anchoMenu?: number;
+  /** Tamaño del botón. 'chip' iguala la altura de los chips de filtro (px-3 py-1.5 text-12.5). Default 'normal'. */
+  tam?: 'normal' | 'chip';
 }
 
 export function MenuFiltro({
@@ -52,6 +54,7 @@ export function MenuFiltro({
   soloIcono = false,
   testid,
   anchoMenu = 220,
+  tam = 'normal',
 }: MenuFiltroProps) {
   const [abierto, setAbierto] = useState(false);
   const ref = useClickFuera<HTMLDivElement>(() => setAbierto(false), abierto);
@@ -63,7 +66,7 @@ export function MenuFiltro({
     : plano
     ? 'inline-flex items-center gap-1.5 text-[12.5px] text-texto-3 transition hover:text-texto'
     : `inline-flex items-center gap-2 rounded-full border border-borde bg-superficie-2 font-medium text-texto transition hover:bg-marca-suave ${
-        compacto ? 'px-3 py-2 text-[12.5px]' : 'px-3.5 py-2.5 text-[13px]'
+        compacto ? 'px-3 py-2 text-[12.5px]' : tam === 'chip' ? 'px-3 py-1.5 text-[12.5px]' : 'px-3.5 py-2.5 text-[13px]'
       }`;
 
   return (

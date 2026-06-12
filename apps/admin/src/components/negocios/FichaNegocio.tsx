@@ -3,13 +3,16 @@
  * =================
  * Ficha ADMINISTRATIVA de un negocio — calcada del diseño. Usa el ModalAdaptativo
  * base del Panel (centrado en escritorio, bottom-sheet en móvil, con atrás nativo).
- * Layout: cabecera (avatar + nombre + badge) / cuerpo con scroll (Membresía,
- * Vendedor atribuido, Dueño, Negocio) / footer fijo con las acciones.
+ * Layout: cabecera (avatar + nombre + acciones en íconos) / cuerpo con una card
+ * "protagonista" (mismo lenguaje que FichaEvento/FichaUsuario): encabezado con el
+ * estado de membresía destacado + chips, y debajo una lista corrida (Membresía ·
+ * Dueño · Vendedor · Negocio) separada por líneas tenues; luego una card aparte con
+ * el Historial de pagos.
  *
- * Acciones del footer según rol (el backend es la fuente de verdad):
+ * Acciones en el encabezado según rol (el backend es la fuente de verdad):
  *   - Registrar pago · Pausar/Reactivar · Reasignar · Editar correo → superadmin + gerente
  *   - Cancelar → solo superadmin
- *   - Vendedor → ficha en solo-lectura (sin footer)
+ *   - Vendedor → ficha en solo-lectura (sin acciones)
  * Sin métricas de actividad ni categoría.
  *
  * Ubicación: apps/admin/src/components/negocios/FichaNegocio.tsx
@@ -18,17 +21,12 @@
 import { useState, type ReactNode } from 'react';
 import {
   X,
-  ExternalLink,
   User,
-  CreditCard,
-  Store,
   CheckCircle2,
   UserPlus,
   PauseCircle,
   PlayCircle,
   Ban,
-  Receipt,
-  Mail,
   Pencil,
   Send,
 } from 'lucide-react';
@@ -54,8 +52,8 @@ import { DialogoReasignar } from './DialogoReasignar';
 import { DialogoMarcarPagado } from './DialogoMarcarPagado';
 import { DialogoEditarPago } from './DialogoEditarPago';
 import { DialogoEditarCorreo } from './DialogoEditarCorreo';
-import { BadgeEstadoPago, estadoEfectivo } from './estadoPago';
-import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
+import { estadoEfectivo, metaEstado } from './estadoPago';
+import { AvatarNegocio } from './avatares';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 
 interface FichaNegocioProps {
@@ -245,7 +243,11 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
   const hayMas = !verTodos && pagos.length > PAGOS_INICIAL;
   const visibles = verTodos ? pagos : pagos.slice(0, PAGOS_INICIAL);
   return (
-    <Seccion titulo="Historial de pagos" icono={Receipt}>
+    <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
+      <div className="border-b border-borde px-4 py-3">
+        <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4">Historial de pagos</p>
+      </div>
+      <div className="px-4 py-2.5">
       {isLoading && <p className="text-[12.5px] text-texto-3">Cargando pagos…</p>}
       {!isLoading && pagos.length === 0 && <p className="text-[12.5px] text-texto-4">Sin pagos registrados.</p>}
       {!isLoading && pagos.length > 0 && (
@@ -272,7 +274,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
                   </span>
                 </div>
                 {puedeActuar && !p.anulado && (
-                  <div className="flex shrink-0 items-center gap-0.5">
+                  <div className="flex shrink-0 items-center gap-1">
                     <Tooltip text="Reenviar comprobante">
                       <button
                         type="button"
@@ -280,9 +282,9 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
                         onClick={() => reenviar.mutate({ negocioId, pagoId: p.id })}
                         disabled={reenviar.isPending}
                         aria-label="Reenviar comprobante al dueño"
-                        className="rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca disabled:opacity-50"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-marca transition hover:bg-marca-suave disabled:opacity-50"
                       >
-                        <Send size={14} />
+                        <Send size={16} />
                       </button>
                     </Tooltip>
                     <Tooltip text="Editar pago">
@@ -291,9 +293,9 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
                         data-testid={`pago-editar-${p.id}`}
                         onClick={() => setEditando(p)}
                         aria-label="Editar pago"
-                        className="rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#d97706] transition hover:bg-[#d977061f]"
                       >
-                        <Pencil size={14} />
+                        <Pencil size={16} />
                       </button>
                     </Tooltip>
                     <Tooltip text="Anular pago">
@@ -302,9 +304,9 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
                         data-testid={`pago-anular-${p.id}`}
                         onClick={() => setAnulando(p)}
                         aria-label="Anular pago"
-                        className="rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca"
+                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-peligro transition hover:bg-peligro-suave"
                       >
-                        <Ban size={14} />
+                        <Ban size={16} />
                       </button>
                     </Tooltip>
                   </div>
@@ -324,6 +326,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
           )}
         </>
       )}
+      </div>
       {editando && (
         <DialogoEditarPago
           key={editando.id}
@@ -351,7 +354,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
           onConfirmar={(motivo) => anular.mutate({ negocioId, pagoId: anulando.id, motivo }, { onSuccess: () => setAnulando(null) })}
         />
       )}
-    </Seccion>
+    </div>
   );
 }
 
@@ -376,6 +379,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   // Espejo del guard 409 del backend: con suscripción, "Marcar pagado" solo si está al corriente
   // (en gracia/suspendido hay un cobro pendiente en Stripe que regularizar primero).
   const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';
+  const metaEf = metaEstado(estadoEfectivo(n.estadoAdmin, n.estadoPago));
 
   // SuperAdmin y Gerente actúan sobre toda la ficha. El vendedor solo puede "Registrar pago" en
   // SUS negocios MANUALES (su cartera); el resto de la ficha es de lectura para él. El backend lo blinda.
@@ -391,7 +395,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       onCerrar={onCerrar}
       mostrarHeader={false}
       sinScrollInterno
-      ancho="xl"
+      ancho="lg"
       alturaMaxima="xl"
       discriminador="ficha-negocio"
     >
@@ -411,7 +415,6 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             <span className="truncate text-[17px] font-bold tracking-[-0.2px] text-texto" data-testid="ficha-nombre">
               {n.nombre}
             </span>
-            <BadgeEstadoPago estado={estadoEfectivo(n.estadoAdmin, n.estadoPago)} small />
           </div>
           <div className="flex shrink-0 items-center gap-1">
             {puedeRegistrarPago && (
@@ -459,94 +462,80 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
               No se pudo cargar el detalle completo.
             </div>
           )}
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {/* Columna izquierda */}
-            <div className="flex flex-col gap-3">
-              <Seccion titulo="Membresía" icono={CreditCard}>
-                <Dato etiqueta="Estado de pago" valor={<BadgeEstadoPago estado={n.estadoPago} small />} />
-                {/* Al corriente: en manual mostramos "Vigencia hasta" (fecha de vencimiento). */}
-                {n.estadoPago === 'al_corriente' && (
-                  <Dato
-                    etiqueta={esManual ? 'Vigencia hasta' : 'Próximo cobro'}
-                    valor={fecha(esManual ? n.fechaVencimiento : n.fechaProximoCobro)}
-                  />
-                )}
-                {/* En gracia: venció + (solo tarjeta) reintento de Stripe + límite de gracia. */}
-                {n.estadoPago === 'en_gracia' && (
-                  <>
-                    <Dato etiqueta="Venció" valor={fecha(n.fechaInicioGracia)} />
-                    {!esManual && <Dato etiqueta="Reintento" valor={fecha(n.fechaProximoCobro)} />}
-                    <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />
-                  </>
-                )}
-                <Dato etiqueta="Método de cobro" valor={<ChipDato testid="chip-metodo" texto={n.metodoCobro === 'manual' ? 'Manual' : 'Tarjeta'} activo={n.metodoCobro !== 'manual'} />} />
-                {/* Conceptos de ciclo Stripe (Suscripción / Inicio Trial): solo aplican a tarjeta. */}
+          <div className="flex flex-col gap-3">
+            {/* Card protagonista: estado de membresía destacado + lista corrida (Membresía · Dueño · Vendedor · Negocio) */}
+            <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
+              {/* Encabezado protagonista: estado de membresía + vigencia (todo el "membrete") */}
+              <div className="border-b border-borde px-4 py-3.5">
+                <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4">Membresía</p>
+                <div className="text-[20px] font-semibold leading-none tracking-tight" style={{ color: metaEf.color }}>
+                  {metaEf.etiqueta}
+                </div>
                 {!esManual && (
-                  <Dato etiqueta="Suscripción Stripe" valor={<ChipDato testid="chip-stripe" texto={n.tieneSuscripcionStripe ? 'Activa' : 'Sin suscripción'} activo={n.tieneSuscripcionStripe} />} />
-                )}
-                {!esManual && <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />}
-                {n.fechaPrimerPago && <Dato etiqueta="Primer Pago" valor={fecha(n.fechaPrimerPago)} />}
-                {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
-              </Seccion>
-
-              {/* Historial de pagos manuales. Siempre en manual; en tarjeta, solo si hay pagos. */}
-              <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} esManual={esManual} />
-
-              <Seccion titulo="Vendedor atribuido" icono={User}>
-                {n.vendedorId && n.vendedorNombre ? (
-                  <div className="flex items-center gap-3">
-                    <AvatarVendedor nombre={n.vendedorNombre} tam={34} />
-                    <div className="flex min-w-0 flex-col">
-                      <span className="text-[14px] font-semibold text-texto">{n.vendedorNombre}</span>
-                      <span className="text-[12px] text-texto-3">
-                        {n.vendedorCodigo ? <>Código: <span className="font-mono">{n.vendedorCodigo}</span></> : 'Vendedor de campo'}
-                      </span>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="flex items-center gap-3">
-                    <AvatarVacio tam={34} />
-                    <span className="text-[13.5px] text-texto-3">Sin vendedor atribuido</span>
+                  <div className="mt-2.5 flex flex-wrap gap-1.5">
+                    <ChipDato testid="chip-stripe" texto={n.tieneSuscripcionStripe ? 'Suscripción activa' : 'Sin suscripción'} activo={n.tieneSuscripcionStripe} />
                   </div>
                 )}
-              </Seccion>
-            </div>
+                {/* Fechas de la membresía — dentro del membrete, junto al estado */}
+                <div className="mt-2.5">
+                  {n.estadoPago === 'al_corriente' && (
+                    <Dato etiqueta={esManual ? 'Vigencia hasta' : 'Próximo cobro'} valor={fecha(esManual ? n.fechaVencimiento : n.fechaProximoCobro)} />
+                  )}
+                  {n.estadoPago === 'en_gracia' && (
+                    <>
+                      <Dato etiqueta="Venció" valor={fecha(n.fechaInicioGracia)} />
+                      {!esManual && <Dato etiqueta="Reintento" valor={fecha(n.fechaProximoCobro)} />}
+                      <Dato etiqueta="Gracia hasta" valor={fecha(n.fechaLimiteGracia)} />
+                    </>
+                  )}
+                  {!esManual && <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />}
+                  {n.fechaPrimerPago && <Dato etiqueta="Primer pago" valor={fecha(n.fechaPrimerPago)} />}
+                  {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
+                </div>
+              </div>
 
-            {/* Columna derecha */}
-            <div className="flex flex-col gap-3">
-              <Seccion titulo="Dueño de la cuenta" icono={User}>
-                <Dato etiqueta="Nombre" valor={n.duenoNombre ?? '—'} />
-                <Dato etiqueta="Correo" valor={n.duenoCorreo ?? '—'} />
+              {/* Lista corrida: Dueño · Vendedor · Negocio */}
+              <div className="px-4 py-1.5">
+                {/* Dueño */}
+                <Dato etiqueta="Dueño" valor={n.duenoNombre ?? '—'} />
+                <Dato
+                  etiqueta="Correo"
+                  valor={
+                    <span className="inline-flex items-center gap-1.5">
+                      {n.duenoCorreo ?? '—'}
+                      {puedeActuar && !archivado && (
+                        <Tooltip text="Corregir correo">
+                          <button
+                            type="button"
+                            data-testid="ficha-editar-correo"
+                            onClick={() => setDialogo('editar-correo')}
+                            aria-label="Corregir correo"
+                            className="grid h-6 w-6 shrink-0 place-items-center rounded-[7px] text-[#d97706] transition hover:bg-[#d977061f]"
+                          >
+                            <Pencil size={14} />
+                          </button>
+                        </Tooltip>
+                      )}
+                    </span>
+                  }
+                />
                 <Dato etiqueta="Teléfono" valor={n.duenoTelefono ?? '—'} />
-                {puedeActuar && !archivado && (
-                  <button
-                    type="button"
-                    data-testid="ficha-editar-correo"
-                    onClick={() => setDialogo('editar-correo')}
-                    className="mt-2.5 inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12.5px] font-semibold text-texto transition hover:bg-marca-suave"
-                  >
-                    <Mail size={14} /> Editar correo
-                  </button>
-                )}
-              </Seccion>
 
-              <Seccion titulo="Negocio" icono={Store}>
+                {/* Vendedor atribuido */}
+                <div className="my-1 border-t border-borde/60" />
+                <Dato etiqueta="Vendedor" valor={n.vendedorId && n.vendedorNombre ? n.vendedorNombre : 'Sin atribuir'} />
+
+                {/* Negocio */}
+                <div className="my-1 border-t border-borde/60" />
                 <Dato etiqueta="Ubicación" valor={[n.ciudad, n.estado].filter((x) => x && x !== 'Por configurar').join(', ') || '—'} />
                 <Dato etiqueta="Dirección" valor={n.direccion ?? '—'} />
                 <Dato etiqueta="Teléfono sucursal" valor={n.telefono ?? '—'} />
-                <Dato
-                  etiqueta="Sitio web"
-                  valor={
-                    n.sitioWeb ? (
-                      <a href={n.sitioWeb} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-marca hover:underline">
-                        Abrir <ExternalLink size={13} />
-                      </a>
-                    ) : ('—')
-                  }
-                />
                 <Dato etiqueta="Onboarding" valor={<ChipDato testid="chip-onboarding" texto={n.onboardingCompletado ? 'Completado' : 'Pendiente'} activo={n.onboardingCompletado} />} />
-              </Seccion>
+              </div>
             </div>
+
+            {/* Historial de pagos manuales. Siempre en manual; en tarjeta, solo si hay pagos. */}
+            <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} esManual={esManual} />
           </div>
         </div>
 

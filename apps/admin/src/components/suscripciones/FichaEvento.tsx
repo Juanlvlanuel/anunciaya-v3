@@ -215,7 +215,7 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
               <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
               <BadgeTipoEvento tipo={e.tipo} small />
             </div>
-            <div className={`text-[28px] font-semibold leading-none tracking-tight ${e.monto != null ? 'text-texto' : 'text-texto-3'}`}>
+            <div className={`text-[28px] font-semibold leading-none tracking-tight ${e.monto != null ? 'text-ok' : 'text-texto-3'}`}>
               {montoGrande}
             </div>
             {metaObj.concepto != null && (

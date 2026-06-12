@@ -5,13 +5,11 @@
  * ModalAdaptativo base (centrado en escritorio, bottom-sheet en móvil). Abre al
  * instante con un placeholder de la fila + prefetch en hover; React Query rellena.
  *
- * Layout: cabecera (avatar + nombre/correo + badge de estado) / cuerpo 2 columnas:
- *   - Izquierda: Acceso (diagnóstico + métodos de login/2FA) · Identidad
- *   - Derecha:   Roles (sombreros + modo comercial + id) · Actividad
- * Las acciones (soporte + moderación) van en el footer.
- *
- * SIN footer de acciones: el soporte (rescates) y la moderación (suspender/reactivar)
- * llegan en la Fase 2. Reusa los helpers de presentación de FichaNegocio.
+ * Layout: cabecera (avatar + nombre/correo + badge de estado + acciones en íconos) /
+ * cuerpo de UNA sola card "protagonista" (mismo lenguaje que FichaEvento): encabezado
+ * destacado con el estado de acceso + chips de login, y debajo una lista corrida
+ * (Identidad · Roles · Actividad) separada por líneas tenues. Reusa los helpers de
+ * presentación de FichaNegocio.
  *
  * Ubicación: apps/admin/src/components/usuarios/FichaUsuario.tsx
  */
@@ -20,9 +18,6 @@ import { useState } from 'react';
 import {
   X,
   KeyRound,
-  User,
-  Clock,
-  Layers,
   CheckCircle2,
   AlertTriangle,
   Unlock,
@@ -47,8 +42,8 @@ import { VisorImagen } from '../ui/VisorImagen';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
 import { DialogoEditarCorreo } from '../negocios/DialogoEditarCorreo';
-import { Seccion, Dato, fecha } from '../negocios/FichaNegocio';
-import { BadgeEstadoUsuario, metaEstadoUsuario } from './estadoUsuario';
+import { Dato, fecha } from '../negocios/FichaNegocio';
+import { metaEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
 import { DialogoCodigoAcceso } from './DialogoCodigoAcceso';
 
@@ -206,7 +201,7 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
       onCerrar={onCerrar}
       mostrarHeader={false}
       sinScrollInterno
-      ancho="xl"
+      ancho="lg"
       alturaMaxima="xl"
       discriminador="ficha-usuario"
     >
@@ -225,10 +220,6 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
           <div className="flex min-w-0 flex-1 flex-col items-start gap-1.5">
             <span className="truncate text-[17px] font-bold tracking-[-0.2px] text-texto" data-testid="ficha-usuario-nombre">
               {u.nombreCompleto || '(Sin nombre)'}
-            </span>
-            <span className="flex items-center gap-2">
-              <BadgeEstadoUsuario estado={u.estado} small />
-              <span className="truncate text-[12.5px] text-texto-3">{u.correo}</span>
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
@@ -311,92 +302,78 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
           </div>
         </div>
 
-        {/* Cuerpo */}
+        {/* Cuerpo — una sola card "protagonista" (mismo lenguaje que FichaEvento) */}
         <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:overflow-visible">
           {isError && (
             <div className="mb-3 rounded-[10px] border border-borde px-3 py-2 text-center text-[12px] text-peligro">
               No se pudo cargar el detalle completo.
             </div>
           )}
-          <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
-            {/* Columna izquierda */}
-            <div className="flex flex-col gap-3">
-              <Seccion titulo="Acceso a la app" icono={KeyRound}>
-                {/* Banner: puede / no puede iniciar sesión. */}
-                <div
-                  data-testid="ficha-usuario-acceso"
-                  className="mb-2.5 flex items-start gap-2.5 rounded-[10px] px-3 py-2.5"
-                  style={{
-                    background: d.puedeIniciarSesion
-                      ? 'color-mix(in srgb, var(--panel-ok) 10%, transparent)'
-                      : 'color-mix(in srgb, var(--panel-danger) 9%, transparent)',
-                  }}
-                >
-                  {d.puedeIniciarSesion ? (
-                    <CheckCircle2 size={17} className="mt-px shrink-0 text-ok" />
-                  ) : (
-                    <AlertTriangle size={17} className="mt-px shrink-0 text-peligro" />
-                  )}
-                  <div className="min-w-0">
-                    <p className={`text-[13px] font-semibold ${d.puedeIniciarSesion ? 'text-ok' : 'text-peligro'}`}>
-                      {d.puedeIniciarSesion ? 'Puede iniciar sesión' : 'No puede iniciar sesión'}
-                    </p>
-                    {!d.puedeIniciarSesion && razones.length > 0 && (
-                      <ul className="mt-1 list-disc pl-4 text-[12px] text-texto-2">
-                        {razones.map((r) => (
-                          <li key={r}>{r}</li>
-                        ))}
-                      </ul>
-                    )}
-                  </div>
-                </div>
-                <div className="flex flex-wrap gap-1.5">
-                  <ChipBinario texto={d.tieneContrasena ? 'Con contraseña' : 'Sin contraseña'} activo={d.tieneContrasena} testid="chip-contrasena" />
-                  <ChipBinario texto={d.correoVerificado ? 'Correo verificado' : 'Correo sin verificar'} activo={d.correoVerificado} testid="chip-correo-verif" />
-                  {d.bloqueadoPorIntentos && <ChipBinario texto="Bloqueado por intentos" activo={false} testid="chip-bloqueado" />}
-                  {d.requiereCambioContrasena && <ChipBinario texto="Debe cambiar contraseña" activo={false} testid="chip-cambio-contrasena" />}
-                  {u.autenticadoPorGoogle && <ChipBinario texto="Google" activo testid="chip-google" />}
-                  {u.autenticadoPorFacebook && <ChipBinario texto="Facebook" activo testid="chip-facebook" />}
-                  {u.dobleFactorHabilitado && <ChipBinario texto="2FA app" activo testid="chip-2fa-app" />}
-                  {u.panel2faHabilitado && <ChipBinario texto="2FA Panel" activo testid="chip-2fa-panel" />}
-                </div>
-                {d.intentosFallidos > 0 && (
-                  <p className="mt-2 text-[11.5px] text-texto-4">Intentos fallidos: {d.intentosFallidos}</p>
-                )}
-              </Seccion>
 
-              <Seccion titulo="Identidad" icono={User}>
-                <Dato etiqueta="Nombre" valor={u.nombreCompleto || '—'} />
-                <DatoCopiable etiqueta="Correo" valor={u.correo} testid="ficha-usuario-copiar-correo" />
-                <Dato etiqueta="Alias" valor={u.alias ?? '—'} />
-                <Dato etiqueta="Teléfono" valor={u.telefono ?? '—'} />
-                <Dato etiqueta="Ciudad" valor={u.ciudad ?? '—'} />
-                <Dato etiqueta="Nacimiento" valor={fecha(u.fechaNacimiento)} />
-              </Seccion>
+          <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
+            {/* Encabezado protagonista: estado de acceso + chips de login */}
+            <div className="border-b border-borde px-4 py-3.5">
+              <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4">Acceso a la app</p>
+              <div className="flex items-start gap-2.5">
+                {d.puedeIniciarSesion ? (
+                  <CheckCircle2 size={20} className="mt-0.5 shrink-0 text-ok" />
+                ) : (
+                  <AlertTriangle size={20} className="mt-0.5 shrink-0 text-peligro" />
+                )}
+                <div className="min-w-0">
+                  <p
+                    data-testid="ficha-usuario-acceso"
+                    className={`text-[18px] font-semibold leading-tight tracking-tight ${d.puedeIniciarSesion ? 'text-ok' : 'text-peligro'}`}
+                  >
+                    {d.puedeIniciarSesion ? 'Puede iniciar sesión' : 'No puede iniciar sesión'}
+                  </p>
+                  {!d.puedeIniciarSesion && razones.length > 0 && (
+                    <ul className="mt-1 list-disc pl-4 text-[12px] text-texto-2">
+                      {razones.map((r) => (
+                        <li key={r}>{r}</li>
+                      ))}
+                    </ul>
+                  )}
+                </div>
+              </div>
+              <div className="mt-2.5 flex flex-wrap gap-1.5">
+                <ChipBinario texto={d.tieneContrasena ? 'Con contraseña' : 'Sin contraseña'} activo={d.tieneContrasena} testid="chip-contrasena" />
+                <ChipBinario texto={d.correoVerificado ? 'Correo verificado' : 'Correo sin verificar'} activo={d.correoVerificado} testid="chip-correo-verif" />
+                {d.bloqueadoPorIntentos && <ChipBinario texto="Bloqueado por intentos" activo={false} testid="chip-bloqueado" />}
+                {d.requiereCambioContrasena && <ChipBinario texto="Debe cambiar contraseña" activo={false} testid="chip-cambio-contrasena" />}
+                {u.autenticadoPorGoogle && <ChipBinario texto="Google" activo testid="chip-google" />}
+                {u.autenticadoPorFacebook && <ChipBinario texto="Facebook" activo testid="chip-facebook" />}
+                {u.dobleFactorHabilitado && <ChipBinario texto="2FA app" activo testid="chip-2fa-app" />}
+                {u.panel2faHabilitado && <ChipBinario texto="2FA Panel" activo testid="chip-2fa-panel" />}
+              </div>
+              {d.intentosFallidos > 0 && (
+                <p className="mt-2 text-[11.5px] text-texto-4">Intentos fallidos: {d.intentosFallidos}</p>
+              )}
             </div>
 
-            {/* Columna derecha */}
-            <div className="flex flex-col gap-3">
-              <Seccion titulo="Roles" icono={Layers}>
-                {sinSombrerosEspeciales && <Dato etiqueta="Rol" valor="Cliente" />}
-                {s.esDueno && <Dato etiqueta="Dueño de negocio" valor={s.negocioNombre ?? 'Sí'} />}
-                {s.esEmpleado && <Dato etiqueta="Empleado" valor={`En ${s.totalEmpleos} ${s.totalEmpleos === 1 ? 'negocio' : 'negocios'}`} />}
-                {s.esEmbajador && (
-                  <Dato
-                    etiqueta="Vendedor"
-                    valor={s.codigoReferido ? <span className="font-mono">{s.codigoReferido}</span> : 'Sí'}
-                  />
-                )}
-                {s.rolEquipo && <Dato etiqueta="Rol de equipo" valor={ROL_EQUIPO_LABEL[s.rolEquipo] ?? s.rolEquipo} />}
-                <Dato etiqueta="Modo comercial" valor={<ChipBinario texto={u.tieneModoComercial ? 'Disponible' : 'No disponible'} activo={u.tieneModoComercial} testid="chip-modo-comercial" />} />
-                <DatoCopiable etiqueta="ID de cuenta" valor={u.id} mono testid="ficha-usuario-copiar-id" />
-              </Seccion>
+            {/* Lista corrida: Identidad · Roles · Actividad (separadas por líneas tenues) */}
+            <div className="px-4 py-1.5">
+              <DatoCopiable etiqueta="Correo" valor={u.correo} testid="ficha-usuario-copiar-correo" />
+              <Dato etiqueta="Alias" valor={u.alias ?? '—'} />
+              <Dato etiqueta="Teléfono" valor={u.telefono ?? '—'} />
+              <Dato etiqueta="Ciudad" valor={u.ciudad ?? '—'} />
+              <Dato etiqueta="Nacimiento" valor={fecha(u.fechaNacimiento)} />
 
-              <Seccion titulo="Actividad" icono={Clock}>
-                <Dato etiqueta="Última conexión" valor={fecha(u.ultimaConexion)} />
-                {esEquipo && <Dato etiqueta="Último acceso al Panel" valor={fecha(u.ultimoAccesoPanel)} />}
-                <Dato etiqueta="Registro" valor={fecha(u.createdAt)} />
-              </Seccion>
+              <div className="my-1 border-t border-borde/60" />
+              {sinSombrerosEspeciales && <Dato etiqueta="Rol" valor="Cliente" />}
+              {s.esDueno && <Dato etiqueta="Dueño de negocio" valor={s.negocioNombre ?? 'Sí'} />}
+              {s.esEmpleado && <Dato etiqueta="Empleado" valor={`En ${s.totalEmpleos} ${s.totalEmpleos === 1 ? 'negocio' : 'negocios'}`} />}
+              {s.esEmbajador && (
+                <Dato etiqueta="Vendedor" valor={s.codigoReferido ? <span className="font-mono">{s.codigoReferido}</span> : 'Sí'} />
+              )}
+              {s.rolEquipo && <Dato etiqueta="Rol de equipo" valor={ROL_EQUIPO_LABEL[s.rolEquipo] ?? s.rolEquipo} />}
+              <Dato etiqueta="Modo comercial" valor={<ChipBinario texto={u.tieneModoComercial ? 'Disponible' : 'No disponible'} activo={u.tieneModoComercial} testid="chip-modo-comercial" />} />
+              <DatoCopiable etiqueta="ID de cuenta" valor={u.id} mono testid="ficha-usuario-copiar-id" />
+
+              <div className="my-1 border-t border-borde/60" />
+              <Dato etiqueta="Última conexión" valor={fecha(u.ultimaConexion)} />
+              {esEquipo && <Dato etiqueta="Último acceso al Panel" valor={fecha(u.ultimoAccesoPanel)} />}
+              <Dato etiqueta="Registro" valor={fecha(u.createdAt)} />
             </div>
           </div>
         </div>

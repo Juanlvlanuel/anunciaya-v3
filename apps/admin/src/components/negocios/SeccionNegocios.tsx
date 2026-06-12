@@ -2,8 +2,8 @@
  * SeccionNegocios.tsx
  * ====================
  * Sección Negocios del Panel (VER, solo lectura) — calcada del diseño nuevo.
- *   - Escritorio (lg:+): tabla con toolbar (búsqueda, chips de estado con conteos,
- *     vendedor, ciudad) + "Ordenar" + paginación.
+ *   - Escritorio (lg:+): buscador + acción "Registrar" · chips de estado con conteos,
+ *     filtros (vendedor, ciudad) y "Ordenar" al nivel de los chips + tabla + paginación.
  *   - Móvil: buscador, chips de estado (carrusel), filtro de ciudad y tarjetas.
  *
  * Alcance por rol lo aplica el backend. El front solo oculta la columna/filtro de
@@ -300,38 +300,17 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* Toolbar: buscador (izq) + filtros y acción primaria (der) */}
+      {/* Buscador (izq) + acción primaria (der) */}
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
         <div className="min-w-[220px] max-w-[360px] flex-1">{buscador}</div>
-
-        <div className="flex flex-wrap items-center gap-3">
-          {mostrarVendedor && (
-            <MenuFiltro
-              testid="negocios-filtro-vendedor"
-              icono={<User size={16} />}
-              etiquetaBoton={etiquetaVendedor}
-              opciones={opcionesVendedor}
-              valor={vendedorId}
-              onCambiar={setVendedorId}
-            />
-          )}
-          <MenuFiltro
-            testid="negocios-filtro-ciudad"
-            icono={<MapPin size={16} />}
-            etiquetaBoton={etiquetaCiudad}
-            opciones={opcionesCiudad}
-            valor={ciudad}
-            onCambiar={setCiudad}
-          />
-          <button
-            type="button"
-            data-testid="negocios-registrar"
-            onClick={() => setMostrarAlta(true)}
-            className="inline-flex items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:opacity-90"
-          >
-            <Plus size={16} /> Registrar negocio
-          </button>
-        </div>
+        <button
+          type="button"
+          data-testid="negocios-registrar"
+          onClick={() => setMostrarAlta(true)}
+          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:opacity-90"
+        >
+          <Plus size={16} /> Registrar negocio
+        </button>
       </div>
 
       {/* Subhead: chips de estado (izq) + total y ordenar (der) */}
@@ -381,6 +360,26 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
             {hayFiltro ? ' · filtrado' : ''}
             {isFetching && !isLoading ? ' · actualizando…' : ''}
           </span>
+          {mostrarVendedor && (
+            <MenuFiltro
+              testid="negocios-filtro-vendedor"
+              icono={<User size={16} />}
+              etiquetaBoton={etiquetaVendedor}
+              opciones={opcionesVendedor}
+              valor={vendedorId}
+              onCambiar={setVendedorId}
+              tam="chip"
+            />
+          )}
+          <MenuFiltro
+            testid="negocios-filtro-ciudad"
+            icono={<MapPin size={16} />}
+            etiquetaBoton={etiquetaCiudad}
+            opciones={opcionesCiudad}
+            valor={ciudad}
+            onCambiar={setCiudad}
+            tam="chip"
+          />
           <MenuFiltro
             testid="negocios-orden"
             icono={<ArrowUpDown size={15} />}
@@ -389,6 +388,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
             valor={orden}
             onCambiar={(v) => setOrden(v as OrdenNegocios)}
             anchoMenu={200}
+            tam="chip"
           />
         </div>
       </div>

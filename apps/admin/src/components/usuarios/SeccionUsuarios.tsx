@@ -3,8 +3,8 @@
  * ====================
  * Sección Usuarios del Panel (VER, solo lectura) — mesa de ayuda + moderación de personas.
  * Calcada de SeccionNegocios.
- *   - Escritorio (lg:+): tabla con toolbar (búsqueda, chips de estado con conteos, tipo)
- *     + "Ordenar" + paginación.
+ *   - Escritorio (lg:+): buscador + chips de estado con conteos · filtro de tipo y
+ *     "Ordenar" (al nivel de los chips) + tabla + paginación.
  *   - Móvil: buscador, chips de estado (carrusel), filtro de tipo y tarjetas.
  *
  * La acota el backend (super + gerente ven todos; vendedor recibe 403 y no la ve en el menú).
@@ -177,6 +177,7 @@ export function SeccionUsuarios() {
       opciones={opcionesTipo}
       valor={tipo}
       onCambiar={setTipo}
+      tam="chip"
     />
   );
 
@@ -257,11 +258,8 @@ export function SeccionUsuarios() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* Toolbar: buscador (izq) + filtro de tipo (der) */}
-      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-3">
-        <div className="min-w-[220px] max-w-[380px] flex-1">{buscador}</div>
-        <div className="flex flex-wrap items-center gap-3">{filtroTipo}</div>
-      </div>
+      {/* Buscador */}
+      <div className="mb-3 max-w-[380px] shrink-0">{buscador}</div>
 
       {/* Subhead: chips de estado (izq) + total y ordenar (der) */}
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
@@ -309,6 +307,7 @@ export function SeccionUsuarios() {
             {hayFiltro ? ' · filtrado' : ''}
             {isFetching && !isLoading ? ' · actualizando…' : ''}
           </span>
+          {filtroTipo}
           <MenuFiltro
             testid="usuarios-orden"
             icono={<ArrowUpDown size={15} />}
@@ -317,6 +316,7 @@ export function SeccionUsuarios() {
             valor={orden}
             onCambiar={(v) => setOrden(v as OrdenUsuarios)}
             anchoMenu={210}
+            tam="chip"
           />
         </div>
       </div>
