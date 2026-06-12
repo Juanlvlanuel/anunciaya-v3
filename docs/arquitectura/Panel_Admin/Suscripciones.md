@@ -8,7 +8,7 @@
 > **en lenguaje de persona**, sin tecnicismos. La segunda (el **Apéndice técnico** al final)
 > es la referencia para quien va a tocar el código.
 >
-> **Estado:** desplegado y en uso. Última actualización: 11 Junio 2026 (la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento).
+> **Estado:** desplegado y en uso. Última actualización: 12 Junio 2026 (anular un pago en negocios con **tarjeta** ahora re-sincroniza el cobro de Stripe; ver `Pagos_Suscripciones.md` §9.2. Validado E2E en vivo). 11 Junio 2026: la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento.
 >
 > Documentos hermanos: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) ·
 > [`Negocios.md`](Negocios.md) (donde se *registran* los pagos manuales) ·
@@ -148,8 +148,10 @@ movimientos de los negocios de tu territorio.
 **¿Puedo corregir o borrar un movimiento desde aquí?**
 Los movimientos tipo **"Pago manual"** sí: al abrir su detalle puedes **reenviar el comprobante,
 corregir** (concepto/monto/meses) o **anular** el pago (borrado lógico, recalcula vigencia, avisa al
-dueño). Los eventos automáticos de **Stripe** son de solo lectura. Las mismas acciones existen en la
-ficha del negocio (Negocios).
+dueño). Al anular en un negocio con **tarjeta**, la fecha de cobro de Stripe **se reajusta sola** (y
+regresa a la original si era el último pago) — mismo comportamiento que en Negocios; ver
+`Pagos_Suscripciones.md` §9.2. Los eventos automáticos de **Stripe** son de solo lectura. Las mismas
+acciones existen en la ficha del negocio (Negocios).
 
 ---
 

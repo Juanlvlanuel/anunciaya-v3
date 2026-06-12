@@ -325,8 +325,15 @@ Sí. Cada fila del historial tiene un botón de **editar** para corregir el **co
 (efectivo/transferencia/cortesía), el **monto** y los **meses cubiertos** de ese pago. Si cambias
 los meses, la **"Vigencia hasta"** del negocio se recorre sola (cuando es su pago más reciente);
 esa vigencia es real: el cron de manuales la usa para vencer → gracia → suspensión. Solo
-SuperAdmin y Gerente (de su región), y queda en auditoría. *Anular/borrar* un pago sí sigue
-siendo mejora futura.
+SuperAdmin y Gerente (de su región), y queda en auditoría.
+
+**Registré un pago por error. ¿Puedo anularlo?**
+Sí. Cada fila del historial tiene un botón de **anular** (motivo obligatorio): el pago no se borra,
+se marca *Anulado* (queda para auditoría), deja de contar en los ingresos y la vigencia del negocio
+**vuelve a la del pago anterior**. En negocios con **tarjeta**, además la fecha de cobro de Stripe
+se reajusta sola; si anulas el último pago, la fecha **regresa a la original** (la que había antes del
+adelanto). Si no se pudiera reajustar Stripe, el sistema te avisa para hacerlo a mano. Ver
+`Pagos_Suscripciones.md` §9.2.
 
 **¿Qué es una "cortesía"?**
 Un alta o renovación **gratis**: se regala el tiempo de membresía sin cobrar. No lleva monto.
@@ -400,7 +407,7 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance; `?limite=N` → los N más recientes (paginación del historial) |
 | `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente; **sincroniza el evento gemelo** en `eventos_pago` |
 | `/negocios/:id/pagos/:pagoId/reenviar-recibo` | POST | super · gerente | regenera el recibo PDF y reenvía el comprobante al dueño |
-| `/negocios/:id/pagos/:pagoId/anular` | POST | super · gerente | **solo negocios manuales** · borrado lógico + recalcula vigencia + saca el ingreso de la bitácora + avisa al dueño · motivo obligatorio |
+| `/negocios/:id/pagos/:pagoId/anular` | POST | super · gerente | borrado lógico + recalcula vigencia + saca el ingreso de la bitácora + avisa al dueño · **con tarjeta re-sincroniza Stripe** (devuelve `advertenciaStripe` si no se pudo) · motivo obligatorio |
 | `/negocios/:id/marcar-pagado` | POST | super · gerente · vendedor | gerente=su región; **vendedor=solo sus negocios manuales, sin cortesía** (los de tarjeta los cobra Stripe) |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
 | `/negocios/:id/reactivar` | POST | super · gerente | motivo opcional |
@@ -445,12 +452,23 @@ ignoran el query siempre.
   valida `cargarNegocioConAlcance` (`embajadorId` del negocio = su embajador).
   La fila de `pagos_membresia` lleva un **`folio` correlativo** (default `nextval` de la secuencia
   global `pagos_membresia_folio_seq`; migración `docs/migraciones/2026-06-11-folio-recibo.sql`) que se
-  devuelve con `returning`. **Tras** confirmar el pago (fuera de la transacción, **best-effort**):
+  devuelve con `returning`. También guarda **`cobro_previo`** (fecha de cobro vigente *antes* de este
+  pago, leída de Stripe con `leerProximoCobroStripe`) para poder deshacer el adelanto al anular.
+  El **plazo** se calcula sobre la **vigencia vigente** (con tarjeta = `fechaProximoCobro`, lo que la
+  ficha muestra), así un pago durante el **trial** respeta el fin del trial en vez de calcular desde hoy.
+  **Tras** confirmar el pago (fuera de la transacción, **best-effort**):
   genera el **recibo PDF** (`reciboPdf.ts`, con folio + sucursal matriz + actor), lo sube a R2
   (`subirArchivo` → `recibos/`) y envía el **comprobante por correo** (`enviarComprobantePagoMembresia`)
   con el link de descarga. Si el PDF/correo fallan, el cobro ya quedó asentado (se loggea y sigue).
   El **front** invalida `negocios.pagos(id)` además de la lista → el pago aparece al instante en el
   *Historial de pagos* de la ficha (que se muestra en manual siempre, y en tarjeta si hay pagos manuales).
+- **Anular pago** (`anularPagoMembresia`): borrado lógico en transacción — marca `anulado`
+  (quién/cuándo/por qué), pone `eventos_pago.monto=NULL` (sale de KPIs) y **recalcula la vigencia** desde
+  el pago no anulado más reciente. Con tarjeta, **re-empuja Stripe** (fuera de la transacción) a esa
+  vigencia o, si era el último pago, a la **fecha original** (`cobro_previo` del primer pago); si no hay
+  fecha o Stripe la rechaza → `advertenciaStripe`. Avisa al dueño (correo "recibo cancelado", best-effort).
+  Detalle completo en `Pagos_Suscripciones.md` §9.2. **Validado E2E en vivo** (12 Jun 2026) + harness
+  `apps/api/scripts/probar-anular-pago.ts`.
 - **Pausar** (`suspender`): `activo=false` + `estado_admin='suspendido'`; pausa el cobro en Stripe
   (`pause_collection 'void'`); notifica al dueño. Motivo obligatorio. 409 si ya está suspendido/archivado.
 - **Reactivar**: revierte (`activo=true` + `estado_admin='activo'`); reanuda Stripe; limpia el aviso.

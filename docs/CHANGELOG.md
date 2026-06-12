@@ -8,6 +8,34 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [12 Junio 2026] - Suscripciones · Anular pago con tarjeta (re-sincroniza Stripe) + "Registrar pago" respeta el trial + menú de acciones en móvil + fix MenuDrawer 💳🧾📱
+
+Sesión de pruebas **E2E del flujo de pagos del Panel** sobre un negocio real con Stripe (modo test), con varios arreglos y mejoras de UI. **Validado de punta a punta en vivo** (Panel Admin + Stripe Dashboard).
+
+**Anular un pago en negocios con tarjeta (antes solo manuales):**
+- `anularPagoMembresia` ahora opera también en negocios con suscripción Stripe. Es **simétrico a "Registrar pago"**: como aquel empujó el `trial_end`, al anular **re-empuja el cobro** a la vigencia recalculada (pago no anulado más reciente) → la fecha "regresa" sola. Si se anula el **último** pago, devuelve el cobro a la **fecha original** (la que había antes del adelanto).
+- Nueva columna **`cobro_previo`** en `pagos_membresia` (migración `2026-06-12-cobro-previo.sql`): al registrar un pago se guarda la fecha de cobro vigente *antes* de él, leída de **Stripe** (`current_period_end` vía nuevo helper `leerProximoCobroStripe`) — no de la BD, que en un negocio nuevo en trial puede estar sin sincronizar.
+- Si no hay fecha a la cual volver o Stripe la rechaza, no se toca Stripe y se devuelve **`advertenciaStripe`** (el Panel lo muestra como advertencia; la BD ya quedó consistente). Se quitó el guard 409 *"este negocio cobra con tarjeta…"*. Frontend: `anularPago` propaga `advertenciaStripe` y `useAnularPago` usa `avisarResultado` (toast verde/ámbar).
+
+**"Registrar pago" respeta el fin del trial:**
+- El modal calculaba la vigencia desde "hoy" cuando `fecha_vencimiento` estaba NULL (negocio nuevo en trial). `FichaNegocio` ahora le pasa al modal **la misma fecha que muestra** (`fechaProximoCobro` con tarjeta, `fechaVencimiento` en manual), así un pago durante el trial suma sobre el **fin del trial** en vez de acortarlo.
+
+**Menú "⋯" de acciones en móvil + lápiz de correo:**
+- Nuevo componente compartido **`AccionesFicha`**: en escritorio muestra los iconos con tooltip (como antes); en móvil los colapsa en un menú **"⋯"** con **icono + texto** (en táctil no hay tooltip). Aplicado a las fichas de **Negocios, Usuarios y Suscripciones** — resuelve el empalme de los iconos con el título en pantallas chicas.
+- En la ficha de Negocios, el **lápiz de editar correo** pasó a un lado de la etiqueta "Correo". Texto del modal de **anular** acortado y unificado entre la ficha y la bitácora.
+
+**Fix — nombre del negocio en el MenuDrawer (`apps/web`):**
+- Tras dar de alta un negocio (rama "registro nuevo" del webhook, que devuelve un usuario parcial), el `MenuDrawer` en modo comercial no mostraba el nombre hasta refrescar. `PaginaCrearNegocioExito` ahora completa el usuario con `/auth/yo` tras `loginExitoso`, y **`cambiarModo`** también recarga los datos del negocio al pasar a comercial (el `PATCH /auth/modo` solo devuelve tokens + ids).
+
+**Validación E2E (en vivo, Stripe test) + harness:**
+- Nuevo `apps/api/scripts/probar-anular-pago.ts`: imprime paso a paso cómo el `trial_end` se traslada al registrar (3m → 6m) y regresa al anular (al pago anterior y, al anular el último, a la fecha original). Verificado además a mano en el Panel + Stripe Dashboard: registrar adelantado acumulado, anular dejando otro vigente, anular el último → fecha original, registrar durante el trial, y correo de "recibo cancelado".
+
+**Docs:** `Pagos_Suscripciones.md` (v1.3, §9.2 Anular, §13.1 Validación E2E, columna `cobro_previo`), `Panel_Admin/Negocios.md` (corrige el "anular = mejora futura / solo manual" obsoleto), `Panel_Admin/Suscripciones.md`.
+
+**Pendiente anotado:** un negocio con tarjeta recién creado, antes de que llegue cualquier webhook (ambas fechas NULL), aún calcularía la vigencia desde "hoy"; la raíz (escribir `fecha_proximo_cobro = trial_end` al crear) queda como mejora futura.
+
+---
+
 ## [10 Junio 2026] - Pagos · Alta manual sin Stripe (efectivo/transferencia/cortesía) + crear contraseña (Modelo C) + cron de manuales + onboarding 💵🔑🛠️
 
 Sesión grande del Panel: dar de **alta negocios cobrados en efectivo/transferencia/cortesía SIN pasar por Stripe**, con la cuenta del dueño naciendo **sin contraseña** (la crea en su primer ingreso). 6 fases + mejoras de onboarding. **En producción** (commit-push 10 Jun; redeploy de Vercel/Render). Commits: `f9b197a` (alta manual + crear contraseña), `494d739` (onboarding), `6d5c16f` (cron Fase 3), `8c79ee8` (correo del dueño), `908324e` (docs).

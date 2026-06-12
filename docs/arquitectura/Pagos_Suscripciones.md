@@ -6,8 +6,11 @@
 >
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
-> sola; ver §9.1). Falta infraestructura de producción (ver §12). Versión 1.2 (11 Jun 2026: columna
-> `folio` en `pagos_membresia` + comprobante automático con recibo PDF, §2 y §10).
+> sola; ver §9.1). Falta infraestructura de producción (ver §12).
+> **Versión 1.3 (12 Jun 2026):** **anular un pago manual en negocios con tarjeta** ahora re-sincroniza
+> Stripe (la fecha de cobro "regresa" sola; §9.2), apoyado en la columna `cobro_previo` (§2); "Registrar
+> pago" durante el trial **respeta el fin del trial** (§9.1). Validado E2E en vivo (§13.1).
+> Versión 1.2 (11 Jun 2026: columna `folio` en `pagos_membresia` + comprobante automático con recibo PDF, §2 y §10).
 >
 > Archivos núcleo: `apps/api/src/services/pago.service.ts` (webhook + checkout),
 > `services/admin/negocios-acciones.service.ts` + `services/suscripciones/acciones-stripe.ts`
@@ -57,7 +60,8 @@
 | `meses_cubiertos` | N elegido en "por meses" (NULL en "fecha exacta") |
 | `periodo_hasta` | Vencimiento aplicado (= `trial_end` empujado en Stripe) |
 | `registrado_por` | Admin que registró (FK `usuarios`, `ON DELETE SET NULL`) |
-| `anulado` · `anulado_at` · `anulado_por` · `motivo_anulacion` | **Anulación** (borrado lógico): el pago no se borra, se marca anulado; recalcula la vigencia desde el pago más reciente NO anulado y saca el ingreso de la bitácora. Solo negocios manuales. Migración `2026-06-11-anular-pago.sql` |
+| `anulado` · `anulado_at` · `anulado_por` · `motivo_anulacion` | **Anulación** (borrado lógico): el pago no se borra, se marca anulado; recalcula la vigencia desde el pago más reciente NO anulado y saca el ingreso de la bitácora. **En negocios con tarjeta (Stripe)** es simétrico a "Registrar pago": re-empuja el `trial_end` a la vigencia recalculada, o a la **fecha de cobro original** (`cobro_previo` del primer pago manual) si se anuló el último → la fecha "regresa" sola. Si no hay fecha a la cual volver (pagos sin `cobro_previo`, o ya pasó) o Stripe la rechaza, se devuelve `advertenciaStripe`. Migraciones `2026-06-11-anular-pago.sql`, `2026-06-12-cobro-previo.sql` |
+| `cobro_previo` | Fecha de cobro de Stripe **justo antes** de este pago (solo con tarjeta). Permite devolver el `trial_end` a la fecha original al anular el último pago. Migración `2026-06-12-cobro-previo.sql` |
 
 > Cada "Registrar pago" (§9.1) inserta una fila aquí, en la **misma transacción** que activa el negocio. Antes el dato contable se perdía: solo quedaba la acción en `admin_auditoria`, sin monto ni concepto.
 
@@ -167,7 +171,8 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 
 | Acción | Rol | Efecto BD | Efecto Stripe |
 |---|---|---|---|
-| **Registrar pago** (§9.1) | superadmin | `al_corriente` + `activo` + fechas + `metodo_cobro` + fila en `pagos_membresia` | **con sub:** empuja el cobro a la fecha (`trial_end`) → retoma solo. **sin sub:** solo BD |
+| **Registrar pago** (§9.1) | super + gerente | `al_corriente` + `activo` + fechas + `metodo_cobro` + fila en `pagos_membresia` (con `cobro_previo`) | **con sub:** empuja el cobro a la fecha (`trial_end`) → retoma solo. **sin sub:** solo BD |
+| **Anular pago** (§9.2) | super + gerente | marca el pago `anulado`, saca el ingreso de la bitácora, **recalcula la vigencia** | **con sub:** re-empuja el `trial_end` a la vigencia recalculada o a la fecha original → la fecha "regresa". **sin sub:** solo BD |
 | **Pausar** | super + gerente | `estado_admin='suspendido'`, `activo=false` | `pause_collection: void` (sin deuda) |
 | **Reactivar** | super + gerente | `estado_admin='activo'`, `activo=true` | limpia `pause_collection` |
 | **Cancelar** | superadmin | §8 | `subscriptions.cancel` |
@@ -192,6 +197,34 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 **Concepto** (efectivo/transferencia = ingreso; cortesía = sin monto) y **monto** se guardan en `pagos_membresia`. A efectos de Stripe los tres son idénticos (empujar N meses); la diferencia es solo de **registro contable**.
 
 > El frontend del Panel: modal `DialogoMarcarPagado.tsx` (concepto + monto + plazo) y la ficha `FichaNegocio.tsx` (botón "Registrar pago", deshabilitado con tooltip si el negocio no está al corriente — espejo del guard 409).
+
+> **Base del plazo = vigencia vigente (respeta el trial).** El modal calcula la fecha sumando los meses
+> sobre el **mayor entre hoy y la vigencia actual** (`sumarMeses`). Para que esa "vigencia actual" sea la
+> correcta, `FichaNegocio.tsx` le pasa al modal **la misma fecha que muestra** (`fechaProximoCobro` con
+> tarjeta, `fechaVencimiento` en manual). Sin esto, un pago durante el **trial** —donde `fechaVencimiento`
+> puede estar NULL hasta que llegue el webhook— se calcularía desde "hoy" y **acortaría** la vigencia en
+> vez de respetar el fin del trial (corregido el 12 Jun 2026).
+
+### 9.2 Anular pago (borrado lógico, simétrico a "Registrar pago")
+
+`anularPagoMembresia` (super + gerente de su región). Permite "cancelar" un recibo registrado por error
+**sin borrarlo** (queda para auditoría). En la **misma transacción**: (1) marca `anulado` (quién/cuándo/por
+qué), (2) saca el ingreso de la bitácora (`eventos_pago.monto = NULL` → deja de sumar en KPIs), (3)
+**recalcula la vigencia** desde el pago no anulado más reciente.
+
+**En negocios con tarjeta es SIMÉTRICO a "Registrar pago"** (que empujó el `trial_end`): al anular, se
+RE-EMPUJA el cobro (fuera de la transacción, §4.3) → la fecha de cobro **regresa sola**:
+- Queda **otro pago** vigente → re-empuja a su `periodo_hasta`.
+- Era el **último** pago → re-empuja a la **fecha de cobro original** (`cobro_previo` del primer pago
+  manual del negocio; ver §2). `cobro_previo` se captura al registrar leyendo `current_period_end` de
+  Stripe (`leerProximoCobroStripe`), no de la BD —que en un negocio nuevo en trial puede estar sin
+  sincronizar—.
+- No hay fecha a la cual volver (pagos sin `cobro_previo`, o ya pasó) o Stripe la rechaza → **no se toca
+  Stripe** y se devuelve `advertenciaStripe` (el Panel lo muestra como advertencia; la BD ya quedó
+  consistente).
+
+Luego avisa al dueño (correo de "recibo cancelado", best-effort). Frontend: `DialogoConfirmar`
+(motivo obligatorio) desde el historial de la ficha **y** desde el detalle del movimiento en Suscripciones.
 
 ---
 
@@ -244,7 +277,23 @@ Requiere `stripe listen --forward-to localhost:4000/api/pagos/webhook` + backend
 - `probar-acciones-parada2.ts` — ejercita las 4 acciones del Panel contra Stripe real + la defensa §4.3.
 - `probar-empujar-cobro.ts` — verifica `empujarCobroSuscripcion` (trial_end exacto, pausa limpia, el webhook escribe la fecha, tope 2 años).
 - `probar-marcar-pagado.ts` — los 3 escenarios de "Registrar pago" (al corriente con sub, guard 409 en gracia, sin sub).
+- `probar-anular-pago.ts` — ciclo completo de anulación en un negocio CON tarjeta: imprime paso a paso cómo el `trial_end` de Stripe se **traslada** al registrar (3m → 6m) y **regresa** al anular (al pago anterior, y al último → a la fecha original vía `cobro_previo`).
 - `probar-aviso-trial.ts` — copy ramificado de `trial_will_end` (efectivo/transferencia/cortesía/alta). **NO requiere Stripe** (mock de la sub).
 - `diagnostico-stripe-suscripcion.ts` — estado real de una suscripción (solo lectura).
 
 > Para recorrer el calendario completo de reintentos/trial sin esperar días: **Stripe Test Clock** (pendiente de montar).
+
+### 13.1 Validación E2E realizada (12 Jun 2026)
+
+Ciclo **Registrar pago → Anular** verificado **end-to-end en vivo** (Panel Admin + Stripe Dashboard en
+modo test, contra una suscripción real), además del harness automatizado `probar-anular-pago.ts`. Casos
+cubiertos y confirmados:
+- **Registrar pago adelantado acumulado** (3 meses, luego 6 meses): el `trial_end` de Stripe se traslada
+  y se acumula sobre la vigencia vigente; las fechas de la BD y de Stripe coinciden (salvo el desfase de
+  zona horaria UTC↔local del Dashboard).
+- **Anular un pago dejando otro vigente:** la vigencia y el `trial_end` **regresan** al pago anterior;
+  el ingreso anulado sale de los KPIs de la bitácora.
+- **Anular el último pago:** la fecha **regresa a la original** (fin del trial) en BD y Stripe vía
+  `cobro_previo`; toast verde (sin `advertenciaStripe`).
+- **Registrar pago durante el trial:** respeta el **fin del trial** como base (no calcula desde "hoy").
+- **Correo de "recibo cancelado"** al dueño en cada anulación.
