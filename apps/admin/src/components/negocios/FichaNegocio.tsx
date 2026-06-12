@@ -48,6 +48,7 @@ import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { VisorImagen } from '../ui/VisorImagen';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
+import { AccionesFicha, type AccionFicha } from '../ui/AccionesFicha';
 import { DialogoReasignar } from './DialogoReasignar';
 import { DialogoMarcarPagado } from './DialogoMarcarPagado';
 import { DialogoEditarPago } from './DialogoEditarPago';
@@ -112,10 +113,10 @@ export function fecha(valor: string | null): string {
   return `${String(d.getDate()).padStart(2, '0')} ${MESES[d.getMonth()]} ${d.getFullYear()}`;
 }
 
-export function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
+export function Dato({ etiqueta, valor }: { etiqueta: ReactNode; valor: ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4 py-1">
-      <span className="shrink-0 text-[13px] text-texto-3">{etiqueta}</span>
+      <span className="inline-flex shrink-0 items-center gap-1.5 text-[13px] text-texto-3">{etiqueta}</span>
       <span className="text-right text-[13.5px] font-medium text-texto">{valor ?? '—'}</span>
     </div>
   );
@@ -146,76 +147,6 @@ function ChipDato({ texto, activo, testid }: { texto: string; activo: boolean; t
       {texto}
     </span>
   );
-}
-
-/** Botón de acción del footer. Si `disabled`, muestra el tooltip de Parada 2. */
-function BotonAccion({
-  icono: Icono,
-  etiqueta,
-  variante,
-  testid,
-  onClick,
-  disabled = false,
-  tooltipDisabled,
-  soloIcono = false,
-  color,
-}: {
-  icono: typeof User;
-  etiqueta: string;
-  variante: 'primary' | 'ghost' | 'danger';
-  testid: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  /** Tooltip cuando está deshabilitado; si no se pasa, usa el de "negocio cancelado". */
-  tooltipDisabled?: string;
-  /** Solo icono (cuadrado) + tooltip con la etiqueta. Para compactar el footer en 1 línea. */
-  soloIcono?: boolean;
-  /** Color temático del ícono en modo soloIcono (header): azul / ámbar / verde / rojo. */
-  color?: 'marca' | 'ambar' | 'ok' | 'peligro';
-}) {
-  const textoTooltip = disabled
-    ? (tooltipDisabled ?? 'No disponible para un negocio cancelado')
-    : etiqueta;
-
-  // Modo SOLO-ICONO (header): estilo temático calcado de Suscripciones/Usuarios (sin borde,
-  // ícono coloreado, hover suave). El color lo decide `color` (o se deriva de la variante).
-  if (soloIcono) {
-    const colores: Record<NonNullable<typeof color>, string> = {
-      marca: 'text-marca hover:bg-marca-suave',
-      ambar: 'text-[#d97706] hover:bg-[#d977061f]',
-      ok: 'text-ok hover:bg-[#34c77b1f]',
-      peligro: 'text-peligro hover:bg-peligro-suave',
-    };
-    const clase = colores[color ?? (variante === 'danger' ? 'peligro' : 'marca')];
-    return (
-      <Tooltip text={textoTooltip} className="shrink-0">
-        <button
-          type="button"
-          data-testid={testid}
-          onClick={onClick}
-          disabled={disabled}
-          aria-label={etiqueta}
-          className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] transition disabled:cursor-not-allowed disabled:opacity-50 ${clase}`}
-        >
-          <Icono size={18} />
-        </button>
-      </Tooltip>
-    );
-  }
-
-  // Modo botón con texto (se conserva por si se reutiliza en otro lado).
-  const base = 'inline-flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-2.5 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
-  const estilos: Record<'primary' | 'ghost' | 'danger', string> = {
-    primary: 'bg-marca text-marca-contraste',
-    ghost: 'border border-borde-fuerte bg-superficie text-texto',
-    danger: 'border border-peligro/40 bg-superficie text-peligro',
-  };
-  const boton = (
-    <button type="button" data-testid={testid} onClick={onClick} disabled={disabled} className={`${base} ${estilos[variante]}`}>
-      <Icono size={16} /> {etiqueta}
-    </button>
-  );
-  return disabled ? <Tooltip text={textoTooltip}>{boton}</Tooltip> : boton;
 }
 
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
@@ -347,7 +278,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
           abierto
           onCerrar={() => setAnulando(null)}
           titulo="Anular pago"
-          mensaje={`Se anulará el recibo ${anulando.folio != null ? `#${String(anulando.folio).padStart(5, '0')} ` : ''}(${anulando.monto != null ? FMT_MONTO.format(Number(anulando.monto)) : 'cortesía'}). El pago no se borra, pero deja de contar y la vigencia del negocio se recalcula desde el pago anterior. Se le avisará al dueño por correo. El motivo queda registrado.`}
+          mensaje={`Se anulará ${anulando.monto != null ? `este pago de ${FMT_MONTO.format(Number(anulando.monto))}` : 'esta cortesía'}. Deja de contar y la vigencia del negocio vuelve a la del pago anterior. Se le avisará al dueño por correo.`}
           textoConfirmar="Anular pago"
           requiereMotivo
           cargando={anular.isPending}
@@ -388,6 +319,66 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const esSuperadmin = rol === 'superadmin';
   const puedeRegistrarPago = puedeActuar || (rol === 'vendedor' && esManual);
 
+  // Acciones del encabezado según rol. Desktop → íconos con tooltip; móvil → menú "⋯" con texto.
+  const motivoArchivado = 'No disponible para un negocio cancelado';
+  const acciones: AccionFicha[] = [];
+  if (puedeRegistrarPago) {
+    acciones.push({
+      icono: CheckCircle2,
+      etiqueta: 'Registrar pago',
+      color: 'marca',
+      testid: 'ficha-accion-registrar-pago',
+      onClick: () => setDialogo('marcar-pagado'),
+      disabled: archivado || cobroPendiente,
+      motivoDisabled: archivado
+        ? motivoArchivado
+        : cobroPendiente
+          ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.'
+          : undefined,
+    });
+  }
+  if (puedeActuar) {
+    acciones.push({
+      icono: UserPlus,
+      etiqueta: 'Reasignar',
+      color: 'marca',
+      testid: 'ficha-accion-reasignar',
+      onClick: () => setDialogo('reasignar'),
+      disabled: archivado,
+      motivoDisabled: archivado ? motivoArchivado : undefined,
+    });
+    acciones.push(
+      suspendido
+        ? {
+            icono: PlayCircle,
+            etiqueta: 'Reactivar',
+            color: 'ok',
+            testid: 'ficha-accion-reactivar',
+            onClick: () => setDialogo('reactivar'),
+          }
+        : {
+            icono: PauseCircle,
+            etiqueta: 'Pausar membresía',
+            color: 'ambar',
+            testid: 'ficha-accion-suspender',
+            onClick: () => setDialogo('suspender'),
+            disabled: archivado,
+            motivoDisabled: archivado ? motivoArchivado : undefined,
+          },
+    );
+    if (esSuperadmin) {
+      acciones.push({
+        icono: Ban,
+        etiqueta: 'Cancelar',
+        color: 'peligro',
+        testid: 'ficha-accion-cancelar',
+        onClick: () => setDialogo('cancelar'),
+        disabled: archivado,
+        motivoDisabled: archivado ? motivoArchivado : undefined,
+      });
+    }
+  }
+
   return (
     <>
     <ModalAdaptativo
@@ -417,32 +408,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             </span>
           </div>
           <div className="flex shrink-0 items-center gap-1">
-            {puedeRegistrarPago && (
-              <BotonAccion
-                icono={CheckCircle2}
-                etiqueta="Registrar pago"
-                variante="primary"
-                color="marca"
-                testid="ficha-accion-registrar-pago"
-                onClick={() => setDialogo('marcar-pagado')}
-                disabled={archivado || cobroPendiente}
-                tooltipDisabled={!archivado && cobroPendiente ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.' : undefined}
-                soloIcono
-              />
-            )}
-            {puedeActuar && (
-              <>
-                <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" color="marca" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} soloIcono />
-                {suspendido ? (
-                  <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" color="ok" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} soloIcono />
-                ) : (
-                  <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" color="ambar" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} soloIcono />
-                )}
-                {esSuperadmin && (
-                  <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" color="peligro" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} soloIcono />
-                )}
-              </>
-            )}
+            <AccionesFicha acciones={acciones} testidMenu="ficha-acciones-menu" />
             <button
               type="button"
               data-testid="ficha-cerrar"
@@ -499,10 +465,9 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                 {/* Dueño */}
                 <Dato etiqueta="Dueño" valor={n.duenoNombre ?? '—'} />
                 <Dato
-                  etiqueta="Correo"
-                  valor={
-                    <span className="inline-flex items-center gap-1.5">
-                      {n.duenoCorreo ?? '—'}
+                  etiqueta={
+                    <>
+                      Correo
                       {puedeActuar && !archivado && (
                         <Tooltip text="Corregir correo">
                           <button
@@ -516,8 +481,9 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                           </button>
                         </Tooltip>
                       )}
-                    </span>
+                    </>
                   }
+                  valor={n.duenoCorreo ?? '—'}
                 />
                 <Dato etiqueta="Teléfono" valor={n.duenoTelefono ?? '—'} />
 
@@ -578,11 +544,14 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
       />
     )}
     {dialogo === 'marcar-pagado' && (
+      // Vigencia vigente = la MISMA fecha que muestra la ficha: con tarjeta es `fechaProximoCobro`
+      // (en trial puede estar poblada mientras `fechaVencimiento` sigue NULL); manual usa `fechaVencimiento`.
+      // Sin esto, "Registrar pago" en trial calcularía desde hoy y NO respetaría el fin del trial.
       <DialogoMarcarPagado
         abierto
         onCerrar={cerrarDialogo}
         nombreNegocio={n.nombre}
-        vencimientoActual={n.fechaVencimiento}
+        vencimientoActual={(esManual ? n.fechaVencimiento : n.fechaProximoCobro) ?? n.fechaVencimiento}
         tieneSuscripcion={n.tieneSuscripcionStripe}
         permiteCortesia={rol !== 'vendedor'}
         cargando={marcarPagado.isPending}

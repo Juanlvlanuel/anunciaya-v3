@@ -18,7 +18,7 @@ import type { PagoMembresia } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { DialogoEditarPago } from '../negocios/DialogoEditarPago';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
-import { Tooltip } from '../ui/Tooltip';
+import { AccionesFicha, type AccionFicha } from '../ui/AccionesFicha';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { metaTipoEvento, BadgeTipoEvento } from './estadoEvento';
 
@@ -148,6 +148,36 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
     anulado,
   };
 
+  // Acciones del encabezado (solo pagos manuales no anulados). Desktop → íconos con tooltip;
+  // móvil → menú "⋯" con texto. Vacío = AccionesFicha no renderiza nada.
+  const acciones: AccionFicha[] =
+    accionable && !anulado
+      ? [
+          {
+            icono: Send,
+            etiqueta: 'Reenviar comprobante',
+            color: 'marca',
+            testid: 'evento-reenviar',
+            onClick: () => reenviar.mutate({ negocioId: e.negocioId!, pagoId: e.referenciaId! }),
+            disabled: reenviar.isPending,
+          },
+          {
+            icono: Pencil,
+            etiqueta: 'Editar pago',
+            color: 'ambar',
+            testid: 'evento-editar',
+            onClick: () => setEditando(true),
+          },
+          {
+            icono: Ban,
+            etiqueta: 'Anular pago',
+            color: 'peligro',
+            testid: 'evento-anular',
+            onClick: () => setAnulandoOpen(true),
+          },
+        ]
+      : [];
+
   return (
     <ModalAdaptativo
       abierto
@@ -158,46 +188,7 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
           <IconoTipo size={16} />
         </span>
       }
-      accionesHeader={
-        accionable && !anulado ? (
-          <>
-            <Tooltip text="Reenviar comprobante">
-              <button
-                type="button"
-                data-testid="evento-reenviar"
-                onClick={() => reenviar.mutate({ negocioId: e.negocioId!, pagoId: e.referenciaId! })}
-                disabled={reenviar.isPending}
-                aria-label="Reenviar comprobante"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-marca transition hover:bg-marca-suave disabled:opacity-50"
-              >
-                <Send size={18} />
-              </button>
-            </Tooltip>
-            <Tooltip text="Editar pago">
-              <button
-                type="button"
-                data-testid="evento-editar"
-                onClick={() => setEditando(true)}
-                aria-label="Editar pago"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-[#d97706] transition hover:bg-[#d977061f]"
-              >
-                <Pencil size={18} />
-              </button>
-            </Tooltip>
-            <Tooltip text="Anular pago">
-              <button
-                type="button"
-                data-testid="evento-anular"
-                onClick={() => setAnulandoOpen(true)}
-                aria-label="Anular pago"
-                className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-peligro transition hover:bg-peligro-suave"
-              >
-                <Ban size={18} />
-              </button>
-            </Tooltip>
-          </>
-        ) : undefined
-      }
+      accionesHeader={<AccionesFicha acciones={acciones} testidMenu="evento-acciones-menu" />}
       ancho="lg"
       discriminador="ficha-evento"
     >
@@ -257,7 +248,7 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
             abierto
             onCerrar={() => setAnulandoOpen(false)}
             titulo="Anular pago"
-            mensaje={`Se anulará este pago manual (${montoTexto(e.monto)}). No se borra, pero deja de contar y la vigencia del negocio se recalcula desde el pago anterior. Se le avisará al dueño por correo. El motivo queda registrado.`}
+            mensaje={`Se anulará ${e.monto != null ? `este pago de ${montoTexto(e.monto)}` : 'esta cortesía'}. Deja de contar y la vigencia del negocio vuelve a la del pago anterior. Se le avisará al dueño por correo.`}
             textoConfirmar="Anular pago"
             requiereMotivo
             cargando={anular.isPending}
