@@ -71,6 +71,25 @@ function maxFecha(): string {
   return new Date(Date.now() + MAX_MS_2_ANIOS).toISOString().slice(0, 10);
 }
 
+/** Días NUEVOS que cubre una fecha exacta: del mayor entre hoy y el vencimiento vigente hasta la
+ *  fecha elegida. 0 si no agrega tiempo (fecha igual o anterior → estaría acortando). */
+function diasNuevos(fechaDate: Date | null, vencimiento: Date | null): number {
+  if (!fechaDate || Number.isNaN(fechaDate.getTime())) return 0;
+  const hoyFin = new Date();
+  hoyFin.setHours(23, 59, 59, 0);
+  const aunVigente = !!vencimiento && !Number.isNaN(vencimiento.getTime()) && vencimiento.getTime() > Date.now();
+  const baseMs = aunVigente ? (vencimiento as Date).getTime() : hoyFin.getTime();
+  const d = Math.round((fechaDate.getTime() - baseMs) / (24 * 60 * 60 * 1000));
+  return d > 0 ? d : 0;
+}
+
+/** Monto sugerido para "Fecha exacta": días nuevos × precio por día (precio mensual base / 30),
+ *  redondeado al peso. 0 si no agrega tiempo. */
+function montoProporcional(fechaDate: Date | null, vencimiento: Date | null): number {
+  const dias = diasNuevos(fechaDate, vencimiento);
+  return dias > 0 ? Math.round((precioPorMeses(1) / 30) * dias) : 0;
+}
+
 interface DatosPago {
   concepto: Concepto;
   /** Monto en MXN (efectivo/transferencia). En cortesía va undefined. */
@@ -135,6 +154,12 @@ export function DialogoMarcarPagado({
   const acumula = modo === 'meses' && vigenteFuturo;
   // El plazo acumulado puede pasar el tope de 2 años de Stripe (trial_end) → se avisa y se bloquea.
   const excedeTope = modo === 'meses' && !!hastaDate && hastaDate.getTime() > ahoraMs + MAX_MS_2_ANIOS;
+  // Fecha exacta ANTERIOR al vencimiento vigente → le acortaría la vigencia. Se AVISA pero se permite:
+  // acortar puede ser a propósito (p. ej. alinear el cobro a un día fijo del mes).
+  const acorta =
+    modo === 'fecha' && !!hastaDate && !!venceActual && venceActual.getTime() > ahoraMs && hastaDate.getTime() < venceActual.getTime();
+  // Días nuevos que cubre la fecha exacta (para el texto de ayuda del monto proporcional).
+  const diasFecha = modo === 'fecha' ? diasNuevos(hastaDate, venceActual) : 0;
 
   // Monto obligatorio (> 0) solo en efectivo/transferencia; en cortesía no se pide.
   const pideMonto = concepto !== 'cortesia';
@@ -151,16 +176,35 @@ export function DialogoMarcarPagado({
     if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1) setMonto(String(precioPorMeses(n)));
   };
 
-  // Pasar a efectivo/transferencia (en modo meses) precarga el precio sugerido.
-  const aplicarConcepto = (c: Concepto) => {
-    setConcepto(c);
-    if (c !== 'cortesia' && modo === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+  // Elegir/cambiar la fecha exacta recalcula el monto a PROPORCIÓN de los días nuevos (salvo
+  // cortesía). Si no agrega tiempo (fecha igual o anterior al vencimiento), limpia el monto.
+  const aplicarFecha = (valor: string) => {
+    setFechaManual(valor);
+    if (concepto === 'cortesia' || !valor) return;
+    const prop = montoProporcional(new Date(`${valor}T23:59:59`), venceActual);
+    setMonto(prop > 0 ? String(prop) : '');
   };
 
-  // Volver a "Por meses" recalcula el monto sugerido del periodo actual.
+  // Pasar a efectivo/transferencia precarga el monto sugerido del modo actual.
+  const aplicarConcepto = (c: Concepto) => {
+    setConcepto(c);
+    if (c === 'cortesia') return;
+    if (modo === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+    else if (modo === 'fecha' && fechaManual) {
+      const prop = montoProporcional(new Date(`${fechaManual}T23:59:59`), venceActual);
+      setMonto(prop > 0 ? String(prop) : '');
+    }
+  };
+
+  // Cambiar de modo recalcula el monto sugerido (meses → precio×meses; fecha → proporción de días).
   const aplicarModo = (m: 'meses' | 'fecha') => {
     setModo(m);
-    if (m === 'meses' && concepto !== 'cortesia' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+    if (concepto === 'cortesia') return;
+    if (m === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+    else if (m === 'fecha' && fechaManual) {
+      const prop = montoProporcional(new Date(`${fechaManual}T23:59:59`), venceActual);
+      setMonto(prop > 0 ? String(prop) : '');
+    }
   };
 
   const confirmar = () => {
@@ -242,7 +286,7 @@ export function DialogoMarcarPagado({
             value={fechaManual}
             min={manana()}
             max={maxFecha()}
-            onChange={(e) => setFechaManual(e.target.value)}
+            onChange={(e) => aplicarFecha(e.target.value)}
             className={CLASE_CAMPO}
           />
         )}
@@ -283,6 +327,11 @@ export function DialogoMarcarPagado({
                 className={`${CLASE_CAMPO} pl-6`}
               />
             </div>
+            {modo === 'fecha' && diasFecha > 0 && (
+              <p className="mt-1 text-[11px] text-texto-4">
+                Sugerido proporcional a {diasFecha} {diasFecha === 1 ? 'día' : 'días'} (editable).
+              </p>
+            )}
           </div>
         )}
 
@@ -295,6 +344,10 @@ export function DialogoMarcarPagado({
           {excedeTope ? (
             <div className="mt-1 text-[11.5px] font-medium text-peligro">
               El plazo acumulado supera el tope de 2 años de Stripe. Reduce los meses o usa "Fecha exacta".
+            </div>
+          ) : acorta ? (
+            <div className="mt-1 text-[11.5px] font-medium text-[#d97706]" data-testid="marcar-acorta">
+              Esta fecha es anterior a su vencimiento actual ({fmt(venceActual)}) — le acortarías la vigencia.
             </div>
           ) : acumula ? (
             <div className="mt-1 text-[11.5px] text-texto-3" data-testid="marcar-acumula">
