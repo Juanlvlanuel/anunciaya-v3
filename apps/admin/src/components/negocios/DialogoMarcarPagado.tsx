@@ -47,12 +47,16 @@ function fmt(d: Date | null): string {
   return FMT.format(d).replace('.', '');
 }
 
-/** Hoy + N meses, al final del día. JS maneja el desborde de mes correctamente. */
-function sumarMeses(meses: number): Date {
-  const d = new Date();
-  d.setHours(23, 59, 59, 0);
-  d.setMonth(d.getMonth() + meses);
-  return d;
+/** Plazo del pago: parte del MAYOR entre hoy y el vencimiento vigente, + N meses, al final del
+ *  día. Así, si al negocio aún le quedan días pagados, el nuevo pago SE ACUMULA (no se los come);
+ *  si ya venció (o no hay vencimiento), cuenta desde hoy. JS maneja el desborde de mes. */
+function sumarMeses(meses: number, vencimiento: Date | null): Date {
+  const hoy = new Date();
+  const aunVigente = !!vencimiento && !Number.isNaN(vencimiento.getTime()) && vencimiento.getTime() > hoy.getTime();
+  const base = aunVigente ? new Date(vencimiento as Date) : hoy;
+  base.setHours(23, 59, 59, 0);
+  base.setMonth(base.getMonth() + meses);
+  return base;
 }
 
 /** Fecha (yyyy-mm-dd) de mañana, como mínimo del calendario. */
@@ -114,7 +118,7 @@ export function DialogoMarcarPagado({
 
   const hastaDate =
     modo === 'meses'
-      ? (mesesValido ? sumarMeses(mesesNum) : null)
+      ? (mesesValido ? sumarMeses(mesesNum, venceActual) : null)
       : fechaManual
         ? new Date(`${fechaManual}T23:59:59`)
         : null;
@@ -125,6 +129,12 @@ export function DialogoMarcarPagado({
     !Number.isNaN(hastaDate.getTime()) &&
     hastaDate.getTime() > ahoraMs &&
     hastaDate.getTime() <= ahoraMs + MAX_MS_2_ANIOS;
+
+  // ¿El nuevo plazo se SUMA sobre días aún vigentes? (solo en modo "por meses").
+  const vigenteFuturo = !!venceActual && !Number.isNaN(venceActual.getTime()) && venceActual.getTime() > ahoraMs;
+  const acumula = modo === 'meses' && vigenteFuturo;
+  // El plazo acumulado puede pasar el tope de 2 años de Stripe (trial_end) → se avisa y se bloquea.
+  const excedeTope = modo === 'meses' && !!hastaDate && hastaDate.getTime() > ahoraMs + MAX_MS_2_ANIOS;
 
   // Monto obligatorio (> 0) solo en efectivo/transferencia; en cortesía no se pide.
   const pideMonto = concepto !== 'cortesia';
@@ -282,10 +292,19 @@ export function DialogoMarcarPagado({
             <span className="text-texto-3">Vigencia hasta</span>
             <span className="font-semibold text-texto" data-testid="marcar-preview">{fmt(hastaDate)}</span>
           </div>
+          {excedeTope ? (
+            <div className="mt-1 text-[11.5px] font-medium text-peligro">
+              El plazo acumulado supera el tope de 2 años de Stripe. Reduce los meses o usa "Fecha exacta".
+            </div>
+          ) : acumula ? (
+            <div className="mt-1 text-[11.5px] text-texto-3" data-testid="marcar-acumula">
+              Se suma a los días que aún tiene (hasta el {fmt(venceActual)}).
+            </div>
+          ) : null}
           <div className="mt-1 text-[11.5px] text-texto-4">
             {tieneSuscripcion
-              ? 'La tarjeta retomará el cobro automático al vencer.'
-              : 'Quedará como cobro manual (sin suscripción de Stripe).'}
+              ? 'Su tarjeta volverá a cobrar sola al vencer (este pago solo difiere el próximo cobro).'
+              : 'Quedará como cobro manual (el negocio no tiene tarjeta automática).'}
           </div>
         </div>
 
