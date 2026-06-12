@@ -15,6 +15,7 @@
 import { useState } from 'react';
 import { CreditCard } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorFecha } from '../ui/SelectorFecha';
 import { precioPorMeses } from './membresia';
 
 const CLASE_CAMPO =
@@ -59,11 +60,25 @@ function sumarMeses(meses: number, vencimiento: Date | null): Date {
   return base;
 }
 
-/** Fecha (yyyy-mm-dd) de mañana, como mínimo del calendario. */
-function manana(): string {
-  const d = new Date();
-  d.setDate(d.getDate() + 1);
-  return d.toISOString().slice(0, 10);
+/** Fecha local (yyyy-mm-dd) sin conversión de zona horaria (lo que espera <input type="date">). */
+function aISOLocal(d: Date): string {
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const dd = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${dd}`;
+}
+
+/** Mínimo del calendario de "Fecha exacta": el DÍA SIGUIENTE al vencimiento vigente — así nunca se
+ *  acorta la vigencia. Si el negocio ya venció (o no tiene vencimiento), el mínimo es mañana. */
+function minFechaExacta(vencimiento: Date | null): string {
+  const min = new Date();
+  min.setDate(min.getDate() + 1); // mañana
+  if (vencimiento && !Number.isNaN(vencimiento.getTime()) && vencimiento.getTime() > Date.now()) {
+    const diaDespues = new Date(vencimiento.getTime());
+    diaDespues.setDate(diaDespues.getDate() + 1);
+    if (diaDespues.getTime() > min.getTime()) return aISOLocal(diaDespues);
+  }
+  return aISOLocal(min);
 }
 
 /** Fecha (yyyy-mm-dd) máxima del calendario: hoy + 2 años (tope de Stripe). */
@@ -160,13 +175,16 @@ export function DialogoMarcarPagado({
     modo === 'fecha' && !!hastaDate && !!venceActual && venceActual.getTime() > ahoraMs && hastaDate.getTime() < venceActual.getTime();
   // Días nuevos que cubre la fecha exacta (para el texto de ayuda del monto proporcional).
   const diasFecha = modo === 'fecha' ? diasNuevos(hastaDate, venceActual) : 0;
+  // Mínimo del calendario: el día siguiente al vencimiento vigente (no se permite acortar).
+  const minCalendario = minFechaExacta(venceActual);
 
   // Monto obligatorio (> 0) solo en efectivo/transferencia; en cortesía no se pide.
   const pideMonto = concepto !== 'cortesia';
   const montoNum = Number(monto);
   const montoValido = !pideMonto || (monto.trim() !== '' && !Number.isNaN(montoNum) && montoNum > 0);
 
-  const puedeConfirmar = hastaValida && montoValido;
+  // No se puede confirmar una fecha que acorte la vigencia (respaldo por si se teclea a mano).
+  const puedeConfirmar = hastaValida && montoValido && !acorta;
 
   // Cambiar los meses recalcula el monto sugerido (salvo cortesía). El campo solo acepta enteros.
   const aplicarMeses = (valor: string) => {
@@ -280,14 +298,12 @@ export function DialogoMarcarPagado({
             )}
           </>
         ) : (
-          <input
-            type="date"
-            data-testid="marcar-fecha"
+          <SelectorFecha
+            testid="marcar-fecha"
             value={fechaManual}
-            min={manana()}
-            max={maxFecha()}
-            onChange={(e) => aplicarFecha(e.target.value)}
-            className={CLASE_CAMPO}
+            minDate={minCalendario}
+            maxDate={maxFecha()}
+            onChange={aplicarFecha}
           />
         )}
 
@@ -346,8 +362,8 @@ export function DialogoMarcarPagado({
               El plazo acumulado supera el tope de 2 años de Stripe. Reduce los meses o usa "Fecha exacta".
             </div>
           ) : acorta ? (
-            <div className="mt-1 text-[11.5px] font-medium text-[#d97706]" data-testid="marcar-acorta">
-              Esta fecha es anterior a su vencimiento actual ({fmt(venceActual)}) — le acortarías la vigencia.
+            <div className="mt-1 text-[11.5px] font-medium text-peligro" data-testid="marcar-acorta">
+              Elige una fecha posterior a su vencimiento ({fmt(venceActual)}); no se puede acortar la vigencia.
             </div>
           ) : acumula ? (
             <div className="mt-1 text-[11.5px] text-texto-3" data-testid="marcar-acumula">

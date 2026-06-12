@@ -156,9 +156,15 @@ export async function altaManualNegocio(
     // 4) Fechas: el periodo en MESES define el vencimiento. fechaProximoCobro = vencimiento
     //    (igual que marcarPagado); fechaPrimerPago = hoy. El cron de Fase 3 vigilará fecha_vencimiento.
     // -------------------------------------------------------------------------
-    const venc = new Date();
-    venc.setMonth(venc.getMonth() + datos.meses);
-    const vencISO = venc.toISOString();
+    // El vencimiento sale de la FECHA exacta (si se mandó) o de hoy + meses.
+    let vencISO: string;
+    if (datos.hasta) {
+        vencISO = new Date(datos.hasta).toISOString();
+    } else {
+        const venc = new Date();
+        venc.setMonth(venc.getMonth() + (datos.meses ?? 1));
+        vencISO = venc.toISOString();
+    }
     const hoyFecha = new Date().toISOString().slice(0, 10); // YYYY-MM-DD para la columna `date`
 
     // -------------------------------------------------------------------------
@@ -200,7 +206,7 @@ export async function altaManualNegocio(
             negocioId: negocio.id,
             monto: montoRegistrado != null ? String(montoRegistrado) : null,
             concepto: datos.concepto,
-            mesesCubiertos: datos.meses,
+            mesesCubiertos: datos.meses ?? null,
             periodoHasta: vencISO,
             registradoPor: panel.usuarioId,
         }).returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
@@ -224,7 +230,7 @@ export async function altaManualNegocio(
             metodoCobro: 'manual',
             concepto: datos.concepto,
             monto: datos.monto,
-            meses: datos.meses,
+            meses: datos.meses ?? null,
             hasta: vencISO,
             embajadorId,
         },

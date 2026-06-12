@@ -309,7 +309,10 @@ export interface DatosAltaManual {
   concepto: ConceptoAlta;
   /** Monto en MXN; solo efectivo/transferencia (en cortesía va undefined). */
   monto?: number;
-  meses: number;
+  /** Periodo por meses (1–36). Alternativa a `hasta` (fecha exacta). */
+  meses?: number;
+  /** Fecha exacta de vencimiento (ISO). Alternativa a `meses`. */
+  hasta?: string;
   /** Vendedor elegido (gerente/superadmin). El vendedor se auto-atribuye → no lo manda. */
   embajadorId?: string | null;
 }

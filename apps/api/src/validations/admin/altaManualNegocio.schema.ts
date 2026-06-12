@@ -66,11 +66,14 @@ export const altaManualNegocioSchema = z
       .min(0, 'El monto debe ser mayor o igual a 0')
       .max(999999.99, 'El monto es demasiado alto')
       .optional(),
+    // Periodo cubierto: por MESES (1–36) o por una FECHA exacta de vencimiento (ISO). Uno u otro.
     meses: z
-      .number({ message: 'Los meses son requeridos' })
+      .number()
       .int('Los meses deben ser un número entero')
       .min(1, 'Debe cubrir al menos 1 mes')
-      .max(36, 'No puede exceder 36 meses'),
+      .max(36, 'No puede exceder 36 meses')
+      .optional(),
+    hasta: z.string().trim().min(1).optional(),
 
     // Atribución del vendedor: gerente/superadmin lo eligen de la lista; el vendedor se
     // auto-atribuye en el backend (este campo se ignora para el rol vendedor).
@@ -84,7 +87,23 @@ export const altaManualNegocioSchema = z
   .refine((d) => d.concepto === 'cortesia' || (typeof d.monto === 'number' && d.monto > 0), {
     message: 'El monto es obligatorio y mayor a 0 (salvo cortesía)',
     path: ['monto'],
-  });
+  })
+  // Debe venir el periodo: meses O una fecha exacta.
+  .refine((d) => typeof d.meses === 'number' || (typeof d.hasta === 'string' && d.hasta.length > 0), {
+    message: 'Indica el periodo cubierto: meses o una fecha exacta',
+    path: ['meses'],
+  })
+  // Si es fecha exacta: válida, futura y dentro de 2 años (tope de Stripe a futuro).
+  .refine(
+    (d) => {
+      if (!d.hasta) return true;
+      const t = new Date(d.hasta).getTime();
+      if (Number.isNaN(t)) return false;
+      const ahora = Date.now();
+      return t > ahora && t <= ahora + 730 * 24 * 60 * 60 * 1000;
+    },
+    { message: 'La fecha debe ser futura y dentro de 2 años', path: ['hasta'] },
+  );
 
 export type AltaManualNegocioInput = z.infer<typeof altaManualNegocioSchema>;
 
