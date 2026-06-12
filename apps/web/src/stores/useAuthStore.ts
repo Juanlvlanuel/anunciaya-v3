@@ -479,6 +479,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       } catch (err) {
         console.error('Error recargando ChatYA al cambiar modo:', err);
       }
+
+      // Traer los datos COMPLETOS del usuario en el modo nuevo. El PATCH /auth/modo solo devuelve
+      // tokens + ids (modoActivo, negocioId, sucursalActiva); NO trae nombreNegocio/logo/sucursal.
+      // Sin esto, al pasar a Comercial el MenuDrawer y las vistas comerciales quedan sin el nombre
+      // del negocio hasta refrescar. /auth/yo (con el token nuevo) es la fuente de verdad.
+      await get().recargarDatosUsuario();
     } catch (error) {
       // Revertir swap visual de ChatYA en caso de error de red/backend
       try {

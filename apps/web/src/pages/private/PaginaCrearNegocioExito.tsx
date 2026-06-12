@@ -38,6 +38,7 @@ export function PaginaCrearNegocioExito() {
   const sessionId = searchParams.get('session_id');
 
   const loginExitoso = useAuthStore((state) => state.loginExitoso);
+  const recargarDatosUsuario = useAuthStore((state) => state.recargarDatosUsuario);
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -73,6 +74,11 @@ export function PaginaCrearNegocioExito() {
         // Actualizar store de auth con los nuevos tokens
         await loginExitoso(usuario as Parameters<typeof loginExitoso>[0], accessToken, refreshToken);
 
+        // El usuario que devuelve Stripe es PARCIAL (la rama de "registro nuevo" del webhook no
+        // trae nombreNegocio/logo/sucursal). Completar con /auth/yo —la fuente de verdad— para que
+        // el MenuDrawer y las vistas comerciales tengan los datos del negocio SIN refrescar.
+        await recargarDatosUsuario();
+
         setEstado('exito');
         notificar.exito('¡Pago completado exitosamente!');
       } catch (error) {
@@ -83,7 +89,7 @@ export function PaginaCrearNegocioExito() {
     };
 
     verificarPago();
-  }, [sessionId, loginExitoso]);
+  }, [sessionId, loginExitoso, recargarDatosUsuario]);
 
   // ---------------------------------------------------------------------------
   // Handlers
