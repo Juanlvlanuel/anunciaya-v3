@@ -234,6 +234,10 @@ export const pagosMembresia = pgTable("pagos_membresia", {
 	anuladoAt: timestamp('anulado_at', { withTimezone: true, mode: 'string' }),
 	anuladoPor: uuid('anulado_por').references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }),
 	motivoAnulacion: varchar('motivo_anulacion', { length: 500 }),
+	// Fecha de cobro de Stripe JUSTO ANTES de este pago (solo negocios con tarjeta). Permite
+	// devolver el trial_end a la fecha original al anular el último pago vigente. Migración
+	// docs/migraciones/2026-06-12-cobro-previo.sql.
+	cobroPrevio: timestamp('cobro_previo', { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_pagos_membresia_negocio").using("btree", table.negocioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),

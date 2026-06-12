@@ -376,9 +376,11 @@ export async function reenviarRecibo(negocioId: string, pagoId: string): Promise
   return { correoEnviado: data.correoEnviado ?? false };
 }
 
-/** Anula (borrado lógico) un pago — solo negocios manuales · motivo obligatorio. Super + gerente. */
-export async function anularPago(negocioId: string, pagoId: string, motivo: string): Promise<void> {
-  await api.post(`/admin/negocios/${negocioId}/pagos/${pagoId}/anular`, { motivo });
+/** Anula (borrado lógico) un pago · motivo obligatorio. Super + gerente. En negocios con tarjeta
+ *  re-alinea el cobro de Stripe a la vigencia recalculada; `advertenciaStripe` != null si no se pudo. */
+export async function anularPago(negocioId: string, pagoId: string, motivo: string): Promise<ResultadoAccionAdmin> {
+  const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${negocioId}/pagos/${pagoId}/anular`, { motivo });
+  return { advertenciaStripe: data.advertenciaStripe ?? null };
 }
 
 /** Total de negocios del alcance del rol (para el contador del menú). */

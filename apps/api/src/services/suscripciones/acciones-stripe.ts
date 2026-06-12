@@ -137,3 +137,22 @@ export async function empujarCobroSuscripcion(subscriptionId: string, hastaISO: 
         return { ok: false, aviso: `No se pudo empujar el cobro en Stripe (${mensajeError(error)}).` };
     }
 }
+
+/**
+ * Lee la fecha del PRÓXIMO COBRO vigente en Stripe (`current_period_end`) como ISO, o null.
+ * Es la fuente CONFIABLE de "hasta cuándo está cubierto": la BD puede ir desfasada en un negocio
+ * recién creado en trial (la fecha solo se escribe cuando llega el webhook `subscription.updated`).
+ * La usa "Registrar pago" para guardar la fecha PREVIA al adelanto (`cobro_previo`) y poder
+ * devolverla al anular. Defensiva: si Stripe falla o la sub está cancelada, devuelve null.
+ */
+export async function leerProximoCobroStripe(subscriptionId: string): Promise<string | null> {
+    try {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        if (sub.status === 'canceled') return null;
+        const unix = (sub as unknown as { current_period_end?: number | null }).current_period_end;
+        return unix ? new Date(unix * 1000).toISOString() : null;
+    } catch (error) {
+        console.error('[Stripe] Error leyendo próximo cobro de suscripción', subscriptionId, error);
+        return null;
+    }
+}

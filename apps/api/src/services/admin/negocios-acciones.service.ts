@@ -36,7 +36,7 @@ import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.
 import { registrarAuditoria } from './auditoria.service.js';
 import { resolverEmbajadorId } from './negocios.service.js';
 import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion } from '../notificaciones.service.js';
-import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
+import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion, leerProximoCobroStripe } from '../suscripciones/acciones-stripe.js';
 import { randomInt } from 'crypto';
 import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
 import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobantePagoMembresia, enviarReciboCancelado } from '../../utils/email.js';
@@ -71,6 +71,8 @@ type NegocioCargado = {
     embajadorId: string | null;
     estadoMembresia: string;
     metodoCobro: string;
+    /** Próximo cobro vigente ANTES de la acción (para capturar la fecha previa al empujar Stripe). */
+    fechaProximoCobro: string | null;
     /** Suscripción de Stripe del DUEÑO (vive en `usuarios`, no en `negocios`). */
     stripeSubscriptionId: string | null;
     /** Nombre del negocio — para el comprobante de pago al dueño. */
@@ -98,6 +100,7 @@ async function cargarNegocioConAlcance(
             embajadorId: negocios.embajadorId,
             estadoMembresia: negocios.estadoMembresia,
             metodoCobro: negocios.metodoCobro,
+            fechaProximoCobro: negocios.fechaProximoCobro,
             nombreNegocio: negocios.nombre,
             // La suscripción de Stripe y los datos de contacto viven en el DUEÑO (join 1:1).
             stripeSubscriptionId: usuarios.stripeSubscriptionId,
@@ -480,6 +483,16 @@ export async function marcarPagado(
 
     const ahora = new Date().toISOString();
 
+    // Fecha de cobro PREVIA a este pago (para devolver el adelanto si luego se anula). La verdad de
+    // Stripe (`current_period_end`) manda sobre la BD: en un negocio recién creado en trial, la BD
+    // puede no tener `fecha_proximo_cobro` todavía (la escribe el webhook `subscription.updated`,
+    // que puede tardar). Sin suscripción, se usa la fecha de la BD.
+    let cobroPrevioISO: string | null = neg.fechaProximoCobro;
+    if (tieneSuscripcion) {
+        const cobroStripe = await leerProximoCobroStripe(neg.stripeSubscriptionId!);
+        if (cobroStripe) cobroPrevioISO = cobroStripe;
+    }
+
     // Atómico: activar el negocio + dejar el registro contable van juntos o no van. Stripe
     // queda FUERA de la transacción (es externo; §4.3: la BD manda aunque Stripe falle).
     const { negocio: act, pagoId } = await db.transaction(async (tx) => {
@@ -505,12 +518,15 @@ export async function marcarPagado(
             });
 
         // Registro contable/histórico del pago manual (primer ladrillo de la bitácora).
+        // `cobroPrevio` = fecha de cobro vigente ANTES de este pago: con tarjeta permite devolver
+        // el trial_end a la fecha original si luego se anula el último pago (deshacer el adelanto).
         const [pagoManual] = await tx.insert(pagosMembresia).values({
             negocioId,
             monto: montoRegistrado != null ? String(montoRegistrado) : null,
             concepto: opciones.concepto,
             mesesCubiertos: opciones.meses ?? null,
             periodoHasta: opciones.hasta,
+            cobroPrevio: cobroPrevioISO,
             registradoPor: panel.usuarioId,
         }).returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
 
@@ -857,18 +873,25 @@ export async function reenviarReciboPago(
 // =============================================================================
 
 export type ResultadoAnulacion =
-    | { ok: true }
+    | { ok: true; advertenciaStripe: string | null }
     | { ok: false; status: number; mensaje: string };
 
 /**
  * Anula (borrado lógico) un pago registrado por error. El pago NO se borra: se marca `anulado`
  * (con quién/cuándo/por qué). En la MISMA transacción: (1) marca el pago, (2) saca su ingreso del
  * libro mayor (`eventos_pago.monto = NULL` → deja de sumar en KPIs), (3) **recalcula la vigencia**
- * del negocio desde el pago más reciente NO anulado (si ya no queda ninguno, deja la vigencia tal
- * cual y el cron de manuales la vencerá). Luego avisa al dueño (correo de cancelación, best-effort).
+ * del negocio desde el pago más reciente NO anulado; si ya no queda ninguno, la DEVUELVE a la fecha
+ * de cobro original (la previa al primer pago manual, `cobro_previo`). Luego avisa al dueño (correo
+ * de cancelación, best-effort).
  *
- * Alcance: SuperAdmin / Gerente (su región). **Solo negocios manuales** (sin Stripe): en los de
- * tarjeta la vigencia/cobro los maneja Stripe → 409.
+ * **Negocios con tarjeta (Stripe):** anular es SIMÉTRICO a "Registrar pago". Como aquel empuja el
+ * `trial_end`, al anular se RE-EMPUJA el cobro: a la vigencia recalculada si queda otro pago, o a la
+ * fecha de cobro ORIGINAL si se anuló el último → la fecha "regresa" sola y la cancelación se refleja
+ * en Stripe. Si no hay fecha a la cual volver (pagos viejos sin `cobro_previo`, o ya pasó) o Stripe
+ * la rechaza, NO se toca Stripe y se devuelve `advertenciaStripe` para ajustarlo a mano (§4.3: la BD
+ * manda; la parte de Stripe nunca se entierra en un log).
+ *
+ * Alcance: SuperAdmin / Gerente (su región).
  */
 export async function anularPagoMembresia(
     panel: UsuarioPanel,
@@ -879,10 +902,6 @@ export async function anularPagoMembresia(
     const cargado = await cargarNegocioConAlcance(panel, negocioId);
     if (!cargado.ok) return cargado;
     const neg = cargado.negocio;
-
-    if (neg.stripeSubscriptionId) {
-        return { ok: false, status: 409, mensaje: 'Este negocio cobra con tarjeta; un pago no se anula desde aquí (gestiona el cobro en Stripe).' };
-    }
 
     const [pago] = await db
         .select({
@@ -901,7 +920,7 @@ export async function anularPagoMembresia(
 
     const ahora = new Date().toISOString();
 
-    await db.transaction(async (tx) => {
+    const stripeTarget = await db.transaction(async (tx) => {
         // 1) Marcar el pago como anulado (no se borra: queda para auditoría).
         await tx
             .update(pagosMembresia)
@@ -916,7 +935,7 @@ export async function anularPagoMembresia(
             WHERE referencia_id = ${pagoId} AND tipo = 'pago_manual'
         `);
 
-        // 3) Recalcular la vigencia desde el pago más reciente NO anulado (si no queda, se deja).
+        // 3) Recalcular la vigencia desde el pago más reciente NO anulado.
         const [vig] = (await tx.execute(sql`
             SELECT periodo_hasta::text AS periodo_hasta
             FROM pagos_membresia
@@ -929,8 +948,44 @@ export async function anularPagoMembresia(
                 .update(negocios)
                 .set({ fechaVencimiento: vig.periodo_hasta, fechaProximoCobro: vig.periodo_hasta, updatedAt: ahora })
                 .where(eq(negocios.id, negocioId));
+            return vig.periodo_hasta;
         }
+
+        // 3b) Ya no queda pago vigente: DEVOLVER el cobro a la fecha ORIGINAL — la que había antes
+        // del PRIMER pago manual (`cobro_previo` del más antiguo). Solo si es FUTURA; si ya pasó o
+        // no se guardó (pagos previos a la migración), se deja como está y se avisa a mano.
+        const [previo] = (await tx.execute(sql`
+            SELECT cobro_previo::text AS cobro_previo
+            FROM pagos_membresia
+            WHERE negocio_id = ${negocioId} AND cobro_previo IS NOT NULL
+            ORDER BY fecha_pago ASC, created_at ASC
+            LIMIT 1
+        `)).rows as Array<{ cobro_previo: string | null }>;
+        const original = previo?.cobro_previo ?? null;
+        if (original && new Date(original).getTime() > Date.parse(ahora)) {
+            await tx
+                .update(negocios)
+                .set({ fechaVencimiento: original, fechaProximoCobro: original, updatedAt: ahora })
+                .where(eq(negocios.id, negocioId));
+            return original;
+        }
+        return null;
     });
+
+    // Stripe (fuera de la transacción, §4.3): simétrico a "Registrar pago". Como aquel empujó el
+    // trial_end al registrar, al anular lo RE-EMPUJAMOS: a la vigencia recalculada si queda otro
+    // pago, o a la fecha de cobro ORIGINAL (previa al primer pago manual) si se anuló el último →
+    // la fecha "regresa" sola. Si no hay fecha a la cual volver (pagos viejos sin el dato, o ya
+    // pasó) o Stripe la rechaza, NO se toca Stripe y se avisa para ajustarlo a mano.
+    let advertenciaStripe: string | null = null;
+    if (neg.stripeSubscriptionId) {
+        if (stripeTarget) {
+            const r = await empujarCobroSuscripcion(neg.stripeSubscriptionId, stripeTarget);
+            if (!r.ok) advertenciaStripe = r.aviso ?? 'No se pudo reajustar el cobro en Stripe.';
+        } else {
+            advertenciaStripe = 'Ya no queda ningún pago vigente; ajusta el cobro de la tarjeta directamente en Stripe.';
+        }
+    }
 
     await registrarAuditoria(panel, {
         accion: 'negocio_anular_pago',
@@ -960,5 +1015,5 @@ export async function anularPagoMembresia(
         console.error('Error al enviar el aviso de recibo cancelado');
     }
 
-    return { ok: true };
+    return { ok: true, advertenciaStripe };
 }

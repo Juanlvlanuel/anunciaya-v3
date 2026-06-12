@@ -299,11 +299,11 @@ export function useAnularPago() {
   return useMutation({
     mutationFn: ({ negocioId, pagoId, motivo }: { negocioId: string; pagoId: string; motivo: string }) =>
       negociosService.anularPago(negocioId, pagoId, motivo),
-    onSuccess: (_d, { negocioId }) => {
+    onSuccess: (res, { negocioId }) => {
       refrescar(negocioId);
       qc.invalidateQueries({ queryKey: queryKeys.negocios.pagos(negocioId) });
       qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });
-      toast.exito('Pago anulado');
+      avisarResultado(res, 'Pago anulado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo anular el pago')),
   });

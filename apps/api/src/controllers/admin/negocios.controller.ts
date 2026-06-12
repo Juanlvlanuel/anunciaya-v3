@@ -326,7 +326,7 @@ export async function anularPagoController(req: Request, res: Response): Promise
             return;
         }
 
-        res.status(200).json({ success: true, message: 'Pago anulado' });
+        res.status(200).json({ success: true, message: 'Pago anulado', advertenciaStripe: r.advertenciaStripe });
     } catch (error) {
         console.error('Error en anularPagoController:', error);
         res.status(500).json({ success: false, message: 'Error al anular el pago' });
