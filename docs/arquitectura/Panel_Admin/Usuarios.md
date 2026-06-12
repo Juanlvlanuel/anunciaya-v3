@@ -129,7 +129,9 @@ sus pedidos ni sus chats — eso es a propósito, para que el módulo no se infl
 - **Actividad** — **última conexión** (a la app), **último acceso al Panel** (solo en cuentas
   de equipo) y fecha de **registro**.
 
-Abajo, un **footer con las acciones**, que aparece **solo si tu rol puede actuar** (§7).
+En el **encabezado**, los **íconos de acción** (con tooltip y colores temáticos: azul código de
+acceso/desbloquear, ámbar corregir correo, rojo suspender, verde reactivar), que aparecen **solo si
+tu rol puede actuar** (§7).
 
 ---
 
@@ -213,7 +215,7 @@ superadmin. **Todo queda registrado** en una bitácora interna (§Apéndice F).
 
 ## 8. Las acciones, una por una
 
-Todas viven en el footer del expediente. El gerente solo puede actuar dentro de su alcance (un
+Todas viven como **íconos en el encabezado** del expediente (con tooltip). El gerente solo puede actuar dentro de su alcance (un
 dueño/encargado/vendedor de otra región, o una cuenta de equipo, le devuelven 403).
 
 ### Desbloquear intentos *(soporte)*

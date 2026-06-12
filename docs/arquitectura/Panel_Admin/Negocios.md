@@ -158,6 +158,8 @@ región" o "su cartera", puede pero solo dentro de su territorio:
 | **Dar de alta un negocio (efectivo)** | Sí | Su región | Su región |
 | **Registrar un pago** | Sí | Su región | Sus negocios manuales |
 | **Corregir un pago** del historial | Sí | Su región | — |
+| **Reenviar el comprobante** de un pago | Sí | Su región | — |
+| **Anular un pago** (borrado lógico) | Sí | Su región | — |
 | **Pausar** una membresía | Sí | Su región | — |
 | **Reactivar** una membresía | Sí | Su región | — |
 | **Reasignar** el vendedor | Sí | Su región | — |
@@ -172,8 +174,11 @@ hace todo**, y **cancelar es exclusivo del superadmin**.
 
 ## 6. Las acciones, una por una
 
-Todas estas viven en el footer de la ficha. Cada acción queda **registrada** (quién la
-hizo, cuándo y por qué) en una bitácora interna, por si después hay que auditar.
+Todas estas viven como **íconos en el encabezado de la ficha** (con tooltip y colores
+temáticos: azul registrar/reasignar, ámbar pausar, verde reactivar, rojo cancelar). Cada acción
+queda **registrada** (quién la hizo, cuándo y por qué) en una bitácora interna, por si después hay
+que auditar. *(El "Corregir correo" sigue inline en el bloque del dueño; "Reenviar" y "Anular" un
+pago viven en cada fila del **Historial de pagos**.)*
 
 ### Registrar pago
 **Para qué:** dejar al negocio al corriente cuando pagó (en efectivo, transferencia, o como
@@ -355,7 +360,8 @@ negocios cuya sede cae en tu territorio.
 | `middleware/panel.middleware.ts` | `requierePanel`: autoriza el rol + resuelve la región (revalida en BD) |
 | `controllers/admin/negocios.controller.ts` | Lee query/params/body, valida, llama al service |
 | `services/admin/negocios.service.ts` | **Lecturas** + cálculo de alcance (`condicionAlcance`, `panelConFiltroRegion`) |
-| `services/admin/negocios-acciones.service.ts` | **Escrituras** (suspender/reactivar/reasignar/marcar pagado/cancelar/editar correo) + alcance de escritura (`cargarNegocioConAlcance`) |
+| `services/admin/negocios-acciones.service.ts` | **Escrituras** (suspender/reactivar/reasignar/marcar pagado/cancelar/editar correo/**reenviar recibo**/**anular pago**) + alcance de escritura (`cargarNegocioConAlcance`) |
+| `services/admin/recibo-pago.service.ts` | `prepararReciboPago(pagoId)` — genera el recibo PDF + lo sube a R2 + arma los datos del correo (reusado por registrar pago / alta / reenviar) |
 | `services/admin/altaManualNegocio.service.ts` | Alta manual + catálogo de ciudades + chequeo de correo en vivo |
 | `services/admin/auditoria.service.ts` | `registrarAuditoria` → tabla `admin_auditoria` |
 | `validations/admin/altaManualNegocio.schema.ts` | Zod del body del alta |
@@ -392,7 +398,9 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/:id` | GET | super · gerente · vendedor | por alcance; fuera de alcance → 404 |
 | `/negocios/:id/sucursales[/:sucursalId]` | GET | super · gerente · vendedor | por alcance |
 | `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance; `?limite=N` → los N más recientes (paginación del historial) |
-| `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente |
+| `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente; **sincroniza el evento gemelo** en `eventos_pago` |
+| `/negocios/:id/pagos/:pagoId/reenviar-recibo` | POST | super · gerente | regenera el recibo PDF y reenvía el comprobante al dueño |
+| `/negocios/:id/pagos/:pagoId/anular` | POST | super · gerente | **solo negocios manuales** · borrado lógico + recalcula vigencia + saca el ingreso de la bitácora + avisa al dueño · motivo obligatorio |
 | `/negocios/:id/marcar-pagado` | POST | super · gerente · vendedor | gerente=su región; **vendedor=solo sus negocios manuales, sin cortesía** (los de tarjeta los cobra Stripe) |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
 | `/negocios/:id/reactivar` | POST | super · gerente | motivo opcional |
@@ -482,7 +490,7 @@ Toda acción sensible llama `registrarAuditoria(panel, {...})` → `admin_audito
 entidad, snapshot antes/después, motivo). Nunca rompe la acción principal (si el insert falla, se loggea y
 sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactivar`,
 `negocio_reasignar_vendedor`, `negocio_cancelar`, `negocio_cambiar_correo_dueno`, `negocio_alta_manual`,
-`negocio_editar_pago`.
+`negocio_editar_pago`, `negocio_reenviar_recibo`, `negocio_anular_pago`.
 
 ## G. Referencias
 
@@ -493,4 +501,4 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 
 ---
 
-*Última actualización: 11 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos, "Registrar pago" para el vendedor en sus negocios manuales, y el **comprobante automático** (Defensa 1 del Camino B): correo + **recibo PDF descargable** con **folio secuencial** al registrar cualquier pago, historial de pagos visible también en negocios de tarjeta con pagos manuales (+ su refresco al instante).*
+*Última actualización: 11 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos, "Registrar pago" para el vendedor en sus negocios manuales, y el **comprobante automático** (Defensa 1 del Camino B): correo + **recibo PDF descargable** con **folio secuencial** al registrar cualquier pago, historial de pagos visible también en negocios de tarjeta con pagos manuales (+ su refresco al instante), **reenviar comprobante**, **anular pago** (borrado lógico + recálculo de vigencia + aviso al dueño) y la **edición que sincroniza la bitácora**. Las acciones de la ficha viven en el **encabezado** (íconos temáticos con tooltip).*

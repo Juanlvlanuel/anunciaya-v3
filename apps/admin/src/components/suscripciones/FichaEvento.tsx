@@ -1,19 +1,26 @@
 /**
  * FichaEvento.tsx
  * ===============
- * Detalle (solo lectura) de un evento de la bitácora financiera. Usa el ModalAdaptativo
- * base del Panel (centrado en escritorio, bottom-sheet en móvil, atrás nativo). Sin
- * acciones: la bitácora solo refleja lo que producen el webhook y "Registrar pago".
+ * Detalle de un evento de la bitácora financiera. Usa el ModalAdaptativo base del Panel
+ * (centrado en escritorio, bottom-sheet en móvil, atrás nativo). Los eventos automáticos de
+ * Stripe son de solo lectura; en los movimientos tipo "Pago manual" el super/gerente puede
+ * además Reenviar el comprobante, Editar o Anular el pago (reusa los hooks/endpoints de Negocios).
  *
  * Ubicación: apps/admin/src/components/suscripciones/FichaEvento.tsx
  */
 
-import { type ReactNode } from 'react';
-import { Building2, Receipt, Info, CreditCard } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { Send, Pencil, Ban } from 'lucide-react';
 import { useEventoDetalle } from '../../hooks/queries/useSuscripcionesAdmin';
+import { useReenviarRecibo, useEditarPago, useAnularPago } from '../../hooks/queries/useNegociosAdmin';
 import type { EventoFila, EventoDetalle } from '../../services/suscripcionesService';
+import type { PagoMembresia } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
-import { metaTipoEvento, BadgeTipoEvento, ChipOrigen } from './estadoEvento';
+import { DialogoEditarPago } from '../negocios/DialogoEditarPago';
+import { DialogoConfirmar } from '../ui/DialogoConfirmar';
+import { Tooltip } from '../ui/Tooltip';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
+import { metaTipoEvento, BadgeTipoEvento } from './estadoEvento';
 
 interface FichaEventoProps {
   /** Fila que se abrió: placeholder para mostrar la ficha al instante. */
@@ -23,6 +30,7 @@ interface FichaEventoProps {
 
 const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+const FORMA_PAGO: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía' };
 
 /** Fecha+hora legible es-MX. Para timestamps de evento (con hora). */
 function fechaHora(valor: string | null): string {
@@ -49,20 +57,6 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
   );
 }
 
-function Seccion({ titulo, icono: Icono, children }: { titulo: string; icono: typeof Building2; children: ReactNode }) {
-  return (
-    <div className="rounded-[12px] border border-borde bg-superficie-2 px-4 py-3.5">
-      <div className="mb-2.5 flex items-center gap-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
-        <span className="grid h-6 w-6 shrink-0 place-items-center rounded-[8px] bg-marca-suave text-marca">
-          <Icono size={14} />
-        </span>
-        {titulo}
-      </div>
-      {children}
-    </div>
-  );
-}
-
 /** Etiquetas legibles para las claves técnicas de `metadata`. */
 const META_LABEL: Record<string, string> = {
   customerId: 'Cliente Stripe',
@@ -75,6 +69,8 @@ const META_LABEL: Record<string, string> = {
   hasta: 'Vigencia hasta',
   metodoCobro: 'Método de cobro',
   motivo: 'Motivo',
+  anulado: 'Anulado',
+  anuladoAt: 'Anulado el',
 };
 
 function valorMeta(v: unknown): string {
@@ -84,7 +80,8 @@ function valorMeta(v: unknown): string {
     if (/^\d{4}-\d{2}-\d{2}T/.test(v)) return fechaHora(v);
     return v;
   }
-  if (typeof v === 'number' || typeof v === 'boolean') return String(v);
+  if (typeof v === 'boolean') return v ? 'Sí' : 'No';
+  if (typeof v === 'number') return String(v);
   try {
     return JSON.stringify(v);
   } catch {
@@ -120,16 +117,86 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
   const IconoTipo = meta.icono;
   const esManual = e.origen === 'manual';
   const entradasMeta = e.metadata ? Object.entries(e.metadata) : [];
+  // `concepto`/`meses`/`hasta` se muestran arriba (Movimiento); `metodoCobro` se oculta (confunde:
+  // es cómo cobra el negocio, no la forma de ESTE pago). El resto va a "Detalles técnicos".
+  const entradasTecnicas = entradasMeta.filter(([k]) => !['concepto', 'meses', 'hasta', 'metodoCobro'].includes(k));
+
+  // ── Acciones sobre el pago: solo en los movimientos tipo "Pago manual" (los de Stripe no se tocan) ──
+  const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
+  const puedeActuar = rol === 'superadmin' || rol === 'gerente';
+  const metaObj = (e.metadata ?? {}) as Record<string, unknown>;
+  const anulado = metaObj.anulado === true;
+  const esCortesia = metaObj.concepto === 'cortesia';
+  const montoGrande = e.monto != null ? montoTexto(e.monto) : (esCortesia ? 'Cortesía' : '—');
+  const accionable = e.tipo === 'pago_manual' && !!e.referenciaId && !!e.negocioId && puedeActuar;
+  const reenviar = useReenviarRecibo();
+  const editar = useEditarPago();
+  const anular = useAnularPago();
+  const [editando, setEditando] = useState(false);
+  const [anulandoOpen, setAnulandoOpen] = useState(false);
+  // Pago reconstruido desde el evento (monto + metadata) para pre-llenar el diálogo de editar.
+  const pagoEditable: PagoMembresia = {
+    id: e.referenciaId ?? '',
+    folio: null,
+    monto: e.monto,
+    concepto: String(metaObj.concepto ?? 'efectivo'),
+    fechaPago: null,
+    periodoHasta: String(metaObj.hasta ?? ''),
+    mesesCubiertos: Number(metaObj.meses) || null,
+    nota: null,
+    registradoPorNombre: e.actorNombre,
+    anulado,
+  };
 
   return (
     <ModalAdaptativo
       abierto
       onCerrar={onCerrar}
-      titulo="Detalle del movimiento"
+      titulo="Movimiento"
       iconoTitulo={
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca">
           <IconoTipo size={16} />
         </span>
+      }
+      accionesHeader={
+        accionable && !anulado ? (
+          <>
+            <Tooltip text="Reenviar comprobante">
+              <button
+                type="button"
+                data-testid="evento-reenviar"
+                onClick={() => reenviar.mutate({ negocioId: e.negocioId!, pagoId: e.referenciaId! })}
+                disabled={reenviar.isPending}
+                aria-label="Reenviar comprobante"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-marca transition hover:bg-marca-suave disabled:opacity-50"
+              >
+                <Send size={18} />
+              </button>
+            </Tooltip>
+            <Tooltip text="Editar pago">
+              <button
+                type="button"
+                data-testid="evento-editar"
+                onClick={() => setEditando(true)}
+                aria-label="Editar pago"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-[#d97706] transition hover:bg-[#d977061f]"
+              >
+                <Pencil size={18} />
+              </button>
+            </Tooltip>
+            <Tooltip text="Anular pago">
+              <button
+                type="button"
+                data-testid="evento-anular"
+                onClick={() => setAnulandoOpen(true)}
+                aria-label="Anular pago"
+                className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-peligro transition hover:bg-peligro-suave"
+              >
+                <Ban size={18} />
+              </button>
+            </Tooltip>
+          </>
+        ) : undefined
       }
       ancho="lg"
       discriminador="ficha-evento"
@@ -141,34 +208,66 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
           </div>
         )}
 
-        <Seccion titulo="Movimiento" icono={IconoTipo}>
-          <Dato etiqueta="Tipo" valor={<BadgeTipoEvento tipo={e.tipo} small />} />
-          <Dato etiqueta="Origen" valor={<ChipOrigen origen={e.origen} />} />
-          <Dato etiqueta="Monto" valor={<span className={e.monto != null ? 'text-texto' : 'text-texto-4'}>{montoTexto(e.monto)}</span>} />
-          <Dato etiqueta="Fecha del evento" valor={fechaHora(e.fecha)} />
-        </Seccion>
+        {/* Diseño "monto protagonista": encabezado con el monto grande + chip del tipo; lista debajo. */}
+        <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
+          <div className="border-b border-borde px-4 py-3.5">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
+              <BadgeTipoEvento tipo={e.tipo} small />
+            </div>
+            <div className={`text-[28px] font-semibold leading-none tracking-tight ${e.monto != null ? 'text-texto' : 'text-texto-3'}`}>
+              {montoGrande}
+            </div>
+            {metaObj.concepto != null && (
+              <div className="mt-2 text-[12.5px] text-texto-3">
+                {esCortesia ? 'Membresía de cortesía' : `Pago de membresía · ${FORMA_PAGO[String(metaObj.concepto)] ?? String(metaObj.concepto)}`}
+              </div>
+            )}
+          </div>
 
-        <Seccion titulo="Negocio" icono={Building2}>
-          <Dato etiqueta="Nombre" valor={e.negocioNombre ?? '—'} />
-        </Seccion>
-
-        <Seccion titulo="Registro" icono={esManual ? Receipt : CreditCard}>
-          {esManual && <Dato etiqueta="Registrado por" valor={e.actorNombre ?? '—'} />}
-          {esManual && e.actorCorreo && <Dato etiqueta="Correo" valor={e.actorCorreo} />}
-          {e.creadoEn && <Dato etiqueta="Registrado el" valor={fechaHora(e.creadoEn)} />}
-          {e.stripeEventId && <Dato etiqueta="ID de evento Stripe" valor={<span className="font-mono text-[12px]">{e.stripeEventId}</span>} />}
-          {e.referenciaId && <Dato etiqueta="Referencia" valor={<span className="font-mono text-[12px]">{e.referenciaId}</span>} />}
-          {!esManual && !e.stripeEventId && !e.creadoEn && (
-            <p className="text-[12.5px] text-texto-4">Evento automático de Stripe.</p>
-          )}
-        </Seccion>
-
-        {entradasMeta.length > 0 && (
-          <Seccion titulo="Detalles técnicos" icono={Info}>
-            {entradasMeta.map(([k, v]) => (
+          <div className="px-4 py-1.5">
+            {metaObj.meses != null && <Dato etiqueta="Periodo" valor={`${metaObj.meses} ${Number(metaObj.meses) === 1 ? 'mes' : 'meses'}`} />}
+            {metaObj.hasta != null && <Dato etiqueta="Vigencia hasta" valor={fechaHora(String(metaObj.hasta))} />}
+            {esManual && <Dato etiqueta="Registrado por" valor={e.actorNombre ?? '—'} />}
+            <Dato etiqueta="Fecha y hora" valor={fechaHora(e.fecha)} />
+            {esManual && e.actorCorreo && <Dato etiqueta="Correo" valor={e.actorCorreo} />}
+            {e.stripeEventId && <Dato etiqueta="ID de evento Stripe" valor={<span className="font-mono text-[12px]">{e.stripeEventId}</span>} />}
+            {entradasTecnicas.map(([k, v]) => (
               <Dato key={k} etiqueta={META_LABEL[k] ?? k} valor={valorMeta(v)} />
             ))}
-          </Seccion>
+          </div>
+        </div>
+
+        {editando && (
+          <DialogoEditarPago
+            abierto
+            pago={pagoEditable}
+            cargando={editar.isPending}
+            onCerrar={() => setEditando(false)}
+            onConfirmar={(datos) =>
+              editar.mutate(
+                { negocioId: e.negocioId!, pagoId: e.referenciaId!, datos },
+                { onSuccess: () => { setEditando(false); onCerrar(); } },
+              )
+            }
+          />
+        )}
+        {anulandoOpen && (
+          <DialogoConfirmar
+            abierto
+            onCerrar={() => setAnulandoOpen(false)}
+            titulo="Anular pago"
+            mensaje={`Se anulará este pago manual (${montoTexto(e.monto)}). No se borra, pero deja de contar y la vigencia del negocio se recalcula desde el pago anterior. Se le avisará al dueño por correo. El motivo queda registrado.`}
+            textoConfirmar="Anular pago"
+            requiereMotivo
+            cargando={anular.isPending}
+            onConfirmar={(motivo) =>
+              anular.mutate(
+                { negocioId: e.negocioId!, pagoId: e.referenciaId!, motivo },
+                { onSuccess: () => { setAnulandoOpen(false); onCerrar(); } },
+              )
+            }
+          />
         )}
       </div>
     </ModalAdaptativo>

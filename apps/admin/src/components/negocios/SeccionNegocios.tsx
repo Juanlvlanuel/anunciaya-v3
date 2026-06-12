@@ -53,7 +53,7 @@ const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'sho
 function fechaCorta(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
+  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '').replace(/ ([a-z])/i, (_m, l: string) => ` ${l.toUpperCase()}`);
 }
 
 /** Ciudad para mostrar: el placeholder del onboarding cuenta como "sin ciudad". */

@@ -271,9 +271,41 @@ export function useEditarPago() {
     onSuccess: (_d, { negocioId }) => {
       refrescar(negocioId);
       qc.invalidateQueries({ queryKey: queryKeys.negocios.pagos(negocioId) });
+      // El pago corrige su evento gemelo en la bitácora (Suscripciones) → refrescarla también.
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });
       toast.exito('Pago actualizado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo actualizar el pago')),
+  });
+}
+
+/** Reenviar el comprobante de un pago al dueño (regenera el recibo PDF). No cambia datos. */
+export function useReenviarRecibo() {
+  return useMutation({
+    mutationFn: ({ negocioId, pagoId }: { negocioId: string; pagoId: string }) =>
+      negociosService.reenviarRecibo(negocioId, pagoId),
+    onSuccess: (res) => {
+      if (res.correoEnviado) toast.exito('Comprobante reenviado al dueño');
+      else toast.error('El recibo se generó, pero el correo no pudo enviarse');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo reenviar el comprobante')),
+  });
+}
+
+/** Anular un pago. Invalida historial + ficha + lista + bitácora (recalcula la vigencia). */
+export function useAnularPago() {
+  const qc = useQueryClient();
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ negocioId, pagoId, motivo }: { negocioId: string; pagoId: string; motivo: string }) =>
+      negociosService.anularPago(negocioId, pagoId, motivo),
+    onSuccess: (_d, { negocioId }) => {
+      refrescar(negocioId);
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.pagos(negocioId) });
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });
+      toast.exito('Pago anulado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo anular el pago')),
   });
 }
 

@@ -654,6 +654,38 @@ export async function enviarComprobantePagoMembresia(
   return enviarEmail(correo, asunto, plantillaComprobantePago(nombre, datos));
 }
 
+/**
+ * Aviso al dueño de que un recibo suyo fue ANULADO/cancelado por el equipo. Transparencia de la
+ * defensa Camino B: el negocio se entera de TODO movimiento, no solo de los cobros. Best-effort.
+ */
+export async function enviarReciboCancelado(
+  correo: string,
+  nombre: string,
+  datos: { nombreNegocio: string; folio: number | string; monto?: number | null; motivo?: string | null }
+): Promise<ResultadoEmail> {
+  const folioTxt = `#${String(datos.folio).padStart(5, '0')}`;
+  const montoTxt = datos.monto != null ? ` por <strong>${formatearMontoMXN(datos.monto)}</strong>` : '';
+  const motivoBloque = datos.motivo
+    ? `<p style="margin: 0 0 16px; font-size: 14px; line-height: 1.6; color: #334155;">Motivo: ${escape(datos.motivo)}</p>`
+    : '';
+
+  const contenido = `
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Te informamos que el recibo <strong>${folioTxt}</strong> de tu negocio <strong>&quot;${escape(datos.nombreNegocio)}&quot;</strong>${montoTxt} fue <strong>cancelado</strong> por nuestro equipo.
+    </p>
+    ${motivoBloque}
+    <div style="border-left: 4px solid #d97706; background-color: #fef3c7; padding: 14px 18px; margin-bottom: 20px; border-radius: 0 4px 4px 0;">
+      <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #78350f;">
+        Si este pago s&iacute; lo realizaste y no reconoces esta cancelaci&oacute;n, <strong>cont&aacute;ctanos de inmediato</strong>.
+      </p>
+    </div>
+    <p style="margin: 0; font-size: 13px; color: #64748b;">
+      Este aviso reemplaza al comprobante anterior con ese folio.
+    </p>`;
+
+  return enviarEmail(correo, 'Recibo cancelado — AnunciaYA', plantillaBase(nombre, contenido));
+}
+
 // =============================================================================
 // EMAIL DE BIENVENIDA (alta manual de negocio en efectivo/transferencia)
 // =============================================================================

@@ -30,6 +30,7 @@ import {
   Receipt,
   Mail,
   Pencil,
+  Send,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
@@ -41,6 +42,8 @@ import {
   usePagosNegocio,
   useCambiarCorreoDueno,
   useEditarPago,
+  useReenviarRecibo,
+  useAnularPago,
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle, PagoMembresia } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
@@ -157,6 +160,7 @@ function BotonAccion({
   disabled = false,
   tooltipDisabled,
   soloIcono = false,
+  color,
 }: {
   icono: typeof User;
   etiqueta: string;
@@ -168,33 +172,52 @@ function BotonAccion({
   tooltipDisabled?: string;
   /** Solo icono (cuadrado) + tooltip con la etiqueta. Para compactar el footer en 1 línea. */
   soloIcono?: boolean;
+  /** Color temático del ícono en modo soloIcono (header): azul / ámbar / verde / rojo. */
+  color?: 'marca' | 'ambar' | 'ok' | 'peligro';
 }) {
-  const base = 'inline-flex items-center justify-center gap-1.5 rounded-[10px] text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
-  const dims = soloIcono ? 'h-10 w-10 shrink-0' : 'px-3 py-2.5';
+  const textoTooltip = disabled
+    ? (tooltipDisabled ?? 'No disponible para un negocio cancelado')
+    : etiqueta;
+
+  // Modo SOLO-ICONO (header): estilo temático calcado de Suscripciones/Usuarios (sin borde,
+  // ícono coloreado, hover suave). El color lo decide `color` (o se deriva de la variante).
+  if (soloIcono) {
+    const colores: Record<NonNullable<typeof color>, string> = {
+      marca: 'text-marca hover:bg-marca-suave',
+      ambar: 'text-[#d97706] hover:bg-[#d977061f]',
+      ok: 'text-ok hover:bg-[#34c77b1f]',
+      peligro: 'text-peligro hover:bg-peligro-suave',
+    };
+    const clase = colores[color ?? (variante === 'danger' ? 'peligro' : 'marca')];
+    return (
+      <Tooltip text={textoTooltip} className="shrink-0">
+        <button
+          type="button"
+          data-testid={testid}
+          onClick={onClick}
+          disabled={disabled}
+          aria-label={etiqueta}
+          className={`grid h-9 w-9 shrink-0 place-items-center rounded-[9px] transition disabled:cursor-not-allowed disabled:opacity-50 ${clase}`}
+        >
+          <Icono size={18} />
+        </button>
+      </Tooltip>
+    );
+  }
+
+  // Modo botón con texto (se conserva por si se reutiliza en otro lado).
+  const base = 'inline-flex items-center justify-center gap-1.5 rounded-[10px] px-3 py-2.5 text-[13px] font-semibold transition disabled:cursor-not-allowed disabled:opacity-50';
   const estilos: Record<'primary' | 'ghost' | 'danger', string> = {
     primary: 'bg-marca text-marca-contraste',
     ghost: 'border border-borde-fuerte bg-superficie text-texto',
     danger: 'border border-peligro/40 bg-superficie text-peligro',
   };
-  // Tooltip: la razón del bloqueo si está deshabilitado; el nombre de la acción si es icon-only.
-  const textoTooltip = disabled
-    ? (tooltipDisabled ?? 'No disponible para un negocio cancelado')
-    : (soloIcono ? etiqueta : undefined);
   const boton = (
-    <button
-      type="button"
-      data-testid={testid}
-      onClick={onClick}
-      disabled={disabled}
-      aria-label={soloIcono ? etiqueta : undefined}
-      className={`${base} ${dims} ${estilos[variante]}`}
-    >
-      <Icono size={16} /> {!soloIcono && etiqueta}
+    <button type="button" data-testid={testid} onClick={onClick} disabled={disabled} className={`${base} ${estilos[variante]}`}>
+      <Icono size={16} /> {etiqueta}
     </button>
   );
-  return textoTooltip
-    ? <Tooltip text={textoTooltip} className={soloIcono ? 'shrink-0' : undefined}>{boton}</Tooltip>
-    : boton;
+  return disabled ? <Tooltip text={textoTooltip}>{boton}</Tooltip> : boton;
 }
 
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
@@ -211,7 +234,10 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
   // Pide N+1 para saber si hay más sin traer todo; "Ver todos" re-consulta sin límite.
   const { data, isLoading } = usePagosNegocio(negocioId, true, verTodos ? undefined : PAGOS_INICIAL + 1);
   const [editando, setEditando] = useState<PagoMembresia | null>(null);
+  const [anulando, setAnulando] = useState<PagoMembresia | null>(null);
   const editar = useEditarPago();
+  const reenviar = useReenviarRecibo();
+  const anular = useAnularPago();
   const pagos = data ?? [];
   // En negocios de tarjeta, ocultar la sección entera si no hay pagos manuales (evita una sección
   // vacía en los que cobran por Stripe). En manual, siempre se muestra.
@@ -228,25 +254,60 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
             {visibles.map((p) => (
               <div key={p.id} data-testid={`pago-${p.id}`} className="flex items-center justify-between gap-3 py-1.5">
                 <div className="flex min-w-0 flex-col">
-                  <span className="text-[13.5px] font-semibold text-texto">
+                  <span className={`text-[13.5px] font-semibold ${p.anulado ? 'text-texto-4 line-through' : 'text-texto'}`}>
                     {p.monto != null ? FMT_MONTO.format(Number(p.monto)) : 'Cortesía'}
                     <span className="ml-2 text-[12px] font-normal text-texto-3">{CONCEPTO_LABEL[p.concepto] ?? p.concepto}</span>
+                    {p.anulado && (
+                      <span
+                        className="ml-2 rounded-[6px] px-1.5 py-0.5 text-[10.5px] font-semibold"
+                        style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}
+                      >
+                        Anulado
+                      </span>
+                    )}
                   </span>
                   <span className="text-[11.5px] text-texto-4">
                     {fecha(p.fechaPago)}
                     {p.registradoPorNombre ? ` · por ${p.registradoPorNombre}` : ''}
                   </span>
                 </div>
-                {puedeActuar && (
-                  <button
-                    type="button"
-                    data-testid={`pago-editar-${p.id}`}
-                    onClick={() => setEditando(p)}
-                    aria-label="Editar pago"
-                    className="shrink-0 rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca"
-                  >
-                    <Pencil size={14} />
-                  </button>
+                {puedeActuar && !p.anulado && (
+                  <div className="flex shrink-0 items-center gap-0.5">
+                    <Tooltip text="Reenviar comprobante">
+                      <button
+                        type="button"
+                        data-testid={`pago-reenviar-${p.id}`}
+                        onClick={() => reenviar.mutate({ negocioId, pagoId: p.id })}
+                        disabled={reenviar.isPending}
+                        aria-label="Reenviar comprobante al dueño"
+                        className="rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca disabled:opacity-50"
+                      >
+                        <Send size={14} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip text="Editar pago">
+                      <button
+                        type="button"
+                        data-testid={`pago-editar-${p.id}`}
+                        onClick={() => setEditando(p)}
+                        aria-label="Editar pago"
+                        className="rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca"
+                      >
+                        <Pencil size={14} />
+                      </button>
+                    </Tooltip>
+                    <Tooltip text="Anular pago">
+                      <button
+                        type="button"
+                        data-testid={`pago-anular-${p.id}`}
+                        onClick={() => setAnulando(p)}
+                        aria-label="Anular pago"
+                        className="rounded-[8px] p-1.5 text-texto-4 transition hover:bg-marca-suave hover:text-marca"
+                      >
+                        <Ban size={14} />
+                      </button>
+                    </Tooltip>
+                  </div>
                 )}
               </div>
             ))}
@@ -276,6 +337,18 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
               { onSuccess: () => setEditando(null) },
             )
           }
+        />
+      )}
+      {anulando && (
+        <DialogoConfirmar
+          abierto
+          onCerrar={() => setAnulando(null)}
+          titulo="Anular pago"
+          mensaje={`Se anulará el recibo ${anulando.folio != null ? `#${String(anulando.folio).padStart(5, '0')} ` : ''}(${anulando.monto != null ? FMT_MONTO.format(Number(anulando.monto)) : 'cortesía'}). El pago no se borra, pero deja de contar y la vigencia del negocio se recalcula desde el pago anterior. Se le avisará al dueño por correo. El motivo queda registrado.`}
+          textoConfirmar="Anular pago"
+          requiereMotivo
+          cargando={anular.isPending}
+          onConfirmar={(motivo) => anular.mutate({ negocioId, pagoId: anulando.id, motivo }, { onSuccess: () => setAnulando(null) })}
         />
       )}
     </Seccion>
@@ -340,15 +413,43 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             </span>
             <BadgeEstadoPago estado={estadoEfectivo(n.estadoAdmin, n.estadoPago)} small />
           </div>
-          <button
-            type="button"
-            data-testid="ficha-cerrar"
-            onClick={onCerrar}
-            aria-label="Cerrar"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
-          >
-            <X size={19} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {puedeRegistrarPago && (
+              <BotonAccion
+                icono={CheckCircle2}
+                etiqueta="Registrar pago"
+                variante="primary"
+                color="marca"
+                testid="ficha-accion-registrar-pago"
+                onClick={() => setDialogo('marcar-pagado')}
+                disabled={archivado || cobroPendiente}
+                tooltipDisabled={!archivado && cobroPendiente ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.' : undefined}
+                soloIcono
+              />
+            )}
+            {puedeActuar && (
+              <>
+                <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" color="marca" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} soloIcono />
+                {suspendido ? (
+                  <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" color="ok" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} soloIcono />
+                ) : (
+                  <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" color="ambar" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} soloIcono />
+                )}
+                {esSuperadmin && (
+                  <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" color="peligro" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} soloIcono />
+                )}
+              </>
+            )}
+            <button
+              type="button"
+              data-testid="ficha-cerrar"
+              onClick={onCerrar}
+              aria-label="Cerrar"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+            >
+              <X size={19} />
+            </button>
+          </div>
         </div>
 
         {/* Cuerpo: 2 columnas en desktop (sin scroll), 1 columna en móvil (bottom-sheet scrollea). */}
@@ -449,36 +550,6 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
           </div>
         </div>
 
-        {/* Footer: "Registrar pago" lo ve super/gerente (cualquier negocio de su alcance) y el
-            vendedor (solo sus negocios manuales). Pausar/Reactivar/Reasignar/Cancelar son de
-            super/gerente; Cancelar solo super. */}
-        {puedeRegistrarPago && (
-          <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
-            <BotonAccion
-              icono={CheckCircle2}
-              etiqueta="Registrar pago"
-              variante="primary"
-              testid="ficha-accion-registrar-pago"
-              onClick={() => setDialogo('marcar-pagado')}
-              disabled={archivado || cobroPendiente}
-              tooltipDisabled={!archivado && cobroPendiente ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.' : undefined}
-            />
-            {/* Acciones secundarias (solo super/gerente): icon-only + tooltip, a la derecha → 1 línea. */}
-            {puedeActuar && (
-              <div className="ml-auto flex items-center gap-2">
-                <BotonAccion icono={UserPlus} etiqueta="Reasignar" variante="ghost" testid="ficha-accion-reasignar" onClick={() => setDialogo('reasignar')} disabled={archivado} soloIcono />
-                {suspendido ? (
-                  <BotonAccion icono={PlayCircle} etiqueta="Reactivar" variante="ghost" testid="ficha-accion-reactivar" onClick={() => setDialogo('reactivar')} soloIcono />
-                ) : (
-                  <BotonAccion icono={PauseCircle} etiqueta="Pausar membresía" variante="ghost" testid="ficha-accion-suspender" onClick={() => setDialogo('suspender')} disabled={archivado} soloIcono />
-                )}
-                {esSuperadmin && (
-                  <BotonAccion icono={Ban} etiqueta="Cancelar" variante="danger" testid="ficha-accion-cancelar" onClick={() => setDialogo('cancelar')} disabled={archivado} soloIcono />
-                )}
-              </div>
-            )}
-          </div>
-        )}
       </div>
     </ModalAdaptativo>
 

@@ -39,9 +39,8 @@ import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCi
 import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion } from '../suscripciones/acciones-stripe.js';
 import { randomInt } from 'crypto';
 import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
-import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobantePagoMembresia } from '../../utils/email.js';
-import { generarReciboPagoPDF } from '../../utils/reciboPdf.js';
-import { subirArchivo } from '../r2.service.js';
+import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobantePagoMembresia, enviarReciboCancelado } from '../../utils/email.js';
+import { prepararReciboPago } from './recibo-pago.service.js';
 
 // =============================================================================
 // TIPOS
@@ -483,7 +482,7 @@ export async function marcarPagado(
 
     // Atómico: activar el negocio + dejar el registro contable van juntos o no van. Stripe
     // queda FUERA de la transacción (es externo; §4.3: la BD manda aunque Stripe falle).
-    const { negocio: act, pagoId, folio: pagoFolio } = await db.transaction(async (tx) => {
+    const { negocio: act, pagoId } = await db.transaction(async (tx) => {
         const [actualizado] = await tx
             .update(negocios)
             .set({
@@ -565,57 +564,22 @@ export async function marcarPagado(
     // Reaparece en circulación → borrar el aviso de "fuera de circulación" del dueño.
     await limpiarNotificacionNegocioFueraDeCirculacion(negocioId);
 
-    // Comprobante al DUEÑO (defensa Camino B — "robo invisible"): que el negocio reciba
-    // constancia de su pago + vigencia haga que registrar el cobro sea inseparable de que el
-    // negocio se entere. Best-effort en TODO: ni el PDF ni el correo revierten el pago ya asentado.
-    if (neg.correoDueno) {
-        // 1) Recibo PDF → R2 (carpeta `recibos/`, protegida en imageRegistry). Si falla, el
-        //    correo se manda igual SIN el botón de descarga (reciboUrl queda undefined).
-        let reciboUrl: string | undefined;
+    // Comprobante al DUEÑO (defensa Camino B — "robo invisible"): genera el recibo PDF (R2) y manda
+    // el correo con el link de descarga. Best-effort: ni el PDF ni el correo revierten el pago asentado.
+    if (pagoId) {
         try {
-            // Datos extra para el recibo: sucursal matriz (dirección/teléfono/correo) y quién atendió.
-            const [suc] = (await db.execute(sql`
-                SELECT nombre, direccion, telefono, correo
-                FROM negocio_sucursales
-                WHERE negocio_id = ${negocioId} AND es_principal = true
-                LIMIT 1
-            `)).rows as Array<{ nombre: string | null; direccion: string | null; telefono: string | null; correo: string | null }>;
-            const [actor] = (await db.execute(sql`
-                SELECT TRIM(CONCAT(nombre, ' ', COALESCE(apellidos, ''))) AS nombre
-                FROM usuarios WHERE id = ${panel.usuarioId} LIMIT 1
-            `)).rows as Array<{ nombre: string }>;
-
-            const pdf = await generarReciboPagoPDF({
-                folio: pagoFolio != null ? String(pagoFolio) : String(pagoId ?? act.id),
-                nombreNegocio: neg.nombreNegocio,
-                sucursal: suc?.nombre ?? null,
-                nombreDueno: neg.nombreDueno,
-                direccionNegocio: suc?.direccion ?? null,
-                telefonoNegocio: suc?.telefono ?? null,
-                correoNegocio: suc?.correo ?? neg.correoDueno,
-                concepto: opciones.concepto,
-                monto: montoRegistrado,
-                periodoMeses: opciones.meses ?? null,
-                hasta: opciones.hasta,
-                atendio: actor?.nombre ?? null,
-            });
-            const sub = await subirArchivo(pdf, 'recibos', 'recibo.pdf', 'application/pdf');
-            if (sub.success && sub.data?.url) reciboUrl = sub.data.url;
+            const rec = await prepararReciboPago(pagoId);
+            if (rec?.correoDueno) {
+                await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
+                    nombreNegocio: rec.nombreNegocio,
+                    concepto: rec.concepto,
+                    monto: rec.monto,
+                    hasta: rec.hasta,
+                    reciboUrl: rec.reciboUrl,
+                });
+            }
         } catch {
-            console.error('Error al generar/subir el recibo PDF (marcarPagado)');
-        }
-
-        // 2) Correo del comprobante (con el botón de descarga si el PDF quedó arriba).
-        try {
-            await enviarComprobantePagoMembresia(neg.correoDueno, neg.nombreDueno ?? '', {
-                nombreNegocio: neg.nombreNegocio,
-                concepto: opciones.concepto,
-                monto: montoRegistrado,
-                hasta: opciones.hasta,
-                reciboUrl,
-            });
-        } catch {
-            console.error('Error al enviar el comprobante de pago de membresía (marcarPagado)');
+            console.error('Error al emitir el comprobante de pago (marcarPagado)');
         }
     }
 
@@ -799,6 +763,15 @@ export async function editarPagoMembresia(
             })
             .where(eq(pagosMembresia.id, pagoId));
 
+        // Sincronizar el evento gemelo en la bitácora financiera (eventos_pago): refleja la
+        // corrección de monto + metadata (concepto/meses/vigencia). Antes el libro mayor quedaba viejo.
+        await tx.execute(sql`
+            UPDATE eventos_pago
+            SET monto = ${montoNuevo != null ? String(montoNuevo) : null},
+                metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ concepto: datos.concepto, meses: datos.meses, hasta: nuevoPeriodoHasta })}::jsonb
+            WHERE referencia_id = ${pagoId} AND tipo = 'pago_manual'
+        `);
+
         if (trasladaVigencia) {
             await tx
                 .update(negocios)
@@ -815,6 +788,177 @@ export async function editarPagoMembresia(
         datosNuevos: { pagoId, concepto: datos.concepto, monto: montoNuevo, mesesCubiertos: datos.meses, periodoHasta: nuevoPeriodoHasta, vigenciaTrasladada: trasladaVigencia },
         motivo: null,
     });
+
+    return { ok: true };
+}
+
+// =============================================================================
+// REENVIAR EL RECIBO DE UN PAGO (super + gerente · alcance de región)
+// =============================================================================
+
+export type ResultadoReenvio =
+    | { ok: true; correoEnviado: boolean }
+    | { ok: false; status: number; mensaje: string };
+
+/**
+ * Reenvía el comprobante de un pago ya registrado al correo del dueño (caso: no le llegó, lo borró,
+ * o se le corrigió el correo). **Regenera** el recibo PDF con los datos actuales del pago (mismo
+ * folio) → así el recibo siempre refleja el estado vigente (útil tras editar un pago). Devuelve si el
+ * correo salió. Alcance: SuperAdmin (cualquiera) / Gerente (su región). El pago debe ser del negocio.
+ */
+export async function reenviarReciboPago(
+    panel: UsuarioPanel,
+    negocioId: string,
+    pagoId: string,
+): Promise<ResultadoReenvio> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+
+    // El pago debe existir Y pertenecer a ESTE negocio (evita reenviar el de otro vía URL).
+    const [pago] = await db
+        .select({ id: pagosMembresia.id })
+        .from(pagosMembresia)
+        .where(and(eq(pagosMembresia.id, pagoId), eq(pagosMembresia.negocioId, negocioId)))
+        .limit(1);
+    if (!pago) return { ok: false, status: 404, mensaje: 'Pago no encontrado en este negocio.' };
+
+    const rec = await prepararReciboPago(pagoId);
+    if (!rec) return { ok: false, status: 404, mensaje: 'No se pudo preparar el recibo.' };
+    if (!rec.correoDueno) return { ok: false, status: 409, mensaje: 'El dueño no tiene un correo registrado.' };
+
+    let correoEnviado = false;
+    try {
+        const env = await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
+            nombreNegocio: rec.nombreNegocio,
+            concepto: rec.concepto,
+            monto: rec.monto,
+            hasta: rec.hasta,
+            reciboUrl: rec.reciboUrl,
+        });
+        correoEnviado = env.success;
+    } catch {
+        console.error('Error al reenviar el comprobante de pago');
+    }
+
+    await registrarAuditoria(panel, {
+        accion: 'negocio_reenviar_recibo',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: null,
+        datosNuevos: { pagoId, correoEnviado },
+        motivo: null,
+    });
+
+    return { ok: true, correoEnviado };
+}
+
+// =============================================================================
+// ANULAR UN PAGO (borrado lógico — super + gerente · solo negocios manuales)
+// =============================================================================
+
+export type ResultadoAnulacion =
+    | { ok: true }
+    | { ok: false; status: number; mensaje: string };
+
+/**
+ * Anula (borrado lógico) un pago registrado por error. El pago NO se borra: se marca `anulado`
+ * (con quién/cuándo/por qué). En la MISMA transacción: (1) marca el pago, (2) saca su ingreso del
+ * libro mayor (`eventos_pago.monto = NULL` → deja de sumar en KPIs), (3) **recalcula la vigencia**
+ * del negocio desde el pago más reciente NO anulado (si ya no queda ninguno, deja la vigencia tal
+ * cual y el cron de manuales la vencerá). Luego avisa al dueño (correo de cancelación, best-effort).
+ *
+ * Alcance: SuperAdmin / Gerente (su región). **Solo negocios manuales** (sin Stripe): en los de
+ * tarjeta la vigencia/cobro los maneja Stripe → 409.
+ */
+export async function anularPagoMembresia(
+    panel: UsuarioPanel,
+    negocioId: string,
+    pagoId: string,
+    motivo: string,
+): Promise<ResultadoAnulacion> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+    const neg = cargado.negocio;
+
+    if (neg.stripeSubscriptionId) {
+        return { ok: false, status: 409, mensaje: 'Este negocio cobra con tarjeta; un pago no se anula desde aquí (gestiona el cobro en Stripe).' };
+    }
+
+    const [pago] = await db
+        .select({
+            id: pagosMembresia.id,
+            anulado: pagosMembresia.anulado,
+            monto: pagosMembresia.monto,
+            folio: pagosMembresia.folio,
+            concepto: pagosMembresia.concepto,
+            periodoHasta: pagosMembresia.periodoHasta,
+        })
+        .from(pagosMembresia)
+        .where(and(eq(pagosMembresia.id, pagoId), eq(pagosMembresia.negocioId, negocioId)))
+        .limit(1);
+    if (!pago) return { ok: false, status: 404, mensaje: 'Pago no encontrado en este negocio.' };
+    if (pago.anulado) return { ok: false, status: 409, mensaje: 'Este pago ya está anulado.' };
+
+    const ahora = new Date().toISOString();
+
+    await db.transaction(async (tx) => {
+        // 1) Marcar el pago como anulado (no se borra: queda para auditoría).
+        await tx
+            .update(pagosMembresia)
+            .set({ anulado: true, anuladoAt: ahora, anuladoPor: panel.usuarioId, motivoAnulacion: motivo })
+            .where(eq(pagosMembresia.id, pagoId));
+
+        // 2) Sacar el ingreso del libro mayor: monto=NULL (deja de sumar en KPIs) + metadata anulado.
+        await tx.execute(sql`
+            UPDATE eventos_pago
+            SET monto = NULL,
+                metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ anulado: true, motivo, anuladoAt: ahora })}::jsonb
+            WHERE referencia_id = ${pagoId} AND tipo = 'pago_manual'
+        `);
+
+        // 3) Recalcular la vigencia desde el pago más reciente NO anulado (si no queda, se deja).
+        const [vig] = (await tx.execute(sql`
+            SELECT periodo_hasta::text AS periodo_hasta
+            FROM pagos_membresia
+            WHERE negocio_id = ${negocioId} AND anulado = false
+            ORDER BY fecha_pago DESC, created_at DESC
+            LIMIT 1
+        `)).rows as Array<{ periodo_hasta: string }>;
+        if (vig?.periodo_hasta) {
+            await tx
+                .update(negocios)
+                .set({ fechaVencimiento: vig.periodo_hasta, fechaProximoCobro: vig.periodo_hasta, updatedAt: ahora })
+                .where(eq(negocios.id, negocioId));
+        }
+    });
+
+    await registrarAuditoria(panel, {
+        accion: 'negocio_anular_pago',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: { pagoId, folio: pago.folio, monto: pago.monto, concepto: pago.concepto, periodoHasta: pago.periodoHasta },
+        datosNuevos: { anulado: true },
+        motivo,
+    });
+
+    // Aviso al dueño (best-effort): correo de cancelación del recibo.
+    try {
+        const [d] = (await db.execute(sql`
+            SELECT u.correo, u.nombre, n.nombre AS nombre_negocio
+            FROM negocios n JOIN usuarios u ON u.id = n.usuario_id
+            WHERE n.id = ${negocioId} LIMIT 1
+        `)).rows as Array<{ correo: string | null; nombre: string | null; nombre_negocio: string }>;
+        if (d?.correo) {
+            await enviarReciboCancelado(d.correo, d.nombre ?? '', {
+                nombreNegocio: d.nombre_negocio,
+                folio: pago.folio ?? pagoId,
+                monto: pago.monto != null ? Number(pago.monto) : null,
+                motivo,
+            });
+        }
+    } catch {
+        console.error('Error al enviar el aviso de recibo cancelado');
+    }
 
     return { ok: true };
 }

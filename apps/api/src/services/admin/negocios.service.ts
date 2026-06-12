@@ -717,6 +717,7 @@ export async function listarSucursalesNegocio(panel: UsuarioPanel, negocioId: st
 /** Una fila del historial de pagos de membresía (bitácora de pagos_membresia). */
 export interface PagoMembresiaFila {
     id: string;
+    folio: number | null;
     monto: string | null;
     concepto: string;
     fechaPago: string | null;
@@ -725,6 +726,8 @@ export interface PagoMembresiaFila {
     nota: string | null;
     /** Nombre de quién registró el pago (usuarios.registrado_por); null si la cuenta se borró. */
     registradoPorNombre: string | null;
+    /** Si el pago fue anulado (borrado lógico). */
+    anulado: boolean;
 }
 
 /**
@@ -737,22 +740,23 @@ export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string,
     // `limite` acota a los N más recientes (para el "ver todos" de la ficha); sin él, todos.
     const limitSql = limite && limite > 0 ? sql` LIMIT ${limite}` : sql``;
     const filas = (await db.execute(sql`
-        SELECT pm.id::text AS id, pm.monto::text AS monto, pm.concepto,
+        SELECT pm.id::text AS id, pm.folio, pm.monto::text AS monto, pm.concepto,
                pm.fecha_pago::text AS fecha_pago, pm.periodo_hasta::text AS periodo_hasta,
-               pm.meses_cubiertos AS meses_cubiertos, pm.nota,
+               pm.meses_cubiertos AS meses_cubiertos, pm.nota, pm.anulado,
                u.nombre AS u_nombre, u.apellidos AS u_apellidos
         FROM pagos_membresia pm
         LEFT JOIN usuarios u ON u.id = pm.registrado_por
         WHERE pm.negocio_id = ${negocioId}
         ORDER BY pm.created_at DESC${limitSql}
     `)).rows as Array<{
-        id: string; monto: string | null; concepto: string;
+        id: string; folio: number | null; monto: string | null; concepto: string;
         fecha_pago: string | null; periodo_hasta: string | null;
-        meses_cubiertos: number | null; nota: string | null;
+        meses_cubiertos: number | null; nota: string | null; anulado: boolean;
         u_nombre: string | null; u_apellidos: string | null;
     }>;
     return filas.map((f) => ({
         id: f.id,
+        folio: f.folio ?? null,
         monto: f.monto ?? null,
         concepto: f.concepto,
         fechaPago: f.fecha_pago ?? null,
@@ -760,6 +764,7 @@ export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string,
         mesesCubiertos: f.meses_cubiertos ?? null,
         nota: f.nota ?? null,
         registradoPorNombre: f.u_nombre ? `${f.u_nombre} ${f.u_apellidos ?? ''}`.trim() : null,
+        anulado: f.anulado ?? false,
     }));
 }
 

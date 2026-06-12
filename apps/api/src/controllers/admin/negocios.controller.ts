@@ -35,6 +35,8 @@ import {
     cancelarNegocio,
     cambiarCorreoDueno,
     editarPagoMembresia,
+    reenviarReciboPago,
+    anularPagoMembresia,
 } from '../../services/admin/negocios-acciones.service.js';
 import {
     altaManualNegocio,
@@ -275,6 +277,59 @@ export async function editarPagoController(req: Request, res: Response): Promise
     } catch (error) {
         console.error('Error en editarPagoController:', error);
         res.status(500).json({ success: false, message: 'Error al editar el pago' });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/pagos/:pagoId/reenviar-recibo   (super + gerente)
+// =============================================================================
+
+export async function reenviarReciboController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id, pagoId } = req.params;
+
+        const r = await reenviarReciboPago(panel, id, pagoId);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+
+        res.status(200).json({
+            success: true,
+            message: r.correoEnviado ? 'Comprobante reenviado' : 'Recibo generado, pero el correo no pudo enviarse',
+            correoEnviado: r.correoEnviado,
+        });
+    } catch (error) {
+        console.error('Error en reenviarReciboController:', error);
+        res.status(500).json({ success: false, message: 'Error al reenviar el comprobante' });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/negocios/:id/pagos/:pagoId/anular   (super + gerente · motivo obligatorio)
+// =============================================================================
+
+export async function anularPagoController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id, pagoId } = req.params;
+        const motivo = typeof req.body?.motivo === 'string' ? req.body.motivo.trim() : '';
+        if (!motivo) {
+            res.status(400).json({ success: false, message: 'El motivo de anulación es obligatorio.' });
+            return;
+        }
+
+        const r = await anularPagoMembresia(panel, id, pagoId, motivo);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+
+        res.status(200).json({ success: true, message: 'Pago anulado' });
+    } catch (error) {
+        console.error('Error en anularPagoController:', error);
+        res.status(500).json({ success: false, message: 'Error al anular el pago' });
     }
 }
 

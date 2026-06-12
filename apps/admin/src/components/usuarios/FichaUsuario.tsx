@@ -231,15 +231,84 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
               <span className="truncate text-[12.5px] text-texto-3">{u.correo}</span>
             </span>
           </div>
-          <button
-            type="button"
-            data-testid="ficha-usuario-cerrar"
-            onClick={onCerrar}
-            aria-label="Cerrar"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
-          >
-            <X size={19} />
-          </button>
+          <div className="flex shrink-0 items-center gap-1">
+            {puedeActuar && (
+              <>
+                <Tooltip text="Generar código de acceso a la app">
+                  <button
+                    type="button"
+                    data-testid="ficha-usuario-codigo-acceso"
+                    onClick={() => setDialogo('codigo-acceso')}
+                    aria-label="Generar código de acceso a la app"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-marca transition hover:bg-marca-suave"
+                  >
+                    <KeyRound size={18} />
+                  </button>
+                </Tooltip>
+                {bloqueado && (
+                  <Tooltip text="Desbloquear intentos">
+                    <button
+                      type="button"
+                      data-testid="ficha-usuario-desbloquear"
+                      onClick={() => desbloquear.mutate(u.id)}
+                      disabled={desbloquear.isPending}
+                      aria-label="Desbloquear intentos"
+                      className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-marca transition hover:bg-marca-suave disabled:opacity-50"
+                    >
+                      <Unlock size={18} />
+                    </button>
+                  </Tooltip>
+                )}
+                <Tooltip text="Corregir correo">
+                  <button
+                    type="button"
+                    data-testid="ficha-usuario-editar-correo"
+                    onClick={() => setDialogo('editar-correo')}
+                    aria-label="Corregir correo"
+                    className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-[#d97706] transition hover:bg-[#d977061f]"
+                  >
+                    <Mail size={18} />
+                  </button>
+                </Tooltip>
+                {esSuperadmin && !esEquipo && (
+                  suspendido ? (
+                    <Tooltip text="Reactivar cuenta">
+                      <button
+                        type="button"
+                        data-testid="ficha-usuario-reactivar"
+                        onClick={() => setDialogo('reactivar')}
+                        aria-label="Reactivar cuenta"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-ok transition hover:bg-[#34c77b1f]"
+                      >
+                        <PlayCircle size={18} />
+                      </button>
+                    </Tooltip>
+                  ) : (
+                    <Tooltip text="Suspender cuenta">
+                      <button
+                        type="button"
+                        data-testid="ficha-usuario-suspender"
+                        onClick={() => setDialogo('suspender')}
+                        aria-label="Suspender cuenta"
+                        className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-peligro transition hover:bg-peligro-suave"
+                      >
+                        <Ban size={18} />
+                      </button>
+                    </Tooltip>
+                  )
+                )}
+              </>
+            )}
+            <button
+              type="button"
+              data-testid="ficha-usuario-cerrar"
+              onClick={onCerrar}
+              aria-label="Cerrar"
+              className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+            >
+              <X size={19} />
+            </button>
+          </div>
         </div>
 
         {/* Cuerpo */}
@@ -332,73 +401,6 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
           </div>
         </div>
 
-        {/* Footer: soporte (super + gerente) y moderación (solo super). El vendedor no llega aquí. */}
-        {puedeActuar && (
-          <div className="flex shrink-0 items-center gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
-            <button
-              type="button"
-              data-testid="ficha-usuario-codigo-acceso"
-              onClick={() => setDialogo('codigo-acceso')}
-              className="inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-3 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:brightness-105"
-            >
-              <KeyRound size={16} /> Código de acceso
-            </button>
-            <div className="ml-auto flex items-center gap-2">
-              {bloqueado && (
-                <Tooltip text="Desbloquear intentos" className="shrink-0">
-                  <button
-                    type="button"
-                    data-testid="ficha-usuario-desbloquear"
-                    onClick={() => desbloquear.mutate(u.id)}
-                    disabled={desbloquear.isPending}
-                    aria-label="Desbloquear intentos"
-                    className="grid h-10 w-10 place-items-center rounded-[10px] border border-borde-fuerte bg-superficie text-texto transition hover:bg-marca-suave disabled:opacity-50"
-                  >
-                    <Unlock size={16} />
-                  </button>
-                </Tooltip>
-              )}
-              <Tooltip text="Corregir correo" className="shrink-0">
-                <button
-                  type="button"
-                  data-testid="ficha-usuario-editar-correo"
-                  onClick={() => setDialogo('editar-correo')}
-                  aria-label="Corregir correo"
-                  className="grid h-10 w-10 place-items-center rounded-[10px] border border-borde-fuerte bg-superficie text-texto transition hover:bg-marca-suave"
-                >
-                  <Mail size={16} />
-                </button>
-              </Tooltip>
-              {esSuperadmin && !esEquipo && (
-                suspendido ? (
-                  <Tooltip text="Reactivar cuenta" className="shrink-0">
-                    <button
-                      type="button"
-                      data-testid="ficha-usuario-reactivar"
-                      onClick={() => setDialogo('reactivar')}
-                      aria-label="Reactivar cuenta"
-                      className="grid h-10 w-10 place-items-center rounded-[10px] border border-borde-fuerte bg-superficie text-texto transition hover:bg-marca-suave"
-                    >
-                      <PlayCircle size={16} />
-                    </button>
-                  </Tooltip>
-                ) : (
-                  <Tooltip text="Suspender cuenta" className="shrink-0">
-                    <button
-                      type="button"
-                      data-testid="ficha-usuario-suspender"
-                      onClick={() => setDialogo('suspender')}
-                      aria-label="Suspender cuenta"
-                      className="grid h-10 w-10 place-items-center rounded-[10px] border border-peligro/40 bg-superficie text-peligro transition hover:bg-peligro-suave"
-                    >
-                      <Ban size={16} />
-                    </button>
-                  </Tooltip>
-                )
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </ModalAdaptativo>
 

@@ -45,6 +45,8 @@ import {
     existeCorreoController,
     cambiarCorreoDuenoController,
     editarPagoController,
+    reenviarReciboController,
+    anularPagoController,
     contarNegociosController,
 } from '../../controllers/admin/negocios.controller.js';
 
@@ -91,6 +93,10 @@ router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioContr
 router.patch('/:id/correo-dueno', requierePanel(['superadmin', 'gerente']), cambiarCorreoDuenoController);
 // Editar una fila del historial de pagos (corregir concepto/monto/meses): superadmin + gerente.
 router.patch('/:id/pagos/:pagoId', requierePanel(['superadmin', 'gerente']), editarPagoController);
+// Reenviar el comprobante de un pago al dueño (regenera el recibo): superadmin + gerente.
+router.post('/:id/pagos/:pagoId/reenviar-recibo', requierePanel(['superadmin', 'gerente']), reenviarReciboController);
+// Anular (borrado lógico) un pago — solo negocios manuales · motivo obligatorio: superadmin + gerente.
+router.post('/:id/pagos/:pagoId/anular', requierePanel(['superadmin', 'gerente']), anularPagoController);
 
 // Alta MANUAL de negocio en efectivo/transferencia (sin Stripe): los 3 roles, con alcance
 // de región en el service (vendedor se auto-atribuye; gerente acotado a su región).

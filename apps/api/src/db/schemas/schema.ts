@@ -228,6 +228,12 @@ export const pagosMembresia = pgTable("pagos_membresia", {
 	periodoHasta: timestamp("periodo_hasta", { withTimezone: true, mode: 'string' }).notNull(),
 	registradoPor: uuid("registrado_por").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }),
 	nota: varchar({ length: 500 }),
+	// Anulación (borrado lógico): el pago no se borra; se marca anulado. Migración
+	// docs/migraciones/2026-06-11-anular-pago.sql.
+	anulado: boolean().default(false).notNull(),
+	anuladoAt: timestamp('anulado_at', { withTimezone: true, mode: 'string' }),
+	anuladoPor: uuid('anulado_por').references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }),
+	motivoAnulacion: varchar('motivo_anulacion', { length: 500 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_pagos_membresia_negocio").using("btree", table.negocioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),

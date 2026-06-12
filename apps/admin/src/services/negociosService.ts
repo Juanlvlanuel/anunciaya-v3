@@ -327,6 +327,7 @@ export async function altaManualNegocio(datos: DatosAltaManual): Promise<{ negoc
 /** Una fila del historial de pagos de membresía (ficha del método manual). */
 export interface PagoMembresia {
   id: string;
+  folio: number | null;
   monto: string | null;
   concepto: string;
   fechaPago: string | null;
@@ -334,6 +335,8 @@ export interface PagoMembresia {
   mesesCubiertos: number | null;
   nota: string | null;
   registradoPorNombre: string | null;
+  /** Si el pago fue anulado (borrado lógico). */
+  anulado: boolean;
 }
 
 /** Historial de pagos de membresía de un negocio (bitácora). `limite` acota a los N más recientes. */
@@ -360,6 +363,19 @@ export async function editarPagoMembresia(
   datos: DatosEditarPago,
 ): Promise<void> {
   await api.patch(`/admin/negocios/${negocioId}/pagos/${pagoId}`, datos);
+}
+
+/** Reenvía el comprobante de un pago al dueño (regenera el recibo PDF). Super + gerente. */
+export async function reenviarRecibo(negocioId: string, pagoId: string): Promise<{ correoEnviado: boolean }> {
+  const { data } = await api.post<{ correoEnviado?: boolean }>(
+    `/admin/negocios/${negocioId}/pagos/${pagoId}/reenviar-recibo`,
+  );
+  return { correoEnviado: data.correoEnviado ?? false };
+}
+
+/** Anula (borrado lógico) un pago — solo negocios manuales · motivo obligatorio. Super + gerente. */
+export async function anularPago(negocioId: string, pagoId: string, motivo: string): Promise<void> {
+  await api.post(`/admin/negocios/${negocioId}/pagos/${pagoId}/anular`, { motivo });
 }
 
 /** Total de negocios del alcance del rol (para el contador del menú). */

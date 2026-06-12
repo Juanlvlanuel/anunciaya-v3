@@ -32,6 +32,8 @@ interface ModalAdaptativoProps {
   children: ReactNode;
   titulo?: ReactNode;
   iconoTitulo?: ReactNode;
+  /** Acciones (íconos) en el lado derecho del header, antes del botón de cerrar. */
+  accionesHeader?: ReactNode;
   mostrarHeader?: boolean;
   mostrarBotonCerrar?: boolean;
   cerrarAlClickFuera?: boolean;
@@ -83,6 +85,7 @@ export function ModalAdaptativo({
   children,
   titulo,
   iconoTitulo,
+  accionesHeader,
   mostrarHeader = true,
   mostrarBotonCerrar = true,
   cerrarAlClickFuera = true,
@@ -169,17 +172,20 @@ export function ModalAdaptativo({
         {iconoTitulo}
         {titulo && <h2 className="truncate text-[16px] font-bold text-texto">{titulo}</h2>}
       </div>
-      {mostrarBotonCerrar && (
-        <button
-          type="button"
-          data-testid="modal-cerrar"
-          onClick={onCerrar}
-          aria-label="Cerrar"
-          className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
-        >
-          <X size={18} />
-        </button>
-      )}
+      <div className="flex shrink-0 items-center gap-1">
+        {accionesHeader}
+        {mostrarBotonCerrar && (
+          <button
+            type="button"
+            data-testid="modal-cerrar"
+            onClick={onCerrar}
+            aria-label="Cerrar"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+          >
+            <X size={18} />
+          </button>
+        )}
+      </div>
     </div>
   ) : null;
 

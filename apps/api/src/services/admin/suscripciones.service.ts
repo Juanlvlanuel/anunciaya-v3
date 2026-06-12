@@ -78,6 +78,7 @@ export interface EventoFila {
     fecha: string | null;        // fecha_evento
     negocioId: string;
     negocioNombre: string | null;
+    logoUrl: string | null;      // logo del negocio (para la tabla)
     tipo: string;
     origen: string;
     monto: string | null;        // numeric → string; el front formatea
@@ -245,6 +246,7 @@ export async function listarEventos(
             fecha: eventosPago.fechaEvento,
             negocioId: eventosPago.negocioId,
             negocioNombre: negocios.nombre,
+            logoUrl: negocios.logoUrl,
             tipo: eventosPago.tipo,
             origen: eventosPago.origen,
             monto: eventosPago.monto,
@@ -266,6 +268,7 @@ export async function listarEventos(
         fecha: f.fecha ?? null,
         negocioId: f.negocioId,
         negocioNombre: f.negocioNombre ?? null,
+        logoUrl: f.logoUrl ?? null,
         tipo: f.tipo,
         origen: f.origen,
         monto: f.monto ?? null,

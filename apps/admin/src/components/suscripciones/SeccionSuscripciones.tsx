@@ -14,14 +14,15 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, Building2 } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useBitacora, usePrefetchEvento } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { OrdenEvento, EventoFila, ConteosEventos } from '../../services/suscripcionesService';
-import { metaTipoEvento, BadgeTipoEvento, ChipOrigen, TIPOS_EVENTO_FILTRO } from './estadoEvento';
+import { metaTipoEvento, BadgeTipoEvento, TIPOS_EVENTO_FILTRO } from './estadoEvento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { AvatarNegocio } from '../negocios/avatares';
 import { FichaEvento } from './FichaEvento';
 
 const POR_PAGINA = 20;
@@ -56,7 +57,7 @@ const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 
 function fechaCorta(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
+  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '').replace(/ ([a-z])/i, (_m, l: string) => ` ${l.toUpperCase()}`);
 }
 
 function montoTexto(m: string | null): string {
@@ -250,7 +251,7 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
   }
 
   // ── Vista ESCRITORIO ────────────────────────────────────────────────────────
-  const cols = 'minmax(200px,2.2fr) 1.3fr 1fr 1.1fr 0.9fr 28px';
+  const cols = 'minmax(200px,2.4fr) 1fr 1.1fr 1.3fr 28px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -333,10 +334,9 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
           style={{ gridTemplateColumns: cols }}
         >
           <span>Negocio</span>
-          <span>Tipo</span>
           <span>Monto</span>
           <span>Fecha</span>
-          <span>Origen</span>
+          <span>Tipo</span>
           <span />
         </div>
 
@@ -394,15 +394,12 @@ function FilaEvento({ e, cols, onAbrir, onPrefetch }: { e: EventoFila; cols: str
       style={{ gridTemplateColumns: cols }}
     >
       <span className="flex min-w-0 items-center gap-2.5">
-        <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] bg-superficie-2 text-texto-3">
-          <Building2 size={15} />
-        </span>
+        <AvatarNegocio nombre={e.negocioNombre ?? '—'} logoUrl={e.logoUrl} tam={38} />
         <span className="truncate text-[13.5px] font-semibold text-texto">{e.negocioNombre ?? '—'}</span>
       </span>
-      <span><BadgeTipoEvento tipo={e.tipo} /></span>
       <span className={`text-[13.5px] font-semibold ${e.monto != null ? 'text-texto' : 'text-texto-4'}`}>{montoTexto(e.monto)}</span>
       <span className="text-[13px] text-texto-2">{fechaCorta(e.fecha)}</span>
-      <span><ChipOrigen origen={e.origen} /></span>
+      <span><BadgeTipoEvento tipo={e.tipo} /></span>
       <span className="flex justify-end text-texto-4"><ChevronRight size={17} /></span>
     </div>
   );
@@ -424,13 +421,10 @@ function CardEvento({ e, onAbrir, onPrefetch }: { e: EventoFila; onAbrir: () => 
       onTouchStart={onPrefetch}
       className="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie p-3 text-left transition active:bg-marca-suave"
     >
+      <AvatarNegocio nombre={e.negocioNombre ?? '—'} logoUrl={e.logoUrl} tam={42} />
       <span className="flex min-w-0 flex-1 flex-col gap-1.5">
         <span className="truncate text-[14.5px] font-semibold text-texto">{e.negocioNombre ?? '—'}</span>
-        <span className="flex items-center gap-2 text-[12px] text-texto-3">
-          {fechaCorta(e.fecha)}
-          <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-texto-4" />
-          <ChipOrigen origen={e.origen} />
-        </span>
+        <span className="text-[12px] text-texto-3">{fechaCorta(e.fecha)}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1.5">
         <BadgeTipoEvento tipo={e.tipo} small />

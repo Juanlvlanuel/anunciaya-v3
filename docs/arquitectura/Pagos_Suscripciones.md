@@ -57,6 +57,7 @@
 | `meses_cubiertos` | N elegido en "por meses" (NULL en "fecha exacta") |
 | `periodo_hasta` | Vencimiento aplicado (= `trial_end` empujado en Stripe) |
 | `registrado_por` | Admin que registró (FK `usuarios`, `ON DELETE SET NULL`) |
+| `anulado` · `anulado_at` · `anulado_por` · `motivo_anulacion` | **Anulación** (borrado lógico): el pago no se borra, se marca anulado; recalcula la vigencia desde el pago más reciente NO anulado y saca el ingreso de la bitácora. Solo negocios manuales. Migración `2026-06-11-anular-pago.sql` |
 
 > Cada "Registrar pago" (§9.1) inserta una fila aquí, en la **misma transacción** que activa el negocio. Antes el dato contable se perdía: solo quedaba la acción en `admin_auditoria`, sin monto ni concepto.
 

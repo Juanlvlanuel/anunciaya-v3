@@ -8,7 +8,7 @@
 > **en lenguaje de persona**, sin tecnicismos. La segunda (el **Apéndice técnico** al final)
 > es la referencia para quien va a tocar el código.
 >
-> **Estado:** desplegado y en uso (bitácora V1, solo lectura). Última actualización: 11 Junio 2026.
+> **Estado:** desplegado y en uso. Última actualización: 11 Junio 2026 (la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento).
 >
 > Documentos hermanos: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) ·
 > [`Negocios.md`](Negocios.md) (donde se *registran* los pagos manuales) ·
@@ -73,8 +73,8 @@ Tres tarjetas con el resumen de lo que estás viendo: **Ingresos**, **Cobros fal
 **Movimientos** (el total). Cambian según los filtros que apliques.
 
 ### La bitácora (la tabla)
-Un renglón por movimiento. Cada uno muestra: **negocio**, **tipo** (con su color), **monto**,
-**fecha** y **origen**. En celular se ven como tarjetas.
+Un renglón por movimiento, con el **logo del negocio**. Columnas: **negocio · monto · fecha · tipo**
+(con su color). En celular se ven como tarjetas.
 
 Arriba tienes con qué acotar:
 - Un **buscador** por nombre de negocio.
@@ -94,12 +94,16 @@ técnicos de Stripe (para rastrear el cobro si hace falta).
 
 ## 5. ¿Qué puede hacer cada quién?
 
-Es un módulo de **solo lectura**: nadie *hace* nada aquí, solo se consulta.
+Es **sobre todo de consulta** (KPIs, lista, filtros). La excepción: al abrir el detalle de un
+movimiento tipo **"Pago manual"**, el super/gerente puede **reenviar el comprobante, corregir o
+anular** ese pago — las mismas acciones que en Negocios (reusan sus endpoints). Los eventos
+automáticos de **Stripe** (cobros, fallidos, cancelaciones) siguen siendo de solo lectura.
 
 | Lo que quiere hacer | Superadmin | Gerente | Vendedor |
 |---|:---:|:---:|:---:|
 | Ver la bitácora + KPIs + filtros | **Toda** | **Su región** | — |
 | Abrir el detalle de un movimiento | Sí | Su región | — |
+| **Reenviar / corregir / anular** un pago manual (desde su detalle) | Sí | Su región | — |
 
 ---
 
@@ -142,8 +146,10 @@ Probablemente la sede de ese negocio está en una ciudad **fuera de tu región**
 movimientos de los negocios de tu territorio.
 
 **¿Puedo corregir o borrar un movimiento desde aquí?**
-No. La bitácora solo refleja. Si registraste mal un pago, se corrige desde la **ficha del
-negocio** (en Negocios).
+Los movimientos tipo **"Pago manual"** sí: al abrir su detalle puedes **reenviar el comprobante,
+corregir** (concepto/monto/meses) o **anular** el pago (borrado lógico, recalcula vigencia, avisa al
+dueño). Los eventos automáticos de **Stripe** son de solo lectura. Las mismas acciones existen en la
+ficha del negocio (Negocios).
 
 ---
 
