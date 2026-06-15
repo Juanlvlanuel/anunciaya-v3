@@ -1,0 +1,21 @@
+{
+  "name": "AnunciaYA Panel",
+  "short_name": "Panel",
+  "description": "Panel de administración de AnunciaYA",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0e0f13",
+  "theme_color": "#0e0f13",
+  "lang": "es-MX",
+  "dir": "ltr",
+  "icons": [
+    {
+      "src": "/favicon2.png",
+      "sizes": "330x329",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}
