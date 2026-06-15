@@ -375,38 +375,6 @@ export const negocioMetodosPago = pgTable("negocio_metodos_pago", {
 	uniqueIndex("negocio_metodos_pago_sucursal_unique").on(table.sucursalId, table.tipo).where(sql`sucursal_id IS NOT NULL`),
 	check("negocio_metodos_pago_tipo_check", sql`tipo IN ('efectivo', 'tarjeta_debito', 'tarjeta_credito', 'transferencia')`),]);
 
-export const negocioCitasConfig = pgTable("negocio_citas_config", {
-	negocioId: uuid("negocio_id").primaryKey().notNull(),
-	duracionDefaultMinutos: integer("duracion_default_minutos").default(30),
-	diasAnticipacionMaxima: integer("dias_anticipacion_maxima").default(7),
-	horasMinimasCancelacion: integer("horas_minimas_cancelacion").default(2),
-	confirmarAutomaticamente: boolean("confirmar_automaticamente").default(false),
-	diasDisponibles: jsonb("dias_disponibles"),
-}, (table) => [
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "negocio_citas_config_negocio_id_fkey"
-	}).onDelete("cascade"),
-]);
-
-export const negocioCitasFechasEspecificas = pgTable("negocio_citas_fechas_especificas", {
-	id: serial().primaryKey().notNull(),
-	negocioId: uuid("negocio_id").notNull(),
-	fecha: date().notNull(),
-	activo: boolean().default(true),
-	horaInicio: time("hora_inicio"),
-	horaFin: time("hora_fin"),
-}, (table) => [
-	index("idx_negocio_citas_fechas_fecha").using("btree", table.fecha.asc().nullsLast()),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "negocio_citas_fechas_especificas_negocio_id_fkey"
-	}).onDelete("cascade"),
-	unique("negocio_citas_fechas_unique").on(table.negocioId, table.fecha),
-]);
-
 export const negocioGaleria = pgTable("negocio_galeria", {
 	id: serial().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull(),
@@ -496,75 +464,6 @@ export const articuloSucursales = pgTable("articulo_sucursales", {
 		name: "fk_articulo_sucursales_sucursal"
 	}).onDelete("cascade"),
 	unique("articulo_sucursales_unique").on(table.articuloId, table.sucursalId),
-]);
-
-export const citas = pgTable("citas", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	negocioId: uuid("negocio_id").notNull(),
-	servicioId: uuid("servicio_id").notNull(),
-	clienteId: uuid("cliente_id").notNull(),
-	empleadoId: uuid("empleado_id"),
-	fecha: date().notNull(),
-	horaInicio: time("hora_inicio").notNull(),
-	horaFin: time("hora_fin"),
-	duracion: integer(),
-	horaFinReal: timestamp("hora_fin_real", { withTimezone: true, mode: 'string' }),
-	terminadaManualmente: boolean("terminada_manualmente").default(false),
-	creadaPor: varchar("creada_por", { length: 20 }).default('cliente'),
-	estado: varchar({ length: 20 }).default('pendiente'),
-	nombreCliente: varchar("nombre_cliente", { length: 200 }).notNull(),
-	telefonoCliente: varchar("telefono_cliente", { length: 20 }).notNull(),
-	correoCliente: varchar("correo_cliente", { length: 150 }),
-	precioServicio: numeric("precio_servicio", { precision: 10, scale: 2 }).notNull(),
-	notasCliente: text("notas_cliente"),
-	notasNegocio: text("notas_negocio"),
-	recordatorioEnviado: boolean("recordatorio_enviado").default(false),
-	recordatorioEnviadoFecha: timestamp("recordatorio_enviado_fecha", { withTimezone: true, mode: 'string' }),
-	canceladaPor: varchar("cancelada_por", { length: 20 }),
-	motivoCancelacion: text("motivo_cancelacion"),
-	fechaCancelacion: timestamp("fecha_cancelacion", { withTimezone: true, mode: 'string' }),
-	confirmadaPorNegocio: boolean("confirmada_por_negocio").default(false),
-	fechaConfirmacion: timestamp("fecha_confirmacion", { withTimezone: true, mode: 'string' }),
-	codigoConfirmacion: varchar("codigo_confirmacion", { length: 10 }),
-	origenReserva: varchar("origen_reserva", { length: 20 }).default('app'),
-	esBloqueoHorario: boolean("es_bloqueo_horario").default(false),
-	calificacion: smallint(),
-	resena: text(),
-	fechaCalificacion: timestamp("fecha_calificacion", { withTimezone: true, mode: 'string' }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_citas_cliente_id").using("btree", table.clienteId.asc().nullsLast()),
-	index("idx_citas_empleado_id").using("btree", table.empleadoId.asc().nullsLast()),
-	index("idx_citas_estado").using("btree", table.estado.asc().nullsLast()),
-	index("idx_citas_fecha").using("btree", table.fecha.asc().nullsLast()),
-	index("idx_citas_negocio_id").using("btree", table.negocioId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.clienteId],
-		foreignColumns: [usuarios.id],
-		name: "citas_cliente_id_fkey"
-	}),
-	foreignKey({
-		columns: [table.empleadoId],
-		foreignColumns: [empleados.id],
-		name: "citas_empleado_id_fkey"
-	}).onDelete("set null"),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "citas_negocio_id_fkey"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.servicioId],
-		foreignColumns: [articulos.id],
-		name: "citas_servicio_id_fkey"
-	}),
-	unique("citas_codigo_confirmacion_key").on(table.codigoConfirmacion),
-	check("citas_calificacion_check", sql`(calificacion IS NULL) OR ((calificacion >= 1) AND (calificacion <= 5))`),
-	check("citas_cancelada_por_check", sql`(cancelada_por IS NULL) OR ((cancelada_por)::text = ANY ((ARRAY['cliente'::character varying, 'negocio'::character varying, 'sistema'::character varying])::text[]))`),
-	check("citas_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'confirmada'::character varying, 'en_proceso'::character varying, 'completada'::character varying, 'cancelada'::character varying, 'no_asistio'::character varying])::text[])`),
-	check("citas_hora_fin_check", sql`(hora_fin IS NOT NULL) OR ((creada_por)::text = 'negocio'::text)`),
-	check("citas_origen_check", sql`(origen_reserva)::text = ANY ((ARRAY['web'::character varying, 'app'::character varying, 'telefono'::character varying, 'presencial'::character varying])::text[])`),
 ]);
 
 export const empleadoHorarios = pgTable("empleado_horarios", {

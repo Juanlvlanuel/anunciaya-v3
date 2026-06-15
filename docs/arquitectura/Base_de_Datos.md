@@ -66,7 +66,7 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 3. Negocios (13 tablas)
+### 3. Negocios (11 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -77,8 +77,6 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 | `negocio_galeria` | Fotos del negocio |
 | `negocio_modulos` | Funcionalidades habilitadas |
 | `negocio_preferencias` | Configuraciones personalizadas |
-| `negocio_citas_config` | Configuración sistema de citas |
-| `negocio_citas_fechas_especificas` | Excepciones de horario |
 | `categorias_negocio` | Categorías principales |
 | `subcategorias_negocio` | Subcategorías por categoría |
 | `regiones` | Regiones/ciudades disponibles |
@@ -199,12 +197,6 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 > `notificaciones.tipo` acepta `'nuevo_servicio'`.
 
 ---
-
-### 16. Citas (1 tabla)
-
-| Tabla | Propósito |
-|-------|-----------|
-| `citas` | Citas agendadas entre usuarios y negocios |
 
 ---
 
