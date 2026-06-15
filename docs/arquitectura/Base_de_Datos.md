@@ -53,7 +53,6 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 |-------|-----------|
 | `configuracion_sistema` | Parámetros globales de la aplicación |
 | `alertas_seguridad` | Log de eventos de seguridad |
-| `bitacora_uso` | Auditoría de acciones importantes |
 
 ---
 

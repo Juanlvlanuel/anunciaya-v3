@@ -989,37 +989,6 @@ export const planReglas = pgTable("plan_reglas", {
 	check("plan_reglas_tipo_check", sql`(tipo)::text = ANY ((ARRAY['configuracion'::character varying, 'limite'::character varying])::text[])`),
 ]);
 
-export const bitacoraUso = pgTable("bitacora_uso", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	usuarioId: uuid("usuario_id").notNull(),
-	negocioId: uuid("negocio_id"),
-	clave: varchar({ length: 50 }).notNull(),
-	seccion: varchar({ length: 50 }).notNull(),
-	accion: varchar({ length: 20 }).notNull(),
-	cantidad: integer().default(1),
-	entidadId: uuid("entidad_id"),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	entidadTipo: varchar("entidad_tipo", { length: 50 }),
-	notas: text(),
-}, (table) => [
-	index("idx_bitacora_uso_clave").using("btree", table.clave.asc().nullsLast()),
-	index("idx_bitacora_uso_seccion").using("btree", table.seccion.asc().nullsLast()),
-	index("idx_bitacora_uso_usuario_clave").using("btree", table.usuarioId.asc().nullsLast(), table.clave.asc().nullsLast()),
-	index("idx_bitacora_uso_usuario_created").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.asc().nullsLast()),
-	index("idx_bitacora_uso_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "bitacora_uso_negocio_id_fkey"
-	}),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "bitacora_uso_usuario_id_fkey"
-	}),
-	check("bitacora_uso_accion_check", sql`(accion)::text = ANY ((ARRAY['incremento'::character varying, 'decremento'::character varying])::text[])`),
-]);
-
 export const votos = pgTable("votos", {
 	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
 	userId: uuid("user_id"),
