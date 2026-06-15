@@ -20,6 +20,8 @@ import {
     listarUsuarios,
     obtenerExpediente,
     ESTADOS_USUARIO,
+    TIPOS_USUARIO,
+    type TipoUsuario,
 } from '../src/services/admin/usuarios.service.js';
 
 const ok = (b: boolean) => (b ? '✓' : '✗');
@@ -62,13 +64,21 @@ async function main(): Promise<void> {
         verificar(`búsqueda '${term}' encuentra al usuario`, busq.items.some((i) => i.id === muestra.id), `encontrados=${busq.items.length}`);
     }
 
-    console.log('\n[4] Filtro por tipo');
-    const comercial = await listarUsuarios({ pagina: 1, porPagina: 10, tipo: 'comercial' });
-    verificar("tipo='comercial': todas las filas son perfil=comercial", comercial.items.every((i) => i.perfil === 'comercial'), `n=${comercial.items.length}`);
-    const equipo = await listarUsuarios({ pagina: 1, porPagina: 10, tipo: 'equipo' });
-    verificar("tipo='equipo': todas las filas tienen rolEquipo", equipo.items.every((i) => i.rolEquipo != null), `n=${equipo.items.length}`);
-    const vendedor = await listarUsuarios({ pagina: 1, porPagina: 10, tipo: 'vendedor' });
-    verificar("tipo='vendedor': todas las filas son esEmbajador", vendedor.items.every((i) => i.esEmbajador === true), `n=${vendedor.items.length}`);
+    console.log('\n[4] Filtro por tipo — cada fila cumple el predicado de su rol');
+    // Predicados espejo de condicionTipo() en usuarios.service.ts (los 5 tipos reales del FE:
+    // Usuario · Dueño · Gerente de sucursal · Vendedor · Gerente regional).
+    type FilaTipo = { rolEquipo: string | null; esDueno: boolean; esGerenteSucursal: boolean };
+    const predicadosTipo: Record<TipoUsuario, (i: FilaTipo) => boolean> = {
+        usuario: (i) => i.rolEquipo === null && !i.esDueno,        // cliente puro (sin rol ni negocio)
+        comerciante: (i) => i.esDueno && !i.esGerenteSucursal,     // dueño (ligado a negocio, sin sucursal asignada)
+        gerente_sucursal: (i) => i.esGerenteSucursal,              // encargado de una sucursal
+        vendedor: (i) => i.rolEquipo === 'vendedor',
+        gerente: (i) => i.rolEquipo === 'gerente',                 // gerente regional
+    };
+    for (const tipo of TIPOS_USUARIO) {
+        const r = await listarUsuarios({ pagina: 1, porPagina: 50, tipo });
+        verificar(`tipo='${tipo}': todas las filas cumplen el rol`, r.items.every(predicadosTipo[tipo]), `n=${r.items.length}`);
+    }
 
     console.log('\n[5] Expediente 360 (resumen) de un usuario real');
     if (muestra) {
