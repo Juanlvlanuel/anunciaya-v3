@@ -516,12 +516,11 @@ export interface EventoMensajeDesfijado {
 // BÚSQUEDA DE PERSONAS Y NEGOCIOS (Sprint 5)
 // =============================================================================
 
-/** Resultado de buscar personas por nombre/alias */
+/** Resultado de buscar personas por nombre */
 export interface PersonaBusqueda {
   id: string;
   nombre: string;
   apellidos: string;
-  alias: string | null;
   avatarUrl: string | null;
 }
 

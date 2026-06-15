@@ -93,7 +93,6 @@ export interface UsuarioExpediente {
   apellidos: string | null;
   nombreCompleto: string;
   correo: string;
-  alias: string | null;
   telefono: string | null;
   ciudad: string | null;
   avatarUrl: string | null;
@@ -109,9 +108,7 @@ export interface UsuarioExpediente {
   modoActivo: string;
   correoVerificado: boolean;
   correoVerificadoAt: string | null;
-  telefonoVerificado: boolean;
   autenticadoPorGoogle: boolean;
-  autenticadoPorFacebook: boolean;
   dobleFactorHabilitado: boolean;
   panel2faHabilitado: boolean;
   calificacionPromedio: string | null;

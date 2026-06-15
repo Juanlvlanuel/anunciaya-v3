@@ -53,7 +53,6 @@ export interface Usuario {
   correoVerificado: boolean;
   telefono?: string | null;
   avatarUrl?: string | null;
-  alias?: string | null;
   dobleFactorHabilitado?: boolean;
   autenticadoPorGoogle?: boolean;
   fechaNacimiento?: string | null;

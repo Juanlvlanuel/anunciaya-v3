@@ -318,7 +318,6 @@ export interface BuscarPersonasResponse {
   id: string;
   nombre: string;
   apellidos: string;
-  alias: string | null;
   avatarUrl: string | null;
 }
 

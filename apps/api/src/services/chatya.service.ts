@@ -3707,7 +3707,6 @@ export async function buscarPersonas(
                 u.id,
                 u.nombre,
                 u.apellidos,
-                u.alias,
                 u.avatar_url
             FROM usuarios u
             WHERE u.estado = 'activo'
@@ -3715,7 +3714,6 @@ export async function buscarPersonas(
               AND (
                   u.nombre ILIKE ${termino}
                   OR u.apellidos ILIKE ${termino}
-                  OR u.alias ILIKE ${termino}
               )
               -- Excluir bloqueados (en cualquier dirección)
               AND NOT EXISTS (
@@ -3731,13 +3729,11 @@ export async function buscarPersonas(
             id: string;
             nombre: string;
             apellidos: string;
-            alias: string | null;
             avatar_url: string | null;
         }>).map((row) => ({
             id: row.id,
             nombre: row.nombre,
             apellidos: row.apellidos,
-            alias: row.alias,
             avatarUrl: row.avatar_url,
         }));
 

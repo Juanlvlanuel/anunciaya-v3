@@ -1286,7 +1286,7 @@ ScanYA no usa `MainLayout` (que monta `ChatOverlay` automáticamente). Por eso `
 | 24 | DELETE | `/conversaciones/:convId/fijados/:msgId` | Desfijar mensaje |
 | 25 | GET | `/conversaciones/:id/buscar` | Búsqueda full-text (`?texto=hola&limit=20`) |
 | 26 | GET | `/no-leidos` | Total no leídos para badge (`?modo=personal&sucursalId=UUID`) |
-| 27 | GET | `/buscar-personas` | Buscar usuarios por nombre/alias (`?q=texto`) |
+| 27 | GET | `/buscar-personas` | Buscar usuarios por nombre (`?q=texto`) |
 | 28 | GET | `/buscar-negocios` | Buscar negocios con distancia (`?q=texto&ciudad=X&lat=Y&lon=Z`) |
 | 29 | GET | `/mis-notas` | Obtener o crear conversación "Mis Notas" |
 | 30 | POST | `/upload-imagen` | Presigned URL para subir imagen a R2. Body: `{ nombreArchivo, contentType, tamano }` — los 3 son requeridos. Valida 10 MB máx. |

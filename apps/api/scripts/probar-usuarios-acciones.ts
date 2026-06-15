@@ -37,7 +37,6 @@ interface FilaUsuario {
     estado: string;
     motivo_cambio_estado: string | null;
     fecha_cambio_estado: string | null;
-    fecha_reactivacion: string | null;
     bloqueado_hasta: string | null;
     intentos_fallidos: number | null;
     correo: string;
@@ -46,7 +45,7 @@ interface FilaUsuario {
 
 async function leer(id: string): Promise<FilaUsuario> {
     const [u] = (await db.execute(sql`
-        SELECT estado, motivo_cambio_estado, fecha_cambio_estado, fecha_reactivacion,
+        SELECT estado, motivo_cambio_estado, fecha_cambio_estado,
                bloqueado_hasta, intentos_fallidos, correo, correo_verificado
         FROM usuarios WHERE id = ${id}
     `)).rows as FilaUsuario[];
@@ -108,7 +107,7 @@ async function main(): Promise<void> {
         verificar('ok', rea.ok === true);
         const u4 = await leer(id);
         verificar("estado = 'activo'", u4.estado === 'activo', u4.estado);
-        verificar('fecha_reactivacion seteada', !!u4.fecha_reactivacion);
+        verificar('motivo de reactivación guardado', u4.motivo_cambio_estado === 'Resuelto', u4.motivo_cambio_estado ?? '');
         const reaDup = await reactivarUsuario(panelSuper, id, null);
         verificar('reactivar de nuevo → 409', !reaDup.ok && reaDup.status === 409, reaDup.ok ? 'ok' : reaDup.mensaje);
 

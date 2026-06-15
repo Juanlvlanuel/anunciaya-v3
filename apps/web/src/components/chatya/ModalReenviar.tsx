@@ -397,8 +397,7 @@ export function ModalReenviar({ mensaje, onCerrar }: ModalReenviarProps) {
               <p className="px-4 pt-3 pb-1.5 text-[11px] font-bold text-slate-600 uppercase tracking-wider">Personas</p>
               {personasSinDuplicar.map((p) => {
                 const dest = destDePersona(p);
-                const sub  = p.alias ? `@${p.alias}` : undefined;
-                return renderItem(dest, sub);
+                return renderItem(dest);
               })}
             </div>
           )}

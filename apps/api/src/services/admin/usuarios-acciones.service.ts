@@ -333,7 +333,6 @@ export async function reactivarUsuario(
         .update(usuarios)
         .set({
             estado: 'activo',
-            fechaReactivacion: ahora,
             fechaCambioEstado: ahora,
             motivoCambioEstado: motivo ?? null,
             updatedAt: ahora,

@@ -19,7 +19,7 @@
  * El acceso a la sección lo controla `requierePanel(['superadmin','gerente'])` en la ruta. La lente
  * ?regionId solo la usa el superadmin; el gerente usa SIEMPRE la región de su token (ignora el query).
  *
- * SEGURIDAD: este service NUNCA expone secretos (contrasena_hash, *_secreto, codigo_verificacion).
+ * SEGURIDAD: este service NUNCA expone secretos (contrasena_hash, *_secreto).
  * Solo devuelve booleanos derivados (tieneContrasena, etc.).
  *
  * APRETÓN DE ALTURA: el expediente es un RESUMEN (sombreros + contadores), nunca listados
@@ -138,7 +138,6 @@ export interface UsuarioExpediente {
     apellidos: string | null;
     nombreCompleto: string;
     correo: string;
-    alias: string | null;
     telefono: string | null;
     ciudad: string | null;        // texto libre (los usuarios no tienen región estructurada)
     avatarUrl: string | null;
@@ -157,9 +156,7 @@ export interface UsuarioExpediente {
     // Verificaciones y métodos de auth (sin secretos)
     correoVerificado: boolean;
     correoVerificadoAt: string | null;
-    telefonoVerificado: boolean;
     autenticadoPorGoogle: boolean;
-    autenticadoPorFacebook: boolean;
     dobleFactorHabilitado: boolean;
     panel2faHabilitado: boolean;
     // Reputación
@@ -388,7 +385,6 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
             nombre: usuarios.nombre,
             apellidos: usuarios.apellidos,
             correo: usuarios.correo,
-            alias: usuarios.alias,
             telefono: usuarios.telefono,
             ciudad: usuarios.ciudad,
             avatarUrl: usuarios.avatarUrl,
@@ -404,9 +400,7 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
             modoActivo: usuarios.modoActivo,
             correoVerificado: usuarios.correoVerificado,
             correoVerificadoAt: usuarios.correoVerificadoAt,
-            telefonoVerificado: usuarios.telefonoVerificado,
             autenticadoPorGoogle: usuarios.autenticadoPorGoogle,
-            autenticadoPorFacebook: usuarios.autenticadoPorFacebook,
             dobleFactorHabilitado: usuarios.dobleFactorHabilitado,
             panel2faHabilitado: usuarios.panel2faHabilitado,
             requiereCambioContrasena: usuarios.requiereCambioContrasena,
@@ -476,7 +470,6 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
         apellidos: u.apellidos ?? null,
         nombreCompleto: nombreCompleto(u.nombre, u.apellidos),
         correo: u.correo,
-        alias: u.alias ?? null,
         telefono: u.telefono ?? null,
         ciudad: u.ciudad ?? null,
         avatarUrl: u.avatarUrl ?? null,
@@ -492,9 +485,7 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
         modoActivo: u.modoActivo,
         correoVerificado: !!u.correoVerificado,
         correoVerificadoAt: u.correoVerificadoAt ?? null,
-        telefonoVerificado: !!u.telefonoVerificado,
         autenticadoPorGoogle: !!u.autenticadoPorGoogle,
-        autenticadoPorFacebook: !!u.autenticadoPorFacebook,
         dobleFactorHabilitado: !!u.dobleFactorHabilitado,
         panel2faHabilitado: u.panel2faHabilitado,
         calificacionPromedio: u.calificacionPromedio ?? null,

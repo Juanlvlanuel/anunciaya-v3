@@ -62,7 +62,6 @@ function placeholderDesdeFila(f: UsuarioFila): UsuarioExpediente {
     apellidos: null,
     nombreCompleto: f.nombre,
     correo: f.correo,
-    alias: null,
     telefono: f.telefono,
     ciudad: null,
     avatarUrl: f.avatarUrl,
@@ -78,9 +77,7 @@ function placeholderDesdeFila(f: UsuarioFila): UsuarioExpediente {
     modoActivo: f.perfil,
     correoVerificado: false,
     correoVerificadoAt: null,
-    telefonoVerificado: false,
     autenticadoPorGoogle: false,
-    autenticadoPorFacebook: false,
     dobleFactorHabilitado: false,
     panel2faHabilitado: false,
     calificacionPromedio: null,
@@ -324,7 +321,6 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
                 {d.bloqueadoPorIntentos && <ChipBinario texto="Bloqueado por intentos" activo={false} testid="chip-bloqueado" />}
                 {d.requiereCambioContrasena && <ChipBinario texto="Debe cambiar contraseña" activo={false} testid="chip-cambio-contrasena" />}
                 {u.autenticadoPorGoogle && <ChipBinario texto="Google" activo testid="chip-google" />}
-                {u.autenticadoPorFacebook && <ChipBinario texto="Facebook" activo testid="chip-facebook" />}
                 {u.dobleFactorHabilitado && <ChipBinario texto="2FA app" activo testid="chip-2fa-app" />}
                 {u.panel2faHabilitado && <ChipBinario texto="2FA Panel" activo testid="chip-2fa-panel" />}
               </div>
@@ -336,7 +332,6 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
             {/* Lista corrida: Identidad · Roles · Actividad (separadas por líneas tenues) */}
             <div className="px-4 py-1.5">
               <DatoCopiable etiqueta="Correo" valor={u.correo} testid="ficha-usuario-copiar-correo" />
-              <Dato etiqueta="Alias" valor={u.alias ?? '—'} />
               <Dato etiqueta="Teléfono" valor={u.telefono ?? '—'} />
               <Dato etiqueta="Ciudad" valor={u.ciudad ?? '—'} />
               <Dato etiqueta="Nacimiento" valor={fecha(u.fechaNacimiento)} />

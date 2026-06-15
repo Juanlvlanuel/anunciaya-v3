@@ -121,8 +121,8 @@ sus pedidos ni sus chats — eso es a propósito, para que el módulo no se infl
 - **Acceso a la app** — el corazón. Un banner verde/rojo de **"Puede / No puede iniciar
   sesión"** (con la lista de razones si no puede) y unos *chips* del estado de su acceso:
   con/sin contraseña, correo verificado, bloqueado por intentos, debe cambiar contraseña, y sus
-  **métodos de login** (Google, Facebook, 2FA).
-- **Identidad** — nombre, **correo** (con botón de copiar), alias, teléfono, ciudad, nacimiento.
+  **métodos de login** (Google, 2FA).
+- **Identidad** — nombre, **correo** (con botón de copiar), teléfono, ciudad, nacimiento.
 - **Roles** — sus "sombreros" (Cliente / Dueño de negocio / Empleado / Vendedor / Rol de
   equipo), si tiene **modo comercial**, y el **ID de cuenta** (con botón de copiar, para cruzar
   con la BD/Stripe/auditoría).
@@ -407,7 +407,7 @@ Las escrituras viven en `usuarios-acciones.service.ts`. Cada una carga la cuenta
 - **`suspenderUsuario`** (solo super): `estado='suspendido'` + `fecha_cambio_estado` +
   `motivo_cambio_estado`. Guards: no auto-suspensión (409), no cuentas con `rol_equipo` (409), no
   si ya está suspendida (409). El login corta a las cuentas no-activas.
-- **`reactivarUsuario`** (solo super): `estado='activo'` + `fecha_reactivacion`. 409 si ya activa.
+- **`reactivarUsuario`** (solo super): `estado='activo'` + `fecha_cambio_estado` + `motivo_cambio_estado`. 409 si ya activa. (El "cuándo" de la reactivación queda en `fecha_cambio_estado` y en la auditoría `usuario_reactivar`.)
 
 **Estado de la cuenta** (`activo` / `suspendido` / `inactivo`): el badge usa
 `metaEstadoUsuario`. `inactivo` se reserva para una baja voluntaria futura (no es un botón). La
@@ -415,8 +415,8 @@ Las escrituras viven en `usuarios-acciones.service.ts`. Cada una carga la cuenta
 
 ## E. El expediente — qué expone (sin secretos)
 
-`obtenerExpediente` **nunca** devuelve secretos (`contrasena_hash`, `*_secreto`,
-`codigo_verificacion`); solo booleanos derivados (`tieneContrasena`, etc.). Trae:
+`obtenerExpediente` **nunca** devuelve secretos (`contrasena_hash`, `*_secreto`); solo
+booleanos derivados (`tieneContrasena`, etc.). Trae:
 
 - **Diagnóstico** (`DiagnosticoAcceso`): `correoVerificado`, `tieneContrasena`,
   `bloqueadoPorIntentos`, `bloqueadoHasta`, `intentosFallidos`, `requiereCambioContrasena`,

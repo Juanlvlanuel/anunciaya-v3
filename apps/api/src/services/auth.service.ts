@@ -140,7 +140,6 @@ interface UsuarioPublico {
   correoVerificado: boolean;
   telefono: string | null;
   avatarUrl: string | null;
-  alias: string | null;
   dobleFactorHabilitado: boolean;
   autenticadoPorGoogle: boolean;
   fechaNacimiento: string | null;
@@ -218,7 +217,6 @@ function usuarioAPublico(
     correoVerificado: usuario.correoVerificado ?? false,
     telefono: usuario.telefono ?? null,
     avatarUrl: usuario.avatarUrl ?? null,
-    alias: usuario.alias ?? null,
     dobleFactorHabilitado: usuario.dobleFactorHabilitado ?? false,
     autenticadoPorGoogle: usuario.autenticadoPorGoogle ?? false,
     fechaNacimiento: usuario.fechaNacimiento ?? null,

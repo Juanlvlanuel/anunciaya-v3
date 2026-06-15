@@ -835,11 +835,6 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                           <p className="text-[14px] font-semibold text-white/85 truncate">
                             {persona.nombre} {persona.apellidos}
                           </p>
-                          {persona.alias && (
-                            <p className="text-xs text-white/45 font-medium truncate">
-                              @{persona.alias}
-                            </p>
-                          )}
                         </div>
                       </button>
 
