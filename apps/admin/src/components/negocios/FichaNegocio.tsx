@@ -42,6 +42,7 @@ import {
   useEditarPago,
   useReenviarRecibo,
   useAnularPago,
+  PAGOS_INICIAL_FICHA,
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle, PagoMembresia } from '../../services/negociosService';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
@@ -151,8 +152,9 @@ function ChipDato({ texto, activo, testid }: { texto: string; activo: boolean; t
 
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía' };
-/** Pagos visibles antes del botón "Ver todos" en el historial de la ficha. */
-const PAGOS_INICIAL = 5;
+/** Pagos visibles antes del botón "Ver todos". Del hook compartido para que el prefetch
+ *  cargue la MISMA query y la ficha abra completa de una vez (ver usePrefetchNegocio). */
+const PAGOS_INICIAL = PAGOS_INICIAL_FICHA;
 
 /** Sección "Historial de pagos" de la ficha: lista densa de pagos manuales (efectivo/transferencia/
  *  cortesía). Siempre visible en negocios de método manual; en los de tarjeta, solo si hay algún pago

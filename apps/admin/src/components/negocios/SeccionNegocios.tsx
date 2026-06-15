@@ -14,11 +14,14 @@
  */
 
 import { Fragment, useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, User, ArrowUpDown, Plus } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
+import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, User, ArrowUpDown, Plus, Loader2 } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
-import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio, useSucursalesNegocio } from '../../hooks/queries/useNegociosAdmin';
+import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio, useSucursalesNegocio, PAGOS_INICIAL_FICHA } from '../../hooks/queries/useNegociosAdmin';
+import { queryKeys } from '../../config/queryKeys';
+import { listarPagosNegocio, obtenerDetalleNegocio } from '../../services/negociosService';
 import type { OrdenNegocios, NegocioFila, SucursalFila, ConteosEstado } from '../../services/negociosService';
 import { metaEstado, BadgeEstadoPago, estadoEfectivo } from './estadoPago';
 import { AvatarNegocio, AvatarVendedor, AvatarVacio } from './avatares';
@@ -77,6 +80,39 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const [mostrarAlta, setMostrarAlta] = useState(false);
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [sucursalSel, setSucursalSel] = useState<{ negocioId: string; sucursal: SucursalFila } | null>(null);
+  const [abriendoId, setAbriendoId] = useState<string | null>(null);
+  const qc = useQueryClient();
+
+  // Al abrir, esperamos a tener el historial de pagos en caché ANTES de montar la ficha, para
+  // que el modal aparezca COMPLETO (info + historial) de una vez. Clave en móvil, donde no hay
+  // hover que prefetchee con antelación (en PC el hover ya lo dejó en caché → resuelve al
+  // instante). El resto de la info ya es instantánea por el placeholder de la fila. Mientras
+  // carga, la tarjeta muestra un spinner; un guard evita doble apertura.
+  const abrirNegocio = async (n: NegocioFila) => {
+    if (abriendoId) return;
+    setAbriendoId(n.id);
+    try {
+      // Detalle real + historial: con AMBOS en caché la ficha abre completa (valores reales,
+      // no placeholders) y a su altura final, sin que el método de cobro real o el historial
+      // muevan nada después. Ambas suelen venir ya prefetcheadas (hover/touch).
+      await Promise.all([
+        qc.ensureQueryData({
+          queryKey: queryKeys.negocios.detalle(n.id),
+          queryFn: () => obtenerDetalleNegocio(n.id),
+          staleTime: 1000 * 60 * 2,
+        }),
+        qc.ensureQueryData({
+          queryKey: [...queryKeys.negocios.pagos(n.id), PAGOS_INICIAL_FICHA + 1],
+          queryFn: () => listarPagosNegocio(n.id, PAGOS_INICIAL_FICHA + 1),
+          staleTime: 1000 * 60,
+        }),
+      ]);
+    } catch {
+      // Si algo falla, igual abrimos: la ficha mostrará su propio estado.
+    }
+    setSeleccionado(n);
+    setAbriendoId(null);
+  };
   const prefetchNegocio = usePrefetchNegocio();
 
   // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
@@ -270,8 +306,9 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
                 <Fragment key={n.id}>
                   <CardNegocio
                     n={n}
+                    abriendo={abriendoId === n.id}
                     expandido={expandidos.has(n.id)}
-                    onAbrir={() => setSeleccionado(n)}
+                    onAbrir={() => abrirNegocio(n)}
                     onToggle={() => toggleExpandir(n.id)}
                     onPrefetch={() => prefetchNegocio(n.id)}
                   />
@@ -422,7 +459,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
                   cols={cols}
                   mostrarVendedor={mostrarVendedor}
                   expandido={expandidos.has(n.id)}
-                  onAbrir={() => setSeleccionado(n)}
+                  onAbrir={() => abrirNegocio(n)}
                   onToggle={() => toggleExpandir(n.id)}
                   onPrefetch={() => prefetchNegocio(n.id)}
                 />
@@ -617,12 +654,14 @@ function FilasSucursales({
 
 function CardNegocio({
   n,
+  abriendo,
   expandido,
   onAbrir,
   onToggle,
   onPrefetch,
 }: {
   n: NegocioFila;
+  abriendo: boolean;
   expandido: boolean;
   onAbrir: () => void;
   onToggle: () => void;
@@ -658,7 +697,11 @@ function CardNegocio({
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1.5">
           <BadgeEstadoPago estado={estadoEfectivo(n.estadoAdmin, n.estadoPago)} small />
-          <ChevronRight size={16} className="text-texto-4" />
+          {abriendo ? (
+            <Loader2 size={16} className="animate-spin text-marca" />
+          ) : (
+            <ChevronRight size={16} className="text-texto-4" />
+          )}
         </span>
       </div>
 

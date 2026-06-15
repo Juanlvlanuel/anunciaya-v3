@@ -68,8 +68,17 @@ export function useNegocioDetalle(id: string | null, placeholder?: NegocioDetall
 }
 
 /**
- * Devuelve una función para PREFETCHEAR la ficha de un negocio (al pasar el mouse
- * o tocar la fila), de modo que al abrir el modal los datos ya estén en caché.
+ * Pagos visibles en el historial de la ficha antes de "Ver todos". Compartida para que el
+ * PREFETCH cargue EXACTAMENTE la misma query (límite = +1) que abre el modal; si se
+ * desincroniza, la key no coincide y la ficha vuelve a "crecer" al cargar los pagos.
+ */
+export const PAGOS_INICIAL_FICHA = 5;
+
+/**
+ * Devuelve una función para PREFETCHEAR la ficha de un negocio (al pasar el mouse o
+ * tocar la fila), de modo que al abrir el modal los datos ya estén en caché. Trae el
+ * detalle Y el historial de pagos (misma query que abre el modal) para que la ficha
+ * aparezca completa de una vez, sin el "salto" de crecer cuando llegan los pagos.
  */
 export function usePrefetchNegocio() {
   const qc = useQueryClient();
@@ -79,6 +88,11 @@ export function usePrefetchNegocio() {
         queryKey: queryKeys.negocios.detalle(id),
         queryFn: () => negociosService.obtenerDetalleNegocio(id),
         staleTime: 1000 * 60 * 2,
+      });
+      qc.prefetchQuery({
+        queryKey: [...queryKeys.negocios.pagos(id), PAGOS_INICIAL_FICHA + 1],
+        queryFn: () => negociosService.listarPagosNegocio(id, PAGOS_INICIAL_FICHA + 1),
+        staleTime: 1000 * 60,
       });
     },
     [qc],
