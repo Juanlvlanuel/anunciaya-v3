@@ -40,7 +40,7 @@ const CONCEPTOS: { valor: ConceptoAlta; etiqueta: string }[] = [
 const PASOS = [
   { n: 1, etiqueta: 'Negocio', icono: Store, desc: 'Nombre y ciudad del comercio' },
   { n: 2, etiqueta: 'Dueño', icono: User, desc: 'Datos de la cuenta del dueño' },
-  { n: 3, etiqueta: 'Cobro', icono: CreditCard, desc: 'Concepto, monto y periodo' },
+  { n: 3, etiqueta: 'Cobro', icono: CreditCard, desc: 'Periodo, monto y forma de pago' },
 ];
 
 const chip = (activo: boolean) =>
@@ -134,7 +134,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const [telDigitos, setTelDigitos] = useState('');
   // Cobro
   const [concepto, setConcepto] = useState<ConceptoAlta>('efectivo');
-  const [monto, setMonto] = useState('');
+  const [monto, setMonto] = useState(String(precioPorMeses(1)));
   const [mesChip, setMesChip] = useState(1);
   const [modoOtro, setModoOtro] = useState(false);
   const [mesesOtro, setMesesOtro] = useState('');
@@ -180,6 +180,23 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   };
   const atras = () => setPaso((p) => Math.max(1, p - 1));
 
+  // El MONTO sigue al periodo elegido (sugerido, editable): por meses = precio del plan;
+  // por fecha = proporcional a los días. La cortesía no lleva monto.
+  const aplicarMeses = (m: number) => {
+    setModoOtro(false);
+    setMesChip(m);
+    if (concepto !== 'cortesia') setMonto(String(precioPorMeses(m)));
+  };
+  const aplicarMesesOtro = (valor: string) => {
+    setMesesOtro(valor);
+    const n = Number(valor);
+    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1 && n <= 36) setMonto(String(precioPorMeses(n)));
+  };
+  const aplicarModoMeses = () => {
+    setModoPlazo('meses');
+    const m = modoOtro ? Number(mesesOtro) : mesChip;
+    if (concepto !== 'cortesia' && Number.isInteger(m) && m >= 1) setMonto(String(precioPorMeses(m)));
+  };
   // Elegir la fecha exacta sugiere el monto a proporción de los días (salvo cortesía); editable.
   const aplicarFecha = (valor: string) => {
     setFechaManual(valor);
@@ -406,47 +423,14 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
           {/* ── Paso 3: Cobro ── */}
           {paso === 3 && (
             <div data-testid="alta-paso-cobro">
-              <PasoHeader icono={CreditCard} titulo="Cobro" desc="Concepto, monto y periodo cubierto" />
+              <PasoHeader icono={CreditCard} titulo="Cobro" desc="Periodo, monto y forma de pago" />
+
+              {/* Periodo cubierto (primero: el monto se sugiere a partir de él) */}
               <div className="mb-4">
-                <label className={LABEL}>¿Cómo pagó?</label>
-                <div className="flex flex-wrap gap-2" data-testid="alta-concepto">
-                  {conceptosDisponibles.map((c) => (
-                    <button
-                      key={c.valor}
-                      type="button"
-                      data-testid={`alta-concepto-${c.valor}`}
-                      onClick={() => setConcepto(c.valor)}
-                      className={chip(concepto === c.valor)}
-                    >
-                      {c.etiqueta}
-                    </button>
-                  ))}
-                </div>
-              </div>
-              {pideMonto && (
-                <div className="mb-4">
-                  <label className={LABEL}>Monto</label>
-                  <div className="relative">
-                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-texto-4">$</span>
-                    <input
-                      type="number"
-                      inputMode="decimal"
-                      min="0"
-                      step="0.01"
-                      data-testid="alta-monto"
-                      value={monto}
-                      onChange={(e) => setMonto(e.target.value)}
-                      placeholder="449.00"
-                      className={`${CLASE_CAMPO} pl-6`}
-                    />
-                  </div>
-                </div>
-              )}
-              <div className={mostrarVendedor ? 'mb-4' : ''}>
                 <label className={LABEL}>Periodo cubierto</label>
                 {/* Toggle: por meses cerrados o por una fecha exacta de vencimiento */}
                 <div className="mb-2 flex rounded-[10px] border border-borde p-0.5" data-testid="alta-modo-plazo">
-                  <button type="button" data-testid="alta-modo-meses" onClick={() => setModoPlazo('meses')} className={segmento(modoPlazo === 'meses')}>
+                  <button type="button" data-testid="alta-modo-meses" onClick={aplicarModoMeses} className={segmento(modoPlazo === 'meses')}>
                     Por meses
                   </button>
                   <button type="button" data-testid="alta-modo-fecha" onClick={() => setModoPlazo('fecha')} className={segmento(modoPlazo === 'fecha')}>
@@ -462,10 +446,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                           key={m}
                           type="button"
                           data-testid={`alta-mes-${m}`}
-                          onClick={() => {
-                            setModoOtro(false);
-                            setMesChip(m);
-                          }}
+                          onClick={() => aplicarMeses(m)}
                           className={chip(!modoOtro && mesChip === m)}
                         >
                           {m} {m === 1 ? 'mes' : 'meses'}
@@ -488,7 +469,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                         max="36"
                         data-testid="alta-mes-otro-input"
                         value={mesesOtro}
-                        onChange={(e) => setMesesOtro(e.target.value)}
+                        onChange={(e) => aplicarMesesOtro(e.target.value)}
                         placeholder="Número de meses (1–36)"
                         className={`${CLASE_CAMPO} mt-2`}
                       />
@@ -510,6 +491,45 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                     )}
                   </>
                 )}
+              </div>
+
+              {/* Monto (se pre-llena según el periodo; editable) */}
+              {pideMonto && (
+                <div className="mb-4">
+                  <label className={LABEL}>Monto</label>
+                  <div className="relative">
+                    <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-texto-4">$</span>
+                    <input
+                      type="number"
+                      inputMode="decimal"
+                      min="0"
+                      step="0.01"
+                      data-testid="alta-monto"
+                      value={monto}
+                      onChange={(e) => setMonto(e.target.value)}
+                      placeholder="449.00"
+                      className={`${CLASE_CAMPO} pl-6`}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* ¿Cómo pagó? (la cortesía oculta el monto) */}
+              <div className={mostrarVendedor ? 'mb-4' : ''}>
+                <label className={LABEL}>¿Cómo pagó?</label>
+                <div className="flex flex-wrap gap-2" data-testid="alta-concepto">
+                  {conceptosDisponibles.map((c) => (
+                    <button
+                      key={c.valor}
+                      type="button"
+                      data-testid={`alta-concepto-${c.valor}`}
+                      onClick={() => setConcepto(c.valor)}
+                      className={chip(concepto === c.valor)}
+                    >
+                      {c.etiqueta}
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {/* Vendedor (solo superadmin/gerente) */}
