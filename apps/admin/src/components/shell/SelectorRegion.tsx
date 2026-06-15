@@ -33,19 +33,9 @@ export function SelectorRegion({ rol, regionActivaId, onCambiar, compacto = fals
   const regionNombre = useAuthPanelStore((s) => s.usuario?.regionNombre);
   const { data: regiones } = useRegionesPanel(rol === 'superadmin');
 
-  // gerente / vendedor → región fija: el nombre real de SU región.
+  // gerente / vendedor → región fija: el nombre real de SU región (solo escritorio;
+  // en el header móvil este componente solo se monta para superadmin).
   if (rol !== 'superadmin') {
-    if (compacto) {
-      return (
-        <span
-          className="grid h-10 w-10 place-items-center rounded-[10px] text-white/85"
-          title={regionNombre ?? 'Sin región'}
-          aria-label={regionNombre ?? 'Sin región'}
-        >
-          <MapPin size={24} />
-        </span>
-      );
-    }
     return (
       <div className="flex items-center gap-2 px-1 text-sm text-white/90">
         <MapPin size={16} className="text-white/60" />
