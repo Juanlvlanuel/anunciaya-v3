@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm/relations";
 // Tablas dinamicas (dinamicas, dinamicaPremios, dinamicaParticipaciones)
 // removidas en Fase D del cleanup (visión v3 — abril 2026).
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, articuloInventario, articuloVariantes, articuloVarianteOpciones, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, ofertas, ofertaUsos, ofertaUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioModulos, negocioMetodosPago, negocioCitasConfig, negocioCitasFechasEspecificas, negocioGaleria, negocioPreferencias, articulos, articuloSucursales, citas, empleados, empleadoHorarios, direccionesUsuario, pedidos, pedidoArticulos, carrito, ofertas, ofertaUsos, ofertaUsuarios, marketplace, categoriasMarketplace, planes, planReglas, bitacoraUso, votos, resenas, metricasUsuario, carritoArticulos, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, bolsaTrabajo, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -207,34 +207,10 @@ export const articulosRelations = relations(articulos, ({ one, many }) => ({
 		fields: [articulos.negocioId],
 		references: [negocios.id]
 	}),
-	articuloInventarios: many(articuloInventario),
-	articuloVariantes: many(articuloVariantes),
 	citas: many(citas),
 	ofertas: many(ofertas),
 	carritoArticulos: many(carritoArticulos),
 	articuloSucursales: many(articuloSucursales),
-}));
-
-export const articuloInventarioRelations = relations(articuloInventario, ({ one }) => ({
-	articulo: one(articulos, {
-		fields: [articuloInventario.articuloId],
-		references: [articulos.id]
-	}),
-}));
-
-export const articuloVariantesRelations = relations(articuloVariantes, ({ one, many }) => ({
-	articulo: one(articulos, {
-		fields: [articuloVariantes.articuloId],
-		references: [articulos.id]
-	}),
-	articuloVarianteOpciones: many(articuloVarianteOpciones),
-}));
-
-export const articuloVarianteOpcionesRelations = relations(articuloVarianteOpciones, ({ one }) => ({
-	articuloVariante: one(articuloVariantes, {
-		fields: [articuloVarianteOpciones.varianteId],
-		references: [articuloVariantes.id]
-	}),
 }));
 
 export const articuloSucursalesRelations = relations(articuloSucursales, ({ one }) => ({

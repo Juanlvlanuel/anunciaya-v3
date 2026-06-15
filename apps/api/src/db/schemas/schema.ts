@@ -498,60 +498,6 @@ export const articuloSucursales = pgTable("articulo_sucursales", {
 	unique("articulo_sucursales_unique").on(table.articuloId, table.sucursalId),
 ]);
 
-export const articuloInventario = pgTable("articulo_inventario", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	articuloId: uuid("articulo_id").notNull(),
-	stock: integer().default(0),
-	stockMinimo: integer("stock_minimo").default(0),
-	permiteVentaSinStock: boolean("permite_venta_sin_stock").default(false),
-	stockBajo: boolean("stock_bajo").default(false),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	foreignKey({
-		columns: [table.articuloId],
-		foreignColumns: [articulos.id],
-		name: "articulo_inventario_articulo_id_fkey"
-	}).onDelete("cascade"),
-	unique("articulo_inventario_articulo_id_key").on(table.articuloId),
-	check("articulo_inventario_stock_check", sql`stock >= 0`),
-]);
-
-export const articuloVariantes = pgTable("articulo_variantes", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	articuloId: uuid("articulo_id").notNull(),
-	nombre: varchar({ length: 50 }).notNull(),
-	requerido: boolean().default(false),
-	seleccionMultiple: boolean("seleccion_multiple").default(false),
-	minSelecciones: integer("min_selecciones").default(0),
-	maxSelecciones: integer("max_selecciones"),
-	orden: integer().default(0),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_articulo_variantes_articulo_id").using("btree", table.articuloId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.articuloId],
-		foreignColumns: [articulos.id],
-		name: "articulo_variantes_articulo_id_fkey"
-	}).onDelete("cascade"),
-]);
-
-export const articuloVarianteOpciones = pgTable("articulo_variante_opciones", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	varianteId: uuid("variante_id").notNull(),
-	nombre: varchar({ length: 100 }).notNull(),
-	precioAjuste: numeric("precio_ajuste", { precision: 10, scale: 2 }).default('0'),
-	disponible: boolean().default(true),
-	orden: integer().default(0),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_articulo_variante_opciones_variante_id").using("btree", table.varianteId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.varianteId],
-		foreignColumns: [articuloVariantes.id],
-		name: "articulo_variante_opciones_variante_id_fkey"
-	}).onDelete("cascade"),
-]);
-
 export const citas = pgTable("citas", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull(),

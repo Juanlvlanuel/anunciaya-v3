@@ -102,9 +102,6 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 |-------|-----------|
 | `articulos` | Productos/servicios del negocio |
 | `articulo_sucursales` | Disponibilidad por sucursal |
-| `articulo_inventario` | Control de stock |
-| `articulo_variantes` | Variantes (talla, color, sabor) |
-| `articulo_variante_opciones` | Opciones de cada variante |
 
 ---
 
