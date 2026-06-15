@@ -10,8 +10,8 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { Send, Pencil, Ban } from 'lucide-react';
-import { useEventoDetalle } from '../../hooks/queries/useSuscripcionesAdmin';
+import { Send, Pencil, Ban, Trash2 } from 'lucide-react';
+import { useEventoDetalle, useEliminarEvento } from '../../hooks/queries/useSuscripcionesAdmin';
 import { useReenviarRecibo, useEditarPago, useAnularPago } from '../../hooks/queries/useNegociosAdmin';
 import type { EventoFila, EventoDetalle } from '../../services/suscripcionesService';
 import type { PagoMembresia } from '../../services/negociosService';
@@ -132,8 +132,12 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
   const reenviar = useReenviarRecibo();
   const editar = useEditarPago();
   const anular = useAnularPago();
+  const eliminar = useEliminarEvento();
   const [editando, setEditando] = useState(false);
   const [anulandoOpen, setAnulandoOpen] = useState(false);
+  const [eliminandoOpen, setEliminandoOpen] = useState(false);
+  // Borrar (físico): solo superadmin y solo pagos manuales YA ANULADOS (no afectan la vigencia).
+  const puedeEliminar = rol === 'superadmin' && e.tipo === 'pago_manual' && anulado;
   // Pago reconstruido desde el evento (monto + metadata) para pre-llenar el diálogo de editar.
   const pagoEditable: PagoMembresia = {
     id: e.referenciaId ?? '',
@@ -148,35 +152,44 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
     anulado,
   };
 
-  // Acciones del encabezado (solo pagos manuales no anulados). Desktop → íconos con tooltip;
-  // móvil → menú "⋯" con texto. Vacío = AccionesFicha no renderiza nada.
-  const acciones: AccionFicha[] =
-    accionable && !anulado
-      ? [
-          {
-            icono: Send,
-            etiqueta: 'Reenviar comprobante',
-            color: 'marca',
-            testid: 'evento-reenviar',
-            onClick: () => reenviar.mutate({ negocioId: e.negocioId!, pagoId: e.referenciaId! }),
-            disabled: reenviar.isPending,
-          },
-          {
-            icono: Pencil,
-            etiqueta: 'Editar pago',
-            color: 'ambar',
-            testid: 'evento-editar',
-            onClick: () => setEditando(true),
-          },
-          {
-            icono: Ban,
-            etiqueta: 'Anular pago',
-            color: 'peligro',
-            testid: 'evento-anular',
-            onClick: () => setAnulandoOpen(true),
-          },
-        ]
-      : [];
+  // Acciones del encabezado. Desktop → íconos con tooltip; móvil → menú "⋯" con texto.
+  // Pagos manuales NO anulados: Reenviar/Editar/Anular. Anulados (solo superadmin): Borrar.
+  const acciones: AccionFicha[] = [];
+  if (accionable && !anulado) {
+    acciones.push(
+      {
+        icono: Send,
+        etiqueta: 'Reenviar comprobante',
+        color: 'marca',
+        testid: 'evento-reenviar',
+        onClick: () => reenviar.mutate({ negocioId: e.negocioId!, pagoId: e.referenciaId! }),
+        disabled: reenviar.isPending,
+      },
+      {
+        icono: Pencil,
+        etiqueta: 'Editar pago',
+        color: 'ambar',
+        testid: 'evento-editar',
+        onClick: () => setEditando(true),
+      },
+      {
+        icono: Ban,
+        etiqueta: 'Anular pago',
+        color: 'peligro',
+        testid: 'evento-anular',
+        onClick: () => setAnulandoOpen(true),
+      },
+    );
+  }
+  if (puedeEliminar) {
+    acciones.push({
+      icono: Trash2,
+      etiqueta: 'Borrar movimiento',
+      color: 'peligro',
+      testid: 'evento-eliminar',
+      onClick: () => setEliminandoOpen(true),
+    });
+  }
 
   return (
     <ModalAdaptativo
@@ -257,6 +270,22 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
                 { negocioId: e.negocioId!, pagoId: e.referenciaId!, motivo },
                 { onSuccess: () => { setAnulandoOpen(false); onCerrar(); } },
               )
+            }
+          />
+        )}
+
+        {eliminandoOpen && (
+          <DialogoConfirmar
+            abierto
+            onCerrar={() => setEliminandoOpen(false)}
+            titulo="Borrar movimiento"
+            variante="danger"
+            mensaje="Se eliminará permanentemente este movimiento anulado y su pago de la base de datos. Esta acción no se puede deshacer."
+            textoConfirmar="Borrar definitivamente"
+            discriminador="dialogo-eliminar-evento"
+            cargando={eliminar.isPending}
+            onConfirmar={() =>
+              eliminar.mutate(e.id, { onSuccess: () => { setEliminandoOpen(false); onCerrar(); } })
             }
           />
         )}

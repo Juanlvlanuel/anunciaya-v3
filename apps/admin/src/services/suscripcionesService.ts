@@ -108,3 +108,8 @@ export async function obtenerDetalleEvento(id: string): Promise<EventoDetalle | 
   const { data } = await api.get<RespuestaAPI<EventoDetalle>>(`/admin/suscripciones/${id}`);
   return data.data ?? null;
 }
+
+/** Borra un movimiento de pago manual anulado (evento + pago). Solo superadmin (backend). */
+export async function eliminarEvento(id: string): Promise<void> {
+  await api.delete<RespuestaAPI<null>>(`/admin/suscripciones/${id}`);
+}

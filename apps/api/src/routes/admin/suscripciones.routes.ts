@@ -19,11 +19,14 @@ import { requierePanel } from '../../middleware/panel.middleware.js';
 import {
     listarEventosController,
     obtenerDetalleEventoController,
+    eliminarEventoController,
 } from '../../controllers/admin/suscripciones.controller.js';
 
 const router: Router = Router();
 
 router.get('/', requierePanel(['superadmin', 'gerente']), listarEventosController);
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerDetalleEventoController);
+// Borrar un movimiento (pago manual anulado) — SOLO superadmin.
+router.delete('/:id', requierePanel(['superadmin']), eliminarEventoController);
 
 export default router;

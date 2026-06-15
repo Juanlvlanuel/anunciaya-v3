@@ -20,6 +20,7 @@ import {
     type OrigenEvento,
     type OrdenEvento,
 } from '../../services/admin/suscripciones.service.js';
+import { eliminarEventoPago } from '../../services/admin/suscripciones-acciones.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -97,6 +98,29 @@ export async function obtenerDetalleEventoController(req: Request, res: Response
         res.status(500).json({
             success: false,
             message: 'Error al obtener el evento',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// DELETE /api/admin/suscripciones/:id   (borrar movimiento anulado · SOLO superadmin)
+// =============================================================================
+
+export async function eliminarEventoController(req: Request, res: Response): Promise<void> {
+    try {
+        const { id } = req.params;
+        const resultado = await eliminarEventoPago(id);
+        if (!resultado.ok) {
+            res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Movimiento eliminado' });
+    } catch (error) {
+        console.error('Error en eliminarEventoController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar el movimiento',
             error: error instanceof Error ? error.message : String(error),
         });
     }
