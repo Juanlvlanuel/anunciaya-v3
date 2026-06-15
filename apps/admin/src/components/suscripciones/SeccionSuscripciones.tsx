@@ -53,6 +53,8 @@ const OPCIONES_PERIODO: OpcionMenu[] = [
 const CONTEOS_CERO: ConteosEventos = { total: 0, porTipo: [], ingresos: 0, fallidos: 0 };
 const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+/** Monto sin centavos para los KPIs compactos (móvil): el dato estrella nunca se trunca. */
+const FMT_MONTO_CORTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
 
 function fechaCorta(iso: string | null): string {
   if (!iso) return '—';
@@ -164,10 +166,12 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
   );
 
   const kpis = (
-    <div className="grid shrink-0 grid-cols-3 gap-2.5 lg:gap-3">
-      <KpiCard etiqueta="Ingresos" valor={FMT_MONTO.format(conteos.ingresos)} acento="ok" testid="suscripciones-kpi-ingresos" />
-      <KpiCard etiqueta="Cobros fallidos" valor={String(conteos.fallidos)} acento={conteos.fallidos > 0 ? 'danger' : undefined} testid="suscripciones-kpi-fallidos" />
-      <KpiCard etiqueta="Movimientos" valor={String(conteos.total)} testid="suscripciones-kpi-total" />
+    <div className="flex shrink-0 items-stretch py-1">
+      <KpiTira etiqueta="Ingresos" valor={FMT_MONTO_CORTO.format(conteos.ingresos)} acento="ok" testid="suscripciones-kpi-ingresos" />
+      <span className="w-px shrink-0 self-stretch bg-borde" />
+      <KpiTira etiqueta="Fallidos" valor={String(conteos.fallidos)} acento={conteos.fallidos > 0 ? 'danger' : undefined} testid="suscripciones-kpi-fallidos" />
+      <span className="w-px shrink-0 self-stretch bg-borde" />
+      <KpiTira etiqueta="Movimientos" valor={String(conteos.total)} testid="suscripciones-kpi-total" />
     </div>
   );
 
@@ -368,12 +372,16 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
 // SUB-COMPONENTES
 // =============================================================================
 
-function KpiCard({ etiqueta, valor, acento, testid }: { etiqueta: string; valor: string; acento?: 'ok' | 'danger'; testid?: string }) {
+/** KPI en "tira" (móvil): columna centrada etiqueta + valor, separadas por líneas verticales
+ *  en el contenedor. Sin card individual para que los 3 quepan sin truncar. La etiqueta usa
+ *  `txt-badge` (12.5px) a propósito: es un micro-label, no cuerpo, así no la sube el piso de
+ *  texto de 14px y conserva jerarquía contra el valor. */
+function KpiTira({ etiqueta, valor, acento, testid }: { etiqueta: string; valor: string; acento?: 'ok' | 'danger'; testid?: string }) {
   const color = acento === 'ok' ? 'var(--panel-ok)' : acento === 'danger' ? 'var(--panel-danger)' : 'var(--panel-text)';
   return (
-    <div data-testid={testid} className="min-w-0 rounded-[12px] border border-borde bg-superficie-2 px-3.5 py-2.5 lg:px-4 lg:py-3">
-      <p className="truncate text-[10.5px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</p>
-      <p className="mt-0.5 truncate text-[17px] font-bold lg:text-[19px]" style={{ color }}>{valor}</p>
+    <div data-testid={testid} className="flex min-w-0 flex-1 flex-col items-center px-1.5 text-center leading-tight">
+      <span className="txt-badge max-w-full truncate font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
+      <span className="mt-1 max-w-full truncate text-[17px] font-bold" style={{ color }}>{valor}</span>
     </div>
   );
 }
