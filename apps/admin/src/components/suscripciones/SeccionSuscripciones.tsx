@@ -283,7 +283,7 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
                 <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
                 {t.label}
                 <span
-                  className="min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
+                  className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
                   style={activo ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color } : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
                 >
                   {conteoDe(t.id)}

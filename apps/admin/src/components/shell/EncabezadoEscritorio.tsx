@@ -8,7 +8,7 @@
  * Ubicación: apps/admin/src/components/shell/EncabezadoEscritorio.tsx
  */
 
-import { Search, Sun, Moon } from 'lucide-react';
+import { Sun, Moon } from 'lucide-react';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { SelectorRegion } from './SelectorRegion';
 import { BandejaPendientes } from './BandejaPendientes';
@@ -61,13 +61,6 @@ export function EncabezadoEscritorio({
       <div className="flex items-center gap-3">
         <SelectorRegion rol={rol} regionActivaId={regionActivaId} onCambiar={onCambiarRegion} />
         <span className="mx-1 h-[46px] w-0.5 shrink-0 rounded bg-linear-to-b from-transparent via-white/55 to-transparent" />
-        <button
-          type="button"
-          aria-label="Buscar"
-          className="grid h-10 w-10 place-items-center rounded-[10px] text-white/72 transition hover:bg-white/12 hover:text-white"
-        >
-          <Search size={20} />
-        </button>
         <button
           type="button"
           data-testid="tema-escritorio"

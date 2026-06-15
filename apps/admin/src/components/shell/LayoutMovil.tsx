@@ -10,7 +10,6 @@
 
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { EncabezadoMovil } from './EncabezadoMovil';
-import { SubcabeceraMovil } from './SubcabeceraMovil';
 import { BarraInferior } from './BarraInferior';
 import { CajonNavegacion } from './CajonNavegacion';
 import { itemsParaRol, type RolPanel } from '../../data/menuPanel';
@@ -20,11 +19,10 @@ import type { Tema } from '../../utils/tema';
 
 interface LayoutMovilProps {
   rol: RolPanel;
-  nombre: string;
-  avatarUrl?: string | null;
   seccionActivaId: string;
   onSeleccionar: (id: string) => void;
   regionActivaId: string;
+  onCambiarRegion: (id: string) => void;
   tema: Tema;
   onAlternarTema: () => void;
   onCerrarSesion: () => void;
@@ -49,8 +47,7 @@ export function LayoutMovil(props: LayoutMovilProps) {
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-superficie">
-      <EncabezadoMovil rol={props.rol} nombre={props.nombre} avatarUrl={props.avatarUrl} />
-      <SubcabeceraMovil rol={props.rol} nombre={props.nombre} regionActivaId={props.regionActivaId} />
+      <EncabezadoMovil rol={props.rol} regionActivaId={props.regionActivaId} onCambiarRegion={props.onCambiarRegion} />
 
       <main className="flex-1 overflow-y-auto pb-1.5">{props.children}</main>
 

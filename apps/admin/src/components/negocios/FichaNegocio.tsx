@@ -141,7 +141,7 @@ function ChipDato({ texto, activo, testid }: { texto: string; activo: boolean; t
   return (
     <span
       data-testid={testid}
-      className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11.5px] font-medium text-texto-2"
+      className="txt-badge inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11.5px] font-medium text-texto-2"
     >
       <span className="h-[6px] w-[6px] shrink-0 rounded-full" style={{ background: activo ? 'var(--panel-ok)' : 'var(--panel-text-4)' }} />
       {texto}
@@ -192,7 +192,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
                     <span className="ml-2 text-[12px] font-normal text-texto-3">{CONCEPTO_LABEL[p.concepto] ?? p.concepto}</span>
                     {p.anulado && (
                       <span
-                        className="ml-2 rounded-[6px] px-1.5 py-0.5 text-[10.5px] font-semibold"
+                        className="txt-badge ml-2 rounded-[6px] px-1.5 py-0.5 text-[10.5px] font-semibold"
                         style={{ background: 'rgba(220,38,38,0.12)', color: '#dc2626' }}
                       >
                         Anulado

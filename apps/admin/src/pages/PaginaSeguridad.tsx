@@ -112,11 +112,11 @@ export default function PaginaSeguridad() {
             <div className="flex items-center justify-between border-b border-borde px-5 py-3.5">
               <span className="text-[13px] font-semibold text-texto-2">Estado</span>
               {vista === 'encendido' ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--panel-ok)_35%,transparent)] bg-[color-mix(in_srgb,var(--panel-ok)_12%,transparent)] px-2.5 py-1 text-[12px] font-semibold text-ok">
+                <span className="txt-badge inline-flex items-center gap-1.5 rounded-full border border-[color-mix(in_srgb,var(--panel-ok)_35%,transparent)] bg-[color-mix(in_srgb,var(--panel-ok)_12%,transparent)] px-2.5 py-1 text-[12px] font-semibold text-ok">
                   <Check size={13} /> Activada
                 </span>
               ) : (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-lienzo px-2.5 py-1 text-[12px] font-semibold text-texto-3">
+                <span className="txt-badge inline-flex items-center gap-1.5 rounded-full border border-borde bg-lienzo px-2.5 py-1 text-[12px] font-semibold text-texto-3">
                   <span className="h-2 w-2 rounded-full bg-texto-4" /> Desactivada
                 </span>
               )}
@@ -174,7 +174,7 @@ export default function PaginaSeguridad() {
                     'Escribe el código de 6 dígitos que aparece para confirmar.',
                   ].map((paso, i) => (
                     <div key={i} className="flex items-center gap-2.5">
-                      <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-marca-suave text-[12px] font-bold text-marca">
+                      <span className="txt-badge grid h-6 w-6 shrink-0 place-items-center rounded-full bg-marca-suave text-[12px] font-bold text-marca">
                         {i + 1}
                       </span>
                       <span className="text-sm text-texto-2">{paso}</span>

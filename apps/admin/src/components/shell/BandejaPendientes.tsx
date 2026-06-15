@@ -13,7 +13,7 @@
  */
 
 import { useState } from 'react';
-import { Inbox, ChevronRight } from 'lucide-react';
+import { Bell, ChevronRight } from 'lucide-react';
 import { useClickFuera } from '../../hooks/useClickFuera';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { PENDIENTES_DEMO, type RolPanel } from '../../data/menuPanel';
@@ -65,11 +65,11 @@ export function BandejaPendientes({ rol, variante }: BandejaPendientesProps) {
           data-testid="pendientes-movil"
           onClick={() => setAbierto((v) => !v)}
           aria-label="Pendientes por resolver"
-          className="relative grid h-10 w-10 translate-y-2 place-items-center text-white/80"
+          className="relative grid h-10 w-10 place-items-center text-white/80"
         >
-          <Inbox size={26} />
+          <Bell size={24} />
           {pendientes.contador > 0 && (
-            <span className="absolute -top-0.5 right-0.5 grid min-w-[16px] place-items-center rounded-full bg-peligro px-1 text-[9px] font-bold text-white">
+            <span className="txt-badge absolute -top-0.5 right-0.5 grid min-w-[16px] place-items-center rounded-full bg-peligro px-1 text-[9px] font-bold text-white">
               {pendientes.contador > 9 ? '9+' : pendientes.contador}
             </span>
           )}
@@ -93,9 +93,9 @@ export function BandejaPendientes({ rol, variante }: BandejaPendientesProps) {
         aria-label="Pendientes por resolver"
         className="relative grid h-10 w-10 place-items-center rounded-[10px] text-white/72 transition hover:bg-white/12 hover:text-white"
       >
-        <Inbox size={20} />
+        <Bell size={20} />
         {pendientes.contador > 0 && (
-          <span className="absolute right-1 top-1 grid min-w-[16px] place-items-center rounded-full border-2 border-[#0e0f13] bg-peligro px-1 text-[9px] font-bold text-white">
+          <span className="txt-badge absolute right-0 -top-0.5 grid min-w-[16px] place-items-center rounded-full border-2 border-[#0e0f13] bg-peligro px-1 text-[9px] font-bold text-white">
             {pendientes.contador > 9 ? '9+' : pendientes.contador}
           </span>
         )}

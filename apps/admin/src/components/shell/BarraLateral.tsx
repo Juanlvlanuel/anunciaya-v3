@@ -69,7 +69,7 @@ export function BarraLateral({
                   <Icono size={18} className={activo ? 'text-marca' : 'text-texto-3'} />
                   <span className="flex-1">{etiquetaDe(it, rol)}</span>
                   {contador ? (
-                    <span className="rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-texto-2">
+                    <span className="txt-badge rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-texto-2">
                       {contador}
                     </span>
                   ) : null}

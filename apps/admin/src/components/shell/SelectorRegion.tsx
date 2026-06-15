@@ -23,9 +23,11 @@ interface SelectorRegionProps {
   rol: RolPanel;
   regionActivaId: string;
   onCambiar: (id: string) => void;
+  /** Disparador compacto (solo icono) para la barra negra del header móvil. */
+  compacto?: boolean;
 }
 
-export function SelectorRegion({ rol, regionActivaId, onCambiar }: SelectorRegionProps) {
+export function SelectorRegion({ rol, regionActivaId, onCambiar, compacto = false }: SelectorRegionProps) {
   const [abierto, setAbierto] = useState(false);
   const ref = useClickFuera<HTMLDivElement>(() => setAbierto(false), abierto);
   const regionNombre = useAuthPanelStore((s) => s.usuario?.regionNombre);
@@ -33,6 +35,17 @@ export function SelectorRegion({ rol, regionActivaId, onCambiar }: SelectorRegio
 
   // gerente / vendedor → región fija: el nombre real de SU región.
   if (rol !== 'superadmin') {
+    if (compacto) {
+      return (
+        <span
+          className="grid h-10 w-10 place-items-center rounded-[10px] text-white/85"
+          title={regionNombre ?? 'Sin región'}
+          aria-label={regionNombre ?? 'Sin región'}
+        >
+          <MapPin size={24} />
+        </span>
+      );
+    }
     return (
       <div className="flex items-center gap-2 px-1 text-sm text-white/90">
         <MapPin size={16} className="text-white/60" />
@@ -51,11 +64,22 @@ export function SelectorRegion({ rol, regionActivaId, onCambiar }: SelectorRegio
         type="button"
         data-testid="selector-region"
         onClick={() => setAbierto((v) => !v)}
-        className="flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-sm text-white transition hover:bg-white/[0.17]"
+        aria-label="Cambiar región"
+        className={
+          compacto
+            ? 'grid h-10 w-10 place-items-center rounded-[10px] text-white/85 transition hover:bg-white/12'
+            : 'flex items-center gap-2 rounded-full border border-white/15 bg-white/10 px-3.5 py-2 text-sm text-white transition hover:bg-white/[0.17]'
+        }
       >
-        {actual.id === '' ? <Globe size={16} className="text-white/70" /> : <MapPin size={16} className="text-white/70" />}
-        <span className="font-semibold">{actual.nombre}</span>
-        <ChevronDown size={16} className="text-white/60" />
+        {compacto ? (
+          actual.id === '' ? <Globe size={24} /> : <MapPin size={24} />
+        ) : (
+          <>
+            {actual.id === '' ? <Globe size={16} className="text-white/70" /> : <MapPin size={16} className="text-white/70" />}
+            <span className="font-semibold">{actual.nombre}</span>
+            <ChevronDown size={16} className="text-white/60" />
+          </>
+        )}
       </button>
 
       {abierto && (

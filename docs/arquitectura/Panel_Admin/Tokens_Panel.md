@@ -15,7 +15,8 @@
 > tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
 > los demás docs: el código manda, el doc lo refleja).
 >
-> **Última actualización:** 10 Junio 2026 (extraído del código actual de Negocios + `index.css`).
+> **Última actualización:** 15 Junio 2026 (añadido §9.1: ajustes globales de vista móvil — íconos,
+> piso de texto y badges).
 
 ---
 
@@ -74,6 +75,8 @@ cada tema. Tomado de `index.css`.
 - **Peso base 500.** Jerarquía por **peso** (500 / 600 / 700), no por saltos grandes de tamaño.
 - **Tamaños usados en Negocios** (densos, B2B): `text-sm` (14px) para cuerpo · `text-[13.5px]` /
   `text-[13px]` para tablas/fichas/diálogos · `text-[11px]` (mono) para badges/etiquetas pequeñas.
+- **Vista móvil (táctil):** piso de **14px** para el texto y **12.5px** para badges/contadores
+  (clase `.txt-badge`); íconos **+18%**. Solo `<1024px`, centralizado en `index.css` — ver **§9.1**.
 
 ---
 
@@ -164,6 +167,27 @@ Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/`
   ya centralizado en `index.css`, no repetir por botón.
 - **Variantes móvil/desktop** cuando el contenedor cambia de fondo por breakpoint (ej. barra negra
   translúcida en móvil vs. card clara en escritorio).
+
+### 9.1 Ajustes globales en vista móvil (táctil)
+
+Igual que el grosor de borde y el `cursor-pointer`, estos ajustes viven en **un solo lugar**
+(`index.css`, reglas **sin `@layer`** para ganar sobre Tailwind) y aplican **solo en `<1024px`**;
+en `≥1024px` todo queda a su tamaño original. Suben la legibilidad en táctil sin tocar componentes.
+
+| Qué | Cómo | Variable |
+|---|---|---|
+| **Íconos +18%** | Todos los `svg.lucide` crecen con la propiedad individual **`scale`** (no `transform`, para que **componga** con `rotate`/`animate-spin` sin pisarlos). | `--escala-iconos-movil: 1.18` |
+| **Piso de texto = 14px** | Todo texto bajo 14px sube a 14px (`= text-sm`). Override con **`:where(.text-[9px]….text-[13.5px])`** — especificidad **0** a propósito. | `--piso-texto-movil: 14px` |
+| **Badges/contadores = 12.5px** | Se marcan con la clase **`.txt-badge`**; al tener especificidad 1, **gana** sobre el piso del `:where` sin `!important`. | `--texto-badge-movil: 12.5px` |
+
+**Qué lleva `.txt-badge`** (estados + contadores — **no** los chips de filtro):
+badges de estado (`BadgeEstadoPago` / `BadgeEstadoUsuario` / `BadgeTipoEvento` / `ChipOrigen`),
+chips binarios/dato (`ChipBinario`, `ChipDato`, "Anulado", "Inactiva", "Matriz", estado 2FA) y
+contadores numéricos (pendientes "9+", menú lateral/cajón, contadores de filtro, paso del wizard 2FA).
+
+**Al crear algo nuevo:** un `text-[Npx]` <14px fuera de badge → añádelo a la lista del `:where`; un
+badge/contador nuevo → ponle `.txt-badge`. Los **chips de filtro** seleccionables **no** son badge
+(suben a 14px como el resto). Para mover un piso, cambia su variable en `index.css`.
 
 ---
 

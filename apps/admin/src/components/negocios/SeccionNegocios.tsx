@@ -270,7 +270,6 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
                 <Fragment key={n.id}>
                   <CardNegocio
                     n={n}
-                    mostrarVendedor={mostrarVendedor}
                     expandido={expandidos.has(n.id)}
                     onAbrir={() => setSeleccionado(n)}
                     onToggle={() => toggleExpandir(n.id)}
@@ -340,7 +339,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
                 <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
                 {t.label}
                 <span
-                  className="min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
+                  className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
                   style={
                     activo
                       ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color }
@@ -595,7 +594,7 @@ function FilasSucursales({
               <span className="inline-flex items-center gap-1.5 truncate text-[13px] font-medium text-texto-2">
                 {s.nombre}
                 {!s.activa && (
-                  <span className="rounded-full bg-superficie px-1.5 py-0.5 text-[10px] font-semibold text-texto-4">Inactiva</span>
+                  <span className="txt-badge rounded-full bg-superficie px-1.5 py-0.5 text-[10px] font-semibold text-texto-4">Inactiva</span>
                 )}
               </span>
               <span className="inline-flex items-center gap-1 text-[11.5px] text-texto-3">
@@ -618,14 +617,12 @@ function FilasSucursales({
 
 function CardNegocio({
   n,
-  mostrarVendedor,
   expandido,
   onAbrir,
   onToggle,
   onPrefetch,
 }: {
   n: NegocioFila;
-  mostrarVendedor: boolean;
   expandido: boolean;
   onAbrir: () => void;
   onToggle: () => void;
@@ -657,15 +654,6 @@ function CardNegocio({
           <span className="truncate text-[14.5px] font-semibold text-texto">{n.nombre}</span>
           <span className="flex items-center gap-2 text-[12px] text-texto-3">
             <span className="truncate">{ciudad ?? 'Sin ciudad'}</span>
-            {mostrarVendedor && (
-              <>
-                <span className="h-[3px] w-[3px] shrink-0 rounded-full bg-texto-4" />
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <User size={12} className="shrink-0" />
-                  <span className="truncate">{n.vendedorNombre ?? 'Sin asignar'}</span>
-                </span>
-              </>
-            )}
           </span>
         </span>
         <span className="flex shrink-0 flex-col items-end gap-1.5">
@@ -720,7 +708,7 @@ function SucursalesMovil({ negocioId, onAbrir }: { negocioId: string; onAbrir: (
             <span className="inline-flex items-center gap-1.5 truncate text-[13.5px] font-medium text-texto">
               {s.nombre}
               {!s.activa && (
-                <span className="rounded-full bg-superficie px-1.5 py-0.5 text-[10px] font-semibold text-texto-4">Inactiva</span>
+                <span className="txt-badge rounded-full bg-superficie px-1.5 py-0.5 text-[10px] font-semibold text-texto-4">Inactiva</span>
               )}
             </span>
             <span className="inline-flex items-center gap-1 text-[12px] text-texto-3">

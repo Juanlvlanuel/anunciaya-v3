@@ -81,11 +81,11 @@ export function FichaSucursal({ negocioId, sucursal, onCerrar }: FichaSucursalPr
               {s.nombre}
             </span>
             <div className="flex items-center gap-1.5">
-              <span className={`rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.activa ? 'bg-marca-suave text-marca' : 'bg-superficie-2 text-texto-3'}`}>
+              <span className={`txt-badge rounded-full px-2 py-0.5 text-[11px] font-semibold ${s.activa ? 'bg-marca-suave text-marca' : 'bg-superficie-2 text-texto-3'}`}>
                 {s.activa ? 'Activa' : 'Inactiva'}
               </span>
               {s.esPrincipal && (
-                <span className="rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-3">Matriz</span>
+                <span className="txt-badge rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-3">Matriz</span>
               )}
             </div>
           </div>

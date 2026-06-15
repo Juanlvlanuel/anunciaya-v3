@@ -120,6 +120,18 @@ body {
 }
 
 /* =============================================================================
+   PULL-TO-REFRESH / OVERSCROLL — bloqueado (es una app, no una página web)
+   =============================================================================
+   El Panel es de pantalla fija: el scroll vive en contenedores internos. Con
+   `overscroll-behavior: none` el navegador NO dispara el "tirar hacia abajo para
+   recargar" ni encadena el scroll al documento. Su efecto se nota sobre todo en
+   táctil (móvil); en PC es inocuo. */
+html,
+body {
+  overscroll-behavior: none;
+}
+
+/* =============================================================================
    GROSOR DE BORDES — 1.5px (decisión de diseño: más presencia que el 1px de Tailwind)
    =============================================================================
    Sobrescribe las utilidades base de borde para TODO el Panel de un solo lugar.
@@ -156,6 +168,59 @@ body {
   label:has(input[type="checkbox"]),
   label:has(input[type="radio"]) {
     cursor: pointer;
+  }
+}
+
+/* =============================================================================
+   TAMAÑO DE ICONOS — +18% solo en vista móvil (< 1024px = bajo el breakpoint lg)
+   =============================================================================
+   En táctil los iconos se ven pequeños; los agrandamos proporcionalmente para
+   TODO el Panel desde un solo lugar (no uniformes: cada icono crece el mismo %,
+   conservando su jerarquía — un 14px pasa a ~16.5px, un 22px a ~26px).
+
+   Usamos la propiedad individual `scale` (NO `transform`) a propósito: compone con
+   las rotaciones y animaciones que Tailwind aplica vía `transform`/`rotate`
+   (chevron rotate-180, animate-spin de los spinners), así que las agranda sin
+   pisarlas. Afecta solo iconos de lucide (todo `svg.lucide`). En PC (>= 1024px)
+   no aplica: quedan a su tamaño original. Para ajustar, cambia --escala-iconos-movil. */
+:root {
+  --escala-iconos-movil: 1.18;
+}
+@media (max-width: 1023.98px) {
+  svg.lucide {
+    scale: var(--escala-iconos-movil);
+  }
+}
+
+/* =============================================================================
+   TAMAÑOS DE TEXTO — vista móvil (< 1024px)
+   =============================================================================
+   En táctil subimos el texto para que sea legible. Dos pisos:
+     · Texto GENERAL → mínimo 14px (= text-sm). Cuerpo, etiquetas, valores,
+       subtítulos: todo lo que esté bajo 14px sube a 14px.
+     · BADGES/chips de estado y CONTADORES → 12.5px (compactos, no desentonan en
+       su pastilla). Se marcan con la clase `.txt-badge` en el componente/span.
+
+   El override general usa `:where(...)` (especificidad 0) a propósito: así la
+   marca `.txt-badge` (especificidad 1) SIEMPRE le gana sin necesidad de
+   `!important`. Reglas sin @layer → ganan sobre las utilidades de Tailwind.
+   En PC (>= 1024px) nada de esto aplica: tamaños originales. Si aparece un nuevo
+   `text-[Npx]` < 14px fuera de badge, añádelo a la lista del :where; para ajustar
+   los pisos, cambia --piso-texto-movil / --texto-badge-movil. */
+:root {
+  --piso-texto-movil: 14px;
+  --texto-badge-movil: 12.5px;
+}
+@media (max-width: 1023.98px) {
+  :where(
+    .text-\[9px\], .text-\[10px\], .text-\[10\.5px\], .text-\[11px\],
+    .text-\[11\.5px\], .text-\[12px\], .text-\[12\.5px\], .text-\[13px\],
+    .text-\[13\.5px\]
+  ) {
+    font-size: var(--piso-texto-movil);
+  }
+  .txt-badge {
+    font-size: var(--texto-badge-movil);
   }
 }
 

@@ -71,11 +71,22 @@ const ALTURAS: Record<NonNullable<ModalAdaptativoProps['alturaMaxima']>, string>
 /** Distancia mínima de arrastre para cerrar el bottom-sheet (px). */
 const UMBRAL_CIERRE = 100;
 
-/** Animaciones de entrada (calcadas del handoff: telón fade, modal fade+scale,
- *  sheet sube desde abajo). Se inyectan junto al portal. */
+/** Duración de la animación de salida del bottom-sheet (ms). Coincide con la
+ *  `transition-transform duration-300` del sheet: al cerrar, desliza hacia abajo
+ *  y solo después desmonta (mismo patrón que apps/web ModalBottom). */
+const DURACION_SALIDA_SHEET = 300;
+/** Salida del modal centrado: más corta (fade+scale), igual que apps/web Modal. */
+const DURACION_SALIDA_MODAL = 200;
+
+/** Animaciones de entrada y salida (calcadas del handoff: telón fade, modal
+ *  fade+scale, sheet sube/baja). Se inyectan junto al portal. El sheet NO usa
+ *  keyframe para salir: su transform inline + `transition-transform` lo desliza,
+ *  así respeta la posición del arrastre en curso. */
 const ANIM_KEYFRAMES = `
 @keyframes aparecer-telon { from { opacity: 0; } to { opacity: 1; } }
+@keyframes ocultar-telon { from { opacity: 1; } to { opacity: 0; } }
 @keyframes aparecer-modal { from { opacity: 0; transform: translateY(10px) scale(0.98); } to { opacity: 1; transform: none; } }
+@keyframes ocultar-modal { from { opacity: 1; transform: none; } to { opacity: 0; transform: translateY(8px) scale(0.98); } }
 @keyframes subir-sheet { from { transform: translateY(100%); } to { transform: translateY(0); } }
 `;
 
@@ -99,8 +110,27 @@ export function ModalAdaptativo({
 }: ModalAdaptativoProps) {
   const esEscritorio = useEsEscritorio();
 
-  // Botón atrás nativo (Android / swipe iOS / flecha del navegador).
-  useBackNativo({ abierto, onCerrar, discriminador });
+  // --- Cierre con animación de salida (paridad con apps/web) ---
+  // `cerrando` mantiene el modal montado mientras corre la animación: el sheet
+  // baja (translateY 100%) y el telón se desvanece antes de llamar `onCerrar`.
+  const [cerrando, setCerrando] = useState(false);
+  const cerrandoRef = useRef(false);
+  const duracionSalida = esEscritorio || centrado ? DURACION_SALIDA_MODAL : DURACION_SALIDA_SHEET;
+  const solicitarCierre = useCallback(() => {
+    if (cerrandoRef.current) return;
+    cerrandoRef.current = true;
+    setCerrando(true);
+    window.setTimeout(() => {
+      cerrandoRef.current = false;
+      setCerrando(false);
+      onCerrar();
+    }, duracionSalida);
+  }, [onCerrar, duracionSalida]);
+
+  // Botón atrás nativo (Android / swipe iOS / flecha del navegador). Pasa por la
+  // salida animada; `abierto && !cerrando` evita que el back se reprocese durante
+  // la animación.
+  useBackNativo({ abierto: abierto && !cerrando, onCerrar: solicitarCierre, discriminador });
 
   // --- Arrastre para cerrar (solo bottom-sheet móvil) ---
   const [arrastreY, setArrastreY] = useState(0);
@@ -123,7 +153,7 @@ export function ModalAdaptativo({
     if (!abierto) return;
 
     const onTecla = (e: KeyboardEvent) => {
-      if (e.key === 'Escape' && cerrarConEscape) onCerrar();
+      if (e.key === 'Escape' && cerrarConEscape) solicitarCierre();
     };
     window.addEventListener('keydown', onTecla);
 
@@ -139,9 +169,14 @@ export function ModalAdaptativo({
       if (!arrastrando) return;
       setArrastrando(false);
       const y = arrastreRef.current;
-      arrastreRef.current = 0;
-      setArrastreY(0);
-      if (y > UMBRAL_CIERRE) onCerrar();
+      // Si superó el umbral, NO reseteamos `arrastreY`: el render de cierre usa
+      // translateY(100%) y la transición lo desliza desde la posición actual.
+      if (y > UMBRAL_CIERRE) {
+        solicitarCierre();
+      } else {
+        arrastreRef.current = 0;
+        setArrastreY(0);
+      }
     };
     const onMouseMove = (e: MouseEvent) => onMover(e.clientY);
     const onTouchMove = (e: TouchEvent) => onMover(e.touches[0].clientY);
@@ -158,11 +193,11 @@ export function ModalAdaptativo({
       document.removeEventListener('touchmove', onTouchMove);
       document.removeEventListener('touchend', onSoltar);
     };
-  }, [abierto, arrastrando, cerrarConEscape, onCerrar]);
+  }, [abierto, arrastrando, cerrarConEscape, solicitarCierre]);
 
   const onClickTelon = useCallback(() => {
-    if (cerrarAlClickFuera) onCerrar();
-  }, [cerrarAlClickFuera, onCerrar]);
+    if (cerrarAlClickFuera) solicitarCierre();
+  }, [cerrarAlClickFuera, solicitarCierre]);
 
   if (!abierto) return null;
 
@@ -178,7 +213,7 @@ export function ModalAdaptativo({
           <button
             type="button"
             data-testid="modal-cerrar"
-            onClick={onCerrar}
+            onClick={solicitarCierre}
             aria-label="Cerrar"
             className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
           >
@@ -202,11 +237,15 @@ export function ModalAdaptativo({
           aria-label="Cerrar"
           onClick={onClickTelon}
           className="absolute inset-0 bg-black/45"
-          style={{ animation: 'aparecer-telon 0.18s ease' }}
+          style={{ animation: cerrando ? 'ocultar-telon 0.2s ease forwards' : 'aparecer-telon 0.18s ease' }}
         />
         <div
           className={`relative flex max-h-[90vh] w-full ${ANCHOS[ancho]} flex-col overflow-hidden rounded-[16px] border border-borde bg-superficie shadow-tarjeta-panel`}
-          style={{ animation: 'aparecer-modal 0.2s cubic-bezier(0.2,0.7,0.3,1)' }}
+          style={{
+            animation: cerrando
+              ? 'ocultar-modal 0.2s cubic-bezier(0.4,0,1,1) forwards'
+              : 'aparecer-modal 0.2s cubic-bezier(0.2,0.7,0.3,1)',
+          }}
         >
           {Header}
           <div className={claseContenido}>{children}</div>
@@ -218,7 +257,7 @@ export function ModalAdaptativo({
   }
 
   // ── Móvil: bottom-sheet con arrastre ────────────────────────────────────────
-  const animarEntrada = !animadoRef.current && arrastreY === 0 && !arrastrando;
+  const animarEntrada = !animadoRef.current && arrastreY === 0 && !arrastrando && !cerrando;
   return createPortal(
     <div className={`fixed inset-0 ${zIndice} flex items-end justify-center`} role="dialog" aria-modal="true">
       <button
@@ -226,14 +265,15 @@ export function ModalAdaptativo({
         aria-label="Cerrar"
         onClick={onClickTelon}
         className="absolute inset-0 bg-black/45"
-        style={{ animation: 'aparecer-telon 0.18s ease' }}
+        style={{ animation: cerrando ? 'ocultar-telon 0.3s ease forwards' : 'aparecer-telon 0.18s ease' }}
       />
       <div
         className={`relative flex w-full ${ALTURAS[alturaMaxima]} flex-col overflow-hidden rounded-t-[22px] border border-borde bg-superficie shadow-tarjeta-panel ${
           arrastrando ? '' : 'transition-transform duration-300'
         }`}
         style={{
-          transform: `translateY(${arrastreY}px)`,
+          // Al cerrar, baja a 100% (la transición lo desliza); si no, sigue el arrastre.
+          transform: cerrando ? 'translateY(100%)' : `translateY(${arrastreY}px)`,
           animation: animarEntrada ? 'subir-sheet 0.32s cubic-bezier(0.25,0.8,0.3,1)' : undefined,
         }}
       >

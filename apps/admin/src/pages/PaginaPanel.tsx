@@ -175,11 +175,10 @@ function PaginaPanel() {
   return (
     <LayoutMovil
       rol={rol}
-      nombre={nombre}
-      avatarUrl={usuario.avatarUrl}
       seccionActivaId={seccionActivaId}
       onSeleccionar={setSeccion}
       regionActivaId={regionActivaId}
+      onCambiarRegion={onCambiarRegion}
       tema={tema}
       onAlternarTema={onAlternarTema}
       onCerrarSesion={onCerrarSesion}

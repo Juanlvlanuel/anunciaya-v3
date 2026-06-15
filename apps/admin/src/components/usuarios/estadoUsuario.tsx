@@ -28,7 +28,7 @@ export function BadgeEstadoUsuario({ estado, small }: { estado: string; small?: 
   const meta = metaEstadoUsuario(estado);
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap ${
+      className={`txt-badge inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap ${
         small ? 'px-2 py-0.5 text-[11.5px]' : 'px-2.5 py-1 text-[12.5px]'
       }`}
       style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}

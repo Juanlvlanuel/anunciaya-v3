@@ -51,10 +51,13 @@ export function CajonNavegacion({
           abierto ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
-        <div className="flex items-center justify-between border-b border-borde px-4 py-3">
-          <span className="flex items-center gap-2 text-[16px] font-bold text-texto">
-            <span className="grid h-7 w-7 place-items-center rounded-lg bg-marca-suave text-marca">
-              <LayoutDashboard size={17} />
+        {/* Header del cajón en dark fijo: `data-tema="oscuro"` re-resuelve las variables
+            del tema a sus valores oscuros solo en este bloque (en light se ve como dark; en
+            dark, igual). `bg-superficie` le da el fondo oscuro para que el texto claro contraste. */}
+        <div data-tema="oscuro" className="flex items-center justify-between border-b border-borde bg-superficie px-4 py-3">
+          <span className="flex items-center gap-2.5 text-[18px] font-bold text-texto">
+            <span className="grid h-9 w-9 place-items-center rounded-lg bg-marca-suave text-marca">
+              <LayoutDashboard size={20} />
             </span>
             Panel de Admins
           </span>
@@ -93,7 +96,7 @@ export function CajonNavegacion({
                     <Icono size={19} className={activo ? 'text-marca' : 'text-texto-3'} />
                     <span className="flex-1">{etiquetaDe(it, rol)}</span>
                     {contador ? (
-                      <span className="rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-texto-2">
+                      <span className="txt-badge rounded-full bg-marca-suave px-2 py-0.5 text-[11px] font-semibold text-texto-2">
                         {contador}
                       </span>
                     ) : null}
@@ -112,9 +115,9 @@ export function CajonNavegacion({
               onSeleccionar('seguridad');
               onCerrar();
             }}
-            className="mb-2 flex w-full items-center gap-2.5 rounded-[10px] px-2.5 py-2.5 text-left text-sm font-medium text-texto-2 transition hover:bg-marca-suave"
+            className="mb-2 flex w-full items-center gap-2.5 rounded-[10px] border-2 border-borde-fuerte px-2.5 py-2.5 text-left text-sm font-semibold text-texto transition hover:bg-marca-suave"
           >
-            <ShieldCheck size={18} className="text-texto-3" /> Seguridad
+            <ShieldCheck size={18} className="text-marca" /> Seguridad
           </button>
           <div className="flex items-center gap-2">
             <button

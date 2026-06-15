@@ -42,7 +42,7 @@ export function BadgeTipoEvento({ tipo, small }: { tipo: string; small?: boolean
   const Icono = meta.icono;
   return (
     <span
-      className={`inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap ${
+      className={`txt-badge inline-flex items-center gap-1.5 rounded-full font-semibold whitespace-nowrap ${
         small ? 'px-2 py-0.5 text-[11.5px]' : 'px-2.5 py-1 text-[12.5px]'
       }`}
       style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
@@ -56,7 +56,7 @@ export function BadgeTipoEvento({ tipo, small }: { tipo: string; small?: boolean
 /** Chip sobrio del origen del evento (Stripe automático / Manual registrado). */
 export function ChipOrigen({ origen }: { origen: string }) {
   return (
-    <span className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11px] font-medium text-texto-3 whitespace-nowrap">
+    <span className="txt-badge inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11px] font-medium text-texto-3 whitespace-nowrap">
       <span
         className="h-[6px] w-[6px] shrink-0 rounded-full"
         style={{ background: origen === 'stripe' ? 'var(--panel-brand)' : 'var(--panel-text-4)' }}
