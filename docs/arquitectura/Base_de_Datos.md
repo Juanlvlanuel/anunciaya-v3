@@ -126,12 +126,10 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 8. Carrito y Pedidos (4 tablas)
+### 8. Pedidos (2 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
-| `carrito` | Carritos de compra activos |
-| `carrito_articulos` | Artículos en cada carrito |
 | `pedidos` | Pedidos completados |
 | `pedido_articulos` | Detalle de productos por pedido |
 
@@ -194,7 +192,7 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 | Tabla | Propósito |
 |-------|-----------|
-| `bolsa_trabajo` | Publicaciones de la sección pública Servicios (modos Ofrezco/Solicito). Cubre servicios e intangibles, incluye empleos. |
+| `servicios_publicaciones` | Publicaciones de la sección pública Servicios (modos Ofrezco/Solicito). Cubre servicios e intangibles, incluye empleos. |
 
 > **Enums:** `chat_conv.contexto_tipo`, `notificaciones.referencia_tipo`,
 > `votos.entity_type`, `guardados.entity_type` y `metricas_entidad.entity_type`

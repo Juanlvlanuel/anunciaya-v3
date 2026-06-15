@@ -27,7 +27,6 @@ import {
     articuloSucursales,
     ofertas,
     empleados,
-    bolsaTrabajo,
     puntosTransacciones,
     transaccionesEvidencia,
     usuarios,
@@ -1540,12 +1539,11 @@ export const eliminarSucursal = async (sucursalId: string) => {
 
 		// Queries en paralelo para recolectar URLs
 		// (Tablas dinámicas removidas en Fase D del cleanup — visión v3, abril 2026)
-		const [galeriaImgs, articulosAsignados, ofertasImgs, empleadosFotos, vacantesImgs, transaccionesSuc] = await Promise.all([
+		const [galeriaImgs, articulosAsignados, ofertasImgs, empleadosFotos, transaccionesSuc] = await Promise.all([
 			db.select({ url: negocioGaleria.url }).from(negocioGaleria).where(eq(negocioGaleria.sucursalId, sucursalId)),
 			db.select({ articuloId: articuloSucursales.articuloId }).from(articuloSucursales).where(eq(articuloSucursales.sucursalId, sucursalId)),
 			db.select({ imagen: ofertas.imagen }).from(ofertas).where(eq(ofertas.sucursalId, sucursalId)),
 			db.select({ fotoUrl: empleados.fotoUrl }).from(empleados).where(eq(empleados.sucursalId, sucursalId)),
-			db.select({ portafolioUrl: bolsaTrabajo.portafolioUrl }).from(bolsaTrabajo).where(eq(bolsaTrabajo.sucursalId, sucursalId)),
 			db.select({ id: puntosTransacciones.id, fotoTicketUrl: puntosTransacciones.fotoTicketUrl }).from(puntosTransacciones).where(eq(puntosTransacciones.sucursalId, sucursalId)),
 		]);
 
@@ -1557,9 +1555,6 @@ export const eliminarSucursal = async (sucursalId: string) => {
 
 		// Empleados
 		for (const e of empleadosFotos) if (e.fotoUrl) urlsAEliminar.push(e.fotoUrl);
-
-		// Bolsa de trabajo (publicaciones de Servicios)
-		for (const v of vacantesImgs) if (v.portafolioUrl) urlsAEliminar.push(v.portafolioUrl);
 
 		// Tickets ScanYA + evidencia
 		if (transaccionesSuc.length > 0) {

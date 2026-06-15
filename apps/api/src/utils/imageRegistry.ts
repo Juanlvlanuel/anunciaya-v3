@@ -91,9 +91,6 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // ─── Transacciones (legado) ───
     { tabla: 'transacciones_evidencia', columna: 'url_imagen', tipo: 'url', descripcion: 'Evidencia fotográfica de transacción' },
 
-    // ─── Bolsa de trabajo ───
-    { tabla: 'bolsa_trabajo', columna: 'portafolio_url', tipo: 'url', descripcion: 'URL de portafolio/imagen de candidato' },
-
     // ─── Notificaciones ───
     { tabla: 'notificaciones', columna: 'actor_imagen_url', tipo: 'url', descripcion: 'Imagen del actor que disparó la notificación (cliente, producto, etc.)' },
 

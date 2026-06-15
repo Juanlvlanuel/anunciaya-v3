@@ -633,26 +633,6 @@ export const pedidoArticulos = pgTable("pedido_articulos", {
 	}).onDelete("cascade"),
 ]);
 
-export const carrito = pgTable("carrito", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	usuarioId: uuid("usuario_id").notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	tipoSeccion: varchar("tipo_seccion", { length: 20 }).default('marketplace').notNull(),
-	tipoVendedor: varchar("tipo_vendedor", { length: 10 }).default('comercial').notNull(),
-	vendedorId: uuid("vendedor_id").default(sql`'00000000-0000-0000-0000-000000000000'`).notNull(),
-}, (table) => [
-	index("idx_carrito_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "carrito_usuario_id_fkey"
-	}).onDelete("cascade"),
-	unique("carrito_usuario_vendedor_unique").on(table.usuarioId, table.tipoVendedor, table.vendedorId),
-	check("carrito_tipo_seccion_check", sql`(tipo_seccion)::text = ANY ((ARRAY['marketplace'::character varying, 'negocios_locales'::character varying, 'promociones'::character varying])::text[])`),
-	check("carrito_tipo_vendedor_check", sql`(tipo_vendedor)::text = ANY ((ARRAY['comercial'::character varying, 'personal'::character varying])::text[])`),
-]);
-
 export const pedidos = pgTable("pedidos", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	numeroPedido: varchar("numero_pedido", { length: 20 }).notNull(),
@@ -1101,30 +1081,6 @@ export const metricasUsuario = pgTable("metricas_usuario", {
 	unique("metricas_usuario_user_id_key").on(table.userId),
 ]);
 
-export const carritoArticulos = pgTable("carrito_articulos", {
-	id: serial().primaryKey().notNull(),
-	carritoId: uuid("carrito_id").notNull(),
-	articuloId: uuid("articulo_id").notNull(),
-	cantidad: integer().default(1).notNull(),
-	modificadores: jsonb().default([]),
-	notas: text(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_carrito_articulos_carrito_id").using("btree", table.carritoId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.articuloId],
-		foreignColumns: [articulos.id],
-		name: "carrito_articulos_articulo_id_fkey"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.carritoId],
-		foreignColumns: [carrito.id],
-		name: "carrito_articulos_carrito_id_fkey"
-	}).onDelete("cascade"),
-	unique("carrito_articulos_carrito_id_articulo_id_modificadores_key").on(table.carritoId, table.articuloId, table.modificadores),
-]);
-
 export const categoriasNegocio = pgTable("categorias_negocio", {
 	nombre: varchar({ length: 50 }).notNull(),
 	icono: varchar({ length: 50 }),
@@ -1378,59 +1334,6 @@ export const empleados = pgTable("empleados", {
 		name: "empleados_sucursal_id_fkey"
 	}).onDelete("cascade"),
 	check("empleados_pin_acceso_check", sql`(pin_acceso IS NULL) OR ((pin_acceso)::text ~ '^[0-9]{4}$'::text)`),
-]);
-
-export const bolsaTrabajo = pgTable("bolsa_trabajo", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	tipo: varchar({ length: 20 }).notNull(),
-	negocioId: uuid("negocio_id"),
-	sucursalId: uuid("sucursal_id").references((): AnyPgColumn => negocioSucursales.id, { onDelete: 'cascade' }),
-	usuarioId: uuid("usuario_id"),
-	titulo: varchar({ length: 200 }).notNull(),
-	descripcion: text().notNull(),
-	salarioMinimo: numeric("salario_minimo", { precision: 10, scale: 2 }),
-	salarioMaximo: numeric("salario_maximo", { precision: 10, scale: 2 }),
-	modalidad: varchar({ length: 20 }).notNull(),
-	ubicacion: varchar({ length: 200 }).notNull(),
-	categoriaServicio: varchar("categoria_servicio", { length: 100 }),
-	experienciaAnios: integer("experiencia_anios"),
-	portafolioUrl: varchar("portafolio_url", { length: 500 }),
-	estado: varchar({ length: 20 }).default('activo').notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	requisitos: text(),
-	tipoContrato: varchar("tipo_contrato", { length: 20 }),
-	contactoEmail: varchar("contacto_email", { length: 100 }),
-	contactoTelefono: varchar("contacto_telefono", { length: 20 }),
-	fechaExpiracion: date("fecha_expiracion"),
-}, (table) => [
-	index("idx_bolsa_trabajo_categoria").using("btree", table.categoriaServicio.asc().nullsLast()).where(sql`(categoria_servicio IS NOT NULL)`),
-	index("idx_bolsa_trabajo_fecha_expiracion").using("btree", table.fechaExpiracion.asc().nullsLast()).where(sql`(fecha_expiracion IS NOT NULL)`),
-	index("idx_bolsa_trabajo_modalidad").using("btree", table.modalidad.asc().nullsLast()),
-	index("idx_bolsa_trabajo_negocio").using("btree", table.negocioId.asc().nullsLast()).where(sql`(negocio_id IS NOT NULL)`),
-	index("idx_bolsa_trabajo_sucursal").using("btree", table.sucursalId.asc().nullsLast()).where(sql`(sucursal_id IS NOT NULL)`),
-	index("idx_bolsa_trabajo_tipo_contrato").using("btree", table.tipoContrato.asc().nullsLast()).where(sql`(tipo_contrato IS NOT NULL)`),
-	index("idx_bolsa_trabajo_tipo_estado").using("btree", table.tipo.asc().nullsLast(), table.estado.asc().nullsLast()).where(sql`((estado)::text = 'activo'::text)`),
-	index("idx_bolsa_trabajo_ubicacion").using("btree", table.ubicacion.asc().nullsLast()),
-	index("idx_bolsa_trabajo_usuario").using("btree", table.usuarioId.asc().nullsLast()).where(sql`(usuario_id IS NOT NULL)`),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "fk_bolsa_trabajo_negocio"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "fk_bolsa_trabajo_usuario"
-	}).onDelete("cascade"),
-	check("bolsa_trabajo_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'pausado'::character varying, 'cerrado'::character varying, 'expirado'::character varying])::text[])`),
-	check("bolsa_trabajo_exclusividad", sql`(((tipo)::text = 'vacante'::text) AND (negocio_id IS NOT NULL) AND (usuario_id IS NULL)) OR (((tipo)::text = 'servicio'::text) AND (usuario_id IS NOT NULL) AND (negocio_id IS NULL))`),
-	check("bolsa_trabajo_modalidad_check", sql`(modalidad)::text = ANY ((ARRAY['presencial'::character varying, 'remoto'::character varying, 'hibrido'::character varying])::text[])`),
-	check("bolsa_trabajo_salario_check", sql`(salario_minimo IS NULL) OR (salario_maximo IS NULL) OR (salario_maximo >= salario_minimo)`),
-	check("bolsa_trabajo_servicio_requiere_usuario", sql`((tipo)::text <> 'servicio'::text) OR (usuario_id IS NOT NULL)`),
-	check("bolsa_trabajo_tipo_check", sql`(tipo)::text = ANY ((ARRAY['vacante'::character varying, 'servicio'::character varying])::text[])`),
-	check("bolsa_trabajo_tipo_contrato_check", sql`(tipo_contrato IS NULL) OR ((tipo_contrato)::text = ANY ((ARRAY['tiempo_completo'::character varying, 'medio_tiempo'::character varying, 'temporal'::character varying, 'freelance'::character varying])::text[]))`),
-	check("bolsa_trabajo_vacante_requiere_negocio", sql`((tipo)::text <> 'vacante'::text) OR (negocio_id IS NOT NULL)`),
 ]);
 
 export const puntosConfiguracion = pgTable("puntos_configuracion", {
