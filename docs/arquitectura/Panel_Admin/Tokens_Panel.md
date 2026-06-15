@@ -15,8 +15,8 @@
 > tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
 > los demás docs: el código manda, el doc lo refleja).
 >
-> **Última actualización:** 15 Junio 2026 (añadido §9.1: ajustes globales de vista móvil — íconos,
-> piso de texto y badges).
+> **Última actualización:** 15 Junio 2026 (§9.1 ajustes globales de vista móvil — íconos, piso de
+> texto, badges y bloqueo de pull-to-refresh; §8 con la animación de salida del bottom-sheet).
 
 ---
 
@@ -152,8 +152,9 @@ Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/`
 ## 8. Movimiento (animaciones)
 
 - **`.animar-entrada`** — fade-in sutil 0.22s (dropdowns, popovers).
-- **`ModalAdaptativo`** — keyframes propios de entrada (telón fade + modal scale/fade en escritorio,
-  subir-sheet en móvil).
+- **`ModalAdaptativo`** — keyframes propios de **entrada** (telón fade + modal scale/fade en
+  escritorio, subir-sheet en móvil) y de **salida** (telón/modal fade-out; el bottom-sheet baja con
+  `translateY(100%)` antes de desmontar, vía un estado `cerrando`). Paridad con apps/web.
 - **`.entrada-login`** (0.42s) y **`.spinner-panel`** (spinner de marca).
 - **`prefers-reduced-motion`** respetado en todas.
 
@@ -188,6 +189,11 @@ contadores numéricos (pendientes "9+", menú lateral/cajón, contadores de filt
 **Al crear algo nuevo:** un `text-[Npx]` <14px fuera de badge → añádelo a la lista del `:where`; un
 badge/contador nuevo → ponle `.txt-badge`. Los **chips de filtro** seleccionables **no** son badge
 (suben a 14px como el resto). Para mover un piso, cambia su variable en `index.css`.
+
+**Pull-to-refresh / overscroll:** el Panel es una app de pantalla fija (el scroll vive en
+contenedores internos), así que `index.css` pone `overscroll-behavior: none` en `html, body`. Eso
+**bloquea el "tirar para recargar"** del navegador y el scroll-chaining. Su efecto se nota en táctil
+(móvil); en PC es inocuo. Es una regla **global** (no va dentro de la media query de <1024px).
 
 ---
 

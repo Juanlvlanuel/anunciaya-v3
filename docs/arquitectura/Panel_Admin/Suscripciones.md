@@ -8,7 +8,7 @@
 > **en lenguaje de persona**, sin tecnicismos. La segunda (el **Apéndice técnico** al final)
 > es la referencia para quien va a tocar el código.
 >
-> **Estado:** desplegado y en uso. Última actualización: 12 Junio 2026 (anular un pago en negocios con **tarjeta** ahora re-sincroniza el cobro de Stripe; ver `Pagos_Suscripciones.md` §9.2. Validado E2E en vivo). 11 Junio 2026: la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento.
+> **Estado:** desplegado y en uso. Última actualización: 15 Junio 2026 (el **superadmin** puede **borrar** físicamente un pago manual **anulado** desde el detalle — nuevo `DELETE /suscripciones/:id` + `suscripciones-acciones.service.ts`; en móvil los KPIs pasaron a una **tira inline**). 12 Junio 2026 (anular un pago en negocios con **tarjeta** ahora re-sincroniza el cobro de Stripe; ver `Pagos_Suscripciones.md` §9.2. Validado E2E en vivo). 11 Junio 2026: la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento.
 >
 > Documentos hermanos: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) ·
 > [`Negocios.md`](Negocios.md) (donde se *registran* los pagos manuales) ·
@@ -96,14 +96,17 @@ técnicos de Stripe (para rastrear el cobro si hace falta).
 
 Es **sobre todo de consulta** (KPIs, lista, filtros). La excepción: al abrir el detalle de un
 movimiento tipo **"Pago manual"**, el super/gerente puede **reenviar el comprobante, corregir o
-anular** ese pago — las mismas acciones que en Negocios (reusan sus endpoints). Los eventos
-automáticos de **Stripe** (cobros, fallidos, cancelaciones) siguen siendo de solo lectura.
+anular** ese pago — las mismas acciones que en Negocios (reusan sus endpoints). Además, **solo el
+superadmin** puede **borrar** un pago manual que ya esté **anulado** (eliminación física e
+irreversible del registro — herramienta de limpieza). Los eventos automáticos de **Stripe** (cobros,
+fallidos, cancelaciones) siguen siendo de solo lectura.
 
 | Lo que quiere hacer | Superadmin | Gerente | Vendedor |
 |---|:---:|:---:|:---:|
 | Ver la bitácora + KPIs + filtros | **Toda** | **Su región** | — |
 | Abrir el detalle de un movimiento | Sí | Su región | — |
 | **Reenviar / corregir / anular** un pago manual (desde su detalle) | Sí | Su región | — |
+| **Borrar** un pago manual **anulado** (físico, irreversible) | Sí | — | — |
 
 ---
 
@@ -153,6 +156,12 @@ regresa a la original si era el último pago) — mismo comportamiento que en Ne
 `Pagos_Suscripciones.md` §9.2. Los eventos automáticos de **Stripe** son de solo lectura. Las mismas
 acciones existen en la ficha del negocio (Negocios).
 
+Una vez **anulado**, el **superadmin** (y solo él) puede además **borrarlo físicamente** de la BD
+(evento + pago) con el icono de papelera del detalle. Es **irreversible** y solo aplica a pagos
+manuales anulados: un pago **vigente** no se puede borrar — primero hay que anularlo (eso ya revirtió
+su vigencia, así que borrarlo después no recalcula nada). Es una herramienta de limpieza, no parte
+del flujo normal.
+
 ---
 
 ---
@@ -173,15 +182,18 @@ acciones existen en la ficha del negocio (Negocios).
 | `services/pago.service.ts` | Webhook: persiste `cobro_exitoso` / `cobro_fallido` / `cancelacion` |
 | `services/admin/negocios-acciones.service.ts` → `marcarPagado` | Inserta el gemelo `pago_manual` en la misma transacción |
 | `services/admin/suscripciones.service.ts` | **Lecturas** (`listarEventos`, `obtenerDetalleEvento`) + alcance por rol |
+| `services/admin/suscripciones-acciones.service.ts` | **Escritura**: `eliminarEventoPago` (borra evento + pago de un pago manual anulado, en transacción) |
 | `controllers/admin/suscripciones.controller.ts` | Lee query/params, llama al service, responde |
-| `routes/admin/suscripciones.routes.ts` | Endpoints (`requierePanel(['superadmin','gerente'])`) |
+| `routes/admin/suscripciones.routes.ts` | Endpoints GET (`super`+`gerente`) · DELETE (solo `super`) |
 | `scripts/probar-bitacora-eventos.ts` | Harness de verificación (persistencia + lectura, sin Stripe) |
 
 **Frontend** (`apps/admin/src/components/suscripciones/`): `SeccionSuscripciones.tsx` (KPIs +
-tabla/cards + filtros + paginación), `FichaEvento.tsx` (detalle + metadata), `estadoEvento.tsx`
-(`BadgeTipoEvento` + `ChipOrigen`). Datos del servidor en React Query
-(`hooks/queries/useSuscripcionesAdmin.ts`), tipos en `services/suscripcionesService.ts`. La ficha
-abre instantánea con placeholder de la fila + prefetch en hover/touch.
+tabla/cards + filtros + paginación; en móvil los KPIs son una **tira inline** con separadores, no
+cards), `FichaEvento.tsx` (detalle + metadata + acciones en el header; el **superadmin** ve "Borrar"
+en pagos manuales anulados), `estadoEvento.tsx` (`BadgeTipoEvento` + `ChipOrigen`). Datos del
+servidor en React Query (`hooks/queries/useSuscripcionesAdmin.ts`, incl. `useEliminarEvento`), tipos
+en `services/suscripcionesService.ts`. La ficha abre instantánea con placeholder de la fila +
+prefetch en hover/touch.
 
 ## B. Endpoints y permisos
 
@@ -192,6 +204,7 @@ Las rutas de `/suscripciones` se montan **antes** del gate global de superadmin 
 |---|---|---|---|
 | `/suscripciones` | GET | super · gerente | super=todo · gerente=su región |
 | `/suscripciones/:id` | GET | super · gerente | por alcance; fuera de alcance → 404 |
+| `/suscripciones/:id` | DELETE | **solo super** | borra un pago manual **anulado** (400 si no es manual · 409 si está vigente · 404 si no existe) |
 
 **Query de la lista:** `busqueda` (nombre de negocio), `tipo`, `origen`, `negocioId` (deep-link),
 `desde`/`hasta` (rango), `orden` (`fecha_recientes`/`fecha_antiguos`/`monto_mayor`/`monto_menor`),

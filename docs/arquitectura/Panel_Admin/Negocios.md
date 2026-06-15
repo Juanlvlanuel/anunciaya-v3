@@ -386,8 +386,10 @@ filtros + paginación), `FichaNegocio.tsx` (ficha + footer por rol), `DialogoReg
 (alta), `DialogoMarcarPagado.tsx`, `DialogoEditarCorreo.tsx`, `DialogoReasignar.tsx`,
 `FichaSucursal.tsx`, `estadoPago.tsx` (`estadoEfectivo()` + `BadgeEstadoPago`), `avatares.tsx`,
 `MenuFiltro.tsx`. Datos del servidor en React Query (`hooks/queries/useNegociosAdmin.ts`); rol
-del usuario en `stores/useAuthPanelStore.ts`. La ficha abre instantánea con un placeholder de la
-fila + prefetch en hover/touch.
+del usuario en `stores/useAuthPanelStore.ts`. Al abrir la ficha se **espera** en caché el detalle +
+el historial de pagos (`ensureQueryData`) **antes** de montarla —con un spinner en la tarjeta— para
+que aparezca completa de una vez (clave en móvil: el bottom-sheet crecería al llegar el historial
+después); el prefetch en hover/touch hace esa espera mínima.
 
 ## B. Endpoints y permisos
 
