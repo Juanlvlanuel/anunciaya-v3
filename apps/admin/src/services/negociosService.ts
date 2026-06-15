@@ -76,7 +76,6 @@ export interface NegocioDetalle {
   onboardingCompletado: boolean;
   creadoEn: string | null;
   fechaPrimerPago: string | null;
-  mesesGratisRestantes: number;
   estadoPago: string;
   estadoAdmin: string;
   /** tarjeta | manual — cómo se cobra hoy la membresía. */

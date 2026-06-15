@@ -117,7 +117,6 @@ export interface NegocioDetalle {
     onboardingCompletado: boolean;
     creadoEn: string | null;
     fechaPrimerPago: string | null;
-    mesesGratisRestantes: number;
     // Estado de pago (Stripe/cron)
     estadoPago: string;
     // Estado administrativo (Panel): activo / suspendido / archivado
@@ -427,7 +426,6 @@ export async function obtenerDetalleNegocio(
             onboardingCompletado: negocios.onboardingCompletado,
             creadoEn: negocios.createdAt,
             fechaPrimerPago: negocios.fechaPrimerPago,
-            mesesGratisRestantes: negocios.mesesGratisRestantes,
             estadoPago: negocios.estadoMembresia,
             estadoAdmin: negocios.estadoAdmin,
             metodoCobro: negocios.metodoCobro,
@@ -518,7 +516,6 @@ export async function obtenerDetalleNegocio(
         onboardingCompletado: fila.onboardingCompletado,
         creadoEn: fila.creadoEn ?? null,
         fechaPrimerPago: fila.fechaPrimerPago ?? null,
-        mesesGratisRestantes: fila.mesesGratisRestantes,
         estadoPago: fila.estadoPago,
         estadoAdmin: fila.estadoAdmin,
         metodoCobro: fila.metodoCobro,

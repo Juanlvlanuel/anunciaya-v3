@@ -79,7 +79,6 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
     onboardingCompletado: false,
     creadoEn: f.alta,
     fechaPrimerPago: null,
-    mesesGratisRestantes: 0,
     estadoPago: f.estadoPago,
     estadoAdmin: f.estadoAdmin,
     metodoCobro: 'tarjeta',
@@ -458,7 +457,6 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                   )}
                   {!esManual && <Dato etiqueta="Inicio Trial" valor={fecha(n.creadoEn)} />}
                   {n.fechaPrimerPago && <Dato etiqueta="Primer pago" valor={fecha(n.fechaPrimerPago)} />}
-                  {n.mesesGratisRestantes > 0 && <Dato etiqueta="Meses gratis restantes" valor={n.mesesGratisRestantes} />}
                 </div>
               </div>
 
