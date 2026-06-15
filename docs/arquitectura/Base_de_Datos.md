@@ -116,12 +116,11 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 7. Marketplace (3 tablas)
+### 7. Marketplace (2 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
-| `marketplace` | Publicaciones compra-venta usuarios |
-| `categorias_marketplace` | Categorías de productos |
+| `articulos_marketplace` | Publicaciones compra-venta de usuarios (clasificados) |
 | `asignacion_subcategorias` | Relación categorías-subcategorías |
 
 ---

@@ -865,60 +865,6 @@ export const ofertasDestacadas = pgTable("ofertas_destacadas", {
 ]);
 
 
-export const marketplace = pgTable("marketplace", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	autorId: uuid("autor_id").notNull(),
-	negocioId: uuid("negocio_id"),
-	categoriaId: uuid("categoria_id").notNull(),
-	titulo: varchar({ length: 200 }).notNull(),
-	descripcion: text(),
-	precio: numeric({ precision: 10, scale: 2 }).notNull(),
-	condicion: varchar({ length: 20 }),
-	imagenes: jsonb(),
-	ciudad: varchar({ length: 100 }),
-	estado: varchar({ length: 20 }).default('activo'),
-	fechaExpiracion: timestamp("fecha_expiracion", { withTimezone: true, mode: 'string' }),
-	calificacionPromedio: numeric("calificacion_promedio", { precision: 2, scale: 1 }).default('0'),
-	totalCalificaciones: integer("total_calificaciones").default(0),
-	totalLikes: integer("total_likes").default(0),
-	totalVisitas: integer("total_visitas").default(0),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_marketplace_autor_id").using("btree", table.autorId.asc().nullsLast()),
-	index("idx_marketplace_categoria_id").using("btree", table.categoriaId.asc().nullsLast()),
-	index("idx_marketplace_ciudad").using("btree", table.ciudad.asc().nullsLast()),
-	index("idx_marketplace_estado").using("btree", table.estado.asc().nullsLast()),
-	foreignKey({
-		columns: [table.autorId],
-		foreignColumns: [usuarios.id],
-		name: "marketplace_autor_id_fkey"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.categoriaId],
-		foreignColumns: [categoriasMarketplace.id],
-		name: "marketplace_categoria_id_fkey"
-	}),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "marketplace_negocio_id_fkey"
-	}).onDelete("cascade"),
-	check("marketplace_condicion_check", sql`(condicion IS NULL) OR ((condicion)::text = ANY ((ARRAY['nuevo'::character varying, 'usado'::character varying, 'reacondicionado'::character varying])::text[]))`),
-	check("marketplace_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'vendido'::character varying, 'pausado'::character varying, 'expirado'::character varying])::text[])`),
-]);
-
-export const categoriasMarketplace = pgTable("categorias_marketplace", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	nombre: varchar({ length: 50 }).notNull(),
-	icono: varchar({ length: 50 }),
-	orden: smallint().default(0),
-	activa: boolean().default(true),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	unique("categorias_marketplace_nombre_key").on(table.nombre),
-]);
-
 export const planes = pgTable("planes", {
 	id: serial().primaryKey().notNull(),
 	perfil: varchar({ length: 20 }).notNull(),
