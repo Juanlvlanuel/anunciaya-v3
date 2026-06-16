@@ -120,13 +120,6 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 8. Pedidos (2 tablas)
-
-| Tabla | Propósito |
-|-------|-----------|
-| `pedidos` | Pedidos completados |
-| `pedido_articulos` | Detalle de productos por pedido |
-
 ---
 
 ### 9. Sistema de Puntos CardYA (5 tablas)

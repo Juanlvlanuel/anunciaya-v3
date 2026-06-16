@@ -71,9 +71,6 @@ export const IMAGE_REGISTRY: ImageField[] = [
     { tabla: 'articulos', columna: 'imagen_principal', tipo: 'url', descripcion: 'Imagen principal del artículo' },
     { tabla: 'articulos', columna: 'imagenes_adicionales', tipo: 'array', descripcion: 'Imágenes adicionales del artículo' },
 
-    // ─── Snapshot en pedidos ───
-    { tabla: 'pedido_articulos', columna: 'imagen_url', tipo: 'url', descripcion: 'Snapshot de imagen del artículo al momento del pedido' },
-
     // ─── Ofertas y Cupones ───
     { tabla: 'ofertas', columna: 'imagen', tipo: 'url', descripcion: 'Imagen de oferta/cupón' },
 

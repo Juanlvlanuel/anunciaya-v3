@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm/relations";
 // Tablas dinamicas (dinamicas, dinamicaPremios, dinamicaParticipaciones)
 // removidas en Fase D del cleanup (visión v3 — abril 2026).
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioMetodosPago, negocioGaleria, articulos, articuloSucursales, empleados, empleadoHorarios, pedidos, pedidoArticulos, ofertas, ofertaUsos, ofertaUsuarios, planes, planReglas, votos, resenas, metricasUsuario, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioMetodosPago, negocioGaleria, articulos, articuloSucursales, empleados, empleadoHorarios, ofertas, ofertaUsos, ofertaUsuarios, planes, planReglas, votos, resenas, metricasUsuario, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -15,7 +15,6 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	}),
 	usuarioCodigosRespaldos: many(usuarioCodigosRespaldo),
 	negocios: many(negocios),
-	pedidos: many(pedidos),
 	ofertaUsos: many(ofertaUsos),
 	ofertaUsuarios: many(ofertaUsuarios),
 	planReglas: many(planReglas),
@@ -103,7 +102,6 @@ export const negocioSucursalesRelations = relations(negocioSucursales, ({ one, m
 	puntosTransacciones: many(puntosTransacciones),
 	vouchersCanjes: many(vouchersCanje),
 	// 🆕 AGREGAR ESTAS RELACIONES:
-	pedidos: many(pedidos),
 	resenas: many(resenas),
 	ofertas: many(ofertas),
 	ofertaUsosList: many(ofertaUsos),
@@ -199,34 +197,6 @@ export const empleadoHorariosRelations = relations(empleadoHorarios, ({ one }) =
 	empleado: one(empleados, {
 		fields: [empleadoHorarios.empleadoId],
 		references: [empleados.id]
-	}),
-}));
-
-export const pedidoArticulosRelations = relations(pedidoArticulos, ({ one }) => ({
-	pedido: one(pedidos, {
-		fields: [pedidoArticulos.pedidoId],
-		references: [pedidos.id]
-	}),
-}));
-
-export const pedidosRelations = relations(pedidos, ({ one, many }) => ({
-	pedidoArticulos: many(pedidoArticulos),
-	oferta: one(ofertas, {
-		fields: [pedidos.ofertaId],
-		references: [ofertas.id]
-	}),
-	usuario: one(usuarios, {
-		fields: [pedidos.compradorId],
-		references: [usuarios.id]
-	}),
-	// 🆕 AGREGAR ESTAS 2 RELACIONES:
-	sucursal: one(negocioSucursales, {
-		fields: [pedidos.sucursalId],
-		references: [negocioSucursales.id]
-	}),
-	negocio: one(negocios, {
-		fields: [pedidos.negocioId],
-		references: [negocios.id]
 	}),
 }));
 
