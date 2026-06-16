@@ -23,6 +23,7 @@ import seguridadRoutes from './seguridad.routes.js';
 import negociosRoutes from './negocios.routes.js';
 import usuariosRoutes from './usuarios.routes.js';
 import suscripcionesRoutes from './suscripciones.routes.js';
+import equipoRoutes from './equipo.routes.js';
 import regionesRoutes from './regiones.routes.js';
 
 const router: Router = Router();
@@ -52,6 +53,11 @@ router.use('/usuarios', usuariosRoutes);
 // ANTES del gate global de superadmin: la bitácora financiera la consulta también el
 // gerente (acotado a su región en el service). Cada ruta trae su propio requierePanel.
 router.use('/suscripciones', suscripcionesRoutes);
+
+// ─── Equipo y accesos (superadmin + gerente · alcance por rol) ───────────────────
+// ANTES del gate global de superadmin: la sección la usa también el gerente (ve solo sus
+// vendedores, alcance en el service). El vendedor no entra. Cada ruta trae su propio requierePanel.
+router.use('/equipo', equipoRoutes);
 
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)

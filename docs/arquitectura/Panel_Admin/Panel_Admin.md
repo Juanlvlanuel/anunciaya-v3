@@ -135,7 +135,13 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
 7. **Publicidad** — **segunda fuente de ingresos.** Los comerciantes pagan por aparecer en los carruseles de la columna derecha de la app (Anuncios, Patrocinadores, Fundadores). **Asignación por ciudad, individual** — un negocio paga por aparecer en la ciudad X; puede también pagar por aparecer en **todas** las ciudades donde opera AY. **Precios configurables** (por ciudad, ya que no valen igual). **Métricas:** uso/KPIs de los carruseles, qué negocios pautan, y **cuánto generan**. El Gerente gestiona la publicidad de su región; los precios los fija el SuperAdmin.
 8. **Ciudades** — habilitar/agregar ciudades para expandir la app **sin tocar código**, y **agruparlas en regiones** (asignar `ciudades.region_id`). La tabla **`ciudades` ya existe y está poblada** (desde `ciudadesPopulares`); falta solo la **UI del Panel** para gestionarlas y agruparlas. (Ver §Concepto de "región" y "ciudad".)
 9. **Configuración** — valores editables sin código (textos/banners, toggles de funciones, límites/umbrales, **la escalera de comisiones**, **periodo de gracia de cobros** y **duración del trial**). El backend **ya lee** la tabla `configuracionSistema` (clave-valor, ya poblada) vía los helpers `obtenerConfigNumero()`/`obtenerConfigTexto()`/`obtenerConfigBooleano()` — p. ej. el trial sale de `trial_duracion_dias` (default 14) y la gracia de `periodo_gracia_cobro_dias`. Lo que sigue **pendiente** es la **UI** de la sección Configuración para editar esos valores desde el Panel (hoy se cambian en BD).
-10. **Equipo y accesos** — crear/administrar las cuentas internas. Aquí viven los 3 niveles.
+10. **Equipo y accesos** — crear/administrar las cuentas internas (los 3 niveles). **Tiene documento
+    propio:** 📄 **[`Equipo_y_accesos.md`](Equipo_y_accesos.md)** (alta de vendedor/gerente, editar datos,
+    reasignar región, revocar/reactivar con revocados visibles, typeahead + promoción de cuentas
+    existentes). **Permiso partido:** crear/mover/revocar gerentes = **solo super**; alta/edición de
+    vendedores = **super + gerente** (su región). Sin migración (reusa `rol_equipo`/`region_id`/
+    `embajadores`). El modelo de cobertura avanzado del vendedor se difirió a "Vendedores y comisiones".
+    **Estado: construida y en uso.**
 11. **Sistema** — Mantenimiento (reconcile R2, único operativo hoy) + Auditoría (bitácora de quién hizo qué).
 
 ---

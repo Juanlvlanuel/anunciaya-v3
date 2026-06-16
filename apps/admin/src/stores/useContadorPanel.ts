@@ -15,9 +15,14 @@ interface ContadorPanelState {
   /** Total de usuarios visible en la sección (con los filtros aplicados). Null = aún sin publicar. */
   usuarios: number | null;
   setUsuarios: (n: number | null) => void;
+  /** Total de equipo visible en la sección (con los filtros aplicados). Null = aún sin publicar. */
+  equipo: number | null;
+  setEquipo: (n: number | null) => void;
 }
 
 export const useContadorPanel = create<ContadorPanelState>((set) => ({
   usuarios: null,
   setUsuarios: (n) => set({ usuarios: n }),
+  equipo: null,
+  setEquipo: (n) => set({ equipo: n }),
 }));

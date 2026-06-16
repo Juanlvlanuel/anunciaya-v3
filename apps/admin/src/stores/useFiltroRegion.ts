@@ -6,8 +6,8 @@
  * plataforma (sin filtro). Persiste en localStorage (sesión aislada `ayadmin_`).
  *
  * Al cambiar, invalida las queries que dependen del ámbito para que refetcheen con el
- * nuevo `?regionId=` (lo añade el interceptor de api.ts). Hoy: Negocios y Usuarios; las
- * futuras secciones se suman aquí con su prefijo de queryKey.
+ * nuevo `?regionId=` (lo añade el interceptor de api.ts). Hoy: Negocios, Usuarios y Equipo;
+ * las futuras secciones se suman aquí con su prefijo de queryKey.
  *
  * Ubicación: apps/admin/src/stores/useFiltroRegion.ts
  */
@@ -46,5 +46,6 @@ export const useFiltroRegion = create<EstadoFiltroRegion>((set, get) => ({
     // Cambió el ámbito → refrescar lo que depende del filtro.
     queryClient.invalidateQueries({ queryKey: queryKeys.negocios.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.usuarios.all() });
+    queryClient.invalidateQueries({ queryKey: queryKeys.equipo.all() });
   },
 }));

@@ -28,6 +28,15 @@ export interface FiltrosUsuariosKey {
   porPagina?: number;
 }
 
+/** Filtros que entran en la clave de la lista del equipo. */
+export interface FiltrosEquipoKey {
+  busqueda?: string;
+  rol?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 /** Filtros que entran en la clave de la bitácora financiera (eventos de pago). */
 export interface FiltrosSuscripcionesKey {
   busqueda?: string;
@@ -64,6 +73,13 @@ export const queryKeys = {
     all: () => ['suscripciones'] as const,
     lista: (filtros: FiltrosSuscripcionesKey) => ['suscripciones', 'lista', filtros] as const,
     detalle: (id: string) => ['suscripciones', 'detalle', id] as const,
+  },
+  equipo: {
+    all: () => ['equipo'] as const,
+    conteo: () => ['equipo', 'conteo'] as const,
+    lista: (filtros: FiltrosEquipoKey) => ['equipo', 'lista', filtros] as const,
+    detalle: (id: string) => ['equipo', 'detalle', id] as const,
+    ciudades: (regionId?: string) => ['equipo', 'ciudades', regionId ?? 'todas'] as const,
   },
   regiones: {
     all: () => ['regiones'] as const,

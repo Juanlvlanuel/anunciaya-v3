@@ -15,6 +15,7 @@ import { useFiltroRegion } from '../stores/useFiltroRegion';
 import { useEsEscritorio } from '../hooks/useEsEscritorio';
 import { useConteoNegocios } from '../hooks/queries/useNegociosAdmin';
 import { useConteoUsuarios } from '../hooks/queries/useUsuariosAdmin';
+import { useConteoEquipo } from '../hooks/queries/useEquipoAdmin';
 import { useContadorPanel } from '../stores/useContadorPanel';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
 import { iconoDeSeccion } from '../config/iconosPanel';
@@ -25,6 +26,7 @@ import PaginaSeguridad from './PaginaSeguridad';
 import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
 import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
 import { SeccionSuscripciones } from '../components/suscripciones/SeccionSuscripciones';
+import { SeccionEquipo } from '../components/equipo/SeccionEquipo';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -82,14 +84,18 @@ function PaginaPanel() {
   const { data: totalNegocios } = useConteoNegocios();
   const { data: totalUsuariosGeneral } = useConteoUsuarios();
   const totalUsuariosFiltrado = useContadorPanel((s) => s.usuarios);
+  const { data: totalEquipoGeneral } = useConteoEquipo();
+  const totalEquipoFiltrado = useContadorPanel((s) => s.equipo);
   // Filtrado (de la sección activa) si lo hay; si no, el conteo general (visible desde el inicio).
   const totalUsuarios = totalUsuariosFiltrado ?? totalUsuariosGeneral;
+  const totalEquipo = totalEquipoFiltrado ?? totalEquipoGeneral;
   const contadores = useMemo(() => {
     const c: Record<string, number> = {};
     if (totalNegocios != null) c.negocios = totalNegocios;
     if (totalUsuarios != null) c.usuarios = totalUsuarios;
+    if (totalEquipo != null) c.equipo = totalEquipo;
     return Object.keys(c).length ? c : undefined;
-  }, [totalNegocios, totalUsuarios]);
+  }, [totalNegocios, totalUsuarios, totalEquipo]);
 
   // Menú según el rol. Si la sección recordada (de una recarga) no aplica a este
   // rol, se cae a la primera del menú; "seguridad" (Mi cuenta) siempre es válida.
@@ -146,6 +152,8 @@ function PaginaPanel() {
     <SeccionUsuarios />
   ) : seccionActivaId === 'suscripciones' ? (
     <SeccionSuscripciones rol={rol} />
+  ) : seccionActivaId === 'equipo' ? (
+    <SeccionEquipo />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

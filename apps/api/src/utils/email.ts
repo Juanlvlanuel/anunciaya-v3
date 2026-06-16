@@ -321,6 +321,30 @@ export async function enviarCodigoCrearContrasena(
   );
 }
 
+/**
+ * Email: una cuenta existente fue PROMOVIDA a un rol del equipo del Panel (vendedor / gerente).
+ * No incluye contraseña: la persona ya tiene la suya. `detalle` opcional (ciudades/región).
+ */
+export async function enviarEmailBienvenidaEquipo(
+  correo: string,
+  nombre: string,
+  rol: 'vendedor' | 'gerente',
+  detalle?: string,
+): Promise<ResultadoEmail> {
+  const rolTexto = rol === 'gerente' ? 'Gerente Regional' : 'Vendedor';
+  const contenido = `
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Ahora formas parte del equipo de <strong>AnunciaYA</strong> como <strong>${rolTexto}</strong>${detalle ? ` &mdash; ${escape(detalle)}` : ''}.
+    </p>
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Inicia sesi&oacute;n con tu <strong>correo y contrase&ntilde;a de siempre</strong> para entrar al Panel de AnunciaYA.
+    </p>
+    <p style="margin: 0; font-size: 13px; color: #64748b;">
+      Si no esperabas este mensaje, contacta al administrador de AnunciaYA.
+    </p>`;
+  return enviarEmail(correo, `Ahora eres ${rolTexto} en AnunciaYA`, plantillaBase(nombre, contenido));
+}
+
 // =============================================================================
 // EMAILS DE GERENTES (BS Sucursales)
 // =============================================================================
