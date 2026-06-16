@@ -56,17 +56,16 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 2. Usuarios y Autenticación (3 tablas)
+### 2. Usuarios y Autenticación (2 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
 | `usuarios` | Cuentas de usuario (personal y comercial) |
 | `usuario_codigos_respaldo` | Códigos 2FA de respaldo |
-| `direcciones_usuario` | Direcciones de envío guardadas |
 
 ---
 
-### 3. Negocios (11 tablas)
+### 3. Negocios (9 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
@@ -75,8 +74,6 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 | `negocio_horarios` | Horarios de operación |
 | `negocio_metodos_pago` | Métodos de pago aceptados |
 | `negocio_galeria` | Fotos del negocio |
-| `negocio_modulos` | Funcionalidades habilitadas |
-| `negocio_preferencias` | Configuraciones personalizadas |
 | `categorias_negocio` | Categorías principales |
 | `subcategorias_negocio` | Subcategorías por categoría |
 | `regiones` | Regiones/ciudades disponibles |

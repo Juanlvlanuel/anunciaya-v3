@@ -339,24 +339,6 @@ export const negocioHorarios = pgTable("negocio_horarios", {
 	check("negocio_horarios_dia_check", sql`(dia_semana >= 0) AND (dia_semana <= 6)`),
 ]);
 
-export const negocioModulos = pgTable("negocio_modulos", {
-	negocioId: uuid("negocio_id").primaryKey().notNull(),
-	catalogoActivo: boolean("catalogo_activo").default(true),
-	pedidosOnlineActivo: boolean("pedidos_online_activo").default(false),
-	citasActivo: boolean("citas_activo").default(false),
-	reservacionesActivo: boolean("reservaciones_activo").default(false),
-	apartadosActivo: boolean("apartados_activo").default(false),
-	empleadosActivo: boolean("empleados_activo").default(false),
-}, (table) => [
-	index("idx_negocio_modulos_citas").using("btree", table.citasActivo.asc().nullsLast()),
-	index("idx_negocio_modulos_pedidos").using("btree", table.pedidosOnlineActivo.asc().nullsLast()),
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "negocio_modulos_negocio_id_fkey"
-	}).onDelete("cascade"),
-]);
-
 export const negocioMetodosPago = pgTable("negocio_metodos_pago", {
 	id: serial().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull(),
@@ -390,23 +372,6 @@ export const negocioGaleria = pgTable("negocio_galeria", {
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
 		name: "negocio_galeria_negocio_id_fkey"
-	}).onDelete("cascade"),
-]);
-
-export const negocioPreferencias = pgTable("negocio_preferencias", {
-	negocioId: uuid("negocio_id").primaryKey().notNull(),
-	permiteMensajes: boolean("permite_mensajes").default(true),
-	mostrarEnMapa: boolean("mostrar_en_mapa").default(true),
-	respuestaAutomaticaActiva: boolean("respuesta_automatica_activa").default(false),
-	mensajeRespuestaAutomatica: text("mensaje_respuesta_automatica"),
-	notificarPedidos: boolean("notificar_pedidos").default(true),
-	notificarMensajes: boolean("notificar_mensajes").default(true),
-	notificarCitas: boolean("notificar_citas").default(true),
-}, (table) => [
-	foreignKey({
-		columns: [table.negocioId],
-		foreignColumns: [negocios.id],
-		name: "negocio_preferencias_negocio_id_fkey"
 	}).onDelete("cascade"),
 ]);
 
@@ -481,34 +446,6 @@ export const empleadoHorarios = pgTable("empleado_horarios", {
 	}).onDelete("cascade"),
 	unique("empleado_horarios_unique").on(table.empleadoId, table.diaSemana, table.horaEntrada),
 	check("empleado_horarios_dia_check", sql`(dia_semana >= 0) AND (dia_semana <= 6)`),
-]);
-
-export const direccionesUsuario = pgTable("direcciones_usuario", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	usuarioId: uuid("usuario_id").notNull(),
-	etiqueta: varchar({ length: 50 }).notNull(),
-	esPredeterminada: boolean("es_predeterminada").default(false),
-	calle: varchar({ length: 200 }).notNull(),
-	numeroExterior: varchar("numero_exterior", { length: 20 }).notNull(),
-	numeroInterior: varchar("numero_interior", { length: 20 }),
-	colonia: varchar({ length: 100 }).notNull(),
-	ciudad: varchar({ length: 100 }).notNull(),
-	estado: varchar({ length: 50 }).notNull(),
-	codigoPostal: varchar("codigo_postal", { length: 10 }).notNull(),
-	referencias: text(),
-	nombreReceptor: varchar("nombre_receptor", { length: 100 }),
-	telefonoReceptor: varchar("telefono_receptor", { length: 20 }),
-	latitud: numeric({ precision: 10, scale: 8 }),
-	longitud: numeric({ precision: 11, scale: 8 }),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_direcciones_usuario_usuario_id").using("btree", table.usuarioId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "direcciones_usuario_usuario_id_fkey"
-	}).onDelete("cascade"),
 ]);
 
 export const pedidoArticulos = pgTable("pedido_articulos", {
