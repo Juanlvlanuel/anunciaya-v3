@@ -634,56 +634,6 @@ export const ofertasDestacadas = pgTable("ofertas_destacadas", {
 ]);
 
 
-export const planes = pgTable("planes", {
-	id: serial().primaryKey().notNull(),
-	perfil: varchar({ length: 20 }).notNull(),
-	membresia: smallint().notNull(),
-	nombre: varchar({ length: 100 }).notNull(),
-	descripcion: text(),
-	precioMensual: numeric("precio_mensual", { precision: 10, scale: 2 }).default('0'),
-	precioAnual: numeric("precio_anual", { precision: 10, scale: 2 }),
-	moneda: varchar({ length: 3 }).default('MXN'),
-	activo: boolean().default(true),
-	ordenDisplay: smallint("orden_display").default(0),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_planes_activo").using("btree", table.activo.asc().nullsLast()),
-	unique("planes_unique").on(table.perfil, table.membresia),
-	check("planes_membresia_check", sql`membresia = ANY (ARRAY[1, 2, 3])`),
-	check("planes_perfil_check", sql`(perfil)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-]);
-
-export const planReglas = pgTable("plan_reglas", {
-	id: serial().primaryKey().notNull(),
-	planId: integer("plan_id").notNull(),
-	clave: varchar({ length: 50 }).notNull(),
-	descripcion: varchar({ length: 200 }),
-	tipo: varchar({ length: 20 }).notNull(),
-	seccion: varchar({ length: 50 }).notNull(),
-	valor: integer().notNull(),
-	activo: boolean().default(true),
-	updatedBy: uuid("updated_by"),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_plan_reglas_activo").using("btree", table.activo.asc().nullsLast()),
-	index("idx_plan_reglas_plan_id").using("btree", table.planId.asc().nullsLast()),
-	index("idx_plan_reglas_seccion").using("btree", table.seccion.asc().nullsLast()),
-	foreignKey({
-		columns: [table.planId],
-		foreignColumns: [planes.id],
-		name: "plan_reglas_plan_id_fkey"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.updatedBy],
-		foreignColumns: [usuarios.id],
-		name: "plan_reglas_updated_by_fkey"
-	}),
-	unique("plan_reglas_unique").on(table.planId, table.clave),
-	check("plan_reglas_tipo_check", sql`(tipo)::text = ANY ((ARRAY['configuracion'::character varying, 'limite'::character varying])::text[])`),
-]);
-
 export const votos = pgTable("votos", {
 	id: bigserial({ mode: "bigint" }).primaryKey().notNull(),
 	userId: uuid("user_id"),

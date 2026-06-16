@@ -190,13 +190,11 @@ Este documento describe la **arquitectura conceptual** de la base de datos:
 
 ---
 
-### 17. Planes y Suscripciones (4 tablas)
+### 17. Planes y Suscripciones (2 tablas)
 
 | Tabla | Propósito |
 |-------|-----------|
-| `planes` | Planes de suscripción disponibles |
 | `plan` | Suscripciones activas de usuarios |
-| `plan_reglas` | Límites y reglas por plan |
 | `planes_anuncios` | Planes para anuncios destacados |
 
 ---

@@ -1,7 +1,7 @@
 import { relations } from "drizzle-orm/relations";
 // Tablas dinamicas (dinamicas, dinamicaPremios, dinamicaParticipaciones)
 // removidas en Fase D del cleanup (visión v3 — abril 2026).
-import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioMetodosPago, negocioGaleria, articulos, articuloSucursales, empleados, empleadoHorarios, ofertas, ofertaUsos, ofertaUsuarios, planes, planReglas, votos, resenas, metricasUsuario, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
+import { embajadores, usuarios, usuarioCodigosRespaldo, negocios, negocioSucursales, categoriasNegocio, subcategoriasNegocio, asignacionSubcategorias, negocioHorarios, negocioMetodosPago, negocioGaleria, articulos, articuloSucursales, empleados, empleadoHorarios, ofertas, ofertaUsos, ofertaUsuarios, votos, resenas, metricasUsuario, configuracionSistema, planesAnuncios, promocionesPagadas, promocionesTemporales, promocionesUsadas, embajadorComisiones, puntosConfiguracion, puntosBilletera, recompensas, puntosTransacciones, transaccionesEvidencia, vouchersCanje, alertasSeguridad, alertasConfiguracion, notificaciones, chatConversaciones, chatMensajes, chatReacciones, chatMensajesFijados, chatContactos, chatBloqueados } from "./schema";
 
 export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	embajadore: one(embajadores, {
@@ -17,7 +17,6 @@ export const usuariosRelations = relations(usuarios, ({ one, many }) => ({
 	negocios: many(negocios),
 	ofertaUsos: many(ofertaUsos),
 	ofertaUsuarios: many(ofertaUsuarios),
-	planReglas: many(planReglas),
 	votos: many(votos),
 	resenas: many(resenas),
 	metricasUsuarios: many(metricasUsuario),
@@ -236,21 +235,6 @@ export const ofertaUsuariosRelations = relations(ofertaUsuarios, ({ one }) => ({
 		fields: [ofertaUsuarios.usuarioId],
 		references: [usuarios.id]
 	}),
-}));
-
-export const planReglasRelations = relations(planReglas, ({ one }) => ({
-	plane: one(planes, {
-		fields: [planReglas.planId],
-		references: [planes.id]
-	}),
-	usuario: one(usuarios, {
-		fields: [planReglas.updatedBy],
-		references: [usuarios.id]
-	}),
-}));
-
-export const planesRelations = relations(planes, ({ many }) => ({
-	planReglas: many(planReglas),
 }));
 
 export const votosRelations = relations(votos, ({ one }) => ({
