@@ -54,8 +54,9 @@ Aquí se puede:
 - **Alcance:** para el **gerente** = su región; para el **vendedor** = las ciudades que cubre; para el
   **superadmin** = toda la plataforma.
 - **Modelo C (cuenta sin contraseña):** una cuenta nueva del equipo nace **sin contraseña**; la persona
-  la crea en su primer ingreso con un código que recibe por correo. Al crearla, **su correo queda
-  verificado**.
+  la crea en su primer ingreso con un código que recibe por correo. El correo trae un botón
+  **"Activar mi cuenta"** que abre el **Panel** directo en el paso de **escribir el código** (no la app
+  pública). Al crear la contraseña, **su correo queda verificado**.
 - **Promover:** convertir una cuenta **ya existente** (cliente o dueño) en miembro del equipo,
   sumándole el rol sobre su misma cuenta (conserva su contraseña y todo lo suyo).
 - **Acceso:** badge que dice si la persona puede entrar al Panel — **Activo**, **Pendiente de activar**
@@ -87,8 +88,9 @@ Botón **"Dar de alta"** (el super elige Vendedor o Gerente; el gerente solo Ven
    autogenerado y editable. · **Gerente:** la región a su cargo.
 
 Si el correo es **nuevo**, la cuenta nace en **modelo C** y se le envía el código para crear su
-contraseña. Si el correo **ya existe** (no es del equipo), se **promueve** y recibe un correo de
-bienvenida (conserva su contraseña). Si ya es del equipo, se rechaza.
+contraseña; ese correo lleva un botón que **abre el Panel directo en el paso del código**. Si el correo
+**ya existe** (no es del equipo), se **promueve** y recibe un correo de bienvenida (conserva su
+contraseña). Si ya es del equipo, se rechaza.
 
 ---
 
@@ -146,6 +148,10 @@ del módulo 6. Ese modelo de cobertura avanzado quedó **diseñado y diferido** 
   **promueve** (conserva su contraseña, su negocio si lo tiene). Si ya es del equipo, se rechaza.
 - **¿Por qué un revocado sigue apareciendo?** Para no perderlo de vista y poder reactivarlo de un clic;
   su atribución/región se conservan.
+- **¿Cómo activa su cuenta un gerente/vendedor nuevo?** Le llega un correo con el botón **"Activar mi
+  cuenta"**; al darle clic se abre el **Panel** (no la app pública) ya en el paso de **escribir el código**
+  (que viene en ese mismo correo) y poner su contraseña. El código **expira en 15 min**; si caduca, desde
+  ahí mismo puede reenviarlo.
 - **¿Por qué no puedo cambiar el correo de alguien que ya entró?** Porque es su llave de acceso ya
   verificada; lo cambia la persona desde su perfil. El admin solo lo corrige antes de que active la cuenta.
 - **¿Se envían correos en desarrollo?** No a direcciones de prueba (SES en sandbox las rechaza); en
@@ -164,7 +170,10 @@ del módulo 6. Ese modelo de cobertura avanzado quedó **diseñado y diferido** 
   `reasignarRegion`, `revocarAcceso`, `reactivarAcceso`, `sugerirCodigoReferido`. Auditoría + Modelo C.
 - `controllers/admin/equipo.controller.ts` · `routes/admin/equipo.routes.ts` (montado antes del gate global).
 - `validations/admin/equipo.schema.ts` — Zod (alta vendedor/gerente, editar datos, reasignar región).
-- `utils/email.ts` → `enviarEmailBienvenidaEquipo` (aviso de promoción).
+- `utils/email.ts` → `enviarEmailBienvenidaEquipo` (aviso de promoción) y `enviarCodigoCrearContrasena(...,
+  'panel')` → `plantillaCrearContrasena(... destino)` (correo de activación; `'panel'` enlaza al Panel,
+  `'web'` a la app pública).
+- `config/env.ts` (`PANEL_URL`) · `middleware/cors.ts` (suma `process.env.PANEL_URL`, normaliza barra final).
 - `scripts/probar-equipo-acciones.ts` · `scripts/probar-equipo-lectura.ts` — harness (datos reales).
 
 **Frontend** (`apps/admin/src/`)
@@ -172,6 +181,8 @@ del módulo 6. Ese modelo de cobertura avanzado quedó **diseñado y diferido** 
 - `components/equipo/`: `SeccionEquipo`, `FichaMiembro`, `DialogoAltaVendedor`, `DialogoAltaGerente`,
   `DialogoEditarDatos`, `DialogoReasignarRegion`, `SelectorCobertura`, `CampoCorreoCuenta`, `estadoAcceso`.
 - `pages/PaginaPanel.tsx` (engancha la sección + badge), `config/queryKeys.ts`, `stores/useContadorPanel.ts`.
+- **Activación:** `pages/PaginaLogin.tsx` lee `?activarCuenta=<correo>` del enlace y abre
+  `components/acceso/RecuperarContrasena.tsx` con `modoCrear` + `pasoInicial='codigo'` (copy de "crear", arranca en el código).
 
 ## B. Endpoints (`/api/admin/equipo`, `requierePanel(['superadmin','gerente'])`)
 
@@ -197,6 +208,12 @@ del módulo 6. Ese modelo de cobertura avanzado quedó **diseñado y diferido** 
 - **Sin migración SQL:** usa columnas/tablas existentes (`usuarios.rol_equipo`/`region_id`,
   `embajadores`, `embajador_ciudades`). El código de referido es **case-sensitive** (igual que el `?ref=`).
 - **Auditoría:** toda acción → `registrarAuditoria` → `admin_auditoria`.
+- **Activación al Panel (`PANEL_URL`):** el correo de modelo C del equipo enlaza al **Panel** (no a la
+  app pública) directo en el paso del código. La env var `PANEL_URL` (en Render, sin barra final)
+  gobierna de un solo golpe **el enlace del correo** y **el CORS** del Panel. Si falta, el enlace cae a
+  `FRONTEND_URL` (no rompe). Los otros disparadores del mismo correo (usuarios/negocios/auth) siguen
+  yendo a la web. **Despliegue:** el Panel es un proyecto Vercel aparte (`anunciaya-v3-admin`, Root
+  `apps/admin`); el backend sigue en Render. Detalle: memoria `project_despliegue_panel`.
 
 ## D. Verificación
 
