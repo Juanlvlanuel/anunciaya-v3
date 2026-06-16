@@ -19,9 +19,10 @@
 
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { negocios, pagosMembresia, embajadores } from '../../db/schemas/schema.js';
+import { negocios, embajadores } from '../../db/schemas/schema.js';
 import { crearNegocioConDueno } from '../negocioManagement.service.js';
 import { registrarAuditoria } from './auditoria.service.js';
+import { registrarPagoManual } from './pagos-manuales.service.js';
 import { enviarEmailBienvenida } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
@@ -202,16 +203,20 @@ export async function altaManualNegocio(
             })
             .where(eq(negocios.id, negocio.id));
 
-        const [pagoManual] = await tx.insert(pagosMembresia).values({
+        // Registro contable + gemelo en el libro mayor (bitácora), vía el helper único que también
+        // usa marcarPagado. Antes el alta manual solo insertaba en pagos_membresia → su primer pago
+        // no aparecía en el módulo Suscripciones. Es el PRIMER pago: sin `cobroPrevio` y método 'manual'.
+        const { pagoId, folio } = await registrarPagoManual(tx, {
             negocioId: negocio.id,
-            monto: montoRegistrado != null ? String(montoRegistrado) : null,
+            monto: montoRegistrado,
             concepto: datos.concepto,
-            mesesCubiertos: datos.meses ?? null,
-            periodoHasta: vencISO,
+            meses: datos.meses ?? null,
+            hasta: vencISO,
             registradoPor: panel.usuarioId,
-        }).returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
+            metodoCobro: 'manual',
+        });
 
-        return { negocioId: negocio.id, usuarioId: negocio.usuarioId, pagoId: pagoManual?.id ?? null, folio: pagoManual?.folio ?? null };
+        return { negocioId: negocio.id, usuarioId: negocio.usuarioId, pagoId, folio };
     });
 
     // -------------------------------------------------------------------------

@@ -30,7 +30,7 @@
 
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { negocios, embajadores, usuarios, pagosMembresia, eventosPago } from '../../db/schemas/schema.js';
+import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
@@ -41,6 +41,7 @@ import { randomInt } from 'crypto';
 import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
 import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobantePagoMembresia, enviarReciboCancelado } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
+import { registrarPagoManual } from './pagos-manuales.service.js';
 
 // =============================================================================
 // TIPOS
@@ -517,34 +518,23 @@ export async function marcarPagado(
                 embajadorId: negocios.embajadorId,
             });
 
-        // Registro contable/histórico del pago manual (primer ladrillo de la bitácora).
-        // `cobroPrevio` = fecha de cobro vigente ANTES de este pago: con tarjeta permite devolver
-        // el trial_end a la fecha original si luego se anula el último pago (deshacer el adelanto).
-        const [pagoManual] = await tx.insert(pagosMembresia).values({
+        // Registro contable + gemelo en el libro mayor (bitácora), en la MISMA transacción, vía el
+        // helper único que comparten marcarPagado y el alta manual. `cobroPrevio` = fecha de cobro
+        // vigente ANTES de este pago: con tarjeta permite devolver el trial_end a la fecha original
+        // si luego se anula el último pago (deshacer el adelanto). Cortesía = sin monto.
+        const { pagoId: pagoManualId, folio } = await registrarPagoManual(tx, {
             negocioId,
-            monto: montoRegistrado != null ? String(montoRegistrado) : null,
+            monto: montoRegistrado,
             concepto: opciones.concepto,
-            mesesCubiertos: opciones.meses ?? null,
-            periodoHasta: opciones.hasta,
-            cobroPrevio: cobroPrevioISO,
+            meses: opciones.meses ?? null,
+            hasta: opciones.hasta,
             registradoPor: panel.usuarioId,
-        }).returning({ id: pagosMembresia.id, folio: pagosMembresia.folio });
-
-        // Gemelo en la bitácora financiera global (libro mayor), en la MISMA transacción: el
-        // registro contable y el del libro mayor van juntos o no van. referencia_id apunta a la
-        // fila de pagos_membresia. Cortesía = sin monto. (origen='manual' → stripe_event_id NULL.)
-        await tx.insert(eventosPago).values({
-            negocioId,
-            tipo: 'pago_manual',
-            origen: 'manual',
-            monto: montoRegistrado != null ? String(montoRegistrado) : null,
+            cobroPrevio: cobroPrevioISO,
+            metodoCobro: nuevoMetodoCobro,
             fechaEvento: ahora,
-            actorId: panel.usuarioId,
-            referenciaId: pagoManual?.id ?? null,
-            metadata: { concepto: opciones.concepto, meses: opciones.meses ?? null, hasta: opciones.hasta, metodoCobro: nuevoMetodoCobro },
         });
 
-        return { negocio: actualizado, pagoId: pagoManual?.id ?? null, folio: pagoManual?.folio ?? null };
+        return { negocio: actualizado, pagoId: pagoManualId, folio };
     });
 
     // Stripe (fuera de la transacción): EMPUJA el próximo cobro a `hasta` (trial_end absoluto)
