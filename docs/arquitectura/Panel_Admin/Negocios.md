@@ -321,11 +321,11 @@ No desde "Reactivar" (eso es solo para los *pausados*). Cancelar es una baja arc
 uno cancelado sería prácticamente darlo de alta de nuevo.
 
 **Le cobré de más / de menos. ¿Puedo corregir el historial?**
-Sí. Cada fila del historial tiene un botón de **editar** para corregir el **concepto**
-(efectivo/transferencia/cortesía), el **monto** y los **meses cubiertos** de ese pago. Si cambias
-los meses, la **"Vigencia hasta"** del negocio se recorre sola (cuando es su pago más reciente);
-esa vigencia es real: el cron de manuales la usa para vencer → gracia → suspensión. Solo
-SuperAdmin y Gerente (de su región), y queda en auditoría.
+Sí, pero **solo el último pago** (el que define la vigencia vigente): tiene un botón de **editar**
+para corregir el **concepto** (efectivo/transferencia; **cortesía solo el SuperAdmin**), el **monto**
+y los **meses cubiertos**. Al guardar, la **"Vigencia hasta"** se recorre sola y se **reenvía al dueño
+el recibo corregido** (mismo folio). Para corregir un pago **anterior**, anúlalo y regístralo de nuevo
+(deja rastro auditable). Solo SuperAdmin y Gerente (de su región), y queda en auditoría.
 
 **Registré un pago por error. ¿Puedo anularlo?**
 Sí. Cada fila del historial tiene un botón de **anular** (motivo obligatorio): el pago no se borra,
@@ -337,8 +337,9 @@ adelanto). Si no se pudiera reajustar Stripe, el sistema te avisa para hacerlo a
 
 **¿Qué es una "cortesía"?**
 Un alta o renovación **gratis**: se regala el tiempo de membresía sin cobrar. No lleva monto.
-Como **regala** ingreso, solo un **gerente o superadmin** puede darla: el vendedor no ve esa
-opción en el formulario de alta, y si la forzara, el servidor la rechaza.
+Como **regala** ingreso, **solo el SuperAdmin** puede darla (ni gerente ni vendedor): el chip
+"Cortesía" no aparece en el formulario para los demás, y si forzaran la petición, el servidor la
+rechaza con 403.
 
 **¿Por qué a veces el botón "Registrar pago" está apagado?**
 Porque ese negocio paga con tarjeta y **tiene un cobro pendiente** en Stripe. Primero hay que
@@ -408,16 +409,16 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/:id` | GET | super · gerente · vendedor | por alcance; fuera de alcance → 404 |
 | `/negocios/:id/sucursales[/:sucursalId]` | GET | super · gerente · vendedor | por alcance |
 | `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance; `?limite=N` → los N más recientes (paginación del historial) |
-| `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses; recalcula vigencia si es el pago más reciente; **sincroniza el evento gemelo** en `eventos_pago` |
+| `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses **solo del último pago** (si no, 409); traslada la vigencia; **sincroniza el evento gemelo** en `eventos_pago` y **reenvía el recibo corregido** al dueño. Cortesía como concepto: **solo super** |
 | `/negocios/:id/pagos/:pagoId/reenviar-recibo` | POST | super · gerente | regenera el recibo PDF y reenvía el comprobante al dueño |
 | `/negocios/:id/pagos/:pagoId/anular` | POST | super · gerente | borrado lógico + recalcula vigencia + saca el ingreso de la bitácora + avisa al dueño · **con tarjeta re-sincroniza Stripe** (devuelve `advertenciaStripe` si no se pudo) · motivo obligatorio |
-| `/negocios/:id/marcar-pagado` | POST | super · gerente · vendedor | gerente=su región; **vendedor=solo sus negocios manuales, sin cortesía** (los de tarjeta los cobra Stripe) |
+| `/negocios/:id/marcar-pagado` | POST | super · gerente · vendedor | gerente=su región; **vendedor=solo sus negocios manuales** (los de tarjeta los cobra Stripe); **cortesía solo super** |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
 | `/negocios/:id/reactivar` | POST | super · gerente | motivo opcional |
 | `/negocios/:id/reasignar-vendedor` | POST | super · gerente | gerente: el vendedor nuevo debe cubrir su región |
 | `/negocios/:id/correo-dueno` | PATCH | super · gerente | gerente=su región |
 | `/negocios/:id/cancelar` | POST | **solo super** | — |
-| `/negocios/alta-manual` | POST | super · gerente · vendedor | vendedor se auto-atribuye; ciudad de su región; **cortesía solo super/gerente** |
+| `/negocios/alta-manual` | POST | super · gerente · vendedor | vendedor se auto-atribuye; ciudad de su región; **cortesía solo super** |
 
 ## C. Cómo se calcula el alcance regional
 
@@ -511,8 +512,8 @@ estado, y viajan como array `{estado,total}` (no objeto: el middleware snake→c
 
 ## E. Alta manual — detalle del flujo
 
-`POST /negocios/alta-manual` (los 3 roles). El service: (0) si el concepto es **cortesía** y el rol es
-**vendedor**, corta con 403 (regalar membresía es de gerente/superadmin); (1) rechaza correo duplicado (409);
+`POST /negocios/alta-manual` (los 3 roles). El service: (0) si el concepto es **cortesía** y el rol **no es
+superadmin**, corta con 403 (regalar membresía es decisión exclusiva del superadmin); (1) rechaza correo duplicado (409);
 (2) valida la ciudad (existe/activa/de su región para gerente y vendedor); (3) resuelve el vendedor (auto si rol
 vendedor; del body con candado de región si gerente/superadmin); (4) calcula vencimiento = hoy + N meses;
 (5) en **una transacción** crea usuario+negocio+sucursal vía `crearNegocioConDueno` (`metodo_cobro='manual'`,
