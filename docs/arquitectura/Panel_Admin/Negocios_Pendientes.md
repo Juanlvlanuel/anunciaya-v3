@@ -16,8 +16,9 @@
 >
 > **Leyenda:** 🟡 importante · 🟢 mejora · ⬜ por hacer
 >
-> **Última actualización:** 10 Junio 2026 — módulo **verificado de punta a punta** (incluida la
-> consistencia Cancelar↔webhook, descartada con datos reales); checklist adelgazado al backlog menor.
+> **Última actualización:** 15 Junio 2026 — alta manual ahora registra su pago en la bitácora vía
+> `registrarPagoManual` (centralizado); comprobante automático y Bitácora de eventos de pago (backend)
+> ya construidos; pendiente correr el backfill de gemelos `pago_manual` históricos.
 
 ---
 
@@ -68,10 +69,16 @@ documento:
   candado del efectivo: marcar cada cobro como **"efectivo por entregar"** a nombre del vendedor,
   **corte de caja** (reportado vs. entregado) y la **comisión condicionada a la entrega** → checklist
   de **Vendedores y comisiones**.
-- **Defensas anti "robo invisible"** (comprobante automático + visibilidad de membresía en el
-  perfil del dueño) → checklist de **Suscripciones**.
-- **Historial financiero completo (tarjeta + efectivo + eventos de Stripe):** vive en la futura
-  **Bitácora de eventos de pago** de **Suscripciones**. El historial de la ficha de Negocios es solo
+- **Defensas anti "robo invisible"** (visibilidad de membresía en el perfil del dueño) → checklist
+  de **Suscripciones**.
+- **Historial financiero completo (tarjeta + efectivo + eventos de Stripe):** vive en la
+  **Bitácora de eventos de pago** de **Suscripciones** (ya construida en backend: `listarEventos` /
+  `obtenerDetalleEvento` en `suscripciones.service.ts`). El alta manual ya **registra su pago en esa
+  bitácora** vía `registrarPagoManual` (helper centralizado que inserta en la misma transacción la
+  fila contable y su gemelo `pago_manual` en `eventos_pago`), así que sus cobros aparecen en
+  Suscripciones. **Pendiente:** correr el backfill `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql`
+  (idempotente, one-shot, DEV y PROD) para reconstruir los gemelos `pago_manual` históricos huérfanos
+  de altas manuales previas a la centralización. El historial de la ficha de Negocios sigue siendo solo
   un **resumen de pagos manuales** del negocio — no incluye los cobros de Stripe.
 - **Comisiones** (escalera, monto fijo, rediseño de `embajadores`) → checklist de **Vendedores**.
 - **Bandeja de pendientes y despliegue del Panel (Vercel + subdominio)** → pendientes del **shell**

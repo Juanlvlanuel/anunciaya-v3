@@ -178,9 +178,11 @@ del flujo normal.
 | Archivo | Rol |
 |---|---|
 | `db/schemas/schema.ts` → `eventosPago` | Tabla `eventos_pago` (el libro mayor) |
-| `services/suscripciones/eventos-pago.ts` | Helper `registrarEventoPago` (INSERT **defensivo** + idempotente) |
+| `services/suscripciones/eventos-pago.ts` | Helper `registrarEventoPago` (INSERT **defensivo** + idempotente) — **solo** lo usa el webhook para los eventos automáticos de Stripe (`cobro_exitoso` / `cobro_fallido` / `cancelacion`); el `pago_manual` **no** pasa por aquí |
 | `services/pago.service.ts` | Webhook: persiste `cobro_exitoso` / `cobro_fallido` / `cancelacion` |
-| `services/admin/negocios-acciones.service.ts` → `marcarPagado` | Inserta el gemelo `pago_manual` en la misma transacción |
+| `services/admin/pagos-manuales.service.ts` → `registrarPagoManual` | **Escritura centralizada del pago manual**: inserta en la misma transacción la fila contable (`pagos_membresia`) y su gemelo `pago_manual` en `eventos_pago`; garantiza la invariante cortesía ⇒ `monto` NULL. Lo usan `marcarPagado` y el alta manual |
+| `services/admin/negocios-acciones.service.ts` → `marcarPagado` | Delega la escritura del gemelo `pago_manual` en `registrarPagoManual` |
+| `services/admin/altaManualNegocio.service.ts` | Segundo caller de `registrarPagoManual` (el pago del alta manual ahora también asienta su gemelo en la bitácora) |
 | `services/admin/suscripciones.service.ts` | **Lecturas** (`listarEventos`, `obtenerDetalleEvento`) + alcance por rol |
 | `services/admin/suscripciones-acciones.service.ts` | **Escritura**: `eliminarEventoPago` (borra evento + pago de un pago manual anulado, en transacción) |
 | `controllers/admin/suscripciones.controller.ts` | Lee query/params, llama al service, responde |
@@ -241,9 +243,14 @@ solo afecta lecturas).
    helper): si falla, **no rompe el cobro ni provoca un reintento de Stripe** — la BD del ciclo de
    cobro es la fuente de verdad; la bitácora es secundaria. Idempotente vía `stripe_event_id`
    (`onConflictDoNothing`).
-2. **Pago manual** (`marcarPagado`): inserta el gemelo `pago_manual` **en la misma transacción**
-   que `pagos_membresia` (con `referencia_id` apuntándole). Aquí sí es transaccional (no defensivo):
-   el registro contable y el del libro mayor van juntos o no van.
+2. **Pago manual** (helper `registrarPagoManual`, llamado por `marcarPagado` y por el alta manual):
+   un **único** helper centralizado (`services/admin/pagos-manuales.service.ts`) inserta el gemelo
+   `pago_manual` **en la misma transacción** que `pagos_membresia` (con `referencia_id` apuntándole).
+   Lo usan **dos** flujos —`marcarPagado` (`negocios-acciones.service.ts`) y el **alta manual**
+   (`altaManualNegocio.service.ts`)— para no duplicar el doble INSERT (antes estaba copiado en ambos y
+   el alta manual **olvidaba** el gemelo, así que sus pagos no aparecían en esta bitácora; ahora sí).
+   Aquí es **transaccional** (no defensivo): el registro contable y el del libro mayor van juntos o no
+   van. El helper garantiza en un solo lugar la invariante **cortesía ⇒ `monto` NULL**.
 
 ## E. Lectura (KPIs y conteos)
 
@@ -266,6 +273,12 @@ defensividad (FK inválida no lanza), el CHECK de tipo, y la lectura (lista + co
 alcance del gerente). Verificado en verde el 11 Jun 2026. Diagnóstico ad-hoc:
 `scripts/diagnostico-bitacora.ts` (cruza `pagos_membresia` con su gemelo).
 
+**Backfill de gemelos huérfanos** (one-shot, **idempotente**, correr en **DEV y PROD**):
+`docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` y su equivalente en TypeScript
+`scripts/backfill-eventos-pago-manual.ts` reconstruyen los gemelos `pago_manual` históricos que
+quedaron huérfanos —sobre todo los de **altas manuales** previas a la centralización en
+`registrarPagoManual`, cuando el alta no asentaba el evento en la bitácora.
+
 ## G. Fuera de V1 / pendientes menores
 
 - **Deep-link a Negocios:** hoy se muestra el nombre del negocio; falta el salto a su ficha en el
@@ -282,10 +295,10 @@ alcance del gerente). Verificado en verde el 11 Jun 2026. Diagnóstico ad-hoc:
 ## H. Referencias
 
 - [`Panel_Admin.md`](Panel_Admin.md) — el Panel completo (login, roles, gate dual, regiones).
-- [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md) — el ciclo de cobro (webhook, estados, trial→gracia→suspensión).
+- [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md) — el ciclo de cobro (webhook, estados, trial→gracia→suspensión) y el **sellado de la fecha de próximo cobro al crear con tarjeta** (helper `sellarFechasPeriodoDesdeStripe` en `pago.service.ts`, llamado en `manejarCheckoutCompletado`/`manejarUpgradeCompletado`: sella `fecha_proximo_cobro`/`fecha_vencimiento` con `current_period_end` justo al crear, en vez de dejarlas NULL durante el trial). El **trial** tampoco está hardcodeado: se lee vía `obtenerConfigNumero('trial_duracion_dias', 14)`.
 - [`Negocios.md`](Negocios.md) — donde se *registran* los pagos manuales (plantilla de oro).
 - `Suscripciones_Pendientes.md` — lo que falta (checklist + Fuera de V1).
 
 ---
 
-*Última actualización: 11 Junio 2026 · nace con la bitácora financiera V1 (solo lectura): tabla `eventos_pago`, persistencia defensiva en el webhook + gemelo transaccional en "Registrar pago", lectura con alcance por rol + KPIs, verificada con harness (Gate 1).*
+*Última actualización: 15 Junio 2026 · escritura del pago manual centralizada en el helper único `registrarPagoManual` (`services/admin/pagos-manuales.service.ts`), usado por `marcarPagado` **y** por el alta manual (antes el alta olvidaba el gemelo); invariante cortesía ⇒ `monto` NULL garantizada en un solo lugar; backfill idempotente de gemelos huérfanos (`2026-06-15-backfill-eventos-pago-manual.sql` + script TS). · 11 Junio 2026: nace con la bitácora financiera V1 (solo lectura): tabla `eventos_pago`, persistencia defensiva en el webhook + gemelo transaccional en "Registrar pago", lectura con alcance por rol + KPIs, verificada con harness (Gate 1).*

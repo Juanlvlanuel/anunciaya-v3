@@ -9,7 +9,7 @@
 > sin contexto. La segunda (el **Apéndice técnico** al final) es la referencia para quien
 > va a tocar el código: archivos, endpoints, permisos y detalles internos.
 >
-> **Estado:** desplegado y en uso. Última actualización: 11 Junio 2026.
+> **Estado:** desplegado y en uso. Última actualización: 15 Junio 2026.
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) describe el Panel **completo**
 > (el "caparazón": login, roles, regiones, las demás secciones). Este documento es solo
@@ -368,6 +368,7 @@ negocios cuya sede cae en tu territorio.
 | `controllers/admin/negocios.controller.ts` | Lee query/params/body, valida, llama al service |
 | `services/admin/negocios.service.ts` | **Lecturas** + cálculo de alcance (`condicionAlcance`, `panelConFiltroRegion`) |
 | `services/admin/negocios-acciones.service.ts` | **Escrituras** (suspender/reactivar/reasignar/marcar pagado/cancelar/editar correo/**reenviar recibo**/**anular pago**) + alcance de escritura (`cargarNegocioConAlcance`) |
+| `services/admin/pagos-manuales.service.ts` | `registrarPagoManual(ejecutor, datos)` — **escritura centralizada** del pago manual: en una sola transacción inserta `pagos_membresia` + su **gemelo** en `eventos_pago` y garantiza cortesía⇒`monto` NULL. Lo usan `marcarPagado` y el alta manual (un solo punto evita desincronizar ficha↔bitácora) |
 | `services/admin/recibo-pago.service.ts` | `prepararReciboPago(pagoId)` — genera el recibo PDF + lo sube a R2 + arma los datos del correo (reusado por registrar pago / alta / reenviar) |
 | `services/admin/altaManualNegocio.service.ts` | Alta manual + catálogo de ciudades + chequeo de correo en vivo |
 | `services/admin/auditoria.service.ts` | `registrarAuditoria` → tabla `admin_auditoria` |
@@ -443,9 +444,26 @@ ignoran el query siempre.
 
 ## D. Detalles internos de las acciones
 
+> **Escritura de pago manual centralizada.** Todo pago manual (el de "Registrar pago" y el primer pago del
+> alta manual) pasa por el **único** helper `registrarPagoManual` (`services/admin/pagos-manuales.service.ts`),
+> que en la **misma transacción** escribe la fila contable en `pagos_membresia` **y** su evento gemelo
+> (`tipo='pago_manual'`, `origen='manual'`, `referencia_id`→`pagos_membresia.id`) en `eventos_pago`, y garantiza
+> la invariante cortesía⇒`monto` NULL en un solo lugar. Tener **un solo punto de escritura** evita que la ficha
+> y la bitácora del módulo Suscripciones se desincronicen: antes el doble INSERT estaba copiado en ambos flujos
+> y el alta manual **olvidaba** el gemelo, así que esos pagos no aparecían en Suscripciones; ahora sí. Es
+> transaccional, no defensivo (no confundir con `registrarEventoPago`, que es defensivo e idempotente y **solo**
+> lo usa el webhook de Stripe para los eventos automáticos). Los gemelos `pago_manual` históricos huérfanos
+> (sobre todo de altas manuales previas a la centralización) se reconstruyen con el **backfill** idempotente
+> `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` (+ `apps/api/scripts/backfill-eventos-pago-manual.ts`),
+> one-shot a correr en DEV y PROD.
+
 - **Registrar pago** (`marcarPagado`): en una transacción pone `estado_admin='activo'`,
   `activo=true`, `estado_membresia='al_corriente'`, escribe `fecha_vencimiento`/`fecha_proximo_cobro`,
-  limpia fechas de gracia, e inserta una fila en `pagos_membresia`. Con suscripción Stripe → empuja
+  limpia fechas de gracia, y registra el pago vía el **helper único `registrarPagoManual`**
+  (`services/admin/pagos-manuales.service.ts`), que en la **misma transacción** escribe la fila contable en
+  `pagos_membresia` **y** su evento gemelo (`tipo='pago_manual'`, `origen='manual'`,
+  `referencia_id`→`pagos_membresia.id`) en `eventos_pago` (la bitácora del módulo Suscripciones), y garantiza
+  en un solo lugar la invariante **cortesía ⇒ `monto` NULL**. Con suscripción Stripe → empuja
   `trial_end` (la tarjeta retoma sola), `metodo_cobro='tarjeta'`, **guard**: solo si está
   `al_corriente` (si no → 409). Sin suscripción → solo BD, `metodo_cobro='manual'`. Concepto
   efectivo/transferencia (con monto) o cortesía (sin monto). Fecha futura ≤ 2 años. Un negocio
@@ -499,7 +517,10 @@ estado, y viajan como array `{estado,total}` (no objeto: el middleware snake→c
 vendedor; del body con candado de región si gerente/superadmin); (4) calcula vencimiento = hoy + N meses;
 (5) en **una transacción** crea usuario+negocio+sucursal vía `crearNegocioConDueno` (`metodo_cobro='manual'`,
 sin Stripe, `contrasena_hash=null`, `correo_verificado=false`, sucursal con `ciudad_id` real) y registra el
-primer pago (con su `folio`); (6) auditoría + **recibo PDF a R2** + correo de bienvenida que **incluye el
+primer pago (con su `folio`) vía el **mismo helper `registrarPagoManual`** que usa `marcarPagado`, que también
+crea el **evento gemelo** en `eventos_pago` → el pago del alta manual **ahora sí aparece en la bitácora del
+módulo Suscripciones** (antes se omitía el gemelo y estos pagos quedaban fuera de la bitácora); (6) auditoría +
+**recibo PDF a R2** + correo de bienvenida que **incluye el
 recibo del primer pago** (mismo bloque/PDF que §D; todo best-effort). Apoyos: `catalogo-ciudades` (selector) y
 `existe-correo` (aviso en vivo). El cron `expirarManualesVencidos` pasa los manuales vencidos a `en_gracia`
 y notifica (`membresia_en_gracia`); de ahí, el cron de gracia los suspende.
@@ -521,4 +542,4 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 
 ---
 
-*Última actualización: 11 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos, "Registrar pago" para el vendedor en sus negocios manuales, y el **comprobante automático** (Defensa 1 del Camino B): correo + **recibo PDF descargable** con **folio secuencial** al registrar cualquier pago, historial de pagos visible también en negocios de tarjeta con pagos manuales (+ su refresco al instante), **reenviar comprobante**, **anular pago** (borrado lógico + recálculo de vigencia + aviso al dueño) y la **edición que sincroniza la bitácora**. Las acciones de la ficha viven en el **encabezado** (íconos temáticos con tooltip).*
+*Última actualización: 15 Junio 2026 · refleja el estado del código tras el alta manual (6 fases), la ampliación de "Registrar pago" a gerentes, la restricción de cortesía a gerente/superadmin, la edición de pagos del historial (concepto/monto/meses + traslado de vigencia), la cancelación transaccional, la paginación del historial de pagos, "Registrar pago" para el vendedor en sus negocios manuales, el **comprobante automático** (Defensa 1 del Camino B): correo + **recibo PDF descargable** con **folio secuencial** al registrar cualquier pago, historial de pagos visible también en negocios de tarjeta con pagos manuales (+ su refresco al instante), **reenviar comprobante**, **anular pago** (borrado lógico + recálculo de vigencia + aviso al dueño), la **edición que sincroniza la bitácora**, y la **centralización del pago manual** en el helper único `registrarPagoManual` (`pagos_membresia` + gemelo `eventos_pago` en una transacción; el alta manual ahora sí aparece en la bitácora de Suscripciones) + su **backfill** de gemelos históricos. Las acciones de la ficha viven en el **encabezado** (íconos temáticos con tooltip).*

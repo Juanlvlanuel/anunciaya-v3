@@ -7,6 +7,12 @@
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
 > sola; ver §9.1). Falta infraestructura de producción (ver §12).
+> **Versión 1.4 (15 Jun 2026):** pago manual **centralizado** en un único helper transaccional
+> `registrarPagoManual` (escribe `pagos_membresia` + su gemelo `pago_manual` en `eventos_pago` en la
+> misma transacción; §2, §9, §9.1); ahora el alta manual también deja su rastro en la bitácora. Las
+> fechas de próximo cobro/vencimiento se **sellan al crear** con tarjeta vía `sellarFechasPeriodoDesdeStripe`
+> (la ficha ya no muestra "Próximo cobro: —" durante el trial; §4, §5, §6). Backfill de los gemelos
+> históricos huérfanos (§12).
 > **Versión 1.3 (12 Jun 2026):** **anular un pago manual en negocios con tarjeta** ahora re-sincroniza
 > Stripe (la fecha de cobro "regresa" sola; §9.2), apoyado en la columna `cobro_previo` (§2); "Registrar
 > pago" durante el trial **respeta el fin del trial** (§9.1). Validado E2E en vivo (§13.1).
@@ -65,6 +71,26 @@
 
 > Cada "Registrar pago" (§9.1) inserta una fila aquí, en la **misma transacción** que activa el negocio. Antes el dato contable se perdía: solo quedaba la acción en `admin_auditoria`, sin monto ni concepto.
 
+**`eventos_pago`** (el **libro mayor** / bitácora financiera global del módulo Suscripciones):
+| Campo | Para qué |
+|---|---|
+| `negocio_id` | Negocio del evento |
+| `tipo` | `cobro_exitoso` / `cobro_fallido` / `cancelacion` / `pago_manual` |
+| `origen` | `stripe` (automático del webhook) / `manual` (Registrar pago / alta manual) |
+| `monto` · `moneda` | Importe del movimiento (NULL en cortesía / al anular, así deja de sumar en KPIs) |
+| `fecha_evento` | Cuándo ocurrió |
+| `actor_id` | Quién lo originó (admin en manual; NULL en automáticos de Stripe) |
+| `stripe_event_id` | **UNIQUE** — idempotencia de los eventos del webhook |
+| `referencia_id` | FK → `pagos_membresia.id` (enlaza el gemelo `pago_manual` con su fila contable) |
+| `metadata` | Contexto adicional del evento |
+
+> **Un pago manual vive en AMBAS tablas, en la misma transacción**, vía `registrarPagoManual` (§9.1): la
+> fila contable en `pagos_membresia` **y** su gemelo `tipo='pago_manual'`, `origen='manual'`,
+> `referencia_id → pagos_membresia.id` en `eventos_pago`. Antes el doble INSERT estaba copiado en los dos
+> flujos y el **alta manual olvidaba el gemelo** → sus pagos no aparecían en el módulo Suscripciones; ahora
+> sí. Los eventos automáticos de Stripe (`cobro_exitoso`/`cobro_fallido`/`cancelacion`) los puebla el
+> webhook vía `registrarEventoPago` (§5), no `registrarPagoManual`.
+
 ---
 
 ## 3. Los dos ejes de estado (clave del diseño)
@@ -95,6 +121,12 @@ El negocio **nace dentro del webhook**, después del pago (no en el checkout).
 ### Estado tras pagar (antes de terminar onboarding)
 `es_borrador=true`, `onboarding_completado=false`, `estado_membresia='al_corriente'`, `activo=true`. **NO aparece en el feed público** hasta `finalizarOnboarding` (que pone `es_borrador=false`, `onboarding_completado=true`). En el Panel (cartera del vendedor) **sí** aparece desde el pago.
 
+> **Sellado de fechas al crear (tarjeta).** Tanto en el registro nuevo como en el upgrade, al crear con
+> tarjeta se **sellan** `fecha_proximo_cobro` y `fecha_vencimiento` leyendo `current_period_end` de Stripe
+> (= fin del trial) vía `sellarFechasPeriodoDesdeStripe` (§5, §6). Antes quedaban NULL durante el trial y la
+> ficha mostraba **"Próximo cobro: —"** hasta que llegara el webhook asíncrono `subscription.updated`; ahora
+> la fecha está desde el alta.
+
 ---
 
 ## 5. El webhook (`procesarWebhook`)
@@ -108,18 +140,24 @@ Endpoint: `POST /api/pagos/webhook` (con `express.raw` — el body crudo es nece
 **Eventos manejados:**
 | Evento | Handler | Qué hace |
 |---|---|---|
-| `checkout.session.completed` | `manejarCheckoutCompletado` / `manejarUpgradeCompletado` | Crea/activa el negocio (§4) |
+| `checkout.session.completed` | `manejarCheckoutCompletado` / `manejarUpgradeCompletado` | Crea/activa el negocio (§4) y **sella `fecha_vencimiento`/`fecha_proximo_cobro` desde Stripe** (`current_period_end`) al crear, vía `sellarFechasPeriodoDesdeStripe` (§6) |
 | `invoice.payment_succeeded` | `manejarRenovacionPagada` | → `al_corriente`, refresca fechas, sella `fecha_primer_pago` si `amount_paid>0` |
 | `invoice.payment_failed` | `manejarCobroFallido` | → `en_gracia` (§7) |
 | `customer.subscription.updated` | `manejarSuscripcionActualizada` | Refresca `fecha_vencimiento`/`fecha_proximo_cobro` (NO el estado) |
 | `customer.subscription.deleted` | `procesarCancelacionSuscripcion` | Cancelación (§7/§8, distingue motivo) |
 | `customer.subscription.trial_will_end` | `manejarTrialPorTerminar` | Aviso in-app de fin de trial, con copy **ramificado** según el pago manual (§10) |
 
+> **Bitácora desde el webhook (`registrarEventoPago` en `services/suscripciones/eventos-pago.ts`).** Los
+> eventos automáticos de Stripe (`cobro_exitoso`/`cobro_fallido`/`cancelacion`, `origen='stripe'`) los
+> registra en `eventos_pago` (§2) este helper, que es **defensivo**: nunca lanza (no rompe el webhook si
+> falla la bitácora) e **idempotente por `stripe_event_id`** (UNIQUE). Es distinto de `registrarPagoManual`
+> (§9.1), que es **transaccional** y escribe el gemelo `pago_manual`; el `pago_manual` **no** pasa por aquí.
+
 ---
 
 ## 6. Ciclo de cobro normal
 
-1. **Trial** (14 días): la sub nace `trialing`. `subscription.updated` puebla `fecha_vencimiento`/`fecha_proximo_cobro` con el `current_period_end` (fin del trial).
+1. **Trial** (14 días): la sub nace `trialing`. Las fechas se **sellan JUSTO al crear**: `manejarCheckoutCompletado`/`manejarUpgradeCompletado` llaman `sellarFechasPeriodoDesdeStripe`, que hace `stripe.subscriptions.retrieve` y escribe `fecha_vencimiento`/`fecha_proximo_cobro` con el `current_period_end` (= fin del trial). Después, `subscription.updated` (vía `manejarSuscripcionActualizada`) solo **REFRESCA** esas fechas. Ambos caminos comparten la misma fuente de la fecha, `finPeriodoDeSuscripcion` (en `pago.service.ts`), para no divergir. Antes las fechas quedaban NULL durante el trial y solo las escribía el `subscription.updated` asíncrono.
 2. **Primer cobro** (al terminar el trial): `invoice.payment_succeeded` → `al_corriente`. Se **sella `fecha_primer_pago`** solo si `amount_paid > 0` (con `COALESCE`, una sola vez) — el invoice de $0 del trial no la sella.
 3. **Renovaciones mensuales:** cada `invoice.payment_succeeded` refresca las fechas al siguiente periodo.
 
@@ -171,7 +209,7 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 
 | Acción | Rol | Efecto BD | Efecto Stripe |
 |---|---|---|---|
-| **Registrar pago** (§9.1) | super + gerente | `al_corriente` + `activo` + fechas + `metodo_cobro` + fila en `pagos_membresia` (con `cobro_previo`) | **con sub:** empuja el cobro a la fecha (`trial_end`) → retoma solo. **sin sub:** solo BD |
+| **Registrar pago** (§9.1) | super + gerente | `al_corriente` + `activo` + fechas + `metodo_cobro` + fila en `pagos_membresia` (con `cobro_previo`) **+ gemelo `pago_manual` en `eventos_pago`** (misma transacción, vía `registrarPagoManual`) | **con sub:** empuja el cobro a la fecha (`trial_end`) → retoma solo. **sin sub:** solo BD |
 | **Anular pago** (§9.2) | super + gerente | marca el pago `anulado`, saca el ingreso de la bitácora, **recalcula la vigencia** | **con sub:** re-empuja el `trial_end` a la vigencia recalculada o a la fecha original → la fecha "regresa". **sin sub:** solo BD |
 | **Pausar** | super + gerente | `estado_admin='suspendido'`, `activo=false` | `pause_collection: void` (sin deuda) |
 | **Reactivar** | super + gerente | `estado_admin='activo'`, `activo=true` | limpia `pause_collection` |
@@ -190,7 +228,7 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 
 **Flujo (`marcarPagado` en `negocios-acciones.service.ts`):**
 1. **Guard v1:** con suscripción, solo opera sobre negocios `al_corriente`. Si está en gracia/suspendido (cobro pendiente en Stripe) → **409**; la regularización del moroso llega en una versión posterior. Sin suscripción no hay guard (sigue como antes).
-2. **Transacción** (`db.transaction`): activa el negocio (`estado_admin='activo'`, `activo=true`, `estado_membresia='al_corriente'`, `fechas=hasta`, limpia gracia) **+** inserta la fila en `pagos_membresia`. `metodo_cobro` queda **`'tarjeta'`** con sub (el cobro retoma solo) / **`'manual'`** sin ella.
+2. **Transacción** (`db.transaction`): activa el negocio (`estado_admin='activo'`, `activo=true`, `estado_membresia='al_corriente'`, `fechas=hasta`, limpia gracia) **+** escribe **AMBAS tablas** de la bitácora vía el helper único `registrarPagoManual(ejecutor, datos)`: la fila en `pagos_membresia` **y** su gemelo `pago_manual` en `eventos_pago` (§2), garantizando en un solo lugar la invariante **cortesía ⇒ `monto = NULL`**. `metodo_cobro` queda **`'tarjeta'`** con sub (el cobro retoma solo) / **`'manual'`** sin ella.
 3. **Stripe (fuera de la transacción, §4.3):** `empujarCobroSuscripcion(subId, hasta)` → `subscriptions.update({ trial_end: <unix de hasta>, proration_behavior: 'none', pause_collection: '' })`. Difiere el cobro a esa fecha y limpia cualquier pausa residual → al vencer, la tarjeta retoma sola. Defensiva: si Stripe falla, la BD ya quedó aplicada y se propaga `advertenciaStripe`.
 4. **Aviso de fin de trial** (§10): al acercarse la fecha, el copy se ramifica según el concepto (cortesía suprime; efectivo/transferencia avisa del cobro).
 
@@ -201,9 +239,23 @@ Idempotente: si ya está archivado → 409. El webhook `deleted` con `reason='ca
 > **Base del plazo = vigencia vigente (respeta el trial).** El modal calcula la fecha sumando los meses
 > sobre el **mayor entre hoy y la vigencia actual** (`sumarMeses`). Para que esa "vigencia actual" sea la
 > correcta, `FichaNegocio.tsx` le pasa al modal **la misma fecha que muestra** (`fechaProximoCobro` con
-> tarjeta, `fechaVencimiento` en manual). Sin esto, un pago durante el **trial** —donde `fechaVencimiento`
-> puede estar NULL hasta que llegue el webhook— se calcularía desde "hoy" y **acortaría** la vigencia en
-> vez de respetar el fin del trial (corregido el 12 Jun 2026).
+> tarjeta, `fechaVencimiento` en manual). Con el **sellado de fechas al crear** (§4, §6) esa vigencia ya
+> **no queda NULL durante el trial** —llega desde el alta, no hay que esperar al webhook—. Se conserva el
+> cálculo sobre el mayor entre hoy y la vigencia vigente **como defensa** (por si la fecha aún no estuviera
+> disponible): así un pago durante el trial respeta el fin del trial en vez de calcular desde "hoy" y
+> acortarlo (corregido el 12 Jun 2026; reforzado por el sellado el 15 Jun 2026).
+
+> **`registrarPagoManual` — un solo helper para los dos flujos.** Vive en
+> `services/admin/pagos-manuales.service.ts` y lo usan **ambos** caminos que registran un cobro manual:
+> "Registrar pago" (`marcarPagado` en `negocios-acciones.service.ts`) **y** el alta manual de un negocio
+> (`altaManualNegocio.service.ts`). En la misma transacción inserta la fila contable en `pagos_membresia`
+> y su gemelo en `eventos_pago`, garantizando en un único lugar la invariante cortesía ⇒ `monto NULL`.
+> Antes el doble INSERT estaba **copiado** en los dos servicios y el alta manual olvidaba el gemelo, así que
+> sus pagos no aparecían en Suscripciones. Es **transaccional** (no defensivo): se distingue de
+> `registrarEventoPago` (§5), que es defensivo/idempotente y solo lo usa el webhook para los eventos
+> automáticos de Stripe. El **comprobante automático** (recibo PDF en R2 + correo, §10) está en ambos flujos.
+> El **backfill** de los gemelos `pago_manual` históricos huérfanos (sobre todo de altas manuales previas a
+> la centralización) está en §12.
 
 ### 9.2 Anular pago (borrado lógico, simétrico a "Registrar pago")
 
@@ -260,7 +312,7 @@ Pendiente replicar **todo en modo live** + verificar la empresa en Stripe (§12)
 ## 12. Pendientes / extensiones
 
 - **Página de cuenta/perfil del usuario** (fuera del BS, **accesible desde modo Personal**): cambiar contraseña, 2FA, datos personales, avatar **y su suscripción** (estado + **botón reactivar pago** vía Customer Portal de Stripe). Crítico para que un negocio impago se recupere solo.
-- **Bitácora de eventos de pago en el Panel**: el primer ladrillo ya existe — la tabla `pagos_membresia` (§2) registra cada "Registrar pago" manual. Falta: registrar también los eventos de Stripe (webhook) + sección UI con filtros, unificada con `admin_auditoria`. Sinergia: migrar el dedup de idempotencia de Redis a esa tabla.
+- **Bitácora de eventos de pago en el Panel**: el **libro mayor ya existe** — la tabla `eventos_pago` (§2) registra TODOS los movimientos: los eventos de Stripe (`cobro_exitoso`/`cobro_fallido`/`cancelacion`, vía el webhook con `registrarEventoPago`, §5) **y** los pagos manuales (`pago_manual`, vía `registrarPagoManual`, §9.1). La **lectura backend ya está** (`admin/suscripciones.service.ts`: `listarEventos` + `obtenerDetalleEvento`, con KPIs de ingresos/fallidos, filtros y alcance por rol). Lo pendiente es **parte de la UI** (sección con filtros en el Panel). **Backfill** `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` + `apps/api/scripts/backfill-eventos-pago-manual.ts` (idempotente, one-shot, correr en **DEV y PROD**) reconstruye los gemelos `pago_manual` históricos huérfanos. Sinergia: migrar el dedup de idempotencia de Redis a esa tabla.
 - **Copy del trial**: el texto del front debe **leer el valor de config** (no un número fijo) para no desincronizarse.
 - **Reembolsos / contracargos** (`charge.refunded` / `charge.dispute.created`): hoy se manejan manualmente en Stripe; handler automático opcional a futuro.
 - **SCA/3DS** (`payment_action_required`): cubierto de facto por el ciclo de gracia (si no se autentica, cae como impago); aviso temprano opcional a futuro.

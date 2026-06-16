@@ -20,7 +20,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho
 >
-> **Última actualización:** 11 Junio 2026 — **Módulo CERRADO (bitácora V1)**: Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices). Quedan solo pendientes menores (§Fuera de V1).
+> **Última actualización:** 15 Junio 2026 — Pago manual centralizado en el helper único `registrarPagoManual` (usado por Registrar pago Y alta manual; el alta manual antes olvidaba el gemelo). Pendiente el backfill de gemelos históricos. **Módulo CERRADO (bitácora V1)**: Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices). Quedan solo pendientes menores (§Fuera de V1).
 
 ---
 
@@ -30,14 +30,17 @@
 de la membresía); las demás piezas quedan fuera de V1 (ver §Fuera de V1). Hecho y type-checked
 (tsc + build verdes): **(1)** migración `eventos_pago` + schema Drizzle; **(2)** persistencia — helper
 defensivo `services/suscripciones/eventos-pago.ts` + INSERT en los 3 handlers del webhook
-(cobro_exitoso/cobro_fallido/cancelacion) + gemelo `pago_manual` en `marcarPagado`; **(3)** backend de
+(cobro_exitoso/cobro_fallido/cancelacion) + gemelo `pago_manual` vía el helper único `registrarPagoManual`
+(`services/admin/pagos-manuales.service.ts`), escrito por **AMBOS** flujos manuales — "Registrar pago"
+(`marcarPagado`) **y el alta manual** (que antes lo olvidaba y ahora sí lo registra); **(3)** backend de
 lectura — `suscripciones.service.ts` (listar + detalle, alcance super/gerente) + controller + routes +
 montaje; **(4)** frontend — `suscripcionesService` + `useSuscripcionesAdmin` (RQ) + `SeccionSuscripciones`
 (KPIs + tabla/cards + filtros tipo/origen/periodo) + `FichaEvento` (detalle + metadata) + enchufado en
 `PaginaPanel`. **GATE 1 verde** (11 jun): migración corrida en dev + harness `probar-bitacora-eventos.ts`
 A–J TODO OK (persistencia + idempotencia + defensividad + lectura/KPIs + alcance gerente). Como es solo
 lectura, **se salta la Fase 2** → siguiente: **Fase 3 (Cerrar)**. Pendientes menores: el **deep-link** a la
-ficha de Negocios (hoy se muestra el negocio) y correr la migración en **prod** antes del deploy.
+ficha de Negocios (hoy se muestra el negocio); correr la migración en **prod** antes del deploy; y correr el
+**backfill** de gemelos `pago_manual` históricos huérfanos en **dev y prod** (ver §Faltantes).
 
 ---
 
@@ -79,7 +82,7 @@ negocio. Dos piezas:
 | Fuente | Qué aporta | Estado |
 |---|---|---|
 | **Eventos de Stripe** (cobros automáticos) | renovación pagada, primer cobro, cobro fallido, cancelación | ❌ **No se persisten hoy** → tabla nueva `eventos_pago` + INSERT en el webhook |
-| **`pagos_membresia`** | pagos **manuales** (efectivo/transferencia/cortesía): monto, concepto, meses, vigencia, quién | ✅ Ya existe |
+| **`pagos_membresia`** | pagos **manuales** (efectivo/transferencia/cortesía): monto, concepto, meses, vigencia, quién. Su gemelo en `eventos_pago` lo escribe `registrarPagoManual`, alimentado por **Registrar pago** Y **Alta manual** | ✅ Ya existe |
 | **`admin_auditoria`** | **acciones del admin** con peso financiero (registrar pago, pausar, cancelar): actor, motivo | ✅ Ya existe |
 
 ## Matriz de permisos
@@ -108,11 +111,12 @@ negocio. Dos piezas:
    (`manejarRenovacionPagada`, `manejarCobroFallido`, `procesarCancelacionSuscripcion`): si el INSERT
    falla, **no rompe el cobro ni provoca un reintento de Stripe** (regla del webhook, `Pagos §5`).
    La BD del ciclo de cobro sigue mandando; el registro en bitácora es secundario.
-3. **"Registrar pago" (Negocios) también escribe en `eventos_pago`** (`tipo='pago_manual'`,
-   `origen='manual'`, con su `referencia_id` → `pagos_membresia`), en la **misma transacción** que ya
-   inserta en `pagos_membresia`. Así el libro mayor queda completo sin uniones en read-time.
-   *(Alternativa anotada por si se prefiere no tocar `marcarPagado`: leer `pagos_membresia` con un
-   UNION en la query de la bitácora. Se decide al inicio de Fase 1; recomendación = escribir la fila.)*
+3. **El gemelo `pago_manual` lo escribe UN helper único: `registrarPagoManual`** (`services/admin/pagos-manuales.service.ts`).
+   En la **misma transacción** inserta la fila contable en `pagos_membresia` y su gemelo en `eventos_pago`
+   (`tipo='pago_manual'`, `origen='manual'`, con su `referencia_id` → `pagos_membresia.id`). Lo usan **DOS
+   flujos**: "Registrar pago" (`marcarPagado`) **Y el alta manual** (`altaManualNegocio.service.ts`). Al
+   centralizar el doble INSERT en un solo lugar, garantiza la invariante **cortesía ⇒ monto NULL** y deja el
+   libro mayor completo sin uniones en read-time.
 4. **Idempotencia:** `stripe_event_id` es **UNIQUE** → un evento reentregado por Stripe no duplica
    fila (INSERT … ON CONFLICT DO NOTHING). Migrar el **dedup de Redis** a esta tabla es **sinergia
    V2** (`Pagos §12`), **no** requisito de V1 — V1 solo agrega el INSERT.
@@ -135,8 +139,9 @@ de tablas existentes.
 - [ ] ⬜ El INSERT es **defensivo**: si falla, el cobro y el estado del negocio **no se rompen** ni se
   re-lanza al webhook (no genera reintento) — verificado forzando un fallo del INSERT.
 - [ ] ⬜ **Idempotencia:** reentregar el mismo `stripe_event_id` **no** duplica fila.
-- [ ] ⬜ **"Registrar pago"** (Negocios) inserta su fila `tipo='pago_manual'` en la misma transacción
-  — verificado con `probar-marcar-pagado.ts`.
+- [ ] ⬜ **AMBOS flujos manuales** ("Registrar pago" en Negocios **y el alta manual**) insertan su fila
+  `tipo='pago_manual'` en la misma transacción, vía el helper único `registrarPagoManual` (antes el alta
+  manual lo olvidaba) — verificado con `probar-marcar-pagado.ts`.
 
 **VER (Gate 1):**
 - [ ] ⬜ El **SuperAdmin** ve la bitácora global paginada con eventos de **las 3 fuentes** (Stripe +
@@ -165,8 +170,12 @@ Fase 0 — Definir
 Fase 1 — VER
 - [x] Migración: tabla eventos_pago (+ 4 índices, 1 UNIQUE, 3 CHECK) → docs/migraciones/2026-06-11-eventos-pago.sql
       ⚠️ FALTA correrla en dev y prod (one-shot manual)
-- [x] Backend persistencia: helper registrarEventoPago (defensivo + idempotente onConflict) + INSERT en
-      los 3 handlers del webhook (cobro_exitoso/cobro_fallido/cancelacion) + gemelo pago_manual en marcarPagado (tx)
+- [x] Backend persistencia — DOS helpers separados:
+      (a) registrarEventoPago (services/suscripciones/eventos-pago.ts) — DEFENSIVO + idempotente onConflict;
+          lo usa SOLO el webhook, con INSERT en sus 3 handlers (cobro_exitoso/cobro_fallido/cancelacion).
+      (b) registrarPagoManual (services/admin/pagos-manuales.service.ts) — TRANSACCIONAL; escribe en la misma
+          tx la fila pagos_membresia + su gemelo pago_manual en eventos_pago. Lo usan marcarPagado Y el alta
+          manual. El pago_manual NO pasa por el helper defensivo del webhook.
 - [x] Backend lectura: suscripciones.service (listarEventos + obtenerDetalleEvento, alcance super/gerente) +
       controller + routes + montaje en index.ts (antes del gate global). tsc verde.
 - [x] Frontend lectura: queryKeys + suscripcionesService + useSuscripcionesAdmin (RQ keepPreviousData) +
@@ -190,8 +199,19 @@ Fase 3 — Cerrar
 - Rutas de `/suscripciones` se montan con `requierePanel(['superadmin','gerente'])` (la usa también
   el gerente, con alcance regional); el filtro por región se aplica en el **service** (mismo predicado
   que Negocios), **antes** del gate global de superadmin en `routes/admin/index.ts`.
-- Persistencia: los handlers viven en `apps/api/src/services/pago.service.ts` (`Pagos §5`). El INSERT
-  va en cada uno, en `try/catch` propio. `marcarPagado` está en `services/admin/negocios-acciones.service.ts`.
+- Persistencia (DOS helpers, no mezclar):
+  - **Webhook → `registrarEventoPago`** (`services/suscripciones/eventos-pago.ts`): DEFENSIVO (nunca lanza,
+    idempotente por `stripe_event_id`). Los handlers viven en `apps/api/src/services/pago.service.ts`
+    (`Pagos §5`); el INSERT va en cada uno, en `try/catch` propio.
+  - **Pago manual → `registrarPagoManual`** (`services/admin/pagos-manuales.service.ts`): TRANSACCIONAL.
+    En una sola tx inserta `pagos_membresia` + su gemelo `pago_manual` en `eventos_pago` y garantiza
+    cortesía ⇒ monto NULL. Lo invocan `marcarPagado` (`services/admin/negocios-acciones.service.ts`) **y**
+    el alta manual (`altaManualNegocio.service.ts`). El `pago_manual` **no** pasa por el helper defensivo.
+  > **Nota histórica:** antes el doble INSERT estaba **copiado** en ambos flujos y el **alta manual olvidaba
+  > el gemelo** → sus pagos no aparecían en Suscripciones. Centralizado en `registrarPagoManual`, ya aparecen.
+- **Backfill (pendiente, correr en DEV y PROD):** `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql`
+  (idempotente, one-shot) + `apps/api/scripts/backfill-eventos-pago-manual.ts` reconstruyen los gemelos
+  `pago_manual` históricos huérfanos (sobre todo de altas manuales previas a la centralización).
 - Se **calca de Negocios:** `routes/controllers/services/admin/negocios*` + `apps/admin/src/components/negocios/`.
 
 ---
