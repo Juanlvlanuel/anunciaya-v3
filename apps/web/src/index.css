@@ -1,6 +1,23 @@
 @import "tailwindcss";
 
 /* ============================================= */
+/* AUTOFILL - igualar inputs (no el recuadro gris)*/
+/* ============================================= */
+/* Chrome/Edge pintan los inputs autocompletados con su propio fondo oscuro + texto
+   blanco, ignorando el diseño. Forzamos el fondo slate-100 y el texto slate-800 que
+   usan los campos (login, registro, recuperar). El box-shadow inset es el único modo
+   de tapar el fondo del autofill; la transición larga evita el flash al autocompletar. */
+input:-webkit-autofill,
+input:-webkit-autofill:hover,
+input:-webkit-autofill:focus,
+input:-webkit-autofill:active {
+  -webkit-text-fill-color: #1e293b;                /* slate-800 */
+  -webkit-box-shadow: 0 0 0 1000px #f1f5f9 inset;  /* slate-100 */
+  caret-color: #1e293b;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
+/* ============================================= */
 /* SCROLLBAR - Minimalista profesional           */
 /* ============================================= */
 
