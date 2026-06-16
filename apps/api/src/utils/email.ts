@@ -527,6 +527,9 @@ export interface DatosComprobantePago {
   /** URL del recibo PDF en R2 (opcional). Si viene, el correo muestra el botón de descarga;
    *  si no (falló la generación/subida), el correo va igual sin botón. */
   reciboUrl?: string | null;
+  /** Si true, el copy y el asunto dicen que es una CORRECCIÓN de un pago ya registrado
+   *  (reemplaza el comprobante anterior con el mismo folio), no un pago nuevo. */
+  esCorreccion?: boolean;
 }
 
 /** Botón "Descargar tu recibo (PDF)" — devuelve '' si no hay URL. */
@@ -614,14 +617,19 @@ function bloqueReciboMembresia(datos: DatosComprobantePago): string {
  */
 export function plantillaComprobantePago(nombre: string, datos: DatosComprobantePago): string {
   const esCortesia = datos.concepto === 'cortesia';
+  const esCorreccion = datos.esCorreccion === true;
 
-  const intro = esCortesia
-    ? `Activamos la membres&iacute;a de tu negocio en AnunciaYA como <strong>cortes&iacute;a</strong>. Aqu&iacute; tienes el detalle:`
-    : `Confirmamos que recibimos tu pago de la membres&iacute;a de AnunciaYA. <strong>Guarda este correo como tu comprobante.</strong>`;
+  const intro = esCorreccion
+    ? `Actualizamos el registro de tu membres&iacute;a de AnunciaYA tras una <strong>correcci&oacute;n</strong> del pago. Este comprobante <strong>reemplaza al anterior</strong> (mismo folio); el detalle vigente es:`
+    : esCortesia
+      ? `Activamos la membres&iacute;a de tu negocio en AnunciaYA como <strong>cortes&iacute;a</strong>. Aqu&iacute; tienes el detalle:`
+      : `Confirmamos que recibimos tu pago de la membres&iacute;a de AnunciaYA. <strong>Guarda este correo como tu comprobante.</strong>`;
 
-  const cierre = esCortesia
-    ? `Cualquier duda sobre tu membres&iacute;a, est&aacute;s en buenas manos: cont&aacute;ctanos cuando lo necesites.`
-    : `Este correo es tu <strong>comprobante oficial</strong>. Si registraste un pago y <strong>no</strong> recibiste este mensaje, av&iacute;sanos de inmediato &mdash; siempre debe llegarte una constancia.`;
+  const cierre = esCorreccion
+    ? `Este es tu <strong>comprobante actualizado</strong> y sustituye al anterior con ese folio. Si no reconoces esta correcci&oacute;n, av&iacute;sanos de inmediato.`
+    : esCortesia
+      ? `Cualquier duda sobre tu membres&iacute;a, est&aacute;s en buenas manos: cont&aacute;ctanos cuando lo necesites.`
+      : `Este correo es tu <strong>comprobante oficial</strong>. Si registraste un pago y <strong>no</strong> recibiste este mensaje, av&iacute;sanos de inmediato &mdash; siempre debe llegarte una constancia.`;
 
   const contenido = `
     <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
@@ -647,9 +655,11 @@ export async function enviarComprobantePagoMembresia(
   nombre: string,
   datos: DatosComprobantePago
 ): Promise<ResultadoEmail> {
-  const asunto = datos.concepto === 'cortesia'
-    ? 'Tu membresía de AnunciaYA está activa'
-    : 'Comprobante de pago — tu membresía de AnunciaYA';
+  const asunto = datos.esCorreccion
+    ? 'Comprobante actualizado — tu membresía de AnunciaYA'
+    : datos.concepto === 'cortesia'
+      ? 'Tu membresía de AnunciaYA está activa'
+      : 'Comprobante de pago — tu membresía de AnunciaYA';
 
   return enviarEmail(correo, asunto, plantillaComprobantePago(nombre, datos));
 }

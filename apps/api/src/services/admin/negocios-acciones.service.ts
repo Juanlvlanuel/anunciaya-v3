@@ -817,6 +817,7 @@ export async function editarPagoMembresia(
                 monto: rec.monto,
                 hasta: rec.hasta,
                 reciboUrl: rec.reciboUrl,
+                esCorreccion: true,
             });
         }
     } catch {
