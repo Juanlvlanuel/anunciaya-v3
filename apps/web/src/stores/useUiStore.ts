@@ -26,6 +26,8 @@ export type VistaModalLogin = 'login' | '2fa' | 'recuperar';
 export interface Datos2FA {
   tokenTemporal: string;
   email: string;
+  /** true cuando se abre el modal directo en "crear contraseña" (cuenta sin contraseña, modelo C). */
+  modoDefinir?: boolean;
 }
 
 /**
@@ -89,6 +91,8 @@ interface UiState {
   abrirModalLogin: () => void;
   cerrarModalLogin: () => void;
   abrirModal2FA: (tokenTemporal: string, email: string) => void;
+  /** Abre el modal directo en "crear contraseña" con el correo precargado (enlace de activación del correo). */
+  abrirModalCrearContrasena: (email: string) => void;
   setVistaModalLogin: (vista: VistaModalLogin) => void;
 
   // Acciones - Modal Ubicación
@@ -189,6 +193,18 @@ export const useUiStore = create<UiState>((set) => ({
       modalLoginAbierto: true,
       vistaModalLogin: '2fa',
       datos2FA: { tokenTemporal, email },
+    });
+  },
+
+  /**
+   * Abre el modal directo en la vista de CREAR contraseña (modelo C) con el correo precargado.
+   * Lo usa el enlace de activación del correo (`?activarCuenta=<correo>`, leído en RootLayout).
+   */
+  abrirModalCrearContrasena: (email: string) => {
+    set({
+      modalLoginAbierto: true,
+      vistaModalLogin: 'recuperar',
+      datos2FA: { tokenTemporal: '', email, modoDefinir: true },
     });
   },
 

@@ -14,6 +14,7 @@ import { ModalRateLimit } from '../components/ui/Banner429';
 import { useAuthStore, iniciarDeteccionActividad } from '../stores/useAuthStore';
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { useGpsStore } from '../stores/useGpsStore';
+import { useUiStore } from '../stores/useUiStore';
 import { buscarCiudadCercana } from '../data/ciudadesPopulares';
 import { useTituloDinamico } from '../hooks/useTituloDinamico';
 
@@ -96,6 +97,22 @@ export function RootLayout() {
     const limpiar = iniciarDeteccionActividad();
     return limpiar;
   }, [esPreviewIframe]);
+
+  // Enlace de activación del correo (`?activarCuenta=<correo>`): abre el modal directo en
+  // "crear contraseña" con el correo precargado y limpia el query param (cuentas modelo C
+  // del Panel — equipo y alta manual de negocios). La persona solo mete el código + su contraseña.
+  const abrirModalCrearContrasena = useUiStore((s) => s.abrirModalCrearContrasena);
+  useEffect(() => {
+    if (esPreviewIframe) return;
+    const params = new URLSearchParams(window.location.search);
+    const correo = params.get('activarCuenta');
+    if (!correo) return;
+    abrirModalCrearContrasena(correo);
+    // Quitar el param para que no se reabra al re-render ni al cerrar el modal.
+    params.delete('activarCuenta');
+    const query = params.toString();
+    window.history.replaceState(window.history.state, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+  }, [abrirModalCrearContrasena, esPreviewIframe]);
 
   // Detectar regreso de suspensión/inactividad prolongada
   useEffect(() => {

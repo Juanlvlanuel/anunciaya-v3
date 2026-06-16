@@ -141,11 +141,21 @@ function plantillaRecuperacion(nombre: string, codigo: string): string {
  * @param nombre - Nombre del usuario para personalizar
  * @param codigo - Código de 6 dígitos
  */
-function plantillaCrearContrasena(nombre: string, codigo: string): string {
+function plantillaCrearContrasena(nombre: string, codigo: string, correo: string): string {
+  const enlace = `${env.FRONTEND_URL}/?activarCuenta=${encodeURIComponent(correo)}`;
   const contenido = `
-    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
-      Para entrar a tu cuenta de AnunciaYA solo falta <strong>crear tu contrase&ntilde;a</strong>. Usa este c&oacute;digo de verificaci&oacute;n:
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      &iexcl;Te damos la bienvenida a <strong>AnunciaYA</strong>! Nos da mucho gusto que te unas a nuestra comunidad local.
     </p>
+    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Tu cuenta ya est&aacute; creada &mdash; solo falta <strong>activarla con tu contrase&ntilde;a</strong>. Da clic en el bot&oacute;n y, cuando te lo pida, escribe este c&oacute;digo:
+    </p>
+
+    <div style="text-align: center; margin-bottom: 20px;">
+      <a href="${enlace}" target="_blank" rel="noopener" style="display: inline-block; background-color: #034AE3; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 14px 32px; border-radius: 8px;">
+        Activar mi cuenta
+      </a>
+    </div>
 
     <div style="background-color: #e2e8f0; border: 1px solid #94a3b8; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 20px;">
       <div style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0f172a;">
@@ -156,6 +166,13 @@ function plantillaCrearContrasena(nombre: string, codigo: string): string {
       </p>
     </div>
 
+    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
+      &iexcl;Qu&eacute; gusto tenerte con nosotros! Cualquier duda, aqu&iacute; estamos para ayudarte.
+    </p>
+
+    <p style="margin: 0 0 12px; font-size: 13px; color: #64748b;">
+      &iquest;El bot&oacute;n no funciona? Entra a AnunciaYA, abre &quot;Iniciar sesi&oacute;n&quot; y elige &quot;&iquest;Primera vez? Crear contrase&ntilde;a&quot;.
+    </p>
     <p style="margin: 0; font-size: 13px; color: #64748b;">
       Si no esperabas este mensaje, puedes ignorarlo de forma segura.
     </p>`;
@@ -317,7 +334,7 @@ export async function enviarCodigoCrearContrasena(
   return enviarEmail(
     correo,
     `${codigo} - Crea tu contraseña de AnunciaYA`,
-    plantillaCrearContrasena(nombre, codigo)
+    plantillaCrearContrasena(nombre, codigo, correo)
   );
 }
 

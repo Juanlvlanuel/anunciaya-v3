@@ -111,6 +111,7 @@ export function ModalLogin() {
         setDatosAuth({
           email: datos2FA.email,
           tokenTemporal2FA: datos2FA.tokenTemporal,
+          modoDefinir: datos2FA.modoDefinir,
         });
       }
     }
