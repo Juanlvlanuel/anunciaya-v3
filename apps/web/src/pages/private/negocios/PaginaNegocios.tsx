@@ -443,13 +443,57 @@ interface MapaNegocionProps {
   longitud: number | null;
   negocioSeleccionadoId: string | null;
   getIconoMarker: (id: string) => L.Icon | L.DivIcon;
-  handleSeleccionarNegocio: (id: string) => void;
+  handleSeleccionarNegocio: (id: string, mapa?: L.Map, marcador?: L.Marker) => void;
   setNegocioSeleccionadoId: (id: string | null) => void;
   onMapReady: (map: L.Map) => void;
   navigate: ReturnType<typeof useNavigate>;
   markerRefs: React.MutableRefObject<Record<string, L.Marker>>;
   onChat: (negocio: NegocioResumen) => void;
   className?: string;
+}
+
+// Marcadores como hijo de <MapContainer> para resolver el mapa de ESTA instancia
+// vía useMap() (la visible). Se montan 2 <MapaNegocio> (lg:hidden + hidden lg:block)
+// y el `mapRef` compartido apunta al oculto (size 0); el del marker clickeado es el
+// visible, así `flyTo` corre sobre el mapa correcto y nunca recibe (NaN, NaN).
+function MarcadoresNegocios({
+  negocios, getIconoMarker, handleSeleccionarNegocio,
+  setNegocioSeleccionadoId, navigate, markerRefs, onChat,
+}: Pick<
+  MapaNegocionProps,
+  'negocios' | 'getIconoMarker' | 'handleSeleccionarNegocio' |
+  'setNegocioSeleccionadoId' | 'navigate' | 'markerRefs' | 'onChat'
+>) {
+  const mapa = useMap();
+  return (
+    <>
+      {negocios.map((negocio) => {
+        if (!negocio.latitud || !negocio.longitud) return null;
+        const posicion: [number, number] = [negocio.latitud, negocio.longitud];
+
+        return (
+          <Marker
+            key={negocio.sucursalId}
+            position={posicion}
+            icon={getIconoMarker(negocio.sucursalId)}
+            eventHandlers={{
+              click: (e: L.LeafletMouseEvent) => handleSeleccionarNegocio(negocio.sucursalId, mapa, e.target as L.Marker),
+              add: (e: L.LeafletEvent) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
+              popupclose: () => { setNegocioSeleccionadoId(null); },
+            }}
+          >
+            <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
+              <PopupNegocio
+                negocio={negocio}
+                onVerPerfil={() => navigate(`/negocios/${negocio.sucursalId}`)}
+                onChat={() => onChat(negocio)}
+              />
+            </Popup>
+          </Marker>
+        );
+      })}
+    </>
+  );
 }
 
 function MapaNegocio({
@@ -478,31 +522,15 @@ function MapaNegocio({
         </Marker>
       )}
 
-      {negocios.map((negocio) => {
-        if (!negocio.latitud || !negocio.longitud) return null;
-        const posicion: [number, number] = [negocio.latitud, negocio.longitud];
-
-        return (
-          <Marker
-            key={negocio.sucursalId}
-            position={posicion}
-            icon={getIconoMarker(negocio.sucursalId)}
-            eventHandlers={{
-              click: () => handleSeleccionarNegocio(negocio.sucursalId),
-              add: (e: L.LeafletEvent) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
-              popupclose: () => { setNegocioSeleccionadoId(null); },
-            }}
-          >
-            <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
-              <PopupNegocio
-                negocio={negocio}
-                onVerPerfil={() => navigate(`/negocios/${negocio.sucursalId}`)}
-                onChat={() => onChat(negocio)}
-              />
-            </Popup>
-          </Marker>
-        );
-      })}
+      <MarcadoresNegocios
+        negocios={negocios}
+        getIconoMarker={getIconoMarker}
+        handleSeleccionarNegocio={handleSeleccionarNegocio}
+        setNegocioSeleccionadoId={setNegocioSeleccionadoId}
+        navigate={navigate}
+        markerRefs={markerRefs}
+        onChat={onChat}
+      />
 
       <ControlesMapa onMapReady={onMapReady} />
       <MapaControlesZoom latitud={latitud} longitud={longitud} />
@@ -673,26 +701,32 @@ export function PaginaNegocios() {
   }, []);
 
   // Sincronización bidireccional
-  const handleSeleccionarNegocio = useCallback((sucursalId: string) => {
+  const handleSeleccionarNegocio = useCallback((sucursalId: string, mapaClickeado?: L.Map, marcadorClickeado?: L.Marker) => {
     const nuevoId = negocioSeleccionadoId === sucursalId ? null : sucursalId;
     setNegocioSeleccionadoId(nuevoId);
 
-    if (mapRef.current && nuevoId) {
+    // Preferir el mapa/marcador de la instancia que el usuario tocó (la visible).
+    // El `mapRef` compartido apunta al mapa oculto (size 0) y `flyTo` sobre un mapa
+    // de tamaño 0 genera LatLng (NaN, NaN). Fallback a mapRef para clicks de card.
+    const mapa = mapaClickeado ?? mapRef.current;
+
+    if (mapa && nuevoId) {
       const negocio = negocios.find(n => n.sucursalId === nuevoId);
       const lat = Number(negocio?.latitud);
       const lng = Number(negocio?.longitud);
-      if (negocio && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0) {
-        mapRef.current.stop();
-        // Centrar el mapa para que el popup (que abre hacia arriba) quede visible
-        // Calculamos offset basado en el tamaño del contenedor del mapa
-        const mapContainer = mapRef.current.getContainer();
-        const containerHeight = mapContainer.clientHeight;
-        // El popup ocupa ~250px hacia arriba, centramos el pin en el tercio inferior
-        const targetPoint = mapRef.current.project([lat, lng], 17);
+      // Offset basado en el alto del contenedor. El guard `containerHeight > 0`
+      // salta el flyTo si el mapa está oculto/sin layout (evita el NaN de Leaflet).
+      const containerHeight = mapa.getContainer().clientHeight;
+      if (negocio && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && containerHeight > 0) {
+        mapa.stop();
+        // Centrar el mapa para que el popup (que abre hacia arriba) quede visible.
+        // El popup ocupa ~250px hacia arriba, centramos el pin en el tercio inferior.
+        const targetPoint = mapa.project([lat, lng], 17);
         targetPoint.y -= containerHeight * 0.25; // Desplazar 25% hacia arriba
-        const targetLatLng = mapRef.current.unproject(targetPoint, 17);
-        mapRef.current.flyTo(targetLatLng, 17, { duration: 0.5 });
-        setTimeout(() => { markerRefs.current[nuevoId]?.openPopup(); }, 600);
+        const targetLatLng = mapa.unproject(targetPoint, 17);
+        mapa.flyTo(targetLatLng, 17, { duration: 0.5 });
+        const marcador = marcadorClickeado ?? markerRefs.current[nuevoId];
+        setTimeout(() => { marcador?.openPopup(); }, 600);
       }
     }
 
