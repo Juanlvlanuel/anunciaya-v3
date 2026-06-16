@@ -1,14 +1,20 @@
 import cors from 'cors';
 
 // Orígenes permitidos
+// Quita una posible barra final: el header `Origin` del navegador nunca la trae, así que
+// 'https://x.vercel.app/' en la env var rompería el match con el origen real. Defensivo.
+const sinBarraFinal = (u: string | undefined) => u?.replace(/\/+$/, '');
+
 const origenesPermitidos = [
   'http://localhost:3000',
   'https://localhost:3000',
+  'http://localhost:3100',      // Panel Admin (apps/admin) en dev
   'http://192.168.1.232:3000',
   'http://192.168.1.125:3000',
   'https://192.168.1.125:3000',
   'https://192.168.1.232:3000',
-  process.env.FRONTEND_URL,
+  sinBarraFinal(process.env.FRONTEND_URL),
+  sinBarraFinal(process.env.PANEL_URL),  // Panel Admin en prod (misma env var que el enlace del correo)
 ].filter(Boolean) as string[];
 
 /**

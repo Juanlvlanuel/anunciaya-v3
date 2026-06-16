@@ -141,11 +141,32 @@ function plantillaRecuperacion(nombre: string, codigo: string): string {
  * @param nombre - Nombre del usuario para personalizar
  * @param codigo - Código de 6 dígitos
  */
-function plantillaCrearContrasena(nombre: string, codigo: string, correo: string): string {
-  const enlace = `${env.FRONTEND_URL}/?activarCuenta=${encodeURIComponent(correo)}`;
+/**
+ * @param destino  A qué app dirige el enlace de activación:
+ *   - 'panel': cuenta del EQUIPO (gerente/vendedor) → Panel Admin (PANEL_URL).
+ *   - 'web'  : usuario / dueño de negocio → app pública AnunciaYA (FRONTEND_URL).
+ */
+function plantillaCrearContrasena(
+  nombre: string,
+  codigo: string,
+  correo: string,
+  destino: 'web' | 'panel' = 'web'
+): string {
+  const esPanel = destino === 'panel';
+  // Si el Panel aún no está desplegado (PANEL_URL sin configurar) caemos a la app web,
+  // que también sabe manejar ?activarCuenta. Así nunca queda un enlace roto.
+  // .replace: quita una barra final para no generar '...app//?activarCuenta'.
+  const urlBase = (esPanel ? (env.PANEL_URL ?? env.FRONTEND_URL) : env.FRONTEND_URL).replace(/\/+$/, '');
+  const enlace = `${urlBase}/?activarCuenta=${encodeURIComponent(correo)}`;
+  const bienvenida = esPanel
+    ? 'Nos da mucho gusto que te unas a nuestro equipo.'
+    : 'Nos da mucho gusto que te unas a nuestra comunidad local.';
+  const ayudaFallback = esPanel
+    ? '&iquest;El bot&oacute;n no funciona? Entra al Panel de AnunciaYA, elige &quot;&iquest;Olvidaste tu contrase&ntilde;a?&quot; y escribe el c&oacute;digo de arriba para crearla.'
+    : '&iquest;El bot&oacute;n no funciona? Entra a AnunciaYA, abre &quot;Iniciar sesi&oacute;n&quot; y elige &quot;&iquest;Primera vez? Crear contrase&ntilde;a&quot;.';
   const contenido = `
     <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
-      &iexcl;Te damos la bienvenida a <strong>AnunciaYA</strong>! Nos da mucho gusto que te unas a nuestra comunidad local.
+      &iexcl;Te damos la bienvenida a <strong>AnunciaYA</strong>! ${bienvenida}
     </p>
     <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
       Tu cuenta ya est&aacute; creada &mdash; solo falta <strong>activarla con tu contrase&ntilde;a</strong>. Da clic en el bot&oacute;n y, cuando te lo pida, escribe este c&oacute;digo:
@@ -166,12 +187,8 @@ function plantillaCrearContrasena(nombre: string, codigo: string, correo: string
       </p>
     </div>
 
-    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
-      &iexcl;Qu&eacute; gusto tenerte con nosotros! Cualquier duda, aqu&iacute; estamos para ayudarte.
-    </p>
-
     <p style="margin: 0 0 12px; font-size: 13px; color: #64748b;">
-      &iquest;El bot&oacute;n no funciona? Entra a AnunciaYA, abre &quot;Iniciar sesi&oacute;n&quot; y elige &quot;&iquest;Primera vez? Crear contrase&ntilde;a&quot;.
+      ${ayudaFallback}
     </p>
     <p style="margin: 0; font-size: 13px; color: #64748b;">
       Si no esperabas este mensaje, puedes ignorarlo de forma segura.
@@ -329,12 +346,13 @@ export async function enviarCodigoRecuperacion(
 export async function enviarCodigoCrearContrasena(
   correo: string,
   nombre: string,
-  codigo: string
+  codigo: string,
+  destino: 'web' | 'panel' = 'web'
 ): Promise<ResultadoEmail> {
   return enviarEmail(
     correo,
     `${codigo} - Crea tu contraseña de AnunciaYA`,
-    plantillaCrearContrasena(nombre, codigo, correo)
+    plantillaCrearContrasena(nombre, codigo, correo, destino)
   );
 }
 

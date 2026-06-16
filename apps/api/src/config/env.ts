@@ -30,6 +30,14 @@ const esquemaEnv = z.object({
   // -------- Frontend (CORS) --------
   FRONTEND_URL: z.string().url('FRONTEND_URL debe ser una URL válida'),
 
+  // URL del Panel Admin (apps/admin). La usa el enlace de activación del correo del EQUIPO.
+  // Opcional: mientras el Panel no esté desplegado, el correo de equipo cae a FRONTEND_URL
+  // (ver email.ts). En dev arranca en el puerto local del Panel. Al desplegarlo en Vercel,
+  // poner aquí su dominio propio (proyecto distinto al de la web).
+  PANEL_URL: isProduction
+    ? z.string().url('PANEL_URL debe ser una URL válida').optional()
+    : z.string().url().default('http://localhost:3100'),
+
   // -------- JWT --------
   JWT_SECRET: z.string().min(32, 'JWT_SECRET debe tener mínimo 32 caracteres'),
   JWT_REFRESH_SECRET: z.string().min(32, 'JWT_REFRESH_SECRET debe tener mínimo 32 caracteres'),

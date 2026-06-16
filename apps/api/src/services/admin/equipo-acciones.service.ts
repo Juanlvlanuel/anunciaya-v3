@@ -176,7 +176,8 @@ async function enviarCodigoModeloC(correo: string, nombre: string): Promise<bool
     const guardado = await guardarCodigoRecuperacion(correo, codigo);
     if (!guardado) return false;
     try {
-        const env = await enviarCodigoCrearContrasena(correo, nombre, codigo);
+        // 'panel': la cuenta del equipo activa su acceso en el Panel Admin, no en la app pública.
+        const env = await enviarCodigoCrearContrasena(correo, nombre, codigo, 'panel');
         return env.success;
     } catch (error) {
         console.error('Error enviando el código de crear contraseña:', error);

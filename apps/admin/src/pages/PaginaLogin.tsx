@@ -10,7 +10,7 @@
  * Ubicación: apps/admin/src/pages/PaginaLogin.tsx
  */
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Navigate, useNavigate } from 'react-router-dom';
 import { AxiosError } from 'axios';
 import { Sun, Moon } from 'lucide-react';
@@ -37,6 +37,8 @@ function PaginaLogin() {
   const [tema, setTema] = useState<Tema>(obtenerTema());
   const [pantalla, setPantalla] = useState<Pantalla>('acceso');
   const [correo, setCorreo] = useState('');
+  // Activación del equipo: el enlace del correo trae ?activarCuenta=<correo> y ya incluye el código.
+  const [modoActivacion, setModoActivacion] = useState(false);
   const [error, setError] = useState(false);
   const [mensajeError, setMensajeError] = useState<string>();
   const [cargando, setCargando] = useState(false);
@@ -161,8 +163,20 @@ function PaginaLogin() {
     }
   }
 
+  // Enlace de activación del equipo (?activarCuenta=<correo>): abrir directo "crea tu contraseña"
+  // en el paso del código (la persona ya lo recibió en el correo) y limpiar el parámetro de la URL.
+  useEffect(() => {
+    const correoActivar = new URLSearchParams(window.location.search).get('activarCuenta');
+    if (!correoActivar) return;
+    setCorreo(correoActivar);
+    setModoActivacion(true);
+    setPantalla('recuperar');
+    window.history.replaceState({}, '', window.location.pathname);
+  }, []);
+
   function irA(p: Pantalla) {
     setPantalla(p);
+    setModoActivacion(false);
     setError(false);
     setMensajeError(undefined);
     setError2fa(false);
@@ -216,7 +230,14 @@ function PaginaLogin() {
               cargando={cargando2fa}
             />
           )}
-          {pantalla === 'recuperar' && <RecuperarContrasena onVolver={() => irA('acceso')} />}
+          {pantalla === 'recuperar' && (
+            <RecuperarContrasena
+              onVolver={() => irA('acceso')}
+              correoInicial={correo}
+              modoCrear={modoActivacion}
+              pasoInicial={modoActivacion ? 'codigo' : 'correo'}
+            />
+          )}
         </div>
 
         <p className="relative mt-5 text-sm text-texto-3">© 2026 AnunciaYA</p>

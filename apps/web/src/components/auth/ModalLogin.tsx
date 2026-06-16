@@ -44,6 +44,11 @@ export interface DatosAuth {
    * Hace que la vista 'recuperar' muestre copy de "crear" en vez de "restablecer".
    */
   modoDefinir?: boolean;
+  /**
+   * La persona ya tiene el código (vino del enlace del correo de activación):
+   * la vista 'recuperar' arranca directo en el paso 2 (código + contraseña).
+   */
+  codigoYaEnviado?: boolean;
 }
 
 // =============================================================================
@@ -112,6 +117,7 @@ export function ModalLogin() {
           email: datos2FA.email,
           tokenTemporal2FA: datos2FA.tokenTemporal,
           modoDefinir: datos2FA.modoDefinir,
+          codigoYaEnviado: datos2FA.codigoYaEnviado,
         });
       }
     }
@@ -213,6 +219,7 @@ export function ModalLogin() {
             <VistaRecuperar
               emailInicial={datosAuth.email}
               modoDefinir={datosAuth.modoDefinir}
+              iniciarEnPaso2={datosAuth.codigoYaEnviado}
               onCambiarVista={cambiarVista}
               onActualizarDatos={actualizarDatos}
             />

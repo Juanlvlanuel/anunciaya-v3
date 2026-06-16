@@ -27,6 +27,11 @@ interface VistaRecuperarProps {
   emailInicial: string;
   /** true cuando la cuenta DEFINE su contraseña por primera vez (alta manual): copy de "crear". */
   modoDefinir?: boolean;
+  /**
+   * true cuando la persona ya tiene el código (llegó por el enlace del correo de activación):
+   * la vista arranca directo en el paso 2 (código + contraseña), saltando el envío del código.
+   */
+  iniciarEnPaso2?: boolean;
   onCambiarVista: (vista: VistaAuth) => void;
   onActualizarDatos: (datos: Partial<DatosAuth>) => void;
 }
@@ -43,13 +48,14 @@ const CODIGO_REGEX = /^\d{6}$/;
 export function VistaRecuperar({
   emailInicial,
   modoDefinir = false,
+  iniciarEnPaso2 = false,
   onCambiarVista,
   onActualizarDatos,
 }: VistaRecuperarProps) {
   const { t } = useTranslation('auth');
 
-  // Estado
-  const [paso, setPaso] = useState<PasoRecuperar>(1);
+  // Estado — si la persona ya tiene el código (enlace del correo), arranca en el paso 2.
+  const [paso, setPaso] = useState<PasoRecuperar>(iniciarEnPaso2 ? 2 : 1);
   const [email, setEmail] = useState(emailInicial);
   const [codigo, setCodigo] = useState('');
   const [nuevaPassword, setNuevaPassword] = useState('');

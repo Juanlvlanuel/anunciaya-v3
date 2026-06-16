@@ -28,6 +28,8 @@ export interface Datos2FA {
   email: string;
   /** true cuando se abre el modal directo en "crear contraseña" (cuenta sin contraseña, modelo C). */
   modoDefinir?: boolean;
+  /** true cuando la persona YA tiene el código (vino del enlace del correo): saltar al paso 2. */
+  codigoYaEnviado?: boolean;
 }
 
 /**
@@ -204,7 +206,8 @@ export const useUiStore = create<UiState>((set) => ({
     set({
       modalLoginAbierto: true,
       vistaModalLogin: 'recuperar',
-      datos2FA: { tokenTemporal: '', email, modoDefinir: true },
+      // codigoYaEnviado: el código viaja en el mismo correo de activación → saltar al paso 2.
+      datos2FA: { tokenTemporal: '', email, modoDefinir: true, codigoYaEnviado: true },
     });
   },
 

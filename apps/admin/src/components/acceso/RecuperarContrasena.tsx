@@ -15,6 +15,15 @@ import { solicitarCodigo, restablecerConCodigo } from '../../services/recuperaci
 
 interface RecuperarContrasenaProps {
   onVolver: () => void;
+  /** Correo precargado (activación del equipo desde el enlace del correo). */
+  correoInicial?: string;
+  /** Paso en el que arranca. 'codigo' cuando la persona YA tiene el código (vino del enlace). */
+  pasoInicial?: Paso;
+  /**
+   * true cuando la cuenta CREA su contraseña por primera vez (activación del equipo):
+   * el copy habla de "crear", no de "recuperar/restablecer".
+   */
+  modoCrear?: boolean;
 }
 
 type Paso = 'correo' | 'codigo' | 'exito';
@@ -22,9 +31,14 @@ type Paso = 'correo' | 'codigo' | 'exito';
 const CLASE_INPUT =
   'w-full rounded-[11px] border border-campo-borde bg-campo py-3 pl-10 pr-3 text-base lg:text-sm 2xl:text-base font-medium text-texto placeholder:text-texto-4 outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_4px_var(--panel-ring)]';
 
-export function RecuperarContrasena({ onVolver }: RecuperarContrasenaProps) {
-  const [paso, setPaso] = useState<Paso>('correo');
-  const [correo, setCorreo] = useState('');
+export function RecuperarContrasena({
+  onVolver,
+  correoInicial = '',
+  pasoInicial = 'correo',
+  modoCrear = false,
+}: RecuperarContrasenaProps) {
+  const [paso, setPaso] = useState<Paso>(pasoInicial);
+  const [correo, setCorreo] = useState(correoInicial);
   const [codigo, setCodigo] = useState('');
   const [contrasena, setContrasena] = useState('');
   const [mostrar, setMostrar] = useState(false);
@@ -70,7 +84,9 @@ export function RecuperarContrasena({ onVolver }: RecuperarContrasenaProps) {
         <div className="mx-auto mb-4 grid h-14 w-14 place-items-center rounded-[16px] bg-[color-mix(in_srgb,var(--panel-ok)_14%,transparent)] text-ok">
           <Lock size={26} />
         </div>
-        <h1 className="text-[22px] font-bold tracking-[-0.3px] text-texto">Contraseña actualizada</h1>
+        <h1 className="text-[22px] font-bold tracking-[-0.3px] text-texto">
+          {modoCrear ? 'Cuenta activada' : 'Contraseña actualizada'}
+        </h1>
         <p className="mt-1 text-sm text-texto-3">Ya puedes iniciar sesión con tu nueva contraseña.</p>
         <button
           type="button"
@@ -103,12 +119,12 @@ export function RecuperarContrasena({ onVolver }: RecuperarContrasenaProps) {
 
       <div className="mb-5">
         <h1 className="text-[22px] font-bold tracking-[-0.3px] text-texto">
-          {paso === 'correo' ? 'Recuperar contraseña' : 'Revisa tu correo'}
+          {modoCrear ? 'Crea tu contraseña' : paso === 'correo' ? 'Recuperar contraseña' : 'Revisa tu correo'}
         </h1>
         <p className="mt-1 text-sm text-texto-3">
           {paso === 'correo'
             ? 'Escribe tu correo y te enviaremos un código para crear una nueva contraseña.'
-            : `Escribe el código de 6 dígitos que enviamos a ${correo} y tu nueva contraseña.`}
+            : `Escribe el código de 6 dígitos que ${modoCrear ? 'te enviamos en el correo de bienvenida' : 'enviamos'} a ${correo} y tu nueva contraseña.`}
         </p>
       </div>
 
@@ -200,6 +216,8 @@ export function RecuperarContrasena({ onVolver }: RecuperarContrasenaProps) {
           </>
         ) : paso === 'correo' ? (
           'Enviar código'
+        ) : modoCrear ? (
+          'Crear contraseña'
         ) : (
           'Restablecer contraseña'
         )}
