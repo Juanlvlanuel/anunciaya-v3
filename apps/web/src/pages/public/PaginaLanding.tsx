@@ -837,48 +837,74 @@ export default function PaginaLanding() {
             return;
         }
 
+        // Cierra/limpia el diálogo de Google si ya estaba abierto (evita duplicados y
+        // permite reabrirlo siempre).
+        const cerrarDialogoGoogle = () => {
+            document.getElementById('google-signin-container')?.remove();
+            document.getElementById('google-signin-overlay')?.remove();
+        };
+        cerrarDialogoGoogle();
+
         window.google.accounts.id.initialize({
             client_id: clientId,
             callback: (response: Record<string, unknown>) => {
+                cerrarDialogoGoogle();
                 if (response.credential) {
                     handleGoogleSuccess(response.credential as string);
                 }
             },
-            use_fedcm_for_prompt: true,
         });
 
-        const esProduccion = window.location.protocol === 'https:';
+        // Usamos el botón RENDERIZADO de Google (no One Tap/prompt). El prompt con FedCM
+        // se autosilencia tras cerrarlo con la X (cooldown del navegador), dejando el
+        // acceso "bloqueado"; el botón renderizado se abre cuantas veces se quiera y se
+        // cierra con la X / clic afuera sin bloquear nada. Mismo flujo en dev y prod.
+        const overlay = document.createElement('div');
+        overlay.id = 'google-signin-overlay';
+        Object.assign(overlay.style, {
+            position: 'fixed', inset: '0',
+            background: 'rgba(15,23,42,0.5)', zIndex: '9998',
+        });
+        overlay.onclick = cerrarDialogoGoogle;
+        document.body.appendChild(overlay);
 
-        if (esProduccion) {
-            window.google.accounts.id.prompt();
-        } else {
-            const container = document.createElement('div');
-            container.id = 'google-signin-container';
-            Object.assign(container.style, {
-                position: 'fixed', top: '50%', left: '50%',
-                transform: 'translate(-50%, -50%)', zIndex: '9999',
-                background: 'white', padding: '20px',
-                borderRadius: '12px', boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
-            });
-            document.body.appendChild(container);
+        const container = document.createElement('div');
+        container.id = 'google-signin-container';
+        Object.assign(container.style, {
+            position: 'fixed', top: '50%', left: '50%',
+            transform: 'translate(-50%, -50%)', zIndex: '9999',
+            background: 'white', padding: '24px',
+            borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
+            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px',
+        });
 
-            const overlay = document.createElement('div');
-            overlay.id = 'google-signin-overlay';
-            Object.assign(overlay.style, {
-                position: 'fixed', inset: '0',
-                background: 'rgba(0,0,0,0.5)', zIndex: '9998',
-            });
-            overlay.onclick = () => {
-                document.getElementById('google-signin-container')?.remove();
-                document.getElementById('google-signin-overlay')?.remove();
-            };
-            document.body.appendChild(overlay);
+        const btnCerrar = document.createElement('button');
+        btnCerrar.type = 'button';
+        btnCerrar.setAttribute('aria-label', 'Cerrar');
+        btnCerrar.textContent = '✕';
+        Object.assign(btnCerrar.style, {
+            position: 'absolute', top: '8px', right: '10px',
+            border: 'none', background: 'transparent', cursor: 'pointer',
+            fontSize: '16px', color: '#64748b', lineHeight: '1',
+        });
+        btnCerrar.onclick = cerrarDialogoGoogle;
+        container.appendChild(btnCerrar);
 
-            window.google.accounts.id.renderButton(container, {
-                theme: 'outline', size: 'large',
-                text: 'signin_with', shape: 'rectangular', width: 280,
-            });
-        }
+        const titulo = document.createElement('p');
+        titulo.textContent = 'Entrar con Google';
+        Object.assign(titulo.style, {
+            margin: '2px 0 0', fontSize: '15px', fontWeight: '700', color: '#1e293b',
+        });
+        container.appendChild(titulo);
+
+        const slotBoton = document.createElement('div');
+        container.appendChild(slotBoton);
+        document.body.appendChild(container);
+
+        window.google.accounts.id.renderButton(slotBoton, {
+            theme: 'outline', size: 'large',
+            text: 'signin_with', shape: 'rectangular', width: 280,
+        });
     };
 
     // =========================================================================
