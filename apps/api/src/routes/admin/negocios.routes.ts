@@ -93,8 +93,9 @@ router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioContr
 router.patch('/:id/correo-dueno', requierePanel(['superadmin', 'gerente']), cambiarCorreoDuenoController);
 // Editar una fila del historial de pagos (corregir concepto/monto/meses): superadmin + gerente.
 router.patch('/:id/pagos/:pagoId', requierePanel(['superadmin', 'gerente']), editarPagoController);
-// Reenviar el comprobante de un pago al dueño (regenera el recibo): superadmin + gerente.
-router.post('/:id/pagos/:pagoId/reenviar-recibo', requierePanel(['superadmin', 'gerente']), reenviarReciboController);
+// Reenviar el comprobante de un pago al dueño (regenera el recibo): superadmin + gerente + vendedor
+// (el vendedor solo REENVÍA —no edita ni anula— y queda acotado a su cartera por cargarNegocioConAlcance).
+router.post('/:id/pagos/:pagoId/reenviar-recibo', requierePanel(['superadmin', 'gerente', 'vendedor']), reenviarReciboController);
 // Anular (borrado lógico) un pago — solo negocios manuales · motivo obligatorio: superadmin + gerente.
 router.post('/:id/pagos/:pagoId/anular', requierePanel(['superadmin', 'gerente']), anularPagoController);
 

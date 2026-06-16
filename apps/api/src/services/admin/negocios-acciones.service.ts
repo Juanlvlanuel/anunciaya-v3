@@ -828,7 +828,7 @@ export async function editarPagoMembresia(
 }
 
 // =============================================================================
-// REENVIAR EL RECIBO DE UN PAGO (super + gerente · alcance de región)
+// REENVIAR EL RECIBO DE UN PAGO (super + gerente + vendedor · alcance por rol)
 // =============================================================================
 
 export type ResultadoReenvio =
@@ -839,7 +839,7 @@ export type ResultadoReenvio =
  * Reenvía el comprobante de un pago ya registrado al correo del dueño (caso: no le llegó, lo borró,
  * o se le corrigió el correo). **Regenera** el recibo PDF con los datos actuales del pago (mismo
  * folio) → así el recibo siempre refleja el estado vigente (útil tras editar un pago). Devuelve si el
- * correo salió. Alcance: SuperAdmin (cualquiera) / Gerente (su región). El pago debe ser del negocio.
+ * correo salió. Alcance: SuperAdmin (cualquiera) / Gerente (su región) / Vendedor (su cartera). El pago debe ser del negocio.
  */
 export async function reenviarReciboPago(
     panel: UsuarioPanel,

@@ -159,7 +159,7 @@ const PAGOS_INICIAL = PAGOS_INICIAL_FICHA;
  *  cortesía). Siempre visible en negocios de método manual; en los de tarjeta, solo si hay algún pago
  *  manual registrado (un admin puede "Registrar pago" en un negocio con suscripción Stripe).
  *  Con permiso (super/gerente) cada fila trae un botón para corregir concepto/monto/meses. */
-function HistorialPagos({ negocioId, puedeActuar, esManual, permiteCortesia }: { negocioId: string; puedeActuar: boolean; esManual: boolean; permiteCortesia: boolean }) {
+function HistorialPagos({ negocioId, puedeActuar, puedeReenviar, esManual, permiteCortesia }: { negocioId: string; puedeActuar: boolean; puedeReenviar: boolean; esManual: boolean; permiteCortesia: boolean }) {
   const [verTodos, setVerTodos] = useState(false);
   // Pide N+1 para saber si hay más sin traer todo; "Ver todos" re-consulta sin límite.
   const { data, isLoading } = usePagosNegocio(negocioId, true, verTodos ? undefined : PAGOS_INICIAL + 1);
@@ -208,7 +208,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual, permiteCortesia }: {
                     {p.registradoPorNombre ? ` · por ${p.registradoPorNombre}` : ''}
                   </span>
                 </div>
-                {puedeActuar && !p.anulado && (
+                {puedeReenviar && !p.anulado && (
                   <div className="flex shrink-0 items-center gap-1">
                     <Tooltip text="Reenviar comprobante">
                       <button
@@ -222,7 +222,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual, permiteCortesia }: {
                         <Send size={16} />
                       </button>
                     </Tooltip>
-                    {p.id === ultimoPagoId && (
+                    {puedeActuar && p.id === ultimoPagoId && (
                       <Tooltip text="Editar pago">
                         <button
                           type="button"
@@ -235,17 +235,19 @@ function HistorialPagos({ negocioId, puedeActuar, esManual, permiteCortesia }: {
                         </button>
                       </Tooltip>
                     )}
-                    <Tooltip text="Anular pago">
-                      <button
-                        type="button"
-                        data-testid={`pago-anular-${p.id}`}
-                        onClick={() => setAnulando(p)}
-                        aria-label="Anular pago"
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-peligro transition hover:bg-peligro-suave"
-                      >
-                        <Ban size={16} />
-                      </button>
-                    </Tooltip>
+                    {puedeActuar && (
+                      <Tooltip text="Anular pago">
+                        <button
+                          type="button"
+                          data-testid={`pago-anular-${p.id}`}
+                          onClick={() => setAnulando(p)}
+                          aria-label="Anular pago"
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-peligro transition hover:bg-peligro-suave"
+                        >
+                          <Ban size={16} />
+                        </button>
+                      </Tooltip>
+                    )}
                   </div>
                 )}
               </div>
@@ -325,6 +327,8 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const puedeActuar = rol === 'superadmin' || rol === 'gerente';
   const esSuperadmin = rol === 'superadmin';
   const puedeRegistrarPago = puedeActuar || (rol === 'vendedor' && esManual);
+  // El vendedor puede REENVIAR el comprobante de cualquier pago de su cartera (no editar ni anular).
+  const puedeReenviar = puedeActuar || rol === 'vendedor';
 
   // Acciones del encabezado según rol. Desktop → íconos con tooltip; móvil → menú "⋯" con texto.
   const motivoArchivado = 'No disponible para un negocio cancelado';
@@ -507,7 +511,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             </div>
 
             {/* Historial de pagos manuales. Siempre en manual; en tarjeta, solo si hay pagos. */}
-            <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} esManual={esManual} permiteCortesia={esSuperadmin} />
+            <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} puedeReenviar={puedeReenviar} esManual={esManual} permiteCortesia={esSuperadmin} />
           </div>
         </div>
 

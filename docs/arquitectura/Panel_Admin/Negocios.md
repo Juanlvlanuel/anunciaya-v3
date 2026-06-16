@@ -410,7 +410,7 @@ las rutas de `/negocios` se montan **antes** del gate global de superadmin en
 | `/negocios/:id/sucursales[/:sucursalId]` | GET | super · gerente · vendedor | por alcance |
 | `/negocios/:id/pagos` | GET | super · gerente · vendedor | por alcance; `?limite=N` → los N más recientes (paginación del historial) |
 | `/negocios/:id/pagos/:pagoId` | PATCH | super · gerente | editar concepto/monto/meses **solo del último pago** (si no, 409); traslada la vigencia; **sincroniza el evento gemelo** en `eventos_pago` y **reenvía el recibo corregido** al dueño. Cortesía como concepto: **solo super** |
-| `/negocios/:id/pagos/:pagoId/reenviar-recibo` | POST | super · gerente | regenera el recibo PDF y reenvía el comprobante al dueño |
+| `/negocios/:id/pagos/:pagoId/reenviar-recibo` | POST | super · gerente · vendedor | regenera el recibo PDF y reenvía el comprobante al dueño · **vendedor=su cartera, solo reenvía** (no edita ni anula) |
 | `/negocios/:id/pagos/:pagoId/anular` | POST | super · gerente | borrado lógico + recalcula vigencia + saca el ingreso de la bitácora + avisa al dueño · **con tarjeta re-sincroniza Stripe** (devuelve `advertenciaStripe` si no se pudo) · motivo obligatorio |
 | `/negocios/:id/marcar-pagado` | POST | super · gerente · vendedor | gerente=su región; **vendedor=solo sus negocios manuales** (los de tarjeta los cobra Stripe); **cortesía solo super** |
 | `/negocios/:id/suspender` | POST | super · gerente | gerente=su región · motivo obligatorio |
