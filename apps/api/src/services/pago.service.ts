@@ -651,6 +651,10 @@ async function manejarCheckoutCompletado(
 
     console.log('✅ Usuario + negocio + sucursal creados:', nuevoUsuario.id, nuevoNegocio.id);
 
+    // Sella ya las fechas del periodo (próximo cobro = fin del trial) leyéndolas de Stripe, sin
+    // esperar al asíncrono customer.subscription.updated → el "Próximo cobro" se ve desde el alta.
+    await sellarFechasPeriodoDesdeStripe(nuevoNegocio.id, session.subscription as string);
+
     // -------------------------------------------------------------------------
     // PASO 6: Generar tokens JWT
     // -------------------------------------------------------------------------
@@ -783,6 +787,11 @@ async function manejarUpgradeCompletado(
                 estadoMembresia: 'al_corriente',
                 activo: visible,
                 esBorrador: !visible,
+                // Limpia las fechas del periodo ANTERIOR (la suscripción nueva trae las suyas):
+                // sellarFechasPeriodoDesdeStripe las repuebla enseguida. Si ese sellado fallara,
+                // se ve "—" honesto en vez de una fecha del periodo viejo.
+                fechaProximoCobro: null,
+                fechaVencimiento: null,
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, negocioPrevio.id))
@@ -840,6 +849,10 @@ async function manejarUpgradeCompletado(
         .where(eq(usuarios.id, usuario.id));
 
     console.log('✅ Usuario actualizado con modo comercial:', usuario.id);
+
+    // Sella ya las fechas del periodo (próximo cobro = fin del trial) leyéndolas de Stripe, igual
+    // que en el alta nueva → el "Próximo cobro" se ve desde el upgrade (también al revivir).
+    await sellarFechasPeriodoDesdeStripe(nuevoNegocio.id, session.subscription as string);
 
     // -------------------------------------------------------------------------
     // PASO 6: Generar nuevos tokens JWT (con datos actualizados)
@@ -1049,6 +1062,22 @@ function unixAISO(segundos: number | null | undefined): string | null {
     return segundos ? new Date(segundos * 1000).toISOString() : null;
 }
 
+/**
+ * Fin del periodo de facturación (ISO) de una suscripción de Stripe. En clover
+ * `current_period_end` vive a nivel de item; con fallback a la raíz y, en última instancia, a
+ * `trial_end` (durante el trial coinciden). null si no hay ninguno. Fuente ÚNICA para que el
+ * sellado-al-alta (sellarFechasPeriodoDesdeStripe) y el refresco-por-updated
+ * (manejarSuscripcionActualizada) nunca diverjan si cambia la forma del objeto de Stripe.
+ */
+function finPeriodoDeSuscripcion(subscription: Stripe.Subscription): string | null {
+    const s = subscription as unknown as {
+        current_period_end?: number;
+        trial_end?: number | null;
+        items?: { data?: Array<{ current_period_end?: number }> };
+    };
+    return unixAISO(s.items?.data?.[0]?.current_period_end ?? s.current_period_end ?? s.trial_end);
+}
+
 /** Extrae el id de cliente de Stripe (string) de un campo `customer`. */
 function idCliente(customer: string | { id: string } | null | undefined): string | null {
     if (!customer) return null;
@@ -1246,17 +1275,42 @@ async function manejarCobroFallido(invoice: Stripe.Invoice, eventId?: string): P
 }
 
 /**
+ * Sella en la BD las fechas del periodo (fechaProximoCobro + fechaVencimiento) leyéndolas de la
+ * suscripción de Stripe, JUSTO al crear el negocio. Durante el trial, `current_period_end` = fin
+ * del trial = próximo cobro, así que el "Próximo cobro" se ve desde el primer momento.
+ *
+ * Antes estas fechas dependían SOLO del evento asíncrono `customer.subscription.updated`, que no
+ * se garantiza al alta: no se maneja `customer.subscription.created`, y un `updated` puede llegar
+ * ANTES de que el negocio exista (carrera con `checkout.session.completed`) → en ese caso el
+ * handler hace `return` temprano y la fecha nunca se escribía → el "Próximo cobro" salía vacío
+ * durante todo el trial.
+ *
+ * Defensivo (best-effort): si el retrieve o el UPDATE fallan, NO rompe el alta ya confirmada; las
+ * fechas se refrescarán igual en el próximo `customer.subscription.updated`.
+ */
+async function sellarFechasPeriodoDesdeStripe(negocioId: string, subscriptionId: string | null): Promise<void> {
+    if (!subscriptionId) return;
+    try {
+        const sub = await stripe.subscriptions.retrieve(subscriptionId);
+        const finPeriodo = finPeriodoDeSuscripcion(sub);
+        if (!finPeriodo) return;
+        await db
+            .update(negocios)
+            .set({ fechaVencimiento: finPeriodo, fechaProximoCobro: finPeriodo, updatedAt: new Date().toISOString() })
+            .where(eq(negocios.id, negocioId));
+        console.log(`📅 Fechas de periodo selladas al crear (próximo cobro ${finPeriodo}): ${negocioId}`);
+    } catch (error) {
+        console.error('❌ Error sellando fechas de periodo al crear el negocio (no crítico):', error);
+    }
+}
+
+/**
  * customer.subscription.updated — solo refresca las fechas del periodo.
  * NO cambia el estado de membresía (eso lo gobiernan los eventos invoice.*).
  */
 async function manejarSuscripcionActualizada(subscription: Stripe.Subscription): Promise<void> {
     try {
-        // Acceso defensivo: en clover current_period_end vive a nivel de item.
-        const sub = subscription as unknown as {
-            current_period_end?: number;
-            items?: { data?: Array<{ current_period_end?: number }> };
-        };
-        const finPeriodo = unixAISO(sub.items?.data?.[0]?.current_period_end ?? sub.current_period_end);
+        const finPeriodo = finPeriodoDeSuscripcion(subscription);
         if (!finPeriodo) return;
 
         const res = await obtenerNegocioDesdeStripe({ suscripcionId: subscription.id });

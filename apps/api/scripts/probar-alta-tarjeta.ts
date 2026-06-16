@@ -10,8 +10,11 @@
  * checkout.session.completed firmado (generateTestHeaderString) e invoca procesarWebhook,
  * incluyendo verificación de firma e idempotencia. Verifica las 3 filas en BD.
  *
- * NO llama a la API de Stripe (customer/subscription son ids ficticios que el webhook solo
- * guarda como columnas). Aborta en producción. Crea y limpia sus propios datos.
+ * Con ids de Stripe FICTICIOS: el sellado de fechas del periodo
+ * (manejarCheckoutCompletado → sellarFechasPeriodoDesdeStripe → stripe.subscriptions.retrieve)
+ * falla de forma DEFENSIVA y NO rompe el alta — las 3 filas se crean igual (fecha_proximo_cobro
+ * queda NULL en este harness; su sellado se valida aparte). Aborta en producción. Crea y limpia
+ * sus propios datos.
  * EJECUTAR:  cd apps/api && pnpm exec tsx scripts/probar-alta-tarjeta.ts
  *
  * Ubicación: apps/api/scripts/probar-alta-tarjeta.ts
