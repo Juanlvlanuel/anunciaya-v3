@@ -138,6 +138,7 @@ Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/`
 | `Toaster` + `useToastPanel` | `components/ui/Toaster.tsx` · `stores/useToastPanel.ts` | Toast pill (arriba, centrado) con `toast.exito/error/advertencia/info`. Mismo espíritu que `notificar.*` de la app, con tokens del Panel. |
 | `MenuFiltro` | `components/negocios/MenuFiltro.tsx` | Dropdown botón + menú con check (filtros). |
 | `avatares` | `components/negocios/avatares.tsx` | Avatar con color por hash del nombre. |
+| `EstadoSeccion` | `components/ui/EstadoSeccion.tsx` | Estado de una lista: **cargando / error / vacío**. Ícono del módulo en cuadro sutil (`superficie-2` + borde) + título (semibold) + descripción + **acción opcional**. En vacío, distinguir *con-filtros* (título "Sin resultados" + botón "Limpiar filtros") de *vacío real* ("Aún no hay…", sin botón). Reemplazó los `EstadoMensaje` duplicados de Negocios/Usuarios/Suscripciones. |
 | Ficha instantánea | (patrón) | La ficha abre con un **placeholder** armado de la fila + **prefetch en hover/touch**; React Query rellena al vuelo. Reusar en toda ficha del Panel. |
 
 ---

@@ -24,6 +24,7 @@ import { metaTipoEvento, BadgeTipoEvento, TIPOS_EVENTO_FILTRO } from './estadoEv
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { AvatarNegocio } from '../negocios/avatares';
 import { FichaEvento } from './FichaEvento';
+import { EstadoSeccion } from '../ui/EstadoSeccion';
 
 const POR_PAGINA = 20;
 
@@ -134,6 +135,17 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
   const hasta = Math.min(pagina * POR_PAGINA, total);
   const hayFiltro = !!(busquedaDeb || tipo || origen || periodo);
 
+  // ── Filtros activos para distinguir "vacío con filtros" de "vacío real" ──────
+  // Igual que `hayFiltro` pero incluye el orden (cualquier filtro local fuera de su default).
+  const hayFiltrosActivos = !!(busqueda || tipo || origen || periodo) || orden !== 'fecha_recientes';
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setTipo('');
+    setOrigen('');
+    setPeriodo('');
+    setOrden('fecha_recientes');
+  };
+
   const conteoDe = (id: string): number =>
     id === '' ? conteos.total : (conteos.porTipo.find((c) => c.tipo === id)?.total ?? 0);
 
@@ -234,11 +246,25 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
         {/* Lista de cards */}
         <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
-            <EstadoMensaje texto="Cargando movimientos…" />
+            <EstadoSeccion variante="cargando" icono={Layers} titulo="Cargando movimientos…" />
           ) : isError ? (
-            <EstadoMensaje texto="No se pudieron cargar los movimientos." tono="error" />
+            <EstadoSeccion
+              variante="error"
+              icono={Layers}
+              titulo="No se pudieron cargar los movimientos."
+              descripcion="Revisa tu conexión e inténtalo de nuevo."
+            />
           ) : items.length === 0 ? (
-            <EstadoMensaje texto="Sin movimientos. Ajusta la búsqueda o los filtros." />
+            hayFiltrosActivos ? (
+              <EstadoSeccion
+                icono={Layers}
+                titulo="Sin movimientos"
+                descripcion="Ningún movimiento coincide con tu búsqueda o filtros."
+                accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }}
+              />
+            ) : (
+              <EstadoSeccion icono={Layers} titulo="Aún no hay movimientos" />
+            )
           ) : (
             <div className="flex flex-col gap-2.5">
               {items.map((e) => (
@@ -349,11 +375,25 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
-            <EstadoMensaje texto="Cargando movimientos…" />
+            <EstadoSeccion variante="cargando" icono={Layers} titulo="Cargando movimientos…" />
           ) : isError ? (
-            <EstadoMensaje texto="No se pudieron cargar los movimientos." tono="error" />
+            <EstadoSeccion
+              variante="error"
+              icono={Layers}
+              titulo="No se pudieron cargar los movimientos."
+              descripcion="Revisa tu conexión e inténtalo de nuevo."
+            />
           ) : items.length === 0 ? (
-            <EstadoMensaje texto="Sin movimientos. Ajusta la búsqueda o los filtros." />
+            hayFiltrosActivos ? (
+              <EstadoSeccion
+                icono={Layers}
+                titulo="Sin movimientos"
+                descripcion="Ningún movimiento coincide con tu búsqueda o filtros."
+                accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }}
+              />
+            ) : (
+              <EstadoSeccion icono={Layers} titulo="Aún no hay movimientos" />
+            )
           ) : (
             items.map((e) => (
               <FilaEvento key={e.id} e={e} cols={cols} onAbrir={() => setSeleccionado(e)} onPrefetch={() => prefetchEvento(e.id)} />
@@ -496,17 +536,6 @@ function Paginacion({
         >
           Siguiente <ChevronRight size={14} />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function EstadoMensaje({ texto, tono }: { texto: string; tono?: 'error' }) {
-  return (
-    <div className="grid h-full min-h-[220px] place-items-center px-6 text-center">
-      <div>
-        <Layers size={28} className="mx-auto mb-3 text-texto-4" />
-        <p className={`text-sm ${tono === 'error' ? 'text-peligro' : 'text-texto-3'}`}>{texto}</p>
       </div>
     </div>
   );

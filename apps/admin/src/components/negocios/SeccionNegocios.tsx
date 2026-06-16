@@ -29,6 +29,7 @@ import { MenuFiltro, type OpcionMenu } from './MenuFiltro';
 import { FichaNegocio } from './FichaNegocio';
 import { FichaSucursal } from './FichaSucursal';
 import { DialogoRegistrarNegocio } from './DialogoRegistrarNegocio';
+import { EstadoSeccion } from '../ui/EstadoSeccion';
 
 const POR_PAGINA = 20;
 const SIN = '__none';
@@ -165,6 +166,22 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const hasta = Math.min(pagina * POR_PAGINA, total);
   const hayFiltro = !!(busquedaDeb || estadoPago || vendedorId || ciudad);
 
+  // ── Estado de filtros (para EstadoSeccion) ───────────────────────────────────
+  // hayFiltrosActivos: true si el usuario escribió en la búsqueda o movió algún filtro
+  // LOCAL (estado, vendedor, ciudad u orden) fuera de su default. La lente de región global
+  // NO cuenta: es navegación del header, no un filtro de esta lista.
+  const hayFiltrosActivos = !!(busqueda.trim() || estadoPago || vendedorId || ciudad) || orden !== 'nombre_az';
+
+  // limpiarFiltros: regresa los filtros LOCALES a su default (búsqueda vacía, estado "Todos",
+  // vendedor "Todos", ciudad "Todas", orden "Nombre A–Z"). No toca la lente de región.
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setEstadoPago('');
+    setVendedorId('');
+    setCiudad('');
+    setOrden('nombre_az');
+  };
+
   const conteoDe = (id: string): number =>
     id === '' ? conteos.total : (conteos.porEstado.find((c) => c.estado === id)?.total ?? 0);
 
@@ -295,11 +312,28 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
         {/* Lista de cards */}
         <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
-            <EstadoMensaje texto="Cargando negocios…" />
+            <EstadoSeccion variante="cargando" icono={Store} titulo="Cargando negocios…" />
           ) : isError ? (
-            <EstadoMensaje texto="No se pudieron cargar los negocios." tono="error" />
+            <EstadoSeccion
+              variante="error"
+              icono={Store}
+              titulo="No se pudieron cargar los negocios."
+              descripcion="Revisa tu conexión e inténtalo de nuevo."
+            />
           ) : items.length === 0 ? (
-            <EstadoMensaje texto={rol === 'vendedor' ? 'No tienes negocios en tu cartera todavía.' : 'Sin resultados. Ajusta la búsqueda o los filtros.'} />
+            hayFiltrosActivos ? (
+              <EstadoSeccion
+                icono={Store}
+                titulo="Sin resultados"
+                descripcion="Ningún negocio coincide con tu búsqueda o filtros."
+                accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }}
+              />
+            ) : (
+              <EstadoSeccion
+                icono={Store}
+                titulo={rol === 'vendedor' ? 'No tienes negocios en tu cartera todavía' : 'Aún no hay negocios'}
+              />
+            )
           ) : (
             <div className="flex flex-col gap-2.5">
               {items.map((n) => (
@@ -446,11 +480,28 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
-            <EstadoMensaje texto="Cargando negocios…" />
+            <EstadoSeccion variante="cargando" icono={Store} titulo="Cargando negocios…" />
           ) : isError ? (
-            <EstadoMensaje texto="No se pudieron cargar los negocios." tono="error" />
+            <EstadoSeccion
+              variante="error"
+              icono={Store}
+              titulo="No se pudieron cargar los negocios."
+              descripcion="Revisa tu conexión e inténtalo de nuevo."
+            />
           ) : items.length === 0 ? (
-            <EstadoMensaje texto={rol === 'vendedor' ? 'No tienes negocios en tu cartera todavía.' : 'Sin resultados. Ajusta la búsqueda o los filtros.'} />
+            hayFiltrosActivos ? (
+              <EstadoSeccion
+                icono={Store}
+                titulo="Sin resultados"
+                descripcion="Ningún negocio coincide con tu búsqueda o filtros."
+                accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }}
+              />
+            ) : (
+              <EstadoSeccion
+                icono={Store}
+                titulo={rol === 'vendedor' ? 'No tienes negocios en tu cartera todavía' : 'Aún no hay negocios'}
+              />
+            )
           ) : (
             items.map((n) => (
               <Fragment key={n.id}>
@@ -806,17 +857,6 @@ function Paginacion({
         >
           Siguiente <ChevronRight size={14} />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function EstadoMensaje({ texto, tono }: { texto: string; tono?: 'error' }) {
-  return (
-    <div className="grid h-full min-h-[220px] place-items-center px-6 text-center">
-      <div>
-        <Store size={28} className="mx-auto mb-3 text-texto-4" />
-        <p className={`text-sm ${tono === 'error' ? 'text-peligro' : 'text-texto-3'}`}>{texto}</p>
       </div>
     </div>
   );

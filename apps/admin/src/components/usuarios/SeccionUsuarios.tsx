@@ -25,6 +25,7 @@ import { metaEstadoUsuario, BadgeEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { FichaUsuario } from './FichaUsuario';
+import { EstadoSeccion } from '../ui/EstadoSeccion';
 
 const POR_PAGINA = 20;
 
@@ -131,6 +132,21 @@ export function SeccionUsuarios() {
   const hasta = Math.min(pagina * POR_PAGINA, total);
   const hayFiltro = !!(busquedaDeb || estado || tipo);
 
+  // ── Estado de filtros (para EstadoSeccion) ───────────────────────────────────
+  // hayFiltrosActivos: true si el usuario escribió en la búsqueda o movió algún filtro
+  // LOCAL (estado, tipo u orden) fuera de su default. La lente de región global NO cuenta:
+  // es navegación del header, no un filtro de esta lista.
+  const hayFiltrosActivos = !!(busqueda.trim() || estado || tipo) || orden !== 'nombre_az';
+
+  // limpiarFiltros: regresa los filtros LOCALES a su default (búsqueda vacía, estado "Todos",
+  // tipo "Todos", orden "Nombre A–Z"). No toca la lente de región.
+  const limpiarFiltros = () => {
+    setBusqueda('');
+    setEstado('');
+    setTipo('');
+    setOrden('nombre_az');
+  };
+
   const conteoDe = (id: string): number =>
     id === '' ? conteos.total : (conteos.porEstado.find((c) => c.estado === id)?.total ?? 0);
 
@@ -233,11 +249,25 @@ export function SeccionUsuarios() {
 
         <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
-            <EstadoMensaje texto="Cargando usuarios…" />
+            <EstadoSeccion variante="cargando" icono={Users} titulo="Cargando usuarios…" />
           ) : isError ? (
-            <EstadoMensaje texto="No se pudieron cargar los usuarios." tono="error" />
+            <EstadoSeccion
+              variante="error"
+              icono={Users}
+              titulo="No se pudieron cargar los usuarios."
+              descripcion="Revisa tu conexión e inténtalo de nuevo."
+            />
           ) : items.length === 0 ? (
-            <EstadoMensaje texto="Sin resultados. Ajusta la búsqueda o los filtros." />
+            hayFiltrosActivos ? (
+              <EstadoSeccion
+                icono={Users}
+                titulo="Sin resultados"
+                descripcion="Ningún usuario coincide con tu búsqueda o filtros."
+                accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }}
+              />
+            ) : (
+              <EstadoSeccion icono={Users} titulo="Aún no hay usuarios" />
+            )
           ) : (
             <div className="flex flex-col gap-2.5">
               {items.map((n) => (
@@ -337,11 +367,25 @@ export function SeccionUsuarios() {
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {isLoading ? (
-            <EstadoMensaje texto="Cargando usuarios…" />
+            <EstadoSeccion variante="cargando" icono={Users} titulo="Cargando usuarios…" />
           ) : isError ? (
-            <EstadoMensaje texto="No se pudieron cargar los usuarios." tono="error" />
+            <EstadoSeccion
+              variante="error"
+              icono={Users}
+              titulo="No se pudieron cargar los usuarios."
+              descripcion="Revisa tu conexión e inténtalo de nuevo."
+            />
           ) : items.length === 0 ? (
-            <EstadoMensaje texto="Sin resultados. Ajusta la búsqueda o los filtros." />
+            hayFiltrosActivos ? (
+              <EstadoSeccion
+                icono={Users}
+                titulo="Sin resultados"
+                descripcion="Ningún usuario coincide con tu búsqueda o filtros."
+                accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }}
+              />
+            ) : (
+              <EstadoSeccion icono={Users} titulo="Aún no hay usuarios" />
+            )
           ) : (
             items.map((n) => (
               <FilaUsuario key={n.id} n={n} cols={cols} onAbrir={() => setSeleccionado(n)} onPrefetch={() => prefetchUsuario(n.id)} />
@@ -476,17 +520,6 @@ function Paginacion({
         >
           Siguiente <ChevronRight size={14} />
         </button>
-      </div>
-    </div>
-  );
-}
-
-function EstadoMensaje({ texto, tono }: { texto: string; tono?: 'error' }) {
-  return (
-    <div className="grid h-full min-h-[220px] place-items-center px-6 text-center">
-      <div>
-        <Users size={28} className="mx-auto mb-3 text-texto-4" />
-        <p className={`text-sm ${tono === 'error' ? 'text-peligro' : 'text-texto-3'}`}>{texto}</p>
       </div>
     </div>
   );
