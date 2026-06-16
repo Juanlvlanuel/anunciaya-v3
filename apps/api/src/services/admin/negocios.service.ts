@@ -744,7 +744,10 @@ export async function listarPagosNegocio(panel: UsuarioPanel, negocioId: string,
         FROM pagos_membresia pm
         LEFT JOIN usuarios u ON u.id = pm.registrado_por
         WHERE pm.negocio_id = ${negocioId}
-        ORDER BY pm.created_at DESC${limitSql}
+        -- Mismo desempate que el guard de "editar solo el último pago" y el recálculo de vigencia
+        -- al anular (fecha_pago DESC, created_at DESC): así el "último" que ve la UI coincide
+        -- siempre con el que aceptan el backend/guard, aunque fecha_pago deje de igualar created_at.
+        ORDER BY pm.fecha_pago DESC, pm.created_at DESC${limitSql}
     `)).rows as Array<{
         id: string; folio: number | null; monto: string | null; concepto: string;
         fecha_pago: string | null; periodo_hasta: string | null;

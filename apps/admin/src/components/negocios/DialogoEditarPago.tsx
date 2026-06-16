@@ -51,11 +51,14 @@ interface DialogoEditarPagoProps {
   onCerrar: () => void;
   /** Fila a editar (precarga los valores actuales). */
   pago: PagoMembresia;
+  /** Si false, oculta la opción de cortesía (solo el superadmin puede regalar membresías). */
+  permiteCortesia?: boolean;
   cargando?: boolean;
   onConfirmar: (datos: DatosEditarPago) => void;
 }
 
-export function DialogoEditarPago({ abierto, onCerrar, pago, cargando = false, onConfirmar }: DialogoEditarPagoProps) {
+export function DialogoEditarPago({ abierto, onCerrar, pago, cargando = false, onConfirmar, permiteCortesia = true }: DialogoEditarPagoProps) {
+  const conceptos = permiteCortesia ? OPCIONES_CONCEPTO : OPCIONES_CONCEPTO.filter((c) => c.valor !== 'cortesia');
   const [concepto, setConcepto] = useState<ConceptoPago>((pago.concepto as ConceptoPago) ?? 'efectivo');
   const [monto, setMonto] = useState(pago.monto ?? '');
   const [mesesStr, setMesesStr] = useState(String(pago.mesesCubiertos ?? 1));
@@ -126,7 +129,7 @@ export function DialogoEditarPago({ abierto, onCerrar, pago, cargando = false, o
         {/* Concepto */}
         <div className={SECCION}>¿Cómo pagó?</div>
         <div className="flex flex-wrap gap-2" data-testid="editar-concepto">
-          {OPCIONES_CONCEPTO.map((c) => (
+          {conceptos.map((c) => (
             <button
               key={c.valor}
               type="button"

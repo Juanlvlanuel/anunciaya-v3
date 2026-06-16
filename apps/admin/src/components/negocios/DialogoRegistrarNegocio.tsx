@@ -7,9 +7,9 @@
  * Diseño en WIZARD de 3 pasos (Negocio → Dueño → Cobro), una sección a la vez con stepper, para
  * no amontonar la información. Captura: datos del negocio (nombre, ciudad del catálogo por región),
  * datos del dueño (nombre, apellidos, correo ×2, teléfono) y el cobro (concepto efectivo/
- * transferencia/cortesía, monto, periodo por meses o fecha exacta). El selector de vendedor y la
- * cortesía solo se muestran a superadmin/gerente; el vendedor se auto-atribuye en el backend y no
- * puede regalar membresías (el candado real vive en el service).
+ * transferencia/cortesía, monto, periodo por meses o fecha exacta). El selector de vendedor se
+ * muestra a superadmin/gerente; la **cortesía solo al superadmin** (el chip se oculta a los demás;
+ * el candado real vive en el service). El vendedor se auto-atribuye en el backend.
  *
  * Ubicación: apps/admin/src/components/negocios/DialogoRegistrarNegocio.tsx
  */
@@ -107,10 +107,11 @@ interface DialogoRegistrarNegocioProps {
 }
 
 export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegistrarNegocioProps) {
-  // El vendedor de calle no elige vendedor (se auto-atribuye) ni puede regalar cortesías.
+  // El vendedor de calle no elige vendedor (se auto-atribuye). La cortesía (regalar membresía) es
+  // exclusiva del superadmin (el backend lo blinda; aquí solo se oculta el chip).
   const esVendedor = rol === 'vendedor';
   const mostrarVendedor = !esVendedor;
-  const permiteCortesia = !esVendedor;
+  const permiteCortesia = rol === 'superadmin';
   const conceptosDisponibles = permiteCortesia ? CONCEPTOS : CONCEPTOS.filter((c) => c.valor !== 'cortesia');
 
   const { data: ciudades } = useCatalogoCiudades(abierto);

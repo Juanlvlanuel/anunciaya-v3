@@ -144,7 +144,9 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
     folio: null,
     monto: e.monto,
     concepto: String(metaObj.concepto ?? 'efectivo'),
-    fechaPago: null,
+    // La fecha del evento ES cuándo se registró este pago manual → base para la vista previa
+    // "Cubre hasta" del modal (fecha de pago + meses). Sin ella el modal mostraba "—".
+    fechaPago: e.fecha,
     periodoHasta: String(metaObj.hasta ?? ''),
     mesesCubiertos: Number(metaObj.meses) || null,
     nota: null,
@@ -245,6 +247,7 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
         {editando && (
           <DialogoEditarPago
             abierto
+            permiteCortesia={rol === 'superadmin'}
             pago={pagoEditable}
             cargando={editar.isPending}
             onCerrar={() => setEditando(false)}

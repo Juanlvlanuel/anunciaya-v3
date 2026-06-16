@@ -159,7 +159,7 @@ const PAGOS_INICIAL = PAGOS_INICIAL_FICHA;
  *  cortesía). Siempre visible en negocios de método manual; en los de tarjeta, solo si hay algún pago
  *  manual registrado (un admin puede "Registrar pago" en un negocio con suscripción Stripe).
  *  Con permiso (super/gerente) cada fila trae un botón para corregir concepto/monto/meses. */
-function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: string; puedeActuar: boolean; esManual: boolean }) {
+function HistorialPagos({ negocioId, puedeActuar, esManual, permiteCortesia }: { negocioId: string; puedeActuar: boolean; esManual: boolean; permiteCortesia: boolean }) {
   const [verTodos, setVerTodos] = useState(false);
   // Pide N+1 para saber si hay más sin traer todo; "Ver todos" re-consulta sin límite.
   const { data, isLoading } = usePagosNegocio(negocioId, true, verTodos ? undefined : PAGOS_INICIAL + 1);
@@ -174,6 +174,9 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
   if (!esManual && pagos.length === 0) return null;
   const hayMas = !verTodos && pagos.length > PAGOS_INICIAL;
   const visibles = verTodos ? pagos : pagos.slice(0, PAGOS_INICIAL);
+  // Solo el ÚLTIMO pago vigente (no anulado) es editable; los anteriores se corrigen anulando +
+  // registrando de nuevo. La lista viene del más reciente al más antiguo → es el primer no anulado.
+  const ultimoPagoId = pagos.find((p) => !p.anulado)?.id;
   return (
     <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
       <div className="border-b border-borde px-4 py-3">
@@ -219,17 +222,19 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
                         <Send size={16} />
                       </button>
                     </Tooltip>
-                    <Tooltip text="Editar pago">
-                      <button
-                        type="button"
-                        data-testid={`pago-editar-${p.id}`}
-                        onClick={() => setEditando(p)}
-                        aria-label="Editar pago"
-                        className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#d97706] transition hover:bg-[#d977061f]"
-                      >
-                        <Pencil size={16} />
-                      </button>
-                    </Tooltip>
+                    {p.id === ultimoPagoId && (
+                      <Tooltip text="Editar pago">
+                        <button
+                          type="button"
+                          data-testid={`pago-editar-${p.id}`}
+                          onClick={() => setEditando(p)}
+                          aria-label="Editar pago"
+                          className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-[#d97706] transition hover:bg-[#d977061f]"
+                        >
+                          <Pencil size={16} />
+                        </button>
+                      </Tooltip>
+                    )}
                     <Tooltip text="Anular pago">
                       <button
                         type="button"
@@ -263,6 +268,7 @@ function HistorialPagos({ negocioId, puedeActuar, esManual }: { negocioId: strin
         <DialogoEditarPago
           key={editando.id}
           abierto
+          permiteCortesia={permiteCortesia}
           pago={editando}
           cargando={editar.isPending}
           onCerrar={() => setEditando(null)}
@@ -501,7 +507,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
             </div>
 
             {/* Historial de pagos manuales. Siempre en manual; en tarjeta, solo si hay pagos. */}
-            <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} esManual={esManual} />
+            <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} esManual={esManual} permiteCortesia={esSuperadmin} />
           </div>
         </div>
 
@@ -553,7 +559,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         nombreNegocio={n.nombre}
         vencimientoActual={(esManual ? n.fechaVencimiento : n.fechaProximoCobro) ?? n.fechaVencimiento}
         tieneSuscripcion={n.tieneSuscripcionStripe}
-        permiteCortesia={rol !== 'vendedor'}
+        permiteCortesia={esSuperadmin}
         cargando={marcarPagado.isPending}
         onConfirmar={(hasta, datos) =>
           marcarPagado.mutate({ id: previo.id, hasta, ...datos }, { onSuccess: cerrarDialogo })

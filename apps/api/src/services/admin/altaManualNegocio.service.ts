@@ -87,8 +87,8 @@ export async function altaManualNegocio(
     // 0) Cortesía = regalar membresía → decisión de gerente/superadmin, NUNCA del vendedor de
     //    calle (riesgo de abuso/pérdida de ingreso). Candado real: la UI lo oculta, esto lo blinda.
     // -------------------------------------------------------------------------
-    if (datos.concepto === 'cortesia' && panel.rolEquipo === 'vendedor') {
-        return { ok: false, status: 403, mensaje: 'Solo un gerente o administrador puede registrar una cortesía.' };
+    if (datos.concepto === 'cortesia' && panel.rolEquipo !== 'superadmin') {
+        return { ok: false, status: 403, mensaje: 'Solo un administrador puede registrar una cortesía.' };
     }
 
     // -------------------------------------------------------------------------

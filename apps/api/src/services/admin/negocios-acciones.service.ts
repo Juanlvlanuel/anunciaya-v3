@@ -449,15 +449,18 @@ export async function marcarPagado(
         return { ok: false, status: 409, mensaje: 'El negocio está cancelado/archivado; no se puede marcar pagado.' };
     }
 
-    // El VENDEDOR solo registra cobros en EFECTIVO de sus negocios MANUALES (sin tarjeta) y nunca
-    // cortesía: los de tarjeta los cobra Stripe (no debe tocarlos) y regalar membresía es de
-    // gerente/superadmin. Su cartera ya la valida cargarNegocioConAlcance.
+    // La CORTESÍA (regalar membresía) es decisión EXCLUSIVA del superadmin: regalar ingreso es
+    // sensible y no debe quedar en manos de gerentes ni vendedores. Candado real (la UI lo oculta).
+    if (opciones.concepto === 'cortesia' && panel.rolEquipo !== 'superadmin') {
+        return { ok: false, status: 403, mensaje: 'Solo un administrador puede registrar una cortesía.' };
+    }
+
+    // El VENDEDOR solo registra cobros en EFECTIVO/transferencia de sus negocios MANUALES (sin
+    // tarjeta): los de tarjeta los cobra Stripe (no debe tocarlos). Su cartera ya la valida
+    // cargarNegocioConAlcance.
     if (panel.rolEquipo === 'vendedor') {
         if (neg.stripeSubscriptionId) {
             return { ok: false, status: 403, mensaje: 'Este negocio cobra con tarjeta (Stripe); no puedes registrarle un pago manual.' };
-        }
-        if (opciones.concepto === 'cortesia') {
-            return { ok: false, status: 403, mensaje: 'Solo un gerente o administrador puede registrar una cortesía.' };
         }
     }
 
@@ -725,6 +728,12 @@ export async function editarPagoMembresia(
     const cargado = await cargarNegocioConAlcance(panel, negocioId);
     if (!cargado.ok) return cargado;
 
+    // La CORTESÍA (regalar membresía) es exclusiva del superadmin: editar un pago a cortesía
+    // equivale a regalar el periodo → ni gerente ni vendedor pueden.
+    if (datos.concepto === 'cortesia' && panel.rolEquipo !== 'superadmin') {
+        return { ok: false, status: 403, mensaje: 'Solo un administrador puede registrar una cortesía.' };
+    }
+
     // El pago debe existir Y pertenecer a ESTE negocio (evita editar el de otro vía URL).
     const [pago] = await db
         .select({
@@ -740,24 +749,27 @@ export async function editarPagoMembresia(
         .limit(1);
     if (!pago) return { ok: false, status: 404, mensaje: 'Pago no encontrado en este negocio.' };
 
+    // Solo se edita el ÚLTIMO pago vigente (el que define "Vigencia hasta"). Un pago anterior es
+    // historia financiera ya asentada: para corregirlo, anúlalo y regístralo de nuevo (deja rastro
+    // auditable y no manipula ingresos pasados en silencio).
+    const [reciente] = (await db.execute(sql`
+        SELECT id::text AS id FROM pagos_membresia
+        WHERE negocio_id = ${negocioId} AND anulado = false
+        ORDER BY fecha_pago DESC, created_at DESC LIMIT 1
+    `)).rows as Array<{ id: string }>;
+    if (reciente?.id !== pagoId) {
+        return { ok: false, status: 409, mensaje: 'Solo se puede editar el último pago. Para corregir uno anterior, anúlalo y regístralo de nuevo.' };
+    }
+
     // Cortesía nunca lleva monto (decisión de producto + CHECK en BD).
     const montoNuevo = datos.concepto === 'cortesia' ? null : (datos.monto ?? null);
 
-    // El periodo que cubre el pago SIEMPRE se deriva de cuándo se pagó + los meses indicados
-    // (así cada guardado deja el dato consistente, aunque los meses no cambien respecto al previo).
+    // El periodo que cubre el pago SIEMPRE se deriva de cuándo se pagó + los meses indicados.
     const base = pago.fechaPago ? new Date(pago.fechaPago) : new Date();
     base.setMonth(base.getMonth() + datos.meses);
     const nuevoPeriodoHasta = base.toISOString();
 
-    // ¿este pago es el MÁS RECIENTE del negocio? → es el que define "Vigencia hasta".
-    const [reciente] = (await db.execute(sql`
-        SELECT id::text AS id FROM pagos_membresia
-        WHERE negocio_id = ${negocioId}
-        ORDER BY fecha_pago DESC, created_at DESC LIMIT 1
-    `)).rows as Array<{ id: string }>;
-    const trasladaVigencia = reciente?.id === pagoId;
-
-    // Atómico: el pago corregido + (si aplica) el traslado de la vigencia van juntos.
+    // Atómico: el pago corregido + el traslado de la vigencia (siempre: es el último pago) van juntos.
     await db.transaction(async (tx) => {
         await tx
             .update(pagosMembresia)
@@ -778,12 +790,10 @@ export async function editarPagoMembresia(
             WHERE referencia_id = ${pagoId} AND tipo = 'pago_manual'
         `);
 
-        if (trasladaVigencia) {
-            await tx
-                .update(negocios)
-                .set({ fechaVencimiento: nuevoPeriodoHasta, fechaProximoCobro: nuevoPeriodoHasta, updatedAt: new Date().toISOString() })
-                .where(eq(negocios.id, negocioId));
-        }
+        await tx
+            .update(negocios)
+            .set({ fechaVencimiento: nuevoPeriodoHasta, fechaProximoCobro: nuevoPeriodoHasta, updatedAt: new Date().toISOString() })
+            .where(eq(negocios.id, negocioId));
     });
 
     await registrarAuditoria(panel, {
@@ -791,9 +801,27 @@ export async function editarPagoMembresia(
         entidadTipo: 'negocio',
         entidadId: negocioId,
         datosPrevios: { pagoId, concepto: pago.concepto, monto: pago.monto, mesesCubiertos: pago.mesesCubiertos, periodoHasta: pago.periodoHasta },
-        datosNuevos: { pagoId, concepto: datos.concepto, monto: montoNuevo, mesesCubiertos: datos.meses, periodoHasta: nuevoPeriodoHasta, vigenciaTrasladada: trasladaVigencia },
+        datosNuevos: { pagoId, concepto: datos.concepto, monto: montoNuevo, mesesCubiertos: datos.meses, periodoHasta: nuevoPeriodoHasta },
         motivo: null,
     });
+
+    // Comprobante CORREGIDO al dueño (best-effort, como en marcarPagado §9.1): regenera el recibo
+    // PDF (mismo folio) con los datos ya corregidos y reenvía el correo. No revierte la edición si
+    // el PDF/correo fallan.
+    try {
+        const rec = await prepararReciboPago(pagoId);
+        if (rec?.correoDueno) {
+            await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
+                nombreNegocio: rec.nombreNegocio,
+                concepto: rec.concepto,
+                monto: rec.monto,
+                hasta: rec.hasta,
+                reciboUrl: rec.reciboUrl,
+            });
+        }
+    } catch {
+        console.error('Error al reenviar el comprobante de pago (editarPago)');
+    }
 
     return { ok: true };
 }
