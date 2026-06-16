@@ -13,14 +13,14 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho
 >
-> **Última actualización:** 11 Junio 2026 — **Fases 0/1/2 completas + doc canónico escrito.** El
-> módulo está **en uso**; falta el pulido visual final (Fase 3) y los V2.
+> **Última actualización:** 15 Junio 2026 — **MÓDULO CERRADO (Fase 3 completa).** Pulido visual
+> final ✅ y verificación de suspensión ✅ (cuenta suspendida → 403, no entra a AY). Quedan solo los V2.
 
 ---
 
 ## Estado del módulo
 
-**Construido y en uso.** VER + acciones (soporte + moderación) + visibilidad por jerarquía y
+**Cerrado y en uso (Fase 3 completa, 15 Jun 2026).** VER + acciones (soporte + moderación) + visibilidad por jerarquía y
 región + lente del superadmin + expediente 360 depurado, todo verificado con datos reales y
 `tsc`/build en verde. La definición y el funcionamiento completos están en
 [`Usuarios.md`](Usuarios.md).
@@ -43,12 +43,10 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
 
 ## Pendiente
 
-### 🟡 Pulido visual final (Fase 3)
-- [ ] Repaso de [`Tokens_Panel.md`](Tokens_Panel.md) (texto/tonos/bordes/sombras), responsive
-      `lg`/`2xl`, variantes móvil/desktop, consistencia con Negocios.
-- [ ] Verificación en UI aún no cerrada: login real de una cuenta **suspendida** (403
-      `CUENTA_SUSPENDIDA`); confirmar que suspender al **dueño** de un negocio **no** oculta el
-      negocio en la app (por diseño solo toca `usuarios.estado`).
+> **Fase 3 cerrada (15 Jun 2026):** pulido visual final ✅ (tokens/responsive/variantes
+> móvil-desktop, consistencia con Negocios) y verificación de suspensión ✅ (login de cuenta
+> suspendida → 403 `CUENTA_SUSPENDIDA`, no entra a AY; suspender al dueño **no** oculta su negocio).
+> El módulo queda **cerrado**. Lo único que sigue son los V2 de abajo.
 
 ### 🟢 Fuera de V1 (V2 consciente — anotado, no escondido)
 - 🟢 **Canal de denuncias + bandeja de moderación** (reportar desde reseñas/MarketPlace/ChatYA →
@@ -66,7 +64,7 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
 ## Checklist del carril
 
 ```
-### Módulo: USUARIOS   ·   Fase actual: 3 (Cerrar)
+### Módulo: USUARIOS   ·   Fase actual: ✔ Cerrado
 
 Fase 0 — Definir ........ [x]  (la definición vigente vive en Usuarios.md)
 Fase 1 — VER ............ [x]  (lista + expediente; harness con 52 usuarios reales, sin secretos)

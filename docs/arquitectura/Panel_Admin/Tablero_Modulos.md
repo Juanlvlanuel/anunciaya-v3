@@ -14,7 +14,7 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 11 Junio 2026.
+> **Última actualización:** 15 Junio 2026.
 
 ---
 
@@ -38,8 +38,8 @@
 |---|---|---|---|---|
 | 1 | Resumen / inicio | ⬜ | 0 | — |
 | 2 | Métricas | ⬜ | 0 | — |
-| 3 | **Negocios** | ✅ | ✔ Cerrado · pulido/verificación pendiente | `Negocios.md` · `Negocios_Pendientes.md` |
-| 4 | **Usuarios** | ✅ | ✔ Cerrado · pulido/verificación pendiente | `Usuarios.md` · `Usuarios_Pendientes.md` |
+| 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
+| 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 6 | Vendedores y comisiones | ⬜ | 0 | — |
 | 7 | Publicidad | ⬜ | 0 | — |
@@ -63,8 +63,8 @@
   **super + gerente**; *moderación* (suspender/reactivar) = **solo super**. **Gerente acotado por
   región** (clientes todos; dueños/encargados/vendedores de su región; nunca otros gerentes) +
   **lente de región** del superadmin. Taxonomía de roles en la columna Rol; expediente = tarjeta de
-  resumen depurada (correo/ID copiables). Migración: `usuarios_ultimo_acceso_panel.sql`. Pendiente:
-  pulido visual final. V2: denuncias, deep-link desde Negocios, promover/degradar.
+  resumen depurada (correo/ID copiables). Migración: `usuarios_ultimo_acceso_panel.sql`. **Cerrado** (Fase 3 completa, 15 jun: pulido
+  visual + verificación de suspensión). V2: denuncias, deep-link desde Negocios, promover/degradar.
 - **5 · Suscripciones** — **bitácora financiera V1 construida y en uso** (doc [`Suscripciones.md`](Suscripciones.md)):
   el libro mayor de eventos de pago (`eventos_pago`) — cobros Stripe + pagos manuales + cancelaciones, solo
   lectura, con KPIs y alcance por rol. Aquí vive el historial financiero **completo** (el de la ficha de
