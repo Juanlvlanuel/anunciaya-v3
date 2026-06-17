@@ -24,6 +24,7 @@ import negociosRoutes from './negocios.routes.js';
 import usuariosRoutes from './usuarios.routes.js';
 import suscripcionesRoutes from './suscripciones.routes.js';
 import equipoRoutes from './equipo.routes.js';
+import vendedoresRoutes from './vendedores.routes.js';
 import regionesRoutes from './regiones.routes.js';
 
 const router: Router = Router();
@@ -58,6 +59,11 @@ router.use('/suscripciones', suscripcionesRoutes);
 // ANTES del gate global de superadmin: la sección la usa también el gerente (ve solo sus
 // vendedores, alcance en el service). El vendedor no entra. Cada ruta trae su propio requierePanel.
 router.use('/equipo', equipoRoutes);
+
+// ─── Vendedores y comisiones (superadmin + gerente + vendedor · alcance por rol) ──
+// ANTES del gate global de superadmin: la sección la usan los 3 roles (el vendedor solo ve su
+// propia cartera; el gerente su equipo). Cada ruta trae su propio requierePanel con los roles.
+router.use('/vendedores', vendedoresRoutes);
 
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)

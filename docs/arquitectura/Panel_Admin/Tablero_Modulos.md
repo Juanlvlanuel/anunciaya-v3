@@ -14,7 +14,7 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 16 Junio 2026.
+> **Última actualización:** 17 Junio 2026.
 
 ---
 
@@ -32,8 +32,13 @@
 - **Recién cerrado (11 jun):** **Suscripciones — bitácora financiera V1** (libro mayor de eventos de
   pago: cobros Stripe + pagos manuales + cancelaciones, solo lectura, KPIs, alcance por rol). Fase 1
   completa + Gate 1 verde; Fase 2 se salta (solo lectura). Doc canónico [`Suscripciones.md`](Suscripciones.md).
-- **Siguiente sugerido:** Vendedores y comisiones (donde vive el modelo de cobertura avanzado diferido
-  desde Equipo), o los *quick-wins* Ciudades / Configuración (backend listo, falta UI).
+- **Recién avanzado (17 jun):** **Vendedores y comisiones — Fase 1 (VER), pieza A "Cartera"** construida y
+  verificada (GATE 1 con harness de datos reales). Vista de **detalle master-detail** del vendedor (perfil +
+  cartera) para super/gerente. El vendedor ve su cartera en "Mi cartera" (Negocios) y aquí solo sus comisiones
+  (Fase 2) — sin duplicar (D14). Tokens del Panel aplicados. Doc [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md).
+- **Siguiente sugerido:** **Vendedores y comisiones — Fase 2** (devengo B: escalera + recurrente · liquidación E:
+  datos de cobro + pagos + bitácora; aquí se definen los montos de la escalera y la migración SQL), o los
+  *quick-wins* Ciudades / Configuración (backend listo, falta UI).
 
 ---
 
@@ -46,7 +51,7 @@
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
-| 6 | Vendedores y comisiones | ⬜ | 0 | — |
+| 6 | **Vendedores y comisiones** | 🟡 | Fase 1 · Cartera (VER) ✅ · resto Fase 2 | `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
 | 8 | Ciudades | 🟡 | BD lista, falta UI (entra por Fase 1) | — |
 | 9 | Configuración | 🟡 | backend lee (helper), falta UI | — |
@@ -76,12 +81,12 @@
   Negocios es solo un resumen). **Resto del módulo pendiente:** precio/promos/meses gratis + tiempos
   configurables (gracia/trial) + visibilidad de membresía en el perfil del dueño. Pendientes menores de la
   bitácora: deep-link a Negocios, re-sync al editar pago, migración en prod.
-- **6 · Vendedores y comisiones** — alta/baja, escalera de comisiones (monto fijo), corte de efectivo;
-  rediseñar tabla `embajadores` (quitar porcentajes viejos). **Incluye el modelo de cobertura avanzado**
-  (decisión 16 Jun, detallada en `Equipo_y_accesos_Pendientes.md` §Diferido): cobertura **multi-región
-  parcial** (ciudades sueltas de regiones vecinas → quitar el trigger "una región"), **multi-gerente**, y
-  **mover de región = soltar cartera** para reasignar (coherente con "comisión = atender"). Reescribe el
-  alcance que hoy asume "vendedor de UNA región" en `panel.middleware` + Negocios/Usuarios/Suscripciones/Equipo.
+- **6 · Vendedores y comisiones** — **Fase 1 (VER) · pieza A "Cartera" ✅ y en uso** (detalle master-detail del
+  vendedor; doc [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md)). **Falta Fase 2:**
+  devengo (escalera monto fijo + recurrente), liquidación (datos de cobro + pagos + bitácora de egresos `pagos_vendedor`),
+  cortes de efectivo; rediseñar `embajadores`/`embajador_comisiones` (migración la corre Juan). **Cobertura avanzada
+  DIFERIDA** (multi-región parcial / multi-gerente / mover-con-reasignación, §Diferido de `Equipo_y_accesos_Pendientes.md`):
+  reescribe el alcance que hoy asume "vendedor de UNA región" en `panel.middleware` + Negocios/Usuarios/Suscripciones/Equipo.
 - **8 · Ciudades** — tabla `ciudades` poblada; falta la **UI** para habilitar/agrupar ciudades en regiones.
 - **9 · Configuración** — `configuracionSistema` + helper `obtenerConfig()` ya leen; falta la **UI** de edición.
 - **10 · Equipo y accesos** — **cerrado y en uso** (doc [`Equipo_y_accesos.md`](Equipo_y_accesos.md)). El

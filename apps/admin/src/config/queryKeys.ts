@@ -38,6 +38,22 @@ export interface FiltrosEquipoKey {
   porPagina?: number;
 }
 
+/** Filtros que entran en la clave de la lista de vendedores. */
+export interface FiltrosVendedoresKey {
+  busqueda?: string;
+  estado?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
+/** Filtros que entran en la clave de la cartera de un vendedor. */
+export interface FiltrosCarteraKey {
+  estadoPago?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 /** Filtros que entran en la clave de la bitácora financiera (eventos de pago). */
 export interface FiltrosSuscripcionesKey {
   busqueda?: string;
@@ -82,6 +98,13 @@ export const queryKeys = {
     lista: (filtros: FiltrosEquipoKey) => ['equipo', 'lista', filtros] as const,
     detalle: (id: string) => ['equipo', 'detalle', id] as const,
     ciudades: (regionId?: string) => ['equipo', 'ciudades', regionId ?? 'todas'] as const,
+  },
+  vendedores: {
+    all: () => ['vendedores'] as const,
+    conteo: () => ['vendedores', 'conteo'] as const,
+    lista: (filtros: FiltrosVendedoresKey) => ['vendedores', 'lista', filtros] as const,
+    detalle: (id: string) => ['vendedores', 'detalle', id] as const,
+    cartera: (id: string, filtros: FiltrosCarteraKey) => ['vendedores', 'cartera', id, filtros] as const,
   },
   regiones: {
     all: () => ['regiones'] as const,

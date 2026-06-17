@@ -125,6 +125,20 @@ menú que despliega sí vuelve a `superficie` clara. Es el caso típico de **var
 
 **`data-testid` obligatorio** en todo elemento interactivo (igual que en la app).
 
+**Vista de detalle (master-detail) vs. modal** — *cuándo cada uno*
+- **Ficha en modal/drawer** (`ModalAdaptativo`): patrón por defecto para ver UNA entidad con datos
+  **acotados** (Negocios, Usuarios, Suscripciones, Equipo).
+- **Vista de detalle full-width** (master-detail): para entidades **data-heavy** cuyo detalle crece en
+  secciones (cartera + comisiones + pagos + cortes). Al abrir una fila, una vista a pantalla completa
+  **reemplaza la lista** (no un modal), con botón **"Volver"** ligado a `useBackNativo({ abierto: true, onCerrar })`.
+  Da espacio real y en móvil es mejor que un bottom-sheet abarrotado. **Estrenado por "Vendedores y
+  comisiones"** (`components/vendedores/DetalleVendedor.tsx`); el propio vendedor ve "Mis comisiones" con
+  el **mismo cuerpo** a pantalla completa. Implementación: estado `entidadAbierta` en la sección → si
+  `!= null`, `return <Detalle… />` en lugar de la lista; las listas internas (la cartera) **paginan**.
+- **Los modales/diálogos NO desaparecen:** se reservan para **acciones puntuales** (registrar pago,
+  confirmar entrega de efectivo, editar datos, confirmar) — también dentro de un módulo con vista de
+  detalle. Regla simple: **modal para *actuar*, vista para *consultar a fondo*.**
+
 ---
 
 ## 6. Componentes base reutilizables (no reinventar)
