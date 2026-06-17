@@ -106,6 +106,8 @@ export const queryKeys = {
     detalle: (id: string) => ['vendedores', 'detalle', id] as const,
     cartera: (id: string, filtros: FiltrosCarteraKey) => ['vendedores', 'cartera', id, filtros] as const,
     comisiones: (id: string) => ['vendedores', 'comisiones', id] as const,
+    pagos: (id: string) => ['vendedores', 'pagos', id] as const,
+    datosCobro: (id: string) => ['vendedores', 'datos-cobro', id] as const,
   },
   configuracion: {
     all: () => ['configuracion'] as const,

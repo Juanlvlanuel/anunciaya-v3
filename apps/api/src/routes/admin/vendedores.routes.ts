@@ -26,6 +26,11 @@ import {
     listarCarteraController,
     listarComisionesVendedorController,
     recalcularComisionesController,
+    subirComprobanteController,
+    registrarPagoController,
+    listarPagosVendedorController,
+    obtenerDatosCobroController,
+    guardarDatosCobroController,
 } from '../../controllers/admin/vendedores.controller.js';
 
 const router: Router = Router();
@@ -38,6 +43,9 @@ router.get('/conteo', requierePanel(['superadmin', 'gerente', 'vendedor']), cont
 // Recalcular/devengar las comisiones recurrentes del periodo (solo super; el dinero lo mueve el super).
 router.post('/comisiones/recalcular', requierePanel(['superadmin']), recalcularComisionesController);
 
+// Presigned URL para subir el comprobante del pago (solo super). Antes de /:id por el comodín.
+router.post('/comprobante/upload', requierePanel(['superadmin']), subirComprobanteController);
+
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerVendedorController);
 
 // Cartera del vendedor (sus negocios atribuidos, con estado de membresía).
@@ -45,5 +53,14 @@ router.get('/:id/cartera', requierePanel(['superadmin', 'gerente', 'vendedor']),
 
 // Estado de cuenta de comisiones del vendedor (devengado / pagado / pendiente).
 router.get('/:id/comisiones', requierePanel(['superadmin', 'gerente', 'vendedor']), listarComisionesVendedorController);
+
+// Liquidación (pieza E):
+//   - registrar un pago = solo super (tesorería)
+//   - ver la bitácora   = super + gerente (su equipo) + vendedor (los suyos)
+//   - datos de cobro     = super + el propio vendedor (el gerente NO; dato sensible)
+router.post('/:id/pagos', requierePanel(['superadmin']), registrarPagoController);
+router.get('/:id/pagos', requierePanel(['superadmin', 'gerente', 'vendedor']), listarPagosVendedorController);
+router.get('/:id/datos-cobro', requierePanel(['superadmin', 'vendedor']), obtenerDatosCobroController);
+router.put('/:id/datos-cobro', requierePanel(['superadmin', 'vendedor']), guardarDatosCobroController);
 
 export default router;

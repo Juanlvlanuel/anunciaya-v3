@@ -15,6 +15,7 @@ import {
     obtenerVendedor,
     listarCartera,
     listarComisionesVendedor,
+    listarPagosVendedor,
     ESTADOS_EMBAJADOR,
     ORDENES_VENDEDORES,
     type EstadoEmbajador,
@@ -22,6 +23,7 @@ import {
 } from '../../services/admin/vendedores.service.js';
 import { panelConFiltroRegion, ESTADOS_PAGO, type EstadoPago } from '../../services/admin/negocios.service.js';
 import { devengarPeriodo, periodoActual } from '../../services/admin/comisiones-devengo.service.js';
+import { registrarPago, generarUrlComprobante, obtenerDatosCobro, guardarDatosCobro } from '../../services/admin/comisiones-liquidacion.service.js';
 import { registrarAuditoria } from '../../services/admin/auditoria.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
@@ -197,5 +199,102 @@ export async function listarComisionesVendedorController(req: Request, res: Resp
     } catch (error) {
         console.error('Error en listarComisionesVendedorController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener las comisiones' });
+    }
+}
+
+// =============================================================================
+// LIQUIDACIÓN (pieza E)
+// =============================================================================
+
+// POST /api/admin/vendedores/comprobante/upload   (solo super · presigned URL del comprobante)
+export async function subirComprobanteController(req: Request, res: Response): Promise<void> {
+    try {
+        const { nombreArchivo, contentType } = req.body ?? {};
+        if (typeof nombreArchivo !== 'string' || typeof contentType !== 'string') {
+            res.status(400).json({ success: false, message: 'Faltan datos del archivo (nombreArchivo, contentType)' });
+            return;
+        }
+        const r = await generarUrlComprobante(nombreArchivo, contentType);
+        res.status(r.code).json(r);
+    } catch (error) {
+        console.error('Error en subirComprobanteController:', error);
+        res.status(500).json({ success: false, message: 'Error al preparar la subida del comprobante' });
+    }
+}
+
+// POST /api/admin/vendedores/:id/pagos   (solo super · registrar un pago)
+export async function registrarPagoController(req: Request, res: Response): Promise<void> {
+    try {
+        const b = req.body ?? {};
+        const r = await registrarPago(req.usuarioPanel!, req.params.id, {
+            monto: Number(b.monto),
+            metodo: b.metodo,
+            fechaPago: typeof b.fechaPago === 'string' ? b.fechaPago : undefined,
+            periodo: typeof b.periodo === 'string' ? b.periodo : null,
+            nota: typeof b.nota === 'string' ? b.nota : null,
+            comprobanteUrl: typeof b.comprobanteUrl === 'string' ? b.comprobanteUrl : null,
+            comisionIds: Array.isArray(b.comisionIds) ? b.comisionIds.filter((x: unknown) => typeof x === 'string') : [],
+        });
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(201).json({ success: true, message: 'Pago registrado', data: { pagoId: r.pagoId } });
+    } catch (error) {
+        console.error('Error en registrarPagoController:', error);
+        res.status(500).json({ success: false, message: 'Error al registrar el pago' });
+    }
+}
+
+// GET /api/admin/vendedores/:id/pagos   (super + gerente + vendedor · bitácora de egresos)
+export async function listarPagosVendedorController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const data = await listarPagosVendedor(panel, req.params.id);
+        if (!data) {
+            res.status(404).json({ success: false, message: 'Vendedor no encontrado' });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Pagos obtenidos', data });
+    } catch (error) {
+        console.error('Error en listarPagosVendedorController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener los pagos' });
+    }
+}
+
+// GET /api/admin/vendedores/:id/datos-cobro   (super + el propio vendedor)
+export async function obtenerDatosCobroController(req: Request, res: Response): Promise<void> {
+    try {
+        const r = await obtenerDatosCobro(req.usuarioPanel!, req.params.id);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Datos de cobro', data: r.datos });
+    } catch (error) {
+        console.error('Error en obtenerDatosCobroController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener los datos de cobro' });
+    }
+}
+
+// PUT /api/admin/vendedores/:id/datos-cobro   (super + el propio vendedor)
+export async function guardarDatosCobroController(req: Request, res: Response): Promise<void> {
+    try {
+        const b = req.body ?? {};
+        const r = await guardarDatosCobro(req.usuarioPanel!, req.params.id, {
+            metodo: b.metodo,
+            banco: typeof b.banco === 'string' ? b.banco : null,
+            clabe: typeof b.clabe === 'string' ? b.clabe : null,
+            titular: typeof b.titular === 'string' ? b.titular : null,
+            nota: typeof b.nota === 'string' ? b.nota : null,
+        });
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Datos de cobro guardados' });
+    } catch (error) {
+        console.error('Error en guardarDatosCobroController:', error);
+        res.status(500).json({ success: false, message: 'Error al guardar los datos de cobro' });
     }
 }

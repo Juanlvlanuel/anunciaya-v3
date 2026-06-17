@@ -12,7 +12,7 @@ import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tansta
 import { useCallback } from 'react';
 import { queryKeys } from '../../config/queryKeys';
 import * as vendedoresService from '../../services/vendedoresService';
-import type { ParametrosVendedores, ParametrosCartera, VendedorDetalle } from '../../services/vendedoresService';
+import type { ParametrosVendedores, ParametrosCartera, VendedorDetalle, RegistrarPagoInput, DatosCobroInput } from '../../services/vendedoresService';
 import { toast } from '../../stores/useToastPanel';
 
 /** Extrae el mensaje de error del backend (o uno por defecto). */
@@ -100,5 +100,55 @@ export function useRecalcularComisiones() {
       );
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudieron recalcular las comisiones')),
+  });
+}
+
+// =============================================================================
+// LIQUIDACIÓN (pieza E)
+// =============================================================================
+
+/** Bitácora de pagos hechos al vendedor. */
+export function usePagosVendedor(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.vendedores.pagos(id ?? ''),
+    queryFn: () => vendedoresService.listarPagos(id as string),
+    enabled: !!id,
+  });
+}
+
+/** Datos de cobro del vendedor (super + el propio vendedor). */
+export function useDatosCobro(id: string | null, habilitado = true) {
+  return useQuery({
+    queryKey: queryKeys.vendedores.datosCobro(id ?? ''),
+    queryFn: () => vendedoresService.obtenerDatosCobro(id as string),
+    enabled: !!id && habilitado,
+  });
+}
+
+/** Registrar un pago (solo super): refresca pagos + comisiones (quedan pagadas) + lista. */
+export function useRegistrarPago() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, datos }: { id: string; datos: RegistrarPagoInput }) => vendedoresService.registrarPago(id, datos),
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.pagos(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.comisiones(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
+      toast.exito('Pago registrado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo registrar el pago')),
+  });
+}
+
+/** Guardar/editar los datos de cobro del vendedor. */
+export function useGuardarDatosCobro() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, datos }: { id: string; datos: DatosCobroInput }) => vendedoresService.guardarDatosCobro(id, datos),
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.datosCobro(id) });
+      toast.exito('Datos de cobro guardados');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudieron guardar los datos de cobro')),
   });
 }

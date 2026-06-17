@@ -186,3 +186,91 @@ export async function recalcularComisiones(periodo?: string): Promise<ResumenDev
   );
   return data.data ?? null;
 }
+
+// =============================================================================
+// LIQUIDACIÓN (Fase 2 · pieza E)
+// =============================================================================
+
+/** Un pago realizado al vendedor (egreso). */
+export interface PagoFila {
+  id: string;
+  monto: number;
+  metodo: string;
+  fechaPago: string | null;
+  periodo: string | null;
+  nota: string | null;
+  comprobanteUrl: string | null;
+  creada: string | null;
+}
+
+export interface BitacoraPagos {
+  vendedor: VendedorDetalle;
+  items: PagoFila[];
+  totalPagado: number;
+}
+
+export interface DatosCobro {
+  metodo: string;
+  banco: string | null;
+  clabe: string | null;
+  titular: string | null;
+  nota: string | null;
+  actualizadoEn: string | null;
+}
+
+export interface RegistrarPagoInput {
+  monto: number;
+  metodo: string;
+  fechaPago?: string;
+  periodo?: string | null;
+  nota?: string | null;
+  comprobanteUrl?: string | null;
+  comisionIds: string[];
+}
+
+export interface DatosCobroInput {
+  metodo: string;
+  banco?: string | null;
+  clabe?: string | null;
+  titular?: string | null;
+  nota?: string | null;
+}
+
+/** Bitácora de pagos hechos al vendedor. */
+export async function listarPagos(id: string): Promise<BitacoraPagos | null> {
+  const { data } = await api.get<RespuestaAPI<BitacoraPagos>>(`/admin/vendedores/${id}/pagos`);
+  return data.data ?? null;
+}
+
+/** Registra un pago al vendedor (solo super). */
+export async function registrarPago(id: string, datos: RegistrarPagoInput): Promise<{ pagoId?: string }> {
+  const { data } = await api.post<RespuestaAPI<{ pagoId?: string }>>(`/admin/vendedores/${id}/pagos`, datos);
+  return data.data ?? {};
+}
+
+/** Datos de cobro del vendedor (super + el propio vendedor). */
+export async function obtenerDatosCobro(id: string): Promise<DatosCobro | null> {
+  const { data } = await api.get<RespuestaAPI<DatosCobro | null>>(`/admin/vendedores/${id}/datos-cobro`);
+  return data.data ?? null;
+}
+
+/** Guarda/edita los datos de cobro del vendedor. */
+export async function guardarDatosCobro(id: string, datos: DatosCobroInput): Promise<void> {
+  await api.put(`/admin/vendedores/${id}/datos-cobro`, datos);
+}
+
+/**
+ * Sube la foto-comprobante a R2 (presigned): pide la URL al backend, hace PUT directo a R2 y
+ * devuelve la URL pública. Devuelve null si algo falla.
+ */
+export async function subirComprobante(file: File): Promise<string | null> {
+  const { data } = await api.post<RespuestaAPI<{ uploadUrl: string; publicUrl: string }>>(
+    '/admin/vendedores/comprobante/upload',
+    { nombreArchivo: file.name, contentType: file.type },
+  );
+  const info = data.data;
+  if (!info?.uploadUrl || !info?.publicUrl) return null;
+  const r = await fetch(info.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+  if (!r.ok) return null;
+  return info.publicUrl;
+}

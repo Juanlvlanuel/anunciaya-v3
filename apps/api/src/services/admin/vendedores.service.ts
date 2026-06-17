@@ -32,7 +32,7 @@
 
 import { and, eq, asc, desc, ilike, or, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones } from '../../db/schemas/schema.js';
+import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones, pagosVendedor } from '../../db/schemas/schema.js';
 import { env } from '../../config/env.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { resolverEmbajadorId } from './negocios.service.js';
@@ -586,4 +586,61 @@ export async function listarComisionesVendedor(
     const resumen: ResumenComisiones = { devengado, pagado, pendiente: devengado - pagado };
 
     return { vendedor, items, resumen };
+}
+
+// =============================================================================
+// 5. BITÁCORA DE PAGOS AL VENDEDOR (Fase 2 · pieza E — lectura)
+// =============================================================================
+
+/** Un pago realizado al vendedor (egreso). */
+export interface PagoFila {
+    id: string;
+    monto: number;
+    metodo: string;
+    fechaPago: string | null;
+    periodo: string | null;
+    nota: string | null;
+    comprobanteUrl: string | null;
+    creada: string | null;
+}
+
+export interface BitacoraPagos {
+    vendedor: VendedorDetalle;
+    items: PagoFila[];
+    totalPagado: number;
+}
+
+/** Historial de pagos hechos al vendedor (con alcance por rol). null si no existe / fuera de alcance. */
+export async function listarPagosVendedor(panel: UsuarioPanel, usuarioId: string): Promise<BitacoraPagos | null> {
+    const vendedor = await leerVendedor(panel, usuarioId);
+    if (!vendedor) return null;
+
+    const filas = await db
+        .select({
+            id: pagosVendedor.id,
+            monto: pagosVendedor.monto,
+            metodo: pagosVendedor.metodo,
+            fechaPago: pagosVendedor.fechaPago,
+            periodo: pagosVendedor.periodo,
+            nota: pagosVendedor.nota,
+            comprobanteUrl: pagosVendedor.comprobanteUrl,
+            creada: pagosVendedor.createdAt,
+        })
+        .from(pagosVendedor)
+        .where(eq(pagosVendedor.embajadorId, vendedor.embajadorId))
+        .orderBy(desc(pagosVendedor.fechaPago), desc(pagosVendedor.createdAt));
+
+    const items: PagoFila[] = filas.map((f) => ({
+        id: f.id,
+        monto: Number(f.monto),
+        metodo: f.metodo,
+        fechaPago: f.fechaPago ?? null,
+        periodo: f.periodo ?? null,
+        nota: f.nota ?? null,
+        comprobanteUrl: f.comprobanteUrl ?? null,
+        creada: f.creada ?? null,
+    }));
+    const totalPagado = items.reduce((s, p) => s + p.monto, 0);
+
+    return { vendedor, items, totalPagado };
 }

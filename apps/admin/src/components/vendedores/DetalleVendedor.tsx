@@ -29,6 +29,7 @@ import { fecha } from '../negocios/FichaNegocio';
 import { BadgeEstadoPago, estadoEfectivo } from '../negocios/estadoPago';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
+import { SeccionPagos } from './SeccionPagos';
 
 /** Negocios por página en la cartera. */
 export const POR_PAGINA_CARTERA = 12;
@@ -298,13 +299,13 @@ function PestaniasVendedor({ vistaVendedor, activa, onCambiar }: { vistaVendedor
   const tabs: Array<{ id: TabVendedor; label: string; disponible: boolean }> = vistaVendedor
     ? [
         { id: 'comisiones', label: 'Comisiones', disponible: true },
-        { id: 'pagos', label: 'Pagos', disponible: false },
+        { id: 'pagos', label: 'Pagos', disponible: true },
         { id: 'efectivo', label: 'Efectivo', disponible: false },
       ]
     : [
         { id: 'cartera', label: 'Cartera', disponible: true },
         { id: 'comisiones', label: 'Comisiones', disponible: true },
-        { id: 'pagos', label: 'Pagos', disponible: false },
+        { id: 'pagos', label: 'Pagos', disponible: true },
         { id: 'efectivo', label: 'Efectivo', disponible: false },
       ];
   return (
@@ -487,6 +488,8 @@ export function CuerpoCartera({
 
         {tab === 'comisiones' ? (
           <SeccionComisiones vendedorId={vendedor.id} />
+        ) : tab === 'pagos' ? (
+          <SeccionPagos vendedorId={vendedor.id} />
         ) : tab === 'cartera' ? (
           <>
             <h3 className="mb-2 shrink-0 text-[13px] font-semibold text-texto-2">Negocios de su cartera{cartera ? ` (${total})` : ''}</h3>
