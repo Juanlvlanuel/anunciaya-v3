@@ -407,16 +407,19 @@ export interface CiudadConteo {
 export async function usuariosPorCiudad(rolSolicitante?: string, regionSolicitante?: string | null): Promise<CiudadConteo[]> {
     const cond = condicionVisibilidad(rolSolicitante, regionSolicitante);
 
-    const filas = await db
-        .select({ ciudadId: usuarios.ciudadId, total: count() })
-        .from(usuarios)
-        .where(cond)
-        .groupBy(usuarios.ciudadId);
+    // Las dos consultas son INDEPENDIENTES (el catálogo no depende del conteo) → en paralelo,
+    // para recortar la latencia del endpoint a la mitad (importa cuando el pooler va lento).
+    const [filas, catRes] = await Promise.all([
+        db
+            .select({ ciudadId: usuarios.ciudadId, total: count() })
+            .from(usuarios)
+            .where(cond)
+            .groupBy(usuarios.ciudadId),
+        // Catálogo completo (id → nombre/estado). Solo lectura, pocas filas.
+        db.execute(sql`SELECT id::text AS id, nombre, estado FROM ciudades`),
+    ]);
 
-    // Catálogo completo (id → nombre/estado). Solo lectura, pocas filas.
-    const cat = (await db.execute(sql`SELECT id::text AS id, nombre, estado FROM ciudades`)).rows as Array<{
-        id: string; nombre: string; estado: string;
-    }>;
+    const cat = catRes.rows as Array<{ id: string; nombre: string; estado: string }>;
     const mapa = new Map(cat.map((c) => [c.id, c]));
 
     const grupos: CiudadConteo[] = filas.map((f) => {
