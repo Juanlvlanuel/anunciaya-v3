@@ -21,6 +21,7 @@ import { CheckCircle, Rocket, ArrowRight, Building2 } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import pagoService from '@/services/pagoService';
 import { notificar } from '@/utils/notificaciones';
+import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 
 // =============================================================================
 // TIPOS
@@ -36,6 +37,7 @@ export function PaginaCrearNegocioExito() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const sessionId = searchParams.get('session_id');
+  const { trialDias } = useConfigPublica();
 
   const loginExitoso = useAuthStore((state) => state.loginExitoso);
   const recargarDatosUsuario = useAuthStore((state) => state.recargarDatosUsuario);
@@ -179,7 +181,7 @@ export function PaginaCrearNegocioExito() {
             </div>
             <div>
               <p className="font-bold text-slate-900">Modo Comercial Activado</p>
-              <p className="text-orange-600 text-sm">7 días de prueba gratis</p>
+              <p className="text-orange-600 text-sm">{trialDias} días de prueba gratis</p>
             </div>
           </div>
           <ul className="space-y-2 text-sm text-slate-600">

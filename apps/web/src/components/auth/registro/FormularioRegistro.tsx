@@ -29,6 +29,7 @@ const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 import type { RegistroInput, DatosGoogleNuevo } from '@/services/authService';
 import { useGoogleLogin } from '@react-oauth/google';
 import { notificar } from '@/utils/notificaciones';
+import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 
 // =============================================================================
 // TIPOS
@@ -108,6 +109,7 @@ export function FormularioRegistro({
 }: FormularioRegistroProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+  const { trialDias } = useConfigPublica();
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -488,9 +490,9 @@ export function FormularioRegistro({
               <div className="text-right">
                 <span className="bg-amber-500 text-white text-sm lg:text-[11px] 2xl:text-sm font-bold px-2.5 lg:px-2.5 2xl:px-3 py-1 lg:py-1 2xl:py-1.5 rounded-full flex items-center gap-1">
                   <Check className="w-3 h-3" />
-                  7 días gratis
+                  {trialDias} días gratis
                 </span>
-                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5 lg:mt-1">Se cobra al día 8</p>
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5 lg:mt-1">Se cobra al día {trialDias + 1}</p>
               </div>
             </div>
           </div>

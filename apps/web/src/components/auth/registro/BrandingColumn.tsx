@@ -11,6 +11,7 @@
 import { CheckCircle2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 
 // =============================================================================
 // DATOS POR TIPO DE CUENTA
@@ -50,6 +51,7 @@ interface BrandingColumnProps {
 
 export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps) {
     const { t } = useTranslation('landing');
+    const { trialDias } = useConfigPublica();
     const datos = DATOS_CUENTA[tipoCuenta];
     const esComercial = tipoCuenta === 'comercial';
 
@@ -109,7 +111,7 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                         {esComercial ? (
                             <div className="flex items-center gap-2">
                                 <span className={`text-3xl lg:text-2xl 2xl:text-4xl font-extrabold ${datos.colorPrecio}`}>
-                                    {t(datos.precioKey)}
+                                    {t(datos.precioKey, { dias: trialDias })}
                                 </span>
                                 <span className="px-3 py-0.5 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">
                                     {t('cta.comercial.badge')}
@@ -118,7 +120,7 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                         ) : (
                             <div>
                                 <span className={`text-3xl lg:text-2xl 2xl:text-4xl font-extrabold ${datos.colorPrecio}`}>
-                                    {t(datos.precioKey)}
+                                    {t(datos.precioKey, { dias: trialDias })}
                                 </span>
                                 <span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/60 ml-2">
                                     {t('cta.personal.siempre')}

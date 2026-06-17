@@ -41,6 +41,7 @@ import CarouselCupones from './CarouselCupones';
 import { MenuBusinessStudio } from './MenuBusinessStudio';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import { useDashboard } from '../../hooks/queries/useDashboard';
+import { useConfigPublica } from '../../hooks/queries/useConfigPublica';
 
 // =============================================================================
 // SISTEMA DE TEMAS — Configuración centralizada por ruta/módulo
@@ -89,7 +90,7 @@ export interface TemaColumna {
   ctaIconBg: string;
   /** CTA texto precio */
   ctaPriceColor: string;
-  /** CTA texto "7 días" */
+  /** CTA: días de prueba (dinámico desde la config) */
   ctaHighlight: string;
   /** CTA botón clase */
   ctaButtonClass: string;
@@ -511,6 +512,7 @@ export function ColumnaIzquierda() {
 // =============================================================================
 
 function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
+  const { trialDias } = useConfigPublica();
   const navigate = useNavigate();
   const usuario = useAuthStore((state) => state.usuario);
   const tieneModoComercial = usuario?.tieneModoComercial ?? false;
@@ -551,7 +553,7 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
                 <span className={`text-xs ${tema.textMuted}`}>/mes</span>
               </span>
               <span className="flex flex-col items-center">
-                <strong className="text-base lg:text-sm 2xl:text-base text-blue-600">7 días</strong>
+                <strong className="text-base lg:text-sm 2xl:text-base text-blue-600">{trialDias} días</strong>
                 <span className={`text-xs ${tema.textMuted}`}>gratis</span>
               </span>
               <span className="flex flex-col items-center">

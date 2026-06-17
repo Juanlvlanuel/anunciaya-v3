@@ -108,7 +108,7 @@ interface DatosUsuarioWebhook {
  * 1. Valida que el correo esté verificado en Redis (código 6 dígitos ya validado)
  * 2. Crea una Checkout Session en Stripe con:
  *    - Precio del plan comercial ($449/mes)
- *    - Trial de 7 días gratis
+ *    - Trial gratis (los días salen de la config 'trial_duracion_dias')
  *    - Metadata con datos del usuario
  * 3. Devuelve la URL para redirigir al usuario
  * 
@@ -172,7 +172,7 @@ export async function crearCheckoutSession(
         // Modo de pago: suscripción recurrente
         mode: 'subscription',
 
-        // Plan comercial ($449/mes) con trial de 7 días
+        // Plan comercial ($449/mes) con trial (días configurables: 'trial_duracion_dias')
         line_items: [
             {
                 price: env.STRIPE_PRICE_COMERCIAL,

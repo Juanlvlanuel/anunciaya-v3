@@ -43,6 +43,7 @@ import serviciosRoutes from './servicios.routes';
 import vacantesRoutes from './vacantes.routes';
 import preguntasComunidadRoutes from './preguntasComunidad.routes';
 import coyoRoutes from './coyo.routes';
+import configuracionPublicaRoutes from './configuracionPublica.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -64,6 +65,9 @@ router.use('/pagos', pagoRoutes);
 
 // Rutas de categorías
 router.use('/categorias', categoriasRoutes);
+
+// Configuración pública (sin auth): valores que pinta la landing (trial, etc.)
+router.use('/configuracion-publica', configuracionPublicaRoutes);
 
 // Rutas de onboarding
 router.use('/onboarding', onboardingRoutes);

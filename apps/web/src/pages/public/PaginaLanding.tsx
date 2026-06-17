@@ -44,6 +44,7 @@ import authService from '../../services/authService';
 import Tooltip from '../../components/ui/Tooltip';
 import { notificar } from '../../utils/notificaciones';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
+import { useConfigPublica } from '../../hooks/queries/useConfigPublica';
 
 // =============================================================================
 // HOOK: Pausar animación cuando no está visible
@@ -614,6 +615,7 @@ function StripCategorias() {
 
 function SeccionPlanes() {
     const { t } = useTranslation('landing');
+    const { trialDias } = useConfigPublica();
     const navigate = useNavigate();
     const { ref: refReveal, esVisible } = useRevealOnScroll();
 
@@ -678,7 +680,7 @@ function SeccionPlanes() {
                             {t('cta.comercial.titulo')}
                         </h2>
                         <div className="mt-1 flex items-center gap-2 lg:gap-2 2xl:gap-3">
-                            <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{t('cta.comercial.precio')}</span>
+                            <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{t('cta.comercial.precio', { dias: trialDias })}</span>
                             <span className="px-2.5 py-0.5 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">{t('cta.comercial.badge')}</span>
                         </div>
                     </div>

@@ -21,6 +21,7 @@ const Sparkles = (p: IconoWrapperProps) => <Icon icon={ICONOS.premium} {...p} />
 import { useAuthStore } from '@/stores/useAuthStore';
 import pagoService from '@/services/pagoService';
 import { notificar } from '@/utils/notificaciones';
+import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 
 // =============================================================================
 // CONSTANTES
@@ -35,6 +36,7 @@ const PRECIO_COMERCIAL = 449;
 export function PaginaCrearNegocio() {
   const navigate = useNavigate();
   const usuario = useAuthStore((state) => state.usuario);
+  const { trialDias } = useConfigPublica();
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -219,11 +221,11 @@ export function PaginaCrearNegocio() {
                 </div>
                 <div className="bg-green-500 text-white text-xs lg:text-xs 2xl:text-sm font-bold px-3 lg:px-3 2xl:px-4 py-1.5 lg:py-1.5 2xl:py-2 rounded-full flex items-center gap-1 lg:gap-1 2xl:gap-1.5">
                   <Check className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
-                  7 días gratis
+                  {trialDias} días gratis
                 </div>
               </div>
               <p className="text-orange-600 text-xs lg:text-xs 2xl:text-sm mt-2 lg:mt-2 2xl:mt-3">
-                Se cobra al día 8 • Cancela cuando quieras
+                Se cobra al día {trialDias + 1} • Cancela cuando quieras
               </p>
             </div>
 

@@ -198,7 +198,7 @@
     "comercial": {
       "titulo": "Business Account",
       "badge": "Premium",
-      "precio": "7 days free",
+      "precio": "{{dias}} days free",
       "features": {
         "f1": "Post in Local Businesses",
         "f2": "Post in Deals",
@@ -211,9 +211,9 @@
       "boton": "Try Free Trial"
     },
     "trial": {
-      "dias": "7-day free trial",
+      "dias": "{{dias}}-day free trial",
       "cancela": "Cancel before and pay nothing",
-      "nota": "When registering a Business account, enter your card to activate the trial. It charges automatically after 7 days if you don't cancel."
+      "nota": "When registering a Business account, enter your card to activate the trial. It charges automatically after {{dias}} days if you don't cancel."
     }
   },
   "collage": {

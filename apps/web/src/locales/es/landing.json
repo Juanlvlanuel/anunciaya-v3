@@ -198,7 +198,7 @@
     "comercial": {
       "titulo": "Cuenta Comercial",
       "badge": "Premium",
-      "precio": "7 días gratis",
+      "precio": "{{dias}} días gratis",
       "features": {
         "f1": "Publica en Negocios Locales",
         "f2": "Publica en Ofertas",
@@ -211,9 +211,9 @@
       "boton": "Probar trial Gratis"
     },
     "trial": {
-      "dias": "7 días de prueba gratis",
+      "dias": "{{dias}} días de prueba gratis",
       "cancela": "Cancela antes y no pagas nada",
-      "nota": "Al registrar cuenta Comercial, ingresas tu tarjeta para activar el trial. Se cobra automáticamente después de 7 días si no cancelas."
+      "nota": "Al registrar cuenta Comercial, ingresas tu tarjeta para activar el trial. Se cobra automáticamente después de {{dias}} días si no cancelas."
     }
   },
   "collage": {

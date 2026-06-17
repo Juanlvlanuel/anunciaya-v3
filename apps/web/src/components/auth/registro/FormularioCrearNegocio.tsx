@@ -12,6 +12,7 @@ import { useNavigate } from 'react-router-dom';
 import { Building2, Check, ChevronLeft } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../../config/iconos';
+import { useConfigPublica } from '../../../hooks/queries/useConfigPublica';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -43,6 +44,7 @@ export function FormularioCrearNegocio({
   nombreUsuario,
 }: FormularioCrearNegocioProps) {
   const navigate = useNavigate();
+  const { trialDias } = useConfigPublica();
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -195,11 +197,11 @@ export function FormularioCrearNegocio({
                 </div>
                 <div className="bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
                   <Check className="w-3 h-3" />
-                  7 días gratis
+                  {trialDias} días gratis
                 </div>
               </div>
               <p className="text-orange-600 text-xs mt-2">
-                Se cobra al día 8 • Cancela cuando quieras
+                Se cobra al día {trialDias + 1} • Cancela cuando quieras
               </p>
             </div>
 
