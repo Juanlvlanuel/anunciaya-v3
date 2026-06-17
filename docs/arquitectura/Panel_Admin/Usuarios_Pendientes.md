@@ -15,8 +15,9 @@
 >
 > **Última actualización:** 16 Junio 2026 — módulo cerrado; se le **agregó medición/filtrado por
 > ciudad** (`ciudad_id` + puente de ubicación + filtro y métrica "por ciudad"; ver `Usuarios.md`
-> §12 / Apéndice I). Pendiente solo **desplegar a PROD** (migración + backfill + deploy del código)
-> y los V2 de abajo.
+> §12 / Apéndice I), **aplicado en DEV y PROD** (migración + seed del catálogo + backfills). De paso
+> se completó la **campaña ciudad↔región en PROD** (faltaban datos: region_id en ciudades + backfill
+> de sucursales). Pendiente solo los V2 de abajo.
 
 ---
 

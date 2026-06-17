@@ -22,7 +22,7 @@ Nueva capacidad sobre el módulo **Usuarios** (ya cerrado): **medir y filtrar us
 
 **Docs:** `Usuarios.md` (§12 + Apéndice I), `Usuarios_Pendientes.md`, `Autenticacion.md` (endpoint, 21/21).
 
-**Pendiente operativo:** en PROD, correr `2026-06-16-usuarios-ciudad-id.sql` + el backfill (`DB_ENVIRONMENT=production`) — migración primero, luego backfill — y desplegar el código.
+**Aplicado en PROD (16 Jun 2026):** migración `usuarios.ciudad_id` + backfill (2/2). Al desplegar se descubrió que **la campaña ciudad↔región estaba a medias en PROD**: la estructura (DDL: `ciudades`, `embajador_ciudades`, `negocio_sucursales.ciudad_id`, `regiones` adelgazada, drop de `region_id` viejos) ya estaba, pero faltaban DATOS — `ciudades` sin sembrar, `ciudades.region_id` en NULL y `negocio_sucursales.ciudad_id` sin backfill. Se completó todo: `seed-ciudades` (70), `region_id` de las ciudades de Sonora (puerto-penasco/sonoyta→Sonora-Norte, caborca→Sonora-Centro) y backfills de sucursales (2/2) y usuarios (2/2). Sin gerentes ni vendedores en PROD, `embajador_ciudades` queda vacía (se sembrará al alta de vendedores). **PROD quedó al nivel de DEV.**
 
 ---
 
