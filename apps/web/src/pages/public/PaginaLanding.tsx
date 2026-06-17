@@ -79,6 +79,92 @@ function IconoGoogle({ className = 'w-4 h-4' }: { className?: string }) {
 }
 
 // =============================================================================
+// BOTÓN GOOGLE (ícono del header)
+// =============================================================================
+// Muestra el ícono multicolor de siempre, pero ENCIMA renderiza el botón REAL de
+// Google con opacity 0: el clic lo recibe Google y abre directo el selector de cuentas
+// (un solo clic, sin diálogo intermedio) y sin el cooldown del One Tap/prompt. Devuelve
+// el ID token (credential) que el backend ya sabe procesar.
+
+function BotonGoogleIcono({ onCredential }: { onCredential: (credential: string) => void }) {
+    const { t } = useTranslation('landing');
+    const contenedorRef = useRef<HTMLDivElement>(null);
+    const slotRef = useRef<HTMLDivElement>(null);
+    // Ref al callback: evita reinicializar el botón de Google en cada render del padre.
+    const onCredentialRef = useRef(onCredential);
+    onCredentialRef.current = onCredential;
+
+    useEffect(() => {
+        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
+        let cancelado = false;
+        let observer: MutationObserver | null = null;
+
+        // El iframe de Google es cross-origin: lo escalamos con transform para que su área
+        // clickeable cubra TODO el contenedor (un width/height por CSS no reajusta el botón).
+        const ajustarEscala = () => {
+            const slot = slotRef.current;
+            const cont = contenedorRef.current;
+            const iframe = slot?.querySelector('iframe') as HTMLElement | null;
+            if (!slot || !cont || !iframe) return;
+            const iw = iframe.offsetWidth;
+            const ih = iframe.offsetHeight;
+            if (!iw || !ih) return;
+            iframe.style.transformOrigin = 'center center';
+            iframe.style.transform = `scale(${(cont.clientWidth + 2) / iw}, ${(cont.clientHeight + 2) / ih})`;
+        };
+
+        const render = () => {
+            if (cancelado) return;
+            const slot = slotRef.current;
+            // GoogleOAuthProvider carga el script GSI async: esperamos a que window.google exista.
+            if (!window.google?.accounts?.id || !slot) {
+                window.setTimeout(render, 200);
+                return;
+            }
+            window.google.accounts.id.initialize({
+                client_id: clientId,
+                callback: (response: Record<string, unknown>) => {
+                    if (typeof response.credential === 'string') {
+                        onCredentialRef.current(response.credential);
+                    }
+                },
+            });
+            slot.innerHTML = '';
+            window.google.accounts.id.renderButton(slot, {
+                type: 'icon', shape: 'circle', theme: 'outline', size: 'large',
+            });
+            // El iframe se inserta async: reajustamos al insertarse + un par de veces por si tarda.
+            observer = new MutationObserver(ajustarEscala);
+            observer.observe(slot, { childList: true, subtree: true });
+            window.setTimeout(ajustarEscala, 300);
+            window.setTimeout(ajustarEscala, 900);
+        };
+        render();
+        window.addEventListener('resize', ajustarEscala);
+        return () => {
+            cancelado = true;
+            observer?.disconnect();
+            window.removeEventListener('resize', ajustarEscala);
+        };
+    }, []);
+
+    return (
+        <Tooltip text={t('navbar.entrarConGoogle')} position="bottom" autoHide={1500}>
+            <div ref={contenedorRef} className="relative grid h-10 w-10 place-items-center lg:cursor-pointer hover:scale-110 active:scale-95">
+                {/* Ícono visible (decorativo); el clic lo recibe el botón de Google de abajo. */}
+                <IconoGoogle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 pointer-events-none" />
+                {/* Botón REAL de Google: invisible, escalado para cubrir todo, capta el clic. */}
+                <div
+                    ref={slotRef}
+                    aria-hidden="true"
+                    className="absolute inset-0 z-10 grid place-items-center overflow-hidden opacity-0"
+                />
+            </div>
+        </Tooltip>
+    );
+}
+
+// =============================================================================
 // DATOS ESTÁTICOS
 // =============================================================================
 
@@ -114,9 +200,9 @@ function ToggleIdioma() {
 }
 
 function NavbarLanding({
-    iniciarLoginGoogle,
+    onGoogleCredential,
 }: {
-    iniciarLoginGoogle: () => void;
+    onGoogleCredential: (credential: string) => void;
 }) {
     const { t } = useTranslation('landing');
     const navigate = useNavigate();
@@ -133,15 +219,8 @@ function NavbarLanding({
 
             {/* Acciones */}
             <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2.5">
-                {/* Google — siempre visible */}
-                <Tooltip text={t('navbar.entrarConGoogle')} position="bottom" autoHide={1500}>
-                    <button
-                        onClick={iniciarLoginGoogle}
-                        className="p-2 lg:p-1 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
-                    >
-                        <IconoGoogle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
-                    </button>
-                </Tooltip>
+                {/* Google — siempre visible (botón real de Google invisible sobre el ícono). */}
+                <BotonGoogleIcono onCredential={onGoogleCredential} />
 
                 {/* Entrar — solo desktop */}
                 <button
@@ -829,84 +908,6 @@ export default function PaginaLanding() {
         }
     };
 
-    const iniciarLoginGoogle = () => {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-        if (!window.google?.accounts?.id) {
-            notificar.error('Error al cargar Google. Recarga la página.');
-            return;
-        }
-
-        // Cierra/limpia el diálogo de Google si ya estaba abierto (evita duplicados y
-        // permite reabrirlo siempre).
-        const cerrarDialogoGoogle = () => {
-            document.getElementById('google-signin-container')?.remove();
-            document.getElementById('google-signin-overlay')?.remove();
-        };
-        cerrarDialogoGoogle();
-
-        window.google.accounts.id.initialize({
-            client_id: clientId,
-            callback: (response: Record<string, unknown>) => {
-                cerrarDialogoGoogle();
-                if (response.credential) {
-                    handleGoogleSuccess(response.credential as string);
-                }
-            },
-        });
-
-        // Usamos el botón RENDERIZADO de Google (no One Tap/prompt). El prompt con FedCM
-        // se autosilencia tras cerrarlo con la X (cooldown del navegador), dejando el
-        // acceso "bloqueado"; el botón renderizado se abre cuantas veces se quiera y se
-        // cierra con la X / clic afuera sin bloquear nada. Mismo flujo en dev y prod.
-        const overlay = document.createElement('div');
-        overlay.id = 'google-signin-overlay';
-        Object.assign(overlay.style, {
-            position: 'fixed', inset: '0',
-            background: 'rgba(15,23,42,0.5)', zIndex: '9998',
-        });
-        overlay.onclick = cerrarDialogoGoogle;
-        document.body.appendChild(overlay);
-
-        const container = document.createElement('div');
-        container.id = 'google-signin-container';
-        Object.assign(container.style, {
-            position: 'fixed', top: '50%', left: '50%',
-            transform: 'translate(-50%, -50%)', zIndex: '9999',
-            background: 'white', padding: '24px',
-            borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
-            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px',
-        });
-
-        const btnCerrar = document.createElement('button');
-        btnCerrar.type = 'button';
-        btnCerrar.setAttribute('aria-label', 'Cerrar');
-        btnCerrar.textContent = '✕';
-        Object.assign(btnCerrar.style, {
-            position: 'absolute', top: '8px', right: '10px',
-            border: 'none', background: 'transparent', cursor: 'pointer',
-            fontSize: '16px', color: '#64748b', lineHeight: '1',
-        });
-        btnCerrar.onclick = cerrarDialogoGoogle;
-        container.appendChild(btnCerrar);
-
-        const titulo = document.createElement('p');
-        titulo.textContent = 'Entrar con Google';
-        Object.assign(titulo.style, {
-            margin: '2px 0 0', fontSize: '15px', fontWeight: '700', color: '#1e293b',
-        });
-        container.appendChild(titulo);
-
-        const slotBoton = document.createElement('div');
-        container.appendChild(slotBoton);
-        document.body.appendChild(container);
-
-        window.google.accounts.id.renderButton(slotBoton, {
-            theme: 'outline', size: 'large',
-            text: 'signin_with', shape: 'rectangular', width: 280,
-        });
-    };
-
     // =========================================================================
     // RENDER
     // =========================================================================
@@ -916,7 +917,7 @@ export default function PaginaLanding() {
             className="min-h-screen"
             style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
         >
-            <NavbarLanding iniciarLoginGoogle={iniciarLoginGoogle} />
+            <NavbarLanding onGoogleCredential={handleGoogleSuccess} />
 
             {/* Contenedor scrolleable — móvil: desde top-0, desktop: desde top-10/12 */}
             <main className="fixed top-0 lg:top-10 2xl:top-12 left-0 right-0 bottom-0 overflow-y-auto">

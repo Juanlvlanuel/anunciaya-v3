@@ -380,85 +380,6 @@ export function PaginaRegistro() {
     [loginExitoso, navigate]
   );
 
-  const handleGoogleClick = useCallback(() => {
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-
-    if (!window.google?.accounts?.id) {
-      notificar.error('Error al cargar Google. Recarga la página.');
-      return;
-    }
-
-    // Cierra/limpia el diálogo de Google si ya estaba abierto (evita duplicados y permite reabrir).
-    const cerrarDialogoGoogle = () => {
-      document.getElementById('google-signin-container')?.remove();
-      document.getElementById('google-signin-overlay')?.remove();
-    };
-    cerrarDialogoGoogle();
-
-    window.google.accounts.id.initialize({
-      client_id: clientId,
-      callback: (response: { credential: string }) => {
-        cerrarDialogoGoogle();
-        if (response.credential) {
-          handleGoogleSuccess(response.credential);
-        }
-      },
-    });
-
-    // Botón RENDERIZADO de Google (no One Tap/prompt). El prompt con FedCM se autosilencia
-    // tras cerrarlo con la X (cooldown del navegador), dejando el acceso "bloqueado"; el botón
-    // renderizado se abre cuantas veces se quiera y se cierra con la X / clic afuera sin bloquear.
-    const overlay = document.createElement('div');
-    overlay.id = 'google-signin-overlay';
-    Object.assign(overlay.style, {
-      position: 'fixed', inset: '0',
-      background: 'rgba(15,23,42,0.5)', zIndex: '9998',
-    });
-    overlay.onclick = cerrarDialogoGoogle;
-    document.body.appendChild(overlay);
-
-    const container = document.createElement('div');
-    container.id = 'google-signin-container';
-    Object.assign(container.style, {
-      position: 'fixed', top: '50%', left: '50%',
-      transform: 'translate(-50%, -50%)', zIndex: '9999',
-      background: 'white', padding: '24px',
-      borderRadius: '16px', boxShadow: '0 10px 40px rgba(0,0,0,0.25)',
-      display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '14px',
-    });
-
-    const btnCerrar = document.createElement('button');
-    btnCerrar.type = 'button';
-    btnCerrar.setAttribute('aria-label', 'Cerrar');
-    btnCerrar.textContent = '✕';
-    Object.assign(btnCerrar.style, {
-      position: 'absolute', top: '8px', right: '10px',
-      border: 'none', background: 'transparent', cursor: 'pointer',
-      fontSize: '16px', color: '#64748b', lineHeight: '1',
-    });
-    btnCerrar.onclick = cerrarDialogoGoogle;
-    container.appendChild(btnCerrar);
-
-    const titulo = document.createElement('p');
-    titulo.textContent = 'Entrar con Google';
-    Object.assign(titulo.style, {
-      margin: '2px 0 0', fontSize: '15px', fontWeight: '700', color: '#1e293b',
-    });
-    container.appendChild(titulo);
-
-    const slotBoton = document.createElement('div');
-    container.appendChild(slotBoton);
-    document.body.appendChild(container);
-
-    window.google.accounts.id.renderButton(slotBoton, {
-      theme: 'outline',
-      size: 'large',
-      text: 'signin_with',
-      shape: 'rectangular',
-      width: 280,
-    });
-  }, [handleGoogleSuccess]);
-
   // ---------------------------------------------------------------------------
   // Handler: Desconectar Google (limpiar datos y permitir cambiar cuenta)
   // ---------------------------------------------------------------------------
@@ -587,7 +508,7 @@ export function PaginaRegistro() {
           <div className="w-full">
             <FormularioRegistro
               onSubmit={handleSubmitRegistro}
-              onGoogleClick={handleGoogleClick}
+              onGoogleCredential={handleGoogleSuccess}
               onDesconectarGoogle={handleDesconectarGoogle}
               datosGoogle={datosGoogleParaFormulario}
               googleIdToken={estado.datosGoogle?.googleIdToken}
