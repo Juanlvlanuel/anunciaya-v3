@@ -36,6 +36,28 @@ Sesión grande del Panel: se cerró el flujo de **pago manual** (un solo punto d
 
 ---
 
+## [16 Junio 2026] - Panel · Módulo "Equipo y accesos" — alta y administración de cuentas internas (el RR.HH./IT del Panel) 🛡️👥🔑
+
+Nuevo módulo del Panel para **crear y administrar las cuentas internas** (gerentes regionales y vendedores) y su **acceso al Panel** — antes esas cuentas solo se creaban por SQL. Es el gemelo de **Usuarios**, pero para *el equipo* en vez de *los clientes*. **Desplegado y en uso.** Commits: `9dc9b99` (módulo: alta/edición/acceso), `97033c1` + `e4b8253` (la activación abre el Panel directo en el paso del código), `35003e0` (correo de activación con enlace directo).
+
+**Qué hace:**
+- **Alta** de un vendedor o gerente (la cuenta nace lista para que la persona entre); **typeahead + promoción** de una cuenta de cliente existente a cuenta de equipo.
+- **Corregir datos** (nombre, teléfono y —con candado— correo), **reasignar la región** de un gerente, **revocar** el acceso de quien dejó el equipo y **reactivarlo** si vuelve (los revocados quedan visibles).
+
+**Permiso partido (decisión de diseño):**
+- Crear / mover de región / revocar **gerentes** → **solo SuperAdmin**.
+- Alta y edición de **vendedores** → **SuperAdmin + Gerente** (de su región).
+
+**Activación del acceso (UX):** el correo de activación lleva un **enlace directo** que abre el Panel **directo en el paso del código**, con una bienvenida más cálida.
+
+**Sin migración:** reusa `rol_equipo` / `region_id` / `embajadores` (ya existían de la Fase 0). El modelo de **cobertura multi-región** avanzado del vendedor se **difirió** a "Vendedores y comisiones".
+
+**Verificación:** 2 harness (lectura + acciones) y builds en verde.
+
+**Docs:** `Equipo_y_accesos.md` (doc canónico, 2 capas) + `Equipo_y_accesos_Pendientes.md`; índices `Tablero_Modulos.md` (módulo 10 ✅ Cerrado), `Panel_Admin.md` y `ROADMAP.md`.
+
+---
+
 ## [16 Junio 2026] - Infra · Dominio propio `anunciaya.mx` + subdominio del Panel + Google OAuth en producción 🌐🔗🔑
 
 Sesión de **infraestructura (sin cambios de código)**: se conectó el dominio propio a Vercel, se publicó el Panel en su subdominio, se apuntó el CORS a los dominios nuevos y se creó/publicó un cliente de Google OAuth nuevo. Todo verificado en vivo (web + Panel + login).

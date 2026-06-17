@@ -140,7 +140,7 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
     reasignar región, revocar/reactivar con revocados visibles, typeahead + promoción de cuentas
     existentes). **Permiso partido:** crear/mover/revocar gerentes = **solo super**; alta/edición de
     vendedores = **super + gerente** (su región). Sin migración (reusa `rol_equipo`/`region_id`/
-    `embajadores`). El modelo de cobertura avanzado del vendedor se difirió a "Vendedores y comisiones".
+    `embajadores`). El modelo de cobertura avanzado del vendedor se difirió a "Vendedores y comisiones". **Estado: construida y en uso.**
     **Estado: construida y en uso.**
 11. **Sistema** — Mantenimiento (reconcile R2, único operativo hoy) + Auditoría (bitácora de quién hizo qué).
 

@@ -1,6 +1,6 @@
 # 🏗️ AnunciaYA v3.0 - Arquitectura del Sistema
 
-**Última actualización:** 17 Abril 2026  
+**Última actualización:** 16 Junio 2026  
 **Versión:** 9.1 (+ Panel Admin como tercer ámbito operativo)
 
 Este documento describe la arquitectura técnica base, decisiones de diseño fundamentales y requisitos transversales del sistema.
@@ -666,7 +666,8 @@ Al cambiar de modo, el store recarga las notificaciones del nuevo modo.
 Usuario Final
     ↓
     ├─► Vercel (Frontend - Edge Network)
-    │   └─► https://anunciaya-v3-app.vercel.app
+    │   ├─► https://anunciaya.mx (app pública · apps/web)
+    │   └─► https://admin.anunciaya.mx (Panel Admin · apps/admin)
     │
     └─► Render (Backend API - Free Tier)
         └─► https://anunciaya-api.onrender.com
