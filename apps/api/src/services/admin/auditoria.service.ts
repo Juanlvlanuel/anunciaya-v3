@@ -18,7 +18,7 @@ import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 export interface RegistroAuditoria {
     accion: string;          // p.ej. 'negocio_suspender'
     entidadTipo: string;     // p.ej. 'negocio'
-    entidadId: string;
+    entidadId: string | null; // uuid de la entidad; null cuando la entidad no tiene uuid (p.ej. una clave de configuración)
     datosPrevios?: unknown;  // snapshot antes
     datosNuevos?: unknown;   // snapshot después
     motivo?: string | null;

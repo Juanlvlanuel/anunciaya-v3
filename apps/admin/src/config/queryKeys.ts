@@ -106,6 +106,10 @@ export const queryKeys = {
     detalle: (id: string) => ['vendedores', 'detalle', id] as const,
     cartera: (id: string, filtros: FiltrosCarteraKey) => ['vendedores', 'cartera', id, filtros] as const,
   },
+  configuracion: {
+    all: () => ['configuracion'] as const,
+    lista: () => ['configuracion', 'lista'] as const,
+  },
   regiones: {
     all: () => ['regiones'] as const,
   },

@@ -20,7 +20,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho
 >
-> **Última actualización:** 15 Junio 2026 — Pago manual centralizado en el helper único `registrarPagoManual` (usado por Registrar pago Y alta manual; el alta manual antes olvidaba el gemelo). Pendiente el backfill de gemelos históricos. **Módulo CERRADO (bitácora V1)**: Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices). Quedan solo pendientes menores (§Fuera de V1).
+> **Última actualización:** 15 Junio 2026 — Pago manual centralizado en el helper único `registrarPagoManual` (usado por Registrar pago Y alta manual; el alta manual antes olvidaba el gemelo). Pendiente el backfill de gemelos históricos. **Módulo CERRADO (bitácora V1)**: Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices). Quedan solo pendientes menores (§Fuera de V1) — incluido el **sprint dedicado del precio de membresía + promos de lanzamiento**, registrado el 17 jun.
 
 ---
 
@@ -218,11 +218,19 @@ Fase 3 — Cerrar
 
 ## Fuera de V1 (V2 consciente — anotado, no escondido)
 
-- 🟡 **Configuración comercial** (editar precio $449, días de trial, días de gracia). El backend ya
-  los **lee** (`obtenerConfig`); falta la **UI de edición**. Vive en **Configuración (módulo 9)** —
-  decidir si se hace allá o se reabsorbe aquí en una V2.
-- 🟢 **Promos / meses gratis / cupones de membresía.** Feature nuevo (no existe en backend). El más
-  grande; candidato natural a su propia mini-spec.
+- 🟡 **SPRINT DEDICADO — Precio de membresía editable + promos de lanzamiento.** (Acordado con Juan, 17 jun 2026.)
+  Es un sprint **propio**, fuera de la bitácora y fuera de Configuración v1 (que ya cerró **trial y gracia** —
+  módulo 9, [`Configuracion.md`](Configuracion.md)). Alcance:
+  - **Cambiar el precio** de la membresía ($449 hoy). Ojo: los **Prices de Stripe son inmutables** → cambiar el
+    precio = crear un **Price nuevo** + apuntar la constante (`STRIPE_PRICE_COMERCIAL` / `PRECIO_MEMBRESIA`); las
+    suscripciones vigentes siguen ancladas a su precio salvo que se migren.
+  - **Precio especial de lanzamiento** → se maneja con **Coupons de Stripe** (descuento sobre el precio real),
+    **NO** cambiando el precio. **Decisión pendiente:** ¿*fundador para siempre* (`forever`) o *temporal X meses*
+    (`repeating`)?
+  - **Promos / meses gratis / cupones de membresía** (feature nuevo, no existe en backend) — candidato a su
+    propia mini-spec; entra en este sprint o en uno contiguo.
+  > Por qué aquí y no en Configuración: el precio **no vive en BD** (vive en Stripe), así que no es una clave de
+  > `configuracion_sistema` como trial/gracia; necesita lógica de Stripe (Prices/Coupons) propia.
 - 🟢 **Página de cuenta del dueño** (apps/web): ver su membresía + reactivar pago vía Customer Portal
   (`Pagos_Suscripciones.md §12`). No es Panel.
 - 🟢 **Exportar CSV / reportes financieros** del periodo filtrado (corte de caja, ingresos por mes).

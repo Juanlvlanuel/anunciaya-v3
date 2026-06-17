@@ -28,6 +28,7 @@ import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
 import { SeccionSuscripciones } from '../components/suscripciones/SeccionSuscripciones';
 import { SeccionEquipo } from '../components/equipo/SeccionEquipo';
 import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
+import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -157,6 +158,8 @@ function PaginaPanel() {
     <SeccionEquipo />
   ) : seccionActivaId === 'comisiones' ? (
     <SeccionVendedores rol={rol} />
+  ) : seccionActivaId === 'configuracion' ? (
+    <SeccionConfiguracion />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

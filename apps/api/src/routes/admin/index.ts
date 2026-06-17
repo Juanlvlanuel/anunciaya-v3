@@ -26,6 +26,7 @@ import suscripcionesRoutes from './suscripciones.routes.js';
 import equipoRoutes from './equipo.routes.js';
 import vendedoresRoutes from './vendedores.routes.js';
 import regionesRoutes from './regiones.routes.js';
+import configuracionRoutes from './configuracion.routes.js';
 
 const router: Router = Router();
 
@@ -76,6 +77,9 @@ router.use('/mantenimiento', mantenimientoRoutes);
 
 // Regiones para el filtro global del Panel (solo superadmin, ya cubierto por el gate).
 router.use('/regiones', regionesRoutes);
+
+// Configuración: valores dinámicos del negocio (solo superadmin, ya cubierto por el gate).
+router.use('/configuracion', configuracionRoutes);
 
 // A futuro, agregar aquí:
 // router.use('/reportes-globales', reportesGlobalesRoutes);

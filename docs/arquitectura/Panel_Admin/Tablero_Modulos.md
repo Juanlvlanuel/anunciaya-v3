@@ -36,9 +36,13 @@
   verificada (GATE 1 con harness de datos reales). Vista de **detalle master-detail** del vendedor (perfil +
   cartera) para super/gerente. El vendedor ve su cartera en "Mi cartera" (Negocios) y aquí solo sus comisiones
   (Fase 2) — sin duplicar (D14). Tokens del Panel aplicados. Doc [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md).
-- **Siguiente sugerido:** **Vendedores y comisiones — Fase 2** (devengo B: escalera + recurrente · liquidación E:
-  datos de cobro + pagos + bitácora; aquí se definen los montos de la escalera y la migración SQL), o los
-  *quick-wins* Ciudades / Configuración (backend listo, falta UI).
+- **Recién cerrado (17 jun):** **Configuración v1** — el **tablero económico** (doc [`Configuracion.md`](Configuracion.md)):
+  editar **trial/gracia** + **escalera de comisiones** configurable (clave JSON `comision_escalera`), con editor de
+  tramos (vista previa en vivo + rueda del mouse), validación dura (sin huecos/solapes), auditoría y reset de caché.
+  Solo SuperAdmin. Verificado con 2 harness + builds verdes; persistencia validada en dev. **Migración prod pendiente**
+  (idempotente, opcional). → **Desbloquea Vendedores Fase 2** (que lee la escalera para el devengo). El **precio de
+  membresía** + promos de lanzamiento (Coupons de Stripe) siguen siendo sprint aparte en Suscripciones.
+- **Siguiente:** **Vendedores Fase 2** (devengo/liquidación de comisiones, ya con la escalera configurable).
 
 ---
 
@@ -54,7 +58,7 @@
 | 6 | **Vendedores y comisiones** | 🟡 | Fase 1 · Cartera (VER) ✅ · resto Fase 2 | `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
 | 8 | Ciudades | 🟡 | BD lista, falta UI (entra por Fase 1) | — |
-| 9 | Configuración | 🟡 | backend lee (helper), falta UI | — |
+| 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 11 | Sistema (Mantenimiento + Auditoría) | 🟡 | Mantenimiento ✅ / Auditoría-UI ⬜ | `Mantenimiento_R2.md` |
 
@@ -88,7 +92,10 @@
   DIFERIDA** (multi-región parcial / multi-gerente / mover-con-reasignación, §Diferido de `Equipo_y_accesos_Pendientes.md`):
   reescribe el alcance que hoy asume "vendedor de UNA región" en `panel.middleware` + Negocios/Usuarios/Suscripciones/Equipo.
 - **8 · Ciudades** — tabla `ciudades` poblada; falta la **UI** para habilitar/agrupar ciudades en regiones.
-- **9 · Configuración** — `configuracionSistema` + helper `obtenerConfig()` ya leen; falta la **UI** de edición.
+- **9 · Configuración** — **v1 construido y en uso** (doc [`Configuracion.md`](Configuracion.md)): el tablero
+  económico (escalera de comisiones + trial + gracia), solo SuperAdmin, con auditoría y reset de caché. Backlog:
+  correr la migración en prod (idempotente), y sumar claves nuevas cuando una sección futura tenga una palanca
+  económica real. El **precio de membresía** queda para el sprint de Suscripciones (Stripe + Coupons).
 - **10 · Equipo y accesos** — **cerrado y en uso** (doc [`Equipo_y_accesos.md`](Equipo_y_accesos.md)). El
   "RR.HH./IT": alta de vendedor/gerente, editar datos, reasignar región, revocar/reactivar (vend. y
   gerente), revocados visibles, typeahead de cuentas + promoción con aviso. **Sin migración.** Permisos:
