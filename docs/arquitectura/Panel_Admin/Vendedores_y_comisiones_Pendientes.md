@@ -12,25 +12,27 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta (a confirmar con Juan)
 >
-> **Última actualización:** 17 Junio 2026 — **FASE 1 (VER) · pieza A · Cartera: CONSTRUIDA Y VERIFICADA
-> (GATE 1 ✅).** Backend (service/controller/rutas, alcance por rol) + frontend. **Decisión de diseño (17 Jun, D13):
-> la ficha del vendedor es una VISTA DE DETALLE full-width (master-detail), NO un modal — el módulo es
-> data-heavy; la cartera pagina; modales solo para acciones (`Tokens_Panel.md` §5).** Verificado con harness
-> de datos reales (`probar-vendedores-lectura.ts`, TODO VERDE) + `tsc` API + `tsc -b`/`vite build` del Panel.
-> **Siguiente: Fase 2 — devengo (B) + liquidación (E).**
+> **Última actualización:** 17 Junio 2026 — **v1 COMPLETO (piezas A + B + E).** Cartera (VER) + devengo de la
+> comisión recurrente por escalera (cron + recálculo + estado de cuenta) + liquidación (registrar pago con
+> foto-comprobante a R2 + datos de cobro + bitácora). Migraciones corridas en dev. Builds verdes; harness de
+> devengo TODO VERDE. Lo ya construido vive en **[`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)**.
+> **Siguiente: 2ª pasada — C (comisión de alta) + D (cortes de efectivo).**
 
 ---
 
 ## Estado del módulo
 
-**Fase 1 — VER · pieza A (Cartera): CONSTRUIDA Y VERIFICADA (16 Jun 2026).** Fase 0 cerrada (ver
-§Puntos confirmados). La **cartera del vendedor** ya se VE en el Panel (lista de la red para super/gerente
-con drawer de cartera; vista "Mis comisiones" a pantalla completa para el vendedor), con alcance por rol
-verificado contra datos reales. **Siguiente: Fase 2** (devengo B + liquidación E). Es **el módulo más grande del Panel**. La base ya existe
-en BD pero está **dormida**: `embajadores` (con porcentajes viejos del diseño de %), `embajador_comisiones`
-(modela %), `embajador_ciudades` + trigger "una región". No hay **ningún** backend ni frontend de comisiones
-todavía; en `apps/admin` solo está la carpeta `equipo/`. Este módulo **despierta y ajusta** esas tablas y
-construye la operación completa.
+**v1 COMPLETO — piezas A + B + E (17 Jun 2026).** El módulo más grande del Panel ya opera de punta a punta
+(detalle en [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)):
+- **A · Cartera** — la red de ventas + la cartera de cada vendedor (vista master-detail full-width).
+- **B · Devengo** — comisión recurrente = # activos × monto del escalón de la **escalera** (editable en
+  Configuración); cron diario + botón "Recalcular mes" + estado de cuenta (devengado/pagado/pendiente);
+  redisparo automático al cambiar negocios.
+- **E · Liquidación** — registrar pago (marca comisiones pagadas + foto-comprobante a R2) + datos de cobro
+  (CLABE) + bitácora de egresos. Tablas rediseñadas a **monto fijo** (`embajador_comisiones`) + nuevas
+  `pagos_vendedor` y `vendedor_datos_cobro`.
+
+**Falta del módulo:** la **2ª pasada** (C + D) y la cobertura avanzada (F, diferida). Ver §Backlog y el checklist.
 
 **Frontera con "Equipo y accesos" (ya decidida):** **Equipo = identidad/acceso** (crear/promover/revocar
 cuentas internas, asignar la cobertura **inicial** del vendedor). **Vendedores y comisiones = operación/nómina**
@@ -179,33 +181,31 @@ Leyenda: **Total** = toda la plataforma · **Su equipo / región** = solo lo de 
 ## Checklist del carril
 
 ```
-### Módulo: VENDEDORES Y COMISIONES   ·   Fase actual: 1 — VER (Cartera)
+### Módulo: VENDEDORES Y COMISIONES   ·   v1 (A+B+E) CERRADO · 2ª pasada (C+D) pendiente
 
-Fase 0 — Definir ✅
-- [x] Mini-spec (qué hace / qué no / matriz de permisos por rol)
-- [x] Decisiones de diseño (D1–D12) — todas resueltas
-- [x] Criterios de aceptación (A1–A8) — esbozo (se afinan por pieza)
-- [x] Puntos a confirmar con Juan resueltos (1–7)
-- [ ] ¿Migración SQL? definida y redactada (la corre Juan) — se redacta al construir B/E (Cartera no la necesita)
+Fase 0 — Definir ✅   ·   Fase 1 — VER (A · Cartera) ✅
 
-Fase 1 — VER  ·  A · Cartera del vendedor ✅
-- [x] Backend lectura — vendedores.service/controller/routes + montadas en index admin; alcance por rol (super/gerente/vendedor) · tsc API ✅
-- [x] Frontend lectura — vendedoresService → useVendedoresAdmin → SeccionVendedores + **DetalleVendedor (vista master-detail full-width, no modal) con cartera paginada**; cableado en el menú 'comisiones' · tsc -b + vite build ✅
-- [x] Pulido visual + tokens — pasada de `Tokens_Panel.md` (escala 14/13.5/13 · 11px mono · radios · jerarquía por peso), perfil enriquecido (gerente a cargo, último acceso, link copiable), KPIs en la card, scroll interno de la lista (~alto), datos colapsables en móvil, **pestañas por rol (D14)** · build ✅
-- [x] GATE 1: datos reales ✓ (harness probar-vendedores-lectura.ts TODO VERDE: JUAN01 = 5 en cartera/5 activos) + builds ✅ + A1–A3 ✓
-- [x] Verificación VISUAL en el navegador (16 Jun): gerente → lista (JUAN01: 5 cartera/5 activos, badge Activo) + ficha/cartera de 5 negocios con estado de membresía, método y fecha de cobro. (Vista "Mis comisiones" del vendedor: mismo `CuerpoCartera`; el login del seed quedó pendiente de restablecer su contraseña con `seed-vendedor-prueba.ts`.)
+Fase 2 — ACTUAR ✅ (v1: B + E)
+- [x] B · Devengo — motor (devengarPeriodo, escalera de Configuración, idempotente) + cron + recálculo +
+      estado de cuenta. Harness probar-comisiones-devengo.ts TODO VERDE. Migración 2026-06-17-...-fase2.sql (corrida dev).
+- [x] B · Fix — contar activos por estado_admin='activo' (igual que la cartera), no por la columna legacy `activo`.
+- [x] Sincronización — invalidar vendedores al cambiar negocios (cache RQ) + dispararDevengoMesActual (back).
+- [x] E · Liquidación — registrarPago (marca comisiones pagadas + comprobante R2) + datos de cobro + bitácora;
+      5 endpoints con permisos por rol. Migración comprobante (corrida dev). Frontend: pestaña Pagos + diálogos.
+- [x] tsc API + builds del Panel en verde.
+- [ ] GATE 2 con datos reales: probar registrar-pago end-to-end desde el Panel (lo hace Juan).
 
-Fase 2 — ACTUAR
-- [ ] Backend acciones (devengo + liquidación + efectivo, alcance sincronizado, auditoría, migración dev/prod)
-- [ ] Frontend acciones (diálogos base + mutaciones con invalidación + acciones por rol)
-- [ ] GATE 2: datos reales + tsc/build + criterios de acción ✅
-- [ ] PULIDO VISUAL del módulo completo (Tokens_Panel.md, responsive lg/2xl, consistencia)
+Fase 3 — Cerrar (v1)
+- [x] Doc canónico Vendedores_y_comisiones.md (2 capas)
+- [x] Índices (tablero, memoria)
+- [x] Commits a main (devengo, fix, sincronización, liquidación)
 
-Fase 3 — Cerrar
-- [ ] Doc canónico Vendedores_y_comisiones.md (2 capas)
-- [ ] Vaciar este checklist + sacar del PENDIENTES global (puntero)
-- [ ] Índices (tablero, Panel_Admin.md, ROADMAP, memoria, kit claude.ai)
-- [ ] Commit a main
+### Backlog (fuera de v1)
+- **C · Comisión de alta** (pago único al concretar venta: tarjeta pagada o efectivo confirmado) — 2ª pasada.
+- **D · Cortes de efectivo** (lo que el vendedor te ENTREGA del efectivo que cobró; confirmar entregas, faltantes,
+  corte por vendedor; comisión condicionada a la entrega) — 2ª pasada. La pestaña "Efectivo" la espera.
+- **Datos de cobro por el propio vendedor** (desde su vista "Mis comisiones") — hoy los captura el super.
+- **F · Cobertura avanzada** (multi-región / multi-gerente / mover-con-reasignación) — diferida (D10).
 ```
 
 ---

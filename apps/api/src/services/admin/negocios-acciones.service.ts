@@ -31,7 +31,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
-import { dispararDevengoMesActual } from './comisiones-devengo.service.js';
+import { dispararDevengoMesActual, devengarComisionAlta } from './comisiones-devengo.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
@@ -522,6 +522,8 @@ export async function marcarPagado(
                 fechaProximoCobro: opciones.hasta,
                 fechaInicioGracia: null,
                 fechaLimiteGracia: null,
+                // "Cliente desde": sella el PRIMER pago real (no en cortesía). COALESCE → solo la 1ª vez.
+                ...(opciones.concepto !== 'cortesia' ? { fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, CURRENT_DATE)` } : {}),
                 updatedAt: ahora,
             })
             .where(eq(negocios.id, negocioId))
@@ -606,6 +608,8 @@ export async function marcarPagado(
     // El estado del negocio cambió (afecta el # de activos del vendedor): recalcula la comisión del mes
     // en curso (best-effort) sin esperar al cron diario.
     await dispararDevengoMesActual();
+    // Comisión de alta del vendedor (pieza C): si éste fue su primer pago real, devéngala (idempotente).
+    await devengarComisionAlta(negocioId);
     return { ok: true, negocio: act, advertenciaStripe };
 }
 

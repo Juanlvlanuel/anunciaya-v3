@@ -1182,6 +1182,13 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
                 stripeEventId: eventId ?? null,
                 metadata: { customerId: clienteId, finPeriodo },
             });
+            // Comisión de alta del vendedor (pieza C): se devenga al PRIMER cobro real. Best-effort + idempotente.
+            try {
+                const { devengarComisionAlta } = await import('./admin/comisiones-devengo.service.js');
+                await devengarComisionAlta(res.negocio.id);
+            } catch (errCom) {
+                console.error('❌ Error devengando la comisión de alta (webhook):', errCom);
+            }
         }
 
         // Si el negocio reapareció por el pago, borrar el aviso de "fuera de circulación".

@@ -376,12 +376,17 @@ function KpiComision({ etiqueta, monto, color }: { etiqueta: string; monto: numb
 }
 
 function FilaComision({ c }: { c: ComisionFila }) {
+  const esAlta = c.tipo === 'alta';
   return (
     <div data-testid={`comision-${c.id}`} className="flex items-center gap-3 border-b border-borde px-4 py-3 last:border-b-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[14px] font-semibold capitalize text-texto">{periodoLegible(c.periodo)}</span>
+        <span className="text-[14px] font-semibold capitalize text-texto">{esAlta ? 'Comisión de alta' : periodoLegible(c.periodo)}</span>
         <span className="truncate text-[13px] text-texto-3">
-          {c.activos !== null ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}` : c.tipo}
+          {esAlta
+            ? 'Pago único por la venta concretada'
+            : c.activos !== null
+              ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}`
+              : c.tipo}
         </span>
       </div>
       <span className="shrink-0 text-[15px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>

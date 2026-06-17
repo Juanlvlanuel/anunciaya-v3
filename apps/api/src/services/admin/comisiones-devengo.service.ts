@@ -20,7 +20,7 @@
 import { and, eq, inArray, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { embajadores, embajadorComisiones, negocios } from '../../db/schemas/schema.js';
-import { obtenerConfigJson } from '../configuracion.service.js';
+import { obtenerConfigJson, obtenerConfigNumero } from '../configuracion.service.js';
 import { ESCALERA_DEFAULT, type TramoEscalera } from './configuracion.service.js';
 
 export interface ResumenDevengo {
@@ -167,5 +167,50 @@ export async function dispararDevengoMesActual(): Promise<void> {
         await devengarPeriodo(periodoActual());
     } catch (err) {
         console.error('[Comisiones] No se pudo recalcular el devengo tras un cambio de activos:', err);
+    }
+}
+
+// =============================================================================
+// COMISIÓN DE ALTA (pieza C) — pago único al concretar el primer pago
+// =============================================================================
+
+/**
+ * Devenga la comisión de ALTA de un negocio (pieza C): pago único al vendedor cuando el negocio concreta su
+ * PRIMER pago. Best-effort e **idempotente** (una sola por negocio), así que es seguro llamarla en cada punto
+ * de pago (webhook / alta manual / marcar pagado). No hace nada si el negocio no tiene vendedor, no ha pagado
+ * aún, ya tiene su comisión de alta, o el monto configurado es 0.
+ */
+export async function devengarComisionAlta(negocioId: string): Promise<void> {
+    try {
+        const [neg] = await db
+            .select({ embajadorId: negocios.embajadorId, fechaPrimerPago: negocios.fechaPrimerPago })
+            .from(negocios)
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+        // Sin vendedor o todavía sin primer pago → no aplica.
+        if (!neg?.embajadorId || !neg.fechaPrimerPago) return;
+
+        // Idempotencia: una sola comisión de alta por negocio.
+        const [existe] = await db
+            .select({ id: embajadorComisiones.id })
+            .from(embajadorComisiones)
+            .where(and(eq(embajadorComisiones.negocioId, negocioId), eq(embajadorComisiones.tipo, 'alta')))
+            .limit(1);
+        if (existe) return;
+
+        const monto = await obtenerConfigNumero('comision_alta_monto', 400);
+        if (monto <= 0) return;
+
+        await db.insert(embajadorComisiones).values({
+            embajadorId: neg.embajadorId,
+            negocioId,
+            tipo: 'alta',
+            montoComision: String(monto),
+            estado: 'pendiente',
+            periodo: null,
+            detalle: { tipo: 'alta', monto },
+        });
+    } catch (err) {
+        console.error('[Comisiones] No se pudo devengar la comisión de alta:', err);
     }
 }

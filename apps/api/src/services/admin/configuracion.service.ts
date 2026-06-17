@@ -90,6 +90,17 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
         porDefecto: JSON.stringify(ESCALERA_DEFAULT),
     },
     {
+        clave: 'comision_alta_monto',
+        etiqueta: 'Comisión de alta',
+        descripcion: 'Pago único al vendedor cuando un negocio que firmó concreta su primer pago (alta vendida).',
+        tipo: 'numero',
+        categoria: 'pagos',
+        unidad: 'MXN',
+        min: 0,
+        max: 10000,
+        porDefecto: '400',
+    },
+    {
         clave: 'trial_duracion_dias',
         etiqueta: 'Duración del trial',
         descripcion: 'Días de prueba gratis de un negocio nuevo antes del primer cobro.',

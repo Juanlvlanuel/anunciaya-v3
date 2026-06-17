@@ -229,6 +229,13 @@ Fase 3 — Cerrar
     (`repeating`)?
   - **Promos / meses gratis / cupones de membresía** (feature nuevo, no existe en backend) — candidato a su
     propia mini-spec; entra en este sprint o en uno contiguo.
+  - **Cobro "desde el día 1" para ventas POR VENDEDOR** (decidido con Juan, 17 jun 2026): cuando hay vendedor
+    (`?ref=` por tarjeta **o** alta manual), el comercio **paga $449 al inicio** + recibe **44 días** de servicio
+    (30 + 14 de cortesía) → siguiente cobro a los 44 días. El **auto-registro sin vendedor** mantiene el flujo
+    actual ("14 días gratis → cobra el día 15"). En Stripe = pago inicial separado + suscripción con el ancla de
+    cobro corrida 44 días (NO trivial). El equivalente en **efectivo** (correr el próximo cobro a 44 días) es chico.
+    **Importa para la comisión de alta** (pieza C de Vendedores): con el cobro al día 1, la comisión de alta en
+    **tarjeta** se devenga al inicio; sin este cambio, cae al **primer cobro real** (la lógica de C ya queda lista).
   > Por qué aquí y no en Configuración: el precio **no vive en BD** (vive en Stripe), así que no es una clave de
   > `configuracion_sistema` como trial/gracia; necesita lógica de Stripe (Prices/Coupons) propia.
 - 🟢 **Página de cuenta del dueño** (apps/web): ver su membresía + reactivar pago vía Customer Portal

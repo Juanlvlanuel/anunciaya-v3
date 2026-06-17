@@ -25,6 +25,7 @@ import { registrarAuditoria } from './auditoria.service.js';
 import { registrarPagoManual } from './pagos-manuales.service.js';
 import { enviarEmailBienvenida } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
+import { devengarComisionAlta } from './comisiones-devengo.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { AltaManualNegocioInput } from '../../validations/admin/altaManualNegocio.schema.js';
 
@@ -241,6 +242,10 @@ export async function altaManualNegocio(
         },
         motivo: null,
     });
+
+    // Comisión de alta del vendedor (pieza C): el alta manual con pago ES el primer pago → devéngala
+    // (best-effort + idempotente; no hace nada si fue cortesía, sin vendedor, o ya existe).
+    await devengarComisionAlta(creado.negocioId);
 
     // -------------------------------------------------------------------------
     // 7) Correo de bienvenida + comprobante del PRIMER PAGO (best-effort: si falla NO
