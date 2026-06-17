@@ -9,7 +9,8 @@
  * "protagonista": encabezado con el acceso al Panel + chips, y debajo una lista corrida
  * (Identidad · Rol y alcance · Actividad).
  *
- * En la Fase 1 NO tiene acciones; el alta de vendedor, revocar acceso y cambiar ciudades son Fase 2.
+ * La ficha YA tiene su menú de acciones (editar datos, reasignar región, revocar/reactivar acceso),
+ * que se muestran según el rol de quien mira y el del miembro.
  *
  * Ubicación: apps/admin/src/components/equipo/FichaMiembro.tsx
  */

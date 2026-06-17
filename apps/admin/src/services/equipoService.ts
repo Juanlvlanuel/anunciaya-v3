@@ -1,13 +1,17 @@
 /**
  * equipoService.ts
  * =================
- * Llamadas a la API del Panel para la sección "Equipo y accesos" (Fase 1 — solo lectura).
+ * Llamadas a la API del Panel para la sección "Equipo y accesos" (lecturas + mutaciones).
  * Reusa el axios del Panel (`api`), que ya adjunta el token y renueva ante 401.
  *
  * Endpoints:
  *   GET /admin/equipo         → tabla paginada + conteos por rol
  *   GET /admin/equipo/conteo  → total del alcance (badge del menú)
  *   GET /admin/equipo/:id     → ficha de un miembro del equipo
+ *
+ * Incluye también las mutaciones (alta de vendedor/gerente, editar datos, reasignar región,
+ * revocar/reactivar acceso). La gestión de ciudades/territorio del vendedor no vive aquí (se
+ * difirió a "Vendedores y comisiones"); aquí solo se asigna la cobertura inicial al dar de alta.
  *
  * Tipos camelCase — el backend ya transforma snake → camel.
  *

@@ -1,10 +1,10 @@
 /**
  * useEquipoAdmin.ts
  * ==================
- * Hooks de React Query para la sección "Equipo y accesos" del Panel (Fase 1 — lectura).
+ * Hooks de React Query para la sección "Equipo y accesos" del Panel (lecturas + mutaciones).
  * Patrón calcado de useUsuariosAdmin: useQuery + keepPreviousData para no parpadear al
- * filtrar/paginar. Solo lecturas; las mutaciones (alta de vendedor, revocar acceso,
- * cambiar ciudades) llegan en la Fase 2.
+ * filtrar/paginar. Las mutaciones (alta de vendedor/gerente, editar datos, reasignar región,
+ * revocar/reactivar acceso) ya están implementadas.
  *
  * Ubicación: apps/admin/src/hooks/queries/useEquipoAdmin.ts
  */

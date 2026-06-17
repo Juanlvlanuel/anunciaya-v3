@@ -24,8 +24,10 @@
  * SEGURIDAD: este service NUNCA expone secretos (contrasena_hash, *_secreto). De la contraseña solo
  * deriva el booleano `tieneContrasena` (modelo C: nace en false hasta el primer ingreso).
  *
- * Solo lecturas: las escrituras (alta de vendedor, revocar acceso, cambiar ciudades) vivirán en
- * `equipo-acciones.service.ts` (Fase 2).
+ * Este archivo solo tiene las LECTURAS. Las escrituras (alta de vendedor/gerente, editar datos,
+ * reasignar región, revocar/reactivar acceso) ya están implementadas en `equipo-acciones.service.ts`.
+ * La gestión de ciudades/territorio del vendedor no vive aquí (se difirió a "Vendedores y comisiones");
+ * aquí la cobertura solo se asigna como cobertura inicial al dar de alta.
  *
  * Ubicación: apps/api/src/services/admin/equipo.service.ts
  */

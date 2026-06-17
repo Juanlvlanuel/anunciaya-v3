@@ -51,15 +51,14 @@ nómina/CRM.**
   (columna `ultimo_acceso_panel`, ya existe).
 - **Alta del vendedor (flujo completo):** crea `usuarios` + `embajadores` (con código de referido) +
   `embajador_ciudades` (1+ ciudades de UNA misma región — lo garantiza el trigger) + `rol_equipo='vendedor'`.
-- **Revocar / cambiar acceso:** quitar el rol de equipo (degrada a usuario normal de la app),
-  cambiar la región de un gerente o las ciudades de un vendedor.
-- **Resetear el acceso** del miembro (reenviar código para crear/restablecer contraseña — mismo
-  mecanismo que el soporte de Usuarios).
+- **Revocar / cambiar acceso:** quitar el rol de equipo (degrada a usuario normal de la app)
+  o cambiar la región de un gerente.
 
 ### Qué NO hace (fronteras con otros módulos)
 - **No modera personas** (suspender/reactivar la cuenta en toda la app) → eso es **Usuarios**.
-- **No gestiona comisiones / cartera / cortes de caja** → eso es **Vendedores y comisiones** (aquí
-  solo se crea y se da de baja al vendedor).
+- **No gestiona comisiones / cartera / cortes de caja, ni ajusta el territorio (ciudades) del
+  vendedor después del alta** → eso es **Vendedores y comisiones** (aquí solo se crea, se asigna la
+  **cobertura inicial** al dar de alta, y se da de baja al vendedor).
 - **No edita datos personales** (nombre, teléfono, foto — los cambia cada quien en su perfil).
 - **No crea / agrupa regiones ni ciudades** → eso es **Ciudades**.
 - **No construye el demo de Business Studio** del vendedor → eso es el módulo Vendedores/demo; aquí
@@ -74,9 +73,7 @@ Leyenda: **Total** = toda la plataforma · **Sus vendedores** = solo los de su r
 | Crear gerente | ✅ | — | — |
 | Crear vendedor | ✅ (cualquier región) | ✅ (solo en su región) | — |
 | Cambiar región de un gerente | ✅ | — | — |
-| Cambiar ciudades de un vendedor | ✅ | ✅ (sus vendedores) | — |
 | Revocar acceso (quitar rol) | ✅ (cualquiera) | ✅ (sus vendedores · NO gerentes) | — |
-| Resetear acceso (código de contraseña) | ✅ | ✅ (sus vendedores) | — |
 
 > Coherente con la matriz maestra de `Panel_Admin.md` (Equipo: SuperAdmin **Total** · Gerente
 > **Sus vendedores** · Vendedor **—**). Regla de fondo: nombrar gerentes y crear cuentas es del
@@ -90,7 +87,7 @@ Leyenda: **Total** = toda la plataforma · **Sus vendedores** = solo los de su r
 |---|---|---|---|
 | **D1** | ¿Cómo nace la cuenta interna? | **Modelo C** (sin contraseña): nace con `contrasena_hash=NULL`; el miembro la crea en su primer ingreso con código por correo (login responde 409 `CUENTA_SIN_CONTRASENA`). Reusa lo ya construido en el alta manual de negocios. | ✅ resuelta |
 | **D2** | ¿Correo que ya existe como usuario? | **Promover, no duplicar:** el alta busca por correo; si ya existe → asigna `rol_equipo` + alcance a esa cuenta (respeta "una persona = una cuenta"). Si ya tenía contraseña, **no** se resetea. Cubre "nombrar gerente a un usuario que ya usa la app". | ✅ resuelta |
-| **D3** | ¿Qué es "dar de baja del equipo"? | **Quitar el rol, no suspender:** `rol_equipo=NULL` + `embajadores.estado='inactivo'` (deja de contar para comisiones y de poder registrar). **La atribución de sus negocios NO se borra** (de por vida). Suspender la *persona* es de Usuarios. **Garantía de corte:** `requierePanel` revalida `rol_equipo`/`estado` **contra la BD en cada petición** ([`panel.middleware.ts:84`](../../../apps/api/src/middleware/panel.middleware.ts)) → al poner el rol en NULL, la siguiente llamada al Panel responde 403 al instante, **aunque conserve su contraseña y un token vigente**. Su contraseña solo le sirve para la app de cliente. **No hace falta lista negra de tokens.** | ✅ resuelta |
+| **D3** | ¿Qué es "dar de baja del equipo"? | **Quitar el rol, no suspender:** `rol_equipo=NULL` + `embajadores.estado='inactivo'` (deja de contar para comisiones y de poder registrar). **La atribución de sus negocios NO se borra** (de por vida). Suspender la *persona* es de Usuarios. **Garantía de corte:** `requierePanel` revalida `rol_equipo`/`estado` **contra la BD en cada petición** ([`panel.middleware.ts`](../../../apps/api/src/middleware/panel.middleware.ts)) → al poner el rol en NULL, la siguiente llamada al Panel responde 403 al instante, **aunque conserve su contraseña y un token vigente**. Su contraseña solo le sirve para la app de cliente. **No hace falta lista negra de tokens.** | ✅ resuelta |
 | **D4** | ¿El vendedor nace comercial (demo BS)? | **No por ahora:** nace `perfil='personal'` + rol vendedor + embajador + ciudades (como los seeds actuales). El modo comercial/demo se engancha en el módulo Vendedores/demo. No bloquear el alta por el demo. | ✅ resuelta |
 | **D5** | Código de referido del vendedor | **Autogenerar** uno único (derivado del nombre + sufijo), **editable** antes de guardar, con validación de unicidad. | ✅ resuelta |
 | **D6** | ¿Cómo se sabe el gerente de un vendedor? | **Se deduce** (el gerente cuya `region_id` = la región de las ciudades del vendedor). Sin columna nueva. | ✅ resuelta |

@@ -5,7 +5,10 @@
  * Leen query/params, validan, llaman al service y arman la respuesta. El acceso y el rol ya los
  * validó `requierePanel(['superadmin','gerente'])` en la ruta.
  *
- * Las acciones (alta de vendedor, revocar acceso, cambiar ciudades) llegarán en la Fase 2.
+ * Las acciones de escritura (alta de vendedor/gerente, editar datos, reasignar región, revocar/
+ * reactivar acceso) ya están implementadas; sus controllers viven más abajo. La gestión de
+ * ciudades/territorio del vendedor no es de este módulo (se difirió a "Vendedores y comisiones");
+ * aquí solo se asigna la cobertura inicial al dar de alta.
  *
  * Ubicación: apps/api/src/controllers/admin/equipo.controller.ts
  */

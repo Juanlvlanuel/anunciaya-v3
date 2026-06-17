@@ -1,7 +1,7 @@
 /**
  * admin/equipo-acciones.service.ts
  * ================================
- * Acciones de ESCRITURA del módulo "Equipo y accesos" (Fase 2 — v1: solo vendedores).
+ * Acciones de ESCRITURA del módulo "Equipo y accesos" (vendedores Y gerentes).
  *
  *   - sugerirCodigoReferido — propone un código único derivado del nombre (autogenerado editable, E3).
  *   - altaVendedor          — crea una cuenta NUEVA (modelo C) o PROMUEVE una existente sin rol de
