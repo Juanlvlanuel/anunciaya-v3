@@ -63,7 +63,11 @@ function etiquetaEscalon(activos: number, escalera: TramoEscalera[]): string {
 // CONTEO DE ACTIVOS
 // =============================================================================
 
-/** # de negocios ACTIVOS por vendedor (embajador activo). Activo = vivo + membresía al corriente/gracia. */
+/**
+ * # de negocios ACTIVOS por vendedor (embajador activo). MISMA definición que la cartera (SUB_ACTIVOS):
+ * negocio con `estado_admin = 'activo'` Y membresía al corriente o en gracia. (No usar la columna legacy
+ * `negocios.activo`, que no coincide con el conteo que ve el Panel.)
+ */
 async function contarActivosPorVendedor(): Promise<Array<{ embajadorId: string; activos: number }>> {
     const filas = await db
         .select({
@@ -75,7 +79,7 @@ async function contarActivosPorVendedor(): Promise<Array<{ embajadorId: string; 
             negocios,
             and(
                 eq(negocios.embajadorId, embajadores.id),
-                eq(negocios.activo, true),
+                eq(negocios.estadoAdmin, 'activo'),
                 inArray(negocios.estadoMembresia, ['al_corriente', 'en_gracia']),
             ),
         )
