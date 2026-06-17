@@ -17,6 +17,19 @@ input:-webkit-autofill:active {
   transition: background-color 9999s ease-in-out 0s;
 }
 
+/* ScanYA usa tema OSCURO (card #001136, inputs translúcidos sobre fondo azul oscuro).
+   Esta regla es más específica que la de arriba (clase + elemento) → gana, y pinta el
+   autofill oscuro con texto blanco en vez del slate-100 claro, que ahí se vería mal. */
+.scanya-no-refresh input:-webkit-autofill,
+.scanya-no-refresh input:-webkit-autofill:hover,
+.scanya-no-refresh input:-webkit-autofill:focus,
+.scanya-no-refresh input:-webkit-autofill:active {
+  -webkit-text-fill-color: #ffffff;
+  -webkit-box-shadow: 0 0 0 1000px #000c26 inset;  /* negro 30% sobre el card #001136 */
+  caret-color: #ffffff;
+  transition: background-color 9999s ease-in-out 0s;
+}
+
 /* ============================================= */
 /* SCROLLBAR - Minimalista profesional           */
 /* ============================================= */
