@@ -14,6 +14,7 @@ import { inicializarCronMarketplaceExpiracion } from './cron/marketplace-expirac
 import { inicializarCronServiciosExpiracion } from './cron/servicios-expiracion.cron.js';
 import { inicializarCronSuscripcionesGracia } from './cron/suscripciones-gracia.cron.js';
 import { inicializarCronVencimientosManuales } from './cron/suscripciones-vencimientos-manuales.cron.js';
+import { inicializarCronComisionesDevengo } from './cron/comisiones-devengo.cron.js';
 
 const PORT = process.env.API_PORT || 4000;
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -43,6 +44,7 @@ const iniciarServidor = async () => {
     inicializarCronServiciosExpiracion();   // Auto-pausa cada 6h de publicaciones de Servicios vencidas
     inicializarCronSuscripcionesGracia();   // Suspende negocios con periodo de gracia vencido (diario)
     inicializarCronVencimientosManuales();  // Expira negocios manuales vencidos (al_corriente → en_gracia, diario)
+    inicializarCronComisionesDevengo();     // Devenga la comisión recurrente del mes en curso (diario, idempotente)
   } catch (error) {
     console.error('❌ Error iniciando servidor:', error);
     process.exit(1);

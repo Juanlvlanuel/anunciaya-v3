@@ -95,3 +95,14 @@ export async function obtenerConfigBooleano(clave: string, porDefecto: boolean):
     if (v === 'false' || v === '0') return false;
     return porDefecto;
 }
+
+/** Lee una config JSON (p.ej. la escalera de comisiones). Devuelve `porDefecto` si no existe o no parsea. */
+export async function obtenerConfigJson<T>(clave: string, porDefecto: T): Promise<T> {
+    const fila = await leerConfigCruda(clave);
+    if (!fila) return porDefecto;
+    try {
+        return JSON.parse(fila.valor) as T;
+    } catch {
+        return porDefecto;
+    }
+}

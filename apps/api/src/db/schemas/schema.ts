@@ -18,9 +18,6 @@ export const embajadores = pgTable("embajadores", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
 	codigoReferido: varchar("codigo_referido", { length: 50 }).notNull(),
-	porcentajePrimerPago: numeric("porcentaje_primer_pago", { precision: 5, scale: 2 }).default('30.00').notNull(),
-	porcentajeRecurrente: numeric("porcentaje_recurrente", { precision: 5, scale: 2 }).default('15.00').notNull(),
-	negociosRegistrados: integer("negocios_registrados").default(0).notNull(),
 	estado: varchar({ length: 20 }).default('activo').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -29,9 +26,6 @@ export const embajadores = pgTable("embajadores", {
 	uniqueIndex("idx_embajadores_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	unique("embajadores_codigo_referido_key").on(table.codigoReferido),
 	check("embajadores_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'inactivo'::character varying, 'suspendido'::character varying])::text[])`),
-	check("embajadores_negocios_check", sql`negocios_registrados >= 0`),
-	check("embajadores_porcentaje_primer_check", sql`(porcentaje_primer_pago >= (0)::numeric) AND (porcentaje_primer_pago <= (100)::numeric)`),
-	check("embajadores_porcentaje_recurrente_check", sql`(porcentaje_recurrente >= (0)::numeric) AND (porcentaje_recurrente <= (100)::numeric)`),
 ]);
 
 export const usuarios = pgTable("usuarios", {
@@ -933,15 +927,74 @@ export const promocionesUsadas = pgTable("promociones_usadas", {
 	check("promociones_usadas_tipo_check", sql`(tipo_entidad)::text = ANY ((ARRAY['plan'::character varying, 'anuncio'::character varying])::text[])`),
 ]);
 
+// ── Liquidación de vendedores (Fase 2) ──────────────────────────────────────
+// pagos_vendedor = bitácora de EGRESOS (lo que se le paga al vendedor); la gemela
+// de eventos_pago/pagos_membresia del lado de los egresos. Ver migración 2026-06-17.
+export const pagosVendedor = pgTable("pagos_vendedor", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	embajadorId: uuid("embajador_id").notNull(),
+	monto: numeric({ precision: 10, scale: 2 }).notNull(),
+	metodo: varchar({ length: 20 }).notNull(),
+	fechaPago: date("fecha_pago").notNull(),
+	periodo: varchar({ length: 7 }),
+	nota: varchar({ length: 500 }),
+	registradoPor: uuid("registrado_por"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_pagos_vendedor_embajador").using("btree", table.embajadorId.asc().nullsLast(), table.fechaPago.desc().nullsFirst()),
+	foreignKey({
+		columns: [table.embajadorId],
+		foreignColumns: [embajadores.id],
+		name: "pagos_vendedor_embajador_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.registradoPor],
+		foreignColumns: [usuarios.id],
+		name: "pagos_vendedor_registrado_por_fkey"
+	}).onDelete("set null"),
+	check("pagos_vendedor_monto_check", sql`monto > (0)::numeric`),
+	check("pagos_vendedor_metodo_check", sql`(metodo)::text = ANY ((ARRAY['transferencia'::character varying, 'efectivo'::character varying])::text[])`),
+]);
+
+// vendedor_datos_cobro = datos de cobro sensibles, aislados, 1 por vendedor.
+export const vendedorDatosCobro = pgTable("vendedor_datos_cobro", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	embajadorId: uuid("embajador_id").notNull(),
+	metodo: varchar({ length: 20 }).default('transferencia').notNull(),
+	banco: varchar({ length: 80 }),
+	clabe: varchar({ length: 18 }),
+	titular: varchar({ length: 120 }),
+	nota: varchar({ length: 300 }),
+	actualizadoPor: uuid("actualizado_por"),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	uniqueIndex("vendedor_datos_cobro_embajador_id_key").using("btree", table.embajadorId.asc().nullsLast()),
+	foreignKey({
+		columns: [table.embajadorId],
+		foreignColumns: [embajadores.id],
+		name: "vendedor_datos_cobro_embajador_id_fkey"
+	}).onDelete("cascade"),
+	foreignKey({
+		columns: [table.actualizadoPor],
+		foreignColumns: [usuarios.id],
+		name: "vendedor_datos_cobro_actualizado_por_fkey"
+	}).onDelete("set null"),
+	check("vendedor_datos_cobro_metodo_check", sql`(metodo)::text = ANY ((ARRAY['transferencia'::character varying, 'efectivo'::character varying])::text[])`),
+]);
+
+// embajador_comisiones = una fila = una comisión devengada. MONTO FIJO (no %):
+//   alta → por negocio (negocio_id) · recurrente → por vendedor/periodo (negocio_id NULL).
 export const embajadorComisiones = pgTable("embajador_comisiones", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	embajadorId: uuid("embajador_id").notNull(),
-	negocioId: uuid("negocio_id").notNull(),
+	negocioId: uuid("negocio_id"),
 	tipo: varchar({ length: 20 }).notNull(),
-	montoBase: numeric("monto_base", { precision: 10, scale: 2 }).notNull(),
-	porcentaje: numeric({ precision: 5, scale: 2 }).notNull(),
 	montoComision: numeric("monto_comision", { precision: 10, scale: 2 }).notNull(),
 	estado: varchar({ length: 20 }).default('pendiente').notNull(),
+	periodo: varchar({ length: 7 }),
+	detalle: jsonb(),
+	pagoId: uuid("pago_id"),
 	pagadaAt: timestamp("pagada_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
@@ -949,21 +1002,26 @@ export const embajadorComisiones = pgTable("embajador_comisiones", {
 	index("idx_embajador_comisiones_estado").using("btree", table.estado.asc().nullsLast()).where(sql`((estado)::text = 'pendiente'::text)`),
 	index("idx_embajador_comisiones_negocio").using("btree", table.negocioId.asc().nullsLast()),
 	index("idx_embajador_comisiones_tipo").using("btree", table.tipo.asc().nullsLast()),
+	index("idx_embajador_comisiones_pago").using("btree", table.pagoId.asc().nullsLast()).where(sql`(pago_id IS NOT NULL)`),
+	uniqueIndex("uq_comision_recurrente_periodo").using("btree", table.embajadorId.asc().nullsLast(), table.periodo.asc().nullsLast()).where(sql`((tipo)::text = 'recurrente'::text)`),
 	foreignKey({
 		columns: [table.embajadorId],
 		foreignColumns: [embajadores.id],
 		name: "fk_embajador_comisiones_embajador"
 	}).onDelete("cascade"),
 	foreignKey({
+		columns: [table.pagoId],
+		foreignColumns: [pagosVendedor.id],
+		name: "fk_embajador_comisiones_pago"
+	}).onDelete("set null"),
+	foreignKey({
 		columns: [table.negocioId],
 		foreignColumns: [negocios.id],
 		name: "fk_embajador_comisiones_negocio"
 	}).onDelete("cascade"),
 	check("embajador_comisiones_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'pagada'::character varying, 'cancelada'::character varying])::text[])`),
-	check("embajador_comisiones_monto_base_check", sql`monto_base >= (0)::numeric`),
 	check("embajador_comisiones_monto_comision_check", sql`monto_comision >= (0)::numeric`),
-	check("embajador_comisiones_porcentaje_check", sql`(porcentaje >= (0)::numeric) AND (porcentaje <= (100)::numeric)`),
-	check("embajador_comisiones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['primer_pago'::character varying, 'recurrente'::character varying])::text[])`),
+	check("embajador_comisiones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['alta'::character varying, 'recurrente'::character varying])::text[])`),
 ]);
 
 // Tablas dinamicas (dinamica_premios, dinamicas, dinamica_participaciones)

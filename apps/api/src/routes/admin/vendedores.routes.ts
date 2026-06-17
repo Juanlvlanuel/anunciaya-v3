@@ -24,6 +24,8 @@ import {
     contarVendedoresController,
     obtenerVendedorController,
     listarCarteraController,
+    listarComisionesVendedorController,
+    recalcularComisionesController,
 } from '../../controllers/admin/vendedores.controller.js';
 
 const router: Router = Router();
@@ -33,9 +35,15 @@ router.get('/', requierePanel(['superadmin', 'gerente', 'vendedor']), listarVend
 // Total del alcance (contador del menú). Antes de /:id para que "conteo" no caiga en el comodín.
 router.get('/conteo', requierePanel(['superadmin', 'gerente', 'vendedor']), contarVendedoresController);
 
+// Recalcular/devengar las comisiones recurrentes del periodo (solo super; el dinero lo mueve el super).
+router.post('/comisiones/recalcular', requierePanel(['superadmin']), recalcularComisionesController);
+
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerVendedorController);
 
 // Cartera del vendedor (sus negocios atribuidos, con estado de membresía).
 router.get('/:id/cartera', requierePanel(['superadmin', 'gerente', 'vendedor']), listarCarteraController);
+
+// Estado de cuenta de comisiones del vendedor (devengado / pagado / pendiente).
+router.get('/:id/comisiones', requierePanel(['superadmin', 'gerente', 'vendedor']), listarComisionesVendedorController);
 
 export default router;

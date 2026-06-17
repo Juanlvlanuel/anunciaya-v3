@@ -8,11 +8,18 @@
  * Ubicación: apps/admin/src/hooks/queries/useVendedoresAdmin.ts
  */
 
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '../../config/queryKeys';
 import * as vendedoresService from '../../services/vendedoresService';
 import type { ParametrosVendedores, ParametrosCartera, VendedorDetalle } from '../../services/vendedoresService';
+import { toast } from '../../stores/useToastPanel';
+
+/** Extrae el mensaje de error del backend (o uno por defecto). */
+function mensajeError(error: unknown, porDefecto: string): string {
+  const e = error as { response?: { data?: { message?: string } } };
+  return e?.response?.data?.message ?? porDefecto;
+}
 
 /** Tabla paginada de la red de ventas (con filtros). */
 export function useVendedoresLista(filtros: ParametrosVendedores) {
@@ -67,5 +74,31 @@ export function useCartera(id: string | null, filtros: ParametrosCartera) {
     queryFn: () => vendedoresService.listarCartera(id as string, filtros),
     enabled: !!id,
     placeholderData: keepPreviousData,
+  });
+}
+
+/** Estado de cuenta de comisiones de un vendedor (devengado / pagado / pendiente). */
+export function useComisionesVendedor(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.vendedores.comisiones(id ?? ''),
+    queryFn: () => vendedoresService.listarComisiones(id as string),
+    enabled: !!id,
+  });
+}
+
+/** Recalcula/devenga las comisiones del periodo (solo super). Invalida las comisiones e informa por toast. */
+export function useRecalcularComisiones() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (periodo?: string) => vendedoresService.recalcularComisiones(periodo),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
+      toast.exito(
+        r
+          ? `Comisiones de ${r.periodo} recalculadas · ${r.creadas} nuevas, $${r.totalDevengado} devengado`
+          : 'Comisiones recalculadas',
+      );
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudieron recalcular las comisiones')),
   });
 }

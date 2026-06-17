@@ -131,3 +131,58 @@ export async function listarCartera(id: string, params: ParametrosCartera): Prom
   const { data } = await api.get<RespuestaAPI<CarteraVendedor>>(`/admin/vendedores/${id}/cartera`, { params });
   return data.data ?? null;
 }
+
+// =============================================================================
+// COMISIONES (Fase 2 · pieza B)
+// =============================================================================
+
+/** Una comisión devengada, con su desglose para la UI. */
+export interface ComisionFila {
+  id: string;
+  periodo: string | null;        // 'YYYY-MM' (recurrente)
+  tipo: string;                  // recurrente | alta
+  monto: number;
+  estado: string;                // pendiente | pagada | cancelada
+  activos: number | null;
+  montoUnitario: number | null;
+  escalon: string | null;
+  pagadaAt: string | null;
+  creada: string | null;
+}
+
+export interface ResumenComisiones {
+  devengado: number;
+  pagado: number;
+  pendiente: number;
+}
+
+export interface EstadoCuentaComisiones {
+  vendedor: VendedorDetalle;
+  items: ComisionFila[];
+  resumen: ResumenComisiones;
+}
+
+/** Resumen que devuelve el recálculo del periodo. */
+export interface ResumenDevengo {
+  periodo: string;
+  vendedoresProcesados: number;
+  creadas: number;
+  actualizadas: number;
+  omitidasPagadas: number;
+  totalDevengado: number;
+}
+
+/** Estado de cuenta de comisiones de un vendedor (devengado / pagado / pendiente). */
+export async function listarComisiones(id: string): Promise<EstadoCuentaComisiones | null> {
+  const { data } = await api.get<RespuestaAPI<EstadoCuentaComisiones>>(`/admin/vendedores/${id}/comisiones`);
+  return data.data ?? null;
+}
+
+/** Recalcula/devenga las comisiones del periodo (solo super). Sin periodo → el mes en curso. */
+export async function recalcularComisiones(periodo?: string): Promise<ResumenDevengo | null> {
+  const { data } = await api.post<RespuestaAPI<ResumenDevengo>>(
+    '/admin/vendedores/comisiones/recalcular',
+    periodo ? { periodo } : {},
+  );
+  return data.data ?? null;
+}

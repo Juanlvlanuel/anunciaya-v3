@@ -18,9 +18,10 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign } from 'lucide-react';
-import { useCartera } from '../../hooks/queries/useVendedoresAdmin';
-import type { VendedorFila, VendedorDetalle, NegocioCartera, CarteraVendedor } from '../../services/vendedoresService';
+import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign, RefreshCw } from 'lucide-react';
+import { useCartera, useComisionesVendedor, useRecalcularComisiones } from '../../hooks/queries/useVendedoresAdmin';
+import type { VendedorFila, VendedorDetalle, NegocioCartera, CarteraVendedor, ComisionFila } from '../../services/vendedoresService';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -289,29 +290,164 @@ function ListaCartera({ items, isLoading, isError, hayDatos }: { items: NegocioC
   );
 }
 
-/** Pestañas de las secciones del expediente del vendedor (carrusel en una línea). */
-function PestaniasVendedor({ vistaVendedor }: { vistaVendedor: boolean }) {
-  // El vendedor NO ve "Cartera" (la tiene en "Mi cartera"); super/gerente sí.
-  const tabs = vistaVendedor
-    ? [{ label: 'Comisiones', activa: false }, { label: 'Pagos', activa: false }, { label: 'Efectivo', activa: false }]
-    : [{ label: 'Cartera', activa: true }, { label: 'Comisiones', activa: false }, { label: 'Pagos', activa: false }, { label: 'Efectivo', activa: false }];
+export type TabVendedor = 'cartera' | 'comisiones' | 'pagos' | 'efectivo';
+
+/** Pestañas de las secciones del expediente del vendedor (carrusel en una línea). Cartera y Comisiones
+ *  ya son navegables; Pagos y Efectivo (pieza E) siguen como "pronto". El vendedor NO ve "Cartera". */
+function PestaniasVendedor({ vistaVendedor, activa, onCambiar }: { vistaVendedor: boolean; activa: TabVendedor; onCambiar: (t: TabVendedor) => void }) {
+  const tabs: Array<{ id: TabVendedor; label: string; disponible: boolean }> = vistaVendedor
+    ? [
+        { id: 'comisiones', label: 'Comisiones', disponible: true },
+        { id: 'pagos', label: 'Pagos', disponible: false },
+        { id: 'efectivo', label: 'Efectivo', disponible: false },
+      ]
+    : [
+        { id: 'cartera', label: 'Cartera', disponible: true },
+        { id: 'comisiones', label: 'Comisiones', disponible: true },
+        { id: 'pagos', label: 'Pagos', disponible: false },
+        { id: 'efectivo', label: 'Efectivo', disponible: false },
+      ];
   return (
     <div className="mb-2.5 flex shrink-0 gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
       {tabs.map((t) =>
-        t.activa ? (
-          <span key={t.label} className="shrink-0 whitespace-nowrap rounded-full border border-marca bg-marca-suave px-3 py-1 text-[13px] font-semibold text-marca">{t.label}</span>
+        !t.disponible ? (
+          <span key={t.id} className="shrink-0 whitespace-nowrap rounded-full border border-borde px-3 py-1 text-[13px] font-medium text-texto-4">{t.label} · pronto</span>
         ) : (
-          <span key={t.label} className="shrink-0 whitespace-nowrap rounded-full border border-borde px-3 py-1 text-[13px] font-medium text-texto-4">{t.label} · pronto</span>
+          <button
+            key={t.id}
+            type="button"
+            data-testid={`tab-vendedor-${t.id}`}
+            onClick={() => onCambiar(t.id)}
+            className={`shrink-0 whitespace-nowrap rounded-full border px-3 py-1 text-[13px] transition ${
+              t.id === activa
+                ? 'border-marca bg-marca-suave font-semibold text-marca'
+                : 'border-borde font-medium text-texto-2 hover:bg-marca-suave hover:text-marca'
+            }`}
+          >
+            {t.label}
+          </button>
         ),
       )}
     </div>
   );
 }
 
+// =============================================================================
+// SECCIÓN COMISIONES (Fase 2 · pieza B — estado de cuenta)
+// =============================================================================
+
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+/** 'YYYY-MM' → "jun 2026". */
+function periodoLegible(p: string | null): string {
+  if (!p) return '—';
+  const [y, m] = p.split('-');
+  return MESES[Number(m) - 1] ? `${MESES[Number(m) - 1]} ${y}` : p;
+}
+function pesos(n: number): string {
+  return `$${n.toLocaleString('es-MX')}`;
+}
+
+const COM_META: Record<string, { etiqueta: string; color: string }> = {
+  pendiente: { etiqueta: 'Pendiente', color: 'var(--panel-text-3)' },
+  pagada: { etiqueta: 'Pagada', color: 'var(--panel-ok)' },
+  cancelada: { etiqueta: 'Cancelada', color: 'var(--panel-text-4)' },
+};
+
+function BadgeComision({ estado }: { estado: string }) {
+  const meta = COM_META[estado] ?? { etiqueta: estado, color: 'var(--panel-text-4)' };
+  return (
+    <span
+      className="txt-badge inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
+      style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
+    >
+      {meta.etiqueta}
+    </span>
+  );
+}
+
+function KpiComision({ etiqueta, monto, color }: { etiqueta: string; monto: number; color?: string }) {
+  return (
+    <div className="rounded-[12px] border border-borde bg-superficie-2 px-3 py-3 text-center">
+      <p className="text-[20px] font-bold leading-none text-texto" style={color ? { color } : undefined}>{pesos(monto)}</p>
+      <p className="mt-1.5 text-[12px] text-texto-3">{etiqueta}</p>
+    </div>
+  );
+}
+
+function FilaComision({ c }: { c: ComisionFila }) {
+  return (
+    <div data-testid={`comision-${c.id}`} className="flex items-center gap-3 border-b border-borde px-4 py-3 last:border-b-0">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <span className="text-[14px] font-semibold capitalize text-texto">{periodoLegible(c.periodo)}</span>
+        <span className="truncate text-[13px] text-texto-3">
+          {c.activos !== null ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}` : c.tipo}
+        </span>
+      </div>
+      <span className="shrink-0 text-[15px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
+      <BadgeComision estado={c.estado} />
+    </div>
+  );
+}
+
+/** Estado de cuenta de comisiones del vendedor: KPIs + lista por mes + (solo super) recalcular. */
+function SeccionComisiones({ vendedorId }: { vendedorId: string }) {
+  const esSuper = useAuthPanelStore((s) => s.usuario?.rolEquipo) === 'superadmin';
+  const { data, isLoading, isError } = useComisionesVendedor(vendedorId);
+  const recalcular = useRecalcularComisiones();
+
+  const items = data?.items ?? [];
+  const resumen = data?.resumen ?? { devengado: 0, pagado: 0, pendiente: 0 };
+
+  return (
+    <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-comisiones">
+      {/* KPIs del estado de cuenta */}
+      <div className="mb-3 grid shrink-0 grid-cols-3 gap-2">
+        <KpiComision etiqueta="Devengado" monto={resumen.devengado} />
+        <KpiComision etiqueta="Pagado" monto={resumen.pagado} color="var(--panel-ok)" />
+        <KpiComision etiqueta="Pendiente" monto={resumen.pendiente} />
+      </div>
+
+      {/* Encabezado de la lista + recalcular (solo super) */}
+      <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-texto-2">Comisiones por mes</h3>
+        {esSuper && (
+          <button
+            type="button"
+            data-testid="comisiones-recalcular"
+            onClick={() => recalcular.mutate(undefined)}
+            disabled={recalcular.isPending}
+            className="inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca disabled:opacity-50"
+          >
+            <RefreshCw size={13} className={recalcular.isPending ? 'animate-spin' : ''} />
+            {recalcular.isPending ? 'Recalculando…' : 'Recalcular mes'}
+          </button>
+        )}
+      </div>
+
+      {/* Lista */}
+      <div className="min-h-0 flex-1 overflow-y-auto rounded-[12px] border border-borde">
+        {isLoading && !data ? (
+          <EstadoSeccion variante="cargando" icono={CircleDollarSign} titulo="Cargando comisiones…" />
+        ) : isError ? (
+          <EstadoSeccion variante="error" icono={CircleDollarSign} titulo="No se pudieron cargar las comisiones." descripcion="Revisa tu conexión e inténtalo de nuevo." />
+        ) : items.length === 0 ? (
+          <EstadoSeccion
+            icono={CircleDollarSign}
+            titulo="Sin comisiones todavía"
+            descripcion="Cuando se devengue la comisión del mes (según los negocios activos y la escalera), aparecerá aquí."
+          />
+        ) : (
+          items.map((c) => <FilaComision key={c.id} c={c} />)
+        )}
+      </div>
+    </div>
+  );
+}
+
 /**
  * Cuerpo del detalle con layout de dashboard: identidad (izquierda) + contenido (derecha).
- * Super/gerente ven la CARTERA del vendedor; el propio vendedor (`vistaVendedor`) NO la ve aquí
- * (vive en "Mi cartera") sino sus secciones de dinero (Fase 2), hoy como aviso.
+ * Super/gerente ven la CARTERA y las COMISIONES del vendedor; el propio vendedor (`vistaVendedor`) NO
+ * ve la cartera aquí (vive en "Mi cartera") sino sus comisiones (Pagos/Efectivo llegan en la pieza E).
  */
 export function CuerpoCartera({
   cartera,
@@ -335,6 +471,9 @@ export function CuerpoCartera({
   const total = cartera?.total ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA_CARTERA));
 
+  // Pestaña activa: el vendedor arranca en "Comisiones" (su cartera vive en "Mi cartera"); super/gerente en "Cartera".
+  const [tab, setTab] = useState<TabVendedor>(vistaVendedor ? 'comisiones' : 'cartera');
+
   return (
     <div className="grid gap-5 lg:h-full lg:min-h-0 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-stretch" data-testid="cuerpo-cartera">
       {/* Columna izquierda: identidad + datos (ocupa el alto; scroll propio si el contenido es largo) */}
@@ -342,27 +481,22 @@ export function CuerpoCartera({
         <PanelIdentidad v={vendedor} />
       </aside>
 
-      {/* Columna derecha: secciones + contenido */}
+      {/* Columna derecha: pestañas + contenido */}
       <section className="flex min-w-0 flex-col lg:min-h-0">
-        <PestaniasVendedor vistaVendedor={vistaVendedor} />
+        <PestaniasVendedor vistaVendedor={vistaVendedor} activa={tab} onCambiar={setTab} />
 
-        {vistaVendedor ? (
-          <div className="flex min-h-0 flex-1 items-center overflow-hidden rounded-[12px] border border-borde">
-            <EstadoSeccion
-              icono={CircleDollarSign}
-              titulo="Tus comisiones llegan pronto"
-              descripcion="Aquí verás tu comisión del mes, tus pagos y el efectivo por entregar. Mientras, tu cartera de negocios la tienes en “Mi cartera”."
-            />
-          </div>
-        ) : (
+        {tab === 'comisiones' ? (
+          <SeccionComisiones vendedorId={vendedor.id} />
+        ) : tab === 'cartera' ? (
           <>
             <h3 className="mb-2 shrink-0 text-[13px] font-semibold text-texto-2">Negocios de su cartera{cartera ? ` (${total})` : ''}</h3>
             <ListaCartera items={items} isLoading={isLoading} isError={isError} hayDatos={!!cartera} />
             {total > POR_PAGINA_CARTERA && <PaginacionCartera pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
-            <p className="mt-3 shrink-0 text-[11px] leading-relaxed text-texto-4" data-testid="detalle-vendedor-nota">
-              Las comisiones, los pagos al vendedor y los cortes de efectivo llegan en la siguiente entrega del módulo.
-            </p>
           </>
+        ) : (
+          <div className="flex min-h-0 flex-1 items-center overflow-hidden rounded-[12px] border border-borde">
+            <EstadoSeccion icono={CircleDollarSign} titulo="Pronto" descripcion="Los pagos al vendedor y los cortes de efectivo llegan en la siguiente entrega." />
+          </div>
         )}
       </section>
     </div>

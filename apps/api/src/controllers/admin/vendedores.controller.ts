@@ -14,12 +14,15 @@ import {
     contarVendedores,
     obtenerVendedor,
     listarCartera,
+    listarComisionesVendedor,
     ESTADOS_EMBAJADOR,
     ORDENES_VENDEDORES,
     type EstadoEmbajador,
     type OrdenVendedores,
 } from '../../services/admin/vendedores.service.js';
 import { panelConFiltroRegion, ESTADOS_PAGO, type EstadoPago } from '../../services/admin/negocios.service.js';
+import { devengarPeriodo, periodoActual } from '../../services/admin/comisiones-devengo.service.js';
+import { registrarAuditoria } from '../../services/admin/auditoria.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -144,5 +147,55 @@ export async function listarCarteraController(req: Request, res: Response): Prom
             message: 'Error al obtener la cartera',
             error: error instanceof Error ? error.message : String(error),
         });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/vendedores/comisiones/recalcular   (solo super · devenga el periodo)
+// Body: { periodo?: 'YYYY-MM' } — si no se manda, usa el mes en curso.
+// =============================================================================
+
+export async function recalcularComisionesController(req: Request, res: Response): Promise<void> {
+    try {
+        const periodoRaw = typeof req.body?.periodo === 'string' ? req.body.periodo : '';
+        const periodo = /^\d{4}-\d{2}$/.test(periodoRaw) ? periodoRaw : periodoActual();
+
+        const resumen = await devengarPeriodo(periodo);
+
+        await registrarAuditoria(req.usuarioPanel!, {
+            accion: 'comisiones_recalcular',
+            entidadTipo: 'comisiones',
+            entidadId: null,
+            datosPrevios: null,
+            datosNuevos: resumen,
+            motivo: null,
+        });
+
+        res.status(200).json({ success: true, message: `Comisiones de ${periodo} recalculadas`, data: resumen });
+    } catch (error) {
+        console.error('Error en recalcularComisionesController:', error);
+        res.status(500).json({ success: false, message: 'Error al recalcular las comisiones' });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/vendedores/:id/comisiones   (super + gerente + vendedor · estado de cuenta)
+// =============================================================================
+
+export async function listarComisionesVendedorController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const { id } = req.params;
+
+        const data = await listarComisionesVendedor(panel, id);
+        if (!data) {
+            res.status(404).json({ success: false, message: 'Vendedor no encontrado' });
+            return;
+        }
+
+        res.status(200).json({ success: true, message: 'Comisiones obtenidas', data });
+    } catch (error) {
+        console.error('Error en listarComisionesVendedorController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener las comisiones' });
     }
 }

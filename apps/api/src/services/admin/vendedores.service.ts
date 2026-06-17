@@ -32,7 +32,7 @@
 
 import { and, eq, asc, desc, ilike, or, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { embajadores, usuarios, negocios, negocioSucursales } from '../../db/schemas/schema.js';
+import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones } from '../../db/schemas/schema.js';
 import { env } from '../../config/env.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { resolverEmbajadorId } from './negocios.service.js';
@@ -500,4 +500,90 @@ export async function listarCartera(
     }));
 
     return { vendedor, items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina, conteos };
+}
+
+// =============================================================================
+// 4. ESTADO DE CUENTA DE COMISIONES (Fase 2 · pieza B — lectura)
+// =============================================================================
+
+/** Una comisión devengada (fila de embajador_comisiones), con su desglose para la UI. */
+export interface ComisionFila {
+    id: string;
+    periodo: string | null;       // 'YYYY-MM' (recurrente)
+    tipo: string;                 // recurrente | alta
+    monto: number;
+    estado: string;               // pendiente | pagada | cancelada
+    activos: number | null;       // del detalle (recurrente)
+    montoUnitario: number | null; // monto por activo del escalón
+    escalon: string | null;       // p.ej. "10-24"
+    pagadaAt: string | null;
+    creada: string | null;
+}
+
+/** Totales del estado de cuenta: lo devengado (no cancelado), lo ya pagado y lo pendiente. */
+export interface ResumenComisiones {
+    devengado: number;
+    pagado: number;
+    pendiente: number;
+}
+
+export interface EstadoCuentaComisiones {
+    vendedor: VendedorDetalle;
+    items: ComisionFila[];
+    resumen: ResumenComisiones;
+}
+
+/**
+ * Estado de cuenta de comisiones de un vendedor: sus comisiones devengadas + los totales. Respeta el
+ * alcance (vendedor solo las suyas; gerente su equipo; super todas) reutilizando `leerVendedor`. null si
+ * el vendedor no existe o está fuera de alcance (el controller responde 404).
+ */
+export async function listarComisionesVendedor(
+    panel: UsuarioPanel,
+    usuarioId: string,
+): Promise<EstadoCuentaComisiones | null> {
+    const vendedor = await leerVendedor(panel, usuarioId);
+    if (!vendedor) return null;
+
+    const filas = await db
+        .select({
+            id: embajadorComisiones.id,
+            periodo: embajadorComisiones.periodo,
+            tipo: embajadorComisiones.tipo,
+            monto: embajadorComisiones.montoComision,
+            estado: embajadorComisiones.estado,
+            detalle: embajadorComisiones.detalle,
+            pagadaAt: embajadorComisiones.pagadaAt,
+            creada: embajadorComisiones.createdAt,
+        })
+        .from(embajadorComisiones)
+        .where(eq(embajadorComisiones.embajadorId, vendedor.embajadorId))
+        .orderBy(desc(embajadorComisiones.periodo), desc(embajadorComisiones.createdAt));
+
+    const items: ComisionFila[] = filas.map((f) => {
+        const d = (f.detalle ?? {}) as { activos?: number; montoUnitario?: number; escalon?: string };
+        return {
+            id: f.id,
+            periodo: f.periodo ?? null,
+            tipo: f.tipo,
+            monto: Number(f.monto),
+            estado: f.estado,
+            activos: typeof d.activos === 'number' ? d.activos : null,
+            montoUnitario: typeof d.montoUnitario === 'number' ? d.montoUnitario : null,
+            escalon: d.escalon ?? null,
+            pagadaAt: f.pagadaAt ?? null,
+            creada: f.creada ?? null,
+        };
+    });
+
+    let devengado = 0;
+    let pagado = 0;
+    for (const c of items) {
+        if (c.estado === 'cancelada') continue;
+        devengado += c.monto;
+        if (c.estado === 'pagada') pagado += c.monto;
+    }
+    const resumen: ResumenComisiones = { devengado, pagado, pendiente: devengado - pagado };
+
+    return { vendedor, items, resumen };
 }
