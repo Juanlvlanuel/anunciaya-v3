@@ -311,6 +311,8 @@ export interface DatosGoogleNuevo {
  */
 export interface RespuestaGoogleNuevo {
   usuarioNuevo: true;
+  /** ID token verificado por el backend; se reusa al finalizar el registro. */
+  idToken: string;
   datosGoogle: DatosGoogleNuevo;
 }
 
@@ -320,11 +322,12 @@ export interface RespuestaGoogleNuevo {
 export type RespuestaLoginGoogle = RespuestaLogin | RespuestaGoogleNuevo;
 
 /**
- * 13. Login con Google
+ * 13. Login con Google (flujo auth-code)
  * POST /auth/google
+ * @param code Código de autorización que devuelve el botón custom (useGoogleLogin auth-code).
  */
-export async function loginConGoogle(idToken: string): Promise<RespuestaAPI<RespuestaLoginGoogle>> {
-  const response = await api.post<RespuestaAPI<RespuestaLoginGoogle>>('/auth/google', { idToken });
+export async function loginConGoogle(code: string): Promise<RespuestaAPI<RespuestaLoginGoogle>> {
+  const response = await api.post<RespuestaAPI<RespuestaLoginGoogle>>('/auth/google', { code });
 
   return response.data;
 }

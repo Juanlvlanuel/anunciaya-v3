@@ -7,7 +7,7 @@
  * Ubicación: apps/web/src/components/auth/registro/FormularioRegistro.tsx
  */
 
-import { useState, useCallback, useEffect, useRef } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import {
   User,
@@ -27,6 +27,8 @@ import { ICONOS } from '@/config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 import type { RegistroInput, DatosGoogleNuevo } from '@/services/authService';
+import { useGoogleLogin } from '@react-oauth/google';
+import { notificar } from '@/utils/notificaciones';
 
 // =============================================================================
 // TIPOS
@@ -36,7 +38,7 @@ type TipoCuenta = 'personal' | 'comercial';
 
 interface FormularioRegistroProps {
   onSubmit: (datos: RegistroInput) => Promise<void>;
-  onGoogleCredential: (credential: string) => void;
+  onGoogleCode: (code: string) => void;
   onDesconectarGoogle?: () => void;
   datosGoogle: DatosGoogleNuevo | null;
   googleIdToken?: string;
@@ -95,7 +97,7 @@ const PRECIO_COMERCIAL = 449;
 
 export function FormularioRegistro({
   onSubmit,
-  onGoogleCredential,
+  onGoogleCode,
   onDesconectarGoogle,
   datosGoogle,
   googleIdToken,
@@ -743,7 +745,7 @@ export function FormularioRegistro({
           <button
             type="submit"
             disabled={!esFormularioValido() || cargando}
-            className={`block w-full max-w-[400px] mx-auto h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base lg:cursor-pointer ${
+            className={`w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base lg:cursor-pointer ${
               esFormularioValido() && !cargando
                 ? 'bg-linear-to-r from-slate-700 to-slate-800 text-white hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 hover:shadow-slate-700/40 active:scale-[0.98]'
                 : 'bg-slate-400 text-white cursor-not-allowed'
@@ -764,14 +766,14 @@ export function FormularioRegistro({
           {/* Divider */}
           {!datosGoogle && (
             <>
-              <div className="flex items-center gap-2 lg:gap-3 my-1 lg:my-1 2xl:my-1.5 w-full max-w-[400px] mx-auto">
+              <div className="flex items-center gap-2 lg:gap-3 my-1 lg:my-1 2xl:my-1.5">
                 <div className="flex-1 h-px bg-slate-300" />
                 <span className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">o</span>
                 <div className="flex-1 h-px bg-slate-300" />
               </div>
 
-              {/* Botón Google (botón real de Google invisible sobre el botón visible). */}
-              <BotonGoogleRegistro onCredential={onGoogleCredential} cargando={cargando} />
+              {/* Botón Google custom — abre directo el selector (flujo auth-code). */}
+              <BotonGoogleRegistro onCode={onGoogleCode} cargando={cargando} />
             </>
           )}
 
@@ -886,78 +888,34 @@ function PasswordRequirement({ met, text }: { met: boolean; text: string }) {
 // Muestra el botón "Google" de siempre, pero ENCIMA renderiza el botón REAL de Google
 // con opacity 0: el clic lo recibe Google y abre directo el selector de cuentas (un solo
 // clic, sin diálogo) y sin el cooldown del One Tap. Devuelve el ID token (credential).
+// Botón 100% custom: al hacer clic abre directo el selector de cuentas de Google (flujo
+// auth-code) y devuelve un `code` que el backend intercambia por el ID token. Sin botón
+// nativo de Google, sin cooldown; full-width y clickeable completo como cualquier botón.
 function BotonGoogleRegistro({
-  onCredential,
+  onCode,
   cargando,
 }: {
-  onCredential: (credential: string) => void;
+  onCode: (code: string) => void;
   cargando: boolean;
 }) {
-  const contenedorRef = useRef<HTMLDivElement>(null);
-  const slotRef = useRef<HTMLDivElement>(null);
-  // Ref al callback: evita reinicializar el botón de Google en cada render del padre.
-  const onCredentialRef = useRef(onCredential);
-  onCredentialRef.current = onCredential;
-  const [ancho, setAncho] = useState(0);
-
-  // Medimos el ancho real del contenedor para renderizar el botón OFICIAL de Google a ese
-  // ancho exacto (tope 400px, el máximo que permite Google). Es el botón real (visible), así
-  // que es 100% clickeable de orilla a orilla — sin overlays ni trucos.
-  useEffect(() => {
-    const cont = contenedorRef.current;
-    if (!cont) return;
-    const medir = () => setAncho(Math.round(cont.getBoundingClientRect().width));
-    medir();
-    const ro = new ResizeObserver(medir);
-    ro.observe(cont);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    if (!ancho) return;
-    const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-    let cancelado = false;
-    // El contenedor está limitado a 400px (max-w), justo el máximo de Google, así que el
-    // botón llena su ancho sin estirarse ni distorsionarse.
-    const render = () => {
-      if (cancelado) return;
-      const slot = slotRef.current;
-      // GoogleOAuthProvider carga el script GSI async: esperamos a que window.google exista.
-      if (!window.google?.accounts?.id || !slot) {
-        window.setTimeout(render, 200);
-        return;
-      }
-      window.google.accounts.id.initialize({
-        client_id: clientId,
-        callback: (response: Record<string, unknown>) => {
-          if (typeof response.credential === 'string') {
-            onCredentialRef.current(response.credential);
-          }
-        },
-      });
-      slot.innerHTML = '';
-      window.google.accounts.id.renderButton(slot, {
-        type: 'standard',
-        theme: 'outline',
-        size: 'large',
-        text: 'continue_with',
-        shape: 'rectangular',
-        logo_alignment: 'center',
-        width: Math.min(ancho, 400),
-      });
-    };
-    render();
-    return () => { cancelado = true; };
-  }, [ancho]);
+  const login = useGoogleLogin({
+    flow: 'auth-code',
+    // 'openid' es lo que hace que el intercambio del code devuelva un ID token.
+    scope: 'openid email profile',
+    onSuccess: (resp) => onCode(resp.code),
+    onError: () => notificar.error('No se pudo conectar con Google. Inténtalo de nuevo.'),
+  });
 
   return (
-    <div
-      ref={contenedorRef}
-      className={`mx-auto flex w-full max-w-[400px] justify-center ${cargando ? 'pointer-events-none opacity-50' : ''}`}
+    <button
+      type="button"
+      onClick={() => login()}
+      disabled={cargando}
+      className="w-full h-11 lg:h-10 2xl:h-11 bg-white border-2 border-slate-300 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-slate-700 flex items-center justify-center gap-2.5 hover:bg-slate-200 disabled:opacity-50 lg:cursor-pointer"
     >
-      {/* Botón OFICIAL de Google (visible) — 100% clickeable. */}
-      <div ref={slotRef} />
-    </div>
+      <GoogleIcon />
+      Continuar con Google
+    </button>
   );
 }
 

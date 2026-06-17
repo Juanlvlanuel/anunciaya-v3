@@ -20,6 +20,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import { useGoogleLogin } from '@react-oauth/google';
 import {
     Tag, ShoppingCart, Store, ArrowRight,
     Users, ChevronDown,
@@ -81,85 +82,29 @@ function IconoGoogle({ className = 'w-4 h-4' }: { className?: string }) {
 // =============================================================================
 // BOTÓN GOOGLE (ícono del header)
 // =============================================================================
-// Muestra el ícono multicolor de siempre, pero ENCIMA renderiza el botón REAL de
-// Google con opacity 0: el clic lo recibe Google y abre directo el selector de cuentas
-// (un solo clic, sin diálogo intermedio) y sin el cooldown del One Tap/prompt. Devuelve
-// el ID token (credential) que el backend ya sabe procesar.
+// Botón 100% custom: el ícono multicolor de la marca. Al hacer clic abre directo el
+// selector de cuentas de Google (flujo auth-code) y devuelve un `code` que el backend
+// intercambia por el ID token. Sin botón nativo de Google, sin cooldown.
 
-function BotonGoogleIcono({ onCredential }: { onCredential: (credential: string) => void }) {
+function BotonGoogleIcono({ onCode }: { onCode: (code: string) => void }) {
     const { t } = useTranslation('landing');
-    const contenedorRef = useRef<HTMLDivElement>(null);
-    const slotRef = useRef<HTMLDivElement>(null);
-    // Ref al callback: evita reinicializar el botón de Google en cada render del padre.
-    const onCredentialRef = useRef(onCredential);
-    onCredentialRef.current = onCredential;
-
-    useEffect(() => {
-        const clientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
-        let cancelado = false;
-        let observer: MutationObserver | null = null;
-
-        // El iframe de Google es cross-origin: lo escalamos con transform para que su área
-        // clickeable cubra TODO el contenedor (un width/height por CSS no reajusta el botón).
-        const ajustarEscala = () => {
-            const slot = slotRef.current;
-            const cont = contenedorRef.current;
-            const iframe = slot?.querySelector('iframe') as HTMLElement | null;
-            if (!slot || !cont || !iframe) return;
-            const iw = iframe.offsetWidth;
-            const ih = iframe.offsetHeight;
-            if (!iw || !ih) return;
-            iframe.style.transformOrigin = 'center center';
-            iframe.style.transform = `scale(${(cont.clientWidth + 2) / iw}, ${(cont.clientHeight + 2) / ih})`;
-        };
-
-        const render = () => {
-            if (cancelado) return;
-            const slot = slotRef.current;
-            // GoogleOAuthProvider carga el script GSI async: esperamos a que window.google exista.
-            if (!window.google?.accounts?.id || !slot) {
-                window.setTimeout(render, 200);
-                return;
-            }
-            window.google.accounts.id.initialize({
-                client_id: clientId,
-                callback: (response: Record<string, unknown>) => {
-                    if (typeof response.credential === 'string') {
-                        onCredentialRef.current(response.credential);
-                    }
-                },
-            });
-            slot.innerHTML = '';
-            window.google.accounts.id.renderButton(slot, {
-                type: 'icon', shape: 'circle', theme: 'outline', size: 'large',
-            });
-            // El iframe se inserta async: reajustamos al insertarse + un par de veces por si tarda.
-            observer = new MutationObserver(ajustarEscala);
-            observer.observe(slot, { childList: true, subtree: true });
-            window.setTimeout(ajustarEscala, 300);
-            window.setTimeout(ajustarEscala, 900);
-        };
-        render();
-        window.addEventListener('resize', ajustarEscala);
-        return () => {
-            cancelado = true;
-            observer?.disconnect();
-            window.removeEventListener('resize', ajustarEscala);
-        };
-    }, []);
+    const login = useGoogleLogin({
+        flow: 'auth-code',
+        // 'openid' es lo que hace que el intercambio del code devuelva un ID token.
+        scope: 'openid email profile',
+        onSuccess: (resp) => onCode(resp.code),
+        onError: () => notificar.error('No se pudo conectar con Google. Inténtalo de nuevo.'),
+    });
 
     return (
         <Tooltip text={t('navbar.entrarConGoogle')} position="bottom" autoHide={1500}>
-            <div ref={contenedorRef} className="relative grid h-10 w-10 place-items-center lg:cursor-pointer hover:scale-110 active:scale-95">
-                {/* Ícono visible (decorativo); el clic lo recibe el botón de Google de abajo. */}
-                <IconoGoogle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8 pointer-events-none" />
-                {/* Botón REAL de Google: invisible, escalado para cubrir todo, capta el clic. */}
-                <div
-                    ref={slotRef}
-                    aria-hidden="true"
-                    className="absolute inset-0 z-10 grid place-items-center overflow-hidden opacity-0"
-                />
-            </div>
+            <button
+                type="button"
+                onClick={() => login()}
+                className="p-2 lg:p-1 2xl:p-2 lg:cursor-pointer hover:scale-110 active:scale-95"
+            >
+                <IconoGoogle className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+            </button>
         </Tooltip>
     );
 }
@@ -200,9 +145,9 @@ function ToggleIdioma() {
 }
 
 function NavbarLanding({
-    onGoogleCredential,
+    onGoogleCode,
 }: {
-    onGoogleCredential: (credential: string) => void;
+    onGoogleCode: (code: string) => void;
 }) {
     const { t } = useTranslation('landing');
     const navigate = useNavigate();
@@ -219,8 +164,8 @@ function NavbarLanding({
 
             {/* Acciones */}
             <div className="flex items-center gap-1.5 lg:gap-1.5 2xl:gap-2.5">
-                {/* Google — siempre visible (botón real de Google invisible sobre el ícono). */}
-                <BotonGoogleIcono onCredential={onGoogleCredential} />
+                {/* Google — botón custom; abre directo el selector (flujo auth-code). */}
+                <BotonGoogleIcono onCode={onGoogleCode} />
 
                 {/* Entrar — solo desktop */}
                 <button
@@ -862,19 +807,16 @@ export default function PaginaLanding() {
     // GOOGLE OAUTH — Flujo completo (3 casos)
     // =========================================================================
 
-    const handleGoogleSuccess = async (credential: string) => {
+    const handleGoogleSuccess = async (code: string) => {
         try {
-            const respuesta = await authService.loginConGoogle(credential);
+            const respuesta = await authService.loginConGoogle(code);
 
             if (respuesta.success && respuesta.data) {
                 const datos = respuesta.data;
 
-                document.getElementById('google-signin-container')?.remove();
-                document.getElementById('google-signin-overlay')?.remove();
-
                 if ('usuarioNuevo' in datos && datos.usuarioNuevo === true) {
                     setDatosGooglePendiente({
-                        googleIdToken: credential,
+                        googleIdToken: datos.idToken,
                         correo: datos.datosGoogle.email,
                         nombre: datos.datosGoogle.nombre,
                         apellidos: datos.datosGoogle.apellidos || '',
@@ -917,7 +859,7 @@ export default function PaginaLanding() {
             className="min-h-screen"
             style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
         >
-            <NavbarLanding onGoogleCredential={handleGoogleSuccess} />
+            <NavbarLanding onGoogleCode={handleGoogleSuccess} />
 
             {/* Contenedor scrolleable — móvil: desde top-0, desktop: desde top-10/12 */}
             <main className="fixed top-0 lg:top-10 2xl:top-12 left-0 right-0 bottom-0 overflow-y-auto">

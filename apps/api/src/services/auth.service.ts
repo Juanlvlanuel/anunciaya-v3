@@ -1622,6 +1622,8 @@ interface DatosGoogleNuevo {
  */
 interface RespuestaGoogleNuevo {
   usuarioNuevo: true;
+  /** ID token verificado, para reusarlo al finalizar el registro. */
+  idToken: string;
   datosGoogle: DatosGoogleNuevo;
 }
 
@@ -1669,19 +1671,35 @@ export async function loginConGoogle(
 ): Promise<RespuestaServicio<RespuestaGoogleLogin | RespuestaGoogleNuevo>> {
   try {
     // -------------------------------------------------------------------------
-    // Paso 1: Verificar el token con Google
+    // Paso 1: Intercambiar el código (flujo auth-code) por el ID token y verificarlo
     // -------------------------------------------------------------------------
     let ticket;
+    let idTokenGoogle: string;
     try {
+      // Cliente con secret + redirect 'postmessage' (modo popup) para el intercambio.
+      const clienteIntercambio = new OAuth2Client(
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET,
+        'postmessage'
+      );
+      const { tokens } = await clienteIntercambio.getToken(datos.code);
+      if (!tokens.id_token) {
+        return {
+          success: false,
+          message: 'Google no devolvió el token de identidad',
+          code: 401,
+        };
+      }
+      idTokenGoogle = tokens.id_token;
       ticket = await googleClient.verifyIdToken({
-        idToken: datos.idToken,
+        idToken: idTokenGoogle,
         audience: env.GOOGLE_CLIENT_ID,
       });
     } catch (error) {
-      console.error('Error verificando token de Google:', error);
+      console.error('Error verificando el código de Google:', error);
       return {
         success: false,
-        message: 'Token de Google inválido o expirado',
+        message: 'Código de Google inválido o expirado',
         code: 401,
       };
     }
@@ -1743,6 +1761,9 @@ export async function loginConGoogle(
         message: 'Usuario nuevo - completar registro',
         data: {
           usuarioNuevo: true,
+          // El ID token (verificado) viaja al frontend para reusarlo al finalizar el
+          // registro (POST /auth/registro lo revalida con verifyIdToken).
+          idToken: idTokenGoogle,
           datosGoogle: {
             email: correoNormalizado,
             nombre: given_name || '',

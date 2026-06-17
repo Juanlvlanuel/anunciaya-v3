@@ -256,10 +256,11 @@ export type CambiarContrasenaInput = z.infer<typeof cambiarContrasenaSchema>;
 // SCHEMA 9: GOOGLE OAUTH
 // =============================================================================
 // Para: POST /api/auth/google
-// El frontend envía el ID token de Google después del login con Google
+// El frontend envía el código de autorización (flujo auth-code) que devuelve el botón
+// custom de Google; el backend lo intercambia por el ID token y lo verifica.
 
 export const googleAuthSchema = z.object({
-  idToken: z.string().min(1, 'El token de Google es requerido'),
+  code: z.string().min(1, 'El código de autorización de Google es requerido'),
 });
 
 export type GoogleAuthInput = z.infer<typeof googleAuthSchema>;

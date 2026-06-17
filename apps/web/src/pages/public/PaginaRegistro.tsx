@@ -329,17 +329,13 @@ export function PaginaRegistro() {
   // Handler: Google OAuth desde el formulario de registro
   // ---------------------------------------------------------------------------
   const handleGoogleSuccess = useCallback(
-    async (credential: string) => {
+    async (code: string) => {
       try {
         setCargando(true);
-        const respuesta = await authService.loginConGoogle(credential);
+        const respuesta = await authService.loginConGoogle(code);
 
-        if (respuesta.success&& respuesta.data) {
+        if (respuesta.success && respuesta.data) {
           const datos = respuesta.data;
-
-          // Limpiar popups de Google
-          document.getElementById('google-signin-container')?.remove();
-          document.getElementById('google-signin-overlay')?.remove();
 
           // CASO 1: Usuario nuevo → Prellenar campos del formulario
           if ('usuarioNuevo' in datos && datos.usuarioNuevo === true) {
@@ -350,7 +346,7 @@ export function PaginaRegistro() {
                 nombre: datos.datosGoogle.nombre,
                 apellidos: datos.datosGoogle.apellidos || '',
                 avatar: datos.datosGoogle.avatar || null,
-                googleIdToken: credential,
+                googleIdToken: datos.idToken,
               },
             }));
             notificar.exito('Conectado con Google');
@@ -508,7 +504,7 @@ export function PaginaRegistro() {
           <div className="w-full">
             <FormularioRegistro
               onSubmit={handleSubmitRegistro}
-              onGoogleCredential={handleGoogleSuccess}
+              onGoogleCode={handleGoogleSuccess}
               onDesconectarGoogle={handleDesconectarGoogle}
               datosGoogle={datosGoogleParaFormulario}
               googleIdToken={estado.datosGoogle?.googleIdToken}
