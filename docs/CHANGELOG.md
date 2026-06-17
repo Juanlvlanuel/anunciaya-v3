@@ -8,6 +8,57 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [16 Junio 2026] - Pagos · Pago manual centralizado + sellado de fecha de trial + reglas de cortesía/edición + estados vacíos del Panel 💳🧾🎨
+
+Sesión grande del Panel: se cerró el flujo de **pago manual** (un solo punto de escritura, y el **alta manual ya entra a la bitácora**), se selló la **fecha de próximo cobro al crear con tarjeta**, se afinaron las **reglas de cortesía y edición de pagos**, y se **rediseñaron los estados vacíos** de los 3 módulos. Validado en vivo (Stripe test) + revisiones adversariales + tsc. Commits: `0ce01e3`, `e25bd1e`, `49f777f`, `e1e4622`, `1d49d47`, `3490e70` (+ docs `92293a0`, `671285a`, `95f14e5`).
+
+**Pago manual centralizado — el alta manual ya aparece en la bitácora:**
+- Nuevo helper único **`registrarPagoManual`** (`services/admin/pagos-manuales.service.ts`): en una sola transacción inserta la fila contable en `pagos_membresia` **y** su gemelo `pago_manual` en `eventos_pago`, y garantiza la invariante **cortesía ⇒ monto NULL** en un solo lugar. Lo usan **`marcarPagado`** y el **alta manual**. Antes el doble INSERT estaba copiado y el alta manual **olvidaba el gemelo** → sus pagos no salían en el módulo Suscripciones; ahora sí. **Backfill** `2026-06-15-backfill-eventos-pago-manual.sql` (+ script) para reconstruir los gemelos históricos huérfanos.
+
+**Sellado de la fecha de próximo cobro al crear con tarjeta:**
+- Nuevo helper **`sellarFechasPeriodoDesdeStripe`** (`pago.service.ts`), llamado en `manejarCheckoutCompletado` y `manejarUpgradeCompletado`: lee `current_period_end` (= fin del trial) de Stripe y sella `fecha_proximo_cobro`/`fecha_vencimiento` **al crear**, en vez de depender del asíncrono `customer.subscription.updated`. La ficha ya no muestra "Próximo cobro: —" durante el trial. Fuente única compartida `finPeriodoDeSuscripcion`.
+
+**Reglas de cortesía y edición de pagos:**
+- **Cortesía solo SuperAdmin** (antes super+gerente): guard en alta manual, `marcarPagado` y `editarPago` (403 si no es super) + se **oculta el chip "Cortesía"** para los demás roles en el wizard de alta, Registrar pago y Editar pago.
+- **Editar pago: solo el último** (409 si no es el último vigente); para corregir uno anterior, **anular y registrar de nuevo**. Tras editar se **reenvía el recibo corregido** al dueño con copy de **corrección** (asunto "Comprobante actualizado", variante `esCorreccion` — ya no suena a pago nuevo). Fix: "Cubre hasta" salía vacío al editar desde Suscripciones (`FichaEvento` pasaba `fechaPago: null`).
+- **El vendedor puede reenviar el recibo** de los pagos de su cartera (no editar ni anular).
+
+**Estados vacíos del Panel (mejor diseño):**
+- Nuevo componente compartido **`EstadoSeccion`** (cargando/error/vacío): ícono del módulo en cuadro sutil + título + descripción + **acción opcional**. En vacío distingue *con-filtros* (botón **"Limpiar filtros"**, que resetea solo los filtros locales **sin tocar la lente de región**) de *vacío real* ("Aún no hay…"). Reemplaza los `EstadoMensaje` duplicados de Negocios/Usuarios/Suscripciones (−51 líneas).
+
+**Validación E2E (Stripe test):** alta con tarjeta → trial → forzar fin de trial → **cobro exitoso** ($449 en la bitácora) y **cobro fallido** (sin monto, negocio a gracia). Harness nuevo `forzar-fin-trial.ts`.
+
+**Cierre de módulo:** **Usuarios** cerrado formalmente (Fase 3: pulido visual + verificación de cuenta suspendida). Los 3 módulos del Panel (Negocios, Usuarios, Suscripciones-V1) quedan cerrados.
+
+**Docs:** `Pagos_Suscripciones.md` (v1.4), `Panel_Admin/Negocios.md`, `Suscripciones.md`, `Suscripciones_Pendientes.md`, `Negocios_Pendientes.md`, `Panel_Admin.md`, `Usuarios_Pendientes.md`, `Tablero_Modulos.md`, `Tokens_Panel.md` — alineadas con todo lo anterior.
+
+**Pendiente operativo:** correr `2026-06-11-eventos-pago.sql` (crear la tabla `eventos_pago`) en PROD **antes** del deploy del código; el backfill en PROD no hace falta (sin datos viejos).
+
+---
+
+## [16 Junio 2026] - Infra · Dominio propio `anunciaya.mx` + subdominio del Panel + Google OAuth en producción 🌐🔗🔑
+
+Sesión de **infraestructura (sin cambios de código)**: se conectó el dominio propio a Vercel, se publicó el Panel en su subdominio, se apuntó el CORS a los dominios nuevos y se creó/publicó un cliente de Google OAuth nuevo. Todo verificado en vivo (web + Panel + login).
+
+**Dominio propio + subdominio del Panel (Vercel + Namecheap):**
+- `anunciaya.mx` → app pública (`apps/web`), con registro **A** `@ → 216.198.79.1` en Namecheap. URL principal **sin `www`** (apex).
+- `admin.anunciaya.mx` → Panel (`apps/admin`, su **propio proyecto Vercel**), con registro **CNAME** `admin → cname.vercel-dns.com`.
+- **DNS gestionado en Namecheap** (no se delegaron nameservers a Vercel) — decisión tomada para **no tocar el correo Migadu**. SSL emitido automáticamente por Vercel en ambos dominios. El correo (`@anunciaya.mx`, Migadu + AWS SES) quedó **intacto**: registros MX/SPF/DKIM sin modificar.
+
+**CORS apuntando a los dominios nuevos (Render):**
+- Variables de entorno **`FRONTEND_URL`** → `https://anunciaya.mx` y **`PANEL_URL`** → `https://admin.anunciaya.mx`. `apps/api/src/middleware/cors.ts` ya las leía, así que las URLs viejas `.vercel.app` **salieron de la lista blanca sin tocar código**.
+
+**Login con Google en producción (Google Cloud + Render + Vercel):**
+- En el proyecto de Google Cloud **no existía** ningún cliente OAuth (solo la API key de Coyo/Gemini). Se creó la **pantalla de consentimiento** (tipo *usuarios externos*) y un **cliente OAuth nuevo** ("AnunciaYA Web", Aplicación web) con orígenes autorizados `https://anunciaya.mx` y `http://localhost:3000`; **sin** URIs de redirección (el flujo es token-based vía `POST /api/auth/google`).
+- App **publicada / En producción** (abierta a cualquier cuenta de Google; sin verificación porque solo pide datos básicos: nombre, correo, foto).
+- **`GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET`** (Render) y **`VITE_GOOGLE_CLIENT_ID`** (Vercel) actualizados al cliente nuevo (Client ID `35476…`, reemplazando el viejo `298…`).
+
+**Docs:** `Sistema.md` (URL del frontend → dominio propio + subdominio del Panel en el diagrama de arquitectura), `ROADMAP.md` (despliegue del dominio + subdominio marcado como hecho).
+
+**Pendiente anotado:** propagación del cliente OAuth nuevo del lado de Google (puede tardar de minutos a horas) — si el login da `origin_mismatch` justo tras crearlo, suele resolverse esperando. Opcional a futuro: `www.anunciaya.mx` redirigiendo a la raíz.
+
+---
+
 ## [12 Junio 2026] - Suscripciones · Anular pago con tarjeta (re-sincroniza Stripe) + "Registrar pago" respeta el trial + menú de acciones en móvil + fix MenuDrawer 💳🧾📱
 
 Sesión de pruebas **E2E del flujo de pagos del Panel** sobre un negocio real con Stripe (modo test), con varios arreglos y mejoras de UI. **Validado de punta a punta en vivo** (Panel Admin + Stripe Dashboard).
