@@ -176,6 +176,9 @@ function useRefrescarNegocio() {
   return (id: string) => {
     qc.invalidateQueries({ queryKey: queryKeys.negocios.all() });
     qc.invalidateQueries({ queryKey: queryKeys.negocios.detalle(id) });
+    // La cartera, los KPIs y las comisiones de un vendedor dependen de sus negocios: cualquier acción de
+    // negocio (reasignar, suspender, reactivar, cancelar, marcar pagado) debe refrescar también Vendedores.
+    qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
   };
 }
 

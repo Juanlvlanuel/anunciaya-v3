@@ -31,6 +31,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
+import { dispararDevengoMesActual } from './comisiones-devengo.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
@@ -282,6 +283,9 @@ export async function suspenderNegocio(
     // Aviso persistente al dueño en su centro de notificaciones (modo personal).
     await notificarNegocioFueraDeCirculacion(negocioId);
 
+    // El estado del negocio cambió (afecta el # de activos del vendedor): recalcula la comisión del mes
+    // en curso (best-effort) sin esperar al cron diario.
+    await dispararDevengoMesActual();
     return { ok: true, negocio: act, advertenciaStripe };
 }
 
@@ -341,6 +345,9 @@ export async function reactivarNegocio(
     // Negocio reactivado: borrar el aviso de "fuera de circulación" del dueño.
     await limpiarNotificacionNegocioFueraDeCirculacion(negocioId);
 
+    // El estado del negocio cambió (afecta el # de activos del vendedor): recalcula la comisión del mes
+    // en curso (best-effort) sin esperar al cron diario.
+    await dispararDevengoMesActual();
     return { ok: true, negocio: act, advertenciaStripe };
 }
 
@@ -415,6 +422,10 @@ export async function reasignarVendedor(
         datosNuevos: { embajadorId },
         motivo: motivo ?? null,
     });
+
+    // Cambió la atribución → cambian los activos del vendedor anterior y del nuevo: recalcula la comisión
+    // del mes en curso para ambos (best-effort) sin esperar al cron diario.
+    await dispararDevengoMesActual();
 
     return { ok: true, negocio: act };
 }
@@ -592,6 +603,9 @@ export async function marcarPagado(
         }
     }
 
+    // El estado del negocio cambió (afecta el # de activos del vendedor): recalcula la comisión del mes
+    // en curso (best-effort) sin esperar al cron diario.
+    await dispararDevengoMesActual();
     return { ok: true, negocio: act, advertenciaStripe };
 }
 
@@ -695,6 +709,9 @@ export async function cancelarNegocio(
             .where(eq(usuarios.id, neg.usuarioId));
     }
 
+    // El estado del negocio cambió (afecta el # de activos del vendedor): recalcula la comisión del mes
+    // en curso (best-effort) sin esperar al cron diario.
+    await dispararDevengoMesActual();
     return { ok: true, negocio: act, advertenciaStripe };
 }
 

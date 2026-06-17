@@ -156,3 +156,16 @@ export async function devengarPeriodo(periodo: string): Promise<ResumenDevengo> 
 
     return { periodo, vendedoresProcesados: conteos.length, creadas, actualizadas, omitidasPagadas, totalDevengado };
 }
+
+/**
+ * Recalcula el devengo del MES EN CURSO, best-effort (no lanza). Para llamarse desde las acciones que
+ * cambian el # de negocios activos de un vendedor (reasignar / suspender / reactivar / cancelar / marcar
+ * pagado), de modo que la comisión se sincronice al instante sin esperar al cron diario.
+ */
+export async function dispararDevengoMesActual(): Promise<void> {
+    try {
+        await devengarPeriodo(periodoActual());
+    } catch (err) {
+        console.error('[Comisiones] No se pudo recalcular el devengo tras un cambio de activos:', err);
+    }
+}

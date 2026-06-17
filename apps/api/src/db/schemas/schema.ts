@@ -938,6 +938,7 @@ export const pagosVendedor = pgTable("pagos_vendedor", {
 	fechaPago: date("fecha_pago").notNull(),
 	periodo: varchar({ length: 7 }),
 	nota: varchar({ length: 500 }),
+	comprobanteUrl: text("comprobante_url"),
 	registradoPor: uuid("registrado_por"),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
