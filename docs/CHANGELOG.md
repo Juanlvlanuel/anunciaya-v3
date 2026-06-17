@@ -8,6 +8,24 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [16 Junio 2026] - Panel · Medición y filtrado de usuarios por ciudad 📍📊
+
+Nueva capacidad sobre el módulo **Usuarios** (ya cerrado): **medir y filtrar usuarios por ciudad** en el Panel Admin. Es la fase **Expand** de la migración global "ciudad texto → catálogo `ciudades`" (gemela de lo que ya tiene `negocio_sucursales`). Validado en DEV con datos reales (21/21 mapeados) + `tsc` en verde (api/web/admin).
+
+**El dato (la pieza que faltaba):**
+- Nueva columna **`usuarios.ciudad_id`** (FK → `ciudades`, nullable) + índice. Se **conserva** el texto `usuarios.ciudad`. Migración `2026-06-16-usuarios-ciudad-id.sql` + backfill `mapear-usuario-ciudad-id.ts` (tolera datos legacy "Ciudad, Estado").
+- **El puente que faltaba:** el `useGpsStore` vivía solo en el cliente y nunca mandaba la ciudad al backend. Ahora, con sesión iniciada, la ciudad del GPS/selector se reporta vía **`PATCH /api/auth/ubicacion`**, que la ancla al catálogo por slug (`resolverCiudadId`) y guarda **texto + `ciudad_id`**. Efecto fire-and-forget en `RootLayout` (clave `usuarioId:ciudad`).
+
+**En el Panel (Usuarios):**
+- **Filtro por ciudad** (cada opción con su conteo) + tira **"Por ciudad"** (métrica + drill-down, escritorio), con grupo **"Sin ciudad"**. Endpoint `GET /admin/usuarios/por-ciudad` (respeta la visibilidad por jerarquía/región).
+- **Decisión de alcance:** `ciudad_id` se usa **solo para medir/filtrar**, NO altera la visibilidad por región (el gerente sigue viendo a todos los clientes) — acoplarla es V2.
+
+**Docs:** `Usuarios.md` (§12 + Apéndice I), `Usuarios_Pendientes.md`, `Autenticacion.md` (endpoint, 21/21).
+
+**Pendiente operativo:** en PROD, correr `2026-06-16-usuarios-ciudad-id.sql` + el backfill (`DB_ENVIRONMENT=production`) — migración primero, luego backfill — y desplegar el código.
+
+---
+
 ## [16 Junio 2026] - Pagos · Pago manual centralizado + sellado de fecha de trial + reglas de cortesía/edición + estados vacíos del Panel 💳🧾🎨
 
 Sesión grande del Panel: se cerró el flujo de **pago manual** (un solo punto de escritura, y el **alta manual ya entra a la bitácora**), se selló la **fecha de próximo cobro al crear con tarjeta**, se afinaron las **reglas de cortesía y edición de pagos**, y se **rediseñaron los estados vacíos** de los 3 módulos. Validado en vivo (Stripe test) + revisiones adversariales + tsc. Commits: `0ce01e3`, `e25bd1e`, `49f777f`, `e1e4622`, `1d49d47`, `3490e70` (+ docs `92293a0`, `671285a`, `95f14e5`).

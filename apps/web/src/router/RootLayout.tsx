@@ -17,6 +17,7 @@ import { useGpsStore } from '../stores/useGpsStore';
 import { useUiStore } from '../stores/useUiStore';
 import { buscarCiudadCercana } from '../data/ciudadesPopulares';
 import { useTituloDinamico } from '../hooks/useTituloDinamico';
+import { reportarUbicacion } from '../services/authService';
 
 /**
  * Lee la ciudad guardada en localStorage. Más confiable que esperar
@@ -65,6 +66,13 @@ export function RootLayout() {
 
   // Ref para evitar doble ejecución
   const deteccionEjecutada = useRef(false);
+
+  // Puente ciudad (GPS/selector) → backend: para que el Panel Admin mida usuarios
+  // por ciudad. Solo si hay sesión. La clave `usuarioId:ciudad` evita reenviar lo
+  // mismo y, a la vez, reenvía si cambia la cuenta o la ciudad.
+  const usuarioId = useAuthStore((state) => state.usuario?.id ?? null);
+  const ciudadNombre = useGpsStore((state) => state.ciudad?.nombre ?? null);
+  const ubicacionReportada = useRef<string | null>(null);
 
   // ✅ Cambiar título dinámicamente según la ruta
   useTituloDinamico();
@@ -280,6 +288,19 @@ export function RootLayout() {
 
     detectarUbicacion();
   }, [obtenerUbicacion, setCiudad, esPreviewIframe]);
+
+  // Reportar la ciudad al backend cuando hay sesión + ciudad fijada (fire-and-forget).
+  // Cubre: login con ciudad ya detectada, y cambio de ciudad desde el selector del header.
+  useEffect(() => {
+    if (esPreviewIframe) return;
+    if (!usuarioId || !ciudadNombre) return;
+
+    const clave = `${usuarioId}:${ciudadNombre}`;
+    if (ubicacionReportada.current === clave) return;
+    ubicacionReportada.current = clave;
+
+    reportarUbicacion(ciudadNombre).catch(() => undefined);
+  }, [usuarioId, ciudadNombre, esPreviewIframe]);
 
   return (
     <>

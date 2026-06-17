@@ -52,6 +52,7 @@ import {
   obtenerInfoModo,
   cambiarContrasenaProvisional,
   verificarDisponibilidadCorreo,
+  actualizarUbicacionUsuario,
 } from '../services/auth.service.js';
 
 // =============================================================================
@@ -765,6 +766,54 @@ export async function desactivar2faController(req: Request, res: Response): Prom
     success: resultado.success,
     message: resultado.message,
   });
+}
+
+// =============================================================================
+// CONTROLLER: UBICACIÓN DEL USUARIO (ciudad)
+// =============================================================================
+
+/**
+ * PATCH /api/auth/ubicacion
+ * Persiste la ciudad del usuario logueado (la que detecta el selector/GPS del frontend).
+ * El service la ancla al catálogo `ciudades` (texto → ciudad_id por slug).
+ */
+export async function actualizarUbicacionController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({
+        success: false,
+        message: 'No autenticado',
+      });
+      return;
+    }
+
+    const { ciudad } = req.body;
+
+    if (!ciudad || typeof ciudad !== 'string') {
+      res.status(400).json({
+        success: false,
+        message: 'El campo "ciudad" es requerido',
+      });
+      return;
+    }
+
+    const resultado = await actualizarUbicacionUsuario(req.usuario.usuarioId, ciudad);
+
+    res.status(resultado.code || 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+    });
+  } catch (error) {
+    console.error('❌ Error en actualizarUbicacionController:', error);
+    res.status(500).json({
+      success: false,
+      message: 'Error al actualizar la ubicación',
+    });
+  }
 }
 
 // =============================================================================

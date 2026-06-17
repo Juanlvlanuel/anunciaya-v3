@@ -64,6 +64,7 @@ export interface FiltrosUsuarios {
     busqueda?: string;     // nombre / apellidos / correo / teléfono (ILIKE)
     estado?: EstadoUsuario;
     tipo?: TipoUsuario;
+    ciudadId?: string;     // ciudad_id del catálogo, o el centinela 'sin-ciudad' (ciudad_id IS NULL)
     orden?: OrdenUsuarios;
     pagina: number;        // 1-based
     porPagina: number;
@@ -240,6 +241,14 @@ function condicionTipo(tipo?: TipoUsuario): SQL | undefined {
     }
 }
 
+/** Predicado del filtro "ciudad": una ciudad del catálogo, o el centinela 'sin-ciudad'
+ *  (usuarios con ciudad_id NULL — "Sin ciudad"). */
+function condicionCiudad(ciudadId?: string): SQL | undefined {
+    if (!ciudadId) return undefined;
+    if (ciudadId === 'sin-ciudad') return isNull(usuarios.ciudadId);
+    return eq(usuarios.ciudadId, ciudadId);
+}
+
 /** Búsqueda por nombre / apellidos / correo / teléfono (ILIKE OR). */
 function condicionBusqueda(busqueda?: string): SQL | undefined {
     if (!busqueda) return undefined;
@@ -282,13 +291,15 @@ export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsu
     const condVisibilidad = condicionVisibilidad(filtros.rolSolicitante, filtros.regionSolicitante);
     const condBusqueda = condicionBusqueda(filtros.busqueda);
     const condTipo = condicionTipo(filtros.tipo);
+    const condCiudad = condicionCiudad(filtros.ciudadId);
 
-    // BASE = visibilidad + búsqueda + tipo (SIN estado). Sobre esta base se calculan los conteos por
-    // estado, para que cada chip cuadre con lo demás filtrado (y NO cuente cuentas que no se ven).
+    // BASE = visibilidad + búsqueda + tipo + ciudad (SIN estado). Sobre esta base se calculan los
+    // conteos por estado, para que cada chip cuadre con lo demás filtrado (y NO cuente cuentas que no se ven).
     const base: SQL[] = [];
     if (condVisibilidad) base.push(condVisibilidad);
     if (condBusqueda) base.push(condBusqueda);
     if (condTipo) base.push(condTipo);
+    if (condCiudad) base.push(condCiudad);
 
     // LISTA = base + estado (lo que realmente se muestra/pagina).
     const condLista = [...base];
@@ -370,6 +381,62 @@ export async function contarUsuarios(rolSolicitante?: string, regionSolicitante?
         .from(usuarios)
         .where(condicionVisibilidad(rolSolicitante, regionSolicitante));
     return Number(total);
+}
+
+// =============================================================================
+// USUARIOS POR CIUDAD (métrica + opciones del filtro de ciudad)
+// =============================================================================
+
+/** Un grupo del desglose por ciudad. `ciudadId === null` es el grupo "Sin ciudad". */
+export interface CiudadConteo {
+    ciudadId: string | null;
+    ciudad: string;            // nombre del catálogo, o "Sin ciudad"
+    estado: string | null;     // estado/provincia del catálogo (null para "Sin ciudad")
+    total: number;
+}
+
+/**
+ * Conteo de usuarios agrupado por ciudad (respeta la visibilidad por jerarquía + región).
+ * Sirve para DOS cosas: la métrica "usuarios por ciudad" y poblar las opciones del filtro.
+ *
+ * Agrupa por `ciudad_id` con el query builder (reusa `condicionVisibilidad` tal cual, que
+ * referencia la tabla `usuarios` SIN alias) y resuelve los nombres con el catálogo `ciudades`
+ * (71 filas, trivial en memoria). El grupo NULL ("Sin ciudad") siempre se incluye si existe.
+ * Orden: por total desc, y "Sin ciudad" al final.
+ */
+export async function usuariosPorCiudad(rolSolicitante?: string, regionSolicitante?: string | null): Promise<CiudadConteo[]> {
+    const cond = condicionVisibilidad(rolSolicitante, regionSolicitante);
+
+    const filas = await db
+        .select({ ciudadId: usuarios.ciudadId, total: count() })
+        .from(usuarios)
+        .where(cond)
+        .groupBy(usuarios.ciudadId);
+
+    // Catálogo completo (id → nombre/estado). Solo lectura, pocas filas.
+    const cat = (await db.execute(sql`SELECT id::text AS id, nombre, estado FROM ciudades`)).rows as Array<{
+        id: string; nombre: string; estado: string;
+    }>;
+    const mapa = new Map(cat.map((c) => [c.id, c]));
+
+    const grupos: CiudadConteo[] = filas.map((f) => {
+        const info = f.ciudadId ? mapa.get(f.ciudadId) : undefined;
+        return {
+            ciudadId: f.ciudadId ?? null,
+            ciudad: info?.nombre ?? (f.ciudadId ? 'Ciudad desconocida' : 'Sin ciudad'),
+            estado: info?.estado ?? null,
+            total: Number(f.total),
+        };
+    });
+
+    // Orden: por total desc; el grupo "Sin ciudad" siempre al final.
+    grupos.sort((a, b) => {
+        if (a.ciudadId === null) return 1;
+        if (b.ciudadId === null) return -1;
+        return b.total - a.total;
+    });
+
+    return grupos;
 }
 
 // =============================================================================

@@ -23,6 +23,7 @@ export interface FiltrosUsuariosKey {
   busqueda?: string;
   estado?: string;
   tipo?: string;
+  ciudadId?: string;
   orden?: string;
   pagina?: number;
   porPagina?: number;
@@ -66,6 +67,7 @@ export const queryKeys = {
   usuarios: {
     all: () => ['usuarios'] as const,
     conteo: () => ['usuarios', 'conteo'] as const,
+    porCiudad: () => ['usuarios', 'por-ciudad'] as const,
     lista: (filtros: FiltrosUsuariosKey) => ['usuarios', 'lista', filtros] as const,
     detalle: (id: string) => ['usuarios', 'detalle', id] as const,
   },

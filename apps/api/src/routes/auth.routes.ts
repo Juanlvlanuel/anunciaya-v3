@@ -29,6 +29,7 @@ import {
   obtenerInfoModoController,
   cambiarContrasenaProvisionalController,
   verificarDisponibilidadCorreoController,
+  actualizarUbicacionController,
 } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { limitadorVerificacionCorreo } from '../middleware/rateLimiter.js';
@@ -99,6 +100,9 @@ router.delete('/2fa/desactivar', verificarToken, desactivar2faController);
 
 // PATCH /api/auth/modo - Cambia el modo activo del usuario (personal ↔ comercial)
 router.patch('/modo', verificarToken, cambiarModoController);
+
+// PATCH /api/auth/ubicacion - Persiste la ciudad del usuario (selector/GPS → ciudad_id)
+router.patch('/ubicacion', verificarToken, actualizarUbicacionController);
 
 // GET /api/auth/modo-info - Obtiene información sobre el modo actual del usuario
 router.get('/modo-info', verificarToken, obtenerInfoModoController);

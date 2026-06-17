@@ -30,6 +30,7 @@ import {
   enviarCodigoCrearContrasena,
 } from '../utils/email.js';
 import { generarTokens, type PayloadToken, verificarRefreshToken } from '../utils/jwt.js';
+import { resolverCiudadId } from '../utils/ciudades.js';
 
 /**
  * Para gerentes (sucursalAsignada !== null), resuelve el `usuarioId` del dueño del
@@ -2526,12 +2527,67 @@ export async function desactivar2fa(
 }
 
 // =============================================================================
+// UBICACIÓN DEL USUARIO (ciudad)
+// =============================================================================
+
+/**
+ * Actualiza la ubicación (ciudad) del usuario logueado.
+ *
+ * Recibe el TEXTO de la ciudad (lo que detecta el selector/GPS del frontend vía useGpsStore:
+ * SOLO el nombre, ej. "Puerto Peñasco") y lo ancla al catálogo `ciudades` resolviéndolo a
+ * `ciudad_id` por slug normalizado (helper `resolverCiudadId`, el mismo que usan las sucursales).
+ *
+ * Guarda AMBOS: el texto `ciudad` (para mostrar) y `ciudad_id` (FK normalizada, para que el Panel
+ * filtre/mida por ciudad y deduzca región vía ciudad_id → ciudades.region_id). Si el texto no casa
+ * con ninguna ciudad del catálogo, `ciudad_id` queda NULL (el usuario sale "Sin ciudad" en el Panel)
+ * pero el texto se conserva. NO toca `usuarios.region_id` (eso es solo para gerentes); la región del
+ * cliente es DEDUCIDA, no almacenada.
+ *
+ * @param usuarioId - ID del usuario autenticado
+ * @param ciudad - Nombre de la ciudad (texto plano del selector/GPS). NO mandar "Ciudad, Estado".
+ */
+export async function actualizarUbicacionUsuario(
+  usuarioId: string,
+  ciudad: string,
+): Promise<RespuestaServicio<{ ciudad: string; ciudadId: string | null }>> {
+  try {
+    const ciudadTexto = ciudad?.trim();
+    if (!ciudadTexto) {
+      return { success: false, message: 'El campo "ciudad" es requerido', code: 400 };
+    }
+
+    // Texto → ciudad_id del catálogo (por slug). null si no casa con ninguna ciudad conocida.
+    const ciudadId = await resolverCiudadId(ciudadTexto);
+
+    const [actualizado] = await db
+      .update(usuarios)
+      .set({ ciudad: ciudadTexto, ciudadId, updatedAt: sql`now()` })
+      .where(eq(usuarios.id, usuarioId))
+      .returning({ ciudad: usuarios.ciudad, ciudadId: usuarios.ciudadId });
+
+    if (!actualizado) {
+      return { success: false, message: 'Usuario no encontrado', code: 404 };
+    }
+
+    return {
+      success: true,
+      message: 'Ubicación actualizada',
+      data: { ciudad: actualizado.ciudad ?? ciudadTexto, ciudadId: actualizado.ciudadId ?? null },
+      code: 200,
+    };
+  } catch (error) {
+    console.error('❌ Error en actualizarUbicacionUsuario:', error);
+    return { success: false, message: 'Error al actualizar la ubicación', code: 500 };
+  }
+}
+
+// =============================================================================
 // 🆕 FASE 5.0 - SISTEMA DE MODOS
 // =============================================================================
 
 /**
  * Cambia el modo activo del usuario entre Personal y Comercial
- * 
+ *
  * @param usuarioId - ID del usuario autenticado
  * @param nuevoModo - Modo al que quiere cambiar ('personal' | 'comercial')
  * @returns Nuevos tokens con el modo actualizado

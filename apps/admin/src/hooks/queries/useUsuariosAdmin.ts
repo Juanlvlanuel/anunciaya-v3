@@ -40,6 +40,15 @@ export function useConteoUsuarios() {
   });
 }
 
+/** Desglose de usuarios por ciudad (métrica + opciones del filtro de ciudad). */
+export function useUsuariosPorCiudad() {
+  return useQuery({
+    queryKey: queryKeys.usuarios.porCiudad(),
+    queryFn: () => usuariosService.usuariosPorCiudad(),
+    staleTime: 1000 * 60 * 5, // cambia poco
+  });
+}
+
 /**
  * Expediente 360 de un usuario. Acepta un `placeholder` (datos parciales que ya
  * trae la fila de la lista) para que la ficha se vea AL INSTANTE y rellene el

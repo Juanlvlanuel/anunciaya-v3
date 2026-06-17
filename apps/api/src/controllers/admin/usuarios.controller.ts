@@ -16,6 +16,7 @@ import {
     listarUsuarios,
     obtenerExpediente,
     contarUsuarios,
+    usuariosPorCiudad,
     ESTADOS_USUARIO,
     TIPOS_USUARIO,
     ORDENES_USUARIO,
@@ -59,6 +60,7 @@ export async function listarUsuariosController(req: Request, res: Response): Pro
         const busquedaRaw = typeof req.query.busqueda === 'string' ? req.query.busqueda.trim() : '';
         const estadoRaw = typeof req.query.estado === 'string' ? req.query.estado : '';
         const tipoRaw = typeof req.query.tipo === 'string' ? req.query.tipo : '';
+        const ciudadRaw = typeof req.query.ciudadId === 'string' ? req.query.ciudadId.trim() : '';
         const ordenRaw = typeof req.query.orden === 'string' ? req.query.orden : '';
 
         const estado = ESTADOS_USUARIO.includes(estadoRaw as EstadoUsuario)
@@ -75,6 +77,7 @@ export async function listarUsuariosController(req: Request, res: Response): Pro
             busqueda: busquedaRaw || undefined,
             estado,
             tipo,
+            ciudadId: ciudadRaw || undefined,
             orden,
             pagina: enteroPositivo(req.query.pagina, 1),
             porPagina: enteroPositivo(req.query.porPagina, POR_PAGINA_DEFAULT, POR_PAGINA_MAX),
@@ -129,6 +132,20 @@ export async function contarUsuariosController(req: Request, res: Response): Pro
     } catch (error) {
         console.error('Error en contarUsuariosController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener el conteo' });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/usuarios/por-ciudad   (super + gerente · métrica + opciones del filtro)
+// =============================================================================
+
+export async function usuariosPorCiudadController(req: Request, res: Response): Promise<void> {
+    try {
+        const data = await usuariosPorCiudad(req.usuarioPanel?.rolEquipo, regionDeConsulta(req));
+        res.status(200).json({ success: true, message: 'Usuarios por ciudad obtenidos', data });
+    } catch (error) {
+        console.error('Error en usuariosPorCiudadController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener usuarios por ciudad' });
     }
 }
 

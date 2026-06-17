@@ -50,6 +50,12 @@ export const usuarios = pgTable("usuarios", {
 	panel2faSecreto: varchar("panel_2fa_secreto", { length: 64 }),
 	telefono: varchar({ length: 20 }),
 	ciudad: varchar({ length: 100 }),
+	// FK a `ciudades` (catálogo). NULLABLE: se llena cuando el usuario reporta su ubicación
+	// (GPS / selector del header) o por backfill desde el texto `ciudad`. La región se deduce
+	// ciudad_id → ciudades.region_id (igual que negocio_sucursales). El texto `ciudad` se
+	// conserva. Sin `.references()` aquí porque `ciudades` no está en el ORM (solo en BD); la FK
+	// la define la migración 2026-06-16-usuarios-ciudad-id.sql.
+	ciudadId: uuid("ciudad_id"),
 	perfil: varchar({ length: 20 }).default('personal').notNull(),
 	membresia: smallint().default(1).notNull(),
 	correoVerificado: boolean("correo_verificado").default(false),
@@ -103,6 +109,9 @@ export const usuarios = pgTable("usuarios", {
 	index("idx_usuarios_sucursal_asignada").using("btree", table.sucursalAsignada.asc().nullsLast()).where(sql`(sucursal_asignada IS NOT NULL)`),
 	index("idx_usuarios_rol_equipo").using("btree", table.rolEquipo.asc().nullsLast()).where(sql`(rol_equipo IS NOT NULL)`),
 	index("idx_usuarios_region_id").using("btree", table.regionId.asc().nullsLast()).where(sql`(region_id IS NOT NULL)`),
+	// Índice COMPLETO (no parcial): sirve al filtro por ciudad y al GROUP BY de la métrica
+	// "usuarios por ciudad" del Panel, contando también los NULL ("Sin ciudad").
+	index("idx_usuarios_ciudad_id").using("btree", table.ciudadId.asc().nullsLast()),
 	unique("usuarios_correo_unique").on(table.correo),
 	check("usuarios_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'inactivo'::character varying, 'suspendido'::character varying])::text[])`),
 	check("usuarios_genero_check", sql`(genero)::text = ANY ((ARRAY['masculino'::character varying, 'femenino'::character varying, 'otro'::character varying, 'no_especificado'::character varying])::text[])`),

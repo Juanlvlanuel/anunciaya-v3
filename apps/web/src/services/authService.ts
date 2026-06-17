@@ -409,6 +409,28 @@ export async function verificarDisponibilidadCorreo(
 }
 
 // =============================================================================
+// UBICACIÓN DEL USUARIO
+// =============================================================================
+
+/**
+ * Persiste la ciudad del usuario logueado en su cuenta.
+ * PATCH /auth/ubicacion
+ *
+ * Manda SOLO el nombre de la ciudad (ej. "Puerto Peñasco"). El backend lo ancla al
+ * catálogo `ciudades` (texto → ciudad_id por slug) para que el Panel Admin pueda
+ * filtrar y medir usuarios por ciudad. Fire-and-forget desde el caller.
+ */
+export async function reportarUbicacion(
+  ciudad: string,
+): Promise<RespuestaAPI<{ ciudad: string; ciudadId: string | null }>> {
+  const response = await api.patch<RespuestaAPI<{ ciudad: string; ciudadId: string | null }>>(
+    '/auth/ubicacion',
+    { ciudad },
+  );
+  return response.data;
+}
+
+// =============================================================================
 // EXPORT POR DEFECTO (objeto con todas las funciones)
 // =============================================================================
 
@@ -441,6 +463,9 @@ const authService = {
 
   // Verificación correo
   verificarDisponibilidadCorreo,
+
+  // Ubicación
+  reportarUbicacion,
 };
 
 export default authService;

@@ -14,13 +14,14 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, Users, SlidersHorizontal, ArrowUpDown } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, Users, SlidersHorizontal, ArrowUpDown, MapPin } from 'lucide-react';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useContadorPanel } from '../../stores/useContadorPanel';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
-import { useUsuariosLista, usePrefetchUsuario } from '../../hooks/queries/useUsuariosAdmin';
-import type { OrdenUsuarios, UsuarioFila, ConteosEstado } from '../../services/usuariosService';
+import { useUsuariosLista, usePrefetchUsuario, useUsuariosPorCiudad } from '../../hooks/queries/useUsuariosAdmin';
+import { CIUDAD_SIN } from '../../services/usuariosService';
+import type { OrdenUsuarios, UsuarioFila, ConteosEstado, CiudadConteo } from '../../services/usuariosService';
 import { metaEstadoUsuario, BadgeEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
@@ -80,6 +81,7 @@ export function SeccionUsuarios() {
   const [busquedaDeb, setBusquedaDeb] = useState('');
   const [estado, setEstado] = useState('');
   const [tipo, setTipo] = useState('');
+  const [ciudad, setCiudad] = useState(''); // ciudad_id del catálogo, o CIUDAD_SIN ('sin-ciudad')
   const [orden, setOrden] = useState<OrdenUsuarios>('nombre_az');
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<UsuarioFila | null>(null);
@@ -100,21 +102,23 @@ export function SeccionUsuarios() {
 
   useEffect(() => {
     setPagina(1);
-  }, [busquedaDeb, estado, tipo, orden]);
+  }, [busquedaDeb, estado, tipo, ciudad, orden]);
 
   const filtros = useMemo(
     () => ({
       busqueda: busquedaDeb || undefined,
       estado: estado || undefined,
       tipo: tipo || undefined,
+      ciudadId: ciudad || undefined,
       orden,
       pagina,
       porPagina: POR_PAGINA,
     }),
-    [busquedaDeb, estado, tipo, orden, pagina],
+    [busquedaDeb, estado, tipo, ciudad, orden, pagina],
   );
 
   const { data, isLoading, isError, isFetching } = useUsuariosLista(filtros);
+  const { data: porCiudad } = useUsuariosPorCiudad();
 
   // Publica el total YA FILTRADO para el badge del menú; al salir, se limpia para que el badge
   // vuelva al conteo general.
@@ -130,20 +134,21 @@ export function SeccionUsuarios() {
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
-  const hayFiltro = !!(busquedaDeb || estado || tipo);
+  const hayFiltro = !!(busquedaDeb || estado || tipo || ciudad);
 
   // ── Estado de filtros (para EstadoSeccion) ───────────────────────────────────
   // hayFiltrosActivos: true si el usuario escribió en la búsqueda o movió algún filtro
   // LOCAL (estado, tipo u orden) fuera de su default. La lente de región global NO cuenta:
   // es navegación del header, no un filtro de esta lista.
-  const hayFiltrosActivos = !!(busqueda.trim() || estado || tipo) || orden !== 'nombre_az';
+  const hayFiltrosActivos = !!(busqueda.trim() || estado || tipo || ciudad) || orden !== 'nombre_az';
 
   // limpiarFiltros: regresa los filtros LOCALES a su default (búsqueda vacía, estado "Todos",
-  // tipo "Todos", orden "Nombre A–Z"). No toca la lente de región.
+  // tipo "Todos", ciudad "Todas", orden "Nombre A–Z"). No toca la lente de región.
   const limpiarFiltros = () => {
     setBusqueda('');
     setEstado('');
     setTipo('');
+    setCiudad('');
     setOrden('nombre_az');
   };
 
@@ -160,6 +165,29 @@ export function SeccionUsuarios() {
 
   const etiquetaTipo = OPCIONES_TIPO.find((o) => o.valor === tipo)?.etiqueta ?? 'Todos';
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Nombre (A–Z)';
+
+  // Opciones del filtro de ciudad, pobladas desde el desglose por-ciudad (con su conteo).
+  // "Sin ciudad" primero (suele ser el grupo grande), luego las ciudades por total desc.
+  const opcionesCiudad: OpcionMenu[] = useMemo(() => {
+    const grupos = porCiudad ?? [];
+    const sinCiudad = grupos.find((g) => g.ciudadId === null);
+    const conCiudad = grupos.filter((g) => g.ciudadId !== null);
+    return [
+      { valor: '', etiqueta: 'Todas las ciudades' },
+      ...(sinCiudad ? [{ valor: CIUDAD_SIN, etiqueta: `Sin ciudad · ${sinCiudad.total}` }] : []),
+      ...conCiudad.map((g) => ({
+        valor: g.ciudadId as string,
+        etiqueta: `${g.ciudad} · ${g.total}`,
+        adorno: <MapPin size={16} className="text-texto-3" />,
+      })),
+    ];
+  }, [porCiudad]);
+
+  const etiquetaCiudad = useMemo(() => {
+    if (!ciudad) return 'Todas las ciudades';
+    if (ciudad === CIUDAD_SIN) return 'Sin ciudad';
+    return (porCiudad ?? []).find((g) => g.ciudadId === ciudad)?.ciudad ?? 'Ciudad';
+  }, [ciudad, porCiudad]);
 
   const buscador = (
     <div className="relative w-full">
@@ -197,6 +225,18 @@ export function SeccionUsuarios() {
     />
   );
 
+  const filtroCiudad = (
+    <MenuFiltro
+      testid="usuarios-filtro-ciudad"
+      icono={<MapPin size={16} />}
+      etiquetaBoton={etiquetaCiudad}
+      opciones={opcionesCiudad}
+      valor={ciudad}
+      onCambiar={setCiudad}
+      tam="chip"
+    />
+  );
+
   const ficha = seleccionado ? (
     <FichaUsuario previo={seleccionado} onCerrar={() => setSeleccionado(null)} />
   ) : null;
@@ -207,6 +247,16 @@ export function SeccionUsuarios() {
       <div className="flex h-full min-h-0 flex-col px-5 pt-4 pb-1.5">
         <div className="mb-2.5 flex shrink-0 items-center gap-2">
           <div className="flex-1">{buscador}</div>
+          <MenuFiltro
+            testid="usuarios-filtro-ciudad"
+            icono={<MapPin size={18} />}
+            etiquetaBoton={etiquetaCiudad}
+            opciones={opcionesCiudad}
+            valor={ciudad}
+            onCambiar={setCiudad}
+            soloIcono
+            alineacion="derecha"
+          />
           <MenuFiltro
             testid="usuarios-filtro-tipo"
             icono={<SlidersHorizontal size={18} />}
@@ -337,6 +387,7 @@ export function SeccionUsuarios() {
             {hayFiltro ? ' · filtrado' : ''}
             {isFetching && !isLoading ? ' · actualizando…' : ''}
           </span>
+          {filtroCiudad}
           {filtroTipo}
           <MenuFiltro
             testid="usuarios-orden"
@@ -350,6 +401,9 @@ export function SeccionUsuarios() {
           />
         </div>
       </div>
+
+      {/* Métrica: usuarios por ciudad (clic en un chip filtra la lista) */}
+      <ResumenCiudades grupos={porCiudad} ciudadActiva={ciudad} onSelect={setCiudad} />
 
       {/* Tabla */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde">
@@ -403,6 +457,53 @@ export function SeccionUsuarios() {
 // =============================================================================
 // SUB-COMPONENTES
 // =============================================================================
+
+/**
+ * Métrica "usuarios por ciudad" (solo escritorio): tira densa de chips con el conteo
+ * de cada ciudad. Clic en un chip filtra la lista por esa ciudad (o lo limpia si ya
+ * estaba activo). Los grupos vienen ya ordenados del backend (total desc, "Sin ciudad"
+ * al final). Sobrio por tokens del Panel: sin círculos pastel, total en peso semibold.
+ */
+function ResumenCiudades({
+  grupos,
+  ciudadActiva,
+  onSelect,
+}: {
+  grupos: CiudadConteo[] | undefined;
+  ciudadActiva: string;
+  onSelect: (valor: string) => void;
+}) {
+  if (!grupos || grupos.length === 0) return null;
+
+  return (
+    <div className="mb-2 flex shrink-0 items-center gap-2.5">
+      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-texto-4">Por ciudad</span>
+      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none]">
+        {grupos.map((g) => {
+          const valor = g.ciudadId ?? CIUDAD_SIN;
+          const activo = ciudadActiva === valor;
+          return (
+            <button
+              key={valor}
+              type="button"
+              data-testid={`usuarios-ciudad-chip-${valor}`}
+              onClick={() => onSelect(activo ? '' : valor)}
+              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition ${
+                activo
+                  ? 'border-marca/40 bg-marca-suave text-marca'
+                  : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
+              }`}
+            >
+              {g.ciudadId && <MapPin size={12} className="shrink-0 opacity-70" />}
+              <span className="max-w-[150px] truncate">{g.ciudad}</span>
+              <span className="font-semibold">{g.total}</span>
+            </button>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
 
 function FilaUsuario({
   n,

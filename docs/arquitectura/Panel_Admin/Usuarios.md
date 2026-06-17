@@ -108,6 +108,10 @@ Arriba tienes herramientas:
   cuentas que no puedes ver).
 - Un **filtro por Rol** (Todos · Usuario · Dueño · Gerente de sucursal · Vendedor · *Gerente
   regional*). El gerente **no** ve la opción "Gerente regional" (no puede ver gerentes).
+- Un **filtro por Ciudad** (cada opción del dropdown trae su conteo) y, en escritorio, una tira
+  **"Por ciudad"** arriba de la tabla que muestra cuántos usuarios hay en cada ciudad; al hacer
+  clic en un chip, filtra la lista por esa ciudad. Incluye el grupo **"Sin ciudad"** (los que aún
+  no tienen ciudad registrada — ver §12). Es a la vez la **medición** y el **acceso rápido** al filtro.
 - Un menú de **orden** (por nombre, registro, última conexión, estado).
 
 La lista viene en **páginas de 20**. Arriba a la derecha, el **badge del menú** muestra el
@@ -177,6 +181,11 @@ Esta es la regla más importante del módulo. **Lo que ves depende de tu rol y d
 - **Vendedor** → de las **ciudades que cubre** (su cartera).
 - **Gerente regional** → de su `region_id` directo.
 - **Cliente** → no tiene; por eso el gerente los ve a todos.
+
+> ⚠️ **La ciudad del cliente NO restringe la visibilidad (aún).** Desde Jun 2026 el cliente puede
+> tener `ciudad_id` (ver §12), de donde *se podría* deducir su región. Pero esa ciudad se usa **solo
+> para medir y filtrar**, no para acotar quién lo ve: el gerente sigue viendo a **todos** los
+> clientes. Acoplar la región del cliente a la visibilidad es una decisión consciente para V2.
 
 ### La lente del superadmin ("Ámbito de la plataforma")
 
@@ -313,6 +322,27 @@ No. El superadmin no pertenece a ninguna región; solo se ve con "Toda la plataf
 
 ---
 
+## 12. La ciudad del usuario — ¿de dónde sale?
+
+Hasta Jun 2026 la ciudad de una persona casi no existía como dato: solo la tenían los **dueños** (se
+les copia de su negocio); el **cliente** se registraba sin ciudad. Por eso muchos aparecen como
+**"Sin ciudad"**.
+
+Desde Jun 2026 la ciudad se **captura sola**: cuando una persona usa la app **con sesión iniciada**,
+la ciudad que detecta su GPS / elige en el selector del header se **guarda en su cuenta** (sin pedirle
+nada). Así el desglose "por ciudad" se va llenando con el uso.
+
+- **Se normaliza:** además del texto, se guarda un enlace al **catálogo de ciudades** (`ciudad_id`),
+  para que "Peñasco", "puerto peñasco" y "Puerto Peñasco" cuenten como **una sola** ciudad.
+- **"Sin ciudad"** = la persona aún no ha abierto la app con sesión desde que esto existe (o su ciudad
+  no está en el catálogo). No es un error; se corrige solo con el uso.
+- **Privacidad:** se guarda la **ciudad** (grano grueso), no la ubicación exacta.
+
+> Esto es la **primera fase** (Expand) de una migración mayor: llevar todos los usos de "ciudad"
+> texto al catálogo `ciudades`. Ver el Apéndice I.
+
+---
+
 ---
 
 # Capa 2 — Apéndice técnico
@@ -355,8 +385,9 @@ en todas** (y el ítem "Usuarios" no aparece en su menú — `data/menuPanel.ts`
 
 | Endpoint | Método | Roles | Notas |
 |---|---|---|---|
-| `/usuarios` | GET | super · gerente | lista paginada + conteos por estado; alcance por `condicionVisibilidad` |
+| `/usuarios` | GET | super · gerente | lista paginada + conteos por estado; alcance por `condicionVisibilidad`; filtros `?tipo`, `?estado`, **`?ciudadId`** (id del catálogo o `sin-ciudad`) |
 | `/usuarios/conteo` | GET | super · gerente | total del alcance (badge del menú) |
+| `/usuarios/por-ciudad` | GET | super · gerente | desglose `[{ciudadId, ciudad, estado, total}]` (respeta visibilidad); métrica + opciones del filtro; incluye grupo "Sin ciudad" |
 | `/usuarios/:id` | GET | super · gerente | expediente 360; fuera de alcance → 404 |
 | `/usuarios/:id/desbloquear` | POST | super · gerente | soporte; 409 si no está bloqueada |
 | `/usuarios/:id/codigo-acceso` | POST | super · gerente | genera + **devuelve** el código (para dictarlo) |
@@ -445,6 +476,10 @@ One-shot manuales (el deploy no toca la BD):
 - **`docs/migraciones/usuarios_ultimo_acceso_panel.sql`** — `ALTER TABLE usuarios ADD COLUMN
   ultimo_acceso_panel timestamptz`. Lo escribe `GET /admin/yo` (arranque del Panel) para cuentas
   de equipo. Distinto de `ultima_conexion` (app, vía Socket.io). Correr **antes** de desplegar.
+- **`docs/migraciones/2026-06-16-usuarios-ciudad-id.sql`** — `ADD COLUMN ciudad_id uuid REFERENCES
+  ciudades(id)` + índice. Backfill: **`apps/api/scripts/mapear-usuario-ciudad-id.ts`** (mapea el
+  texto `usuarios.ciudad` → `ciudad_id` por slug; tolera datos legacy "Ciudad, Estado"). Orden en
+  PROD: migración SQL primero, luego el backfill (`DB_ENVIRONMENT=production`). Ver Apéndice I.
 
 El resto del módulo usa columnas que ya existían (`estado`, `negocio_id`, `sucursal_asignada`,
 `rol_equipo`, `region_id`, `bloqueado_hasta`, `intentos_fallidos`, `correo_verificado`,
@@ -458,10 +493,41 @@ El resto del módulo usa columnas que ya existían (`estado`, `negocio_id`, `suc
 - `docs/estandares/PATRON_REACT_QUERY.md` — el patrón de datos del servidor que usa el módulo.
 - `Tokens_Panel.md` — sistema de diseño del Panel.
 
+## I. Ubicación del usuario (ciudad) — dato, puente, filtro y métrica
+
+Capacidad agregada el **16 Jun 2026** (sobre el módulo ya cerrado): **medir y filtrar usuarios por
+ciudad**. Gemela de `negocio_sucursales.ciudad_id`. Es la fase **Expand** de la migración global
+"ciudad texto → catálogo `ciudades`" (ver memoria de proyecto `project-migracion-ciudad-catalogo`).
+
+**El dato.** Nueva columna **`usuarios.ciudad_id` uuid** → FK a `ciudades` (nullable, `ON DELETE SET
+NULL`) + índice completo `idx_usuarios_ciudad_id`. Se **conserva** el texto `usuarios.ciudad` (lo
+leen el expediente y `/auth/yo`). Texto = lo crudo/mostrable; `ciudad_id` = lo normalizado.
+
+**El puente (app web).** El `useGpsStore` vive en el cliente y nunca mandaba la ciudad al backend.
+Se agregó:
+- `PATCH /api/auth/ubicacion` (`actualizarUbicacionUsuario` en `auth.service.ts`): recibe el **nombre**
+  de la ciudad, lo resuelve a `ciudad_id` con `resolverCiudadId` (slug) y guarda **ambos**. No toca
+  `region_id`. Sin match en el catálogo → `ciudad_id` NULL, texto conservado.
+- `reportarUbicacion()` en `apps/web/src/services/authService.ts` + un efecto en
+  `apps/web/src/router/RootLayout.tsx` que lo dispara cuando hay sesión + ciudad fijada (clave
+  `usuarioId:ciudad`, fire-and-forget). Manda **solo el nombre** (no "Ciudad, Estado").
+
+**Backend del Panel** (`usuarios.service.ts`): `condicionCiudad(ciudadId)` (centinela `sin-ciudad` →
+`ciudad_id IS NULL`) en la BASE de `listarUsuarios`; `usuariosPorCiudad()` agrupa por `ciudad_id`
+(reusa `condicionVisibilidad`) y resuelve nombres con el catálogo (grupo "Sin ciudad" al final).
+
+**Frontend del Panel** (`SeccionUsuarios.tsx`): `MenuFiltro` de ciudad (opciones con conteo, desde
+`useUsuariosPorCiudad`) + `ResumenCiudades` (tira de chips clicables = métrica + drill-down, solo
+escritorio). El estado `ciudad` (id o `sin-ciudad`) va en la BASE de filtros (afecta conteos por estado).
+
+**Decisión de alcance:** `ciudad_id` se usa **solo para medir/filtrar**, NO para restringir la
+visibilidad por región (ver §6). Acoplarlo a la visibilidad del cliente es V2.
+
 ---
 
-*Última actualización: 11 Junio 2026 · refleja el estado del código tras: taxonomía de roles
-(SuperAdmin / Gerente regional / Vendedor / Dueño / Gerente de sucursal / Usuario), filtro por
-rol acoplado al rol, visibilidad por jerarquía + región del gerente (acotado, ya no cross-región),
-lente de región del superadmin, expediente depurado (correo/ID copiables), y la métrica "último
-acceso al Panel".*
+*Última actualización: 16 Junio 2026 · agrega medición/filtrado por ciudad (`usuarios.ciudad_id` +
+puente GPS→backend `PATCH /auth/ubicacion` + filtro y métrica "por ciudad" en el Panel; ver §12 y
+Apéndice I). Antes (11 Jun 2026): taxonomía de roles (SuperAdmin / Gerente regional / Vendedor /
+Dueño / Gerente de sucursal / Usuario), filtro por rol acoplado al rol, visibilidad por jerarquía +
+región del gerente (acotado, ya no cross-región), lente de región del superadmin, expediente depurado
+(correo/ID copiables), y la métrica "último acceso al Panel".*

@@ -135,6 +135,7 @@ Este documento describe la **arquitectura conceptual** del sistema de autenticac
 | DELETE | `/api/auth/2fa/desactivar` | Desactivar 2FA |
 | PATCH | `/api/auth/modo` | Cambiar modo (personal ↔ comercial) |
 | GET | `/api/auth/modo-info` | Obtener información del modo actual |
+| PATCH | `/api/auth/ubicacion` | Guardar la ciudad del usuario (selector/GPS → `ciudad_id`) |
 
 ---
 
@@ -1071,7 +1072,7 @@ tenía un header genérico distinto. La extracción unifica los 3 destinos.
 
 ### Código Fuente Verificado
 
-- **Endpoints:** `/apps/api/src/routes/auth.routes.ts` (20 endpoints)
+- **Endpoints:** `/apps/api/src/routes/auth.routes.ts` (21 endpoints)
 - **Storage Redis:** `/apps/api/src/utils/tokenStore.ts` (829 líneas)
 - **Lógica:** `/apps/api/src/services/auth.service.ts`
 - **Tokens:** `/apps/api/src/utils/jwt.ts` y `jwtScanYA.ts`
@@ -1091,7 +1092,7 @@ tenía un header genérico distinto. La extracción unifica los 3 destinos.
 
 **Archivos verificados:** 30/30 ✅
 
-**Endpoints verificados:** 20/20 ✅
+**Endpoints verificados:** 21/21 ✅
 
 **Storage verificado:**
 - Redis keys (tokenStore.ts - 829 líneas) ✅

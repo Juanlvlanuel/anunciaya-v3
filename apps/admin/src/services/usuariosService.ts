@@ -121,9 +121,21 @@ export interface ParametrosLista {
   busqueda?: string;
   estado?: string;
   tipo?: string;
+  ciudadId?: string; // id de ciudad del catálogo, o el centinela 'sin-ciudad'
   orden?: OrdenUsuarios;
   pagina: number;
   porPagina: number;
+}
+
+/** Centinela del filtro de ciudad para "usuarios sin ciudad" (ciudad_id NULL). */
+export const CIUDAD_SIN = 'sin-ciudad';
+
+/** Un grupo del desglose de usuarios por ciudad (métrica + opciones del filtro). */
+export interface CiudadConteo {
+  ciudadId: string | null;
+  ciudad: string;
+  estado: string | null;
+  total: number;
 }
 
 // =============================================================================
@@ -152,6 +164,12 @@ export async function obtenerExpediente(id: string): Promise<UsuarioExpediente |
 export async function contarUsuarios(): Promise<number> {
   const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/usuarios/conteo');
   return data.data?.total ?? 0;
+}
+
+/** Desglose de usuarios por ciudad (respeta visibilidad). Métrica + opciones del filtro. */
+export async function usuariosPorCiudad(): Promise<CiudadConteo[]> {
+  const { data } = await api.get<RespuestaAPI<CiudadConteo[]>>('/admin/usuarios/por-ciudad');
+  return data.data ?? [];
 }
 
 // =============================================================================

@@ -23,6 +23,7 @@ import {
     listarUsuariosController,
     obtenerExpedienteController,
     contarUsuariosController,
+    usuariosPorCiudadController,
     desbloquearIntentosController,
     codigoAccesoController,
     cambiarCorreoController,
@@ -34,8 +35,9 @@ const router: Router = Router();
 
 // ─── Lectura ─────────────────────────────────────────────────────────────────
 router.get('/', requierePanel(['superadmin', 'gerente']), listarUsuariosController);
-// /conteo antes de /:id para que "conteo" no caiga en el comodín del id.
+// /conteo y /por-ciudad antes de /:id para que no caigan en el comodín del id.
 router.get('/conteo', requierePanel(['superadmin', 'gerente']), contarUsuariosController);
+router.get('/por-ciudad', requierePanel(['superadmin', 'gerente']), usuariosPorCiudadController);
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerExpedienteController);
 
 // ─── Soporte (rescates de acceso) — superadmin + gerente ─────────────────────────

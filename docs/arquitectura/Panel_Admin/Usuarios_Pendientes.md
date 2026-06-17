@@ -13,8 +13,10 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho
 >
-> **Última actualización:** 15 Junio 2026 — **MÓDULO CERRADO (Fase 3 completa).** Pulido visual
-> final ✅ y verificación de suspensión ✅ (cuenta suspendida → 403, no entra a AY). Quedan solo los V2.
+> **Última actualización:** 16 Junio 2026 — módulo cerrado; se le **agregó medición/filtrado por
+> ciudad** (`ciudad_id` + puente de ubicación + filtro y métrica "por ciudad"; ver `Usuarios.md`
+> §12 / Apéndice I). Pendiente solo **desplegar a PROD** (migración + backfill + deploy del código)
+> y los V2 de abajo.
 
 ---
 
@@ -38,6 +40,11 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
   puntos); correo e ID **copiables**; login social/2FA movidos a "Acceso".
 - **Métrica "último acceso al Panel"** (cuentas de equipo) — columna `ultimo_acceso_panel`,
   migración `usuarios_ultimo_acceso_panel.sql`.
+- **Medición y filtrado por ciudad** (16 Jun 2026): columna `usuarios.ciudad_id` (FK al catálogo,
+  gemela de `negocio_sucursales`), puente GPS→backend (`PATCH /auth/ubicacion`), filtro por ciudad +
+  métrica "por ciudad" en la pantalla. La ciudad **no** altera la visibilidad por región (V2).
+  Migración `2026-06-16-usuarios-ciudad-id.sql` + backfill `mapear-usuario-ciudad-id.ts`. Es la fase
+  **Expand** de la migración global ciudad→catálogo. Detalle: `Usuarios.md` §12 y Apéndice I.
 
 ---
 
@@ -49,6 +56,8 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
 > El módulo queda **cerrado**. Lo único que sigue son los V2 de abajo.
 
 ### 🟢 Fuera de V1 (V2 consciente — anotado, no escondido)
+- 🟢 **Acoplar la región del cliente a la visibilidad:** hoy `ciudad_id` solo mide/filtra; el gerente
+  ve a **todos** los clientes. Restringirlos por región (vía `ciudad_id → ciudades.region_id`) es V2.
 - 🟢 **Canal de denuncias + bandeja de moderación** (reportar desde reseñas/MarketPlace/ChatYA →
   bandeja del Panel → acción). Hoy suspender es 100% reactivo: la *palanca* existe, la **señal**
   (cómo te enteras del abuso) es V2.
