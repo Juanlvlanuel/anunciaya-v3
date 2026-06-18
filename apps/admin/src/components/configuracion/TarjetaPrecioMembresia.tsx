@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import { Tag, CalendarRange, AlertTriangle, Check } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { PanelAcordeon } from './PanelAcordeon';
 import { useConfigPublica } from '../../hooks/queries/usePrecioMembresia';
 import { useCambiarPrecioMensual, useActivarPlanAnual } from '../../hooks/queries/useConfiguracionAdmin';
 
@@ -38,8 +39,8 @@ const BTN_GUARDAR =
 /** Cuadro neutro con ícono (estilo profesional, no caricaturesco). */
 function CajaIcono({ Icono }: { Icono: typeof Tag }) {
   return (
-    <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] border border-borde bg-superficie text-texto-3">
-      <Icono size={18} />
+    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] border border-borde bg-superficie-2 text-texto-3">
+      <Icono size={16} />
     </span>
   );
 }
@@ -149,63 +150,65 @@ function DialogoCambiarPrecioMensual({
 // TARJETA (en la sección Configuración)
 // =============================================================================
 
-export function TarjetaPrecioMembresia() {
+export function TarjetaPrecioMembresia({ abierto, onToggle }: { abierto: boolean; onToggle: () => void }) {
   const config = useConfigPublica();
   const activarAnual = useActivarPlanAnual();
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  return (
-    <section className="flex flex-col gap-2.5">
-      <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-etiqueta-grupo">Precio de la membresía</h3>
+  const resumen = `${pesos(config.precioMembresia)}/mes · ${config.anualDisponible ? 'anual activo' : 'sin anual'}`;
 
-      <div className="rounded-[12px] border border-borde bg-superficie-2 shadow-tarjeta-panel" data-testid="config-precio-membresia">
-        {/* Precio mensual — con su botón Cambiar */}
-        <div className="flex items-start gap-4 px-4 py-3.5">
-          <CajaIcono Icono={Tag} />
-          <div className="min-w-0 flex-1">
-            <h4 className="text-[14.5px] font-semibold text-texto">Precio de la membresía comercial</h4>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">
-              Lo que paga un comercio al mes. Cambiarlo crea el Price nuevo en Stripe y reapunta el cobro al instante.
-            </p>
+  return (
+    <PanelAcordeon id="precio" titulo="Precio de la membresía" Icono={Tag} resumen={resumen} abierto={abierto} onToggle={onToggle}>
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2 2xl:grid-cols-2">
+        {/* Precio mensual — tarjeta vertical con su botón Cambiar */}
+        <div className="flex flex-col rounded-[12px] border border-borde bg-superficie p-4" data-testid="config-precio-membresia">
+          <div className="flex items-start justify-between gap-2">
+            <CajaIcono Icono={Tag} />
           </div>
-          <div className="flex shrink-0 items-baseline gap-1.5 self-center">
-            <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresia)}</span>
-            <span className="text-[12px] text-texto-3">/mes</span>
+          <h4 className="mt-3 text-[14.5px] font-semibold text-texto">Precio de la membresía comercial</h4>
+          <p className="mt-0.5 flex-1 text-[13px] leading-relaxed text-texto-3">
+            Lo que paga un comercio al mes. Cambiarlo crea el Price nuevo en Stripe y reapunta el cobro al instante.
+          </p>
+          <div className="mt-3 flex items-end justify-between gap-3 border-t border-borde pt-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresia)}</span>
+              <span className="text-[12px] text-texto-3">/mes</span>
+            </div>
+            <button
+              type="button"
+              data-testid="config-cambiar-precio"
+              onClick={() => setModalAbierto(true)}
+              className="inline-flex shrink-0 items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
+            >
+              Cambiar
+            </button>
           </div>
-          <button
-            type="button"
-            data-testid="config-cambiar-precio"
-            onClick={() => setModalAbierto(true)}
-            className="inline-flex shrink-0 items-center gap-1.5 self-center rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
-          >
-            Cambiar
-          </button>
         </div>
 
-        <div className="border-t border-borde" />
-
-        {/* Plan anual — toggle independiente */}
-        <div className="flex items-start gap-4 px-4 py-3.5">
-          <CajaIcono Icono={CalendarRange} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-[14.5px] font-semibold text-texto">Plan anual</h4>
-              <span
-                className="rounded-full border px-2 py-0.5 text-[11px] font-medium"
-                style={{
-                  color: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-text-4)',
-                  borderColor: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-border)',
-                }}
-              >
-                {config.anualDisponible ? 'Activo en el registro' : 'Desactivado'}
-              </span>
-            </div>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">
-              Ofrece pagar el año completo: <b className="font-semibold text-texto">{pesos(config.precioMembresiaAnual)}/año</b> (10 meses,
-              2 gratis). Al activarlo aparece como opción en el registro; al apagarlo deja de ofrecerse (las anuales vigentes no se tocan).
-            </p>
+        {/* Plan anual — tarjeta vertical con toggle */}
+        <div className="flex flex-col rounded-[12px] border border-borde bg-superficie p-4" data-testid="config-plan-anual">
+          <div className="flex items-start justify-between gap-2">
+            <CajaIcono Icono={CalendarRange} />
+            <span
+              className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+              style={{
+                color: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-text-4)',
+                borderColor: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-border)',
+              }}
+            >
+              {config.anualDisponible ? 'Activo en el registro' : 'Desactivado'}
+            </span>
           </div>
-          <div className="self-center">
+          <h4 className="mt-3 text-[14.5px] font-semibold text-texto">Plan anual</h4>
+          <p className="mt-0.5 flex-1 text-[13px] leading-relaxed text-texto-3">
+            Ofrece pagar el año completo: <b className="font-semibold text-texto">{pesos(config.precioMembresiaAnual)}/año</b> (10 meses,
+            2 gratis). Al activarlo aparece como opción en el registro; al apagarlo deja de ofrecerse (las anuales vigentes no se tocan).
+          </p>
+          <div className="mt-3 flex items-end justify-between gap-3 border-t border-borde pt-3">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresiaAnual)}</span>
+              <span className="text-[12px] text-texto-3">/año</span>
+            </div>
             <Switch
               activo={config.anualDisponible}
               disabled={activarAnual.isPending}
@@ -222,7 +225,7 @@ export function TarjetaPrecioMembresia() {
           onCerrar={() => setModalAbierto(false)}
         />
       )}
-    </section>
+    </PanelAcordeon>
   );
 }
 
