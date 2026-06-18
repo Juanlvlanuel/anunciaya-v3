@@ -31,6 +31,8 @@ import {
     listarPagosVendedorController,
     obtenerDatosCobroController,
     guardarDatosCobroController,
+    listarEfectivoVendedorController,
+    registrarMovimientoEfectivoController,
 } from '../../controllers/admin/vendedores.controller.js';
 
 const router: Router = Router();
@@ -62,5 +64,11 @@ router.post('/:id/pagos', requierePanel(['superadmin']), registrarPagoController
 router.get('/:id/pagos', requierePanel(['superadmin', 'gerente', 'vendedor']), listarPagosVendedorController);
 router.get('/:id/datos-cobro', requierePanel(['superadmin', 'vendedor']), obtenerDatosCobroController);
 router.put('/:id/datos-cobro', requierePanel(['superadmin', 'vendedor']), guardarDatosCobroController);
+
+// Efectivo por entregar (pieza D):
+//   - corte de caja        = super + gerente (su equipo) + vendedor (el suyo)
+//   - registrar movimiento = super + gerente (cobro/entrega a mano; baja/sube la deuda)
+router.get('/:id/efectivo', requierePanel(['superadmin', 'gerente', 'vendedor']), listarEfectivoVendedorController);
+router.post('/:id/efectivo', requierePanel(['superadmin', 'gerente']), registrarMovimientoEfectivoController);
 
 export default router;

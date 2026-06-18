@@ -5,8 +5,8 @@
  * lo que se le PAGA al vendedor (no confundir con el efectivo que él te entrega — pieza D).
  *
  *   - generarUrlComprobante  — presigned URL para subir la foto/comprobante del pago a R2 (carpeta 'comprobantes').
- *   - registrarPago          — el SuperAdmin paga a un vendedor: crea la fila en pagos_vendedor y marca como
- *                              PAGADAS las comisiones que cubre (monto editable; el extra es un abono).
+ *   - registrarPago          — el SuperAdmin paga a un vendedor: NETEA lo que el vendedor debe de efectivo
+ *                              (pieza D), registra el egreso por el NETO y marca como PAGADAS las comisiones.
  *   - obtenerDatosCobro      — datos de cobro del vendedor (transferencia/efectivo). Los ve el super y el dueño.
  *   - guardarDatosCobro      — captura/edita los datos de cobro (el vendedor los suyos; el super por él).
  *
@@ -19,10 +19,11 @@
 
 import { and, eq, inArray } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { embajadores, embajadorComisiones, pagosVendedor, vendedorDatosCobro } from '../../db/schemas/schema.js';
+import { embajadores, embajadorComisiones, pagosVendedor, vendedorDatosCobro, efectivoMovimientos } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { generarPresignedUrl } from '../r2.service.js';
+import { saldoEfectivo } from './comisiones-efectivo.service.js';
 
 const METODOS = ['transferencia', 'efectivo'] as const;
 type Metodo = (typeof METODOS)[number];
@@ -61,25 +62,21 @@ function puedeTocarDatosCobro(panel: UsuarioPanel, usuarioId: string): boolean {
 // =============================================================================
 
 export interface RegistrarPagoInput {
-    monto: number;
     metodo: Metodo;
     fechaPago?: string;        // 'YYYY-MM-DD'; default hoy
     periodo?: string | null;   // 'YYYY-MM' que cubre, si aplica
     nota?: string | null;
     comprobanteUrl?: string | null;
-    comisionIds: string[];     // comisiones PENDIENTES que este pago liquida (pueden ser 0)
+    comisionIds: string[];     // comisiones PENDIENTES que liquida (≥1; el monto sale de ellas)
 }
 
 export async function registrarPago(
     panel: UsuarioPanel,
     usuarioId: string,
     datos: RegistrarPagoInput,
-): Promise<ResultadoLiquidacion & { pagoId?: string }> {
+): Promise<ResultadoLiquidacion & { pagoId?: string; bruto?: number; compensado?: number; neto?: number }> {
     if (panel.rolEquipo !== 'superadmin') {
         return { ok: false, status: 403, mensaje: 'Solo el superadmin registra pagos a vendedores.' };
-    }
-    if (!Number.isFinite(datos.monto) || datos.monto <= 0) {
-        return { ok: false, status: 400, mensaje: 'El monto debe ser mayor que 0.' };
     }
     if (!METODOS.includes(datos.metodo)) {
         return { ok: false, status: 400, mensaje: 'Método de pago inválido.' };
@@ -88,48 +85,72 @@ export async function registrarPago(
     const embajadorId = await resolverEmbajador(usuarioId);
     if (!embajadorId) return { ok: false, status: 404, mensaje: 'Vendedor no encontrado.' };
 
-    // Validar que las comisiones a liquidar sean de ESTE vendedor y estén PENDIENTES.
+    // Las comisiones a liquidar deben ser de ESTE vendedor y estar PENDIENTES. El BRUTO sale de ellas.
     const ids = [...new Set(datos.comisionIds)];
-    if (ids.length > 0) {
-        const filas = await db
-            .select({ id: embajadorComisiones.id, estado: embajadorComisiones.estado })
-            .from(embajadorComisiones)
-            .where(and(eq(embajadorComisiones.embajadorId, embajadorId), inArray(embajadorComisiones.id, ids)));
-        if (filas.length !== ids.length) {
-            return { ok: false, status: 400, mensaje: 'Alguna comisión seleccionada no es de este vendedor.' };
-        }
-        if (filas.some((f) => f.estado !== 'pendiente')) {
-            return { ok: false, status: 409, mensaje: 'Alguna comisión seleccionada ya está pagada o cancelada.' };
-        }
+    if (ids.length === 0) {
+        return { ok: false, status: 400, mensaje: 'Selecciona al menos una comisión pendiente.' };
     }
+    const filas = await db
+        .select({ id: embajadorComisiones.id, estado: embajadorComisiones.estado, monto: embajadorComisiones.montoComision })
+        .from(embajadorComisiones)
+        .where(and(eq(embajadorComisiones.embajadorId, embajadorId), inArray(embajadorComisiones.id, ids)));
+    if (filas.length !== ids.length) {
+        return { ok: false, status: 400, mensaje: 'Alguna comisión seleccionada no es de este vendedor.' };
+    }
+    if (filas.some((f) => f.estado !== 'pendiente')) {
+        return { ok: false, status: 409, mensaje: 'Alguna comisión seleccionada ya está pagada o cancelada.' };
+    }
+    const bruto = filas.reduce((s, f) => s + Number(f.monto), 0);
+
+    // NETEO (pieza D): se descuenta del pago lo que el vendedor te debe de efectivo. neto = bruto − compensado.
+    const deuda = Math.max(0, await saldoEfectivo(embajadorId));
+    const compensado = Math.min(bruto, deuda);
+    const neto = bruto - compensado;
 
     const fechaPago = datos.fechaPago && /^\d{4}-\d{2}-\d{2}$/.test(datos.fechaPago)
         ? datos.fechaPago
         : new Date().toISOString().slice(0, 10);
 
-    // Transacción: registra el egreso y marca las comisiones cubiertas como pagadas (con su pago_id).
     const pagoId = await db.transaction(async (tx) => {
-        const [pago] = await tx
-            .insert(pagosVendedor)
-            .values({
-                embajadorId,
-                monto: String(datos.monto),
-                metodo: datos.metodo,
-                fechaPago,
-                periodo: datos.periodo ?? null,
-                nota: datos.nota ?? null,
-                comprobanteUrl: datos.comprobanteUrl ?? null,
-                registradoPor: panel.usuarioId,
-            })
-            .returning({ id: pagosVendedor.id });
-
-        if (ids.length > 0) {
-            await tx
-                .update(embajadorComisiones)
-                .set({ estado: 'pagada', pagadaAt: new Date().toISOString(), pagoId: pago.id })
-                .where(and(eq(embajadorComisiones.embajadorId, embajadorId), inArray(embajadorComisiones.id, ids)));
+        // El egreso real es el NETO. Si el neto es 0 (la deuda cubrió toda la comisión) no hay egreso que registrar.
+        let pago: { id: string } | null = null;
+        if (neto > 0) {
+            const filasPago = await tx
+                .insert(pagosVendedor)
+                .values({
+                    embajadorId,
+                    monto: String(neto),
+                    metodo: datos.metodo,
+                    fechaPago,
+                    periodo: datos.periodo ?? null,
+                    nota: datos.nota ?? null,
+                    comprobanteUrl: datos.comprobanteUrl ?? null,
+                    registradoPor: panel.usuarioId,
+                })
+                .returning({ id: pagosVendedor.id });
+            pago = filasPago[0];
         }
-        return pago.id;
+
+        // Las comisiones quedan pagadas (ligadas al pago si lo hubo).
+        await tx
+            .update(embajadorComisiones)
+            .set({ estado: 'pagada', pagadaAt: new Date().toISOString(), pagoId: pago?.id ?? null })
+            .where(and(eq(embajadorComisiones.embajadorId, embajadorId), inArray(embajadorComisiones.id, ids)));
+
+        // La compensación BAJA la deuda de efectivo del vendedor.
+        if (compensado > 0) {
+            await tx.insert(efectivoMovimientos).values({
+                embajadorId,
+                tipo: 'compensacion',
+                monto: String(compensado),
+                pagoId: pago?.id ?? null,
+                fecha: fechaPago,
+                registradoPor: panel.usuarioId,
+                nota: 'Descontado del pago de comisiones',
+            });
+        }
+
+        return pago?.id ?? null;
     });
 
     await registrarAuditoria(panel, {
@@ -137,11 +158,11 @@ export async function registrarPago(
         entidadTipo: 'embajador',
         entidadId: null,
         datosPrevios: null,
-        datosNuevos: { embajadorId, monto: datos.monto, metodo: datos.metodo, fechaPago, comisiones: ids.length, comprobante: !!datos.comprobanteUrl },
+        datosNuevos: { embajadorId, bruto, compensado, neto, metodo: datos.metodo, fechaPago, comisiones: ids.length, comprobante: !!datos.comprobanteUrl },
         motivo: null,
     });
 
-    return { ok: true, pagoId };
+    return { ok: true, pagoId: pagoId ?? undefined, bruto, compensado, neto };
 }
 
 // =============================================================================

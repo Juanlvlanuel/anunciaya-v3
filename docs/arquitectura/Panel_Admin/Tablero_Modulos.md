@@ -32,11 +32,12 @@
 - **Recién cerrado (11 jun):** **Suscripciones — bitácora financiera V1** (libro mayor de eventos de
   pago: cobros Stripe + pagos manuales + cancelaciones, solo lectura, KPIs, alcance por rol). Fase 1
   completa + Gate 1 verde; Fase 2 se salta (solo lectura). Doc canónico [`Suscripciones.md`](Suscripciones.md).
-- **Recién cerrado (17 jun):** **Vendedores y comisiones — v1 (A+B+E)** completo y en uso (doc
-  [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)): cartera (master-detail) + **devengo** (comisión
-  recurrente por escalera; cron + "Recalcular mes" + estado de cuenta; redisparo al cambiar negocios) +
-  **liquidación** (registrar pago con foto-comprobante a R2 + datos de cobro + bitácora de egresos). Tablas a
-  monto fijo + nuevas `pagos_vendedor`/`vendedor_datos_cobro`. Migraciones corridas en dev; builds + harness verdes.
+- **Recién cerrado (17 jun):** **Vendedores y comisiones — A·B·C·E·D** completo y en uso (doc
+  [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)): cartera (master-detail) + **devengo** recurrente
+  por escalera + **comisión de alta (C)** ($400 al primer pago real) + **liquidación** (registrar pago con
+  foto-comprobante a R2 + datos de cobro + bitácora) + **cortes de efectivo con neteo (D)** (libro
+  `efectivo_movimientos`; al pagar comisión se descuenta lo que el vendedor debe). Migraciones en **dev y prod**;
+  builds + 2 harness (devengo + neteo) verdes. **Diferido:** cobro automático de efectivo.
 - **Recién cerrado (17 jun):** **Configuración v1** — el **tablero económico** (doc [`Configuracion.md`](Configuracion.md)):
   editar **trial/gracia** + **escalera de comisiones** configurable (clave JSON `comision_escalera`), con editor de
   tramos (vista previa en vivo + rueda del mouse), validación dura (sin huecos/solapes), auditoría y reset de caché.
@@ -46,7 +47,8 @@
 - **Recién hecho (17 jun):** **Trial dinámico en la web** — endpoint público `/api/configuracion-publica` +
   hook `useConfigPublica` conectan landing/registro/upgrade al valor real del trial (antes "7 días" hardcodeado en
   ~8 lugares + i18n es/en). Stripe ya lo respetaba.
-- **Siguiente:** **Vendedores · 2ª pasada — C (comisión de alta) + D (cortes de efectivo)**; o quick-win **Ciudades**.
+- **Siguiente:** quick-win **Ciudades** (BD lista, falta UI); o el **sprint de Stripe** (precio de membresía
+  editable + Coupons + cobro día-1 para ventas por vendedor). Vendedores · cobro automático de efectivo = backlog.
 
 ---
 
@@ -59,7 +61,7 @@
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
-| 6 | **Vendedores y comisiones** | 🟡 | v1 ✔ (A·Cartera + B·Devengo + E·Liquidación) · 2ª pasada: C+D | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
+| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D) · backlog: cobro automático, F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
 | 8 | Ciudades | 🟡 | BD lista, falta UI (entra por Fase 1) | — |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
@@ -89,11 +91,12 @@
   Negocios es solo un resumen). **Resto del módulo pendiente:** precio/promos/meses gratis + tiempos
   configurables (gracia/trial) + visibilidad de membresía en el perfil del dueño. Pendientes menores de la
   bitácora: deep-link a Negocios, re-sync al editar pago, migración en prod.
-- **6 · Vendedores y comisiones** — **v1 (A+B+E) cerrado y en uso** (doc [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)):
-  cartera (master-detail), devengo de la comisión recurrente por escalera (monto fijo; lee `comision_escalera` de
-  Configuración; cron + recálculo) y liquidación (registrar pago con comprobante R2 + datos de cobro + bitácora).
-  Tablas rediseñadas + `pagos_vendedor`/`vendedor_datos_cobro` (migraciones en dev). **2ª pasada:** C (comisión de
-  alta) + D (cortes de efectivo, pestaña "Efectivo"). **Cobertura avanzada DIFERIDA** (multi-región/multi-gerente/
+- **6 · Vendedores y comisiones** — **cerrado y en uso (A·B·C·E·D)** (doc [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)):
+  cartera (master-detail), devengo recurrente por escalera, **comisión de alta** ($400 al primer pago real),
+  liquidación (registrar pago con comprobante R2 + datos de cobro + bitácora) y **cortes de efectivo con neteo**
+  (libro `efectivo_movimientos`; al pagar comisión se descuenta lo que el vendedor debe). Migraciones en dev+prod;
+  2 harness verdes (devengo + neteo). **Backlog:** cobro automático de efectivo (engancharlo en alta manual/marcar
+  pagado), datos de cobro por el propio vendedor. **Cobertura avanzada (F) DIFERIDA** (multi-región/multi-gerente/
   mover-con-reasignación): reescribe el alcance "vendedor de UNA región" en `panel.middleware` + módulos cerrados.
 - **8 · Ciudades** — tabla `ciudades` poblada; falta la **UI** para habilitar/agrupar ciudades en regiones.
 - **9 · Configuración** — **v1 construido y en uso** (doc [`Configuracion.md`](Configuracion.md)): el tablero

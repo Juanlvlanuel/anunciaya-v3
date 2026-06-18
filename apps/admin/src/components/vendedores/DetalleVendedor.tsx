@@ -30,6 +30,7 @@ import { BadgeEstadoPago, estadoEfectivo } from '../negocios/estadoPago';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { SeccionPagos } from './SeccionPagos';
+import { SeccionEfectivo } from './SeccionEfectivo';
 
 /** Negocios por página en la cartera. */
 export const POR_PAGINA_CARTERA = 12;
@@ -293,20 +294,20 @@ function ListaCartera({ items, isLoading, isError, hayDatos }: { items: NegocioC
 
 export type TabVendedor = 'cartera' | 'comisiones' | 'pagos' | 'efectivo';
 
-/** Pestañas de las secciones del expediente del vendedor (carrusel en una línea). Cartera y Comisiones
- *  ya son navegables; Pagos y Efectivo (pieza E) siguen como "pronto". El vendedor NO ve "Cartera". */
+/** Pestañas de las secciones del expediente del vendedor (carrusel en una línea). Todas navegables
+ *  (Cartera, Comisiones, Pagos, Efectivo). El vendedor NO ve "Cartera" (vive en "Mi cartera"). */
 function PestaniasVendedor({ vistaVendedor, activa, onCambiar }: { vistaVendedor: boolean; activa: TabVendedor; onCambiar: (t: TabVendedor) => void }) {
   const tabs: Array<{ id: TabVendedor; label: string; disponible: boolean }> = vistaVendedor
     ? [
         { id: 'comisiones', label: 'Comisiones', disponible: true },
         { id: 'pagos', label: 'Pagos', disponible: true },
-        { id: 'efectivo', label: 'Efectivo', disponible: false },
+        { id: 'efectivo', label: 'Efectivo', disponible: true },
       ]
     : [
         { id: 'cartera', label: 'Cartera', disponible: true },
         { id: 'comisiones', label: 'Comisiones', disponible: true },
         { id: 'pagos', label: 'Pagos', disponible: true },
-        { id: 'efectivo', label: 'Efectivo', disponible: false },
+        { id: 'efectivo', label: 'Efectivo', disponible: true },
       ];
   return (
     <div className="mb-2.5 flex shrink-0 gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -502,9 +503,7 @@ export function CuerpoCartera({
             {total > POR_PAGINA_CARTERA && <PaginacionCartera pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
           </>
         ) : (
-          <div className="flex min-h-0 flex-1 items-center overflow-hidden rounded-[12px] border border-borde">
-            <EstadoSeccion icono={CircleDollarSign} titulo="Pronto" descripcion="Los pagos al vendedor y los cortes de efectivo llegan en la siguiente entrega." />
-          </div>
+          <SeccionEfectivo vendedorId={vendedor.id} />
         )}
       </section>
     </div>

@@ -6,7 +6,7 @@
 > **Cómo leer este documento:** dos capas. La primera (§1–§9) explica el módulo **en lenguaje de persona**.
 > La segunda (**Apéndice técnico**) es la referencia para tocar el código.
 >
-> **Estado:** **v1 construido y en uso** (piezas A + B + E). Última actualización: 17 Junio 2026.
+> **Estado:** **v1 + 2ª pasada construidos y en uso** (piezas A · B · C · E · D). Última actualización: 17 Junio 2026.
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) · pendientes y decisiones en
 > [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md).
@@ -40,17 +40,22 @@ que los negocios te pagan); ésta lleva la de **egresos** (lo que tú le pagas a
 - **Devengar:** calcular y registrar lo que el vendedor **gana** en un periodo.
 - **Liquidar:** **pagarle** y dejar el comprobante; eso marca sus comisiones como pagadas.
 
-## 4. Las tres piezas del v1
+## 4. Las piezas (v1 + 2ª pasada)
 
 - **A · Cartera (ver):** la red de ventas; por vendedor, # en cartera y # activos. Detalle master-detail.
 - **B · Devengo (comisión recurrente):** cada mes, comisión = **# de activos × monto del escalón** de la
   **escalera** (que se edita en **Configuración**). Monto fijo, no porcentaje.
+- **C · Comisión de alta:** **pago único** al vendedor cuando un negocio que firmó concreta su **primer pago
+  real** (monto configurable, **$400** por defecto). Se devenga sola e idempotente (una por negocio).
 - **E · Liquidación:** registrar pagos al vendedor (con foto-comprobante), que marcan sus comisiones como
   pagadas; + sus datos de cobro (transferencia/efectivo); + la bitácora de egresos.
+- **D · Cortes de efectivo (+ neteo):** el efectivo que el vendedor te **debe entregar** (cobró membresías en
+  efectivo). Corte de caja por vendedor (cobrado / entregado / descontado / saldo) + registro de cobros y
+  entregas. Al pagarle comisión, se **netea** lo que debe (compensación) y se le entrega el **neto**.
 
-> **Fuera del v1** (decisión consciente): **C** (comisión de alta, pago único por venta) y **D** (cortes de
-> efectivo: lo que el vendedor *te entrega* del efectivo que cobró) van en una **2ª pasada**. **F** (cobertura
-> avanzada de territorio) está **diferida**. La pestaña **"Efectivo"** está reservada para D.
+> **Diferido:** **F** (cobertura avanzada de territorio). Y el **cobro automático** de efectivo (que el cobro lo
+> dispare el propio vendedor desde "alta manual / marcar pagado"): en v1 el cobro se registra **a mano**
+> (super/gerente). Ver el doc de pendientes.
 
 ## 5. La escalera (cómo se calcula la comisión)
 
@@ -68,15 +73,18 @@ identidad + KPIs (en cartera / activos); a la derecha **pestañas**:
 - **Cartera** — sus negocios (estado de pago, próximo cobro). *(El vendedor la ve en "Mi cartera", no aquí.)*
 - **Comisiones** — estado de cuenta: **Devengado / Pagado / Pendiente** + la lista por mes (con el desglose
   `# activos × $monto · escalón`). El super tiene el botón **Recalcular mes**.
-- **Pagos** — los datos de cobro + la **bitácora de egresos**; el super tiene **Registrar pago**.
-- **Efectivo** — *pronto* (pieza D).
+- **Pagos** — los datos de cobro + la **bitácora de egresos**; el super tiene **Registrar pago** (que netea el
+  efectivo que el vendedor debe).
+- **Efectivo** — el corte de caja (por entregar · cobrado · entregado · descontado) + la bitácora de
+  movimientos; super/gerente tienen **Registrar movimiento** (cobro / entrega).
 
-## 7. Registrar un pago
+## 7. Registrar un pago (con neteo)
 
-Solo el **SuperAdmin**. Abre "Registrar pago" en un vendedor → **marca las comisiones pendientes** que cubre
-(el monto se precarga con la suma, pero **es editable** para abonar de más) → método/fecha/nota → **adjunta la
-foto** del comprobante → guarda. Las comisiones marcadas pasan a **pagadas** y el pago entra a la bitácora con
-su comprobante.
+Solo el **SuperAdmin**. Abre "Registrar pago" en un vendedor → **marca las comisiones pendientes** que cubre →
+el diálogo muestra el desglose **comisiones − efectivo que debe = neto a pagar** → método/fecha/nota → **adjunta
+la foto** del comprobante → guarda. Las comisiones marcadas pasan a **pagadas**, se **descuenta** (compensa) lo
+que el vendedor debía de efectivo, y el egreso entra a la bitácora **por el neto** (si el neto es $0 porque la
+deuda cubrió toda la comisión, no hay egreso, solo la compensación).
 
 ## 8. Datos de cobro
 
@@ -101,8 +109,9 @@ alcance por rol se aplica en el **service** (no solo en la ruta).
 | Archivo | Rol |
 |---|---|
 | `services/admin/vendedores.service.ts` | Lecturas: lista de la red · ficha · cartera · **estado de cuenta de comisiones** · **bitácora de pagos**. `condicionAlcance`/`leerVendedor` (alcance por rol). |
-| `services/admin/comisiones-devengo.service.ts` | **Motor B**: `devengarPeriodo` (cuenta activos → escalón → upsert comisión del mes, idempotente, no toca pagadas) · `escaleraActual` (lee `comision_escalera`) · `dispararDevengoMesActual` (best-effort, lo llaman las acciones de Negocios). |
-| `services/admin/comisiones-liquidacion.service.ts` | **Acciones E**: `generarUrlComprobante` (R2 presigned) · `registrarPago` (transacción: pago + marcar comisiones pagadas) · `obtenerDatosCobro`/`guardarDatosCobro`. |
+| `services/admin/comisiones-devengo.service.ts` | **Motor B + C**: `devengarPeriodo` (activos → escalón → upsert comisión del mes, idempotente) · `devengarComisionAlta` (pieza C: pago único al primer pago real, idempotente por negocio) · `escaleraActual` · `dispararDevengoMesActual`. |
+| `services/admin/comisiones-liquidacion.service.ts` | **Acciones E**: `generarUrlComprobante` (R2 presigned) · `registrarPago` (transacción: **netea el efectivo que el vendedor debe** → egreso por el neto + marca comisiones pagadas + movimiento de compensación) · `obtenerDatosCobro`/`guardarDatosCobro`. |
+| `services/admin/comisiones-efectivo.service.ts` | **Pieza D**: `saldoEfectivo` (cobros − entregas − compensaciones) · `registrarMovimientoManual` (cobro/entrega, super+gerente con alcance) · `registrarCobroEfectivo` (automático, best-effort, aún **sin enganchar**). |
 | `controllers/admin/vendedores.controller.ts` · `routes/admin/vendedores.routes.ts` | Endpoints (montados con `requierePanel` por ruta, antes del gate global). |
 | `cron/comisiones-devengo.cron.ts` | Devengo del mes en curso cada 24h. |
 
@@ -112,8 +121,9 @@ alcance por rol se aplica en el **service** (no solo en la ruta).
 |---|---|
 | `components/vendedores/SeccionVendedores.tsx` | Lista de la red (super/gerente) y "Mi cartera/comisiones" (vendedor). Abre el detalle full-width. |
 | `components/vendedores/DetalleVendedor.tsx` | Vista master-detail + pestañas (`SeccionComisiones`, `SeccionPagos`, cartera). Exporta `CuerpoCartera`. |
-| `components/vendedores/SeccionPagos.tsx` | Pestaña Pagos: bitácora + datos de cobro + `DialogoRegistrarPago` (selección de comisiones + monto editable + uploader a R2) + `DialogoDatosCobro`. |
-| `services/vendedoresService.ts` · `hooks/queries/useVendedoresAdmin.ts` | Llamadas + hooks RQ (cartera, comisiones, pagos, datos de cobro, registrar pago, recalcular). |
+| `components/vendedores/SeccionPagos.tsx` | Pestaña Pagos: bitácora + datos de cobro + `DialogoRegistrarPago` (selección de comisiones + **desglose del neteo** + uploader a R2) + `DialogoDatosCobro`. |
+| `components/vendedores/SeccionEfectivo.tsx` | **Pieza D**: corte de caja + bitácora de movimientos + `DialogoMovimiento` (cobro/entrega, super/gerente). |
+| `services/vendedoresService.ts` · `hooks/queries/useVendedoresAdmin.ts` | Llamadas + hooks RQ (cartera, comisiones, pagos, datos de cobro, registrar pago, recalcular, **corte de efectivo + registrar movimiento**). |
 
 ## B. Endpoints
 
@@ -125,9 +135,11 @@ GET   /admin/vendedores/:id/cartera     negocios atribuidos
 GET   /admin/vendedores/:id/comisiones  estado de cuenta (devengado/pagado/pendiente)
 POST  /admin/vendedores/comisiones/recalcular   recalcular el periodo (solo super)
 POST  /admin/vendedores/comprobante/upload      presigned del comprobante (solo super)
-POST  /admin/vendedores/:id/pagos       registrar pago (solo super)
+POST  /admin/vendedores/:id/pagos       registrar pago, netea efectivo (solo super)
 GET   /admin/vendedores/:id/pagos       bitácora (super/gerente/vendedor)
 GET/PUT /admin/vendedores/:id/datos-cobro   datos de cobro (super + el propio vendedor)
+GET   /admin/vendedores/:id/efectivo    corte de caja (super/gerente/vendedor)
+POST  /admin/vendedores/:id/efectivo    registrar cobro/entrega (super/gerente)
 ```
 
 ## C. Datos (migración `2026-06-17-vendedores-comisiones-fase2.sql` + comprobante)
@@ -141,6 +153,11 @@ GET/PUT /admin/vendedores/:id/datos-cobro   datos de cobro (super + el propio ve
 - **`pagos_vendedor`** (nueva) — egresos: `monto`, `metodo`, `fecha_pago`, `periodo`, `nota`,
   `comprobante_url`, `registrado_por`. Registrada en `IMAGE_REGISTRY`.
 - **`vendedor_datos_cobro`** (nueva) — 1 por vendedor: `metodo`, `banco`, `clabe`, `titular`, `nota`.
+- **`efectivo_movimientos`** (nueva, migración `2026-06-17-efectivo-movimientos.sql`) — libro del efectivo que el
+  vendedor te debe: `tipo` (cobro/entrega/compensacion), `monto`, `negocio_id` (en cobro), `pago_id` (en
+  compensación), `fecha`, `registrado_por`, `nota`. Saldo = Σ cobros − Σ (entregas + compensaciones).
+- **Comisión de alta (C):** vive en `embajador_comisiones` con `tipo='alta'`, `negocio_id` lleno, `periodo` null;
+  monto desde `comision_alta_monto` (Configuración, $400). Idempotente: una por negocio.
 
 ## D. Reglas clave
 
@@ -150,11 +167,17 @@ GET/PUT /admin/vendedores/:id/datos-cobro   datos de cobro (super + el propio ve
 - **La escalera vive en Configuración** (`comision_escalera`, leída con `obtenerConfigJson`); aquí solo se lee.
 - **Sincronización:** las acciones de Negocios invalidan `queryKeys.vendedores` (front) y llaman
   `dispararDevengoMesActual` (back).
+- **Comisión de alta (C):** se devenga al **primer pago real** del negocio (webhook Stripe `esCobroReal`, alta
+  manual no-cortesía, "marcar pagado"), donde se sella `fecha_primer_pago`. Idempotente (una por negocio).
+- **Neteo (D):** `registrarPago` lee el `saldoEfectivo` del vendedor y compensa `min(bruto, deuda)`; el egreso es
+  el **neto**; la compensación baja la deuda. El cálculo lo hace el **backend** (la UI solo lo previsualiza).
 
 ## E. Estado de verificación
 
-- `tsc` API + builds del Panel ✅. Harness `probar-comisiones-devengo.ts` (cálculo + idempotencia) TODO VERDE.
-- Persistencia de pagos/datos de cobro: probar desde el Panel (registrar pago real). Migraciones corridas en dev.
+- `tsc` API + builds del Panel ✅. Harness `probar-comisiones-devengo.ts` (B, cálculo + idempotencia) TODO VERDE.
+- Harness `probar-neteo-efectivo.ts` (D, neteo end-to-end: 2 casos + limpieza) **TODO VERDE**. Migraciones
+  `2026-06-17-...-fase2.sql` y `2026-06-17-efectivo-movimientos.sql` corridas en **dev y prod**.
+- Persistencia de pagos/datos de cobro: probar desde el Panel (registrar pago real).
 
 ## F. Referencias
 

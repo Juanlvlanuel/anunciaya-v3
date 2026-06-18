@@ -108,6 +108,7 @@ export const queryKeys = {
     comisiones: (id: string) => ['vendedores', 'comisiones', id] as const,
     pagos: (id: string) => ['vendedores', 'pagos', id] as const,
     datosCobro: (id: string) => ['vendedores', 'datos-cobro', id] as const,
+    efectivo: (id: string) => ['vendedores', 'efectivo', id] as const,
   },
   configuracion: {
     all: () => ['configuracion'] as const,

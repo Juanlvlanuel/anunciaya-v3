@@ -219,13 +219,20 @@ export interface DatosCobro {
 }
 
 export interface RegistrarPagoInput {
-  monto: number;
   metodo: string;
   fechaPago?: string;
   periodo?: string | null;
   nota?: string | null;
   comprobanteUrl?: string | null;
-  comisionIds: string[];
+  comisionIds: string[];      // ≥1; el monto sale de ellas (el backend netea el efectivo que el vendedor debe)
+}
+
+/** Lo que devuelve registrarPago: el desglose del neteo. */
+export interface ResultadoPago {
+  pagoId?: string;
+  bruto?: number;        // suma de comisiones cubiertas
+  compensado?: number;   // efectivo descontado (neteo)
+  neto?: number;         // lo que realmente se le pagó
 }
 
 export interface DatosCobroInput {
@@ -242,9 +249,9 @@ export async function listarPagos(id: string): Promise<BitacoraPagos | null> {
   return data.data ?? null;
 }
 
-/** Registra un pago al vendedor (solo super). */
-export async function registrarPago(id: string, datos: RegistrarPagoInput): Promise<{ pagoId?: string }> {
-  const { data } = await api.post<RespuestaAPI<{ pagoId?: string }>>(`/admin/vendedores/${id}/pagos`, datos);
+/** Registra un pago al vendedor (solo super). El backend netea el efectivo que el vendedor debe. */
+export async function registrarPago(id: string, datos: RegistrarPagoInput): Promise<ResultadoPago> {
+  const { data } = await api.post<RespuestaAPI<ResultadoPago>>(`/admin/vendedores/${id}/pagos`, datos);
   return data.data ?? {};
 }
 
@@ -273,4 +280,47 @@ export async function subirComprobante(file: File): Promise<string | null> {
   const r = await fetch(info.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
   if (!r.ok) return null;
   return info.publicUrl;
+}
+
+// =============================================================================
+// EFECTIVO POR ENTREGAR (Fase 2 · pieza D)
+// =============================================================================
+
+/** Un movimiento del libro de efectivo del vendedor. */
+export interface MovimientoEfectivoFila {
+  id: string;
+  tipo: string;                  // cobro | entrega | compensacion
+  monto: number;
+  negocioNombre: string | null;  // en 'cobro'
+  fecha: string | null;
+  nota: string | null;
+  creada: string | null;
+}
+
+/** Corte de caja: cobrado − (entregas + compensaciones) = saldo que el vendedor te debe. */
+export interface CorteEfectivo {
+  vendedor: VendedorDetalle;
+  items: MovimientoEfectivoFila[];
+  cobrado: number;
+  entregado: number;
+  compensado: number;
+  saldo: number;
+}
+
+export interface MovimientoEfectivoInput {
+  tipo: 'cobro' | 'entrega';
+  monto: number;
+  fecha?: string;
+  nota?: string | null;
+}
+
+/** Corte de efectivo de un vendedor (super + gerente + el propio vendedor). */
+export async function obtenerEfectivo(id: string): Promise<CorteEfectivo | null> {
+  const { data } = await api.get<RespuestaAPI<CorteEfectivo>>(`/admin/vendedores/${id}/efectivo`);
+  return data.data ?? null;
+}
+
+/** Registra a mano un cobro (sube la deuda) o una entrega (la baja) — super + gerente. */
+export async function registrarMovimientoEfectivo(id: string, datos: MovimientoEfectivoInput): Promise<void> {
+  await api.post(`/admin/vendedores/${id}/efectivo`, datos);
 }

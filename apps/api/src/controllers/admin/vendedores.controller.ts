@@ -16,6 +16,7 @@ import {
     listarCartera,
     listarComisionesVendedor,
     listarPagosVendedor,
+    listarEfectivoVendedor,
     ESTADOS_EMBAJADOR,
     ORDENES_VENDEDORES,
     type EstadoEmbajador,
@@ -24,6 +25,7 @@ import {
 import { panelConFiltroRegion, ESTADOS_PAGO, type EstadoPago } from '../../services/admin/negocios.service.js';
 import { devengarPeriodo, periodoActual } from '../../services/admin/comisiones-devengo.service.js';
 import { registrarPago, generarUrlComprobante, obtenerDatosCobro, guardarDatosCobro } from '../../services/admin/comisiones-liquidacion.service.js';
+import { registrarMovimientoManual } from '../../services/admin/comisiones-efectivo.service.js';
 import { registrarAuditoria } from '../../services/admin/auditoria.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
@@ -222,12 +224,11 @@ export async function subirComprobanteController(req: Request, res: Response): P
     }
 }
 
-// POST /api/admin/vendedores/:id/pagos   (solo super · registrar un pago)
+// POST /api/admin/vendedores/:id/pagos   (solo super · registrar un pago; netea el efectivo que el vendedor debe)
 export async function registrarPagoController(req: Request, res: Response): Promise<void> {
     try {
         const b = req.body ?? {};
         const r = await registrarPago(req.usuarioPanel!, req.params.id, {
-            monto: Number(b.monto),
             metodo: b.metodo,
             fechaPago: typeof b.fechaPago === 'string' ? b.fechaPago : undefined,
             periodo: typeof b.periodo === 'string' ? b.periodo : null,
@@ -239,10 +240,55 @@ export async function registrarPagoController(req: Request, res: Response): Prom
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;
         }
-        res.status(201).json({ success: true, message: 'Pago registrado', data: { pagoId: r.pagoId } });
+        res.status(201).json({
+            success: true,
+            message: 'Pago registrado',
+            data: { pagoId: r.pagoId, bruto: r.bruto, compensado: r.compensado, neto: r.neto },
+        });
     } catch (error) {
         console.error('Error en registrarPagoController:', error);
         res.status(500).json({ success: false, message: 'Error al registrar el pago' });
+    }
+}
+
+// =============================================================================
+// EFECTIVO POR ENTREGAR (pieza D)
+// =============================================================================
+
+// GET /api/admin/vendedores/:id/efectivo   (super + gerente + vendedor · corte de caja)
+export async function listarEfectivoVendedorController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const data = await listarEfectivoVendedor(panel, req.params.id);
+        if (!data) {
+            res.status(404).json({ success: false, message: 'Vendedor no encontrado' });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Corte de efectivo', data });
+    } catch (error) {
+        console.error('Error en listarEfectivoVendedorController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener el corte de efectivo' });
+    }
+}
+
+// POST /api/admin/vendedores/:id/efectivo   (super + gerente · registrar un cobro o una entrega)
+export async function registrarMovimientoEfectivoController(req: Request, res: Response): Promise<void> {
+    try {
+        const b = req.body ?? {};
+        const r = await registrarMovimientoManual(req.usuarioPanel!, req.params.id, {
+            tipo: b.tipo,
+            monto: Number(b.monto),
+            fecha: typeof b.fecha === 'string' ? b.fecha : undefined,
+            nota: typeof b.nota === 'string' ? b.nota : null,
+        });
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(201).json({ success: true, message: 'Movimiento registrado' });
+    } catch (error) {
+        console.error('Error en registrarMovimientoEfectivoController:', error);
+        res.status(500).json({ success: false, message: 'Error al registrar el movimiento de efectivo' });
     }
 }
 

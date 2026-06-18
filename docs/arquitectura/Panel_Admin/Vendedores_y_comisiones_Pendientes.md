@@ -12,27 +12,30 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta (a confirmar con Juan)
 >
-> **Última actualización:** 17 Junio 2026 — **v1 COMPLETO (piezas A + B + E).** Cartera (VER) + devengo de la
-> comisión recurrente por escalera (cron + recálculo + estado de cuenta) + liquidación (registrar pago con
-> foto-comprobante a R2 + datos de cobro + bitácora). Migraciones corridas en dev. Builds verdes; harness de
-> devengo TODO VERDE. Lo ya construido vive en **[`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)**.
-> **Siguiente: 2ª pasada — C (comisión de alta) + D (cortes de efectivo).**
+> **Última actualización:** 17 Junio 2026 — **v1 + 2ª pasada COMPLETOS (piezas A · B · C · E · D).** Cartera (VER)
+> + devengo recurrente (escalera) + **comisión de alta (C)** + liquidación con foto-comprobante + **cortes de
+> efectivo con neteo (D)**. Migraciones corridas en **dev y prod**. Builds verdes; harness de devengo y de
+> **neteo** TODO VERDE. Lo construido vive en **[`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)**.
+> **Queda diferido:** cobro automático de efectivo, datos de cobro por el propio vendedor, F (cobertura avanzada).
 
 ---
 
 ## Estado del módulo
 
-**v1 COMPLETO — piezas A + B + E (17 Jun 2026).** El módulo más grande del Panel ya opera de punta a punta
+**COMPLETO — piezas A · B · C · E · D (17 Jun 2026).** El módulo más grande del Panel opera de punta a punta
 (detalle en [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)):
 - **A · Cartera** — la red de ventas + la cartera de cada vendedor (vista master-detail full-width).
 - **B · Devengo** — comisión recurrente = # activos × monto del escalón de la **escalera** (editable en
-  Configuración); cron diario + botón "Recalcular mes" + estado de cuenta (devengado/pagado/pendiente);
-  redisparo automático al cambiar negocios.
+  Configuración); cron diario + botón "Recalcular mes" + estado de cuenta; redisparo al cambiar negocios.
+- **C · Comisión de alta** — pago único ($400 configurable) al **primer pago real** del negocio; idempotente
+  (una por negocio); se devenga sola en webhook / alta manual / "marcar pagado".
 - **E · Liquidación** — registrar pago (marca comisiones pagadas + foto-comprobante a R2) + datos de cobro
-  (CLABE) + bitácora de egresos. Tablas rediseñadas a **monto fijo** (`embajador_comisiones`) + nuevas
-  `pagos_vendedor` y `vendedor_datos_cobro`.
+  (CLABE) + bitácora de egresos.
+- **D · Cortes de efectivo + neteo** — libro `efectivo_movimientos` (cobro/entrega/compensación); corte de caja
+  por vendedor; al pagarle comisión se **descuenta** lo que debe (neteo). Harness `probar-neteo-efectivo.ts` ✅.
 
-**Falta del módulo:** la **2ª pasada** (C + D) y la cobertura avanzada (F, diferida). Ver §Backlog y el checklist.
+**Falta del módulo (diferido):** cobro automático de efectivo, datos de cobro por el propio vendedor, y la
+cobertura avanzada (F). Ver §Backlog y el checklist.
 
 **Frontera con "Equipo y accesos" (ya decidida):** **Equipo = identidad/acceso** (crear/promover/revocar
 cuentas internas, asignar la cobertura **inicial** del vendedor). **Vendedores y comisiones = operación/nómina**
@@ -56,9 +59,9 @@ bitácora gemela de **egresos** (lo que tú le pagas a los vendedores).
   efectivo que cobró; cortes de caja, confirmación de entrega, faltantes.
 
 > ⚠️ **Dos efectivos opuestos, no confundir:** (a) el que el vendedor **te ENTREGA** (cobró membresías en
-> efectivo → te debe ese dinero, pieza D) y (b) la comisión que tú le **PAGAS** (en efectivo o transferencia,
-> pieza E). Se modelan **separados**; netearlos ("cobró $449, su comisión es $100 → entrega $349") es una
-> comodidad **operativa** posterior, no una mezcla contable.
+> efectivo → te debe ese dinero, pieza D) y (b) la comisión que tú le **PAGAS** (pieza E). Se **rastrean
+> separados** (cada cobro le carga la deuda completa), pero al **liquidar** la comisión se **netean**: se
+> descuenta lo que debe y se le entrega el neto (decisión 17 Jun, ver D15). El neteo lo calcula el backend.
 
 ---
 
@@ -69,7 +72,7 @@ bitácora gemela de **egresos** (lo que tú le pagas a los vendedores).
 | **A · Cartera del vendedor** (VER) | El vendedor ve sus negocios firmados / vencimientos / contacto; gerente ve la de su equipo; super ve todo. Solo lectura, calca Negocios. | base | 🟢 bajo |
 | **B · Escalera + comisión recurrente** | Escalera (tramos por # activos → monto fijo) + recálculo mensual. "Activo = al corriente o en gracia". | devengo | 🟠 medio |
 | **C · Comisión de alta** | Pago único al concretar una venta (tarjeta pagada o efectivo confirmado). | devengo | 🟠 medio |
-| **D · Efectivo / cortes de caja** (Camino B) | "Efectivo por entregar", confirmar entregas, faltantes, corte por vendedor; comisión condicionada a la entrega. | inverso | 🟠 medio |
+| **D · Efectivo / cortes de caja** (Camino B) | "Efectivo por entregar", registrar cobros/entregas, corte por vendedor; al pagar comisión se **netea** lo que debe (no se condiciona, se descuenta). | inverso | 🟠 medio |
 | **E · Liquidación: datos de cobro + pagos + bitácora** | Datos de cobro del vendedor (transferencia/efectivo) + registrar pago + libro mayor de egresos. | liquidación | 🟠 medio |
 | **F · Cobertura avanzada (territorio)** | Multi-región parcial, multi-gerente, "mover de región = soltar cartera". | transversal | 🔴 **alto** (reescribe `panel.middleware` + Negocios/Usuarios/Suscripciones/Equipo, 4 módulos cerrados) |
 
@@ -136,7 +139,8 @@ Leyenda: **Total** = toda la plataforma · **Su equipo / región** = solo lo de 
 | **D11** | ¿Dónde se edita la escalera? | **En el módulo Configuración** (módulo 9), que centraliza TODOS los valores dinámicos del negocio (precio membresía, escalera, gracia, trial). Vendedores solo la **LEE** con `obtenerConfig()`. *(Revisado 17 Jun: antes se pensó editarla aquí; se movió a Configuración por centralización; por eso la **Fase 2 de este módulo queda en pausa** hasta que la escalera sea configurable.)* | ✅ decidido (17 Jun) |
 | **D12** | Auditoría | Toda acción de dinero (fijar escalera, registrar pago, confirmar entrega) → `registrarAuditoria` → `admin_auditoria`. Obligatorio por carril. | ✅ decidido (carril) |
 | **D13** | Patrón de la ficha: ¿modal o vista? | **Vista de detalle full-width (master-detail), NO modal** — el módulo es data-heavy (cartera + comisiones + pagos + cortes). Al abrir un vendedor, su detalle **reemplaza la lista** con botón "Volver" + `useBackNativo`; la cartera **pagina** y llena el alto con scroll interno. Modales reservados solo para **acciones**. Estrenado aquí; documentado en `Tokens_Panel.md` §5. | ✅ decidido (17 Jun) |
-| **D14** | ¿Dónde vive la cartera del **vendedor** (su autovista)? | **No se duplica.** El vendedor ve la lista de sus negocios en **"Mi cartera"** (sección Negocios, su etiqueta de rol); en **"Mis comisiones"** su vista arranca en **Comisiones/Pagos/Efectivo** (Fase 2, hoy un aviso) — **sin** la pestaña "Cartera". El **super/gerente** sí ven la cartera en el **detalle** de cada vendedor (no la tienen en otro lado). Implementado con `vistaVendedor` en `CuerpoCartera`. | ✅ decidido (17 Jun) |
+| **D14** | ¿Dónde vive la cartera del **vendedor** (su autovista)? | **No se duplica.** El vendedor ve la lista de sus negocios en **"Mi cartera"** (sección Negocios, su etiqueta de rol); en **"Mis comisiones"** su vista arranca en **Comisiones/Pagos/Efectivo** — **sin** la pestaña "Cartera". El **super/gerente** sí ven la cartera en el **detalle** de cada vendedor (no la tienen en otro lado). Implementado con `vistaVendedor` en `CuerpoCartera`. | ✅ decidido (17 Jun) |
+| **D15** | Pieza D: ¿comisión condicionada a la entrega, separada, o neteada? | **Neteada (opción C).** No se condiciona ni se mezcla antes: cada cobro en efectivo le carga la deuda completa, y **al liquidar la comisión** se descuenta `min(comisión, deuda)` y se le paga el **neto**. Protege la caja sin congelar comisiones por faltantes chicos. Lo hace `registrarPago` (backend, fuente de verdad). | ✅ decidido (17 Jun) |
 
 ---
 
@@ -181,29 +185,32 @@ Leyenda: **Total** = toda la plataforma · **Su equipo / región** = solo lo de 
 ## Checklist del carril
 
 ```
-### Módulo: VENDEDORES Y COMISIONES   ·   v1 (A+B+E) CERRADO · 2ª pasada (C+D) pendiente
+### Módulo: VENDEDORES Y COMISIONES   ·   A·B·C·E·D CERRADO
 
 Fase 0 — Definir ✅   ·   Fase 1 — VER (A · Cartera) ✅
 
-Fase 2 — ACTUAR ✅ (v1: B + E)
+Fase 2 — ACTUAR ✅ (B · C · E · D)
 - [x] B · Devengo — motor (devengarPeriodo, escalera de Configuración, idempotente) + cron + recálculo +
-      estado de cuenta. Harness probar-comisiones-devengo.ts TODO VERDE. Migración 2026-06-17-...-fase2.sql (corrida dev).
+      estado de cuenta. Harness probar-comisiones-devengo.ts TODO VERDE.
 - [x] B · Fix — contar activos por estado_admin='activo' (igual que la cartera), no por la columna legacy `activo`.
+- [x] C · Comisión de alta — devengarComisionAlta (pago único al primer pago real, idempotente por negocio);
+      enganchada en webhook Stripe + alta manual + "marcar pagado"; monto comision_alta_monto ($400) en Configuración.
 - [x] Sincronización — invalidar vendedores al cambiar negocios (cache RQ) + dispararDevengoMesActual (back).
-- [x] E · Liquidación — registrarPago (marca comisiones pagadas + comprobante R2) + datos de cobro + bitácora;
-      5 endpoints con permisos por rol. Migración comprobante (corrida dev). Frontend: pestaña Pagos + diálogos.
+- [x] E · Liquidación — registrarPago + datos de cobro + bitácora; permisos por rol. Frontend: pestaña Pagos + diálogos.
+- [x] D · Cortes de efectivo + neteo — efectivo_movimientos; saldoEfectivo + registrarMovimientoManual (super/gerente);
+      registrarPago NETEA (bruto − deuda = neto); pestaña Efectivo + desglose en Registrar pago.
+      Harness probar-neteo-efectivo.ts TODO VERDE. Migración 2026-06-17-efectivo-movimientos.sql (dev + prod).
 - [x] tsc API + builds del Panel en verde.
-- [ ] GATE 2 con datos reales: probar registrar-pago end-to-end desde el Panel (lo hace Juan).
 
-Fase 3 — Cerrar (v1)
-- [x] Doc canónico Vendedores_y_comisiones.md (2 capas)
+Fase 3 — Cerrar
+- [x] Doc canónico Vendedores_y_comisiones.md (2 capas, A·B·C·E·D)
 - [x] Índices (tablero, memoria)
-- [x] Commits a main (devengo, fix, sincronización, liquidación)
+- [ ] Commits a main (C + D) — pendiente de aviso de Juan
 
-### Backlog (fuera de v1)
-- **C · Comisión de alta** (pago único al concretar venta: tarjeta pagada o efectivo confirmado) — 2ª pasada.
-- **D · Cortes de efectivo** (lo que el vendedor te ENTREGA del efectivo que cobró; confirmar entregas, faltantes,
-  corte por vendedor; comisión condicionada a la entrega) — 2ª pasada. La pestaña "Efectivo" la espera.
+### Backlog (diferido)
+- **Cobro automático de efectivo** — que el cobro lo dispare el propio VENDEDOR al registrar un pago en efectivo
+  (alta manual / "marcar pagado"); hoy lo registra a mano el super/gerente. `registrarCobroEfectivo` ya existe,
+  falta engancharlo. Depende de confirmar que el vendedor opera esas pantallas.
 - **Datos de cobro por el propio vendedor** (desde su vista "Mis comisiones") — hoy los captura el super.
 - **F · Cobertura avanzada** (multi-región / multi-gerente / mover-con-reasignación) — diferida (D10).
 ```

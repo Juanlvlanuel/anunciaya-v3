@@ -1025,6 +1025,29 @@ export const embajadorComisiones = pgTable("embajador_comisiones", {
 	check("embajador_comisiones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['alta'::character varying, 'recurrente'::character varying])::text[])`),
 ]);
 
+// efectivo_movimientos = libro del efectivo que el VENDEDOR te debe entregar (pieza D).
+// Saldo = Σ cobros − Σ (entregas + compensaciones).
+export const efectivoMovimientos = pgTable("efectivo_movimientos", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	embajadorId: uuid("embajador_id").notNull(),
+	tipo: varchar({ length: 20 }).notNull(),               // cobro | entrega | compensacion
+	monto: numeric({ precision: 10, scale: 2 }).notNull(),
+	negocioId: uuid("negocio_id"),                          // en 'cobro'
+	pagoId: uuid("pago_id"),                                // en 'compensacion'
+	fecha: date().notNull(),
+	registradoPor: uuid("registrado_por"),
+	nota: varchar({ length: 500 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_efectivo_mov_embajador").using("btree", table.embajadorId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	foreignKey({ columns: [table.embajadorId], foreignColumns: [embajadores.id], name: "efectivo_movimientos_embajador_id_fkey" }).onDelete("cascade"),
+	foreignKey({ columns: [table.negocioId], foreignColumns: [negocios.id], name: "efectivo_movimientos_negocio_id_fkey" }).onDelete("set null"),
+	foreignKey({ columns: [table.pagoId], foreignColumns: [pagosVendedor.id], name: "efectivo_movimientos_pago_id_fkey" }).onDelete("set null"),
+	foreignKey({ columns: [table.registradoPor], foreignColumns: [usuarios.id], name: "efectivo_movimientos_registrado_por_fkey" }).onDelete("set null"),
+	check("efectivo_mov_monto_check", sql`monto > (0)::numeric`),
+	check("efectivo_mov_tipo_check", sql`(tipo)::text = ANY ((ARRAY['cobro'::character varying, 'entrega'::character varying, 'compensacion'::character varying])::text[])`),
+]);
+
 // Tablas dinamicas (dinamica_premios, dinamicas, dinamica_participaciones)
 // fueron eliminadas en Fase D del cleanup (visión v3 — abril 2026).
 // Dinámicas/Rifas P2P se descartaron permanentemente para v1 por riesgo legal

@@ -12,7 +12,7 @@ import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tansta
 import { useCallback } from 'react';
 import { queryKeys } from '../../config/queryKeys';
 import * as vendedoresService from '../../services/vendedoresService';
-import type { ParametrosVendedores, ParametrosCartera, VendedorDetalle, RegistrarPagoInput, DatosCobroInput } from '../../services/vendedoresService';
+import type { ParametrosVendedores, ParametrosCartera, VendedorDetalle, RegistrarPagoInput, DatosCobroInput, MovimientoEfectivoInput } from '../../services/vendedoresService';
 import { toast } from '../../stores/useToastPanel';
 
 /** Extrae el mensaje de error del backend (o uno por defecto). */
@@ -125,16 +125,18 @@ export function useDatosCobro(id: string | null, habilitado = true) {
   });
 }
 
-/** Registrar un pago (solo super): refresca pagos + comisiones (quedan pagadas) + lista. */
+/** Registrar un pago (solo super): refresca pagos + comisiones (quedan pagadas) + efectivo (neteo) + lista. */
 export function useRegistrarPago() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, datos }: { id: string; datos: RegistrarPagoInput }) => vendedoresService.registrarPago(id, datos),
-    onSuccess: (_d, { id }) => {
+    onSuccess: (d, { id }) => {
       qc.invalidateQueries({ queryKey: queryKeys.vendedores.pagos(id) });
       qc.invalidateQueries({ queryKey: queryKeys.vendedores.comisiones(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.efectivo(id) });
       qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
-      toast.exito('Pago registrado');
+      const comp = d?.compensado ?? 0;
+      toast.exito(comp > 0 ? `Pago registrado · se descontaron $${comp.toLocaleString('es-MX')} de efectivo` : 'Pago registrado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo registrar el pago')),
   });
@@ -150,5 +152,32 @@ export function useGuardarDatosCobro() {
       toast.exito('Datos de cobro guardados');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudieron guardar los datos de cobro')),
+  });
+}
+
+// =============================================================================
+// EFECTIVO POR ENTREGAR (pieza D)
+// =============================================================================
+
+/** Corte de efectivo del vendedor (super + gerente + el propio vendedor). */
+export function useEfectivoVendedor(id: string | null) {
+  return useQuery({
+    queryKey: queryKeys.vendedores.efectivo(id ?? ''),
+    queryFn: () => vendedoresService.obtenerEfectivo(id as string),
+    enabled: !!id,
+  });
+}
+
+/** Registrar un cobro/entrega de efectivo (super + gerente): refresca el corte + la lista. */
+export function useRegistrarMovimientoEfectivo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, datos }: { id: string; datos: MovimientoEfectivoInput }) => vendedoresService.registrarMovimientoEfectivo(id, datos),
+    onSuccess: (_d, { id, datos }) => {
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.efectivo(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
+      toast.exito(datos.tipo === 'cobro' ? 'Cobro registrado' : 'Entrega registrada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo registrar el movimiento')),
   });
 }

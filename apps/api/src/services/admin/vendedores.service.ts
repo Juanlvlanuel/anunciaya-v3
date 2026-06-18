@@ -32,7 +32,7 @@
 
 import { and, eq, asc, desc, ilike, or, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones, pagosVendedor } from '../../db/schemas/schema.js';
+import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones, pagosVendedor, efectivoMovimientos } from '../../db/schemas/schema.js';
 import { env } from '../../config/env.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { resolverEmbajadorId } from './negocios.service.js';
@@ -643,4 +643,74 @@ export async function listarPagosVendedor(panel: UsuarioPanel, usuarioId: string
     const totalPagado = items.reduce((s, p) => s + p.monto, 0);
 
     return { vendedor, items, totalPagado };
+}
+
+// =============================================================================
+// 6. CORTE DE EFECTIVO DEL VENDEDOR (Fase 2 · pieza D — lectura)
+// =============================================================================
+
+/** Un movimiento del libro de efectivo del vendedor. */
+export interface MovimientoEfectivoFila {
+    id: string;
+    tipo: string;                  // cobro | entrega | compensacion
+    monto: number;
+    negocioNombre: string | null;  // en 'cobro'
+    fecha: string | null;
+    nota: string | null;
+    creada: string | null;
+}
+
+/** Corte de caja del vendedor: cobrado − (entregas + compensaciones) = saldo que te debe. */
+export interface CorteEfectivo {
+    vendedor: VendedorDetalle;
+    items: MovimientoEfectivoFila[];
+    cobrado: number;     // Σ cobros (lo que recibió en efectivo)
+    entregado: number;   // Σ entregas físicas
+    compensado: number;  // Σ descuentos en pagos de comisión
+    saldo: number;       // lo que aún te debe = cobrado − entregado − compensado
+}
+
+/**
+ * Corte de efectivo de un vendedor: sus movimientos + los totales. Respeta el alcance (vendedor solo
+ * el suyo; gerente su equipo; super todos) reutilizando `leerVendedor`. null si no existe / fuera de alcance.
+ */
+export async function listarEfectivoVendedor(panel: UsuarioPanel, usuarioId: string): Promise<CorteEfectivo | null> {
+    const vendedor = await leerVendedor(panel, usuarioId);
+    if (!vendedor) return null;
+
+    const filas = await db
+        .select({
+            id: efectivoMovimientos.id,
+            tipo: efectivoMovimientos.tipo,
+            monto: efectivoMovimientos.monto,
+            negocioNombre: negocios.nombre,
+            fecha: efectivoMovimientos.fecha,
+            nota: efectivoMovimientos.nota,
+            creada: efectivoMovimientos.createdAt,
+        })
+        .from(efectivoMovimientos)
+        .leftJoin(negocios, eq(negocios.id, efectivoMovimientos.negocioId))
+        .where(eq(efectivoMovimientos.embajadorId, vendedor.embajadorId))
+        .orderBy(desc(efectivoMovimientos.fecha), desc(efectivoMovimientos.createdAt));
+
+    const items: MovimientoEfectivoFila[] = filas.map((f) => ({
+        id: f.id,
+        tipo: f.tipo,
+        monto: Number(f.monto),
+        negocioNombre: f.negocioNombre ?? null,
+        fecha: f.fecha ?? null,
+        nota: f.nota ?? null,
+        creada: f.creada ?? null,
+    }));
+
+    let cobrado = 0;
+    let entregado = 0;
+    let compensado = 0;
+    for (const m of items) {
+        if (m.tipo === 'cobro') cobrado += m.monto;
+        else if (m.tipo === 'entrega') entregado += m.monto;
+        else compensado += m.monto; // compensacion
+    }
+
+    return { vendedor, items, cobrado, entregado, compensado, saldo: cobrado - entregado - compensado };
 }

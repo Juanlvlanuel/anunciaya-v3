@@ -20,6 +20,7 @@ import {
   useRegistrarPago,
   useDatosCobro,
   useGuardarDatosCobro,
+  useEfectivoVendedor,
 } from '../../hooks/queries/useVendedoresAdmin';
 import { subirComprobante, type ComisionFila, type PagoFila, type DatosCobro } from '../../services/vendedoresService';
 
@@ -142,23 +143,24 @@ function DialogoDatosCobro({ vendedorId, actual, onCerrar }: { vendedorId: strin
 
 function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId: string; pendientes: ComisionFila[]; onCerrar: () => void }) {
   const registrar = useRegistrarPago();
+  const { data: corte } = useEfectivoVendedor(vendedorId);
   const fileRef = useRef<HTMLInputElement>(null);
 
   const [seleccionadas, setSeleccionadas] = useState<Set<string>>(() => new Set(pendientes.map((c) => c.id)));
-  const [montoEditado, setMontoEditado] = useState<string | null>(null); // null = sigue la suma de lo seleccionado
   const [metodo, setMetodo] = useState<'transferencia' | 'efectivo'>('transferencia');
   const [fechaPago, setFechaPago] = useState(() => new Date().toISOString().slice(0, 10));
   const [nota, setNota] = useState('');
   const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
 
-  const sumaSel = useMemo(
+  // Neteo: bruto (comisiones marcadas) − efectivo que el vendedor debe = neto a entregar.
+  const bruto = useMemo(
     () => pendientes.filter((c) => seleccionadas.has(c.id)).reduce((s, c) => s + c.monto, 0),
     [pendientes, seleccionadas],
   );
-  const montoStr = montoEditado ?? String(sumaSel);
-  const monto = Number(montoStr);
-  const montoValido = Number.isFinite(monto) && monto > 0;
+  const deuda = Math.max(0, corte?.saldo ?? 0);
+  const compensado = Math.min(bruto, deuda);
+  const neto = bruto - compensado;
 
   const toggle = (id: string) =>
     setSeleccionadas((prev) => {
@@ -178,14 +180,13 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
     }
   };
 
-  const puedeGuardar = montoValido && !registrar.isPending && !subiendo;
+  const puedeGuardar = bruto > 0 && !registrar.isPending && !subiendo;
   const enviar = () => {
     if (!puedeGuardar) return;
     registrar.mutate(
       {
         id: vendedorId,
         datos: {
-          monto,
           metodo,
           fechaPago,
           nota: nota.trim() || null,
@@ -216,8 +217,8 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
               <div className="flex flex-col gap-1.5">
                 {pendientes.map((c) => (
                   <label key={c.id} className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-borde bg-superficie px-3 py-2.5" data-testid={`pago-comision-${c.id}`}>
-                    <input type="checkbox" checked={seleccionadas.has(c.id)} onChange={() => { toggle(c.id); setMontoEditado(null); }} className="h-4 w-4 accent-[var(--panel-marca)]" />
-                    <span className="flex-1 text-[13.5px] capitalize text-texto-2">{periodoLegible(c.periodo)}</span>
+                    <input type="checkbox" checked={seleccionadas.has(c.id)} onChange={() => toggle(c.id)} className="h-4 w-4 accent-[var(--panel-marca)]" />
+                    <span className="flex-1 text-[13.5px] capitalize text-texto-2">{c.tipo === 'alta' ? 'Comisión de alta' : periodoLegible(c.periodo)}</span>
                     <span className="text-[14px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
                   </label>
                 ))}
@@ -225,37 +226,41 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
             </div>
           ) : (
             <p className="mb-4 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5 text-[13px] text-texto-3">
-              Sin comisiones pendientes. Puedes registrar un pago (abono) de monto libre.
+              Este vendedor no tiene comisiones pendientes.
             </p>
           )}
 
-          {/* Monto + método + fecha */}
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>Monto a pagar</label>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[15px] text-texto-3">$</span>
-                <input
-                  value={montoStr}
-                  onChange={(e) => setMontoEditado(e.target.value.replace(/[^0-9.]/g, ''))}
-                  inputMode="decimal"
-                  data-testid="pago-monto"
-                  className={`${CLASE_CAMPO} text-[15px] font-semibold tabular-nums`}
-                />
+          {/* Desglose del neteo: comisiones − efectivo que debe = neto */}
+          <div className="rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3" data-testid="pago-desglose">
+            <div className="flex items-center justify-between text-[13px]">
+              <span className="text-texto-3">Comisiones seleccionadas</span>
+              <span className="font-semibold tabular-nums text-texto">{pesos(bruto)}</span>
+            </div>
+            {compensado > 0 && (
+              <div className="mt-1.5 flex items-center justify-between text-[13px]">
+                <span className="text-texto-3">− Efectivo por entregar</span>
+                <span className="font-semibold tabular-nums text-texto-2" data-testid="pago-compensado">−{pesos(compensado)}</span>
               </div>
-              {montoEditado !== null && Number(montoEditado) !== sumaSel && (
-                <p className="mt-1 text-[11.5px] text-texto-4">Seleccionado: {pesos(sumaSel)}</p>
-              )}
+            )}
+            <div className="mt-2 flex items-center justify-between border-t border-borde pt-2">
+              <span className="text-[13px] font-semibold text-texto-2">Neto a pagar</span>
+              <span className="text-[16px] font-bold tabular-nums text-texto" data-testid="pago-neto">{pesos(neto)}</span>
+            </div>
+            {deuda > compensado && (
+              <p className="mt-1.5 text-[11.5px] text-texto-4">Le quedará un saldo de {pesos(deuda - compensado)} de efectivo por entregar.</p>
+            )}
+          </div>
+
+          {/* Método + fecha */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
+            <div>
+              <label className={LABEL}>Método</label>
+              <ToggleMetodo valor={metodo} onCambiar={setMetodo} />
             </div>
             <div>
               <label className={LABEL}>Fecha</label>
               <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={CLASE_CAMPO} data-testid="pago-fecha" />
             </div>
-          </div>
-
-          <div className="mt-3">
-            <label className={LABEL}>Método</label>
-            <ToggleMetodo valor={metodo} onCambiar={setMetodo} />
           </div>
 
           <div className="mt-3">
@@ -290,7 +295,7 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
           <button type="button" onClick={onCerrar} disabled={registrar.isPending} className={BTN_CANCELAR}>Cancelar</button>
           <button type="button" data-testid="pago-registrar" onClick={enviar} disabled={!puedeGuardar} className={BTN_GUARDAR}>
-            {registrar.isPending ? 'Registrando…' : `Registrar ${pesos(monto || 0)}`}
+            {registrar.isPending ? 'Registrando…' : neto > 0 ? `Registrar ${pesos(neto)}` : 'Saldar con efectivo'}
           </button>
         </div>
       </div>
