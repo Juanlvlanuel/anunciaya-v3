@@ -339,7 +339,7 @@ export function DialogoMarcarPagado({
                 data-testid="marcar-monto"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
-                placeholder="449.00"
+                placeholder="849.00"
                 className={`${CLASE_CAMPO} pl-6`}
               />
             </div>

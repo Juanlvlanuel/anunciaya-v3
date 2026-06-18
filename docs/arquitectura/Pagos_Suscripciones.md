@@ -27,7 +27,7 @@
 
 ## 1. Visión general
 
-- **Modelo de negocio:** suscripción comercial **$449 MXN/mes** vía **Stripe** (modo subscription, con **trial**). El usuario usa la app gratis; el negocio paga por Business Studio + ScanYA + presencia premium.
+- **Modelo de negocio:** suscripción comercial **$849 MXN/mes** vía **Stripe** (modo subscription, con **trial**). El usuario usa la app gratis; el negocio paga por Business Studio + ScanYA + presencia premium.
 - **Trial:** configurable (`configuracion` clave `trial_duracion_dias`, default **14**).
 - **Periodo de gracia tras impago:** configurable (`periodo_gracia_cobro_dias`, default **14**).
 - **Fuente de verdad:** **NUESTRA BD**. Stripe es el motor de cobro; ante un fallo de Stripe en una acción del Panel, la BD manda y se avisa (ver §9, regla §4.3).

@@ -49,7 +49,7 @@ real). Lo de abajo son **3 pendientes menores de backlog** — bajo impacto; uno
 
 - [ ] 🟢 **Monto del pago = solo lectura (autocalculado) — BLOQUEADO por `precio_membresia` configurable.**
   Hoy los diálogos de pago (**Editar pago** / **Registrar pago**) autocalculan el monto del precio de
-  membresía (`precioPorMeses` en `membresia.ts`, con `PRECIO_MEMBRESIA = 449` **hardcodeado**) pero el
+  membresía (`precioPorMeses` en `membresia.ts`, con `PRECIO_MEMBRESIA = 849` **hardcodeado**) pero el
   campo **sigue editable a mano** — correcto MIENTRAS el precio sea una constante (permite ajustar si
   el precio real difiere). **Cuando exista la variable de precio de membresía configurable en el Panel**
   (sección **Suscripciones/Configuración**) y `membresia.ts` la lea de ahí, el monto debe pasar a

@@ -107,7 +107,7 @@ interface DatosUsuarioWebhook {
  * ¿Qué hace?
  * 1. Valida que el correo esté verificado en Redis (código 6 dígitos ya validado)
  * 2. Crea una Checkout Session en Stripe con:
- *    - Precio del plan comercial ($449/mes)
+ *    - Precio del plan comercial ($849/mes)
  *    - Trial gratis (los días salen de la config 'trial_duracion_dias')
  *    - Metadata con datos del usuario
  * 3. Devuelve la URL para redirigir al usuario
@@ -172,7 +172,7 @@ export async function crearCheckoutSession(
         // Modo de pago: suscripción recurrente
         mode: 'subscription',
 
-        // Plan comercial ($449/mes) con trial (días configurables: 'trial_duracion_dias')
+        // Plan comercial ($849/mes) con trial (días configurables: 'trial_duracion_dias')
         line_items: [
             {
                 price: env.STRIPE_PRICE_COMERCIAL,
@@ -1387,8 +1387,8 @@ export async function manejarTrialPorTerminar(subscription: Stripe.Subscription)
         const esPagoManual = conceptoManual === 'efectivo' || conceptoManual === 'transferencia';
         const titulo = esPagoManual ? 'Tu membresía se renueva pronto' : 'Tu prueba gratis termina pronto';
         const mensaje = esPagoManual
-            ? `El periodo que cubriste vence el ${fechaTxt}. Ese día se cobrará tu membresía ($449/mes) a la tarjeta registrada. Revisa que esté vigente para no perder el servicio.`
-            : `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($449/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
+            ? `El periodo que cubriste vence el ${fechaTxt}. Ese día se cobrará tu membresía ($849/mes) a la tarjeta registrada. Revisa que esté vigente para no perder el servicio.`
+            : `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($849/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
 
         const { crearNotificacion } = await import('./notificaciones.service.js');
         // In-app en AMBOS modos, a nivel negocio (sin sucursalId → visible en cualquier sucursal).

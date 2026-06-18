@@ -27,7 +27,7 @@ import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 // CONSTANTES
 // =============================================================================
 
-const PRECIO_COMERCIAL = 449;
+const PRECIO_COMERCIAL = 849;
 
 // =============================================================================
 // COMPONENTE PRINCIPAL

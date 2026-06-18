@@ -705,7 +705,7 @@ function SeccionPlanes() {
                             <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                         </button>
                         <span className="text-xl lg:text-xl 2xl:text-3xl font-bold text-white">
-                            $449<span className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">{t('comerciantes.precio')}</span>
+                            $849<span className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">{t('comerciantes.precio')}</span>
                         </span>
                     </div>
 

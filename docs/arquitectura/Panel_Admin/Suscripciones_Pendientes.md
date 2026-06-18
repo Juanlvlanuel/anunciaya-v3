@@ -221,7 +221,7 @@ Fase 3 — Cerrar
 - 🟡 **SPRINT DEDICADO — Precio de membresía editable + promos de lanzamiento.** (Acordado con Juan, 17 jun 2026.)
   Es un sprint **propio**, fuera de la bitácora y fuera de Configuración v1 (que ya cerró **trial y gracia** —
   módulo 9, [`Configuracion.md`](Configuracion.md)). Alcance:
-  - **Cambiar el precio** de la membresía ($449 hoy). Ojo: los **Prices de Stripe son inmutables** → cambiar el
+  - **Cambiar el precio** de la membresía ($849 hoy). Ojo: los **Prices de Stripe son inmutables** → cambiar el
     precio = crear un **Price nuevo** + apuntar la constante (`STRIPE_PRICE_COMERCIAL` / `PRECIO_MEMBRESIA`); las
     suscripciones vigentes siguen ancladas a su precio salvo que se migren.
   - **Precio especial de lanzamiento** → se maneja con **Coupons de Stripe** (descuento sobre el precio real),
@@ -230,7 +230,7 @@ Fase 3 — Cerrar
   - **Promos / meses gratis / cupones de membresía** (feature nuevo, no existe en backend) — candidato a su
     propia mini-spec; entra en este sprint o en uno contiguo.
   - **Cobro "desde el día 1" para ventas POR VENDEDOR** (decidido con Juan, 17 jun 2026): cuando hay vendedor
-    (`?ref=` por tarjeta **o** alta manual), el comercio **paga $449 al inicio** + recibe **44 días** de servicio
+    (`?ref=` por tarjeta **o** alta manual), el comercio **paga $849 al inicio** + recibe **44 días** de servicio
     (30 + 14 de cortesía) → siguiente cobro a los 44 días. El **auto-registro sin vendedor** mantiene el flujo
     actual ("14 días gratis → cobra el día 15"). En Stripe = pago inicial separado + suscripción con el ancla de
     cobro corrida 44 días (NO trivial). El equivalente en **efectivo** (correr el próximo cobro a 44 días) es chico.

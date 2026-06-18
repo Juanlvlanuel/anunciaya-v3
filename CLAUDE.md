@@ -16,7 +16,7 @@ App de **comercio local hiperlocal** para la ciudad seleccionada. El usuario la 
 
 Las piezas únicas que la diferencian: **CardYA, ScanYA, ChatYA, geolocalización y onboarding verificado de negocios** — cubren lo que Facebook hace mal en comercio local (saber si un negocio está abierto, filtrar por proximidad real, precios y disponibilidad, reseñas confiables, contacto directo cliente-negocio).
 
-**Modelo de negocio:** negocios pagan suscripción comercial $449 MXN/mes (Business Studio + ScanYA + presencia premium). Usuarios usan la app gratis. Sin publicidad invasiva ni venta de datos.
+**Modelo de negocio:** negocios pagan suscripción comercial $849 MXN/mes (Business Studio + ScanYA + presencia premium). Usuarios usan la app gratis. Sin publicidad invasiva ni venta de datos.
 
 **Beta inicial:** Puerto Peñasco, Sonora — 50 negocios piloto.
 
@@ -36,7 +36,7 @@ Las piezas únicas que la diferencian: **CardYA, ScanYA, ChatYA, geolocalizació
 - **Archivos:** Cloudflare R2
 - **Hosting:** Render (backend) + Vercel (frontend) + Supabase (BD) + Upstash (Redis)
 - **ORM:** Drizzle ORM + Zod (validación runtime)
-- **Pagos:** Stripe — suscripción comercial $449 MXN/mes
+- **Pagos:** Stripe — suscripción comercial $849 MXN/mes
 
 ---
 
@@ -303,7 +303,7 @@ docs/
 │   │   ├── Panel_Admin.md      ← infraestructura/diseño general del Panel
 │   │   └── Negocios.md         ← módulo Negocios (roles por jerarquía, alcance, alta manual)
 │   ├── Mantenimiento_R2.md     ← reconcile de imágenes huérfanas (sub-sección Mantenimiento del Panel Admin)
-│   └── Pagos_Suscripciones.md  ← membresía $449/mes: webhook Stripe, estados de membresía, gracia, acciones Parada 2
+│   └── Pagos_Suscripciones.md  ← membresía $849/mes: webhook Stripe, estados de membresía, gracia, acciones Parada 2
 ├── migraciones/                → SQL one-shot que debe ejecutarse manualmente (ej. tabla r2_reconcile_log)
 ├── legacy/                     → Documentos históricos
 └── reportes/                   → Reportes de auditorías UX y tokens por módulo

@@ -145,7 +145,7 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                     {esComercial ? (
                         <div className="mt-4 lg:mt-3 2xl:mt-5 pt-4 lg:pt-3 2xl:pt-5 border-t border-white/15">
                             <span className="text-3xl lg:text-2xl 2xl:text-4xl font-bold text-white">
-                                $449<span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/50">/mes</span>
+                                $849<span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/50">/mes</span>
                             </span>
                             <p className="text-base lg:text-sm 2xl:text-base font-medium text-white/50 mt-1">
                                 {t('cta.trial.cancela')}

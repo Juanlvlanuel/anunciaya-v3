@@ -21,7 +21,7 @@
 
 ## 1. ¿Qué es y para qué existe?
 
-AnunciaYA cobra a cada negocio una **membresía de $449 al mes**. A cambio, el negocio
+AnunciaYA cobra a cada negocio una **membresía de $849 al mes**. A cambio, el negocio
 aparece en la app, tiene su Business Studio, ScanYA, etc. Esa membresía se puede cobrar de
 **dos maneras**:
 
@@ -73,7 +73,7 @@ el vendedor sobre lo suyo.
 
 Antes de seguir, estos términos aparecen por todos lados. Vale la pena tenerlos claros:
 
-- **Membresía:** la suscripción de $449/mes que paga el negocio para estar en AnunciaYA.
+- **Membresía:** la suscripción de $849/mes que paga el negocio para estar en AnunciaYA.
 - **Estado de pago:** en qué situación está la membresía. Cuatro posibles:
   - **Al corriente** — está pagada y vigente.
   - **En gracia** — se venció y no ha pagado, pero está en el periodo de tolerancia (unos
@@ -184,8 +184,8 @@ pago viven en cada fila del **Historial de pagos**.)*
 **Para qué:** dejar al negocio al corriente cuando pagó (en efectivo, transferencia, o como
 cortesía). Eliges hasta qué fecha queda cubierto y el sistema actualiza su vigencia.
 
-> *Ejemplo: Don Beto, dueño de una taquería, paga $449 por un mes más. El gerente abre su
-> ficha, pulsa "Registrar pago", pone "efectivo, $449, 1 mes" y listo: el negocio queda al
+> *Ejemplo: Don Beto, dueño de una taquería, paga $849 por un mes más. El gerente abre su
+> ficha, pulsa "Registrar pago", pone "efectivo, $849, 1 mes" y listo: el negocio queda al
 > corriente y el pago aparece en su historial.*
 
 Si el negocio paga con **tarjeta**, esta acción también le avisa a Stripe que ya está
@@ -253,11 +253,11 @@ Este es el flujo estrella del módulo. Lo construimos en **6 fases**; aquí est�
 completa de qué pasa, de principio a fin.
 
 > *Escenario: Marisol es vendedora en Puerto Peñasco. Visita "Tacos El Güero", el dueño
-> acepta y le paga $449 en efectivo por su primer mes.*
+> acepta y le paga $849 en efectivo por su primer mes.*
 
 **1. Marisol llena el formulario "Registrar negocio".** Captura: el nombre del negocio, su
 ciudad (de una lista; solo le aparecen ciudades de su región), los datos del dueño (nombre,
-apellidos, **correo dos veces** para evitar errores, teléfono), y el cobro (efectivo, $449,
+apellidos, **correo dos veces** para evitar errores, teléfono), y el cobro (efectivo, $849,
 1 mes). Mientras teclea el correo, el sistema le avisa al instante si ese correo **ya
 estaba registrado** (para no chocar).
 
@@ -537,7 +537,7 @@ sigue). Acciones: `negocio_marcar_pagado`, `negocio_suspender`, `negocio_reactiv
 ## G. Referencias
 
 - [`Panel_Admin.md`](Panel_Admin.md) — el Panel completo (login, roles, gate dual, 2FA, regiones, demás secciones).
-- `docs/arquitectura/Pagos_Suscripciones.md` — membresía $449/mes, Stripe, los dos ejes de estado, "Registrar pago" Opción A.
+- `docs/arquitectura/Pagos_Suscripciones.md` — membresía $849/mes, Stripe, los dos ejes de estado, "Registrar pago" Opción A.
 - `docs/arquitectura/Negocios.md` — módulo **público** de Negocios (apps/web). **No** confundir con este.
 - `docs/arquitectura/Sucursales.md` — sucursales (matriz vs secundarias), de donde sale la ciudad/región.
 

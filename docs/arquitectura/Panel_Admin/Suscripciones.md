@@ -20,7 +20,7 @@
 
 ## 1. ¿Qué es y para qué existe?
 
-Cada negocio paga una **membresía de $449 al mes**. Ese dinero entra de varias formas: el
+Cada negocio paga una **membresía de $849 al mes**. Ese dinero entra de varias formas: el
 cobro automático de la tarjeta (Stripe), un pago en efectivo que registra un vendedor, una
 cortesía, etc. Y a veces falla un cobro o se cancela una membresía.
 

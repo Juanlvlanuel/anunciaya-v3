@@ -4,7 +4,7 @@
  * Precio de la membresía comercial y su cálculo por periodo, compartido por los diálogos de
  * pago del Panel (Registrar pago / Editar pago).
  *
- * Hoy el precio es una CONSTANTE ($449/mes, igual que `PRECIO_COMERCIAL` en apps/web). Cuando
+ * Hoy el precio es una CONSTANTE ($849/mes, igual que `PRECIO_COMERCIAL` en apps/web). Cuando
  * exista la sección Configuración/Suscripciones del Panel se leerá de ahí (un solo lugar que
  * cambiar). Promo del plan anual: 12 meses se cobran como 10 (2 gratis).
  *
@@ -12,7 +12,7 @@
  */
 
 /** Precio mensual de la membresía comercial (MXN). */
-export const PRECIO_MEMBRESIA = 449;
+export const PRECIO_MEMBRESIA = 849;
 
 /**
  * Precio sugerido para N meses (el operador puede ajustarlo a mano después).

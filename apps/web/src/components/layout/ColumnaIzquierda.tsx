@@ -549,7 +549,7 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
             {/* Stats del CTA */}
             <div className={`flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-3 px-1 ${tema.textSecondary}`}>
               <span className="flex flex-col items-center">
-                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>$449</strong>
+                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>$849</strong>
                 <span className={`text-xs ${tema.textMuted}`}>/mes</span>
               </span>
               <span className="flex flex-col items-center">
