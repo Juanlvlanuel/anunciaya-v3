@@ -52,6 +52,13 @@ export const GRUPOS_MENU: GrupoMenu[] = [
       },
       { id: 'usuarios', etiqueta: 'Usuarios', icono: 'usuarios', roles: ['superadmin', 'gerente'] },
       { id: 'suscripciones', etiqueta: 'Suscripciones', icono: 'suscripciones', roles: ['superadmin', 'gerente'] },
+      {
+        id: 'recibos',
+        etiqueta: 'Recibos',
+        icono: 'recibos',
+        roles: ['superadmin', 'gerente', 'vendedor'],
+        etiquetaPorRol: { vendedor: 'Mis recibos' },
+      },
     ],
   },
   {
@@ -94,6 +101,7 @@ export const ETIQUETAS_CORTAS: Record<string, string> = {
   comisiones: 'Comisiones',
   usuarios: 'Usuarios',
   suscripciones: 'Subs',
+  recibos: 'Recibos',
   publicidad: 'Ads',
   ciudades: 'Ciudades',
 };

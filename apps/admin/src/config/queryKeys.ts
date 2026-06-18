@@ -67,6 +67,17 @@ export interface FiltrosSuscripcionesKey {
   porPagina?: number;
 }
 
+/** Filtros que entran en la clave de la lista de recibos. */
+export interface FiltrosRecibosKey {
+  busqueda?: string;
+  negocioId?: string;
+  desde?: string;
+  hasta?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 export const queryKeys = {
   negocios: {
     all: () => ['negocios'] as const,
@@ -91,6 +102,10 @@ export const queryKeys = {
     all: () => ['suscripciones'] as const,
     lista: (filtros: FiltrosSuscripcionesKey) => ['suscripciones', 'lista', filtros] as const,
     detalle: (id: string) => ['suscripciones', 'detalle', id] as const,
+  },
+  recibos: {
+    all: () => ['recibos'] as const,
+    lista: (filtros: FiltrosRecibosKey) => ['recibos', 'lista', filtros] as const,
   },
   equipo: {
     all: () => ['equipo'] as const,

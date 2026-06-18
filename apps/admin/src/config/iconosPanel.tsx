@@ -19,6 +19,7 @@ import {
   SlidersHorizontal,
   ShieldCheck,
   Server,
+  Receipt,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -29,6 +30,7 @@ export const ICONOS_SECCION: Record<string, LucideIcon> = {
   negocios: Store,
   usuarios: Users,
   suscripciones: CreditCard,
+  recibos: Receipt,
   comisiones: CircleDollarSign,
   publicidad: Megaphone,
   ciudades: MapPin,

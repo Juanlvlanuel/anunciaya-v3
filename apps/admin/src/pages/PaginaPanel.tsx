@@ -26,6 +26,7 @@ import PaginaSeguridad from './PaginaSeguridad';
 import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
 import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
 import { SeccionSuscripciones } from '../components/suscripciones/SeccionSuscripciones';
+import { SeccionRecibos } from '../components/recibos/SeccionRecibos';
 import { SeccionEquipo } from '../components/equipo/SeccionEquipo';
 import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
 import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
@@ -154,6 +155,8 @@ function PaginaPanel() {
     <SeccionUsuarios />
   ) : seccionActivaId === 'suscripciones' ? (
     <SeccionSuscripciones rol={rol} />
+  ) : seccionActivaId === 'recibos' ? (
+    <SeccionRecibos rol={rol} />
   ) : seccionActivaId === 'equipo' ? (
     <SeccionEquipo />
   ) : seccionActivaId === 'comisiones' ? (
