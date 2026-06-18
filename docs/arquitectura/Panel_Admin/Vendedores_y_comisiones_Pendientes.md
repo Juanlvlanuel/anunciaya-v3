@@ -141,6 +141,9 @@ Leyenda: **Total** = toda la plataforma · **Su equipo / región** = solo lo de 
 | **D13** | Patrón de la ficha: ¿modal o vista? | **Vista de detalle full-width (master-detail), NO modal** — el módulo es data-heavy (cartera + comisiones + pagos + cortes). Al abrir un vendedor, su detalle **reemplaza la lista** con botón "Volver" + `useBackNativo`; la cartera **pagina** y llena el alto con scroll interno. Modales reservados solo para **acciones**. Estrenado aquí; documentado en `Tokens_Panel.md` §5. | ✅ decidido (17 Jun) |
 | **D14** | ¿Dónde vive la cartera del **vendedor** (su autovista)? | **No se duplica.** El vendedor ve la lista de sus negocios en **"Mi cartera"** (sección Negocios, su etiqueta de rol); en **"Mis comisiones"** su vista arranca en **Comisiones/Pagos/Efectivo** — **sin** la pestaña "Cartera". El **super/gerente** sí ven la cartera en el **detalle** de cada vendedor (no la tienen en otro lado). Implementado con `vistaVendedor` en `CuerpoCartera`. | ✅ decidido (17 Jun) |
 | **D15** | Pieza D: ¿comisión condicionada a la entrega, separada, o neteada? | **Neteada (opción C).** No se condiciona ni se mezcla antes: cada cobro en efectivo le carga la deuda completa, y **al liquidar la comisión** se descuenta `min(comisión, deuda)` y se le paga el **neto**. Protege la caja sin congelar comisiones por faltantes chicos. Lo hace `registrarPago` (backend, fuente de verdad). | ✅ decidido (17 Jun) |
+| **D16** | Comisión recurrente: ¿foto mensual o **devengo al cobro**? | **Devengo AL COBRO por periodo pagado (Opción A, 17 jun).** Cuando un negocio paga N meses, el vendedor devenga `N × (monto del escalón vigente)` **de golpe** (no goteando mensual). **El escalón sigue por # de negocios activos** (un negocio = **1**, pague 1 o 12 meses). Recompensa el prepago al instante + blinda al vendedor si se va (ya ganó lo que el negocio pagó). Cambia el motor: de "snapshot mensual (cron)" a "devengo por cobro". Se construye en el **sprint de Stripe** (junto a prepagos / cobro día-1). | ✅ decidido (17 jun) · ⏳ por construir |
+| **D16.1** | Opción A — ¿cómo NO pagar doble un prepago? | **Desacoplar escalón y pago.** (a) **Escalón** = # de negocios activos del mes (el prepagado cuenta como 1 cada mes que siga vigente → aporta al nivel, no es pago). (b) **Pago** = cada negocio lleva un marcador **"comisión devengada hasta [mes]"**; al pagar N meses se devengan de golpe y el marcador salta a "mes+N". En los meses siguientes, si el marcador ya cubre el mes, **no se devenga de nuevo** (el negocio sigue contando para el escalón, pero no genera pago). El **escalón se congela al momento del cobro**. Técnico: columna/registro "devengado hasta" por negocio + motor por meses-no-cubiertos (no foto mensual). | ✅ decidido (17 jun) · ⏳ por construir |
+| **D17** | Liquidación: ¿pago completo o **abonos**? | **Abonos (Liquidación v2, 17 jun).** El super abona contra el **saldo** (comisiones pendientes − efectivo que el vendedor debe): puede pagar **parcial**, **dividir** en transferencia+efectivo y dejar saldo **pendiente**. Se aplica **FIFO** (la más antigua primero); `monto_pagado` por comisión (parcial → pagada). Migración `monto_pagado`. | ✅ **hecho** (17 jun) |
 
 ---
 
@@ -173,9 +176,10 @@ Leyenda: **Total** = toda la plataforma · **Su equipo / región** = solo lo de 
    SuperAdmin** (es tesorería de AnunciaYA; "el dinero lo mueve el super"). El **gerente solo da seguimiento**
    (ve devengado/pendiente de su equipo) y **confirma entregas de efectivo** de sus vendedores (pieza D), pero
    **no ejecuta pagos**. Los **datos de cobro** los ve **solo el super** (dato sensible; el gerente no paga).
-5. **Captura de datos de cobro** *(resuelto por Claude — confirmar si difieres):* los edita **el vendedor**;
-   además el **super puede capturarlos/editarlos** por él (para cuando el vendedor no entra al Panel — resuelve
-   tener el dato "a la mano para pagar"). El gerente no.
+5. **Captura de datos de cobro** *(revisado 17 jun):* los captura/edita **SOLO el propio vendedor** (es su dato
+   bancario; que el super lo edite abriría un vector de fraude → desviar pagos). El **super** solo los **ve**
+   para pagar; el gerente ni los ve. *(Antes el super también editaba "por si el vendedor no entra al Panel"; se
+   quitó al darle al vendedor la captura de sus datos desde "Mis comisiones".)*
 6. **Escalera (D11):** se **edita aquí** (sección "Escalera") y Configuración la lee. **Los montos/tramos
    iniciales se definen al construir la pieza B** — no bloquean el arranque por Cartera.
 7. **`negocios_registrados` (D3):** **calculado en vivo** (count de atribuidos), no guardado.
@@ -197,6 +201,10 @@ Fase 2 — ACTUAR ✅ (B · C · E · D)
       enganchada en webhook Stripe + alta manual + "marcar pagado"; monto comision_alta_monto ($400) en Configuración.
 - [x] Sincronización — invalidar vendedores al cambiar negocios (cache RQ) + dispararDevengoMesActual (back).
 - [x] E · Liquidación — registrarPago + datos de cobro + bitácora; permisos por rol. Frontend: pestaña Pagos + diálogos.
+- [x] E2 · Liquidación v2 (ABONOS) — registrarPago a abonos: parcial + dividido (transferencia+efectivo) + neteo,
+      aplicado FIFO sobre `monto_pagado` (parcial→pagada). Diálogo "Registrar abono" + badge "Parcial". Datos de
+      cobro: solo el vendedor edita (super solo lee). Cobro automático de efectivo enganchado (vendedor cobra → deuda).
+      Harness probar-abonos.ts TODO VERDE. Migración 2026-06-17-comision-monto-pagado.sql (dev; correr prod).
 - [x] D · Cortes de efectivo + neteo — efectivo_movimientos; saldoEfectivo + registrarMovimientoManual (super/gerente);
       registrarPago NETEA (bruto − deuda = neto); pestaña Efectivo + desglose en Registrar pago.
       Harness probar-neteo-efectivo.ts TODO VERDE. Migración 2026-06-17-efectivo-movimientos.sql (dev + prod).
@@ -208,10 +216,10 @@ Fase 3 — Cerrar
 - [ ] Commits a main (C + D) — pendiente de aviso de Juan
 
 ### Backlog (diferido)
-- **Cobro automático de efectivo** — que el cobro lo dispare el propio VENDEDOR al registrar un pago en efectivo
-  (alta manual / "marcar pagado"); hoy lo registra a mano el super/gerente. `registrarCobroEfectivo` ya existe,
-  falta engancharlo. Depende de confirmar que el vendedor opera esas pantallas.
-- **Datos de cobro por el propio vendedor** (desde su vista "Mis comisiones") — hoy los captura el super.
+- **Comisión recurrente "al cobro" (Opción A, D16)** — devengar la recurrente por los meses que el negocio paga,
+  en el momento del cobro (prepago de N meses → `N × escalón` de golpe), en vez del goteo mensual del cron. El
+  escalón sigue por # de negocios (1 por negocio, pague 1 o 12 meses). **Cambia el motor de devengo.** Se aborda en
+  el **sprint de Stripe** (prepagos / cobro día-1) — ver `Suscripciones_Pendientes.md` §Fuera de V1.
 - **F · Cobertura avanzada** (multi-región / multi-gerente / mover-con-reasignación) — diferida (D10).
 ```
 

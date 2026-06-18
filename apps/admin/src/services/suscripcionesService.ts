@@ -39,6 +39,7 @@ export interface EventoFila {
   negocioId: string;
   negocioNombre: string | null;
   logoUrl: string | null;
+  ciudad: string | null;
   tipo: string;
   origen: string;
   /** numeric → string; el front formatea en MXN. NULL en fallido/cancelación/cortesía. */

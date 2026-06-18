@@ -597,7 +597,7 @@ function FilaNegocio({
         <AvatarNegocio nombre={n.nombre} logoUrl={n.logoUrl} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{n.nombre}</span>
-          <span className={`inline-flex items-center gap-1 text-[12px] ${ciudad ? 'text-texto-3' : 'text-texto-4'}`}>
+          <span className={`inline-flex items-center gap-1 text-[13px] ${ciudad ? 'text-texto-3' : 'text-texto-4'}`}>
             <MapPin size={12} className="shrink-0" />
             {ciudad ?? 'Sin ciudad'}
           </span>

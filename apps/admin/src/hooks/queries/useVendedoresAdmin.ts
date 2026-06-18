@@ -136,7 +136,7 @@ export function useRegistrarPago() {
       qc.invalidateQueries({ queryKey: queryKeys.vendedores.efectivo(id) });
       qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
       const comp = d?.compensado ?? 0;
-      toast.exito(comp > 0 ? `Pago registrado · se descontaron $${comp.toLocaleString('es-MX')} de efectivo` : 'Pago registrado');
+      toast.exito(comp > 0 ? `Abono registrado · se descontaron $${comp.toLocaleString('es-MX')} de efectivo` : 'Abono registrado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo registrar el pago')),
   });

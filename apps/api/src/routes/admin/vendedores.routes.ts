@@ -59,11 +59,12 @@ router.get('/:id/comisiones', requierePanel(['superadmin', 'gerente', 'vendedor'
 // Liquidación (pieza E):
 //   - registrar un pago = solo super (tesorería)
 //   - ver la bitácora   = super + gerente (su equipo) + vendedor (los suyos)
-//   - datos de cobro     = super + el propio vendedor (el gerente NO; dato sensible)
+//   - datos de cobro: VER = super + el propio vendedor · EDITAR = SOLO el propio vendedor (anti-fraude:
+//     el super no toca la CLABE de otro; el gerente ni la ve)
 router.post('/:id/pagos', requierePanel(['superadmin']), registrarPagoController);
 router.get('/:id/pagos', requierePanel(['superadmin', 'gerente', 'vendedor']), listarPagosVendedorController);
 router.get('/:id/datos-cobro', requierePanel(['superadmin', 'vendedor']), obtenerDatosCobroController);
-router.put('/:id/datos-cobro', requierePanel(['superadmin', 'vendedor']), guardarDatosCobroController);
+router.put('/:id/datos-cobro', requierePanel(['vendedor']), guardarDatosCobroController);
 
 // Efectivo por entregar (pieza D):
 //   - corte de caja        = super + gerente (su equipo) + vendedor (el suyo)

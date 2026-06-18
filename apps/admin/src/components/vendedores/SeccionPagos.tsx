@@ -146,54 +146,36 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
   const { data: corte } = useEfectivoVendedor(vendedorId);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  const [seleccionadas, setSeleccionadas] = useState<Set<string>>(() => new Set(pendientes.map((c) => c.id)));
-  const [metodo, setMetodo] = useState<'transferencia' | 'efectivo'>('transferencia');
+  const [transferencia, setTransferencia] = useState('');
+  const [efectivoMonto, setEfectivoMonto] = useState('');
   const [fechaPago, setFechaPago] = useState(() => new Date().toISOString().slice(0, 10));
   const [nota, setNota] = useState('');
   const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
 
-  // Neteo: bruto (comisiones marcadas) − efectivo que el vendedor debe = neto a entregar.
-  const bruto = useMemo(
-    () => pendientes.filter((c) => seleccionadas.has(c.id)).reduce((s, c) => s + c.monto, 0),
-    [pendientes, seleccionadas],
-  );
+  // Saldo a pagar = comisiones pendientes (lo que falta de cada una) − efectivo que el vendedor debe.
+  const devengadoPendiente = useMemo(() => pendientes.reduce((s, c) => s + (c.monto - c.montoPagado), 0), [pendientes]);
   const deuda = Math.max(0, corte?.saldo ?? 0);
-  const compensado = Math.min(bruto, deuda);
-  const neto = bruto - compensado;
+  const compensado = Math.min(devengadoPendiente, deuda);
+  const saldoNeto = Math.max(0, Math.round((devengadoPendiente - compensado) * 100) / 100);
 
-  const toggle = (id: string) =>
-    setSeleccionadas((prev) => {
-      const n = new Set(prev);
-      if (n.has(id)) n.delete(id); else n.add(id);
-      return n;
-    });
+  const montoT = Number(transferencia) || 0;
+  const montoE = Number(efectivoMonto) || 0;
+  const abono = Math.round((montoT + montoE) * 100) / 100;
+  const excede = abono > saldoNeto + 0.01;
+  const puedeGuardar = abono > 0 && !excede && !registrar.isPending && !subiendo;
 
+  const soloNum = (v: string) => v.replace(/[^0-9.]/g, '');
   const onArchivo = async (file: File | undefined) => {
     if (!file) return;
     setSubiendo(true);
-    try {
-      const url = await subirComprobante(file);
-      setComprobanteUrl(url);
-    } finally {
-      setSubiendo(false);
-    }
+    try { setComprobanteUrl(await subirComprobante(file)); } finally { setSubiendo(false); }
   };
 
-  const puedeGuardar = bruto > 0 && !registrar.isPending && !subiendo;
   const enviar = () => {
     if (!puedeGuardar) return;
     registrar.mutate(
-      {
-        id: vendedorId,
-        datos: {
-          metodo,
-          fechaPago,
-          nota: nota.trim() || null,
-          comprobanteUrl,
-          comisionIds: [...seleccionadas],
-        },
-      },
+      { id: vendedorId, datos: { montoTransferencia: montoT, montoEfectivo: montoE, fechaPago, nota: nota.trim() || null, comprobanteUrl } },
       { onSuccess: onCerrar },
     );
   };
@@ -204,37 +186,17 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
         <div className="flex shrink-0 items-center gap-2.5 border-b border-borde px-5 pt-4 pb-3.5">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca"><Wallet size={17} /></span>
           <div>
-            <div className="text-[16px] font-bold text-texto">Registrar pago</div>
-            <div className="text-[12px] text-texto-3">Marca las comisiones que cubre este pago.</div>
+            <div className="text-[16px] font-bold text-texto">Registrar abono</div>
+            <div className="text-[12px] text-texto-3">Abona contra el saldo. Puedes pagar una parte y dividir en transferencia/efectivo.</div>
           </div>
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          {/* Comisiones pendientes */}
-          {pendientes.length > 0 ? (
-            <div className="mb-4">
-              <div className="mb-1.5 text-[12.5px] font-semibold text-texto-2">Comisiones pendientes</div>
-              <div className="flex flex-col gap-1.5">
-                {pendientes.map((c) => (
-                  <label key={c.id} className="flex cursor-pointer items-center gap-3 rounded-[10px] border border-borde bg-superficie px-3 py-2.5" data-testid={`pago-comision-${c.id}`}>
-                    <input type="checkbox" checked={seleccionadas.has(c.id)} onChange={() => toggle(c.id)} className="h-4 w-4 accent-[var(--panel-marca)]" />
-                    <span className="flex-1 text-[13.5px] capitalize text-texto-2">{c.tipo === 'alta' ? 'Comisión de alta' : periodoLegible(c.periodo)}</span>
-                    <span className="text-[14px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
-                  </label>
-                ))}
-              </div>
-            </div>
-          ) : (
-            <p className="mb-4 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5 text-[13px] text-texto-3">
-              Este vendedor no tiene comisiones pendientes.
-            </p>
-          )}
-
-          {/* Desglose del neteo: comisiones − efectivo que debe = neto */}
-          <div className="rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3" data-testid="pago-desglose">
+          {/* Saldo a pagar */}
+          <div className="rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3" data-testid="pago-saldo">
             <div className="flex items-center justify-between text-[13px]">
-              <span className="text-texto-3">Comisiones seleccionadas</span>
-              <span className="font-semibold tabular-nums text-texto">{pesos(bruto)}</span>
+              <span className="text-texto-3">Comisiones pendientes</span>
+              <span className="font-semibold tabular-nums text-texto">{pesos(devengadoPendiente)}</span>
             </div>
             {compensado > 0 && (
               <div className="mt-1.5 flex items-center justify-between text-[13px]">
@@ -243,29 +205,61 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
               </div>
             )}
             <div className="mt-2 flex items-center justify-between border-t border-borde pt-2">
-              <span className="text-[13px] font-semibold text-texto-2">Neto a pagar</span>
-              <span className="text-[16px] font-bold tabular-nums text-texto" data-testid="pago-neto">{pesos(neto)}</span>
+              <span className="text-[13px] font-semibold text-texto-2">Saldo a pagar</span>
+              <span className="text-[16px] font-bold tabular-nums text-texto" data-testid="pago-saldo-neto">{pesos(saldoNeto)}</span>
             </div>
-            {deuda > compensado && (
-              <p className="mt-1.5 text-[11.5px] text-texto-4">Le quedará un saldo de {pesos(deuda - compensado)} de efectivo por entregar.</p>
-            )}
           </div>
 
-          {/* Método + fecha */}
-          <div className="mt-3 grid grid-cols-2 gap-3">
-            <div>
-              <label className={LABEL}>Método</label>
-              <ToggleMetodo valor={metodo} onCambiar={setMetodo} />
+          {/* Comisiones (informativo, con parciales). El abono se aplica de la más antigua a la más nueva. */}
+          {pendientes.length > 0 && (
+            <div className="mt-3">
+              <div className="mb-1.5 text-[12.5px] font-semibold text-texto-2">Se aplica de la más antigua</div>
+              <div className="flex flex-col gap-1.5">
+                {pendientes.map((c) => (
+                  <div key={c.id} className="flex items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3 py-2" data-testid={`pago-comision-${c.id}`}>
+                    <span className="flex-1 text-[13px] capitalize text-texto-2">{c.tipo === 'alta' ? 'Comisión de alta' : periodoLegible(c.periodo)}</span>
+                    {c.montoPagado > 0 && <span className="text-[11.5px] text-texto-4">abonado {pesos(c.montoPagado)} de</span>}
+                    <span className="text-[13.5px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
+                  </div>
+                ))}
+              </div>
             </div>
+          )}
+
+          {/* Abono dividido: transferencia + efectivo */}
+          <div className="mt-4">
+            <div className="mb-1.5 flex items-center justify-between">
+              <label className={LABEL + ' mb-0'}>¿Cuánto abonas?</label>
+              <button type="button" data-testid="pago-todo" onClick={() => { setTransferencia(String(saldoNeto)); setEfectivoMonto(''); }} className="text-[12px] font-semibold text-marca hover:underline">Abonar todo</button>
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div>
+                <span className="mb-1 block text-[12px] text-texto-3">Transferencia</span>
+                <div className="flex items-center gap-1"><span className="text-[14px] text-texto-3">$</span><input value={transferencia} onChange={(e) => setTransferencia(soloNum(e.target.value))} inputMode="decimal" placeholder="0" className={`${CLASE_CAMPO} font-semibold tabular-nums`} data-testid="pago-transferencia" /></div>
+              </div>
+              <div>
+                <span className="mb-1 block text-[12px] text-texto-3">Efectivo</span>
+                <div className="flex items-center gap-1"><span className="text-[14px] text-texto-3">$</span><input value={efectivoMonto} onChange={(e) => setEfectivoMonto(soloNum(e.target.value))} inputMode="decimal" placeholder="0" className={`${CLASE_CAMPO} font-semibold tabular-nums`} data-testid="pago-efectivo" /></div>
+              </div>
+            </div>
+            <div className="mt-2 flex items-center justify-between text-[12.5px]">
+              <span className="text-texto-3">Abono total</span>
+              <span className={`font-semibold tabular-nums ${excede ? 'text-peligro' : 'text-texto'}`} data-testid="pago-abono">{pesos(abono)}</span>
+            </div>
+            {excede && <p className="mt-1 text-[11.5px] font-medium text-peligro">El abono supera el saldo a pagar ({pesos(saldoNeto)}).</p>}
+            {!excede && abono > 0 && abono < saldoNeto && <p className="mt-1 text-[11.5px] text-texto-4">Quedará pendiente {pesos(saldoNeto - abono)}.</p>}
+          </div>
+
+          {/* Fecha + nota */}
+          <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL}>Fecha</label>
               <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={CLASE_CAMPO} data-testid="pago-fecha" />
             </div>
-          </div>
-
-          <div className="mt-3">
-            <label className={LABEL}>Nota <span className="font-normal text-texto-4">(opcional)</span></label>
-            <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500} placeholder="Referencia, folio…" className={CLASE_CAMPO} data-testid="pago-nota" />
+            <div>
+              <label className={LABEL}>Nota <span className="font-normal text-texto-4">(opcional)</span></label>
+              <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500} placeholder="Referencia, folio…" className={CLASE_CAMPO} data-testid="pago-nota" />
+            </div>
           </div>
 
           {/* Comprobante */}
@@ -295,7 +289,7 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
           <button type="button" onClick={onCerrar} disabled={registrar.isPending} className={BTN_CANCELAR}>Cancelar</button>
           <button type="button" data-testid="pago-registrar" onClick={enviar} disabled={!puedeGuardar} className={BTN_GUARDAR}>
-            {registrar.isPending ? 'Registrando…' : neto > 0 ? `Registrar ${pesos(neto)}` : 'Saldar con efectivo'}
+            {registrar.isPending ? 'Registrando…' : `Registrar ${pesos(abono)}`}
           </button>
         </div>
       </div>
@@ -327,25 +321,27 @@ function FilaPago({ p }: { p: PagoFila }) {
 }
 
 export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
-  const esSuper = useAuthPanelStore((s) => s.usuario?.rolEquipo) === 'superadmin';
+  const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
+  const esSuper = rol === 'superadmin';
+  const esVendedor = rol === 'vendedor'; // el vendedor solo se ve a sí mismo → copy en 1ª persona
   const { data: bitacora, isLoading, isError } = usePagosVendedor(vendedorId);
   const { data: comisiones } = useComisionesVendedor(vendedorId);
-  const { data: datosCobro } = useDatosCobro(vendedorId, esSuper);
+  const { data: datosCobro } = useDatosCobro(vendedorId, esSuper || esVendedor);
 
   const [registrando, setRegistrando] = useState(false);
   const [editandoCobro, setEditandoCobro] = useState(false);
 
   const pagos = bitacora?.items ?? [];
   const totalPagado = bitacora?.totalPagado ?? 0;
-  const pendientes = (comisiones?.items ?? []).filter((c) => c.estado === 'pendiente');
+  const pendientes = (comisiones?.items ?? []).filter((c) => c.estado === 'pendiente' || c.estado === 'parcial');
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-pagos">
-      {/* Datos de cobro (solo super) */}
-      {esSuper && (
+      {/* Datos de cobro: los ve/edita el super y el PROPIO vendedor (el gerente no — dato sensible). */}
+      {(esSuper || esVendedor) && (
         <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-[12px] border border-borde bg-superficie-2 px-4 py-3">
           <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-texto-4">Datos de cobro</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-texto-4">{esVendedor ? 'Mis datos de cobro' : 'Datos de cobro'}</div>
             {datosCobro ? (
               <div className="text-[13px] text-texto-2">
                 <span className="capitalize">{datosCobro.metodo}</span>
@@ -354,18 +350,21 @@ export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
                 )}
               </div>
             ) : (
-              <div className="text-[13px] text-texto-4">Sin datos de cobro capturados.</div>
+              <div className="text-[13px] text-texto-4">{esVendedor ? 'Captura dónde quieres recibir tus pagos.' : 'El vendedor aún no capturó sus datos de cobro.'}</div>
             )}
           </div>
-          <button type="button" data-testid="editar-datos-cobro" onClick={() => setEditandoCobro(true)} className="shrink-0 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca">
-            {datosCobro ? 'Editar' : 'Capturar'}
-          </button>
+          {/* Solo el PROPIO vendedor edita su CLABE (anti-fraude). El super solo la ve para pagar. */}
+          {esVendedor && (
+            <button type="button" data-testid="editar-datos-cobro" onClick={() => setEditandoCobro(true)} className="shrink-0 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca">
+              {datosCobro ? 'Editar' : 'Capturar'}
+            </button>
+          )}
         </div>
       )}
 
       {/* Encabezado + registrar */}
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-texto-2">Pagos al vendedor <span className="text-texto-4">· {pesos(totalPagado)} pagado</span></h3>
+        <h3 className="text-[13px] font-semibold text-texto-2">{esVendedor ? 'Mis pagos' : 'Pagos al vendedor'} <span className="text-texto-4">· {pesos(totalPagado)} {esVendedor ? 'recibido' : 'pagado'}</span></h3>
         {esSuper && (
           <button type="button" data-testid="abrir-registrar-pago" onClick={() => setRegistrando(true)} className="inline-flex items-center gap-1.5 rounded-[9px] bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition">
             <Plus size={14} /> Registrar pago
@@ -380,7 +379,7 @@ export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
         ) : isError ? (
           <EstadoSeccion variante="error" icono={Wallet} titulo="No se pudieron cargar los pagos." />
         ) : pagos.length === 0 ? (
-          <EstadoSeccion icono={Wallet} titulo="Sin pagos todavía" descripcion="Cuando registres un pago al vendedor, aparecerá aquí con su comprobante." />
+          <EstadoSeccion icono={Wallet} titulo="Sin pagos todavía" descripcion={esVendedor ? 'Cuando recibas un pago, aparecerá aquí con su comprobante.' : 'Cuando registres un pago al vendedor, aparecerá aquí con su comprobante.'} />
         ) : (
           pagos.map((p) => <FilaPago key={p.id} p={p} />)
         )}

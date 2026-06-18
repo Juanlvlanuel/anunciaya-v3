@@ -285,6 +285,12 @@ pago real** (tarjeta cobrada o pago manual). Idempotente: una por negocio.
 - **Se recalcula cada mes** según los activos de ese mes. El negocio es del vendedor **de por vida** (atribución no se borra), pero **el pago se gana mes a mes**: si cae bajo su mínimo, ese mes no cobra; si remonta, se reactiva solo.
 - **"Activo" = membresía pagada al corriente.** Así el cálculo es automático: pagó = cuenta; no pagó = no cuenta. El incentivo natural del vendedor es que no se le caiga ningún negocio → eso ES el "mantenimiento" buscado, sin medirlo a mano.
 
+> 🔄 **Cambio acordado (17 jun 2026) — devengo "al cobro" (Opción A):** la recurrente migrará de "foto mensual"
+> a **devengar por los meses que el negocio paga, al momento del cobro** (prepago de N meses → `N × escalón` de
+> golpe), para recompensar el prepago al instante y no castigar al vendedor que se va. **El escalón sigue por #
+> de negocios** (un negocio = 1, pague 1 o 12 meses). Se construye en el **sprint de Stripe**. Ver
+> `Vendedores_y_comisiones_Pendientes.md` (D16).
+
 **Estados de membresía (4):** `al corriente` · `en gracia` · `suspendido` · `cancelado`.
 - **En gracia** = le falló el cobro pero sigue dentro de su plazo de gracia. El negocio **sigue funcionando y visible**, marcado como "en riesgo" para que el vendedor corra a salvarlo.
 - **Para comisiones:** `en gracia` **todavía cuenta como activo** (no se castiga al vendedor por un tropiezo temporal). Solo deja de contar cuando cae a `suspendido` (se acabó la gracia sin pagar).

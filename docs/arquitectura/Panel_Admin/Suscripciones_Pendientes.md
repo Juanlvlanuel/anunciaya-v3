@@ -236,6 +236,14 @@ Fase 3 — Cerrar
     cobro corrida 44 días (NO trivial). El equivalente en **efectivo** (correr el próximo cobro a 44 días) es chico.
     **Importa para la comisión de alta** (pieza C de Vendedores): con el cobro al día 1, la comisión de alta en
     **tarjeta** se devenga al inicio; sin este cambio, cae al **primer cobro real** (la lógica de C ya queda lista).
+  - **Comisión RECURRENTE "al cobro" (Opción A, decidido con Juan 17 jun 2026):** hoy la recurrente se devenga
+    **mensual** (cron, foto de # activos × escalón) → si un negocio **prepaga** (p.ej. 12 meses), el vendedor cobra
+    goteando y, si se va antes, **pierde** lo futuro de una venta que él consiguió. Acordado: devengar la recurrente
+    **al momento del cobro, por los meses que el negocio pagó**, al escalón vigente (prepago de N meses → **N ×
+    escalón de golpe**). **El escalón sigue por # de negocios activos** (un negocio cuenta como **1**, pague 1 o 12
+    meses; cambia la *profundidad* del devengo, no la *amplitud* de la escalera). Recompensa el mérito al instante y
+    blinda al vendedor si se va. Implica cambiar el motor de devengo de "snapshot mensual (cron)" a "devengo por
+    cobro/periodo". Detalle en [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md) (D16).
   > Por qué aquí y no en Configuración: el precio **no vive en BD** (vive en Stripe), así que no es una clave de
   > `configuracion_sistema` como trial/gracia; necesita lógica de Stripe (Prices/Coupons) propia.
 - 🟢 **Página de cuenta del dueño** (apps/web): ver su membresía + reactivar pago vía Customer Portal

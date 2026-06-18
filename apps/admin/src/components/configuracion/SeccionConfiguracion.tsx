@@ -54,21 +54,18 @@ function rangoTramo(t: TramoEscalera): string {
   return t.max === null ? `${t.min}+` : `${t.min} – ${t.max}`;
 }
 
-/** Tabla de tramos de la escalera (solo lectura). */
+/** Tramos de la escalera en horizontal (cada tramo una celda) — aprovecha el ancho de la card full-width. */
 function TablaEscalera({ valor }: { valor: string }) {
   const tramos = parsearEscalera(valor);
   if (tramos.length === 0) return <p className="text-[13px] text-texto-4">Escalera sin definir.</p>;
   return (
-    <div className="overflow-hidden rounded-[10px] border border-borde bg-superficie">
-      <div className="grid grid-cols-[1fr_auto] gap-3 border-b border-borde px-3.5 py-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
-        <span>Negocios activos</span>
-        <span className="text-right">Monto por activo / mes</span>
-      </div>
+    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
       {tramos.map((t, i) => (
-        <div key={i} className="grid grid-cols-[1fr_auto] items-center gap-3 border-b border-borde/60 px-3.5 py-2.5 last:border-b-0">
-          <span className="text-[14px] text-texto-2">{rangoTramo(t)}</span>
-          <span className="text-right text-[15px] font-semibold" style={{ color: t.montoPorActivo > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie px-3.5 py-2.5">
+          <span className="text-[13px] text-texto-2">{rangoTramo(t)} activos</span>
+          <span className="text-[15px] font-semibold leading-none" style={{ color: t.montoPorActivo > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
             {t.montoPorActivo > 0 ? `$${t.montoPorActivo}` : '—'}
+            {t.montoPorActivo > 0 && <span className="ml-1 text-[11px] font-normal text-texto-3">/ mes</span>}
           </span>
         </div>
       ))}
@@ -76,48 +73,50 @@ function TablaEscalera({ valor }: { valor: string }) {
   );
 }
 
-/** Una card de valor configurable (fila de ajustes). */
-function CardConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void }) {
+/** Una fila de valor configurable (estilo ajustes Linear/Stripe): identidad a la izquierda · valor + Editar a la derecha. */
+function FilaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void }) {
   const Icono = ICONO_CLAVE[c.clave] ?? SlidersHorizontal;
   const esEscalera = c.tipo === 'json';
+  const tieneRango = c.min !== null || c.max !== null;
 
   return (
-    <div className="rounded-[12px] border border-borde bg-superficie-2 p-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
-      <div className="flex items-start gap-3.5">
+    <div className="rounded-[12px] border border-borde bg-superficie-2 px-4 py-3.5 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
+      <div className="flex items-start gap-4">
         <CajaIcono Icono={Icono} />
-        <div className="flex min-w-0 flex-1 flex-col gap-0.5">
-          <div className="flex items-center justify-between gap-3">
-            <div className="flex min-w-0 flex-wrap items-center gap-2">
-              <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
-              {!c.sembrado && (
-                <span className="txt-badge shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-medium text-texto-4">
-                  valor por defecto
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              data-testid={`config-editar-${c.clave}`}
-              onClick={onEditar}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
-            >
-              <Pencil size={13} /> Editar
-            </button>
-          </div>
-          <p className="text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
 
-          {!esEscalera && (
-            <div className="mt-2 flex items-baseline gap-2">
-              <span className="text-[24px] font-bold leading-none text-texto">{c.valor}</span>
-              {c.unidad && <span className="text-[13px] text-texto-3">{c.unidad}</span>}
-              {(c.min !== null || c.max !== null) && (
-                <span className="ml-auto self-center rounded-full border border-borde px-2 py-0.5 text-[11px] text-texto-4">
-                  rango {c.min ?? 0}–{c.max ?? '∞'}
-                </span>
-              )}
-            </div>
-          )}
+        {/* Identidad */}
+        <div className="min-w-0 flex-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
+            {!c.sembrado && (
+              <span className="rounded-full border border-borde px-2 py-0.5 text-[11px] font-medium text-texto-4">valor por defecto</span>
+            )}
+          </div>
+          <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
         </div>
+
+        {/* Valor numérico (la escalera lo lleva debajo) */}
+        {!esEscalera && (
+          <div className="flex shrink-0 flex-col items-end gap-1 self-center">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[22px] font-bold leading-none text-texto">{c.valor}</span>
+              {c.unidad && <span className="text-[12px] text-texto-3">{c.unidad}</span>}
+            </div>
+            {tieneRango && (
+              <span className="rounded-full border border-borde px-2 py-0.5 text-[11px] text-texto-4">rango {c.min ?? 0}–{c.max ?? '∞'}</span>
+            )}
+          </div>
+        )}
+
+        {/* Editar */}
+        <button
+          type="button"
+          data-testid={`config-editar-${c.clave}`}
+          onClick={onEditar}
+          className="inline-flex shrink-0 items-center gap-1.5 self-center rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
+        >
+          <Pencil size={13} /> Editar
+        </button>
       </div>
 
       {esEscalera && (
@@ -154,7 +153,7 @@ export function SeccionConfiguracion() {
 
   return (
     <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
-      <div className="mx-auto max-w-[840px]">
+      <div className="mx-auto max-w-[1180px]">
         {/* Encabezado del módulo */}
         <div className="mb-6 flex items-center gap-3">
           <CajaIcono Icono={SlidersHorizontal} tam={44} />
@@ -176,15 +175,17 @@ export function SeccionConfiguracion() {
         ) : items.length === 0 ? (
           <EstadoSeccion icono={SlidersHorizontal} titulo="Sin valores configurables" />
         ) : (
-          <div className="flex flex-col gap-6">
+          <div className="flex flex-col gap-7">
             {categorias.map((cat) => (
               <section key={cat} className="flex flex-col gap-2.5">
                 <h3 className="px-1 text-[11px] font-semibold uppercase tracking-[0.06em] text-etiqueta-grupo">
                   {ETIQUETA_CATEGORIA[cat] ?? cat}
                 </h3>
-                {porCategoria.get(cat)!.map((c) => (
-                  <CardConfig key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
-                ))}
+                <div className="flex flex-col gap-2.5">
+                  {porCategoria.get(cat)!.map((c) => (
+                    <FilaConfig key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
+                  ))}
+                </div>
               </section>
             ))}
           </div>

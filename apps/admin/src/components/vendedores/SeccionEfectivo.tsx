@@ -143,6 +143,7 @@ function DialogoMovimiento({ vendedorId, saldo, onCerrar }: { vendedorId: string
 export function SeccionEfectivo({ vendedorId }: { vendedorId: string }) {
   const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
   const puedeRegistrar = rol === 'superadmin' || rol === 'gerente';
+  const esVendedor = rol === 'vendedor'; // el vendedor solo se ve a sí mismo → copy en 1ª persona
   const { data: corte, isLoading, isError } = useEfectivoVendedor(vendedorId);
   const [registrando, setRegistrando] = useState(false);
 
@@ -183,7 +184,7 @@ export function SeccionEfectivo({ vendedorId }: { vendedorId: string }) {
         ) : isError ? (
           <EstadoSeccion variante="error" icono={Banknote} titulo="No se pudo cargar el corte." />
         ) : movs.length === 0 ? (
-          <EstadoSeccion icono={Banknote} titulo="Sin movimientos" descripcion="Aquí verás lo que el vendedor cobró en efectivo, lo que entregó y lo descontado en sus pagos." />
+          <EstadoSeccion icono={Banknote} titulo="Sin movimientos" descripcion={esVendedor ? 'Aquí verás lo que cobraste en efectivo, lo que entregaste y lo descontado en tus pagos.' : 'Aquí verás lo que el vendedor cobró en efectivo, lo que entregó y lo descontado en sus pagos.'} />
         ) : (
           movs.map((m) => <FilaMovimiento key={m.id} m={m} />)
         )}

@@ -444,15 +444,15 @@ function FilaMiembro({
         <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={null} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{m.nombre || '(Sin nombre)'}</span>
-          <span className="truncate text-[12px] text-texto-3">{m.correo}</span>
+          <span className="truncate text-[13px] text-texto-3">{m.correo}</span>
         </span>
       </span>
       <span className="min-w-0 truncate">
         <span className="text-[13px] font-medium text-marca">{rolLabel(m.rolEquipo)}</span>
       </span>
       <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[13px] text-texto-2">{alcance.principal}</span>
-        {alcance.secundario && <span className="truncate text-[11.5px] text-texto-4">{alcance.secundario}</span>}
+        <span className="truncate text-[13.5px] text-texto-2">{alcance.principal}</span>
+        {alcance.secundario && <span className="truncate text-[13px] text-texto-4">{alcance.secundario}</span>}
       </span>
       <span><BadgeAcceso fila={m} small /></span>
       <span className={`text-[13px] ${m.ultimoAccesoPanel ? 'text-texto-2' : 'text-texto-4'}`}>{fechaCorta(m.ultimoAccesoPanel)}</span>

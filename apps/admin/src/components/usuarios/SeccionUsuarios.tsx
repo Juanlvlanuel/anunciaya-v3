@@ -537,7 +537,7 @@ function FilaUsuario({
         <AvatarUsuario nombre={n.nombre || n.correo} avatarUrl={n.avatarUrl} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{n.nombre || '(Sin nombre)'}</span>
-          <span className="truncate text-[12px] text-texto-3">{n.correo}</span>
+          <span className="truncate text-[13px] text-texto-3">{n.correo}</span>
         </span>
       </span>
       <span className="min-w-0 truncate">

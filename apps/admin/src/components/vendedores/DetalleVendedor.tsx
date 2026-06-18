@@ -351,6 +351,7 @@ function pesos(n: number): string {
 
 const COM_META: Record<string, { etiqueta: string; color: string }> = {
   pendiente: { etiqueta: 'Pendiente', color: 'var(--panel-text-3)' },
+  parcial: { etiqueta: 'Parcial', color: 'var(--panel-marca)' },
   pagada: { etiqueta: 'Pagada', color: 'var(--panel-ok)' },
   cancelada: { etiqueta: 'Cancelada', color: 'var(--panel-text-4)' },
 };
@@ -378,6 +379,7 @@ function KpiComision({ etiqueta, monto, color }: { etiqueta: string; monto: numb
 
 function FilaComision({ c }: { c: ComisionFila }) {
   const esAlta = c.tipo === 'alta';
+  const parcial = c.estado === 'parcial';
   return (
     <div data-testid={`comision-${c.id}`} className="flex items-center gap-3 border-b border-borde px-4 py-3 last:border-b-0">
       <div className="flex min-w-0 flex-1 flex-col">
@@ -389,6 +391,9 @@ function FilaComision({ c }: { c: ComisionFila }) {
               ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}`
               : c.tipo}
         </span>
+        {parcial && (
+          <span className="text-[11.5px] font-medium text-marca">Abonado {pesos(c.montoPagado)} · falta {pesos(c.monto - c.montoPagado)}</span>
+        )}
       </div>
       <span className="shrink-0 text-[15px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
       <BadgeComision estado={c.estado} />

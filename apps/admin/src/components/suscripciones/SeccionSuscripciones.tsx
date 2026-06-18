@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -457,7 +457,13 @@ function FilaEvento({ e, cols, onAbrir, onPrefetch }: { e: EventoFila; cols: str
     >
       <span className="flex min-w-0 items-center gap-2.5">
         <AvatarNegocio nombre={e.negocioNombre ?? '—'} logoUrl={e.logoUrl} tam={38} />
-        <span className="truncate text-[13.5px] font-semibold text-texto">{e.negocioNombre ?? '—'}</span>
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-[14px] font-semibold text-texto">{e.negocioNombre ?? '—'}</span>
+          <span className={`inline-flex items-center gap-1 text-[13px] ${e.ciudad ? 'text-texto-3' : 'text-texto-4'}`}>
+            <MapPin size={12} className="shrink-0" />
+            {e.ciudad ?? 'Sin ciudad'}
+          </span>
+        </span>
       </span>
       <span className={`text-[13.5px] font-semibold ${e.monto != null ? 'text-texto' : 'text-texto-4'}`}>{montoTexto(e.monto)}</span>
       <span className="text-[13px] text-texto-2">{fechaCorta(e.fecha)}</span>

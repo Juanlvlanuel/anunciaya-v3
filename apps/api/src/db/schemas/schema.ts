@@ -992,6 +992,7 @@ export const embajadorComisiones = pgTable("embajador_comisiones", {
 	negocioId: uuid("negocio_id"),
 	tipo: varchar({ length: 20 }).notNull(),
 	montoComision: numeric("monto_comision", { precision: 10, scale: 2 }).notNull(),
+	montoPagado: numeric("monto_pagado", { precision: 10, scale: 2 }).default('0').notNull(), // abonos acumulados (pago + compensación); 'pagada' cuando = monto_comision
 	estado: varchar({ length: 20 }).default('pendiente').notNull(),
 	periodo: varchar({ length: 7 }),
 	detalle: jsonb(),

@@ -142,7 +142,8 @@ export interface ComisionFila {
   periodo: string | null;        // 'YYYY-MM' (recurrente)
   tipo: string;                  // recurrente | alta
   monto: number;
-  estado: string;                // pendiente | pagada | cancelada
+  montoPagado: number;           // abonado acumulado (parciales)
+  estado: string;                // pendiente | parcial | pagada | cancelada
   activos: number | null;
   montoUnitario: number | null;
   escalon: string | null;
@@ -219,20 +220,18 @@ export interface DatosCobro {
 }
 
 export interface RegistrarPagoInput {
-  metodo: string;
+  montoTransferencia: number;  // ≥ 0
+  montoEfectivo: number;       // ≥ 0
   fechaPago?: string;
-  periodo?: string | null;
   nota?: string | null;
   comprobanteUrl?: string | null;
-  comisionIds: string[];      // ≥1; el monto sale de ellas (el backend netea el efectivo que el vendedor debe)
 }
 
-/** Lo que devuelve registrarPago: el desglose del neteo. */
+/** Lo que devuelve registrarPago (un abono). */
 export interface ResultadoPago {
-  pagoId?: string;
-  bruto?: number;        // suma de comisiones cubiertas
-  compensado?: number;   // efectivo descontado (neteo)
-  neto?: number;         // lo que realmente se le pagó
+  compensado?: number;    // efectivo descontado (neteo)
+  abonado?: number;       // lo abonado en este pago
+  saldoRestante?: number; // saldo que aún se le debe tras el abono
 }
 
 export interface DatosCobroInput {

@@ -32,6 +32,7 @@ import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
 import { dispararDevengoMesActual, devengarComisionAlta } from './comisiones-devengo.service.js';
+import { registrarCobroEfectivo } from './comisiones-efectivo.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
@@ -610,6 +611,12 @@ export async function marcarPagado(
     await dispararDevengoMesActual();
     // Comisión de alta del vendedor (pieza C): si éste fue su primer pago real, devéngala (idempotente).
     await devengarComisionAlta(negocioId);
+    // Efectivo por entregar (pieza D): si el VENDEDOR registró ESTE pago en EFECTIVO, el dinero lo recibió
+    // él y se lo debe entregar a AnunciaYA → se carga como "efectivo por entregar". (Super/gerente lo
+    // registran a mano; aquí solo cuando lo cobró el propio vendedor.)
+    if (panel.rolEquipo === 'vendedor' && opciones.concepto === 'efectivo' && act.embajadorId && montoRegistrado) {
+        await registrarCobroEfectivo(act.embajadorId, negocioId, Number(montoRegistrado), panel.usuarioId);
+    }
     return { ok: true, negocio: act, advertenciaStripe };
 }
 

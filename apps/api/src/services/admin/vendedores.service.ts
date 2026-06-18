@@ -512,7 +512,8 @@ export interface ComisionFila {
     periodo: string | null;       // 'YYYY-MM' (recurrente)
     tipo: string;                 // recurrente | alta
     monto: number;
-    estado: string;               // pendiente | pagada | cancelada
+    montoPagado: number;          // abonado acumulado (parciales + compensación)
+    estado: string;               // pendiente | parcial | pagada | cancelada ('parcial' es derivado)
     activos: number | null;       // del detalle (recurrente)
     montoUnitario: number | null; // monto por activo del escalón
     escalon: string | null;       // p.ej. "10-24"
@@ -551,6 +552,7 @@ export async function listarComisionesVendedor(
             periodo: embajadorComisiones.periodo,
             tipo: embajadorComisiones.tipo,
             monto: embajadorComisiones.montoComision,
+            montoPagado: embajadorComisiones.montoPagado,
             estado: embajadorComisiones.estado,
             detalle: embajadorComisiones.detalle,
             pagadaAt: embajadorComisiones.pagadaAt,
@@ -562,12 +564,16 @@ export async function listarComisionesVendedor(
 
     const items: ComisionFila[] = filas.map((f) => {
         const d = (f.detalle ?? {}) as { activos?: number; montoUnitario?: number; escalon?: string };
+        const pagado = Number(f.montoPagado);
+        // 'parcial' es derivado: pendiente con algo ya abonado.
+        const estado = f.estado === 'pendiente' && pagado > 0 ? 'parcial' : f.estado;
         return {
             id: f.id,
             periodo: f.periodo ?? null,
             tipo: f.tipo,
             monto: Number(f.monto),
-            estado: f.estado,
+            montoPagado: pagado,
+            estado,
             activos: typeof d.activos === 'number' ? d.activos : null,
             montoUnitario: typeof d.montoUnitario === 'number' ? d.montoUnitario : null,
             escalon: d.escalon ?? null,
@@ -581,7 +587,7 @@ export async function listarComisionesVendedor(
     for (const c of items) {
         if (c.estado === 'cancelada') continue;
         devengado += c.monto;
-        if (c.estado === 'pagada') pagado += c.monto;
+        pagado += c.montoPagado; // incluye parciales + compensación
     }
     const resumen: ResumenComisiones = { devengado, pagado, pendiente: devengado - pagado };
 

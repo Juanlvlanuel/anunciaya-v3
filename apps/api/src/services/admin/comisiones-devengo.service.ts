@@ -17,9 +17,9 @@
  * Ubicación: apps/api/src/services/admin/comisiones-devengo.service.ts
  */
 
-import { and, eq, inArray, sql } from 'drizzle-orm';
+import { and, eq, inArray, ne, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { embajadores, embajadorComisiones, negocios } from '../../db/schemas/schema.js';
+import { embajadores, embajadorComisiones, negocios, pagosMembresia, eventosPago } from '../../db/schemas/schema.js';
 import { obtenerConfigJson, obtenerConfigNumero } from '../configuracion.service.js';
 import { ESCALERA_DEFAULT, type TramoEscalera } from './configuracion.service.js';
 
@@ -178,7 +178,8 @@ export async function dispararDevengoMesActual(): Promise<void> {
  * Devenga la comisión de ALTA de un negocio (pieza C): pago único al vendedor cuando el negocio concreta su
  * PRIMER pago. Best-effort e **idempotente** (una sola por negocio), así que es seguro llamarla en cada punto
  * de pago (webhook / alta manual / marcar pagado). No hace nada si el negocio no tiene vendedor, no ha pagado
- * aún, ya tiene su comisión de alta, o el monto configurado es 0.
+ * aún, **ya tenía pagos previos** (negocio anterior al módulo o renovación → no es alta nueva), ya tiene su
+ * comisión de alta, o el monto configurado es 0.
  */
 export async function devengarComisionAlta(negocioId: string): Promise<void> {
     try {
@@ -189,6 +190,21 @@ export async function devengarComisionAlta(negocioId: string): Promise<void> {
             .limit(1);
         // Sin vendedor o todavía sin primer pago → no aplica.
         if (!neg?.embajadorId || !neg.fechaPrimerPago) return;
+
+        // La comisión de alta es por la PRIMERA venta concretada. Si el negocio YA tenía pagos antes del
+        // actual (negocio anterior al módulo, o una renovación), NO es un alta nueva → no se devenga. Se
+        // cuenta en pagos_membresia (manuales) y eventos_pago (Stripe + manuales) y se toma el mayor, para
+        // cubrir ambos canales aunque a un manual viejo le falte su gemelo en eventos_pago.
+        const [pm] = await db
+            .select({ n: sql<number>`COUNT(*)::int` })
+            .from(pagosMembresia)
+            .where(and(eq(pagosMembresia.negocioId, negocioId), eq(pagosMembresia.anulado, false), ne(pagosMembresia.concepto, 'cortesia')));
+        const [ep] = await db
+            .select({ n: sql<number>`COUNT(*)::int` })
+            .from(eventosPago)
+            .where(and(eq(eventosPago.negocioId, negocioId), sql`${eventosPago.tipo} IN ('cobro_exitoso','pago_manual')`));
+        const pagosReales = Math.max(Number(pm?.n ?? 0), Number(ep?.n ?? 0));
+        if (pagosReales > 1) return; // ya tenía historial de pagos → no es un alta nueva
 
         // Idempotencia: una sola comisión de alta por negocio.
         const [existe] = await db

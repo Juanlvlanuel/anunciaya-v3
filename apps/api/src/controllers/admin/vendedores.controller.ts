@@ -224,17 +224,16 @@ export async function subirComprobanteController(req: Request, res: Response): P
     }
 }
 
-// POST /api/admin/vendedores/:id/pagos   (solo super · registrar un pago; netea el efectivo que el vendedor debe)
+// POST /api/admin/vendedores/:id/pagos   (solo super · ABONO al vendedor: parcial + dividido; netea el efectivo)
 export async function registrarPagoController(req: Request, res: Response): Promise<void> {
     try {
         const b = req.body ?? {};
         const r = await registrarPago(req.usuarioPanel!, req.params.id, {
-            metodo: b.metodo,
+            montoTransferencia: Number(b.montoTransferencia) || 0,
+            montoEfectivo: Number(b.montoEfectivo) || 0,
             fechaPago: typeof b.fechaPago === 'string' ? b.fechaPago : undefined,
-            periodo: typeof b.periodo === 'string' ? b.periodo : null,
             nota: typeof b.nota === 'string' ? b.nota : null,
             comprobanteUrl: typeof b.comprobanteUrl === 'string' ? b.comprobanteUrl : null,
-            comisionIds: Array.isArray(b.comisionIds) ? b.comisionIds.filter((x: unknown) => typeof x === 'string') : [],
         });
         if (!r.ok) {
             res.status(r.status).json({ success: false, message: r.mensaje });
@@ -242,12 +241,12 @@ export async function registrarPagoController(req: Request, res: Response): Prom
         }
         res.status(201).json({
             success: true,
-            message: 'Pago registrado',
-            data: { pagoId: r.pagoId, bruto: r.bruto, compensado: r.compensado, neto: r.neto },
+            message: 'Abono registrado',
+            data: { compensado: r.compensado, abonado: r.abonado, saldoRestante: r.saldoRestante },
         });
     } catch (error) {
         console.error('Error en registrarPagoController:', error);
-        res.status(500).json({ success: false, message: 'Error al registrar el pago' });
+        res.status(500).json({ success: false, message: 'Error al registrar el abono' });
     }
 }
 

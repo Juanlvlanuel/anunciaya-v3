@@ -26,6 +26,7 @@ import { registrarPagoManual } from './pagos-manuales.service.js';
 import { enviarEmailBienvenida } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
 import { devengarComisionAlta } from './comisiones-devengo.service.js';
+import { registrarCobroEfectivo } from './comisiones-efectivo.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { AltaManualNegocioInput } from '../../validations/admin/altaManualNegocio.schema.js';
 
@@ -246,6 +247,11 @@ export async function altaManualNegocio(
     // Comisión de alta del vendedor (pieza C): el alta manual con pago ES el primer pago → devéngala
     // (best-effort + idempotente; no hace nada si fue cortesía, sin vendedor, o ya existe).
     await devengarComisionAlta(creado.negocioId);
+    // Efectivo por entregar (pieza D): si el VENDEDOR dio de alta cobrando en EFECTIVO, el dinero lo
+    // recibió él y se lo debe entregar → se carga como "efectivo por entregar".
+    if (panel.rolEquipo === 'vendedor' && datos.concepto === 'efectivo' && embajadorId && datos.monto) {
+        await registrarCobroEfectivo(embajadorId, creado.negocioId, Number(datos.monto), panel.usuarioId);
+    }
 
     // -------------------------------------------------------------------------
     // 7) Correo de bienvenida + comprobante del PRIMER PAGO (best-effort: si falla NO

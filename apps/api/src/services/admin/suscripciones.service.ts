@@ -26,7 +26,7 @@
 
 import { and, eq, desc, asc, count, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { eventosPago, negocios, usuarios } from '../../db/schemas/schema.js';
+import { eventosPago, negocios, negocioSucursales, usuarios } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 
 // Reusa el filtro GLOBAL de región del Panel (mismo helper que Negocios): si el
@@ -79,6 +79,7 @@ export interface EventoFila {
     negocioId: string;
     negocioNombre: string | null;
     logoUrl: string | null;      // logo del negocio (para la tabla)
+    ciudad: string | null;       // ciudad de la sucursal principal (2ª línea bajo el nombre)
     tipo: string;
     origen: string;
     monto: string | null;        // numeric → string; el front formatea
@@ -247,6 +248,7 @@ export async function listarEventos(
             negocioId: eventosPago.negocioId,
             negocioNombre: negocios.nombre,
             logoUrl: negocios.logoUrl,
+            ciudad: negocioSucursales.ciudad,
             tipo: eventosPago.tipo,
             origen: eventosPago.origen,
             monto: eventosPago.monto,
@@ -257,6 +259,7 @@ export async function listarEventos(
         })
         .from(eventosPago)
         .leftJoin(negocios, eq(negocios.id, eventosPago.negocioId))
+        .leftJoin(negocioSucursales, and(eq(negocioSucursales.negocioId, negocios.id), eq(negocioSucursales.esPrincipal, true)))
         .leftJoin(usuarios, eq(usuarios.id, eventosPago.actorId))
         .where(whereLista)
         .orderBy(...ordenarPor(filtros.orden))
@@ -269,6 +272,7 @@ export async function listarEventos(
         negocioId: f.negocioId,
         negocioNombre: f.negocioNombre ?? null,
         logoUrl: f.logoUrl ?? null,
+        ciudad: f.ciudad ?? null,
         tipo: f.tipo,
         origen: f.origen,
         monto: f.monto ?? null,
