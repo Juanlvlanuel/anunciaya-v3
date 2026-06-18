@@ -61,7 +61,7 @@
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
-| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D) · backlog: cobro automático, F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
+| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
 | 8 | Ciudades | 🟡 | BD lista, falta UI (entra por Fase 1) | — |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |

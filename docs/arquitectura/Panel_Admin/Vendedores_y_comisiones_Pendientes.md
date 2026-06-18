@@ -207,13 +207,13 @@ Fase 2 — ACTUAR ✅ (B · C · E · D)
       Harness probar-abonos.ts TODO VERDE. Migración 2026-06-17-comision-monto-pagado.sql (dev; correr prod).
 - [x] D · Cortes de efectivo + neteo — efectivo_movimientos; saldoEfectivo + registrarMovimientoManual (super/gerente);
       registrarPago NETEA (bruto − deuda = neto); pestaña Efectivo + desglose en Registrar pago.
-      Harness probar-neteo-efectivo.ts TODO VERDE. Migración 2026-06-17-efectivo-movimientos.sql (dev + prod).
+      Harness probar-abonos.ts (cubre el neteo) TODO VERDE. Migración 2026-06-17-efectivo-movimientos.sql (dev + prod).
 - [x] tsc API + builds del Panel en verde.
 
 Fase 3 — Cerrar
-- [x] Doc canónico Vendedores_y_comisiones.md (2 capas, A·B·C·E·D)
+- [x] Doc canónico Vendedores_y_comisiones.md (2 capas, A·B·C·E·D + abonos v2)
 - [x] Índices (tablero, memoria)
-- [ ] Commits a main (C + D) — pendiente de aviso de Juan
+- [x] Commits a main (B/C/E/D, Liquidación v2 abonos, cobro automático, datos de cobro seguros, fix comisión de alta).
 
 ### Backlog (diferido)
 - **Comisión recurrente "al cobro" (Opción A, D16)** — devengar la recurrente por los meses que el negocio paga,
