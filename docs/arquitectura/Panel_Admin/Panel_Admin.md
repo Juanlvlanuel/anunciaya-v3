@@ -188,15 +188,15 @@ Cómo nace una venta y cómo se enlaza un negocio a su vendedor. **Dos caminos, 
 
 ### Camino B — pago en efectivo (registro del vendedor)
 
-> ✅ **El alta manual sin Stripe (botón "Registrar negocio") YA ESTÁ CONSTRUIDA** (10 Jun 2026, en producción): un negocio puede nacer desde el Panel sin pasar por Stripe (`metodo_cobro='manual'`), cobrado en efectivo/transferencia/cortesía, con la cuenta del dueño naciendo sin contraseña (modelo C), y un cron diario que vigila el vencimiento de los manuales. **El flujo completo (las 6 fases, paso a paso) está documentado en 📄 [`Negocios.md`](Negocios.md) §8 y su Apéndice E.** Lo que sigue pendiente del Camino B es lo de **abajo**: el corte de caja, el "efectivo por entregar" y la comisión condicionada a la confirmación de la entrega.
+> ✅ **El alta manual sin Stripe (botón "Registrar negocio") YA ESTÁ CONSTRUIDA** (10 Jun 2026, en producción): un negocio puede nacer desde el Panel sin pasar por Stripe (`metodo_cobro='manual'`), cobrado en efectivo/transferencia/cortesía, con la cuenta del dueño naciendo sin contraseña (modelo C), y un cron diario que vigila el vencimiento de los manuales. **El flujo completo (las 6 fases, paso a paso) está documentado en 📄 [`Negocios.md`](Negocios.md) §8 y su Apéndice E.** El corte de caja, el "efectivo por entregar" y el **neteo** de la comisión (pieza D) **también están construidos** (17 Jun 2026) — ver abajo y [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md).
 
 1. El vendedor cobra en efectivo y **registra al negocio desde su Panel**.
 2. **El negocio se ACTIVA de inmediato** al registrarse el cobro. El negocio pagó de buena fe (al representante de AnunciaYA) → su membresía corre normal, su reputación intacta. **NO depende de ninguna confirmación.**
 3. Lo que queda "pendiente" NO es el negocio, es **la entrega del dinero por parte del vendedor**: el cobro queda como **"efectivo por entregar"** a nombre del vendedor.
-4. **La comisión del vendedor** sí se libera solo cuando **confirma la entrega** del dinero (esto lo incentiva a entregarlo). Si no entrega: pierde su comisión, queda faltante a su nombre, se le despide. **El negocio nunca se ve afectado.**
-5. **Quién confirma la entrega:** SuperAdmin (cualquiera) o el Gerente Regional (solo de sus vendedores).
-- **Corte de caja por vendedor:** reportado vs. entregado vs. pendiente. Sin esto el efectivo es un agujero negro.
-- Filosofía corregida: el riesgo del robo lo absorbe **AnunciaYA (tú)**, NO el negocio. "Roba una vez → pierde comisión + despido", pero el negocio que pagó queda activo siempre.
+4. **La comisión del vendedor** no se congela: se le **netea**. Al pagarle su comisión se **descuenta lo que te debe** del efectivo cobrado y se le entrega el **neto** (pieza D; decisión 17 Jun: netear, no condicionar). Así no le pagas completo a quien te debe, sin trabar comisiones grandes por faltantes chicos. **El negocio nunca se ve afectado.**
+5. **Quién registra/confirma cobros y entregas:** SuperAdmin (cualquiera) o el Gerente Regional (solo de sus vendedores).
+- **Corte de caja por vendedor ✅ (construido):** por entregar / cobrado / entregado / descontado — en la pestaña "Efectivo" del detalle del vendedor.
+- Filosofía: el riesgo del robo lo absorbe **AnunciaYA (tú)**, NO el negocio. El negocio que pagó queda activo siempre; el control de "efectivo por entregar" + neteo recae sobre el **vendedor**.
 
 > **Por qué se permite el efectivo:** en el mercado objetivo, exigir tarjeta cierra puertas. El
 > negocio que paga en efectivo está protegido (se activa al instante); el candado de "entrega
@@ -266,10 +266,15 @@ El vendedor necesita **mostrar Business Studio en vivo** al negocio que está co
 
 ## Comisiones
 
+> ✅ **Construido y en uso (17 Jun 2026):** la comisión de alta (C), la recurrente por escalera (B) y la escalera
+> editable (en Configuración) ya operan, junto con la liquidación (E) y los cortes de efectivo con neteo (D).
+> Detalle en [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md). Lo de abajo es el diseño de fondo (vigente).
+
 El vendedor cobra **dos cosas distintas**:
 
 ### 1. Comisión de alta (al firmar)
-Pago único por cada negocio nuevo que firma y que **se concreta** (tarjeta pagada, o efectivo confirmado).
+Pago único ($400 configurable) por cada negocio nuevo que firma y que **se concreta** — al registrarse su **primer
+pago real** (tarjeta cobrada o pago manual). Idempotente: una por negocio.
 
 ### 2. Comisión recurrente (mensual, condicionada)
 - **Monto FIJO** por cada negocio activo, **no porcentaje**. (Más claro de comunicar y blinda el costo si sube el precio de la membresía.)

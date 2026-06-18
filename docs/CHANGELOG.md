@@ -8,6 +8,27 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [17 Junio 2026] - Panel · Vendedores y comisiones (módulo completo) + Configuración v1 + trial dinámico 💰📊
+
+Día grande del Panel: se **cerró de punta a punta el módulo Vendedores y comisiones** (el más grande del Panel) y se construyó **Configuración v1** (el tablero económico que lo alimenta) + el **trial dinámico** en la web pública. Validado con harness (devengo + neteo TODO VERDE) + builds verdes; migraciones en **dev y prod**. Commits: `564256b` (cartera VER), `38f7a9e` (Configuración), `22a3ed7` (devengo), `f0c39bd` + `4a6e4f7` (fixes), `144d4e6` (trial), `0774883` (liquidación), `e0c952e` (comisión de alta), `42b41f0` (cortes de efectivo + neteo).
+
+**Vendedores y comisiones — A · B · C · E · D (doc `Vendedores_y_comisiones.md`):**
+- **A · Cartera (VER):** la red de ventas + la cartera de cada vendedor, en **vista master-detail full-width** (no modal — el módulo es data-heavy). Alcance por rol (super todo · gerente su región · vendedor lo suyo).
+- **B · Devengo recurrente:** comisión = **# de negocios activos × monto del escalón** de la escalera (monto fijo, no %). Cron diario + botón "Recalcular mes" + estado de cuenta (devengado/pagado/pendiente). Redisparo automático al cambiar negocios. ⚠️ "Activo" = `estado_admin='activo'` AND membresía al corriente/gracia (no la columna legacy `activo`, que se desincronizaba — fue un bug).
+- **C · Comisión de alta:** **pago único** ($400 configurable) al vendedor cuando un negocio que firmó concreta su **primer pago real**; idempotente (una por negocio); se devenga sola en el webhook de Stripe, el alta manual y "marcar pagado".
+- **E · Liquidación:** registrar pago al vendedor con **foto-comprobante** (R2 presigned) que marca sus comisiones como pagadas + datos de cobro (CLABE) + bitácora de egresos. El pago lo registra solo el SuperAdmin (tesorería).
+- **D · Cortes de efectivo + neteo:** tabla nueva `efectivo_movimientos` (cobro/entrega/compensación); corte de caja por vendedor (por entregar / cobrado / entregado / descontado); **al pagarle comisión se descuenta lo que el vendedor te debe** de efectivo y se le entrega el **neto** (decisión: netear, no condicionar la comisión). Harness `probar-neteo-efectivo.ts` (2 casos + limpieza) TODO VERDE.
+
+**Configuración v1 — el tablero económico (doc `Configuracion.md`):** el SuperAdmin (solo él) edita las **palancas que tocan la caja**: la **escalera de comisiones** (clave JSON, editor de tramos con vista previa en vivo + rueda del mouse, validación dura sin huecos/solapes), el **trial** y la **gracia**. Con auditoría + reset de caché. Esto **desbloqueó** el devengo de Vendedores (que lee la escalera).
+
+**Trial dinámico en la web:** la landing/registro/upgrade mostraban "7 días" hardcodeado. Nuevo endpoint público `GET /api/configuracion-publica` + hook `useConfigPublica` conectan ~8 lugares (+ i18n es/en) al valor real del trial. Stripe ya lo respetaba.
+
+**Backlog anotado:** cobro automático de efectivo (engancharlo al flujo del vendedor) · datos de cobro por el propio vendedor · el **precio de membresía** + promos de lanzamiento (Coupons) + cobro día-1 para ventas por vendedor → **sprint de Stripe** aparte. Cobertura avanzada del vendedor (F) sigue diferida.
+
+**Docs:** `Vendedores_y_comisiones.md` + `_Pendientes.md`, `Configuracion.md` + `_Pendientes.md`, `Tablero_Modulos.md`, `Panel_Admin.md`, `ROADMAP.md`. Migraciones: `2026-06-17-vendedores-comisiones-fase2.sql`, `...-comprobante.sql`, `2026-06-17-efectivo-movimientos.sql`, `sembrar_comision_escalera.sql` (dev + prod).
+
+---
+
 ## [16 Junio 2026] - Panel · Medición y filtrado de usuarios por ciudad 📍📊
 
 Nueva capacidad sobre el módulo **Usuarios** (ya cerrado): **medir y filtrar usuarios por ciudad** en el Panel Admin. Es la fase **Expand** de la migración global "ciudad texto → catálogo `ciudades`" (gemela de lo que ya tiene `negocio_sucursales`). Validado en DEV con datos reales (21/21 mapeados) + `tsc` en verde (api/web/admin).
