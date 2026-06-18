@@ -114,6 +114,7 @@ export interface RegistroInput {
   // ═══════════════════════════════════════════
   avatar?: string | null;   // Solo con Google
   nombreNegocio?: string;   // Solo si perfil === 'comercial'
+  intervalo?: 'month' | 'year'; // Plan comercial mensual/anual. Solo cliente (no se envía a /auth/registro).
 }
 
 /**
@@ -176,7 +177,10 @@ export interface Verificar2FAInput {
  * - Registro Google: crea usuario directo, devuelve tokens
  */
 export async function registro(datos: RegistroInput): Promise<RespuestaAPI<RespuestaRegistro | RespuestaRegistroGoogle>> {
-  const response = await api.post<RespuestaAPI<RespuestaRegistro | RespuestaRegistroGoogle>>('/auth/registro', datos);
+  // `intervalo` es solo del lado del cliente (lo usa el checkout, no el registro) → no se envía al backend.
+  const payload = { ...datos };
+  delete payload.intervalo;
+  const response = await api.post<RespuestaAPI<RespuestaRegistro | RespuestaRegistroGoogle>>('/auth/registro', payload);
   return response.data;
 }
 

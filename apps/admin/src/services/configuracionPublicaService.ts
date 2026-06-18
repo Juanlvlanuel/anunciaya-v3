@@ -1,14 +1,14 @@
 /**
  * configuracionPublicaService.ts
  * ==============================
- * Lee los valores PÚBLICOS del negocio que la landing y el registro muestran al visitante (sin auth).
- * Hoy: la duración del trial (días gratis de la cuenta comercial) y el precio mensual de la membresía
- * comercial, que el SuperAdmin ajusta en el Panel.
+ * Lee los valores PÚBLICOS del negocio (precio de membresía, trial) desde el endpoint sin auth
+ * `/configuracion-publica` — el MISMO que consume apps/web. El Panel lo usa para que los montos
+ * sugeridos en los diálogos de pago manual reflejen el precio configurado, sin hardcodearlo.
  *
- * Ubicación: apps/web/src/services/configuracionPublicaService.ts
+ * Ubicación: apps/admin/src/services/configuracionPublicaService.ts
  */
 
-import { get } from './api';
+import { api, type RespuestaAPI } from './api';
 
 export interface ConfigPublica {
   trialDias: number;
@@ -24,6 +24,6 @@ export interface ConfigPublica {
 export const CONFIG_PUBLICA_DEFAULT: ConfigPublica = { trialDias: 14, precioMembresia: 849, precioMembresiaAnual: 8490, anualDisponible: false };
 
 export async function obtenerConfigPublica(): Promise<ConfigPublica> {
-  const res = await get<ConfigPublica>('/configuracion-publica');
-  return res.data ?? CONFIG_PUBLICA_DEFAULT;
+  const { data } = await api.get<RespuestaAPI<ConfigPublica>>('/configuracion-publica');
+  return data.data ?? CONFIG_PUBLICA_DEFAULT;
 }

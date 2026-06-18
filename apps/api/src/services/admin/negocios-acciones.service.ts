@@ -777,6 +777,12 @@ export async function editarPagoMembresia(
         .limit(1);
     if (!pago) return { ok: false, status: 404, mensaje: 'Pago no encontrado en este negocio.' };
 
+    // Los cobros con TARJETA (Stripe) NO se editan desde el Panel: son cobros reales ya procesados por
+    // Stripe; corregirlos a mano dejaría la BD divergente del cargo real.
+    if (pago.concepto === 'tarjeta') {
+        return { ok: false, status: 409, mensaje: 'Este pago se cobró con tarjeta (Stripe) y no se puede editar desde el Panel.' };
+    }
+
     // Solo se edita el ÚLTIMO pago vigente (el que define "Vigencia hasta"). Un pago anterior es
     // historia financiera ya asentada: para corregirlo, anúlalo y regístralo de nuevo (deja rastro
     // auditable y no manipula ingresos pasados en silencio).
@@ -964,6 +970,12 @@ export async function anularPagoMembresia(
         .limit(1);
     if (!pago) return { ok: false, status: 404, mensaje: 'Pago no encontrado en este negocio.' };
     if (pago.anulado) return { ok: false, status: 409, mensaje: 'Este pago ya está anulado.' };
+
+    // Los cobros con TARJETA (Stripe) NO se anulan desde el Panel: el cobro real ya ocurrió en Stripe.
+    // Un reembolso, si aplica, se hace en Stripe (a futuro como acción dedicada).
+    if (pago.concepto === 'tarjeta') {
+        return { ok: false, status: 409, mensaje: 'Este pago se cobró con tarjeta (Stripe) y no se puede anular desde el Panel.' };
+    }
 
     const ahora = new Date().toISOString();
 

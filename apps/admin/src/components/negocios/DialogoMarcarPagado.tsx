@@ -17,6 +17,7 @@ import { CreditCard } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorFecha } from '../ui/SelectorFecha';
 import { precioPorMeses } from './membresia';
+import { usePrecioMembresia } from '../../hooks/queries/usePrecioMembresia';
 
 const CLASE_CAMPO =
   'w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]';
@@ -100,9 +101,9 @@ function diasNuevos(fechaDate: Date | null, vencimiento: Date | null): number {
 
 /** Monto sugerido para "Fecha exacta": días nuevos × precio por día (precio mensual base / 30),
  *  redondeado al peso. 0 si no agrega tiempo. */
-function montoProporcional(fechaDate: Date | null, vencimiento: Date | null): number {
+function montoProporcional(fechaDate: Date | null, vencimiento: Date | null, precioBase: number): number {
   const dias = diasNuevos(fechaDate, vencimiento);
-  return dias > 0 ? Math.round((precioPorMeses(1) / 30) * dias) : 0;
+  return dias > 0 ? Math.round((precioPorMeses(1, precioBase) / 30) * dias) : 0;
 }
 
 interface DatosPago {
@@ -139,11 +140,12 @@ export function DialogoMarcarPagado({
   onConfirmar,
 }: DialogoMarcarPagadoProps) {
   const conceptos = permiteCortesia ? OPCIONES_CONCEPTO : OPCIONES_CONCEPTO.filter((c) => c.valor !== 'cortesia');
+  const precioBase = usePrecioMembresia();
   const [modo, setModo] = useState<'meses' | 'fecha'>('meses');
   const [mesesStr, setMesesStr] = useState('1');
   const [fechaManual, setFechaManual] = useState('');
   const [concepto, setConcepto] = useState<Concepto>('efectivo');
-  const [monto, setMonto] = useState(String(precioPorMeses(1)));
+  const [monto, setMonto] = useState(String(precioPorMeses(1, precioBase)));
 
   const venceActual = vencimientoActual ? new Date(vencimientoActual) : null;
 
@@ -191,7 +193,7 @@ export function DialogoMarcarPagado({
     const soloDigitos = valor.replace(/\D/g, '');
     setMesesStr(soloDigitos);
     const n = Number(soloDigitos);
-    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1) setMonto(String(precioPorMeses(n)));
+    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1) setMonto(String(precioPorMeses(n, precioBase)));
   };
 
   // Elegir/cambiar la fecha exacta recalcula el monto a PROPORCIÓN de los días nuevos (salvo
@@ -199,7 +201,7 @@ export function DialogoMarcarPagado({
   const aplicarFecha = (valor: string) => {
     setFechaManual(valor);
     if (concepto === 'cortesia' || !valor) return;
-    const prop = montoProporcional(new Date(`${valor}T23:59:59`), venceActual);
+    const prop = montoProporcional(new Date(`${valor}T23:59:59`), venceActual, precioBase);
     setMonto(prop > 0 ? String(prop) : '');
   };
 
@@ -207,9 +209,9 @@ export function DialogoMarcarPagado({
   const aplicarConcepto = (c: Concepto) => {
     setConcepto(c);
     if (c === 'cortesia') return;
-    if (modo === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+    if (modo === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum, precioBase)));
     else if (modo === 'fecha' && fechaManual) {
-      const prop = montoProporcional(new Date(`${fechaManual}T23:59:59`), venceActual);
+      const prop = montoProporcional(new Date(`${fechaManual}T23:59:59`), venceActual, precioBase);
       setMonto(prop > 0 ? String(prop) : '');
     }
   };
@@ -218,9 +220,9 @@ export function DialogoMarcarPagado({
   const aplicarModo = (m: 'meses' | 'fecha') => {
     setModo(m);
     if (concepto === 'cortesia') return;
-    if (m === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+    if (m === 'meses' && mesesValido) setMonto(String(precioPorMeses(mesesNum, precioBase)));
     else if (m === 'fecha' && fechaManual) {
-      const prop = montoProporcional(new Date(`${fechaManual}T23:59:59`), venceActual);
+      const prop = montoProporcional(new Date(`${fechaManual}T23:59:59`), venceActual, precioBase);
       setMonto(prop > 0 ? String(prop) : '');
     }
   };
@@ -339,7 +341,7 @@ export function DialogoMarcarPagado({
                 data-testid="marcar-monto"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
-                placeholder="849.00"
+                placeholder={`${precioBase}.00`}
                 className={`${CLASE_CAMPO} pl-6`}
               />
             </div>

@@ -67,8 +67,8 @@ export interface DatosReciboPDF {
     direccionNegocio?: string | null;
     telefonoNegocio?: string | null;
     correoNegocio?: string | null;
-    /** Cómo se pagó: ingreso real (efectivo/transferencia) o cortesía (sin dinero). */
-    concepto: 'efectivo' | 'transferencia' | 'cortesia';
+    /** Cómo se pagó: ingreso real (efectivo/transferencia/tarjeta) o cortesía (sin dinero). */
+    concepto: 'efectivo' | 'transferencia' | 'cortesia' | 'tarjeta';
     /** Monto cobrado en MXN. NULL en cortesía. */
     monto?: number | null;
     /** N meses cubiertos (para el campo "Periodo"). */
@@ -83,6 +83,7 @@ export interface DatosReciboPDF {
 
 function formaPagoLegible(c: DatosReciboPDF['concepto']): string {
     if (c === 'transferencia') return 'Transferencia';
+    if (c === 'tarjeta') return 'Tarjeta';
     if (c === 'cortesia') return 'Cortesía';
     return 'Efectivo';
 }

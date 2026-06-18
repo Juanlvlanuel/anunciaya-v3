@@ -60,3 +60,40 @@ export function parsearEscalera(valor: string): TramoEscalera[] {
     return [];
   }
 }
+
+type DatosPrice = { precio: number; priceId: string };
+
+/** Resultado de cambiar el precio mensual (el anual se recalcula solo si está activo). */
+export interface ResultadoPrecioMensual {
+  precioMensual: number;
+  priceMensualId: string;
+  anual: DatosPrice | null;
+  modo: 'test' | 'live';
+}
+
+/** Resultado de activar/desactivar el plan anual. */
+export interface ResultadoPlanAnual {
+  activo: boolean;
+  anual: DatosPrice | null;
+  modo: 'test' | 'live';
+}
+
+/** Cambia el precio MENSUAL: el backend crea el Price nuevo en Stripe y reapunta la config. Solo super. */
+export async function cambiarPrecioMensual(precioMensual: number): Promise<ResultadoPrecioMensual> {
+  const { data } = await api.put<RespuestaAPI<ResultadoPrecioMensual>>(
+    '/admin/configuracion/precio-membresia',
+    { precioMensual },
+  );
+  if (!data.data) throw new Error(data.message || 'Respuesta inválida del servidor');
+  return data.data;
+}
+
+/** Activa/desactiva el plan anual: el backend crea o archiva el Price anual. Solo super. */
+export async function activarPlanAnual(activo: boolean): Promise<ResultadoPlanAnual> {
+  const { data } = await api.put<RespuestaAPI<ResultadoPlanAnual>>(
+    '/admin/configuracion/plan-anual',
+    { activo },
+  );
+  if (!data.data) throw new Error(data.message || 'Respuesta inválida del servidor');
+  return data.data;
+}

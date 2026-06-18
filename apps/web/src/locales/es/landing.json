@@ -181,10 +181,11 @@
   },
   "cta": {
     "titulo": "Empieza hoy...",
-    "subtitulo": "Gratis para consumidores · $849/mes para comerciantes · Hecho en México",
+    "subtitulo": "Gratis para consumidores · ${{precio}}/mes para comerciantes · Hecho en México",
     "personal": {
       "titulo": "Cuenta Personal",
       "precio": "Gratis",
+      "siempre": "para siempre",
       "features": {
         "f1": "Publica en Marketplace",
         "f2": "Ofrece o solicita Servicios",
@@ -199,6 +200,7 @@
       "titulo": "Cuenta Comercial",
       "badge": "Premium",
       "precio": "{{dias}} días gratis",
+      "sinTrial": "Empieza hoy",
       "features": {
         "f1": "Publica en Negocios Locales",
         "f2": "Publica en Ofertas",
@@ -208,7 +210,8 @@
         "f6": "Chat integrado (ChatYA)",
         "f7": "Business Studio (Herramienta de Gestión)"
       },
-      "boton": "Probar trial Gratis"
+      "boton": "Probar trial Gratis",
+      "botonSinTrial": "Empieza ahora"
     },
     "trial": {
       "dias": "{{dias}} días de prueba gratis",

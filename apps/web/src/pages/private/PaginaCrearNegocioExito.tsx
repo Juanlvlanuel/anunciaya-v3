@@ -181,7 +181,7 @@ export function PaginaCrearNegocioExito() {
             </div>
             <div>
               <p className="font-bold text-slate-900">Modo Comercial Activado</p>
-              <p className="text-orange-600 text-sm">{trialDias} días de prueba gratis</p>
+              <p className="text-orange-600 text-sm">{trialDias > 0 ? `${trialDias} días de prueba gratis` : 'Membresía activa'}</p>
             </div>
           </div>
           <ul className="space-y-2 text-sm text-slate-600">

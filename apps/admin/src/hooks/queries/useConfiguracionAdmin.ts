@@ -41,3 +41,34 @@ export function useActualizarConfiguracion() {
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar el cambio')),
   });
 }
+
+/**
+ * Cambia el precio MENSUAL (crea el Price nuevo en Stripe + reapunta la config). Solo super.
+ * Invalida la config pública (de donde se lee el precio en toda la app) y la lista de Configuración.
+ */
+export function useCambiarPrecioMensual() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (precioMensual: number) => configuracionService.cambiarPrecioMensual(precioMensual),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['configuracion-publica'] });
+      qc.invalidateQueries({ queryKey: queryKeys.configuracion.all() });
+      toast.exito(`Precio mensual actualizado a $${r.precioMensual}`);
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo cambiar el precio')),
+  });
+}
+
+/** Activa/desactiva el plan anual (crea o archiva el Price anual en Stripe). Solo super. */
+export function useActivarPlanAnual() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (activo: boolean) => configuracionService.activarPlanAnual(activo),
+    onSuccess: (r) => {
+      qc.invalidateQueries({ queryKey: ['configuracion-publica'] });
+      qc.invalidateQueries({ queryKey: queryKeys.configuracion.all() });
+      toast.exito(r.activo ? 'Plan anual activado' : 'Plan anual desactivado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo actualizar el plan anual')),
+  });
+}

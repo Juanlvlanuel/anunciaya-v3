@@ -18,3 +18,24 @@ export const actualizarConfigSchema = z.object({
 });
 
 export type ActualizarConfigInput = z.infer<typeof actualizarConfigSchema>;
+
+/**
+ * Body del botón "Cambiar precio de la membresía" (Sprint Stripe · 1c): el monto mensual en MXN
+ * (entero). El service crea los Prices nuevos en Stripe (mensual + anual = 10×) y reapunta la config.
+ */
+export const cambiarPrecioMembresiaSchema = z.object({
+    precioMensual: z.coerce
+        .number({ message: 'El precio es obligatorio.' })
+        .int('El precio debe ser un entero.')
+        .min(100, 'El precio mínimo es $100 MXN.')
+        .max(100000, 'El precio máximo es $100,000 MXN.'),
+});
+
+export type CambiarPrecioMembresiaInput = z.infer<typeof cambiarPrecioMembresiaSchema>;
+
+/** Body del toggle "Ofrecer plan anual" (Sprint Stripe · 1c): on/off. */
+export const planAnualSchema = z.object({
+    activo: z.boolean(),
+});
+
+export type PlanAnualInput = z.infer<typeof planAnualSchema>;

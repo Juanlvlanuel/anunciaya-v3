@@ -218,7 +218,11 @@ Fase 3 — Cerrar
 
 ## Fuera de V1 (V2 consciente — anotado, no escondido)
 
-- 🟡 **SPRINT DEDICADO — Precio de membresía editable + promos de lanzamiento.** (Acordado con Juan, 17 jun 2026.)
+- 🟡 **SPRINT DEDICADO — Precio de membresía editable + cobro día-1 + comisión al cobro.** (Acordado con Juan,
+  17 jun 2026.) **→ Fase 0 cerrada el 18 jun; ahora vive en su doc maestro: [`Sprint_Stripe.md`](Sprint_Stripe.md).**
+  Cambios al cerrar Fase 0: el **descuento de precio de lanzamiento se descartó** (el precio se queda firme en
+  $849; las promos dan tiempo, no rebaja) y el **plan anual se construye también en tarjeta**. El detalle vivo
+  está en `Sprint_Stripe.md`; lo de abajo queda como el esbozo original.
   Es un sprint **propio**, fuera de la bitácora y fuera de Configuración v1 (que ya cerró **trial y gracia** —
   módulo 9, [`Configuracion.md`](Configuracion.md)). Alcance:
   - **Cambiar el precio** de la membresía ($849 hoy). Ojo: los **Prices de Stripe son inmutables** → cambiar el

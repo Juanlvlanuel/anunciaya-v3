@@ -51,6 +51,7 @@ interface EstadoRegistro {
   paso: PasoRegistro;
   correo: string;
   tipoCuenta: 'personal' | 'comercial';
+  intervalo: 'month' | 'year';
   nombreNegocio: string;
   nombreUsuario: string;
   datosGoogle: DatosGoogleConToken | null;
@@ -122,6 +123,7 @@ export function PaginaRegistro() {
     paso: 'formulario',
     correo: '',
     tipoCuenta: 'personal',
+    intervalo: 'month',
     nombreNegocio: '',
     nombreUsuario: '',
     datosGoogle: null,
@@ -174,6 +176,7 @@ export function PaginaRegistro() {
             ...prev,
             correo: datos.correo,
             tipoCuenta: 'comercial',
+            intervalo: datos.intervalo ?? 'month',
             nombreNegocio: datos.nombreNegocio || '',
             nombreUsuario: datos.nombre,
             datosRegistro: {
@@ -191,6 +194,7 @@ export function PaginaRegistro() {
               apellidos: datos.apellidos,
               telefono: datos.telefono,
             },
+            datos.intervalo ?? 'month',
             datos.googleIdToken
           );
           return;
@@ -211,6 +215,7 @@ export function PaginaRegistro() {
           ...prev,
           correo: datos.correo,
           tipoCuenta: datos.perfil,
+          intervalo: datos.intervalo ?? 'month',
           nombreNegocio: datos.nombreNegocio || '',
           nombreUsuario: datos.nombre,
           datosRegistro: {
@@ -232,6 +237,7 @@ export function PaginaRegistro() {
                 apellidos: datos.apellidos,
                 telefono: datos.telefono,
               },
+              datos.intervalo ?? 'month',
               datos.googleIdToken
             );
           } else {
@@ -284,7 +290,8 @@ export function PaginaRegistro() {
           await redirigirAStripe(
             estado.correo,
             estado.nombreNegocio,
-            estado.datosRegistro!
+            estado.datosRegistro!,
+            estado.intervalo
           );
         } else {
           // Personal: guardar tokens y mostrar modal de bienvenida
@@ -303,7 +310,7 @@ export function PaginaRegistro() {
         setCargando(false);
       }
     },
-    [estado.correo, estado.tipoCuenta, estado.nombreNegocio, estado.datosRegistro]
+    [estado.correo, estado.tipoCuenta, estado.intervalo, estado.nombreNegocio, estado.datosRegistro]
   );
 
   // ---------------------------------------------------------------------------
@@ -397,6 +404,7 @@ export function PaginaRegistro() {
     correo: string,
     nombreNegocio: string,
     datosRegistro: { nombre: string; apellidos: string; telefono: string },
+    intervalo: 'month' | 'year' = 'month',
     googleIdToken?: string
   ) {
     try {
@@ -408,6 +416,7 @@ export function PaginaRegistro() {
         correo,
         nombreNegocio,
         datosRegistro,
+        intervalo,
         ...(googleIdToken && { esRegistroGoogle: true, googleIdToken }),
         ...(codigoReferido && { codigoReferido }),
       });

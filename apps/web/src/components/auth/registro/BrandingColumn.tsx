@@ -51,7 +51,7 @@ interface BrandingColumnProps {
 
 export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps) {
     const { t } = useTranslation('landing');
-    const { trialDias } = useConfigPublica();
+    const { trialDias, precioMembresia } = useConfigPublica();
     const datos = DATOS_CUENTA[tipoCuenta];
     const esComercial = tipoCuenta === 'comercial';
 
@@ -60,7 +60,7 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
             style={{ background: 'linear-gradient(to bottom, #0B358F 40%, #000000 80%)' }}
         >
             {/* ═══ PARTE SUPERIOR: Logo + Texto de bienvenida (fijo) ═══ */}
-            <div className="flex flex-col items-center justify-center px-6 lg:px-8 2xl:px-12 pt-8 lg:pt-20 2xl:pt-24 pb-4 lg:pb-3 2xl:pb-6">
+            <div className="shrink-0 flex flex-col items-center justify-center px-6 lg:px-8 2xl:px-12 pt-6 lg:pt-10 2xl:pt-14 pb-4 lg:pb-3 2xl:pb-6">
                 {/* Logo */}
                 <Link to="/" className="mb-4 lg:mb-3 2xl:mb-6">
                     <img
@@ -84,9 +84,9 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
             </div>
 
             {/* ═══ PARTE INFERIOR: Imágenes (izq) + Info (der) — dinámico ═══ */}
-            <div className="grid grid-cols-[1fr_1.2fr] 2xl:grid-cols-[1fr_1.3fr] min-h-0 h-[55%] 2xl:h-[60%] mt-auto">
+            <div className="grid grid-cols-[1fr_1.2fr] 2xl:grid-cols-[1fr_1.3fr] flex-1 min-h-0 mt-4 lg:mt-6 2xl:mt-8">
                 {/* Imágenes */}
-                <div className="flex flex-col h-full">
+                <div className="flex flex-col h-full min-h-0">
                     {datos.imagenes.map((src, i) => (
                         <div key={i} className="flex-1 overflow-hidden group">
                             <img
@@ -111,7 +111,7 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                         {esComercial ? (
                             <div className="flex items-center gap-2">
                                 <span className={`text-3xl lg:text-2xl 2xl:text-4xl font-extrabold ${datos.colorPrecio}`}>
-                                    {t(datos.precioKey, { dias: trialDias })}
+                                    {trialDias > 0 ? t(datos.precioKey, { dias: trialDias }) : t('cta.comercial.sinTrial')}
                                 </span>
                                 <span className="px-3 py-0.5 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">
                                     {t('cta.comercial.badge')}
@@ -145,11 +145,13 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                     {esComercial ? (
                         <div className="mt-4 lg:mt-3 2xl:mt-5 pt-4 lg:pt-3 2xl:pt-5 border-t border-white/15">
                             <span className="text-3xl lg:text-2xl 2xl:text-4xl font-bold text-white">
-                                $849<span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/50">/mes</span>
+                                ${precioMembresia}<span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/50">/mes</span>
                             </span>
-                            <p className="text-base lg:text-sm 2xl:text-base font-medium text-white/50 mt-1">
-                                {t('cta.trial.cancela')}
-                            </p>
+                            {trialDias > 0 && (
+                                <p className="text-base lg:text-sm 2xl:text-base font-medium text-white/50 mt-1">
+                                    {t('cta.trial.cancela')}
+                                </p>
+                            )}
                         </div>
                     ) : (
                         <div className="flex items-center gap-4 lg:gap-3 2xl:gap-5 mt-4 lg:mt-3 2xl:mt-5 pt-4 lg:pt-3 2xl:pt-5 border-t border-white/15">

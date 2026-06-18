@@ -20,6 +20,7 @@ import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorFecha } from '../ui/SelectorFecha';
 import { SelectorBuscable } from '../ui/SelectorBuscable';
 import { precioPorMeses } from './membresia';
+import { usePrecioMembresia } from '../../hooks/queries/usePrecioMembresia';
 import { useCatalogoCiudades, useVendedoresFiltro, useAltaManualNegocio } from '../../hooks/queries/useNegociosAdmin';
 import { existeCorreo } from '../../services/negociosService';
 import type { ConceptoAlta, DatosAltaManual } from '../../services/negociosService';
@@ -79,9 +80,9 @@ function diasDesdeHoy(fechaYMD: string): number {
   return d > 0 ? d : 0;
 }
 /** Monto sugerido proporcional a los días (precio mensual base / 30 × días), al peso. */
-function montoProporcional(fechaYMD: string): number {
+function montoProporcional(fechaYMD: string, precioBase: number): number {
   const dias = diasDesdeHoy(fechaYMD);
-  return dias > 0 ? Math.round((precioPorMeses(1) / 30) * dias) : 0;
+  return dias > 0 ? Math.round((precioPorMeses(1, precioBase) / 30) * dias) : 0;
 }
 
 /** Cabecera de cada paso: ícono + título + descripción. */
@@ -117,6 +118,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const { data: ciudades } = useCatalogoCiudades(abierto);
   const { data: vendedores } = useVendedoresFiltro(mostrarVendedor);
   const alta = useAltaManualNegocio();
+  const precioBase = usePrecioMembresia();
   const opcionesCiudad = useMemo(
     () => (ciudades ?? []).map((c) => ({ id: c.id, etiqueta: `${c.nombre}, ${c.estado}` })),
     [ciudades],
@@ -135,7 +137,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const [telDigitos, setTelDigitos] = useState('');
   // Cobro
   const [concepto, setConcepto] = useState<ConceptoAlta>('efectivo');
-  const [monto, setMonto] = useState(String(precioPorMeses(1)));
+  const [monto, setMonto] = useState(String(precioPorMeses(1, precioBase)));
   const [mesChip, setMesChip] = useState(1);
   const [modoOtro, setModoOtro] = useState(false);
   const [mesesOtro, setMesesOtro] = useState('');
@@ -186,23 +188,23 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const aplicarMeses = (m: number) => {
     setModoOtro(false);
     setMesChip(m);
-    if (concepto !== 'cortesia') setMonto(String(precioPorMeses(m)));
+    if (concepto !== 'cortesia') setMonto(String(precioPorMeses(m, precioBase)));
   };
   const aplicarMesesOtro = (valor: string) => {
     setMesesOtro(valor);
     const n = Number(valor);
-    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1 && n <= 36) setMonto(String(precioPorMeses(n)));
+    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1 && n <= 36) setMonto(String(precioPorMeses(n, precioBase)));
   };
   const aplicarModoMeses = () => {
     setModoPlazo('meses');
     const m = modoOtro ? Number(mesesOtro) : mesChip;
-    if (concepto !== 'cortesia' && Number.isInteger(m) && m >= 1) setMonto(String(precioPorMeses(m)));
+    if (concepto !== 'cortesia' && Number.isInteger(m) && m >= 1) setMonto(String(precioPorMeses(m, precioBase)));
   };
   // Elegir la fecha exacta sugiere el monto a proporción de los días (salvo cortesía); editable.
   const aplicarFecha = (valor: string) => {
     setFechaManual(valor);
     if (concepto !== 'cortesia' && valor) {
-      const prop = montoProporcional(valor);
+      const prop = montoProporcional(valor, precioBase);
       setMonto(prop > 0 ? String(prop) : '');
     }
   };
@@ -508,7 +510,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                       data-testid="alta-monto"
                       value={monto}
                       onChange={(e) => setMonto(e.target.value)}
-                      placeholder="849.00"
+                      placeholder={`${precioBase}.00`}
                       className={`${CLASE_CAMPO} pl-6`}
                     />
                   </div>

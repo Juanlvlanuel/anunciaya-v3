@@ -18,6 +18,7 @@ import { useState } from 'react';
 import { Receipt } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { precioPorMeses } from './membresia';
+import { usePrecioMembresia } from '../../hooks/queries/usePrecioMembresia';
 import type { ConceptoPago, DatosEditarPago, PagoMembresia } from '../../services/negociosService';
 
 const CLASE_CAMPO =
@@ -59,6 +60,7 @@ interface DialogoEditarPagoProps {
 
 export function DialogoEditarPago({ abierto, onCerrar, pago, cargando = false, onConfirmar, permiteCortesia = true }: DialogoEditarPagoProps) {
   const conceptos = permiteCortesia ? OPCIONES_CONCEPTO : OPCIONES_CONCEPTO.filter((c) => c.valor !== 'cortesia');
+  const precioBase = usePrecioMembresia();
   const [concepto, setConcepto] = useState<ConceptoPago>((pago.concepto as ConceptoPago) ?? 'efectivo');
   const [monto, setMonto] = useState(pago.monto ?? '');
   const [mesesStr, setMesesStr] = useState(String(pago.mesesCubiertos ?? 1));
@@ -77,13 +79,13 @@ export function DialogoEditarPago({ abierto, onCerrar, pago, cargando = false, o
     const soloDigitos = valor.replace(/\D/g, '');
     setMesesStr(soloDigitos);
     const n = Number(soloDigitos);
-    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1) setMonto(String(precioPorMeses(n)));
+    if (concepto !== 'cortesia' && Number.isInteger(n) && n >= 1) setMonto(String(precioPorMeses(n, precioBase)));
   };
 
   // Pasar a efectivo/transferencia precarga el precio sugerido de los meses actuales.
   const aplicarConcepto = (c: ConceptoPago) => {
     setConcepto(c);
-    if (c !== 'cortesia' && mesesValido) setMonto(String(precioPorMeses(mesesNum)));
+    if (c !== 'cortesia' && mesesValido) setMonto(String(precioPorMeses(mesesNum, precioBase)));
   };
 
   // Vista previa: hasta cuándo cubre el pago corregido (fecha de pago + meses).
@@ -186,7 +188,7 @@ export function DialogoEditarPago({ abierto, onCerrar, pago, cargando = false, o
                 data-testid="editar-monto"
                 value={monto}
                 onChange={(e) => setMonto(e.target.value)}
-                placeholder="849.00"
+                placeholder={`${precioBase}.00`}
                 className={`${CLASE_CAMPO} pl-6`}
               />
             </div>

@@ -19,6 +19,7 @@ import { useConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
 import { parsearEscalera, type ConfigFila, type TramoEscalera } from '../../services/configuracionService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { DialogoEditarNumero, DialogoEditarEscalera } from './DialogosConfig';
+import { TarjetaPrecioMembresia } from './TarjetaPrecioMembresia';
 
 /** Etiqueta legible de cada categoría de `configuracion_sistema`. */
 const ETIQUETA_CATEGORIA: Record<string, string> = {
@@ -161,6 +162,11 @@ export function SeccionConfiguracion() {
             <h2 className="text-[18px] font-bold tracking-[-0.2px] text-texto">Configuración</h2>
             <p className="text-[13px] text-texto-3">Valores del negocio que ajustas sin tocar código.</p>
           </div>
+        </div>
+
+        {/* Precio de la membresía (toca Stripe → tarjeta dedicada, separada de los valores simples) */}
+        <div className="mb-7">
+          <TarjetaPrecioMembresia />
         </div>
 
         {isLoading ? (

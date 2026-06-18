@@ -24,19 +24,13 @@ import { notificar } from '@/utils/notificaciones';
 import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 
 // =============================================================================
-// CONSTANTES
-// =============================================================================
-
-const PRECIO_COMERCIAL = 849;
-
-// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
 export function PaginaCrearNegocio() {
   const navigate = useNavigate();
   const usuario = useAuthStore((state) => state.usuario);
-  const { trialDias } = useConfigPublica();
+  const { trialDias, precioMembresia } = useConfigPublica();
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -214,18 +208,20 @@ export function PaginaCrearNegocio() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-800 font-bold text-xl lg:text-lg 2xl:text-2xl">
-                    ${PRECIO_COMERCIAL}
+                    ${precioMembresia}
                     <span className="text-orange-600 font-medium text-sm lg:text-sm 2xl:text-base">/mes</span>
                   </p>
                   <p className="text-orange-600 text-xs lg:text-xs 2xl:text-sm">IVA incluido</p>
                 </div>
-                <div className="bg-green-500 text-white text-xs lg:text-xs 2xl:text-sm font-bold px-3 lg:px-3 2xl:px-4 py-1.5 lg:py-1.5 2xl:py-2 rounded-full flex items-center gap-1 lg:gap-1 2xl:gap-1.5">
-                  <Check className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
-                  {trialDias} días gratis
-                </div>
+                {trialDias > 0 && (
+                  <div className="bg-green-500 text-white text-xs lg:text-xs 2xl:text-sm font-bold px-3 lg:px-3 2xl:px-4 py-1.5 lg:py-1.5 2xl:py-2 rounded-full flex items-center gap-1 lg:gap-1 2xl:gap-1.5">
+                    <Check className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4" />
+                    {trialDias} días gratis
+                  </div>
+                )}
               </div>
               <p className="text-orange-600 text-xs lg:text-xs 2xl:text-sm mt-2 lg:mt-2 2xl:mt-3">
-                Se cobra al día {trialDias + 1} • Cancela cuando quieras
+                {trialDias > 0 ? `Se cobra al día ${trialDias + 1} • Cancela cuando quieras` : 'Se cobra hoy • Cancela cuando quieras'}
               </p>
             </div>
 

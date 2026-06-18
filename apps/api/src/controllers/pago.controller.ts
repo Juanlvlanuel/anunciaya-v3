@@ -78,7 +78,7 @@ export async function crearCheckout(
     // -------------------------------------------------------------------------
     // PASO 2: Llamar al service
     // -------------------------------------------------------------------------
-    const { esRegistroGoogle, googleIdToken, codigoReferido } = req.body;
+    const { esRegistroGoogle, googleIdToken, codigoReferido, intervalo } = req.body;
     const resultado = await pagoService.crearCheckoutSession({
       correo,
       nombreNegocio,
@@ -86,6 +86,7 @@ export async function crearCheckout(
       esRegistroGoogle,
       googleIdToken,
       codigoReferido,
+      intervalo: intervalo === 'year' ? 'year' : 'month',
     });
 
     // -------------------------------------------------------------------------

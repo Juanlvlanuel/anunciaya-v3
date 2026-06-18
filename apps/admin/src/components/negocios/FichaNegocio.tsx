@@ -150,7 +150,7 @@ function ChipDato({ texto, activo, testid }: { texto: string; activo: boolean; t
 }
 
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía' };
+const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía', tarjeta: 'Tarjeta' };
 /** Pagos visibles antes del botón "Ver todos". Del hook compartido para que el prefetch
  *  cargue la MISMA query y la ficha abra completa de una vez (ver usePrefetchNegocio). */
 const PAGOS_INICIAL = PAGOS_INICIAL_FICHA;
@@ -222,7 +222,7 @@ function HistorialPagos({ negocioId, puedeActuar, puedeReenviar, esManual, permi
                         <Send size={16} />
                       </button>
                     </Tooltip>
-                    {puedeActuar && p.id === ultimoPagoId && (
+                    {puedeActuar && p.id === ultimoPagoId && p.concepto !== 'tarjeta' && (
                       <Tooltip text="Editar pago">
                         <button
                           type="button"
@@ -235,7 +235,7 @@ function HistorialPagos({ negocioId, puedeActuar, puedeReenviar, esManual, permi
                         </button>
                       </Tooltip>
                     )}
-                    {puedeActuar && (
+                    {puedeActuar && p.concepto !== 'tarjeta' && (
                       <Tooltip text="Anular pago">
                         <button
                           type="button"

@@ -577,8 +577,8 @@ export async function enviarEmailGerenteRevocado(
 export interface DatosComprobantePago {
   /** Nombre del negocio cuya membresía se renovó/activó. */
   nombreNegocio: string;
-  /** Cómo se registró: ingreso real (efectivo/transferencia) o cortesía (sin dinero). */
-  concepto: 'efectivo' | 'transferencia' | 'cortesia';
+  /** Cómo se registró: ingreso real (efectivo/transferencia/tarjeta) o cortesía (sin dinero). */
+  concepto: 'efectivo' | 'transferencia' | 'cortesia' | 'tarjeta';
   /** Monto cobrado en MXN. NULL/omitido en cortesía (no hubo cobro). */
   monto?: number | null;
   /** Vigencia: fecha (ISO) hasta la que queda activa la membresía. */
@@ -605,6 +605,7 @@ function botonDescargaRecibo(reciboUrl?: string | null): string {
 /** Texto legible del concepto del pago. */
 function conceptoLegible(concepto: DatosComprobantePago['concepto']): string {
   if (concepto === 'transferencia') return 'Transferencia';
+  if (concepto === 'tarjeta') return 'Tarjeta';
   if (concepto === 'cortesia') return 'Cortes&iacute;a';
   return 'Efectivo';
 }

@@ -237,7 +237,7 @@ export const pagosMembresia = pgTable("pagos_membresia", {
 }, (table) => [
 	index("idx_pagos_membresia_negocio").using("btree", table.negocioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_pagos_membresia_periodo").using("btree", table.negocioId.asc().nullsLast(), table.periodoHasta.asc().nullsLast()),
-	check("pagos_membresia_concepto_check", sql`(concepto)::text = ANY ((ARRAY['efectivo'::character varying, 'transferencia'::character varying, 'cortesia'::character varying])::text[])`),
+	check("pagos_membresia_concepto_check", sql`(concepto)::text = ANY ((ARRAY['efectivo'::character varying, 'transferencia'::character varying, 'cortesia'::character varying, 'tarjeta'::character varying])::text[])`),
 	check("pagos_membresia_monto_check", sql`(monto IS NULL) OR (monto >= (0)::numeric)`),
 	check("pagos_membresia_cortesia_sin_monto_check", sql`((concepto)::text <> 'cortesia'::text) OR (monto IS NULL)`),
 ]);

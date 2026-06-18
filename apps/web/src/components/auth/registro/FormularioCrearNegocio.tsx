@@ -29,12 +29,6 @@ interface FormularioCrearNegocioProps {
 }
 
 // =============================================================================
-// CONSTANTES
-// =============================================================================
-
-const PRECIO_COMERCIAL = 849;
-
-// =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
@@ -44,7 +38,7 @@ export function FormularioCrearNegocio({
   nombreUsuario,
 }: FormularioCrearNegocioProps) {
   const navigate = useNavigate();
-  const { trialDias } = useConfigPublica();
+  const { trialDias, precioMembresia } = useConfigPublica();
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -190,18 +184,20 @@ export function FormularioCrearNegocio({
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-orange-800 font-bold text-lg">
-                    ${PRECIO_COMERCIAL}
+                    ${precioMembresia}
                     <span className="text-orange-600 font-medium text-sm">/mes</span>
                   </p>
                   <p className="text-orange-600 text-xs">IVA incluido</p>
                 </div>
-                <div className="bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  {trialDias} días gratis
-                </div>
+                {trialDias > 0 && (
+                  <div className="bg-green-500 text-white text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1">
+                    <Check className="w-3 h-3" />
+                    {trialDias} días gratis
+                  </div>
+                )}
               </div>
               <p className="text-orange-600 text-xs mt-2">
-                Se cobra al día {trialDias + 1} • Cancela cuando quieras
+                {trialDias > 0 ? `Se cobra al día ${trialDias + 1} • Cancela cuando quieras` : 'Se cobra hoy • Cancela cuando quieras'}
               </p>
             </div>
 

@@ -181,10 +181,11 @@
   },
   "cta": {
     "titulo": "Start today...",
-    "subtitulo": "Free for consumers · $849/mo for merchants · Made in Mexico",
+    "subtitulo": "Free for consumers · ${{precio}}/mo for merchants · Made in Mexico",
     "personal": {
       "titulo": "Personal Account",
       "precio": "Free",
+      "siempre": "forever",
       "features": {
         "f1": "Post in Marketplace",
         "f2": "Offer or request Services",
@@ -199,6 +200,7 @@
       "titulo": "Business Account",
       "badge": "Premium",
       "precio": "{{dias}} days free",
+      "sinTrial": "Start today",
       "features": {
         "f1": "Post in Local Businesses",
         "f2": "Post in Deals",
@@ -208,7 +210,8 @@
         "f6": "Integrated chat (ChatYA)",
         "f7": "Business Studio (Management Tool)"
       },
-      "boton": "Try Free Trial"
+      "boton": "Try Free Trial",
+      "botonSinTrial": "Start now"
     },
     "trial": {
       "dias": "{{dias}}-day free trial",

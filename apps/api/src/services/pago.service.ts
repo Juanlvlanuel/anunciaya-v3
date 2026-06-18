@@ -25,11 +25,11 @@ import Stripe from 'stripe';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
-import { usuarios, negocios, negocioSucursales, embajadores } from '../db/schemas/schema.js';
+import { usuarios, negocios, negocioSucursales, embajadores, pagosMembresia } from '../db/schemas/schema.js';
 import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
-import { obtenerConfigNumero } from './configuracion.service.js';
+import { obtenerConfigNumero, obtenerConfigTexto } from './configuracion.service.js';
 import { crearNegocioConDueno } from './negocioManagement.service.js';
 import { registrarEventoPago } from './suscripciones/eventos-pago.js';
 import { eq, and, sql } from 'drizzle-orm';
@@ -54,6 +54,8 @@ interface DatosCheckout {
     googleIdToken?: string;
     // Código de referido del vendedor (link `?ref=`). Opcional.
     codigoReferido?: string;
+    // Intervalo de cobro del plan comercial: 'month' (mensual) o 'year' (anual). Default 'month'.
+    intervalo?: 'month' | 'year';
 }
 
 /**
@@ -64,6 +66,8 @@ interface DatosCheckoutUpgrade {
     usuarioId: string;
     correo: string;
     nombreNegocio: string;
+    // Intervalo de cobro del plan comercial: 'month' (mensual) o 'year' (anual). Default 'month'.
+    intervalo?: 'month' | 'year';
 }
 
 /**
@@ -98,6 +102,25 @@ interface DatosUsuarioWebhook {
 }
 
 // =============================================================================
+// HELPER: Price del plan comercial según intervalo (de config, con env como semilla)
+// =============================================================================
+
+/**
+ * Price ID del plan comercial según el intervalo de cobro, leído de la configuración del sistema
+ * (lo gestiona el botón "Cambiar precio" del Panel). El MENSUAL cae a la env `STRIPE_PRICE_COMERCIAL`
+ * como semilla si aún no se sembró en config. El ANUAL solo existe si el Panel ya lo creó (no hay env
+ * de respaldo): si falta, se rechaza el checkout anual con un error claro.
+ */
+async function obtenerPriceComercial(intervalo: 'month' | 'year'): Promise<string> {
+    if (intervalo === 'year') {
+        const idAnual = await obtenerConfigTexto('stripe_price_comercial_anual_id', '');
+        if (!idAnual) throw new Error('El plan anual no está disponible por ahora.');
+        return idAnual;
+    }
+    return obtenerConfigTexto('stripe_price_comercial_id', env.STRIPE_PRICE_COMERCIAL);
+}
+
+// =============================================================================
 // FUNCIÓN 1: CREAR CHECKOUT SESSION
 // =============================================================================
 
@@ -107,7 +130,7 @@ interface DatosUsuarioWebhook {
  * ¿Qué hace?
  * 1. Valida que el correo esté verificado en Redis (código 6 dígitos ya validado)
  * 2. Crea una Checkout Session en Stripe con:
- *    - Precio del plan comercial ($849/mes)
+ *    - Precio del plan comercial (configurable, lo define el Price de Stripe activo)
  *    - Trial gratis (los días salen de la config 'trial_duracion_dias')
  *    - Metadata con datos del usuario
  * 3. Devuelve la URL para redirigir al usuario
@@ -123,7 +146,7 @@ interface DatosUsuarioWebhook {
 export async function crearCheckoutSession(
     datos: DatosCheckout
 ): Promise<RespuestaCheckout> {
-    const { correo, nombreNegocio, datosRegistro, esRegistroGoogle, googleIdToken, codigoReferido } = datos;
+    const { correo, nombreNegocio, datosRegistro, esRegistroGoogle, googleIdToken, codigoReferido, intervalo = 'month' } = datos;
 
     const datosRedisKey = `temp:registro:${correo}`;
 
@@ -168,28 +191,31 @@ export async function crearCheckoutSession(
     // -------------------------------------------------------------------------
     // PASO 2: Crear sesión en Stripe
     // -------------------------------------------------------------------------
+    const priceComercial = await obtenerPriceComercial(intervalo);
+    const trialDias = await obtenerConfigNumero('trial_duracion_dias', 14);
     const session = await stripe.checkout.sessions.create({
         // Modo de pago: suscripción recurrente
         mode: 'subscription',
 
-        // Plan comercial ($849/mes) con trial (días configurables: 'trial_duracion_dias')
+        // Plan comercial (Price de config según intervalo mensual/anual) con trial (días configurables: 'trial_duracion_dias')
         line_items: [
             {
-                price: env.STRIPE_PRICE_COMERCIAL,
+                price: priceComercial,
                 quantity: 1,
             },
         ],
 
         // Configuración de la suscripción
         subscription_data: {
-            // Duración del trial: se lee de configuracionSistema (default 14 días)
-            trial_period_days: await obtenerConfigNumero('trial_duracion_dias', 14),
+            // Trial configurable; si es 0 se OMITE (Stripe exige ≥1) → cobra de inmediato al registrarse.
+            ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
 
             // Metadata que se guarda en la suscripción
             metadata: {
                 correo,
                 nombreNegocio,
                 tipo: 'comercial',
+                intervalo,
             },
         },
 
@@ -269,7 +295,7 @@ export async function crearCheckoutSession(
 export async function crearCheckoutUpgrade(
     datos: DatosCheckoutUpgrade
 ): Promise<RespuestaCheckout> {
-    const { usuarioId, correo, nombreNegocio } = datos;
+    const { usuarioId, correo, nombreNegocio, intervalo = 'month' } = datos;
 
     // -------------------------------------------------------------------------
     // PASO 1: Verificar que el usuario existe y NO tiene modo comercial
@@ -295,19 +321,21 @@ export async function crearCheckoutUpgrade(
     // -------------------------------------------------------------------------
     // PASO 2: Crear sesión en Stripe
     // -------------------------------------------------------------------------
+    const priceComercial = await obtenerPriceComercial(intervalo);
+    const trialDias = await obtenerConfigNumero('trial_duracion_dias', 14);
     const session = await stripe.checkout.sessions.create({
         mode: 'subscription',
 
         line_items: [
             {
-                price: env.STRIPE_PRICE_COMERCIAL,
+                price: priceComercial,
                 quantity: 1,
             },
         ],
 
         subscription_data: {
-            // Duración del trial: se lee de configuracionSistema (default 14 días)
-            trial_period_days: await obtenerConfigNumero('trial_duracion_dias', 14),
+            // Trial configurable; si es 0 se OMITE (Stripe exige ≥1) → cobra de inmediato.
+            ...(trialDias > 0 ? { trial_period_days: trialDias } : {}),
             metadata: {
                 usuarioId,
                 correo,
@@ -1189,6 +1217,41 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
             } catch (errCom) {
                 console.error('❌ Error devengando la comisión de alta (webhook):', errCom);
             }
+
+            // Comprobante de pago (correo + recibo PDF con folio correlativo) por el cobro de TARJETA —
+            // mismo flujo que un pago manual. Se registra una fila en pagos_membresia (concepto 'tarjeta')
+            // para tomar el folio de la MISMA serie y que aparezca en el historial del negocio; NO crea
+            // gemelo en eventos_pago (el cobro ya quedó arriba como 'cobro_exitoso'). Best-effort: si falla,
+            // el cobro ya está registrado.
+            try {
+                const [pagoTarjeta] = await db
+                    .insert(pagosMembresia)
+                    .values({
+                        negocioId: res.negocio.id,
+                        concepto: 'tarjeta',
+                        monto: String((inv.amount_paid ?? 0) / 100),
+                        mesesCubiertos: null,
+                        periodoHasta: finPeriodo ?? new Date().toISOString(),
+                        registradoPor: null,
+                    })
+                    .returning({ id: pagosMembresia.id });
+                if (pagoTarjeta?.id) {
+                    const { prepararReciboPago } = await import('./admin/recibo-pago.service.js');
+                    const { enviarComprobantePagoMembresia } = await import('../utils/email.js');
+                    const rec = await prepararReciboPago(pagoTarjeta.id);
+                    if (rec?.correoDueno) {
+                        await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
+                            nombreNegocio: rec.nombreNegocio,
+                            concepto: rec.concepto,
+                            monto: rec.monto,
+                            hasta: rec.hasta,
+                            reciboUrl: rec.reciboUrl,
+                        });
+                    }
+                }
+            } catch (errRecibo) {
+                console.error('❌ Error emitiendo el comprobante del cobro con tarjeta (webhook):', errRecibo);
+            }
         }
 
         // Si el negocio reapareció por el pago, borrar el aviso de "fuera de circulación".
@@ -1385,10 +1448,11 @@ export async function manejarTrialPorTerminar(subscription: Stripe.Subscription)
         // Pago manual (efectivo/transferencia): avisa del próximo cobro SIN llamarlo "prueba gratis".
         // Trial de alta (sin pago manual cubriendo este periodo): conserva el copy de prueba gratis.
         const esPagoManual = conceptoManual === 'efectivo' || conceptoManual === 'transferencia';
+        const precioMembresia = await obtenerConfigNumero('precio_membresia_mxn', 849);
         const titulo = esPagoManual ? 'Tu membresía se renueva pronto' : 'Tu prueba gratis termina pronto';
         const mensaje = esPagoManual
-            ? `El periodo que cubriste vence el ${fechaTxt}. Ese día se cobrará tu membresía ($849/mes) a la tarjeta registrada. Revisa que esté vigente para no perder el servicio.`
-            : `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($849/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
+            ? `El periodo que cubriste vence el ${fechaTxt}. Ese día se cobrará tu membresía ($${precioMembresia}/mes) a la tarjeta registrada. Revisa que esté vigente para no perder el servicio.`
+            : `Tu periodo de prueba termina el ${fechaTxt}. Ese día se cobrará tu membresía ($${precioMembresia}/mes). Revisa que tu tarjeta esté vigente para no perder el servicio.`;
 
         const { crearNotificacion } = await import('./notificaciones.service.js');
         // In-app en AMBOS modos, a nivel negocio (sin sucursalId → visible en cualquier sucursal).

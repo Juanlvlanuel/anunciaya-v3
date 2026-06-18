@@ -512,7 +512,7 @@ export function ColumnaIzquierda() {
 // =============================================================================
 
 function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
-  const { trialDias } = useConfigPublica();
+  const { trialDias, precioMembresia } = useConfigPublica();
   const navigate = useNavigate();
   const usuario = useAuthStore((state) => state.usuario);
   const tieneModoComercial = usuario?.tieneModoComercial ?? false;
@@ -549,12 +549,21 @@ function ContenidoPersonal({ tema }: { tema: TemaColumna }) {
             {/* Stats del CTA */}
             <div className={`flex items-center justify-between text-sm lg:text-xs 2xl:text-sm mb-3 px-1 ${tema.textSecondary}`}>
               <span className="flex flex-col items-center">
-                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>$849</strong>
+                <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>${precioMembresia}</strong>
                 <span className={`text-xs ${tema.textMuted}`}>/mes</span>
               </span>
               <span className="flex flex-col items-center">
-                <strong className="text-base lg:text-sm 2xl:text-base text-blue-600">{trialDias} días</strong>
-                <span className={`text-xs ${tema.textMuted}`}>gratis</span>
+                {trialDias > 0 ? (
+                  <>
+                    <strong className="text-base lg:text-sm 2xl:text-base text-blue-600">{trialDias} días</strong>
+                    <span className={`text-xs ${tema.textMuted}`}>gratis</span>
+                  </>
+                ) : (
+                  <>
+                    <strong className="text-base lg:text-sm 2xl:text-base text-blue-600">Sin</strong>
+                    <span className={`text-xs ${tema.textMuted}`}>permanencia</span>
+                  </>
+                )}
               </span>
               <span className="flex flex-col items-center">
                 <strong className={`text-base lg:text-sm 2xl:text-base ${tema.ctaPriceColor}`}>2.5k+</strong>

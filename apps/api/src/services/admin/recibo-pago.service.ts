@@ -25,7 +25,7 @@ export interface ReciboPreparado {
     nombreDueno: string | null;
     /** Datos para el bloque-recibo del correo. */
     nombreNegocio: string;
-    concepto: 'efectivo' | 'transferencia' | 'cortesia';
+    concepto: 'efectivo' | 'transferencia' | 'cortesia' | 'tarjeta';
     monto: number | null;
     /** Vigencia (ISO) = `periodo_hasta` del pago. */
     hasta: string;
@@ -34,7 +34,7 @@ export interface ReciboPreparado {
 interface FilaPago {
     folio: number | null;
     monto: string | null;
-    concepto: 'efectivo' | 'transferencia' | 'cortesia';
+    concepto: 'efectivo' | 'transferencia' | 'cortesia' | 'tarjeta';
     meses_cubiertos: number | null;
     periodo_hasta: string;
     fecha_pago: string;

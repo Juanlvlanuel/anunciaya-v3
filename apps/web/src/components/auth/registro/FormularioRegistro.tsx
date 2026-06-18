@@ -16,6 +16,8 @@ import {
   Eye,
   EyeOff,
   Check,
+  Gift,
+  Zap,
   ChevronLeft,
   ChevronDown,
   X,
@@ -90,8 +92,6 @@ const LADAS = [
   { codigo: '+56', pais: '🇨🇱', nombre: 'Chile' },
 ];
 
-const PRECIO_COMERCIAL = 849;
-
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
@@ -109,7 +109,7 @@ export function FormularioRegistro({
 }: FormularioRegistroProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const { trialDias } = useConfigPublica();
+  const { trialDias, precioMembresia, precioMembresiaAnual, anualDisponible } = useConfigPublica();
 
   // ---------------------------------------------------------------------------
   // Estado
@@ -117,6 +117,8 @@ export function FormularioRegistro({
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>(
     searchParams.get('plan') === 'comercial' ? 'comercial' : 'personal'
   );
+  // Plan de cobro del comercial: mensual o anual (el anual solo se ofrece si su Price existe en Stripe).
+  const [intervalo, setIntervalo] = useState<'month' | 'year'>('month');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 
@@ -348,11 +350,12 @@ export function FormularioRegistro({
 
       if (tipoCuenta === 'comercial') {
         datos.nombreNegocio = formulario.nombreNegocio.trim();
+        datos.intervalo = intervalo;
       }
 
       await onSubmit(datos);
     },
-    [formulario, tipoCuenta, datosGoogle, onSubmit]
+    [formulario, tipoCuenta, intervalo, datosGoogle, onSubmit]
   );
 
   // Handler para volver al landing
@@ -478,22 +481,52 @@ export function FormularioRegistro({
         </div>
 
         {tipoCuenta === 'comercial' && (
-          <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-1.5 lg:p-2 2xl:p-2.5 mb-2 lg:mb-2 2xl:mb-3">
-            <div className="flex items-center justify-between">
+          <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 lg:p-3 2xl:p-4 mb-2 lg:mb-2 2xl:mb-3">
+            {/* Selector Mensual / Anual — solo si el plan anual ya está disponible en Stripe */}
+            {anualDisponible && (
+              <div className="flex gap-1 mb-3 rounded-lg bg-amber-200/70 p-0.5">
+                <button
+                  type="button"
+                  onClick={() => setIntervalo('month')}
+                  className={`flex-1 rounded-md py-1.5 text-sm lg:text-[12px] 2xl:text-sm font-semibold transition lg:cursor-pointer ${intervalo === 'month' ? 'bg-white text-amber-900 shadow-sm' : 'text-amber-800'}`}
+                >
+                  Mensual
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setIntervalo('year')}
+                  className={`flex-1 rounded-md py-1.5 text-sm lg:text-[12px] 2xl:text-sm font-semibold transition lg:cursor-pointer ${intervalo === 'year' ? 'bg-white text-amber-900 shadow-sm' : 'text-amber-800'}`}
+                >
+                  Anual <span className="font-bold">· 2 meses gratis</span>
+                </button>
+              </div>
+            )}
+            <div className="flex items-center justify-between gap-3">
               <div>
-                <p className="text-lg lg:text-lg 2xl:text-xl font-extrabold text-slate-800">
-                  ${PRECIO_COMERCIAL}
-                  <span className="text-sm lg:text-sm font-medium text-slate-600">/mes</span>
+                <div className="flex items-baseline gap-1">
+                  <span className="text-3xl lg:text-2xl 2xl:text-3xl font-extrabold text-slate-900 leading-none">
+                    ${intervalo === 'year' ? precioMembresiaAnual : precioMembresia}
+                  </span>
+                  <span className="text-sm lg:text-sm 2xl:text-base font-semibold text-slate-500">{intervalo === 'year' ? '/año' : '/mes'}</span>
+                </div>
+                <p className="text-xs lg:text-[11px] 2xl:text-xs font-medium text-slate-400 mt-1.5">
+                  IVA incluido{intervalo === 'year' ? ' · equivale a 10 meses' : ''}
                 </p>
-                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">IVA incluido</p>
               </div>
-              <div className="text-right">
-                <span className="bg-amber-500 text-white text-sm lg:text-[11px] 2xl:text-sm font-bold px-2.5 lg:px-2.5 2xl:px-3 py-1 lg:py-1 2xl:py-1.5 rounded-full flex items-center gap-1">
-                  <Check className="w-3 h-3" />
-                  {trialDias} días gratis
+              {trialDias > 0 ? (
+                <div className="text-right shrink-0">
+                  <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-xs lg:text-[11px] 2xl:text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Gift className="w-3 h-3" />
+                    {trialDias} días gratis
+                  </span>
+                  <p className="text-xs lg:text-[11px] 2xl:text-xs font-medium text-slate-500 mt-1.5">Se cobra el día {trialDias + 1}</p>
+                </div>
+              ) : (
+                <span className="inline-flex shrink-0 items-center gap-1 bg-amber-100 text-amber-800 text-xs lg:text-[11px] 2xl:text-xs font-semibold px-2.5 py-1 rounded-full">
+                  <Zap className="w-3 h-3" />
+                  Acceso inmediato
                 </span>
-                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-0.5 lg:mt-1">Se cobra al día {trialDias + 1}</p>
-              </div>
+              )}
             </div>
           </div>
         )}

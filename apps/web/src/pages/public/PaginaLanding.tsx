@@ -615,7 +615,7 @@ function StripCategorias() {
 
 function SeccionPlanes() {
     const { t } = useTranslation('landing');
-    const { trialDias } = useConfigPublica();
+    const { trialDias, precioMembresia } = useConfigPublica();
     const navigate = useNavigate();
     const { ref: refReveal, esVisible } = useRevealOnScroll();
 
@@ -680,7 +680,7 @@ function SeccionPlanes() {
                             {t('cta.comercial.titulo')}
                         </h2>
                         <div className="mt-1 flex items-center gap-2 lg:gap-2 2xl:gap-3">
-                            <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{t('cta.comercial.precio', { dias: trialDias })}</span>
+                            <span className="text-2xl lg:text-2xl 2xl:text-4xl font-extrabold bg-linear-to-r from-amber-300 to-amber-600 bg-clip-text text-transparent">{trialDias > 0 ? t('cta.comercial.precio', { dias: trialDias }) : t('cta.comercial.sinTrial')}</span>
                             <span className="px-2.5 py-0.5 lg:px-2.5 lg:py-0.5 2xl:px-3 2xl:py-1 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">{t('cta.comercial.badge')}</span>
                         </div>
                     </div>
@@ -701,17 +701,19 @@ function SeccionPlanes() {
                             onClick={() => navigate('/registro?plan=comercial')}
                             className="w-full lg:w-auto inline-flex items-center justify-center gap-2 px-6 py-2.5 lg:px-6 lg:py-2.5 2xl:px-10 2xl:py-3.5 rounded-full text-base lg:text-base 2xl:text-xl font-bold text-slate-900 bg-amber-400 border-2 border-amber-500 lg:cursor-pointer hover:bg-amber-300"
                         >
-                            {t('cta.comercial.boton')}
+                            {trialDias > 0 ? t('cta.comercial.boton') : t('cta.comercial.botonSinTrial')}
                             <ArrowRight className="w-4 h-4 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6" />
                         </button>
                         <span className="text-xl lg:text-xl 2xl:text-3xl font-bold text-white">
-                            $849<span className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">{t('comerciantes.precio')}</span>
+                            ${precioMembresia}<span className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">{t('comerciantes.precio')}</span>
                         </span>
                     </div>
 
-                    <p className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">
-                        {t('cta.trial.cancela')}
-                    </p>
+                    {trialDias > 0 && (
+                        <p className="text-sm lg:text-sm 2xl:text-base font-medium text-white/50">
+                            {t('cta.trial.cancela')}
+                        </p>
+                    )}
                 </div>
 
                 {/* Imagen ScanYA — solo desktop */}

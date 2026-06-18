@@ -34,6 +34,8 @@ export interface DatosCheckout {
   // Código de referido del vendedor (link `?ref=`). Opcional: si no viene,
   // el negocio se crea sin atribución.
   codigoReferido?: string;
+  // Intervalo de cobro del plan comercial: 'month' (mensual) o 'year' (anual). Default 'month'.
+  intervalo?: 'month' | 'year';
 }
 
 /**

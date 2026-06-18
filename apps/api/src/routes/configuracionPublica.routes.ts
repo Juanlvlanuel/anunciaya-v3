@@ -3,7 +3,7 @@
  * ==============================
  * Ruta PÚBLICA (sin auth) con los valores del negocio que la app web muestra al visitante.
  *
- *   GET /  → { trialDias }  (duración del trial de la cuenta comercial)
+ *   GET /  → { trialDias, precioMembresia }  (trial + precio mensual de la membresía comercial)
  *
  * Ubicación: apps/api/src/routes/configuracionPublica.routes.ts
  */
