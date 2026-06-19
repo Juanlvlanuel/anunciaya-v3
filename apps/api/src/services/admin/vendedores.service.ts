@@ -514,9 +514,11 @@ export interface ComisionFila {
     monto: number;
     montoPagado: number;          // abonado acumulado (parciales + compensación)
     estado: string;               // pendiente | parcial | pagada | cancelada ('parcial' es derivado)
-    activos: number | null;       // del detalle (recurrente)
+    meses: number | null;         // meses pagados que devengó esta comisión (recurrente al cobro)
+    activos: number | null;       // # de activos al momento del cobro (escalón congelado)
     montoUnitario: number | null; // monto por activo del escalón
     escalon: string | null;       // p.ej. "10-24"
+    negocioNombre: string | null; // negocio que generó el cobro (recurrente al cobro / alta)
     pagadaAt: string | null;
     creada: string | null;
 }
@@ -555,15 +557,17 @@ export async function listarComisionesVendedor(
             montoPagado: embajadorComisiones.montoPagado,
             estado: embajadorComisiones.estado,
             detalle: embajadorComisiones.detalle,
+            negocioNombre: negocios.nombre,
             pagadaAt: embajadorComisiones.pagadaAt,
             creada: embajadorComisiones.createdAt,
         })
         .from(embajadorComisiones)
+        .leftJoin(negocios, eq(negocios.id, embajadorComisiones.negocioId))
         .where(eq(embajadorComisiones.embajadorId, vendedor.embajadorId))
-        .orderBy(desc(embajadorComisiones.periodo), desc(embajadorComisiones.createdAt));
+        .orderBy(desc(embajadorComisiones.createdAt));
 
     const items: ComisionFila[] = filas.map((f) => {
-        const d = (f.detalle ?? {}) as { activos?: number; montoUnitario?: number; escalon?: string };
+        const d = (f.detalle ?? {}) as { activos?: number; montoUnitario?: number; escalon?: string; meses?: number };
         const pagado = Number(f.montoPagado);
         // 'parcial' es derivado: pendiente con algo ya abonado.
         const estado = f.estado === 'pendiente' && pagado > 0 ? 'parcial' : f.estado;
@@ -574,9 +578,11 @@ export async function listarComisionesVendedor(
             monto: Number(f.monto),
             montoPagado: pagado,
             estado,
+            meses: typeof d.meses === 'number' ? d.meses : null,
             activos: typeof d.activos === 'number' ? d.activos : null,
             montoUnitario: typeof d.montoUnitario === 'number' ? d.montoUnitario : null,
             escalon: d.escalon ?? null,
+            negocioNombre: f.negocioNombre ?? null,
             pagadaAt: f.pagadaAt ?? null,
             creada: f.creada ?? null,
         };

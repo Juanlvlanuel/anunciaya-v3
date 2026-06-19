@@ -32,6 +32,10 @@ const LABEL = 'mb-1.5 block text-[12.5px] font-semibold text-texto-2';
 
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const MESES_CHIP = [1, 3, 6, 12];
+// Días de cortesía que se regalan ENCIMA del plazo pagado en una venta CON vendedor (paridad con la
+// venta por tarjeta, Pieza 2). = default de la config `dias_cortesia_vendedor`; si se hace editable
+// desde el Panel, exponerla vía hook y leerla aquí en vez de la constante.
+const DIAS_CORTESIA_VENDEDOR = 14;
 const CONCEPTOS: { valor: ConceptoAlta; etiqueta: string }[] = [
   { valor: 'efectivo', etiqueta: 'Efectivo' },
   { valor: 'transferencia', etiqueta: 'Transferencia' },
@@ -170,6 +174,18 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   // Plazo: por meses (chips/otro) o por fecha exacta (el calendario ya acota min/max).
   const plazoValido = modoPlazo === 'meses' ? mesesValido : fechaManual !== '';
   const diasFecha = modoPlazo === 'fecha' ? diasDesdeHoy(fechaManual) : 0;
+
+  // Cortesía por venta de vendedor (Pieza 2): cuando hay vendedor y NO es cortesía, en modo "por meses"
+  // se regalan DIAS_CORTESIA_VENDEDOR encima del plazo pagado (igual que en tarjeta). Se muestra explícito
+  // para que la fecha que ve el admin coincida con la que aplica el backend.
+  const hayVendedor = esVendedor || (mostrarVendedor && vendedorSel !== '');
+  const aplicaCortesiaVendedor = hayVendedor && concepto !== 'cortesia' && modoPlazo === 'meses' && mesesValido;
+  const fechaConCortesia = useMemo(() => {
+    const d = new Date();
+    d.setMonth(d.getMonth() + mesesEfectivo);
+    d.setDate(d.getDate() + DIAS_CORTESIA_VENDEDOR);
+    return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  }, [mesesEfectivo]);
 
   // ── Validación por PASO (controla "Siguiente" y el envío final) ──
   const paso1Valido = nombreNegocioValido && ciudadValida;
@@ -495,6 +511,16 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                   </>
                 )}
               </div>
+
+              {/* Cortesía por venta de vendedor (Pieza 2): +N días encima del plazo pagado (igual que tarjeta). */}
+              {aplicaCortesiaVendedor && (
+                <div
+                  className="mb-4 rounded-[8px] bg-marca-suave px-3 py-2 text-[11.5px] font-medium text-marca"
+                  data-testid="alta-aviso-cortesia"
+                >
+                  +{DIAS_CORTESIA_VENDEDOR} días de cortesía por venta de vendedor → cubre hasta {fechaConCortesia}
+                </div>
+              )}
 
               {/* Monto (se pre-llena según el periodo; editable) */}
               {pideMonto && (

@@ -25,8 +25,9 @@ import { registrarAuditoria } from './auditoria.service.js';
 import { registrarPagoManual } from './pagos-manuales.service.js';
 import { enviarEmailBienvenida } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
-import { devengarComisionAlta } from './comisiones-devengo.service.js';
+import { devengarComisionAlta, devengarComisionRecurrenteAlCobro } from './comisiones-devengo.service.js';
 import { registrarCobroEfectivo } from './comisiones-efectivo.service.js';
+import { obtenerConfigNumero } from '../configuracion.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { AltaManualNegocioInput } from '../../validations/admin/altaManualNegocio.schema.js';
 
@@ -166,6 +167,13 @@ export async function altaManualNegocio(
     } else {
         const venc = new Date();
         venc.setMonth(venc.getMonth() + (datos.meses ?? 1));
+        // Cobro "día 1" (Pieza 2): paridad con la venta por tarjeta — si hay VENDEDOR y NO es cortesía, se
+        // regalan los días de cortesía (config, default 14) ENCIMA del plazo pagado. Solo en modo "por
+        // meses" (en "fecha exacta" el admin ya fijó la vigencia a mano). El modal lo muestra explícito.
+        if (embajadorId && datos.concepto !== 'cortesia') {
+            const diasCortesia = await obtenerConfigNumero('dias_cortesia_vendedor', 14);
+            venc.setDate(venc.getDate() + diasCortesia);
+        }
         vencISO = venc.toISOString();
     }
     const hoyFecha = new Date().toISOString().slice(0, 10); // YYYY-MM-DD para la columna `date`
@@ -247,6 +255,12 @@ export async function altaManualNegocio(
     // Comisión de alta del vendedor (pieza C): el alta manual con pago ES el primer pago → devéngala
     // (best-effort + idempotente; no hace nada si fue cortesía, sin vendedor, o ya existe).
     await devengarComisionAlta(creado.negocioId);
+    // Comisión recurrente AL COBRO (Pieza 3): por los meses que este primer pago cubrió, escalón congelado.
+    // La cortesía no entra (no hubo dinero). La cobertura (vencISO) incluye los días de cortesía del vendedor:
+    // no se re-devenga ese tramo, pero el monto va por los meses pagados (datos.monto ÷ precio mensual).
+    if (datos.concepto !== 'cortesia' && datos.monto && datos.monto > 0) {
+        await devengarComisionRecurrenteAlCobro(creado.negocioId, vencISO, datos.monto);
+    }
     // Efectivo por entregar (pieza D): si el VENDEDOR dio de alta cobrando en EFECTIVO, el dinero lo
     // recibió él y se lo debe entregar → se carga como "efectivo por entregar".
     if (panel.rolEquipo === 'vendedor' && datos.concepto === 'efectivo' && embajadorId && datos.monto) {

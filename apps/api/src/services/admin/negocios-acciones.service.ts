@@ -31,7 +31,7 @@
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { negocios, embajadores, usuarios, pagosMembresia } from '../../db/schemas/schema.js';
-import { dispararDevengoMesActual, devengarComisionAlta } from './comisiones-devengo.service.js';
+import { dispararDevengoMesActual, devengarComisionAlta, devengarComisionRecurrenteAlCobro } from './comisiones-devengo.service.js';
 import { registrarCobroEfectivo } from './comisiones-efectivo.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
@@ -606,9 +606,11 @@ export async function marcarPagado(
         }
     }
 
-    // El estado del negocio cambió (afecta el # de activos del vendedor): recalcula la comisión del mes
-    // en curso (best-effort) sin esperar al cron diario.
-    await dispararDevengoMesActual();
+    // Comisión recurrente AL COBRO (Pieza 3): este pago manual cubre `opciones.hasta`; devenga por los meses
+    // pagados (montoRegistrado ÷ precio mensual), escalón congelado. La cortesía no entra (sin dinero).
+    if (opciones.concepto !== 'cortesia' && montoRegistrado && Number(montoRegistrado) > 0) {
+        await devengarComisionRecurrenteAlCobro(negocioId, opciones.hasta, Number(montoRegistrado));
+    }
     // Comisión de alta del vendedor (pieza C): si éste fue su primer pago real, devéngala (idempotente).
     await devengarComisionAlta(negocioId);
     // Efectivo por entregar (pieza D): si el VENDEDOR registró ESTE pago en EFECTIVO, el dinero lo recibió

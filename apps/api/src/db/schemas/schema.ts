@@ -154,6 +154,9 @@ export const negocios = pgTable("negocios", {
 	fechaProximoCobro: timestamp("fecha_proximo_cobro", { withTimezone: true, mode: 'string' }),
 	fechaInicioGracia: timestamp("fecha_inicio_gracia", { withTimezone: true, mode: 'string' }),
 	fechaLimiteGracia: timestamp("fecha_limite_gracia", { withTimezone: true, mode: 'string' }),
+	// Hasta qué instante está YA devengada la comisión recurrente del vendedor por este negocio
+	// (Pieza 3 · devengo al cobro). Evita re-devengar la cobertura ya pagada. NULL = nunca devengada.
+	comisionDevengadaHasta: timestamp("comision_devengada_hasta", { withTimezone: true, mode: 'string' }),
 	// Eje administrativo del Panel (separado del eje de pago `estado_membresia`):
 	// `metodo_cobro` (tarjeta/manual) lo usa la Parada 2; `estado_admin`
 	// (activo/suspendido/archivado) es la RAZÓN — la visibilidad efectiva la da `activo`.
@@ -1005,7 +1008,8 @@ export const embajadorComisiones = pgTable("embajador_comisiones", {
 	index("idx_embajador_comisiones_negocio").using("btree", table.negocioId.asc().nullsLast()),
 	index("idx_embajador_comisiones_tipo").using("btree", table.tipo.asc().nullsLast()),
 	index("idx_embajador_comisiones_pago").using("btree", table.pagoId.asc().nullsLast()).where(sql`(pago_id IS NOT NULL)`),
-	uniqueIndex("uq_comision_recurrente_periodo").using("btree", table.embajadorId.asc().nullsLast(), table.periodo.asc().nullsLast()).where(sql`((tipo)::text = 'recurrente'::text)`),
+	// (Pieza 3) Se retiró el único (embajador_id, periodo) de las recurrentes: ahora son POR NEGOCIO
+	// al cobro, así que un vendedor puede tener varias recurrentes en el mismo mes.
 	foreignKey({
 		columns: [table.embajadorId],
 		foreignColumns: [embajadores.id],

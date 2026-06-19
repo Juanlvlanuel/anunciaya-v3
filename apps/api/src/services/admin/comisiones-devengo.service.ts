@@ -163,11 +163,10 @@ export async function devengarPeriodo(periodo: string): Promise<ResumenDevengo> 
  * pagado), de modo que la comisión se sincronice al instante sin esperar al cron diario.
  */
 export async function dispararDevengoMesActual(): Promise<void> {
-    try {
-        await devengarPeriodo(periodoActual());
-    } catch (err) {
-        console.error('[Comisiones] No se pudo recalcular el devengo tras un cambio de activos:', err);
-    }
+    // Pieza 3 (devengo al COBRO): RETIRADO. Antes recalculaba la "foto mensual" al cambiar el # de activos;
+    // ahora la comisión recurrente se devenga en cada COBRO (no por foto) y el escalón se congela en ese
+    // momento. Cambiar activos (suspender/reactivar/reasignar) afecta el escalón de FUTUROS cobros, no
+    // re-devenga lo ya pagado. Se deja como no-op para no tocar sus llamadores; eliminar en una limpieza.
 }
 
 // =============================================================================
@@ -228,5 +227,91 @@ export async function devengarComisionAlta(negocioId: string): Promise<void> {
         });
     } catch (err) {
         console.error('[Comisiones] No se pudo devengar la comisión de alta:', err);
+    }
+}
+
+// =============================================================================
+// DEVENGO RECURRENTE "AL COBRO" (pieza B · Pieza 3 del Sprint de Stripe)
+// =============================================================================
+
+/** # de negocios ACTIVOS de UN vendedor (misma definición que la cartera / SUB_ACTIVOS). */
+async function contarActivosDeVendedor(embajadorId: string): Promise<number> {
+    const [fila] = await db
+        .select({ activos: sql<number>`count(${negocios.id})::int` })
+        .from(negocios)
+        .where(
+            and(
+                eq(negocios.embajadorId, embajadorId),
+                eq(negocios.estadoAdmin, 'activo'),
+                inArray(negocios.estadoMembresia, ['al_corriente', 'en_gracia']),
+            ),
+        );
+    return Number(fila?.activos ?? 0);
+}
+
+/**
+ * Devenga la comisión recurrente de un negocio AL MOMENTO DEL COBRO (Pieza 3 · D16/D16.1).
+ *
+ * En cada cobro real (renovación de tarjeta, alta manual, "Registrar pago") devenga, por ESE negocio
+ * y de golpe: `mesesDevengables × monto del escalón vigente`, donde
+ *   - mesesDevengables = dinero pagado ÷ precio mensual (un anual de 10× → 10; un mes → 1), y
+ *   - el escalón se CONGELA al # de activos del vendedor en este instante.
+ * El marcador `negocios.comision_devengada_hasta` avanza a `coberturaHasta` (fin del periodo PAGADO):
+ * impide volver a devengar esa cobertura (idempotencia + anti-doble-pago del prepago) aunque el
+ * negocio siga contando como activo para el escalón. Best-effort: nunca rompe el cobro.
+ *
+ * @param coberturaHasta  fin del periodo que el dinero cubrió (ISO). Para el anual, +12 meses.
+ * @param montoPagado     MXN realmente cobrados en este pago (define los mesesDevengables).
+ */
+export async function devengarComisionRecurrenteAlCobro(
+    negocioId: string,
+    coberturaHasta: string,
+    montoPagado: number,
+): Promise<void> {
+    try {
+        const [neg] = await db
+            .select({ embajadorId: negocios.embajadorId, devengadaHasta: negocios.comisionDevengadaHasta })
+            .from(negocios)
+            .where(eq(negocios.id, negocioId))
+            .limit(1);
+        if (!neg?.embajadorId) return;                  // sin vendedor → no hay comisión
+        if (!coberturaHasta || montoPagado <= 0) return;
+
+        // Idempotencia + anti-doble-pago: si la cobertura ya está dentro de lo devengado, no repetir.
+        if (neg.devengadaHasta && new Date(coberturaHasta).getTime() <= new Date(neg.devengadaHasta).getTime()) {
+            return;
+        }
+
+        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 849);
+        const mesesDevengables = precioMensual > 0 ? Math.round(montoPagado / precioMensual) : 0;
+
+        // El marcador avanza SIEMPRE a la nueva cobertura (aunque el escalón sea $0), para no re-evaluar.
+        await db.update(negocios).set({ comisionDevengadaHasta: coberturaHasta }).where(eq(negocios.id, negocioId));
+
+        if (mesesDevengables <= 0) return;
+
+        const escalera = await escaleraActual();
+        const activos = await contarActivosDeVendedor(neg.embajadorId);
+        const unitario = montoPorActivo(activos, escalera);    // escalón CONGELADO a este instante
+        const monto = mesesDevengables * unitario;
+        if (monto <= 0) return;                                 // escalón $0 → nada que devengar
+
+        await db.insert(embajadorComisiones).values({
+            embajadorId: neg.embajadorId,
+            negocioId,
+            tipo: 'recurrente',
+            montoComision: String(monto),
+            estado: 'pendiente',
+            periodo: periodoActual(),                            // mes del cobro (para agrupar/reporting)
+            detalle: {
+                meses: mesesDevengables,
+                montoUnitario: unitario,
+                escalon: etiquetaEscalon(activos, escalera),
+                activos,
+                hasta: coberturaHasta,
+            },
+        });
+    } catch (err) {
+        console.error('[Comisiones] No se pudo devengar la comisión recurrente al cobro:', err);
     }
 }

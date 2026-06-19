@@ -144,9 +144,11 @@ export interface ComisionFila {
   monto: number;
   montoPagado: number;           // abonado acumulado (parciales)
   estado: string;                // pendiente | parcial | pagada | cancelada
+  meses: number | null;          // meses pagados que devengó (recurrente al cobro)
   activos: number | null;
   montoUnitario: number | null;
   escalon: string | null;
+  negocioNombre: string | null;  // negocio que generó el cobro
   pagadaAt: string | null;
   creada: string | null;
 }

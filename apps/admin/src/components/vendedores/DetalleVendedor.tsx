@@ -18,10 +18,9 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign, RefreshCw } from 'lucide-react';
-import { useCartera, useComisionesVendedor, useRecalcularComisiones } from '../../hooks/queries/useVendedoresAdmin';
+import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign } from 'lucide-react';
+import { useCartera, useComisionesVendedor } from '../../hooks/queries/useVendedoresAdmin';
 import type { VendedorFila, VendedorDetalle, NegocioCartera, CarteraVendedor, ComisionFila } from '../../services/vendedoresService';
-import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -383,13 +382,15 @@ function FilaComision({ c }: { c: ComisionFila }) {
   return (
     <div data-testid={`comision-${c.id}`} className="flex items-center gap-3 border-b border-borde px-4 py-3 last:border-b-0">
       <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[14px] font-semibold capitalize text-texto">{esAlta ? 'Comisión de alta' : periodoLegible(c.periodo)}</span>
+        <span className="text-[14px] font-semibold capitalize text-texto">{esAlta ? 'Comisión de alta' : (c.negocioNombre ?? periodoLegible(c.periodo))}</span>
         <span className="truncate text-[13px] text-texto-3">
           {esAlta
             ? 'Pago único por la venta concretada'
-            : c.activos !== null
-              ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}`
-              : c.tipo}
+            : c.meses !== null
+              ? `${c.meses} ${c.meses === 1 ? 'mes' : 'meses'} × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''} · ${periodoLegible(c.periodo)}`
+              : c.activos !== null
+                ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}`
+                : c.tipo}
         </span>
         {parcial && (
           <span className="text-[11.5px] font-medium text-marca">Abonado {pesos(c.montoPagado)} · falta {pesos(c.monto - c.montoPagado)}</span>
@@ -401,11 +402,9 @@ function FilaComision({ c }: { c: ComisionFila }) {
   );
 }
 
-/** Estado de cuenta de comisiones del vendedor: KPIs + lista por mes + (solo super) recalcular. */
+/** Estado de cuenta de comisiones del vendedor: KPIs + lista de comisiones (devengo AL COBRO). */
 function SeccionComisiones({ vendedorId }: { vendedorId: string }) {
-  const esSuper = useAuthPanelStore((s) => s.usuario?.rolEquipo) === 'superadmin';
   const { data, isLoading, isError } = useComisionesVendedor(vendedorId);
-  const recalcular = useRecalcularComisiones();
 
   const items = data?.items ?? [];
   const resumen = data?.resumen ?? { devengado: 0, pagado: 0, pendiente: 0 };
@@ -419,21 +418,9 @@ function SeccionComisiones({ vendedorId }: { vendedorId: string }) {
         <KpiComision etiqueta="Pendiente" monto={resumen.pendiente} />
       </div>
 
-      {/* Encabezado de la lista + recalcular (solo super) */}
+      {/* Encabezado de la lista. El devengo recurrente es AL COBRO (no hay recálculo manual). */}
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-texto-2">Comisiones por mes</h3>
-        {esSuper && (
-          <button
-            type="button"
-            data-testid="comisiones-recalcular"
-            onClick={() => recalcular.mutate(undefined)}
-            disabled={recalcular.isPending}
-            className="inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca disabled:opacity-50"
-          >
-            <RefreshCw size={13} className={recalcular.isPending ? 'animate-spin' : ''} />
-            {recalcular.isPending ? 'Recalculando…' : 'Recalcular mes'}
-          </button>
-        )}
+        <h3 className="text-[13px] font-semibold text-texto-2">Comisiones</h3>
       </div>
 
       {/* Lista */}
@@ -446,7 +433,7 @@ function SeccionComisiones({ vendedorId }: { vendedorId: string }) {
           <EstadoSeccion
             icono={CircleDollarSign}
             titulo="Sin comisiones todavía"
-            descripcion="Cuando se devengue la comisión del mes (según los negocios activos y la escalera), aparecerá aquí."
+            descripcion="Cada cobro de un negocio (renovación, alta o pago) devenga aquí la comisión del vendedor, según los meses pagados y su escalón."
           />
         ) : (
           items.map((c) => <FilaComision key={c.id} c={c} />)
