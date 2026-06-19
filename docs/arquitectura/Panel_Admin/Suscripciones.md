@@ -8,9 +8,10 @@
 > **en lenguaje de persona**, sin tecnicismos. La segunda (el **Apéndice técnico** al final)
 > es la referencia para quien va a tocar el código.
 >
-> **Estado:** desplegado y en uso. Última actualización: 15 Junio 2026 (el **superadmin** puede **borrar** físicamente un pago manual **anulado** desde el detalle — nuevo `DELETE /suscripciones/:id` + `suscripciones-acciones.service.ts`; en móvil los KPIs pasaron a una **tira inline**). 12 Junio 2026 (anular un pago en negocios con **tarjeta** ahora re-sincroniza el cobro de Stripe; ver `Pagos_Suscripciones.md` §9.2. Validado E2E en vivo). 11 Junio 2026: la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento.
+> **Estado:** desplegado y en uso. Última actualización: 18 Junio 2026 (los **cobros con tarjeta** ahora también emiten **recibo** con folio correlativo — concepto `'tarjeta'` en `pagos_membresia`, ver [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md) §10 — y todos los comprobantes se consultan/reenvían desde el módulo hermano **[`Recibos.md`](Recibos.md)**). 15 Junio 2026 (el **superadmin** puede **borrar** físicamente un pago manual **anulado** desde el detalle — nuevo `DELETE /suscripciones/:id` + `suscripciones-acciones.service.ts`; en móvil los KPIs pasaron a una **tira inline**). 12 Junio 2026 (anular un pago en negocios con **tarjeta** ahora re-sincroniza el cobro de Stripe; ver `Pagos_Suscripciones.md` §9.2. Validado E2E en vivo). 11 Junio 2026: la bitácora ya permite **reenviar / corregir / anular** pagos manuales desde el detalle del movimiento.
 >
 > Documentos hermanos: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) ·
+> [`Recibos.md`](Recibos.md) (los **comprobantes/recibos**; esta bitácora son los **movimientos**) ·
 > [`Negocios.md`](Negocios.md) (donde se *registran* los pagos manuales) ·
 > [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md) (el backend de cobro que alimenta esta bitácora).
 
@@ -125,11 +126,12 @@ La bitácora se alimenta de **dos orígenes**, que juntos dan la foto completa:
 > **invoice de $0** (el de la prueba gratis) **no** ensucia la bitácora — solo se registran los
 > cobros reales.
 
-> 📧 **Comprobante al dueño:** cada **pago manual** además dispara, al instante, un **correo de
-> comprobante** con un **recibo PDF descargable** (folio correlativo, datos fiscales, monto, vigencia)
-> — es la **Defensa 1 del Camino B** contra el "robo invisible". Eso vive en **"Registrar pago"**
-> (módulo Negocios), no en esta bitácora; aquí el pago solo **se refleja** como un evento más. Ver
-> [`Negocios.md`](Negocios.md) §6 y [`Panel_Admin.md`](Panel_Admin.md) §Camino B.
+> 📧 **Comprobante al dueño:** cada **pago manual** —y también cada **cobro real con tarjeta**— dispara, al
+> instante, un **correo de comprobante** con un **recibo PDF descargable** (folio correlativo, datos fiscales,
+> monto, vigencia) — es la **Defensa 1 del Camino B** contra el "robo invisible". El de pago manual vive en
+> **"Registrar pago"** (módulo Negocios) y el de tarjeta lo emite el **webhook** ([`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md)
+> §10); aquí el pago solo **se refleja** como un evento más. Todos los recibos se ven, buscan y reenvían en el
+> módulo **[`Recibos.md`](Recibos.md)**. Ver [`Negocios.md`](Negocios.md) §6 y [`Panel_Admin.md`](Panel_Admin.md) §Camino B.
 
 ---
 

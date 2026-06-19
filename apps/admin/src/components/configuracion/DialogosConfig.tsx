@@ -14,14 +14,12 @@
  * Ubicación: apps/admin/src/components/configuracion/DialogosConfig.tsx
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { Layers, Plus, Trash2 } from 'lucide-react';
+import { useEffect, useRef, useState, type ComponentType } from 'react';
+import { Layers, Plus, Trash2, type LucideProps } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { useActualizarConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
 import { parsearEscalera, type ConfigFila, type TramoEscalera } from '../../services/configuracionService';
 
-const CLASE_CAMPO =
-  'w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]';
 const CAMPO_MINI =
   'rounded-[8px] border border-campo-borde bg-campo px-2 py-1.5 text-[13px] text-texto text-center outline-none transition tabular-nums focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]';
 const LABEL = 'mb-1.5 block text-[12.5px] font-semibold text-texto-2';
@@ -99,9 +97,18 @@ function CampoNumero({
 // EDITAR UN NÚMERO (trial / gracia)
 // =============================================================================
 
-export function DialogoEditarNumero({ fila, onCerrar }: { fila: ConfigFila; onCerrar: () => void }) {
+export function DialogoEditarNumero({
+  fila,
+  Icono,
+  onCerrar,
+}: {
+  fila: ConfigFila;
+  Icono: ComponentType<LucideProps>;
+  onCerrar: () => void;
+}) {
   const guardar = useActualizarConfiguracion();
   const [valor, setValor] = useState(fila.valor);
+  const esMoneda = fila.unidad === 'MXN';
 
   const n = Number(valor);
   const valido =
@@ -122,36 +129,51 @@ export function DialogoEditarNumero({ fila, onCerrar }: { fila: ConfigFila; onCe
       abierto
       onCerrar={onCerrar}
       titulo={fila.etiqueta}
-      iconoTitulo={<span className="grid h-8 w-8 place-items-center rounded-[9px] bg-marca-suave text-marca"><Layers size={16} /></span>}
+      iconoTitulo={<span className="grid h-8 w-8 place-items-center rounded-[9px] bg-marca-suave text-marca"><Icono size={16} /></span>}
       ancho="sm"
       discriminador="config-numero"
     >
       <div className="p-5" data-testid="dialogo-config-numero">
         <p className="text-[13px] leading-relaxed text-texto-3">{fila.descripcion}</p>
-        <div className="mt-4">
-          <label className={LABEL}>Nuevo valor</label>
-          <div className="flex items-center gap-2.5">
-            <CampoNumero
-              valor={valor}
-              onCambiar={setValor}
-              autoFocus
-              onEnter={enviar}
-              min={fila.min ?? 0}
-              maxLen={4}
-              testid="config-num-input"
-              className={`${CLASE_CAMPO} w-24 text-center text-[18px] font-bold`}
-            />
-            {fila.unidad && <span className="text-[14px] text-texto-3">{fila.unidad}</span>}
-          </div>
-          <p className="mt-2 text-[11.5px] text-texto-4">
-            Permitido entre {fila.min ?? 0} y {fila.max ?? '∞'} {fila.unidad ?? ''}.
-          </p>
-          {valor.trim() !== '' && !valido && (
-            <p className="mt-1 text-[12px] font-medium text-peligro">
-              Escribe un número entero entre {fila.min ?? 0} y {fila.max ?? '∞'}.
-            </p>
+
+        {/* Valor actual (referencia) */}
+        <div className="mt-4 mb-4 flex items-center justify-between rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+          <span className="text-[13px] text-texto-3">Valor actual</span>
+          <span className="text-[14px] font-semibold text-texto">
+            {fila.valor}
+            {fila.unidad && <span className="ml-1 font-normal text-texto-3">{fila.unidad}</span>}
+          </span>
+        </div>
+
+        {/* Nuevo valor */}
+        <label className={LABEL}>Nuevo valor</label>
+        <div className="relative">
+          {esMoneda && (
+            <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[18px] font-bold text-texto-3">$</span>
+          )}
+          <CampoNumero
+            valor={valor}
+            onCambiar={setValor}
+            autoFocus
+            onEnter={enviar}
+            min={fila.min ?? 0}
+            maxLen={5}
+            testid="config-num-input"
+            className={`w-full rounded-[10px] border border-campo-borde bg-campo py-2.5 ${esMoneda ? 'pl-9' : 'pl-3.5'} pr-16 text-[20px] font-bold text-texto outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]`}
+          />
+          {fila.unidad && (
+            <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-[13px] text-texto-4">{fila.unidad}</span>
           )}
         </div>
+
+        <p className="mt-1.5 text-[11.5px] text-texto-4">
+          Permitido entre {fila.min ?? 0} y {fila.max ?? '∞'} {fila.unidad ?? ''}.
+        </p>
+        {valor.trim() !== '' && !valido && (
+          <p className="mt-1 text-[12px] font-medium text-peligro">
+            Debe ser un número entero entre {fila.min ?? 0} y {fila.max ?? '∞'}.
+          </p>
+        )}
       </div>
 
       <div className="flex items-center justify-end gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
@@ -276,19 +298,22 @@ export function DialogoEditarEscalera({ fila, onCerrar }: { fila: ConfigFila; on
 
         {/* Tramos */}
         <div className="min-h-0 flex-1 overflow-y-auto p-5">
-          <div className="mb-2 grid grid-cols-[1fr_auto] px-1 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
+          <div className="mb-2 flex items-center justify-between px-1 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
             <span>Negocios activos</span>
-            <span>Monto por activo / mes</span>
+            <span className="pr-10">Monto / mes</span>
           </div>
           <div className="flex flex-col gap-2">
             {filas.map((f, i) => {
               const min = mins[i];
               const esUltimo = i === filas.length - 1;
               return (
-                <div key={i} className="flex items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3 py-2.5" data-testid={`tramo-${i}`}>
-                  <div className="flex flex-1 flex-wrap items-center gap-x-1.5 gap-y-1 text-[13px] text-texto-2">
+                <div key={i} className="flex items-center gap-3 rounded-[10px] border border-borde bg-superficie px-3.5 py-3" data-testid={`tramo-${i}`}>
+                  {/* Rango de negocios activos */}
+                  <div className="flex flex-1 flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-texto-2">
                     <span className="text-texto-3">De</span>
-                    <span className="font-semibold tabular-nums">{Number.isInteger(min) ? min : '—'}</span>
+                    <span className="grid h-7 min-w-[28px] place-items-center rounded-[7px] bg-superficie-2 px-1.5 font-semibold tabular-nums text-texto">
+                      {Number.isInteger(min) ? min : '—'}
+                    </span>
                     {esUltimo ? (
                       <span className="text-texto-3">en adelante</span>
                     ) : (
@@ -299,31 +324,32 @@ export function DialogoEditarEscalera({ fila, onCerrar }: { fila: ConfigFila; on
                           onCambiar={(v) => setTope(i, v)}
                           maxLen={5}
                           testid={`tramo-${i}-tope`}
-                          className={`${CAMPO_MINI} w-16`}
+                          className={`${CAMPO_MINI} h-7 w-16`}
                         />
                       </>
                     )}
                   </div>
-                  <div className="flex shrink-0 items-center gap-1.5">
-                    <span className="text-[13px] text-texto-3">$</span>
+                  {/* Monto por activo / mes — con "$" integrado */}
+                  <div className="relative shrink-0">
+                    <span className="pointer-events-none absolute inset-y-0 left-2.5 flex items-center text-[13px] font-medium text-texto-3">$</span>
                     <CampoNumero
                       valor={f.monto}
                       onCambiar={(v) => setMonto(i, v)}
                       maxLen={7}
                       testid={`tramo-${i}-monto`}
-                      className={`${CAMPO_MINI} w-20`}
+                      className="h-9 w-28 rounded-[8px] border border-campo-borde bg-campo pl-6 pr-2.5 text-right text-[13px] font-semibold text-texto tabular-nums outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
                     />
-                    <button
-                      type="button"
-                      data-testid={`tramo-${i}-quitar`}
-                      onClick={() => quitar(i)}
-                      disabled={filas.length <= 1}
-                      aria-label="Quitar tramo"
-                      className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-texto-4 transition hover:bg-peligro-suave hover:text-peligro disabled:cursor-not-allowed disabled:opacity-30"
-                    >
-                      <Trash2 size={15} />
-                    </button>
                   </div>
+                  <button
+                    type="button"
+                    data-testid={`tramo-${i}-quitar`}
+                    onClick={() => quitar(i)}
+                    disabled={filas.length <= 1}
+                    aria-label="Quitar tramo"
+                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[8px] text-texto-4 transition hover:bg-peligro-suave hover:text-peligro disabled:cursor-not-allowed disabled:opacity-30"
+                  >
+                    <Trash2 size={15} />
+                  </button>
                 </div>
               );
             })}
@@ -333,27 +359,28 @@ export function DialogoEditarEscalera({ fila, onCerrar }: { fila: ConfigFila; on
             type="button"
             data-testid="config-escalera-agregar"
             onClick={agregar}
-            className="mt-2.5 inline-flex items-center gap-1.5 rounded-[9px] border border-dashed border-borde-fuerte px-3 py-2 text-[12.5px] font-semibold text-texto-3 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
+            className="mt-2.5 flex w-full items-center justify-center gap-1.5 rounded-[10px] border border-dashed border-borde-fuerte py-2.5 text-[12.5px] font-semibold text-texto-3 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
           >
             <Plus size={15} /> Agregar tramo
           </button>
 
           {/* Vista previa / error */}
-          <div className="mt-4 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
-            <div className="mb-1 text-[11px] font-semibold uppercase tracking-wide text-texto-4">Vista previa</div>
+          <div className="mt-4 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">Vista previa</div>
             {resultado.ok ? (
-              <p className="text-[13px] text-texto-2">
+              <div className="flex flex-wrap gap-1.5">
                 {resultado.tramos.map((t, i) => (
-                  <span key={i}>
-                    {i > 0 && <span className="text-texto-4"> · </span>}
-                    <span className="tabular-nums">{t.max === null ? `${t.min}+` : `${t.min}–${t.max}`}</span>
-                    <span className="text-texto-3"> → </span>
-                    <span className="font-semibold" style={{ color: t.montoPorActivo > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
+                  <span key={i} className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2.5 py-1 text-[12px]">
+                    <span className="tabular-nums text-texto-2">{t.max === null ? `${t.min}+` : `${t.min}–${t.max}`}</span>
+                    <span
+                      className="font-semibold tabular-nums"
+                      style={{ color: t.montoPorActivo > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}
+                    >
                       {t.montoPorActivo > 0 ? `$${t.montoPorActivo}` : '$0'}
                     </span>
                   </span>
                 ))}
-              </p>
+              </div>
             ) : (
               <p className="text-[12.5px] font-medium text-peligro">{resultado.error}</p>
             )}

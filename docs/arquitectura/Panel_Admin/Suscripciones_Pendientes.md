@@ -20,7 +20,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho
 >
-> **Última actualización:** 15 Junio 2026 — Pago manual centralizado en el helper único `registrarPagoManual` (usado por Registrar pago Y alta manual; el alta manual antes olvidaba el gemelo). Pendiente el backfill de gemelos históricos. **Módulo CERRADO (bitácora V1)**: Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices). Quedan solo pendientes menores (§Fuera de V1) — incluido el **sprint dedicado del precio de membresía + promos de lanzamiento**, registrado el 17 jun.
+> **Última actualización:** 18 Junio 2026 — del §Fuera de V1, **la Pieza 1 del Sprint de Stripe YA se hizo** (precio de membresía editable desde el Panel + plan anual + cobro inmediato + comprobante en cobros de tarjeta; nació el módulo [`Recibos.md`](Recibos.md)); el detalle vivo está en [`Sprint_Stripe.md`](Sprint_Stripe.md). El módulo Suscripciones sigue **CERRADO (bitácora V1)**. · 15 Junio 2026 — Pago manual centralizado en el helper único `registrarPagoManual` (usado por Registrar pago Y alta manual; el alta manual antes olvidaba el gemelo). Pendiente el backfill de gemelos históricos. Fase 1 + Gate 1 verdes, Fase 2 saltada (solo lectura), Fase 3 cerrada (doc canónico + índices).
 
 ---
 
@@ -219,10 +219,13 @@ Fase 3 — Cerrar
 ## Fuera de V1 (V2 consciente — anotado, no escondido)
 
 - 🟡 **SPRINT DEDICADO — Precio de membresía editable + cobro día-1 + comisión al cobro.** (Acordado con Juan,
-  17 jun 2026.) **→ Fase 0 cerrada el 18 jun; ahora vive en su doc maestro: [`Sprint_Stripe.md`](Sprint_Stripe.md).**
-  Cambios al cerrar Fase 0: el **descuento de precio de lanzamiento se descartó** (el precio se queda firme en
-  $849; las promos dan tiempo, no rebaja) y el **plan anual se construye también en tarjeta**. El detalle vivo
-  está en `Sprint_Stripe.md`; lo de abajo queda como el esbozo original.
+  17 jun 2026.) **→ Fase 0 cerrada el 18 jun; vive en su doc maestro: [`Sprint_Stripe.md`](Sprint_Stripe.md).**
+  ✅ **Pieza 1 HECHA y validada E2E (18 jun):** precio editable desde el Panel (Price creado en Stripe sin
+  redeploy, ID en config) + **plan anual** + **cobro inmediato** con trial 0 + **comprobante en cobros de tarjeta**
+  (de ahí nació el módulo [`Recibos.md`](Recibos.md)). **Faltan Pieza 2** (cobro día-1) **y Pieza 3** (comisión al
+  cobro). Cambios al cerrar Fase 0: el **descuento de precio de lanzamiento se descartó** (precio firme en $849;
+  las promos dan tiempo, no rebaja) y el **plan anual se construye también en tarjeta**. El detalle vivo está en
+  `Sprint_Stripe.md`; lo de abajo queda como el esbozo original.
   Es un sprint **propio**, fuera de la bitácora y fuera de Configuración v1 (que ya cerró **trial y gracia** —
   módulo 9, [`Configuracion.md`](Configuracion.md)). Alcance:
   - **Cambiar el precio** de la membresía ($849 hoy). Ojo: los **Prices de Stripe son inmutables** → cambiar el

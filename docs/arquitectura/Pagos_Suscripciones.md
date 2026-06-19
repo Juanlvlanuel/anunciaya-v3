@@ -7,6 +7,13 @@
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
 > sola; ver §9.1). Falta infraestructura de producción (ver §12).
+> **Versión 1.5 (18 Jun 2026):** **precio de membresía editable desde el Panel** (vive en `configuracion`; el
+> checkout lee el Price ID de config; un botón crea el Price nuevo en Stripe **sin redeploy** — Sprint Stripe
+> Pieza 1, [`Panel_Admin/Sprint_Stripe.md`](Panel_Admin/Sprint_Stripe.md)) + **plan anual** + **cobro inmediato
+> con trial 0** (se omite `trial_period_days`, que Stripe rechaza en 0) + **comprobante en cobros de TARJETA**: el
+> webhook `invoice.payment_succeeded` registra una fila `pagos_membresia` concepto **`'tarjeta'`** y emite el
+> recibo PDF + correo, **continuando el folio** de los manuales (§2, §5, §10). De ahí nació el módulo
+> [`Panel_Admin/Recibos.md`](Panel_Admin/Recibos.md). Migración `2026-06-18-concepto-tarjeta.sql`.
 > **Versión 1.4 (15 Jun 2026):** pago manual **centralizado** en un único helper transaccional
 > `registrarPagoManual` (escribe `pagos_membresia` + su gemelo `pago_manual` en `eventos_pago` en la
 > misma transacción; §2, §9, §9.1); ahora el alta manual también deja su rastro en la bitácora. Las
@@ -27,7 +34,7 @@
 
 ## 1. Visión general
 
-- **Modelo de negocio:** suscripción comercial **$849 MXN/mes** vía **Stripe** (modo subscription, con **trial**). El usuario usa la app gratis; el negocio paga por Business Studio + ScanYA + presencia premium.
+- **Modelo de negocio:** suscripción comercial **$849 MXN/mes** vía **Stripe** (modo subscription, con **trial**). El usuario usa la app gratis; el negocio paga por Business Studio + ScanYA + presencia premium. **El precio es editable desde el Panel** (no hardcodeado): el monto vive en `configuracion` y el checkout lee el **Price ID de config** (la env solo siembra la 1ª vez); un botón del Panel crea el Price nuevo en Stripe **sin redeploy** (Sprint Stripe Pieza 1). Hay plan **mensual y anual** (anual ≈ 10× el mensual).
 - **Trial:** configurable (`configuracion` clave `trial_duracion_dias`, default **14**).
 - **Periodo de gracia tras impago:** configurable (`periodo_gracia_cobro_dias`, default **14**).
 - **Fuente de verdad:** **NUESTRA BD**. Stripe es el motor de cobro; ante un fallo de Stripe en una acción del Panel, la BD manda y se avisa (ver §9, regla §4.3).
@@ -61,7 +68,7 @@
 |---|---|
 | `folio` | **Folio correlativo del recibo** (`#00001…`); default `nextval` de la secuencia global `pagos_membresia_folio_seq` (atómica entre todos los vendedores). Migración `2026-06-11-folio-recibo.sql` |
 | `negocio_id` | Negocio (FK, `ON DELETE CASCADE`) |
-| `concepto` | `efectivo` / `transferencia` (ingreso) / `cortesia` (sin monto; un CHECK exige `monto IS NULL`) |
+| `concepto` | `efectivo` / `transferencia` (ingreso) / `cortesia` (sin monto; un CHECK exige `monto IS NULL`) / **`tarjeta`** (cobro automático de Stripe; lo inserta el webhook §5/§10 — comparte la **serie de folios** con los manuales; no editable/anulable. Migración `2026-06-18-concepto-tarjeta.sql`) |
 | `monto` | MXN del pago registrado (NULL en cortesía) |
 | `meses_cubiertos` | N elegido en "por meses" (NULL en "fecha exacta") |
 | `periodo_hasta` | Vencimiento aplicado (= `trial_end` empujado en Stripe) |
@@ -141,7 +148,7 @@ Endpoint: `POST /api/pagos/webhook` (con `express.raw` — el body crudo es nece
 | Evento | Handler | Qué hace |
 |---|---|---|
 | `checkout.session.completed` | `manejarCheckoutCompletado` / `manejarUpgradeCompletado` | Crea/activa el negocio (§4) y **sella `fecha_vencimiento`/`fecha_proximo_cobro` desde Stripe** (`current_period_end`) al crear, vía `sellarFechasPeriodoDesdeStripe` (§6) |
-| `invoice.payment_succeeded` | `manejarRenovacionPagada` | → `al_corriente`, refresca fechas, sella `fecha_primer_pago` si `amount_paid>0` |
+| `invoice.payment_succeeded` | `manejarRenovacionPagada` | → `al_corriente`, refresca fechas, sella `fecha_primer_pago` si `amount_paid>0`; registra el `cobro_exitoso` en la bitácora (§5) y, en cobros **reales** (monto>0), inserta una fila `pagos_membresia` concepto **`'tarjeta'`** + emite el **comprobante** (recibo PDF + correo, §10) |
 | `invoice.payment_failed` | `manejarCobroFallido` | → `en_gracia` (§7) |
 | `customer.subscription.updated` | `manejarSuscripcionActualizada` | Refresca `fecha_vencimiento`/`fecha_proximo_cobro` (NO el estado) |
 | `customer.subscription.deleted` | `procesarCancelacionSuscripcion` | Cancelación (§7/§8, distingue motivo) |
@@ -282,12 +289,19 @@ Luego avisa al dueño (correo de "recibo cancelado", best-effort). Frontend: `Di
 
 ## 10. Notificaciones
 
-- **Comprobante de pago** (correo + recibo PDF): al registrar un pago manual (§9.1 / alta manual), el
-  dueño recibe **al instante** un correo de comprobante con un **recibo PDF descargable** (folio
-  correlativo, datos fiscales del emisor, monto, forma de pago, vigencia), guardado en R2 (`recibos/`).
-  Es la **Defensa 1 del Camino B** contra el "robo invisible": registrar un cobro queda inseparable de
-  que el negocio reciba constancia. Best-effort (si el correo/PDF fallan, el cobro ya quedó). Generador:
-  `utils/reciboPdf.ts` (pdf-lib sobre molde de marca); detalle en `Panel_Admin/Negocios.md` §6 y Ap. D.
+- **Comprobante de pago** (correo + recibo PDF): al registrar un pago manual (§9.1 / alta manual) **y en cada
+  cobro real con tarjeta** (webhook `invoice.payment_succeeded`, §5), el dueño recibe **al instante** un correo de
+  comprobante con un **recibo PDF descargable** (folio correlativo, datos fiscales del emisor, monto, forma de
+  pago, vigencia), guardado en R2 (`recibos/`). Es la **Defensa 1 del Camino B** contra el "robo invisible":
+  registrar un cobro queda inseparable de que el negocio reciba constancia. Best-effort (si el correo/PDF fallan,
+  el cobro ya quedó). Generador: `utils/reciboPdf.ts` (pdf-lib sobre molde de marca); detalle en
+  `Panel_Admin/Negocios.md` §6 y Ap. D.
+  > **Cobro con tarjeta:** inserta su fila `pagos_membresia` con concepto `'tarjeta'` (**sin** gemelo
+  > `eventos_pago` — el `cobro_exitoso` ya quedó asentado en §5) y reusa el mismo flujo del recibo
+  > (`prepararReciboPago` + `enviarComprobantePagoMembresia`), de modo que su folio **continúa la serie** de los
+  > manuales. Esos pagos de tarjeta **no se editan ni anulan** desde el Panel (guards). Todos los comprobantes
+  > (manuales + tarjeta) se consultan, descargan y reenvían desde el módulo
+  > [`Panel_Admin/Recibos.md`](Panel_Admin/Recibos.md).
 - **Negocio fuera de circulación** (`negocio_fuera_circulacion`): al dueño cuando se suspende o cancela (idempotente: borra y recrea).
 - **Fin de trial** (`trial_will_end`): notificación in-app (tipo `sistema`) al dueño, en **ambos modos**, ~3 días antes del cobro. **Copy ramificado** según el pago manual que cubría el periodo (busca en `pagos_membresia` el pago cuyo `periodo_hasta` coincide con el `trial_end`):
   - **cortesía** → se **suprime** el aviso (el dueño no paga ese periodo).

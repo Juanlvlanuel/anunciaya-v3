@@ -5,10 +5,9 @@
  * el SuperAdmin ajusta sin tocar código. Solo lectura por ahora; la edición (diálogos + editor de la
  * escalera) llega en Fase 2.
  *
- * Diseño tipo "ajustes" (Linear/Stripe/Notion): encabezado del módulo + grupos por categoría +
- * mosaico vertical de tarjetas (2 columnas en escritorio, 1 en móvil). Cada tarjeta apila ícono ·
- * etiqueta/descripción arriba y, tras un divisor, el valor destacado + Editar abajo. La escalera (json)
- * ocupa la fila completa. Tokens: `Tokens_Panel.md`.
+ * Diseño tipo "ajustes" (Linear/Stripe/Notion): acordeón por categoría (horizontal en escritorio —
+ * franjas que se ensanchan; vertical en móvil) con tarjetas-fila horizontales apiladas dentro de cada
+ * sección abierta. La escalera (json) lleva su tabla de tramos debajo. Tokens: `Tokens_Panel.md`.
  *
  * Ubicación: apps/admin/src/components/configuracion/SeccionConfiguracion.tsx
  */
@@ -27,12 +26,20 @@ import { PanelAcordeon } from './PanelAcordeon';
 /** Etiqueta legible de cada categoría de `configuracion_sistema`. */
 const ETIQUETA_CATEGORIA: Record<string, string> = {
   pagos: 'Pagos y comisiones',
-  trials: 'Prueba (trial)',
+  trials: 'Prueba y gracia',
   promociones: 'Promociones',
   transacciones: 'Transacciones',
   notificaciones: 'Notificaciones',
   seguridad: 'Seguridad',
   general: 'General',
+};
+
+/**
+ * Reagrupación de UI: muestra una clave en un grupo distinto a su `categoria` real en BD (sin tocar la
+ * BD). `periodo_gracia_cobro_dias` vive en `pagos` pero se presenta junto al trial ("Prueba y gracia").
+ */
+const GRUPO_UI: Record<string, string> = {
+  periodo_gracia_cobro_dias: 'trials',
 };
 
 /** Ícono semántico por clave (sobrio, sin círculo pastel — Regla 13). */
@@ -64,12 +71,12 @@ function rangoTramo(t: TramoEscalera): string {
   return t.max === null ? `${t.min}+` : `${t.min} – ${t.max}`;
 }
 
-/** Tramos de la escalera en horizontal (cada tramo una celda) — aprovecha el ancho de la card full-width. */
+/** Tramos de la escalera apilados (un tramo por fila, uno arriba del otro). */
 function TablaEscalera({ valor }: { valor: string }) {
   const tramos = parsearEscalera(valor);
   if (tramos.length === 0) return <p className="text-[13px] text-texto-4">Escalera sin definir.</p>;
   return (
-    <div className="grid gap-2" style={{ gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))' }}>
+    <div className="flex flex-col gap-2">
       {tramos.map((t, i) => (
         <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
           <span className="text-[13px] text-texto-2">{rangoTramo(t)} activos</span>
@@ -105,9 +112,9 @@ function BadgePorDefecto() {
 }
 
 /**
- * Tarjeta de un valor configurable (mosaico vertical). Dos formas según el tipo:
- *  - Escalera (json) → fila completa: identidad + Editar arriba, tabla de tramos debajo.
- *  - Valor simple    → tarjeta apilada: ícono + identidad arriba; tras un divisor, valor + Editar abajo.
+ * Tarjeta (fila) de un valor configurable, en formato horizontal:
+ *  - Escalera (json) → identidad + Editar arriba, tabla de tramos debajo.
+ *  - Valor simple    → ícono · identidad a la izquierda · valor + Editar a la derecha.
  */
 function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void }) {
   const Icono = ICONO_CLAVE[c.clave] ?? SlidersHorizontal;
@@ -116,17 +123,19 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
 
   if (esEscalera) {
     return (
-      <div className="rounded-[12px] border border-borde bg-superficie p-4 lg:col-span-2 2xl:col-span-2" data-testid={`config-${c.clave}`}>
-        <div className="flex items-start gap-4">
-          <CajaIcono Icono={Icono} tam={32} />
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
-              {!c.sembrado && <BadgePorDefecto />}
+      <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+          <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
+            <CajaIcono Icono={Icono} tam={32} />
+            <div className="min-w-0 flex-1">
+              <div className="flex flex-wrap items-center gap-2">
+                <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
+                {!c.sembrado && <BadgePorDefecto />}
+              </div>
+              <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
             </div>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
           </div>
-          <div className="self-center">
+          <div className="flex justify-end lg:shrink-0 lg:self-center">
             <BotonEditar clave={c.clave} onEditar={onEditar} />
           </div>
         </div>
@@ -138,29 +147,32 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
   }
 
   return (
-    <div className="flex flex-col rounded-[12px] border border-borde bg-superficie p-4" data-testid={`config-${c.clave}`}>
-      {/* Cabecera: ícono · badge "valor por defecto" */}
-      <div className="flex items-start justify-between gap-2">
-        <CajaIcono Icono={Icono} tam={32} />
-        {!c.sembrado && <BadgePorDefecto />}
-      </div>
-
-      {/* Identidad (la descripción crece para empujar el pie hacia abajo y alinear el divisor entre tarjetas) */}
-      <h4 className="mt-3 text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
-      <p className="mt-0.5 flex-1 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
-
-      {/* Pie: valor destacado · Editar */}
-      <div className="mt-3 flex items-end justify-between gap-3 border-t border-borde pt-3">
-        <div className="flex flex-col gap-1">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-[22px] font-bold leading-none text-texto">{c.valor}</span>
-            {c.unidad && <span className="text-[12px] text-texto-3">{c.unidad}</span>}
+    <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+        {/* Identidad (texto a todo el ancho en móvil) */}
+        <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
+          <CajaIcono Icono={Icono} tam={32} />
+          <div className="min-w-0 flex-1">
+            <div className="flex flex-wrap items-center gap-2">
+              <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
+              {!c.sembrado && <BadgePorDefecto />}
+            </div>
+            <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
           </div>
-          {tieneRango && (
-            <span className="rounded-full border border-borde px-2 py-0.5 text-[11px] text-texto-4">rango {c.min ?? 0}–{c.max ?? '∞'}</span>
-          )}
         </div>
-        <BotonEditar clave={c.clave} onEditar={onEditar} />
+        {/* Valor + Editar (fila propia en móvil) */}
+        <div className="flex items-center justify-between gap-3 lg:shrink-0 lg:justify-end lg:self-center">
+          <div className="flex flex-col gap-1 lg:items-end">
+            <div className="flex items-baseline gap-1.5">
+              <span className="text-[22px] font-bold leading-none text-texto">{c.valor}</span>
+              {c.unidad && <span className="text-[12px] text-texto-3">{c.unidad}</span>}
+            </div>
+            {tieneRango && (
+              <span className="rounded-full border border-borde px-2 py-0.5 text-[11px] text-texto-4">rango {c.min ?? 0}–{c.max ?? '∞'}</span>
+            )}
+          </div>
+          <BotonEditar clave={c.clave} onEditar={onEditar} />
+        </div>
       </div>
     </div>
   );
@@ -171,15 +183,11 @@ export function SeccionConfiguracion() {
   const { data, isLoading, isError } = useConfiguracion();
   const [filaEditando, setFilaEditando] = useState<ConfigFila | null>(null);
 
-  // Acordeón: varias secciones pueden estar abiertas a la vez. Al entrar, solo "Precio" (la primera).
-  const [abiertas, setAbiertas] = useState<Set<string>>(() => new Set(['precio']));
-  const alternar = (id: string) =>
-    setAbiertas((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
+  // Acordeón: una sección activa a la vez (en horizontal siempre hay una abierta; en móvil se puede
+  // colapsar tocando la activa). Al entrar, "Precio" (la primera).
+  const [activa, setActiva] = useState<string>('precio');
+  const cambiarSeccion = (id: string) =>
+    setActiva((prev) => (!esEscritorio && prev === id ? '' : id));
 
   const scrollRef = useRef<HTMLDivElement>(null);
   const setScrollEl = useScrollPanel((s) => s.setScrollEl);
@@ -191,41 +199,52 @@ export function SeccionConfiguracion() {
   const items = data ?? [];
   const categorias: string[] = [];
   const porCategoria = new Map<string, ConfigFila[]>();
-  for (const c of items) {
-    if (!porCategoria.has(c.categoria)) {
-      porCategoria.set(c.categoria, []);
-      categorias.push(c.categoria);
+  const agregar = (grupo: string, c: ConfigFila) => {
+    if (!porCategoria.has(grupo)) {
+      porCategoria.set(grupo, []);
+      categorias.push(grupo);
     }
-    porCategoria.get(c.categoria)!.push(c);
+    porCategoria.get(grupo)!.push(c);
+  };
+  // 1ª pasada: cada clave en su categoría real (las reubicadas se omiten aquí).
+  for (const c of items) {
+    if (!GRUPO_UI[c.clave]) agregar(c.categoria, c);
+  }
+  // 2ª pasada: las reubicadas se añaden al final de su grupo destino.
+  for (const c of items) {
+    const grupo = GRUPO_UI[c.clave];
+    if (grupo) agregar(grupo, c);
   }
 
   return (
     <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
-      <div className="mx-auto max-w-[1180px]">
-        {/* Encabezado del módulo */}
-        <div className="mb-6 flex items-center gap-3">
-          <CajaIcono Icono={SlidersHorizontal} tam={44} />
-          <div className="min-w-0">
-            <h2 className="text-[18px] font-bold tracking-[-0.2px] text-texto">Configuración</h2>
-            <p className="text-[13px] text-texto-3">Valores del negocio que ajustas sin tocar código.</p>
-          </div>
-        </div>
-
-        {/* Secciones como acordeón (varias abiertas a la vez). Precio va primero — toca Stripe → tarjeta dedicada. */}
-        <div className="flex flex-col gap-2.5">
-          <TarjetaPrecioMembresia abierto={abiertas.has('precio')} onToggle={() => alternar('precio')} />
+      <div className="mx-auto w-full max-w-[1180px]">
+        {/* Acordeón horizontal en escritorio (franjas que se ensanchan) / vertical en móvil. Precio va
+            primero — toca Stripe → tarjeta dedicada. Una sección activa a la vez. */}
+        <div className={esEscritorio ? 'flex items-stretch justify-center gap-2.5' : 'flex flex-col gap-2.5'}>
+          <TarjetaPrecioMembresia
+            activa={activa === 'precio'}
+            onActivar={() => cambiarSeccion('precio')}
+            horizontal={esEscritorio}
+          />
 
           {isLoading ? (
-            <EstadoSeccion variante="cargando" icono={SlidersHorizontal} titulo="Cargando configuración…" />
+            <div className="flex-1">
+              <EstadoSeccion variante="cargando" icono={SlidersHorizontal} titulo="Cargando configuración…" />
+            </div>
           ) : isError ? (
-            <EstadoSeccion
-              variante="error"
-              icono={SlidersHorizontal}
-              titulo="No se pudo cargar la configuración."
-              descripcion="Revisa tu conexión e inténtalo de nuevo."
-            />
+            <div className="flex-1">
+              <EstadoSeccion
+                variante="error"
+                icono={SlidersHorizontal}
+                titulo="No se pudo cargar la configuración."
+                descripcion="Revisa tu conexión e inténtalo de nuevo."
+              />
+            </div>
           ) : items.length === 0 ? (
-            <EstadoSeccion icono={SlidersHorizontal} titulo="Sin valores configurables" />
+            <div className="flex-1">
+              <EstadoSeccion icono={SlidersHorizontal} titulo="Sin valores configurables" />
+            </div>
           ) : (
             categorias.map((cat) => {
               const filas = porCategoria.get(cat)!;
@@ -236,10 +255,11 @@ export function SeccionConfiguracion() {
                   titulo={ETIQUETA_CATEGORIA[cat] ?? cat}
                   Icono={ICONO_CATEGORIA[cat] ?? SlidersHorizontal}
                   resumen={`${filas.length} ${filas.length === 1 ? 'ajuste' : 'ajustes'}`}
-                  abierto={abiertas.has(cat)}
-                  onToggle={() => alternar(cat)}
+                  activa={activa === cat}
+                  onActivar={() => cambiarSeccion(cat)}
+                  horizontal={esEscritorio}
                 >
-                  <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2 2xl:grid-cols-2">
+                  <div className="flex flex-col gap-2.5">
                     {filas.map((c) => (
                       <TarjetaConfig key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
                     ))}
@@ -255,7 +275,11 @@ export function SeccionConfiguracion() {
         (filaEditando.tipo === 'json' ? (
           <DialogoEditarEscalera fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
         ) : (
-          <DialogoEditarNumero fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
+          <DialogoEditarNumero
+            fila={filaEditando}
+            Icono={ICONO_CLAVE[filaEditando.clave] ?? SlidersHorizontal}
+            onCerrar={() => setFilaEditando(null)}
+          />
         ))}
     </div>
   );

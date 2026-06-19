@@ -1,6 +1,6 @@
 # Panel Admin — Tablero de módulos
 
-> **Qué es:** el estado de los **11 módulos del Panel de un vistazo**. Es el **índice maestro**:
+> **Qué es:** el estado de los **12 módulos del Panel de un vistazo**. Es el **índice maestro**:
 > dice en qué fase está cada módulo y dónde están sus dos documentos. Para el detalle de pendientes,
 > abre el `<Modulo>_Pendientes.md`; para el proceso, el carril.
 >
@@ -14,7 +14,7 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 17 Junio 2026.
+> **Última actualización:** 18 Junio 2026.
 
 ---
 
@@ -47,12 +47,19 @@
 - **Recién hecho (17 jun):** **Trial dinámico en la web** — endpoint público `/api/configuracion-publica` +
   hook `useConfigPublica` conectan landing/registro/upgrade al valor real del trial (antes "7 días" hardcodeado en
   ~8 lugares + i18n es/en). Stripe ya lo respetaba.
-- **Siguiente:** quick-win **Ciudades** (BD lista, falta UI); o el **sprint de Stripe** (precio de membresía
-  editable + Coupons + cobro día-1 para ventas por vendedor). Vendedores · cobro automático de efectivo = backlog.
+- **Recién hecho (18 jun):** **Sprint de Stripe · Pieza 1** — precio de membresía **editable desde el Panel**
+  (botón que crea el Price en Stripe sin redeploy, Price ID en config) + **plan anual** (toggle ON/OFF) + **cobro
+  inmediato** con trial=0 + **comprobante en cobros de tarjeta** (recibo PDF con folio correlativo). **Validado
+  E2E en TEST** (cobro real → webhook → negocio + bitácora). Doc [`Sprint_Stripe.md`](Sprint_Stripe.md). Pendiente:
+  correr `2026-06-18-concepto-tarjeta.sql` en dev+prod; Piezas 2 (cobro día-1) y 3 (comisión "al cobro").
+- **Recién cerrado (18 jun):** **Recibos** — módulo nuevo: ver/buscar (por folio)/descargar/reenviar (multi-correo)
+  los comprobantes de membresía, con alcance super/gerente/**vendedor**. Doc [`Recibos.md`](Recibos.md).
+- **Siguiente:** Sprint de Stripe **Pieza 2** (cobro día-1) / **Pieza 3** (comisión "al cobro"); quick-win
+  **Ciudades** (BD lista, falta UI). Vendedores · cobro automático de efectivo = backlog.
 
 ---
 
-## Los 11 módulos
+## Los 12 módulos
 
 | # | Módulo | Estado | Fase | Docs |
 |---|---|---|---|---|
@@ -67,6 +74,7 @@
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 11 | Sistema (Mantenimiento + Auditoría) | 🟡 | Mantenimiento ✅ / Auditoría-UI ⬜ | `Mantenimiento_R2.md` |
+| 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 
 ---
 
@@ -109,6 +117,10 @@
   crear/mover/revocar gerentes = solo super; alta/edición de vendedor = super + gerente (su región). El
   **territorio avanzado** (multi-región parcial, mover-con-reasignación de cartera) se difirió al módulo 6.
 - **11 · Sistema** — Mantenimiento R2 operativo (`Mantenimiento_R2.md`); falta la **UI** para ver `admin_auditoria`.
+- **12 · Recibos** — **construido y en uso** (doc [`Recibos.md`](Recibos.md)): lista global de recibos de membresía
+  (manuales + tarjeta, foliados), buscar por folio, descargar PDF, reenviar a 1+ correos. Alcance super/gerente/
+  vendedor (lo que Suscripciones no tenía). Reusa el generador de recibo + el envío de correo. Migración asociada:
+  `2026-06-18-concepto-tarjeta.sql`.
 
 ---
 

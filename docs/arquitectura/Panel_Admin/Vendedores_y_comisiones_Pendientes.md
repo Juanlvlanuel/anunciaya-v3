@@ -218,8 +218,10 @@ Fase 3 — Cerrar
 ### Backlog (diferido)
 - **Comisión recurrente "al cobro" (Opción A, D16)** — devengar la recurrente por los meses que el negocio paga,
   en el momento del cobro (prepago de N meses → `N × escalón` de golpe), en vez del goteo mensual del cron. El
-  escalón sigue por # de negocios (1 por negocio, pague 1 o 12 meses). **Cambia el motor de devengo.** Se aborda en
-  el **sprint de Stripe** (prepagos / cobro día-1) — ver `Suscripciones_Pendientes.md` §Fuera de V1.
+  escalón sigue por # de negocios (1 por negocio, pague 1 o 12 meses). **Cambia el motor de devengo.** Es la
+  **Pieza 3 del Sprint de Stripe** (ver [`Sprint_Stripe.md`](Sprint_Stripe.md)), aún **pendiente**. *(El sprint ya
+  arrancó: la **Pieza 1** —precio editable + plan anual + cobro inmediato + recibo en cobros de tarjeta— quedó hecha
+  y validada E2E el 18 jun; **no tocó el devengo de comisiones**, así que este backlog no cambia.)*
 - **F · Cobertura avanzada** (multi-región / multi-gerente / mover-con-reasignación) — diferida (D10).
 ```
 

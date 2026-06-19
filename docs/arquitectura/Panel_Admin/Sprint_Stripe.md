@@ -14,16 +14,19 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho · 🚫 fuera de alcance
 >
-> **Última actualización:** 18 Junio 2026 — **Fase 0 cerrada con Juan.** Alcance consolidado a 3 piezas
-> (precio centralizado + Prices en BD + botón · cobro día-1 · comisión recurrente al cobro). Se
-> descartó el descuento de precio de lanzamiento (el precio se queda firme en $849).
+> **Última actualización:** 18 Junio 2026 — **Pieza 1 CONSTRUIDA y VALIDADA E2E en TEST** (precio editable
+> desde el Panel + plan anual + cobro inmediato con trial 0 + comprobante en cobros de tarjeta). De la Pieza 1
+> nació el **módulo Recibos** ([`Recibos.md`](Recibos.md)). Faltan **Pieza 2** (cobro día-1) y **Pieza 3**
+> (comisión recurrente al cobro). Fase 0 quedó cerrada antes (alcance firme: 3 piezas, precio $849 sin rebaja).
 
 ---
 
 ## Estado del sprint
 
-**FASE 0 — DEFINIR ✅ (18 Jun 2026).** Decisiones cerradas (ver §Decisiones). Siguiente: construir la
-**Pieza 1** siguiendo el carril (Fase 1 → 2 → 3 de esa pieza). Nada de código tocado aún.
+**PIEZA 1 — VALIDADA E2E EN TEST ✅ (18 Jun 2026).** Fase 0 cerrada (ver §Decisiones) **y** Pieza 1 construida y
+probada con un **cobro real** en Stripe TEST (ver §Las 3 piezas y el checklist del carril). Falta solo su **Fase 3
+(Cerrar)** — en curso: este doc + `../Pagos_Suscripciones.md`/`Suscripciones.md` + el doc del módulo nuevo
+[`Recibos.md`](Recibos.md). Siguiente pieza: **Pieza 2** (cobro día-1); **Pieza 3** (comisión al cobro) al final.
 
 > **Contexto de arranque:** el **valor** del precio ya se subió de $449 a $849 MXN en TODO el código
 > (web: 3 constantes `PRECIO_COMERCIAL` + displays + i18n; admin: `PRECIO_MEMBRESIA` + placeholders;
@@ -142,14 +145,18 @@ prepara el cobro para la red de vendedores. Tres frentes:
 
 ## Criterios de aceptación (Definición de Terminado)
 
-**Pieza 1:**
-- [ ] ⬜ El monto vive en `configuracion`; web, admin y avisos lo leen (no hay número hardcodeado).
-- [ ] ⬜ El checkout lee el Price ID **de config** (no de env); la env solo siembra la 1ª vez.
-- [ ] ⬜ El comercio puede elegir **mensual o anual** en el registro con tarjeta (anual = ~2 meses gratis).
-- [ ] ⬜ El **botón** crea el/los Price(s), los deja default, archiva los viejos y reapunta config — **sin
+**Pieza 1:** ✅ **COMPLETA Y VALIDADA E2E EN TEST (18 Jun 2026)**
+- [x] ✅ El monto vive en `configuracion`; web, admin y avisos lo leen (no hay número hardcodeado).
+- [x] ✅ El checkout lee el Price ID **de config** (no de env); la env solo siembra la 1ª vez.
+- [x] ✅ El comercio puede elegir **mensual o anual** en el registro con tarjeta (anual = ~2 meses gratis).
+- [x] ✅ El **botón** crea el/los Price(s), los deja default, archiva los viejos y reapunta config — **sin
   redeploy** — verificado en Stripe TEST con datos reales. Solo superadmin (otros rol → 403). Auditado.
-- [ ] ⬜ Cambiar el precio **no** rompe las suscripciones vigentes (siguen en su Price); el modal lo advierte.
-- [ ] ⬜ `tsc --noEmit` + builds (web + admin + api) verdes.
+- [x] ✅ Cambiar el precio **no** rompe las suscripciones vigentes (siguen en su Price); el modal lo advierte.
+- [x] ✅ `tsc --noEmit` + builds (web + admin + api) verdes.
+- [x] ✅ **Extra (fuera del plan original, pedido por Juan):** el **cobro con tarjeta emite comprobante** (recibo
+  PDF + correo) **continuando el folio** de los manuales (fila `pagos_membresia` concepto `'tarjeta'`, sin gemelo
+  `eventos_pago`; guards que impiden editar/anular ese pago). Nació el **módulo Recibos** para ver/buscar/descargar/
+  reenviar los comprobantes ([`Recibos.md`](Recibos.md)). Migración `2026-06-18-concepto-tarjeta.sql` (Juan, dev+prod).
 
 **Pieza 2:**
 - [ ] ⬜ Un registro **con `?ref=`** (tarjeta) cobra **$849 el día 0** y agenda el próximo cobro a **+44 días**
@@ -170,7 +177,7 @@ prepara el cobro para la red de vendedores. Tres frentes:
 ## Checklist del carril
 
 ```
-### Sprint: STRIPE   ·   Fase 0 ✅ — siguiente: Pieza 1 (Fase 1)
+### Sprint: STRIPE   ·   Pieza 1 ✅ VALIDADA E2E (falta Fase 3) — siguiente: Pieza 2 (cobro día-1)
 
 Fase 0 — Definir ✅ (18 Jun 2026)
 - [x] Mini-spec (qué hace / qué no / matriz de permisos)
@@ -226,6 +233,8 @@ Pieza 3 — Comisión recurrente al cobro   ⬜
 - [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md) — **D16 / D16.1** (comisión
   al cobro) y **D17** (abonos, ya hecho).
 - [`Panel_Admin.md`](Panel_Admin.md) — §Comisiones · §Motor de venta (Camino A/B) · matriz maestra.
+- [`Recibos.md`](Recibos.md) — **módulo nuevo** que nació de la Pieza 1: los comprobantes de membresía (manuales
+  + tarjeta, foliados) para ver / buscar por folio / descargar / reenviar, con alcance super/gerente/vendedor.
 - [`Configuracion.md`](Configuracion.md) — el módulo que centraliza valores dinámicos (trial/gracia/escalera).
 - [`../../estandares/FLUJO_MODULO_PANEL.md`](../../estandares/FLUJO_MODULO_PANEL.md) — el carril (4 fases).
 - `apps/api/scripts/crear-price-membresia.ts` — crea/reusa Price, lo deja default, archiva el viejo

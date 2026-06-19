@@ -28,8 +28,6 @@ const PRECIO_MAX = 100000;
 const FMT = new Intl.NumberFormat('es-MX');
 const pesos = (n: number) => `$${FMT.format(n)}`;
 
-const CLASE_CAMPO =
-  'w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]';
 const LABEL = 'mb-1.5 block text-[12.5px] font-semibold text-texto-2';
 const BTN_CANCELAR =
   'rounded-[10px] border border-borde-fuerte bg-superficie px-3.5 py-2 text-[13px] font-semibold text-texto transition hover:bg-marca-suave disabled:opacity-50';
@@ -98,9 +96,18 @@ function DialogoCambiarPrecioMensual({
       discriminador="precio-mensual"
     >
       <div className="p-5" data-testid="dialogo-precio-mensual">
+        {/* Precio actual (referencia) */}
+        <div className="mb-4 flex items-center justify-between rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+          <span className="text-[13px] text-texto-3">Precio actual</span>
+          <span className="text-[14px] font-semibold text-texto">
+            {pesos(actualMensual)} <span className="font-normal text-texto-3">/mes</span>
+          </span>
+        </div>
+
+        {/* Nuevo precio */}
         <label className={LABEL}>Nuevo precio mensual</label>
-        <div className="flex items-center gap-2">
-          <span className="text-[18px] font-bold text-texto-3">$</span>
+        <div className="relative">
+          <span className="pointer-events-none absolute inset-y-0 left-3.5 flex items-center text-[18px] font-bold text-texto-3">$</span>
           <input
             inputMode="numeric"
             autoFocus
@@ -108,28 +115,28 @@ function DialogoCambiarPrecioMensual({
             value={valor}
             onChange={(e) => setValor(e.target.value.replace(/[^0-9]/g, '').slice(0, 6))}
             onKeyDown={(e) => e.key === 'Enter' && enviar()}
-            className={`${CLASE_CAMPO} w-32 text-center text-[18px] font-bold`}
+            className="w-full rounded-[10px] border border-campo-borde bg-campo py-2.5 pl-9 pr-16 text-[20px] font-bold text-texto outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
           />
-          <span className="text-[14px] text-texto-3">MXN / mes</span>
+          <span className="pointer-events-none absolute inset-y-0 right-3.5 flex items-center text-[13px] text-texto-4">MXN/mes</span>
         </div>
 
         {valor.trim() !== '' && !valido && (
           <p className="mt-1.5 text-[12px] font-medium text-peligro">
-            Escribe un entero entre {pesos(PRECIO_MIN)} y {pesos(PRECIO_MAX)}.
+            Debe ser un número entre {pesos(PRECIO_MIN)} y {pesos(PRECIO_MAX)}.
           </p>
         )}
-        {anualActivo && valido && (
+        {anualActivo && valido && cambiado && (
           <p className="mt-2.5 text-[12.5px] text-texto-3">
-            El plan anual (activo) se recalculará a <b className="font-semibold text-texto">{pesos(n * FACTOR_ANUAL)}</b> (10 meses).
+            El plan anual pasará a <b className="font-semibold text-texto">{pesos(n * FACTOR_ANUAL)}/año</b> (10 meses).
           </p>
         )}
 
-        <div className="mt-4 flex gap-2.5 rounded-[10px] border border-borde-fuerte bg-superficie px-3 py-2.5">
+        {/* A quién afecta */}
+        <div className="mt-4 flex gap-2.5 rounded-[10px] border border-borde bg-superficie-2 px-3 py-2.5">
           <AlertTriangle size={16} className="mt-0.5 shrink-0 text-texto-2" />
           <p className="text-[12.5px] leading-relaxed text-texto-3">
-            Se crea un Price nuevo en Stripe y el cobro de los <b className="font-semibold text-texto">registros nuevos</b> cambia al
-            instante. Las <b className="font-semibold text-texto">suscripciones vigentes siguen en su precio anterior</b> (Stripe no
-            las migra). No afecta los pagos manuales ni las cortesías.
+            Aplica solo a los <b className="font-semibold text-texto">registros nuevos</b>. Las suscripciones activas siguen en su
+            precio actual; no afecta pagos manuales ni cortesías.
           </p>
         </div>
       </div>
@@ -150,70 +157,101 @@ function DialogoCambiarPrecioMensual({
 // TARJETA (en la sección Configuración)
 // =============================================================================
 
-export function TarjetaPrecioMembresia({ abierto, onToggle }: { abierto: boolean; onToggle: () => void }) {
+export function TarjetaPrecioMembresia({
+  activa,
+  onActivar,
+  horizontal,
+}: {
+  activa: boolean;
+  onActivar: () => void;
+  horizontal: boolean;
+}) {
   const config = useConfigPublica();
   const activarAnual = useActivarPlanAnual();
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  const resumen = `${pesos(config.precioMembresia)}/mes · ${config.anualDisponible ? 'anual activo' : 'sin anual'}`;
+  const resumen = (
+    <span className="leading-tight">
+      {pesos(config.precioMembresia)}/mes
+      <br />
+      {config.anualDisponible ? 'anual activo' : 'sin anual'}
+    </span>
+  );
 
   return (
-    <PanelAcordeon id="precio" titulo="Precio de la membresía" Icono={Tag} resumen={resumen} abierto={abierto} onToggle={onToggle}>
-      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2 2xl:grid-cols-2">
-        {/* Precio mensual — tarjeta vertical con su botón Cambiar */}
-        <div className="flex flex-col rounded-[12px] border border-borde bg-superficie p-4" data-testid="config-precio-membresia">
-          <div className="flex items-start justify-between gap-2">
-            <CajaIcono Icono={Tag} />
-          </div>
-          <h4 className="mt-3 text-[14.5px] font-semibold text-texto">Precio de la membresía comercial</h4>
-          <p className="mt-0.5 flex-1 text-[13px] leading-relaxed text-texto-3">
-            Lo que paga un comercio al mes. Cambiarlo crea el Price nuevo en Stripe y reapunta el cobro al instante.
-          </p>
-          <div className="mt-3 flex items-end justify-between gap-3 border-t border-borde pt-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresia)}</span>
-              <span className="text-[12px] text-texto-3">/mes</span>
+    <PanelAcordeon
+      id="precio"
+      titulo="Precio de la membresía"
+      Icono={Tag}
+      resumen={resumen}
+      activa={activa}
+      onActivar={onActivar}
+      horizontal={horizontal}
+    >
+      <div className="flex flex-col gap-2.5">
+        {/* Precio mensual — fila con su botón Cambiar (apila en móvil) */}
+        <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid="config-precio-membresia">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+            <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
+              <CajaIcono Icono={Tag} />
+              <div className="min-w-0 flex-1">
+                <h4 className="text-[14.5px] font-semibold text-texto">Precio mensual</h4>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">
+                  Lo que paga cada comercio al mes.
+                </p>
+              </div>
             </div>
-            <button
-              type="button"
-              data-testid="config-cambiar-precio"
-              onClick={() => setModalAbierto(true)}
-              className="inline-flex shrink-0 items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
-            >
-              Cambiar
-            </button>
+            <div className="flex items-center justify-between gap-3 lg:shrink-0 lg:justify-end lg:self-center">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresia)}</span>
+                <span className="text-[12px] text-texto-3">/mes</span>
+              </div>
+              <button
+                type="button"
+                data-testid="config-cambiar-precio"
+                onClick={() => setModalAbierto(true)}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca"
+              >
+                Cambiar
+              </button>
+            </div>
           </div>
         </div>
 
-        {/* Plan anual — tarjeta vertical con toggle */}
-        <div className="flex flex-col rounded-[12px] border border-borde bg-superficie p-4" data-testid="config-plan-anual">
-          <div className="flex items-start justify-between gap-2">
-            <CajaIcono Icono={CalendarRange} />
-            <span
-              className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium"
-              style={{
-                color: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-text-4)',
-                borderColor: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-border)',
-              }}
-            >
-              {config.anualDisponible ? 'Activo en el registro' : 'Desactivado'}
-            </span>
-          </div>
-          <h4 className="mt-3 text-[14.5px] font-semibold text-texto">Plan anual</h4>
-          <p className="mt-0.5 flex-1 text-[13px] leading-relaxed text-texto-3">
-            Ofrece pagar el año completo: <b className="font-semibold text-texto">{pesos(config.precioMembresiaAnual)}/año</b> (10 meses,
-            2 gratis). Al activarlo aparece como opción en el registro; al apagarlo deja de ofrecerse (las anuales vigentes no se tocan).
-          </p>
-          <div className="mt-3 flex items-end justify-between gap-3 border-t border-borde pt-3">
-            <div className="flex items-baseline gap-1.5">
-              <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresiaAnual)}</span>
-              <span className="text-[12px] text-texto-3">/año</span>
+        {/* Plan anual — fila con toggle (apila en móvil) */}
+        <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid="config-plan-anual">
+          <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+            <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
+              <CajaIcono Icono={CalendarRange} />
+              <div className="min-w-0 flex-1">
+                <div className="flex flex-wrap items-center gap-2">
+                  <h4 className="text-[14.5px] font-semibold text-texto">Plan anual</h4>
+                  <span
+                    className="shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium"
+                    style={{
+                      color: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-text-4)',
+                      borderColor: config.anualDisponible ? 'var(--panel-ok)' : 'var(--panel-border)',
+                    }}
+                  >
+                    {config.anualDisponible ? 'Activo en el registro' : 'Desactivado'}
+                  </span>
+                </div>
+                <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">
+                  Pagar el año completo: 10 meses, 2 gratis. Actívalo para ofrecerlo en el registro.
+                </p>
+              </div>
             </div>
-            <Switch
-              activo={config.anualDisponible}
-              disabled={activarAnual.isPending}
-              onClick={() => activarAnual.mutate(!config.anualDisponible)}
-            />
+            <div className="flex items-center justify-between gap-3 lg:shrink-0 lg:justify-end lg:self-center">
+              <div className="flex items-baseline gap-1.5">
+                <span className="text-[22px] font-bold leading-none text-texto">{pesos(config.precioMembresiaAnual)}</span>
+                <span className="text-[12px] text-texto-3">/año</span>
+              </div>
+              <Switch
+                activo={config.anualDisponible}
+                disabled={activarAnual.isPending}
+                onClick={() => activarAnual.mutate(!config.anualDisponible)}
+              />
+            </div>
           </div>
         </div>
       </div>

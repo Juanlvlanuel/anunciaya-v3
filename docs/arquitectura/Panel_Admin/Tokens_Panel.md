@@ -15,8 +15,8 @@
 > tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
 > los demás docs: el código manda, el doc lo refleja).
 >
-> **Última actualización:** 15 Junio 2026 (§9.1 ajustes globales de vista móvil — íconos, piso de
-> texto, badges y bloqueo de pull-to-refresh; §8 con la animación de salida del bottom-sheet).
+> **Última actualización:** 18 Junio 2026 (§5 patrón "Acordeón de secciones" estrenado en
+> Configuración: horizontal en escritorio / vertical en móvil, con tarjetas-fila apiladas).
 
 ---
 
@@ -138,6 +138,18 @@ menú que despliega sí vuelve a `superficie` clara. Es el caso típico de **var
 - **Los modales/diálogos NO desaparecen:** se reservan para **acciones puntuales** (registrar pago,
   confirmar entrega de efectivo, editar datos, confirmar) — también dentro de un módulo con vista de
   detalle. Regla simple: **modal para *actuar*, vista para *consultar a fondo*.**
+
+**Acordeón de secciones (estrenado en Configuración)** — agrupa ajustes en secciones plegables con dos
+modos según el ancho, en un solo componente (`components/configuracion/PanelAcordeon.tsx`). El padre
+controla cuál sección está activa (una a la vez).
+- **Horizontal en escritorio (≥1024px):** las secciones son franjas lado a lado. La **activa** es un
+  panel de ancho acotado (~600px) con su contenido; las **inactivas** quedan como **tiras** (~132px)
+  con ícono + título + resumen (texto horizontal, no rotado). El conjunto se centra (`justify-center`).
+- **Vertical en móvil (<1024px):** barra que se despliega hacia abajo (acordeón clásico, chevron que
+  rota); se puede colapsar la activa.
+- **Dentro** van tarjetas-fila horizontales (ícono · identidad a la izquierda · valor + acción a la
+  derecha), apiladas. Jerarquía de fondos que alterna: tarjeta-acordeón `superficie` → cuerpo
+  `superficie-2` → tarjetas `superficie` → chips `superficie-2`.
 
 ---
 

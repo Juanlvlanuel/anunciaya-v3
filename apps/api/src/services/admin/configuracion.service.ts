@@ -81,7 +81,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'comision_escalera',
         etiqueta: 'Escalera de comisiones',
-        descripcion: 'Tramos por número de negocios activos → monto fijo por activo al mes. La comisión recurrente del vendedor = # activos × monto del tramo.',
+        descripcion: 'Comisión mensual del vendedor por negocio activo, según el tramo.',
         tipo: 'json',
         categoria: 'pagos',
         unidad: null,
@@ -92,7 +92,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'comision_alta_monto',
         etiqueta: 'Comisión de alta',
-        descripcion: 'Pago único al vendedor cuando un negocio que firmó concreta su primer pago (alta vendida).',
+        descripcion: 'Pago único al vendedor cuando su negocio hace el primer pago.',
         tipo: 'numero',
         categoria: 'pagos',
         unidad: 'MXN',
@@ -103,7 +103,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'trial_duracion_dias',
         etiqueta: 'Duración del trial',
-        descripcion: 'Días de prueba gratis de un negocio nuevo antes del primer cobro.',
+        descripcion: 'Días gratis de un negocio nuevo antes del primer cobro.',
         tipo: 'numero',
         categoria: 'trials',
         unidad: 'días',
@@ -113,8 +113,8 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     },
     {
         clave: 'periodo_gracia_cobro_dias',
-        etiqueta: 'Periodo de gracia de cobro',
-        descripcion: 'Días que un negocio sigue activo tras un cobro fallido antes de suspenderse.',
+        etiqueta: 'Periodo de gracia',
+        descripcion: 'Días activo tras un cobro fallido antes de suspenderse.',
         tipo: 'numero',
         categoria: 'pagos',
         unidad: 'días',

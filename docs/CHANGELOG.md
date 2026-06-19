@@ -8,6 +8,32 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [18 Junio 2026] - Panel · Sprint de Stripe Pieza 1 (precio editable + plan anual + cobro inmediato) + comprobante en cobros de tarjeta + módulo Recibos 💳🧾
+
+Arranca el **Sprint de Stripe**: su **Pieza 1** deja el **precio de la membresía gobernable desde el Panel** (sin redeploy), agrega **plan anual** y **cobro inmediato** cuando no hay trial; además, los **cobros con tarjeta ahora emiten recibo** (correo + PDF) y nace el **módulo Recibos** para consultarlos. **Validado E2E en Stripe TEST** (cobro real → webhook → negocio al corriente + evento en bitácora). Commits: `e694529` (Pieza 1 + recibo de tarjeta), `de0dd85` (Configuración con acordeones), `c4cf412` (módulo Recibos).
+
+**Pieza 1 — precio editable + plan anual (doc `Sprint_Stripe.md`):**
+- **Precio centralizado en config.** El monto vive en `configuracion` y lo leen web, admin y avisos (se borraron las copias hardcodeadas); un endpoint público lo expone para la landing/registro (i18n interpolado). Antecedente: el valor ya se había subido a **$849** (commit `17cbe50`).
+- **Botón que crea el Price en Stripe sin redeploy.** Los Prices de Stripe son inmutables → cambiar el precio = **crear un Price nuevo**, dejarlo default y archivar el viejo. El botón del Panel (solo SuperAdmin, auditado) lo hace de un clic; el **Price ID se mudó de env var a config en BD** (`stripe_price_comercial_id` / `..._anual_id`; la env solo siembra la 1ª vez). El modal advierte que **las suscripciones vigentes no migran** (comportamiento normal de Stripe).
+- **Plan anual (≈10×).** Toggle ON/OFF aparte (separado del botón del precio mensual, tras feedback de Juan) que crea el Price anual; al activarse, el registro con tarjeta muestra un **selector Mensual/Anual** que viaja de punta a punta hasta el checkout.
+- **Cobro inmediato con trial 0.** Stripe rechaza `trial_period_days: 0` → se **omite** el campo cuando el trial es 0, de modo que el cobro ocurre al registrarse. Copy de la web coherente sin "prueba gratis"/"cancela cuando quieras" en landing/registro/upgrade/éxito/sidebar; card de precio del registro rediseñado.
+
+**Comprobante en cobros de tarjeta (continúa el folio de los manuales):**
+- El webhook `invoice.payment_succeeded`, en cobros reales (monto>0), ahora registra una fila `pagos_membresia` con concepto **`'tarjeta'`** y reusa el flujo del recibo manual (`prepararReciboPago` + `enviarComprobantePagoMembresia`) → el dueño recibe **correo + PDF** con **folio correlativo**, continuando la misma serie que los pagos manuales (sin gemelo en `eventos_pago`: el `cobro_exitoso` ya queda asentado). Guards: esos pagos de tarjeta **no se editan ni anulan** desde el Panel; el historial los etiqueta "Tarjeta". Migración `2026-06-18-concepto-tarjeta.sql` (amplía el CHECK con `'tarjeta'`).
+
+**Módulo Recibos (doc `Recibos.md`):**
+- Nueva sección del Panel para **ver / buscar por folio / descargar / reenviar** todos los comprobantes de membresía (manuales + tarjeta, foliados). **Reenvío a 1+ correos** (precarga el del negocio, editable, hasta 10) con auditoría; recibos **anulados** etiquetados y sin reenvío. **Alcance por rol:** super = todos · gerente = su región · vendedor = sus negocios atribuidos ("Mis recibos"). Backend `recibos.service/controller/schema/routes` (montadas antes del gate global); frontend `SeccionRecibos` (tabla escritorio + cards móvil, buscador, modal de reenvío multi-correo, spinner por botón). Reusa el generador de recibo + el envío de correo.
+
+**Configuración con acordeones:** la sección Configuración del Panel se reorganizó en **acordeones** (`PanelAcordeon`) con la tarjeta de precio plegable.
+
+**Verificación:** `tsc` (api + web + admin) + builds en verde. **Validado E2E en Stripe TEST:** precio dinámico $450 + trial 0 → Stripe cobró $450 (suscripción creada) → el webhook creó el negocio "Maricos Las Plebres" (al corriente, primer pago hoy) → evento "Cobro exitoso $450" en la bitácora de Suscripciones → recibo de tarjeta visible en el módulo Recibos.
+
+**Docs:** `Recibos.md` (nuevo), `Sprint_Stripe.md` (Pieza 1 validada), `Pagos_Suscripciones.md` (v1.5), `Suscripciones.md` + `Suscripciones_Pendientes.md`, `Vendedores_y_comisiones_Pendientes.md`, `Tablero_Modulos.md` (12 módulos).
+
+**Pendiente operativo (Juan):** correr `2026-06-18-concepto-tarjeta.sql` en dev + prod. **Faltan del sprint:** Pieza 2 (cobro día-1) y Pieza 3 (comisión recurrente "al cobro"). Al ir a LIVE: activar el plan anual con la llave live + `STRIPE_PRICE_COMERCIAL` en Render.
+
+---
+
 ## [17 Junio 2026] - Panel · Vendedores y comisiones (módulo completo) + Configuración v1 + trial dinámico 💰📊
 
 Día grande del Panel: se **cerró de punta a punta el módulo Vendedores y comisiones** (el más grande del Panel) y se construyó **Configuración v1** (el tablero económico que lo alimenta) + el **trial dinámico** en la web pública. Validado con harness (devengo + neteo TODO VERDE) + builds verdes; migraciones en **dev y prod**. Commits: `564256b` (cartera VER), `38f7a9e` (Configuración), `22a3ed7` (devengo), `f0c39bd` + `4a6e4f7` (fixes), `144d4e6` (trial), `0774883` (liquidación), `e0c952e` (comisión de alta), `42b41f0` (cortes de efectivo + neteo).
