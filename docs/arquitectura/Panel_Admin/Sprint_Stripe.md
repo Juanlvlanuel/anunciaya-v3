@@ -14,19 +14,20 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho · 🚫 fuera de alcance
 >
-> **Última actualización:** 18 Junio 2026 — **Pieza 1 CONSTRUIDA y VALIDADA E2E en TEST** (precio editable
-> desde el Panel + plan anual + cobro inmediato con trial 0 + comprobante en cobros de tarjeta). De la Pieza 1
-> nació el **módulo Recibos** ([`Recibos.md`](Recibos.md)). Faltan **Pieza 2** (cobro día-1) y **Pieza 3**
-> (comisión recurrente al cobro). Fase 0 quedó cerrada antes (alcance firme: 3 piezas, precio $849 sin rebaja).
+> **Última actualización:** 19 Junio 2026 — **Piezas 1, 2 y 3 CONSTRUIDAS.** Pieza 1 validada E2E; Piezas 2 y 3
+> con **harness verde** (`probar-cobro-dia1` + `probar-comision-al-cobro`), falta la validación E2E de Juan. Pieza 2 =
+> cobro "día 1" para ventas por vendedor (sub sin trial + empuje a +44d). Pieza 3 = comisión recurrente "al cobro"
+> (anti-doble-pago del prepago, foto mensual retirada). De la Pieza 1 nació el **módulo Recibos** ([`Recibos.md`](Recibos.md)).
 
 ---
 
 ## Estado del sprint
 
-**PIEZA 1 — VALIDADA E2E EN TEST ✅ (18 Jun 2026).** Fase 0 cerrada (ver §Decisiones) **y** Pieza 1 construida y
-probada con un **cobro real** en Stripe TEST (ver §Las 3 piezas y el checklist del carril). Falta solo su **Fase 3
-(Cerrar)** — en curso: este doc + `../Pagos_Suscripciones.md`/`Suscripciones.md` + el doc del módulo nuevo
-[`Recibos.md`](Recibos.md). Siguiente pieza: **Pieza 2** (cobro día-1); **Pieza 3** (comisión al cobro) al final.
+**PIEZAS 1·2·3 CONSTRUIDAS ✅ (19 Jun 2026).** Fase 0 cerrada (ver §Decisiones). **Pieza 1** validada E2E en TEST.
+**Pieza 2** (cobro día-1) y **Pieza 3** (comisión al cobro) construidas y type-checked, con **Gate verde** (harness
+`probar-cobro-dia1` y `probar-comision-al-cobro` TODO VERDE); falta la **validación E2E** de Juan (registro con
+`?ref=` + prepago anual). La migración de la Pieza 3 (`2026-06-19-comision-al-cobro.sql`) está corrida en dev;
+**falta prod**. Documentación de las 3 piezas: este doc + `../Pagos_Suscripciones.md` + `Vendedores_y_comisiones.md`.
 
 > **Contexto de arranque:** el **valor** del precio ya se subió de $449 a $849 MXN en TODO el código
 > (web: 3 constantes `PRECIO_COMERCIAL` + displays + i18n; admin: `PRECIO_MEMBRESIA` + placeholders;
@@ -119,27 +120,42 @@ prepara el cobro para la red de vendedores. Tres frentes:
 **Migración/seed:** filas nuevas en `configuracion` (no DDL): `precio_membresia_mxn`,
 `stripe_price_comercial_id`, `stripe_price_comercial_anual_id`. One-shot, dev + prod.
 
-### Pieza 2 — Cobro "día 1" (ventas por vendedor)
+### Pieza 2 — Cobro "día 1" (ventas por vendedor)  ✅ CONSTRUIDA (19 Jun)
 
-- **Tarjeta (DS7):** spike del mecanismo (b/c) con **Test Clock**; al confirmar, el checkout con `?ref=`
-  paga $849 al inicio y ancla el próximo cobro a +44d.
-- **Efectivo / alta manual:** vigencia inicial `hoy+44` en vez de `hoy+14` (chico, casi todo existe).
-- **Comisión de alta en tarjeta:** con (b)/(c) hay un `invoice.payment_succeeded amount>0` el día 0 → la
-  comisión de alta se devenga **al firmar** sin tocar `devengarComisionAlta`.
-- **Sin vendedor:** intacto (14 días trial → cobra el día 15).
+**Mecanismo elegido (más simple que el spike b/c): sub SIN trial + empuje, reusando `empujarCobroSuscripcion`.**
+El spike (`probar-cobro-dia1.ts` con Test Clock) confirmó el calendario (cobra hoy → +44d → cobra de nuevo, sin
+extras). Construido:
+- **Tarjeta:** si el registro trae `?ref=`, `crearCheckoutSession` **omite el trial** → cobra el día 0; luego
+  `manejarCheckoutCompletado` **empuja el próximo cobro a `fin del periodo real + dias_cortesia`** (config, default
+  14) → mensual = +44d, **anual = +1 año + cortesía** (se lee el periodo de Stripe, no se asume "1 mes").
+- **Alta manual con vendedor:** vigencia `hoy + meses + cortesía` (modo "por meses", no cortesía) — el modal lo
+  muestra explícito ("+14 días de cortesía por venta de vendedor → cubre hasta …").
+- **Comisión de alta:** ya cae el día 0 sola (el `invoice.payment_succeeded amount>0` del cobro día-1) — no se tocó.
+- **Sin vendedor:** intacto (trial de config → cobra el día 15).
+- **Blindajes de carrera** (cobro día-1 ⇒ webhooks casi simultáneos): si `invoice.payment_succeeded` llega antes de
+  crearse el negocio → **reintento** (no se pierde comisión/recibo); y `GREATEST` para que la fecha del invoice
+  (+1 mes) **no pise** el +44d del empuje.
 
-**Migración:** previsiblemente **ninguna** (usa Stripe + columnas de fecha existentes). Confirmar en Fase 1.
+**Migración:** **ninguna** (usa Stripe + columnas existentes + la config `dias_cortesia_vendedor` con default 14).
 
-### Pieza 3 — Comisión recurrente "al cobro" (D16 / D16.1)
+### Pieza 3 — Comisión recurrente "al cobro" (D16 / D16.1)  ✅ CONSTRUIDA + GATE VERDE (19 Jun)
 
-- Cambiar el motor de `comisiones-devengo.service.ts` de **foto mensual (cron `devengarPeriodo`)** a
-  **devengo por meses pagados, al cobro**: al cobrar N meses (webhook / pago manual / cobro día-1), devengar
-  `N × escalón vigente` de golpe.
-- **Anti-doble-pago:** marcador **`comision_devengada_hasta`** por negocio; el escalón se **congela al cobro**
-  (se guarda en el `detalle` de cada fila). El escalón sigue por **# de activos** (el prepagado cuenta como 1).
-- Decidir qué pasa con el **cron mensual** actual (apagar / reconvertir a barrido de seguridad).
+- Nuevo motor `devengarComisionRecurrenteAlCobro` (en `comisiones-devengo.service.ts`): en cada cobro real
+  (webhook tarjeta / alta manual / "Registrar pago") devenga, por ESE negocio, **`mesesDevengables × escalón`** de
+  golpe, donde **`mesesDevengables = dinero pagado ÷ precio mensual`** (un anual de 10× → 10, no 12) y el **escalón
+  se congela** al # de activos del momento (guardado en `detalle`).
+- **Anti-doble-pago:** marcador **`negocios.comision_devengada_hasta`**; si la cobertura del cobro ya está dentro,
+  no re-devenga (idempotencia). El negocio prepagado **sigue contando como activo** para el escalón, pero no genera
+  pago repetido.
+- **Foto mensual RETIRADA:** el cron `comisiones-devengo.cron` ya no se inicializa y `dispararDevengoMesActual` es
+  no-op (cambiar activos afecta el escalón de FUTUROS cobros, no re-devenga lo pagado).
+- **Gate:** `probar-comision-al-cobro.ts` (prepago 12 meses → 10× una vez · idempotencia · renovación · sin
+  vendedor) **TODO VERDE**.
+- **Frontend:** el estado de cuenta del vendedor pasa de "por mes" a "por cobro" (negocio + "N meses × $unitario ·
+  escalón"); se retiró el botón "Recalcular mes".
 
-**Migración:** columna `comision_devengada_hasta` (en `negocios` o registro aparte) — DDL, dev + prod.
+**Migración:** `2026-06-19-comision-al-cobro.sql` (columna `comision_devengada_hasta` + quitar el único de periodo
++ relajar el CHECK `forma` a "recurrente ⇒ periodo NOT NULL"). Corrida en dev; **falta prod**.
 
 ---
 
@@ -158,26 +174,28 @@ prepara el cobro para la red de vendedores. Tres frentes:
   `eventos_pago`; guards que impiden editar/anular ese pago). Nació el **módulo Recibos** para ver/buscar/descargar/
   reenviar los comprobantes ([`Recibos.md`](Recibos.md)). Migración `2026-06-18-concepto-tarjeta.sql` (Juan, dev+prod).
 
-**Pieza 2:**
-- [ ] ⬜ Un registro **con `?ref=`** (tarjeta) cobra **$849 el día 0** y agenda el próximo cobro a **+44 días**
-  — verificado con **Test Clock**.
-- [ ] ⬜ Un registro **sin vendedor** sigue con 14 días de trial y cobra el día 15 (sin cambios).
-- [ ] ⬜ El **alta manual con vendedor** nace con vigencia `hoy+44`.
-- [ ] ⬜ La **comisión de alta** se devenga al día 0 en tarjeta (una por negocio, idempotente).
+**Pieza 2:** ✅ **CONSTRUIDA (19 Jun) — falta validación E2E de Juan**
+- [x] ✅ Un registro **con `?ref=`** (tarjeta) cobra **el día 0** y agenda el próximo cobro a **+44 días**
+  (mensual) / **+1 año + cortesía** (anual) — calendario verificado con **Test Clock** (`probar-cobro-dia1`).
+- [x] ✅ Un registro **sin vendedor** sigue con su trial de config y cobra después (sin cambios).
+- [x] ✅ El **alta manual con vendedor** nace con vigencia `hoy + meses + cortesía` (el modal lo muestra explícito).
+- [x] ✅ La **comisión de alta** se devenga al día 0 en tarjeta (sin tocar `devengarComisionAlta`). `tsc` verdes.
+- [ ] ⬜ **Validación E2E (Juan):** registro real con `?ref=` + tarjeta → cobro hoy + próximo cobro +44d + comisión + recibo.
 
-**Pieza 3:**
-- [ ] ⬜ Al cobrar **N meses** (cualquier canal), el vendedor devenga `N × escalón vigente` **de golpe**, y
-  `comision_devengada_hasta` salta `mes+N`.
-- [ ] ⬜ En meses ya cubiertos **no** se vuelve a devengar (el negocio sigue contando para el escalón).
-- [ ] ⬜ El escalón usado queda **congelado** al cobro (no cambia si la escalera sube después).
-- [ ] ⬜ Harness con datos reales (prepago de 12 meses, cambio de escalón) TODO VERDE. `tsc`/builds verdes.
+**Pieza 3:** ✅ **CONSTRUIDA + GATE VERDE (19 Jun) — falta validación E2E de Juan**
+- [x] ✅ Al cobrar **N meses** (cualquier canal), el vendedor devenga `(dinero ÷ precio) × escalón` **de golpe**, y
+  `comision_devengada_hasta` salta a la cobertura.
+- [x] ✅ En meses ya cubiertos **no** se vuelve a devengar (el negocio sigue contando para el escalón).
+- [x] ✅ El escalón usado queda **congelado** al cobro (no cambia si la escalera sube después).
+- [x] ✅ Harness `probar-comision-al-cobro.ts` (prepago de 12 meses → 10× una vez · idempotencia · renovación) TODO VERDE. `tsc` verdes.
+- [ ] ⬜ **Validación E2E (Juan):** un prepago anual real → ver el 10× una sola vez en el estado de cuenta del vendedor.
 
 ---
 
 ## Checklist del carril
 
 ```
-### Sprint: STRIPE   ·   Pieza 1 ✅ VALIDADA E2E (falta Fase 3) — siguiente: Pieza 2 (cobro día-1)
+### Sprint: STRIPE   ·   Piezas 1·2·3 CONSTRUIDAS — falta validación E2E (Juan) + Fase 3 docs
 
 Fase 0 — Definir ✅ (18 Jun 2026)
 - [x] Mini-spec (qué hace / qué no / matriz de permisos)
@@ -216,11 +234,19 @@ Pieza 1 — Precio centralizado + Prices en BD + botón   🟢 VALIDADA E2E EN T
 - [ ] Opcional: validar también un checkout ANUAL e2e. Al ir a LIVE: activar el anual con la llave live + STRIPE_PRICE_COMERCIAL en Render.
 - [ ] Fase 3 Cerrar Pieza 1 (→ Pagos_Suscripciones.md / Suscripciones.md) + commit. Al cerrar el sprint o cuando Juan diga.
 
-Pieza 2 — Cobro día-1   ⬜
-- [ ] Spike Stripe (b/c) + Test Clock · construir tarjeta + manual · comisión de alta día 0 · Cerrar (→ Pagos_Suscripciones.md)
+Pieza 2 — Cobro día-1   ✅ CONSTRUIDA (falta E2E Juan)
+- [x] Spike `probar-cobro-dia1.ts` (Test Clock): cobra hoy → +44d → cobra, sin extras. TODO VERDE.
+- [x] Tarjeta: crearCheckoutSession omite trial con ?ref= + manejarCheckoutCompletado empuja a fin-de-periodo+cortesía
+      (mensual +44d / anual +1año+cortesía). Blindajes de carrera (reintento si no hay negocio aún + GREATEST de fecha).
+- [x] Alta manual con vendedor: vigencia +cortesía + aviso visible en el modal. Comisión de alta cae sola el día 0.
+- [x] tsc api+web+admin verdes. Falta: validación E2E (Juan) + Fase 3 docs.
 
-Pieza 3 — Comisión recurrente al cobro   ⬜
-- [ ] Motor por cobro + comision_devengada_hasta + escalón congelado · harness · Cerrar (→ Vendedores_y_comisiones.md)
+Pieza 3 — Comisión recurrente al cobro   ✅ CONSTRUIDA + GATE VERDE (falta E2E Juan)
+- [x] Motor devengarComisionRecurrenteAlCobro (meses=dinero÷precio, escalón congelado) + marcador comision_devengada_hasta.
+- [x] Enganches: webhook tarjeta + alta manual + "Registrar pago". Foto mensual retirada (cron + dispararDevengo no-op).
+- [x] Migración 2026-06-19 (columna + drop índice + relajar CHECK forma). Corrida en dev; falta prod.
+- [x] Harness probar-comision-al-cobro.ts TODO VERDE. Frontend: estado de cuenta "por cobro" + botón Recalcular quitado.
+- [x] tsc api+admin verdes. Falta: validación E2E (Juan) + cerrar Vendedores_y_comisiones.md.
 ```
 
 ---

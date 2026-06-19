@@ -12,7 +12,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta (a confirmar con Juan)
 >
-> **Última actualización:** 17 Junio 2026 — **v1 + 2ª pasada COMPLETOS (piezas A · B · C · E · D).** Cartera (VER)
+> **Última actualización:** 19 Junio 2026 — **D16/D16.1 HECHO** (Sprint Stripe · Pieza 3): el devengo recurrente (B) pasó a **"al cobro"** (anti-doble-pago del prepago; foto mensual retirada). · 17 Jun — **v1 + 2ª pasada COMPLETOS (piezas A · B · C · E · D).** Cartera (VER)
 > + devengo recurrente (escalera) + **comisión de alta (C)** + liquidación con foto-comprobante + **cortes de
 > efectivo con neteo (D)**. Migraciones corridas en **dev y prod**. Builds verdes; harness de devengo y de
 > **neteo** TODO VERDE. Lo construido vive en **[`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)**.
@@ -141,8 +141,8 @@ Leyenda: **Total** = toda la plataforma · **Su equipo / región** = solo lo de 
 | **D13** | Patrón de la ficha: ¿modal o vista? | **Vista de detalle full-width (master-detail), NO modal** — el módulo es data-heavy (cartera + comisiones + pagos + cortes). Al abrir un vendedor, su detalle **reemplaza la lista** con botón "Volver" + `useBackNativo`; la cartera **pagina** y llena el alto con scroll interno. Modales reservados solo para **acciones**. Estrenado aquí; documentado en `Tokens_Panel.md` §5. | ✅ decidido (17 Jun) |
 | **D14** | ¿Dónde vive la cartera del **vendedor** (su autovista)? | **No se duplica.** El vendedor ve la lista de sus negocios en **"Mi cartera"** (sección Negocios, su etiqueta de rol); en **"Mis comisiones"** su vista arranca en **Comisiones/Pagos/Efectivo** — **sin** la pestaña "Cartera". El **super/gerente** sí ven la cartera en el **detalle** de cada vendedor (no la tienen en otro lado). Implementado con `vistaVendedor` en `CuerpoCartera`. | ✅ decidido (17 Jun) |
 | **D15** | Pieza D: ¿comisión condicionada a la entrega, separada, o neteada? | **Neteada (opción C).** No se condiciona ni se mezcla antes: cada cobro en efectivo le carga la deuda completa, y **al liquidar la comisión** se descuenta `min(comisión, deuda)` y se le paga el **neto**. Protege la caja sin congelar comisiones por faltantes chicos. Lo hace `registrarPago` (backend, fuente de verdad). | ✅ decidido (17 Jun) |
-| **D16** | Comisión recurrente: ¿foto mensual o **devengo al cobro**? | **Devengo AL COBRO por periodo pagado (Opción A, 17 jun).** Cuando un negocio paga N meses, el vendedor devenga `N × (monto del escalón vigente)` **de golpe** (no goteando mensual). **El escalón sigue por # de negocios activos** (un negocio = **1**, pague 1 o 12 meses). Recompensa el prepago al instante + blinda al vendedor si se va (ya ganó lo que el negocio pagó). Cambia el motor: de "snapshot mensual (cron)" a "devengo por cobro". Se construye en el **sprint de Stripe** (junto a prepagos / cobro día-1). | ✅ decidido (17 jun) · ⏳ por construir |
-| **D16.1** | Opción A — ¿cómo NO pagar doble un prepago? | **Desacoplar escalón y pago.** (a) **Escalón** = # de negocios activos del mes (el prepagado cuenta como 1 cada mes que siga vigente → aporta al nivel, no es pago). (b) **Pago** = cada negocio lleva un marcador **"comisión devengada hasta [mes]"**; al pagar N meses se devengan de golpe y el marcador salta a "mes+N". En los meses siguientes, si el marcador ya cubre el mes, **no se devenga de nuevo** (el negocio sigue contando para el escalón, pero no genera pago). El **escalón se congela al momento del cobro**. Técnico: columna/registro "devengado hasta" por negocio + motor por meses-no-cubiertos (no foto mensual). | ✅ decidido (17 jun) · ⏳ por construir |
+| **D16** | Comisión recurrente: ¿foto mensual o **devengo al cobro**? | **Devengo AL COBRO por periodo pagado (Opción A, 17 jun).** Cuando un negocio paga N meses, el vendedor devenga `N × (monto del escalón vigente)` **de golpe** (no goteando mensual). **El escalón sigue por # de negocios activos** (un negocio = **1**, pague 1 o 12 meses). Recompensa el prepago al instante + blinda al vendedor si se va (ya ganó lo que el negocio pagó). Cambia el motor: de "snapshot mensual (cron)" a "devengo por cobro". Se construyó en el **Sprint de Stripe · Pieza 3** (junto a cobro día-1). | ✅ **hecho** (19 jun) |
+| **D16.1** | Opción A — ¿cómo NO pagar doble un prepago? | **Desacoplar escalón y pago.** (a) **Escalón** = # de negocios activos del mes (el prepagado cuenta como 1 cada mes que siga vigente → aporta al nivel, no es pago). (b) **Pago** = cada negocio lleva un marcador **"comisión devengada hasta [mes]"**; al pagar N meses se devengan de golpe y el marcador salta a "mes+N". En los meses siguientes, si el marcador ya cubre el mes, **no se devenga de nuevo** (el negocio sigue contando para el escalón, pero no genera pago). El **escalón se congela al momento del cobro**. Técnico: columna/registro "devengado hasta" por negocio + motor por meses-no-cubiertos (no foto mensual). | ✅ **hecho** (19 jun, Pieza 3) |
 | **D17** | Liquidación: ¿pago completo o **abonos**? | **Abonos (Liquidación v2, 17 jun).** El super abona contra el **saldo** (comisiones pendientes − efectivo que el vendedor debe): puede pagar **parcial**, **dividir** en transferencia+efectivo y dejar saldo **pendiente**. Se aplica **FIFO** (la más antigua primero); `monto_pagado` por comisión (parcial → pagada). Migración `monto_pagado`. | ✅ **hecho** (17 jun) |
 
 ---
@@ -216,12 +216,13 @@ Fase 3 — Cerrar
 - [x] Commits a main (B/C/E/D, Liquidación v2 abonos, cobro automático, datos de cobro seguros, fix comisión de alta).
 
 ### Backlog (diferido)
-- **Comisión recurrente "al cobro" (Opción A, D16)** — devengar la recurrente por los meses que el negocio paga,
-  en el momento del cobro (prepago de N meses → `N × escalón` de golpe), en vez del goteo mensual del cron. El
-  escalón sigue por # de negocios (1 por negocio, pague 1 o 12 meses). **Cambia el motor de devengo.** Es la
-  **Pieza 3 del Sprint de Stripe** (ver [`Sprint_Stripe.md`](Sprint_Stripe.md)), aún **pendiente**. *(El sprint ya
-  arrancó: la **Pieza 1** —precio editable + plan anual + cobro inmediato + recibo en cobros de tarjeta— quedó hecha
-  y validada E2E el 18 jun; **no tocó el devengo de comisiones**, así que este backlog no cambia.)*
+- ✅ **Comisión recurrente "al cobro" (Opción A, D16/D16.1) — HECHA (19 jun, Sprint Stripe · Pieza 3).** El devengo
+  recurrente pasó de "foto mensual (cron)" a **al cobro, por negocio**: `meses pagados (dinero ÷ precio) × escalón
+  congelado`, con marcador `negocios.comision_devengada_hasta` (anti-doble-pago del prepago: un anual = 10× una vez;
+  el negocio sigue contando como activo). Cron retirado. Harness `probar-comision-al-cobro.ts` TODO VERDE. Detalle en
+  [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md) §4/§5 + apéndice y [`Sprint_Stripe.md`](Sprint_Stripe.md).
+  Migración `2026-06-19-comision-al-cobro.sql` (dev ✓; **prod pendiente**). **Limpieza pendiente:** quitar el endpoint
+  `/comisiones/recalcular` + su hook (quedaron huérfanos al retirar la foto mensual).
 - **F · Cobertura avanzada** (multi-región / multi-gerente / mover-con-reasignación) — diferida (D10).
 ```
 

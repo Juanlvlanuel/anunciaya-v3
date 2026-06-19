@@ -14,7 +14,7 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 18 Junio 2026.
+> **Última actualización:** 19 Junio 2026.
 
 ---
 
@@ -54,8 +54,13 @@
   correr `2026-06-18-concepto-tarjeta.sql` en dev+prod; Piezas 2 (cobro día-1) y 3 (comisión "al cobro").
 - **Recién cerrado (18 jun):** **Recibos** — módulo nuevo: ver/buscar (por folio)/descargar/reenviar (multi-correo)
   los comprobantes de membresía, con alcance super/gerente/**vendedor**. Doc [`Recibos.md`](Recibos.md).
-- **Siguiente:** Sprint de Stripe **Pieza 2** (cobro día-1) / **Pieza 3** (comisión "al cobro"); quick-win
-  **Ciudades** (BD lista, falta UI). Vendedores · cobro automático de efectivo = backlog.
+- **Recién hecho (19 jun):** **Sprint de Stripe · Piezas 2 y 3** — **cobro "día 1"** para ventas por vendedor (sub
+  sin trial + empuje a +44d; alta manual con cortesía visible en el modal) y **comisión recurrente "al cobro"**
+  (anti-doble-pago del prepago: un anual = 10× una vez; foto mensual retirada). Harness verdes (`probar-cobro-dia1`,
+  `probar-comision-al-cobro`); falta validación E2E de Juan + correr `2026-06-19-comision-al-cobro.sql` en prod. Docs
+  [`Sprint_Stripe.md`](Sprint_Stripe.md), [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md).
+- **Siguiente:** validar E2E las Piezas 2 y 3; quick-win **Ciudades** (BD lista, falta UI). Vendedores · cobro
+  automático de efectivo = backlog.
 
 ---
 

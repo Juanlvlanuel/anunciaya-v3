@@ -7,6 +7,15 @@
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
 > sola; ver §9.1). Falta infraestructura de producción (ver §12).
+> **Versión 1.6 (19 Jun 2026):** **cobro "día 1" para ventas por vendedor** (Sprint Stripe Pieza 2) + **comisión
+> recurrente "al cobro"** (Pieza 3). Con `?ref=`, el checkout **OMITE el trial** (cobra hoy) y `manejarCheckoutCompletado`
+> empuja el próximo cobro a `fin del periodo real + cortesía` (mensual +44d / anual +1 año + cortesía); el alta manual
+> con vendedor suma la cortesía. Blindajes de carrera en `manejarRenovacionPagada`: **reintenta** si el cobro real llega
+> antes de crearse el negocio, y **`GREATEST`** para no retroceder la vigencia. La **comisión recurrente del vendedor**
+> se devenga ahora en **cada cobro** (`dinero ÷ precio × escalón`, escalón congelado; marcador
+> `negocios.comision_devengada_hasta`); la foto mensual (cron) se retiró. Detalle en
+> [`Panel_Admin/Vendedores_y_comisiones.md`](Panel_Admin/Vendedores_y_comisiones.md) y [`Panel_Admin/Sprint_Stripe.md`](Panel_Admin/Sprint_Stripe.md).
+> Migración de comisiones: `2026-06-19-comision-al-cobro.sql` (pagos no cambia su esquema).
 > **Versión 1.5 (18 Jun 2026):** **precio de membresía editable desde el Panel** (vive en `configuracion`; el
 > checkout lee el Price ID de config; un botón crea el Price nuevo en Stripe **sin redeploy** — Sprint Stripe
 > Pieza 1, [`Panel_Admin/Sprint_Stripe.md`](Panel_Admin/Sprint_Stripe.md)) + **plan anual** + **cobro inmediato
@@ -120,6 +129,12 @@ El negocio **nace dentro del webhook**, después del pago (no en el checkout).
 3. `crearCheckoutSession` lo mete en la **metadata** de Stripe (`tipo='registro_comercial'`).
 4. Al pagar → `checkout.session.completed` → `manejarCheckoutCompletado`: crea usuario + negocio (`es_borrador=true`) + sucursal `'Por configurar'`, y **atribuye** vía `resolverEmbajadorPorCodigo` → escribe **2 campos**: `negocios.embajador_id` + `usuarios.referido_por`. (La región se deduce de la ciudad; `region_id` se eliminó en el Paso 10.)
 5. Regla crítica: un `?ref=` ausente/mal escrito/inactivo **nunca bloquea** la venta (entra con atribución `null`).
+6. **Cobro "día 1" (Pieza 2):** si vino `?ref=`, el checkout se crea **sin trial** → cobra al instante; tras crear el
+   negocio, `manejarCheckoutCompletado` **empuja el próximo cobro** a `fin del periodo real + dias_cortesia` (config,
+   default 14): mensual → +44d, anual → +1 año + cortesía (lee el periodo de Stripe, no asume "1 mes"). Ese cobro del
+   día 0 dispara la **comisión de alta** y la **recurrente al cobro** (Vendedores · Pieza 3). Sin vendedor, el trial
+   de config sigue igual. Blindaje: si `invoice.payment_succeeded` llega antes de existir el negocio, el webhook
+   **reintenta** (no se pierde comisión/recibo); y `GREATEST` evita que el `period.end` (+1 mes) pise el +44d.
 
 ### Upgrade personal → comercial
 - `crearCheckoutUpgrade` + `manejarUpgradeCompletado`. **NO atribuye vendedor** (solo el registro nuevo atribuye).

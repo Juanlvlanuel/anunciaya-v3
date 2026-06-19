@@ -8,6 +8,30 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [19 Junio 2026] - Sprint de Stripe · Piezas 2 y 3 — cobro "día 1" para ventas por vendedor + comisión recurrente "al cobro" 💳🤝
+
+Se construyen las dos últimas piezas del Sprint de Stripe (a falta de la validación E2E de Juan). **Pieza 2:** cuando una venta entra por un **vendedor**, el comercio **paga el día 1** (no espera el trial) y recibe el mes + 14 días de cortesía. **Pieza 3:** la **comisión recurrente del vendedor** se devenga **al cobro** (no por foto mensual), con anti-doble-pago del prepago. Type-checks (api/web/admin) verdes + 2 harness (Stripe Test Clock / datos reales) TODO VERDE.
+
+**Pieza 2 — Cobro "día 1" (`pago.service.ts`):**
+- Con `?ref=`, `crearCheckoutSession` **omite el trial** → cobra al instante; tras crear el negocio, `manejarCheckoutCompletado` **empuja el próximo cobro** a `fin del periodo real + cortesía` (config `dias_cortesia_vendedor`, default 14): mensual → **+44 días**, anual → **+1 año + cortesía** (lee el periodo de Stripe, no asume "1 mes"). Mecanismo validado con **Stripe Test Clock** (`probar-cobro-dia1.ts`): cobra hoy → +44d → cobra de nuevo, sin extras.
+- **Alta manual con vendedor:** vigencia `hoy + meses + cortesía`, con aviso explícito en el modal ("+14 días de cortesía por venta de vendedor → cubre hasta …").
+- **Sin vendedor:** intacto (trial de config). El upgrade personal→comercial no se tocó.
+- **Blindajes de carrera** (el cobro día-1 hace que los webhooks lleguen casi a la vez): si `invoice.payment_succeeded` llega antes de existir el negocio, el webhook **reintenta** (no se pierde la comisión ni el recibo); y un `GREATEST` evita que el `period.end` (+1 mes) **pise** el +44d del empuje.
+
+**Pieza 3 — Comisión recurrente "al cobro" (`comisiones-devengo.service.ts` + Vendedores):**
+- Nuevo motor **`devengarComisionRecurrenteAlCobro`**: en cada cobro real (webhook tarjeta / alta manual / "Registrar pago") devenga, por **ese** negocio, **`meses pagados × monto del escalón`**, donde `meses pagados = dinero ÷ precio mensual` (un **anual de 10× → 10**, no 12) y el **escalón se congela** al # de activos del momento. Marcador **`negocios.comision_devengada_hasta`** impide re-devengar la cobertura (anti-doble-pago); el negocio prepagado **sigue contando como activo** para el escalón pero no genera pago repetido.
+- **Foto mensual retirada:** el cron `comisiones-devengo.cron` ya no se inicializa y `dispararDevengoMesActual` queda no-op (cambiar activos afecta el escalón de futuros cobros, no re-devenga lo pagado).
+- **Frontend:** el estado de cuenta del vendedor pasa de "por mes" a **"por cobro"** (cada fila = un negocio con `N meses × $unitario · escalón`); se retiró el botón **"Recalcular mes"**.
+- **Gate:** `probar-comision-al-cobro.ts` (prepago de 12 meses → **10× una sola vez**, idempotencia, renovación, sin vendedor) **TODO VERDE**.
+
+**Migración (Pieza 3):** `2026-06-19-comision-al-cobro.sql` — columna `negocios.comision_devengada_hasta` + quitar el único `(embajador_id, periodo)` + relajar el CHECK `forma` a "recurrente ⇒ periodo NOT NULL" (para que convivan las recurrentes viejas y las nuevas por-negocio). Corrida en **dev**; **falta prod**.
+
+**Docs:** `Sprint_Stripe.md` (Piezas 2 y 3), `Pagos_Suscripciones.md` (v1.6), `Vendedores_y_comisiones.md` + `_Pendientes` (D16/D16.1 hecho), `Tablero_Modulos.md`.
+
+**Pendiente:** validación E2E de Juan (registro con `?ref=` + tarjeta; un prepago anual para ver el 10×); migración en prod; y una **limpieza menor** (quitar el endpoint `/comisiones/recalcular` + hook, huérfanos al retirar la foto mensual).
+
+---
+
 ## [18 Junio 2026] - Panel · Sprint de Stripe Pieza 1 (precio editable + plan anual + cobro inmediato) + comprobante en cobros de tarjeta + módulo Recibos 💳🧾
 
 Arranca el **Sprint de Stripe**: su **Pieza 1** deja el **precio de la membresía gobernable desde el Panel** (sin redeploy), agrega **plan anual** y **cobro inmediato** cuando no hay trial; además, los **cobros con tarjeta ahora emiten recibo** (correo + PDF) y nace el **módulo Recibos** para consultarlos. **Validado E2E en Stripe TEST** (cobro real → webhook → negocio al corriente + evento en bitácora). Commits: `e694529` (Pieza 1 + recibo de tarjeta), `de0dd85` (Configuración con acordeones), `c4cf412` (módulo Recibos).

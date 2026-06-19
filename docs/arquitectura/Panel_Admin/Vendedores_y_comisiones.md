@@ -6,7 +6,8 @@
 > **Cómo leer este documento:** dos capas. La primera (§1–§9) explica el módulo **en lenguaje de persona**.
 > La segunda (**Apéndice técnico**) es la referencia para tocar el código.
 >
-> **Estado:** **v1 + 2ª pasada construidos y en uso** (piezas A · B · C · E · D). Última actualización: 17 Junio 2026.
+> **Estado:** **construido y en uso** (piezas A · B · C · E · D). El **devengo recurrente (B) cambió a "al cobro"**
+> (Sprint Stripe · Pieza 3, 19 Jun 2026): ya no es una foto mensual por cron. Última actualización: 19 Junio 2026.
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) · pendientes y decisiones en
 > [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md).
@@ -43,8 +44,11 @@ que los negocios te pagan); ésta lleva la de **egresos** (lo que tú le pagas a
 ## 4. Las piezas (v1 + 2ª pasada)
 
 - **A · Cartera (ver):** la red de ventas; por vendedor, # en cartera y # activos. Detalle master-detail.
-- **B · Devengo (comisión recurrente):** cada mes, comisión = **# de activos × monto del escalón** de la
-  **escalera** (que se edita en **Configuración**). Monto fijo, no porcentaje.
+- **B · Devengo (comisión recurrente), AL COBRO:** en cada cobro real de un negocio (renovación de tarjeta, alta
+  manual o "Registrar pago") el vendedor devenga, por ESE negocio, **`meses pagados × monto del escalón`** —donde
+  `meses pagados = dinero ÷ precio mensual` (un anual de 10× → **10**)— con el **escalón congelado** al # de activos
+  del momento. Un marcador por negocio evita re-devengar la cobertura ya pagada (anti-doble-pago del prepago).
+  Monto fijo, no porcentaje. *(Antes era una "foto mensual" por cron; se cambió en el Sprint Stripe · Pieza 3.)*
 - **C · Comisión de alta:** **pago único** al vendedor cuando un negocio que firmó concreta su **primer pago
   real** (monto configurable, **$400** por defecto). Se devenga sola e idempotente (una por negocio).
 - **E · Liquidación:** registrar pagos al vendedor (con foto-comprobante), que marcan sus comisiones como
@@ -59,11 +63,12 @@ que los negocios te pagan); ésta lleva la de **egresos** (lo que tú le pagas a
 
 ## 5. La escalera (cómo se calcula la comisión)
 
-La comisión recurrente del mes = **# de negocios activos del vendedor × el monto del tramo** donde cae ese
-número. La escalera la define el SuperAdmin en **Configuración** (p.ej. `0–9 → $0 · 10–24 → $30 · 25+ → $50`).
-Se recalcula **a diario por un cron** (refleja los activos actuales) y se puede **forzar con "Recalcular mes"**.
-Además, cualquier acción de Negocios que cambie los activos (reasignar, suspender, reactivar, cancelar, marcar
-pagado) **redispara el devengo al instante**, para que la comisión no se quede desfasada.
+El **monto del escalón** = el del tramo donde cae el **# de negocios activos** del vendedor (p.ej.
+`0–9 → $0 · 10–24 → $30 · 25+ → $50`), definido por el SuperAdmin en **Configuración**. En cada **cobro** de un
+negocio, el vendedor devenga `meses pagados × ese monto`, **congelando** el escalón al # de activos de ese
+instante (si crece después, lo ya devengado no cambia). El negocio prepagado **sigue contando como activo** para
+el escalón —aporta al nivel— pero no vuelve a generar pago mientras su cobertura siga vigente (marcador
+`comision_devengada_hasta`). *(Ya no hay cron de "foto mensual" ni botón "Recalcular": el devengo es al cobro.)*
 
 ## 6. Cómo se ve
 
@@ -71,8 +76,8 @@ Al abrir un vendedor, su **detalle ocupa toda la pantalla** (master-detail, no m
 identidad + KPIs (en cartera / activos); a la derecha **pestañas**:
 
 - **Cartera** — sus negocios (estado de pago, próximo cobro). *(El vendedor la ve en "Mi cartera", no aquí.)*
-- **Comisiones** — estado de cuenta: **Devengado / Pagado / Pendiente** + la lista por mes (con el desglose
-  `# activos × $monto · escalón`). El super tiene el botón **Recalcular mes**.
+- **Comisiones** — estado de cuenta: **Devengado / Pagado / Pendiente** + la lista **por cobro** (cada fila = un
+  negocio con `N meses × $monto · escalón`). *(Sin botón "Recalcular": el devengo es automático al cobro.)*
 - **Pagos** — los datos de cobro + la **bitácora de egresos**; el super tiene **Registrar abono** (parcial /
   dividido en transferencia+efectivo / netea el efectivo). El **vendedor** captura aquí **sus** datos de cobro.
 - **Efectivo** — el corte de caja (por entregar · cobrado · entregado · descontado) + la bitácora de
@@ -111,7 +116,7 @@ alcance por rol se aplica en el **service** (no solo en la ruta).
 | Archivo | Rol |
 |---|---|
 | `services/admin/vendedores.service.ts` | Lecturas: lista de la red · ficha · cartera · **estado de cuenta de comisiones** · **bitácora de pagos**. `condicionAlcance`/`leerVendedor` (alcance por rol). |
-| `services/admin/comisiones-devengo.service.ts` | **Motor B + C**: `devengarPeriodo` (activos → escalón → upsert comisión del mes, idempotente) · `devengarComisionAlta` (pieza C: pago único al primer pago real, idempotente por negocio) · `escaleraActual` · `dispararDevengoMesActual`. |
+| `services/admin/comisiones-devengo.service.ts` | **Motor B + C**: **`devengarComisionRecurrenteAlCobro`** (pieza B · Pieza 3: `meses pagados × escalón congelado`, marcador `comision_devengada_hasta`, idempotente) · `devengarComisionAlta` (pieza C: pago único al primer pago real) · `escaleraActual`/`montoPorActivo`. `devengarPeriodo`/`dispararDevengoMesActual` quedan **legacy** (foto mensual retirada: el cron ya no se inicializa y `dispararDevengoMesActual` es no-op). |
 | `services/admin/comisiones-liquidacion.service.ts` | **Acciones E (Liquidación v2 — abonos)**: `generarUrlComprobante` (R2) · `registrarPago` (ABONO parcial + dividido: aplica FIFO a las comisiones subiendo `monto_pagado`, netea el efectivo, registra 1-2 egresos por método) · `obtenerDatosCobro` (super+vendedor) / `guardarDatosCobro` (solo el propio vendedor). |
 | `services/admin/comisiones-efectivo.service.ts` | **Pieza D**: `saldoEfectivo` (cobros − entregas − compensaciones) · `registrarMovimientoManual` (cobro/entrega, super+gerente con alcance) · `registrarCobroEfectivo` (automático: lo llaman "marcar pagado" y "alta manual" cuando el **VENDEDOR** cobra en efectivo). |
 | `controllers/admin/vendedores.controller.ts` · `routes/admin/vendedores.routes.ts` | Endpoints (montados con `requierePanel` por ruta, antes del gate global). |
@@ -161,12 +166,18 @@ POST  /admin/vendedores/:id/efectivo    registrar cobro/entrega (super/gerente)
   compensación), `fecha`, `registrado_por`, `nota`. Saldo = Σ cobros − Σ (entregas + compensaciones).
 - **Comisión de alta (C):** vive en `embajador_comisiones` con `tipo='alta'`, `negocio_id` lleno, `periodo` null;
   monto desde `comision_alta_monto` (Configuración, $400). Idempotente: una por negocio.
+- **Comisión recurrente (B · Pieza 3):** `tipo='recurrente'` con **`negocio_id` lleno** (antes NULL), `periodo` =
+  mes del cobro, `detalle = {meses, montoUnitario, escalon, activos, hasta}`. El marcador
+  **`negocios.comision_devengada_hasta`** (migración `2026-06-19-comision-al-cobro.sql`) impide re-devengar. Esa
+  migración quitó el único `(embajador_id, periodo)` y relajó el CHECK `forma` a "recurrente ⇒ periodo NOT NULL".
 
 ## D. Reglas clave
 
 - **"Activo" = `estado_admin='activo'` AND membresía `al_corriente`/`en_gracia`** — idéntico en cartera (SUB_ACTIVOS)
   y en el motor de devengo (no usar la columna legacy `negocios.activo`, que puede desincronizarse).
-- **Idempotencia del devengo:** índice único parcial + UPSERT; nunca pisa una comisión **pagada**.
+- **Devengo recurrente AL COBRO (Pieza 3):** se dispara en `manejarRenovacionPagada` (tarjeta), el alta manual y
+  `marcarPagado`. Anti-doble-pago/idempotencia por el marcador `comision_devengada_hasta` (si la cobertura ya está
+  dentro, no devenga); el escalón se **congela** al # de activos del cobro. `mesesDevengables = dinero ÷ precio`.
 - **La escalera vive en Configuración** (`comision_escalera`, leída con `obtenerConfigJson`); aquí solo se lee.
 - **Sincronización:** las acciones de Negocios invalidan `queryKeys.vendedores` (front) y llaman
   `dispararDevengoMesActual` (back).
