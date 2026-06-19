@@ -127,7 +127,7 @@ export async function obtenerPerfilPrestador(usuarioId: string) {
                 u.nombre,
                 u.apellidos,
                 u.avatar_url,
-                u.ciudad,
+                cu.nombre AS ciudad,
                 u.created_at,
                 u.ultima_conexion,
                 u.servicio_tiempo_respuesta_minutos,
@@ -156,6 +156,7 @@ export async function obtenerPerfilPrestador(usuarioId: string) {
                       AND sp.tipo IN ('servicio-persona', 'solicito')
                 ) AS total_publicaciones_activas
             FROM usuarios u
+            LEFT JOIN ciudades cu ON cu.id = u.ciudad_id
             WHERE u.id = ${usuarioId}
             LIMIT 1
         `);

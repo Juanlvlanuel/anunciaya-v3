@@ -479,7 +479,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
                 u.nombre          AS vendedor_nombre,
                 u.apellidos       AS vendedor_apellidos,
                 u.avatar_url      AS vendedor_avatar_url,
-                u.ciudad          AS vendedor_ciudad,
+                cu.nombre         AS vendedor_ciudad,
                 u.telefono        AS vendedor_telefono,
                 u.ultima_conexion AS vendedor_ultima_conexion,
                 -- Flag de guardado del usuario actual (Sprint 9.3). Mismo
@@ -499,6 +499,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN ciudades cu ON cu.id = u.ciudad_id
             WHERE a.id = ${articuloId}
               AND a.deleted_at IS NULL
             LIMIT 1
@@ -1416,11 +1417,12 @@ export async function obtenerVendedorPorId(
         // 2) Datos básicos del vendedor + KPIs de articulos en una query
         const datos = await db.execute(sql`
             SELECT
-                u.id, u.nombre, u.apellidos, u.avatar_url, u.ciudad, u.telefono,
+                u.id, u.nombre, u.apellidos, u.avatar_url, cu.nombre AS ciudad, u.telefono,
                 u.created_at,
                 COALESCE(act.total, 0) AS activas,
                 COALESCE(vend.total, 0) AS vendidos
             FROM usuarios u
+            LEFT JOIN ciudades cu ON cu.id = u.ciudad_id
             LEFT JOIN (
                 SELECT usuario_id, COUNT(*)::int AS total
                 FROM articulos_marketplace

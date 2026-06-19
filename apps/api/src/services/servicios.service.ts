@@ -657,7 +657,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
                 u.nombre          AS oferente_nombre,
                 u.apellidos       AS oferente_apellidos,
                 u.avatar_url      AS oferente_avatar_url,
-                u.ciudad          AS oferente_ciudad,
+                cu.nombre         AS oferente_ciudad,
                 u.telefono        AS oferente_telefono,
                 u.ultima_conexion AS oferente_ultima_conexion,
                 n.id              AS negocio_id,
@@ -711,6 +711,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             LEFT JOIN negocios n ON n.id = u.negocio_id
             LEFT JOIN negocio_sucursales ns ON ns.id = sp.sucursal_id
             LEFT JOIN ciudades c ON c.id = sp.ciudad_id
+            LEFT JOIN ciudades cu ON cu.id = u.ciudad_id
             WHERE sp.id = ${publicacionId}
               AND sp.estado != 'eliminada'
               AND sp.deleted_at IS NULL

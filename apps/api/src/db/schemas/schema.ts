@@ -81,12 +81,11 @@ export const usuarios = pgTable("usuarios", {
 	panel2faHabilitado: boolean("panel_2fa_habilitado").default(false).notNull(),
 	panel2faSecreto: varchar("panel_2fa_secreto", { length: 64 }),
 	telefono: varchar({ length: 20 }),
-	ciudad: varchar({ length: 100 }),
-	// FK a `ciudades` (catálogo). NULLABLE: se llena cuando el usuario reporta su ubicación
-	// (GPS / selector del header) o por backfill desde el texto `ciudad`. La región se deduce
-	// ciudad_id → ciudades.region_id (igual que negocio_sucursales). El texto `ciudad` se
-	// conserva. Sin `.references()` aquí porque `ciudades` no está en el ORM (solo en BD); la FK
-	// la define la migración 2026-06-16-usuarios-ciudad-id.sql.
+	// Ciudad: SOLO `ciudad_id` (FK al catálogo `ciudades`). La columna texto `ciudad` se retiró
+	// (fase contract de la migración ciudad↔catálogo; DROP en 2026-06-19-usuarios-ciudad-drop.sql):
+	// ya nadie la lee ni la escribe. Se llena cuando el usuario reporta su ubicación (GPS/selector
+	// del header) o por backfill. La región se deduce ciudad_id → ciudades.region_id. Las lecturas
+	// leen `ciudades.nombre` vía esta FK. La FK la define la migración 2026-06-16-usuarios-ciudad-id.sql.
 	ciudadId: uuid("ciudad_id"),
 	perfil: varchar({ length: 20 }).default('personal').notNull(),
 	membresia: smallint().default(1).notNull(),

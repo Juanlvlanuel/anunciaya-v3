@@ -557,7 +557,7 @@ export const guardarBorradorSucursal = async (
             if (negocio) {
                 await db
                     .update(usuarios)
-                    .set({ ciudad: data.ciudad })
+                    .set({ ciudadId: await resolverCiudadId(data.ciudad) })
                     .where(eq(usuarios.id, negocio.usuarioId));
             }
         }

@@ -20,7 +20,7 @@ import { env } from '../config/env.js';
 import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
-import { usuarios, usuarioCodigosRespaldo, negocios } from '../db/schemas/schema.js';
+import { usuarios, usuarioCodigosRespaldo, negocios, ciudades } from '../db/schemas/schema.js';
 import { obtenerDatosNegocio, DatosNegocio } from './negocios.service.js';
 import { estaFueraDeCirculacion, clasificarCirculacion, mensajeBloqueoModoComercial } from '../utils/estadoNegocio.js';
 import {
@@ -199,14 +199,25 @@ function generarCodigoVerificacion(): string {
  *   - Dueños en modo comercial: sucursalPrincipalId
  *   - Modo personal: null
  */
-function usuarioAPublico(
+async function usuarioAPublico(
   usuario: typeof usuarios.$inferSelect,
   onboardingCompletado?: boolean,
   datosNegocio?: DatosNegocio,
   sucursalActivaCalculada?: string | null,
   datosNegocioGerente?: DatosNegocio,
   negocioUsuarioId?: string | null
-): UsuarioPublico {
+): Promise<UsuarioPublico> {
+  // Nombre de la ciudad desde el catálogo (la columna texto `usuarios.ciudad` se
+  // retiró; se lee por la FK `ciudad_id`). 1 lookup por sesión, indexado por PK.
+  let ciudadNombre: string | null = null;
+  if (usuario.ciudadId) {
+    const [cu] = await db
+      .select({ nombre: ciudades.nombre })
+      .from(ciudades)
+      .where(eq(ciudades.id, usuario.ciudadId))
+      .limit(1);
+    ciudadNombre = cu?.nombre ?? null;
+  }
   return {
     id: usuario.id,
     nombre: usuario.nombre,
@@ -222,7 +233,7 @@ function usuarioAPublico(
     autenticadoPorGoogle: usuario.autenticadoPorGoogle ?? false,
     fechaNacimiento: usuario.fechaNacimiento ?? null,
     genero: usuario.genero ?? null,
-    ciudad: usuario.ciudad ?? null,
+    ciudad: ciudadNombre,
     calificacionPromedio: usuario.calificacionPromedio ?? '0',
     totalCalificaciones: usuario.totalCalificaciones ?? 0,
     tieneModoComercial: usuario.tieneModoComercial ?? false,
@@ -369,7 +380,7 @@ export async function registrarUsuario(
         success: true,
         message: 'Cuenta creada exitosamente con Google',
         data: {
-          usuario: usuarioAPublico(nuevoUsuario, false),
+          usuario: await usuarioAPublico(nuevoUsuario, false),
           accessToken: tokens.accessToken,
           refreshToken: tokens.refreshToken,
         },
@@ -586,7 +597,7 @@ export async function verificarEmail(
       success: true,
       message: 'Correo verificado correctamente. ¡Bienvenido!',
       data: {
-        usuario: usuarioAPublico(nuevoUsuario, false),
+        usuario: await usuarioAPublico(nuevoUsuario, false),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -869,7 +880,7 @@ export async function loginUsuario(
         success: true,
         message: 'Debes cambiar tu contraseña provisional',
         data: {
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, usuario.sucursalAsignada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+          usuario: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, usuario.sucursalAsignada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
           accessToken: '',
           refreshToken: '',
           requiereCambioContrasena: true,
@@ -903,7 +914,7 @@ export async function loginUsuario(
         success: true,
         message: 'Requiere verificación de dos factores',
         data: {
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+          usuario: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
           accessToken: '',
           refreshToken: '',
           requiere2FA: true,
@@ -957,7 +968,7 @@ export async function loginUsuario(
       success: true,
       message: 'Inicio de sesión exitoso',
       data: {
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+        usuario: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -1174,7 +1185,7 @@ export async function obtenerUsuarioActual(
     return {
       success: true,
       message: 'Usuario obtenido',
-      data: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+      data: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
       code: 200,
     };
 
@@ -1828,7 +1839,7 @@ export async function loginConGoogle(
         message: 'Requiere verificación de dos factores',
         data: {
           usuarioNuevo: false,
-          usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+          usuario: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
           accessToken: '',
           refreshToken: '',
           requiere2FA: true,
@@ -1861,7 +1872,7 @@ export async function loginConGoogle(
       message: 'Inicio de sesión exitoso con Google',
       data: {
         usuarioNuevo: false,
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+        usuario: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -2385,7 +2396,7 @@ export async function verificar2fa(
       success: true,
       message: 'Verificación exitosa',
       data: {
-        usuario: usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
+        usuario: await usuarioAPublico(usuario, onboardingCompletado, datosNegocio, sucursalActivaCalculada, datosNegocioGerente, await resolverNegocioUsuarioId(usuario.negocioId, usuario.sucursalAsignada)),
         accessToken: tokens.accessToken,
         refreshToken: tokens.refreshToken,
       },
@@ -2561,9 +2572,9 @@ export async function actualizarUbicacionUsuario(
 
     const [actualizado] = await db
       .update(usuarios)
-      .set({ ciudad: ciudadTexto, ciudadId, updatedAt: sql`now()` })
+      .set({ ciudadId, updatedAt: sql`now()` })
       .where(eq(usuarios.id, usuarioId))
-      .returning({ ciudad: usuarios.ciudad, ciudadId: usuarios.ciudadId });
+      .returning({ ciudadId: usuarios.ciudadId });
 
     if (!actualizado) {
       return { success: false, message: 'Usuario no encontrado', code: 404 };
@@ -2572,7 +2583,7 @@ export async function actualizarUbicacionUsuario(
     return {
       success: true,
       message: 'Ubicación actualizada',
-      data: { ciudad: actualizado.ciudad ?? ciudadTexto, ciudadId: actualizado.ciudadId ?? null },
+      data: { ciudad: ciudadTexto, ciudadId: actualizado.ciudadId ?? null },
       code: 200,
     };
   } catch (error) {

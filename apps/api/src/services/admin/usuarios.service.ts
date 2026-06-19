@@ -33,7 +33,7 @@
 
 import { and, eq, asc, desc, ilike, or, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { usuarios, negocios } from '../../db/schemas/schema.js';
+import { usuarios, negocios, ciudades } from '../../db/schemas/schema.js';
 
 // =============================================================================
 // TIPOS
@@ -456,7 +456,7 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
             apellidos: usuarios.apellidos,
             correo: usuarios.correo,
             telefono: usuarios.telefono,
-            ciudad: usuarios.ciudad,
+            ciudad: ciudades.nombre,
             avatarUrl: usuarios.avatarUrl,
             genero: usuarios.genero,
             fechaNacimiento: usuarios.fechaNacimiento,
@@ -485,6 +485,7 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
             negocioNombre: negocios.nombre,
         })
         .from(usuarios)
+        .leftJoin(ciudades, eq(ciudades.id, usuarios.ciudadId))
         .leftJoin(negocios, eq(negocios.id, usuarios.negocioId))
         .where(and(eq(usuarios.id, usuarioId), condicionVisibilidad(rolSolicitante, regionSolicitante)))
         .limit(1);
