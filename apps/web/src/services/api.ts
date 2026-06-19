@@ -331,6 +331,22 @@ api.interceptors.response.use(
         return Promise.reject(error);
       }
 
+      // VISITANTE SIN SESIÓN: un 401 aquí NO es "sesión expirada", sino un
+      // endpoint que requiere auth llamado desde una vista pública (perfil
+      // compartido, etc.). Sin refresh token no hay sesión que renovar ni que
+      // expirar → rechazar el error en silencio y dejar que el componente lo
+      // maneje (la vista pública sigue mostrando sus datos públicos). Sin esto,
+      // el catch del refresh dispararía el modal "Sesión expirada" + logout +
+      // redirect al home, bloqueando el perfil público.
+      const esContextoScanYA = originalRequest.url?.includes('/scanya') ||
+        (typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya'));
+      const haySesion = esContextoScanYA
+        ? !!useScanYAStore.getState().refreshToken
+        : !!useAuthStore.getState().refreshToken;
+      if (!haySesion) {
+        return Promise.reject(error);
+      }
+
       // Marcar como retry para evitar loops infinitos
       originalRequest._retry = true;
 
