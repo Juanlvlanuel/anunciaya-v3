@@ -78,12 +78,15 @@ REGLAS SAGRADAS (NO ROMPER NUNCA):
 const MODELO_GEMINI_PRINCIPAL = 'gemini-2.5-flash';
 
 /**
- * Modelo de respaldo cuando el principal agota reintentos. `2.0-flash`
- * suele tener mejor disponibilidad porque ya está estabilizado.
- * Sacrificamos algo de calidad de redacción a cambio de respuestas
- * disponibles cuando el principal está saturado.
+ * Modelo de respaldo cuando el principal agota reintentos. Variante ligera de
+ * la familia 2.5 (rápida y barata) — buena disponibilidad para redactar cuando
+ * el principal (gemini-2.5-flash) está saturado o lento.
+ *
+ * NOTA: el anterior `gemini-2.0-flash` fue RETIRADO por Google (404
+ * "no longer available", jun-2026). Si este modelo también se retira, cambiar
+ * por el flash/lite vigente más reciente.
  */
-const MODELO_GEMINI_FALLBACK = 'gemini-2.0-flash';
+const MODELO_GEMINI_FALLBACK = 'gemini-2.5-flash-lite';
 
 /**
  * Backoff de reintentos por modelo (ms). Tres intentos: inmediato,
