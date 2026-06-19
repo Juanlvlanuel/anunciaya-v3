@@ -117,6 +117,17 @@ export function SeccionCiudades() {
     return m;
   }, [todasCatalogo]);
 
+  // Catálogo con coordenadas — para el cruce por CERCANÍA del mapa: marca "en catálogo" un
+  // punto INEGI aunque su nombre oficial difiera del nombre corto del catálogo (p. ej.
+  // "Heroica Guaymas" vs "Guaymas"), sin tener que tocar los nombres. Solo las que tienen lat/lng.
+  const catalogoConCoords = useMemo(
+    () =>
+      (todasCatalogo ?? [])
+        .filter((c) => c.lat != null && c.lng != null)
+        .map((c) => ({ id: c.id, lat: c.lat as number, lng: c.lng as number })),
+    [todasCatalogo],
+  );
+
   const seleccionClaves = useMemo(() => new Set(seleccion.keys()), [seleccion]);
   const seleccionados = useMemo(() => [...seleccion.values()], [seleccion]);
   const nuevasSel = seleccionados.filter((f) => !f.enCatalogo);
@@ -330,7 +341,7 @@ export function SeccionCiudades() {
   const contenidoMapa = (
     <div className="relative flex min-h-0 flex-1 flex-col">
       <Suspense fallback={<div className="grid h-full place-items-center rounded-[12px] border border-borde text-[13px] text-texto-3">Cargando mapa…</div>}>
-        <MapaCiudades catalogoPorClave={catalogoPorClave} seleccionadas={seleccionClaves} onToggle={onToggle} />
+        <MapaCiudades catalogoPorClave={catalogoPorClave} catalogoConCoords={catalogoConCoords} seleccionadas={seleccionClaves} onToggle={onToggle} />
       </Suspense>
       {seleccion.size > 0 && (
         <div className="pointer-events-auto absolute inset-x-2 bottom-2 z-10 flex flex-wrap items-center gap-2 rounded-[12px] border border-borde-fuerte bg-superficie/97 px-3 py-2.5 shadow-pop-panel lg:inset-x-auto lg:left-1/2 lg:-translate-x-1/2">

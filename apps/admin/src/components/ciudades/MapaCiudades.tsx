@@ -6,6 +6,13 @@
  *   - AZUL  = ya está en el catálogo (clic → seleccionar para agrupar en una región).
  *   - GRIS  = aún NO está en el catálogo (clic → seleccionar para darla de alta).
  *   - ÁMBAR = seleccionada (en cualquiera de los dos modos).
+ * Las ciudades EN catálogo además se dibujan con un ÁREA aproximada (círculo delineado)
+ * alrededor del punto, para que se vea "la zona" de la ciudad y no solo el punto.
+ *
+ * Cruce catálogo↔dataset: por clave exacta (slug nombre|estado) Y por CERCANÍA de
+ * coordenadas (<3 km), para marcar bien las ciudades cuyo nombre oficial INEGI difiere del
+ * nombre corto del catálogo (ej. "Heroica Guaymas" vs "Guaymas") SIN tocar los datos.
+ *
  * Al hacer zoom aparecen las etiquetas de nombre. El estado de selección lo lleva el
  * padre (SeccionCiudades); aquí solo se dibuja y se reportan los clics.
  *
@@ -22,12 +29,28 @@ const CENTRO_MX: [number, number] = [-102.5, 23.6];
 const ID_SOURCE = 'ciudades';
 const ID_CIRCULOS = 'ciudades-circulos';
 const ID_ETIQUETAS = 'ciudades-etiquetas';
+const ID_SOURCE_AREAS = 'ciudades-areas';
+const ID_AREAS_FILL = 'ciudades-areas-fill';
+const ID_AREAS_LINE = 'ciudades-areas-line';
+const ID_LIMITES_ESTADOS = 'limites-estados';
+
+/** Radio del área aproximada que se dibuja alrededor de cada ciudad EN catálogo (km). */
+const RADIO_AREA_KM = 5;
+/** Umbral para marcar "en catálogo" un punto INEGI por cercanía de coordenadas (km). */
+const UMBRAL_CERCANIA_KM = 3;
 
 interface CiudadRaw {
     clave: string;
     nombre: string;
     estado: string;
     municipio: string;
+    lat: number;
+    lng: number;
+}
+
+/** Ciudad del catálogo (BD) con coordenadas, para el cruce por cercanía. */
+interface CatalogoCoord {
+    id: string;
     lat: number;
     lng: number;
 }
@@ -46,18 +69,63 @@ export interface FeatureCiudad {
 interface MapaCiudadesProps {
     /** claveCruce ("slug|estado") → { id (UUID catálogo) } de las ciudades YA en el catálogo. */
     catalogoPorClave: Map<string, { id: string }>;
+    /** Ciudades del catálogo con coordenadas — para el cruce por cercanía (nombre oficial ≠ corto). */
+    catalogoConCoords: CatalogoCoord[];
     /** Claves INEGI seleccionadas (para pintar la selección). */
     seleccionadas: Set<string>;
     /** Toggle al hacer clic en un punto. */
     onToggle: (f: FeatureCiudad) => void;
 }
 
-/** Construye el GeoJSON desde el dataset crudo + el catálogo (para enCatalogo/catalogoId). */
-function construirGeoJSON(dataset: CiudadRaw[], catalogoPorClave: Map<string, { id: string }>) {
+// ── Helpers geográficos ───────────────────────────────────────────────────────
+
+/** Distancia aproximada en km (equirectangular — suficiente para distancias cortas). */
+function distanciaKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+    const R = 6371;
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad;
+    const dLng = (lng2 - lng1) * rad * Math.cos(((lat1 + lat2) / 2) * rad);
+    return R * Math.sqrt(dLat * dLat + dLng * dLng);
+}
+
+/** Anillo de coordenadas [lng,lat] de un círculo de `radioKm` alrededor de (lat,lng). */
+function anilloCirculo(lat: number, lng: number, radioKm: number, n = 64): [number, number][] {
+    const radioLat = radioKm / 110.574;
+    const radioLng = radioKm / (111.32 * Math.cos((lat * Math.PI) / 180));
+    const coords: [number, number][] = [];
+    for (let i = 0; i <= n; i++) {
+        const ang = (i / n) * 2 * Math.PI;
+        coords.push([lng + radioLng * Math.cos(ang), lat + radioLat * Math.sin(ang)]);
+    }
+    return coords;
+}
+
+/** Construye el GeoJSON de puntos. `enCatalogo` por clave exacta O por cercanía de coords. */
+function construirGeoJSON(
+    dataset: CiudadRaw[],
+    catalogoPorClave: Map<string, { id: string }>,
+    catalogoConCoords: CatalogoCoord[],
+) {
+    // Pre-cómputo por CERCANÍA: para cada ciudad del catálogo, el punto INEGI más cercano
+    // dentro del umbral queda marcado como "en catálogo" (cubre nombres oficiales distintos).
+    const porCercania = new Map<string, { id: string }>();
+    for (const c of catalogoConCoords) {
+        let mejorClave = '';
+        let mejorDist = Infinity;
+        for (const d of dataset) {
+            const dist = distanciaKm(c.lat, c.lng, d.lat, d.lng);
+            if (dist < mejorDist) {
+                mejorDist = dist;
+                mejorClave = d.clave;
+            }
+        }
+        if (mejorClave && mejorDist <= UMBRAL_CERCANIA_KM) porCercania.set(mejorClave, { id: c.id });
+    }
+
     return {
         type: 'FeatureCollection' as const,
         features: dataset.map((d) => {
-            const enCat = catalogoPorClave.get(claveCruceCiudad(d.nombre, d.estado));
+            const enCat = catalogoPorClave.get(claveCruceCiudad(d.nombre, d.estado)) ?? porCercania.get(d.clave);
             return {
                 type: 'Feature' as const,
                 geometry: { type: 'Point' as const, coordinates: [d.lng, d.lat] },
@@ -76,6 +144,23 @@ function construirGeoJSON(dataset: CiudadRaw[], catalogoPorClave: Map<string, { 
     };
 }
 
+/** Áreas (polígonos circulares) de las ciudades EN catálogo, derivadas del GeoJSON de puntos. */
+function construirAreasGeoJSON(puntos: ReturnType<typeof construirGeoJSON>) {
+    return {
+        type: 'FeatureCollection' as const,
+        features: puntos.features
+            .filter((f) => f.properties.enCatalogo)
+            .map((f) => ({
+                type: 'Feature' as const,
+                geometry: {
+                    type: 'Polygon' as const,
+                    coordinates: [anilloCirculo(f.properties.lat, f.properties.lng, RADIO_AREA_KM)],
+                },
+                properties: { clave: f.properties.clave, nombre: f.properties.nombre },
+            })),
+    };
+}
+
 function aFeatureCiudad(f: MapGeoJSONFeature): FeatureCiudad {
     const p = f.properties as Record<string, unknown>;
     return {
@@ -90,11 +175,12 @@ function aFeatureCiudad(f: MapGeoJSONFeature): FeatureCiudad {
     };
 }
 
-export function MapaCiudades({ catalogoPorClave, seleccionadas, onToggle }: MapaCiudadesProps) {
+export function MapaCiudades({ catalogoPorClave, catalogoConCoords, seleccionadas, onToggle }: MapaCiudadesProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const datasetRef = useRef<CiudadRaw[]>([]);
     const catalogoRef = useRef(catalogoPorClave);
+    const catalogoCoordsRef = useRef(catalogoConCoords);
     const onToggleRef = useRef(onToggle);
     const prevSelRef = useRef<Set<string>>(new Set());
     const [cargando, setCargando] = useState(true);
@@ -102,6 +188,7 @@ export function MapaCiudades({ catalogoPorClave, seleccionadas, onToggle }: Mapa
 
     // Mantener refs frescas sin re-crear el mapa.
     useEffect(() => { catalogoRef.current = catalogoPorClave; }, [catalogoPorClave]);
+    useEffect(() => { catalogoCoordsRef.current = catalogoConCoords; }, [catalogoConCoords]);
     useEffect(() => { onToggleRef.current = onToggle; }, [onToggle]);
 
     // ── Crear el mapa + cargar el dataset (una sola vez) ─────────────────────────
@@ -128,10 +215,40 @@ export function MapaCiudades({ catalogoPorClave, seleccionadas, onToggle }: Mapa
                 if (cancelado) return;
                 datasetRef.current = dataset;
 
-                mapa.addSource(ID_SOURCE, {
-                    type: 'geojson',
-                    data: construirGeoJSON(dataset, catalogoRef.current),
-                    promoteId: 'clave',
+                const geojson = construirGeoJSON(dataset, catalogoRef.current, catalogoCoordsRef.current);
+
+                mapa.addSource(ID_SOURCE, { type: 'geojson', data: geojson, promoteId: 'clave' });
+                mapa.addSource(ID_SOURCE_AREAS, { type: 'geojson', data: construirAreasGeoJSON(geojson) });
+
+                // Límites ESTATALES resaltados. El estilo base (boundary del schema OpenMapTiles)
+                // los pinta muy tenues y punteados; esta capa los hace visibles. En México los
+                // estados son admin_level 4; excluimos las fronteras marítimas.
+                mapa.addLayer({
+                    id: ID_LIMITES_ESTADOS,
+                    type: 'line',
+                    source: 'openmaptiles',
+                    'source-layer': 'boundary',
+                    filter: ['all', ['==', ['get', 'admin_level'], 4], ['!=', ['get', 'maritime'], 1]],
+                    layout: { 'line-join': 'round', 'line-cap': 'round' },
+                    paint: {
+                        'line-color': '#64748b',
+                        'line-width': ['interpolate', ['linear'], ['zoom'], 4, 0.8, 7, 1.5, 11, 2.6],
+                        'line-opacity': 0.85,
+                    },
+                });
+
+                // Áreas de ciudad (quedan debajo de los puntos y etiquetas, encima de los límites).
+                mapa.addLayer({
+                    id: ID_AREAS_FILL,
+                    type: 'fill',
+                    source: ID_SOURCE_AREAS,
+                    paint: { 'fill-color': '#2563eb', 'fill-opacity': 0.1 },
+                });
+                mapa.addLayer({
+                    id: ID_AREAS_LINE,
+                    type: 'line',
+                    source: ID_SOURCE_AREAS,
+                    paint: { 'line-color': '#2563eb', 'line-width': 1.5, 'line-opacity': 0.55 },
                 });
 
                 mapa.addLayer({
@@ -199,13 +316,17 @@ export function MapaCiudades({ catalogoPorClave, seleccionadas, onToggle }: Mapa
         };
     }, []);
 
-    // ── Recalcular enCatalogo cuando cambia el catálogo (tras un alta) ────────────
+    // ── Recalcular enCatalogo + áreas cuando cambia el catálogo (tras un alta) ─────
     useEffect(() => {
         const mapa = mapaRef.current;
         if (!mapa || !datasetRef.current.length) return;
         const source = mapa.getSource(ID_SOURCE) as GeoJSONSource | undefined;
-        if (source) source.setData(construirGeoJSON(datasetRef.current, catalogoPorClave));
-    }, [catalogoPorClave]);
+        const sourceAreas = mapa.getSource(ID_SOURCE_AREAS) as GeoJSONSource | undefined;
+        if (!source) return;
+        const geojson = construirGeoJSON(datasetRef.current, catalogoPorClave, catalogoConCoords);
+        source.setData(geojson);
+        if (sourceAreas) sourceAreas.setData(construirAreasGeoJSON(geojson));
+    }, [catalogoPorClave, catalogoConCoords]);
 
     // ── Reflejar la selección con feature-state ──────────────────────────────────
     useEffect(() => {
