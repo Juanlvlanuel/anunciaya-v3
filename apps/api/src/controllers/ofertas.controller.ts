@@ -65,7 +65,8 @@ import {
  */
 export async function getFeedOfertas(req: Request, res: Response) {
   try {
-    const userId = req.usuario!.usuarioId;
+    // verificarTokenOpcional: sin sesión, userId = null (liked/saved → false).
+    const userId = req.usuario?.usuarioId ?? null;
 
     // Validar query params con Zod
     const validacion = filtrosFeedSchema.safeParse(req.query);
@@ -99,7 +100,8 @@ export async function getFeedOfertas(req: Request, res: Response) {
 export async function getOfertaDetalle(req: Request, res: Response) {
   try {
     const { ofertaId } = req.params;
-    const userId = req.usuario!.usuarioId;
+    // verificarTokenOpcional: sin sesión, userId = null (liked/saved → false).
+    const userId = req.usuario?.usuarioId ?? null;
 
     // Validar formato UUID
     const uuidRegex =

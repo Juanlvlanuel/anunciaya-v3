@@ -48,6 +48,7 @@ import {
   getBuscarOfertas,
 } from '../controllers/ofertas.controller.js';
 import { verificarToken } from '../middleware/auth.js';
+import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
 import { verificarNegocio } from '../middleware/negocio.middleware.js';
 import { validarAccesoSucursal } from '../middleware/sucursal.middleware.js';
 
@@ -61,30 +62,40 @@ const router: ExpressRouter = Router();
  * GET /api/ofertas/feed
  * Feed de ofertas geolocalizadas
  *
- * Middleware: verificarToken
- * - Login obligatorio (toda la sección Ofertas requiere usuario autenticado)
- * - Incluye liked/saved personalizados
+ * Middleware: verificarTokenOpcional
+ * - Lectura pública: se consume desde el perfil público de un negocio
+ *   (?sucursalId=) y otras superficies compartibles. Sin sesión, liked/saved
+ *   salen en false. Las acciones (guardar/like/métricas) siguen con login.
+ * - Incluye liked/saved personalizados cuando hay sesión
  * - Query params: latitud, longitud, distanciaMaxKm, categoriaId, tipo,
  *   busqueda, limite, offset, orden, soloCardya, creadasUltimasHoras
  */
-router.get('/feed', verificarToken, getFeedOfertas);
+router.get('/feed', verificarTokenOpcional, getFeedOfertas);
 
 /**
  * GET /api/ofertas/detalle/:ofertaId
  * Detalle de una oferta específica
  *
- * Middleware: verificarToken
- * - Login obligatorio
- * - Incluye liked/saved personalizados
+ * Middleware: verificarTokenOpcional
+ * - Lectura pública: alimenta el enlace compartible /p/oferta/:id (con OG tags).
+ *   El service solo devuelve ofertas con visibilidad 'publico'. Sin sesión,
+ *   liked/saved salen en false. Registrar vista/click/share siguen con login
+ *   (rutas POST aparte).
+ * - Incluye liked/saved personalizados cuando hay sesión
  */
-router.get('/detalle/:ofertaId', verificarToken, getOfertaDetalle);
+router.get('/detalle/:ofertaId', verificarTokenOpcional, getOfertaDetalle);
 
 /**
  * GET /api/ofertas/:ofertaId/sucursales
  * Lista de sucursales donde aplica la misma oferta operativa.
  * Solo tiene sentido cuando `oferta.totalSucursales > 1`.
+ *
+ * Middleware: verificarTokenOpcional
+ * - Lectura pública: la consume ModalOfertaDetalle (sección "Disponible en N
+ *   sucursales") desde el perfil público /p/negocio/:sucursalId y /p/oferta/:id.
+ *   El controller no personaliza con la sesión, así que sin login funciona igual.
  */
-router.get('/:ofertaId/sucursales', verificarToken, getSucursalesDeOferta);
+router.get('/:ofertaId/sucursales', verificarTokenOpcional, getSucursalesDeOferta);
 
 /**
  * GET /api/ofertas/destacada-del-dia
