@@ -267,7 +267,7 @@ export async function obtenerPublicacionesDelPrestador(
                 sp.titulo, sp.descripcion,
                 sp.fotos, sp.foto_portada_index,
                 sp.precio, sp.presupuesto, sp.modalidad,
-                sp.ciudad, sp.zonas_aproximadas,
+                c.nombre AS ciudad, sp.zonas_aproximadas,
                 sp.categoria, sp.urgente,
                 sp.estado, sp.created_at,
                 sp.sucursal_id,
@@ -279,6 +279,7 @@ export async function obtenerPublicacionesDelPrestador(
                 s.portada_url     AS sucursal_portada,
                 s.foto_perfil     AS sucursal_foto_perfil
             FROM servicios_publicaciones sp
+            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
             LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
             LEFT JOIN negocios n           ON n.id = s.negocio_id
             WHERE sp.usuario_id = ${usuarioId}

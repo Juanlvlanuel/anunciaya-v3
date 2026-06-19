@@ -107,7 +107,7 @@ export async function obtenerSugerenciasServicios(
                 sp.modalidad           AS modalidad,
                 sp.modo                AS modo,
                 sp.tipo                AS tipo,
-                sp.ciudad              AS ciudad,
+                c.nombre AS ciudad,
                 u.nombre               AS oferente_nombre,
                 u.apellidos            AS oferente_apellidos,
                 u.avatar_url           AS oferente_avatar_url,
@@ -128,9 +128,10 @@ export async function obtenerSugerenciasServicios(
             INNER JOIN usuarios u ON u.id = sp.usuario_id
             LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
             LEFT JOIN negocios n ON n.id = s.negocio_id
+            LEFT JOIN ciudades c ON c.id = sp.ciudad_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
-              AND sp.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
               AND (
                   immutable_unaccent(sp.titulo) ILIKE immutable_unaccent(${patron})
                   OR immutable_unaccent(sp.descripcion) ILIKE immutable_unaccent(${patron})
@@ -265,7 +266,7 @@ export async function buscarServicios(
     const conds: ReturnType<typeof sql>[] = [
         sql`sp.estado = 'activa'`,
         sql`sp.deleted_at IS NULL`,
-        sql`sp.ciudad = ${filtros.ciudad}`,
+        sql`c.nombre = ${filtros.ciudad}`,
     ];
 
     if (queryNorm.length >= 2) {
@@ -389,7 +390,7 @@ export async function buscarServicios(
             sp.precio, sp.modalidad,
             ST_Y(sp.ubicacion_aproximada::geometry) AS lat,
             ST_X(sp.ubicacion_aproximada::geometry) AS lng,
-            sp.ciudad, sp.zonas_aproximadas,
+            c.nombre AS ciudad, sp.zonas_aproximadas,
             sp.skills, sp.requisitos, sp.horario, sp.dias_semana,
             sp.tipo_empleo, sp.beneficios,
             sp.presupuesto, sp.categoria, sp.urgente,
@@ -398,6 +399,7 @@ export async function buscarServicios(
             sp.expira_at, sp.created_at, sp.updated_at,
             ${distanciaSelect}
         FROM servicios_publicaciones sp
+        LEFT JOIN ciudades c ON c.id = sp.ciudad_id
         WHERE ${where}
         ${orderBy}
         LIMIT ${limit}
@@ -408,6 +410,7 @@ export async function buscarServicios(
     const totalResultado = await db.execute(sql`
         SELECT COUNT(*)::int AS total
         FROM servicios_publicaciones sp
+        LEFT JOIN ciudades c ON c.id = sp.ciudad_id
         WHERE ${where}
     `);
     const total = (totalResultado.rows[0] as { total: number }).total;

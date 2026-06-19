@@ -2126,7 +2126,12 @@ export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
 	// es la coordenada con offset random uniforme en disco de 500m, fija al crear.
 	ubicacion: text().notNull(),
 	ubicacionAproximada: text("ubicacion_aproximada").notNull(),
-	ciudad: varchar({ length: 100 }).notNull(),
+	// Ciudad: SOLO `ciudad_id` (FK al catálogo `ciudades`, migración 2026-06-19). La columna
+	// texto `ciudad` se retiró (fase contract; DROP en 2026-06-19-servicios-ciudad-drop.sql):
+	// ya nadie la lee ni la escribe. vacante-empresa hereda el ciudad_id de su sucursal;
+	// servicio-persona/solicito lo resuelve del texto del payload. Las lecturas leen
+	// `ciudades.nombre` vía esta FK.
+	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
 	zonasAproximadas: varchar("zonas_aproximadas", { length: 150 }).array().notNull().default(sql`'{}'::varchar[]`),
 
 	// Skills (solo servicio-persona, max 8 — validado por CHECK + Zod)
@@ -2182,7 +2187,7 @@ export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_servicios_pub_estado").using("btree", table.estado.asc().nullsLast()),
-	index("idx_servicios_pub_ciudad").using("btree", table.ciudad.asc().nullsLast()),
+	index("idx_servicios_pub_ciudad_id").using("btree", table.ciudadId.asc().nullsLast()).where(sql`ciudad_id IS NOT NULL`),
 	index("idx_servicios_pub_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	index("idx_servicios_pub_created").using("btree", table.createdAt.desc().nullsFirst()),
 	index("idx_servicios_pub_expira").using("btree", table.expiraAt.asc().nullsLast()),

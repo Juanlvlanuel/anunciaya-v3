@@ -185,7 +185,7 @@ export async function listarVacantes(
                 sp.modalidad,
                 ST_X(sp.ubicacion_aproximada::geometry) AS lng,
                 ST_Y(sp.ubicacion_aproximada::geometry) AS lat,
-                COALESCE(c.nombre, sp.ciudad) AS ciudad,
+                c.nombre AS ciudad,
                 sp.zonas_aproximadas,
                 sp.skills,
                 sp.requisitos,

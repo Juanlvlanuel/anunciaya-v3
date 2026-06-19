@@ -552,7 +552,7 @@ export async function obtenerGuardados(
                     p.modalidad AS "publicacionModalidad",
                     ST_Y(p.ubicacion_aproximada::geometry) AS "publicacionLat",
                     ST_X(p.ubicacion_aproximada::geometry) AS "publicacionLng",
-                    p.ciudad AS "publicacionCiudad",
+                    c.nombre AS "publicacionCiudad",
                     p.zonas_aproximadas AS "publicacionZonasAproximadas",
                     p.skills AS "publicacionSkills",
                     p.requisitos AS "publicacionRequisitos",
@@ -581,6 +581,7 @@ export async function obtenerGuardados(
                     s.foto_perfil   AS "publicacionSucursalFotoPerfil"
                 FROM guardados g
                 INNER JOIN servicios_publicaciones p ON p.id = g.entity_id
+                LEFT JOIN ciudades c ON c.id = p.ciudad_id
                 LEFT JOIN negocio_sucursales s ON p.sucursal_id = s.id
                 LEFT JOIN negocios n ON s.negocio_id = n.id
                 WHERE g.usuario_id = ${userId}

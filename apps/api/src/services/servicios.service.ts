@@ -35,6 +35,7 @@ import { serviciosPublicaciones } from '../db/schemas/schema.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { aleatorizarCoordenada } from '../utils/aleatorizarUbicacion.js';
 import { getZonaHorariaPorCiudad } from '../utils/zonaHoraria.js';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import { sqlExpiracionFinDeDia, TTL_DIAS_DEFAULT } from '../utils/expiracion.js';
 import type {
     CrearPublicacionInput,
@@ -362,7 +363,7 @@ const COLUMNAS_PUBLICACION = sql`
     sp.modalidad,
     ST_X(sp.ubicacion_aproximada::geometry) AS lng,
     ST_Y(sp.ubicacion_aproximada::geometry) AS lat,
-    sp.ciudad,
+    c.nombre AS ciudad,
     sp.zonas_aproximadas,
     sp.skills,
     sp.requisitos,
@@ -405,7 +406,7 @@ const COLUMNAS_PUBLICACION_FEED = sql`
     sp.modalidad,
     ST_X(sp.ubicacion_aproximada::geometry) AS lng,
     ST_Y(sp.ubicacion_aproximada::geometry) AS lat,
-    sp.ciudad,
+    c.nombre AS ciudad,
     sp.zonas_aproximadas,
     sp.skills,
     sp.requisitos,
@@ -513,6 +514,22 @@ export async function crearPublicacion(
         const zonaUsuario = getZonaHorariaPorCiudad(datos.ciudad);
         const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
 
+        // 2.b Resolver `ciudad_id` (FK al catálogo `ciudades`) — fuente de verdad
+        //     de la ciudad en toda la app. Dos modos según el tipo:
+        //       · vacante-empresa (con sucursal) → hereda el ciudad_id de SU sucursal.
+        //       · servicio-persona / solicito    → resuelve el texto a FK por slug.
+        //     La columna texto `ciudad` ya fue retirada (contract): solo se persiste ciudad_id.
+        let ciudadId: string | null = null;
+        if (datos.sucursalId) {
+            const sucRes = await db.execute<{ ciudad_id: string | null }>(
+                sql`SELECT ciudad_id::text AS ciudad_id FROM negocio_sucursales WHERE id = ${datos.sucursalId} LIMIT 1`
+            );
+            ciudadId = sucRes.rows[0]?.ciudad_id ?? null;
+        }
+        if (!ciudadId) {
+            ciudadId = await resolverCiudadId(datos.ciudad);
+        }
+
         // 3. Inyectar `aceptadasAt` (timestamp confiable, no lo manda el cliente)
         //    al snapshot de confirmaciones.
         const confirmacionesConTimestamp = {
@@ -536,7 +553,7 @@ export async function crearPublicacion(
                 modalidad,
                 ubicacion,
                 ubicacion_aproximada,
-                ciudad,
+                ciudad_id,
                 zonas_aproximadas,
                 skills,
                 requisitos,
@@ -563,7 +580,7 @@ export async function crearPublicacion(
                 ${datos.modalidad},
                 ST_SetSRID(ST_MakePoint(${datos.longitud}, ${datos.latitud}), 4326)::geography,
                 ST_SetSRID(ST_MakePoint(${aprox.lng}, ${aprox.lat}), 4326)::geography,
-                ${datos.ciudad},
+                ${ciudadId},
                 ${pgArrayLiteral(datos.zonasAproximadas)}::varchar[],
                 ${pgArrayLiteral(datos.skills)}::text[],
                 ${pgArrayLiteral(datos.requisitos)}::text[],
@@ -693,6 +710,7 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
             INNER JOIN usuarios u ON u.id = sp.usuario_id
             LEFT JOIN negocios n ON n.id = u.negocio_id
             LEFT JOIN negocio_sucursales ns ON ns.id = sp.sucursal_id
+            LEFT JOIN ciudades c ON c.id = sp.ciudad_id
             WHERE sp.id = ${publicacionId}
               AND sp.estado != 'eliminada'
               AND sp.deleted_at IS NULL
@@ -825,9 +843,10 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
             FROM servicios_publicaciones sp
             LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
             LEFT JOIN negocios n           ON n.id = s.negocio_id
+            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
-              AND sp.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
               ${filtroModo}
               -- Ocultar vacantes de empresa cuyo negocio está fuera de circulación
               -- (las publicaciones de persona física no tienen negocio → siempre visibles)
@@ -850,9 +869,10 @@ export async function obtenerFeed(opciones: OpcionesFeed) {
             FROM servicios_publicaciones sp
             LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
             LEFT JOIN negocios n           ON n.id = s.negocio_id
+            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
-              AND sp.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
               ${filtroModo}
               -- Ocultar vacantes de empresa de negocios fuera de circulación
               AND (sp.tipo <> 'vacante-empresa' OR n.activo = true)
@@ -962,9 +982,10 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             FROM servicios_publicaciones sp
             LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
             LEFT JOIN negocios n           ON n.id = s.negocio_id
+            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
-              AND sp.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
               ${filtroModo}
               ${filtroTipo}
               ${filtroModalidad}
@@ -982,9 +1003,10 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             FROM servicios_publicaciones sp
             LEFT JOIN negocio_sucursales s ON s.id = sp.sucursal_id
             LEFT JOIN negocios n           ON n.id = s.negocio_id
+            LEFT JOIN ciudades c           ON c.id = sp.ciudad_id
             WHERE sp.estado = 'activa'
               AND sp.deleted_at IS NULL
-              AND sp.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
               ${filtroModo}
               ${filtroTipo}
               ${filtroModalidad}
@@ -1048,6 +1070,7 @@ export async function obtenerMisPublicaciones(
         const filasRes = await db.execute<RawPublicacionDb>(sql`
             SELECT ${COLUMNAS_PUBLICACION}
             FROM servicios_publicaciones sp
+            LEFT JOIN ciudades c ON c.id = sp.ciudad_id
             WHERE sp.usuario_id = ${usuarioId}
               AND sp.deleted_at IS NULL
               ${filtroEstado}
@@ -1142,7 +1165,11 @@ export async function actualizarPublicacion(
         if (datos.fotoPortadaIndex !== undefined) sets.push(sql`foto_portada_index = ${datos.fotoPortadaIndex}`);
         if (datos.precio !== undefined) sets.push(sql`precio = ${JSON.stringify(datos.precio)}::jsonb`);
         if (datos.modalidad !== undefined) sets.push(sql`modalidad = ${datos.modalidad}`);
-        if (datos.ciudad !== undefined) sets.push(sql`ciudad = ${datos.ciudad}`);
+        if (datos.ciudad !== undefined) {
+            // La columna texto `ciudad` se retiró (contract): solo persistimos el FK resuelto.
+            const nuevaCiudadId = await resolverCiudadId(datos.ciudad);
+            sets.push(sql`ciudad_id = ${nuevaCiudadId}`);
+        }
         if (datos.zonasAproximadas !== undefined) sets.push(sql`zonas_aproximadas = ${pgArrayLiteral(datos.zonasAproximadas)}::varchar[]`);
         if (datos.skills !== undefined) sets.push(sql`skills = ${pgArrayLiteral(datos.skills)}::text[]`);
         if (datos.requisitos !== undefined) sets.push(sql`requisitos = ${pgArrayLiteral(datos.requisitos)}::text[]`);
@@ -1286,11 +1313,13 @@ export async function reactivarPublicacion(
         // en `getZonaHorariaPorCiudad` y crece junto con las ciudades
         // que abre AnunciaYA).
         const ciudadRow = await db.execute<{ ciudad: string | null }>(sql`
-            SELECT ciudad FROM servicios_publicaciones
-            WHERE id = ${publicacionId}
-              AND usuario_id = ${usuarioId}
-              AND deleted_at IS NULL
-              AND estado = 'pausada'
+            SELECT c.nombre AS ciudad
+            FROM servicios_publicaciones sp
+            LEFT JOIN ciudades c ON c.id = sp.ciudad_id
+            WHERE sp.id = ${publicacionId}
+              AND sp.usuario_id = ${usuarioId}
+              AND sp.deleted_at IS NULL
+              AND sp.estado = 'pausada'
             LIMIT 1
         `);
 
