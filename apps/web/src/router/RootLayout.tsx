@@ -16,6 +16,7 @@ import { useScanYAStore } from '../stores/useScanYAStore';
 import { useGpsStore } from '../stores/useGpsStore';
 import { useUiStore } from '../stores/useUiStore';
 import { buscarCiudadCercana } from '../data/ciudadesPopulares';
+import { useCiudades } from '../hooks/queries/useCiudades';
 import { useTituloDinamico } from '../hooks/useTituloDinamico';
 import { reportarUbicacion } from '../services/authService';
 
@@ -59,6 +60,10 @@ export function RootLayout() {
 
   const hidratarAuth = useAuthStore((state) => state.hidratarAuth);
   const hidratarAuthScanYA = useScanYAStore((state) => state.hidratarAuth);
+
+  // Hidrata el catálogo de ciudades desde la BD (GET /api/ciudades): reemplaza el array
+  // semilla por lo que el SuperAdmin habilita en el Panel. Si falla, queda la semilla.
+  useCiudades();
 
   // GPS Store
   const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);

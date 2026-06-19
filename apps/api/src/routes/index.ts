@@ -44,6 +44,7 @@ import vacantesRoutes from './vacantes.routes';
 import preguntasComunidadRoutes from './preguntasComunidad.routes';
 import coyoRoutes from './coyo.routes';
 import configuracionPublicaRoutes from './configuracionPublica.routes';
+import ciudadesPublicaRoutes from './ciudadesPublica.routes';
 import adminRoutes from './admin/index.js';
 
 const router: Router = Router();
@@ -68,6 +69,9 @@ router.use('/categorias', categoriasRoutes);
 
 // Configuración pública (sin auth): valores que pinta la landing (trial, etc.)
 router.use('/configuracion-publica', configuracionPublicaRoutes);
+
+// Ciudades públicas (sin auth): catálogo de ciudades activas para el selector de ubicación.
+router.use('/ciudades', ciudadesPublicaRoutes);
 
 // Rutas de onboarding
 router.use('/onboarding', onboardingRoutes);

@@ -23,7 +23,7 @@
 
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import { ciudadesPopulares } from '../data/ciudadesPopulares';
+import { obtenerCatalogoCiudades } from '../data/ciudadesPopulares';
 
 // =============================================================================
 // TIPOS
@@ -267,7 +267,7 @@ export const useGpsStore = create<GpsState>()(
         // hubiera ciudad seleccionada → banner "Activa tu ubicación" falso).
         let coordenadasFinales = coordenadas;
         if (!coordenadasFinales) {
-          const match = ciudadesPopulares.find(
+          const match = obtenerCatalogoCiudades().find(
             (c) =>
               c.nombre.trim().toLowerCase() === nombre.trim().toLowerCase() &&
               c.estado.trim().toLowerCase() === estado.trim().toLowerCase()

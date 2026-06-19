@@ -28,6 +28,7 @@ import vendedoresRoutes from './vendedores.routes.js';
 import recibosRoutes from './recibos.routes.js';
 import regionesRoutes from './regiones.routes.js';
 import configuracionRoutes from './configuracion.routes.js';
+import ciudadesRoutes from './ciudades.routes.js';
 
 const router: Router = Router();
 
@@ -86,6 +87,9 @@ router.use('/regiones', regionesRoutes);
 
 // Configuración: valores dinámicos del negocio (solo superadmin, ya cubierto por el gate).
 router.use('/configuracion', configuracionRoutes);
+
+// Ciudades: catálogo de ciudades + regiones (solo superadmin, ya cubierto por el gate).
+router.use('/ciudades', ciudadesRoutes);
 
 // A futuro, agregar aquí:
 // router.use('/reportes-globales', reportesGlobalesRoutes);

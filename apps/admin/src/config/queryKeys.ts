@@ -78,6 +78,14 @@ export interface FiltrosRecibosKey {
   porPagina?: number;
 }
 
+/** Filtros que entran en la clave del catálogo de ciudades. */
+export interface FiltrosCiudadesKey {
+  busqueda?: string;
+  regionId?: string;
+  estado?: string;
+  activa?: string;
+}
+
 export const queryKeys = {
   negocios: {
     all: () => ['negocios'] as const,
@@ -124,6 +132,11 @@ export const queryKeys = {
     pagos: (id: string) => ['vendedores', 'pagos', id] as const,
     datosCobro: (id: string) => ['vendedores', 'datos-cobro', id] as const,
     efectivo: (id: string) => ['vendedores', 'efectivo', id] as const,
+  },
+  ciudades: {
+    all: () => ['ciudades'] as const,
+    lista: (filtros: FiltrosCiudadesKey) => ['ciudades', 'lista', filtros] as const,
+    regiones: () => ['ciudades', 'regiones'] as const,
   },
   configuracion: {
     all: () => ['configuracion'] as const,

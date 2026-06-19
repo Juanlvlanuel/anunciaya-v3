@@ -1,8 +1,14 @@
 # Migración Leaflet → MapLibre GL JS
 
-**Fecha:** 7 Abril 2026
-**Estado:** Pendiente — planificado para sesión futura
-**Prioridad:** Media-Alta (mejora UX significativa)
+**Fecha:** 7 Abril 2026 (planeado) · **Decisión de ejecutar:** 18 Junio 2026
+**Estado:** ✅ Aprobado — **EN PROGRESO**. El **Panel** (`apps/admin`, módulo Ciudades) ya **nace en MapLibre** (`maplibre-gl` directo, tiles **OpenFreeMap** sin API key, mapa de 4,563 ciudades). Falta migrar **`apps/web`** (Leaflet → MapLibre).
+**Prioridad:** Media-Alta (mejora UX significativa + unifica el stack de mapas)
+
+> **Enfoque acordado (18 jun 2026):**
+> - **Tiles:** **OpenFreeMap** (vector, gratis, **sin API key**) en todo el proyecto — no MapTiler/Stadia (que piden key). Cambiable en 1 línea si se quiere self-host en prod.
+> - **`apps/web`:** usar **`react-map-gl`** (wrapper React de MapLibre) — la migración desde `react-leaflet` es casi 1-a-1 (`MapContainer`→`Map`, `TileLayer`→estilo, `Marker`/`Popup`/`Circle`→equivalentes). El Panel usa `maplibre-gl` directo porque su caso es una capa de miles de puntos (no markers sueltos).
+> - **Componente wrapper reutilizable** `<Mapa>` en `apps/web` que encapsule estilo/tiles, para que los ~7 mapas no repitan configuración.
+> - Al terminar, **quitar** `leaflet`, `react-leaflet`, `@types/leaflet` de `apps/web`.
 
 ---
 

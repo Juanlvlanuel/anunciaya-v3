@@ -12,6 +12,10 @@
 // =============================================================================
 
 export interface Ciudad {
+  /** UUID en la tabla `ciudades` (solo cuando viene de la BD; la semilla no lo trae). */
+  id?: string;
+  /** Slug normalizado (solo cuando viene de la BD). */
+  slug?: string;
   nombre: string;
   estado: string;
   coordenadas: {
@@ -559,6 +563,28 @@ export const ciudadesPopulares: Ciudad[] = [
 ];
 
 // =============================================================================
+// CATÁLOGO ACTIVO (hidratable desde la BD)
+// =============================================================================
+// Arranca con la semilla hardcodeada `ciudadesPopulares` y se HIDRATA desde la BD
+// (GET /api/ciudades) al cargar la app — ver hooks/queries/useCiudades.ts. Así las
+// ciudades que el SuperAdmin habilita en el Panel (módulo Ciudades) aparecen en el
+// selector sin redeploy. Si la API falla o aún no responde, queda la semilla (fallback).
+// Las funciones de abajo (buscarCiudades / getCiudadesPopulares / buscarCiudadCercana)
+// y `useGpsStore` leen este catálogo activo, no el array semilla directamente.
+
+let catalogoActivo: Ciudad[] = ciudadesPopulares;
+
+/** Reemplaza el catálogo activo con las ciudades de la BD (solo si llegan datos). */
+export function setCatalogoCiudades(ciudades: Ciudad[]): void {
+  if (ciudades && ciudades.length > 0) catalogoActivo = ciudades;
+}
+
+/** Catálogo activo actual (BD si ya se hidrató; si no, la semilla). */
+export function obtenerCatalogoCiudades(): Ciudad[] {
+  return catalogoActivo;
+}
+
+// =============================================================================
 // DATOS - ESTADOS DE MÉXICO (32 estados)
 // =============================================================================
 
@@ -621,7 +647,7 @@ export function buscarCiudades(texto: string, limite: number = 10): CiudadConNom
 
   const textoNormalizado = normalizarTexto(texto);
 
-  return ciudadesPopulares
+  return catalogoActivo
     .filter((ciudad) => {
       const nombreNormalizado = normalizarTexto(ciudad.nombre);
       const estadoNormalizado = normalizarTexto(ciudad.estado);
@@ -682,7 +708,7 @@ export function buscarEstados(texto: string, limite: number = 10): string[] {
  * Obtiene las ciudades más importantes (para mostrar por defecto)
  */
 export function getCiudadesPopulares(limite: number = 15): CiudadConNombreCompleto[] {
-  return ciudadesPopulares
+  return [...catalogoActivo]
     .sort((a, b) => b.importancia - a.importancia)
     .slice(0, limite)
     .map((ciudad) => ({
@@ -720,7 +746,7 @@ export function buscarCiudadCercana(
   let ciudadMasCercana: Ciudad | null = null;
   let distanciaMinima = Infinity;
 
-  for (const ciudad of ciudadesPopulares) {
+  for (const ciudad of catalogoActivo) {
     const distancia = calcularDistancia(
       lat,
       lng,

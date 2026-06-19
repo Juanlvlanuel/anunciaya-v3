@@ -30,6 +30,7 @@ import { SeccionRecibos } from '../components/recibos/SeccionRecibos';
 import { SeccionEquipo } from '../components/equipo/SeccionEquipo';
 import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
 import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
+import { SeccionCiudades } from '../components/ciudades/SeccionCiudades';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -163,6 +164,8 @@ function PaginaPanel() {
     <SeccionVendedores rol={rol} />
   ) : seccionActivaId === 'configuracion' ? (
     <SeccionConfiguracion />
+  ) : seccionActivaId === 'ciudades' ? (
+    <SeccionCiudades />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

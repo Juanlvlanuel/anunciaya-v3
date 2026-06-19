@@ -14,6 +14,30 @@ export const regiones = pgTable("regiones", {
 	unique("regiones_nombre_unique").on(table.nombre),
 ]);
 
+// `ciudades` = catálogo real de ciudades (poblado desde `ciudadesPopulares`). Cada
+// ciudad pertenece a UNA región (Modelo 1) vía `region_id` (nullable hasta agruparla).
+// `slug` único es la salvaguarda anti-duplicados (acentos/mayúsculas). La gestiona el
+// módulo Ciudades del Panel; el front la lee (activas) para el selector de ubicación.
+// Definida aquí (antes solo vivía en BD; `utils/ciudades.ts` la leía por SQL crudo).
+export const ciudades = pgTable("ciudades", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	nombre: varchar({ length: 100 }).notNull(),
+	estado: varchar({ length: 100 }).notNull(),
+	pais: varchar({ length: 100 }).default('México').notNull(),
+	slug: varchar({ length: 140 }).notNull(),
+	lat: numeric({ precision: 9, scale: 6, mode: 'number' }),
+	lng: numeric({ precision: 9, scale: 6, mode: 'number' }),
+	alias: jsonb().$type<string[]>(),
+	importancia: smallint().default(0).notNull(),
+	activa: boolean().default(true).notNull(),
+	regionId: uuid("region_id").references((): AnyPgColumn => regiones.id, { onDelete: 'set null' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	uniqueIndex("ciudades_slug_unique").using("btree", table.slug.asc().nullsLast()),
+	index("idx_ciudades_region").using("btree", table.regionId.asc().nullsLast()),
+	index("idx_ciudades_activa").using("btree", table.activa.asc().nullsLast()).where(sql`(activa = true)`),
+]);
+
 export const embajadores = pgTable("embajadores", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
@@ -26,6 +50,20 @@ export const embajadores = pgTable("embajadores", {
 	uniqueIndex("idx_embajadores_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	unique("embajadores_codigo_referido_key").on(table.codigoReferido),
 	check("embajadores_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'inactivo'::character varying, 'suspendido'::character varying])::text[])`),
+]);
+
+// Cobertura de un VENDEDOR sobre 1+ ciudades. PK compuesta. Un trigger en BD
+// (`fn_embajador_una_region`) exige que todas las ciudades de un vendedor sean de la
+// MISMA región. Por eso el módulo Ciudades bloquea mover una ciudad de región si eso
+// dejaría a un vendedor cubriendo dos. ciudad_id es ON DELETE RESTRICT (no se borra
+// una ciudad cubierta). La cobertura se gestiona en Equipo/Vendedores, no aquí.
+export const embajadorCiudades = pgTable("embajador_ciudades", {
+	embajadorId: uuid("embajador_id").notNull().references((): AnyPgColumn => embajadores.id, { onDelete: 'cascade' }),
+	ciudadId: uuid("ciudad_id").notNull().references((): AnyPgColumn => ciudades.id, { onDelete: 'restrict' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_embajador_ciudades_ciudad").using("btree", table.ciudadId.asc().nullsLast()),
+	primaryKey({ columns: [table.embajadorId, table.ciudadId], name: "embajador_ciudades_pkey" }),
 ]);
 
 export const usuarios = pgTable("usuarios", {
