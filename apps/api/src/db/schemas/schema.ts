@@ -2003,7 +2003,11 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	// Ubicación con privacidad (manejadas con SQL crudo en services)
 	ubicacion: text().notNull(),
 	ubicacionAproximada: text("ubicacion_aproximada").notNull(),
-	ciudad: varchar({ length: 100 }).notNull(),
+	// Ciudad: SOLO `ciudad_id` (FK al catálogo `ciudades`, migración 2026-06-19). La columna
+	// texto `ciudad` se retiró (fase contract; DROP en 2026-06-19-marketplace-ciudad-drop.sql).
+	// C2C sin sucursal: se resuelve del texto con resolverCiudadId. Las lecturas leen
+	// `ciudades.nombre` vía esta FK.
+	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
 	zonaAproximada: varchar("zona_aproximada", { length: 150 }).notNull(),
 
 	// Estado del ciclo de vida
@@ -2024,7 +2028,7 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
 	index("idx_marketplace_estado").using("btree", table.estado.asc().nullsLast()),
-	index("idx_marketplace_ciudad").using("btree", table.ciudad.asc().nullsLast()),
+	index("idx_articulos_mp_ciudad_id").using("btree", table.ciudadId.asc().nullsLast()).where(sql`ciudad_id IS NOT NULL`),
 	index("idx_marketplace_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	index("idx_marketplace_created").using("btree", table.createdAt.desc().nullsFirst()),
 	index("idx_marketplace_expira").using("btree", table.expiraAt.asc().nullsLast()),

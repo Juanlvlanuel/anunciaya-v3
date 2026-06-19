@@ -264,10 +264,11 @@ export async function reactivarArticulo(articuloId: string, usuarioId: string) {
         // calcular `expira_at` como fin del día N+TTL en hora local
         // (en lugar de NOW()+30d en UTC que perdía horas del día).
         const verificacion = await db.execute(sql`
-            SELECT usuario_id, estado, ciudad
-            FROM articulos_marketplace
-            WHERE id = ${articuloId}
-              AND deleted_at IS NULL
+            SELECT am.usuario_id, am.estado, c.nombre AS ciudad
+            FROM articulos_marketplace am
+            LEFT JOIN ciudades c ON c.id = am.ciudad_id
+            WHERE am.id = ${articuloId}
+              AND am.deleted_at IS NULL
             LIMIT 1
         `);
 

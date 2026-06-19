@@ -401,7 +401,7 @@ export async function obtenerGuardados(
                     a.foto_portada_index AS "articuloFotoPortadaIndex",
                     ST_Y(a.ubicacion_aproximada::geometry) AS "articuloLat",
                     ST_X(a.ubicacion_aproximada::geometry) AS "articuloLng",
-                    a.ciudad AS "articuloCiudad",
+                    c.nombre AS "articuloCiudad",
                     a.zona_aproximada AS "articuloZonaAproximada",
                     a.estado AS "articuloEstado",
                     a.total_vistas AS "articuloTotalVistas",
@@ -413,6 +413,7 @@ export async function obtenerGuardados(
                     a.vendida_at AS "articuloVendidaAt"
                 FROM guardados g
                 INNER JOIN articulos_marketplace a ON a.id = g.entity_id
+                LEFT JOIN ciudades c ON c.id = a.ciudad_id
                 WHERE g.usuario_id = ${userId}
                   AND g.entity_type = 'articulo_marketplace'
                   AND a.deleted_at IS NULL

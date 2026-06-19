@@ -27,6 +27,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
 import { articulosMarketplace } from '../db/schemas/schema.js';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import type { ResultadoValidacion } from './marketplace/filtros.js';
@@ -326,6 +327,10 @@ export async function crearArticulo(
         const zonaUsuario = getZonaHorariaPorCiudad(datos.ciudad);
         const expiraAtSql = sqlExpiracionFinDeDia(TTL_DIAS_DEFAULT, zonaUsuario);
 
+        // Resolver `ciudad_id` (FK al catálogo `ciudades`) del texto del payload.
+        // Los artículos son C2C (sin sucursal), igual que servicio-persona.
+        const ciudadId = await resolverCiudadId(datos.ciudad);
+
         const resultado = await db.execute(sql`
             INSERT INTO articulos_marketplace (
                 usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,
@@ -333,7 +338,7 @@ export async function crearArticulo(
                 confirmaciones,
                 fotos, foto_portada_index,
                 ubicacion, ubicacion_aproximada,
-                ciudad, zona_aproximada,
+                ciudad_id, zona_aproximada,
                 expira_at
             ) VALUES (
                 ${usuarioId},
@@ -348,7 +353,7 @@ export async function crearArticulo(
                 ${datos.fotoPortadaIndex},
                 ST_SetSRID(ST_MakePoint(${datos.longitud}, ${datos.latitud}), 4326)::geography,
                 ST_SetSRID(ST_MakePoint(${aprox.lng}, ${aprox.lat}), 4326)::geography,
-                ${datos.ciudad},
+                ${ciudadId},
                 ${datos.zonaAproximada},
                 ${expiraAtSql}
             )
@@ -358,7 +363,10 @@ export async function crearArticulo(
                 fotos, foto_portada_index,
                 ST_Y(ubicacion_aproximada::geometry) AS lat,
                 ST_X(ubicacion_aproximada::geometry) AS lng,
-                ciudad, zona_aproximada, estado,
+                -- ciudad: leída del catálogo vía la FK (la columna texto se retiró en el
+                -- contract). Subconsulta escalar porque un RETURNING no admite JOIN.
+                (SELECT nombre FROM ciudades WHERE id = articulos_marketplace.ciudad_id) AS ciudad,
+                zona_aproximada, estado,
                 total_vistas, total_mensajes, total_guardados,
                 expira_at, created_at, updated_at, vendida_at
         `);
@@ -464,7 +472,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
-                a.ciudad, a.zona_aproximada, a.estado,
+                c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at,
                 u.id              AS vendedor_id,
@@ -490,6 +498,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
                     : sql`FALSE`} AS usuario_guardo
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             WHERE a.id = ${articuloId}
               AND a.deleted_at IS NULL
             LIMIT 1
@@ -569,7 +578,7 @@ export async function obtenerFeed(
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
-                a.ciudad, a.zona_aproximada, a.estado,
+                c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at,
                 ST_Distance(
@@ -578,6 +587,7 @@ export async function obtenerFeed(
                 ) AS distancia_metros,
                 COALESCE(pq.total, 0) AS total_preguntas_respondidas
             FROM articulos_marketplace a
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
                 FROM marketplace_preguntas
@@ -587,7 +597,7 @@ export async function obtenerFeed(
             ) pq ON pq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
-              AND a.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
             ORDER BY a.created_at DESC
             LIMIT 20
         `);
@@ -599,7 +609,7 @@ export async function obtenerFeed(
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
-                a.ciudad, a.zona_aproximada, a.estado,
+                c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at,
                 ST_Distance(
@@ -608,6 +618,7 @@ export async function obtenerFeed(
                 ) AS distancia_metros,
                 COALESCE(pq.total, 0) AS total_preguntas_respondidas
             FROM articulos_marketplace a
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
                 FROM marketplace_preguntas
@@ -617,7 +628,7 @@ export async function obtenerFeed(
             ) pq ON pq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
-              AND a.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
             ORDER BY a.ubicacion_aproximada <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
             LIMIT 20
         `);
@@ -769,7 +780,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
-                a.ciudad, a.zona_aproximada, a.estado,
+                c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at,
                 ST_Distance(
@@ -832,6 +843,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                     : sql`FALSE`} AS usuario_guardo
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
                 FROM marketplace_preguntas
@@ -841,7 +853,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             ) pq ON pq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
-              AND a.ciudad = ${opciones.ciudad}
+              AND c.nombre = ${opciones.ciudad}
               ${filtroPrecioMin}
               ${filtroPrecioMax}
             ${orderBy}
@@ -969,10 +981,11 @@ export async function obtenerMisArticulos(
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
-                a.ciudad, a.zona_aproximada, a.estado,
+                c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at
             FROM articulos_marketplace a
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             WHERE a.usuario_id = ${usuarioId}
               AND a.deleted_at IS NULL
               ${filtroEstado}
@@ -1095,7 +1108,11 @@ export async function actualizarArticulo(
         if (datos.unidadVenta !== undefined) sets.push(sql`unidad_venta = ${datos.unidadVenta}`);
         if (datos.fotos !== undefined) sets.push(sql`fotos = ${JSON.stringify(datos.fotos)}::jsonb`);
         if (datos.fotoPortadaIndex !== undefined) sets.push(sql`foto_portada_index = ${datos.fotoPortadaIndex}`);
-        if (datos.ciudad !== undefined) sets.push(sql`ciudad = ${datos.ciudad}`);
+        if (datos.ciudad !== undefined) {
+            // La columna texto `ciudad` se retiró (contract): solo persistimos el FK resuelto.
+            const nuevaCiudadId = await resolverCiudadId(datos.ciudad);
+            sets.push(sql`ciudad_id = ${nuevaCiudadId}`);
+        }
         if (datos.zonaAproximada !== undefined) sets.push(sql`zona_aproximada = ${datos.zonaAproximada}`);
 
         // Si actualizan ubicación (Zod garantiza que vienen ambos lat+lng juntos),
@@ -1496,11 +1513,12 @@ export async function obtenerArticulosDeVendedor(
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
                 ST_X(a.ubicacion_aproximada::geometry) AS lng,
-                a.ciudad, a.zona_aproximada, a.estado,
+                c.nombre AS ciudad, a.zona_aproximada, a.estado,
                 a.total_vistas, a.total_mensajes, a.total_guardados,
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at,
                 ${guardadoExpr}
             FROM articulos_marketplace a
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             WHERE a.usuario_id = ${vendedorId}
               AND a.estado = ${estado}
               AND a.deleted_at IS NULL

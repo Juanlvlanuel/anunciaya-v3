@@ -166,14 +166,15 @@ export async function obtenerSugerencias(
                 a.condicion,
                 a.fotos,
                 a.foto_portada_index,
-                a.ciudad,
+                c.nombre AS ciudad,
                 u.nombre AS vendedor_nombre,
                 u.apellidos AS vendedor_apellidos
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
+            LEFT JOIN ciudades c ON c.id = a.ciudad_id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
-              AND a.ciudad = ${ciudad}
+              AND c.nombre = ${ciudad}
               AND (
                   to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion))
                       @@ plainto_tsquery('spanish', unaccent(${q}))
@@ -304,7 +305,7 @@ export async function buscarArticulos(
     const conds: ReturnType<typeof sql>[] = [
         sql`a.estado = 'activa'`,
         sql`a.deleted_at IS NULL`,
-        sql`a.ciudad = ${filtros.ciudad}`,
+        sql`c.nombre = ${filtros.ciudad}`,
     ];
 
     if (queryNorm.length >= 2) {
@@ -417,11 +418,12 @@ export async function buscarArticulos(
             a.fotos, a.foto_portada_index,
             ST_Y(a.ubicacion_aproximada::geometry) AS lat,
             ST_X(a.ubicacion_aproximada::geometry) AS lng,
-            a.ciudad, a.zona_aproximada, a.estado,
+            c.nombre AS ciudad, a.zona_aproximada, a.estado,
             a.total_vistas, a.total_mensajes, a.total_guardados,
             a.expira_at, a.created_at, a.updated_at, a.vendida_at,
             ${distanciaSelect}
         FROM articulos_marketplace a
+        LEFT JOIN ciudades c ON c.id = a.ciudad_id
         WHERE ${where}
         ${orderBy}
         LIMIT ${limit}
@@ -432,6 +434,7 @@ export async function buscarArticulos(
     const totalResultado = await db.execute(sql`
         SELECT COUNT(*)::int AS total
         FROM articulos_marketplace a
+        LEFT JOIN ciudades c ON c.id = a.ciudad_id
         WHERE ${where}
     `);
     const total = (totalResultado.rows[0] as { total: number }).total;
