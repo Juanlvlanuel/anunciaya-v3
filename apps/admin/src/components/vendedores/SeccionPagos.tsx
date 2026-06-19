@@ -152,6 +152,7 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
   const [nota, setNota] = useState('');
   const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [errorComprobante, setErrorComprobante] = useState<string | null>(null);
 
   // Saldo a pagar = comisiones pendientes (lo que falta de cada una) − efectivo que el vendedor debe.
   const devengadoPendiente = useMemo(() => pendientes.reduce((s, c) => s + (c.monto - c.montoPagado), 0), [pendientes]);
@@ -169,7 +170,14 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
   const onArchivo = async (file: File | undefined) => {
     if (!file) return;
     setSubiendo(true);
-    try { setComprobanteUrl(await subirComprobante(file)); } finally { setSubiendo(false); }
+    setErrorComprobante(null);
+    try {
+      const url = await subirComprobante(file);
+      if (url) setComprobanteUrl(url);
+      else setErrorComprobante('No se pudo subir el comprobante. Revisa el formato (JPG/PNG/WEBP) o la conexión y vuelve a intentar.');
+    } finally {
+      setSubiendo(false);
+    }
   };
 
   const enviar = () => {
@@ -282,6 +290,9 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
               >
                 {subiendo ? <><RefreshCw size={14} className="animate-spin" /> Subiendo…</> : <><Paperclip size={14} /> Adjuntar foto</>}
               </button>
+            )}
+            {errorComprobante && (
+              <p className="mt-1.5 text-[12px] font-medium text-peligro" data-testid="pago-comprobante-error">{errorComprobante}</p>
             )}
           </div>
         </div>

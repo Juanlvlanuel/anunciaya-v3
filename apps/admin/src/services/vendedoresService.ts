@@ -253,15 +253,21 @@ export async function guardarDatosCobro(id: string, datos: DatosCobroInput): Pro
  * devuelve la URL pública. Devuelve null si algo falla.
  */
 export async function subirComprobante(file: File): Promise<string | null> {
-  const { data } = await api.post<RespuestaAPI<{ uploadUrl: string; publicUrl: string }>>(
-    '/admin/vendedores/comprobante/upload',
-    { nombreArchivo: file.name, contentType: file.type },
-  );
-  const info = data.data;
-  if (!info?.uploadUrl || !info?.publicUrl) return null;
-  const r = await fetch(info.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
-  if (!r.ok) return null;
-  return info.publicUrl;
+  try {
+    const { data } = await api.post<RespuestaAPI<{ uploadUrl: string; publicUrl: string }>>(
+      '/admin/vendedores/comprobante/upload',
+      { nombreArchivo: file.name, contentType: file.type },
+    );
+    const info = data.data;
+    if (!info?.uploadUrl || !info?.publicUrl) return null;
+    // El PUT directo a R2 puede LANZAR (CORS/red), no solo devolver !ok → atrapar para no romper el flujo
+    // ni dejar una promesa sin capturar; el caller avisa cuando devolvemos null.
+    const r = await fetch(info.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+    if (!r.ok) return null;
+    return info.publicUrl;
+  } catch {
+    return null;
+  }
 }
 
 // =============================================================================
