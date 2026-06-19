@@ -317,7 +317,7 @@ export async function obtenerSeguidos(
                     s.es_principal,
                     s.foto_perfil as sucursal_foto_perfil,
                     s.direccion,
-                    s.ciudad,
+                    cd.nombre AS ciudad,
                     s.telefono,
                     s.whatsapp,
                     s.tiene_envio_domicilio,
@@ -407,6 +407,7 @@ export async function obtenerSeguidos(
                 FROM votos v
                 INNER JOIN negocio_sucursales s ON v.entity_id = s.id
                 INNER JOIN negocios n ON s.negocio_id = n.id
+                LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
                 LEFT JOIN negocio_galeria g ON g.sucursal_id = s.id
                 LEFT JOIN metricas_entidad m ON m.entity_type = 'sucursal' AND m.entity_id = s.id
                 LEFT JOIN asignacion_subcategorias asub ON asub.negocio_id = n.id
@@ -423,7 +424,7 @@ export async function obtenerSeguidos(
                 GROUP BY
                     v.id, v.entity_id, v.votante_sucursal_id, v.created_at,
                     n.id, n.usuario_id, n.nombre, n.logo_url,
-                    s.id, s.nombre, s.es_principal, s.foto_perfil, s.direccion, s.ciudad, s.telefono, s.whatsapp,
+                    s.id, s.nombre, s.es_principal, s.foto_perfil, s.direccion, cd.nombre, s.telefono, s.whatsapp,
                     s.tiene_envio_domicilio, s.activa, s.ubicacion, s.zona_horaria,
                     m.total_likes, m.total_views, m.promedio_rating, m.total_resenas
                 ORDER BY v.created_at DESC

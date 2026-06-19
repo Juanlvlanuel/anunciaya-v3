@@ -321,9 +321,11 @@ export const negocioSucursales = pgTable("negocio_sucursales", {
 	nombre: varchar({ length: 100 }).notNull(),
 	esPrincipal: boolean('es_principal').default(false).notNull(),
 	direccion: varchar({ length: 250 }),
-	ciudad: varchar({ length: 120 }).notNull(),
-	// FK a `ciudades` (catálogo). La columna ya existe en BD (migración del Paso 4); la
-	// región se deduce ciudad_id → ciudades.region_id. El texto `ciudad` se conserva.
+	// Ciudad: SOLO `ciudad_id` (FK al catálogo `ciudades`). La columna texto `ciudad` se
+	// retiró del ORM (fase "contract" de la migración ciudad↔región): ya nadie la lee ni
+	// la escribe. El DROP de la columna en BD lo hace la migración
+	// docs/migraciones/2026-06-18-drop-negocio-sucursales-ciudad.sql. La región se deduce
+	// ciudad_id → ciudades.region_id.
 	ciudadId: uuid("ciudad_id"),
 	estado: varchar({ length: 100 }).notNull().default('Por configurar'),
 	ubicacion: text("ubicacion"),

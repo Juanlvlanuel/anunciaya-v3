@@ -22,7 +22,7 @@
 import { and, eq, asc, desc, count, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../../db/index.js';
-import { pagosMembresia, negocios, negocioSucursales, usuarios } from '../../db/schemas/schema.js';
+import { pagosMembresia, negocios, negocioSucursales, usuarios, ciudades } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { resolverEmbajadorId } from './negocios.service.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
@@ -157,7 +157,7 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
             negocioId: pagosMembresia.negocioId,
             negocioNombre: negocios.nombre,
             logoUrl: negocios.logoUrl,
-            ciudad: negocioSucursales.ciudad,
+            ciudad: ciudades.nombre,
             concepto: pagosMembresia.concepto,
             monto: pagosMembresia.monto,
             fechaPago: pagosMembresia.fechaPago,
@@ -170,6 +170,7 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         .from(pagosMembresia)
         .leftJoin(negocios, eq(negocios.id, pagosMembresia.negocioId))
         .leftJoin(negocioSucursales, and(eq(negocioSucursales.negocioId, negocios.id), eq(negocioSucursales.esPrincipal, true)))
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
         .leftJoin(dueno, eq(dueno.id, negocios.usuarioId))
         .leftJoin(registrador, eq(registrador.id, pagosMembresia.registradoPor))
         .where(where)

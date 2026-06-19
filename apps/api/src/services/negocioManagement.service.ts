@@ -304,7 +304,6 @@ export const actualizarSucursal = async (
         await db
             .update(negocioSucursales)
             .set({
-                ciudad: data.ciudad,
                 ciudadId: await resolverCiudadId(data.ciudad), // resuelve texto → ciudad_id (por slug)
                 estado: data.estado,
                 direccion: data.direccion,
@@ -1142,7 +1141,6 @@ export const crearSucursal = async (
 			.values({
 				negocioId,
 				nombre: datos.nombre,
-				ciudad: datos.ciudad,
 				ciudadId: await resolverCiudadId(datos.ciudad), // resuelve texto → ciudad_id (por slug)
 				estado: datos.estado,
 				direccion: datos.direccion || null,
@@ -1750,14 +1748,13 @@ export async function crearNegocioConDueno(
         })
         .returning();
 
-    // 3) Sucursal principal. ciudad/ciudadId: 'Por configurar'/null por defecto (igual que el webhook).
+    // 3) Sucursal principal. ciudadId null por defecto (se configura en el onboarding, igual que el webhook).
     const [sucursal] = await ejecutor
         .insert(negocioSucursales)
         .values({
             negocioId: negocio.id,
             nombre: datos.nombreNegocio,
             esPrincipal: true,
-            ciudad: datos.ciudad ?? 'Por configurar',
             ciudadId: datos.ciudadId ?? null,
             activa: true,
         })

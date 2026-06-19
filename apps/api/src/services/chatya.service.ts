@@ -3809,6 +3809,9 @@ export async function buscarNegocios(
             FROM negocios n
             JOIN negocio_sucursales s ON s.negocio_id = n.id
 
+            -- Catalogo de ciudades: el nombre se lee desde la tabla ciudades via la FK ciudad_id
+            LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
+
             -- Join para buscar también por categoría/subcategoría
             LEFT JOIN asignacion_subcategorias asig ON asig.negocio_id = n.id
             LEFT JOIN subcategorias_negocio sc ON sc.id = asig.subcategoria_id
@@ -3818,7 +3821,7 @@ export async function buscarNegocios(
               AND n.onboarding_completado = true
               AND s.activa = true
               AND s.ubicacion IS NOT NULL
-              AND s.ciudad ILIKE ${ciudad}
+              AND cd.nombre ILIKE ${ciudad}
               ${sucursalExcluidaId ? sql`AND s.id != ${sucursalExcluidaId}` : sql``}
               AND (
                   n.nombre ILIKE ${termino}

@@ -104,7 +104,7 @@ export async function obtenerSugerenciasOfertas(
                         WHERE ns.negocio_id = n.id
                         AND ns.activa = true
                     )                 AS total_sucursales,
-                    s.ciudad          AS ciudad,
+                    cd.nombre         AS ciudad,
                     ROW_NUMBER() OVER (
                         PARTITION BY
                             o.negocio_id, o.titulo, o.descripcion,
@@ -114,6 +114,7 @@ export async function obtenerSugerenciasOfertas(
                 FROM ofertas o
                 INNER JOIN negocios n ON n.id = o.negocio_id
                 INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+                LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
                 WHERE o.activo = true
                   AND o.visibilidad = 'publico'
                   AND n.activo = true
@@ -123,7 +124,7 @@ export async function obtenerSugerenciasOfertas(
                   AND CURRENT_DATE >= DATE(o.fecha_inicio)
                   AND CURRENT_DATE <= DATE(o.fecha_fin)
                   AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
-                  AND s.ciudad = ${ciudad}
+                  AND cd.nombre = ${ciudad}
                   AND (
                       immutable_unaccent(o.titulo) ILIKE immutable_unaccent(${patron})
                       OR immutable_unaccent(o.descripcion) ILIKE immutable_unaccent(${patron})
@@ -285,7 +286,7 @@ export async function buscarOfertas(
         sql`CURRENT_DATE >= DATE(o.fecha_inicio)`,
         sql`CURRENT_DATE <= DATE(o.fecha_fin)`,
         sql`(o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)`,
-        sql`s.ciudad = ${filtros.ciudad}`,
+        sql`cd.nombre = ${filtros.ciudad}`,
     ];
 
     if (queryNorm.length >= 2) {
@@ -381,7 +382,7 @@ export async function buscarOfertas(
                     WHERE ns.negocio_id = n.id
                       AND ns.activa = true
                 )                 AS total_sucursales,
-                s.ciudad          AS ciudad,
+                cd.nombre         AS ciudad,
                 ROW_NUMBER() OVER (
                     PARTITION BY
                         o.negocio_id, o.titulo, o.descripcion,
@@ -391,6 +392,7 @@ export async function buscarOfertas(
             FROM ofertas o
             INNER JOIN negocios n ON n.id = o.negocio_id
             INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+            LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
             WHERE ${where}
         )
         SELECT
@@ -417,6 +419,7 @@ export async function buscarOfertas(
             FROM ofertas o
             INNER JOIN negocios n ON n.id = o.negocio_id
             INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+            LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
             WHERE ${where}
             GROUP BY o.negocio_id, o.titulo, o.descripcion, o.tipo, o.valor, o.fecha_fin
         ) AS deduplicado

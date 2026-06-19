@@ -32,7 +32,7 @@
 
 import { and, eq, asc, desc, ilike, or, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones, pagosVendedor, efectivoMovimientos } from '../../db/schemas/schema.js';
+import { embajadores, usuarios, negocios, negocioSucursales, embajadorComisiones, pagosVendedor, efectivoMovimientos, ciudades } from '../../db/schemas/schema.js';
 import { env } from '../../config/env.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { resolverEmbajadorId } from './negocios.service.js';
@@ -468,13 +468,14 @@ export async function listarCartera(
             proximoCobro: negocios.fechaProximoCobro,
             vencimiento: negocios.fechaVencimiento,
             alta: negocios.createdAt,
-            ciudad: negocioSucursales.ciudad,
+            ciudad: ciudades.nombre,
             duenoNombre: usuarios.nombre,
             duenoApellidos: usuarios.apellidos,
             duenoTelefono: usuarios.telefono,
         })
         .from(negocios)
         .leftJoin(negocioSucursales, joinPrincipal)
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
         .leftJoin(usuarios, eq(usuarios.id, negocios.usuarioId))
         .where(whereLista)
         .orderBy(

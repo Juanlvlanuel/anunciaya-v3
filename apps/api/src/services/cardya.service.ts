@@ -16,6 +16,7 @@ import {
   vouchersCanje,
   negocios,
   negocioSucursales,
+  ciudades,
   empleados,
   scanyaTurnos,
   usuarios,
@@ -340,7 +341,7 @@ export async function obtenerRecompensasDisponibles(
       condiciones.push(eq(recompensas.negocioId, filtros.negocioId));
     }
     if (filtros?.ciudad) {
-      condiciones.push(sql`${negocioSucursales.ciudad} ILIKE ${filtros.ciudad + '%'}`);
+      condiciones.push(sql`${ciudades.nombre} ILIKE ${filtros.ciudad + '%'}`);
     }
 
     // Query base con JOIN a sucursales para obtener ciudad
@@ -356,8 +357,8 @@ export async function obtenerRecompensasDisponibles(
         negocioNombre: negocios.nombre,
         negocioLogo: negocios.logoUrl,
         puntosDisponibles: puntosBilletera.puntosDisponibles,
-        // Ciudad de la sucursal principal para filtrar
-        ciudadSucursal: negocioSucursales.ciudad,
+        // Ciudad de la sucursal principal para filtrar (nombre desde el catálogo `ciudades` vía FK)
+        ciudadSucursal: ciudades.nombre,
         // Tipo de recompensa (basica o compras_frecuentes)
         tipo: recompensas.tipo,
         numeroComprasRequeridas: recompensas.numeroComprasRequeridas,
@@ -375,6 +376,8 @@ export async function obtenerRecompensasDisponibles(
           eq(negocioSucursales.esPrincipal, true)
         )
       )
+      // Catálogo de ciudades: el nombre se lee desde `ciudades` vía la FK `ciudad_id`
+      .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
       .leftJoin(
         puntosBilletera,
         and(

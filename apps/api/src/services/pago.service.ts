@@ -864,7 +864,7 @@ async function manejarUpgradeCompletado(
         } else {
             [sucursalPrincipal] = await db
                 .insert(negocioSucursales)
-                .values({ negocioId: nuevoNegocio.id, nombre: nombreNegocio || 'Mi Negocio', esPrincipal: true, ciudad: 'Por configurar', activa: true })
+                .values({ negocioId: nuevoNegocio.id, nombre: nombreNegocio || 'Mi Negocio', esPrincipal: true, activa: true })
                 .returning();
         }
     } else {
@@ -882,7 +882,7 @@ async function manejarUpgradeCompletado(
 
         [sucursalPrincipal] = await db
             .insert(negocioSucursales)
-            .values({ negocioId: nuevoNegocio.id, nombre: nombreNegocio || 'Mi Negocio', esPrincipal: true, ciudad: 'Por configurar', activa: true })
+            .values({ negocioId: nuevoNegocio.id, nombre: nombreNegocio || 'Mi Negocio', esPrincipal: true, activa: true })
             .returning();
         console.log('✅ Sucursal principal creada:', sucursalPrincipal.id);
     }

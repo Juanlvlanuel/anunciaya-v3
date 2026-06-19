@@ -150,7 +150,7 @@ export const obtenerSucursalesConGerente = async (
 		if (filtros?.busqueda) {
 			condiciones.push(sql`(
 				s.nombre ILIKE ${'%' + filtros.busqueda + '%'}
-				OR s.ciudad ILIKE ${'%' + filtros.busqueda + '%'}
+				OR cd.nombre ILIKE ${'%' + filtros.busqueda + '%'}
 				OR s.direccion ILIKE ${'%' + filtros.busqueda + '%'}
 			)`);
 		}
@@ -165,7 +165,7 @@ export const obtenerSucursalesConGerente = async (
 				s.nombre,
 				s.es_principal AS "esPrincipal",
 				s.direccion,
-				s.ciudad,
+				cd.nombre AS ciudad,
 				s.estado,
 				s.telefono,
 				s.whatsapp,
@@ -179,6 +179,7 @@ export const obtenerSucursalesConGerente = async (
 				u.correo AS "gerenteCorreo"
 			FROM negocio_sucursales s
 			LEFT JOIN usuarios u ON u.sucursal_asignada = s.id
+			LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
 			${where}
 			ORDER BY s.es_principal DESC, s.created_at ASC
 		`);

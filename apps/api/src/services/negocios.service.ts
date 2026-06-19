@@ -14,7 +14,7 @@
 import { eq, and, sql, isNotNull } from 'drizzle-orm';
 import { db } from '../db';
 import { tokenizarQuery } from './_helpers/busquedaFlexible.js';
-import { negocios, negocioGaleria, negocioSucursales, empleados, usuarios } from '../db/schemas/schema';
+import { negocios, negocioGaleria, negocioSucursales, empleados, usuarios, ciudades } from '../db/schemas/schema';
 import type { PerfilSucursalRow, SucursalResumenRow } from '../types/negocios.types';
 
 // =============================================================================
@@ -258,7 +258,7 @@ export async function listarSucursalesCercanas(
                 s.es_principal,
                 s.foto_perfil,
                 s.direccion,
-                s.ciudad,
+                cd.nombre AS ciudad,
                 s.telefono,
                 s.whatsapp,
                 s.tiene_envio_domicilio,
@@ -392,12 +392,13 @@ export async function listarSucursalesCercanas(
                     FROM negocio_sucursales ns
                     WHERE ns.negocio_id = n.id
                     AND ns.activa = true
-                    AND ns.ciudad = s.ciudad
+                    AND ns.ciudad_id = s.ciudad_id
                 ) as total_sucursales_en_ciudad
 
             FROM negocios n
             INNER JOIN negocio_sucursales s ON s.negocio_id = n.id
-            
+            LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
+
             WHERE n.activo = true
               AND s.activa = true
               AND n.es_borrador = false
@@ -418,7 +419,7 @@ export async function listarSucursalesCercanas(
               -- filtran estricto. Para usuarios normales (sin modoFlexible)
               -- NO se aplica — siguen confiando en el filtro por proximidad.
               ${modoFlexible && ciudad ? sql`
-                AND s.ciudad = ${ciudad}
+                AND cd.nombre = ${ciudad}
               ` : sql``}
 
               -- Filtro por categoría
@@ -489,7 +490,7 @@ export async function listarSucursalesCercanas(
                                 unaccent(n.nombre) ILIKE unaccent(${'%' + t + '%'})
                                 OR unaccent(s.nombre) ILIKE unaccent(${'%' + t + '%'})
                                 OR unaccent(s.direccion) ILIKE unaccent(${'%' + t + '%'})
-                                OR unaccent(s.ciudad) ILIKE unaccent(${'%' + t + '%'})
+                                OR unaccent(cd.nombre) ILIKE unaccent(${'%' + t + '%'})
                                 OR EXISTS(
                                     SELECT 1
                                     FROM asignacion_subcategorias asig
@@ -514,7 +515,7 @@ export async function listarSucursalesCercanas(
                     unaccent(n.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
                     OR unaccent(s.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
                     OR unaccent(s.direccion) ILIKE unaccent(${'%' + busqueda + '%'})
-                    OR unaccent(s.ciudad) ILIKE unaccent(${'%' + busqueda + '%'})
+                    OR unaccent(cd.nombre) ILIKE unaccent(${'%' + busqueda + '%'})
                     -- Buscar también por categoría/subcategoría: el usuario que
                     -- escribe "tacos" debe encontrar negocios cuya subcategoría
                     -- es Tacos aunque el nombre del negocio sea "Don Pepe".
@@ -592,7 +593,7 @@ export async function obtenerPerfilSucursal(
                 s.foto_perfil,
                 s.redes_sociales,
                 s.direccion,
-                s.ciudad,
+                cd.nombre AS ciudad,
                 s.estado,
                 s.telefono,
                 s.whatsapp,
@@ -733,6 +734,7 @@ export async function obtenerPerfilSucursal(
                 
             FROM negocio_sucursales s
             INNER JOIN negocios n ON n.id = s.negocio_id
+            LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
 
             WHERE s.id = ${sucursalId}
               AND (
@@ -878,11 +880,12 @@ export async function obtenerSucursalesNegocio(negocioId: string) {
                 nombre: negocioSucursales.nombre,
                 esPrincipal: negocioSucursales.esPrincipal,
                 direccion: negocioSucursales.direccion,
-                ciudad: negocioSucursales.ciudad,
+                ciudad: ciudades.nombre,
                 telefono: negocioSucursales.telefono,
                 activa: negocioSucursales.activa,
             })
             .from(negocioSucursales)
+            .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
             .where(eq(negocioSucursales.negocioId, negocioId))
             .orderBy(negocioSucursales.esPrincipal);
 

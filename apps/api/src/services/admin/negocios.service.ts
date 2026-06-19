@@ -25,13 +25,14 @@
  * Ubicación: apps/api/src/services/admin/negocios.service.ts
  */
 
-import { and, eq, ne, ilike, desc, asc, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
+import { and, eq, ilike, desc, asc, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import {
     negocios,
     negocioSucursales,
     usuarios,
     embajadores,
+    ciudades,
 } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 
@@ -57,8 +58,6 @@ export type OrdenNegocios = (typeof ORDENES)[number];
 /** Valor especial de filtro: "sin ciudad" / "sin vendedor asignado". */
 export const CIUDAD_SIN = '__none';
 export const VENDEDOR_SIN = '__none';
-/** Placeholder que pone el onboarding mientras no se configura la ciudad. */
-const CIUDAD_PLACEHOLDER = 'Por configurar';
 
 export interface FiltrosNegocios {
     busqueda?: string;       // nombre del negocio (ILIKE)
@@ -282,13 +281,14 @@ function condicionCiudad(ciudad?: string): SQL | undefined {
         return sql`EXISTS (
             SELECT 1 FROM negocio_sucursales ns
             WHERE ns.negocio_id = ${negocios.id}
-              AND (ns.ciudad IS NULL OR ns.ciudad = ${CIUDAD_PLACEHOLDER})
+              AND ns.ciudad_id IS NULL
         )`;
     }
     if (ciudad) {
         return sql`EXISTS (
             SELECT 1 FROM negocio_sucursales ns
-            WHERE ns.negocio_id = ${negocios.id} AND ns.ciudad = ${ciudad}
+            LEFT JOIN ciudades cd ON cd.id = ns.ciudad_id
+            WHERE ns.negocio_id = ${negocios.id} AND cd.nombre = ${ciudad}
         )`;
     }
     return undefined;
@@ -361,7 +361,7 @@ export async function listarNegocios(
             vendedorId: negocios.embajadorId,
             proximoCobro: negocios.fechaProximoCobro,
             alta: negocios.createdAt,
-            ciudad: negocioSucursales.ciudad,
+            ciudad: ciudades.nombre,
             vendedorNombre: usuarios.nombre,
             vendedorApellidos: usuarios.apellidos,
             // Conteo de sucursales SIN multiplicar filas (subquery escalar, no JOIN).
@@ -369,6 +369,7 @@ export async function listarNegocios(
         })
         .from(negocios)
         .leftJoin(negocioSucursales, joinPrincipal)
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
         .leftJoin(embajadores, eq(embajadores.id, negocios.embajadorId))
         .leftJoin(usuarios, eq(usuarios.id, embajadores.usuarioId))
         .where(whereLista)
@@ -490,12 +491,13 @@ export async function obtenerDetalleNegocio(
     // Sucursal principal (ubicación)
     const [suc] = await db
         .select({
-            ciudad: negocioSucursales.ciudad,
+            ciudad: ciudades.nombre,
             estado: negocioSucursales.estado,
             direccion: negocioSucursales.direccion,
             telefono: negocioSucursales.telefono,
         })
         .from(negocioSucursales)
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
         .where(
             and(
                 eq(negocioSucursales.negocioId, negocioId),
@@ -589,8 +591,8 @@ export async function listarVendedoresFiltro(panel: UsuarioPanel): Promise<Vende
 
 /**
  * Ciudades distintas para poblar el filtro "por ciudad", dentro del alcance del
- * rol. Excluye nulas, vacías y el placeholder del onboarding ('Por configurar')
- * — esos caen en la opción fija "Sin ciudad" del frontend.
+ * rol. Excluye sucursales sin ciudad asignada (ciudad_id IS NULL) — esas caen en
+ * la opción fija "Sin ciudad" del frontend.
  */
 export async function listarCiudades(panel: UsuarioPanel): Promise<string[]> {
     // GERENTE: SOLO las ciudades de SU región (ciudades.region_id = panel.regionId) que
@@ -600,13 +602,13 @@ export async function listarCiudades(panel: UsuarioPanel): Promise<string[]> {
     if (panel.rolEquipo === 'gerente') {
         if (!panel.regionId) return [];
         const filasGer = (await db.execute(sql`
-            SELECT DISTINCT s.ciudad
+            SELECT DISTINCT c.nombre AS ciudad
             FROM negocio_sucursales s
             JOIN ciudades c ON c.id = s.ciudad_id
             WHERE c.region_id = ${panel.regionId}
               AND s.es_principal = true
-              AND s.ciudad IS NOT NULL AND s.ciudad <> ${CIUDAD_PLACEHOLDER} AND s.ciudad <> ''
-            ORDER BY s.ciudad
+              AND s.ciudad_id IS NOT NULL
+            ORDER BY c.nombre
         `)).rows as Array<{ ciudad: string }>;
         return filasGer.map((f) => f.ciudad).filter((c): c is string => !!c);
     }
@@ -617,18 +619,18 @@ export async function listarCiudades(panel: UsuarioPanel): Promise<string[]> {
     if (alcance === 'vacio') return [];
 
     const cond: SQL[] = [
-        isNotNull(negocioSucursales.ciudad),
-        ne(negocioSucursales.ciudad, CIUDAD_PLACEHOLDER),
-        ne(negocioSucursales.ciudad, ''),
+        isNotNull(negocioSucursales.ciudadId),
+        isNotNull(ciudades.nombre),
     ];
     if (alcance) cond.push(alcance);
 
     const filas = await db
-        .selectDistinct({ ciudad: negocioSucursales.ciudad })
+        .selectDistinct({ ciudad: ciudades.nombre })
         .from(negocios)
         .innerJoin(negocioSucursales, eq(negocioSucursales.negocioId, negocios.id))
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
         .where(and(...cond))
-        .orderBy(asc(negocioSucursales.ciudad));
+        .orderBy(asc(ciudades.nombre));
 
     return filas
         .map((f) => f.ciudad)
@@ -691,12 +693,12 @@ async function negocioVisibleParaPanel(panel: UsuarioPanel, negocioId: string): 
 export async function listarSucursalesNegocio(panel: UsuarioPanel, negocioId: string): Promise<SucursalFila[]> {
     if (!(await negocioVisibleParaPanel(panel, negocioId))) return [];
     const filas = (await db.execute(sql`
-        SELECT s.id::text AS id, s.nombre, s.es_principal, s.ciudad, s.activa, r.nombre AS region_nombre
+        SELECT s.id::text AS id, s.nombre, s.es_principal, c.nombre AS ciudad, s.activa, r.nombre AS region_nombre
         FROM negocio_sucursales s
         LEFT JOIN ciudades c ON c.id = s.ciudad_id
         LEFT JOIN regiones r ON r.id = c.region_id
         WHERE s.negocio_id = ${negocioId}
-        ORDER BY s.es_principal DESC, s.ciudad
+        ORDER BY s.es_principal DESC, c.nombre
     `)).rows as Array<{
         id: string; nombre: string; es_principal: boolean; ciudad: string | null;
         activa: boolean; region_nombre: string | null;
@@ -782,7 +784,7 @@ export async function obtenerDetalleSucursal(
 
     const filas = (await db.execute(sql`
         SELECT s.id::text AS id, s.negocio_id::text AS negocio_id, s.nombre, s.es_principal, s.activa,
-               s.ciudad, s.estado, s.direccion, s.telefono, s.whatsapp, s.correo, s.created_at,
+               c.nombre AS ciudad, s.estado, s.direccion, s.telefono, s.whatsapp, s.correo, s.created_at,
                r.id::text AS region_id, r.nombre AS region_nombre,
                g.nombre AS g_nombre, g.apellidos AS g_apellidos, g.correo AS g_correo, g.telefono AS g_telefono
         FROM negocio_sucursales s

@@ -188,13 +188,14 @@ export async function obtenerArticuloDetalle(
                 -- Datos de la sucursal principal
                 s.id as "sucursalId",
                 s.nombre as "sucursalNombre",
-                s.ciudad,
+                cd.nombre AS ciudad,
                 s.direccion,
                 s.whatsapp as "negocioWhatsapp"
-                
+
             FROM articulos a
             INNER JOIN negocios n ON a.negocio_id = n.id
             LEFT JOIN negocio_sucursales s ON s.negocio_id = n.id AND s.es_principal = true
+            LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
             WHERE a.id = ${articuloId}
               AND a.disponible = true
               AND n.activo = true

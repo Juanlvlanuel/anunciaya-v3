@@ -26,7 +26,7 @@
 
 import { and, eq, desc, asc, count, gte, lte, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { eventosPago, negocios, negocioSucursales, usuarios } from '../../db/schemas/schema.js';
+import { eventosPago, negocios, negocioSucursales, usuarios, ciudades } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 
 // Reusa el filtro GLOBAL de región del Panel (mismo helper que Negocios): si el
@@ -248,7 +248,7 @@ export async function listarEventos(
             negocioId: eventosPago.negocioId,
             negocioNombre: negocios.nombre,
             logoUrl: negocios.logoUrl,
-            ciudad: negocioSucursales.ciudad,
+            ciudad: ciudades.nombre,
             tipo: eventosPago.tipo,
             origen: eventosPago.origen,
             monto: eventosPago.monto,
@@ -260,6 +260,7 @@ export async function listarEventos(
         .from(eventosPago)
         .leftJoin(negocios, eq(negocios.id, eventosPago.negocioId))
         .leftJoin(negocioSucursales, and(eq(negocioSucursales.negocioId, negocios.id), eq(negocioSucursales.esPrincipal, true)))
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
         .leftJoin(usuarios, eq(usuarios.id, eventosPago.actorId))
         .where(whereLista)
         .orderBy(...ordenarPor(filtros.orden))

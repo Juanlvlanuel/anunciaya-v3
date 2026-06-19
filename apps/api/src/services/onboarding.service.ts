@@ -18,6 +18,7 @@ import { resolverCiudadId } from '../utils/ciudades.js';
 import {
     negocios,
     asignacionSubcategorias,
+    ciudades,
     negocioSucursales,
     negocioHorarios,
     negocioMetodosPago,
@@ -198,7 +199,7 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
             throw new Error('Debes asignar al menos 1 subcategoría');
         }
 
-        if (!sucursalPrincipal?.direccion || !sucursalPrincipal?.ciudad) {
+        if (!sucursalPrincipal?.direccion || !sucursalPrincipal?.ciudadId) {
             throw new Error('Debes completar la ubicación de la sucursal');
         }
 
@@ -365,7 +366,7 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                     nombre: negocioSucursales.nombre,
                     esPrincipal: negocioSucursales.esPrincipal,
                     direccion: negocioSucursales.direccion,
-                    ciudad: negocioSucursales.ciudad,
+                    ciudad: ciudades.nombre,
                     estado: negocioSucursales.estado,
                     telefono: negocioSucursales.telefono,
                     whatsapp: negocioSucursales.whatsapp,
@@ -375,6 +376,7 @@ export const obtenerProgresoOnboarding = async (negocioId: string) => {
                     longitud: sql<number>`ST_X(${negocioSucursales.ubicacion}::geometry)`,
                 })
                 .from(negocioSucursales)
+                .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
                 .where(eq(negocioSucursales.negocioId, negocioId)),
             db
                 .select()
@@ -525,7 +527,6 @@ export const guardarBorradorSucursal = async (
 
         // Actualiza si viene el campo (permite null o string)
         if (data.ciudad !== undefined) {
-            updateData.ciudad = data.ciudad || null;
             updateData.ciudadId = await resolverCiudadId(data.ciudad); // texto → ciudad_id (por slug)
         }
         if (data.estado !== undefined) updateData.estado = data.estado || null;

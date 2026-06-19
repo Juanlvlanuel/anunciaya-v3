@@ -200,7 +200,7 @@ export async function obtenerFeedOfertas(
           s.nombre AS sucursal_nombre,
           s.foto_perfil AS sucursal_foto_perfil,
           s.direccion,
-          s.ciudad,
+          cd.nombre AS ciudad,
           s.telefono,
           s.whatsapp,
 
@@ -296,6 +296,7 @@ export async function obtenerFeedOfertas(
         FROM ofertas o
         INNER JOIN negocios n ON n.id = o.negocio_id
         INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+        LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
         LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
 
         WHERE o.activo = true
@@ -436,7 +437,7 @@ export async function obtenerOfertaDetalle(
         s.nombre as sucursal_nombre,
         s.foto_perfil as sucursal_foto_perfil,
         s.direccion,
-        s.ciudad,
+        cd.nombre as ciudad,
         s.telefono,
         s.whatsapp,
         s.correo,
@@ -490,6 +491,7 @@ export async function obtenerOfertaDetalle(
       FROM ofertas o
       INNER JOIN negocios n ON n.id = o.negocio_id
       INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+      LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
       LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
 
       WHERE o.id = ${ofertaId}
@@ -1325,7 +1327,7 @@ export async function obtenerSucursalesDeOferta(
         s.id AS sucursal_id,
         s.nombre AS sucursal_nombre,
         s.direccion,
-        s.ciudad,
+        cd.nombre AS ciudad,
         s.telefono,
         s.whatsapp,
         s.es_principal,
@@ -1334,6 +1336,7 @@ export async function obtenerSucursalesDeOferta(
         ${distanciaSelect}
       FROM ofertas o
       INNER JOIN negocio_sucursales s ON s.id = o.sucursal_id
+      LEFT JOIN ciudades cd ON cd.id = s.ciudad_id
       INNER JOIN negocios n ON n.id = o.negocio_id
       WHERE o.negocio_id = ${p.negocio_id as string}
         AND o.titulo = ${p.titulo as string}
@@ -1965,10 +1968,11 @@ export async function obtenerOfertaPublica(codigo: string) {
         o.compra_minima, o.fecha_inicio, o.fecha_fin,
         o.limite_usos, o.usos_actuales,
         n.nombre as negocio_nombre, n.logo_url,
-        ns.nombre as sucursal_nombre, ns.direccion, ns.ciudad
+        ns.nombre as sucursal_nombre, ns.direccion, cd.nombre AS ciudad
       FROM ofertas o
       JOIN negocios n ON n.id = o.negocio_id
       LEFT JOIN negocio_sucursales ns ON ns.id = o.sucursal_id
+      LEFT JOIN ciudades cd ON cd.id = ns.ciudad_id
       WHERE UPPER(o.codigo) = UPPER(${codigo})
         AND o.activo = true
         AND o.visibilidad = 'publico'
