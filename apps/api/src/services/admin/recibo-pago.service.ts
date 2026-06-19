@@ -99,9 +99,10 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
             nombreNegocio: fila.nombre_negocio,
             sucursal: fila.sucursal,
             nombreDueno: fila.nombre_dueno_completo,
-            // Dirección completa para el recibo: calle/colonia + ciudad + estado (los que existan;
-            // se omiten vacíos y el placeholder 'Por configurar').
-            direccionNegocio: [fila.direccion, fila.ciudad, fila.estado_sucursal]
+            direccionNegocio: fila.direccion,
+            // Ciudad y estado en su PROPIA línea del recibo (debajo de la dirección). Se omiten
+            // vacíos y el placeholder 'Por configurar'.
+            ciudadEstado: [fila.ciudad, fila.estado_sucursal]
                 .map((x) => x?.trim())
                 .filter((x): x is string => !!x && x !== 'Por configurar')
                 .join(', ') || null,

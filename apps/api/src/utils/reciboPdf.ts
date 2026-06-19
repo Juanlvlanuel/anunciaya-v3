@@ -65,6 +65,8 @@ export interface DatosReciboPDF {
     sucursal?: string | null;
     nombreDueno?: string | null;
     direccionNegocio?: string | null;
+    /** Ciudad y estado, en su propia línea bajo la dirección. */
+    ciudadEstado?: string | null;
     telefonoNegocio?: string | null;
     correoNegocio?: string | null;
     /** Cómo se pagó: ingreso real (efectivo/transferencia/tarjeta) o cortesía (sin dinero). */
@@ -163,14 +165,22 @@ export async function generarReciboPagoPDF(datos: DatosReciboPDF): Promise<Buffe
     put(COORDS.negocio, datos.nombreNegocio);
     put(COORDS.sucursal, datos.sucursal);
     put(COORDS.dueno, datos.nombreDueno);
-    // Dirección: hasta 2 líneas (el molde tiene el hueco). Word-wrap por ancho disponible.
-    if (datos.direccionNegocio) {
+    // Dirección (hasta 2 líneas, word-wrap) y, en la LÍNEA SIGUIENTE, ciudad + estado.
+    {
         const c = COORDS.direccion;
-        const lineas = partirEnLineas(winAnsi(datos.direccionNegocio), helv, c.size, MARGEN_DERECHO - c.x, 2);
         const altoLinea = c.size * 1.25;
-        lineas.forEach((linea, i) => {
-            page.drawText(linea, { x: c.x, y: c.y - i * altoLinea, size: c.size, font: helv, color: NEGRO });
-        });
+        let fila = 0;
+        if (datos.direccionNegocio) {
+            const lineas = partirEnLineas(winAnsi(datos.direccionNegocio), helv, c.size, MARGEN_DERECHO - c.x, 2);
+            for (const linea of lineas) {
+                page.drawText(linea, { x: c.x, y: c.y - fila * altoLinea, size: c.size, font: helv, color: NEGRO });
+                fila++;
+            }
+        }
+        if (datos.ciudadEstado) {
+            const limpio = winAnsi(datos.ciudadEstado);
+            if (limpio) page.drawText(limpio, { x: c.x, y: c.y - fila * altoLinea, size: c.size, font: helv, color: NEGRO });
+        }
     }
     put(COORDS.telefono, datos.telefonoNegocio);
     put(COORDS.correo, datos.correoNegocio);
