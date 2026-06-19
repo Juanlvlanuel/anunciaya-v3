@@ -8,7 +8,8 @@
  *   - saldoEfectivo             — cuánto te debe: Σ cobros − Σ (entregas + compensaciones).
  *   - registrarCobroEfectivo    — le carga deuda cuando cobra un pago en efectivo de un negocio (best-effort;
  *                                 lo llaman el alta manual y "marcar pagado" cuando los registra el VENDEDOR).
- *   - registrarMovimientoManual — el super/gerente registra a mano un cobro (carga) o una entrega (baja).
+ *   - registrarMovimientoManual — el super/gerente registra a mano una ENTREGA del vendedor (baja la deuda).
+ *                                 El cobro NO va a mano: se carga solo cuando el vendedor da de alta / marca pagado en efectivo.
  *
  * La COMPENSACIÓN (neteo: descontar la deuda al pagarle comisión) la hace `registrarPago` en
  * `comisiones-liquidacion.service.ts`, insertando un movimiento `tipo='compensacion'`.
@@ -99,7 +100,10 @@ export async function registrarCobroEfectivo(
 // MOVIMIENTO MANUAL (super / gerente registra un cobro o una entrega)
 // =============================================================================
 
-/** El super/gerente registra a mano un `cobro` (le carga deuda) o una `entrega` (la baja). */
+/**
+ * El super/gerente registra a mano una `entrega` de efectivo del vendedor (baja su deuda). El COBRO no se
+ * registra a mano: se carga solo en los puntos de pago en efectivo del vendedor (alta manual / marcar pagado).
+ */
 export async function registrarMovimientoManual(
     panel: UsuarioPanel,
     usuarioId: string,
@@ -108,8 +112,8 @@ export async function registrarMovimientoManual(
     if (panel.rolEquipo !== 'superadmin' && panel.rolEquipo !== 'gerente') {
         return { ok: false, status: 403, mensaje: 'Solo el super o el gerente registran movimientos de efectivo.' };
     }
-    if (datos.tipo !== 'cobro' && datos.tipo !== 'entrega') {
-        return { ok: false, status: 400, mensaje: 'Tipo de movimiento inválido.' };
+    if (datos.tipo !== 'entrega') {
+        return { ok: false, status: 400, mensaje: 'Solo se registran ENTREGAS a mano; los cobros en efectivo se cargan solos.' };
     }
     if (!Number.isFinite(datos.monto) || datos.monto <= 0) {
         return { ok: false, status: 400, mensaje: 'El monto debe ser mayor que 0.' };
@@ -131,7 +135,7 @@ export async function registrarMovimientoManual(
     });
 
     await registrarAuditoria(panel, {
-        accion: datos.tipo === 'cobro' ? 'vendedor_efectivo_cobro' : 'vendedor_efectivo_entrega',
+        accion: 'vendedor_efectivo_entrega',
         entidadTipo: 'embajador',
         entidadId: null,
         datosPrevios: null,

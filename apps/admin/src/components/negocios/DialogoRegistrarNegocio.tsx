@@ -216,6 +216,14 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
     const m = modoOtro ? Number(mesesOtro) : mesChip;
     if (concepto !== 'cortesia' && Number.isInteger(m) && m >= 1) setMonto(String(precioPorMeses(m, precioBase)));
   };
+  // Al cambiar a "fecha exacta", recalcula el monto proporcional a la fecha YA elegida (si hay), salvo cortesía.
+  const aplicarModoFecha = () => {
+    setModoPlazo('fecha');
+    if (concepto !== 'cortesia' && fechaManual) {
+      const prop = montoProporcional(fechaManual, precioBase);
+      setMonto(prop > 0 ? String(prop) : '');
+    }
+  };
   // Elegir la fecha exacta sugiere el monto a proporción de los días (salvo cortesía); editable.
   const aplicarFecha = (valor: string) => {
     setFechaManual(valor);
@@ -452,7 +460,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                   <button type="button" data-testid="alta-modo-meses" onClick={aplicarModoMeses} className={segmento(modoPlazo === 'meses')}>
                     Por meses
                   </button>
-                  <button type="button" data-testid="alta-modo-fecha" onClick={() => setModoPlazo('fecha')} className={segmento(modoPlazo === 'fecha')}>
+                  <button type="button" data-testid="alta-modo-fecha" onClick={aplicarModoFecha} className={segmento(modoPlazo === 'fecha')}>
                     Fecha exacta
                   </button>
                 </div>
@@ -496,13 +504,37 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                   </>
                 ) : (
                   <>
-                    <SelectorFecha
-                      testid="alta-fecha"
-                      value={fechaManual}
-                      minDate={minFechaAlta()}
-                      maxDate={maxFechaAlta()}
-                      onChange={aplicarFecha}
-                    />
+                    <div className="grid grid-cols-2 items-start gap-3">
+                      <div>
+                        <label className={LABEL}>Vence el</label>
+                        <SelectorFecha
+                          testid="alta-fecha"
+                          value={fechaManual}
+                          minDate={minFechaAlta()}
+                          maxDate={maxFechaAlta()}
+                          onChange={aplicarFecha}
+                        />
+                      </div>
+                      {pideMonto && (
+                        <div>
+                          <label className={LABEL}>Monto</label>
+                          <div className="relative">
+                            <span className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-[13px] text-texto-4">$</span>
+                            <input
+                              type="number"
+                              inputMode="decimal"
+                              min="0"
+                              step="0.01"
+                              data-testid="alta-monto"
+                              value={monto}
+                              onChange={(e) => setMonto(e.target.value)}
+                              placeholder={`${precioBase}.00`}
+                              className={`${CLASE_CAMPO} pl-6`}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
                     {diasFecha > 0 && (
                       <p className="mt-1 text-[11px] text-texto-4">
                         Cubre {diasFecha} {diasFecha === 1 ? 'día' : 'días'} desde hoy; el monto se sugiere proporcional (editable).
@@ -522,8 +554,8 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                 </div>
               )}
 
-              {/* Monto (se pre-llena según el periodo; editable) */}
-              {pideMonto && (
+              {/* Monto (modo "por meses"; en "fecha exacta" va junto al campo de fecha, arriba) */}
+              {pideMonto && modoPlazo === 'meses' && (
                 <div className="mb-4">
                   <label className={LABEL}>Monto</label>
                   <div className="relative">

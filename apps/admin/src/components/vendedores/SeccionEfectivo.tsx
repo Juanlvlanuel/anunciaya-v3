@@ -4,7 +4,8 @@
  * Pestaña "Efectivo" del detalle del vendedor (Vendedores y comisiones · Fase 2 · pieza D — cortes de efectivo).
  * El efectivo que el vendedor te DEBE entregar (cobró membresías en efectivo). Muestra el corte
  * (cobrado / entregado / descontado / saldo) + la bitácora de movimientos, y —super/gerente— el botón
- * "Registrar movimiento" (cobro o entrega). El neteo (descuento al pagarle comisión) lo hace la pestaña Pagos.
+ * "Registrar entrega". El cobro es automático (al dar de alta / marcar pagado en efectivo); el neteo
+ * (descuento al pagarle comisión) lo hace la pestaña Pagos.
  *
  * Ubicación: apps/admin/src/components/vendedores/SeccionEfectivo.tsx
  */
@@ -12,6 +13,7 @@
 import { useState } from 'react';
 import { Banknote, Plus, ArrowDownLeft, ArrowUpRight, Link2 } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorFecha } from '../ui/SelectorFecha';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { useEfectivoVendedor, useRegistrarMovimientoEfectivo } from '../../hooks/queries/useVendedoresAdmin';
@@ -63,73 +65,73 @@ function FilaMovimiento({ m }: { m: MovimientoEfectivoFila }) {
 
 function DialogoMovimiento({ vendedorId, saldo, onCerrar }: { vendedorId: string; saldo: number; onCerrar: () => void }) {
   const registrar = useRegistrarMovimientoEfectivo();
-  const [tipo, setTipo] = useState<'cobro' | 'entrega'>('entrega');
   const [monto, setMonto] = useState('');
   const [fecha, setFecha] = useState(() => new Date().toISOString().slice(0, 10));
   const [nota, setNota] = useState('');
+  const hoyISO = new Date().toISOString().slice(0, 10);
 
   const montoNum = Number(monto);
-  const valido = Number.isFinite(montoNum) && montoNum > 0;
+  const excede = saldo > 0 && montoNum > saldo + 0.01;
+  const valido = Number.isFinite(montoNum) && montoNum > 0 && !excede;
   const puede = valido && !registrar.isPending;
 
   const enviar = () => {
     if (!puede) return;
     registrar.mutate(
-      { id: vendedorId, datos: { tipo, monto: montoNum, fecha, nota: nota.trim() || null } },
+      { id: vendedorId, datos: { tipo: 'entrega', monto: montoNum, fecha, nota: nota.trim() || null } },
       { onSuccess: onCerrar },
     );
   };
 
   return (
-    <ModalAdaptativo abierto onCerrar={onCerrar} titulo="Registrar movimiento" ancho="sm" discriminador="efectivo-mov">
-      <div className="p-5" data-testid="dialogo-efectivo-mov">
-        <div className="mb-4">
-          <label className={LABEL}>Tipo</label>
-          <div className="inline-flex rounded-[10px] border border-borde bg-superficie-2 p-0.5">
-            {([['entrega', 'Entrega'], ['cobro', 'Cobro']] as const).map(([v, etq]) => (
-              <button
-                key={v}
-                type="button"
-                data-testid={`efectivo-tipo-${v}`}
-                onClick={() => setTipo(v)}
-                className={`rounded-[8px] px-3 py-1.5 text-[12.5px] font-semibold transition ${tipo === v ? 'bg-marca text-marca-contraste' : 'text-texto-3 hover:text-texto'}`}
-              >
-                {etq}
-              </button>
-            ))}
+    <ModalAdaptativo abierto onCerrar={onCerrar} mostrarHeader={false} ancho="sm" discriminador="efectivo-mov">
+      <div data-testid="dialogo-efectivo-mov">
+        {/* Header */}
+        <div className="flex items-center gap-2.5 border-b border-borde px-5 pt-4 pb-3.5">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca"><ArrowUpRight size={17} /></span>
+          <div>
+            <div className="text-[16px] font-bold text-texto">Registrar entrega</div>
+            <div className="text-[12px] text-texto-3">El efectivo que el vendedor te entregó.</div>
           </div>
-          <p className="mt-1.5 text-[11.5px] text-texto-4">
-            {tipo === 'entrega' ? 'El vendedor te entregó efectivo (baja su deuda).' : 'El vendedor cobró efectivo de un negocio (sube su deuda).'}
-          </p>
         </div>
 
-        <div className="grid grid-cols-2 gap-3">
-          <div>
-            <label className={LABEL}>Monto</label>
-            <div className="flex items-center gap-1.5">
-              <span className="text-[15px] text-texto-3">$</span>
-              <input value={monto} onChange={(e) => setMonto(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" className={`${CLASE_CAMPO} text-[15px] font-semibold tabular-nums`} data-testid="efectivo-monto" />
+        <div className="p-5">
+          {/* Saldo por entregar */}
+          <div className="mb-4 flex items-center justify-between rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3">
+            <span className="text-[13px] text-texto-3">Por entregar</span>
+            <span className="text-[16px] font-bold tabular-nums text-texto" data-testid="efectivo-por-entregar">{pesos(saldo)}</span>
+          </div>
+
+          {/* Monto + Fecha */}
+          <div className="grid grid-cols-2 items-end gap-3">
+            <div>
+              <div className="mb-1.5 flex items-center justify-between">
+                <label className={LABEL + ' mb-0'}>Monto</label>
+                {saldo > 0 && <button type="button" data-testid="efectivo-todo" onClick={() => setMonto(String(saldo))} className="text-[11.5px] font-semibold text-marca hover:underline">Todo</button>}
+              </div>
+              <div className="flex items-center gap-1">
+                <span className="text-[14px] text-texto-3">$</span>
+                <input value={monto} onChange={(e) => setMonto(e.target.value.replace(/[^0-9.]/g, ''))} inputMode="decimal" placeholder="0" className={`${CLASE_CAMPO} font-semibold tabular-nums`} data-testid="efectivo-monto" />
+              </div>
+            </div>
+            <div>
+              <label className={LABEL}>Fecha</label>
+              <SelectorFecha value={fecha} onChange={setFecha} maxDate={hoyISO} testid="efectivo-fecha" />
             </div>
           </div>
-          <div>
-            <label className={LABEL}>Fecha</label>
-            <input type="date" value={fecha} onChange={(e) => setFecha(e.target.value)} className={CLASE_CAMPO} data-testid="efectivo-fecha" />
+          {excede && <p className="mt-1 text-[11.5px] font-medium text-peligro">No puede entregar más de lo que debe ({pesos(saldo)}).</p>}
+
+          {/* Nota */}
+          <div className="mt-3">
+            <label className={LABEL}>Nota <span className="font-normal text-texto-4">(opcional)</span></label>
+            <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500} placeholder="Referencia, observaciones…" className={CLASE_CAMPO} data-testid="efectivo-nota" />
           </div>
         </div>
-
-        <div className="mt-3">
-          <label className={LABEL}>Nota <span className="font-normal text-texto-4">(opcional)</span></label>
-          <input value={nota} onChange={(e) => setNota(e.target.value)} maxLength={500} placeholder="Referencia, observaciones…" className={CLASE_CAMPO} data-testid="efectivo-nota" />
-        </div>
-
-        {tipo === 'entrega' && saldo > 0 && (
-          <p className="mt-3 text-[12px] text-texto-3">Saldo actual por entregar: <span className="font-semibold text-texto">{pesos(saldo)}</span></p>
-        )}
       </div>
       <div className="flex items-center justify-end gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
         <button type="button" onClick={onCerrar} disabled={registrar.isPending} className={BTN_CANCELAR}>Cancelar</button>
         <button type="button" data-testid="efectivo-guardar" onClick={enviar} disabled={!puede} className={BTN_GUARDAR}>
-          {registrar.isPending ? 'Guardando…' : 'Registrar'}
+          {registrar.isPending ? 'Guardando…' : `Registrar ${pesos(montoNum > 0 ? montoNum : 0)}`}
         </button>
       </div>
     </ModalAdaptativo>
@@ -172,7 +174,7 @@ export function SeccionEfectivo({ vendedorId }: { vendedorId: string }) {
         <h3 className="text-[13px] font-semibold text-texto-2">Movimientos</h3>
         {puedeRegistrar && (
           <button type="button" data-testid="abrir-registrar-efectivo" onClick={() => setRegistrando(true)} className="inline-flex items-center gap-1.5 rounded-[9px] bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition">
-            <Plus size={14} /> Registrar movimiento
+            <Plus size={14} /> Registrar entrega
           </button>
         )}
       </div>

@@ -294,19 +294,19 @@ function ListaCartera({ items, isLoading, isError, hayDatos }: { items: NegocioC
 export type TabVendedor = 'cartera' | 'comisiones' | 'pagos' | 'efectivo';
 
 /** Pestañas de las secciones del expediente del vendedor (carrusel en una línea). Todas navegables
- *  (Cartera, Comisiones, Pagos, Efectivo). El vendedor NO ve "Cartera" (vive en "Mi cartera"). */
+ *  (Cartera, Comisiones, Pagos, Por entregar). El vendedor NO ve "Cartera" (vive en "Mi cartera"). */
 function PestaniasVendedor({ vistaVendedor, activa, onCambiar }: { vistaVendedor: boolean; activa: TabVendedor; onCambiar: (t: TabVendedor) => void }) {
   const tabs: Array<{ id: TabVendedor; label: string; disponible: boolean }> = vistaVendedor
     ? [
         { id: 'comisiones', label: 'Comisiones', disponible: true },
         { id: 'pagos', label: 'Pagos', disponible: true },
-        { id: 'efectivo', label: 'Efectivo', disponible: true },
+        { id: 'efectivo', label: 'Por entregar', disponible: true },
       ]
     : [
         { id: 'cartera', label: 'Cartera', disponible: true },
         { id: 'comisiones', label: 'Comisiones', disponible: true },
         { id: 'pagos', label: 'Pagos', disponible: true },
-        { id: 'efectivo', label: 'Efectivo', disponible: true },
+        { id: 'efectivo', label: 'Por entregar', disponible: true },
       ];
   return (
     <div className="mb-2.5 flex shrink-0 gap-1.5 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">

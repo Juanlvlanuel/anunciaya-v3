@@ -137,7 +137,7 @@ export function SelectorFecha({
   const estiloCal = useMemo(() => {
     if (!abierto || !refInput.current) return { top: 0, left: 0 } as const;
     const r = refInput.current.getBoundingClientRect();
-    const ANCHO = Math.max(260, r.width); // abarca el ancho del input
+    const ANCHO = Math.min(320, Math.max(260, r.width)); // acotado: ni gigante en inputs anchos ni angosto
     const ALTO = 320;
     const abreArriba = window.innerHeight - r.bottom < ALTO && r.top > window.innerHeight - r.bottom;
     let left = r.left;

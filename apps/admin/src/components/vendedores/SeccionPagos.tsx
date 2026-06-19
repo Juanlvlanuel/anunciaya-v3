@@ -12,6 +12,7 @@
 import { useMemo, useRef, useState } from 'react';
 import { Wallet, RefreshCw, Plus, Paperclip, Check, ImageIcon } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorFecha } from '../ui/SelectorFecha';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import {
@@ -149,6 +150,7 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
   const [transferencia, setTransferencia] = useState('');
   const [efectivoMonto, setEfectivoMonto] = useState('');
   const [fechaPago, setFechaPago] = useState(() => new Date().toISOString().slice(0, 10));
+  const hoyISO = new Date().toISOString().slice(0, 10);
   const [nota, setNota] = useState('');
   const [comprobanteUrl, setComprobanteUrl] = useState<string | null>(null);
   const [subiendo, setSubiendo] = useState(false);
@@ -262,7 +264,7 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
           <div className="mt-3 grid grid-cols-2 gap-3">
             <div>
               <label className={LABEL}>Fecha</label>
-              <input type="date" value={fechaPago} onChange={(e) => setFechaPago(e.target.value)} className={CLASE_CAMPO} data-testid="pago-fecha" />
+              <SelectorFecha value={fechaPago} onChange={setFechaPago} maxDate={hoyISO} testid="pago-fecha" />
             </div>
             <div>
               <label className={LABEL}>Nota <span className="font-normal text-texto-4">(opcional)</span></label>
