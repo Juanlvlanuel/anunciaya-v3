@@ -101,47 +101,49 @@ export function FichaSucursal({ negocioId, sucursal, onCerrar }: FichaSucursalPr
         </div>
 
         {/* Cuerpo */}
-        <div className="min-h-0 flex-1 overflow-y-auto">
+        <div className="min-h-0 flex-1 overflow-y-auto p-4">
           {isError && (
-            <div className="border-b border-borde px-5 py-2 text-center text-[12px] text-peligro">
+            <div className="mb-3 rounded-[10px] border border-borde px-3 py-2 text-center text-[12px] text-peligro">
               No se pudo cargar el detalle completo.
             </div>
           )}
 
-          <Seccion titulo="Vendedor atribuido" icono={User}>
-            {s.vendedorId && s.vendedorNombre ? (
-              <div className="flex items-center gap-3">
-                <AvatarVendedor nombre={s.vendedorNombre} tam={34} />
-                <div className="flex min-w-0 flex-col">
-                  <span className="text-[14px] font-semibold text-texto">{s.vendedorNombre}</span>
-                  <span className="text-[12px] text-texto-3">
-                    {s.vendedorCodigo ? <>Código: <span className="font-mono">{s.vendedorCodigo}</span></> : 'Vendedor del negocio'}
-                  </span>
+          <div className="flex flex-col gap-3">
+            <Seccion titulo="Vendedor atribuido" icono={User}>
+              {s.vendedorId && s.vendedorNombre ? (
+                <div className="flex items-center gap-3">
+                  <AvatarVendedor nombre={s.vendedorNombre} tam={34} />
+                  <div className="flex min-w-0 flex-col">
+                    <span className="text-[14px] font-semibold text-texto">{s.vendedorNombre}</span>
+                    <span className="text-[12px] text-texto-3">
+                      {s.vendedorCodigo ? <>Código: <span className="font-mono">{s.vendedorCodigo}</span></> : 'Vendedor del negocio'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <div className="flex items-center gap-3">
-                <AvatarVacio tam={34} />
-                <span className="text-[13.5px] text-texto-3">Sin vendedor atribuido</span>
-              </div>
-            )}
-          </Seccion>
+              ) : (
+                <div className="flex items-center gap-3">
+                  <AvatarVacio tam={34} />
+                  <span className="text-[13.5px] text-texto-3">Sin vendedor atribuido</span>
+                </div>
+              )}
+            </Seccion>
 
-          <Seccion titulo="Gerente asignado" icono={UserCog}>
-            <Dato etiqueta="Nombre" valor={s.gerenteNombre ?? '—'} />
-            <Dato etiqueta="Correo" valor={s.gerenteCorreo ?? '—'} />
-            <Dato etiqueta="Teléfono" valor={s.gerenteTelefono ?? '—'} />
-          </Seccion>
+            <Seccion titulo="Gerente asignado" icono={UserCog}>
+              <Dato etiqueta="Nombre" valor={s.gerenteNombre ?? '—'} />
+              <Dato etiqueta="Correo" valor={s.gerenteCorreo ?? '—'} />
+              <Dato etiqueta="Teléfono" valor={s.gerenteTelefono ?? '—'} />
+            </Seccion>
 
-          <Seccion titulo="Sucursal" icono={Store}>
-            <Dato etiqueta="Ubicación" valor={ubicacion} />
-            <Dato etiqueta="Región" valor={s.regionNombre ?? '—'} />
-            <Dato etiqueta="Dirección" valor={s.direccion ?? '—'} />
-            <Dato etiqueta="Teléfono" valor={s.telefono ?? '—'} />
-            <Dato etiqueta="WhatsApp" valor={s.whatsapp ?? '—'} />
-            <Dato etiqueta="Correo" valor={s.correo ?? '—'} />
-            <Dato etiqueta="Alta" valor={fecha(s.creadoEn)} />
-          </Seccion>
+            <Seccion titulo="Sucursal" icono={Store}>
+              <Dato etiqueta="Ubicación" valor={ubicacion} />
+              <Dato etiqueta="Región" valor={s.regionNombre ?? '—'} />
+              <Dato etiqueta="Dirección" valor={s.direccion ?? '—'} />
+              <Dato etiqueta="Teléfono" valor={s.telefono ?? '—'} />
+              <Dato etiqueta="WhatsApp" valor={s.whatsapp ?? '—'} />
+              <Dato etiqueta="Correo" valor={s.correo ?? '—'} />
+              <Dato etiqueta="Alta" valor={fecha(s.creadoEn)} />
+            </Seccion>
+          </div>
         </div>
       </div>
     </ModalAdaptativo>
