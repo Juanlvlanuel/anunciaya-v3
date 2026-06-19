@@ -362,17 +362,48 @@ export async function obtenerKpisVacantes(
 // =============================================================================
 
 /**
+ * Ubicación REAL de una sucursal para estampar en sus vacantes: ciudad (del catálogo
+ * `ciudades` vía `ciudad_id`) + coordenadas (de `ubicacion` PostGIS). Devuelve nulls si
+ * la sucursal aún no las tiene; el caller cae al payload del front como respaldo. Así la
+ * vacante hereda la ubicación de su sucursal y no depende de un valor hardcodeado en el front.
+ */
+async function obtenerUbicacionSucursal(sucursalId: string): Promise<{ ciudad: string | null; lat: number | null; lng: number | null }> {
+    try {
+        const filas = (await db.execute(sql`
+            SELECT c.nombre                         AS ciudad,
+                   ST_Y(s.ubicacion::geometry)      AS lat,
+                   ST_X(s.ubicacion::geometry)      AS lng
+            FROM negocio_sucursales s
+            LEFT JOIN ciudades c ON c.id = s.ciudad_id
+            WHERE s.id = ${sucursalId}
+            LIMIT 1
+        `)).rows as Array<{ ciudad: string | null; lat: number | string | null; lng: number | string | null }>;
+        const f = filas[0];
+        if (!f) return { ciudad: null, lat: null, lng: null };
+        return {
+            ciudad: f.ciudad ?? null,
+            lat: f.lat != null ? Number(f.lat) : null,
+            lng: f.lng != null ? Number(f.lng) : null,
+        };
+    } catch {
+        return { ciudad: null, lat: null, lng: null };
+    }
+}
+
+/**
  * Crea una vacante. Reutiliza `crearPublicacion` del service de servicios pero
  * fuerza `modo='solicito'` + `tipo='vacante-empresa'` y mapea los campos
  * específicos de vacante (sucursalId, tipoEmpleo, beneficios).
  *
  * La sucursal se toma del payload (el dropdown del modal). El middleware ya
- * validó que el usuario tiene acceso a esa sucursal.
+ * validó que el usuario tiene acceso a esa sucursal. La ciudad y las coordenadas
+ * se DERIVAN de esa sucursal (no del front).
  */
 export async function crearVacante(
     usuarioId: string,
     datos: CrearVacanteInput
 ) {
+    const ubic = await obtenerUbicacionSucursal(datos.sucursalId);
     return await crearPublicacion(usuarioId, {
         modo: 'solicito',
         tipo: 'vacante-empresa',
@@ -383,9 +414,9 @@ export async function crearVacante(
         fotoPortadaIndex: 0,
         precio: datos.precio,
         modalidad: datos.modalidad,
-        latitud: datos.latitud,
-        longitud: datos.longitud,
-        ciudad: datos.ciudad,
+        latitud: ubic.lat ?? datos.latitud,
+        longitud: ubic.lng ?? datos.longitud,
+        ciudad: ubic.ciudad ?? datos.ciudad,
         zonasAproximadas: datos.zonasAproximadas,
         skills: [],
         requisitos: datos.requisitos,
@@ -423,7 +454,15 @@ export async function actualizarVacante(
             message: 'No encontramos esta vacante en tu sucursal.',
         };
     }
-    return await actualizarPublicacion(usuarioId, publicacionId, datos, { sucursalId });
+    // Mantener la ubicación de la vacante alineada a su sucursal (ciudad + coords reales).
+    const ubic = await obtenerUbicacionSucursal(sucursalId);
+    const datosConUbic: ActualizarVacanteInput = {
+        ...datos,
+        ...(ubic.ciudad ? { ciudad: ubic.ciudad } : {}),
+        ...(ubic.lat != null ? { latitud: ubic.lat } : {}),
+        ...(ubic.lng != null ? { longitud: ubic.lng } : {}),
+    };
+    return await actualizarPublicacion(usuarioId, publicacionId, datosConUbic, { sucursalId });
 }
 
 // =============================================================================

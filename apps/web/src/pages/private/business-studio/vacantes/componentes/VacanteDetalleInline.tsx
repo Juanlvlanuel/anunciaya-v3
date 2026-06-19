@@ -125,7 +125,8 @@ export function VacanteDetalleInline({
                                         strokeWidth={1.75}
                                     />
                                     <span className="truncate">
-                                        {vacante.sucursalNombre ?? 'Sin sucursal'} · Puerto Peñasco
+                                        {vacante.sucursalNombre ?? 'Sin sucursal'}
+                                        {vacante.ciudad ? ` · ${vacante.ciudad}` : ''}
                                     </span>
                                 </div>
                                 <h2 className="text-xl lg:text-2xl font-bold tracking-tight text-slate-900 mb-2.5">

@@ -71,12 +71,11 @@ import {
 const VERSION_CONFIRMACIONES = 'v1-2026-05-17';
 
 /**
- * Coordenadas fallback de Puerto Peñasco. Se usan cuando la sucursal seleccionada
- * no expone latitud/longitud (los endpoints actuales de sucursales no las traen).
- *
- * TODO: cuando el backend de sucursales exponga lat/lng en el endpoint
- * `/negocios/:negocioId/sucursales`, reemplazar este fallback por las
- * coordenadas reales de la sucursal seleccionada.
+ * Respaldo de último recurso. Desde 2026-06 el BACKEND deriva la ciudad y las
+ * coordenadas de la vacante desde su sucursal (ciudad_id → catálogo `ciudades` +
+ * `ubicacion` PostGIS) y SOBREESCRIBE lo que mande el front (ver vacantes.service →
+ * obtenerUbicacionSucursal). Estos valores solo se usarían si la sucursal no tuviera
+ * ni ciudad_id ni ubicación (caso muy raro).
  */
 const FALLBACK_PENASCO = {
     lat: 31.3145,
@@ -710,8 +709,8 @@ export function SlideoverNuevaVacante({
     const handlePublicar = async () => {
         if (!valido || enviando) return;
 
-        // Tomamos coordenadas del fallback de Peñasco; en el futuro se podrá
-        // buscar la sucursal y leer su lat/lng directamente.
+        // El backend deriva ciudad/coords de la sucursal y sobreescribe estos valores;
+        // son solo respaldo por si la sucursal no tuviera ubicación.
         const lat = FALLBACK_PENASCO.lat;
         const lng = FALLBACK_PENASCO.lng;
         const ciudad = FALLBACK_PENASCO.ciudad;

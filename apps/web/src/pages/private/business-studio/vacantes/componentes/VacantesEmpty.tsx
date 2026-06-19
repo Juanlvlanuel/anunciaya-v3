@@ -44,7 +44,7 @@ export function VacantesEmpty({ onPublicar }: VacantesEmptyProps) {
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-3 max-w-3xl mx-auto mt-8">
                 <Tip num={1} titulo="Alcance local">
-                    Tus vacantes solo se muestran a usuarios en Puerto Peñasco.
+                    Tus vacantes solo se muestran a usuarios de tu ciudad.
                 </Tip>
                 <Tip num={2} titulo="Contacto directo">
                     Los candidatos te escriben por ChatYA o WhatsApp.
