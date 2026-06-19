@@ -44,6 +44,8 @@ interface FilaPago {
     nombre_dueno_completo: string | null;
     sucursal: string | null;
     direccion: string | null;
+    ciudad: string | null;
+    estado_sucursal: string | null;
     telefono: string | null;
     correo_sucursal: string | null;
     atendio: string | null;
@@ -70,6 +72,8 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
             TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellidos, '')))     AS nombre_dueno_completo,
             s.nombre                                                   AS sucursal,
             s.direccion,
+            c.nombre                                                   AS ciudad,
+            s.estado                                                   AS estado_sucursal,
             s.telefono,
             s.correo                                                   AS correo_sucursal,
             TRIM(CONCAT(a.nombre, ' ', COALESCE(a.apellidos, '')))     AS atendio
@@ -77,6 +81,7 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
         JOIN negocios n  ON n.id = p.negocio_id
         JOIN usuarios u  ON u.id = n.usuario_id
         LEFT JOIN negocio_sucursales s ON s.negocio_id = p.negocio_id AND s.es_principal = true
+        LEFT JOIN ciudades c ON c.id = s.ciudad_id
         LEFT JOIN usuarios a ON a.id = p.registrado_por
         WHERE p.id = ${pagoId}
         LIMIT 1
@@ -94,7 +99,12 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
             nombreNegocio: fila.nombre_negocio,
             sucursal: fila.sucursal,
             nombreDueno: fila.nombre_dueno_completo,
-            direccionNegocio: fila.direccion,
+            // Dirección completa para el recibo: calle/colonia + ciudad + estado (los que existan;
+            // se omiten vacíos y el placeholder 'Por configurar').
+            direccionNegocio: [fila.direccion, fila.ciudad, fila.estado_sucursal]
+                .map((x) => x?.trim())
+                .filter((x): x is string => !!x && x !== 'Por configurar')
+                .join(', ') || null,
             telefonoNegocio: fila.telefono,
             correoNegocio: fila.correo_sucursal ?? fila.correo_dueno,
             concepto: fila.concepto,
