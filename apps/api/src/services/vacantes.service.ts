@@ -185,7 +185,7 @@ export async function listarVacantes(
                 sp.modalidad,
                 ST_X(sp.ubicacion_aproximada::geometry) AS lng,
                 ST_Y(sp.ubicacion_aproximada::geometry) AS lat,
-                sp.ciudad,
+                COALESCE(c.nombre, sp.ciudad) AS ciudad,
                 sp.zonas_aproximadas,
                 sp.skills,
                 sp.requisitos,
@@ -205,6 +205,7 @@ export async function listarVacantes(
                 sp.updated_at
             FROM servicios_publicaciones sp
             LEFT JOIN negocio_sucursales ns ON ns.id = sp.sucursal_id
+            LEFT JOIN ciudades c ON c.id = ns.ciudad_id
             WHERE sp.sucursal_id = ${sucursalId}
               AND sp.tipo = 'vacante-empresa'
               AND sp.deleted_at IS NULL
