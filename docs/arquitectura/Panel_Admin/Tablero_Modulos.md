@@ -59,8 +59,16 @@
   (anti-doble-pago del prepago: un anual = 10× una vez; foto mensual retirada). Harness verdes (`probar-cobro-dia1`,
   `probar-comision-al-cobro`); falta validación E2E de Juan + correr `2026-06-19-comision-al-cobro.sql` en prod. Docs
   [`Sprint_Stripe.md`](Sprint_Stripe.md), [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md).
-- **Siguiente:** validar E2E las Piezas 2 y 3; quick-win **Ciudades** (BD lista, falta UI). Vendedores · cobro
-  automático de efectivo = backlog.
+- **Recién cerrado (18 jun):** **Ciudades** (módulo 8) — doc [`Ciudades.md`](Ciudades.md): mapa interactivo de
+  México (MapLibre + OpenFreeMap, 4,563 ciudades INEGI) para dar de alta ciudades nuevas y agruparlas en
+  regiones; pestañas Ciudades/Regiones con acciones; **endpoint público `GET /api/ciudades`** + la app web lee
+  del catálogo (catálogo hidratable con fallback). Incluyó la **fase contract**: retirar
+  `negocio_sucursales.ciudad` de las lecturas/escrituras de **13 servicios** + sacarla del ORM (migración de
+  DROP lista). Verificado con 3 harness (lectura, acciones, contract-runtime de 18 funciones) + tsc/builds.
+  Solo SuperAdmin. **Falta:** verificación visual E2E + correr el DROP en dev/prod. Decisión: unificar mapas en
+  MapLibre (`apps/web` migra de Leaflet después, ver `Migracion_MapLibre.md`).
+- **Siguiente:** validar E2E las Piezas 2 y 3 de Stripe; correr el DROP de `negocio_sucursales.ciudad`;
+  hardcodes "Puerto Peñasco" en Vacantes. Vendedores · cobro automático de efectivo = backlog.
 
 ---
 
@@ -75,7 +83,7 @@
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
-| 8 | Ciudades | 🟡 | BD lista, falta UI (entra por Fase 1) | — |
+| 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · falta verificación visual + DROP de la columna legado | `Ciudades.md` · `Ciudades_Pendientes.md` |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 11 | Sistema (Mantenimiento + Auditoría) | 🟡 | Mantenimiento ✅ / Auditoría-UI ⬜ | `Mantenimiento_R2.md` |
@@ -111,7 +119,13 @@
   2 harness verdes (devengo + neteo). **Backlog:** cobro automático de efectivo (engancharlo en alta manual/marcar
   pagado), datos de cobro por el propio vendedor. **Cobertura avanzada (F) DIFERIDA** (multi-región/multi-gerente/
   mover-con-reasignación): reescribe el alcance "vendedor de UNA región" en `panel.middleware` + módulos cerrados.
-- **8 · Ciudades** — tabla `ciudades` poblada; falta la **UI** para habilitar/agrupar ciudades en regiones.
+- **8 · Ciudades** — **construido** (doc [`Ciudades.md`](Ciudades.md)). Mapa interactivo de México (MapLibre,
+  4,563 ciudades de INEGI) para **dar de alta ciudades nuevas** (clic en gris) y **agruparlas en regiones**
+  (clic en azul); pestañas Ciudades/Regiones con acciones por fila; endpoint público `GET /api/ciudades` + la
+  app web consume el catálogo de la BD (antes leía un array hardcodeado). Incluyó la **fase contract** de la
+  migración ciudad↔región (13 servicios dejan de usar `negocio_sucursales.ciudad`; columna fuera del ORM;
+  migración de DROP lista). Solo SuperAdmin. **Pendiente:** verificación visual E2E, correr el DROP en dev/prod,
+  y los hardcodes "Puerto Peñasco" de Vacantes. **Backlog relacionado:** `usuarios.ciudad` (otra columna texto).
 - **9 · Configuración** — **v1 construido y en uso** (doc [`Configuracion.md`](Configuracion.md)): el tablero
   económico (escalera de comisiones + trial + gracia), solo SuperAdmin, con auditoría y reset de caché. Backlog:
   correr la migración en prod (idempotente), y sumar claves nuevas cuando una sección futura tenga una palanca

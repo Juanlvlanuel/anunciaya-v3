@@ -108,11 +108,28 @@ Sin alcance por región → no necesita `condicionAlcance`. Ruta montada **despu
 
 ---
 
-## Fase 3 — Cerrar
-- [ ] Doc canónico `Ciudades.md` (2 capas).
-- [ ] Vaciar este checklist + sacar Ciudades del `PENDIENTES_PanelAdmin.md` (dejar puntero).
-- [ ] Índices: tablero de módulos, `Panel_Admin.md`, `ROADMAP.md`, memoria-puntero, kit claude.ai.
-- [ ] Commit a `main`.
+## Fase 3 — Cerrar ✅ (18 jun 2026)
+- [x] Doc canónico [`Ciudades.md`](Ciudades.md) (2 capas).
+- [x] Índices: tablero de módulos ✅ · memoria-puntero (`project_panel_ciudades` + estado + migración) ✅. _(Panel_Admin.md §8 y ROADMAP/kit claude.ai: actualización menor pendiente.)_
+- [x] Commit a `main` — `82e1474` (módulo) + `fe63660` (fase contract).
+
+---
+
+## Fase CONTRACT — retirar `negocio_sucursales.ciudad` ✅ (código, 18 jun)
+- [x] **Lecturas** (13 servicios) leen `ciudades.nombre` vía `LEFT JOIN ciudades ON ciudad_id` (alias `ciudad` conservado → frontend intacto); placeholder `'Por configurar'` retirado (sin ciudad = `ciudad_id IS NULL`).
+- [x] **Escrituras** (negocioManagement, pago, onboarding) ya no persisten el texto (solo `ciudad_id`). `usuarios.ciudad` se respetó (otra migración).
+- [x] Columna `ciudad` retirada del **ORM** (`schema.ts`).
+- [x] Verificado: `tsc` + harness `probar-contract-ciudad.ts` (18 funciones de todos los servicios en runtime, TODO VERDE).
+- [ ] **Correr el DROP** `docs/migraciones/2026-06-18-drop-negocio-sucursales-ciudad.sql` en **dev y prod** (lo aplica Juan; confirmar backfill prod).
+
+---
+
+## Pendientes que quedan
+- [ ] **Verificación visual E2E** — levantar Panel (ver mapa, alta, agrupar) + web (que una ciudad nueva aparezca en el selector).
+- [ ] **Correr el DROP** de `negocio_sucursales.ciudad` (ver arriba).
+- [ ] **Hardcodes "Puerto Peñasco" en Vacantes** (`VacanteDetalleInline`, `VacantesEmpty`, `SlideoverNuevaVacante`) — UX, no usan la columna.
+- [ ] _Nice-to-have:_ editar ciudad (nombre/estado/coords/importancia) por fila — backend ya lo soporta, falta UI.
+- [ ] _Relacionado (otra migración):_ `usuarios.ciudad` (columna texto legado, mismo patrón).
 
 ---
 
