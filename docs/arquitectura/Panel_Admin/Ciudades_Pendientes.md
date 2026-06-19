@@ -128,7 +128,7 @@ Sin alcance por región → no necesita `condicionAlcance`. Ruta montada **despu
 - [ ] **Verificación visual E2E** — levantar Panel (ver mapa, alta, agrupar) + web (que una ciudad nueva aparezca en el selector).
 - [ ] **Correr el DROP** de `negocio_sucursales.ciudad` (ver arriba).
 - [ ] **Hardcodes "Puerto Peñasco" en Vacantes** (`VacanteDetalleInline`, `VacantesEmpty`, `SlideoverNuevaVacante`) — UX, no usan la columna.
-- [ ] _Nice-to-have:_ editar ciudad (nombre/estado/coords/importancia) por fila — backend ya lo soporta, falta UI.
+- [x] **Editar ciudad por fila** (nombre/estado/importancia) — menú "⋯" → Editar → `DialogoEditarCiudad` + `useEditarCiudad`. (Coords: se ajustan desde el mapa; edición de coords por mapa = futuro.)
 - [ ] _Relacionado (otra migración):_ `usuarios.ciudad` (columna texto legado, mismo patrón).
 
 ---

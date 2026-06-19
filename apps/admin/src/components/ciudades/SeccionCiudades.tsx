@@ -26,6 +26,7 @@ import {
   useEditarRegion,
   useCambiarActivaCiudad,
   useAsignarRegionCiudad,
+  useEditarCiudad,
 } from '../../hooks/queries/useCiudadesAdmin';
 import { REGION_SIN, type CiudadCatalogo, type FiltroActiva, type RegionConConteo } from '../../services/ciudadesService';
 import { claveCruceCiudad } from '../../utils/texto';
@@ -36,6 +37,7 @@ import type { FeatureCiudad } from './MapaCiudades';
 import { DialogoMapaAccion } from './DialogoMapaAccion';
 import { DialogoRegion } from './DialogoRegion';
 import { DialogoAsignarRegion } from './DialogoAsignarRegion';
+import { DialogoEditarCiudad } from './DialogoEditarCiudad';
 
 // Lazy: maplibre-gl (~800 KB) solo se carga al abrir la pestaña Mapa, no en el resto del Panel.
 const MapaCiudades = lazy(() => import('./MapaCiudades').then((m) => ({ default: m.MapaCiudades })));
@@ -65,6 +67,7 @@ export function SeccionCiudades() {
   // Diálogos de acciones por fila.
   const [dialogoRegion, setDialogoRegion] = useState<{ modo: 'crear' | 'editar'; region: RegionConConteo | null } | null>(null);
   const [ciudadRegion, setCiudadRegion] = useState<CiudadCatalogo | null>(null);
+  const [ciudadEditar, setCiudadEditar] = useState<CiudadCatalogo | null>(null);
 
   // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
   const listaRef = useRef<HTMLDivElement>(null);
@@ -95,6 +98,7 @@ export function SeccionCiudades() {
   const editarRegion = useEditarRegion();
   const cambiarActiva = useCambiarActivaCiudad();
   const asignarRegionUna = useAsignarRegionCiudad();
+  const editarCiudadM = useEditarCiudad();
 
   const items = ciudades ?? [];
   const total = items.length;
@@ -171,6 +175,16 @@ export function SeccionCiudades() {
       setCiudadRegion(null);
     } catch {
       /* toast del hook (incluye el 409 del guard "una región") */
+    }
+  };
+
+  const guardarEdicionCiudad = async (datos: { nombre: string; estado: string; importancia: number }) => {
+    if (!ciudadEditar) return;
+    try {
+      await editarCiudadM.mutateAsync({ id: ciudadEditar.id, datos });
+      setCiudadEditar(null);
+    } catch {
+      /* toast del hook (incluye el 409 de nombre duplicado) */
     }
   };
 
@@ -277,12 +291,12 @@ export function SeccionCiudades() {
         <span />
       </div>
       <div className="min-h-0 flex-1 overflow-y-auto">
-        {items.map((c) => <FilaCiudad key={c.id} c={c} cols={cols} onActivar={onActivarCiudad} onAsignarRegion={setCiudadRegion} />)}
+        {items.map((c) => <FilaCiudad key={c.id} c={c} cols={cols} onActivar={onActivarCiudad} onAsignarRegion={setCiudadRegion} onEditar={setCiudadEditar} />)}
       </div>
     </div>
   ) : (
     <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
-      <div className="flex flex-col gap-2.5">{items.map((c) => <CardCiudad key={c.id} c={c} onActivar={onActivarCiudad} onAsignarRegion={setCiudadRegion} />)}</div>
+      <div className="flex flex-col gap-2.5">{items.map((c) => <CardCiudad key={c.id} c={c} onActivar={onActivarCiudad} onAsignarRegion={setCiudadRegion} onEditar={setCiudadEditar} />)}</div>
     </div>
   );
 
@@ -412,6 +426,14 @@ export function SeccionCiudades() {
         onCerrar={() => setCiudadRegion(null)}
         onGuardar={guardarRegionCiudad}
       />
+
+      <DialogoEditarCiudad
+        abierto={ciudadEditar !== null}
+        ciudad={ciudadEditar}
+        cargando={editarCiudadM.isPending}
+        onCerrar={() => setCiudadEditar(null)}
+        onGuardar={guardarEdicionCiudad}
+      />
     </div>
   );
 }
@@ -439,14 +461,15 @@ function ChipRegion({ nombre }: { nombre: string | null }) {
   );
 }
 
-function accionesCiudad(c: CiudadCatalogo, onActivar: (c: CiudadCatalogo) => void, onAsignarRegion: (c: CiudadCatalogo) => void) {
+function accionesCiudad(c: CiudadCatalogo, onActivar: (c: CiudadCatalogo) => void, onAsignarRegion: (c: CiudadCatalogo) => void, onEditar: (c: CiudadCatalogo) => void) {
   return [
+    { etiqueta: 'Editar', icono: <Pencil size={15} />, onClick: () => onEditar(c) },
     { etiqueta: c.activa ? 'Desactivar' : 'Activar', icono: c.activa ? <PowerOff size={15} /> : <Power size={15} />, onClick: () => onActivar(c) },
     { etiqueta: c.regionId ? 'Cambiar región' : 'Asignar región', icono: <MapIcon size={15} />, onClick: () => onAsignarRegion(c) },
   ];
 }
 
-function FilaCiudad({ c, cols, onActivar, onAsignarRegion }: { c: CiudadCatalogo; cols: string; onActivar: (c: CiudadCatalogo) => void; onAsignarRegion: (c: CiudadCatalogo) => void }) {
+function FilaCiudad({ c, cols, onActivar, onAsignarRegion, onEditar }: { c: CiudadCatalogo; cols: string; onActivar: (c: CiudadCatalogo) => void; onAsignarRegion: (c: CiudadCatalogo) => void; onEditar: (c: CiudadCatalogo) => void }) {
   return (
     <div data-testid={`ciudad-fila-${c.id}`} className="grid w-full items-center gap-3.5 border-b border-borde px-3 py-3 text-left transition last:border-b-0 hover:bg-marca-suave" style={{ gridTemplateColumns: cols }}>
       <span className="flex min-w-0 items-center gap-2.5">
@@ -456,12 +479,12 @@ function FilaCiudad({ c, cols, onActivar, onAsignarRegion }: { c: CiudadCatalogo
       <span className="min-w-0 truncate text-[13px] text-texto-2">{c.estado}</span>
       <span className="min-w-0 truncate"><ChipRegion nombre={c.regionNombre} /></span>
       <span><BadgeActiva activa={c.activa} /></span>
-      <span className="flex justify-end"><MenuAcciones testid={`ciudad-acciones-${c.id}`} acciones={accionesCiudad(c, onActivar, onAsignarRegion)} /></span>
+      <span className="flex justify-end"><MenuAcciones testid={`ciudad-acciones-${c.id}`} acciones={accionesCiudad(c, onActivar, onAsignarRegion, onEditar)} /></span>
     </div>
   );
 }
 
-function CardCiudad({ c, onActivar, onAsignarRegion }: { c: CiudadCatalogo; onActivar: (c: CiudadCatalogo) => void; onAsignarRegion: (c: CiudadCatalogo) => void }) {
+function CardCiudad({ c, onActivar, onAsignarRegion, onEditar }: { c: CiudadCatalogo; onActivar: (c: CiudadCatalogo) => void; onAsignarRegion: (c: CiudadCatalogo) => void; onEditar: (c: CiudadCatalogo) => void }) {
   return (
     <div data-testid={`ciudad-card-${c.id}`} className="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie p-3">
       <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] border border-borde bg-superficie-2 text-texto-3"><MapPin size={18} /></span>
@@ -470,7 +493,7 @@ function CardCiudad({ c, onActivar, onAsignarRegion }: { c: CiudadCatalogo; onAc
         <span className="truncate text-[12.5px] text-texto-3">{c.estado} · {c.regionNombre ?? 'Sin región'}</span>
       </span>
       <BadgeActiva activa={c.activa} />
-      <MenuAcciones testid={`ciudad-acciones-${c.id}`} acciones={accionesCiudad(c, onActivar, onAsignarRegion)} />
+      <MenuAcciones testid={`ciudad-acciones-${c.id}`} acciones={accionesCiudad(c, onActivar, onAsignarRegion, onEditar)} />
     </div>
   );
 }
