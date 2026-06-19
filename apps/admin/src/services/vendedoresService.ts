@@ -165,28 +165,9 @@ export interface EstadoCuentaComisiones {
   resumen: ResumenComisiones;
 }
 
-/** Resumen que devuelve el recálculo del periodo. */
-export interface ResumenDevengo {
-  periodo: string;
-  vendedoresProcesados: number;
-  creadas: number;
-  actualizadas: number;
-  omitidasPagadas: number;
-  totalDevengado: number;
-}
-
 /** Estado de cuenta de comisiones de un vendedor (devengado / pagado / pendiente). */
 export async function listarComisiones(id: string): Promise<EstadoCuentaComisiones | null> {
   const { data } = await api.get<RespuestaAPI<EstadoCuentaComisiones>>(`/admin/vendedores/${id}/comisiones`);
-  return data.data ?? null;
-}
-
-/** Recalcula/devenga las comisiones del periodo (solo super). Sin periodo → el mes en curso. */
-export async function recalcularComisiones(periodo?: string): Promise<ResumenDevengo | null> {
-  const { data } = await api.post<RespuestaAPI<ResumenDevengo>>(
-    '/admin/vendedores/comisiones/recalcular',
-    periodo ? { periodo } : {},
-  );
   return data.data ?? null;
 }
 

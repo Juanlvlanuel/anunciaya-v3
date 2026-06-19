@@ -86,23 +86,6 @@ export function useComisionesVendedor(id: string | null) {
   });
 }
 
-/** Recalcula/devenga las comisiones del periodo (solo super). Invalida las comisiones e informa por toast. */
-export function useRecalcularComisiones() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (periodo?: string) => vendedoresService.recalcularComisiones(periodo),
-    onSuccess: (r) => {
-      qc.invalidateQueries({ queryKey: queryKeys.vendedores.all() });
-      toast.exito(
-        r
-          ? `Comisiones de ${r.periodo} recalculadas · ${r.creadas} nuevas, $${r.totalDevengado} devengado`
-          : 'Comisiones recalculadas',
-      );
-    },
-    onError: (e) => toast.error(mensajeError(e, 'No se pudieron recalcular las comisiones')),
-  });
-}
-
 // =============================================================================
 // LIQUIDACIÓN (pieza E)
 // =============================================================================

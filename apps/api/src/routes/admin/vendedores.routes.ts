@@ -25,7 +25,6 @@ import {
     obtenerVendedorController,
     listarCarteraController,
     listarComisionesVendedorController,
-    recalcularComisionesController,
     subirComprobanteController,
     registrarPagoController,
     listarPagosVendedorController,
@@ -41,9 +40,6 @@ router.get('/', requierePanel(['superadmin', 'gerente', 'vendedor']), listarVend
 
 // Total del alcance (contador del menú). Antes de /:id para que "conteo" no caiga en el comodín.
 router.get('/conteo', requierePanel(['superadmin', 'gerente', 'vendedor']), contarVendedoresController);
-
-// Recalcular/devengar las comisiones recurrentes del periodo (solo super; el dinero lo mueve el super).
-router.post('/comisiones/recalcular', requierePanel(['superadmin']), recalcularComisionesController);
 
 // Presigned URL para subir el comprobante del pago (solo super). Antes de /:id por el comodín.
 router.post('/comprobante/upload', requierePanel(['superadmin']), subirComprobanteController);

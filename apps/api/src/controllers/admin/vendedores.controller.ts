@@ -23,7 +23,6 @@ import {
     type OrdenVendedores,
 } from '../../services/admin/vendedores.service.js';
 import { panelConFiltroRegion, ESTADOS_PAGO, type EstadoPago } from '../../services/admin/negocios.service.js';
-import { devengarPeriodo, periodoActual } from '../../services/admin/comisiones-devengo.service.js';
 import { registrarPago, generarUrlComprobante, obtenerDatosCobro, guardarDatosCobro } from '../../services/admin/comisiones-liquidacion.service.js';
 import { registrarMovimientoManual } from '../../services/admin/comisiones-efectivo.service.js';
 import { registrarAuditoria } from '../../services/admin/auditoria.service.js';
@@ -151,34 +150,6 @@ export async function listarCarteraController(req: Request, res: Response): Prom
             message: 'Error al obtener la cartera',
             error: error instanceof Error ? error.message : String(error),
         });
-    }
-}
-
-// =============================================================================
-// POST /api/admin/vendedores/comisiones/recalcular   (solo super · devenga el periodo)
-// Body: { periodo?: 'YYYY-MM' } — si no se manda, usa el mes en curso.
-// =============================================================================
-
-export async function recalcularComisionesController(req: Request, res: Response): Promise<void> {
-    try {
-        const periodoRaw = typeof req.body?.periodo === 'string' ? req.body.periodo : '';
-        const periodo = /^\d{4}-\d{2}$/.test(periodoRaw) ? periodoRaw : periodoActual();
-
-        const resumen = await devengarPeriodo(periodo);
-
-        await registrarAuditoria(req.usuarioPanel!, {
-            accion: 'comisiones_recalcular',
-            entidadTipo: 'comisiones',
-            entidadId: null,
-            datosPrevios: null,
-            datosNuevos: resumen,
-            motivo: null,
-        });
-
-        res.status(200).json({ success: true, message: `Comisiones de ${periodo} recalculadas`, data: resumen });
-    } catch (error) {
-        console.error('Error en recalcularComisionesController:', error);
-        res.status(500).json({ success: false, message: 'Error al recalcular las comisiones' });
     }
 }
 
