@@ -8,6 +8,33 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [19 Junio 2026] - Migración global "ciudad (texto) → catálogo `ciudades` (FK `ciudad_id`)" cerrada de punta a punta 🗺️🔗
+
+Se **cierra el sprint** de la migración de ciudad hardcodeada (texto) al **catálogo real `ciudades`** vía FK `ciudad_id`, siguiendo el patrón **expand-migrate-contract**. Con esto, **toda la app** lee y escribe la ciudad desde el catálogo (gobernado por el Panel de Ciudades) en lugar de strings libres. Cierran las **4 secciones grandes** + el dato de usuario; los logs analíticos se quedan como texto por decisión. Migraciones one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql` (+ las de 06-06/16/18); corridas en **dev y prod** salvo el DROP final de `usuarios.ciudad` en prod.
+
+**Las 4 secciones grandes (columna texto migrada y DROPeada en dev + prod):**
+- **`negocio_sucursales.ciudad`** → migrada + DROPeada. Cubre **Negocios, Ofertas, CardYA, ChatYA, Business Studio** (todos los módulos) y casi todo el **Panel Admin** (Negocios, Suscripciones, Recibos, Vendedores y comisiones, Equipo y accesos).
+- **`servicios_publicaciones.ciudad`** → migrada + DROPeada. Cubre **Servicios** + **Vacantes** de Business Studio.
+- **`articulos_marketplace.ciudad`** → migrada + DROPeada. Cubre **MarketPlace** (feed, detalle, artículo compartible, Mis Guardados · tab Marketplace, perfil vendedor).
+- **`preguntas_comunidad.ciudad`** → migrada + DROPeada. Cubre **Home / "Pregúntale a [ciudad]" / Coyo**.
+
+**Dato de usuario:**
+- **`usuarios.ciudad`** → migrada; DROP corrido en **dev**, **DROP en prod pendiente** (último paso operativo). Cubre **Perfil**, expediente del Panel Usuarios y la ciudad del oferente/vendedor/prestador en Servicios/MarketPlace.
+
+**Decisión — logs de búsqueda como texto analítico:** `marketplace_busquedas_log`, `servicios_busquedas_log` y `ofertas_busquedas_log` **NO se migran a FK**; se conservan como texto (registro analítico de lo que la gente tecleó).
+
+**Cómo quedó (el patrón):**
+- **Lecturas:** `LEFT JOIN ciudades c ON c.id = <tabla>.ciudad_id` → `c.nombre AS ciudad`. Se conservó el **alias de salida `ciudad`** → el frontend no cambió.
+- **Escrituras:** `resolverCiudadId(texto)` (`apps/api/src/utils/ciudades.ts`) resuelve texto→`ciudad_id` por slug; se persiste **solo `ciudad_id`**.
+- **Frontend (catálogo hidratable):** `useCiudades` (montado en `RootLayout`) hidrata `apps/web/src/data/ciudadesPopulares.ts` desde `GET /api/ciudades`; el array hardcodeado queda solo de **semilla/fallback**. El selector de ciudad (incluido el del **Onboarding**, `PasoUbicacion`) lee del catálogo activo.
+- **Panel de Ciudades:** da de alta ciudades nuevas (mapa MapLibre) que quedan disponibles en **toda la app sin redeploy**.
+
+**Migraciones:** `2026-06-19-{servicios,marketplace,preguntas-comunidad,usuarios}-ciudad-*.sql` + las previas de `2026-06-06/16/18` (`ciudades`, `negocio_sucursales`, `usuarios-ciudad-id`). Corridas en dev y prod, **excepto** el DROP de `usuarios.ciudad` en prod (pendiente).
+
+**Pendiente operativo (Juan):** correr el DROP de `usuarios.ciudad` en **prod** para cerrar la fase contract por completo.
+
+---
+
 ## [19 Junio 2026] - Sprint de Stripe · Piezas 2 y 3 — cobro "día 1" para ventas por vendedor + comisión recurrente "al cobro" 💳🤝
 
 Se construyen las dos últimas piezas del Sprint de Stripe (a falta de la validación E2E de Juan). **Pieza 2:** cuando una venta entra por un **vendedor**, el comercio **paga el día 1** (no espera el trial) y recibe el mes + 14 días de cortesía. **Pieza 3:** la **comisión recurrente del vendedor** se devenga **al cobro** (no por foto mensual), con anti-doble-pago del prepago. Type-checks (api/web/admin) verdes + 2 harness (Stripe Test Clock / datos reales) TODO VERDE.

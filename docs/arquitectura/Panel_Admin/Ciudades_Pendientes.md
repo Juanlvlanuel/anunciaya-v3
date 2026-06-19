@@ -4,7 +4,7 @@
 > Lo que YA funciona se documenta en `Ciudades.md` (doc canónico, se escribe en Fase 3).
 > Proceso: [`../../estandares/FLUJO_MODULO_PANEL.md`](../../estandares/FLUJO_MODULO_PANEL.md). Plantilla de oro: **Negocios**.
 >
-> **Última actualización:** 18 Junio 2026 · **Fase actual:** 1 (VER) — Frente A.
+> **Última actualización:** 19 Junio 2026 · **Fase actual:** 1 (VER) — Frente A.
 
 ---
 
@@ -120,16 +120,18 @@ Sin alcance por región → no necesita `condicionAlcance`. Ruta montada **despu
 - [x] **Escrituras** (negocioManagement, pago, onboarding) ya no persisten el texto (solo `ciudad_id`). `usuarios.ciudad` se respetó (otra migración).
 - [x] Columna `ciudad` retirada del **ORM** (`schema.ts`).
 - [x] Verificado: `tsc` + harness `probar-contract-ciudad.ts` (18 funciones de todos los servicios en runtime, TODO VERDE).
-- [ ] **Correr el DROP** `docs/migraciones/2026-06-18-drop-negocio-sucursales-ciudad.sql` en **dev y prod** (lo aplica Juan; confirmar backfill prod).
+- [x] **DROP corrido** `docs/migraciones/2026-06-18-drop-negocio-sucursales-ciudad.sql` en **dev y prod** (19 jun). Columna texto eliminada.
 
 ---
 
 ## Pendientes que quedan
 - [ ] **Verificación visual E2E** — levantar Panel (ver mapa, alta, agrupar) + web (que una ciudad nueva aparezca en el selector).
-- [ ] **Correr el DROP** de `negocio_sucursales.ciudad` (ver arriba).
+- [x] **Correr el DROP** de `negocio_sucursales.ciudad` (dev+prod, 19 jun — ver arriba).
 - [ ] **Hardcodes "Puerto Peñasco" en Vacantes** (`VacanteDetalleInline`, `VacantesEmpty`, `SlideoverNuevaVacante`) — UX, no usan la columna.
 - [x] **Editar ciudad por fila** (nombre/estado/importancia) — menú "⋯" → Editar → `DialogoEditarCiudad` + `useEditarCiudad`. (Coords: se ajustan desde el mapa; edición de coords por mapa = futuro.)
-- [ ] _Relacionado (otra migración):_ `usuarios.ciudad` (columna texto legado, mismo patrón).
+- [x] _Migraciones hermanas (mismo patrón, 19 jun):_ `servicios_publicaciones.ciudad`, `articulos_marketplace.ciudad` y `preguntas_comunidad.ciudad` → migradas y **DROPeadas en dev+prod**. Cubren Servicios+Vacantes, MarketPlace y Home/"Pregúntale a [ciudad]"/Coyo. Migraciones SQL en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
+- [ ] _Migración hermana — `usuarios.ciudad`:_ migrada a `ciudad_id`; **DROP corrido en DEV, falta DROP en PROD** (último paso operativo, lo aplica Juan). Cubre Perfil, expediente del Panel Usuarios y la ciudad del oferente/vendedor/prestador en Servicios/MarketPlace.
+- [x] _Logs de búsqueda_ (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) → se **quedan como TEXTO analítico por decisión** (NO migran a FK).
 
 ---
 

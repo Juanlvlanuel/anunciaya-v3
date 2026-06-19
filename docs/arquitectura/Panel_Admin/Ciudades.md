@@ -4,8 +4,10 @@
 > Capa 1 = en lenguaje de persona; Capa 2 = apéndice técnico. Lo que FALTA vive en
 > [`Ciudades_Pendientes.md`](Ciudades_Pendientes.md).
 >
-> **Estado:** ✅ construido (código + verificado con harness). Falta verificación visual E2E y el
-> DROP de la columna legado (ver Pendientes). **Última actualización:** 18 Junio 2026.
+> **Estado:** ✅ construido (código + verificado con harness). La migración ciudad→catálogo quedó
+> **cerrada** (todas las secciones consumen el catálogo; columnas texto DROPeadas en dev+prod, salvo el
+> DROP de `usuarios.ciudad` en prod — ver Pendientes). Falta verificación visual E2E.
+> **Última actualización:** 19 Junio 2026.
 
 ---
 
@@ -97,13 +99,25 @@ falla, queda la semilla.
 - **Dataset empaquetado** (INEGI, uso libre con atribución) en vez de un servicio de geocoding.
 - **Orden del catálogo del Panel:** por estado y, dentro de cada estado, por nombre.
 
-### Fase "contract" (ciudad↔región cerrada)
-Como parte de habilitar el catálogo, se retiró la dependencia de la columna texto
-`negocio_sucursales.ciudad`: **13 servicios** ahora leen `ciudades.nombre` vía `LEFT JOIN ... ON ciudad_id`
-(alias `ciudad` conservado → frontend intacto), las escrituras solo persisten `ciudad_id`, y la columna
-salió del ORM. El **DROP** de la columna lo ejecuta la migración
-`docs/migraciones/2026-06-18-drop-negocio-sucursales-ciudad.sql`. (La columna `usuarios.ciudad` es otra
-migración pendiente.)
+### Fase "contract" (migración ciudad→catálogo CERRADA)
+Como parte de habilitar el catálogo se retiró la dependencia de las columnas texto `ciudad` en todas las
+secciones (patrón expand-migrate-contract, cerrado el 19 jun): las lecturas resuelven `ciudades.nombre` vía
+`LEFT JOIN ciudades c ON c.id = <tabla>.ciudad_id` (alias `ciudad` conservado → frontend intacto), las
+escrituras solo persisten `ciudad_id` (vía `resolverCiudadId(texto)` de `utils/ciudades.ts`), y las columnas
+texto salieron del ORM. Estado por tabla:
+
+| Tabla | Cubre | Estado columna texto |
+|---|---|---|
+| `negocio_sucursales.ciudad` | Negocios, Ofertas, CardYA, ChatYA, Business Studio, casi todo el Panel Admin | ✅ migrada + DROP (dev+prod) — `docs/migraciones/2026-06-18-drop-negocio-sucursales-ciudad.sql` |
+| `servicios_publicaciones.ciudad` | Servicios + Vacantes de Business Studio | ✅ migrada + DROP (dev+prod) |
+| `articulos_marketplace.ciudad` | MarketPlace (feed, detalle, compartible, Mis Guardados, perfil vendedor) | ✅ migrada + DROP (dev+prod) |
+| `preguntas_comunidad.ciudad` | Home / "Pregúntale a [ciudad]" / Coyo | ✅ migrada + DROP (dev+prod) |
+| `usuarios.ciudad` | Perfil, expediente del Panel Usuarios, ciudad del oferente/vendedor/prestador | ✅ migrada; DROP en dev — **DROP en prod pendiente** (ver Pendientes) |
+
+Los logs de búsqueda (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) se
+quedan como **texto analítico por decisión** (NO se migran a FK). Migraciones SQL one-shot:
+`docs/migraciones/2026-06-19-*-ciudad-*.sql` (servicios, marketplace, preguntas-comunidad, usuarios) +
+las de 2026-06-06/16/18.
 
 ### Verificación
 - Harness: `probar-ciudades-lectura.ts`, `probar-ciudades-acciones.ts` (guard "una región" incluido),

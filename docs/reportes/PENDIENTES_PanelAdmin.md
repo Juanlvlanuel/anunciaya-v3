@@ -3,7 +3,7 @@
 > Checklist de lo que falta para el Panel Admin y su sistema de vendedores/ventas.
 > El **diseño** vive en `Panel_Admin.md`; aquí está **lo que falta hacer**.
 > **Módulos con checklist propio** (su detalle ya NO vive aquí, solo el puntero): **Negocios** → `Negocios_Pendientes.md`. A medida que cada módulo se construya, tendrá el suyo y saldrá de este doc global.
-> Última actualización: 10 Junio 2026.
+> Última actualización: 19 Junio 2026.
 >
 > Leyenda: 🔴 bloqueante / base · 🟡 importante · 🟢 mejora · ✅ hecho
 
@@ -49,7 +49,7 @@
 
 - [ ] 🟢 **Métricas globales** — lo medible hoy (la analítica de comportamiento es proyecto aparte).
 - [ ] 🟢 **Resumen / inicio** — tablero con números gruesos.
-- [ ] 🟡 **Ciudades — UI del Panel** — la migración a BD **ya está hecha** (tabla `ciudades` poblada; ver §Migración ciudad↔región). Falta: **UI** para habilitar/agrupar ciudades en regiones sin código, y que el buscador del onboarding lea de BD (hoy lee del catálogo + mapea a `ciudad_id` al guardar).
+- [ ] 🟡 **Ciudades — UI del Panel** — la migración a BD **ya está hecha** (tabla `ciudades` poblada; ver §Migración ciudad↔región). Falta: **UI** para habilitar/agrupar ciudades en regiones sin código. (El buscador del onboarding ya lee de BD — "catálogo hidratable": `useCiudades` hidrata `ciudadesPopulares` desde `GET /api/ciudades`; el array hardcodeado quedó solo de semilla/fallback — y mapea a `ciudad_id` al guardar.)
   - [ ] 🟡 **Consolidar el catálogo de ciudades (Camino B — cierre)** — el **Camino A ya se hizo**: `packages/shared/.../ciudadesPopulares.ts` se completó (= web, con Sonoyta + `estadosMexico` + `buscarEstados`) y el seed de ciudades lee de shared; el duplicado de `web` sigue vivo pero **sin descuadre**. **Falta el Camino B:** convertir `apps/web/.../ciudadesPopulares.ts` en re-export de `@anunciaya/shared` + alias `@anunciaya/shared` en `apps/web/vite.config.ts` + dep `workspace:*` en `apps/web/package.json` (los 8 importadores no cambian). Validar con `pnpm --filter @anunciaya/web build`. Riesgo bajo-medio (toca el bundler de web).
 - [ ] 🟢 **Configuración** — UI para editar las configs (ya con el helper de la Ronda 3).
 - [ ] 🟡 **Publicidad** — carruseles por ciudad, precios configurables, opción "todas las ciudades", métricas de ingresos.
@@ -71,7 +71,7 @@
 - [x] ✅ **Paso 9** — onboarding/sucursales resuelven y guardan `ciudad_id` al guardar la ubicación (helper `resolverCiudadId` por slug). El texto `ciudad` se conserva y se mantiene en sincronía.
 - [x] ✅ **Paso 10 — código** — quitadas `negocios.region_id` y `embajadores.region_id` de `schema.ts`/`relations.ts`/`middleware` + migrado el último uso (región del vendedor del Panel → `embajador_ciudades`). tsc/lint en verde; en producción.
 - [x] ✅ **Paso 10 — SQL** — `DROP COLUMN` de `negocios.region_id` y `embajadores.region_id` ejecutado en **DEV y PROD** (verificado: solo queda `usuarios.region_id`). Tablas de respaldo `_backup_*_20260606` eliminadas en ambos. Comentarios del código pasados a tiempo pasado. **Migración ciudad↔región CERRADA (dev + prod).**
-- [ ] 🟢 **Fase 2 (futuro)** — migrar las **lecturas** de `negocio_sucursales.ciudad` (texto) a `ciudad_id → ciudades.nombre` (feed público, perfil de sucursal, ScanYA, ofertas/servicios…) para algún día eliminar la columna de texto.
+- [x] ✅ **Fase 2 — lecturas a `ciudad_id` + DROP de la columna texto** (HECHO 19 jun 2026, patrón expand-migrate-contract) — migradas las **lecturas** de `negocio_sucursales.ciudad` (texto) a `LEFT JOIN ciudades c ON c.id = ciudad_id → c.nombre AS ciudad` (feed público, perfil de sucursal, ScanYA, ofertas, BS, casi todo el Panel) y la **columna texto DROPeada en dev + prod**. Mismo tratamiento extendido a las otras tablas con ciudad texto: `servicios_publicaciones.ciudad` (Servicios + Vacantes), `articulos_marketplace.ciudad` (MarketPlace), `preguntas_comunidad.ciudad` (Home / Pregúntale a [ciudad] / Coyo) → **todas migradas y DROPeadas en dev + prod**. `usuarios.ciudad` migrada; DROP corrido en DEV, **DROP en PROD pendiente** (último paso operativo). Escrituras vía `resolverCiudadId(texto)` (`apps/api/src/utils/ciudades.ts`), que persiste solo `ciudad_id`. Los logs de búsqueda (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) se quedan como TEXTO analítico por decisión. SQL one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
 - [x] ✅ **Apoyo — gerentes de prueba en DEV** — `gerente.norte@test.com` / `gerente.centro@test.com` (`seed-gerentes-dev.ts`) para validar permisos.
 - [x] ✅ **Apoyo — vendedor de prueba en DEV** — `vendedor.prueba@dev.local` / `Vendedor1234*` (`rol_equipo='vendedor'`, embajador `JUAN01`, cobertura Peñasco+Sonoyta → Sonora-Norte; `seed-vendedor-prueba.ts`). Atribución Camino A re-validada E2E el 7-jun: registro con `?ref=JUAN01` → negocio "Negocio de Prueba" con `embajador_id` apuntando a JUAN01, visible en su cartera del Panel (badge del menú aún DEMO=19).
 - [x] ✅ **Apoyo — fix de pool de conexiones** — `db/index.ts` (`max:5` + `idleTimeoutMillis` + cierre del pool en SIGTERM/SIGINT) para que los reinicios del watcher en dev no agoten el pooler de Supabase (session mode, 15 conexiones).

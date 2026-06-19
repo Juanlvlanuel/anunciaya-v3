@@ -65,9 +65,17 @@
   del catálogo (catálogo hidratable con fallback). Incluyó la **fase contract**: retirar
   `negocio_sucursales.ciudad` de las lecturas/escrituras de **13 servicios** + sacarla del ORM (migración de
   DROP lista). Verificado con 3 harness (lectura, acciones, contract-runtime de 18 funciones) + tsc/builds.
-  Solo SuperAdmin. **Falta:** verificación visual E2E + correr el DROP en dev/prod. Decisión: unificar mapas en
+  Solo SuperAdmin. Decisión: unificar mapas en
   MapLibre (`apps/web` migra de Leaflet después, ver `Migracion_MapLibre.md`).
-- **Siguiente:** validar E2E las Piezas 2 y 3 de Stripe; correr el DROP de `negocio_sucursales.ciudad`;
+- **Recién cerrado (19 jun):** **Migración ciudad → catálogo `ciudades` (FK `ciudad_id`)** completa
+  (expand-migrate-contract). Migradas y columna texto DROPeada en dev+prod: `negocio_sucursales.ciudad`
+  (Negocios, Ofertas, CardYA, ChatYA, Business Studio, casi todo el Panel), `servicios_publicaciones.ciudad`
+  (Servicios + Vacantes), `articulos_marketplace.ciudad` (MarketPlace) y `preguntas_comunidad.ciudad`
+  (Home / Pregúntale a la ciudad / Coyo). `usuarios.ciudad` migrada; DROP corrido en DEV, **DROP en PROD
+  pendiente** (último paso operativo). Lecturas vía `LEFT JOIN ciudades` (alias `ciudad` conservado, front
+  intacto); escrituras vía `resolverCiudadId(texto)` persistiendo solo `ciudad_id`. Logs de búsqueda quedan
+  como texto analítico por decisión. Migraciones one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
+- **Siguiente:** validar E2E las Piezas 2 y 3 de Stripe; correr el DROP de `usuarios.ciudad` en prod;
   hardcodes "Puerto Peñasco" en Vacantes. Vendedores · cobro automático de efectivo = backlog.
 
 ---
@@ -83,7 +91,7 @@
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
-| 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · falta verificación visual + DROP de la columna legado | `Ciudades.md` · `Ciudades_Pendientes.md` |
+| 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod, salvo `usuarios.ciudad` en prod) | `Ciudades.md` · `Ciudades_Pendientes.md` |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 11 | Sistema (Mantenimiento + Auditoría) | 🟡 | Mantenimiento ✅ / Auditoría-UI ⬜ | `Mantenimiento_R2.md` |
@@ -122,10 +130,13 @@
 - **8 · Ciudades** — **construido** (doc [`Ciudades.md`](Ciudades.md)). Mapa interactivo de México (MapLibre,
   4,563 ciudades de INEGI) para **dar de alta ciudades nuevas** (clic en gris) y **agruparlas en regiones**
   (clic en azul); pestañas Ciudades/Regiones con acciones por fila; endpoint público `GET /api/ciudades` + la
-  app web consume el catálogo de la BD (antes leía un array hardcodeado). Incluyó la **fase contract** de la
-  migración ciudad↔región (13 servicios dejan de usar `negocio_sucursales.ciudad`; columna fuera del ORM;
-  migración de DROP lista). Solo SuperAdmin. **Pendiente:** verificación visual E2E, correr el DROP en dev/prod,
-  y los hardcodes "Puerto Peñasco" de Vacantes. **Backlog relacionado:** `usuarios.ciudad` (otra columna texto).
+  app web consume el catálogo de la BD (antes leía un array hardcodeado). La **migración ciudad → catálogo
+  `ciudades` (FK `ciudad_id`)** quedó **cerrada** (expand-migrate-contract): `negocio_sucursales.ciudad`,
+  `servicios_publicaciones.ciudad`, `articulos_marketplace.ciudad` y `preguntas_comunidad.ciudad` migradas y
+  DROPeadas en dev+prod; `usuarios.ciudad` migrada con DROP en dev (**DROP en prod pendiente**). Lecturas vía
+  `LEFT JOIN ciudades` (alias `ciudad`); escrituras vía `resolverCiudadId(texto)`. Solo SuperAdmin.
+  **Pendiente:** verificación visual E2E, el DROP de `usuarios.ciudad` en prod, y los hardcodes "Puerto Peñasco"
+  de Vacantes.
 - **9 · Configuración** — **v1 construido y en uso** (doc [`Configuracion.md`](Configuracion.md)): el tablero
   económico (escalera de comisiones + trial + gracia), solo SuperAdmin, con auditoría y reset de caché. Backlog:
   correr la migración en prod (idempotente), y sumar claves nuevas cuando una sección futura tenga una palanca

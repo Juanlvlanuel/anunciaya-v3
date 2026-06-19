@@ -13,11 +13,14 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho
 >
-> **Última actualización:** 16 Junio 2026 — módulo cerrado; se le **agregó medición/filtrado por
-> ciudad** (`ciudad_id` + puente de ubicación + filtro y métrica "por ciudad"; ver `Usuarios.md`
-> §12 / Apéndice I), **aplicado en DEV y PROD** (migración + seed del catálogo + backfills). De paso
-> se completó la **campaña ciudad↔región en PROD** (faltaban datos: region_id en ciudades + backfill
-> de sucursales). Pendiente solo los V2 de abajo.
+> **Última actualización:** 19 Junio 2026 — **migración global ciudad→catálogo cerrada**: `usuarios.ciudad_id`
+> ya es la fuente (lecturas/escrituras vía catálogo) y la columna texto `usuarios.ciudad` se DROPeó en
+> DEV; el **DROP en PROD es el único paso operativo restante** (ver "Pendiente" abajo y `Usuarios.md`
+> §12). Antes (16 Jun 2026): módulo cerrado; se le **agregó medición/filtrado por ciudad** (`ciudad_id`
+> + puente de ubicación + filtro y métrica "por ciudad"; ver `Usuarios.md` §12 / Apéndice I),
+> **aplicado en DEV y PROD** (migración + seed del catálogo + backfills). De paso se completó la
+> **campaña ciudad↔región en PROD** (faltaban datos: region_id en ciudades + backfill de sucursales).
+> Pendiente solo los V2 de abajo.
 
 ---
 
@@ -44,8 +47,10 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
 - **Medición y filtrado por ciudad** (16 Jun 2026): columna `usuarios.ciudad_id` (FK al catálogo,
   gemela de `negocio_sucursales`), puente GPS→backend (`PATCH /auth/ubicacion`), filtro por ciudad +
   métrica "por ciudad" en la pantalla. La ciudad **no** altera la visibilidad por región (V2).
-  Migración `2026-06-16-usuarios-ciudad-id.sql` + backfill `mapear-usuario-ciudad-id.ts`. Es la fase
-  **Expand** de la migración global ciudad→catálogo. Detalle: `Usuarios.md` §12 y Apéndice I.
+  Migración `2026-06-16-usuarios-ciudad-id.sql` + backfill `mapear-usuario-ciudad-id.ts`. **Migración
+  global ciudad→catálogo cerrada (19 Jun 2026):** lecturas y escrituras ya van por `ciudad_id`
+  (resolución vía `resolverCiudadId`) y la columna texto `usuarios.ciudad` quedó **DROPeada en DEV**;
+  el **DROP en PROD es el único paso operativo restante**. Detalle: `Usuarios.md` §12 y Apéndice I.
 
 ---
 
@@ -55,6 +60,11 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
 > móvil-desktop, consistencia con Negocios) y verificación de suspensión ✅ (login de cuenta
 > suspendida → 403 `CUENTA_SUSPENDIDA`, no entra a AY; suspender al dueño **no** oculta su negocio).
 > El módulo queda **cerrado**. Lo único que sigue son los V2 de abajo.
+
+### 🟡 Operativo pendiente (migración ciudad→catálogo)
+- 🟡 **DROP de `usuarios.ciudad` en PROD:** el código y DEV ya viven sin la columna texto (lecturas y
+  escrituras por `ciudad_id`); falta correr el DROP en la BD de producción para cerrar la fase
+  **contract** de la migración global ciudad→catálogo. Es el último paso operativo del módulo.
 
 ### 🟢 Fuera de V1 (V2 consciente — anotado, no escondido)
 - 🟢 **Acoplar la región del cliente a la visibilidad:** hoy `ciudad_id` solo mide/filtra; el gerente

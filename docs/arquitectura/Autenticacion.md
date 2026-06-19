@@ -1,7 +1,7 @@
 # 🔐 AnunciaYA v3.0 - Sistema de Autenticación
 
-**Última actualización:** 5 Junio 2026  
-**Versión:** 5.3 (Candado de modo comercial para negocios fuera de circulación)
+**Última actualización:** 19 Junio 2026  
+**Versión:** 5.4 (Ciudad del usuario vía catálogo `ciudad_id`)
 
 ---
 
@@ -136,6 +136,25 @@ Este documento describe la **arquitectura conceptual** del sistema de autenticac
 | PATCH | `/api/auth/modo` | Cambiar modo (personal ↔ comercial) |
 | GET | `/api/auth/modo-info` | Obtener información del modo actual |
 | PATCH | `/api/auth/ubicacion` | Guardar la ciudad del usuario (selector/GPS → `ciudad_id`) |
+
+---
+
+### 🏙️ Ciudad del usuario vía catálogo (`ciudad_id`)
+
+> Migración **ciudad (texto) → catálogo `ciudades` (FK `ciudad_id`)** completada el **19 Junio 2026**
+> (patrón expand-migrate-contract). La columna texto `usuarios.ciudad` quedó DROPeada en DEV
+> (DROP en PROD pendiente como último paso operativo).
+
+- **Lectura (`GET /api/auth/yo`, login, etc.):** `usuarioAPublico` (`auth.service.ts`) ya no lee la
+  columna texto; resuelve el **nombre** de la ciudad desde el catálogo por la FK `usuario.ciudad_id`
+  (1 lookup por sesión, indexado por PK) y lo expone en el campo de salida `ciudad`. Si `ciudad_id`
+  es NULL, `ciudad` sale `null`. El alias de salida `ciudad` se conservó: el frontend no cambió.
+- **Escritura (`PATCH /api/auth/ubicacion`):** `actualizarUbicacionUsuario` recibe el **texto** del
+  selector/GPS, lo resuelve a `ciudad_id` por slug con `resolverCiudadId()` (`utils/ciudades.ts`,
+  el mismo helper que usan las sucursales) y persiste **solo `ciudad_id`**. Si el texto no casa con
+  ninguna ciudad del catálogo, `ciudad_id` queda NULL.
+- La ciudad del usuario alimenta el expediente del Panel Usuarios y se usa como ciudad del
+  oferente/vendedor/prestador en Servicios/MarketPlace.
 
 ---
 

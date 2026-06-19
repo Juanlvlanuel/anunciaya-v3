@@ -332,14 +332,15 @@ Desde Jun 2026 la ciudad se **captura sola**: cuando una persona usa la app **co
 la ciudad que detecta su GPS / elige en el selector del header se **guarda en su cuenta** (sin pedirle
 nada). Así el desglose "por ciudad" se va llenando con el uso.
 
-- **Se normaliza:** además del texto, se guarda un enlace al **catálogo de ciudades** (`ciudad_id`),
-  para que "Peñasco", "puerto peñasco" y "Puerto Peñasco" cuenten como **una sola** ciudad.
+- **Se normaliza:** la ciudad se guarda como enlace al **catálogo de ciudades** (`ciudad_id`),
+  para que "Peñasco", "puerto peñasco" y "Puerto Peñasco" cuenten como **una sola** ciudad. El
+  expediente y el filtro leen el **nombre** desde el catálogo (vía `ciudad_id`).
 - **"Sin ciudad"** = la persona aún no ha abierto la app con sesión desde que esto existe (o su ciudad
   no está en el catálogo). No es un error; se corrige solo con el uso.
 - **Privacidad:** se guarda la **ciudad** (grano grueso), no la ubicación exacta.
 
-> Esto es la **primera fase** (Expand) de una migración mayor: llevar todos los usos de "ciudad"
-> texto al catálogo `ciudades`. Ver el Apéndice I.
+> Esto fue la **primera fase** (Expand) de una migración mayor —llevar todos los usos de "ciudad"
+> texto al catálogo `ciudades`— que ya quedó **completada** (migrate + contract). Ver el Apéndice I.
 
 ---
 
@@ -455,7 +456,9 @@ booleanos derivados (`tieneContrasena`, etc.). Trae:
 - **Sombreros** (`SombrerosUsuario`): dueño/negocio, empleado (`total_empleos`), embajador
   (`codigo_referido`), `rol_equipo`, billeteras/saldo de puntos, total de reseñas — todo en
   contadores, **nunca** listados navegables.
-- Identidad + verificaciones + métodos de auth + reputación + `ultimo_acceso_panel`.
+- Identidad + verificaciones + métodos de auth + reputación + `ultimo_acceso_panel`. La **ciudad**
+  se resuelve por `LEFT JOIN ciudades c ON c.id = usuarios.ciudad_id` (`c.nombre AS ciudad`); ya
+  no se lee de una columna texto.
 
 El modal (`FichaUsuario.tsx`) se depuró: muestra **Acceso** (diagnóstico + login social/2FA),
 **Identidad** (sin género; correo copiable), **Roles** (sombreros + modo comercial + ID copiable)
@@ -480,6 +483,9 @@ One-shot manuales (el deploy no toca la BD):
   ciudades(id)` + índice. Backfill: **`apps/api/scripts/mapear-usuario-ciudad-id.ts`** (mapea el
   texto `usuarios.ciudad` → `ciudad_id` por slug; tolera datos legacy "Ciudad, Estado"). Orden en
   PROD: migración SQL primero, luego el backfill (`DB_ENVIRONMENT=production`). Ver Apéndice I.
+- **DROP de `usuarios.ciudad` (texto)** — fase **contract** de la migración. Ya **corrida en DEV**;
+  **pendiente en PROD** (último paso operativo, una vez validado el backfill). Tras el DROP, la
+  ciudad vive solo en `ciudad_id` y se lee del catálogo.
 
 El resto del módulo usa columnas que ya existían (`estado`, `negocio_id`, `sucursal_asignada`,
 `rol_equipo`, `region_id`, `bloqueado_hasta`, `intentos_fallidos`, `correo_verificado`,
@@ -496,18 +502,21 @@ El resto del módulo usa columnas que ya existían (`estado`, `negocio_id`, `suc
 ## I. Ubicación del usuario (ciudad) — dato, puente, filtro y métrica
 
 Capacidad agregada el **16 Jun 2026** (sobre el módulo ya cerrado): **medir y filtrar usuarios por
-ciudad**. Gemela de `negocio_sucursales.ciudad_id`. Es la fase **Expand** de la migración global
-"ciudad texto → catálogo `ciudades`" (ver memoria de proyecto `project-migracion-ciudad-catalogo`).
+ciudad**. Gemela de `negocio_sucursales.ciudad_id`. Forma parte de la migración global "ciudad texto
+→ catálogo `ciudades`" (ver memoria de proyecto `project-migracion-ciudad-catalogo`), que para
+`usuarios` ya quedó **completada** (expand → migrate → contract): el `ciudad_id` se pobló por backfill
+y el texto `usuarios.ciudad` se **DROPeó en DEV** (DROP en PROD pendiente como último paso, ver Apéndice G).
 
-**El dato.** Nueva columna **`usuarios.ciudad_id` uuid** → FK a `ciudades` (nullable, `ON DELETE SET
-NULL`) + índice completo `idx_usuarios_ciudad_id`. Se **conserva** el texto `usuarios.ciudad` (lo
-leen el expediente y `/auth/yo`). Texto = lo crudo/mostrable; `ciudad_id` = lo normalizado.
+**El dato.** Columna **`usuarios.ciudad_id` uuid** → FK a `ciudades` (nullable, `ON DELETE SET NULL`)
++ índice completo `idx_usuarios_ciudad_id`. Es la **única** fuente de la ciudad: el expediente, el
+filtro y la métrica la resuelven por `JOIN` al catálogo (`c.nombre AS ciudad`). El texto
+`usuarios.ciudad` ya **no se lee** (queda como columna a DROPear en PROD).
 
 **El puente (app web).** El `useGpsStore` vive en el cliente y nunca mandaba la ciudad al backend.
 Se agregó:
 - `PATCH /api/auth/ubicacion` (`actualizarUbicacionUsuario` en `auth.service.ts`): recibe el **nombre**
-  de la ciudad, lo resuelve a `ciudad_id` con `resolverCiudadId` (slug) y guarda **ambos**. No toca
-  `region_id`. Sin match en el catálogo → `ciudad_id` NULL, texto conservado.
+  de la ciudad, lo resuelve a `ciudad_id` con `resolverCiudadId` (slug) y persiste **solo `ciudad_id`**.
+  No toca `region_id`. Sin match en el catálogo → `ciudad_id` NULL.
 - `reportarUbicacion()` en `apps/web/src/services/authService.ts` + un efecto en
   `apps/web/src/router/RootLayout.tsx` que lo dispara cuando hay sesión + ciudad fijada (clave
   `usuarioId:ciudad`, fire-and-forget). Manda **solo el nombre** (no "Ciudad, Estado").
@@ -525,9 +534,12 @@ visibilidad por región (ver §6). Acoplarlo a la visibilidad del cliente es V2.
 
 ---
 
-*Última actualización: 16 Junio 2026 · agrega medición/filtrado por ciudad (`usuarios.ciudad_id` +
-puente GPS→backend `PATCH /auth/ubicacion` + filtro y métrica "por ciudad" en el Panel; ver §12 y
-Apéndice I). Antes (11 Jun 2026): taxonomía de roles (SuperAdmin / Gerente regional / Vendedor /
+*Última actualización: 19 Junio 2026 · migración ciudad→catálogo **completada** para `usuarios`
+(expand→migrate→contract): la ciudad se lee solo del catálogo vía `ciudad_id` (expediente, filtro y
+métrica); el texto `usuarios.ciudad` se DROPeó en DEV y el DROP en PROD queda como último paso (ver
+§12, Apéndice G y Apéndice I). Antes (16 Jun 2026): agrega medición/filtrado por ciudad
+(`usuarios.ciudad_id` + puente GPS→backend `PATCH /auth/ubicacion` + filtro y métrica "por ciudad" en
+el Panel). Antes (11 Jun 2026): taxonomía de roles (SuperAdmin / Gerente regional / Vendedor /
 Dueño / Gerente de sucursal / Usuario), filtro por rol acoplado al rol, visibilidad por jerarquía +
 región del gerente (acotado, ya no cross-región), lente de región del superadmin, expediente depurado
 (correo/ID copiables), y la métrica "último acceso al Panel".*
