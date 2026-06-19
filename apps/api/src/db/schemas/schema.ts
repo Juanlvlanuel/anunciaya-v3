@@ -2292,7 +2292,11 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull(),
 	texto: varchar({ length: 500 }).notNull(),
-	ciudad: varchar({ length: 120 }).notNull(),
+	// Ciudad: SOLO `ciudad_id` (FK al catálogo `ciudades`, migración 2026-06-19). La columna
+	// texto `ciudad` se retiró (contract; DROP en 2026-06-19-preguntas-comunidad-ciudad-drop.sql).
+	// Las preguntas las hacen personas (sin sucursal): ciudad_id se resuelve del texto con
+	// resolverCiudadId. Las lecturas leen `ciudades.nombre` vía esta FK.
+	ciudadId: uuid("ciudad_id").references(() => ciudades.id, { onDelete: 'set null' }),
 	estado: varchar({ length: 100 }).notNull(),
 	estadoPregunta: varchar("estado_pregunta", { length: 20 }).default('activa').notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
@@ -2307,7 +2311,7 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 	// más respuestas), pero el frontend la trata distinto (ícono ✓, ordenada al final, etc.).
 	resueltaAt: timestamp("resuelta_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	index("idx_preguntas_comunidad_ciudad_fecha").using("btree", table.ciudad.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_preguntas_comunidad_ciudad_id_fecha").using("btree", table.ciudadId.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`ciudad_id IS NOT NULL`),
 	index("idx_preguntas_comunidad_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	index("idx_preguntas_comunidad_coyo_pendientes").using("btree", table.estadoCoyo.asc().nullsLast(), table.createdAt.desc().nullsFirst()).where(sql`estado_coyo IN ('pendiente', 'procesando')`),
 	foreignKey({

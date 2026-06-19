@@ -29,7 +29,7 @@
 
 import { sql, eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { preguntasComunidad, usuarios } from '../../db/schemas/schema.js';
+import { preguntasComunidad, usuarios, ciudades } from '../../db/schemas/schema.js';
 import { interpretarPregunta, redactarRespuestaCoyo } from './coyoIA.service.js';
 import {
     buscarEnTodaLaApp,
@@ -262,13 +262,25 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
                 id: preguntasComunidad.id,
                 usuarioId: preguntasComunidad.usuarioId,
                 texto: preguntasComunidad.texto,
-                ciudad: preguntasComunidad.ciudad,
+                ciudadId: preguntasComunidad.ciudadId,
             });
 
         const pregunta = filas[0];
         if (!pregunta) {
             console.warn('Coyo orquestador: pregunta no existe en BD', preguntaId);
             return;
+        }
+
+        // Nombre de la ciudad (del catálogo, vía la FK) para alimentar el buscador
+        // unificado, que filtra negocios/ofertas/MP/servicios por el nombre de ciudad.
+        let nombreCiudad = '';
+        if (pregunta.ciudadId) {
+            const [c] = await db
+                .select({ nombre: ciudades.nombre })
+                .from(ciudades)
+                .where(eq(ciudades.id, pregunta.ciudadId))
+                .limit(1);
+            nombreCiudad = c?.nombre ?? '';
         }
 
         // ─── 2. Interpretar pregunta con la cajita IA ────────────────
@@ -342,7 +354,7 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
         // ─── 4. Buscar en las 4 áreas (parallel inside) ──────────────
         const resultadoBusqueda = await buscarEnTodaLaApp({
             q: interpretacion.data.terminos,
-            ciudad: pregunta.ciudad,
+            ciudad: nombreCiudad,
         });
 
         const totalResultados =

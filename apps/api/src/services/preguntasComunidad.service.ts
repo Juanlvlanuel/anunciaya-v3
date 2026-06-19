@@ -15,8 +15,10 @@ import {
     preguntasComunidad,
     respuestasPreguntasComunidad,
     usuarios,
+    ciudades,
 } from '../db/schemas/schema.js';
 import { eq, and, desc, sql } from 'drizzle-orm';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import type {
     CrearPreguntaInput,
     ListarPreguntasPorCiudadInput,
@@ -69,7 +71,7 @@ const DIAS_EXPIRACION_RESUELTA = 7;
  *     `MAX(respuestas.created_at WHERE estado='activa')` para esa pregunta.
  *     Si no hay respuestas, se usa `preguntas_comunidad.created_at`.
  *   - El barrido es por ciudad para que solo el tráfico de esa ciudad pague
- *     el costo, y para que el `WHERE ciudad = ...` use el índice existente.
+ *     el costo, y para que el `WHERE ciudad_id = ...` use el índice por ciudad_id.
  *   - Idempotente: si no hay vencidas, el UPDATE afecta 0 filas y sale rápido.
  *   - No relanza errores — si el UPDATE falla, el feed se sigue mostrando
  *     normalmente (solo no se cierran preguntas en esta corrida).
@@ -82,13 +84,13 @@ const DIAS_EXPIRACION_RESUELTA = 7;
  *      (referencia / por si llegan más aportes) y luego se cierra sola — el
  *      autor la conserva en "Mis preguntas" con badge "Cerrada".
  */
-async function cerrarPreguntasVencidasDeCiudad(ciudad: string): Promise<void> {
+async function cerrarPreguntasVencidasDeCiudad(ciudadId: string): Promise<void> {
     try {
         await db.execute(sql`
             UPDATE preguntas_comunidad
             SET estado_pregunta = 'cerrada',
                 updated_at = NOW()
-            WHERE ciudad = ${ciudad}
+            WHERE ciudad_id = ${ciudadId}
               AND estado_pregunta = 'activa'
               AND (
                   COALESCE(
@@ -111,7 +113,7 @@ async function cerrarPreguntasVencidasDeCiudad(ciudad: string): Promise<void> {
         // igual (solo no se cerrarán preguntas vencidas en esta corrida).
         console.warn(
             'cerrarPreguntasVencidasDeCiudad falló (no bloqueante):',
-            ciudad,
+            ciudadId,
             error,
         );
     }
@@ -144,13 +146,17 @@ export async function crearPregunta(
             return { success: false, message: 'Ciudad y estado son requeridos', code: 400 };
         }
 
+        // Resolver `ciudad_id` (FK al catálogo) del texto del payload. La pregunta la
+        // hace una persona (sin sucursal), igual que C2C de MarketPlace/Servicios.
+        const ciudadId = await resolverCiudadId(ciudad);
+
         // Insert — estado_pregunta queda en el default 'activa'
         const [nueva] = await db
             .insert(preguntasComunidad)
             .values({
                 usuarioId: input.usuarioId,
                 texto,
-                ciudad,
+                ciudadId,
                 estado,
             })
             .returning();
@@ -183,7 +189,7 @@ export async function crearPregunta(
         const preguntaFormateada: PreguntaComunidadResponse = {
             id: nueva.id,
             texto: nueva.texto,
-            ciudad: nueva.ciudad,
+            ciudad,
             estado: nueva.estado,
             estadoPregunta: nueva.estadoPregunta as EstadoPregunta,
             createdAt: nueva.createdAt ?? new Date().toISOString(),
@@ -252,6 +258,13 @@ export async function listarPreguntasPorCiudad(
             return { success: false, message: 'La ciudad es requerida', code: 400 };
         }
 
+        // Resolver el texto de ciudad → ciudad_id (FK al catálogo). Si no casa con
+        // ninguna ciudad del catálogo, no hay preguntas para ese id → feed vacío.
+        const ciudadId = await resolverCiudadId(ciudad);
+        if (!ciudadId) {
+            return { success: true, message: 'Preguntas obtenidas', data: { preguntas: [], total: 0 } };
+        }
+
         // Sanear paginación
         const limitRaw = input.limit ?? LIMIT_DEFAULT;
         const offsetRaw = input.offset ?? 0;
@@ -262,7 +275,7 @@ export async function listarPreguntasPorCiudad(
         //     actividad) ANTES de leer el feed. await intencional para que
         //     el SELECT no devuelva una pregunta que debería ser 'cerrada'.
         //     Si falla, el feed se sigue mostrando (función no relanza).
-        await cerrarPreguntasVencidasDeCiudad(ciudad);
+        await cerrarPreguntasVencidasDeCiudad(ciudadId);
 
         // Subqueries inline para conteos y "yo también interesado".
         // Más simple que joins agregados — Postgres optimiza cada subselect
@@ -276,7 +289,7 @@ export async function listarPreguntasPorCiudad(
             .select({
                 id: preguntasComunidad.id,
                 texto: preguntasComunidad.texto,
-                ciudad: preguntasComunidad.ciudad,
+                ciudad: ciudades.nombre,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
                 resueltaAt: preguntasComunidad.resueltaAt,
@@ -314,9 +327,10 @@ export async function listarPreguntasPorCiudad(
                     : sql<boolean>`false`,
             })
             .from(preguntasComunidad)
+            .leftJoin(ciudades, eq(ciudades.id, preguntasComunidad.ciudadId))
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
             .where(and(
-                eq(preguntasComunidad.ciudad, ciudad),
+                eq(preguntasComunidad.ciudadId, ciudadId),
                 eq(preguntasComunidad.estadoPregunta, 'activa')
             ))
             .orderBy(desc(preguntasComunidad.createdAt))
@@ -326,7 +340,7 @@ export async function listarPreguntasPorCiudad(
         const preguntas: PreguntaComunidadResponse[] = filas.map((f) => ({
             id: f.id,
             texto: f.texto,
-            ciudad: f.ciudad,
+            ciudad: f.ciudad ?? '',
             estado: f.estado,
             estadoPregunta: f.estadoPregunta as EstadoPregunta,
             createdAt: f.createdAt ?? new Date().toISOString(),
@@ -355,7 +369,7 @@ export async function listarPreguntasPorCiudad(
             .select({ total: sql<number>`COUNT(*)::int` })
             .from(preguntasComunidad)
             .where(and(
-                eq(preguntasComunidad.ciudad, ciudad),
+                eq(preguntasComunidad.ciudadId, ciudadId),
                 eq(preguntasComunidad.estadoPregunta, 'activa'),
             ));
         const total = Number(conteo?.total) || 0;
@@ -405,7 +419,7 @@ export async function obtenerPreguntaPorId(
             .select({
                 id: preguntasComunidad.id,
                 texto: preguntasComunidad.texto,
-                ciudad: preguntasComunidad.ciudad,
+                ciudad: ciudades.nombre,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
                 resueltaAt: preguntasComunidad.resueltaAt,
@@ -440,6 +454,7 @@ export async function obtenerPreguntaPorId(
                     : sql<boolean>`false`,
             })
             .from(preguntasComunidad)
+            .leftJoin(ciudades, eq(ciudades.id, preguntasComunidad.ciudadId))
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
             .where(and(
                 eq(preguntasComunidad.id, id),
@@ -454,7 +469,7 @@ export async function obtenerPreguntaPorId(
         const pregunta: PreguntaComunidadResponse = {
             id: f.id,
             texto: f.texto,
-            ciudad: f.ciudad,
+            ciudad: f.ciudad ?? '',
             estado: f.estado,
             estadoPregunta: f.estadoPregunta as EstadoPregunta,
             createdAt: f.createdAt ?? new Date().toISOString(),
@@ -515,7 +530,7 @@ export async function listarMisPreguntas(input: {
             .select({
                 id: preguntasComunidad.id,
                 texto: preguntasComunidad.texto,
-                ciudad: preguntasComunidad.ciudad,
+                ciudad: ciudades.nombre,
                 estado: preguntasComunidad.estado,
                 estadoPregunta: preguntasComunidad.estadoPregunta,
                 resueltaAt: preguntasComunidad.resueltaAt,
@@ -542,6 +557,7 @@ export async function listarMisPreguntas(input: {
                 )`,
             })
             .from(preguntasComunidad)
+            .leftJoin(ciudades, eq(ciudades.id, preguntasComunidad.ciudadId))
             .leftJoin(usuarios, eq(preguntasComunidad.usuarioId, usuarios.id))
             .where(eq(preguntasComunidad.usuarioId, usuarioId))
             .orderBy(desc(preguntasComunidad.createdAt))
@@ -551,7 +567,7 @@ export async function listarMisPreguntas(input: {
         const preguntas: PreguntaComunidadResponse[] = filas.map((f) => ({
             id: f.id,
             texto: f.texto,
-            ciudad: f.ciudad,
+            ciudad: f.ciudad ?? '',
             estado: f.estado,
             estadoPregunta: f.estadoPregunta as EstadoPregunta,
             createdAt: f.createdAt ?? new Date().toISOString(),
