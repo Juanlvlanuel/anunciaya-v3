@@ -52,10 +52,12 @@ import { emitirAUsuario } from '../socket.js';
  * Actualiza nombre del negocio y asigna subcategorías
  * 
  * LÓGICA DE NOMBRE:
- * - Si el negocio tiene 1 sola sucursal → sincroniza nombre en ambas tablas
- * - Si tiene 2+ sucursales → solo actualiza negocios.nombre (la marca)
- * - Si se envía nombreSucursal → actualiza negocio_sucursales.nombre de la sucursal activa
- * 
+ * - El nombre del negocio (negocios.nombre) es la marca.
+ * - La sucursal PRINCIPAL (matriz) SIEMPRE lleva el mismo nombre que el negocio,
+ *   tenga el negocio 1 o varias sucursales. Esta función solo la invoca el dueño
+ *   desde la vista de la sucursal principal (o con 1 sola sucursal); las secundarias
+ *   editan su nombre propio desde Contacto, no aquí.
+ *
  * @param negocioId - UUID del negocio
  * @param datos - { nombre, subcategoriasIds, nombreSucursal?, sucursalId? }
  * @returns Objeto con success y mensaje
@@ -65,7 +67,7 @@ export const actualizarInfoGeneral = async (
     datos: { nombre: string; subcategoriasIds: number[]; nombreSucursal?: string; sucursalId?: string }
 ) => {
     try {
-        const { nombre, subcategoriasIds, nombreSucursal, sucursalId } = datos;
+        const { nombre, subcategoriasIds } = datos;
         await db.transaction(async (tx) => {
             // 1. Verificar que el negocio existe
             const negocio = await tx
@@ -96,30 +98,25 @@ export const actualizarInfoGeneral = async (
                 })
                 .where(eq(negocios.id, negocioId));
 
-            // 3.1 Sincronizar nombre en sucursal según cantidad de sucursales
+            // 3.1 La sucursal PRINCIPAL (matriz) siempre lleva el nombre del negocio.
+            //     Aplica tenga el negocio 1 o varias sucursales. Las secundarias
+            //     conservan su nombre propio y se editan desde Contacto, no aquí.
             const sucursalesDelNegocio = await tx
                 .select({ id: negocioSucursales.id, esPrincipal: negocioSucursales.esPrincipal })
                 .from(negocioSucursales)
                 .where(eq(negocioSucursales.negocioId, negocioId));
 
-            if (sucursalesDelNegocio.length === 1) {
-                // 1 sola ubicación → sincronizar nombre en ambas tablas
+            const sucursalPrincipal =
+                sucursalesDelNegocio.find((s) => s.esPrincipal) ?? sucursalesDelNegocio[0];
+
+            if (sucursalPrincipal) {
                 await tx
                     .update(negocioSucursales)
                     .set({
                         nombre: nombre.trim(),
                         updatedAt: new Date().toISOString(),
                     })
-                    .where(eq(negocioSucursales.id, sucursalesDelNegocio[0].id));
-            } else if (nombreSucursal && sucursalId) {
-                // 2+ ubicaciones y se envió nombre de sucursal → actualizar solo esa sucursal
-                await tx
-                    .update(negocioSucursales)
-                    .set({
-                        nombre: nombreSucursal.trim(),
-                        updatedAt: new Date().toISOString(),
-                    })
-                    .where(eq(negocioSucursales.id, sucursalId));
+                    .where(eq(negocioSucursales.id, sucursalPrincipal.id));
             }
 
             // 4. Eliminar todas las subcategorías anteriores
