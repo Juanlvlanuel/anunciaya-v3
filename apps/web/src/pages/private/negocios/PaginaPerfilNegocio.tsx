@@ -33,6 +33,7 @@ import {
     Plus,
     Minus,
     Crosshair,
+    Lock,
 } from 'lucide-react';
 import { createPortal } from 'react-dom';
 import { Icon, type IconProps } from '@iconify/react';
@@ -1323,6 +1324,14 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                 </button>
                             </div>
 
+                            {/* Aviso: ChatYA requiere sesión (solo visitantes sin login, ej. perfil compartido) */}
+                            {!estaLogueado && (
+                                <p className="flex items-center justify-center gap-1.5 px-4 text-center text-[12px] text-slate-500">
+                                    <Lock className="h-3.5 w-3.5 shrink-0 text-slate-400" />
+                                    <span>Inicia sesión en AnunciaYA para chatear por ChatYA</span>
+                                </p>
+                            )}
+
                             {/* Horario pill */}
                             <div className="flex justify-center">
                             {negocio.horarios && negocio.horarios.length > 0 && (() => {
@@ -1747,6 +1756,14 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         </button>
                                     </Tooltip>
                                 </div>
+
+                                {/* Aviso: ChatYA requiere sesión (solo visitantes sin login, ej. perfil compartido) */}
+                                {!estaLogueado && (
+                                    <p className="mt-2.5 flex items-center gap-1.5 @5xl:text-[12px] @[96rem]:text-[13px] leading-snug text-slate-500">
+                                        <Lock className="@5xl:w-3.5 @5xl:h-3.5 @[96rem]:w-4 @[96rem]:h-4 shrink-0 text-slate-400" />
+                                        <span>Inicia sesión en AnunciaYA para chatear por ChatYA</span>
+                                    </p>
+                                )}
 
                                 {/* SEPARADOR */}
                                 <div className="my-5 @[96rem]:my-4 h-px bg-slate-300" />
