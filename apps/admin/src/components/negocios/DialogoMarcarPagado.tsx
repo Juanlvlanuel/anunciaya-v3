@@ -43,10 +43,14 @@ type Concepto = (typeof OPCIONES_CONCEPTO)[number]['valor'];
 /** Tope de Stripe para trial_end: 2 años (730 días). Espejo del guard del controller. */
 const MAX_MS_2_ANIOS = 730 * 24 * 60 * 60 * 1000;
 
-const FMT = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+/** Formatea "18 Jun 2026" con el mes capitalizado (Intl en español lo devuelve en minúscula). */
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const FMT = {
+  format: (d: Date): string => `${String(d.getDate()).padStart(2, '0')} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}`,
+};
 function fmt(d: Date | null): string {
   if (!d || Number.isNaN(d.getTime())) return '—';
-  return FMT.format(d).replace('.', '');
+  return FMT.format(d);
 }
 
 /** Plazo del pago: parte del MAYOR entre hoy y el vencimiento vigente, + N meses, al final del

@@ -30,13 +30,16 @@ import { useBreakpoint } from '../../hooks/useBreakpoint';
 function formatearFechaHora(iso: string): string {
 	try {
 		const fecha = new Date(iso);
-		return fecha.toLocaleString('es-MX', {
+		return new Intl.DateTimeFormat('es-MX', {
 			day: '2-digit',
 			month: 'short',
 			hour: 'numeric',
 			minute: '2-digit',
 			hour12: true,
-		});
+		})
+			.formatToParts(fecha)
+			.map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+			.join('');
 	} catch {
 		return iso;
 	}

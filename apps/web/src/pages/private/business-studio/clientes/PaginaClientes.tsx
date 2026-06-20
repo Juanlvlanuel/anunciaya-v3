@@ -120,7 +120,10 @@ const formatearFechaCorta = (fechaISO: string | null) => {
   if (diffDias === 1) return 'Ayer';
   if (diffDias < 7) return `Hace ${diffDias}d`;
   if (diffDias < 30) return `Hace ${Math.floor(diffDias / 7)}sem`;
-  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 };
 
 const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

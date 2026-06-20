@@ -186,7 +186,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
                                                 {cupon.fechaFin && (
                                                     <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">
                                                         <Calendar className="w-3 h-3 shrink-0" />
-                                                        Vence {new Date(cupon.fechaFin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                                        Vence {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).formatToParts(new Date(cupon.fechaFin)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                                                     </span>
                                                 )}
                                                 {cupon.motivo && (

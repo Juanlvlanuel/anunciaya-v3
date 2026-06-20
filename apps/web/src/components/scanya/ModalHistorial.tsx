@@ -578,7 +578,11 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     };
     const formatFechaLarga = (f: string) => {
       const d = new Date(f);
-      return d.toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }) +
+      const fechaLarga = new Intl.DateTimeFormat('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
+        .formatToParts(d)
+        .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+        .join('');
+      return fechaLarga +
         ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
     };
 

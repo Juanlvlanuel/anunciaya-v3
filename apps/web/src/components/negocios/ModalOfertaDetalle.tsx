@@ -782,11 +782,11 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
                                                 <div className="flex flex-col">
                                                     <span className="text-white/70 text-sm font-medium">Válida hasta:</span>
                                                     <span className="text-white text-sm font-bold">
-                                                        {new Date(oferta.fechaFin).toLocaleDateString('es-MX', {
+                                                        {new Intl.DateTimeFormat('es-MX', {
                                                             day: 'numeric',
                                                             month: 'long',
                                                             year: 'numeric'
-                                                        })}
+                                                        }).formatToParts(new Date(oferta.fechaFin)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                                                     </span>
                                                 </div>
                                             </div>

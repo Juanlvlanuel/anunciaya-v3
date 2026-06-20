@@ -85,7 +85,10 @@ function formatearFecha(fecha: string | null): string {
     if (diffDias === 0) return 'Hoy';
     if (diffDias === 1) return 'Ayer';
     if (diffDias < 7) return `Hace ${diffDias}d`;
-    return fechaResena.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+    return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short' })
+        .formatToParts(fechaResena)
+        .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+        .join('');
 }
 
 const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];

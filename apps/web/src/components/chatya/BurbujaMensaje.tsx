@@ -1932,7 +1932,7 @@ export const BurbujaMensaje = memo(function BurbujaMensaje({ mensaje, esMio, esM
                           <p className="text-lg lg:text-base 2xl:text-lg font-extrabold text-slate-800">{datos.titulo}</p>
                           {datos.fechaExpiracion && (
                             <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 mt-0.5">
-                              Vence {new Date(datos.fechaExpiracion).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                              Vence {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).formatToParts(new Date(datos.fechaExpiracion)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                             </p>
                           )}
                         </div>

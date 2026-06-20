@@ -684,7 +684,11 @@ export function ModalVouchers({
         };
         const formatFechaCorta = (f: string) => {
             const d = new Date(f);
-            return d.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }) +
+            const fechaCorta = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })
+                .formatToParts(d)
+                .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+                .join('');
+            return fechaCorta +
                 ', ' + d.toLocaleTimeString('es-MX', { hour: '2-digit', minute: '2-digit', hour12: true });
         };
 
@@ -807,7 +811,7 @@ export function ModalVouchers({
                                     </span>
                                 </div>
                                 <span className={VALUE} style={{ color: '#F1F5F9' }}>
-                                    {new Date(v.expiraAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })}
+                                    {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }).formatToParts(new Date(v.expiraAt)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                                 </span>
                             </div>
 

@@ -184,7 +184,11 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
     const d = new Date();
     d.setMonth(d.getMonth() + mesesEfectivo);
     d.setDate(d.getDate() + DIAS_CORTESIA_VENDEDOR);
-    return d.toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+    // Capitaliza el mes (Intl en español lo devuelve en minúscula).
+    return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' })
+      .formatToParts(d)
+      .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+      .join('');
   }, [mesesEfectivo]);
 
   // ── Validación por PASO (controla "Siguiente" y el envío final) ──

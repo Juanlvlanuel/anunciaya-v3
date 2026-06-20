@@ -255,7 +255,7 @@ export default function ModalDetalleCupon({
                                 <div>
                                     <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800">Vencimiento:</span>
                                     <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600">
-                                        {new Date(cupon.fechaFin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                        {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(new Date(cupon.fechaFin)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                                     </p>
                                 </div>
                             </div>

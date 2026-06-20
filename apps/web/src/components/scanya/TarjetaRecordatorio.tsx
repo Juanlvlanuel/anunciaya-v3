@@ -85,12 +85,15 @@ const formatearTiempoRelativo = (fechaStr: string): string => {
   if (diffDias < 7) return `hace ${diffDias} dÃ­as`;
   
   // MÃ¡s de 7 dÃ­as: mostrar fecha
-  return fecha.toLocaleDateString('es-MX', { 
-    day: 'numeric', 
+  return new Intl.DateTimeFormat('es-MX', {
+    day: 'numeric',
     month: 'short',
     hour: '2-digit',
     minute: '2-digit',
-  });
+  })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 };
 
 /**

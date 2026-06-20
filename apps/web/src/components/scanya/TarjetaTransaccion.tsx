@@ -51,7 +51,11 @@ const formatearFecha = (fechaStr: string): string => {
 
   if (fechaSinHora.getTime() === hoy.getTime()) return `Hoy, ${hora}`;
   if (fechaSinHora.getTime() === ayer.getTime()) return `Ayer, ${hora}`;
-  return `${fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}, ${hora}`;
+  const fechaCorta = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
+  return `${fechaCorta}, ${hora}`;
 };
 
 const getNivel = (nivel: string) => {

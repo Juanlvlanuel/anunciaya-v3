@@ -76,9 +76,12 @@ export function invalidarCachéArchivos(conversacionId: string) {
 
 function formatFecha(fecha: string | null) {
   if (!fecha) return 'Sin registros';
-  return new Date(fecha).toLocaleDateString('es-MX', {
+  return new Intl.DateTimeFormat('es-MX', {
     day: 'numeric', month: 'short', year: 'numeric',
-  });
+  })
+    .formatToParts(new Date(fecha))
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 }
 
 /** Convierte "HH:MM" a formato 12hrs */
@@ -153,7 +156,10 @@ function formatearUltimaVez(timestamp: number): string {
     return `últ. vez el ${dia} a la(s) ${hora}`;
   }
 
-  const fechaStr = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: fecha.getFullYear() !== ahora.getFullYear() ? 'numeric' : undefined });
+  const fechaStr = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: fecha.getFullYear() !== ahora.getFullYear() ? 'numeric' : undefined })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
   return `últ. vez el ${fechaStr} a la(s) ${hora}`;
 }
 

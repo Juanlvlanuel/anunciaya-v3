@@ -35,11 +35,14 @@ export default function ModalVoucherGenerado({
 
   const formatearFecha = (fechaISO: string) => {
     const fecha = new Date(fechaISO);
-    return fecha.toLocaleDateString('es-MX', {
+    return new Intl.DateTimeFormat('es-MX', {
       day: '2-digit',
       month: 'long',
       year: 'numeric',
-    });
+    })
+      .formatToParts(fecha)
+      .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+      .join('');
   };
 
   const copiarCodigo = async () => {

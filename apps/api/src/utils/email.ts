@@ -622,10 +622,11 @@ function formatearMontoMXN(monto: number): string {
  * evitando corrimientos de un día por zona horaria del servidor.
  */
 function formatearFechaLarga(iso: string): string {
-  const f = new Intl.DateTimeFormat('es-MX', {
+  // formatToParts para capitalizar SOLO el mes ('es-MX' lo da en minúscula): "20 de Junio de 2026".
+  const partes = new Intl.DateTimeFormat('es-MX', {
     day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
-  }).format(new Date(iso));
-  return f;
+  }).formatToParts(new Date(iso));
+  return partes.map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value)).join('');
 }
 
 /**

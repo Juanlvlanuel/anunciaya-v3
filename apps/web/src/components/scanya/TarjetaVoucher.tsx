@@ -58,7 +58,11 @@ const formatearExpiracion = (fechaStr: string): { texto: string; color: string }
   if (diffDias === 0) return { texto: 'Vence hoy', color: '#F59E0B' };
   if (diffDias === 1) return { texto: 'Vence mañana', color: '#F59E0B' };
   if (diffDias <= 7) return { texto: `${diffDias} días`, color: '#F59E0B' };
-  return { texto: fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' }), color: '#94A3B8' };
+  const fechaCorta = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
+  return { texto: fechaCorta, color: '#94A3B8' };
 };
 
 const getEstadoConfig = (estado: string) => {

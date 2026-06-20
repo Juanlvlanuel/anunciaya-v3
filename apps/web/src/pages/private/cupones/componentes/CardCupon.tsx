@@ -154,7 +154,7 @@ export default function CardCupon({
                         {cupon.fechaFin && (
                             <span className="inline-flex items-center gap-1.5 text-[15px] font-semibold text-slate-600">
                                 <Calendar className="w-4 h-4 shrink-0" />
-                                {new Date(cupon.fechaFin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).formatToParts(new Date(cupon.fechaFin)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                             </span>
                         )}
                         {cupon.motivo && (
@@ -228,7 +228,7 @@ export default function CardCupon({
                         {cupon.fechaFin && (
                             <span className="inline-flex items-center gap-1.5 text-sm lg:text-[13px] 2xl:text-sm font-semibold text-slate-600">
                                 <Calendar className="w-4 h-4 shrink-0" />
-                                Vence {new Date(cupon.fechaFin).toLocaleDateString('es-MX', { day: 'numeric', month: 'short' })}
+                                Vence {new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' }).formatToParts(new Date(cupon.fechaFin)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                             </span>
                         )}
                         {cupon.motivo && (

@@ -92,7 +92,10 @@ function TarjetaResena({ resena, onResponder }: TarjetaResenaProps) {
     if (diffMin < 60) return `hace ${diffMin}m`;
     if (diffHoras < 24) return `hace ${diffHoras}h`;
     if (diffDias < 7) return `hace ${diffDias}d`;
-    return fechaResena.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+    return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
+      .formatToParts(fechaResena)
+      .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+      .join('');
   };
 
   return (

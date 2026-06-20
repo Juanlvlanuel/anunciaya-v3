@@ -92,13 +92,16 @@ function parsearImagen(raw: string): ContenidoImagenParsed | null {
 
 function formatearFechaHora(fecha: string | Date): string {
   const d = new Date(fecha);
-  return d.toLocaleDateString('es-MX', {
+  return new Intl.DateTimeFormat('es-MX', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
     hour: '2-digit',
     minute: '2-digit',
-  });
+  })
+    .formatToParts(d)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 }
 
 // =============================================================================

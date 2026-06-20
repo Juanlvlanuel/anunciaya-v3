@@ -52,8 +52,13 @@ function formatearFechaParaSticky(fechaStr: string): string {
   const hoy = new Date();
   const ayer = new Date(hoy);
   ayer.setDate(ayer.getDate() - 1);
-  const hoyStr = hoy.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
-  const ayerStr = ayer.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  const capitalizarMes = (d: Date): string =>
+    new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+      .formatToParts(d)
+      .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+      .join('');
+  const hoyStr = capitalizarMes(hoy);
+  const ayerStr = capitalizarMes(ayer);
   if (fechaStr === hoyStr) return 'Hoy';
   if (fechaStr === ayerStr) return 'Ayer';
   return fechaStr;
@@ -119,7 +124,10 @@ function formatearUltimaVez(timestamp: number): string {
   }
 
   // Más de una semana
-  const fechaStr = fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: fecha.getFullYear() !== ahora.getFullYear() ? 'numeric' : undefined });
+  const fechaStr = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: fecha.getFullYear() !== ahora.getFullYear() ? 'numeric' : undefined })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
   return `últ. vez el ${fechaStr} a la(s) ${hora}`;
 }
 
@@ -2005,11 +2013,18 @@ function AccionesHeaderMobile({
 // =============================================================================
 // HELPER: Formateador reutilizable — se crea UNA sola vez en memoria
 // =============================================================================
-const formateadorFecha = new Intl.DateTimeFormat('es-MX', {
+const _formateadorFechaBase = new Intl.DateTimeFormat('es-MX', {
   day: 'numeric',
   month: 'long',
   year: 'numeric',
 });
+const formateadorFecha = {
+  format: (fecha: Date): string =>
+    _formateadorFechaBase
+      .formatToParts(fecha)
+      .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+      .join(''),
+};
 
 function agruparPorFecha(mensajes: Mensaje[]): Array<{ tipo: 'separador'; fecha: string } | { tipo: 'mensaje'; mensaje: Mensaje }> {
   if (!mensajes.length) return [];

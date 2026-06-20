@@ -216,7 +216,7 @@ export function TabClientes({
                                     <div className="flex-1 min-w-0">
                                         <p className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-800 truncate">{cliente.nombre}</p>
                                         <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">
-                                            {cliente.asignadoAt && new Date(cliente.asignadoAt).toLocaleDateString('es-MX', { day: 'numeric', month: 'short', year: 'numeric' })}
+                                            {cliente.asignadoAt && new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short', year: 'numeric' }).formatToParts(new Date(cliente.asignadoAt)).map(p => p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value).join('')}
                                         </p>
                                     </div>
 

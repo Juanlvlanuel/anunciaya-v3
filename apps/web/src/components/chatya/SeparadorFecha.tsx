@@ -16,8 +16,13 @@ function formatearFechaLegible(fechaStr: string): string {
   const ayer = new Date(hoy);
   ayer.setDate(ayer.getDate() - 1);
 
-  const hoyStr = hoy.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
-  const ayerStr = ayer.toLocaleDateString('es-MX', { day: 'numeric', month: 'long', year: 'numeric' });
+  const capitalizarMes = (d: Date): string =>
+    new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' })
+      .formatToParts(d)
+      .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+      .join('');
+  const hoyStr = capitalizarMes(hoy);
+  const ayerStr = capitalizarMes(ayer);
 
   if (fechaStr === hoyStr) return 'Hoy';
   if (fechaStr === ayerStr) return 'Ayer';

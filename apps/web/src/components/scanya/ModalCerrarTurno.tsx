@@ -65,7 +65,8 @@ function formatearFechaHora(timestamp: string): string {
   const fecha = new Date(timestamp);
   const dia = fecha.toLocaleDateString('es-MX', { weekday: 'short' });
   const diaNum = fecha.getDate();
-  const mes = fecha.toLocaleDateString('es-MX', { month: 'short' });
+  const mesRaw = fecha.toLocaleDateString('es-MX', { month: 'short' });
+  const mes = mesRaw.charAt(0).toUpperCase() + mesRaw.slice(1);
   const hora = fecha.toLocaleTimeString('es-MX', {
     hour: 'numeric',
     minute: '2-digit',

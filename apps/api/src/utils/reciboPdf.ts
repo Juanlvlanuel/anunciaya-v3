@@ -94,9 +94,11 @@ function formatearMontoMXN(monto: number): string {
     return `${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(monto)} MXN`;
 }
 
-/** Fecha ISO → "12 de julio de 2026" (en UTC para que coincida con la guardada). */
+/** Fecha ISO → "12 de Julio de 2026" (en UTC para que coincida con la guardada; mes capitalizado). */
 function formatearFechaLarga(iso: string): string {
-    return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(new Date(iso));
+    // formatToParts para capitalizar SOLO el mes ('es-MX' lo da en minúscula).
+    const partes = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).formatToParts(new Date(iso));
+    return partes.map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value)).join('');
 }
 
 /** Folio → "#00001" (correlativo a 5 dígitos). Si llega un id no numérico (fallback), lo deja tal cual. */

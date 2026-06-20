@@ -58,7 +58,10 @@ const formatearCupon = (tipo: string, valor: number | null, valorTexto?: string 
 
 const formatearFechaCorta = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', { day: '2-digit', month: 'short' });
+  return new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short' })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 };
 
 const formatearFechaTabla = (fechaISO: string) => {
@@ -69,7 +72,10 @@ const formatearFechaTabla = (fechaISO: string) => {
 
 const obtenerMesAnio = (fechaISO: string) => {
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', { month: 'long', year: 'numeric' });
+  return new Intl.DateTimeFormat('es-MX', { month: 'long', year: 'numeric' })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 };
 
 /** Agrupa transacciones por mes */

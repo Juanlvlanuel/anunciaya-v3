@@ -57,11 +57,14 @@ const formatearTelefono = (tel: string): string => {
 const formatearFechaCorta = (fechaISO: string | null) => {
   if (!fechaISO) return '—';
   const fecha = new Date(fechaISO);
-  return fecha.toLocaleDateString('es-MX', {
+  return new Intl.DateTimeFormat('es-MX', {
     day: 'numeric',
     month: 'short',
     year: 'numeric',
-  });
+  })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 };
 
 const formatearFechaTransaccion = (fechaISO: string) => {
@@ -73,7 +76,10 @@ const formatearFechaTransaccion = (fechaISO: string) => {
   if (diffDias === 0) return 'Hoy';
   if (diffDias === 1) return 'Ayer';
   if (diffDias < 7) return `Hace ${diffDias}d`;
-  return fecha.toLocaleDateString('es-MX', { day: 'numeric', month: 'short' });
+  return new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'short' })
+    .formatToParts(fecha)
+    .map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value))
+    .join('');
 };
 
 // =============================================================================

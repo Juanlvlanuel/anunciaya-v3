@@ -41,10 +41,14 @@ const MESES_CHIP = [1, 3, 6, 12];
 const MAX_MESES = 36;
 
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+/** Formatea "18 Jun 2026" con el mes capitalizado (Intl en español lo devuelve en minúscula). */
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const FMT_FECHA = {
+  format: (d: Date): string => `${String(d.getDate()).padStart(2, '0')} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}`,
+};
 function fmtFecha(d: Date | null): string {
   if (!d || Number.isNaN(d.getTime())) return '—';
-  return FMT_FECHA.format(d).replace('.', '');
+  return FMT_FECHA.format(d);
 }
 
 interface DialogoEditarPagoProps {

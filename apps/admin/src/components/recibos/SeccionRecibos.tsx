@@ -26,13 +26,17 @@ import { AvatarNegocio } from '../negocios/avatares';
 const POR_PAGINA = 20;
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
-const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+/** Formatea "18 Jun 2026" con el mes capitalizado (Intl en español lo devuelve en minúscula). */
+const MESES_CORTOS = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+const FMT_FECHA = {
+  format: (d: Date): string => `${String(d.getDate()).padStart(2, '0')} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}`,
+};
 const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía', tarjeta: 'Tarjeta' };
 
 function fmtFecha(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
+  return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d);
 }
 function fmtFolio(folio: number | null): string {
   return folio != null ? `#${String(folio).padStart(5, '0')}` : '—';
@@ -181,7 +185,9 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
   }, [esEscritorio, setScrollEl, isLoading, isError, items.length]);
 
   // Columnas del grid (escritorio): el header fijo y las filas comparten el mismo template.
-  const cols = '96px minmax(220px,2.2fr) 1.2fr 0.9fr 1fr 92px';
+  // Negocio absorbe el grueso del ancho; el Monto va a la derecha de su columna, así que la Fecha
+  // lleva un padding-left (pl-3) para que no queden encimados.
+  const cols = '90px minmax(220px,2.7fr) 1.1fr 0.9fr 1.2fr 96px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-6">
@@ -229,8 +235,8 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
               <span>Folio</span>
               <span>Negocio</span>
               <span>Forma de pago</span>
-              <span className="text-right">Monto</span>
-              <span>Fecha</span>
+              <span>Monto</span>
+              <span className="pl-8">Fecha</span>
               <span className="text-right">Acciones</span>
             </div>
             {/* Cuerpo (scroll interno, debajo del header) */}
@@ -257,8 +263,8 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
                     {CONCEPTO_LABEL[r.concepto] ?? r.concepto}
                     {r.anulado && <span className="ml-2"><BadgeAnulado /></span>}
                   </span>
-                  <span className="text-right font-semibold tabular-nums text-texto">{fmtMonto(r.monto)}</span>
-                  <span className="text-texto-3">{fmtFecha(r.fechaPago)}</span>
+                  <span className="font-semibold tabular-nums text-texto">{fmtMonto(r.monto)}</span>
+                  <span className="pl-8 text-texto-3">{fmtFecha(r.fechaPago)}</span>
                   <span className="flex items-center justify-end gap-1">
                     <Tooltip text="Descargar PDF">
                       <button type="button" data-testid={`recibo-descargar-${r.id}`} onClick={() => descargar.mutate(r.id)} disabled={descargar.isPending && descargar.variables === r.id} aria-label="Descargar PDF" className="grid h-8 w-8 place-items-center rounded-[8px] text-marca transition hover:bg-marca-suave disabled:opacity-50">
