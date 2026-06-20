@@ -29,6 +29,7 @@ export function PaginaRegistroExito() {
     const navigate = useNavigate();
     const [searchParams] = useSearchParams();
     const loginExitoso = useAuthStore((state) => state.loginExitoso);
+    const recargarDatosUsuario = useAuthStore((state) => state.recargarDatosUsuario);
 
     const [estado, setEstado] = useState<EstadoProceso>('validando');
     const [nombreUsuario, setNombreUsuario] = useState('');
@@ -79,7 +80,14 @@ export function PaginaRegistroExito() {
             };
 
             verificacionExitosa.current = true;
-            loginExitoso(usuarioCompleto, accessToken, refreshToken);
+            await loginExitoso(usuarioCompleto, accessToken, refreshToken);
+
+            // El usuario que devuelve Stripe es PARCIAL (la rama de "registro nuevo" del webhook no
+            // trae nombreNegocio/logo/sucursal). Completar con /auth/yo —la fuente de verdad— para
+            // que la ColumnaIzquierda y las vistas comerciales muestren el nombre del negocio SIN
+            // refrescar (de lo contrario queda "Mi Negocio" hasta recargar el navegador).
+            await recargarDatosUsuario();
+
             setNombreUsuario(usuario.nombre);
             setEstado('exito');
 

@@ -106,6 +106,15 @@ export function PaginaRegistro() {
   const codigoReferido =
     new URLSearchParams(location.search).get('ref')?.trim() || undefined;
 
+  // Tipo de cuenta inicial según el plan que trae la URL (`?plan=comercial`),
+  // p.ej. al llegar desde el botón "Probar trial Gratis" del landing. Es la
+  // misma lectura que hace FormularioRegistro, para que la columna de branding
+  // (BrandingColumn) y el formulario arranquen sincronizados en el mismo modo.
+  const tipoCuentaInicial: 'personal' | 'comercial' =
+    new URLSearchParams(location.search).get('plan') === 'comercial'
+      ? 'comercial'
+      : 'personal';
+
   // ═══════════════════════════════════════════════════════════════════════════
   // CAMBIO: Obtener datosGooglePendiente y limpiarDatosGooglePendiente del store
   // ═══════════════════════════════════════════════════════════════════════════
@@ -131,7 +140,7 @@ export function PaginaRegistro() {
   });
 
   const [cargando, setCargando] = useState(false);
-  const [tipoCuentaActiva, setTipoCuentaActiva] = useState<'personal' | 'comercial'>('personal');
+  const [tipoCuentaActiva, setTipoCuentaActiva] = useState<'personal' | 'comercial'>(tipoCuentaInicial);
 
   // Tokens temporales para personal (login después del modal)
   const [tokensTemporales, setTokensTemporales] = useState<TokensTemporales | null>(null);
