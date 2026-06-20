@@ -5,12 +5,13 @@
  *
  * Crea un escenario AISLADO (vendedor + embajador + N negocios activos de prueba, suficientes para
  * caer en el primer tramo de la escalera con monto > 0) y comprueba:
- *   [1] Un cobro ANUAL (paga 10× el mensual) devenga UNA comisión = 10 × escalón (no 12×), escalón
- *       congelado al # de activos del momento, y el marcador del negocio salta a la cobertura (+12m).
+ *   [1] PRIMER cobro ANUAL CON alta (paga 10× el mensual) devenga UNA comisión = 9 × escalón (no 10× ni
+ *       12×): el 1er mes lo cubre la comisión de ALTA y no se paga dos veces; marcador a la cobertura (+12m).
  *   [2] Re-cobrar la MISMA cobertura NO devenga doble (idempotencia por el marcador).
- *   [3] Una renovación posterior (cobertura +13m) devenga 1× más.
+ *   [3] Una renovación posterior (cobertura +13m, NO es primer cobro) devenga 1× COMPLETO (no descuenta).
  *   [4] El negocio prepagado SIGUE contando como activo para el escalón.
  *   [5] Un negocio SIN vendedor no devenga nada.
+ *   [6] PRIMER cobro ANUAL SIN alta devenga los 10 meses completos (el descuento aplica solo si hubo alta).
  *
  * ⚠️ ESCRIBE en usuarios/embajadores/negocios/embajador_comisiones (todo de prueba) y LIMPIA al final.
  *    Aborta en producción. Requiere la migración 2026-06-19-comision-al-cobro.sql aplicada.
@@ -112,15 +113,20 @@ async function main(): Promise<void> {
     };
 
     try {
-        // ── [1] ANUAL: paga 10× → devenga 10 × escalón, UNA fila; marcador a +12m ──
+        // ── [1] PRIMER cobro ANUAL CON alta: paga 10× pero el 1er mes lo cubre la comisión de ALTA
+        //        (pago único = 1er mes de membresía) → devenga 9 × escalón, no 10. Anti-doble-pago. ──
+        await db.insert(embajadorComisiones).values({
+            embajadorId: emb.id, negocioId: objetivo, tipo: 'alta', montoComision: '400',
+            estado: 'pendiente', periodo: null, detalle: { tipo: 'alta', monto: 400 },
+        });
         const cobertura12 = isoEnMeses(12);
         await devengarComisionRecurrenteAlCobro(objetivo, cobertura12, precio * 10);
         let fObj = await recurrentesDelNegocio(objetivo);
         const det0 = (fObj[0]?.detalle ?? {}) as { meses?: number };
-        console.log(`\n[1] Cobro ANUAL del negocio objetivo (paga $${precio * 10} = 10 meses de dinero)`);
+        console.log(`\n[1] PRIMER cobro ANUAL con alta (paga $${precio * 10} = 10 meses; el 1º lo cubre la alta)`);
         verificar('se devengó UNA comisión recurrente', fObj.length === 1, `filas=${fObj.length}`);
-        verificar(`monto = 10 × $${unitario} = $${10 * unitario} (no 12×)`, Number(fObj[0]?.monto) === 10 * unitario, `$${fObj[0]?.monto}`);
-        verificar('detalle.meses = 10', det0.meses === 10, `meses=${det0.meses}`);
+        verificar(`monto = 9 × $${unitario} = $${9 * unitario} (descuenta el 1er mes de la alta)`, Number(fObj[0]?.monto) === 9 * unitario, `$${fObj[0]?.monto}`);
+        verificar('detalle.meses = 9', det0.meses === 9, `meses=${det0.meses}`);
         verificar('marcador del negocio = cobertura (+12m)', mismaFecha(await marcadorDe(objetivo), cobertura12));
 
         // ── [2] IDEMPOTENCIA: re-cobrar la misma cobertura no devenga doble ──
@@ -129,13 +135,14 @@ async function main(): Promise<void> {
         console.log('\n[2] Idempotencia (re-cobro de la MISMA cobertura)');
         verificar('sigue habiendo UNA sola comisión del negocio', fObj.length === 1, `filas=${fObj.length}`);
 
-        // ── [3] RENOVACIÓN al mes 13: nueva cobertura → devenga 1× más ──
+        // ── [3] RENOVACIÓN al mes 13 (NO es el primer cobro): devenga 1× COMPLETO, sin descontar
+        //        (el descuento de la alta es solo del primer cobro del negocio). ──
         const cobertura13 = isoEnMeses(13);
         await devengarComisionRecurrenteAlCobro(objetivo, cobertura13, precio);
         fObj = await recurrentesDelNegocio(objetivo);
         console.log('\n[3] Renovación posterior (cobra 1 mes, cobertura +13m)');
         verificar('ahora hay DOS comisiones del negocio', fObj.length === 2, `filas=${fObj.length}`);
-        verificar(`la nueva = 1 × $${unitario}`, fObj.some((f) => Number(f.monto) === unitario));
+        verificar(`la nueva = 1 × $${unitario} (renovación NO descuenta)`, fObj.some((f) => Number(f.monto) === unitario));
         verificar('marcador avanzó a +13m', mismaFecha(await marcadorDe(objetivo), cobertura13));
 
         // ── [4] El negocio prepagado SIGUE contando como activo para el escalón ──
@@ -155,6 +162,22 @@ async function main(): Promise<void> {
         const sinVend = await recurrentesDelNegocio(nSinVend.id);
         console.log('\n[5] Negocio SIN vendedor');
         verificar('no se devengó ninguna comisión', sinVend.length === 0, `filas=${sinVend.length}`);
+
+        // ── [6] PRIMER cobro ANUAL SIN alta: un negocio con vendedor pero SIN comisión de alta devenga
+        //        los 10 meses COMPLETOS (el descuento del 1er mes aplica solo si hubo alta). El negocio
+        //        suma 1 al escalón del vendedor, así que el unitario esperado se calcula con numActivos+1. ──
+        const unitario6 = montoPorActivo(numActivos + 1, escalera);
+        const [nSinAlta] = await db.insert(negocios).values({
+            usuarioId: uDummy.id, nombre: 'P3 SinAlta', embajadorId: emb.id, estadoAdmin: 'activo', estadoMembresia: 'al_corriente',
+        }).returning({ id: negocios.id });
+        negocioIds.push(nSinAlta.id);
+        await devengarComisionRecurrenteAlCobro(nSinAlta.id, isoEnMeses(12), precio * 10);
+        const fSinAlta = await recurrentesDelNegocio(nSinAlta.id);
+        const detSinAlta = (fSinAlta[0]?.detalle ?? {}) as { meses?: number };
+        console.log('\n[6] PRIMER cobro ANUAL SIN alta (no descuenta el 1er mes)');
+        verificar('se devengó UNA comisión recurrente', fSinAlta.length === 1, `filas=${fSinAlta.length}`);
+        verificar('detalle.meses = 10 (sin alta → no descuenta)', detSinAlta.meses === 10, `meses=${detSinAlta.meses}`);
+        verificar(`monto = 10 × $${unitario6} (escalón con el activo extra)`, Number(fSinAlta[0]?.monto) === 10 * unitario6, `$${fSinAlta[0]?.monto}`);
     } finally {
         await limpiar();
         console.log('\n🧹 Limpieza hecha (vendedor + negocios + comisiones de prueba borrados).');

@@ -144,13 +144,17 @@ extras). Construido:
   (webhook tarjeta / alta manual / "Registrar pago") devenga, por ESE negocio, **`mesesDevengables × escalón`** de
   golpe, donde **`mesesDevengables = dinero pagado ÷ precio mensual`** (un anual de 10× → 10, no 12) y el **escalón
   se congela** al # de activos del momento (guardado en `detalle`).
-- **Anti-doble-pago:** marcador **`negocios.comision_devengada_hasta`**; si la cobertura del cobro ya está dentro,
-  no re-devenga (idempotencia). El negocio prepagado **sigue contando como activo** para el escalón, pero no genera
-  pago repetido.
+- **Anti-doble-pago del 1er mes:** en el **primer cobro** del negocio, si recibió **comisión de alta** (pago único
+  que ya representa el 1er mes de membresía), se **descuenta 1 mes** del recurrente. Así un **anual con alta devenga
+  9× + la alta**, no 10× + la alta — el primer mes no se paga dos veces. La alta se devenga **antes** que el
+  recurrente en los 3 enganches para que el descuento la "vea".
+- **Anti-doble-pago (cobertura):** marcador **`negocios.comision_devengada_hasta`**; si la cobertura del cobro ya
+  está dentro, no re-devenga (idempotencia). El negocio prepagado **sigue contando como activo** para el escalón,
+  pero no genera pago repetido.
 - **Foto mensual RETIRADA:** el cron `comisiones-devengo.cron` ya no se inicializa y `dispararDevengoMesActual` es
   no-op (cambiar activos afecta el escalón de FUTUROS cobros, no re-devenga lo pagado).
-- **Gate:** `probar-comision-al-cobro.ts` (prepago 12 meses → 10× una vez · idempotencia · renovación · sin
-  vendedor) **TODO VERDE**.
+- **Gate:** `probar-comision-al-cobro.ts` (anual **con alta → 9×** · idempotencia · renovación 1× · sin vendedor ·
+  anual **sin alta → 10×**) **TODO VERDE**.
 - **Frontend:** el estado de cuenta del vendedor pasa de "por mes" a "por cobro" (negocio + "N meses × $unitario ·
   escalón"); se retiró el botón "Recalcular mes".
 
@@ -185,10 +189,12 @@ extras). Construido:
 **Pieza 3:** ✅ **CONSTRUIDA + GATE VERDE (19 Jun) — falta validación E2E de Juan**
 - [x] ✅ Al cobrar **N meses** (cualquier canal), el vendedor devenga `(dinero ÷ precio) × escalón` **de golpe**, y
   `comision_devengada_hasta` salta a la cobertura.
+- [x] ✅ **El 1er mes no se paga dos veces:** en el primer cobro, si hubo **comisión de alta**, el recurrente
+  **descuenta 1 mes** (un anual con alta = **9× + alta**, no 10× + alta).
 - [x] ✅ En meses ya cubiertos **no** se vuelve a devengar (el negocio sigue contando para el escalón).
 - [x] ✅ El escalón usado queda **congelado** al cobro (no cambia si la escalera sube después).
-- [x] ✅ Harness `probar-comision-al-cobro.ts` (prepago de 12 meses → 10× una vez · idempotencia · renovación) TODO VERDE. `tsc` verdes.
-- [ ] ⬜ **Validación E2E (Juan):** un prepago anual real → ver el 10× una sola vez en el estado de cuenta del vendedor.
+- [x] ✅ Harness `probar-comision-al-cobro.ts` (anual con alta → **9×** · idempotencia · renovación · sin vendedor · anual sin alta → 10×) TODO VERDE. `tsc` verdes.
+- [ ] ⬜ **Validación E2E (Juan):** un prepago anual real con vendedor → ver **9× + la alta** (no 10× + alta) en el estado de cuenta del vendedor.
 
 ---
 
@@ -242,9 +248,9 @@ Pieza 2 — Cobro día-1   ✅ CONSTRUIDA (falta E2E Juan)
 - [x] tsc api+web+admin verdes. Falta: validación E2E (Juan) + Fase 3 docs.
 
 Pieza 3 — Comisión recurrente al cobro   ✅ CONSTRUIDA + GATE VERDE (falta E2E Juan)
-- [x] Motor devengarComisionRecurrenteAlCobro (meses=dinero÷precio, escalón congelado) + marcador comision_devengada_hasta.
-- [x] Enganches: webhook tarjeta + alta manual + "Registrar pago". Foto mensual retirada (cron + dispararDevengo no-op).
-- [x] Migración 2026-06-19 (columna + drop índice + relajar CHECK forma). Corrida en dev; falta prod.
+- [x] Motor devengarComisionRecurrenteAlCobro (meses=dinero÷precio, MENOS 1 mes en el 1er cobro si hubo alta, escalón congelado) + marcador comision_devengada_hasta.
+- [x] Enganches: webhook tarjeta + alta manual + "Registrar pago" (alta ANTES del recurrente). Foto mensual retirada (cron + dispararDevengo no-op).
+- [x] Migración 2026-06-19 (columna + drop índice + relajar CHECK forma). Corrida en dev y prod.
 - [x] Harness probar-comision-al-cobro.ts TODO VERDE. Frontend: estado de cuenta "por cobro" + botón Recalcular quitado.
 - [x] tsc api+admin verdes. Falta: validación E2E (Juan) + cerrar Vendedores_y_comisiones.md.
 ```

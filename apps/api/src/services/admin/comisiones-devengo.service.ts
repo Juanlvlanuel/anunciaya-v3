@@ -157,7 +157,10 @@ async function contarActivosDeVendedor(embajadorId: string): Promise<number> {
  *
  * En cada cobro real (renovación de tarjeta, alta manual, "Registrar pago") devenga, por ESE negocio
  * y de golpe: `mesesDevengables × monto del escalón vigente`, donde
- *   - mesesDevengables = dinero pagado ÷ precio mensual (un anual de 10× → 10; un mes → 1), y
+ *   - mesesDevengables = dinero pagado ÷ precio mensual (un anual de 10× → 10; un mes → 1),
+ *   - MENOS el 1er mes en el PRIMER cobro si el negocio recibió comisión de ALTA (ese mes lo cubre la
+ *     alta — pago único que ya representa el 1er mes; no se paga dos veces) → un anual con alta devenga
+ *     9 recurrentes + la alta, no 10 + la alta, y
  *   - el escalón se CONGELA al # de activos del vendedor en este instante.
  * El marcador `negocios.comision_devengada_hasta` avanza a `coberturaHasta` (fin del periodo PAGADO):
  * impide volver a devengar esa cobertura (idempotencia + anti-doble-pago del prepago) aunque el
@@ -186,9 +189,21 @@ export async function devengarComisionRecurrenteAlCobro(
         }
 
         const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 849);
-        const mesesDevengables = precioMensual > 0 ? Math.round(montoPagado / precioMensual) : 0;
+        let mesesDevengables = precioMensual > 0 ? Math.round(montoPagado / precioMensual) : 0;
 
-        // El marcador avanza SIEMPRE a la nueva cobertura (aunque el escalón sea $0), para no re-evaluar.
+        // El PRIMER mes lo cubre la comisión de ALTA (pago único que YA representa el 1er mes de membresía),
+        // así que ese mes NO se devenga también como recurrente (si no, se pagaría dos veces). Solo en el
+        // primer cobro del negocio (marcador NULL) y si de verdad recibió comisión de alta.
+        if (!neg.devengadaHasta) {
+            const [alta] = await db
+                .select({ id: embajadorComisiones.id })
+                .from(embajadorComisiones)
+                .where(and(eq(embajadorComisiones.negocioId, negocioId), eq(embajadorComisiones.tipo, 'alta')))
+                .limit(1);
+            if (alta) mesesDevengables -= 1;
+        }
+
+        // El marcador avanza SIEMPRE a la nueva cobertura (aunque no quede recurrente que devengar).
         await db.update(negocios).set({ comisionDevengadaHasta: coberturaHasta }).where(eq(negocios.id, negocioId));
 
         if (mesesDevengables <= 0) return;

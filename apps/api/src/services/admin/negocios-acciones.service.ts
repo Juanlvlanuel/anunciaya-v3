@@ -606,13 +606,14 @@ export async function marcarPagado(
         }
     }
 
+    // Comisión de alta del vendedor (pieza C): si éste fue su primer pago real, devéngala (idempotente).
+    // VA ANTES del recurrente: el recurrente descuenta el 1er mes solo si la comisión de alta ya existe.
+    await devengarComisionAlta(negocioId);
     // Comisión recurrente AL COBRO (Pieza 3): este pago manual cubre `opciones.hasta`; devenga por los meses
     // pagados (montoRegistrado ÷ precio mensual), escalón congelado. La cortesía no entra (sin dinero).
     if (opciones.concepto !== 'cortesia' && montoRegistrado && Number(montoRegistrado) > 0) {
         await devengarComisionRecurrenteAlCobro(negocioId, opciones.hasta, Number(montoRegistrado));
     }
-    // Comisión de alta del vendedor (pieza C): si éste fue su primer pago real, devéngala (idempotente).
-    await devengarComisionAlta(negocioId);
     // Efectivo por entregar (pieza D): si el VENDEDOR registró ESTE pago en EFECTIVO, el dinero lo recibió
     // él y se lo debe entregar a AnunciaYA → se carga como "efectivo por entregar". (Super/gerente lo
     // registran a mano; aquí solo cuando lo cobró el propio vendedor.)

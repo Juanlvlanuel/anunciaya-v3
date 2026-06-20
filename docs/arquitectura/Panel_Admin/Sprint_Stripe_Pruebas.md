@@ -64,15 +64,21 @@
 > El monto del escalón depende de la **escalera** y del **# de activos** del vendedor al momento del cobro
 > (con la escalera actual, 1 activo ya da **$200**).
 
-### Caso A — 1er mes (del Caso A de la Pieza 2)
-- [ ] Panel → Vendedores → [vendedor] → **Comisiones**: hay una **comisión recurrente por ese negocio** con el desglose **"1 mes × $[escalón] · escalón [X]"** (además de la de alta)
+### Caso A — 1er mes (del Caso A de la Pieza 2, mensual con vendedor)
+- [ ] Panel → Vendedores → [vendedor] → **Comisiones**: se devengó la **comisión de alta ($400)**, pero **NO** una
+      comisión recurrente por ese negocio en el 1er mes — la alta YA representa el 1er mes (anti-doble-pago). El
+      recurrente empieza en la **2ª** mensualidad.
 
 ### Caso B — Prepago ANUAL *(el corazón de la Pieza 3)* — elige una vía:
 - **Vía 1:** el **Caso D** de arriba (registro anual con vendedor), o
 - **Vía 2:** Alta manual con vendedor por **12 meses**, o
 - **Vía 3:** Panel → Negocios → un negocio con vendedor → **"Registrar pago" 12 meses**
-- [ ] Panel → Vendedores → Comisiones: hay **UNA** comisión recurrente del negocio = **10 × $[escalón]**, con desglose **"10 meses × $[escalón]"**
-- [ ] ⚠️ **NO** hay 12 filas ni 12× el monto (ese es el anti-doble-pago)
+- [ ] Panel → Vendedores → Comisiones: hay **UNA** comisión recurrente del negocio. Como es el **primer cobro** y ya
+      hay **comisión de alta**, devenga **(meses pagados − 1) × $[escalón]**: un anual cobra 10 meses de dinero →
+      **9 × $[escalón]** con desglose **"9 meses × $[escalón]"**. La **alta ($400)** aparece aparte.
+- [ ] ⚠️ **NO** hay 12 filas, ni 12×, ni **10×** (10× sería pagar dos veces el 1er mes que ya cubre la alta)
+- [ ] *(Si la Vía 3 se hace sobre un negocio que **ya había pagado antes** —renovación, no su primer cobro— no hay
+      descuento: devenga **10×** completos.)*
 
 ### Caso C — Sigue contando como activo
 - [ ] El negocio prepagado **sigue apareciendo activo** en la cartera del vendedor (cuenta para su escalón), aunque ya no genere más devengo
