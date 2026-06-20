@@ -9,9 +9,10 @@
  * Ubicación: apps/admin/src/components/ciudades/DialogoMapaAccion.tsx
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { MapPin, Layers } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorBuscable } from '../ui/SelectorBuscable';
 import type { RegionConConteo } from '../../services/ciudadesService';
 
 interface DialogoMapaAccionProps {
@@ -35,6 +36,10 @@ export function DialogoMapaAccion({ abierto, modo, cantidad, regiones, cargando,
   const esAlta = modo === 'alta';
   const regionesActivas = regiones.filter((r) => r.activa);
   const invalido = !esAlta && !regionId; // agrupar exige región
+  const opcionesRegion = useMemo(() => {
+    const activas = regiones.filter((r) => r.activa).map((r) => ({ id: r.id, etiqueta: r.nombre }));
+    return esAlta ? [{ id: '', etiqueta: 'Sin región' }, ...activas] : activas;
+  }, [regiones, esAlta]);
 
   return (
     <ModalAdaptativo
@@ -57,17 +62,14 @@ export function DialogoMapaAccion({ abierto, modo, cantidad, regiones, cargando,
           <label className="mb-1.5 block text-[12.5px] font-semibold text-texto-2">
             {esAlta ? 'Región (opcional)' : 'Región'}
           </label>
-          <select
-            data-testid="ciudades-mapa-region"
+          <SelectorBuscable
+            testid="ciudades-mapa-region"
             value={regionId}
-            onChange={(e) => setRegionId(e.target.value)}
-            className="w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
-          >
-            <option value="">{esAlta ? 'Sin región' : 'Elige una región…'}</option>
-            {regionesActivas.map((r) => (
-              <option key={r.id} value={r.id}>{r.nombre}</option>
-            ))}
-          </select>
+            onChange={setRegionId}
+            opciones={opcionesRegion}
+            placeholder={esAlta ? 'Sin región' : 'Elige una región…'}
+            buscarPlaceholder="Buscar región…"
+          />
           {!esAlta && regionesActivas.length === 0 && (
             <p className="mt-1.5 text-[12px] text-texto-4">No hay regiones activas. Crea una en la pestaña Regiones.</p>
           )}

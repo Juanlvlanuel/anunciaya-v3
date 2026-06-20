@@ -12,6 +12,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronDown, Search, Check, X } from 'lucide-react';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 
 export interface OpcionBuscable {
   id: string;
@@ -37,6 +38,7 @@ export function SelectorBuscable({
   disabled = false,
   testid,
 }: SelectorBuscableProps) {
+  const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
   const refInput = useRef<HTMLDivElement>(null);
@@ -95,7 +97,8 @@ export function SelectorBuscable({
     const r = refInput.current.getBoundingClientRect();
     const ANCHO = Math.max(220, r.width);
     const ALTO = 300;
-    const abreArriba = window.innerHeight - r.bottom < ALTO && r.top > window.innerHeight - r.bottom;
+    // En PC el dropdown SIEMPRE abre hacia abajo; el flip (abrir arriba si no cabe) solo en móvil.
+    const abreArriba = !esEscritorio && window.innerHeight - r.bottom < ALTO && r.top > window.innerHeight - r.bottom;
     let left = r.left;
     if (left + ANCHO > window.innerWidth - 8) left = window.innerWidth - ANCHO - 8;
     if (left < 8) left = 8;
@@ -104,7 +107,7 @@ export function SelectorBuscable({
       left,
       ...(abreArriba ? { bottom: window.innerHeight - r.top + 6 } : { top: r.bottom + 6 }),
     } as const;
-  }, [abierto]);
+  }, [abierto, esEscritorio]);
 
   return (
     <div ref={refInput} className="relative">

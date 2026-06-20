@@ -20,9 +20,11 @@ import { useContadorPanel } from '../stores/useContadorPanel';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
 import { iconoDeSeccion } from '../config/iconosPanel';
 import { itemsParaRol, etiquetaDe, type RolPanel } from '../data/menuPanel';
+import { useNavegacionPanel } from '../stores/useNavegacionPanel';
 import { LayoutEscritorio } from '../components/shell/LayoutEscritorio';
 import { LayoutMovil } from '../components/shell/LayoutMovil';
 import PaginaSeguridad from './PaginaSeguridad';
+import { SeccionResumen } from '../components/resumen/SeccionResumen';
 import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
 import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
 import { SeccionSuscripciones } from '../components/suscripciones/SeccionSuscripciones';
@@ -31,6 +33,7 @@ import { SeccionEquipo } from '../components/equipo/SeccionEquipo';
 import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
 import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
 import { SeccionCiudades } from '../components/ciudades/SeccionCiudades';
+import { SeccionAuditoria } from '../components/auditoria/SeccionAuditoria';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -112,6 +115,16 @@ function PaginaPanel() {
     }
   }, [items, seccionActivaId, setSeccion]);
 
+  // Deep-link desde el Resumen / la campana: cuando se pide navegar a una sección (con filtro
+  // inicial), cambiamos a ella y limpiamos el destino. El filtro lo consume la sección destino.
+  const destinoNav = useNavegacionPanel((s) => s.destino);
+  const limpiarDestino = useNavegacionPanel((s) => s.limpiarDestino);
+  useEffect(() => {
+    if (!destinoNav) return;
+    setSeccion(destinoNav);
+    limpiarDestino();
+  }, [destinoNav, setSeccion, limpiarDestino]);
+
   // Si por algo entramos sin rol de equipo, no hay menú que mostrar.
   if (!usuario?.rolEquipo) {
     return (
@@ -150,6 +163,8 @@ function PaginaPanel() {
 
   const contenido = esSeguridad ? (
     <PaginaSeguridad />
+  ) : seccionActivaId === 'resumen' ? (
+    <SeccionResumen rol={rol} />
   ) : seccionActivaId === 'negocios' ? (
     <SeccionNegocios rol={rol} />
   ) : seccionActivaId === 'usuarios' ? (
@@ -166,6 +181,8 @@ function PaginaPanel() {
     <SeccionConfiguracion />
   ) : seccionActivaId === 'ciudades' ? (
     <SeccionCiudades />
+  ) : seccionActivaId === 'auditoria' ? (
+    <SeccionAuditoria rol={rol} />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

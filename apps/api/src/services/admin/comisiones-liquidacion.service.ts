@@ -198,6 +198,19 @@ export async function registrarPago(
     return { ok: true, devengadoPendiente, compensado, abonado: abono, saldoRestante: redondear(saldoNeto - abono) };
 }
 
+/**
+ * Total de comisiones PENDIENTES de un vendedor (Σ montoComision − montoPagado de las que siguen en
+ * estado 'pendiente'). Mismo cálculo que usa `registrarPago` (FIFO), expuesto para el KPI del Resumen
+ * del vendedor.
+ */
+export async function comisionesPendientesDe(embajadorId: string): Promise<number> {
+    const filas = await db
+        .select({ monto: embajadorComisiones.montoComision, pagado: embajadorComisiones.montoPagado })
+        .from(embajadorComisiones)
+        .where(and(eq(embajadorComisiones.embajadorId, embajadorId), eq(embajadorComisiones.estado, 'pendiente')));
+    return filas.reduce((s, c) => s + (Number(c.monto) - Number(c.pagado)), 0);
+}
+
 // =============================================================================
 // DATOS DE COBRO (super + el propio vendedor)
 // =============================================================================

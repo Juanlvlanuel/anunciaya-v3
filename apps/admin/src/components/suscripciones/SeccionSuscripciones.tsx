@@ -18,6 +18,7 @@ import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, Ma
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
+import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 import { useBitacora, usePrefetchEvento } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { OrdenEvento, EventoFila, ConteosEventos } from '../../services/suscripcionesService';
 import { metaTipoEvento, BadgeTipoEvento, TIPOS_EVENTO_FILTRO } from './estadoEvento';
@@ -94,6 +95,17 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<EventoFila | null>(null);
   const prefetchEvento = usePrefetchEvento();
+
+  // Deep-link desde el Resumen: si llegó un filtro inicial (ej. tipo "cobro_fallido"), aplicarlo
+  // y consumirlo (one-shot).
+  const filtroInicial = useNavegacionPanel((s) => s.filtroSuscripciones);
+  const consumirFiltro = useNavegacionPanel((s) => s.consumirFiltroSuscripciones);
+  useEffect(() => {
+    if (filtroInicial?.tipo) {
+      setTipo(filtroInicial.tipo);
+      consumirFiltro();
+    }
+  }, [filtroInicial, consumirFiltro]);
 
   // Registra el contenedor scrolleable (móvil) para el auto-ocultado de la barra inferior.
   const listaRef = useRef<HTMLDivElement>(null);

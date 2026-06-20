@@ -8,8 +8,9 @@
  * Ubicación: apps/admin/src/components/negocios/DialogoReasignar.tsx
  */
 
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorBuscable } from '../ui/SelectorBuscable';
 import { useVendedoresFiltro } from '../../hooks/queries/useNegociosAdmin';
 
 const QUITAR = '__quitar';
@@ -36,6 +37,11 @@ export function DialogoReasignar({
   const [seleccion, setSeleccion] = useState<string>(vendedorActualId ?? QUITAR);
   const [motivo, setMotivo] = useState('');
 
+  const opcionesVendedor = useMemo(
+    () => [{ id: QUITAR, etiqueta: 'Sin asignar (quitar vendedor)' }, ...(vendedores ?? []).map((v) => ({ id: v.id, etiqueta: v.nombre }))],
+    [vendedores],
+  );
+
   const confirmar = () => {
     onConfirmar(seleccion === QUITAR ? null : seleccion, motivo.trim());
   };
@@ -51,19 +57,14 @@ export function DialogoReasignar({
     >
       <div className="p-5">
         <label className="mb-1.5 block text-[12.5px] font-semibold text-texto-2">Vendedor</label>
-        <select
-          data-testid="reasignar-vendedor"
+        <SelectorBuscable
+          testid="reasignar-vendedor"
           value={seleccion}
-          onChange={(e) => setSeleccion(e.target.value)}
-          className={CLASE_CAMPO}
-        >
-          <option value={QUITAR}>Sin asignar (quitar vendedor)</option>
-          {(vendedores ?? []).map((v) => (
-            <option key={v.id} value={v.id}>
-              {v.nombre}
-            </option>
-          ))}
-        </select>
+          onChange={setSeleccion}
+          opciones={opcionesVendedor}
+          placeholder="Selecciona un vendedor"
+          buscarPlaceholder="Buscar vendedor…"
+        />
 
         <div className="mt-3">
           <label className="mb-1.5 block text-[12.5px] font-semibold text-texto-2">Motivo (opcional)</label>

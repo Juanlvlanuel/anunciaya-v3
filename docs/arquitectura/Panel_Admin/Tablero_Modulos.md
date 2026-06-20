@@ -20,6 +20,14 @@
 
 ## Estado de hoy
 
+- **Recién cerrado (20 jun):** **Resumen / inicio** (módulo 1) — doc [`Resumen.md`](Resumen.md): tablero
+  de inicio con **KPIs gruesos** (negocios activos · usuarios · ingresos del mes · cobros fallidos; el
+  vendedor ve cartera/comisiones/efectivo) + **cola de pendientes accionable** (efectivo por entregar +
+  negocios en gracia), scoped por rol y con **deep-link con filtro** (clic → sección que resuelve la
+  tarea). La **campana** del shell pasó de demo a datos reales (mismo hook). Solo lectura → saltó Fase 2.
+  Sin migración. Backend orquesta consultas de dominio (sin duplicar alcance); harness
+  `probar-resumen-lectura.ts` verde + `tsc`/build. Estrenó patrón visual de **tablero KPI + cola** en
+  `Tokens_Panel.md`. **Pendiente:** commit de Juan.
 - **Validado en PROD (20 jun):** verificadas con consulta de huellas (`information_schema`/`pg_constraint`)
   en el Supabase de producción — **aplicadas:** `2026-06-18-concepto-tarjeta`, `2026-06-17-comision-monto-pagado`
   (abonos), `2026-06-19-comision-al-cobro` (Pieza 3) y el **DROP de `usuarios.ciudad`** (cierre completo de la
@@ -93,7 +101,7 @@
 
 | # | Módulo | Estado | Fase | Docs |
 |---|---|---|---|---|
-| 1 | Resumen / inicio | ⬜ | 0 | — |
+| 1 | **Resumen / inicio** | ✅ | Construido (VER · solo lectura, salta Fase 2) | `Resumen.md` · `Resumen_Pendientes.md` |
 | 2 | Métricas | ⬜ | 0 | — |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |

@@ -9,9 +9,10 @@
  * Ubicación: apps/admin/src/components/ciudades/DialogoAsignarRegion.tsx
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Map as MapIcon } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorBuscable } from '../ui/SelectorBuscable';
 import type { CiudadCatalogo, RegionConConteo } from '../../services/ciudadesService';
 
 interface DialogoAsignarRegionProps {
@@ -30,7 +31,10 @@ export function DialogoAsignarRegion({ abierto, ciudad, regiones, cargando, onCe
     if (abierto) setRegionId(ciudad?.regionId ?? '');
   }, [abierto, ciudad]);
 
-  const regionesActivas = regiones.filter((r) => r.activa || r.id === ciudad?.regionId);
+  const opcionesRegion = useMemo(() => {
+    const activas = regiones.filter((r) => r.activa || r.id === ciudad?.regionId);
+    return [{ id: '', etiqueta: 'Sin región' }, ...activas.map((r) => ({ id: r.id, etiqueta: r.nombre }))];
+  }, [regiones, ciudad?.regionId]);
   const sinCambio = (regionId || null) === (ciudad?.regionId ?? null);
 
   return (
@@ -45,17 +49,14 @@ export function DialogoAsignarRegion({ abierto, ciudad, regiones, cargando, onCe
     >
       <div className="p-5">
         <label className="mb-1.5 block text-[12.5px] font-semibold text-texto-2">Región</label>
-        <select
-          data-testid="asignar-region-select"
+        <SelectorBuscable
+          testid="asignar-region-select"
           value={regionId}
-          onChange={(e) => setRegionId(e.target.value)}
-          className="w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
-        >
-          <option value="">Sin región</option>
-          {regionesActivas.map((r) => (
-            <option key={r.id} value={r.id}>{r.nombre}</option>
-          ))}
-        </select>
+          onChange={setRegionId}
+          opciones={opcionesRegion}
+          placeholder="Sin región"
+          buscarPlaceholder="Buscar región…"
+        />
 
         <div className="mt-5 flex justify-end gap-2">
           <button type="button" onClick={onCerrar} disabled={cargando} className="rounded-[10px] border border-borde-fuerte bg-superficie px-3.5 py-2 text-[13px] font-semibold text-texto transition hover:bg-marca-suave disabled:opacity-50">

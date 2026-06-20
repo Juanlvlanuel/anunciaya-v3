@@ -1,0 +1,367 @@
+/**
+ * SeccionResumen.tsx
+ * ===================
+ * Módulo "Resumen / inicio" del Panel = el tablero de bienvenida. Solo lectura.
+ *   - Encabezado contextual (alcance + periodo).
+ *   - KPIs gruesos (clicables → deep-link a su sección): super/gerente ven plataforma/región;
+ *     el vendedor ve lo suyo (cartera activa, comisiones, efectivo).
+ *   - Cola de pendientes accionable (centro de trabajo, NO feed): efectivo por entregar + negocios
+ *     en gracia. Cada item lleva a la sección que resuelve la tarea.
+ *
+ * El alcance por rol lo aplica el backend; aquí el `rol` solo cambia qué KPIs/copys se muestran.
+ * Diseño según Tokens_Panel.md (B2B denso, neutro + un acento, sin círculos pastel). Responsive
+ * base/lg:/2xl: con un solo layout (el fondo del contenedor padre no cambia por breakpoint).
+ *
+ * Ubicación: apps/admin/src/components/resumen/SeccionResumen.tsx
+ */
+
+import type { ReactNode } from 'react';
+import { Store, Users, CircleDollarSign, CreditCard, Wallet, Clock, ChevronRight, CheckCircle2, type LucideIcon } from 'lucide-react';
+import type { RolPanel } from '../../data/menuPanel';
+import { useResumen } from '../../hooks/queries/useResumen';
+import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
+import { EstadoSeccion } from '../ui/EstadoSeccion';
+
+const FMT_MONEDA = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
+const FMT_NUM = new Intl.NumberFormat('es-MX');
+
+type Acento = 'ok' | 'danger';
+interface MetaKpi {
+  etiqueta: string;
+  formato: 'numero' | 'moneda';
+  icono: LucideIcon;
+  destino: string;
+  filtro?: { negocios?: { estadoPago?: string }; suscripciones?: { tipo?: string } };
+  acento?: Acento;
+}
+
+/** La clave del KPI (la pone el backend) decide etiqueta, formato, ícono, acento y deep-link. */
+const META_KPI: Record<string, MetaKpi> = {
+  negociosActivos: { etiqueta: 'Negocios activos', formato: 'numero', icono: Store, destino: 'negocios' },
+  usuarios: { etiqueta: 'Usuarios', formato: 'numero', icono: Users, destino: 'usuarios' },
+  ingresosMes: { etiqueta: 'Ingresos del mes', formato: 'moneda', icono: CircleDollarSign, destino: 'suscripciones', acento: 'ok' },
+  cobrosFallidos: { etiqueta: 'Cobros fallidos', formato: 'numero', icono: CreditCard, destino: 'suscripciones', filtro: { suscripciones: { tipo: 'cobro_fallido' } } },
+  carteraActiva: { etiqueta: 'Mi cartera activa', formato: 'numero', icono: Store, destino: 'negocios' },
+  comisionesPendientes: { etiqueta: 'Comisiones pendientes', formato: 'moneda', icono: CircleDollarSign, destino: 'comisiones', acento: 'ok' },
+  efectivoPorEntregar: { etiqueta: 'Efectivo por entregar', formato: 'moneda', icono: Wallet, destino: 'comisiones' },
+};
+
+function colorAcento(acento?: Acento): string {
+  return acento === 'ok' ? 'var(--panel-ok)' : acento === 'danger' ? 'var(--panel-danger)' : 'var(--panel-text)';
+}
+
+function capitalizar(s: string): string {
+  return s.charAt(0).toUpperCase() + s.slice(1);
+}
+
+/** Saludo según la hora local. */
+function saludoPorHora(): string {
+  const h = new Date().getHours();
+  if (h < 12) return 'Buenos días';
+  if (h < 19) return 'Buenas tardes';
+  return 'Buenas noches';
+}
+
+/** Texto secundario bajo cada KPI (contexto, no un dato extra). */
+function contextoKpi(clave: string, rol: RolPanel, periodoMes: string): string | undefined {
+  switch (clave) {
+    case 'negociosActivos':
+      return rol === 'gerente' ? 'Al corriente en tu región' : 'Al corriente en la plataforma';
+    case 'usuarios':
+      return rol === 'gerente' ? 'En tu región' : 'Registrados en total';
+    case 'ingresosMes':
+    case 'cobrosFallidos':
+      return periodoMes;
+    case 'carteraActiva':
+      return 'Negocios al corriente';
+    case 'comisionesPendientes':
+      return 'Por cobrarte';
+    case 'efectivoPorEntregar':
+      return 'Que debes entregar';
+    default:
+      return undefined;
+  }
+}
+
+function textoGracia(dias: number | null): string {
+  if (dias == null) return 'Sin fecha límite';
+  if (dias < 0) return 'Plazo vencido';
+  if (dias === 0) return 'Vence hoy';
+  if (dias === 1) return 'Vence mañana';
+  return `Faltan ${dias} días`;
+}
+
+export function SeccionResumen({ rol }: { rol: RolPanel }) {
+  const { data, isLoading, isError } = useResumen();
+  const navegar = useNavegacionPanel((s) => s.navegar);
+  const nombreUsuario = useAuthPanelStore((s) => s.usuario?.nombre ?? '');
+
+  if (isLoading) {
+    return (
+      <div className="flex h-full flex-col p-4 lg:p-5">
+        <EstadoSeccion variante="cargando" icono={Store} titulo="Cargando el resumen…" />
+      </div>
+    );
+  }
+  if (isError || !data) {
+    return (
+      <div className="flex h-full flex-col p-4 lg:p-5">
+        <EstadoSeccion
+          variante="error"
+          icono={Store}
+          titulo="No se pudo cargar el resumen."
+          descripcion="Revisa tu conexión e inténtalo de nuevo."
+        />
+      </div>
+    );
+  }
+
+  const { kpis, pendientes } = data;
+  const esVendedor = rol === 'vendedor';
+  const colsLg = kpis.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4';
+  // "Ver todos" solo si hay más pendientes de los que se muestran en el tablero.
+  const hayMasEfectivo = !esVendedor && pendientes.efectivo.totalVendedores > pendientes.efectivo.items.length;
+  const hayMasGracia = pendientes.gracia.total > pendientes.gracia.items.length;
+  const periodoMes = capitalizar(new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
+  const primerNombre = nombreUsuario.trim().split(' ')[0];
+  const saludo = primerNombre ? `${saludoPorHora()}, ${primerNombre}` : saludoPorHora();
+  const fechaHoy = capitalizar(
+    new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
+  );
+
+  return (
+    <div className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 lg:gap-7">
+        {/* ── Encabezado: saludo + fecha de hoy ────────────────────────────── */}
+        <div className="flex flex-col gap-0.5">
+          <h2 className="text-[18px] font-semibold tracking-[-0.2px] text-texto">{saludo}</h2>
+          <p className="text-[12.5px] text-texto-3">{fechaHoy}</p>
+        </div>
+
+        {/* ── KPIs ─────────────────────────────────────────────────────────── */}
+        <div className={`grid grid-cols-2 gap-3 ${colsLg} 2xl:gap-4`}>
+          {kpis.map((k) => {
+            const meta = META_KPI[k.clave];
+            if (!meta) return null;
+            const acento: Acento | undefined =
+              k.clave === 'cobrosFallidos' ? (k.valor > 0 ? 'danger' : undefined) : meta.acento;
+            const valor = meta.formato === 'moneda' ? FMT_MONEDA.format(k.valor) : FMT_NUM.format(k.valor);
+            const contexto = contextoKpi(k.clave, rol, periodoMes);
+            const Icono = meta.icono;
+            return (
+              <button
+                key={k.clave}
+                type="button"
+                data-testid={`resumen-kpi-${k.clave}`}
+                onClick={() => navegar(meta.destino, meta.filtro)}
+                className="group flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-4 text-left shadow-tarjeta-panel transition hover:border-borde-fuerte hover:bg-superficie-2 lg:flex-row lg:items-start lg:gap-3.5 2xl:p-5"
+              >
+                {/* Móvil: ícono arriba, texto debajo a lo ancho (sin truncar). Escritorio: ícono a la izquierda. */}
+                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-marca-suave text-marca">
+                  <Icono size={20} />
+                </span>
+                <span className="flex min-w-0 flex-1 flex-col gap-1">
+                  <span className="flex items-start justify-between gap-1">
+                    <span className="text-[12px] font-semibold uppercase tracking-wide text-texto-4 lg:truncate">
+                      {meta.etiqueta}
+                    </span>
+                    <ChevronRight size={15} className="hidden shrink-0 text-texto-4 opacity-0 transition group-hover:opacity-100 lg:block" />
+                  </span>
+                  <span className="text-[24px] font-bold leading-none lg:truncate lg:text-[27px] 2xl:text-[30px]" style={{ color: colorAcento(acento) }}>
+                    {valor}
+                  </span>
+                  {contexto && <span className="text-[11.5px] text-texto-3 lg:truncate">{contexto}</span>}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* ── Cola de pendientes ───────────────────────────────────────────── */}
+        <div className="flex flex-col gap-3">
+          <div className="flex items-center justify-between">
+            <h3 className="text-[13px] font-semibold uppercase tracking-wide text-texto-3">Pendientes por resolver</h3>
+            <span className="font-mono text-[11px] text-texto-4">
+              {pendientes.contador} {pendientes.contador === 1 ? 'tarea' : 'tareas'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
+            {/* Efectivo por entregar */}
+            <BloquePendiente
+              testid="resumen-pendiente-efectivo"
+              icono={Wallet}
+              titulo="Efectivo por entregar"
+              contador={esVendedor ? (pendientes.efectivo.monto > 0 ? 1 : 0) : pendientes.efectivo.totalVendedores}
+              resumen={pendientes.efectivo.monto > 0 ? `${FMT_MONEDA.format(pendientes.efectivo.monto)} sin entregar` : undefined}
+              vacioTexto={esVendedor ? 'No tienes efectivo por entregar.' : 'Ningún vendedor debe efectivo.'}
+              hayMas={hayMasEfectivo}
+              onAbrirTodo={() => navegar('comisiones')}
+            >
+              {esVendedor
+                ? pendientes.efectivo.monto > 0 && (
+                    <FilaPendiente
+                      testid="resumen-efectivo-propio"
+                      icono={Wallet}
+                      titulo="Tu efectivo cobrado"
+                      subtitulo="Pendiente de entregar"
+                      valor={FMT_MONEDA.format(pendientes.efectivo.monto)}
+                      onClick={() => navegar('comisiones')}
+                    />
+                  )
+                : pendientes.efectivo.items.map((v) => (
+                    <FilaPendiente
+                      key={v.embajadorId}
+                      testid={`resumen-efectivo-item-${v.embajadorId}`}
+                      icono={Wallet}
+                      titulo={v.nombre}
+                      subtitulo="Por entregar"
+                      valor={FMT_MONEDA.format(v.saldo)}
+                      onClick={() => navegar('comisiones')}
+                    />
+                  ))}
+            </BloquePendiente>
+
+            {/* Negocios en gracia */}
+            <BloquePendiente
+              testid="resumen-pendiente-gracia"
+              icono={Clock}
+              titulo={esVendedor ? 'Mis negocios en gracia' : 'Negocios en gracia'}
+              contador={pendientes.gracia.total}
+              resumen={pendientes.gracia.total > 0 ? 'Por suspenderse si no pagan' : undefined}
+              vacioTexto="Ningún negocio en gracia."
+              hayMas={hayMasGracia}
+              onAbrirTodo={() => navegar('negocios', { negocios: { estadoPago: 'en_gracia' } })}
+            >
+              {pendientes.gracia.items.map((n) => {
+                const urgente = n.diasRestantes != null && n.diasRestantes <= 1;
+                return (
+                  <FilaPendiente
+                    key={n.id}
+                    testid={`resumen-gracia-item-${n.id}`}
+                    icono={Store}
+                    titulo={n.nombre}
+                    subtitulo={[n.ciudad, n.vendedorNombre].filter(Boolean).join(' · ') || 'Sin ciudad'}
+                    valor={textoGracia(n.diasRestantes)}
+                    valorAcento={urgente ? 'danger' : undefined}
+                    onClick={() => navegar('negocios', { negocios: { estadoPago: 'en_gracia' } })}
+                  />
+                );
+              })}
+            </BloquePendiente>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// SUB-COMPONENTES
+// =============================================================================
+
+function BloquePendiente({
+  testid,
+  icono: Icono,
+  titulo,
+  contador,
+  resumen,
+  vacioTexto,
+  hayMas,
+  onAbrirTodo,
+  children,
+}: {
+  testid: string;
+  icono: LucideIcon;
+  titulo: string;
+  contador: number;
+  resumen?: string;
+  vacioTexto: string;
+  hayMas: boolean;
+  onAbrirTodo: () => void;
+  children?: ReactNode;
+}) {
+  const vacio = contador === 0;
+  return (
+    <section
+      data-testid={testid}
+      className="flex min-h-[148px] flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel"
+    >
+      <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
+        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
+          <Icono size={17} />
+        </span>
+        <span className="flex min-w-0 flex-1 flex-col">
+          <span className="truncate text-[14px] font-semibold text-texto">{titulo}</span>
+          {resumen && <span className="truncate text-[12px] text-texto-3">{resumen}</span>}
+        </span>
+        {!vacio && (
+          <span className="txt-badge grid min-w-[22px] shrink-0 place-items-center rounded-full bg-marca-suave px-1.5 text-[11px] font-semibold text-marca">
+            {contador}
+          </span>
+        )}
+      </header>
+
+      {vacio ? (
+        <div className="flex flex-1 flex-col items-center justify-center gap-2 px-4 py-7 text-center">
+          <CheckCircle2 size={22} style={{ color: 'var(--panel-ok)' }} />
+          <p className="text-[13px] text-texto-3">{vacioTexto}</p>
+        </div>
+      ) : (
+        <div className="flex flex-1 flex-col p-1.5">
+          {children}
+          {hayMas && (
+            <button
+              type="button"
+              onClick={onAbrirTodo}
+              className="mt-auto flex items-center justify-center gap-1 rounded-[9px] px-2.5 py-2 text-[12.5px] font-semibold text-marca transition hover:bg-marca-suave"
+            >
+              Ver todos <ChevronRight size={14} />
+            </button>
+          )}
+        </div>
+      )}
+    </section>
+  );
+}
+
+function FilaPendiente({
+  testid,
+  icono: Icono,
+  titulo,
+  subtitulo,
+  valor,
+  valorAcento,
+  onClick,
+}: {
+  testid: string;
+  icono: LucideIcon;
+  titulo: string;
+  subtitulo: string;
+  valor: string;
+  valorAcento?: Acento;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      data-testid={testid}
+      onClick={onClick}
+      className="group flex items-center gap-3 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-marca-suave"
+    >
+      <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-borde bg-superficie-2 text-texto-3 transition group-hover:border-borde-fuerte group-hover:text-marca">
+        <Icono size={15} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="truncate text-[13.5px] font-medium text-texto">{titulo}</span>
+        <span className="truncate text-[12px] text-texto-3">{subtitulo}</span>
+      </span>
+      <span className="shrink-0 text-[13px] font-semibold" style={{ color: colorAcento(valorAcento) }}>
+        {valor}
+      </span>
+    </button>
+  );
+}
+
+export default SeccionResumen;

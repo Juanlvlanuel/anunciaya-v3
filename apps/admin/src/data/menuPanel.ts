@@ -86,9 +86,10 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     id: 'administracion',
     etiqueta: 'Administración',
     items: [
-      { id: 'configuracion', etiqueta: 'Configuración', icono: 'configuracion', roles: ['superadmin'] },
       { id: 'equipo', etiqueta: 'Equipo y accesos', icono: 'equipo', roles: ['superadmin', 'gerente'] },
-      { id: 'sistema', etiqueta: 'Sistema', icono: 'sistema', roles: ['superadmin'] },
+      { id: 'configuracion', etiqueta: 'Configuración', icono: 'configuracion', roles: ['superadmin'] },
+      { id: 'auditoria', etiqueta: 'Auditoría', icono: 'auditoria', roles: ['superadmin', 'gerente'] },
+      { id: 'mantenimiento', etiqueta: 'Mantenimiento', icono: 'mantenimiento', roles: ['superadmin'] },
     ],
   },
 ];
@@ -104,6 +105,7 @@ export const ETIQUETAS_CORTAS: Record<string, string> = {
   recibos: 'Recibos',
   publicidad: 'Ads',
   ciudades: 'Ciudades',
+  auditoria: 'Auditoría',
 };
 
 /** Devuelve los grupos visibles para un rol (oculta grupos sin ítems). */
@@ -123,44 +125,3 @@ export function itemsParaRol(rol: RolPanel): ItemMenu[] {
 export function etiquetaDe(item: ItemMenu, rol: RolPanel): string {
   return item.etiquetaPorRol?.[rol] ?? item.etiqueta;
 }
-
-// =============================================================================
-// DATOS DEMO (placeholders hasta cablear datos reales)
-// =============================================================================
-
-export interface ItemPendiente {
-  titulo: string;
-  subtitulo: string;
-  icono: string;
-}
-
-export interface PendientesRol {
-  contador: number;
-  items: ItemPendiente[];
-}
-
-export const PENDIENTES_DEMO: Record<RolPanel, PendientesRol> = {
-  superadmin: {
-    contador: 32,
-    items: [
-      { titulo: 'Efectivo por confirmar', subtitulo: '12 vendedores · $164,300 MXN', icono: 'comisiones' },
-      { titulo: 'Negocios en gracia', subtitulo: '18 negocios por suspenderse', icono: 'negocios' },
-      { titulo: 'Vendedores con faltante', subtitulo: '2 vendedores · $7,400 MXN', icono: 'usuarios' },
-    ],
-  },
-  gerente: {
-    contador: 9,
-    items: [
-      { titulo: 'Efectivo por confirmar', subtitulo: '3 vendedores · $28,600 MXN', icono: 'comisiones' },
-      { titulo: 'Negocios en gracia', subtitulo: '5 negocios por suspenderse', icono: 'negocios' },
-      { titulo: 'Vendedores con faltante', subtitulo: '1 vendedor · $3,200 MXN', icono: 'usuarios' },
-    ],
-  },
-  vendedor: {
-    contador: 2,
-    items: [
-      { titulo: 'Efectivo por entregar', subtitulo: '$3,200 MXN cobrados hoy', icono: 'comisiones' },
-      { titulo: 'Negocio en gracia', subtitulo: '1 de tu cartera por suspenderse', icono: 'negocios' },
-    ],
-  },
-};

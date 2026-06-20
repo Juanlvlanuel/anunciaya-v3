@@ -601,19 +601,14 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
               {mostrarVendedor && (
                 <div>
                   <label className={LABEL}>Vendedor que lo trae</label>
-                  <select
-                    data-testid="alta-vendedor"
+                  <SelectorBuscable
+                    testid="alta-vendedor"
                     value={vendedorSel}
-                    onChange={(e) => setVendedorSel(e.target.value)}
-                    className={CLASE_CAMPO}
-                  >
-                    <option value="">Sin vendedor</option>
-                    {(vendedores ?? []).map((v) => (
-                      <option key={v.id} value={v.id}>
-                        {v.nombre}
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setVendedorSel}
+                    opciones={[{ id: '', etiqueta: 'Sin vendedor' }, ...(vendedores ?? []).map((v) => ({ id: v.id, etiqueta: v.nombre }))]}
+                    placeholder="Sin vendedor"
+                    buscarPlaceholder="Buscar vendedor…"
+                  />
                 </div>
               )}
             </div>

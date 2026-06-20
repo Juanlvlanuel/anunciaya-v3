@@ -44,6 +44,7 @@ export const useFiltroRegion = create<EstadoFiltroRegion>((set, get) => ({
     }
     set({ regionId });
     // Cambió el ámbito → refrescar lo que depende del filtro.
+    queryClient.invalidateQueries({ queryKey: queryKeys.resumen.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.negocios.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.usuarios.all() });
     queryClient.invalidateQueries({ queryKey: queryKeys.equipo.all() });

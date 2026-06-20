@@ -19,6 +19,7 @@ import { Search, X, ChevronLeft, ChevronRight, CornerDownRight, Store, MapPin, U
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
+import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 import { useNegociosLista, useVendedoresFiltro, useCiudadesFiltro, usePrefetchNegocio, useSucursalesNegocio, PAGOS_INICIAL_FICHA } from '../../hooks/queries/useNegociosAdmin';
 import { queryKeys } from '../../config/queryKeys';
 import { listarPagosNegocio, obtenerDetalleNegocio } from '../../services/negociosService';
@@ -83,6 +84,18 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const [sucursalSel, setSucursalSel] = useState<{ negocioId: string; sucursal: SucursalFila } | null>(null);
   const [abriendoId, setAbriendoId] = useState<string | null>(null);
   const qc = useQueryClient();
+
+  // Deep-link desde el Resumen / la campana: si llegó un filtro inicial (ej. estado "en gracia"),
+  // aplicarlo y consumirlo (one-shot) para no re-aplicarlo en cada render.
+  const filtroInicial = useNavegacionPanel((s) => s.filtroNegocios);
+  const consumirFiltro = useNavegacionPanel((s) => s.consumirFiltroNegocios);
+  useEffect(() => {
+    if (filtroInicial?.estadoPago) {
+      setEstadoPago(filtroInicial.estadoPago);
+      setPagina(1);
+      consumirFiltro();
+    }
+  }, [filtroInicial, consumirFiltro]);
 
   // Al abrir, esperamos a tener el historial de pagos en caché ANTES de montar la ficha, para
   // que el modal aparezca COMPLETO (info + historial) de una vez. Clave en móvil, donde no hay
@@ -377,9 +390,9 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
           type="button"
           data-testid="negocios-registrar"
           onClick={() => setMostrarAlta(true)}
-          className="inline-flex shrink-0 items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:opacity-90"
+          className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
         >
-          <Plus size={16} /> Registrar negocio
+          <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar negocio
         </button>
       </div>
 

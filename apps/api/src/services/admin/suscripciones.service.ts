@@ -348,3 +348,36 @@ export async function obtenerDetalleEvento(
         creadoEn: f.creadoEn ?? null,
     };
 }
+
+// =============================================================================
+// 3. KPIs DE INGRESOS (para el Resumen)
+// =============================================================================
+
+export interface ResumenIngresos {
+    ingresos: number;   // SUM(monto) de cobro_exitoso + pago_manual
+    fallidos: number;   // COUNT de cobro_fallido
+}
+
+/**
+ * KPIs de ingresos del Resumen en el alcance del rol, desde una fecha (inicio del mes en curso).
+ * Reusa el MISMO predicado de alcance que la bitácora (`condicionAlcance`). Una sola pasada con FILTER.
+ */
+export async function resumenIngresos(panel: UsuarioPanel, desde?: string): Promise<ResumenIngresos> {
+    const alcance = await condicionAlcance(panel);
+    if (alcance === 'vacio') return { ingresos: 0, fallidos: 0 };
+
+    const cond: SQL[] = [];
+    if (alcance) cond.push(alcance);
+    if (desde) cond.push(gte(eventosPago.fechaEvento, desde));
+    const where = cond.length ? and(...cond) : undefined;
+
+    const [kpis] = await db
+        .select({
+            ingresos: sql<string | null>`COALESCE(SUM(${eventosPago.monto}) FILTER (WHERE ${eventosPago.tipo} IN ('cobro_exitoso','pago_manual')), 0)`,
+            fallidos: sql<number>`COUNT(*) FILTER (WHERE ${eventosPago.tipo} = 'cobro_fallido')`,
+        })
+        .from(eventosPago)
+        .where(where);
+
+    return { ingresos: Number(kpis?.ingresos ?? 0), fallidos: Number(kpis?.fallidos ?? 0) };
+}

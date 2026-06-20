@@ -15,6 +15,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 
 interface SelectorFechaProps {
   /** Fecha seleccionada en formato YYYY-MM-DD ('' = sin selección). */
@@ -66,6 +67,7 @@ export function SelectorFecha({
   testid,
 }: SelectorFechaProps) {
   const hoy = useMemo(() => new Date(), []);
+  const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
   const [mes, setMes] = useState(() => partes(value)?.mes ?? hoy.getMonth());
   const [anio, setAnio] = useState(() => partes(value)?.anio ?? hoy.getFullYear());
@@ -139,7 +141,8 @@ export function SelectorFecha({
     const r = refInput.current.getBoundingClientRect();
     const ANCHO = Math.min(320, Math.max(260, r.width)); // acotado: ni gigante en inputs anchos ni angosto
     const ALTO = 320;
-    const abreArriba = window.innerHeight - r.bottom < ALTO && r.top > window.innerHeight - r.bottom;
+    // En PC el calendario SIEMPRE abre hacia abajo; el flip (abrir arriba si no cabe) solo en móvil.
+    const abreArriba = !esEscritorio && window.innerHeight - r.bottom < ALTO && r.top > window.innerHeight - r.bottom;
     let left = r.left;
     if (left + ANCHO > window.innerWidth - 8) left = window.innerWidth - ANCHO - 8;
     if (left < 8) left = 8;
@@ -149,7 +152,7 @@ export function SelectorFecha({
       ...(abreArriba ? { bottom: window.innerHeight - r.top + 6 } : { top: r.bottom + 6 }),
     } as const;
     // Recalcular en cada apertura/navegación (el scroll cierra el popover).
-  }, [abierto, mes, anio]);
+  }, [abierto, mes, anio, esEscritorio]);
 
   return (
     <div ref={refInput} className="relative">

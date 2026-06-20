@@ -385,8 +385,8 @@ export function SeccionCiudades() {
             <span className="text-[13px] text-texto-3" data-testid="regiones-total">
               <b className="font-semibold text-texto">{listaRegiones.length}</b> {listaRegiones.length === 1 ? 'región' : 'regiones'}
             </span>
-            <button type="button" data-testid="crear-region" onClick={() => setDialogoRegion({ modo: 'crear', region: null })} className="inline-flex items-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition hover:opacity-90">
-              <Plus size={14} /> Crear región
+            <button type="button" data-testid="crear-region" onClick={() => setDialogoRegion({ modo: 'crear', region: null })} className="group inline-flex items-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95">
+              <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Crear región
             </button>
           </div>
         )}

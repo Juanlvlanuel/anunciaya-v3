@@ -69,6 +69,71 @@ export async function saldoEfectivo(embajadorId: string): Promise<number> {
 }
 
 // =============================================================================
+// EFECTIVO POR ENTREGAR (pendiente del Resumen — vendedores con saldo > 0)
+// =============================================================================
+
+export interface ItemEfectivoPendiente {
+    embajadorId: string;
+    usuarioId: string | null;
+    nombre: string;
+    saldo: number;
+}
+
+export interface EfectivoPendiente {
+    items: ItemEfectivoPendiente[];  // los `limite` con mayor saldo
+    totalVendedores: number;         // cuántos vendedores deben efectivo
+    monto: number;                   // suma de todos los saldos pendientes
+}
+
+/**
+ * Vendedores con efectivo por entregar (saldo > 0) en el alcance de quien consulta. Para la cola de
+ * pendientes del Resumen. El VENDEDOR no ve la red (su propio saldo va por `saldoEfectivo`). El gerente
+ * se acota a su región (vía `embajador_ciudades → ciudades.region_id`, mismo predicado que el resto).
+ */
+export async function listarEfectivoPendiente(panel: UsuarioPanel, limite = 5): Promise<EfectivoPendiente> {
+    const vacio: EfectivoPendiente = { items: [], totalVendedores: 0, monto: 0 };
+    if (panel.rolEquipo === 'vendedor') return vacio;
+    if (panel.rolEquipo === 'gerente' && !panel.regionId) return vacio;
+
+    const filtroRegion =
+        panel.rolEquipo === 'gerente'
+            ? sql`WHERE EXISTS (
+                SELECT 1 FROM embajador_ciudades ec
+                JOIN ciudades c ON c.id = ec.ciudad_id
+                WHERE ec.embajador_id = e.id AND c.region_id = ${panel.regionId}
+            )`
+            : sql``;
+
+    const filas = (
+        await db.execute(sql`
+            SELECT e.id AS embajador_id, e.usuario_id AS usuario_id,
+                   (u.nombre || ' ' || COALESCE(u.apellidos, '')) AS nombre,
+                   COALESCE(SUM(CASE WHEN em.tipo = 'cobro' THEN em.monto ELSE -em.monto END), 0) AS saldo
+            FROM embajadores e
+            JOIN usuarios u ON u.id = e.usuario_id
+            JOIN efectivo_movimientos em ON em.embajador_id = e.id
+            ${filtroRegion}
+            GROUP BY e.id, e.usuario_id, u.nombre, u.apellidos
+            HAVING COALESCE(SUM(CASE WHEN em.tipo = 'cobro' THEN em.monto ELSE -em.monto END), 0) > 0
+            ORDER BY saldo DESC
+        `)
+    ).rows as Array<{ embajador_id: string; usuario_id: string | null; nombre: string; saldo: string | number }>;
+
+    const todos: ItemEfectivoPendiente[] = filas.map((f) => ({
+        embajadorId: f.embajador_id,
+        usuarioId: f.usuario_id ?? null,
+        nombre: (f.nombre ?? '').trim() || '—',
+        saldo: Number(f.saldo),
+    }));
+
+    return {
+        items: todos.slice(0, limite),
+        totalVendedores: todos.length,
+        monto: todos.reduce((s, v) => s + v.saldo, 0),
+    };
+}
+
+// =============================================================================
 // COBRO (le carga deuda — automático en los puntos de pago en efectivo)
 // =============================================================================
 

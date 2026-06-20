@@ -15,8 +15,9 @@
 > tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
 > los demás docs: el código manda, el doc lo refleja).
 >
-> **Última actualización:** 18 Junio 2026 (§5 patrón "Acordeón de secciones" estrenado en
-> Configuración: horizontal en escritorio / vertical en móvil, con tarjetas-fila apiladas).
+> **Última actualización:** 20 Junio 2026 (§5 patrón "Tablero de inicio — KPIs + cola de pendientes"
+> estrenado en Resumen: tarjeta KPI clicable responsive móvil-apilado/escritorio-horizontal, bloques de
+> cola con estado vacío positivo).
 
 ---
 
@@ -150,6 +151,23 @@ controla cuál sección está activa (una a la vez).
 - **Dentro** van tarjetas-fila horizontales (ícono · identidad a la izquierda · valor + acción a la
   derecha), apiladas. Jerarquía de fondos que alterna: tarjeta-acordeón `superficie` → cuerpo
   `superficie-2` → tarjetas `superficie` → chips `superficie-2`.
+
+**Tablero de inicio — KPIs + cola de pendientes (estrenado en Resumen)** — patrón de la pantalla de
+inicio (`components/resumen/SeccionResumen.tsx`).
+- **Encabezado:** saludo por hora + nombre (`h2` ~18px) y fecha de hoy (`texto-3`). No repite el título
+  de la sección (ya vive en la barra negra).
+- **Tarjeta KPI** (clicable → deep-link): ícono en cuadro `bg-marca-suave text-marca` (`rounded-[11px]`,
+  ~44px), valor `font-bold` 24/27/30px (base/lg/2xl) con **acento por color** (`ok` ingresos, `peligro`
+  si fallidos>0), etiqueta uppercase `texto-4` y una línea de contexto `texto-3`. `shadow-tarjeta-panel`.
+  **Responsive obligatorio:** **móvil apilado** (ícono arriba, texto a lo ancho, **sin** truncar) /
+  **escritorio horizontal** (`lg:flex-row` + `lg:truncate`). Grid `grid-cols-2 lg:grid-cols-4` (3 KPIs →
+  `lg:grid-cols-3`).
+- **Cola de pendientes:** dos `BloquePendiente` (`lg:grid-cols-2`), cada uno con header (ícono
+  marca-suave + título + badge contador) y hasta **5 filas** (`FilaPendiente`: ícono + identidad +
+  valor a la derecha). **"Ver todos →"** solo cuando hay más de las mostradas. **Estado vacío
+  positivo:** check verde (`var(--panel-ok)`) + texto ("todo al día"), no un vacío gris.
+- La **campana del shell** (`BandejaPendientes`) reusa la misma fuente de datos (un solo hook RQ),
+  así su badge y la cola siempre cuadran.
 
 ---
 

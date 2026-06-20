@@ -86,7 +86,23 @@ export interface FiltrosCiudadesKey {
   activa?: string;
 }
 
+/** Filtros que entran en la clave de la bitácora de auditoría. */
+export interface FiltrosAuditoriaKey {
+  actorId?: string;
+  accion?: string;
+  entidadTipo?: string;
+  entidadId?: string;
+  desde?: string;
+  hasta?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 export const queryKeys = {
+  resumen: {
+    all: () => ['resumen'] as const,
+  },
   negocios: {
     all: () => ['negocios'] as const,
     conteo: () => ['negocios', 'conteo'] as const,
@@ -114,6 +130,12 @@ export const queryKeys = {
   recibos: {
     all: () => ['recibos'] as const,
     lista: (filtros: FiltrosRecibosKey) => ['recibos', 'lista', filtros] as const,
+  },
+  auditoria: {
+    all: () => ['auditoria'] as const,
+    lista: (filtros: FiltrosAuditoriaKey) => ['auditoria', 'lista', filtros] as const,
+    detalle: (id: string) => ['auditoria', 'detalle', id] as const,
+    actores: () => ['auditoria', 'actores'] as const,
   },
   equipo: {
     all: () => ['equipo'] as const,

@@ -25,7 +25,7 @@
  * Ubicación: apps/api/src/services/admin/negocios.service.ts
  */
 
-import { and, eq, ilike, desc, asc, isNull, isNotNull, count, sql, type SQL } from 'drizzle-orm';
+import { and, eq, ilike, desc, asc, isNull, isNotNull, inArray, count, sql, type SQL } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import {
     negocios,
@@ -228,6 +228,91 @@ export async function contarNegocios(panel: UsuarioPanel): Promise<number> {
         .from(negocios)
         .where(alcance ?? undefined);
     return Number(fila?.total ?? 0);
+}
+
+/**
+ * Total de negocios ACTIVOS en el alcance del rol — para el KPI del Resumen. "Activo" = estado_admin
+ * 'activo' Y membresía al corriente o en gracia (misma definición que `SUB_ACTIVOS` en vendedores.service
+ * y que la comisión recurrente). Reusa `condicionAlcance` (super/gerente/vendedor).
+ */
+export async function contarNegociosActivos(panel: UsuarioPanel): Promise<number> {
+    const alcance = await condicionAlcance(panel);
+    if (alcance === 'vacio') return 0;
+    const cond: SQL[] = [
+        eq(negocios.estadoAdmin, 'activo'),
+        inArray(negocios.estadoMembresia, ['al_corriente', 'en_gracia']),
+    ];
+    if (alcance) cond.push(alcance);
+    const [fila] = await db.select({ total: count() }).from(negocios).where(and(...cond));
+    return Number(fila?.total ?? 0);
+}
+
+// =============================================================================
+// NEGOCIOS EN GRACIA (pendiente del Resumen — "por suspenderse")
+// =============================================================================
+
+/** Un negocio en periodo de gracia (cobro fallido, aún no suspendido). */
+export interface NegocioEnGracia {
+    id: string;
+    nombre: string;
+    fechaLimiteGracia: string | null;
+    /** ceil((límite − ahora) / día). 0 = vence hoy; negativo = ya pasó el límite (lo suspenderá el cron). */
+    diasRestantes: number | null;
+    ciudad: string | null;
+    vendedorNombre: string | null;
+}
+
+export interface ListaEnGracia {
+    items: NegocioEnGracia[];
+    total: number;
+}
+
+/**
+ * Negocios con `estado_membresia='en_gracia'` en el alcance del rol, ordenados por urgencia
+ * (`fecha_limite_gracia` asc). Para la cola de pendientes del Resumen. Reusa `condicionAlcance`.
+ * Devuelve los `limite` más urgentes + el total real (para el contador).
+ */
+export async function listarNegociosEnGracia(panel: UsuarioPanel, limite = 5): Promise<ListaEnGracia> {
+    const alcance = await condicionAlcance(panel);
+    if (alcance === 'vacio') return { items: [], total: 0 };
+
+    const cond: SQL[] = [eq(negocios.estadoMembresia, 'en_gracia')];
+    if (alcance) cond.push(alcance);
+    const where = and(...cond);
+
+    const [{ total }] = await db.select({ total: count() }).from(negocios).where(where);
+
+    const filas = await db
+        .select({
+            id: negocios.id,
+            nombre: negocios.nombre,
+            fechaLimiteGracia: negocios.fechaLimiteGracia,
+            ciudad: ciudades.nombre,
+            vendedorNombre: usuarios.nombre,
+            vendedorApellidos: usuarios.apellidos,
+        })
+        .from(negocios)
+        .leftJoin(negocioSucursales, and(eq(negocioSucursales.negocioId, negocios.id), eq(negocioSucursales.esPrincipal, true)))
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
+        .leftJoin(embajadores, eq(embajadores.id, negocios.embajadorId))
+        .leftJoin(usuarios, eq(usuarios.id, embajadores.usuarioId))
+        .where(where)
+        .orderBy(sql`${negocios.fechaLimiteGracia} ASC NULLS LAST`)
+        .limit(limite);
+
+    const ahora = Date.now();
+    const items: NegocioEnGracia[] = filas.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        fechaLimiteGracia: f.fechaLimiteGracia ?? null,
+        diasRestantes: f.fechaLimiteGracia
+            ? Math.ceil((new Date(f.fechaLimiteGracia).getTime() - ahora) / 86400000)
+            : null,
+        ciudad: f.ciudad ?? null,
+        vendedorNombre: f.vendedorNombre ? `${f.vendedorNombre} ${f.vendedorApellidos ?? ''}`.trim() : null,
+    }));
+
+    return { items, total: Number(total) };
 }
 
 // =============================================================================

@@ -18,8 +18,9 @@ import {
   MapPin,
   SlidersHorizontal,
   ShieldCheck,
-  Server,
+  Wrench,
   Receipt,
+  ScrollText,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -36,7 +37,8 @@ export const ICONOS_SECCION: Record<string, LucideIcon> = {
   ciudades: MapPin,
   configuracion: SlidersHorizontal,
   equipo: ShieldCheck,
-  sistema: Server,
+  auditoria: ScrollText,
+  mantenimiento: Wrench,
   seguridad: ShieldCheck,
 };
 

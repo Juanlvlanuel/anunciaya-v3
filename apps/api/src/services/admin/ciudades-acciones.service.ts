@@ -183,7 +183,8 @@ export async function crearCiudadesMultiple(
         accion: 'ciudad_crear_multiple',
         entidadTipo: 'ciudad',
         entidadId: null,
-        datosNuevos: { creadas: nuevas.length, omitidas, regionComun: regionComun ?? null },
+        // Guarda los NOMBRES creados (no solo el conteo) para que la auditoría diga QUÉ ciudades.
+        datosNuevos: { ciudades: nuevas.map((n) => n.nombre), omitidas, regionComun: regionComun ?? null },
     });
 
     return { ok: true, data: { creadas: nuevas.length, omitidas } };

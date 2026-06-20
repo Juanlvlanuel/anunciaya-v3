@@ -20,12 +20,14 @@ import { requierePanel } from '../../middleware/panel.middleware.js';
 import mantenimientoRoutes from './mantenimiento.routes.js';
 import sesionRoutes from './sesion.routes.js';
 import seguridadRoutes from './seguridad.routes.js';
+import resumenRoutes from './resumen.routes.js';
 import negociosRoutes from './negocios.routes.js';
 import usuariosRoutes from './usuarios.routes.js';
 import suscripcionesRoutes from './suscripciones.routes.js';
 import equipoRoutes from './equipo.routes.js';
 import vendedoresRoutes from './vendedores.routes.js';
 import recibosRoutes from './recibos.routes.js';
+import auditoriaRoutes from './auditoria.routes.js';
 import regionesRoutes from './regiones.routes.js';
 import configuracionRoutes from './configuracion.routes.js';
 import ciudadesRoutes from './ciudades.routes.js';
@@ -41,6 +43,11 @@ router.use('/', sesionRoutes);
 // También ANTES del gate global: /2fa/verificar debe poder otorgar la marca sin
 // quedar bloqueado por el propio candado (cada ruta trae su requierePanel propio).
 router.use('/', seguridadRoutes);
+
+// ─── Resumen / inicio (los 3 roles, alcance por rol) ─────────────────────────────
+// ANTES del gate global de superadmin: el tablero de inicio lo ven los 3 roles (cada
+// uno lo suyo). Cada ruta trae su propio requierePanel con los roles permitidos.
+router.use('/resumen', resumenRoutes);
 
 // ─── Negocios (los 3 roles, alcance por rol) ─────────────────────────────────────
 // ANTES del gate global de superadmin: la sección la usan también gerente y
@@ -73,6 +80,12 @@ router.use('/vendedores', vendedoresRoutes);
 // negocios; el gerente los de su región). Cada ruta trae su propio requierePanel.
 router.use('/recibos', recibosRoutes);
 
+// ─── Auditoría (superadmin + gerente · alcance por rol) ──────────────────────────
+// ANTES del gate global de superadmin: la bitácora la consulta también el gerente (ve solo
+// las acciones de su equipo, alcance en el service). El vendedor no entra. Cada ruta trae su
+// propio requierePanel.
+router.use('/auditoria', auditoriaRoutes);
+
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)
 // O un JWT con rol_equipo='superadmin' (revalidado en BD). Reemplaza a
@@ -93,6 +106,5 @@ router.use('/ciudades', ciudadesRoutes);
 
 // A futuro, agregar aquí:
 // router.use('/reportes-globales', reportesGlobalesRoutes);
-// router.use('/auditoria', auditoriaRoutes);
 
 export default router;
