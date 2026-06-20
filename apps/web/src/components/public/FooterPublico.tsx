@@ -75,7 +75,7 @@ export function FooterPublico() {
 
                 <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
                     <a
-                        href="https://wa.me/526381234567"
+                        href="https://wa.me/526381128286"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="transition-transform hover:scale-110 lg:cursor-pointer"
@@ -87,7 +87,7 @@ export function FooterPublico() {
                         />
                     </a>
                     <a
-                        href="https://facebook.com/anunciaya"
+                        href="https://www.facebook.com/profile.php?id=61578901306800"
                         target="_blank"
                         rel="noopener noreferrer"
                         className="transition-transform hover:scale-110 lg:cursor-pointer"
@@ -95,6 +95,30 @@ export function FooterPublico() {
                         <img
                             src="/facebook.webp"
                             alt="Facebook"
+                            className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
+                        />
+                    </a>
+                    <a
+                        href="https://www.instagram.com/anunciaya.mx/"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition-transform hover:scale-110 lg:cursor-pointer"
+                    >
+                        <img
+                            src="/instagram.webp"
+                            alt="Instagram"
+                            className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
+                        />
+                    </a>
+                    <a
+                        href="https://www.tiktok.com/@anunciaya.mx"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="transition-transform hover:scale-110 lg:cursor-pointer"
+                    >
+                        <img
+                            src="/tiktok.webp"
+                            alt="TikTok"
                             className="h-6 w-6 lg:h-6 lg:w-6 2xl:h-8 2xl:w-8"
                         />
                     </a>
@@ -111,7 +135,7 @@ export function FooterPublico() {
                     />
                     <div className="flex items-center gap-2">
                         <a
-                            href="https://wa.me/526381234567"
+                            href="https://wa.me/526381128286"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="transition-transform hover:scale-110"
@@ -119,12 +143,28 @@ export function FooterPublico() {
                             <img src="/whatsapp.webp" alt="WhatsApp" className="h-7 w-7" />
                         </a>
                         <a
-                            href="https://facebook.com/anunciaya"
+                            href="https://www.facebook.com/profile.php?id=61578901306800"
                             target="_blank"
                             rel="noopener noreferrer"
                             className="transition-transform hover:scale-110"
                         >
                             <img src="/facebook.webp" alt="Facebook" className="h-7 w-7" />
+                        </a>
+                        <a
+                            href="https://www.instagram.com/anunciaya.mx/"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="transition-transform hover:scale-110"
+                        >
+                            <img src="/instagram.webp" alt="Instagram" className="h-7 w-7" />
+                        </a>
+                        <a
+                            href="https://www.tiktok.com/@anunciaya.mx"
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="transition-transform hover:scale-110"
+                        >
+                            <img src="/tiktok.webp" alt="TikTok" className="h-7 w-7" />
                         </a>
                     </div>
                 </div>

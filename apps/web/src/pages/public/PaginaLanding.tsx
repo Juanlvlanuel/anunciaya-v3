@@ -760,11 +760,17 @@ function FooterLanding() {
                 </p>
 
                 <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
-                    <a href="https://wa.me/526381234567" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
+                    <a href="https://wa.me/526381128286" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
                         <img src="/whatsapp.webp" alt="WhatsApp" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
                     </a>
-                    <a href="https://facebook.com/anunciaya" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
+                    <a href="https://www.facebook.com/profile.php?id=61578901306800" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
                         <img src="/facebook.webp" alt="Facebook" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                    </a>
+                    <a href="https://www.instagram.com/anunciaya.mx/" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
+                        <img src="/instagram.webp" alt="Instagram" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
+                    </a>
+                    <a href="https://www.tiktok.com/@anunciaya.mx" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
+                        <img src="/tiktok.webp" alt="TikTok" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
                     </a>
                 </div>
             </div>
