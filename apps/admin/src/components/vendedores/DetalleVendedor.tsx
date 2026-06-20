@@ -18,8 +18,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign, CheckCircle2, Clock, Calendar, type LucideIcon } from 'lucide-react';
-import { useClickFuera } from '../../hooks/useClickFuera';
+import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign, CheckCircle2, Clock, type LucideIcon } from 'lucide-react';
+import { SelectorPeriodo } from './SelectorPeriodo';
 import { useCartera, useComisionesVendedor } from '../../hooks/queries/useVendedoresAdmin';
 import type { VendedorFila, VendedorDetalle, NegocioCartera, CarteraVendedor, ComisionFila } from '../../services/vendedoresService';
 import { useBackNativo } from '../../hooks/useBackNativo';
@@ -353,69 +353,26 @@ function pesos(n: number): string {
 function cap(s: string): string {
   return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
 }
-/** 'YYYY-MM' + n meses → 'YYYY-MM'. */
-function sumarMeses(periodo: string, n: number): string {
-  const [y, m] = periodo.split('-').map(Number);
-  const total = y * 12 + (m - 1) + n;
-  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+/** "18 Jun 2026" a partir de un Date local. */
+function fechaDia(d: Date): string {
+  return `${d.getDate()} ${cap(MESES[d.getMonth()] ?? '')} ${d.getFullYear()}`;
 }
 /** Concepto del pago que generó la comisión: alta, mensualidad o anualidad. */
 function conceptoPago(c: ComisionFila): string {
   if (c.tipo === 'alta') return 'Comisión de alta';
   return (c.meses ?? 1) > 1 ? 'Pago de Anualidad' : 'Pago de Mensualidad';
 }
-/** Rango de meses que cubrió el pago: "Jun 2026" (1 mes) o "Jun–Dic 2026" (varios). */
+/** Periodo EXACTO que comprende el pago: termina en `coberturaHasta` (fin del periodo pagado =
+ *  detalle.hasta o la fecha de próximo cobro del negocio) y empieza N meses antes. Una mensualidad que
+ *  vence el 18 Jul → "18 Jun 2026 – 18 Jul 2026". La alta es pago único → solo su fecha. Sin cobertura,
+ *  cae al mes del periodo. */
 function periodoCobertura(c: ComisionFila): string {
-  if (!c.periodo) return '—';
-  const n = c.meses ?? 1;
-  if (n <= 1) return cap(periodoLegible(c.periodo));
-  const fin = sumarMeses(c.periodo, n - 1);
-  const yi = c.periodo.split('-')[0];
-  const yf = fin.split('-')[0];
-  const mi = cap(MESES[Number(c.periodo.split('-')[1]) - 1] ?? '');
-  const mf = cap(MESES[Number(fin.split('-')[1]) - 1] ?? '');
-  return yi === yf ? `${mi}–${mf} ${yf}` : `${mi} ${yi} – ${mf} ${yf}`;
-}
-
-/** Chip + dropdown para filtrar el estado de cuenta por periodo (mes con comisiones) o "Todo el tiempo". */
-function SelectorPeriodo({ periodos, valor, onCambiar }: { periodos: string[]; valor: string | null; onCambiar: (p: string | null) => void }) {
-  const [abierto, setAbierto] = useState(false);
-  const ref = useClickFuera<HTMLDivElement>(() => setAbierto(false), abierto);
-  return (
-    <div className="relative" ref={ref}>
-      <button
-        type="button"
-        data-testid="comisiones-periodo"
-        onClick={() => setAbierto((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full border border-borde-fuerte bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:border-marca hover:text-marca"
-      >
-        <Calendar size={14} className="text-texto-3" />
-        <span className="capitalize">{valor ? periodoLegible(valor) : 'Todo el tiempo'}</span>
-        <ChevronDown size={14} className={`text-texto-3 transition-transform ${abierto ? 'rotate-180' : ''}`} />
-      </button>
-      {abierto && (
-        <div className="animar-entrada absolute right-0 z-30 mt-2 max-h-[260px] w-[180px] overflow-y-auto rounded-[12px] border border-borde bg-superficie p-1.5 shadow-pop-panel">
-          <button
-            type="button"
-            onClick={() => { onCambiar(null); setAbierto(false); }}
-            className={`flex w-full items-center rounded-[9px] px-2.5 py-2 text-left text-[13px] font-medium transition hover:bg-marca-suave ${valor === null ? 'bg-lienzo text-marca' : 'text-texto'}`}
-          >
-            Todo el tiempo
-          </button>
-          {periodos.map((p) => (
-            <button
-              key={p}
-              type="button"
-              onClick={() => { onCambiar(p); setAbierto(false); }}
-              className={`flex w-full items-center rounded-[9px] px-2.5 py-2 text-left text-[13px] font-medium capitalize transition hover:bg-marca-suave ${valor === p ? 'bg-lienzo text-marca' : 'text-texto'}`}
-            >
-              {periodoLegible(p)}
-            </button>
-          ))}
-        </div>
-      )}
-    </div>
-  );
+  if (c.tipo === 'alta') return c.creada ? fechaDia(new Date(c.creada)) : '—';
+  if (!c.coberturaHasta) return c.periodo ? cap(periodoLegible(c.periodo)) : '—';
+  const fin = new Date(c.coberturaHasta);
+  const inicio = new Date(fin);
+  inicio.setMonth(inicio.getMonth() - (c.meses ?? 1));
+  return `${fechaDia(inicio)} – ${fechaDia(fin)}`;
 }
 
 function KpiComision({ etiqueta, monto, color, icono: Icono }: { etiqueta: string; monto: number; color?: string; icono: LucideIcon }) {
@@ -483,14 +440,14 @@ function SeccionComisiones({ vendedorId }: { vendedorId: string }) {
   }, [periodoSel, itemsFiltrados, data?.resumen]);
 
   // Columnas del grid (header + filas comparten el mismo template, como la tabla de Recibos).
-  const cols = 'minmax(180px,2.2fr) minmax(140px,1.4fr) minmax(120px,1.3fr) minmax(90px,1fr)';
+  const cols = 'minmax(160px,1.8fr) minmax(120px,1.3fr) minmax(180px,1.9fr) minmax(80px,0.9fr)';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-comisiones">
       {/* Estado de cuenta + selector de periodo */}
       <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
         <h3 className="text-[13px] font-semibold text-texto-2">Estado de cuenta</h3>
-        {periodos.length > 0 && <SelectorPeriodo periodos={periodos} valor={periodoSel} onCambiar={setPeriodoSel} />}
+        {periodos.length > 0 && <SelectorPeriodo periodos={periodos} valor={periodoSel} onCambiar={setPeriodoSel} testid="comisiones-periodo" />}
       </div>
 
       {/* KPIs del periodo seleccionado */}

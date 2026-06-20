@@ -14,13 +14,16 @@ Pulido de UI del módulo **Vendedores y comisiones** del Panel Admin (pestañas 
 
 **Comisiones (estado de cuenta):**
 - KPIs **Total Comisión / Pagado / Pendiente** con ícono, y un **selector de periodo** ("Todo el tiempo" o un mes) que **recalcula los KPIs y filtra el historial**.
-- El **Historial de comisiones** pasa a **tabla por negocio** (mismo patrón que Recibos): Negocio (avatar) · Concepto ("Pago de Mensualidad/Anualidad" o "Comisión de alta") · Periodo cubierto ("Jun 2026" / "Jun–Dic 2026") · Monto.
+- El **Historial de comisiones** pasa a **tabla por negocio** (mismo patrón que Recibos): Negocio (avatar) · Concepto ("Pago de Mensualidad/Anualidad" o "Comisión de alta") · **Periodo con fechas exactas** de cobertura ("18 Jun 2026 – 18 Jul 2026", de `coberturaHasta` = `detalle.hasta` o la `fecha_proximo_cobro` del negocio) · Monto.
 - Script `apps/api/scripts/desglosar-comision-cartera.ts` (dry-run + `--aplicar`): reescribe las **comisiones agregadas viejas** ("foto mensual", `negocio_id` NULL → fila "Cartera") como una comisión **por negocio activo**, conservando los totales. Las comisiones nuevas (Pieza 3) ya nacen por negocio.
 
 **Por entregar (efectivo) y Pagos:**
 - Corte de caja: las 4 métricas (Por entregar / Cobrado / Entregado / Descontado) con el **mismo protagonismo**, íconos y un **divisor vertical degradado** (mismo patrón que el header).
+- Las **bitácoras de Pagos y Por entregar pasan a tabla** (mismo patrón que Recibos): Pagos = Fecha · Método · Comprobante · Monto; Por entregar = Movimiento · Negocio · Fecha · Monto.
 - Tarjeta **"Datos de cobro"** rediseñada: ícono del método, chip, **CLABE destacada** + banco/titular jerarquizados.
 - Botones **"Registrar entrega"** y **"Registrar pago"** → pill **full-rounded animado** (hover scale + sombra de marca, ícono "+" que rota).
+
+**Filtro de periodo en las 3 pestañas** (`SelectorPeriodo`, compartido): un **calendario de meses** (cuadrícula de 12 meses + navegación ◄ año ► + "Todo el tiempo") que NO crece con el historial; los meses sin datos quedan deshabilitados. Filtra la tabla y recalcula los totales de cada pestaña (KPIs en Comisiones, total pagado en Pagos, el corte en Por entregar). El filtrado vive en el **frontend** (suficiente para el volumen de la beta; a backend cuando escale).
 
 **Fix — comisión recurrente no paga dos veces el 1er mes:** en el **primer cobro** de un negocio, si recibió **comisión de alta** (pago único = 1er mes), el recurrente **descuenta 1 mes** → un anual con alta devenga **9× + alta**, no 10× + alta. La alta se devenga **antes** que el recurrente en los 3 enganches (alta manual / tarjeta / "Registrar pago"). Harness `probar-comision-al-cobro.ts` ampliado (anual con alta → 9×, sin alta → 10×) TODO VERDE. *(Detalle en la entrada de la Pieza 3.)*
 

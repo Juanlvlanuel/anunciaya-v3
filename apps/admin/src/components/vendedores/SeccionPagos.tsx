@@ -24,6 +24,7 @@ import {
   useEfectivoVendedor,
 } from '../../hooks/queries/useVendedoresAdmin';
 import { subirComprobante, type ComisionFila, type PagoFila, type DatosCobro } from '../../services/vendedoresService';
+import { SelectorPeriodo, periodosDe } from './SelectorPeriodo';
 
 const CLASE_CAMPO =
   'w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2.5 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]';
@@ -33,7 +34,7 @@ const BTN_CANCELAR =
 const BTN_GUARDAR =
   'inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-4 py-2 text-[13px] font-semibold text-marca-contraste transition disabled:cursor-not-allowed disabled:opacity-50';
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
 function periodoLegible(p: string | null): string {
   if (!p) return '—';
   const [y, m] = p.split('-');
@@ -314,21 +315,32 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
 // SECCIÓN PAGOS (pestaña)
 // =============================================================================
 
-function FilaPago({ p }: { p: PagoFila }) {
+function FilaPago({ p, cols }: { p: PagoFila; cols: string }) {
   return (
-    <div data-testid={`pago-${p.id}`} className="flex items-center gap-3 border-b border-borde px-4 py-3 last:border-b-0">
-      {p.comprobanteUrl ? (
-        <a href={p.comprobanteUrl} target="_blank" rel="noreferrer" className="shrink-0">
-          <img src={p.comprobanteUrl} alt="" className="h-9 w-9 rounded-[8px] border border-borde object-cover" />
-        </a>
-      ) : (
-        <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[8px] border border-borde bg-superficie text-texto-4"><ImageIcon size={15} /></span>
-      )}
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[14px] font-semibold text-texto">{fechaCorta(p.fechaPago)}</span>
-        <span className="truncate text-[13px] capitalize text-texto-3">{p.metodo}{p.nota ? ` · ${p.nota}` : ''}</span>
-      </div>
-      <span className="shrink-0 text-[15px] font-semibold tabular-nums" style={{ color: 'var(--panel-ok)' }}>{pesos(p.monto)}</span>
+    <div
+      data-testid={`pago-${p.id}`}
+      className="grid items-center gap-3.5 border-b border-borde px-4 py-2.5 text-[13px] last:border-b-0"
+      style={{ gridTemplateColumns: cols }}
+    >
+      {/* Fecha */}
+      <span className="font-semibold text-texto">{fechaCorta(p.fechaPago)}</span>
+      {/* Método (+ nota) */}
+      <span className="flex min-w-0 flex-col">
+        <span className="truncate capitalize text-texto-2">{p.metodo}</span>
+        {p.nota && <span className="truncate text-[12px] text-texto-4">{p.nota}</span>}
+      </span>
+      {/* Comprobante */}
+      <span className="flex justify-center">
+        {p.comprobanteUrl ? (
+          <a href={p.comprobanteUrl} target="_blank" rel="noreferrer" className="shrink-0">
+            <img src={p.comprobanteUrl} alt="comprobante" className="h-9 w-9 rounded-[8px] border border-borde object-cover" />
+          </a>
+        ) : (
+          <span className="grid h-9 w-9 place-items-center rounded-[8px] border border-borde bg-superficie text-texto-4"><ImageIcon size={15} /></span>
+        )}
+      </span>
+      {/* Monto */}
+      <span className="text-right text-[14px] font-semibold tabular-nums" style={{ color: 'var(--panel-ok)' }}>{pesos(p.monto)}</span>
     </div>
   );
 }
@@ -347,6 +359,15 @@ export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
   const pagos = bitacora?.items ?? [];
   const totalPagado = bitacora?.totalPagado ?? 0;
   const pendientes = (comisiones?.items ?? []).filter((c) => c.estado === 'pendiente' || c.estado === 'parcial');
+
+  // Columnas del grid (header + filas comparten el mismo template, como la tabla de Recibos).
+  const cols = 'minmax(100px,1fr) minmax(140px,1.8fr) 70px minmax(90px,1fr)';
+
+  // Filtro por periodo (mes del pago): filtra la bitácora y recalcula el total mostrado.
+  const [periodoSel, setPeriodoSel] = useState<string | null>(null);
+  const periodos = useMemo(() => periodosDe(pagos.map((p) => p.fechaPago)), [pagos]);
+  const pagosFiltrados = periodoSel ? pagos.filter((p) => p.fechaPago?.slice(0, 7) === periodoSel) : pagos;
+  const totalMostrado = periodoSel ? pagosFiltrados.reduce((s, p) => s + p.monto, 0) : totalPagado;
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-pagos">
@@ -397,33 +418,49 @@ export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
         </div>
       )}
 
-      {/* Encabezado + registrar */}
+      {/* Encabezado + filtro de periodo + registrar */}
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-texto-2">{esVendedor ? 'Mis pagos' : 'Pagos al vendedor'} <span className="text-texto-4">· {pesos(totalPagado)} {esVendedor ? 'recibido' : 'pagado'}</span></h3>
-        {esSuper && (
-          <button
-            type="button"
-            data-testid="abrir-registrar-pago"
-            onClick={() => setRegistrando(true)}
-            className="group inline-flex items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[12.5px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
-          >
-            <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar pago
-          </button>
-        )}
+        <h3 className="text-[13px] font-semibold text-texto-2">{esVendedor ? 'Mis pagos' : 'Pagos al vendedor'} <span className="text-texto-4">· {pesos(totalMostrado)} {esVendedor ? 'recibido' : 'pagado'}</span></h3>
+        <div className="flex items-center gap-2">
+          {periodos.length > 0 && <SelectorPeriodo periodos={periodos} valor={periodoSel} onCambiar={setPeriodoSel} testid="pagos-periodo" />}
+          {esSuper && (
+            <button
+              type="button"
+              data-testid="abrir-registrar-pago"
+              onClick={() => setRegistrando(true)}
+              className="group inline-flex items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[12.5px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+            >
+              <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar pago
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Bitácora */}
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-[12px] border border-borde">
-        {isLoading && !bitacora ? (
-          <EstadoSeccion variante="cargando" icono={Wallet} titulo="Cargando pagos…" />
-        ) : isError ? (
-          <EstadoSeccion variante="error" icono={Wallet} titulo="No se pudieron cargar los pagos." />
-        ) : pagos.length === 0 ? (
-          <EstadoSeccion icono={Wallet} titulo="Sin pagos todavía" descripcion={esVendedor ? 'Cuando recibas un pago, aparecerá aquí con su comprobante.' : 'Cuando registres un pago al vendedor, aparecerá aquí con su comprobante.'} />
-        ) : (
-          pagos.map((p) => <FilaPago key={p.id} p={p} />)
-        )}
-      </div>
+      {/* Bitácora (tabla, mismo patrón que Recibos) */}
+      {isLoading && !bitacora ? (
+        <EstadoSeccion variante="cargando" icono={Wallet} titulo="Cargando pagos…" />
+      ) : isError ? (
+        <EstadoSeccion variante="error" icono={Wallet} titulo="No se pudieron cargar los pagos." />
+      ) : pagosFiltrados.length === 0 ? (
+        <EstadoSeccion icono={Wallet} titulo={periodoSel ? 'Sin pagos en este periodo' : 'Sin pagos todavía'} descripcion={periodoSel ? 'Prueba con otro periodo o vuelve a "Todo el tiempo".' : esVendedor ? 'Cuando recibas un pago, aparecerá aquí con su comprobante.' : 'Cuando registres un pago al vendedor, aparecerá aquí con su comprobante.'} />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde bg-superficie shadow-tarjeta-panel">
+          {/* Header de columnas (fijo, fuera del scroll) */}
+          <div
+            className="grid shrink-0 items-center gap-3.5 border-b border-borde bg-superficie-2 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4"
+            style={{ gridTemplateColumns: cols }}
+          >
+            <span>Fecha</span>
+            <span>Método</span>
+            <span className="text-center">Comprobante</span>
+            <span className="text-right">Monto</span>
+          </div>
+          {/* Cuerpo (scroll interno) */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {pagosFiltrados.map((p) => <FilaPago key={p.id} p={p} cols={cols} />)}
+          </div>
+        </div>
+      )}
 
       {registrando && <DialogoRegistrarPago vendedorId={vendedorId} pendientes={pendientes} onCerrar={() => setRegistrando(false)} />}
       {editandoCobro && <DialogoDatosCobro vendedorId={vendedorId} actual={datosCobro ?? null} onCerrar={() => setEditandoCobro(false)} />}

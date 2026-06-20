@@ -141,8 +141,9 @@ alcance por rol se aplica en el **service** (no solo en la ruta).
 |---|---|
 | `components/vendedores/SeccionVendedores.tsx` | Lista de la red (super/gerente) y "Mi cartera/comisiones" (vendedor). Abre el detalle full-width. |
 | `components/vendedores/DetalleVendedor.tsx` | Vista master-detail + pestañas. **`SeccionComisiones`**: KPIs (Total Comisión/Pagado/Pendiente) con ícono + `SelectorPeriodo` (filtra KPIs e historial) + Historial como tabla por negocio (`FilaComision` con `AvatarNegocio`, helpers `conceptoPago`/`periodoCobertura`). Exporta `CuerpoCartera`. |
-| `components/vendedores/SeccionPagos.tsx` | Pestaña Pagos: bitácora + datos de cobro + `DialogoRegistrarPago` (selección de comisiones + **desglose del neteo** + uploader a R2) + `DialogoDatosCobro`. |
-| `components/vendedores/SeccionEfectivo.tsx` | **Pieza D**: corte de caja + bitácora de movimientos + `DialogoMovimiento` (cobro/entrega, super/gerente). |
+| `components/vendedores/SeccionPagos.tsx` | Pestaña Pagos: bitácora **en tabla** (Fecha · Método · Comprobante · Monto) + `SelectorPeriodo` + datos de cobro + `DialogoRegistrarPago` (selección de comisiones + **desglose del neteo** + uploader a R2) + `DialogoDatosCobro`. |
+| `components/vendedores/SeccionEfectivo.tsx` | **Pieza D**: corte de caja (4 métricas) + `SelectorPeriodo` (recalcula el corte del mes) + bitácora **en tabla** (Movimiento · Negocio · Fecha · Monto) + `DialogoMovimiento` (solo entrega; super/gerente). |
+| `components/vendedores/SelectorPeriodo.tsx` | Filtro de periodo compartido por las 3 pestañas: **calendario de meses** (cuadrícula 12 meses + navegación de año + "Todo el tiempo"); meses sin datos deshabilitados. Helpers `periodoLegibleMes`/`periodosDe`. |
 | `services/vendedoresService.ts` · `hooks/queries/useVendedoresAdmin.ts` | Llamadas + hooks RQ (cartera, comisiones, pagos, datos de cobro, registrar pago, recalcular, **corte de efectivo + registrar movimiento**). |
 
 ## B. Endpoints
