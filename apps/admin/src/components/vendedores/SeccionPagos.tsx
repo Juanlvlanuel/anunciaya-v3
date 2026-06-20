@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useRef, useState } from 'react';
-import { Wallet, RefreshCw, Plus, Paperclip, Check, ImageIcon } from 'lucide-react';
+import { Wallet, RefreshCw, Plus, Paperclip, Check, ImageIcon, Landmark, Banknote } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorFecha } from '../ui/SelectorFecha';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
@@ -352,23 +352,45 @@ export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
     <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-pagos">
       {/* Datos de cobro: los ve/edita el super y el PROPIO vendedor (el gerente no — dato sensible). */}
       {(esSuper || esVendedor) && (
-        <div className="mb-3 flex shrink-0 items-center justify-between gap-3 rounded-[12px] border border-borde bg-superficie-2 px-4 py-3">
-          <div className="min-w-0">
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-texto-4">{esVendedor ? 'Mis datos de cobro' : 'Datos de cobro'}</div>
+        <div className="mb-3 flex shrink-0 items-center gap-3 rounded-[12px] border border-borde bg-superficie-2 px-4 py-3">
+          {/* Ícono del método de cobro */}
+          <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-marca-suave text-marca">
+            {datosCobro?.metodo === 'efectivo' ? <Banknote size={20} /> : <Landmark size={20} />}
+          </span>
+
+          <div className="min-w-0 flex-1">
+            <div className="flex items-center gap-2">
+              <span className="text-[10.5px] font-semibold uppercase tracking-wide text-texto-4">{esVendedor ? 'Mis datos de cobro' : 'Datos de cobro'}</span>
+              {datosCobro && (
+                <span className="rounded-full bg-marca-suave px-2 py-0.5 text-[10.5px] font-semibold capitalize text-marca">{datosCobro.metodo}</span>
+              )}
+            </div>
+
             {datosCobro ? (
-              <div className="text-[13px] text-texto-2">
-                <span className="capitalize">{datosCobro.metodo}</span>
-                {datosCobro.metodo === 'transferencia' && (datosCobro.clabe || datosCobro.banco) && (
-                  <span className="text-texto-3"> · {datosCobro.banco ?? ''} {datosCobro.clabe ? `CLABE ${datosCobro.clabe}` : ''}{datosCobro.titular ? ` · ${datosCobro.titular}` : ''}</span>
-                )}
-              </div>
+              datosCobro.metodo === 'transferencia' ? (
+                <div className="mt-1">
+                  <div className="truncate text-[15px] font-bold tabular-nums tracking-[0.02em] text-texto" title={datosCobro.clabe ?? ''}>
+                    {datosCobro.clabe ?? '—'}
+                  </div>
+                  {(datosCobro.banco || datosCobro.titular) && (
+                    <div className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-texto-3">
+                      {datosCobro.banco && <span className="shrink-0 font-semibold text-texto-2">{datosCobro.banco}</span>}
+                      {datosCobro.banco && datosCobro.titular && <span className="text-texto-4">·</span>}
+                      {datosCobro.titular && <span className="truncate">{datosCobro.titular}</span>}
+                    </div>
+                  )}
+                </div>
+              ) : (
+                <div className="mt-1 truncate text-[13.5px] font-semibold text-texto">{datosCobro.titular ?? 'Pago en efectivo'}</div>
+              )
             ) : (
-              <div className="text-[13px] text-texto-4">{esVendedor ? 'Captura dónde quieres recibir tus pagos.' : 'El vendedor aún no capturó sus datos de cobro.'}</div>
+              <div className="mt-1 text-[13px] text-texto-4">{esVendedor ? 'Captura dónde quieres recibir tus pagos.' : 'El vendedor aún no capturó sus datos de cobro.'}</div>
             )}
           </div>
+
           {/* Solo el PROPIO vendedor edita su CLABE (anti-fraude). El super solo la ve para pagar. */}
           {esVendedor && (
-            <button type="button" data-testid="editar-datos-cobro" onClick={() => setEditandoCobro(true)} className="shrink-0 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca">
+            <button type="button" data-testid="editar-datos-cobro" onClick={() => setEditandoCobro(true)} className="shrink-0 rounded-full border border-borde-fuerte bg-superficie px-3.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:bg-marca-suave hover:text-marca">
               {datosCobro ? 'Editar' : 'Capturar'}
             </button>
           )}
@@ -379,8 +401,13 @@ export function SeccionPagos({ vendedorId }: { vendedorId: string }) {
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
         <h3 className="text-[13px] font-semibold text-texto-2">{esVendedor ? 'Mis pagos' : 'Pagos al vendedor'} <span className="text-texto-4">· {pesos(totalPagado)} {esVendedor ? 'recibido' : 'pagado'}</span></h3>
         {esSuper && (
-          <button type="button" data-testid="abrir-registrar-pago" onClick={() => setRegistrando(true)} className="inline-flex items-center gap-1.5 rounded-[9px] bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition">
-            <Plus size={14} /> Registrar pago
+          <button
+            type="button"
+            data-testid="abrir-registrar-pago"
+            onClick={() => setRegistrando(true)}
+            className="group inline-flex items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[12.5px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+          >
+            <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar pago
           </button>
         )}
       </div>

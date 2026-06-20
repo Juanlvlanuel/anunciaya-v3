@@ -49,8 +49,12 @@ que los negocios te pagan); ésta lleva la de **egresos** (lo que tú le pagas a
   `meses pagados = dinero ÷ precio mensual` (un anual de 10× → **10**)— con el **escalón congelado** al # de activos
   del momento. Un marcador por negocio evita re-devengar la cobertura ya pagada (anti-doble-pago del prepago).
   Monto fijo, no porcentaje. *(Antes era una "foto mensual" por cron; se cambió en el Sprint Stripe · Pieza 3.)*
+  **El 1er mes no se cuenta dos veces:** en el **primer cobro**, si el negocio recibió **comisión de alta** (C), el
+  recurrente **descuenta 1 mes** (la alta ya representa el 1er mes de membresía) → un **anual con alta devenga 9× +
+  la alta**, no 10× + la alta.
 - **C · Comisión de alta:** **pago único** al vendedor cuando un negocio que firmó concreta su **primer pago
-  real** (monto configurable, **$400** por defecto). Se devenga sola e idempotente (una por negocio).
+  real** (monto configurable, **$400** por defecto). Se devenga sola e idempotente (una por negocio). **Representa
+  el 1er mes de membresía**, por lo que el devengo recurrente (B) descuenta ese mes en el primer cobro.
 - **E · Liquidación:** registrar pagos al vendedor (con foto-comprobante), que marcan sus comisiones como
   pagadas; + sus datos de cobro (transferencia/efectivo); + la bitácora de egresos.
 - **D · Cortes de efectivo (+ neteo):** el efectivo que el vendedor te **debe entregar** (cobró membresías en
@@ -70,14 +74,23 @@ instante (si crece después, lo ya devengado no cambia). El negocio prepagado **
 el escalón —aporta al nivel— pero no vuelve a generar pago mientras su cobertura siga vigente (marcador
 `comision_devengada_hasta`). *(Ya no hay cron de "foto mensual" ni botón "Recalcular": el devengo es al cobro.)*
 
+> **Comisiones agregadas viejas:** las que quedaron del sistema anterior (foto mensual: `negocio_id` NULL,
+> `detalle.activos`) salen en el historial como una sola fila "Cartera" (no guardaron qué negocios las generaron).
+> El script `apps/api/scripts/desglosar-comision-cartera.ts` (dry-run + `--aplicar`) las reescribe como una comisión
+> **por negocio activo** del vendedor, conservando los totales (Total Comisión / Pagado / Pendiente). Las comisiones
+> nuevas ya nacen por negocio y no lo necesitan.
+
 ## 6. Cómo se ve
 
 Al abrir un vendedor, su **detalle ocupa toda la pantalla** (master-detail, no modal): a la izquierda su
 identidad + KPIs (en cartera / activos); a la derecha **pestañas**:
 
 - **Cartera** — sus negocios (estado de pago, próximo cobro). *(El vendedor la ve en "Mi cartera", no aquí.)*
-- **Comisiones** — estado de cuenta: **Devengado / Pagado / Pendiente** + la lista **por cobro** (cada fila = un
-  negocio con `N meses × $monto · escalón`). *(Sin botón "Recalcular": el devengo es automático al cobro.)*
+- **Comisiones** — estado de cuenta: KPIs **Total Comisión / Pagado / Pendiente** (con **selector de periodo**:
+  "Todo el tiempo" o un mes, que recalcula los KPIs y filtra el historial) + el **Historial de comisiones** como
+  tabla **por negocio**: Negocio (avatar) · Concepto ("Pago de Mensualidad/Anualidad" o "Comisión de alta") ·
+  Periodo cubierto ("Jun 2026" o "Jun–Dic 2026") · Monto. *(Sin botón "Recalcular": el devengo es automático al
+  cobro. Cada fila es un registro de `embajador_comisiones` con su `negocio_id`; las comisiones nacen por negocio.)*
 - **Pagos** — los datos de cobro + la **bitácora de egresos**; el super tiene **Registrar abono** (parcial /
   dividido en transferencia+efectivo / netea el efectivo). El **vendedor** captura aquí **sus** datos de cobro.
 - **Efectivo** — el corte de caja (por entregar · cobrado · entregado · descontado) + la bitácora de
@@ -127,7 +140,7 @@ alcance por rol se aplica en el **service** (no solo en la ruta).
 | Archivo | Rol |
 |---|---|
 | `components/vendedores/SeccionVendedores.tsx` | Lista de la red (super/gerente) y "Mi cartera/comisiones" (vendedor). Abre el detalle full-width. |
-| `components/vendedores/DetalleVendedor.tsx` | Vista master-detail + pestañas (`SeccionComisiones`, `SeccionPagos`, cartera). Exporta `CuerpoCartera`. |
+| `components/vendedores/DetalleVendedor.tsx` | Vista master-detail + pestañas. **`SeccionComisiones`**: KPIs (Total Comisión/Pagado/Pendiente) con ícono + `SelectorPeriodo` (filtra KPIs e historial) + Historial como tabla por negocio (`FilaComision` con `AvatarNegocio`, helpers `conceptoPago`/`periodoCobertura`). Exporta `CuerpoCartera`. |
 | `components/vendedores/SeccionPagos.tsx` | Pestaña Pagos: bitácora + datos de cobro + `DialogoRegistrarPago` (selección de comisiones + **desglose del neteo** + uploader a R2) + `DialogoDatosCobro`. |
 | `components/vendedores/SeccionEfectivo.tsx` | **Pieza D**: corte de caja + bitácora de movimientos + `DialogoMovimiento` (cobro/entrega, super/gerente). |
 | `services/vendedoresService.ts` · `hooks/queries/useVendedoresAdmin.ts` | Llamadas + hooks RQ (cartera, comisiones, pagos, datos de cobro, registrar pago, recalcular, **corte de efectivo + registrar movimiento**). |
@@ -177,7 +190,10 @@ POST  /admin/vendedores/:id/efectivo    registrar cobro/entrega (super/gerente)
   y en el motor de devengo (no usar la columna legacy `negocios.activo`, que puede desincronizarse).
 - **Devengo recurrente AL COBRO (Pieza 3):** se dispara en `manejarRenovacionPagada` (tarjeta), el alta manual y
   `marcarPagado`. Anti-doble-pago/idempotencia por el marcador `comision_devengada_hasta` (si la cobertura ya está
-  dentro, no devenga); el escalón se **congela** al # de activos del cobro. `mesesDevengables = dinero ÷ precio`.
+  dentro, no devenga); el escalón se **congela** al # de activos del cobro. `mesesDevengables = dinero ÷ precio`,
+  **menos 1 mes en el primer cobro si el negocio ya tiene comisión de alta** (esa alta es el 1er mes; no se paga
+  doble). Por eso la **alta (C) se devenga ANTES** que el recurrente en los 3 enganches: si no, el descuento no la
+  vería.
 - **La escalera vive en Configuración** (`comision_escalera`, leída con `obtenerConfigJson`); aquí solo se lee.
 - **Sincronización:** las acciones de Negocios invalidan `queryKeys.vendedores` (front) y llaman
   `dispararDevengoMesActual` (back).

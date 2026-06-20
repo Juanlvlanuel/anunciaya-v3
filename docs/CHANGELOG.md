@@ -8,6 +8,26 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [20 Junio 2026] - Panel · "Vendedores y comisiones": rediseño del estado de cuenta + historial por negocio 💸📊
+
+Pulido de UI del módulo **Vendedores y comisiones** del Panel Admin (pestañas Comisiones / Pagos / Por entregar), más un ajuste de datos para que el historial muestre el desglose real por negocio.
+
+**Comisiones (estado de cuenta):**
+- KPIs **Total Comisión / Pagado / Pendiente** con ícono, y un **selector de periodo** ("Todo el tiempo" o un mes) que **recalcula los KPIs y filtra el historial**.
+- El **Historial de comisiones** pasa a **tabla por negocio** (mismo patrón que Recibos): Negocio (avatar) · Concepto ("Pago de Mensualidad/Anualidad" o "Comisión de alta") · Periodo cubierto ("Jun 2026" / "Jun–Dic 2026") · Monto.
+- Script `apps/api/scripts/desglosar-comision-cartera.ts` (dry-run + `--aplicar`): reescribe las **comisiones agregadas viejas** ("foto mensual", `negocio_id` NULL → fila "Cartera") como una comisión **por negocio activo**, conservando los totales. Las comisiones nuevas (Pieza 3) ya nacen por negocio.
+
+**Por entregar (efectivo) y Pagos:**
+- Corte de caja: las 4 métricas (Por entregar / Cobrado / Entregado / Descontado) con el **mismo protagonismo**, íconos y un **divisor vertical degradado** (mismo patrón que el header).
+- Tarjeta **"Datos de cobro"** rediseñada: ícono del método, chip, **CLABE destacada** + banco/titular jerarquizados.
+- Botones **"Registrar entrega"** y **"Registrar pago"** → pill **full-rounded animado** (hover scale + sombra de marca, ícono "+" que rota).
+
+**Fix — comisión recurrente no paga dos veces el 1er mes:** en el **primer cobro** de un negocio, si recibió **comisión de alta** (pago único = 1er mes), el recurrente **descuenta 1 mes** → un anual con alta devenga **9× + alta**, no 10× + alta. La alta se devenga **antes** que el recurrente en los 3 enganches (alta manual / tarjeta / "Registrar pago"). Harness `probar-comision-al-cobro.ts` ampliado (anual con alta → 9×, sin alta → 10×) TODO VERDE. *(Detalle en la entrada de la Pieza 3.)*
+
+`tsc` admin + api verdes.
+
+---
+
 ## [19 Junio 2026] - Migración global "ciudad (texto) → catálogo `ciudades` (FK `ciudad_id`)" cerrada de punta a punta 🗺️🔗
 
 Se **cierra el sprint** de la migración de ciudad hardcodeada (texto) al **catálogo real `ciudades`** vía FK `ciudad_id`, siguiendo el patrón **expand-migrate-contract**. Con esto, **toda la app** lee y escribe la ciudad desde el catálogo (gobernado por el Panel de Ciudades) en lugar de strings libres. Cierran las **4 secciones grandes** + el dato de usuario; los logs analíticos se quedan como texto por decisión. Migraciones one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql` (+ las de 06-06/16/18); corridas en **dev y prod** salvo el DROP final de `usuarios.ciudad` en prod.
@@ -47,15 +67,16 @@ Se construyen las dos últimas piezas del Sprint de Stripe (a falta de la valida
 
 **Pieza 3 — Comisión recurrente "al cobro" (`comisiones-devengo.service.ts` + Vendedores):**
 - Nuevo motor **`devengarComisionRecurrenteAlCobro`**: en cada cobro real (webhook tarjeta / alta manual / "Registrar pago") devenga, por **ese** negocio, **`meses pagados × monto del escalón`**, donde `meses pagados = dinero ÷ precio mensual` (un **anual de 10× → 10**, no 12) y el **escalón se congela** al # de activos del momento. Marcador **`negocios.comision_devengada_hasta`** impide re-devengar la cobertura (anti-doble-pago); el negocio prepagado **sigue contando como activo** para el escalón pero no genera pago repetido.
+- **El 1er mes no se paga dos veces:** en el **primer cobro** del negocio, si recibió **comisión de alta** (pago único que ya representa el 1er mes), el recurrente **descuenta 1 mes** → un **anual con alta devenga 9× + la alta**, no 10× + alta. Para que el descuento "vea" la alta, ésta se devenga **antes** que el recurrente en los 3 enganches.
 - **Foto mensual retirada:** el cron `comisiones-devengo.cron` ya no se inicializa y `dispararDevengoMesActual` queda no-op (cambiar activos afecta el escalón de futuros cobros, no re-devenga lo pagado).
 - **Frontend:** el estado de cuenta del vendedor pasa de "por mes" a **"por cobro"** (cada fila = un negocio con `N meses × $unitario · escalón`); se retiró el botón **"Recalcular mes"**.
-- **Gate:** `probar-comision-al-cobro.ts` (prepago de 12 meses → **10× una sola vez**, idempotencia, renovación, sin vendedor) **TODO VERDE**.
+- **Gate:** `probar-comision-al-cobro.ts` (anual **con alta → 9×**, idempotencia, renovación 1×, sin vendedor, anual **sin alta → 10×**) **TODO VERDE**.
 
-**Migración (Pieza 3):** `2026-06-19-comision-al-cobro.sql` — columna `negocios.comision_devengada_hasta` + quitar el único `(embajador_id, periodo)` + relajar el CHECK `forma` a "recurrente ⇒ periodo NOT NULL" (para que convivan las recurrentes viejas y las nuevas por-negocio). Corrida en **dev**; **falta prod**.
+**Migración (Pieza 3):** `2026-06-19-comision-al-cobro.sql` — columna `negocios.comision_devengada_hasta` + quitar el único `(embajador_id, periodo)` + relajar el CHECK `forma` a "recurrente ⇒ periodo NOT NULL" (para que convivan las recurrentes viejas y las nuevas por-negocio). Corrida en **dev y prod**.
 
 **Docs:** `Sprint_Stripe.md` (Piezas 2 y 3), `Pagos_Suscripciones.md` (v1.6), `Vendedores_y_comisiones.md` + `_Pendientes` (D16/D16.1 hecho), `Tablero_Modulos.md`.
 
-**Pendiente:** validación E2E de Juan (registro con `?ref=` + tarjeta; un prepago anual para ver el 10×); migración en prod; y una **limpieza menor** (quitar el endpoint `/comisiones/recalcular` + hook, huérfanos al retirar la foto mensual).
+**Pendiente:** validación E2E de Juan (registro con `?ref=` + tarjeta; un prepago anual con vendedor para ver **9× + la alta**, no 10× + alta); y una **limpieza menor** (quitar el endpoint `/comisiones/recalcular` + hook, huérfanos al retirar la foto mensual).
 
 ---
 

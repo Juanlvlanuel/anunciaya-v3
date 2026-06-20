@@ -17,8 +17,9 @@
  * Ubicación: apps/admin/src/components/vendedores/DetalleVendedor.tsx
  */
 
-import { useEffect, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { ChevronLeft, ChevronRight, ChevronDown, Store, Phone, Copy, Check, CircleDollarSign, CheckCircle2, Clock, Calendar, type LucideIcon } from 'lucide-react';
+import { useClickFuera } from '../../hooks/useClickFuera';
 import { useCartera, useComisionesVendedor } from '../../hooks/queries/useVendedoresAdmin';
 import type { VendedorFila, VendedorDetalle, NegocioCartera, CarteraVendedor, ComisionFila } from '../../services/vendedoresService';
 import { useBackNativo } from '../../hooks/useBackNativo';
@@ -26,6 +27,7 @@ import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { fecha } from '../negocios/FichaNegocio';
 import { BadgeEstadoPago, estadoEfectivo } from '../negocios/estadoPago';
+import { AvatarNegocio } from '../negocios/avatares';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { SeccionPagos } from './SeccionPagos';
@@ -347,57 +349,105 @@ function periodoLegible(p: string | null): string {
 function pesos(n: number): string {
   return `$${n.toLocaleString('es-MX')}`;
 }
-
-const COM_META: Record<string, { etiqueta: string; color: string }> = {
-  pendiente: { etiqueta: 'Pendiente', color: 'var(--panel-text-3)' },
-  parcial: { etiqueta: 'Parcial', color: 'var(--panel-marca)' },
-  pagada: { etiqueta: 'Pagada', color: 'var(--panel-ok)' },
-  cancelada: { etiqueta: 'Cancelada', color: 'var(--panel-text-4)' },
-};
-
-function BadgeComision({ estado }: { estado: string }) {
-  const meta = COM_META[estado] ?? { etiqueta: estado, color: 'var(--panel-text-4)' };
-  return (
-    <span
-      className="txt-badge inline-flex shrink-0 items-center rounded-full px-2 py-0.5 text-[11px] font-semibold"
-      style={{ background: `color-mix(in srgb, ${meta.color} 13%, transparent)`, color: meta.color }}
-    >
-      {meta.etiqueta}
-    </span>
-  );
+/** Capitaliza la 1ª letra ("jun 2026" → "Jun 2026"). */
+function cap(s: string): string {
+  return s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+}
+/** 'YYYY-MM' + n meses → 'YYYY-MM'. */
+function sumarMeses(periodo: string, n: number): string {
+  const [y, m] = periodo.split('-').map(Number);
+  const total = y * 12 + (m - 1) + n;
+  return `${Math.floor(total / 12)}-${String((total % 12) + 1).padStart(2, '0')}`;
+}
+/** Concepto del pago que generó la comisión: alta, mensualidad o anualidad. */
+function conceptoPago(c: ComisionFila): string {
+  if (c.tipo === 'alta') return 'Comisión de alta';
+  return (c.meses ?? 1) > 1 ? 'Pago de Anualidad' : 'Pago de Mensualidad';
+}
+/** Rango de meses que cubrió el pago: "Jun 2026" (1 mes) o "Jun–Dic 2026" (varios). */
+function periodoCobertura(c: ComisionFila): string {
+  if (!c.periodo) return '—';
+  const n = c.meses ?? 1;
+  if (n <= 1) return cap(periodoLegible(c.periodo));
+  const fin = sumarMeses(c.periodo, n - 1);
+  const yi = c.periodo.split('-')[0];
+  const yf = fin.split('-')[0];
+  const mi = cap(MESES[Number(c.periodo.split('-')[1]) - 1] ?? '');
+  const mf = cap(MESES[Number(fin.split('-')[1]) - 1] ?? '');
+  return yi === yf ? `${mi}–${mf} ${yf}` : `${mi} ${yi} – ${mf} ${yf}`;
 }
 
-function KpiComision({ etiqueta, monto, color }: { etiqueta: string; monto: number; color?: string }) {
+/** Chip + dropdown para filtrar el estado de cuenta por periodo (mes con comisiones) o "Todo el tiempo". */
+function SelectorPeriodo({ periodos, valor, onCambiar }: { periodos: string[]; valor: string | null; onCambiar: (p: string | null) => void }) {
+  const [abierto, setAbierto] = useState(false);
+  const ref = useClickFuera<HTMLDivElement>(() => setAbierto(false), abierto);
   return (
-    <div className="rounded-[12px] border border-borde bg-superficie-2 px-3 py-3 text-center">
-      <p className="text-[20px] font-bold leading-none text-texto" style={color ? { color } : undefined}>{pesos(monto)}</p>
-      <p className="mt-1.5 text-[12px] text-texto-3">{etiqueta}</p>
+    <div className="relative" ref={ref}>
+      <button
+        type="button"
+        data-testid="comisiones-periodo"
+        onClick={() => setAbierto((v) => !v)}
+        className="inline-flex items-center gap-1.5 rounded-full border border-borde-fuerte bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:border-marca hover:text-marca"
+      >
+        <Calendar size={14} className="text-texto-3" />
+        <span className="capitalize">{valor ? periodoLegible(valor) : 'Todo el tiempo'}</span>
+        <ChevronDown size={14} className={`text-texto-3 transition-transform ${abierto ? 'rotate-180' : ''}`} />
+      </button>
+      {abierto && (
+        <div className="animar-entrada absolute right-0 z-30 mt-2 max-h-[260px] w-[180px] overflow-y-auto rounded-[12px] border border-borde bg-superficie p-1.5 shadow-pop-panel">
+          <button
+            type="button"
+            onClick={() => { onCambiar(null); setAbierto(false); }}
+            className={`flex w-full items-center rounded-[9px] px-2.5 py-2 text-left text-[13px] font-medium transition hover:bg-marca-suave ${valor === null ? 'bg-lienzo text-marca' : 'text-texto'}`}
+          >
+            Todo el tiempo
+          </button>
+          {periodos.map((p) => (
+            <button
+              key={p}
+              type="button"
+              onClick={() => { onCambiar(p); setAbierto(false); }}
+              className={`flex w-full items-center rounded-[9px] px-2.5 py-2 text-left text-[13px] font-medium capitalize transition hover:bg-marca-suave ${valor === p ? 'bg-lienzo text-marca' : 'text-texto'}`}
+            >
+              {periodoLegible(p)}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
 
-function FilaComision({ c }: { c: ComisionFila }) {
-  const esAlta = c.tipo === 'alta';
-  const parcial = c.estado === 'parcial';
+function KpiComision({ etiqueta, monto, color, icono: Icono }: { etiqueta: string; monto: number; color?: string; icono: LucideIcon }) {
   return (
-    <div data-testid={`comision-${c.id}`} className="flex items-center gap-3 border-b border-borde px-4 py-3 last:border-b-0">
-      <div className="flex min-w-0 flex-1 flex-col">
-        <span className="text-[14px] font-semibold capitalize text-texto">{esAlta ? 'Comisión de alta' : (c.negocioNombre ?? periodoLegible(c.periodo))}</span>
-        <span className="truncate text-[13px] text-texto-3">
-          {esAlta
-            ? 'Pago único por la venta concretada'
-            : c.meses !== null
-              ? `${c.meses} ${c.meses === 1 ? 'mes' : 'meses'} × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''} · ${periodoLegible(c.periodo)}`
-              : c.activos !== null
-                ? `${c.activos} activos × ${pesos(c.montoUnitario ?? 0)}${c.escalon ? ` · escalón ${c.escalon}` : ''}`
-                : c.tipo}
-        </span>
-        {parcial && (
-          <span className="text-[11.5px] font-medium text-marca">Abonado {pesos(c.montoPagado)} · falta {pesos(c.monto - c.montoPagado)}</span>
-        )}
+    <div className="rounded-[12px] border border-borde bg-superficie-2 px-4 py-3">
+      <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-texto-4">
+        <Icono size={16} className="shrink-0" /> {etiqueta}
       </div>
-      <span className="shrink-0 text-[15px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
-      <BadgeComision estado={c.estado} />
+      <p className="mt-1 text-[24px] font-bold tabular-nums text-texto" style={color ? { color } : undefined}>{pesos(monto)}</p>
+    </div>
+  );
+}
+
+function FilaComision({ c, cols }: { c: ComisionFila; cols: string }) {
+  const negocio = c.negocioNombre ?? 'Cartera';
+  return (
+    <div
+      data-testid={`comision-${c.id}`}
+      className="grid items-center gap-3.5 border-b border-borde px-4 py-2.5 text-[13px] last:border-b-0"
+      style={{ gridTemplateColumns: cols }}
+    >
+      {/* Negocio (logo + nombre) */}
+      <span className="flex min-w-0 items-center gap-3">
+        <AvatarNegocio nombre={negocio} tam={38} />
+        <span className="truncate text-[14px] font-semibold text-texto">{negocio}</span>
+      </span>
+      {/* Concepto */}
+      <span className="min-w-0 truncate text-texto-2">{conceptoPago(c)}</span>
+      {/* Periodo cubierto */}
+      <span className="min-w-0 truncate tabular-nums text-texto-3">{periodoCobertura(c)}</span>
+      {/* Monto */}
+      <span className="text-right text-[14px] font-semibold tabular-nums text-texto">{pesos(c.monto)}</span>
     </div>
   );
 }
@@ -405,40 +455,86 @@ function FilaComision({ c }: { c: ComisionFila }) {
 /** Estado de cuenta de comisiones del vendedor: KPIs + lista de comisiones (devengo AL COBRO). */
 function SeccionComisiones({ vendedorId }: { vendedorId: string }) {
   const { data, isLoading, isError } = useComisionesVendedor(vendedorId);
+  const [periodoSel, setPeriodoSel] = useState<string | null>(null);
 
   const items = data?.items ?? [];
-  const resumen = data?.resumen ?? { devengado: 0, pagado: 0, pendiente: 0 };
+
+  // Periodos disponibles (meses con comisiones), recientes primero.
+  const periodos = useMemo(
+    () => [...new Set(items.map((c) => c.periodo).filter((p): p is string => !!p))].sort().reverse(),
+    [items],
+  );
+  const itemsFiltrados = periodoSel ? items.filter((c) => c.periodo === periodoSel) : items;
+
+  // Resumen: el global del backend para "Todo el tiempo"; recalculado al filtrar un periodo.
+  const resumen = useMemo(() => {
+    if (!periodoSel) return data?.resumen ?? { devengado: 0, pagado: 0, pendiente: 0 };
+    const r = itemsFiltrados.reduce(
+      (acc, c) => {
+        if (c.estado === 'cancelada') return acc;
+        acc.devengado += c.monto;
+        acc.pagado += c.montoPagado;
+        return acc;
+      },
+      { devengado: 0, pagado: 0, pendiente: 0 },
+    );
+    r.pendiente = r.devengado - r.pagado;
+    return r;
+  }, [periodoSel, itemsFiltrados, data?.resumen]);
+
+  // Columnas del grid (header + filas comparten el mismo template, como la tabla de Recibos).
+  const cols = 'minmax(180px,2.2fr) minmax(140px,1.4fr) minmax(120px,1.3fr) minmax(90px,1fr)';
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-comisiones">
-      {/* KPIs del estado de cuenta */}
+      {/* Estado de cuenta + selector de periodo */}
+      <div className="mb-3 flex shrink-0 items-center justify-between gap-2">
+        <h3 className="text-[13px] font-semibold text-texto-2">Estado de cuenta</h3>
+        {periodos.length > 0 && <SelectorPeriodo periodos={periodos} valor={periodoSel} onCambiar={setPeriodoSel} />}
+      </div>
+
+      {/* KPIs del periodo seleccionado */}
       <div className="mb-3 grid shrink-0 grid-cols-3 gap-2">
-        <KpiComision etiqueta="Devengado" monto={resumen.devengado} />
-        <KpiComision etiqueta="Pagado" monto={resumen.pagado} color="var(--panel-ok)" />
-        <KpiComision etiqueta="Pendiente" monto={resumen.pendiente} />
+        <KpiComision etiqueta="Total Comisión" monto={resumen.devengado} icono={CircleDollarSign} />
+        <KpiComision etiqueta="Pagado" monto={resumen.pagado} color="var(--panel-ok)" icono={CheckCircle2} />
+        <KpiComision etiqueta="Pendiente" monto={resumen.pendiente} icono={Clock} />
       </div>
 
-      {/* Encabezado de la lista. El devengo recurrente es AL COBRO (no hay recálculo manual). */}
+      {/* Historial de comisiones ganadas */}
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
-        <h3 className="text-[13px] font-semibold text-texto-2">Comisiones</h3>
+        <h3 className="text-[13px] font-semibold text-texto-2">Historial de comisiones</h3>
+        {periodoSel && <span className="text-[12px] capitalize text-texto-4">{periodoLegible(periodoSel)}</span>}
       </div>
 
-      {/* Lista */}
-      <div className="min-h-0 flex-1 overflow-y-auto rounded-[12px] border border-borde">
-        {isLoading && !data ? (
-          <EstadoSeccion variante="cargando" icono={CircleDollarSign} titulo="Cargando comisiones…" />
-        ) : isError ? (
-          <EstadoSeccion variante="error" icono={CircleDollarSign} titulo="No se pudieron cargar las comisiones." descripcion="Revisa tu conexión e inténtalo de nuevo." />
-        ) : items.length === 0 ? (
-          <EstadoSeccion
-            icono={CircleDollarSign}
-            titulo="Sin comisiones todavía"
-            descripcion="Cada cobro de un negocio (renovación, alta o pago) devenga aquí la comisión del vendedor, según los meses pagados y su escalón."
-          />
-        ) : (
-          items.map((c) => <FilaComision key={c.id} c={c} />)
-        )}
-      </div>
+      {/* Tabla (mismo patrón que Recibos) */}
+      {isLoading && !data ? (
+        <EstadoSeccion variante="cargando" icono={CircleDollarSign} titulo="Cargando comisiones…" />
+      ) : isError ? (
+        <EstadoSeccion variante="error" icono={CircleDollarSign} titulo="No se pudieron cargar las comisiones." descripcion="Revisa tu conexión e inténtalo de nuevo." />
+      ) : itemsFiltrados.length === 0 ? (
+        <EstadoSeccion
+          icono={CircleDollarSign}
+          titulo={periodoSel ? 'Sin comisiones en este periodo' : 'Sin comisiones todavía'}
+          descripcion={periodoSel ? 'Prueba con otro periodo o vuelve a "Todo el tiempo".' : 'Cada cobro de un negocio (renovación, alta o pago) devenga aquí la comisión del vendedor, según los meses pagados y su escalón.'}
+        />
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde bg-superficie shadow-tarjeta-panel">
+          {/* Header de columnas (fijo, fuera del scroll) */}
+          <div
+            className="grid shrink-0 items-center gap-3.5 border-b border-borde bg-superficie-2 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4"
+            style={{ gridTemplateColumns: cols }}
+          >
+            <span>Negocio</span>
+            <span>Concepto</span>
+            <span>Periodo</span>
+            <span className="text-right">Monto</span>
+          </div>
+          {/* Cuerpo (scroll interno) */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {itemsFiltrados.map((c) => <FilaComision key={c.id} c={c} cols={cols} />)}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

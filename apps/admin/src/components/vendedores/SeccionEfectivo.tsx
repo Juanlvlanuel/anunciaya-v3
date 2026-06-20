@@ -11,7 +11,7 @@
  */
 
 import { useState } from 'react';
-import { Banknote, Plus, ArrowDownLeft, ArrowUpRight, Link2 } from 'lucide-react';
+import { Banknote, Plus, ArrowDownLeft, ArrowUpRight, Link2, Wallet } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorFecha } from '../ui/SelectorFecha';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
@@ -154,17 +154,36 @@ export function SeccionEfectivo({ vendedorId }: { vendedorId: string }) {
 
   return (
     <div className="flex min-h-0 flex-1 flex-col" data-testid="seccion-efectivo">
-      {/* Corte de caja */}
+      {/* Corte de caja — "Por entregar" a la izquierda; el desglose, mismo protagonismo, junto a la derecha */}
       <div className="mb-3 shrink-0 rounded-[12px] border border-borde bg-superficie-2 px-4 py-3.5">
-        <div className="flex items-end justify-between gap-3">
-          <div>
-            <div className="text-[11px] font-semibold uppercase tracking-wide text-texto-4">Por entregar</div>
+        <div className="flex items-stretch gap-5">
+          <div className="flex-1">
+            <div className="flex items-center gap-1.5 text-[13.5px] font-semibold text-texto-4">
+              <Wallet size={16} className="shrink-0" /> Por entregar
+            </div>
             <div className="text-[24px] font-bold tabular-nums text-texto" data-testid="efectivo-saldo">{pesos(saldo)}</div>
           </div>
-          <div className="flex gap-4 text-right">
-            <div><div className="text-[11px] text-texto-4">Cobrado</div><div className="text-[14px] font-semibold tabular-nums text-texto-2">{pesos(corte?.cobrado ?? 0)}</div></div>
-            <div><div className="text-[11px] text-texto-4">Entregado</div><div className="text-[14px] font-semibold tabular-nums text-texto-2">{pesos(corte?.entregado ?? 0)}</div></div>
-            <div><div className="text-[11px] text-texto-4">Descontado</div><div className="text-[14px] font-semibold tabular-nums text-texto-2">{pesos(corte?.compensado ?? 0)}</div></div>
+          {/* Divisor vertical, desvanecido arriba y abajo (mismo patrón que el header) */}
+          <div className="w-0.5 shrink-0 self-stretch rounded bg-linear-to-b from-transparent via-borde-fuerte to-transparent" />
+          <div className="flex gap-5 text-right">
+            <div>
+              <div className="flex items-center justify-end gap-1.5 text-[13.5px] font-semibold text-texto-4">
+                <ArrowDownLeft size={16} className="shrink-0" /> Cobrado
+              </div>
+              <div className="text-[24px] font-bold tabular-nums text-texto">{pesos(corte?.cobrado ?? 0)}</div>
+            </div>
+            <div>
+              <div className="flex items-center justify-end gap-1.5 text-[13.5px] font-semibold text-texto-4">
+                <ArrowUpRight size={16} className="shrink-0" /> Entregado
+              </div>
+              <div className="text-[24px] font-bold tabular-nums text-texto">{pesos(corte?.entregado ?? 0)}</div>
+            </div>
+            <div>
+              <div className="flex items-center justify-end gap-1.5 text-[13.5px] font-semibold text-texto-4">
+                <Link2 size={16} className="shrink-0" /> Descontado
+              </div>
+              <div className="text-[24px] font-bold tabular-nums text-texto">{pesos(corte?.compensado ?? 0)}</div>
+            </div>
           </div>
         </div>
       </div>
@@ -173,8 +192,13 @@ export function SeccionEfectivo({ vendedorId }: { vendedorId: string }) {
       <div className="mb-2 flex shrink-0 items-center justify-between gap-2">
         <h3 className="text-[13px] font-semibold text-texto-2">Movimientos</h3>
         {puedeRegistrar && (
-          <button type="button" data-testid="abrir-registrar-efectivo" onClick={() => setRegistrando(true)} className="inline-flex items-center gap-1.5 rounded-[9px] bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition">
-            <Plus size={14} /> Registrar entrega
+          <button
+            type="button"
+            data-testid="abrir-registrar-efectivo"
+            onClick={() => setRegistrando(true)}
+            className="group inline-flex items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[12.5px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+          >
+            <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar entrega
           </button>
         )}
       </div>
