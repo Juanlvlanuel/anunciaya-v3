@@ -520,6 +520,7 @@ export interface ComisionFila {
     montoUnitario: number | null; // monto por activo del escalón
     escalon: string | null;       // p.ej. "10-24"
     negocioNombre: string | null; // negocio que generó el cobro (recurrente al cobro / alta)
+    coberturaHasta: string | null; // fin del periodo que cubrió el pago (detalle.hasta, o fecha_proximo_cobro del negocio)
     pagadaAt: string | null;
     creada: string | null;
 }
@@ -559,6 +560,7 @@ export async function listarComisionesVendedor(
             estado: embajadorComisiones.estado,
             detalle: embajadorComisiones.detalle,
             negocioNombre: negocios.nombre,
+            proximoCobro: negocios.fechaProximoCobro,
             pagadaAt: embajadorComisiones.pagadaAt,
             creada: embajadorComisiones.createdAt,
         })
@@ -568,7 +570,7 @@ export async function listarComisionesVendedor(
         .orderBy(desc(embajadorComisiones.createdAt));
 
     const items: ComisionFila[] = filas.map((f) => {
-        const d = (f.detalle ?? {}) as { activos?: number; montoUnitario?: number; escalon?: string; meses?: number };
+        const d = (f.detalle ?? {}) as { activos?: number; montoUnitario?: number; escalon?: string; meses?: number; hasta?: string };
         const pagado = Number(f.montoPagado);
         // 'parcial' es derivado: pendiente con algo ya abonado.
         const estado = f.estado === 'pendiente' && pagado > 0 ? 'parcial' : f.estado;
@@ -584,6 +586,7 @@ export async function listarComisionesVendedor(
             montoUnitario: typeof d.montoUnitario === 'number' ? d.montoUnitario : null,
             escalon: d.escalon ?? null,
             negocioNombre: f.negocioNombre ?? null,
+            coberturaHasta: (d.hasta ?? f.proximoCobro) ?? null,
             pagadaAt: f.pagadaAt ?? null,
             creada: f.creada ?? null,
         };
