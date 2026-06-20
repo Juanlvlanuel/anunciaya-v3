@@ -14,12 +14,20 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 19 Junio 2026.
+> **Última actualización:** 20 Junio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **Validado en PROD (20 jun):** verificadas con consulta de huellas (`information_schema`/`pg_constraint`)
+  en el Supabase de producción — **aplicadas:** `2026-06-18-concepto-tarjeta`, `2026-06-17-comision-monto-pagado`
+  (abonos), `2026-06-19-comision-al-cobro` (Pieza 3) y el **DROP de `usuarios.ciudad`** (cierre completo de la
+  migración ciudad↔catálogo en dev+prod). **Ausente (opcional):** `sembrar_comision_escalera` — el módulo
+  Configuración usa el default; la 1ª edición desde el Panel la siembra igual. **Hardcode "Puerto Peñasco" de
+  Vacantes:** resuelto (commit `60106f0` deriva ciudad+coords de la sucursal; comentario obsoleto de
+  `servicios.service.ts` corregido). **Único pendiente operativo vivo:** la validación E2E de Juan de las Piezas
+  2 y 3 de Stripe + commitear el refinamiento `WebhookReintentable` (suelto en el working tree).
 - **Cimientos (transversal):** ✅ completos (rol + auth `requierePanel`, atribución, estado de
   membresía + webhook + cron de gracia, configs con `obtenerConfig`). **Shell + login del Panel:** ✅ en prod.
 - **Recién cerrado:** **Usuarios** — módulo completo (VER + acciones + visibilidad por jerarquía y
@@ -75,8 +83,9 @@
   pendiente** (último paso operativo). Lecturas vía `LEFT JOIN ciudades` (alias `ciudad` conservado, front
   intacto); escrituras vía `resolverCiudadId(texto)` persistiendo solo `ciudad_id`. Logs de búsqueda quedan
   como texto analítico por decisión. Migraciones one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
-- **Siguiente:** validar E2E las Piezas 2 y 3 de Stripe; correr el DROP de `usuarios.ciudad` en prod;
-  hardcodes "Puerto Peñasco" en Vacantes. Vendedores · cobro automático de efectivo = backlog.
+- **Siguiente:** validar E2E las Piezas 2 y 3 de Stripe (único pendiente operativo vivo) + commitear el
+  refinamiento `WebhookReintentable`. Migraciones de schema en prod ✅ y hardcodes "Puerto Peñasco" de
+  Vacantes ✅ ya resueltos (20 jun). Vendedores · cobro automático de efectivo = backlog.
 
 ---
 
@@ -91,8 +100,8 @@
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | 7 | Publicidad | ⬜ | 0 | — |
-| 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod, salvo `usuarios.ciudad` en prod) | `Ciudades.md` · `Ciudades_Pendientes.md` |
-| 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: migración prod + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
+| 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
+| 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 11 | Sistema (Mantenimiento + Auditoría) | 🟡 | Mantenimiento ✅ / Auditoría-UI ⬜ | `Mantenimiento_R2.md` |
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
@@ -133,14 +142,15 @@
   app web consume el catálogo de la BD (antes leía un array hardcodeado). La **migración ciudad → catálogo
   `ciudades` (FK `ciudad_id`)** quedó **cerrada** (expand-migrate-contract): `negocio_sucursales.ciudad`,
   `servicios_publicaciones.ciudad`, `articulos_marketplace.ciudad` y `preguntas_comunidad.ciudad` migradas y
-  DROPeadas en dev+prod; `usuarios.ciudad` migrada con DROP en dev (**DROP en prod pendiente**). Lecturas vía
+  DROPeadas en dev+prod; `usuarios.ciudad` migrada y **DROPeada en dev+prod** (validado 20 jun). Lecturas vía
   `LEFT JOIN ciudades` (alias `ciudad`); escrituras vía `resolverCiudadId(texto)`. Solo SuperAdmin.
-  **Pendiente:** verificación visual E2E, el DROP de `usuarios.ciudad` en prod, y los hardcodes "Puerto Peñasco"
-  de Vacantes.
+  **Pendiente:** verificación visual E2E. Los hardcodes "Puerto Peñasco" de Vacantes ya se resolvieron
+  (commit `60106f0` deriva la ubicación de la sucursal; el comentario obsoleto de `servicios.service.ts` quedó corregido).
 - **9 · Configuración** — **v1 construido y en uso** (doc [`Configuracion.md`](Configuracion.md)): el tablero
   económico (escalera de comisiones + trial + gracia), solo SuperAdmin, con auditoría y reset de caché. Backlog:
-  correr la migración en prod (idempotente), y sumar claves nuevas cuando una sección futura tenga una palanca
-  económica real. El **precio de membresía** queda para el sprint de Suscripciones (Stripe + Coupons).
+  sembrar `comision_escalera` en prod (idempotente, **opcional** — al 20 jun sigue ausente; el módulo usa el
+  default y la 1ª edición desde el Panel la fija igual), y sumar claves nuevas cuando una sección futura tenga una
+  palanca económica real. El **precio de membresía** queda para el sprint de Suscripciones (Stripe + Coupons).
 - **10 · Equipo y accesos** — **cerrado y en uso** (doc [`Equipo_y_accesos.md`](Equipo_y_accesos.md)). El
   "RR.HH./IT": alta de vendedor/gerente, editar datos, reasignar región, revocar/reactivar (vend. y
   gerente), revocados visibles, typeahead de cuentas + promoción con aviso. **Sin migración.** Permisos:

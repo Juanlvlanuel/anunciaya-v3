@@ -683,13 +683,14 @@ export async function obtenerPublicacionPorId(publicacionId: string, usuarioActu
                       AND nsc.activa = true
                 ) END             AS total_sucursales,
                 -- Ubicación EXACTA del local — extraída de la SUCURSAL
-                -- (no de la publicación). Esto es crítico porque el
-                -- wizard de Vacantes BS actualmente guarda
-                -- sp.ubicacion con un FALLBACK genérico (centro de
-                -- Puerto Peñasco), no con la dirección real del local.
-                -- Usamos ns.ubicacion (que SÍ está bien al ser parte
-                -- del onboarding del negocio). NULL si la sucursal aún
-                -- no tiene dirección configurada — el mapper lo filtra.
+                -- (no de la publicación). La sucursal es la fuente
+                -- canónica de ubicación: su columna ubicacion PostGIS viene
+                -- del onboarding del negocio. (Desde 2026-06 las vacantes
+                -- también heredan ciudad + coords de su sucursal vía
+                -- vacantes.service → obtenerUbicacionSucursal, así que
+                -- sp.ubicacion ya no guarda un fallback genérico.) NULL si
+                -- la sucursal aún no tiene dirección configurada — el
+                -- mapper lo filtra.
                 CASE WHEN ns.ubicacion IS NULL THEN NULL
                      ELSE ST_Y(ns.ubicacion::geometry) END AS ubicacion_exacta_lat,
                 CASE WHEN ns.ubicacion IS NULL THEN NULL
