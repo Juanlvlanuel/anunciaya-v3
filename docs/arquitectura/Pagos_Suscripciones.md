@@ -7,6 +7,15 @@
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
 > sola; ver §9.1). Falta infraestructura de producción (ver §12).
+> **Versión 1.7 (20 Jun 2026):** el **registro del cobro "día 1" se desacopló del reintento del webhook**. Antes
+> lo registraba SOLO `invoice.payment_succeeded`; si llegaba antes del negocio se lanzaba para que Stripe
+> reintentara, pero en local el Stripe CLI **no reintenta** los 500 → el cobro quedaba cobrado en Stripe pero
+> SIN registrar (sin recibo/comisión/movimiento). Ahora una función **idempotente** `registrarCobroReal(invoiceId)`
+> (bitácora + comisión + recibo) la llama **el checkout** (tras crear el negocio, leyendo el `latest_invoice`) **y**
+> el webhook — gana el primero, el otro no duplica (guard por `invoice.id`). El error de carrera se tipó como
+> `WebhookReintentable` (se loguea ⏳, no ❌). La **vigencia del recibo y el periodo de la comisión usan la fecha
+> CON cortesía** del vendedor (no el fin facturado por Stripe), calculada de forma determinista. Script operativo
+> `apps/api/scripts/reprocesar-cobro-tarjeta.ts` para recuperar un cobro ya hecho pero sin registrar.
 > **Versión 1.6 (19 Jun 2026):** **cobro "día 1" para ventas por vendedor** (Sprint Stripe Pieza 2) + **comisión
 > recurrente "al cobro"** (Pieza 3). Con `?ref=`, el checkout **OMITE el trial** (cobra hoy) y `manejarCheckoutCompletado`
 > empuja el próximo cobro a `fin del periodo real + cortesía` (mensual +44d / anual +1 año + cortesía); el alta manual

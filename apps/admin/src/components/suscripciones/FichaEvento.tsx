@@ -61,7 +61,7 @@ function Dato({ etiqueta, valor }: { etiqueta: string; valor: ReactNode }) {
 const META_LABEL: Record<string, string> = {
   customerId: 'Cliente Stripe',
   subscriptionId: 'Suscripción Stripe',
-  finPeriodo: 'Fin de periodo',
+  finPeriodo: 'Fin del periodo facturado',
   proximoReintento: 'Próximo reintento',
   estadoPrevio: 'Estado previo',
   concepto: 'Concepto',

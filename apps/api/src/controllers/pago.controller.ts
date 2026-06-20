@@ -18,7 +18,7 @@
  */
 
 import type { Request, Response } from 'express';
-import pagoService from '../services/pago.service.js';
+import pagoService, { WebhookReintentable } from '../services/pago.service.js';
 
 // =============================================================================
 // CONTROLADOR 1: CREAR CHECKOUT SESSION
@@ -277,6 +277,12 @@ export async function webhookStripe(
     // Todo el procesamiento ya se hizo de forma asíncrona
     res.status(200).json({ received: true });
   } catch (error) {
+    // Carrera esperada (cobro día-1 antes del alta): no es fallo; 500 para que Stripe reintente.
+    if (error instanceof WebhookReintentable) {
+      console.log(`⏳ ${error.message}`);
+      res.status(500).json({ error: 'Reintento solicitado' });
+      return;
+    }
     console.error('❌ Error en webhookStripe:', error);
 
     // Si la firma es inválida, devolver 400

@@ -8,6 +8,20 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [20 Junio 2026] - Pagos · el cobro "día 1" se registra SIEMPRE (sin depender del reintento) + meses capitalizados 💳🔤
+
+**Fix — el cobro "día 1" (Pieza 2) quedaba cobrado en Stripe pero SIN registrar:** su `invoice.payment_succeeded` llegaba antes de crear el negocio → el blindaje lanzaba 500 para que Stripe reintentara, pero en **local el Stripe CLI no reintenta** los 500 → el cobro se perdía (sin recibo, sin comisión, sin movimiento) aunque el dinero sí se cobró.
+- **`registrarCobroReal(invoiceId)`** (idempotente por `invoice.id`): bitácora + comisión (alta + recurrente) + recibo. La llaman **el checkout** (tras crear el negocio, leyendo el `latest_invoice`) **y** el webhook — gana el primero, el otro no duplica. Desacopla el registro del reintento.
+- Error de carrera tipado **`WebhookReintentable`** (se loguea `⏳`, no `❌`); el controller responde 500 igual para que Stripe reintente.
+- **Vigencia con cortesía:** el recibo ("activa hasta…") y el periodo de la comisión usan la **fecha de próximo cobro (con la cortesía del vendedor)**, calculada de forma determinista; el inicio del periodo es la fecha del cobro. El "Fin de periodo" del movimiento de Stripe se renombró a **"Fin del periodo facturado"** (dato técnico crudo).
+- Script `apps/api/scripts/reprocesar-cobro-tarjeta.ts` (dry-run + `--aplicar`) para recuperar un cobro ya hecho pero sin registrar.
+
+**Meses capitalizados** en TODA la app: el PDF de recibo, los correos, el Panel y la web mostraban el mes en minúscula ("junio", "jul") por `Intl`/`toLocaleDateString('es-MX')`. Ahora se capitaliza (Junio, Jul) con `formatToParts` o arrays capitalizados, sin tocar día/año/lógica. (api: recibo + correo; admin: Registrar/Marcar/Editar pago, Recibos, historial de comisiones; web: Cupones, CardYA, ChatYA, ScanYA, Business Studio.)
+
+`tsc` api + admin + web verdes.
+
+---
+
 ## [20 Junio 2026] - Panel · "Vendedores y comisiones": rediseño del estado de cuenta + historial por negocio 💸📊
 
 Pulido de UI del módulo **Vendedores y comisiones** del Panel Admin (pestañas Comisiones / Pagos / Por entregar), más un ajuste de datos para que el historial muestre el desglose real por negocio.

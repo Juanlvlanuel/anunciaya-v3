@@ -339,8 +339,8 @@ function PestaniasVendedor({ vistaVendedor, activa, onCambiar }: { vistaVendedor
 // SECCIÓN COMISIONES (Fase 2 · pieza B — estado de cuenta)
 // =============================================================================
 
-const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
-/** 'YYYY-MM' → "jun 2026". */
+const MESES = ['Ene', 'Feb', 'Mar', 'Abr', 'May', 'Jun', 'Jul', 'Ago', 'Sep', 'Oct', 'Nov', 'Dic'];
+/** 'YYYY-MM' → "Jun 2026". */
 function periodoLegible(p: string | null): string {
   if (!p) return '—';
   const [y, m] = p.split('-');
@@ -362,17 +362,14 @@ function conceptoPago(c: ComisionFila): string {
   if (c.tipo === 'alta') return 'Comisión de alta';
   return (c.meses ?? 1) > 1 ? 'Pago de Anualidad' : 'Pago de Mensualidad';
 }
-/** Periodo EXACTO que comprende el pago: termina en `coberturaHasta` (fin del periodo pagado =
- *  detalle.hasta o la fecha de próximo cobro del negocio) y empieza N meses antes. Una mensualidad que
- *  vence el 18 Jul → "18 Jun 2026 – 18 Jul 2026". La alta es pago único → solo su fecha. Sin cobertura,
- *  cae al mes del periodo. */
+/** Periodo EXACTO que comprende el pago: del DÍA del cobro (`creada`) a la cobertura real (`coberturaHasta`
+ *  = fecha de próximo cobro, que ya incluye la cortesía del vendedor). Una mensualidad cobrada el 18 Jun con
+ *  vigencia al 18 Jul → "18 Jun 2026 – 18 Jul 2026". La alta es pago único → solo su fecha. Sin datos, cae al
+ *  mes del periodo. */
 function periodoCobertura(c: ComisionFila): string {
   if (c.tipo === 'alta') return c.creada ? fechaDia(new Date(c.creada)) : '—';
-  if (!c.coberturaHasta) return c.periodo ? cap(periodoLegible(c.periodo)) : '—';
-  const fin = new Date(c.coberturaHasta);
-  const inicio = new Date(fin);
-  inicio.setMonth(inicio.getMonth() - (c.meses ?? 1));
-  return `${fechaDia(inicio)} – ${fechaDia(fin)}`;
+  if (!c.coberturaHasta || !c.creada) return c.periodo ? cap(periodoLegible(c.periodo)) : '—';
+  return `${fechaDia(new Date(c.creada))} – ${fechaDia(new Date(c.coberturaHasta))}`;
 }
 
 function KpiComision({ etiqueta, monto, color, icono: Icono }: { etiqueta: string; monto: number; color?: string; icono: LucideIcon }) {

@@ -25,7 +25,7 @@ import Stripe from 'stripe';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
-import { usuarios, negocios, negocioSucursales, embajadores, pagosMembresia } from '../db/schemas/schema.js';
+import { usuarios, negocios, negocioSucursales, embajadores, pagosMembresia, eventosPago } from '../db/schemas/schema.js';
 import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
@@ -684,16 +684,38 @@ async function manejarCheckoutCompletado(
 
     console.log('✅ Usuario + negocio + sucursal creados:', nuevoUsuario.id, nuevoNegocio.id);
 
-    // Cobro "día 1" (ventas por vendedor, Pieza 2): la sub se creó SIN trial → ya cobró hoy (ese
-    // invoice.payment_succeeded dispara la comisión de alta + el recibo). Ahora empujamos el próximo
-    // cobro 1 mes + cortesía, regalando esos días extra ENCIMA del mes pagado. Reusa el mismo helper
-    // de "Registrar pago" (trial_end absoluto + proration 'none'); defensivo: si falla, el negocio ya
-    // cobró y el próximo cobro caería a 1 mes (sin la cortesía), sin romper nada.
-    if (atribucion?.embajadorId) {
+    // Lee la suscripción recién creada CON su invoice inicial UNA sola vez. Se hace ANTES del empuje de
+    // cortesía porque el empuje (cambia trial_end) puede mover el `latest_invoice` a un ajuste de $0 y
+    // entonces el cobro real (p.ej. los $8,490 del anual) ya no se vería desde aquí.
+    let subCreada: Stripe.Subscription | null = null;
+    try {
+        subCreada = await stripe.subscriptions.retrieve(session.subscription as string, { expand: ['latest_invoice'] });
+    } catch (errSub) {
+        console.error('❌ Error leyendo la suscripción tras el alta:', errSub);
+    }
+
+    // Datos del cobro "día 1" (si hubo cobro real). Se EXTRAEN ahora porque el latest_invoice es el del cobro;
+    // el REGISTRO se hace más abajo, TRAS sellar las fechas, para que la cobertura/recibo tomen ya la vigencia
+    // CON cortesía. En registros con trial el invoice es de $0 → no hay cobro real que registrar aquí.
+    let cobroInicial: { invoiceId: string; montoCentavos: number; finPeriodo: string | null } | null = null;
+    if (subCreada) {
+        const latest = subCreada.latest_invoice;
+        const inv = (typeof latest === 'string' ? await stripe.invoices.retrieve(latest) : latest) as unknown as {
+            id?: string;
+            amount_paid?: number;
+            lines?: { data?: Array<{ period?: { end?: number } }> };
+        } | null;
+        if (inv?.id && (inv.amount_paid ?? 0) > 0) {
+            cobroInicial = { invoiceId: inv.id, montoCentavos: inv.amount_paid ?? 0, finPeriodo: unixAISO(inv.lines?.data?.[0]?.period?.end) };
+        }
+    }
+
+    // Empuje de la cortesía del vendedor (Pieza 2): el próximo cobro = fin del periodo REAL que Stripe cobró
+    // (+1 mes mensual / +1 año anual) + cortesía. Reusa el mismo helper de "Registrar pago" (trial_end
+    // absoluto + proration 'none'); defensivo: si falla, el negocio ya cobró y el próximo cobro caería sin la
+    // cortesía, sin romper nada.
+    if (atribucion?.embajadorId && subCreada) {
         const diasCortesia = await obtenerConfigNumero('dias_cortesia_vendedor', 14);
-        // Empuje = fin del periodo REAL que Stripe cobró (+1 mes en mensual / +1 año en anual) + cortesía.
-        // Leer el periodo de Stripe (en vez de asumir "1 mes") es lo que hace correcto el caso ANUAL día-1.
-        const subCreada = await stripe.subscriptions.retrieve(session.subscription as string);
         const finPeriodo = finPeriodoDeSuscripcion(subCreada);
         if (finPeriodo) {
             const proximo = new Date(finPeriodo);
@@ -709,6 +731,25 @@ async function manejarCheckoutCompletado(
     // leyéndolas de Stripe, sin esperar al asíncrono customer.subscription.updated → el "Próximo cobro"
     // se ve desde el alta.
     await sellarFechasPeriodoDesdeStripe(nuevoNegocio.id, session.subscription as string);
+
+    // Cobro "día 1": registra el cobro inicial (bitácora + comisión + recibo) AHORA, tras sellar las fechas →
+    // así `registrarCobroReal` toma `fecha_proximo_cobro` (con cortesía) como vigencia para el recibo y la
+    // comisión. Idempotente por invoice.id: si el webhook también lo procesa, no duplica. No depende del
+    // reintento del webhook (frágil en local).
+    if (cobroInicial) {
+        try {
+            await registrarCobroReal({
+                negocioId: nuevoNegocio.id,
+                invoiceId: cobroInicial.invoiceId,
+                montoCentavos: cobroInicial.montoCentavos,
+                finPeriodo: cobroInicial.finPeriodo,
+                clienteId: session.customer as string,
+            });
+            console.log(`💳 Cobro "día 1" registrado en el checkout: ${nuevoNegocio.id} (invoice ${cobroInicial.invoiceId})`);
+        } catch (errCobro) {
+            console.error('❌ Error registrando el cobro día-1 en el checkout:', errCobro);
+        }
+    }
 
     // -------------------------------------------------------------------------
     // PASO 6: Generar tokens JWT
@@ -1170,6 +1211,132 @@ async function obtenerNegocioDesdeStripe(
 }
 
 /**
+ * Error "esperado" que pide a Stripe REINTENTAR el webhook (no es un fallo real). El controller responde
+ * 500 igual —para que Stripe reenvíe— pero se loguea como info (⏳) en vez de ❌. Caso típico: el cobro
+ * "día 1" (Pieza 2) cuyo `invoice.payment_succeeded` llega antes de que checkout cree el negocio.
+ */
+export class WebhookReintentable extends Error {
+    readonly reintentable = true;
+    constructor(message: string) {
+        super(message);
+        this.name = 'WebhookReintentable';
+    }
+}
+
+/**
+ * Registra un cobro REAL (monto > 0) en el sistema: sella "Cliente desde", apunta la bitácora financiera,
+ * devenga la comisión del vendedor (alta + recurrente) y emite el recibo (PDF + correo). IDEMPOTENTE por
+ * `invoiceId` (guard + UNIQUE de stripe_event_id): si ese invoice ya se registró —lo procesó el checkout al
+ * crear el negocio O un webhook `invoice.payment_succeeded`— no repite nada. Desacopla el registro del cobro
+ * del REINTENTO del webhook (frágil: en local el Stripe CLI no reintenta los 500), así el cobro "día 1"
+ * (Pieza 2) queda registrado SIEMPRE, lo procese el checkout o el webhook (gana el primero).
+ */
+export async function registrarCobroReal(opts: {
+    negocioId: string;
+    invoiceId: string;
+    montoCentavos: number;
+    finPeriodo: string | null;
+    clienteId: string | null;
+}): Promise<void> {
+    const { negocioId, invoiceId, montoCentavos, finPeriodo, clienteId } = opts;
+    const monto = montoCentavos / 100;
+
+    // Idempotencia: si este invoice ya está en la bitácora, no repetir (evita doble comisión/recibo).
+    const [ya] = await db
+        .select({ id: eventosPago.id })
+        .from(eventosPago)
+        .where(eq(eventosPago.stripeEventId, invoiceId))
+        .limit(1);
+    if (ya) return;
+
+    // VIGENCIA real = hasta cuándo está cubierto el negocio (lo que el cliente ve "activa hasta" en el recibo
+    // y el periodo que cubre la comisión): el fin facturado por Stripe MÁS la cortesía del vendedor en el
+    // PRIMER cobro. Se calcula de forma determinista (NO depende del orden del sellado de fechas, que es
+    // asíncrono): la fecha más lejana entre el próximo cobro ya sellado y (fin facturado + cortesía).
+    const [neg] = await db
+        .select({
+            embajadorId: negocios.embajadorId,
+            proximoCobro: negocios.fechaProximoCobro,
+            devengadaHasta: negocios.comisionDevengadaHasta,
+        })
+        .from(negocios)
+        .where(eq(negocios.id, negocioId))
+        .limit(1);
+    let coberturaHasta = neg?.proximoCobro ?? finPeriodo;
+    // Primer cobro de una venta por vendedor (sin marcador de devengo aún) → regala la cortesía ENCIMA del
+    // periodo facturado.
+    if (neg?.embajadorId && !neg.devengadaHasta && finPeriodo) {
+        const diasCortesia = await obtenerConfigNumero('dias_cortesia_vendedor', 14);
+        const conCortesia = new Date(finPeriodo);
+        conCortesia.setDate(conCortesia.getDate() + diasCortesia);
+        if (!coberturaHasta || conCortesia.getTime() > new Date(coberturaHasta).getTime()) {
+            coberturaHasta = conCortesia.toISOString();
+        }
+    }
+
+    // "Cliente desde": sella la fecha del PRIMER cobro real (COALESCE → solo la 1ª vez). Necesario para que
+    // la comisión de alta se devengue (depende de fecha_primer_pago).
+    await db
+        .update(negocios)
+        .set({ fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, CURRENT_DATE)` })
+        .where(eq(negocios.id, negocioId));
+
+    // Bitácora financiera (idempotente por stripe_event_id = invoiceId).
+    await registrarEventoPago({
+        negocioId,
+        tipo: 'cobro_exitoso',
+        origen: 'stripe',
+        monto,
+        fechaEvento: new Date().toISOString(),
+        stripeEventId: invoiceId,
+        metadata: { customerId: clienteId, finPeriodo, invoiceId },
+    });
+
+    // Comisión del vendedor: alta (pago único) + recurrente AL COBRO. Best-effort + idempotente.
+    try {
+        const { devengarComisionAlta, devengarComisionRecurrenteAlCobro } = await import('./admin/comisiones-devengo.service.js');
+        await devengarComisionAlta(negocioId);
+        if (coberturaHasta) {
+            await devengarComisionRecurrenteAlCobro(negocioId, coberturaHasta, monto);
+        }
+    } catch (errCom) {
+        console.error('❌ Error devengando comisiones del cobro:', errCom);
+    }
+
+    // Comprobante (recibo PDF con folio correlativo + correo al dueño), mismo flujo que un pago manual.
+    // Best-effort: si falla, el cobro ya quedó registrado arriba.
+    try {
+        const [pagoTarjeta] = await db
+            .insert(pagosMembresia)
+            .values({
+                negocioId,
+                concepto: 'tarjeta',
+                monto: String(monto),
+                mesesCubiertos: null,
+                periodoHasta: coberturaHasta ?? new Date().toISOString(),
+                registradoPor: null,
+            })
+            .returning({ id: pagosMembresia.id });
+        if (pagoTarjeta?.id) {
+            const { prepararReciboPago } = await import('./admin/recibo-pago.service.js');
+            const { enviarComprobantePagoMembresia } = await import('../utils/email.js');
+            const rec = await prepararReciboPago(pagoTarjeta.id);
+            if (rec?.correoDueno) {
+                await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
+                    nombreNegocio: rec.nombreNegocio,
+                    concepto: rec.concepto,
+                    monto: rec.monto,
+                    hasta: rec.hasta,
+                    reciboUrl: rec.reciboUrl,
+                });
+            }
+        }
+    } catch (errRecibo) {
+        console.error('❌ Error emitiendo el comprobante del cobro con tarjeta:', errRecibo);
+    }
+}
+
+/**
  * invoice.payment_succeeded — la renovación (o el primer cobro tras el trial) se cobró.
  * Estado → al_corriente. Actualiza vencimiento/próximo cobro y LIMPIA las fechas de gracia.
  */
@@ -1177,6 +1344,7 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
     try {
         // Acceso defensivo (API 2025-11 clover: algunos campos se movieron de lugar).
         const inv = invoice as unknown as {
+            id?: string;
             customer?: string | { id: string } | null;
             lines?: { data?: Array<{ period?: { end?: number } }> };
             amount_paid?: number;
@@ -1195,7 +1363,7 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
             // el recibo. El throw es ANTES de cualquier escritura → sin inserciones parciales; la
             // idempotencia por stripe_event_id evita duplicar. Un invoice de $0 (trial) sin negocio se ignora.
             if (esCobroReal) {
-                throw new Error(`invoice.payment_succeeded (cobro real) sin negocio aún para el cliente ${clienteId}; se reintenta.`);
+                throw new WebhookReintentable(`Cobro "día 1" recibido antes de crear el negocio (cliente ${clienteId}); Stripe reintentará en segundos.`);
             }
             console.log('ℹ️ Renovación pagada sin negocio asociado (cliente):', clienteId);
             return;
@@ -1239,66 +1407,17 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
 
         console.log(`✅ Renovación pagada → al_corriente: ${res.negocio.nombre} (vence ${finPeriodo})`);
 
-        // Bitácora financiera (libro mayor): registra el cobro REAL (monto>0). El invoice de
-        // $0 del trial NO es un movimiento de dinero → no se registra. Defensivo: no rompe el
-        // webhook ni provoca reintento si el INSERT de bitácora falla.
-        if (esCobroReal) {
-            await registrarEventoPago({
+        // Registra el cobro REAL (monto>0): bitácora financiera + comisión + recibo. IDEMPOTENTE por
+        // invoice.id (puede haberlo registrado ya el checkout en el cobro "día 1"). El invoice de $0 del
+        // trial NO es un movimiento de dinero → no entra.
+        if (esCobroReal && inv.id) {
+            await registrarCobroReal({
                 negocioId: res.negocio.id,
-                tipo: 'cobro_exitoso',
-                origen: 'stripe',
-                monto: (inv.amount_paid ?? 0) / 100,
-                fechaEvento: new Date().toISOString(),
-                stripeEventId: eventId ?? null,
-                metadata: { customerId: clienteId, finPeriodo },
+                invoiceId: inv.id,
+                montoCentavos: inv.amount_paid ?? 0,
+                finPeriodo,
+                clienteId,
             });
-            // Comisión de alta del vendedor (pieza C): se devenga al PRIMER cobro real. Best-effort + idempotente.
-            try {
-                const { devengarComisionAlta, devengarComisionRecurrenteAlCobro } = await import('./admin/comisiones-devengo.service.js');
-                await devengarComisionAlta(res.negocio.id);
-                // Comisión recurrente AL COBRO (Pieza 3): por los meses que ESTE cobro pagó (amount_paid ÷
-                // precio mensual → un anual = 10×), escalón congelado. coberturaHasta = fin del periodo facturado.
-                if (finPeriodo) {
-                    await devengarComisionRecurrenteAlCobro(res.negocio.id, finPeriodo, (inv.amount_paid ?? 0) / 100);
-                }
-            } catch (errCom) {
-                console.error('❌ Error devengando comisiones del cobro (webhook):', errCom);
-            }
-
-            // Comprobante de pago (correo + recibo PDF con folio correlativo) por el cobro de TARJETA —
-            // mismo flujo que un pago manual. Se registra una fila en pagos_membresia (concepto 'tarjeta')
-            // para tomar el folio de la MISMA serie y que aparezca en el historial del negocio; NO crea
-            // gemelo en eventos_pago (el cobro ya quedó arriba como 'cobro_exitoso'). Best-effort: si falla,
-            // el cobro ya está registrado.
-            try {
-                const [pagoTarjeta] = await db
-                    .insert(pagosMembresia)
-                    .values({
-                        negocioId: res.negocio.id,
-                        concepto: 'tarjeta',
-                        monto: String((inv.amount_paid ?? 0) / 100),
-                        mesesCubiertos: null,
-                        periodoHasta: finPeriodo ?? new Date().toISOString(),
-                        registradoPor: null,
-                    })
-                    .returning({ id: pagosMembresia.id });
-                if (pagoTarjeta?.id) {
-                    const { prepararReciboPago } = await import('./admin/recibo-pago.service.js');
-                    const { enviarComprobantePagoMembresia } = await import('../utils/email.js');
-                    const rec = await prepararReciboPago(pagoTarjeta.id);
-                    if (rec?.correoDueno) {
-                        await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
-                            nombreNegocio: rec.nombreNegocio,
-                            concepto: rec.concepto,
-                            monto: rec.monto,
-                            hasta: rec.hasta,
-                            reciboUrl: rec.reciboUrl,
-                        });
-                    }
-                }
-            } catch (errRecibo) {
-                console.error('❌ Error emitiendo el comprobante del cobro con tarjeta (webhook):', errRecibo);
-            }
         }
 
         // Si el negocio reapareció por el pago, borrar el aviso de "fuera de circulación".
@@ -1311,7 +1430,12 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
             }
         }
     } catch (error) {
-        console.error('❌ Error en manejarRenovacionPagada:', error);
+        // Carrera esperada (cobro día-1 antes del alta): no es un fallo, solo pide reintento.
+        if (error instanceof WebhookReintentable) {
+            console.log(`⏳ ${error.message}`);
+        } else {
+            console.error('❌ Error en manejarRenovacionPagada:', error);
+        }
         throw error; // propaga → el controller responde 500 → Stripe reintenta (no perder el cobro)
     }
 }
