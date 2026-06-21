@@ -253,6 +253,16 @@ input:-webkit-autofill:focus {
   animation: panel-fadein 0.22s ease;
 }
 
+/* Highlight temporal de una fila deep-linkeada (Métricas → "Negocios en riesgo"): anillo + fondo de
+   marca que se desvanecen en ~2s. El box-shadow inset respeta el border-radius de la fila/card. */
+@keyframes resaltado-deeplink-anim {
+  0%, 12% { background-color: var(--panel-brand-weak); box-shadow: inset 0 0 0 2px var(--panel-brand); }
+  100% { background-color: transparent; box-shadow: inset 0 0 0 2px transparent; }
+}
+.resaltado-deeplink {
+  animation: resaltado-deeplink-anim 2.2s ease-out forwards;
+}
+
 @keyframes entrada-login {
   from {
     opacity: 0;

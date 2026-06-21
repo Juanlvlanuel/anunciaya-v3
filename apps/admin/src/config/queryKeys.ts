@@ -103,6 +103,12 @@ export const queryKeys = {
   resumen: {
     all: () => ['resumen'] as const,
   },
+  metricas: {
+    all: () => ['metricas'] as const,
+    crecimiento: (periodo: string) => ['metricas', 'crecimiento', periodo] as const,
+    adopcion: (periodo: string) => ['metricas', 'adopcion', periodo] as const,
+    usuarios: (periodo: string) => ['metricas', 'usuarios', periodo] as const,
+  },
   negocios: {
     all: () => ['negocios'] as const,
     conteo: () => ['negocios', 'conteo'] as const,

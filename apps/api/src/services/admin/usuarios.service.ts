@@ -185,7 +185,7 @@ function nombreCompleto(nombre: string | null, apellidos: string | null): string
  *    y vendedores SOLO de SU región (la de su token). Gerente sin región: solo clientes.
  *  Las deducciones de región son las mismas del resto del Panel (negocio → sucursal MATRIZ → ciudad;
  *  vendedor → embajador_ciudades; gerente regional → usuarios.region_id). */
-function condicionVisibilidad(rolSolicitante?: string, regionSolicitante?: string | null): SQL | undefined {
+export function condicionVisibilidad(rolSolicitante?: string, regionSolicitante?: string | null): SQL | undefined {
     // Cliente "puro": sin rol de equipo y sin negocio → no tiene región, siempre visible.
     const clientePuro = and(isNull(usuarios.rolEquipo), isNull(usuarios.negocioId));
     // Dueño o gerente de sucursal cuyo negocio (sucursal MATRIZ) está en la región dada.

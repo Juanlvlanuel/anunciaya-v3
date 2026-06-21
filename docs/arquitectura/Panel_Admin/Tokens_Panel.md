@@ -169,6 +169,24 @@ inicio (`components/resumen/SeccionResumen.tsx`).
 - La **campana del shell** (`BandejaPendientes`) reusa la misma fuente de datos (un solo hook RQ),
   así su badge y la cola siempre cuadran.
 
+**Gráficas / charts (estrenado en Métricas)** — `recharts` (mismo que `apps/web`); piezas en
+`components/metricas/piezas.tsx`.
+- **Contenedor:** `GraficaCard` (tarjeta `superficie` + borde + `shadow-tarjeta-panel`, título 14px +
+  subtítulo `texto-3`) con `ResponsiveContainer`.
+- **Paleta = tokens, no hex:** `var(--panel-brand)` (serie principal) · `--panel-brand-2` · `--panel-ok`
+  · `--panel-danger` · `--panel-text-4` (gris "otro"). Grid sutil (`--panel-border`), eje **12px**,
+  leyenda **12.5px**, sin línea de tick.
+- **Barras:** llenan la banda (gap pequeño/0) y el **cursor de hover cubre la banda completa** (cursor
+  custom del mismo ancho → coinciden, no una línea más angosta/ancha que la barra). **Apiladas** para
+  desgloses (ingresos por concepto); **divergentes** (`stackOffset="sign"`, una serie en negativo) para
+  altas vs. bajas. Eje mensual muestra **todas** las etiquetas (`interval=0`, **meses capitalizados**);
+  el diario espacia con `minTickGap`.
+- **Tooltip:** componente propio con tokens (no el default), label legible (mes/día), valores en `abs`.
+- **Ranking / leaderboard:** filas con posición + (avatar real opcional, reusa `AvatarNegocio`) +
+  etiqueta + valor, con **barra de fondo proporcional** por fila (no una línea suelta debajo).
+- **KPI con variación:** valor 24/27/30 + chip `↑/↓ %` (verde/rojo por sentido); se **oculta** cuando el
+  periodo anterior es 0 (de 0 a N no es "100%"). Sin línea de contexto bajo el número (ensucia).
+
 ---
 
 ## 6. Componentes base reutilizables (no reinventar)

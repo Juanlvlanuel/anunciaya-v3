@@ -21,6 +21,7 @@ import mantenimientoRoutes from './mantenimiento.routes.js';
 import sesionRoutes from './sesion.routes.js';
 import seguridadRoutes from './seguridad.routes.js';
 import resumenRoutes from './resumen.routes.js';
+import metricasRoutes from './metricas.routes.js';
 import negociosRoutes from './negocios.routes.js';
 import usuariosRoutes from './usuarios.routes.js';
 import suscripcionesRoutes from './suscripciones.routes.js';
@@ -48,6 +49,11 @@ router.use('/', seguridadRoutes);
 // ANTES del gate global de superadmin: el tablero de inicio lo ven los 3 roles (cada
 // uno lo suyo). Cada ruta trae su propio requierePanel con los roles permitidos.
 router.use('/resumen', resumenRoutes);
+
+// ─── Métricas (los 3 roles, alcance por rol) ─────────────────────────────────────
+// ANTES del gate global de superadmin: la vista de análisis la usan también gerente y vendedor
+// (cada uno lo suyo). Cada ruta trae su propio requierePanel con los roles permitidos.
+router.use('/metricas', metricasRoutes);
 
 // ─── Negocios (los 3 roles, alcance por rol) ─────────────────────────────────────
 // ANTES del gate global de superadmin: la sección la usan también gerente y

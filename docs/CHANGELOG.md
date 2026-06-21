@@ -8,6 +8,22 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [21 Junio 2026] - Panel · módulo "Métricas" (vista de análisis con gráficas) 📊
+
+Nuevo **módulo 2 del Panel Admin** (`apps/admin`): **Métricas**, la vista de análisis. **Solo lectura** (saltó la Fase 2 del carril). **Sin migración SQL.**
+
+**3 pestañas + selector de periodo:**
+- **Crecimiento** — KPIs (negocios activos · altas · bajas · ingresos, con variación vs. periodo anterior) + barras **divergentes** altas/bajas + ingresos **apilados** por forma de pago + ranking de vendedores con **avatar/región/gerente**.
+- **Uso de la app** — "X de Y usan la app" (ScanYA), clientes activos/inactivos, curva de engagement, y **"Negocios en riesgo"** (pagan pero no usan la app) con **deep-link a Negocios (scroll + highlight)**.
+- **Usuarios** (super/gerente) — usuarios · nuevos · activos + registros por mes + tipo de cuenta + top ciudades.
+- **Selector de periodo:** presets (Último mes, 3/6/12/24 meses) + **rango por fechas** (calendario); **granularidad día/mes automática**.
+
+**Gráficas (recharts) estrenadas en el Panel** — patrón documentado en `Tokens_Panel.md` §5 (paleta de tokens, barras que llenan la banda con cursor del mismo ancho, leaderboards con barra de fondo, tooltip propio).
+
+Alcance por rol + lente de región del super (reusa los predicados de Negocios y Usuarios). Backend `metricas.service` (3 endpoints `/metricas/{crecimiento,adopcion,usuarios}`) + 3 harness verdes (`probar-metricas-*`). `tsc` api+admin + `vite build` verdes. Docs: `Metricas.md` + `Metricas_Pendientes.md`.
+
+---
+
 ## [20 Junio 2026] - Pagos · el cobro "día 1" se registra SIEMPRE (sin depender del reintento) + meses capitalizados 💳🔤
 
 **Fix — el cobro "día 1" (Pieza 2) quedaba cobrado en Stripe pero SIN registrar:** su `invoice.payment_succeeded` llegaba antes de crear el negocio → el blindaje lanzaba 500 para que Stripe reintentara, pero en **local el Stripe CLI no reintenta** los 500 → el cobro se perdía (sin recibo, sin comisión, sin movimiento) aunque el dinero sí se cobró.

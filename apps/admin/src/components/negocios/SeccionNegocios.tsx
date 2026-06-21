@@ -83,6 +83,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const [expandidos, setExpandidos] = useState<Set<string>>(new Set());
   const [sucursalSel, setSucursalSel] = useState<{ negocioId: string; sucursal: SucursalFila } | null>(null);
   const [abriendoId, setAbriendoId] = useState<string | null>(null);
+  const [idResaltado, setIdResaltado] = useState<string | null>(null);
   const qc = useQueryClient();
 
   // Deep-link desde el Resumen / la campana: si llegó un filtro inicial (ej. estado "en gracia"),
@@ -90,11 +91,15 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const filtroInicial = useNavegacionPanel((s) => s.filtroNegocios);
   const consumirFiltro = useNavegacionPanel((s) => s.consumirFiltroNegocios);
   useEffect(() => {
-    if (filtroInicial?.estadoPago) {
+    if (!filtroInicial) return;
+    if (filtroInicial.estadoPago) {
       setEstadoPago(filtroInicial.estadoPago);
       setPagina(1);
-      consumirFiltro();
     }
+    // Deep-link a un negocio concreto (Métricas → "Negocios en riesgo"): SOLO lo marca para scroll +
+    // highlight, sin filtrar la lista (lo aplica el efecto de abajo si el negocio está en la página visible).
+    if (filtroInicial.resaltarId) setIdResaltado(filtroInicial.resaltarId);
+    consumirFiltro();
   }, [filtroInicial, consumirFiltro]);
 
   // Al abrir, esperamos a tener el historial de pagos en caché ANTES de montar la ficha, para
@@ -178,6 +183,24 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
   const hayFiltro = !!(busquedaDeb || estadoPago || vendedorId || ciudad);
+
+  // Deep-link desde Métricas: cuando el negocio a resaltar ya está en la lista cargada, hace scroll
+  // hasta su fila y la "alumbra" ~2s. Depende de `items` (corre cuando la búsqueda lo trae a la vista).
+  useEffect(() => {
+    if (!idResaltado || !items.some((n) => n.id === idResaltado)) return;
+    const t = setTimeout(() => {
+      const el = document.querySelector<HTMLElement>(
+        `[data-testid="negocio-fila-${idResaltado}"], [data-testid="negocio-card-${idResaltado}"]`,
+      );
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        el.classList.add('resaltado-deeplink');
+        setTimeout(() => el.classList.remove('resaltado-deeplink'), 2200);
+      }
+      setIdResaltado(null);
+    }, 140);
+    return () => clearTimeout(t);
+  }, [idResaltado, items]);
 
   // ── Estado de filtros (para EstadoSeccion) ───────────────────────────────────
   // hayFiltrosActivos: true si el usuario escribió en la búsqueda o movió algún filtro

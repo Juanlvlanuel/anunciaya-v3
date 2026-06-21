@@ -14,12 +14,20 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 20 Junio 2026.
+> **Última actualización:** 21 Junio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **Recién cerrado (21 jun):** **Métricas** (módulo 2) — doc [`Metricas.md`](Metricas.md): la vista de
+  **análisis** del Panel con **3 pestañas** (Crecimiento · Uso de la app · Usuarios) + **selector de
+  periodo** (presets + rango por fechas, granularidad día/mes automática), todo scoped por rol y con
+  lente de región. KPIs con variación, **gráficas recharts** (estrenadas en el Panel: barras divergentes
+  altas/bajas, ingresos apilados por concepto, líneas de engagement, rankings con avatar/región/gerente),
+  y deep-link **"Negocios en riesgo" → Negocios** con scroll + highlight. Solo lectura → saltó Fase 2.
+  Sin migración. 3 harness verdes (`probar-metricas-{crecimiento,adopcion,usuarios}.ts`) + `tsc`/build.
+  Estrenó el **patrón de gráficas** en `Tokens_Panel.md`. **Pendiente:** commit de Juan.
 - **Recién cerrado (20 jun):** **Resumen / inicio** (módulo 1) — doc [`Resumen.md`](Resumen.md): tablero
   de inicio con **KPIs gruesos** (negocios activos · usuarios · ingresos del mes · cobros fallidos; el
   vendedor ve cartera/comisiones/efectivo) + **cola de pendientes accionable** (efectivo por entregar +
@@ -102,7 +110,7 @@
 | # | Módulo | Estado | Fase | Docs |
 |---|---|---|---|---|
 | 1 | **Resumen / inicio** | ✅ | Construido (VER · solo lectura, salta Fase 2) | `Resumen.md` · `Resumen_Pendientes.md` |
-| 2 | Métricas | ⬜ | 0 | — |
+| 2 | **Métricas** | ✅ | ✔ Cerrado (VER · solo lectura, salta Fase 2) | `Metricas.md` · `Metricas_Pendientes.md` |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |

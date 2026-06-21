@@ -26,6 +26,7 @@ import { LayoutEscritorio } from '../components/shell/LayoutEscritorio';
 import { LayoutMovil } from '../components/shell/LayoutMovil';
 import PaginaSeguridad from './PaginaSeguridad';
 import { SeccionResumen } from '../components/resumen/SeccionResumen';
+import { SeccionMetricas } from '../components/metricas/SeccionMetricas';
 import { SeccionNegocios } from '../components/negocios/SeccionNegocios';
 import { SeccionUsuarios } from '../components/usuarios/SeccionUsuarios';
 import { SeccionSuscripciones } from '../components/suscripciones/SeccionSuscripciones';
@@ -171,6 +172,8 @@ function PaginaPanel() {
     <PaginaSeguridad />
   ) : seccionActivaId === 'resumen' ? (
     <SeccionResumen rol={rol} />
+  ) : seccionActivaId === 'metricas' ? (
+    <SeccionMetricas rol={rol} />
   ) : seccionActivaId === 'negocios' ? (
     <SeccionNegocios rol={rol} />
   ) : seccionActivaId === 'usuarios' ? (

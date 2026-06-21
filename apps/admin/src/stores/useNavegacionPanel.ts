@@ -18,6 +18,8 @@ import { create } from 'zustand';
 
 export interface FiltroNegociosInicial {
   estadoPago?: string;
+  /** Deep-link a una fila concreta: la sección Negocios hace scroll y la resalta (si está visible). */
+  resaltarId?: string;
 }
 export interface FiltroSuscripcionesInicial {
   tipo?: string;
