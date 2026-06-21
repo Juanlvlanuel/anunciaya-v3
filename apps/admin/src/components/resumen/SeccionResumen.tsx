@@ -15,12 +15,14 @@
  * Ubicación: apps/admin/src/components/resumen/SeccionResumen.tsx
  */
 
-import type { ReactNode } from 'react';
+import { useRef, useEffect, type ReactNode } from 'react';
 import { Store, Users, CircleDollarSign, CreditCard, Wallet, Clock, ChevronRight, CheckCircle2, type LucideIcon } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useResumen } from '../../hooks/queries/useResumen';
 import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
+import { useScrollPanel } from '../../stores/useScrollPanel';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 
 const FMT_MONEDA = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 });
@@ -97,6 +99,16 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
   const navegar = useNavegacionPanel((s) => s.navegar);
   const nombreUsuario = useAuthPanelStore((s) => s.usuario?.nombre ?? '');
 
+  // Auto-ocultar la barra inferior (móvil) al hacer scroll: registra el contenedor scrolleable
+  // (solo en móvil). Incluye isLoading/isError en deps porque el contenedor solo existe tras cargar.
+  const esEscritorio = useEsEscritorio();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : scrollRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl, isLoading, isError]);
+
   if (isLoading) {
     return (
       <div className="flex h-full flex-col p-4 lg:p-5">
@@ -131,7 +143,7 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
   );
 
   return (
-    <div className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
+    <div ref={scrollRef} className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 lg:gap-7">
         {/* ── Encabezado: saludo + fecha de hoy ────────────────────────────── */}
         <div className="flex flex-col gap-0.5">

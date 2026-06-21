@@ -12,9 +12,11 @@
  * Ubicación: apps/admin/src/components/metricas/SeccionMetricas.tsx
  */
 
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import type { RolPanel } from '../../data/menuPanel';
 import type { PeriodoSel } from '../../services/metricasService';
+import { useScrollPanel } from '../../stores/useScrollPanel';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { SelectorPeriodo } from './SelectorPeriodo';
 import { VistaCrecimiento } from './VistaCrecimiento';
 import { VistaAdopcion } from './VistaAdopcion';
@@ -32,12 +34,22 @@ export function SeccionMetricas({ rol }: { rol: RolPanel }) {
   const [tab, setTab] = useState<TabId>('crecimiento');
   const [periodo, setPeriodo] = useState<PeriodoSel>({ tipo: 'preset', meses: 12 });
 
+  // Auto-ocultar la barra inferior (móvil) al hacer scroll: registra el contenedor scrolleable
+  // (solo en móvil; en escritorio no aplica). Mismo patrón que Negocios.
+  const esEscritorio = useEsEscritorio();
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : scrollRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl]);
+
   // El vendedor no entra al módulo Usuarios (coherente con la matriz de permisos).
   const tabs = rol === 'vendedor' ? TABS.filter((t) => t.id !== 'usuarios') : TABS;
   const subtitulo = rol === 'gerente' ? 'Tu región' : rol === 'vendedor' ? 'Tu cartera' : 'Toda la plataforma';
 
   return (
-    <div className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
+    <div ref={scrollRef} className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
         {/* Encabezado + selector de periodo */}
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
