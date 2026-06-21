@@ -8,11 +8,18 @@
  * Ubicación: apps/admin/src/hooks/queries/useAuditoriaAdmin.ts
  */
 
-import { useQuery, useQueryClient, keepPreviousData } from '@tanstack/react-query';
+import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tanstack/react-query';
 import { useCallback } from 'react';
 import { queryKeys } from '../../config/queryKeys';
 import * as auditoriaService from '../../services/auditoriaService';
 import type { ParametrosAuditoria, AuditoriaDetalle } from '../../services/auditoriaService';
+import { toast } from '../../stores/useToastPanel';
+
+/** Extrae el mensaje de error del backend (o uno por defecto). */
+function mensajeError(error: unknown, porDefecto: string): string {
+  const e = error as { response?: { data?: { message?: string } } };
+  return e?.response?.data?.message ?? porDefecto;
+}
 
 /** Bitácora paginada (con filtros). */
 export function useAuditoria(filtros: ParametrosAuditoria) {
@@ -58,4 +65,30 @@ export function usePrefetchAuditoria() {
     },
     [qc],
   );
+}
+
+/** Borra un registro de la bitácora (solo superadmin). Refresca la lista al terminar. */
+export function useEliminarAuditoria() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => auditoriaService.eliminarAuditoria(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.auditoria.all() });
+      toast.exito('Registro eliminado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar el registro')),
+  });
+}
+
+/** Vacía TODA la bitácora (solo superadmin). Refresca la lista al terminar. Irreversible. */
+export function useVaciarAuditoria() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => auditoriaService.vaciarAuditoria(),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.auditoria.all() });
+      toast.exito('Bitácora vaciada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo vaciar la bitácora')),
+  });
 }

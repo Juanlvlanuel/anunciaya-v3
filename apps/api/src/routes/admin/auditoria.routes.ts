@@ -26,6 +26,8 @@ import {
     listarAuditoriaController,
     listarActoresAuditoriaController,
     obtenerDetalleAuditoriaController,
+    eliminarAuditoriaController,
+    vaciarAuditoriaController,
 } from '../../controllers/admin/auditoria.controller.js';
 
 const router: Router = Router();
@@ -36,5 +38,10 @@ router.get('/', requierePanel(['superadmin', 'gerente']), listarAuditoriaControl
 router.get('/actores', requierePanel(['superadmin', 'gerente']), listarActoresAuditoriaController);
 
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerDetalleAuditoriaController);
+
+// ─── Borrado (SOLO superadmin) — limpieza de staging; la auditoría es inmutable en principio ──
+// Vaciar TODO va sin id; borrar uno va con id. Ambos exigen superadmin.
+router.delete('/', requierePanel(['superadmin']), vaciarAuditoriaController);
+router.delete('/:id', requierePanel(['superadmin']), eliminarAuditoriaController);
 
 export default router;

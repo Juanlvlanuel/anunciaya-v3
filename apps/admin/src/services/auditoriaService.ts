@@ -26,6 +26,7 @@ export interface AuditoriaFila {
   fecha: string | null;
   actorId: string | null;
   actorNombre: string | null;
+  actorAvatar: string | null;
   actorRol: string | null;
   accion: string;
   entidadTipo: string;
@@ -95,4 +96,14 @@ export async function obtenerDetalleAuditoria(id: string): Promise<AuditoriaDeta
 export async function listarActores(): Promise<ActorAuditoria[]> {
   const { data } = await api.get<RespuestaAPI<ActorAuditoria[]>>('/admin/auditoria/actores');
   return data.data ?? [];
+}
+
+/** Borra un registro de la bitácora. Solo superadmin (el backend lo blinda). */
+export async function eliminarAuditoria(id: string): Promise<void> {
+  await api.delete<RespuestaAPI<null>>(`/admin/auditoria/${id}`);
+}
+
+/** Vacía TODA la bitácora. Solo superadmin (el backend lo blinda). */
+export async function vaciarAuditoria(): Promise<void> {
+  await api.delete<RespuestaAPI<null>>('/admin/auditoria');
 }

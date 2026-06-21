@@ -18,6 +18,7 @@ import {
     ORDENES_AUDITORIA,
     type OrdenAuditoria,
 } from '../../services/admin/auditoria-consulta.service.js';
+import { eliminarAuditoria, vaciarAuditoria } from '../../services/admin/auditoria-acciones.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -112,6 +113,47 @@ export async function obtenerDetalleAuditoriaController(req: Request, res: Respo
         res.status(500).json({
             success: false,
             message: 'Error al obtener el registro',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// DELETE /api/admin/auditoria/:id   (borrar un registro · SOLO superadmin)
+// =============================================================================
+
+export async function eliminarAuditoriaController(req: Request, res: Response): Promise<void> {
+    try {
+        const { id } = req.params;
+        const resultado = await eliminarAuditoria(id);
+        if (!resultado.ok) {
+            res.status(404).json({ success: false, message: 'Registro no encontrado' });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Registro eliminado' });
+    } catch (error) {
+        console.error('Error en eliminarAuditoriaController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al eliminar el registro',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// DELETE /api/admin/auditoria   (vaciar toda la bitácora · SOLO superadmin)
+// =============================================================================
+
+export async function vaciarAuditoriaController(_req: Request, res: Response): Promise<void> {
+    try {
+        const resultado = await vaciarAuditoria();
+        res.status(200).json({ success: true, message: `Bitácora vaciada (${resultado.borradas})`, data: resultado });
+    } catch (error) {
+        console.error('Error en vaciarAuditoriaController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al vaciar la bitácora',
             error: error instanceof Error ? error.message : String(error),
         });
     }

@@ -14,15 +14,17 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowUpDown, Calendar, User, ScrollText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, Calendar, User, ScrollText, Trash2 } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
-import { useAuditoria, useActoresAuditoria, usePrefetchAuditoria } from '../../hooks/queries/useAuditoriaAdmin';
+import { useAuditoria, useActoresAuditoria, usePrefetchAuditoria, useEliminarAuditoria, useVaciarAuditoria } from '../../hooks/queries/useAuditoriaAdmin';
 import type { OrdenAuditoria, AuditoriaFila } from '../../services/auditoriaService';
 import { etiquetaAccion, BadgeModulo, OPCIONES_ACCION, etiquetaEntidad } from './accionesAuditoria';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { FichaAuditoria } from './FichaAuditoria';
+import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 
 const POR_PAGINA = 20;
@@ -55,13 +57,6 @@ function fechaCorta(iso: string | null): string {
   return `${String(d.getDate()).padStart(2, '0')} ${MESES[d.getMonth()]} · ${hh}:${mm}`;
 }
 
-/** Iniciales (máx 2) del nombre del actor para el mini-avatar. */
-function inicialesDe(nombre: string | null): string {
-  if (!nombre) return '—';
-  const partes = nombre.trim().split(/\s+/).filter(Boolean);
-  return ((partes[0]?.[0] ?? '') + (partes[1]?.[0] ?? '')).toUpperCase() || '—';
-}
-
 /** Traduce el preset de periodo a `desde` (ISO de inicio del día → estable entre renders). */
 function desdeDelPeriodo(periodo: string): string | undefined {
   if (!periodo) return undefined;
@@ -73,8 +68,9 @@ function desdeDelPeriodo(periodo: string): string | undefined {
   return d.toISOString();
 }
 
-export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
+export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
   const esEscritorio = useEsEscritorio();
+  const esSuper = rol === 'superadmin';
 
   const [accion, setAccion] = useState('');
   const [actorId, setActorId] = useState('');
@@ -82,7 +78,11 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
   const [orden, setOrden] = useState<OrdenAuditoria>('fecha_recientes');
   const [pagina, setPagina] = useState(1);
   const [seleccionado, setSeleccionado] = useState<AuditoriaFila | null>(null);
+  const [aEliminar, setAEliminar] = useState<AuditoriaFila | null>(null);
+  const [vaciarOpen, setVaciarOpen] = useState(false);
   const prefetch = usePrefetchAuditoria();
+  const eliminar = useEliminarAuditoria();
+  const vaciar = useVaciarAuditoria();
 
   // Registra el contenedor scrolleable (móvil) para el auto-ocultado de la barra inferior.
   const listaRef = useRef<HTMLDivElement>(null);
@@ -138,6 +138,37 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
 
   const ficha = seleccionado ? <FichaAuditoria previo={seleccionado} onCerrar={() => setSeleccionado(null)} /> : null;
 
+  const dialogos = (
+    <>
+      {aEliminar && (
+        <DialogoConfirmar
+          abierto
+          onCerrar={() => setAEliminar(null)}
+          titulo="Eliminar registro"
+          variante="danger"
+          mensaje="Se eliminará permanentemente este registro de la bitácora. La auditoría es un historial: bórralo solo si es un dato de prueba."
+          textoConfirmar="Eliminar"
+          discriminador="dialogo-eliminar-auditoria"
+          cargando={eliminar.isPending}
+          onConfirmar={() => eliminar.mutate(aEliminar.id, { onSuccess: () => setAEliminar(null) })}
+        />
+      )}
+      {vaciarOpen && (
+        <DialogoConfirmar
+          abierto
+          onCerrar={() => setVaciarOpen(false)}
+          titulo="Vaciar la bitácora"
+          variante="danger"
+          mensaje={`Se eliminarán los ${total} registros de auditoría de forma permanente. Esta acción no se puede deshacer.`}
+          textoConfirmar="Vaciar todo"
+          discriminador="dialogo-vaciar-auditoria"
+          cargando={vaciar.isPending}
+          onConfirmar={() => vaciar.mutate(undefined, { onSuccess: () => setVaciarOpen(false) })}
+        />
+      )}
+    </>
+  );
+
   const vacioOError = isLoading ? (
     <EstadoSeccion variante="cargando" icono={ScrollText} titulo="Cargando bitácora…" />
   ) : isError ? (
@@ -174,6 +205,7 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
               opciones={OPCIONES_ACCION_MENU}
               valor={accion}
               onCambiar={setAccion}
+              alineacion="izquierda"
               anchoMenu={250}
             />
           </div>
@@ -204,7 +236,13 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
           {vacioOError ?? (
             <div className="flex flex-col gap-2.5">
               {items.map((r) => (
-                <CardAccion key={r.id} r={r} onAbrir={() => setSeleccionado(r)} onPrefetch={() => prefetch(r.id)} />
+                <CardAccion
+                  key={r.id}
+                  r={r}
+                  onAbrir={() => setSeleccionado(r)}
+                  onPrefetch={() => prefetch(r.id)}
+                  onEliminar={esSuper ? () => setAEliminar(r) : undefined}
+                />
               ))}
             </div>
           )}
@@ -212,12 +250,13 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
 
         {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
         {ficha}
+        {dialogos}
       </div>
     );
   }
 
   // ── Vista ESCRITORIO ────────────────────────────────────────────────────────
-  const cols = 'minmax(180px,1.8fr) minmax(200px,2.2fr) 1.4fr 1fr 28px';
+  const cols = 'minmax(180px,1.8fr) minmax(200px,2.2fr) 1.4fr 1fr 56px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -268,6 +307,16 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
             anchoMenu={210}
             tam="chip"
           />
+          {esSuper && total > 0 && (
+            <button
+              type="button"
+              data-testid="auditoria-vaciar"
+              onClick={() => setVaciarOpen(true)}
+              className="inline-flex items-center gap-1.5 rounded-full border border-borde px-3 py-1.5 text-[12.5px] font-semibold text-texto-3 transition hover:border-peligro hover:bg-peligro-suave hover:text-peligro"
+            >
+              <Trash2 size={14} /> Vaciar
+            </button>
+          )}
         </div>
       </div>
 
@@ -277,23 +326,31 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
           className="grid shrink-0 items-center gap-3.5 border-b border-borde bg-superficie px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4"
           style={{ gridTemplateColumns: cols }}
         >
-          <span>Quién</span>
-          <span>Acción</span>
-          <span>Sobre</span>
-          <span>Cuándo</span>
+          <span>Responsable</span>
+          <span>Actividad</span>
+          <span>Objeto</span>
+          <span>Fecha y hora</span>
           <span />
         </div>
 
         <div className="min-h-0 flex-1 overflow-y-auto">
           {vacioOError ??
             items.map((r) => (
-              <FilaAccion key={r.id} r={r} cols={cols} onAbrir={() => setSeleccionado(r)} onPrefetch={() => prefetch(r.id)} />
+              <FilaAccion
+                key={r.id}
+                r={r}
+                cols={cols}
+                onAbrir={() => setSeleccionado(r)}
+                onPrefetch={() => prefetch(r.id)}
+                onEliminar={esSuper ? () => setAEliminar(r) : undefined}
+              />
             ))}
         </div>
       </div>
 
       {total > 0 && <Paginacion desde={desde} hasta={hasta} total={total} pagina={pagina} totalPaginas={totalPaginas} setPagina={setPagina} />}
       {ficha}
+      {dialogos}
     </div>
   );
 }
@@ -302,23 +359,11 @@ export function SeccionAuditoria({ rol: _rol }: { rol: RolPanel }) {
 // SUB-COMPONENTES
 // =============================================================================
 
-/** Mini-avatar de iniciales del actor (sobrio, sin foto — la auditoría no la trae). */
-function AvatarActor({ nombre, tam = 38 }: { nombre: string | null; tam?: number }) {
-  return (
-    <span
-      className="grid shrink-0 place-items-center rounded-full border border-borde bg-superficie-2 font-semibold text-texto-3"
-      style={{ width: tam, height: tam, fontSize: tam * 0.36 }}
-    >
-      {inicialesDe(nombre)}
-    </span>
-  );
-}
-
 function TextoEntidad({ r }: { r: AuditoriaFila }) {
   return <span className="truncate text-[13px] text-texto-2">{etiquetaEntidad(r.entidadTipo, r.entidadNombre, !!r.entidadId)}</span>;
 }
 
-function FilaAccion({ r, cols, onAbrir, onPrefetch }: { r: AuditoriaFila; cols: string; onAbrir: () => void; onPrefetch: () => void }) {
+function FilaAccion({ r, cols, onAbrir, onPrefetch, onEliminar }: { r: AuditoriaFila; cols: string; onAbrir: () => void; onPrefetch: () => void; onEliminar?: () => void }) {
   const rolLegible = r.actorRol ? (ROL_LABEL[r.actorRol] ?? r.actorRol) : null;
   return (
     <div
@@ -334,28 +379,41 @@ function FilaAccion({ r, cols, onAbrir, onPrefetch }: { r: AuditoriaFila; cols: 
       }}
       onMouseEnter={onPrefetch}
       onFocus={onPrefetch}
-      className="grid w-full cursor-pointer items-center gap-3.5 border-b border-borde px-3 py-3 text-left transition last:border-b-0 hover:bg-marca-suave focus:bg-marca-suave focus:outline-none"
+      className="group grid w-full cursor-pointer items-center gap-3.5 border-b border-borde px-3 py-3 text-left transition last:border-b-0 hover:bg-marca-suave focus:bg-marca-suave focus:outline-none"
       style={{ gridTemplateColumns: cols }}
     >
       <span className="flex min-w-0 items-center gap-2.5">
-        <AvatarActor nombre={r.actorNombre} tam={34} />
+        <AvatarUsuario nombre={r.actorNombre ?? 'Sistema'} avatarUrl={r.actorAvatar} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{r.actorNombre ?? 'Sistema'}</span>
           {rolLegible && <span className="truncate text-[12px] text-texto-4">{rolLegible}</span>}
         </span>
       </span>
-      <span className="flex min-w-0 items-center gap-2.5">
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="min-w-0 truncate text-[13.5px] font-medium text-texto">{etiquetaAccion(r.accion)}</span>
         <BadgeModulo accion={r.accion} />
-        <span className="truncate text-[13.5px] font-medium text-texto">{etiquetaAccion(r.accion)}</span>
       </span>
       <span className="flex min-w-0"><TextoEntidad r={r} /></span>
       <span className="text-[13px] text-texto-2">{fechaCorta(r.fecha)}</span>
-      <span className="flex justify-end text-texto-4"><ChevronRight size={17} /></span>
+      <span className="flex items-center justify-end gap-0.5 text-texto-4">
+        {onEliminar && (
+          <button
+            type="button"
+            data-testid={`auditoria-eliminar-${r.id}`}
+            onClick={(ev) => { ev.stopPropagation(); onEliminar(); }}
+            aria-label="Eliminar registro"
+            className="grid h-7 w-7 place-items-center rounded-lg opacity-0 transition hover:bg-peligro-suave hover:text-peligro group-hover:opacity-100"
+          >
+            <Trash2 size={15} />
+          </button>
+        )}
+        <ChevronRight size={17} />
+      </span>
     </div>
   );
 }
 
-function CardAccion({ r, onAbrir, onPrefetch }: { r: AuditoriaFila; onAbrir: () => void; onPrefetch: () => void }) {
+function CardAccion({ r, onAbrir, onPrefetch, onEliminar }: { r: AuditoriaFila; onAbrir: () => void; onPrefetch: () => void; onEliminar?: () => void }) {
   const rolLegible = r.actorRol ? (ROL_LABEL[r.actorRol] ?? r.actorRol) : null;
   return (
     <div
@@ -372,7 +430,7 @@ function CardAccion({ r, onAbrir, onPrefetch }: { r: AuditoriaFila; onAbrir: () 
       onTouchStart={onPrefetch}
       className="flex items-start gap-3 rounded-[14px] border border-borde bg-superficie p-3 text-left transition active:bg-marca-suave"
     >
-      <AvatarActor nombre={r.actorNombre} tam={40} />
+      <AvatarUsuario nombre={r.actorNombre ?? 'Sistema'} avatarUrl={r.actorAvatar} tam={42} />
       <span className="flex min-w-0 flex-1 flex-col gap-1">
         <span className="truncate text-[14px] font-semibold text-texto">{etiquetaAccion(r.accion)}</span>
         <span className="truncate text-[12.5px] text-texto-3">
@@ -384,6 +442,17 @@ function CardAccion({ r, onAbrir, onPrefetch }: { r: AuditoriaFila; onAbrir: () 
           <span className="truncate text-[12px] text-texto-4">{fechaCorta(r.fecha)}</span>
         </span>
       </span>
+      {onEliminar && (
+        <button
+          type="button"
+          data-testid={`auditoria-eliminar-${r.id}`}
+          onClick={(ev) => { ev.stopPropagation(); onEliminar(); }}
+          aria-label="Eliminar registro"
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-lg text-texto-4 transition active:bg-peligro-suave active:text-peligro"
+        >
+          <Trash2 size={16} />
+        </button>
+      )}
     </div>
   );
 }

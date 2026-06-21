@@ -59,6 +59,7 @@ export const ACCION_LABEL: Record<string, string> = {
   // Usuarios
   usuario_desbloquear_intentos: 'Desbloqueó intentos de acceso',
   usuario_generar_codigo_acceso: 'Generó un código de acceso',
+  usuario_enviar_acceso: 'Envió el acceso por correo',
   usuario_cambiar_correo: 'Cambió el correo de un usuario',
   usuario_suspender: 'Suspendió un usuario',
   usuario_reactivar: 'Reactivó un usuario',
@@ -66,11 +67,18 @@ export const ACCION_LABEL: Record<string, string> = {
   ciudad_crear: 'Dio de alta una ciudad',
   ciudad_crear_multiple: 'Dio de alta ciudades',
   ciudad_editar: 'Editó una ciudad',
+  ciudad_activar: 'Activó una ciudad',
+  ciudad_desactivar: 'Desactivó una ciudad',
   ciudad_asignar_region: 'Asignó una ciudad a una región',
   ciudad_asignar_region_multiple: 'Asignó varias ciudades a una región',
   region_crear: 'Creó una región',
   region_editar: 'Editó una región',
   // Equipo
+  equipo_alta_gerente: 'Dio de alta un gerente',
+  equipo_promover_gerente: 'Promovió a gerente',
+  equipo_alta_vendedor: 'Dio de alta un vendedor',
+  equipo_promover_vendedor: 'Promovió a vendedor',
+  equipo_cambiar_ciudades: 'Cambió las ciudades de cobertura',
   equipo_revocar_acceso: 'Revocó un acceso',
   equipo_reactivar_acceso: 'Reactivó un acceso',
   equipo_editar_datos: 'Editó datos de un miembro',
@@ -78,7 +86,9 @@ export const ACCION_LABEL: Record<string, string> = {
   // Vendedores
   vendedor_registrar_pago: 'Registró el pago a un vendedor',
   vendedor_datos_cobro: 'Actualizó datos de cobro',
+  vendedor_efectivo_cobro: 'Registró cobro de efectivo',
   vendedor_efectivo_entrega: 'Registró entrega de efectivo',
+  comisiones_recalcular: 'Recalculó comisiones',
   // Membresía (precio / plan)
   precio_mensual_cambiar: 'Cambió el precio mensual',
   plan_anual_activar: 'Activó el plan anual',

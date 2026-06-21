@@ -8,6 +8,21 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [21 Junio 2026] - Panel · módulo "Auditoría" (bitácora de acciones del equipo) 🧾
+
+**UI de lectura de `admin_auditoria`** — el medio que faltaba del **módulo 11 "Sistema"** (`apps/admin`). La **escritura** ya existía como cimiento transversal (`registrarAuditoria`); aquí se construyó la pantalla para consultarla. **Sin migración SQL.**
+
+- **Lista** (tabla/cards) ordenada por fecha, con filtros (acción · persona · periodo · orden) y **paginación en servidor** (20/pág). Columnas: Responsable (avatar+rol) · Actividad (texto + badge de módulo) · Objeto (nombre real) · Fecha y hora.
+- **Ficha** de detalle **instantánea** (placeholder + prefetch en hover): la acción protagonista + "Sobre" (entidad por su nombre) + los datos del cambio ("antes → después") + motivo + fecha, todo en una tarjeta.
+- **Alcance por rol** (en el backend, no se confía en la UI): super = todo · gerente = su equipo (su región) · **vendedor 403** + lente de región del super.
+- **Borrado de limpieza** (papelera por fila + **Vaciar**, **solo super**, para depurar staging — la auditoría es inmutable por principio).
+
+**El corazón del módulo: el sistema de presentación.** Traduce **~40 tipos de acción** a lenguaje de persona con **reglas sistémicas** (no 40 plantillas) y **degradación elegante** ante acciones nuevas: cero jerga técnica, **ningún UUID** (los ids se resuelven a nombres en el backend — `resolverEntidadNombre`/`enriquecerSnapshot`/`nombreDesdeSnapshot`), valores legibles (montos con $, fechas `20 Jun 2026`, enums humanos, Sí/No), sin duplicados y ordenado. División: **backend = identidad** (ids→nombres), **frontend = formato**.
+
+En el menú, "Sistema" se partió en **dos entradas:** Auditoría y **Mantenimiento** (R2). Backend `auditoria-consulta.service` + `auditoria-acciones.service` (borrado); rutas super+gerente (lectura) / solo super (borrado). Harness `probar-auditoria-lectura.ts` verde + seed de revisión `sembrar-auditoria-muestra.ts` (1×acción, por rol real, solo DEV). `tsc` api+admin + `vite build` verdes. Docs: `Auditoria.md` + `Auditoria_Pendientes.md`.
+
+---
+
 ## [21 Junio 2026] - Panel · módulo "Métricas" (vista de análisis con gráficas) 📊
 
 Nuevo **módulo 2 del Panel Admin** (`apps/admin`): **Métricas**, la vista de análisis. **Solo lectura** (saltó la Fase 2 del carril). **Sin migración SQL.**

@@ -917,7 +917,8 @@ export async function reenviarReciboPago(
         entidadTipo: 'negocio',
         entidadId: negocioId,
         datosPrevios: null,
-        datosNuevos: { pagoId, correoEnviado },
+        // Guarda A QUÉ correo se reenvió (el dato que importa), no solo el flag de éxito.
+        datosNuevos: { correo: rec.correoDueno, correoEnviado },
         motivo: null,
     });
 

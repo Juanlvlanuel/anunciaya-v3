@@ -94,7 +94,7 @@ export function MenuFiltro({
 
       {abierto && (
         <div
-          className={`animar-entrada absolute top-[calc(100%+6px)] z-30 rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel ${
+          className={`animar-entrada absolute top-[calc(100%+6px)] z-30 max-h-[min(62vh,360px)] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel ${
             alineacion === 'derecha' ? 'right-0' : 'left-0'
           }`}
           style={{ minWidth: anchoMenu }}

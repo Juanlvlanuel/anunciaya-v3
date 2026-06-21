@@ -66,6 +66,7 @@ export interface AuditoriaFila {
     fecha: string | null;        // created_at
     actorId: string | null;
     actorNombre: string | null;  // nombre + apellidos del actor
+    actorAvatar: string | null;  // foto del actor (null → el front muestra iniciales con color)
     actorRol: string | null;     // rol al momento de la acción (snapshot guardado)
     accion: string;              // valor técnico; el front lo traduce a etiqueta legible
     entidadTipo: string;
@@ -179,6 +180,7 @@ const ES_ID_STRIPE = /^(price|sub|cus|in|pi|seti|prod|txn|re)_/;
 const CLAVE_RESOLVIBLE: Record<string, { tabla: string; etiqueta: string }> = {
     regionId: { tabla: 'region', etiqueta: 'Región' },
     regionComun: { tabla: 'region', etiqueta: 'Región' },
+    regionVendedor: { tabla: 'region', etiqueta: 'Región del vendedor' },
     ciudadId: { tabla: 'ciudad', etiqueta: 'Ciudad' },
     negocioId: { tabla: 'negocio', etiqueta: 'Negocio' },
     sucursalId: { tabla: 'sucursal', etiqueta: 'Sucursal' },
@@ -200,6 +202,21 @@ async function resolverNombrePorTabla(tabla: string, id: string): Promise<string
     }
 }
 
+/** Deriva el nombre de la entidad DESDE el snapshot cuando no se resolvió por id (entidad sin id):
+ *  nombres directos (nombreNegocio, nombre) o el vendedor (embajadorId → su nombre). Lo usa la LISTA
+ *  para que la columna "Objeto" muestre el nombre real igual que el detalle. */
+async function nombreDesdeSnapshot(snap: unknown): Promise<string | null> {
+    if (!snap || typeof snap !== 'object') return null;
+    const o = snap as Record<string, unknown>;
+    if (typeof o.nombreNegocio === 'string' && o.nombreNegocio) return o.nombreNegocio;
+    if (typeof o.nombre === 'string' && o.nombre) {
+        const ap = typeof o.apellidos === 'string' ? o.apellidos : '';
+        return `${o.nombre} ${ap}`.trim();
+    }
+    if (typeof o.embajadorId === 'string' && ES_UUID.test(o.embajadorId)) return resolverNombrePorTabla('embajador', o.embajadorId);
+    return null;
+}
+
 /**
  * Hace LEGIBLE un snapshot: reemplaza los UUIDs de claves conocidas por el NOMBRE real
  * (regionId → "Sonora Norte") y OCULTA los IDs técnicos de Stripe (price_…, sub_…) que no
@@ -210,6 +227,11 @@ async function enriquecerSnapshot(obj: unknown): Promise<Record<string, unknown>
     const salida: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(obj as Record<string, unknown>)) {
         if (typeof v === 'string' && ES_ID_STRIPE.test(v)) continue; // oculta IDs de Stripe
+        // Array de ids de ciudades → sus nombres (p.ej. la cobertura asignada a un vendedor).
+        if (k === 'ciudadIds' && Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && ES_UUID.test(v[0])) {
+            salida['Ciudades de cobertura'] = (await Promise.all((v as string[]).map((id) => resolverNombrePorTabla('ciudad', id)))).filter(Boolean);
+            continue;
+        }
         const meta = CLAVE_RESOLVIBLE[k];
         if (meta) {
             // Renombra SIEMPRE la clave a su etiqueta legible (regionId → "Región"), aunque el valor
@@ -220,6 +242,10 @@ async function enriquecerSnapshot(obj: unknown): Promise<Record<string, unknown>
                 : v;
             continue;
         }
+        // Regla "ningún UUID crudo": un id sin nombre resoluble (pagoId, reciboId, arrays de id…) es
+        // ruido técnico → se oculta. Lo legible ya está en otras claves del mismo snapshot.
+        if (typeof v === 'string' && ES_UUID.test(v)) continue;
+        if (Array.isArray(v) && v.length > 0 && typeof v[0] === 'string' && ES_UUID.test(v[0])) continue;
         salida[k] = v;
     }
     return salida;
@@ -267,6 +293,7 @@ export async function listarAuditoria(
             actorId: adminAuditoria.actorId,
             actorNombre: usuarios.nombre,
             actorApellidos: usuarios.apellidos,
+            actorAvatar: usuarios.avatarUrl,
             actorRol: adminAuditoria.actorRol,
             accion: adminAuditoria.accion,
             entidadTipo: adminAuditoria.entidadTipo,
@@ -276,6 +303,8 @@ export async function listarAuditoria(
             apeUsuario: usuarioEntidad.apellidos,
             nomCiudad: ciudades.nombre,
             nomRegion: regiones.nombre,
+            datosPrevios: adminAuditoria.datosPrevios,
+            datosNuevos: adminAuditoria.datosNuevos,
             motivo: adminAuditoria.motivo,
         })
         .from(adminAuditoria)
@@ -289,18 +318,20 @@ export async function listarAuditoria(
         .limit(filtros.porPagina)
         .offset(offset);
 
-    const items: AuditoriaFila[] = filas.map((f) => ({
+    const items: AuditoriaFila[] = await Promise.all(filas.map(async (f) => ({
         id: f.id,
         fecha: f.fecha ?? null,
         actorId: f.actorId ?? null,
         actorNombre: f.actorNombre ? `${f.actorNombre} ${f.actorApellidos ?? ''}`.trim() : null,
+        actorAvatar: f.actorAvatar ?? null,
         actorRol: f.actorRol ?? null,
         accion: f.accion,
         entidadTipo: f.entidadTipo,
         entidadId: f.entidadId ?? null,
-        entidadNombre: resolverEntidadNombre(f),
+        // Nombre por id (JOIN) o, si la entidad no tiene id, derivado del snapshot (igual que el detalle).
+        entidadNombre: resolverEntidadNombre(f) ?? (await nombreDesdeSnapshot(f.datosNuevos)) ?? (await nombreDesdeSnapshot(f.datosPrevios)),
         motivo: f.motivo ?? null,
-    }));
+    })));
 
     return { items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina };
 }

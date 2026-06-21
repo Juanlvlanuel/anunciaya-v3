@@ -20,6 +20,16 @@
 
 ## Estado de hoy
 
+- **Recién cerrado (21 jun):** **Auditoría** — la **UI de la bitácora** (`admin_auditoria`), el medio que
+  faltaba del módulo 11 "Sistema" (doc [`Auditoria.md`](Auditoria.md)). Lista (tabla/cards) con filtros
+  (acción · persona · periodo · orden) + paginación en servidor, **ficha** de detalle instantánea,
+  **alcance por rol** (super = todo · gerente = su equipo · vendedor 403) + lente de región, y **borrado
+  de limpieza** (papelera por fila + Vaciar, **solo super**, para staging). El valor del módulo es el
+  **sistema de presentación**: traduce ~40 tipos de acción a lenguaje de persona **sin jerga ni UUIDs**
+  (los ids se resuelven a nombres en el backend, sistémico) y **degrada con elegancia** ante acciones
+  nuevas. La **escritura** ya existía como cimiento (`registrarAuditoria`). En el menú, "Sistema" se
+  partió en dos entradas: **Auditoría** y **Mantenimiento**. Solo lectura (+ borrado super) → saltó Fase
+  2. Sin migración. Harness `probar-auditoria-lectura.ts` verde + `tsc`/build. **Pendiente:** commit de Juan.
 - **Recién cerrado (21 jun):** **Métricas** (módulo 2) — doc [`Metricas.md`](Metricas.md): la vista de
   **análisis** del Panel con **3 pestañas** (Crecimiento · Uso de la app · Usuarios) + **selector de
   periodo** (presets + rango por fechas, granularidad día/mes automática), todo scoped por rol y con
@@ -119,7 +129,7 @@
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
-| 11 | Sistema (Mantenimiento + Auditoría) | 🟡 | Mantenimiento ✅ / Auditoría-UI ⬜ | `Mantenimiento_R2.md` |
+| 11 | **Sistema (Mantenimiento + Auditoría)** | ✅ | ✔ Cerrado (Auditoría-UI + Mantenimiento R2) | `Auditoria.md` · `Auditoria_Pendientes.md` · `Mantenimiento_R2.md` |
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 
 ---
@@ -172,7 +182,13 @@
   gerente), revocados visibles, typeahead de cuentas + promoción con aviso. **Sin migración.** Permisos:
   crear/mover/revocar gerentes = solo super; alta/edición de vendedor = super + gerente (su región). El
   **territorio avanzado** (multi-región parcial, mover-con-reasignación de cartera) se difirió al módulo 6.
-- **11 · Sistema** — Mantenimiento R2 operativo (`Mantenimiento_R2.md`); falta la **UI** para ver `admin_auditoria`.
+- **11 · Sistema** — los **dos medios cerrados**. **Auditoría-UI** (doc [`Auditoria.md`](Auditoria.md)):
+  lectura de `admin_auditoria` con lista + ficha, alcance por rol (super todo / gerente su equipo / vendedor
+  403), borrado de limpieza (solo super) y un **sistema de presentación** que traduce ~40 acciones a lenguaje
+  de persona sin jerga ni UUIDs (resolución de ids→nombres en el backend, división backend=identidad /
+  frontend=formato). **Mantenimiento R2** operativo (`Mantenimiento_R2.md`). En el menú son **dos entradas
+  separadas**: Auditoría y Mantenimiento. **Backlog:** deep-links ficha→Negocios/Usuarios, filtro de acción
+  dinámico, export CSV, retención/archivado.
 - **12 · Recibos** — **construido y en uso** (doc [`Recibos.md`](Recibos.md)): lista global de recibos de membresía
   (manuales + tarjeta, foliados), buscar por folio, descargar PDF, reenviar a 1+ correos. Alcance super/gerente/
   vendedor (lo que Suscripciones no tenía). Reusa el generador de recibo + el envío de correo. Migración asociada:
