@@ -115,22 +115,33 @@
 
 ---
 
-## Los 12 módulos
+## Los módulos (en el orden del menú del Panel)
+
+> **La agrupación y el orden = el menú lateral del Panel** (las 5 secciones: General · Operación · Red de
+> ventas · Crecimiento · Administración). El **#** es el orden de **construcción** (la referencia que usa
+> el resto de la doc: "módulo 6", "módulo 11"…); por eso no es correlativo aquí. El **módulo 11 (Sistema)**
+> aparece como sus **dos entradas reales** del menú: Auditoría y Mantenimiento.
 
 | # | Módulo | Estado | Fase | Docs |
 |---|---|---|---|---|
+| | **· General ·** | | | |
 | 1 | **Resumen / inicio** | ✅ | Construido (VER · solo lectura, salta Fase 2) | `Resumen.md` · `Resumen_Pendientes.md` |
 | 2 | **Métricas** | ✅ | ✔ Cerrado (VER · solo lectura, salta Fase 2) | `Metricas.md` · `Metricas_Pendientes.md` |
+| | **· Operación ·** | | | |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
 | 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
+| 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
+| | **· Red de ventas ·** | | | |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
+| | **· Crecimiento ·** | | | |
 | 7 | Publicidad | ⬜ | 0 | — |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
-| 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
+| | **· Administración ·** | | | |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
-| 11 | **Sistema (Mantenimiento + Auditoría)** | ✅ | ✔ Cerrado (Auditoría-UI + Mantenimiento R2) | `Auditoria.md` · `Auditoria_Pendientes.md` · `Mantenimiento_R2.md` |
-| 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
+| 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
+| 11 | **Auditoría** *(módulo 11 "Sistema")* | ✅ | ✔ Cerrado (UI de la bitácora) | `Auditoria.md` · `Auditoria_Pendientes.md` |
+| 11 | **Mantenimiento (R2)** *(módulo 11 "Sistema")* | ✅ | Operativo (Recolector de basura R2) | `Mantenimiento_R2.md` |
 
 ---
 
