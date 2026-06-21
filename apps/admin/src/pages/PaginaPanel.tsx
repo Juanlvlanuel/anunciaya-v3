@@ -16,6 +16,7 @@ import { useEsEscritorio } from '../hooks/useEsEscritorio';
 import { useConteoNegocios } from '../hooks/queries/useNegociosAdmin';
 import { useConteoUsuarios } from '../hooks/queries/useUsuariosAdmin';
 import { useConteoEquipo } from '../hooks/queries/useEquipoAdmin';
+import { usePrecargarConfiguracion } from '../hooks/queries/useConfiguracionAdmin';
 import { useContadorPanel } from '../stores/useContadorPanel';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
 import { iconoDeSeccion } from '../config/iconosPanel';
@@ -114,6 +115,11 @@ function PaginaPanel() {
       setSeccion(items[0]?.id ?? 'resumen');
     }
   }, [items, seccionActivaId, setSeccion]);
+
+  // Precarga en segundo plano los datos de Configuración (solo el rol con acceso al módulo) al entrar
+  // al Panel, para que la sección abra sin el estado "Cargando…" ni el parpadeo del precio.
+  const puedeConfig = useMemo(() => items.some((i) => i.id === 'configuracion'), [items]);
+  usePrecargarConfiguracion(puedeConfig);
 
   // Deep-link desde el Resumen / la campana: cuando se pide navegar a una sección (con filtro
   // inicial), cambiamos a ella y limpiamos el destino. El filtro lo consume la sección destino.

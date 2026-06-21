@@ -14,6 +14,7 @@ import { iconoDeSeccion } from '../../config/iconosPanel';
 import { gruposParaRol, etiquetaDe, type RolPanel } from '../../data/menuPanel';
 import { AvatarUsuario } from './AvatarUsuario';
 import { useClickFuera } from '../../hooks/useClickFuera';
+import { usePrefetchSeccion } from '../../hooks/queries/usePrefetchSeccion';
 
 interface BarraLateralProps {
   rol: RolPanel;
@@ -44,6 +45,7 @@ export function BarraLateral({
   const grupos = gruposParaRol(rol);
   const [menuAbierto, setMenuAbierto] = useState(false);
   const refMenu = useClickFuera<HTMLDivElement>(() => setMenuAbierto(false), menuAbierto);
+  const precargar = usePrefetchSeccion();
 
   return (
     <div className="flex h-full flex-col">
@@ -61,6 +63,8 @@ export function BarraLateral({
                   type="button"
                   data-testid={`nav-${it.id}`}
                   onClick={() => onSeleccionar(it.id)}
+                  onPointerEnter={() => precargar(it.id)}
+                  onFocus={() => precargar(it.id)}
                   className={`relative mb-0.5 flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[13.5px] transition ${
                     activo ? 'bg-marca-suave font-semibold text-marca' : 'text-texto-2 hover:bg-marca-suave'
                   }`}

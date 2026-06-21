@@ -10,6 +10,7 @@
 import { X, Sun, Moon, LogOut, LayoutDashboard, ShieldCheck } from 'lucide-react';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { gruposParaRol, etiquetaDe, type RolPanel } from '../../data/menuPanel';
+import { usePrefetchSeccion } from '../../hooks/queries/usePrefetchSeccion';
 import type { Tema } from '../../utils/tema';
 
 interface CajonNavegacionProps {
@@ -37,6 +38,7 @@ export function CajonNavegacion({
   contadores,
 }: CajonNavegacionProps) {
   const grupos = gruposParaRol(rol);
+  const precargar = usePrefetchSeccion();
 
   return (
     <>
@@ -85,6 +87,8 @@ export function CajonNavegacion({
                     key={it.id}
                     type="button"
                     data-testid={`drawer-${it.id}`}
+                    onPointerEnter={() => precargar(it.id)}
+                    onFocus={() => precargar(it.id)}
                     onClick={() => {
                       onSeleccionar(it.id);
                       onCerrar();

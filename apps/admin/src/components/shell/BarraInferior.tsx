@@ -11,6 +11,7 @@
 import { Menu } from 'lucide-react';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { ETIQUETAS_CORTAS, etiquetaDe, type ItemMenu, type RolPanel } from '../../data/menuPanel';
+import { usePrefetchSeccion } from '../../hooks/queries/usePrefetchSeccion';
 
 interface BarraInferiorProps {
   rol: RolPanel;
@@ -29,6 +30,7 @@ export function BarraInferior({
   overflow,
   onMas,
 }: BarraInferiorProps) {
+  const precargar = usePrefetchSeccion();
   return (
     <nav
       className="flex items-stretch rounded-t-[20px] px-2 pb-2 pt-2.5 shadow-[0_-6px_18px_rgba(26,54,173,0.22)]"
@@ -43,6 +45,8 @@ export function BarraInferior({
             type="button"
             data-testid={`tab-${it.id}`}
             onClick={() => onSeleccionar(it.id)}
+            onPointerEnter={() => precargar(it.id)}
+            onFocus={() => precargar(it.id)}
             className={`flex flex-1 flex-col items-center gap-1 py-1 ${activo ? 'text-white' : 'text-white/72'}`}
           >
             <span className={`grid h-8 w-12 place-items-center rounded-full ${activo ? 'bg-white/20' : ''}`}>
