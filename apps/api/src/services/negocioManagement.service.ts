@@ -31,6 +31,7 @@ import {
     transaccionesEvidencia,
     usuarios,
     recompensas,
+    notificaciones,
 } from '../db/schemas/schema';
 import type {
     UbicacionInput,
@@ -677,7 +678,16 @@ export async function eliminarImagenSiHuerfana(
             return;
         }
 
-        // 7. Huérfana — eliminar de R2
+        // 7. Huérfana de las tablas que la "poseen". Antes de borrarla de R2, limpiar las
+        //    notificaciones que la usen como imagen del actor (es un snapshot histórico): NO deben
+        //    PROTEGER el archivo (son desechables y lo retendrían para siempre), pero si lo apuntan
+        //    hay que ponerlas en NULL para no dejar URLs rotas (el front degrada a avatar por inicial).
+        await db
+            .update(notificaciones)
+            .set({ actorImagenUrl: null })
+            .where(eq(notificaciones.actorImagenUrl, url));
+
+        // Eliminar de R2.
         await eliminarArchivo(url);
     } catch (error) {
         console.error('Error en eliminarImagenSiHuerfana:', error);

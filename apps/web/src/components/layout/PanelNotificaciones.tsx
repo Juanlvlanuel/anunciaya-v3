@@ -763,11 +763,14 @@ function resolverFamilia(tipo: TipoNotificacion): FamiliaNotificacion {
 }
 
 function NotifAvatar({ notificacion }: { notificacion: Notificacion }) {
-  // Caso 1: foto del actor (negocio o cliente)
-  if (notificacion.actorImagenUrl) {
+  const [imgRota, setImgRota] = useState(false);
+
+  // Caso 1: foto del actor (negocio o cliente). Si la URL ya no existe (imagen borrada),
+  // `onError` degrada a iniciales/tile en vez del ícono de imagen rota del navegador.
+  if (notificacion.actorImagenUrl && !imgRota) {
     return (
       <div className="pn-av">
-        <img src={notificacion.actorImagenUrl} alt="" />
+        <img src={notificacion.actorImagenUrl} alt="" onError={() => setImgRota(true)} />
       </div>
     );
   }
