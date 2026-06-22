@@ -83,6 +83,13 @@ const ETIQUETA_CLAVE: Record<string, string> = {
   vigenciaTrasladada: 'Vigencia trasladada',
   pausarStripe: 'Pausar en Stripe',
   tieneClabe: 'Tiene CLABE',
+  // Mantenimiento (crons / limpieza R2)
+  ok: 'Ejecución correcta',
+  resultado: 'Resultado',
+  eliminadas: 'Archivos eliminados',
+  fallidas: 'Fallidas',
+  huerfanasDetectadas: 'Huérfanas detectadas',
+  carpetas: 'Carpetas',
 };
 
 /** Valores enum técnicos → texto legible (estados, métodos, conceptos, roles). */
@@ -113,7 +120,7 @@ const CLAVES_MONTO = new Set([
 
 /** Claves técnicas o redundantes que no aportan al detalle (se ocultan). `nombreNegocio` ya va
  *  en "Sobre" para las acciones de negocio. */
-const CLAVES_OCULTAS = new Set(['slug', 'modo', 'nombreNegocio']);
+const CLAVES_OCULTAS = new Set(['slug', 'modo', 'nombreNegocio', 'id']);
 
 /** Nombres humanos para las CLAVES de configuración (el valor del campo 'clave'). */
 const CONFIG_NOMBRE: Record<string, string> = {
@@ -146,6 +153,8 @@ const ORDEN_CLAVE = [
   'ciudades', 'creadas',
   'Región', 'Región del vendedor', 'Ciudad', 'importancia',
   'omitidas', 'omitidasPagadas',
+  // mantenimiento (crons / limpieza R2)
+  'resultado', 'ok', 'eliminadas', 'fallidas', 'huerfanasDetectadas', 'carpetas',
   // fechas
   'periodo', 'fechaPago', 'periodoHasta', 'hasta',
   // flags

@@ -22,6 +22,7 @@ import {
   Receipt,
   Megaphone,
   ScrollText,
+  Wrench,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -43,6 +44,7 @@ const MODULO_POR_PREFIJO: Record<string, MetaModulo> = {
   plan: { etiqueta: 'Membresía', icono: CreditCard },
   recibo: { etiqueta: 'Recibos', icono: Receipt },
   publicidad: { etiqueta: 'Publicidad', icono: Megaphone },
+  mantenimiento: { etiqueta: 'Mantenimiento', icono: Wrench },
 };
 
 /** Etiqueta legible por acción (verbo en pasado, "quién hizo qué"). */
@@ -105,6 +107,11 @@ export const ACCION_LABEL: Record<string, string> = {
   publicidad_pausar: 'Pausó un anuncio',
   publicidad_reactivar: 'Reactivó un anuncio',
   publicidad_cancelar: 'Canceló un anuncio',
+  // Mantenimiento (Sistema)
+  mantenimiento_cron_ejecutar: 'Ejecutó una tarea programada',
+  mantenimiento_r2_limpiar: 'Limpió archivos huérfanos',
+  mantenimiento_cache_purgar: 'Purgó la caché de configuración',
+  mantenimiento_logs_vaciar: 'Vació los registros del servidor',
 };
 
 /** Etiqueta legible del TIPO de entidad (fallback cuando no hay un nombre resuelto). */
@@ -117,6 +124,8 @@ export const ENTIDAD_TIPO_LABEL: Record<string, string> = {
   configuracion: 'Configuración',
   comisiones: 'Comisiones',
   publicidad: 'Anuncio',
+  cron: 'Tarea programada',
+  mantenimiento: 'Mantenimiento',
 };
 
 /**
