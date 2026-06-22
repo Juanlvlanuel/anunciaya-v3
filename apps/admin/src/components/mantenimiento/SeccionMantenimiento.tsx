@@ -41,6 +41,7 @@ import {
 } from 'lucide-react';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
+import { Tooltip } from '../ui/Tooltip';
 import {
   useSalud,
   useCrons,
@@ -220,16 +221,17 @@ function Tarjeta({
 /** Botón de "refrescar" del header de cada bloque. */
 function BotonRefrescar({ onClick, cargando, testid }: { onClick: () => void; cargando: boolean; testid: string }) {
   return (
-    <button
-      type="button"
-      data-testid={testid}
-      onClick={onClick}
-      disabled={cargando}
-      className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-ok bg-ok-suave text-ok transition hover:bg-ok hover:text-marca-contraste disabled:opacity-50"
-      title="Actualizar"
-    >
-      <RefreshCw size={15} className={cargando ? 'animate-spin' : ''} />
-    </button>
+    <Tooltip text="Actualizar" className="shrink-0">
+      <button
+        type="button"
+        data-testid={testid}
+        onClick={onClick}
+        disabled={cargando}
+        className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-ok bg-ok-suave text-ok transition hover:bg-ok hover:text-marca-contraste disabled:opacity-50"
+      >
+        <RefreshCw size={15} className={cargando ? 'animate-spin' : ''} />
+      </button>
+    </Tooltip>
   );
 }
 
@@ -434,16 +436,17 @@ function FilaCron({
           <span className="font-mono text-[11px] text-texto-4">{cron.duracionMs} ms</span>
         )}
       </span>
-      <button
-        type="button"
-        data-testid={`cron-ejecutar-${cron.id}`}
-        onClick={onEjecutar}
-        disabled={ejecutando}
-        title="Ejecutar ahora"
-        className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-ok bg-ok-suave text-ok transition hover:bg-ok hover:text-marca-contraste disabled:opacity-50"
-      >
-        <Play size={14} className={ejecutando ? 'animate-pulse' : ''} />
-      </button>
+      <Tooltip text="Ejecutar ahora" className="shrink-0">
+        <button
+          type="button"
+          data-testid={`cron-ejecutar-${cron.id}`}
+          onClick={onEjecutar}
+          disabled={ejecutando}
+          className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-ok bg-ok-suave text-ok transition hover:bg-ok hover:text-marca-contraste disabled:opacity-50"
+        >
+          <Play size={14} className={ejecutando ? 'animate-pulse' : ''} />
+        </button>
+      </Tooltip>
     </li>
   );
 }
@@ -494,39 +497,42 @@ function BloqueLogs() {
       descripcion="Capturados en memoria · se pierden al reiniciar el servidor"
       accion={
         <div className="flex shrink-0 items-center gap-1.5">
-          <button
-            type="button"
-            data-testid="logs-autorefresh"
-            onClick={() => setAutorefrescar((v) => !v)}
-            className={`grid h-8 w-8 place-items-center rounded-[9px] border transition ${
-              autorefrescar
-                ? 'border-marca bg-marca-suave text-marca'
-                : 'border-borde bg-superficie text-texto-3 hover:bg-marca-suave'
-            }`}
-            title={autorefrescar ? 'Pausar auto-actualización' : 'Reanudar auto-actualización'}
-          >
-            {autorefrescar ? <Pause size={15} /> : <Play size={15} />}
-          </button>
-          <button
-            type="button"
-            data-testid="logs-exportar"
-            onClick={exportar}
-            disabled={!data || data.length === 0}
-            title="Exportar a archivo"
-            className="grid h-8 w-8 place-items-center rounded-[9px] border border-borde bg-superficie text-texto-3 transition hover:bg-marca-suave hover:text-marca disabled:opacity-50"
-          >
-            <Download size={15} />
-          </button>
-          <button
-            type="button"
-            data-testid="logs-vaciar"
-            onClick={() => vaciar.mutate()}
-            disabled={vaciar.isPending || !data || data.length === 0}
-            title="Vaciar logs"
-            className="grid h-8 w-8 place-items-center rounded-[9px] border border-borde bg-superficie text-texto-3 transition hover:bg-peligro-suave hover:text-peligro disabled:opacity-50"
-          >
-            <Eraser size={15} />
-          </button>
+          <Tooltip text={autorefrescar ? 'Pausar auto-actualización' : 'Reanudar auto-actualización'}>
+            <button
+              type="button"
+              data-testid="logs-autorefresh"
+              onClick={() => setAutorefrescar((v) => !v)}
+              className={`grid h-8 w-8 place-items-center rounded-[9px] border transition ${
+                autorefrescar
+                  ? 'border-marca bg-marca-suave text-marca'
+                  : 'border-borde bg-superficie text-texto-3 hover:bg-marca-suave'
+              }`}
+            >
+              {autorefrescar ? <Pause size={15} /> : <Play size={15} />}
+            </button>
+          </Tooltip>
+          <Tooltip text="Exportar a archivo">
+            <button
+              type="button"
+              data-testid="logs-exportar"
+              onClick={exportar}
+              disabled={!data || data.length === 0}
+              className="grid h-8 w-8 place-items-center rounded-[9px] border border-borde bg-superficie text-texto-3 transition hover:bg-marca-suave hover:text-marca disabled:opacity-50"
+            >
+              <Download size={15} />
+            </button>
+          </Tooltip>
+          <Tooltip text="Vaciar logs">
+            <button
+              type="button"
+              data-testid="logs-vaciar"
+              onClick={() => vaciar.mutate()}
+              disabled={vaciar.isPending || !data || data.length === 0}
+              className="grid h-8 w-8 place-items-center rounded-[9px] border border-borde bg-superficie text-texto-3 transition hover:bg-peligro-suave hover:text-peligro disabled:opacity-50"
+            >
+              <Eraser size={15} />
+            </button>
+          </Tooltip>
           <BotonRefrescar testid="logs-refrescar" onClick={() => refetch()} cargando={isFetching} />
         </div>
       }
@@ -623,7 +629,6 @@ function BloqueR2() {
             reporte.refetch();
           }}
           disabled={reporte.isFetching}
-          title="Analizar ahora"
           className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-ok bg-ok-suave text-ok transition hover:bg-ok hover:text-marca-contraste disabled:opacity-50 lg:inline-flex lg:h-auto lg:w-auto lg:items-center lg:gap-1.5 lg:px-3 lg:py-1.5 lg:text-[12.5px] lg:font-semibold"
         >
           <RefreshCw size={15} className={reporte.isFetching ? 'animate-spin' : ''} />

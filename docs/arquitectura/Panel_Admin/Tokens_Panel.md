@@ -206,6 +206,7 @@ Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/`
 | `MenuFiltro` | `components/negocios/MenuFiltro.tsx` | Dropdown botón + menú con check (filtros). |
 | `avatares` | `components/negocios/avatares.tsx` | Avatar con color por hash del nombre. |
 | `EstadoSeccion` | `components/ui/EstadoSeccion.tsx` | Estado de una lista: **cargando / error / vacío**. Ícono del módulo en cuadro sutil (`superficie-2` + borde) + título (semibold) + descripción + **acción opcional**. En vacío, distinguir *con-filtros* (título "Sin resultados" + botón "Limpiar filtros") de *vacío real* ("Aún no hay…", sin botón). Reemplazó los `EstadoMensaje` duplicados de Negocios/Usuarios/Suscripciones. |
+| `Tooltip` | `components/ui/Tooltip.tsx` | Tooltip con **portal a `body`** (no lo recortan `overflow`/`transform` del padre), fondo **invertido** (`bg-texto`/`text-superficie`) que se adapta a claro/oscuro. **Solo en escritorio** (en móvil es no-op: sin hover). Props `text`, `position` (`top`/`bottom`/`left`/`right`), `className`. Úsalo en botones de **solo-ícono** en vez del `title` nativo; el `title` nativo se reserva para mostrar **texto largo completo** en spans truncados (una URL, un path), porque el Tooltip usa `nowrap`. |
 | Ficha instantánea | (patrón) | La ficha abre con un **placeholder** armado de la fila + **prefetch en hover/touch**; React Query rellena al vuelo. Reusar en toda ficha del Panel. |
 
 ---
