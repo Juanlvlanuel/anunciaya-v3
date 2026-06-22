@@ -55,9 +55,10 @@ const ICONO_CLAVE: Record<string, ComponentType<LucideProps>> = {
   publicidad_periodos: CalendarClock,
 };
 
-/** Todos los íconos comparten el azul de marca del Panel (`bg-marca`). Los mapas (por grupo y por clave)
- *  se mantienen por si luego se quiere un color por sección: bastaría cambiar estos valores. */
+/** Azul de marca SOLO en los títulos de sección (encabezados). Las tarjetas individuales van en gris
+ *  neutro. Los carruseles llevan su propio color de identidad (ver META_CARRUSEL). */
 const AZUL = 'bg-marca';
+const GRIS = 'bg-slate-400';
 const ACENTO_GRUPO: Record<string, string> = {
   precio: AZUL,
   pagos: AZUL,
@@ -66,16 +67,16 @@ const ACENTO_GRUPO: Record<string, string> = {
   reglas: AZUL,
 };
 const ACENTO_CLAVE: Record<string, string> = {
-  comision_escalera: AZUL,
-  comision_alta_monto: AZUL,
-  trial_duracion_dias: AZUL,
-  periodo_gracia_cobro_dias: AZUL,
-  publicidad_tramos_ciudades: AZUL,
-  publicidad_combo_descuento: AZUL,
-  publicidad_limite_ciudades: AZUL,
-  publicidad_duracion_dias: AZUL,
-  publicidad_aviso_dias: AZUL,
-  publicidad_periodos: AZUL,
+  comision_escalera: GRIS,
+  comision_alta_monto: GRIS,
+  trial_duracion_dias: GRIS,
+  periodo_gracia_cobro_dias: GRIS,
+  publicidad_tramos_ciudades: GRIS,
+  publicidad_combo_descuento: GRIS,
+  publicidad_limite_ciudades: GRIS,
+  publicidad_duracion_dias: GRIS,
+  publicidad_aviso_dias: GRIS,
+  publicidad_periodos: GRIS,
 };
 
 /** Ícono por categoría — encabeza la barra de cada acordeón. */
@@ -108,7 +109,7 @@ function TablaEscalera({ valor }: { valor: string }) {
   return (
     <div className="flex flex-col gap-2">
       {tramos.map((t, i) => (
-        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2">
           <span className="text-[13px] text-texto-2">{rangoTramo(t)} activos</span>
           <span className="text-[15px] font-semibold leading-none" style={{ color: t.montoPorActivo > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
             {t.montoPorActivo > 0 ? `$${t.montoPorActivo}` : '—'}
@@ -131,7 +132,7 @@ function TablaTramosCiudades({ valor }: { valor: string }) {
   return (
     <div className="flex flex-col gap-2">
       {tramos.map((t, i) => (
-        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2">
           <span className="text-[13px] text-texto-2">{rangoCiudades(t)} {t.min === 1 && t.max === 1 ? 'ciudad' : 'ciudades'}</span>
           <span className="text-[15px] font-semibold leading-none text-texto">×{t.factor}</span>
         </div>
@@ -147,7 +148,7 @@ function TablaPeriodos({ valor }: { valor: string }) {
   return (
     <div className="flex flex-col gap-2">
       {periodos.map((p, i) => (
-        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2">
           <span className="text-[13px] text-texto-2">{p.meses} {p.meses === 1 ? 'mes' : 'meses'}</span>
           <span className="text-[15px] font-semibold leading-none" style={{ color: p.descuento > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
             {p.descuento > 0 ? `−${p.descuento}%` : 'base'}
@@ -200,7 +201,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
                 <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
                 {!c.sembrado && <BadgePorDefecto />}
               </div>
-              <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
+              <p className="mt-0.5 text-[13px] leading-snug text-texto-3">{c.descripcion}</p>
             </div>
           </div>
           <div className="flex justify-end lg:shrink-0 lg:self-center">
@@ -225,7 +226,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
               <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
               {!c.sembrado && <BadgePorDefecto />}
             </div>
-            <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">{c.descripcion}</p>
+            <p className="mt-0.5 text-[13px] leading-snug text-texto-3">{c.descripcion}</p>
           </div>
         </div>
         {/* Valor + Editar (fila propia en móvil) */}
@@ -290,9 +291,9 @@ function PilaConfig({ filas, onEditar }: { filas: ConfigFila[]; onEditar: (c: Co
 /** Identidad visual de cada carrusel — mismo ícono y acento que el wizard del anunciante (apps/web,
  *  PaginaAnunciate.tsx) para que el super reconozca el espacio que está poniendo precio. */
 const META_CARRUSEL: Record<string, { nombre: string; Icono: typeof Megaphone; acento: string }> = {
-  publicidad_precio_anuncios: { nombre: 'Anuncios', Icono: Megaphone, acento: AZUL },
-  publicidad_precio_patrocinadores: { nombre: 'Patrocinadores', Icono: Star, acento: AZUL },
-  publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: AZUL },
+  publicidad_precio_anuncios: { nombre: 'Anuncios', Icono: Megaphone, acento: 'bg-amber-500' },
+  publicidad_precio_patrocinadores: { nombre: 'Patrocinadores', Icono: Star, acento: 'bg-blue-600' },
+  publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: 'bg-violet-600' },
 };
 
 const CLAVES_PRECIO_CARRUSEL = Object.keys(META_CARRUSEL);

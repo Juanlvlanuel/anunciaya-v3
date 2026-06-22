@@ -168,7 +168,7 @@ export function TarjetaPrecioMembresia() {
         <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid="config-precio-membresia">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
             <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
-              <CajaIcono Icono={Tag} color="bg-marca" />
+              <CajaIcono Icono={Tag} color="bg-slate-400" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[14.5px] font-semibold text-texto">Precio mensual</h4>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">
@@ -197,7 +197,7 @@ export function TarjetaPrecioMembresia() {
         <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid="config-plan-anual">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
             <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
-              <CajaIcono Icono={CalendarRange} color="bg-marca" />
+              <CajaIcono Icono={CalendarRange} color="bg-slate-400" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="text-[14.5px] font-semibold text-texto">Plan anual</h4>

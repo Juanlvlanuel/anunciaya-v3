@@ -7,7 +7,8 @@
 > **Cómo leer este documento:** dos capas. La primera (§1–§7) explica el módulo **en lenguaje de persona**.
 > La segunda (**Apéndice técnico**) es la referencia para tocar el código.
 >
-> **Estado:** construido y en uso (v1). Última actualización: 17 Junio 2026.
+> **Estado:** construido y en uso. Última actualización: 22 Junio 2026 (rediseño a pestañas + grupos de
+> Membresía y Publicidad).
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) · decisiones y pendientes de
 > construcción en [`Configuracion_Pendientes.md`](Configuracion_Pendientes.md).
@@ -47,9 +48,24 @@ No es un cajón de ajustes técnicos. Es deliberadamente chico: **solo las palan
 
 ## 4. Qué se ve
 
-Una pantalla de "ajustes" agrupada por categoría (**Pagos y comisiones**, **Prueba**). Cada valor es una
-tarjeta con su ícono, descripción, **valor actual** y un botón **Editar**. La escalera se muestra como una
-tabla de tramos. Si un valor todavía no se ha guardado nunca, lleva la etiqueta **"valor por defecto"**.
+Una pantalla de "ajustes" en **dos pestañas** (mismo patrón de pestañas que Métricas):
+
+- **Membresía** — el modelo de suscripción del comercio: el **Precio de la membresía** (mensual + plan
+  anual), **Pagos y comisiones** (escalera + comisión de alta) y **Prueba y gracia** (trial + periodo de
+  gracia). Los dos últimos grupos van lado a lado.
+- **Publicidad** — los **Precios de los carruseles** (Anuncios · Patrocinadores · Fundadores, en una fila
+  de tarjetas) y **Reglas y límites** (multiplicador por ciudades, descuento del combo, máximos, vigencia
+  y periodos de pago por adelantado).
+
+Cada grupo lleva un encabezado (ícono + título) y, debajo, sus tarjetas en una **rejilla de dos columnas**
+(las "tablas" —escalera, multiplicador, periodos— se muestran como filas de tramos, y se agrupan al final
+para que se emparejen). Cada tarjeta tiene su ícono, una descripción corta, el **valor actual** y un botón
+**Editar**; si el valor no se ha guardado nunca, lleva la etiqueta **"valor por defecto"**.
+
+**Color de los íconos** (chip cuadrado, glifo en blanco): azul de marca en los **títulos de sección**, gris
+neutro en las **tarjetas**, y el color de identidad de cada **carrusel** (Anuncios ámbar · Patrocinadores
+azul · Fundadores violeta) — el único lugar donde el color identifica un producto. Centralizado en los
+mapas `ACENTO_GRUPO` / `ACENTO_CLAVE` / `META_CARRUSEL` de `SeccionConfiguracion.tsx`.
 
 ## 5. Cómo se edita
 
@@ -102,7 +118,8 @@ tome el valor nuevo de inmediato, sin esperar el TTL de 5 minutos.
 |---|---|
 | `services/configuracionService.ts` | `listarConfiguracion()` · `actualizarConfiguracion(clave, valor)` · `parsearEscalera()`. |
 | `hooks/queries/useConfiguracionAdmin.ts` | `useConfiguracion()` (query) · `useActualizarConfiguracion()` (mutation: invalida la lista + toast). |
-| `components/configuracion/SeccionConfiguracion.tsx` | La sección: cards por categoría, botón Editar, abre el diálogo según el tipo. |
+| `components/configuracion/SeccionConfiguracion.tsx` | La sección: dos pestañas (Membresía · Publicidad), grupos con encabezado, rejilla de 2 columnas, chips de color de los íconos, botón Editar y apertura del diálogo según el tipo. |
+| `components/configuracion/TarjetaPrecioMembresia.tsx` | Tarjetas del precio de membresía (mensual + plan anual); toca Stripe (diálogo de cambio de precio + toggle del plan anual). |
 | `components/configuracion/DialogosConfig.tsx` | `CampoNumero` (input + rueda del mouse) · `DialogoEditarNumero` · `DialogoEditarEscalera` (editor de tramos + vista previa). |
 
 **Migración / verificación**

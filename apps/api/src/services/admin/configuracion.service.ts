@@ -157,7 +157,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_precio_anuncios',
         etiqueta: 'Precio · Anuncios',
-        descripcion: 'Precio base de un espacio en el carrusel Anuncios (1 ciudad).',
+        descripcion: 'Precio base por 1 ciudad.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'MXN',
@@ -168,7 +168,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_precio_patrocinadores',
         etiqueta: 'Precio · Patrocinadores',
-        descripcion: 'Precio base de un espacio en el carrusel Patrocinadores (1 ciudad).',
+        descripcion: 'Precio base por 1 ciudad.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'MXN',
@@ -179,7 +179,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_precio_fundadores',
         etiqueta: 'Precio · Fundadores',
-        descripcion: 'Precio base de un espacio en el carrusel Fundadores (1 ciudad).',
+        descripcion: 'Precio base por 1 ciudad.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'MXN',
@@ -190,7 +190,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_tramos_ciudades',
         etiqueta: 'Multiplicador por ciudades',
-        descripcion: 'Cuánto sube el precio según en cuántas ciudades aparece el anuncio.',
+        descripcion: 'El precio sube según cuántas ciudades.',
         tipo: 'tramos_ciudades',
         categoria: 'publicidad',
         unidad: null,
@@ -201,7 +201,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_combo_descuento',
         etiqueta: 'Descuento del combo',
-        descripcion: 'Descuento al comprar los 3 carruseles juntos.',
+        descripcion: 'Al llevar los 3 carruseles juntos.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: '%',
@@ -211,8 +211,8 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     },
     {
         clave: 'publicidad_limite_ciudades',
-        etiqueta: 'Máximo de ciudades por anuncio',
-        descripcion: 'Cuántas ciudades como máximo puede seleccionar un anuncio.',
+        etiqueta: 'Máximo de ciudades',
+        descripcion: 'Tope por anuncio.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'ciudades',
@@ -223,7 +223,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_duracion_dias',
         etiqueta: 'Duración del anuncio',
-        descripcion: 'Días que dura un anuncio desde que se publica.',
+        descripcion: 'Desde que se publica.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'días',
@@ -234,7 +234,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_aviso_dias',
         etiqueta: 'Aviso antes de vencer',
-        descripcion: 'Días antes del vencimiento para avisar al anunciante por correo.',
+        descripcion: 'Correo antes de vencer.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'días',
@@ -244,8 +244,8 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     },
     {
         clave: 'publicidad_periodos',
-        etiqueta: 'Meses por adelantado y descuento',
-        descripcion: 'Cuántos meses puede pagar por adelantado el anunciante y el descuento de cada opción.',
+        etiqueta: 'Pago por adelantado',
+        descripcion: 'Meses a pagar de una y su descuento.',
         tipo: 'periodos_meses',
         categoria: 'publicidad',
         unidad: null,
