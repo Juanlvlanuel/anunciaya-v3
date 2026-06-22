@@ -15,6 +15,13 @@ import {
     getReporteReconcileController,
     postEjecutarReconcileController,
     getReconcileLogController,
+    getSaludController,
+    getLogsController,
+    getCronsController,
+    getPreviewCronController,
+    postEjecutarCronController,
+    postPurgarCacheController,
+    postVaciarLogsController,
 } from '../../controllers/admin/mantenimiento.controller.js';
 
 const router: Router = Router();
@@ -23,5 +30,20 @@ const router: Router = Router();
 router.get('/r2-reconcile', getReporteReconcileController);
 router.post('/r2-reconcile/ejecutar', postEjecutarReconcileController);
 router.get('/r2-reconcile/log', getReconcileLogController);
+
+// ─── Salud del sistema (BD · Redis · R2 · Stripe) ───────────────────────────────
+router.get('/salud', getSaludController);
+
+// ─── Ventana de logs recientes (en memoria) ─────────────────────────────────────
+router.get('/logs', getLogsController);
+router.post('/logs/vaciar', postVaciarLogsController);
+
+// ─── Tareas programadas (catálogo + telemetría) ─────────────────────────────────
+router.get('/crons', getCronsController);
+router.get('/crons/:id/preview', getPreviewCronController);
+router.post('/crons/:id/ejecutar', postEjecutarCronController);
+
+// ─── Caché de configuración ─────────────────────────────────────────────────────
+router.post('/cache/purgar', postPurgarCacheController);
 
 export default router;

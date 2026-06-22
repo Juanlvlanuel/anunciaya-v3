@@ -16,7 +16,7 @@
 
 import { db } from '../../db/index.js';
 import { negocios } from '../../db/schemas/schema.js';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, count } from 'drizzle-orm';
 import { notificarNegocioFueraDeCirculacion } from '../notificaciones.service.js';
 
 /**
@@ -52,4 +52,17 @@ export async function suspenderGraciasVencidas(): Promise<{ suspendidos: number;
         console.error('[Suscripciones] Error suspendiendo gracias vencidas:', error);
         return { suspendidos: 0, errores: 1 };
     }
+}
+
+/**
+ * Cuenta (sin actuar) los negocios que `suspenderGraciasVencidas` suspendería ahora.
+ * Misma condición que el UPDATE de arriba — para el preview del cron en el Panel.
+ */
+export async function contarGraciasVencidas(): Promise<number> {
+    const ahora = new Date().toISOString();
+    const [r] = await db
+        .select({ n: count() })
+        .from(negocios)
+        .where(and(eq(negocios.estadoMembresia, 'en_gracia'), lt(negocios.fechaLimiteGracia, ahora)));
+    return r?.n ?? 0;
 }

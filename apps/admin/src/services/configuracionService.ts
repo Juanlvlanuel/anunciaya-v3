@@ -20,7 +20,20 @@ export interface TramoEscalera {
   montoPorActivo: number;
 }
 
-export type TipoConfig = 'numero' | 'json';
+/** Un tramo del multiplicador por # de ciudades de Publicidad. */
+export interface TramoCiudades {
+  min: number;
+  max: number | null; // null = sin tope
+  factor: number;     // multiplicador del precio base
+}
+
+/** Una opción de meses por adelantado de Publicidad: # de meses → % de descuento. */
+export interface TramoPeriodo {
+  meses: number;
+  descuento: number; // % de descuento por pagar ese periodo
+}
+
+export type TipoConfig = 'numero' | 'json' | 'tramos_ciudades' | 'periodos_meses';
 
 /** Una fila editable de Configuración (catálogo + valor actual). El `valor` es crudo (string). */
 export interface ConfigFila {
@@ -56,6 +69,26 @@ export function parsearEscalera(valor: string): TramoEscalera[] {
   try {
     const arr = JSON.parse(valor);
     return Array.isArray(arr) ? (arr as TramoEscalera[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Parsea el valor JSON de los tramos de ciudades de Publicidad; [] si no es válido. */
+export function parsearTramosCiudades(valor: string): TramoCiudades[] {
+  try {
+    const arr = JSON.parse(valor);
+    return Array.isArray(arr) ? (arr as TramoCiudades[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Parsea el valor JSON de los periodos de meses de Publicidad; [] si no es válido. */
+export function parsearPeriodos(valor: string): TramoPeriodo[] {
+  try {
+    const arr = JSON.parse(valor);
+    return Array.isArray(arr) ? (arr as TramoPeriodo[]) : [];
   } catch {
     return [];
   }

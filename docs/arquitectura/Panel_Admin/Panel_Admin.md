@@ -142,7 +142,10 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sis
     vendedores = **super + gerente** (su región). Sin migración (reusa `rol_equipo`/`region_id`/
     `embajadores`). El modelo de cobertura avanzado del vendedor se difirió a "Vendedores y comisiones". **Estado: construida y en uso.**
     **Estado: construida y en uso.**
-11. **Sistema** — Mantenimiento (reconcile R2, único operativo hoy) + Auditoría (bitácora de quién hizo qué).
+11. **Sistema** — dos medios, ambos construidos: **Mantenimiento** (📄 **[`Mantenimiento.md`](Mantenimiento.md)**)
+    = centro de operación técnica en 4 pestañas (Salud BD/Redis/R2/Stripe · Tareas programadas con ejecutar+preview ·
+    Logs del BE · Recolector R2 con limpieza blindada por cross-ambiente) + 5 acciones auditadas; y **Auditoría**
+    (📄 **[`Auditoria.md`](Auditoria.md)**) = bitácora de quién hizo qué. En el menú son dos entradas separadas.
 
 ---
 

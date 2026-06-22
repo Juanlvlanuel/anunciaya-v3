@@ -86,6 +86,17 @@ export interface FiltrosCiudadesKey {
   activa?: string;
 }
 
+/** Filtros que entran en la clave de la lista de publicidad. */
+export interface FiltrosPublicidadKey {
+  busqueda?: string;
+  estado?: string;
+  carrusel?: string;
+  origen?: string;
+  orden?: string;
+  pagina?: number;
+  porPagina?: number;
+}
+
 /** Filtros que entran en la clave de la bitácora de auditoría. */
 export interface FiltrosAuditoriaKey {
   actorId?: string;
@@ -143,6 +154,13 @@ export const queryKeys = {
     detalle: (id: string) => ['auditoria', 'detalle', id] as const,
     actores: () => ['auditoria', 'actores'] as const,
   },
+  publicidad: {
+    all: () => ['publicidad'] as const,
+    conteo: () => ['publicidad', 'conteo'] as const,
+    kpis: () => ['publicidad', 'kpis'] as const,
+    lista: (filtros: FiltrosPublicidadKey) => ['publicidad', 'lista', filtros] as const,
+    detalle: (id: string) => ['publicidad', 'detalle', id] as const,
+  },
   equipo: {
     all: () => ['equipo'] as const,
     conteo: () => ['equipo', 'conteo'] as const,
@@ -172,6 +190,15 @@ export const queryKeys = {
   },
   regiones: {
     all: () => ['regiones'] as const,
+  },
+  mantenimiento: {
+    all: () => ['mantenimiento'] as const,
+    salud: () => ['mantenimiento', 'salud'] as const,
+    logs: (nivel: string) => ['mantenimiento', 'logs', nivel] as const,
+    crons: () => ['mantenimiento', 'crons'] as const,
+    cronPreview: (id: string) => ['mantenimiento', 'cron-preview', id] as const,
+    reconcile: () => ['mantenimiento', 'reconcile'] as const,
+    reconcileLog: () => ['mantenimiento', 'reconcile-log'] as const,
   },
 } as const;
 

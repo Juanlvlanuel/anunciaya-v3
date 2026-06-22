@@ -15,15 +15,21 @@
  */
 
 import { suspenderGraciasVencidas } from '../services/suscripciones/gracia.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 const MS_24_H = 24 * 60 * 60 * 1000;
 const MS_INICIO = 60 * 1000;
 
-async function ejecutarSuspension(): Promise<void> {
+export async function ejecutarSuspension(): Promise<void> {
     const inicio = Date.now();
     try {
         const r = await suspenderGraciasVencidas();
         const dur = Date.now() - inicio;
+        registrarEjecucionCron('suscripciones-gracia', {
+            ok: true,
+            duracionMs: dur,
+            resultado: `${r.suspendidos} suspendidos, ${r.errores} errores`,
+        });
         if (r.suspendidos > 0 || r.errores > 0) {
             console.log(
                 `[Suscripciones Cron] suspensión por gracia vencida: ` +
@@ -31,6 +37,11 @@ async function ejecutarSuspension(): Promise<void> {
             );
         }
     } catch (err) {
+        registrarEjecucionCron('suscripciones-gracia', {
+            ok: false,
+            duracionMs: Date.now() - inicio,
+            resultado: err instanceof Error ? err.message : String(err),
+        });
         console.error('[Suscripciones Cron] Error en suspensión:', err);
     }
 }

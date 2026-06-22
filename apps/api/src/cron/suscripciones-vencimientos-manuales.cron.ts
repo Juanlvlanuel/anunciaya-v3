@@ -14,15 +14,21 @@
  */
 
 import { expirarManualesVencidos } from '../services/suscripciones/vencimientos-manuales.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 const MS_24_H = 24 * 60 * 60 * 1000;
 const MS_INICIO = 90 * 1000;
 
-async function ejecutarExpiracionManuales(): Promise<void> {
+export async function ejecutarExpiracionManuales(): Promise<void> {
     const inicio = Date.now();
     try {
         const r = await expirarManualesVencidos();
         const dur = Date.now() - inicio;
+        registrarEjecucionCron('vencimientos-manuales', {
+            ok: true,
+            duracionMs: dur,
+            resultado: `${r.enGracia} en gracia, ${r.errores} errores`,
+        });
         if (r.enGracia > 0 || r.errores > 0) {
             console.log(
                 `[Suscripciones Cron] expiración de manuales: ` +
@@ -30,6 +36,11 @@ async function ejecutarExpiracionManuales(): Promise<void> {
             );
         }
     } catch (err) {
+        registrarEjecucionCron('vencimientos-manuales', {
+            ok: false,
+            duracionMs: Date.now() - inicio,
+            resultado: err instanceof Error ? err.message : String(err),
+        });
         console.error('[Suscripciones Cron] Error en expiración de manuales:', err);
     }
 }

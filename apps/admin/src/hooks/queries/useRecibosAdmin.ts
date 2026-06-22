@@ -12,7 +12,7 @@
 import { useQuery, keepPreviousData, useMutation } from '@tanstack/react-query';
 import { queryKeys } from '../../config/queryKeys';
 import * as recibosService from '../../services/recibosService';
-import type { ParametrosRecibos } from '../../services/recibosService';
+import type { ParametrosRecibos, OrigenRecibo } from '../../services/recibosService';
 import { toast } from '../../stores/useToastPanel';
 
 function mensajeError(error: unknown, porDefecto: string): string {
@@ -32,7 +32,7 @@ export function useRecibos(filtros: ParametrosRecibos) {
 /** Genera/regenera el PDF del recibo y lo abre en una pestaña nueva. */
 export function useDescargarRecibo() {
   return useMutation({
-    mutationFn: (id: string) => recibosService.descargarRecibo(id),
+    mutationFn: ({ id, origen }: { id: string; origen: OrigenRecibo }) => recibosService.descargarRecibo(id, origen),
     onSuccess: (url) => window.open(url, '_blank', 'noopener'),
     onError: (e) => toast.error(mensajeError(e, 'No se pudo descargar el recibo')),
   });
@@ -41,7 +41,7 @@ export function useDescargarRecibo() {
 /** Reenvía el comprobante a una lista de correos. */
 export function useReenviarRecibo() {
   return useMutation({
-    mutationFn: ({ id, correos }: { id: string; correos: string[] }) => recibosService.reenviarRecibo(id, correos),
+    mutationFn: ({ id, correos, origen }: { id: string; correos: string[]; origen: OrigenRecibo }) => recibosService.reenviarRecibo(id, correos, origen),
     onSuccess: (enviados) => toast.exito(`Comprobante enviado a ${enviados} correo${enviados === 1 ? '' : 's'}`),
     onError: (e) => toast.error(mensajeError(e, 'No se pudo reenviar el comprobante')),
   });

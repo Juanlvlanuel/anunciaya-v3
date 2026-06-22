@@ -13,15 +13,21 @@
  */
 
 import { ejecutarCierreAutoTurnos } from '../services/scanya-cierre-auto.service.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 const MS_30_MIN = 30 * 60 * 1000;
 const MS_INICIO = 30 * 1000;
 
-async function ejecutarCron(): Promise<void> {
+export async function ejecutarCron(): Promise<void> {
 	const inicio = Date.now();
 	try {
 		const r = await ejecutarCierreAutoTurnos();
 		const duracion = Date.now() - inicio;
+		registrarEjecucionCron('scanya', {
+			ok: true,
+			duracionMs: duracion,
+			resultado: `${r.cerrados} cerrados, ${r.errores} errores de ${r.revisados} revisados`,
+		});
 		if (r.cerrados > 0 || r.errores > 0) {
 			console.log(
 				`[ScanYA Cron] Cierre auto: ${r.cerrados} cerrados, ${r.errores} errores ` +
@@ -29,6 +35,11 @@ async function ejecutarCron(): Promise<void> {
 			);
 		}
 	} catch (error) {
+		registrarEjecucionCron('scanya', {
+			ok: false,
+			duracionMs: Date.now() - inicio,
+			resultado: error instanceof Error ? error.message : String(error),
+		});
 		console.error('[ScanYA Cron] Error en cierre auto de turnos:', error);
 	}
 }

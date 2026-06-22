@@ -840,65 +840,76 @@ export const configuracionSistema = pgTable("configuracion_sistema", {
 	check("configuracion_tipo_check", sql`(tipo)::text = ANY ((ARRAY['numero'::character varying, 'texto'::character varying, 'booleano'::character varying, 'json'::character varying])::text[])`),
 ]);
 
-export const planesAnuncios = pgTable("planes_anuncios", {
+// =============================================================================
+// PUBLICIDAD (Panel Admin · módulo 7) — venta del ESPACIO en los 3 carruseles de
+// la columna derecha (Anuncios · Patrocinadores · Fundadores), SOLO desktop,
+// acotada por ciudades. El anunciante es CUALQUIER usuario (personal o comercial)
+// y sube su propia creatividad (se vende el espacio, no el diseño). Dos vías de
+// alta: self-service (wizard + Stripe) o alta manual del Panel (efectivo/cortesía).
+// El alcance del gerente es por las CIUDADES del anuncio (≥1 en su región). El
+// folio del recibo REUSA la secuencia global `pagos_membresia_folio_seq` (folios
+// correlativos con membresías). Reemplaza el schema dormido `planes_anuncios`/
+// `promociones_pagadas` (jubilado: docs/migraciones/2026-06-21-drop-publicidad-dormida.sql).
+// Detalle: docs/arquitectura/Panel_Admin/Publicidad.md.
+//   - publicidad_compras         → la compra/campaña de un anunciante
+//   - publicidad_piezas          → 1..3 creatividades (una por carrusel comprado)
+//   - publicidad_compra_ciudades → N:M dónde se muestra
+// =============================================================================
+export const publicidadCompras = pgTable("publicidad_compras", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
-	nombre: varchar({ length: 100 }).notNull(),
-	duracionDias: integer("duracion_dias").notNull(),
-	precio: numeric({ precision: 10, scale: 2 }).notNull(),
-	maxSecciones: integer("max_secciones").notNull(),
-	prioridadBase: integer("prioridad_base").default(5).notNull(),
-	activo: boolean().default(true).notNull(),
-	descripcion: text(),
-	orden: integer().default(0).notNull(),
-	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
-}, (table) => [
-	index("idx_planes_anuncios_activo_orden").using("btree", table.activo.asc().nullsLast(), table.orden.asc().nullsLast()).where(sql`(activo = true)`),
-	check("planes_anuncios_duracion_dias_check", sql`duracion_dias > 0`),
-	check("planes_anuncios_max_secciones_check", sql`(max_secciones >= 1) AND (max_secciones <= 5)`),
-	check("planes_anuncios_precio_check", sql`precio >= (0)::numeric`),
-	check("planes_anuncios_prioridad_check", sql`(prioridad_base >= 1) AND (prioridad_base <= 10)`),
-]);
-
-export const promocionesPagadas = pgTable("promociones_pagadas", {
-	id: uuid().defaultRandom().primaryKey().notNull(),
-	planAnuncioId: uuid("plan_anuncio_id").notNull(),
-	usuarioId: uuid("usuario_id").notNull(),
-	tipoEntidad: varchar("tipo_entidad", { length: 20 }).notNull(),
-	entidadId: uuid("entidad_id").notNull(),
-	seccionesActivas: jsonb("secciones_activas").default([]).notNull(),
-	modoVisualizacion: varchar("modo_visualizacion", { length: 20 }).default('carousel').notNull(),
-	prioridad: integer().notNull(),
-	clicksTotales: integer("clicks_totales").default(0).notNull(),
-	impresionesTotales: integer("impresiones_totales").default(0).notNull(),
-	stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }).notNull(),
-	precioPagado: numeric("precio_pagado", { precision: 10, scale: 2 }).notNull(),
+	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
+	// Opcional: si el anunciante es comercial, su negocio (para contexto/métricas).
+	negocioId: uuid("negocio_id").references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
+	esCombo: boolean("es_combo").default(false).notNull(),         // compró los 3 carruseles (con descuento)
+	estado: varchar({ length: 20 }).default('activa').notNull(),   // activa | pausada | expirada | cancelada
+	origen: varchar({ length: 20 }).notNull(),                     // self | manual | cortesia
+	metodoCobro: varchar("metodo_cobro", { length: 20 }),          // tarjeta | efectivo | transferencia | cortesia
+	monto: numeric({ precision: 10, scale: 2 }),                   // NULL en cortesía
+	// Folio del recibo (correlativo GLOBAL con membresías: reusa pagos_membresia_folio_seq).
+	// Solo en compras con cobro; NULL en cortesía (no genera recibo). Lo asigna el service.
+	folio: integer('folio'),
+	stripePaymentIntentId: varchar("stripe_payment_intent_id", { length: 255 }), // solo self-service
+	reciboUrl: text("recibo_url"),                                 // PDF en R2 (como membresías)
 	duracionDias: integer("duracion_dias").notNull(),
 	iniciaAt: timestamp("inicia_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	expiraAt: timestamp("expira_at", { withTimezone: true, mode: 'string' }).notNull(),
-	estado: varchar({ length: 20 }).default('activo').notNull(),
+	// Marca anti-repetición del correo "tu publicidad está por vencer" (cron diario, 3 días antes).
+	avisoVencimientoEnviado: boolean("aviso_vencimiento_enviado").default(false).notNull(),
+	registradoPor: uuid("registrado_por").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }), // alta manual; NULL en self
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
-	index("idx_promociones_estado_expira").using("btree", table.estado.asc().nullsLast(), table.expiraAt.asc().nullsLast()).where(sql`((estado)::text = 'activo'::text)`),
-	index("idx_promociones_secciones").using("gin", table.seccionesActivas.asc().nullsLast()),
-	index("idx_promociones_tipo_entidad").using("btree", table.tipoEntidad.asc().nullsLast(), table.entidadId.asc().nullsLast()),
-	index("idx_promociones_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
-	foreignKey({
-		columns: [table.planAnuncioId],
-		foreignColumns: [planesAnuncios.id],
-		name: "fk_promociones_plan"
-	}).onDelete("restrict"),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "fk_promociones_usuario"
-	}).onDelete("cascade"),
-	check("promociones_pagadas_estado_check", sql`(estado)::text = ANY ((ARRAY['activo'::character varying, 'pausado'::character varying, 'expirado'::character varying, 'cancelado'::character varying])::text[])`),
-	check("promociones_pagadas_fechas_check", sql`expira_at > inicia_at`),
-	check("promociones_pagadas_modo_check", sql`(modo_visualizacion)::text = ANY ((ARRAY['carousel'::character varying, 'estatico'::character varying])::text[])`),
-	check("promociones_pagadas_precio_check", sql`precio_pagado >= (0)::numeric`),
-	check("promociones_pagadas_tipo_entidad_check", sql`(tipo_entidad)::text = ANY ((ARRAY['marketplace'::character varying, 'oferta'::character varying, 'servicio'::character varying, 'negocio'::character varying])::text[])`),
+	index("idx_publicidad_compras_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
+	index("idx_publicidad_compras_estado_expira").using("btree", table.estado.asc().nullsLast(), table.expiraAt.asc().nullsLast()),
+	uniqueIndex("idx_publicidad_compras_folio").using("btree", table.folio.asc().nullsLast()),
+	check("publicidad_compras_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'activa'::character varying, 'pausada'::character varying, 'expirada'::character varying, 'cancelada'::character varying])::text[])`),
+	check("publicidad_compras_origen_check", sql`(origen)::text = ANY ((ARRAY['self'::character varying, 'manual'::character varying, 'cortesia'::character varying])::text[])`),
+	check("publicidad_compras_monto_check", sql`(monto IS NULL) OR (monto >= (0)::numeric)`),
+	check("publicidad_compras_cortesia_sin_monto_check", sql`((origen)::text <> 'cortesia'::text) OR (monto IS NULL)`),
+	check("publicidad_compras_fechas_check", sql`expira_at > inicia_at`),
+]);
+
+export const publicidadPiezas = pgTable("publicidad_piezas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	compraId: uuid("compra_id").notNull().references((): AnyPgColumn => publicidadCompras.id, { onDelete: 'cascade' }),
+	carrusel: varchar({ length: 20 }).notNull(),                   // anuncios | patrocinadores | fundadores
+	imagenUrl: text("imagen_url").notNull(),                       // creatividad subida por el anunciante (R2)
+	clicks: integer().default(0).notNull(),                        // el "ver grande" (zoom) de la imagen
+	impresiones: integer().default(0).notNull(),
+	prioridad: integer().default(0).notNull(),                     // orden dentro del carrusel (futuro)
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	uniqueIndex("idx_publicidad_piezas_compra_carrusel").using("btree", table.compraId.asc().nullsLast(), table.carrusel.asc().nullsLast()),
+	check("publicidad_piezas_carrusel_check", sql`(carrusel)::text = ANY ((ARRAY['anuncios'::character varying, 'patrocinadores'::character varying, 'fundadores'::character varying])::text[])`),
+]);
+
+export const publicidadCompraCiudades = pgTable("publicidad_compra_ciudades", {
+	compraId: uuid("compra_id").notNull().references((): AnyPgColumn => publicidadCompras.id, { onDelete: 'cascade' }),
+	ciudadId: uuid("ciudad_id").notNull().references((): AnyPgColumn => ciudades.id, { onDelete: 'cascade' }),
+}, (table) => [
+	// El carrusel público pregunta "¿qué anuncios vigentes hay en esta ciudad?".
+	index("idx_publicidad_compra_ciudades_ciudad").using("btree", table.ciudadId.asc().nullsLast()),
+	primaryKey({ columns: [table.compraId, table.ciudadId], name: "publicidad_compra_ciudades_pkey" }),
 ]);
 
 export const promocionesTemporales = pgTable("promociones_temporales", {

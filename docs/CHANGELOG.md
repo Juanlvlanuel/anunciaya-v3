@@ -8,6 +8,22 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [21 Junio 2026] - Panel · módulo "Publicidad" (2ª fuente de ingresos: el espacio de los carruseles) 📣
+
+Nuevo **módulo 7 del Panel Admin** (`apps/admin`) + su **superficie pública** en la app (`apps/web`): venta del **espacio** en los 3 carruseles de la columna derecha (**Anuncios** · **Patrocinadores** · **Fundadores**), **acotada por ciudades**. El anunciante (cualquier usuario) sube su propia imagen; el clic solo la agranda. Solo desktop. **3 migraciones** (3 tablas `publicidad_*`, ya corridas).
+
+- **Lectura + KPIs:** sección del Panel (tabla/ficha) con banda de **KPIs** (activos · ingresos · clics · por vencer) + endpoint público `GET /api/publicidad?ciudadId=` que alimenta la **columna real** de la app (lightbox + placeholder). Alcance por rol (super total · gerente por las ciudades del anuncio · vendedor 403).
+- **Acciones:** pausar/reactivar/cancelar + **editar** (ciudades · carruseles · imágenes, **sin tocar el cobro**; reconcilia piezas conservando clics) — todo auditado, con las acciones de la ficha como **íconos en el header**.
+- **Economía configurable** (solo super): precios base ×3 · % combo · límite de ciudades · **multiplicador por # de ciudades** (tramos) · **periodos de meses por adelantado** con descuento por volumen — con editores dedicados. **Meses por adelantado:** pago único que extiende la vigencia.
+- **Dos vías de alta:** **manual** desde el Panel (efectivo/transferencia, cortesía solo super) y **wizard self-service con Stripe** en la página `/anunciate` (pago único `mode:'payment'` + webhook + estado `pendiente` que se limpia si se abandona).
+- **Recibo PDF foliado** (numeración correlativa con membresías) + correo al pagar; el módulo **Recibos** se extendió a UNION membresía+publicidad. **Cron** (cada 12h): expira vencidos, avisa 3 días antes, limpia pendientes abandonados.
+- **Creatividades:** se **optimizan** en el navegador (WebP, máx 1600px) antes de subir y **no quedan huérfanas** — al cerrar/cancelar el front descarta las que no quedaron ligadas a un anuncio (`descartarImagenesHuerfanas` por reference count); el recolector R2 queda de respaldo.
+- **UI:** modales **Registrar/Editar** horizontales (ancho `2xl` nuevo en `ModalAdaptativo`, 2 columnas) + KPIs inline.
+
+Backend `services/admin/publicidad*` + `publicidad-{precio,checkout,mantenimiento}.service` + `publicidadPublica.*`; front Panel `components/publicidad/*` + web `PaginaAnunciate.tsx`/`ColumnaDerecha.tsx`. Harness `probar-publicidad-*` verdes + `tsc` api/admin/web. Docs: `Panel_Admin/Publicidad.md` + `Publicidad_Pendientes.md`. **Pendiente operativo:** sumar el origen del Panel/app al CORS del bucket R2.
+
+---
+
 ## [21 Junio 2026] - Panel · módulo "Auditoría" (bitácora de acciones del equipo) 🧾
 
 **UI de lectura de `admin_auditoria`** — el medio que faltaba del **módulo 11 "Sistema"** (`apps/admin`). La **escritura** ya existía como cimiento transversal (`registrarAuditoria`); aquí se construyó la pantalla para consultarla. **Sin migración SQL.**

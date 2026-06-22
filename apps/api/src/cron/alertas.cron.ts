@@ -13,6 +13,7 @@ import {
 	ejecutarDeteccionSemanal,
 	obtenerNegociosActivos,
 } from '../services/alertas-motor.service.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 const MS_24H = 24 * 60 * 60 * 1000;
 const MS_7D = 7 * 24 * 60 * 60 * 1000;
@@ -21,7 +22,7 @@ const MS_7D = 7 * 24 * 60 * 60 * 1000;
 // DETECCIÓN DIARIA (operativas + engagement)
 // =============================================================================
 
-async function ejecutarCronDiario(): Promise<void> {
+export async function ejecutarCronDiario(): Promise<void> {
 	const inicio = Date.now();
 	console.log('[Alertas Cron] Iniciando detección diaria...');
 
@@ -40,8 +41,18 @@ async function ejecutarCronDiario(): Promise<void> {
 		}
 
 		const duracion = Date.now() - inicio;
+		registrarEjecucionCron('alertas', {
+			ok: true,
+			duracionMs: duracion,
+			resultado: `diaria: ${procesados}/${negocios.length} negocios, ${errores} errores`,
+		});
 		console.log(`[Alertas Cron] Diario completado: ${procesados}/${negocios.length} negocios (${errores} errores, ${duracion}ms)`);
 	} catch (error) {
+		registrarEjecucionCron('alertas', {
+			ok: false,
+			duracionMs: Date.now() - inicio,
+			resultado: `diaria: ${error instanceof Error ? error.message : String(error)}`,
+		});
 		console.error('[Alertas Cron] Error en detección diaria:', error);
 	}
 }
@@ -69,8 +80,18 @@ async function ejecutarCronSemanal(): Promise<void> {
 		}
 
 		const duracion = Date.now() - inicio;
+		registrarEjecucionCron('alertas', {
+			ok: true,
+			duracionMs: duracion,
+			resultado: `semanal: ${procesados}/${negocios.length} negocios, ${errores} errores`,
+		});
 		console.log(`[Alertas Cron] Semanal completado: ${procesados}/${negocios.length} negocios (${errores} errores, ${duracion}ms)`);
 	} catch (error) {
+		registrarEjecucionCron('alertas', {
+			ok: false,
+			duracionMs: Date.now() - inicio,
+			resultado: `semanal: ${error instanceof Error ? error.message : String(error)}`,
+		});
 		console.error('[Alertas Cron] Error en detección semanal:', error);
 	}
 }

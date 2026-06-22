@@ -116,6 +116,10 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // ─── Vendedores y comisiones ───
     // Foto/comprobante del pago al vendedor (pieza E, liquidación). Carpeta R2 'comprobantes'.
     { tabla: 'pagos_vendedor', columna: 'comprobante_url', tipo: 'url', descripcion: 'Foto/comprobante del pago al vendedor' },
+
+    // ─── Publicidad ───
+    // Creatividad que el anunciante sube (carpeta R2 'publicidad'). Una por pieza/carrusel.
+    { tabla: 'publicidad_piezas', columna: 'imagen_url', tipo: 'url', descripcion: 'Imagen del anuncio (carruseles de la columna derecha)' },
 ];
 
 /**

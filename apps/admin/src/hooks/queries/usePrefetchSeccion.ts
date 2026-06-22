@@ -27,6 +27,7 @@ import * as recibosService from '../../services/recibosService';
 import * as equipoService from '../../services/equipoService';
 import * as vendedoresService from '../../services/vendedoresService';
 import * as auditoriaService from '../../services/auditoriaService';
+import * as publicidadService from '../../services/publicidadService';
 import * as ciudadesService from '../../services/ciudadesService';
 import { obtenerResumen } from '../../services/resumenService';
 import { listarConfiguracion } from '../../services/configuracionService';
@@ -37,7 +38,7 @@ const POR_PAGINA = 20;
 
 /**
  * Precargadores por id de sección del menú. Cada uno deja en caché lo que la sección lee al montar.
- * `id` que no esté aquí (placeholders: publicidad, metricas, mantenimiento) simplemente no precarga.
+ * `id` que no esté aquí (placeholders: mantenimiento) simplemente no precarga.
  */
 const PRECARGADORES: Record<string, (qc: QueryClient) => void> = {
   resumen: (qc) => {
@@ -79,6 +80,11 @@ const PRECARGADORES: Record<string, (qc: QueryClient) => void> = {
     const f = { orden: 'fecha_recientes' as const, pagina: 1, porPagina: POR_PAGINA };
     qc.prefetchQuery({ queryKey: queryKeys.auditoria.lista(f), queryFn: () => auditoriaService.listarAuditoria(f) });
     qc.prefetchQuery({ queryKey: queryKeys.auditoria.actores(), queryFn: () => auditoriaService.listarActores(), staleTime: 1000 * 60 * 5 });
+  },
+
+  publicidad: (qc) => {
+    const f = { orden: 'recientes' as const, pagina: 1, porPagina: POR_PAGINA };
+    qc.prefetchQuery({ queryKey: queryKeys.publicidad.lista(f), queryFn: () => publicidadService.listarPublicidad(f) });
   },
 
   ciudades: (qc) => {

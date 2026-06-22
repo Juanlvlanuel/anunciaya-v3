@@ -170,6 +170,16 @@ export async function ejecutarCierreAutoTurnos(): Promise<{
 	return { revisados: candidatos.length, cerrados, errores };
 }
 
+/**
+ * Cuenta (sin cerrar) los turnos que `ejecutarCierreAutoTurnos` cerraría ahora:
+ * los candidatos cuyo tiempo abierto ya superó su límite calculado. Para el
+ * preview del cron en el Panel.
+ */
+export async function contarTurnosACerrar(): Promise<number> {
+	const candidatos = await obtenerTurnosAbiertosCandidatos();
+	return candidatos.filter((t) => t.horas_abierto >= calcularLimiteHoras(t)).length;
+}
+
 // =============================================================================
 // AVISO AL LOGIN DE SCANYA
 // =============================================================================

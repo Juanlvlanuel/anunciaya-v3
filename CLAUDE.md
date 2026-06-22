@@ -83,7 +83,7 @@ anunciaya/
 **Home:** Pregúntale a Peñasco 🚧 (feed conversacional + buscador hiperlocal, ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4)
 **3 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅
 **3 Comerciales:** Business Studio ✅, ScanYA ✅, Onboarding ✅
-**Administración del Sistema:** Panel Admin 🟡 en desarrollo activo (`apps/admin`, en prod): 6 secciones cerradas (Negocios, Usuarios, Suscripciones·bitácora, Equipo y accesos, Vendedores y comisiones, Configuración) + Mantenimiento R2; faltan Ciudades, Resumen/Métricas, Publicidad y la UI de Auditoría. Estado vivo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
+**Administración del Sistema:** Panel Admin 🟢 prácticamente completo (`apps/admin`, en prod): los 12 módulos construidos — Resumen, Métricas, Negocios, Usuarios, Suscripciones·bitácora, Recibos, Vendedores y comisiones, Publicidad, Ciudades, Equipo y accesos, Configuración, y "Sistema" (Auditoría + Mantenimiento R2). Pendientes vivos: validación E2E de Stripe (Piezas 2-3) y commits/operativos sueltos. Estado vivo y por módulo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
 
 > 🚧 = Ruta existe en el router pero está como placeholder (sin implementar) — o bien, sección decidida en visión estratégica pero aún sin construir.
 

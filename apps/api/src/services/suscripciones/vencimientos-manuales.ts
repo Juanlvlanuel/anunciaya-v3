@@ -16,7 +16,7 @@
 
 import { db } from '../../db/index.js';
 import { negocios } from '../../db/schemas/schema.js';
-import { and, eq, lt } from 'drizzle-orm';
+import { and, eq, lt, count } from 'drizzle-orm';
 import { obtenerConfigNumero } from '../configuracion.service.js';
 import { notificarMembresiaEnGracia } from '../notificaciones.service.js';
 
@@ -63,4 +63,25 @@ export async function expirarManualesVencidos(): Promise<{ enGracia: number; err
         console.error('[Suscripciones] Error expirando manuales vencidos:', error);
         return { enGracia: 0, errores: 1 };
     }
+}
+
+/**
+ * Cuenta (sin actuar) los negocios manuales que `expirarManualesVencidos` pasaría a
+ * gracia ahora. Misma condición que el UPDATE de arriba — para el preview del cron.
+ */
+export async function contarManualesVencidos(): Promise<number> {
+    const ahoraISO = new Date().toISOString();
+    const [r] = await db
+        .select({ n: count() })
+        .from(negocios)
+        .where(
+            and(
+                eq(negocios.metodoCobro, 'manual'),
+                eq(negocios.activo, true),
+                eq(negocios.estadoAdmin, 'activo'),
+                eq(negocios.estadoMembresia, 'al_corriente'),
+                lt(negocios.fechaVencimiento, ahoraISO),
+            ),
+        );
+    return r?.n ?? 0;
 }

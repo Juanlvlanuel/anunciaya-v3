@@ -61,3 +61,18 @@ export async function autoPausarExpiradosServicios(): Promise<ResultadoAutoPausa
         return resultado;
     }
 }
+
+/**
+ * Cuenta (sin actuar) las publicaciones que `autoPausarExpiradosServicios` pausaría
+ * ahora. Misma condición que el UPDATE de arriba — para el preview del cron.
+ */
+export async function contarExpiradosServicios(): Promise<number> {
+    const r = await db.execute<{ n: number }>(sql`
+        SELECT COUNT(*)::int AS n
+        FROM servicios_publicaciones
+        WHERE estado = 'activa'
+          AND deleted_at IS NULL
+          AND expira_at < NOW()
+    `);
+    return Number(r.rows[0]?.n ?? 0);
+}

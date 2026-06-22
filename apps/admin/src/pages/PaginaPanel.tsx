@@ -36,6 +36,8 @@ import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
 import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
 import { SeccionCiudades } from '../components/ciudades/SeccionCiudades';
 import { SeccionAuditoria } from '../components/auditoria/SeccionAuditoria';
+import { SeccionPublicidad } from '../components/publicidad/SeccionPublicidad';
+import { SeccionMantenimiento } from '../components/mantenimiento/SeccionMantenimiento';
 
 function ContenidoSeccion({ titulo, iconoClave }: { titulo: string; iconoClave: string }) {
   const Icono = iconoDeSeccion(iconoClave);
@@ -192,6 +194,10 @@ function PaginaPanel() {
     <SeccionCiudades />
   ) : seccionActivaId === 'auditoria' ? (
     <SeccionAuditoria rol={rol} />
+  ) : seccionActivaId === 'publicidad' ? (
+    <SeccionPublicidad rol={rol} />
+  ) : seccionActivaId === 'mantenimiento' ? (
+    <SeccionMantenimiento />
   ) : (
     <ContenidoSeccion titulo={titulo} iconoClave={itemActivo.icono} />
   );

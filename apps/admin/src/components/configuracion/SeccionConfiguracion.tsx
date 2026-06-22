@@ -13,13 +13,15 @@
  */
 
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, type LucideProps } from 'lucide-react';
+import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, Megaphone, CalendarClock, type LucideProps } from 'lucide-react';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
-import { parsearEscalera, type ConfigFila, type TramoEscalera } from '../../services/configuracionService';
+import { parsearEscalera, parsearTramosCiudades, parsearPeriodos, type ConfigFila, type TramoEscalera, type TramoCiudades } from '../../services/configuracionService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { DialogoEditarNumero, DialogoEditarEscalera } from './DialogosConfig';
+import { DialogoEditarTramosCiudades } from './DialogoTramosCiudades';
+import { DialogoEditarPeriodos } from './DialogoPeriodos';
 import { TarjetaPrecioMembresia } from './TarjetaPrecioMembresia';
 import { PanelAcordeon } from './PanelAcordeon';
 
@@ -32,6 +34,7 @@ const ETIQUETA_CATEGORIA: Record<string, string> = {
   notificaciones: 'Notificaciones',
   seguridad: 'Seguridad',
   general: 'General',
+  publicidad: 'Publicidad',
 };
 
 /**
@@ -47,12 +50,14 @@ const ICONO_CLAVE: Record<string, ComponentType<LucideProps>> = {
   comision_escalera: Layers,
   periodo_gracia_cobro_dias: Clock,
   trial_duracion_dias: Gift,
+  publicidad_periodos: CalendarClock,
 };
 
 /** Ícono por categoría — encabeza la barra de cada acordeón. */
 const ICONO_CATEGORIA: Record<string, ComponentType<LucideProps>> = {
   pagos: Coins,
   trials: Gift,
+  publicidad: Megaphone,
 };
 
 /** Cuadro neutro con ícono (estilo profesional, no caricaturesco). */
@@ -90,6 +95,44 @@ function TablaEscalera({ valor }: { valor: string }) {
   );
 }
 
+function rangoCiudades(t: TramoCiudades): string {
+  return t.max === null ? `${t.min}+` : t.min === t.max ? `${t.min}` : `${t.min} – ${t.max}`;
+}
+
+/** Tramos del multiplicador por ciudades de Publicidad, apilados (modo lectura en la tarjeta). */
+function TablaTramosCiudades({ valor }: { valor: string }) {
+  const tramos = parsearTramosCiudades(valor);
+  if (tramos.length === 0) return <p className="text-[13px] text-texto-4">Sin definir.</p>;
+  return (
+    <div className="flex flex-col gap-2">
+      {tramos.map((t, i) => (
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+          <span className="text-[13px] text-texto-2">{rangoCiudades(t)} {t.min === 1 && t.max === 1 ? 'ciudad' : 'ciudades'}</span>
+          <span className="text-[15px] font-semibold leading-none text-texto">×{t.factor}</span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** Periodos de meses por adelantado de Publicidad, apilados (modo lectura en la tarjeta). */
+function TablaPeriodos({ valor }: { valor: string }) {
+  const periodos = [...parsearPeriodos(valor)].sort((a, b) => a.meses - b.meses);
+  if (periodos.length === 0) return <p className="text-[13px] text-texto-4">Sin definir.</p>;
+  return (
+    <div className="flex flex-col gap-2">
+      {periodos.map((p, i) => (
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+          <span className="text-[13px] text-texto-2">{p.meses} {p.meses === 1 ? 'mes' : 'meses'}</span>
+          <span className="text-[15px] font-semibold leading-none" style={{ color: p.descuento > 0 ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
+            {p.descuento > 0 ? `−${p.descuento}%` : 'base'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Botón "Editar" compartido (secundario sobrio del Panel). */
 function BotonEditar({ clave, onEditar }: { clave: string; onEditar: () => void }) {
   return (
@@ -118,10 +161,10 @@ function BadgePorDefecto() {
  */
 function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void }) {
   const Icono = ICONO_CLAVE[c.clave] ?? SlidersHorizontal;
-  const esEscalera = c.tipo === 'json';
+  const esTabla = c.tipo === 'json' || c.tipo === 'tramos_ciudades' || c.tipo === 'periodos_meses';
   const tieneRango = c.min !== null || c.max !== null;
 
-  if (esEscalera) {
+  if (esTabla) {
     return (
       <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
@@ -140,7 +183,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
           </div>
         </div>
         <div className="mt-3">
-          <TablaEscalera valor={c.valor} />
+          {c.tipo === 'json' ? <TablaEscalera valor={c.valor} /> : c.tipo === 'tramos_ciudades' ? <TablaTramosCiudades valor={c.valor} /> : <TablaPeriodos valor={c.valor} />}
         </div>
       </div>
     );
@@ -274,6 +317,10 @@ export function SeccionConfiguracion() {
       {filaEditando &&
         (filaEditando.tipo === 'json' ? (
           <DialogoEditarEscalera fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
+        ) : filaEditando.tipo === 'tramos_ciudades' ? (
+          <DialogoEditarTramosCiudades fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
+        ) : filaEditando.tipo === 'periodos_meses' ? (
+          <DialogoEditarPeriodos fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
         ) : (
           <DialogoEditarNumero
             fila={filaEditando}

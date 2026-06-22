@@ -55,6 +55,9 @@ import PaginaOnboarding from '../pages/private/business/onboarding/PaginaOnboard
 import PaginaCrearNegocio from '../pages/private/PaginaCrearNegocio';
 import PaginaCrearNegocioExito from '../pages/private/PaginaCrearNegocioExito';
 
+// ⭐ NUEVO: Publicidad — compra de espacio en carruseles (página dedicada, sin MainLayout)
+import PaginaAnunciate from '../pages/private/publicidad/PaginaAnunciate';
+
 // Páginas de Business Studio (Fase 5.4)
 import PaginaDashboard from '../pages/private/business-studio/dashboard/PaginaDashboard';
 import PaginaPerfil from '../pages/private/business-studio/perfil/PaginaPerfil';
@@ -269,6 +272,12 @@ const router = createBrowserRouter([
           {
             path: '/inicio',
             element: <PaginaInicio />,
+          },
+
+          // Anúnciate — compra de publicidad (usa el header/layout del inicio)
+          {
+            path: '/anunciate',
+            element: <PaginaAnunciate />,
           },
 
           // Secciones principales (4 pilares)

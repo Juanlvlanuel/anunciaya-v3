@@ -69,7 +69,7 @@ function DialogoReenviar({ recibo, onCerrar }: { recibo: ReciboFila; onCerrar: (
 
   const enviar = () => {
     if (!puede) return;
-    reenviar.mutate({ id: recibo.id, correos: limpios }, { onSuccess: onCerrar });
+    reenviar.mutate({ id: recibo.id, correos: limpios, origen: recibo.origen }, { onSuccess: onCerrar });
   };
 
   return (
@@ -267,8 +267,8 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
                   <span className="pl-8 text-texto-3">{fmtFecha(r.fechaPago)}</span>
                   <span className="flex items-center justify-end gap-1">
                     <Tooltip text="Descargar PDF">
-                      <button type="button" data-testid={`recibo-descargar-${r.id}`} onClick={() => descargar.mutate(r.id)} disabled={descargar.isPending && descargar.variables === r.id} aria-label="Descargar PDF" className="grid h-8 w-8 place-items-center rounded-[8px] text-marca transition hover:bg-marca-suave disabled:opacity-50">
-                        {descargar.isPending && descargar.variables === r.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
+                      <button type="button" data-testid={`recibo-descargar-${r.id}`} onClick={() => descargar.mutate({ id: r.id, origen: r.origen })} disabled={descargar.isPending && descargar.variables?.id === r.id} aria-label="Descargar PDF" className="grid h-8 w-8 place-items-center rounded-[8px] text-marca transition hover:bg-marca-suave disabled:opacity-50">
+                        {descargar.isPending && descargar.variables?.id === r.id ? <Loader2 size={16} className="animate-spin" /> : <Download size={16} />}
                       </button>
                     </Tooltip>
                     {!r.anulado && (
@@ -304,8 +304,8 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
                   {r.anulado && <BadgeAnulado />}
                 </div>
                 <div className="mt-2.5 flex items-center gap-2 border-t border-borde pt-2.5">
-                  <button type="button" onClick={() => descargar.mutate(r.id)} disabled={descargar.isPending && descargar.variables === r.id} className="inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:text-marca disabled:opacity-50">
-                    {descargar.isPending && descargar.variables === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} PDF
+                  <button type="button" onClick={() => descargar.mutate({ id: r.id, origen: r.origen })} disabled={descargar.isPending && descargar.variables?.id === r.id} className="inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:text-marca disabled:opacity-50">
+                    {descargar.isPending && descargar.variables?.id === r.id ? <Loader2 size={14} className="animate-spin" /> : <Download size={14} />} PDF
                   </button>
                   {!r.anulado && (
                     <button type="button" onClick={() => setReenviando(r)} className="inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12px] font-semibold text-texto-2 transition hover:border-marca hover:text-marca">

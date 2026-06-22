@@ -58,6 +58,7 @@ const RUTAS_SIN_SUCURSAL = [
   '/ofertas/destacada-del-dia', // Hero de ofertas — contenido editorial global
   '/ofertas/detalle/',       // Detalle público de una oferta
   '/preguntas-comunidad',    // Feed del Home "Pregúntale a [ciudad]" — filtra por ciudad, NO por sucursal
+  '/publicidad',             // Carruseles de la columna derecha — filtran por ciudad, NO por sucursal
 ];
 
 /**

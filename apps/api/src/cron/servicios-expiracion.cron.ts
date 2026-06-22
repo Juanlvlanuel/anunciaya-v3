@@ -14,15 +14,21 @@
  */
 
 import { autoPausarExpiradosServicios } from '../services/servicios/expiracion.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 const MS_6_H = 6 * 60 * 60 * 1000;
 const MS_INICIO = 60 * 1000;
 
-async function ejecutarAutoPausa(): Promise<void> {
+export async function ejecutarAutoPausa(): Promise<void> {
     const inicio = Date.now();
     try {
         const r = await autoPausarExpiradosServicios();
         const dur = Date.now() - inicio;
+        registrarEjecucionCron('servicios-expiracion', {
+            ok: true,
+            duracionMs: dur,
+            resultado: `${r.pausados} pausados, ${r.errores} errores`,
+        });
         if (r.pausados > 0 || r.errores > 0) {
             console.log(
                 `[Servicios Cron] auto-pausa: ${r.pausados} pausados, ` +
@@ -30,6 +36,11 @@ async function ejecutarAutoPausa(): Promise<void> {
             );
         }
     } catch (err) {
+        registrarEjecucionCron('servicios-expiracion', {
+            ok: false,
+            duracionMs: Date.now() - inicio,
+            resultado: err instanceof Error ? err.message : String(err),
+        });
         console.error('[Servicios Cron] Error en auto-pausa:', err);
     }
 }

@@ -23,6 +23,7 @@ import {
     autoPausarExpirados,
     notificarProximaExpiracion,
 } from '../services/marketplace/expiracion.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 const MS_6_H = 6 * 60 * 60 * 1000;
 const MS_INICIO = 60 * 1000;
@@ -32,11 +33,16 @@ const HORA_DIARIA_UTC = 9; // 09:00 UTC = 03:00 CST México (madrugada del usuar
 // 1. AUTO-PAUSA cada 6 horas
 // =============================================================================
 
-async function ejecutarAutoPausa(): Promise<void> {
+export async function ejecutarAutoPausa(): Promise<void> {
     const inicio = Date.now();
     try {
         const r = await autoPausarExpirados();
         const dur = Date.now() - inicio;
+        registrarEjecucionCron('marketplace-expiracion', {
+            ok: true,
+            duracionMs: dur,
+            resultado: `${r.pausados} pausados, ${r.notificacionesCreadas} avisos, ${r.errores} errores`,
+        });
         if (r.pausados > 0 || r.errores > 0) {
             console.log(
                 `[Marketplace Cron] auto-pausa: ${r.pausados} pausados, ` +
@@ -45,6 +51,11 @@ async function ejecutarAutoPausa(): Promise<void> {
             );
         }
     } catch (err) {
+        registrarEjecucionCron('marketplace-expiracion', {
+            ok: false,
+            duracionMs: Date.now() - inicio,
+            resultado: err instanceof Error ? err.message : String(err),
+        });
         console.error('[Marketplace Cron] Error en auto-pausa:', err);
     }
 }

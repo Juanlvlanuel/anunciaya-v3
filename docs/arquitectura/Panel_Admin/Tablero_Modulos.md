@@ -20,6 +20,28 @@
 
 ## Estado de hoy
 
+- **Recién construido y ampliado (21 jun):** **Publicidad** (módulo 7) — el módulo **completo de punta a
+  punta** (doc [`Publicidad.md`](Publicidad.md)): venta del **espacio** en los 3 carruseles de la columna
+  derecha, acotada por ciudades. **Fases 0-2** completas: lectura (sección Panel + ficha + endpoint público +
+  columna real) · **KPIs de cabecera** (activos · ingresos · clics · por vencer) · acciones de estado +
+  **editar** (ciudades/carruseles/imágenes, sin tocar el cobro) · **configuración económica** (precios +
+  multiplicador por ciudades + **periodos de meses**, editores dedicados) · **meses por adelantado** con
+  descuento por volumen (pago único, extiende vigencia) · **alta manual + cortesía** · **wizard self-service
+  con Stripe** (pago único + webhook + estado `pendiente`) · **cron** de expiración + aviso 3 días + limpieza
+  de pendientes · **recibo PDF + correo** + módulo **Recibos** extendido (UNION membresía+publicidad). Las
+  **creatividades** se optimizan (WebP, máx 1600px) y no quedan huérfanas (`descartarImagenesHuerfanas` por
+  reference count + recolector R2 de respaldo). Modales **Registrar/Editar** horizontales (`2xl`, 2 columnas) +
+  acciones de la ficha en **íconos**. 3 migraciones (corridas) + harness verdes + `tsc` api/admin/web.
+  **Pendiente:** commit + sumar el origen del Panel/app al **CORS del bucket R2** (subir imágenes desde el navegador).
+- **Recién cerrado (21 jun):** **Mantenimiento** (módulo 11 "Sistema", el otro medio junto a Auditoría) —
+  doc [`Mantenimiento.md`](Mantenimiento.md): el **centro de operación técnica** del SuperAdmin en **4
+  pestañas** — **Salud** (semáforos BD/Redis/R2/Stripe + latencia), **Tareas programadas** (los 7 crons con
+  cadencia + última corrida + **ejecutar ahora** con **preview** de qué procesaría), **Logs del BE** (ventana
+  en memoria con filtro/pausa + exportar/vaciar) y **Recolector R2** (analizar + histórico + **ejecutar
+  limpieza blindada**: solo borra con acceso cross-ambiente/local, en prod queda bloqueado con aviso). Único
+  módulo de "Sistema" que pasó por **Fase 2** (5 acciones, cada una con confirmación + auditoría). Estrenó los
+  tokens `--panel-warn` (ámbar "lento") y `ok-suave` (verde de acción). Sin migración (todo lectura o estado
+  en memoria). 7 crons instrumentados con telemetría; `tsc` api+admin verdes. **Pendiente:** commit de Juan.
 - **Recién cerrado (21 jun):** **Auditoría** — la **UI de la bitácora** (`admin_auditoria`), el medio que
   faltaba del módulo 11 "Sistema" (doc [`Auditoria.md`](Auditoria.md)). Lista (tabla/cards) con filtros
   (acción · persona · periodo · orden) + paginación en servidor, **ficha** de detalle instantánea,
@@ -135,13 +157,13 @@
 | | **· Red de ventas ·** | | | |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | | **· Crecimiento ·** | | | |
-| 7 | Publicidad | ⬜ | 0 | — |
+| 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibos · creatividades optimizadas/sin huérfanas) · commit + CORS R2 pendientes | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
 | | **· Administración ·** | | | |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 11 | **Auditoría** *(módulo 11 "Sistema")* | ✅ | ✔ Cerrado (UI de la bitácora) | `Auditoria.md` · `Auditoria_Pendientes.md` |
-| 11 | **Mantenimiento (R2)** *(módulo 11 "Sistema")* | ✅ | Operativo (Recolector de basura R2) | `Mantenimiento_R2.md` |
+| 11 | **Mantenimiento** *(módulo 11 "Sistema")* | ✅ | ✔ Cerrado (Salud · Crons · Logs · Recolector R2 + 5 acciones) | `Mantenimiento.md` · `Mantenimiento_Pendientes.md` |
 
 ---
 
@@ -197,9 +219,13 @@
   lectura de `admin_auditoria` con lista + ficha, alcance por rol (super todo / gerente su equipo / vendedor
   403), borrado de limpieza (solo super) y un **sistema de presentación** que traduce ~40 acciones a lenguaje
   de persona sin jerga ni UUIDs (resolución de ids→nombres en el backend, división backend=identidad /
-  frontend=formato). **Mantenimiento R2** operativo (`Mantenimiento_R2.md`). En el menú son **dos entradas
-  separadas**: Auditoría y Mantenimiento. **Backlog:** deep-links ficha→Negocios/Usuarios, filtro de acción
-  dinámico, export CSV, retención/archivado.
+  frontend=formato). **Mantenimiento** (doc [`Mantenimiento.md`](Mantenimiento.md)): centro de operación
+  técnica en 4 pestañas (Salud · Tareas programadas · Logs del BE · Recolector R2) con 5 acciones auditadas
+  (ejecutar cron con preview, purgar caché, vaciar/exportar logs, limpiar R2 blindado por cross-ambiente);
+  todo lectura/memoria, sin migración. En el menú son **dos entradas separadas**: Auditoría y Mantenimiento.
+  **Backlog Auditoría:** deep-links ficha→Negocios/Usuarios, filtro de acción dinámico, export CSV,
+  retención/archivado. **Backlog Mantenimiento:** logs persistentes, telemetría histórica de crons,
+  pausar/editar crons, migraciones pendientes, webhooks Stripe (ver `Mantenimiento_Pendientes.md`).
 - **12 · Recibos** — **construido y en uso** (doc [`Recibos.md`](Recibos.md)): lista global de recibos de membresía
   (manuales + tarjeta, foliados), buscar por folio, descargar PDF, reenviar a 1+ correos. Alcance super/gerente/
   vendedor (lo que Suscripciones no tenía). Reusa el generador de recibo + el envío de correo. Migración asociada:

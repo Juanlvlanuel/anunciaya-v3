@@ -20,6 +20,7 @@ import {
   SlidersHorizontal,
   CreditCard,
   Receipt,
+  Megaphone,
   ScrollText,
   type LucideIcon,
 } from 'lucide-react';
@@ -41,6 +42,7 @@ const MODULO_POR_PREFIJO: Record<string, MetaModulo> = {
   precio: { etiqueta: 'Membresía', icono: CreditCard },
   plan: { etiqueta: 'Membresía', icono: CreditCard },
   recibo: { etiqueta: 'Recibos', icono: Receipt },
+  publicidad: { etiqueta: 'Publicidad', icono: Megaphone },
 };
 
 /** Etiqueta legible por acción (verbo en pasado, "quién hizo qué"). */
@@ -97,6 +99,12 @@ export const ACCION_LABEL: Record<string, string> = {
   config_actualizar: 'Cambió una configuración',
   // Recibos
   recibo_reenviar: 'Reenvió un recibo',
+  // Publicidad
+  publicidad_alta_manual: 'Registró un anuncio',
+  publicidad_editar: 'Editó un anuncio',
+  publicidad_pausar: 'Pausó un anuncio',
+  publicidad_reactivar: 'Reactivó un anuncio',
+  publicidad_cancelar: 'Canceló un anuncio',
 };
 
 /** Etiqueta legible del TIPO de entidad (fallback cuando no hay un nombre resuelto). */
@@ -108,6 +116,7 @@ export const ENTIDAD_TIPO_LABEL: Record<string, string> = {
   embajador: 'Vendedor',
   configuracion: 'Configuración',
   comisiones: 'Comisiones',
+  publicidad: 'Anuncio',
 };
 
 /**

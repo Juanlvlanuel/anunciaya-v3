@@ -343,4 +343,13 @@ export const queryKeys = {
       ['preguntasComunidad', 'respuestas', preguntaId, paginacion] as const,
   },
 
+  // ─── Publicidad — Columna derecha (por ciudad) ────────────────────────────
+  // Carruseles de la columna derecha (solo desktop). Partición del caché por la
+  // ciudad activa (UUID resuelto del catálogo). Endpoint público.
+  publicidad: {
+    all: () => ['publicidad'] as const,
+    porCiudad: (ciudadId: string) =>
+      ['publicidad', 'porCiudad', ciudadId] as const,
+  },
+
 } as const;

@@ -609,6 +609,14 @@ async function manejarCheckoutCompletado(
         return;
     }
 
+    // Publicidad self-service (pago único): activa el anuncio pendiente. Carga perezosa para no
+    // acoplar el módulo de pagos de membresía con el de publicidad.
+    if (metadata.tipo === 'compra_publicidad') {
+        const { activarPublicidadPagada } = await import('./publicidad-checkout.service.js');
+        await activarPublicidadPagada(session);
+        return;
+    }
+
     // Solo continuar si es registro comercial normal
     if (metadata.tipo !== 'registro_comercial') {
         console.error('⚠️ Tipo de checkout no reconocido:', metadata.tipo);

@@ -1,0 +1,71 @@
+# Publicidad — Pendientes (checklist vivo)
+
+> Lo que **falta** del módulo 7 (Publicidad). Lo que ya **es** vive en [`Publicidad.md`](Publicidad.md).
+> Cuando un pendiente se termina, **sale** de aquí y, si cambió el comportamiento, **entra** al doc canónico.
+>
+> **Última actualización:** 21 Junio 2026.
+
+## Estado: Fase 0-2 ✅ · **Módulo CONSTRUIDO de punta a punta** · Fase 3 (cerrar) — solo falta el commit + 1 operativo (CORS R2)
+
+### Fase 0 — Definir ✅
+- [x] Mini-spec (qué hace / qué no / matriz de permisos por rol) → en `Publicidad.md`.
+- [x] Decisiones de diseño + migración SQL (modelo híbrido acotado por ciudades; 3 tablas).
+- [x] Criterios de aceptación escritos (abajo).
+- [x] Schema (`publicidad_compras` / `publicidad_piezas` / `publicidad_compra_ciudades`) en `schema.ts` + `relations.ts`.
+- [x] Migración `2026-06-21-publicidad.sql` (crear) + `2026-06-21-drop-publicidad-dormida.sql` (jubilar `planes_anuncios`/`promociones_pagadas`).
+- [x] **Correr ambas migraciones en DEV y PROD** ✅ (Juan, 21 jun — verificado con `verificar-publicidad.ts`: tablas creadas + dormidas jubiladas).
+
+### Fase 1 — VER ✅ construida (typecheck verde)
+- [x] Backend lectura: `routes/admin/publicidad.routes.ts → controllers/admin/publicidad.controller.ts → services/admin/publicidad.service.ts` (lista + ficha + conteo) con alcance por rol (super total · gerente por ciudades del anuncio en su región · vendedor 403). Montado antes del gate global.
+- [x] Frontend Panel: `services/publicidadService.ts → hooks/queries/usePublicidadAdmin.ts` (RQ + `keepPreviousData` + prefetch) → `SeccionPublicidad` (tabla/cards + filtros estado/carrusel/origen/orden + paginación) + `FichaPublicidad` (modal con piezas/ciudades/pago) + `presentacionPublicidad.ts`. Montada en `PaginaPanel` + prefetch en hover. `data-testid` en todo lo interactivo. (El ítem "Publicidad" ya estaba en `menuPanel`.)
+- [x] Endpoint público `GET /api/publicidad?ciudadId=` (`publicidadPublica.{service,controller,routes}.ts`, montado en `routes/index.ts`) — anuncios vigentes de la ciudad, agrupados por carrusel.
+- [x] Conectar `apps/web/.../ColumnaDerecha.tsx` (antes mock) a datos reales (`usePublicidad` resuelve `ciudadId` del catálogo) + **lightbox** del clic (la imagen se agranda) + placeholder "Espacio disponible" + `/publicidad` en `RUTAS_SIN_SUCURSAL`.
+- [x] **GATE 1: verificado con DATOS REALES** ✅ — seed `sembrar-publicidad-dev.ts` (2 anuncios en Puerto Peñasco) + harness `probar-publicidad-lectura.ts` **TODO VERDE**: super ve 2 · conteos cuadran · ficha combo (3 piezas + ciudad + folio 25, correlativo con membresías) · alcance del gerente por ciudades del anuncio (su región ve 2, otra región 0, sin región 0) · endpoint público (anuncios 2 / patrocinadores 1 / fundadores 1). Pendiente solo la verificación VISUAL opcional de la UI (Panel + columna en desktop).
+- [ ] Conteo de `clicks`/`impresiones` desde la columna pública (POST de tracking) → diferido a Fase 2.
+- [ ] Búsqueda por anunciante en la sección del Panel (el backend ya la soporta; el front aún no la expone) → menor.
+
+### Fase 2 — ACTUAR  *(acciones ✅ · configuración ✅ · alta manual ✅ · wizard+Stripe ✅ · cron+tracking ✅ — falta solo recibo PDF + Recibos)*
+
+> **Migraciones aplicadas (dev+prod):** las 3 de Publicidad ya corrieron, incluida `2026-06-21-publicidad-estado-pendiente.sql` (estado `pendiente` del wizard). La activación del anuncio pagado quedó verificada (folio correlativo, idempotente).
+- [x] **Acciones de estado** (`publicidad-acciones.service.ts` + controllers + rutas): **pausar/reactivar** (super+gerente) y **cancelar** (solo super), con alcance por ciudades del anuncio + guards (409) + auditoría (`publicidad_pausar/_reactivar/_cancelar`). Frontend: footer por rol en la ficha + mutaciones RQ con invalidación + `DialogoConfirmar`. Verificado con harness `probar-publicidad-acciones.ts` **TODO VERDE** (guards + alcance super/gerente/región + auditoría). tsc api+admin verde.
+- [x] **Alta manual + cortesía (solo super)** ✅ — `publicidad-alta.service.ts` (alcance super/gerente · cortesía solo super · folio de la secuencia global · transacción compra+piezas+ciudades · auditoría) + endpoint presigned R2 (`POST /publicidad/upload-imagen`) + endpoints `GET /publicidad/{precio,opciones}`. Frontend `DialogoAltaManual.tsx` (correo · carruseles+imágenes · ciudades · cobro · precio en vivo) + botón en la sección. Harness `probar-publicidad-alta.ts` **TODO VERDE**. ⚠️ **Operativo:** agregar el origen del Panel al CORS del bucket R2 para que la imagen suba desde el navegador.
+- [x] **Wizard self-service + Stripe** ✅ — pago ÚNICO (`mode:'payment'`): `publicidad-checkout.service.ts` (crea anuncio `pendiente` + Checkout Session con `metadata.tipo='compra_publicidad'`) + branch en `manejarCheckoutCompletado` del webhook → `activarPublicidadPagada` (estado→activa + folio de la secuencia global + PaymentIntent, **idempotente** + recibo/correo) + `POST /publicidad/checkout`. Frontend **página dedicada** `pages/private/publicidad/PaginaAnunciate.tsx` (apps/web): carruseles + ciudades + **selector de meses** + desglose línea por línea; entrada desde el botón "Anúnciate aquí" de la columna. Harness `probar-publicidad-checkout.ts` **VERDE** + activación verificada (folio correlativo, idempotente). tsc api+web+admin verde.
+- [x] **Claves de Configuración** ✅ — 9 claves de Publicidad en `CONFIG_EDITABLE` (categoría "Publicidad"): precios base ×3 · % combo · límite *X* · duración · días de aviso (numéricas) + **multiplicador por ciudades** (`tramos_ciudades`) + **periodos de meses** (`periodos_meses`). Editores **dedicados**: `DialogoTramosCiudades.tsx` (+`validarTramosCiudades`, empieza en 1 ciudad, valor = factor) y `DialogoPeriodos.tsx` (+`validarPeriodos`, exige opción de 1 mes, meses únicos, descuento 0–90 %) — ninguno toca la escalera de comisiones.
+- [x] **Cálculo de precio + meses por adelantado** ✅ — `publicidad-precio.service.ts` (`calcularPrecioPublicidad(carruseles, ciudades, meses)`): `mensual = (Σ precios base) × factor(tramo) × (1−descuento si combo)`, `total = mensual × meses × (1−descuentoPeriodo)`. Cobro **pago único**; los meses extienden la vigencia (`meses × publicidad_duracion_dias`). Selector de meses en `/anunciate` y en el alta manual del Panel. Harness `probar-publicidad-precio.ts` **TODO VERDE** (9 cálculos + 9 validaciones).
+- [x] **Recibo PDF + correo al pagar + extender Recibos** ✅ — `recibo-publicidad.service.ts` (reusa `generarReciboPagoPDF`, carpeta R2 `recibos`, folio de la secuencia global) + `enviarComprobantePublicidad`, integrado en el alta manual y en `activarPublicidadPagada` (wizard); cortesía = correo sin recibo. **Recibos del Panel extendido** (`recibos.service.ts` reescrito a UNION membresía+publicidad, alcance por rol —vendedor NO ve publicidad—, descargar/reenviar por `origen`). Harness `probar-recibos-publicidad.ts` **TODO VERDE** (2 pub + 14 mem, búsqueda por folio, alcance).
+- [x] **Cron de expiración + aviso + limpieza de pendientes** ✅ — `publicidad-mantenimiento.service.ts` (expira `activa`+vencida → `expirada`; **`limpiarPendientesAbandonados`** borra los `pendiente` con >2 h —checkout rechazado/abandonado, cascade se lleva piezas+ciudades, R2 lo recoge el recolector—; avisa por correo 3 días antes con `aviso_vencimiento_enviado` anti-repetición) + `publicidad.cron.ts` (cada 12h, registrado en `index.ts`). Los `pendiente` además se **ocultan del listado/conteo del Panel** y la sesión de Stripe caduca en 1h (`expires_at`). Harness `probar-publicidad-mantenimiento.ts` **VERDE** (expiración).
+- [x] **Subida a R2 + imageRegistry** ✅ — presigned (`/publicidad/upload-imagen`) + `publicidad_piezas.imagen_url` registrada en `imageRegistry.ts` (el recolector no la borra).
+- [x] **Tracking de clics** ✅ — `POST /publicidad/pieza/:id/click` + la columna lo registra al ampliar la imagen.
+- [x] **Editar anuncio + KPIs de cabecera** ✅ — **Editar** (`editarAnuncio` + `PATCH /admin/publicidad/:id`): cambia ciudades·carruseles·imágenes, **sin tocar el cobro** (monto/folio/recibo intactos; reconcilia piezas conservando clics; ciudades por reemplazo); alcance super+gerente (gerente solo ciudades de su región, igual que el alta); auditoría `publicidad_editar`. UI: `DialogoEditarAnuncio.tsx` + botón **Editar** en la ficha (estado activa/pausada). **KPIs** (`obtenerKpisPublicidad` + `GET /admin/publicidad/kpis`): activos · ingresos (cobrado, sin cortesía/pendiente) · clics · por vencer (≤7 días), respetando el alcance por rol; banda en `SeccionPublicidad`. Las acciones `publicidad_*` (incl. editar) se agregaron al catálogo de **auditoría** (`accionesAuditoria.tsx`). Harness `probar-publicidad-acciones.ts` **TODO VERDE** (editar conserva clics / no toca monto / alcance 403 + KPIs). tsc api+admin verde.
+- [x] **Creatividades: optimización + sin huérfanas + UI horizontal** ✅ — las imágenes se **optimizan** en el navegador (WebP, máx 1600px — `optimizarImagen`, reusa el helper de ChatYA/BS en la app; uno propio en el Panel) antes de subir; como se suben al elegirlas, al cerrar/cancelar (alta/editar/wizard) el front manda las URLs de la sesión a `descartarImagenesHuerfanas` (`POST /publicidad/imagenes-descartadas`), que borra de R2 **solo las no referenciadas** (reference count vs `publicidad_piezas`, solo carpeta `publicidad/`); el recolector R2 queda de respaldo. **UI:** modales **Registrar** y **Editar** rediseñados horizontales (ancho `2xl` nuevo en `ModalAdaptativo` + 2 columnas) + acciones de la ficha como **íconos en el header** (`AccionesFicha`, como Usuarios) + KPIs inline en la fila de filtros. tsc api+admin+web verde.
+- [x] **GATE 2 + pulido visual** ✅ — harness `probar-publicidad-*.ts` verdes (lectura · acciones+editar+KPIs · precio+meses · alta · checkout · mantenimiento · recibos) + `tsc` api/admin/web. Modales horizontales (lg:grid · `2xl`) + acciones en íconos + KPIs inline; responsive lg/2xl.
+
+### Fase 3 — Cerrar
+- [x] `Publicidad.md` (doc canónico) al día + este checklist actualizado.
+- [x] Índices: tablero de módulos, `Panel_Admin.md`, memoria.
+- [ ] **Commit a `main`** (lo hace Juan).
+- [ ] **Operativo (Juan):** sumar el origen del **Panel** (`admin.anunciaya.mx`/`localhost:3100`) **y la app** al **CORS del bucket R2** `anunciaya-tickets` — sin eso, la subida de imágenes desde el navegador falla (los recibos no, los sube el backend).
+
+---
+
+## Criterios de aceptación (Definición de Terminado)
+1. El SuperAdmin fija precio base de los 3 carruseles + tramos por #ciudades + límite *X* + % del combo; cambiarlos **no** afecta anuncios ya vendidos.
+2. Un usuario compra un anuncio por el wizard (desde la columna), paga con tarjeta, sube imagen → se ve en sus ciudades, en toda la app **en desktop**, hasta expirar.
+3. El Gerente da de alta manual un anuncio (efectivo) en su región; **no** puede dar cortesía; el SuperAdmin sí.
+4. El Gerente solo ve/controla anuncios con ≥1 ciudad en su región; el SuperAdmin ve todo (con lente de región). El Vendedor recibe 403.
+5. El carrusel público muestra solo anuncios **vigentes** cuya ciudad coincide con la del usuario; el clic agranda la imagen y suma un `click`.
+6. Al pagar (self o manual) llega correo + **recibo PDF foliado** (numeración continua con membresías), visible en **Recibos** (super/gerente; vendedor no).
+7. **3 días antes** de vencer, llega el correo de aviso (una sola vez).
+8. Métricas: **KPIs de cabecera** (activos · ingresos · clics · por vencer ≤7d) en el alcance del rol. ✅
+
+## Decisiones tomadas (con default, revisables)
+- Anuncio que toca 2 regiones: ambos gerentes lo ven/gestionan; **cancelar = solo super**.
+- **Cortesía** no genera recibo de pago (sin cobro), pero sí correo de "publicidad activa".
+- Aviso por vencer = **solo correo** (sin campana por ahora).
+- **Combo** = una compra/pago/recibo, mismas ciudades y periodo, **3 imágenes** (una por formato).
+
+## Backlog / futuro
+- Que el clic lleve a un destino (perfil/oferta/link) en vez de solo zoom.
+- Publicidad en móvil.
+- Métricas avanzadas (CTR, por ciudad).
+- Cobro automático de efectivo de la publicidad enganchado a la cartera del vendedor (si algún día el vendedor la vende).

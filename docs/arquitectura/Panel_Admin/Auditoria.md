@@ -237,6 +237,8 @@ Las claves viven en `ACCION_LABEL` (`accionesAuditoria.tsx`) con su módulo por 
 | **Membresía** | precio_mensual_cambiar, plan_anual_activar, plan_anual_desactivar | **solo super** |
 | **Configuración** | config_actualizar | **solo super** |
 | **Recibos** | recibo_reenviar | super · gerente · vendedor |
+| **Publicidad** | alta_manual, editar, pausar, reactivar | super · gerente (su región) |
+| **Publicidad** | cancelar | **solo super** |
 
 ## Notas
 

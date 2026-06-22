@@ -29,6 +29,7 @@ import equipoRoutes from './equipo.routes.js';
 import vendedoresRoutes from './vendedores.routes.js';
 import recibosRoutes from './recibos.routes.js';
 import auditoriaRoutes from './auditoria.routes.js';
+import publicidadRoutes from './publicidad.routes.js';
 import regionesRoutes from './regiones.routes.js';
 import configuracionRoutes from './configuracion.routes.js';
 import ciudadesRoutes from './ciudades.routes.js';
@@ -91,6 +92,12 @@ router.use('/recibos', recibosRoutes);
 // las acciones de su equipo, alcance en el service). El vendedor no entra. Cada ruta trae su
 // propio requierePanel.
 router.use('/auditoria', auditoriaRoutes);
+
+// ─── Publicidad (superadmin + gerente · alcance por rol/región) ──────────────────
+// ANTES del gate global de superadmin: la sección la usa también el gerente (ve solo
+// los anuncios con ≥1 ciudad en su región, alcance en el service). El vendedor no entra.
+// Cada ruta trae su propio requierePanel.
+router.use('/publicidad', publicidadRoutes);
 
 // Gate común de toda la sección admin.
 // Dual durante la transición: acepta x-admin-secret (legacy, p.ej. reconcile R2)

@@ -1,6 +1,6 @@
 # 🧹 Mantenimiento R2 — Recolector de Basura de Archivos Huérfanos
 
-**Última actualización:** 18 Abril 2026
+**Última actualización:** 21 Junio 2026
 **Estado:** ✅ Operacional
 **Patrón técnico:** recolector de basura con algoritmo mark-and-sweep + reference counting + reconciliación cross-ambiente
 
@@ -56,7 +56,11 @@ apps/api/src/
 
 **Regla de oro**: al agregar una columna nueva que guarde URL de imagen, AGRÉGALA al registry. Si no está en el registry, el reconcile la tratará como "no en uso" y podría borrar el archivo físico.
 
-Cobertura actual (17 campos): `usuarios.avatar_url`, `negocios.logo_url`, `negocio_sucursales.foto_perfil`, `negocio_sucursales.portada_url`, `negocio_galeria.url`, `articulos.imagen_principal`, `articulos.imagenes_adicionales` (array), `pedido_articulos.imagen_url`, `ofertas.imagen`, `recompensas.imagen_url`, `empleados.foto_url`, `puntos_transacciones.foto_ticket_url`, `transacciones_evidencia.url_imagen`, `bolsa_trabajo.portafolio_url`, `notificaciones.actor_imagen_url`, `chat_mensajes.contenido` (text-scan-urls), `marketplace.imagenes` (text-scan-urls sobre JSONB).
+Cobertura actual (18 campos): `usuarios.avatar_url`, `negocios.logo_url`, `negocio_sucursales.foto_perfil`, `negocio_sucursales.portada_url`, `negocio_galeria.url`, `articulos.imagen_principal`, `articulos.imagenes_adicionales` (array), `pedido_articulos.imagen_url`, `ofertas.imagen`, `recompensas.imagen_url`, `empleados.foto_url`, `puntos_transacciones.foto_ticket_url`, `transacciones_evidencia.url_imagen`, `bolsa_trabajo.portafolio_url`, `notificaciones.actor_imagen_url`, `chat_mensajes.contenido` (text-scan-urls), `marketplace.imagenes` (text-scan-urls sobre JSONB), `publicidad_piezas.imagen_url`.
+
+### Limpieza preventiva (complementaria al recolector)
+
+Algunos flujos limpian sus huérfanas **al instante**, sin esperar al reconcile. **Publicidad** sube la creatividad al elegirla (antes de guardar el anuncio); al **cerrar/cancelar** el alta manual, la edición o el wizard `/anunciate`, el front manda las URLs subidas en la sesión y `descartarImagenesHuerfanas` (`POST /api/publicidad/imagenes-descartadas`) borra de R2 **solo las que ninguna pieza referencia** (reference counting contra `publicidad_piezas`, restringido a la carpeta `publicidad/`). Así las guardadas nunca se tocan y las canceladas/reemplazadas se limpian en el momento. El recolector queda como **red de seguridad** para lo que se escape (p. ej. cerrar la pestaña a media subida). Las creatividades, además, se **optimizan** en el navegador (WebP, máx 1600px) antes de subir, así que pesan menos en el bucket.
 
 No hay campos pendientes — scan exhaustivo del schema.
 

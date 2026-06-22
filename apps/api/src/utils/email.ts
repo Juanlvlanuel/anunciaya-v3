@@ -726,6 +726,66 @@ export async function enviarComprobantePagoMembresia(
 }
 
 /**
+ * Aviso al anunciante de que su publicidad está por vencer (cron de Publicidad, 3 días antes).
+ * Best-effort.
+ */
+export async function enviarAvisoVencimientoPublicidad(
+  correo: string,
+  nombre: string,
+  dias: number
+): Promise<ResultadoEmail> {
+  const cuando = dias <= 0 ? 'hoy' : dias === 1 ? 'mañana' : `en ${dias} días`;
+  const saludo = nombre ? `Hola ${escape(nombre)},` : 'Hola,';
+  const html = `
+    <div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; color: #1e293b;">
+      <h2 style="color: #2563eb;">Tu publicidad está por vencer</h2>
+      <p style="font-size: 14px; line-height: 1.6;">${saludo}</p>
+      <p style="font-size: 14px; line-height: 1.6;">Tu anuncio en AnunciaYA vence <strong>${cuando}</strong>. Si quieres seguir apareciendo en los carruseles de tu comunidad, vuelve a anunciarte desde la app.</p>
+      <p style="font-size: 13px; color: #64748b;">Gracias por anunciarte con nosotros.</p>
+    </div>`;
+  return enviarEmail(correo, 'Tu publicidad está por vencer — AnunciaYA', html);
+}
+
+/**
+ * Comprobante al anunciante cuando se registra/paga su publicidad (alta manual o wizard). Incluye el
+ * folio, el monto y la vigencia, y el botón de descarga del recibo PDF si se generó. Best-effort.
+ */
+export async function enviarComprobantePublicidad(
+  correo: string,
+  nombre: string,
+  datos: { titular: string; carruseles: string; concepto: string; monto: number | null; folio: number | null; hasta: string; reciboUrl?: string }
+): Promise<ResultadoEmail> {
+  const saludo = nombre ? `Hola ${escape(nombre)},` : 'Hola,';
+  const folioTxt = datos.folio != null ? ` · Folio #${String(datos.folio).padStart(5, '0')}` : '';
+  const esCortesia = datos.concepto === 'cortesia';
+  const montoTxt = esCortesia ? 'Cortesía' : datos.monto != null ? formatearMontoMXN(datos.monto) : '—';
+  let hastaTxt = datos.hasta;
+  try {
+    hastaTxt = new Date(datos.hasta).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
+  } catch {
+    /* deja el ISO si no parsea */
+  }
+  const botonRecibo = datos.reciboUrl
+    ? `<p style="margin: 18px 0;"><a href="${datos.reciboUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;">Descargar recibo</a></p>`
+    : '';
+  const html = `
+    <div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; color: #1e293b;">
+      <h2 style="color: #2563eb;">${esCortesia ? 'Tu publicidad está activa' : 'Gracias por anunciarte'}</h2>
+      <p style="font-size: 14px; line-height: 1.6;">${saludo}</p>
+      <p style="font-size: 14px; line-height: 1.6;">Tu publicidad en <strong>${escape(datos.carruseles)}</strong> ya está activa${folioTxt}.</p>
+      <table style="font-size: 14px; line-height: 1.8; color: #334155;">
+        <tr><td style="color:#64748b;padding-right:12px;">Anunciante</td><td><strong>${escape(datos.titular)}</strong></td></tr>
+        <tr><td style="color:#64748b;padding-right:12px;">Monto</td><td><strong>${montoTxt}</strong></td></tr>
+        <tr><td style="color:#64748b;padding-right:12px;">Vigente hasta</td><td>${hastaTxt}</td></tr>
+      </table>
+      ${botonRecibo}
+      <p style="font-size: 13px; color: #64748b;">Gracias por anunciarte con nosotros.</p>
+    </div>`;
+  const asunto = esCortesia ? 'Tu publicidad en AnunciaYA está activa' : 'Comprobante de pago — tu publicidad en AnunciaYA';
+  return enviarEmail(correo, asunto, html);
+}
+
+/**
  * Aviso al dueño de que un recibo suyo fue ANULADO/cancelado por el equipo. Transparencia de la
  * defensa Camino B: el negocio se entera de TODO movimiento, no solo de los cobros. Best-effort.
  */

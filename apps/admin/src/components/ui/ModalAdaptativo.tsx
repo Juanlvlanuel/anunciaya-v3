@@ -42,7 +42,7 @@ interface ModalAdaptativoProps {
    *  layout (header/body/footer fijos). Default false (scroll interno). */
   sinScrollInterno?: boolean;
   /** Ancho máximo en escritorio. */
-  ancho?: 'sm' | 'md' | 'lg' | 'xl';
+  ancho?: 'sm' | 'md' | 'lg' | 'xl' | '2xl';
   /** Altura máxima del bottom-sheet en móvil. */
   alturaMaxima?: 'sm' | 'md' | 'lg' | 'xl';
   /** Discriminador para useBackNativo (anidar modales sin choques). */
@@ -59,6 +59,7 @@ const ANCHOS: Record<NonNullable<ModalAdaptativoProps['ancho']>, string> = {
   md: 'max-w-[460px]',
   lg: 'max-w-[560px]',
   xl: 'max-w-[680px]',
+  '2xl': 'max-w-[880px]',
 };
 
 const ALTURAS: Record<NonNullable<ModalAdaptativoProps['alturaMaxima']>, string> = {

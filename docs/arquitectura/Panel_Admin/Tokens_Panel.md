@@ -58,15 +58,20 @@ cada tema. Tomado de `index.css`.
 | `peligro` | Acción destructiva | `#e0322f` | `#ff6360` |
 | `peligro-suave` | Fondo destructivo sutil | peligro 12% | (recalcula) |
 | `ok` | Éxito / positivo | `#0e8a52` | `#34c77b` |
+| `ok-suave` | Fondo positivo sutil (botones de acción en verde) | ok 13% | ok 18% |
 | `etiqueta-grupo` | Encabezado de grupo de menú | `#0431b9` | `#0431b9` |
 
 **Variables sin utilidad** (se usan con `var()` en clases arbitrarias, p. ej. focus de inputs):
 - `--panel-hover` (marca 13%) → anillo de foco corto: `focus:[box-shadow:0_0_0_3px_var(--panel-hover)]`
 - `--panel-ring` (marca 32%) → anillo de foco amplio: `focus:[box-shadow:0_0_0_4px_var(--panel-ring)]`
 - `--panel-bg` (`#f5f6f8` / `#050506`) — fondo base alterno.
+- `--panel-warn` (`#b7791f` / `#e0a020`) y `--panel-warn-weak` (warn 15% / 20%) — **ámbar de
+  advertencia** (estado "lento" de salud, avisos no destructivos). Estrenado en Mantenimiento. Se usa
+  inline: `style={{ color: 'var(--panel-warn)', background: 'var(--panel-warn-weak)' }}`.
 
 > **Regla de acento:** neutro (lienzo/superficie/texto) + **un** acento (`marca`). Nada de paletas
-> pastel saturadas. El `peligro` solo para destructivo; el `ok` solo para estados positivos.
+> pastel saturadas. El `peligro` solo para destructivo; el `ok` solo para estados positivos; el
+> `--panel-warn` (ámbar) solo para advertencias / estado intermedio (p. ej. un servicio "lento").
 
 ---
 

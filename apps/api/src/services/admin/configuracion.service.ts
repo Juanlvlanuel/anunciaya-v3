@@ -32,8 +32,10 @@ export interface TramoEscalera {
     montoPorActivo: number; // $ por negocio activo en ese tramo
 }
 
-/** Tipos de valor soportados en la UI de Configuración (subconjunto de configuracion_sistema.tipo). */
-export type TipoConfig = 'numero' | 'json';
+/** Tipos de valor soportados en la UI de Configuración (subconjunto de configuracion_sistema.tipo).
+ *  'json' = escalera de comisiones · 'tramos_ciudades' = multiplicador por #ciudades · 'periodos_meses' =
+ *  meses pagables por adelantado + descuento, ambos de Publicidad. */
+export type TipoConfig = 'numero' | 'json' | 'tramos_ciudades' | 'periodos_meses';
 
 /** Meta de una clave editable (el "catálogo"). */
 interface ClaveCatalogo {
@@ -74,6 +76,35 @@ export const ESCALERA_DEFAULT: TramoEscalera[] = [
     { min: 0, max: 9, montoPorActivo: 0 },
     { min: 10, max: 24, montoPorActivo: 30 },
     { min: 25, max: null, montoPorActivo: 50 },
+];
+
+/** Un tramo del multiplicador por # de ciudades de Publicidad: a más ciudades, mayor factor. */
+export interface TramoCiudades {
+    min: number;        // desde N ciudades (inclusive)
+    max: number | null; // hasta (inclusive); null = sin tope (solo el último tramo)
+    factor: number;     // multiplicador del precio base del carrusel
+}
+
+/** Multiplicador por ciudades por defecto (el super lo ajusta desde "Publicidad" en Configuración). */
+export const TRAMOS_CIUDADES_DEFAULT: TramoCiudades[] = [
+    { min: 1, max: 1, factor: 1 },
+    { min: 2, max: 3, factor: 1.8 },
+    { min: 4, max: 6, factor: 2.5 },
+    { min: 7, max: null, factor: 3 },
+];
+
+/** Una opción de meses pagables por adelantado de Publicidad (con su descuento por volumen de tiempo). */
+export interface TramoPeriodo {
+    meses: number;      // cuántos meses se pagan de una
+    descuento: number;  // % de descuento de esa opción (0–90)
+}
+
+/** Periodos por defecto (el super los ajusta desde "Publicidad" en Configuración). */
+export const PERIODOS_DEFAULT: TramoPeriodo[] = [
+    { meses: 1, descuento: 0 },
+    { meses: 3, descuento: 10 },
+    { meses: 6, descuento: 15 },
+    { meses: 12, descuento: 25 },
 ];
 
 /** Allow-list de lo que la pantalla puede editar en v1. Las claves se sirven en este orden. */
@@ -121,6 +152,106 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
         min: 0,
         max: 60,
         porDefecto: '14',
+    },
+    // ─── Publicidad (módulo 7) — el super fija precios y reglas de la pauta ───────
+    {
+        clave: 'publicidad_precio_anuncios',
+        etiqueta: 'Precio · Anuncios',
+        descripcion: 'Precio base de un espacio en el carrusel Anuncios (1 ciudad).',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: 'MXN',
+        min: 0,
+        max: 100000,
+        porDefecto: '300',
+    },
+    {
+        clave: 'publicidad_precio_patrocinadores',
+        etiqueta: 'Precio · Patrocinadores',
+        descripcion: 'Precio base de un espacio en el carrusel Patrocinadores (1 ciudad).',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: 'MXN',
+        min: 0,
+        max: 100000,
+        porDefecto: '800',
+    },
+    {
+        clave: 'publicidad_precio_fundadores',
+        etiqueta: 'Precio · Fundadores',
+        descripcion: 'Precio base de un espacio en el carrusel Fundadores (1 ciudad).',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: 'MXN',
+        min: 0,
+        max: 100000,
+        porDefecto: '500',
+    },
+    {
+        clave: 'publicidad_tramos_ciudades',
+        etiqueta: 'Multiplicador por ciudades',
+        descripcion: 'Cuánto sube el precio según en cuántas ciudades aparece el anuncio.',
+        tipo: 'tramos_ciudades',
+        categoria: 'publicidad',
+        unidad: null,
+        min: null,
+        max: null,
+        porDefecto: JSON.stringify(TRAMOS_CIUDADES_DEFAULT),
+    },
+    {
+        clave: 'publicidad_combo_descuento',
+        etiqueta: 'Descuento del combo',
+        descripcion: 'Descuento al comprar los 3 carruseles juntos.',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: '%',
+        min: 0,
+        max: 90,
+        porDefecto: '15',
+    },
+    {
+        clave: 'publicidad_limite_ciudades',
+        etiqueta: 'Máximo de ciudades por anuncio',
+        descripcion: 'Cuántas ciudades como máximo puede seleccionar un anuncio.',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: 'ciudades',
+        min: 1,
+        max: 100,
+        porDefecto: '10',
+    },
+    {
+        clave: 'publicidad_duracion_dias',
+        etiqueta: 'Duración del anuncio',
+        descripcion: 'Días que dura un anuncio desde que se publica.',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: 'días',
+        min: 1,
+        max: 365,
+        porDefecto: '30',
+    },
+    {
+        clave: 'publicidad_aviso_dias',
+        etiqueta: 'Aviso antes de vencer',
+        descripcion: 'Días antes del vencimiento para avisar al anunciante por correo.',
+        tipo: 'numero',
+        categoria: 'publicidad',
+        unidad: 'días',
+        min: 0,
+        max: 30,
+        porDefecto: '3',
+    },
+    {
+        clave: 'publicidad_periodos',
+        etiqueta: 'Meses por adelantado y descuento',
+        descripcion: 'Cuántos meses puede pagar por adelantado el anunciante y el descuento de cada opción.',
+        tipo: 'periodos_meses',
+        categoria: 'publicidad',
+        unidad: null,
+        min: null,
+        max: null,
+        porDefecto: JSON.stringify(PERIODOS_DEFAULT),
     },
 ];
 

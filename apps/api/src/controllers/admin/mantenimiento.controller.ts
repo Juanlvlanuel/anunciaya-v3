@@ -16,9 +16,21 @@ import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import {
     generarReporteReconcile,
-    ejecutarLimpiezaR2,
     type OpcionesReconcile,
 } from '../../services/admin/mantenimiento.service.js';
+import {
+    puedeEjecutarLimpiezaR2,
+    ejecutarLimpiezaR2Segura,
+    LimpiezaBloqueadaError,
+    ejecutarCronManual,
+    CronDesconocidoError,
+    purgarCacheConfig,
+    vaciarLogsBE,
+} from '../../services/admin/mantenimiento-acciones.service.js';
+import { obtenerPreviewCron } from '../../services/admin/crons-preview.service.js';
+import { obtenerSaludSistema } from '../../services/admin/salud.service.js';
+import { obtenerLogs, type NivelLog } from '../../utils/logBuffer.js';
+import { obtenerEstadoCrons } from '../../utils/cronRegistry.js';
 
 // =============================================================================
 // GET /api/admin/mantenimiento/r2-reconcile
@@ -45,7 +57,12 @@ export async function getReporteReconcileController(req: Request, res: Response)
 
         const reporte = await generarReporteReconcile(opciones);
 
-        res.status(200).json({ success: true, data: reporte });
+        // `puedeEjecutar` le dice a la UI si el borrado está habilitado (solo con
+        // acceso cross-ambiente / local). En prod queda en false.
+        res.status(200).json({
+            success: true,
+            data: { ...reporte, puedeEjecutar: puedeEjecutarLimpiezaR2() },
+        });
     } catch (error) {
         console.error('Error en getReporteReconcileController:', error);
         res.status(500).json({
@@ -83,15 +100,19 @@ export async function postEjecutarReconcileController(req: Request, res: Respons
             return;
         }
 
-        const opciones: OpcionesReconcile = { dryRun: false };
+        const opciones: Omit<OpcionesReconcile, 'dryRun'> = {};
         if (Array.isArray(carpetas) && carpetas.length > 0) opciones.soloCarpetas = carpetas;
         if (typeof gracia === 'number' && gracia >= 0) opciones.minutosGracia = gracia;
         if (typeof maxBorrados === 'number' && maxBorrados > 0) opciones.maxBorrados = maxBorrados;
 
-        const resultado = await ejecutarLimpiezaR2(opciones);
+        const resultado = await ejecutarLimpiezaR2Segura(req.usuarioPanel!, opciones);
 
         res.status(200).json({ success: true, data: resultado });
     } catch (error) {
+        if (error instanceof LimpiezaBloqueadaError) {
+            res.status(409).json({ success: false, message: error.message });
+            return;
+        }
         console.error('Error en postEjecutarReconcileController:', error);
         res.status(500).json({
             success: false,
@@ -153,6 +174,170 @@ export async function getReconcileLogController(req: Request, res: Response): Pr
         res.status(500).json({
             success: false,
             message: 'Error al obtener log de reconcile',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/mantenimiento/salud
+// =============================================================================
+
+/**
+ * Estado de salud del sistema: pinguea BD, Redis, R2 y Stripe y reporta estado +
+ * latencia de cada uno. Solo lectura.
+ */
+export async function getSaludController(_req: Request, res: Response): Promise<void> {
+    try {
+        const salud = await obtenerSaludSistema();
+        res.status(200).json({ success: true, data: salud });
+    } catch (error) {
+        console.error('Error en getSaludController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener la salud del sistema',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/mantenimiento/logs
+// =============================================================================
+
+/**
+ * Ventana de logs recientes capturados en memoria. Query params:
+ *  - `nivel`: 'info' | 'warn' | 'error' (filtra; si falta, todos)
+ *  - `limite`: cantidad máxima de entradas (tope interno del buffer)
+ */
+export async function getLogsController(req: Request, res: Response): Promise<void> {
+    try {
+        const nivelQuery = req.query.nivel;
+        const nivel: NivelLog | undefined =
+            nivelQuery === 'info' || nivelQuery === 'warn' || nivelQuery === 'error'
+                ? nivelQuery
+                : undefined;
+
+        let limite: number | undefined;
+        if (typeof req.query.limite === 'string') {
+            const n = parseInt(req.query.limite, 10);
+            if (!isNaN(n) && n > 0) limite = n;
+        }
+
+        const logs = obtenerLogs({ nivel, limite });
+        res.status(200).json({ success: true, data: { logs, total: logs.length } });
+    } catch (error) {
+        console.error('Error en getLogsController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener los logs',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/mantenimiento/crons
+// =============================================================================
+
+/**
+ * Estado de las tareas programadas: catálogo + última corrida (telemetría en
+ * memoria de esta instancia). Solo lectura.
+ */
+export function getCronsController(_req: Request, res: Response): void {
+    try {
+        const crons = obtenerEstadoCrons();
+        res.status(200).json({ success: true, data: { crons } });
+    } catch (error) {
+        console.error('Error en getCronsController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener el estado de los crons',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/mantenimiento/crons/:id/preview
+// =============================================================================
+
+/** Preview de qué haría un cron si se ejecutara ahora (conteo + descripción). */
+export async function getPreviewCronController(req: Request, res: Response): Promise<void> {
+    try {
+        const preview = await obtenerPreviewCron(req.params.id);
+        if (!preview) {
+            res.status(404).json({ success: false, message: 'Tarea programada desconocida.' });
+            return;
+        }
+        res.status(200).json({ success: true, data: preview });
+    } catch (error) {
+        console.error('Error en getPreviewCronController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al obtener el preview de la tarea',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/mantenimiento/crons/:id/ejecutar
+// =============================================================================
+
+/** Fuerza la corrida de un cron sin esperar su horario. */
+export async function postEjecutarCronController(req: Request, res: Response): Promise<void> {
+    try {
+        const { id } = req.params;
+        const estado = await ejecutarCronManual(req.usuarioPanel!, id);
+        res.status(200).json({ success: true, data: { cron: estado } });
+    } catch (error) {
+        if (error instanceof CronDesconocidoError) {
+            res.status(404).json({ success: false, message: error.message });
+            return;
+        }
+        console.error('Error en postEjecutarCronController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al ejecutar la tarea programada',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/mantenimiento/cache/purgar
+// =============================================================================
+
+/** Purga el caché en memoria de configuración del sistema. */
+export async function postPurgarCacheController(req: Request, res: Response): Promise<void> {
+    try {
+        await purgarCacheConfig(req.usuarioPanel!);
+        res.status(200).json({ success: true, message: 'Caché de configuración purgado.' });
+    } catch (error) {
+        console.error('Error en postPurgarCacheController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al purgar el caché',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// POST /api/admin/mantenimiento/logs/vaciar
+// =============================================================================
+
+/** Vacía el buffer de logs en memoria. */
+export async function postVaciarLogsController(req: Request, res: Response): Promise<void> {
+    try {
+        await vaciarLogsBE(req.usuarioPanel!);
+        res.status(200).json({ success: true, message: 'Logs vaciados.' });
+    } catch (error) {
+        console.error('Error en postVaciarLogsController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al vaciar los logs',
             error: error instanceof Error ? error.message : String(error),
         });
     }

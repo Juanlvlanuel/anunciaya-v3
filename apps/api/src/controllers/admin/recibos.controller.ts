@@ -15,6 +15,7 @@ import {
     panelConFiltroRegion,
     ORDENES_RECIBO,
     type OrdenRecibo,
+    type OrigenRecibo,
 } from '../../services/admin/recibos.service.js';
 import { reenviarReciboSchema } from '../../validations/admin/recibos.schema.js';
 
@@ -64,7 +65,8 @@ export async function listarRecibosController(req: Request, res: Response): Prom
 export async function descargarReciboController(req: Request, res: Response): Promise<void> {
     try {
         const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
-        const r = await descargarRecibo(panel, req.params.id);
+        const origen: OrigenRecibo = req.query.origen === 'publicidad' ? 'publicidad' : 'membresia';
+        const r = await descargarRecibo(panel, req.params.id, origen);
         if (!r.ok) {
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;
@@ -88,7 +90,8 @@ export async function reenviarReciboController(req: Request, res: Response): Pro
             return;
         }
         const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
-        const r = await reenviarRecibo(panel, req.params.id, parsed.data.correos);
+        const origen: OrigenRecibo = req.query.origen === 'publicidad' ? 'publicidad' : 'membresia';
+        const r = await reenviarRecibo(panel, req.params.id, parsed.data.correos, origen);
         if (!r.ok) {
             res.status(r.status).json({ success: false, message: r.mensaje });
             return;

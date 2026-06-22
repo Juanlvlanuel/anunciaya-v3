@@ -159,6 +159,21 @@ export async function autoPausarExpirados(): Promise<ResultadoAutoPausa> {
     return resultado;
 }
 
+/**
+ * Cuenta (sin actuar) los artículos que `autoPausarExpirados` pausaría ahora.
+ * Misma condición que el UPDATE de arriba — para el preview del cron.
+ */
+export async function contarExpiradosMarketplace(): Promise<number> {
+    const r = await db.execute<{ n: number }>(sql`
+        SELECT COUNT(*)::int AS n
+        FROM articulos_marketplace
+        WHERE estado = 'activa'
+          AND deleted_at IS NULL
+          AND expira_at < NOW()
+    `);
+    return Number(r.rows[0]?.n ?? 0);
+}
+
 // =============================================================================
 // 2. NOTIFICAR PRÓXIMA EXPIRACIÓN (3 DÍAS ANTES)
 // =============================================================================

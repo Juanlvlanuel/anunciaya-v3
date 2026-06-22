@@ -24,12 +24,13 @@ import { chatConversaciones, chatMensajes } from '../db/schemas/schema.js';
 import { sql, lt, eq } from 'drizzle-orm';
 import { eliminarArchivo, esUrlR2 } from '../services/r2.service.js';
 import { env } from '../config/env.js';
+import { registrarEjecucionCron } from '../utils/cronRegistry.js';
 
 // =============================================================================
 // FUNCIÓN PRINCIPAL DE LIMPIEZA
 // =============================================================================
 
-async function limpiarConversacionesInactivas(): Promise<void> {
+export async function limpiarConversacionesInactivas(): Promise<void> {
   const inicio = Date.now();
 
   try {
@@ -48,6 +49,11 @@ async function limpiarConversacionesInactivas(): Promise<void> {
       .where(lt(chatConversaciones.updatedAt, fechaLimiteStr));
 
     if (inactivas.length === 0) {
+      registrarEjecucionCron('chatya', {
+        ok: true,
+        duracionMs: Date.now() - inicio,
+        resultado: 'Sin conversaciones inactivas',
+      });
       console.log(`[ChatYA Cron] Sin conversaciones inactivas. (${Date.now() - inicio}ms)`);
       return;
     }
@@ -103,11 +109,35 @@ async function limpiarConversacionesInactivas(): Promise<void> {
     }
 
     const duracion = Date.now() - inicio;
+    registrarEjecucionCron('chatya', {
+      ok: true,
+      duracionMs: duracion,
+      resultado: `${eliminadas}/${inactivas.length} eliminadas`,
+    });
     console.log(`[ChatYA Cron] Limpieza completada: ${eliminadas}/${inactivas.length} eliminadas (${duracion}ms)`);
 
   } catch (error) {
+    registrarEjecucionCron('chatya', {
+      ok: false,
+      duracionMs: Date.now() - inicio,
+      resultado: error instanceof Error ? error.message : String(error),
+    });
     console.error('[ChatYA Cron] Error en limpieza:', error);
   }
+}
+
+/**
+ * Cuenta (sin borrar) las conversaciones que `limpiarConversacionesInactivas`
+ * eliminaría ahora (inactivas más de 6 meses). Para el preview del cron en el Panel.
+ */
+export async function contarConversacionesInactivas(): Promise<number> {
+  const fechaLimite = new Date();
+  fechaLimite.setMonth(fechaLimite.getMonth() - 6);
+  const [r] = await db
+    .select({ n: sql<number>`COUNT(*)::int` })
+    .from(chatConversaciones)
+    .where(lt(chatConversaciones.updatedAt, fechaLimite.toISOString()));
+  return Number(r?.n ?? 0);
 }
 
 // =============================================================================

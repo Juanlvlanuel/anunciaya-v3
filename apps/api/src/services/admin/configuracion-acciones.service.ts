@@ -21,7 +21,7 @@ import { configuracionSistema } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { resetearCacheConfig } from '../configuracion.service.js';
-import { CONFIG_EDITABLE, type TramoEscalera } from './configuracion.service.js';
+import { CONFIG_EDITABLE, type TramoEscalera, type TramoCiudades, type TramoPeriodo } from './configuracion.service.js';
 
 export type ResultadoAccionConfig =
     | { ok: true; clave: string; etiqueta: string; valor: string }
@@ -107,6 +107,110 @@ export function validarEscalera(crudo: string): Validacion {
     return { ok: true, valor: JSON.stringify(tramos) };
 }
 
+/**
+ * Valida el multiplicador por #ciudades de Publicidad. A diferencia de la escalera de comisiones,
+ * empieza en 1 ciudad (no en 0) y su valor es un `factor` (multiplicador), no un monto. Reglas:
+ *   - al menos un tramo; el primero arranca en 1;
+ *   - cada tramo: min entero ≥ 1, factor ≥ 0; tope (max) entero ≥ min, o vacío en el último;
+ *   - sin huecos ni solapes (min = max_anterior + 1); solo el último queda sin tope.
+ */
+export function validarTramosCiudades(crudo: string): Validacion {
+    let datos: unknown;
+    try {
+        datos = JSON.parse(crudo);
+    } catch {
+        return { ok: false, mensaje: 'Los tramos no tienen un formato válido.' };
+    }
+    if (!Array.isArray(datos) || datos.length === 0) {
+        return { ok: false, mensaje: 'Debe haber al menos un tramo.' };
+    }
+
+    const tramos: TramoCiudades[] = [];
+    for (const t of datos) {
+        if (typeof t !== 'object' || t === null) {
+            return { ok: false, mensaje: 'Cada tramo debe tener desde, hasta y factor.' };
+        }
+        const min = (t as Record<string, unknown>).min;
+        const max = (t as Record<string, unknown>).max;
+        const factor = (t as Record<string, unknown>).factor;
+        if (!Number.isInteger(min) || (min as number) < 1) {
+            return { ok: false, mensaje: 'El "desde" de cada tramo debe ser un entero ≥ 1.' };
+        }
+        if (max !== null && (!Number.isInteger(max) || (max as number) < (min as number))) {
+            return { ok: false, mensaje: 'El "hasta" debe ser un entero ≥ su "desde" (o vacío para "sin tope").' };
+        }
+        if (typeof factor !== 'number' || !Number.isFinite(factor) || factor < 0) {
+            return { ok: false, mensaje: 'El factor debe ser un número ≥ 0.' };
+        }
+        tramos.push({ min: min as number, max: max as number | null, factor });
+    }
+
+    if (tramos[0].min !== 1) {
+        return { ok: false, mensaje: 'El primer tramo debe empezar en 1 ciudad.' };
+    }
+    for (let i = 0; i < tramos.length; i++) {
+        const esUltimo = i === tramos.length - 1;
+        if (esUltimo) {
+            if (tramos[i].max !== null) {
+                return { ok: false, mensaje: 'El último tramo debe quedar sin tope (cubre de su mínimo en adelante).' };
+            }
+        } else {
+            if (tramos[i].max === null) {
+                return { ok: false, mensaje: 'Solo el último tramo puede quedar sin tope.' };
+            }
+            if (tramos[i + 1].min !== (tramos[i].max as number) + 1) {
+                return { ok: false, mensaje: 'Los tramos no pueden dejar huecos ni encimarse: cada uno empieza justo donde termina el anterior.' };
+            }
+        }
+    }
+
+    return { ok: true, valor: JSON.stringify(tramos) };
+}
+
+/**
+ * Valida los periodos pagables por adelantado de Publicidad: cada opción es { meses ≥ 1, descuento 0–90 },
+ * sin meses repetidos, y debe existir la opción de 1 mes (la base sin descuento). Se reordena por meses.
+ */
+export function validarPeriodos(crudo: string): Validacion {
+    let datos: unknown;
+    try {
+        datos = JSON.parse(crudo);
+    } catch {
+        return { ok: false, mensaje: 'Los periodos no tienen un formato válido.' };
+    }
+    if (!Array.isArray(datos) || datos.length === 0) {
+        return { ok: false, mensaje: 'Debe haber al menos un periodo.' };
+    }
+
+    const periodos: TramoPeriodo[] = [];
+    const vistos = new Set<number>();
+    for (const t of datos) {
+        if (typeof t !== 'object' || t === null) {
+            return { ok: false, mensaje: 'Cada periodo debe tener meses y descuento.' };
+        }
+        const meses = (t as Record<string, unknown>).meses;
+        const descuento = (t as Record<string, unknown>).descuento;
+        if (!Number.isInteger(meses) || (meses as number) < 1) {
+            return { ok: false, mensaje: 'Los meses deben ser un entero ≥ 1.' };
+        }
+        if (vistos.has(meses as number)) {
+            return { ok: false, mensaje: 'No repitas el mismo número de meses.' };
+        }
+        vistos.add(meses as number);
+        if (typeof descuento !== 'number' || !Number.isFinite(descuento) || descuento < 0 || descuento > 90) {
+            return { ok: false, mensaje: 'El descuento de cada periodo debe estar entre 0 y 90%.' };
+        }
+        periodos.push({ meses: meses as number, descuento });
+    }
+
+    periodos.sort((a, b) => a.meses - b.meses);
+    if (periodos[0].meses !== 1) {
+        return { ok: false, mensaje: 'Debe existir la opción de 1 mes (la base, normalmente sin descuento).' };
+    }
+
+    return { ok: true, valor: JSON.stringify(periodos) };
+}
+
 // =============================================================================
 // ACTUALIZAR UN VALOR
 // =============================================================================
@@ -131,7 +235,11 @@ export async function actualizarConfig(
     const valorPrevio = prev?.valor ?? cat.porDefecto;
 
     // Validación según el tipo declarado en el catálogo.
-    const v = cat.tipo === 'numero' ? validarNumero(cat.min, cat.max, valorCrudo) : validarEscalera(valorCrudo);
+    const v =
+        cat.tipo === 'numero' ? validarNumero(cat.min, cat.max, valorCrudo)
+        : cat.tipo === 'tramos_ciudades' ? validarTramosCiudades(valorCrudo)
+        : cat.tipo === 'periodos_meses' ? validarPeriodos(valorCrudo)
+        : validarEscalera(valorCrudo);
     if (!v.ok) return { ok: false, status: 400, mensaje: v.mensaje };
     const valorNuevo = v.valor;
 

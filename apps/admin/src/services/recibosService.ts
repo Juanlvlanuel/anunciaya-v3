@@ -15,12 +15,14 @@
 import { api, type RespuestaAPI } from './api';
 
 export type OrdenRecibo = 'folio_desc' | 'folio_asc' | 'fecha_recientes' | 'fecha_antiguos';
+export type OrigenRecibo = 'membresia' | 'publicidad';
 
 /** Una fila de la lista de recibos. */
 export interface ReciboFila {
   id: string;
+  origen: OrigenRecibo;
   folio: number | null;
-  negocioId: string;
+  negocioId: string | null;
   negocioNombre: string | null;
   logoUrl: string | null;
   ciudad: string | null;
@@ -56,14 +58,14 @@ export async function listarRecibos(params: ParametrosRecibos): Promise<ListaRec
 }
 
 /** Genera/regenera el PDF del recibo y devuelve su URL en R2. */
-export async function descargarRecibo(id: string): Promise<string> {
-  const { data } = await api.get<RespuestaAPI<{ reciboUrl: string }>>(`/admin/recibos/${id}/pdf`);
+export async function descargarRecibo(id: string, origen: OrigenRecibo): Promise<string> {
+  const { data } = await api.get<RespuestaAPI<{ reciboUrl: string }>>(`/admin/recibos/${id}/pdf`, { params: { origen } });
   if (!data.data?.reciboUrl) throw new Error(data.message || 'No se pudo generar el recibo');
   return data.data.reciboUrl;
 }
 
 /** Reenvía el comprobante a la lista de correos. Devuelve cuántos se enviaron. */
-export async function reenviarRecibo(id: string, correos: string[]): Promise<number> {
-  const { data } = await api.post<RespuestaAPI<{ enviados: number }>>(`/admin/recibos/${id}/reenviar`, { correos });
+export async function reenviarRecibo(id: string, correos: string[], origen: OrigenRecibo): Promise<number> {
+  const { data } = await api.post<RespuestaAPI<{ enviados: number }>>(`/admin/recibos/${id}/reenviar`, { correos }, { params: { origen } });
   return data.data?.enviados ?? 0;
 }
