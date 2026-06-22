@@ -29,11 +29,13 @@ import {
   Ban,
   Pencil,
   Send,
+  Star,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
   useSuspenderNegocio,
   useReactivarNegocio,
+  useMarcarDesmarcarFundador,
   useReasignarVendedor,
   useMarcarPagado,
   useCancelarNegocio,
@@ -76,6 +78,7 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
     activo: null,
     esBorrador: null,
     verificado: null,
+    esFundador: false,
     onboardingCompletado: false,
     creadoEn: f.alta,
     fechaPrimerPago: null,
@@ -303,10 +306,11 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   // `data` siempre existe (placeholder de la fila o datos reales) → ficha al instante.
   const n = data ?? placeholderDesdeFila(previo);
 
-  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar' | 'editar-correo'>(null);
+  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar' | 'editar-correo' | 'fundador'>(null);
   const [verLogo, setVerLogo] = useState(false);
   const suspender = useSuspenderNegocio();
   const reactivar = useReactivarNegocio();
+  const fundador = useMarcarDesmarcarFundador();
   const reasignar = useReasignarVendedor();
   const marcarPagado = useMarcarPagado();
   const cancelar = useCancelarNegocio();
@@ -388,6 +392,16 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         motivoDisabled: archivado ? motivoArchivado : undefined,
       });
     }
+    // Fundador de su ciudad (regalo de Publicidad): su logo va al carrusel Fundadores.
+    acciones.push({
+      icono: Star,
+      etiqueta: n.esFundador ? 'Quitar Fundador' : 'Marcar Fundador',
+      color: n.esFundador ? 'ambar' : 'ok',
+      testid: 'ficha-accion-fundador',
+      onClick: () => setDialogo('fundador'),
+      disabled: archivado,
+      motivoDisabled: archivado ? motivoArchivado : undefined,
+    });
   }
 
   return (
@@ -581,6 +595,19 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         requiereMotivo
         cargando={cancelar.isPending}
         onConfirmar={(motivo) => cancelar.mutate({ id: previo.id, motivo }, { onSuccess: cerrarDialogo })}
+      />
+    )}
+    {dialogo === 'fundador' && (
+      <DialogoConfirmar
+        abierto
+        onCerrar={cerrarDialogo}
+        titulo={n.esFundador ? 'Quitar Fundador' : 'Marcar como Fundador'}
+        mensaje={n.esFundador
+          ? 'El logo del negocio dejará de aparecer en el carrusel de Fundadores de su ciudad.'
+          : 'El logo del negocio aparecerá en el carrusel de Fundadores de su ciudad (regalo, sin costo). Cupo de 50 por ciudad; el negocio debe tener logo y sucursal principal.'}
+        textoConfirmar={n.esFundador ? 'Quitar' : 'Marcar Fundador'}
+        cargando={fundador.isPending}
+        onConfirmar={() => fundador.mutate({ id: previo.id, esFundador: !n.esFundador }, { onSuccess: cerrarDialogo })}
       />
     )}
     {dialogo === 'editar-correo' && (

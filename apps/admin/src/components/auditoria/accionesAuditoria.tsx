@@ -60,6 +60,8 @@ export const ACCION_LABEL: Record<string, string> = {
   negocio_editar_pago: 'Editó un pago',
   negocio_reenviar_recibo: 'Reenvió un comprobante',
   negocio_anular_pago: 'Anuló un pago',
+  negocio_marcar_fundador: 'Marcó un negocio como Fundador',
+  negocio_quitar_fundador: 'Quitó el Fundador de un negocio',
   // Usuarios
   usuario_desbloquear_intentos: 'Desbloqueó intentos de acceso',
   usuario_generar_codigo_acceso: 'Generó un código de acceso',

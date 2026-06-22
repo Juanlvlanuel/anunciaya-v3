@@ -156,8 +156,8 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     // ─── Publicidad (módulo 7) — el super fija precios y reglas de la pauta ───────
     {
         clave: 'publicidad_precio_anuncios',
-        etiqueta: 'Precio · Anuncios',
-        descripcion: 'Precio base por 1 ciudad.',
+        etiqueta: 'Precio · Chico',
+        descripcion: 'Tarjeta pequeña. Precio base por 1 ciudad.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'MXN',
@@ -167,25 +167,14 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     },
     {
         clave: 'publicidad_precio_patrocinadores',
-        etiqueta: 'Precio · Patrocinadores',
-        descripcion: 'Precio base por 1 ciudad.',
+        etiqueta: 'Precio · Grande',
+        descripcion: 'Banner grande. Precio base por 1 ciudad.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: 'MXN',
         min: 0,
         max: 100000,
         porDefecto: '800',
-    },
-    {
-        clave: 'publicidad_precio_fundadores',
-        etiqueta: 'Precio · Fundadores',
-        descripcion: 'Precio base por 1 ciudad.',
-        tipo: 'numero',
-        categoria: 'publicidad',
-        unidad: 'MXN',
-        min: 0,
-        max: 100000,
-        porDefecto: '500',
     },
     {
         clave: 'publicidad_tramos_ciudades',
@@ -201,7 +190,7 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
         clave: 'publicidad_combo_descuento',
         etiqueta: 'Descuento del combo',
-        descripcion: 'Al llevar los 3 carruseles juntos.',
+        descripcion: 'Al llevar los 2 tamaños juntos.',
         tipo: 'numero',
         categoria: 'publicidad',
         unidad: '%',

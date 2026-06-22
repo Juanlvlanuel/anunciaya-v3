@@ -22,7 +22,9 @@ import { subirImagenPublicidad, descartarImagenesPublicidad, type Carrusel } fro
 import { toast } from '../../stores/useToastPanel';
 import { CARRUSEL_LABEL } from './presentacionPublicidad';
 
-const CARRUSELES: Carrusel[] = ['anuncios', 'patrocinadores', 'fundadores'];
+// Se vende por TAMAÑO: Grande (patrocinadores) arriba · Chico (anuncios) abajo.
+// 'fundadores' ya no se vende (es regalo manual a los primeros negocios de cada ciudad).
+const CARRUSELES: Carrusel[] = ['patrocinadores', 'anuncios'];
 type MetodoCobro = 'efectivo' | 'transferencia' | 'cortesia';
 
 const FMT = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
@@ -148,7 +150,7 @@ export function DialogoAltaManual({ rol, onCerrar }: { rol: RolPanel; onCerrar: 
           <div className="flex flex-col gap-4">
           {/* Carruseles + imágenes */}
           <div>
-            <label className={LABEL}>Carruseles e imágenes</label>
+            <label className={LABEL}>Tamaño e imagen</label>
             <div className="flex flex-col gap-2">
               {CARRUSELES.map((c) => {
                 const activo = carruseles.includes(c);

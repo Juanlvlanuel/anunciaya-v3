@@ -291,8 +291,8 @@ function PilaConfig({ filas, onEditar }: { filas: ConfigFila[]; onEditar: (c: Co
 /** Identidad visual de cada carrusel — mismo ícono y acento que el wizard del anunciante (apps/web,
  *  PaginaAnunciate.tsx) para que el super reconozca el espacio que está poniendo precio. */
 const META_CARRUSEL: Record<string, { nombre: string; Icono: typeof Megaphone; acento: string }> = {
-  publicidad_precio_anuncios: { nombre: 'Anuncios', Icono: Megaphone, acento: 'bg-amber-500' },
-  publicidad_precio_patrocinadores: { nombre: 'Patrocinadores', Icono: Star, acento: 'bg-blue-600' },
+  publicidad_precio_patrocinadores: { nombre: 'Grande', Icono: Star, acento: 'bg-blue-600' },
+  publicidad_precio_anuncios: { nombre: 'Chico', Icono: Megaphone, acento: 'bg-amber-500' },
   publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: 'bg-violet-600' },
 };
 
@@ -441,7 +441,7 @@ export function SeccionConfiguracion() {
                 <div className="flex flex-col gap-7">
                   {preciosCarrusel.length > 0 && (
                     <section>
-                      <EncabezadoGrupo Icono={Tag} titulo="Precios de los carruseles" color={ACENTO_GRUPO.carruseles} />
+                      <EncabezadoGrupo Icono={Tag} titulo="Precios por tamaño" color={ACENTO_GRUPO.carruseles} />
                       <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
                         {preciosCarrusel.map((c) => (
                           <TarjetaPrecioCarrusel key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />

@@ -1,30 +1,51 @@
 /**
  * ColumnaDerecha.tsx
  * ==================
- * Columna lateral derecha (solo desktop) — los 3 carruseles de PUBLICIDAD: Anuncios,
- * Patrocinadores y Fundadores. Se vende el ESPACIO: cada anunciante sube su propia imagen.
- * Aquí solo se MUESTRAN las imágenes vigentes de la ciudad activa; el clic agranda la imagen
- * (lightbox). Datos reales vía `usePublicidad` (GET /api/publicidad?ciudadId=).
+ * Columna lateral derecha (solo desktop). Un bloque "PUBLICIDAD" con los 2 tamaños de anuncio inline
+ * (GRANDE arriba, CHICO abajo, sin cards) + los logos de FUNDADORES (regalo a los primeros negocios de
+ * la ciudad) en un marquee. Cada anunciante sube su imagen; aquí solo se MUESTRAN las vigentes de la
+ * ciudad activa y el clic las agranda (lightbox). Datos vía `usePublicidad`.
  *
- * El alta self-service ("Anúnciate aquí") y el conteo de clicks/impresiones llegan en la
- * Fase 2 del módulo Publicidad. Mientras no haya anuncios de la ciudad, cada carrusel muestra
- * un placeholder discreto "Espacio disponible".
+ * Mapa de datos → tamaños: `patrocinadores` = tamaño GRANDE (banner), `anuncios` = tamaño CHICO (tarjeta).
+ * Proporciones FIJAS e idénticas al wizard (Grande 4:5 vertical · Chico 3:2 horizontal) para que el
+ * anunciante diseñe a la medida exacta que se ocupa; el CTA "Anúnciate aquí" queda fijo abajo.
+ * Los carruseles rotan solos (crossfade) y se pausan al hover.
  *
  * Ubicación: apps/web/src/components/layout/ColumnaDerecha.tsx
  */
 
-import { useState, useEffect } from 'react';
-import { Megaphone, ChevronLeft, ChevronRight, X } from 'lucide-react';
-import { Icon, type IconProps } from '@iconify/react';
-import { ICONOS } from '../../config/iconos';
+import { useState, useEffect, type ReactElement, type CSSProperties } from 'react';
+import { createPortal } from 'react-dom';
+import { Megaphone, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { usePublicidad } from '../../hooks/queries/usePublicidad';
+import { usePortalTarget } from '../../hooks/usePortalTarget';
 import { registrarClickPublicidad, type AnuncioPublico } from '../../services/publicidadService';
 
-// Wrappers locales: íconos de marca vía Iconify, manteniendo nombres familiares.
-type IconoWrapperProps = Omit<IconProps, 'icon'>;
-const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
-const Trophy = (p: IconoWrapperProps) => <Icon icon={ICONOS.trofeo} {...p} />;
+// =============================================================================
+// HOOK: rotación automática con pausa al hover
+// =============================================================================
+
+function useCarruselAuto(total: number, ms: number) {
+  const [indice, setIndice] = useState(0);
+  const [pausado, setPausado] = useState(false);
+
+  useEffect(() => {
+    setIndice((p) => (total > 0 ? p % total : 0));
+  }, [total]);
+
+  useEffect(() => {
+    if (total <= 1 || pausado) return;
+    const id = setInterval(() => setIndice((p) => (p + 1) % total), ms);
+    return () => clearInterval(id);
+  }, [total, ms, pausado]);
+
+  return {
+    indice: total > 0 ? indice % total : 0,
+    ir: (i: number) => setIndice(i),
+    hoverProps: { onMouseEnter: () => setPausado(true), onMouseLeave: () => setPausado(false) },
+  };
+}
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -32,8 +53,8 @@ const Trophy = (p: IconoWrapperProps) => <Icon icon={ICONOS.trofeo} {...p} />;
 
 export function ColumnaDerecha() {
   const { data } = usePublicidad();
-  const anuncios = data?.anuncios ?? [];
-  const patrocinadores = data?.patrocinadores ?? [];
+  const grandes = data?.patrocinadores ?? []; // tamaño GRANDE (banner)
+  const chicos = data?.anuncios ?? [];         // tamaño CHICO (tarjeta)
   const fundadores = data?.fundadores ?? [];
   const navigate = useNavigate();
   const [ampliada, setAmpliada] = useState<string | null>(null);
@@ -44,20 +65,20 @@ export function ColumnaDerecha() {
   };
 
   return (
-    <div className="absolute inset-0 bg-white overflow-y-auto flex flex-col">
-      <SeccionAnuncios items={anuncios} onAmpliar={abrir} />
-      <div className="flex-1" />
-      <SeccionPatrocinadores items={patrocinadores} onAmpliar={abrir} />
-      <div className="flex-1" />
-      <SeccionFundadores items={fundadores} onAmpliar={abrir} />
+    <div className="absolute inset-0 flex flex-col">
+      {/* Publicidad (toma el alto sobrante) + Fundadores. overflow-hidden = sin scroll. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-hidden p-3">
+        <SeccionPublicidad grandes={grandes} chicos={chicos} onAmpliar={abrir} />
+        <SeccionFundadores items={fundadores} onAmpliar={abrir} />
+      </div>
 
-      {/* CTA: anunciarse (abre el wizard self-service con Stripe) */}
-      <div className="shrink-0 border-t border-slate-100 p-3">
+      {/* CTA fijo abajo (fuera del área que reparte el alto → nunca empuja ni scrollea). */}
+      <div className="shrink-0 px-3 py-2.5">
         <button
           type="button"
           data-testid="columna-anunciate"
           onClick={() => navigate('/anunciate')}
-          className="flex w-full items-center justify-center gap-1.5 rounded-xl bg-linear-to-r from-blue-600 to-indigo-600 py-2.5 text-[12.5px] font-bold text-white transition hover:opacity-95"
+          className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 text-[12.5px] font-bold text-white shadow-sm transition hover:bg-slate-800"
         >
           <Megaphone className="h-3.5 w-3.5" /> Anúnciate aquí
         </button>
@@ -69,168 +90,90 @@ export function ColumnaDerecha() {
 }
 
 // =============================================================================
-// SECCIÓN 1: ANUNCIOS (tarjeta chica que rota)
+// PUBLICIDAD — un bloque inline (sin card): tamaño GRANDE arriba + tamaño CHICO abajo
 // =============================================================================
 
-function SeccionAnuncios({ items, onAmpliar }: { items: AnuncioPublico[]; onAmpliar: (item: AnuncioPublico) => void }) {
-  const [indice, setIndice] = useState(0);
-
-  useEffect(() => {
-    if (items.length <= 1) return;
-    const intervalo = setInterval(() => setIndice((p) => (p + 1) % items.length), 4000);
-    return () => clearInterval(intervalo);
-  }, [items.length]);
-
-  const actual = items[indice % Math.max(items.length, 1)];
+function SeccionPublicidad({
+  grandes,
+  chicos,
+  onAmpliar,
+}: {
+  grandes: AnuncioPublico[];
+  chicos: AnuncioPublico[];
+  onAmpliar: (item: AnuncioPublico) => void;
+}) {
+  const carG = useCarruselAuto(grandes.length, 6000);
+  const carC = useCarruselAuto(chicos.length, 4500);
+  const vacio = grandes.length === 0 && chicos.length === 0;
 
   return (
-    <div>
-      <div className="px-4 py-2.5 lg:px-3 lg:py-2 2xl:px-4 2xl:py-2.5 bg-linear-to-r from-amber-100 to-orange-50">
-        <div className="flex items-center gap-2 text-left">
-          <div className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 bg-amber-500 rounded-md flex items-center justify-center">
-            <Megaphone className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" />
-          </div>
-          <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-black uppercase tracking-wide">Anuncios</span>
-        </div>
+    <div className="flex flex-col gap-2.5">
+      {/* Título inline (sin card) */}
+      <div className="flex shrink-0 items-center gap-2 px-0.5">
+        <span className="grid h-6 w-6 place-items-center rounded-md bg-blue-600 text-white shadow-sm">
+          <Megaphone className="h-3.5 w-3.5" />
+        </span>
+        <span className="text-[11.5px] font-bold uppercase tracking-wide text-slate-700">Publicidad</span>
       </div>
 
-      <div className="px-4 py-4 lg:px-3 lg:py-3 2xl:px-4 2xl:py-4">
-        {actual ? (
-          <button type="button" onClick={() => onAmpliar(actual)} className="block w-full cursor-zoom-in">
-            <img
-              src={actual.imagenUrl}
-              alt="Anuncio"
-              className="h-24 w-full rounded-xl object-cover shadow-md lg:h-20 2xl:h-28"
-            />
-          </button>
-        ) : (
-          <PlaceholderEspacio />
-        )}
-      </div>
-
-      {items.length > 1 && <Indicadores total={items.length} actual={indice} onSel={setIndice} color="bg-amber-500" />}
-    </div>
-  );
-}
-
-// =============================================================================
-// SECCIÓN 2: PATROCINADORES (banner grande + flechas)
-// =============================================================================
-
-function SeccionPatrocinadores({ items, onAmpliar }: { items: AnuncioPublico[]; onAmpliar: (item: AnuncioPublico) => void }) {
-  const [indice, setIndice] = useState(0);
-
-  useEffect(() => {
-    if (items.length <= 1) return;
-    const intervalo = setInterval(() => setIndice((p) => (p + 1) % items.length), 5000);
-    return () => clearInterval(intervalo);
-  }, [items.length]);
-
-  const actual = items[indice % Math.max(items.length, 1)];
-  const anterior = () => setIndice((p) => (p - 1 + items.length) % items.length);
-  const siguiente = () => setIndice((p) => (p + 1) % items.length);
-
-  return (
-    <div>
-      <div className="px-4 py-2 lg:px-3 lg:py-1.5 2xl:px-4 2xl:py-2 bg-linear-to-r from-blue-100 to-indigo-50">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-2 text-left">
-            <div className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 bg-blue-600 rounded-md flex items-center justify-center">
-              <Star className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" />
-            </div>
-            <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-black uppercase tracking-wide">Patrocinadores</span>
+      {vacio ? (
+        <PlaceholderEspacio className="aspect-[4/5] w-full" />
+      ) : (
+        <>
+          {/* Tamaño GRANDE — proporción FIJA 4:5 (vertical), idéntica al wizard */}
+          <div className="relative aspect-[4/5] w-full" {...carG.hoverProps}>
+            {grandes.length > 0 ? (
+              <Crossfade items={grandes} indice={carG.indice} onAmpliar={onAmpliar} className="h-full overflow-hidden rounded-xl shadow-sm" imgClass="object-cover" />
+            ) : (
+              <PlaceholderEspacio className="h-full" />
+            )}
+            {grandes.length > 1 && <PuntosFlotantes total={grandes.length} actual={carG.indice} onSel={carG.ir} />}
           </div>
 
-          {items.length > 1 && (
-            <div className="flex items-center gap-1">
-              <button
-                type="button"
-                onClick={anterior}
-                aria-label="Anterior"
-                className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center transition-colors shadow-sm"
-              >
-                <ChevronLeft className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
-              </button>
-              <button
-                type="button"
-                onClick={siguiente}
-                aria-label="Siguiente"
-                className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 rounded-full bg-white hover:bg-slate-100 flex items-center justify-center transition-colors shadow-sm"
-              >
-                <ChevronRight className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-slate-600" />
-              </button>
+          {/* Tamaño CHICO — proporción FIJA 3:2 (horizontal), idéntica al wizard */}
+          {chicos.length > 0 && (
+            <div className="relative aspect-[3/2] w-full" {...carC.hoverProps}>
+              <Crossfade items={chicos} indice={carC.indice} onAmpliar={onAmpliar} className="h-full overflow-hidden rounded-xl shadow-sm" imgClass="object-cover" />
+              {chicos.length > 1 && <PuntosFlotantes total={chicos.length} actual={carC.indice} onSel={carC.ir} />}
             </div>
           )}
-        </div>
-      </div>
-
-      <div className="relative h-[130px] lg:h-[220px] 2xl:h-[450px]">
-        {actual ? (
-          <button type="button" onClick={() => onAmpliar(actual)} className="block h-full w-full cursor-zoom-in">
-            <img src={actual.imagenUrl} alt="Patrocinador" className="h-full w-full object-cover" />
-          </button>
-        ) : (
-          <div className="h-full p-3">
-            <PlaceholderEspacio alto />
-          </div>
-        )}
-      </div>
-
-      {items.length > 1 && <Indicadores total={items.length} actual={indice} onSel={setIndice} color="bg-blue-500" fondo />}
+        </>
+      )}
     </div>
   );
 }
 
 // =============================================================================
-// SECCIÓN 3: FUNDADORES (logos en scroll)
+// FUNDADORES (zona de REGALO: logos en marquee continuo, pausa al hover)
 // =============================================================================
 
 function SeccionFundadores({ items, onAmpliar }: { items: AnuncioPublico[]; onAmpliar: (item: AnuncioPublico) => void }) {
-  const [offset, setOffset] = useState(0);
+  // Es un regalo, no un espacio en venta: si aún no hay fundadores en la ciudad, no se muestra nada.
+  if (items.length === 0) return null;
 
-  useEffect(() => {
-    if (items.length <= 4) return;
-    const intervalo = setInterval(() => setOffset((p) => (p + 1) % items.length), 2000);
-    return () => clearInterval(intervalo);
-  }, [items.length]);
-
-  const visibles: AnuncioPublico[] = [];
-  const n = Math.min(items.length, 4);
-  for (let k = 0; k < n; k++) visibles.push(items[(offset + k) % items.length]);
+  // Marquee continuo: 2 copias de la lista (la animación corre a -50% = una copia → loop sin salto).
+  // La velocidad es constante (la duración crece con el número de logos). Pausa al hover (CSS).
+  const fila = [...items, ...items];
+  const dur = `${Math.max(12, items.length * 6)}s`;
 
   return (
-    <div>
-      <div className="px-4 py-2.5 lg:px-3 lg:py-2 2xl:px-4 2xl:py-2.5 bg-linear-to-r from-violet-100 to-purple-50">
-        <div className="flex items-center gap-2 text-left">
-          <div className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 bg-violet-600 rounded-md flex items-center justify-center">
-            <Trophy className="w-3.5 h-3.5 lg:w-3 lg:h-3 2xl:w-3.5 2xl:h-3.5 text-white" />
-          </div>
-          <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-black uppercase tracking-wide">Fundadores</span>
-        </div>
-      </div>
-
-      <div className="px-4 py-3 lg:px-3 lg:py-2.5 2xl:px-4 2xl:py-3">
-        {visibles.length ? (
-          <div className="flex justify-center gap-3 lg:gap-2 2xl:gap-4">
-            {visibles.map((it, idx) => (
-              <button
-                type="button"
-                key={`${it.piezaId}-${idx}`}
-                onClick={() => onAmpliar(it)}
-                aria-label="Ver anuncio"
-                className="cursor-zoom-in"
-              >
-                <img
-                  src={it.imagenUrl}
-                  alt="Fundador"
-                  className="w-14 h-14 lg:w-12 lg:h-12 2xl:w-16 2xl:h-16 rounded-full object-cover shadow-md hover:scale-110 transition-transform"
-                />
-              </button>
-            ))}
-          </div>
-        ) : (
-          <PlaceholderEspacio />
-        )}
+    <div className="shrink-0 overflow-hidden py-1.5">
+      <div className="marquee-logos flex w-max items-center gap-3 2xl:gap-3.5" style={{ '--marquee-dur': dur } as CSSProperties}>
+        {fila.map((it, idx) => (
+          <button
+            type="button"
+            key={`${it.piezaId}-${idx}`}
+            onClick={() => onAmpliar(it)}
+            aria-label="Ver fundador"
+            className="group shrink-0 cursor-zoom-in"
+          >
+            <img
+              src={it.imagenUrl}
+              alt="Fundador"
+              className="h-20 w-20 rounded-full border-2 border-white object-cover shadow-md ring-1 ring-slate-200 transition-transform duration-300 group-hover:scale-110 2xl:h-24 2xl:w-24"
+            />
+          </button>
+        ))}
       </div>
     </div>
   );
@@ -240,41 +183,62 @@ function SeccionFundadores({ items, onAmpliar }: { items: AnuncioPublico[]; onAm
 // SUB-COMPONENTES
 // =============================================================================
 
-/** Hueco discreto cuando no hay anuncios vigentes de la ciudad (gancho del wizard en Fase 2). */
-function PlaceholderEspacio({ alto = false }: { alto?: boolean }) {
+/** Pila de imágenes superpuestas con crossfade por opacidad; la activa recibe el clic (ampliar). */
+function Crossfade({
+  items,
+  indice,
+  onAmpliar,
+  className = '',
+  imgClass = '',
+}: {
+  items: AnuncioPublico[];
+  indice: number;
+  onAmpliar: (item: AnuncioPublico) => void;
+  className?: string;
+  imgClass?: string;
+}): ReactElement {
   return (
-    <div
-      className={`flex ${alto ? 'h-full' : 'py-5'} flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 text-center`}
-    >
-      <span className="text-xs font-semibold text-slate-400">Espacio disponible</span>
-      <span className="text-[11px] text-slate-300">Anúnciate aquí</span>
+    <div className={`relative ${className}`}>
+      {items.map((it, i) => (
+        <button
+          type="button"
+          key={it.piezaId}
+          onClick={() => onAmpliar(it)}
+          aria-label="Ver anuncio"
+          tabIndex={i === indice ? 0 : -1}
+          className={`absolute inset-0 cursor-zoom-in transition-opacity duration-700 ease-in-out ${
+            i === indice ? 'opacity-100' : 'pointer-events-none opacity-0'
+          }`}
+        >
+          <img src={it.imagenUrl} alt="Anuncio" className={`h-full w-full ${imgClass}`} />
+        </button>
+      ))}
     </div>
   );
 }
 
-function Indicadores({
-  total,
-  actual,
-  onSel,
-  color,
-  fondo = false,
-}: {
-  total: number;
-  actual: number;
-  onSel: (i: number) => void;
-  color: string;
-  fondo?: boolean;
-}) {
+/** Hueco discreto cuando no hay anuncios vigentes de la ciudad (gancho del wizard). */
+function PlaceholderEspacio({ className = '' }: { className?: string }) {
   return (
-    <div className={`flex justify-center gap-1.5 ${fondo ? 'py-2 lg:py-1.5 2xl:py-2 bg-white' : 'pb-3 lg:pb-2 2xl:pb-3'}`}>
+    <div className={`flex flex-col items-center justify-center gap-1 rounded-xl border border-dashed border-slate-200 bg-slate-50/50 text-center ${className}`}>
+      <span className="text-[12px] font-semibold text-slate-400">Espacio disponible</span>
+      <span className="text-[10.5px] text-slate-300">Anúnciate aquí</span>
+    </div>
+  );
+}
+
+/** Puntos indicadores flotando sobre la imagen (abajo, centrados); el activo se ensancha. */
+function PuntosFlotantes({ total, actual, onSel }: { total: number; actual: number; onSel: (i: number) => void }) {
+  return (
+    <div className="absolute inset-x-0 bottom-2 z-10 flex items-center justify-center gap-1.5">
       {Array.from({ length: total }).map((_, idx) => (
         <button
           key={idx}
           type="button"
           aria-label={`Ir al anuncio ${idx + 1}`}
           onClick={() => onSel(idx)}
-          className={`h-2.5 lg:h-2 2xl:h-2.5 rounded-full transition-all ${
-            idx === actual % total ? `${color} w-6 lg:w-5 2xl:w-6` : 'bg-slate-300 w-2.5 lg:w-2 2xl:w-2.5'
+          className={`h-1.5 cursor-pointer rounded-full shadow transition-all duration-300 ${
+            idx === actual ? 'w-5 bg-white' : 'w-1.5 bg-white/60 hover:bg-white/90'
           }`}
         />
       ))}
@@ -282,8 +246,16 @@ function Indicadores({
   );
 }
 
-/** Capa que muestra la imagen del anuncio en grande (el clic la "agranda"). */
+/**
+ * Capa que muestra la imagen del anuncio en grande (el clic la "agranda").
+ * Se portea a `document.body` (patrón estándar de la app) para escapar del stacking context de la
+ * columna derecha (z-30) y quedar POR ENCIMA del header (z-50) y el toggle Mapa/Lista — si no, el
+ * `fixed` quedaría atrapado bajo el header. z-[100] gana a todo lo de la app.
+ */
 function Lightbox({ imagenUrl, onCerrar }: { imagenUrl: string; onCerrar: () => void }) {
+  const target = usePortalTarget();
+  const esContenido = target !== document.body;
+
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onCerrar();
@@ -292,9 +264,9 @@ function Lightbox({ imagenUrl, onCerrar }: { imagenUrl: string; onCerrar: () => 
     return () => window.removeEventListener('keydown', onEsc);
   }, [onCerrar]);
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[60] flex items-center justify-center bg-black/80 p-6"
+      className={`${esContenido ? 'absolute' : 'fixed'} inset-0 z-[100] flex items-center justify-center bg-black/80 p-6`}
       onClick={onCerrar}
       role="dialog"
       aria-modal="true"
@@ -313,7 +285,8 @@ function Lightbox({ imagenUrl, onCerrar }: { imagenUrl: string; onCerrar: () => 
         className="max-h-[85vh] max-w-[85vw] rounded-lg object-contain shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       />
-    </div>
+    </div>,
+    target,
   );
 }
 

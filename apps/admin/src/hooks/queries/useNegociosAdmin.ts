@@ -195,6 +195,19 @@ export function useSuspenderNegocio() {
   });
 }
 
+export function useMarcarDesmarcarFundador() {
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ id, esFundador }: { id: string; esFundador: boolean }) =>
+      negociosService.marcarDesmarcarFundador(id, esFundador),
+    onSuccess: (_d, { id, esFundador }) => {
+      refrescar(id);
+      toast.exito(esFundador ? 'Negocio marcado como Fundador' : 'Fundador removido');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo cambiar el Fundador')),
+  });
+}
+
 export function useReactivarNegocio() {
   const refrescar = useRefrescarNegocio();
   return useMutation({

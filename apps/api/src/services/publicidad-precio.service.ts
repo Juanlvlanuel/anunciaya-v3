@@ -16,19 +16,19 @@
 import { obtenerConfigNumero, obtenerConfigJson } from './configuracion.service.js';
 import { TRAMOS_CIUDADES_DEFAULT, PERIODOS_DEFAULT, type TramoCiudades, type TramoPeriodo } from './admin/configuracion.service.js';
 
-export const CARRUSELES_VALIDOS = ['anuncios', 'patrocinadores', 'fundadores'] as const;
+// Espacios de PAGO (vendibles). 'fundadores' ya no se vende: es un regalo a los primeros negocios de
+// cada ciudad (se otorga manual desde el Panel y usa el logo del negocio), por eso queda fuera de aquí.
+export const CARRUSELES_VALIDOS = ['anuncios', 'patrocinadores'] as const;
 export type CarruselPub = (typeof CARRUSELES_VALIDOS)[number];
 
 const PRECIO_CLAVE: Record<CarruselPub, string> = {
     anuncios: 'publicidad_precio_anuncios',
     patrocinadores: 'publicidad_precio_patrocinadores',
-    fundadores: 'publicidad_precio_fundadores',
 };
 
 const PRECIO_DEFAULT: Record<CarruselPub, number> = {
     anuncios: 300,
     patrocinadores: 800,
-    fundadores: 500,
 };
 
 /** Factor del tramo que contiene `n` ciudades (si supera todos los topes, usa el último). */
@@ -73,7 +73,7 @@ export async function calcularPrecioPublicidad(
     const tramos = await obtenerConfigJson<TramoCiudades[]>('publicidad_tramos_ciudades', TRAMOS_CIUDADES_DEFAULT);
     const factor = factorDeTramo(tramos, Math.max(1, Math.floor(numCiudades)));
 
-    const esCombo = unicos.length === 3;
+    const esCombo = unicos.length === 2; // combo = los 2 espacios de pago juntos (Anuncios + Patrocinadores)
     let descuento = 0;
     let mensual = base * factor;
     if (esCombo) {

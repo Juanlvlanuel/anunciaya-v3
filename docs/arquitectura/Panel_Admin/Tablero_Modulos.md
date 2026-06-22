@@ -32,7 +32,7 @@
   **creatividades** se optimizan (WebP, máx 1600px) y no quedan huérfanas (`descartarImagenesHuerfanas` por
   reference count + recolector R2 de respaldo). Modales **Registrar/Editar** horizontales (`2xl`, 2 columnas) +
   acciones de la ficha en **íconos**. 3 migraciones (corridas) + harness verdes + `tsc` api/admin/web.
-  **Pendiente:** commit + sumar el origen del Panel/app al **CORS del bucket R2** (subir imágenes desde el navegador).
+  **Cerrado:** committeado · **CORS R2 resuelto** (el Panel ya estaba en la policy del bucket por Vendedores) · recibo/correo de publicidad con plantilla propia + periodo.
 - **Recién cerrado (21 jun):** **Mantenimiento** (módulo 11 "Sistema", el otro medio junto a Auditoría) —
   doc [`Mantenimiento.md`](Mantenimiento.md): el **centro de operación técnica** del SuperAdmin en **4
   pestañas** — **Salud** (semáforos BD/Redis/R2/Stripe + latencia), **Tareas programadas** (los 7 crons con
@@ -157,7 +157,7 @@
 | | **· Red de ventas ·** | | | |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos) · backlog: comisión "al cobro" (Stripe), F | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | | **· Crecimiento ·** | | | |
-| 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibos · creatividades optimizadas/sin huérfanas) · commit + CORS R2 pendientes | `Publicidad.md` · `Publicidad_Pendientes.md` |
+| 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
 | | **· Administración ·** | | | |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |

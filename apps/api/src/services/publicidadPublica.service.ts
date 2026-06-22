@@ -32,6 +32,8 @@ const VACIO: PublicidadPublica = { anuncios: [], patrocinadores: [], fundadores:
 export async function listarPublicidadPublica(ciudadId: string): Promise<PublicidadPublica> {
     if (!ciudadId) return VACIO;
 
+    // Anuncios + Patrocinadores: piezas PAGADAS vigentes que se muestran en la ciudad.
+    // ('fundadores' ya no se vende → se arma aparte desde los negocios marcados como regalo.)
     const filas = await db
         .select({
             piezaId: publicidadPiezas.id,
@@ -44,6 +46,7 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
             and(
                 eq(publicidadCompras.estado, 'activa'),
                 sql`${publicidadCompras.expiraAt} > now()`,
+                sql`${publicidadPiezas.carrusel} IN ('anuncios', 'patrocinadores')`,
                 sql`EXISTS (SELECT 1 FROM publicidad_compra_ciudades pcc WHERE pcc.compra_id = ${publicidadCompras.id} AND pcc.ciudad_id = ${ciudadId})`,
             ),
         )
@@ -54,8 +57,18 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
         const item: AnuncioPublico = { piezaId: f.piezaId, imagenUrl: f.imagenUrl };
         if (f.carrusel === 'anuncios') out.anuncios.push(item);
         else if (f.carrusel === 'patrocinadores') out.patrocinadores.push(item);
-        else if (f.carrusel === 'fundadores') out.fundadores.push(item);
     }
+
+    // Fundadores: REGALO a los negocios marcados de la ciudad (logo del negocio, por su sucursal principal).
+    const fund = (await db.execute(sql`
+        SELECT n.id::text AS pieza_id, n.logo_url AS imagen_url
+        FROM negocios n
+        JOIN negocio_sucursales ns ON ns.negocio_id = n.id AND ns.es_principal = true
+        WHERE n.es_fundador = true AND n.activo = true AND n.logo_url IS NOT NULL AND ns.ciudad_id = ${ciudadId}
+        ORDER BY n.created_at ASC
+    `)).rows as Array<{ pieza_id: string; imagen_url: string }>;
+    out.fundadores = fund.map((r) => ({ piezaId: r.pieza_id, imagenUrl: r.imagen_url }));
+
     return out;
 }
 

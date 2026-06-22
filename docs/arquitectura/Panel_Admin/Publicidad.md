@@ -7,9 +7,18 @@
 > aviso + limpieza de pendientes · recibo PDF + correo + módulo **Recibos** extendido. Las creatividades se
 > **optimizan** (WebP) y no quedan **huérfanas** (reference count + recolector R2). Modales **horizontales** +
 > acciones de la ficha en **íconos**. Verificado con harness + `tsc` en api/admin/web; VER verificado visualmente.
-> **Pendiente:** commit (Fase 3) + sumar el origen del Panel/app al **CORS del bucket R2** (migraciones ya corridas).
+> **Cerrado** (Fase 3): committeado · **CORS R2 resuelto** · recibo/correo de publicidad con plantilla propia + periodo. Migraciones corridas.
+>
+> **Cambios 22-jun:** la pauta se vende y presenta **por tamaño** (no por nombre de carrusel): **Grande**
+> (banner 4:5) y **Chico** (tarjeta 3:2) — el combo es de **2**, `Fundadores` salió del plan de pago (es regalo).
+> Columna derecha **rediseñada** (un bloque inline "PUBLICIDAD", proporciones **fijas** iguales al wizard,
+> lightbox por **portal** que tapa el header). El wizard **especifica la medida** de cada tamaño (Grande
+> 1080×1350 · Chico 1080×720) y su **paso de ciudades es dinámico** (se oculta y auto-selecciona con 1 ciudad
+> activa; reaparece al habilitar más). Y se **destrabó el guardado de Configuración**: faltaba `'publicidad'`
+> en el CHECK de `categoria` y los tipos `tramos_ciudades`/`periodos_meses` en el CHECK de `tipo` de
+> `configuracion_sistema` (2 migraciones, corridas en dev+prod).
 > **Sección del menú:** Crecimiento. **Plantilla de oro:** Negocios.
-> **Última actualización:** 21 Junio 2026.
+> **Última actualización:** 22 Junio 2026.
 >
 > Este documento es la **verdad** del módulo (qué es y cómo funciona). El checklist vivo de lo
 > que falta está en [`Publicidad_Pendientes.md`](Publicidad_Pendientes.md). El proceso de
@@ -19,27 +28,43 @@
 
 ## Capa 1 — Qué es (lenguaje de persona)
 
-**Publicidad es la segunda fuente de ingresos de AnunciaYA:** vende el **espacio** en los **3 carruseles
-de la columna derecha** de la app — **Anuncios** (tarjeta chica), **Patrocinadores** (banner grande) y
-**Fundadores** (logos) — a cualquier usuario que quiera más visibilidad. No es publicidad de terceros ni
-venta de datos: el que pauta es un **usuario verificado** de la propia plataforma (un negocio o una
-persona) que sube **su propia imagen**. AnunciaYA solo renta el espacio.
+**Publicidad es la segunda fuente de ingresos de AnunciaYA:** vende el **espacio** del bloque
+**"PUBLICIDAD"** de la columna derecha de la app — manejado **por tamaño**: **Grande** (banner) y **Chico**
+(tarjeta) — a cualquier usuario que quiera más visibilidad. No es publicidad de terceros ni venta de datos:
+el que pauta es un **usuario verificado** de la propia plataforma (un negocio o una persona) que sube **su
+propia imagen**. AnunciaYA solo renta el espacio.
 
-### Los 3 carruseles
-Cada carrusel **cuesta distinto**, pero el **precio es igual en cualquier ciudad**. Hay además un **combo
-de los 3 con descuento**. Los precios, el descuento y los umbrales los fija **solo el SuperAdmin**.
+> **Por tamaño, no por nombre (22-jun):** antes los espacios se llamaban *Anuncios* / *Patrocinadores*;
+> ahora se venden y presentan **por tamaño** — **Grande** (= dato interno `patrocinadores`) y **Chico**
+> (= dato interno `anuncios`). Los IDs en BD no cambiaron (sin migración de datos); solo la presentación.
 
-| Carrusel | Qué es | Formato de la imagen |
-|---|---|---|
-| **Anuncios** | Tarjeta chica que rota | horizontal pequeño |
-| **Patrocinadores** | Banner grande con CTA | vertical grande |
-| **Fundadores** | Logo circular | cuadrado / logo |
+### Los espacios — 2 de pago + 1 de regalo
+Hay **dos tamaños de pago** (rotan solos y se pausan al hover) y uno **de regalo**:
 
-### Acotado por ciudades
+| Espacio | Qué es | Proporción / medida | Cómo se obtiene |
+|---|---|---|---|
+| **Grande** (`patrocinadores`) | Banner grande, arriba | **4:5** vertical · 1080×1350 px | **Pago** — precio base, igual en cualquier ciudad |
+| **Chico** (`anuncios`) | Tarjeta chica, abajo | **3:2** horizontal · 1080×720 px | **Pago** — precio base |
+| **Fundadores** (`fundadores`) | Logos circulares **flotando** (sin card ni título) | Cuadrado 1:1 | **Regalo** — a los primeros **50** negocios de cada ciudad; el admin lo marca desde la **ficha del negocio** y aparece su **logo** |
+
+Los 2 de pago tienen un **combo con descuento** (los **2 tamaños** juntos). Precios, descuento y umbrales los
+fija **solo el SuperAdmin**. **Fundadores NO se vende**: es un reconocimiento a los negocios pioneros —
+`negocios.es_fundador` (toggle en la ficha), cupo **50 por ciudad** (la de su sucursal principal); el carrusel
+público arma los fundadores desde esos negocios usando su `logo_url`. Las proporciones son **fijas e idénticas**
+entre la columna y el wizard, para que el anunciante **diseñe a la medida** que se ocupa.
+
+### Acotado por ciudades (paso dinámico)
 El anunciante elige **hasta *X* ciudades** donde quiere aparecer. **Mientras más ciudades, más caro**, por
 una **escalera de tramos** (no por cuál ciudad — todas valen igual). El límite *X* y los tramos los
 configura el SuperAdmin desde **Configuración**. El anuncio se muestra a quien tenga como **ciudad activa**
 una de las ciudades compradas.
+
+El paso **"¿En qué ciudades?"** del wizard es **dinámico**: si hay **una sola ciudad activa** en el sistema
+(tabla `ciudades` con `activa = true`, p. ej. el arranque en **Puerto Peñasco**), el paso **se oculta** y la
+ciudad se **auto-selecciona** (se muestra un aviso "Tu anuncio se mostrará en …"). Al **habilitar más ciudades**
+en el Panel → Ciudades, el selector **reaparece solo** (la app rehidrata el catálogo vía React Query, sin
+redeploy). Nota: esto depende de **cuántas ciudades están activas**, no del *Máximo de ciudades* (que es el tope
+**por anuncio**); para arrancar mono-ciudad se **desactivan** las demás en el Panel → Ciudades.
 
 ### Meses por adelantado
 El anunciante elige **cuántos meses paga por adelantado** (1 / 3 / 6 / 12 — configurable). Cada periodo da un
@@ -56,7 +81,8 @@ lleva a ningún lado).
 ### Cómo se compra (dos vías)
 1. **Self-service (el propio usuario):** desde un **botón "Anúnciate aquí" en la misma columna de
    carruseles** (no desde Business Studio ni otro lugar). El usuario recorre la **página `/anunciate`**: elige
-   carrusel(es) → ciudades → **meses** → sube su imagen → **paga con tarjeta** (Stripe). El anuncio nace en estado
+   **tamaño(s)** (Grande/Chico, con su medida a la vista) → **ciudades** (paso que se **oculta** si hay una sola
+   ciudad activa) → **tiempo** (meses) → sube su imagen → **paga con tarjeta** (Stripe). El anuncio nace en estado
    `pendiente` y solo pasa a `activa` cuando el webhook confirma el pago; un pago **rechazado o abandonado** deja un
    `pendiente` que **no se muestra en el Panel** y lo **borra el cron** (la sesión de Stripe caduca en 1h).
 2. **Alta manual (desde el Panel):** el SuperAdmin o el Gerente (en su región) registra el anuncio cobrado en
@@ -113,14 +139,20 @@ Reemplazan el schema **dormido** `planes_anuncios`/`promociones_pagadas` (jubila
 
 ### Económico — claves en `configuracion_sistema` (editables solo por SuperAdmin)
 En el catálogo `CONFIG_EDITABLE` de Configuración, con **editores dedicados** para los valores JSON (tramos
-de ciudades · periodos de meses) además de los numéricos:
-- `publicidad_precio_anuncios` · `publicidad_precio_patrocinadores` · `publicidad_precio_fundadores` (MXN, base por carrusel).
-- `publicidad_combo_descuento` (% del combo de los 3).
+de ciudades · periodos de meses) además de los numéricos. Se muestran como **"Precios por tamaño"**:
+- `publicidad_precio_patrocinadores` (etiqueta **"Precio · Grande"**) · `publicidad_precio_anuncios` (etiqueta **"Precio · Chico"**) — MXN, base por tamaño. (`publicidad_precio_fundadores` **se retiró**: Fundadores ya no se vende.)
+- `publicidad_combo_descuento` (% del combo de los **2 tamaños**).
 - `publicidad_tramos_ciudades` (JSON, escalera por # de ciudades → factor; tipo `tramos_ciudades`).
-- `publicidad_limite_ciudades` (*X* máximo).
+- `publicidad_limite_ciudades` (*X* máximo **por anuncio**).
 - `publicidad_duracion_dias` (vigencia base de **1 mes**; la total = meses × esta).
 - `publicidad_aviso_dias` (días antes de vencer para avisar; default **3**).
 - `publicidad_periodos` (JSON, meses pagables por adelantado → % descuento; tipo `periodos_meses`). Default: 1→0% · 3→10% · 6→15% · 12→25%.
+
+> **CHECKs de `configuracion_sistema` (22-jun):** guardar cualquier clave de publicidad por **primera vez**
+> hace un `INSERT` que dispara dos CHECKs que **no contemplaban este módulo**. Se ampliaron (2 migraciones,
+> corridas en dev+prod): `configuracion_categoria_check` ahora acepta **`publicidad`**, y
+> `configuracion_tipo_check` acepta **`tramos_ciudades`** y **`periodos_meses`**. La escalera de comisiones no
+> fallaba porque usa `tipo='json'` (ya permitido). Detalle en [`Configuracion.md`](Configuracion.md).
 
 ### Alcance por rol (sincronizado lectura ↔ escritura)
 - **SuperAdmin:** todo (con lente de región del filtro global).
@@ -141,10 +173,13 @@ Las métricas de ingresos del módulo se calculan desde `publicidad_compras` (no
 asume `negocio_id NOT NULL` y aquí el anunciante puede no tener negocio). Engagement = `clicks`/`impresiones`
 de `publicidad_piezas`.
 
-### Creatividades (R2): optimización + sin huérfanas
-El anunciante sube su propia imagen por carrusel. Antes de subir, el navegador la **optimiza** (redimensiona a
-máx. **1600px** y recomprime a **WebP ~80%** — `optimizarImagen`, el mismo helper de ChatYA/BS/MarketPlace en la
-app; uno equivalente en el Panel). La subida usa una **presigned URL** a la carpeta `publicidad/` de R2.
+### Creatividades (R2): medida, optimización + sin huérfanas
+El anunciante sube su propia imagen **por tamaño**, con la **medida recomendada a la vista** en el wizard
+(Grande **1080×1350 px** 4:5 · Chico **1080×720 px** 3:2 — mismo ancho base, coherente con que en la columna
+ambos comparten ancho). El preview de subida toma la **forma real** del espacio (object-cover) para que vea
+cómo quedará recortado. Antes de subir, el navegador la **optimiza** (redimensiona a máx. **1600px** y recomprime
+a **WebP ~80%** — `optimizarImagen`, el mismo helper de ChatYA/BS/MarketPlace en la app; uno equivalente en el
+Panel). La subida usa una **presigned URL** a la carpeta `publicidad/` de R2.
 
 Como la imagen se sube **al elegirla** (antes de guardar), al **cerrar/cancelar** el alta, la edición o el wizard
 el front manda las URLs subidas en esa sesión y `descartarImagenesHuerfanas` (`POST /publicidad/imagenes-descartadas`)
@@ -153,10 +188,17 @@ carpeta `publicidad/`. Así las guardadas nunca se tocan y las canceladas/reempl
 **recolector R2** queda como red de seguridad (p. ej. si se cierra la pestaña a media subida).
 
 ### Superficie pública (apps/web)
-Hoy `apps/web/src/components/layout/ColumnaDerecha.tsx` muestra los 3 carruseles con **datos mock**
-hardcodeados, montada en `MainLayout` solo en **desktop** cuando no es Business Studio. Fase 1 conecta esos
-carruseles a un **endpoint público** (`GET /api/publicidad?ciudadId=`) que sirve los anuncios vigentes de la
-ciudad activa. El clic abre la imagen en grande (lightbox) y cuenta `clicks`.
+`apps/web/src/components/layout/ColumnaDerecha.tsx` muestra un **solo bloque inline "PUBLICIDAD"** (sin cards)
+montado en `MainLayout` solo en **desktop** cuando no es Business Studio. Estructura: el tamaño **Grande**
+(banner 4:5) arriba y el **Chico** (tarjeta 3:2) abajo, **proporciones fijas** idénticas a las del wizard;
+ambos rotan solos (**crossfade**) y se **pausan al hover**, con puntos indicadores flotando sobre la imagen.
+Debajo, los **Fundadores** en un **marquee** continuo de logos (regalo, sin card ni título). El CTA **"Anúnciate
+aquí"** queda **fijo abajo** (grafito) y no genera scroll. Los datos vienen del **endpoint público**
+`GET /api/publicidad?ciudadId=` (`usePublicidad`): Grande/Chico salen de `publicidad_piezas` vigentes; los
+Fundadores se arman desde `negocios.es_fundador` (logo + ciudad de la sucursal principal). El **clic** abre la
+imagen en grande (**lightbox**) y cuenta `clicks`; el lightbox se **portea a `document.body`** (`usePortalTarget`)
+con `z-[100]` para escapar del stacking context de la columna (`z-30`) y **tapar el header** (`z-50`) y el toggle
+Mapa/Lista — si no, su `fixed` quedaba atrapado debajo.
 
 ### Decisiones de diseño (Fase 0)
 - **Modelo híbrido acotado por ciudades** (no el self-service-Stripe del schema dormido ni el "precio por
@@ -168,6 +210,16 @@ ciudad activa. El clic abre la imagen en grande (lightbox) y cuenta `clicks`.
   personal sin región.
 - **Folio compartido con membresías**; cortesía sin recibo.
 - **Solo desktop**; el wizard self-service vive **únicamente en la columna de carruseles**.
+
+**Decisiones 22-jun (presentación por tamaño + arranque mono-ciudad):**
+- **Se vende por TAMAÑO, no por nombre:** Grande (`patrocinadores`) y Chico (`anuncios`); combo de **2**. Sin
+  migración de datos — los IDs internos no cambian, solo las etiquetas (centro en `CARRUSEL_LABEL`).
+- **Fundadores salió del plan de pago** (es regalo): `CARRUSELES_VALIDOS` y la config de precios quedaron en 2.
+- **Proporciones fijas e idénticas columna↔wizard** (Grande 4:5 · Chico 3:2) para que el anunciante diseñe a
+  la medida; el wizard **publica la medida en px** de cada tamaño.
+- **Paso de ciudades dinámico:** se basa en **cuántas ciudades están activas** (no en el límite por anuncio);
+  con una sola se oculta y auto-selecciona. Para arrancar mono-ciudad se **desactivan** las demás en Ciudades.
+- **Lightbox por portal** (`document.body`, `z-[100]`) para tapar el header y el toggle Mapa/Lista.
 
 ### Plan de construcción (carril) — estado
 1. **Schema + migraciones** ✅ (`2026-06-21-publicidad.sql` + `-drop-publicidad-dormida.sql` + `-estado-pendiente.sql`).
@@ -185,12 +237,12 @@ ciudad activa. El clic abre la imagen en grande (lightbox) y cuenta `clicks`.
   `controllers/publicidadPublica.controller.ts` · `routes/admin/publicidad.routes.ts` · `routes/publicidadPublica.routes.ts` ·
   `cron/publicidad.cron.ts`. Config en `services/admin/configuracion*.service.ts` (claves + `validarTramosCiudades` + `validarPeriodos`);
   precio/periodos en `services/publicidad-precio.service.ts` (`calcularPrecioPublicidad(carruseles, ciudades, meses)` + `obtenerPeriodos`).
-- **Panel (apps/admin):** `components/publicidad/{SeccionPublicidad (banda de KPIs),FichaPublicidad (acciones en íconos en el header, vía `AccionesFicha`),DialogoAltaManual,DialogoEditarAnuncio,presentacionPublicidad}`
-  (el alta manual incluye **selector de periodo**) · acción `publicidad_editar` en `accionesAuditoria.tsx` · `components/configuracion/{DialogoTramosCiudades,DialogoPeriodos}.tsx` ·
-  `services/publicidadService.ts` · `hooks/queries/usePublicidadAdmin.ts`.
-- **App (apps/web):** `components/layout/ColumnaDerecha.tsx` (carruseles + botón "Anúnciate aquí" → navega a `/anunciate`) ·
-  **`pages/private/publicidad/PaginaAnunciate.tsx`** (compra self-service en **página dedicada**: carruseles + ciudades +
-  **selector de meses** y desglose de precio línea por línea; reemplazó el modal) · `services/publicidadService.ts` · `hooks/queries/usePublicidad.ts`.
+- **Panel (apps/admin):** `components/publicidad/{SeccionPublicidad (banda de KPIs + filtro por tamaño),FichaPublicidad (acciones en íconos en el header, vía `AccionesFicha`),DialogoAltaManual,DialogoEditarAnuncio,presentacionPublicidad}`
+  (`presentacionPublicidad.CARRUSEL_LABEL` es el **centro de las etiquetas por tamaño** → Grande/Chico; el alta manual incluye **selector de periodo**) · acción `publicidad_editar` en `accionesAuditoria.tsx` · `components/configuracion/{SeccionConfiguracion (pestañas Membresía/Publicidad, "Precios por tamaño"),DialogoTramosCiudades,DialogoPeriodos}.tsx` ·
+  `services/publicidadService.ts` · `hooks/queries/usePublicidadAdmin.ts`. Etiquetas de config en `services/admin/configuracion.service.ts` ("Precio · Grande/Chico").
+- **App (apps/web):** `components/layout/ColumnaDerecha.tsx` (bloque inline **"PUBLICIDAD"** Grande+Chico con proporciones fijas + Fundadores en marquee + lightbox por portal + botón "Anúnciate aquí" → navega a `/anunciate`) ·
+  **`pages/private/publicidad/PaginaAnunciate.tsx`** (compra self-service en **página dedicada**: tamaños con **medida**, **paso de ciudades dinámico** vía `useCiudades`,
+  **selector de meses** y desglose de precio línea por línea; reemplazó el modal) · `services/publicidadService.ts` · `hooks/queries/{usePublicidad,useCiudades}.ts`.
 - **Harness (apps/api/scripts):** `verificar-publicidad` · `sembrar-publicidad-dev` · `probar-publicidad-{lectura,acciones,precio,alta,checkout,mantenimiento}` · `probar-recibos-publicidad`.
 
 ---

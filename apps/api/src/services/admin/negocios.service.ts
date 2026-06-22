@@ -113,6 +113,7 @@ export interface NegocioDetalle {
     activo: boolean | null;
     esBorrador: boolean | null;
     verificado: boolean | null;
+    esFundador: boolean;
     onboardingCompletado: boolean;
     creadoEn: string | null;
     fechaPrimerPago: string | null;
@@ -509,6 +510,7 @@ export async function obtenerDetalleNegocio(
             activo: negocios.activo,
             esBorrador: negocios.esBorrador,
             verificado: negocios.verificado,
+            esFundador: negocios.esFundador,
             onboardingCompletado: negocios.onboardingCompletado,
             creadoEn: negocios.createdAt,
             fechaPrimerPago: negocios.fechaPrimerPago,
@@ -600,6 +602,7 @@ export async function obtenerDetalleNegocio(
         activo: fila.activo,
         esBorrador: fila.esBorrador,
         verificado: fila.verificado,
+        esFundador: fila.esFundador,
         onboardingCompletado: fila.onboardingCompletado,
         creadoEn: fila.creadoEn ?? null,
         fechaPrimerPago: fila.fechaPrimerPago ?? null,

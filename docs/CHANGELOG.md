@@ -8,6 +8,19 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [22 Junio 2026] - Publicidad · por tamaño (Grande/Chico) + columna rediseñada + wizard dinámico 📐
+
+Iteración sobre el módulo **Publicidad** (Panel + app): la pauta ahora se vende y presenta **por tamaño**, la columna de la app se rediseñó, y el wizard se adapta a cuántas ciudades hay habilitadas.
+
+- **Por tamaño, no por nombre:** los espacios pasan de *Anuncios/Patrocinadores* a **Grande** (banner) y **Chico** (tarjeta); el combo es de **2**. Sin migración de datos (los IDs internos no cambian; el centro de etiquetas es `presentacionPublicidad.CARRUSEL_LABEL`). Cubre wizard, alta manual, editar, filtro del Panel, Configuración ("Precios por tamaño") y el recibo (PDF + correo).
+- **Columna derecha rediseñada:** un solo bloque inline **"PUBLICIDAD"** (sin cards) con **Grande (4:5)** arriba y **Chico (3:2)** abajo, **proporciones fijas** idénticas al wizard, crossfade + pausa-al-hover; **Fundadores** en marquee; CTA grafito fijo. El **lightbox** se portea a `document.body` (`z-[100]`) para tapar el header y el toggle Mapa/Lista.
+- **Wizard a la medida + ciudades dinámicas:** cada tamaño publica su **medida** recomendada (Grande 1080×1350 · Chico 1080×720, mismo ancho base) y el preview toma la forma real. El paso **"¿En qué ciudades?"** se **oculta y auto-selecciona** cuando hay **una sola ciudad activa** (arranque en Puerto Peñasco) y **reaparece** al habilitar más (vía `useCiudades`/React Query, sin redeploy).
+- **Fix de Configuración (error 23514):** guardar cualquier ajuste de Publicidad por primera vez fallaba por dos CHECK de `configuracion_sistema`. Se ampliaron (2 migraciones, corridas en dev+prod): `categoria` acepta `publicidad`; `tipo` acepta `tramos_ciudades`/`periodos_meses`.
+
+Front web `ColumnaDerecha.tsx` + `PaginaAnunciate.tsx`; Panel `presentacionPublicidad`/`SeccionConfiguracion`/diálogos; backend `recibo-publicidad`/`publicidad`/`configuracion`/`schema.ts`. `tsc` api/admin/web verde. Migraciones: `2026-06-22-configuracion-{categoria,tipo}-publicidad.sql`. Docs: `Panel_Admin/Publicidad.md` + `Publicidad_Pendientes.md` + `Configuracion.md`.
+
+---
+
 ## [21 Junio 2026] - Panel · módulo "Publicidad" (2ª fuente de ingresos: el espacio de los carruseles) 📣
 
 Nuevo **módulo 7 del Panel Admin** (`apps/admin`) + su **superficie pública** en la app (`apps/web`): venta del **espacio** en los 3 carruseles de la columna derecha (**Anuncios** · **Patrocinadores** · **Fundadores**), **acotada por ciudades**. El anunciante (cualquier usuario) sube su propia imagen; el clic solo la agranda. Solo desktop. **3 migraciones** (3 tablas `publicidad_*`, ya corridas).
@@ -20,7 +33,9 @@ Nuevo **módulo 7 del Panel Admin** (`apps/admin`) + su **superficie pública** 
 - **Creatividades:** se **optimizan** en el navegador (WebP, máx 1600px) antes de subir y **no quedan huérfanas** — al cerrar/cancelar el front descarta las que no quedaron ligadas a un anuncio (`descartarImagenesHuerfanas` por reference count); el recolector R2 queda de respaldo.
 - **UI:** modales **Registrar/Editar** horizontales (ancho `2xl` nuevo en `ModalAdaptativo`, 2 columnas) + KPIs inline.
 
-Backend `services/admin/publicidad*` + `publicidad-{precio,checkout,mantenimiento}.service` + `publicidadPublica.*`; front Panel `components/publicidad/*` + web `PaginaAnunciate.tsx`/`ColumnaDerecha.tsx`. Harness `probar-publicidad-*` verdes + `tsc` api/admin/web. Docs: `Panel_Admin/Publicidad.md` + `Publicidad_Pendientes.md`. **Pendiente operativo:** sumar el origen del Panel/app al CORS del bucket R2.
+**Recibo de publicidad propio:** el correo usa la plantilla rica (banner + bloque-recibo) como membresía, y el PDF usa un molde propio `plantilla-recibo-publicidad.pdf` (seleccionable por `tipoRecibo`, con fallback) con el campo **Periodo** poblado (meses por adelantado). **CORS R2** ya cubría el bucket (el Panel se agregó con Vendedores; la app ya subía imágenes).
+
+Backend `services/admin/publicidad*` + `publicidad-{precio,checkout,mantenimiento}.service` + `publicidadPublica.*`; front Panel `components/publicidad/*` + web `PaginaAnunciate.tsx`/`ColumnaDerecha.tsx`. Harness `probar-publicidad-*` verdes + `tsc` api/admin/web. Docs: `Panel_Admin/Publicidad.md` + `Publicidad_Pendientes.md`.
 
 ---
 

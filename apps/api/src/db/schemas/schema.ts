@@ -180,6 +180,9 @@ export const negocios = pgTable("negocios", {
 	verificado: boolean().default(false),
 	promocionado: boolean().default(false),
 	promocionExpira: timestamp("promocion_expira", { withTimezone: true, mode: 'string' }),
+	// Regalo de Publicidad: si es uno de los primeros negocios de su ciudad, su logo va al carrusel
+	// "Fundadores" (no se cobra). Lo marca el admin desde la ficha del negocio (cupo 50 por ciudad).
+	esFundador: boolean("es_fundador").default(false).notNull(),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	embajadorId: uuid("embajador_id"),
@@ -836,8 +839,8 @@ export const configuracionSistema = pgTable("configuracion_sistema", {
 		name: "fk_configuracion_usuario"
 	}).onDelete("set null"),
 	unique("configuracion_sistema_clave_key").on(table.clave),
-	check("configuracion_categoria_check", sql`(categoria)::text = ANY (ARRAY[('transacciones'::character varying)::text, ('notificaciones'::character varying)::text, ('seguridad'::character varying)::text, ('pagos'::character varying)::text, ('promociones'::character varying)::text, ('trials'::character varying)::text, ('general'::character varying)::text])`),
-	check("configuracion_tipo_check", sql`(tipo)::text = ANY ((ARRAY['numero'::character varying, 'texto'::character varying, 'booleano'::character varying, 'json'::character varying])::text[])`),
+	check("configuracion_categoria_check", sql`(categoria)::text = ANY (ARRAY[('transacciones'::character varying)::text, ('notificaciones'::character varying)::text, ('seguridad'::character varying)::text, ('pagos'::character varying)::text, ('promociones'::character varying)::text, ('trials'::character varying)::text, ('general'::character varying)::text, ('publicidad'::character varying)::text])`),
+	check("configuracion_tipo_check", sql`(tipo)::text = ANY ((ARRAY['numero'::character varying, 'texto'::character varying, 'booleano'::character varying, 'json'::character varying, 'tramos_ciudades'::character varying, 'periodos_meses'::character varying])::text[])`),
 ]);
 
 // =============================================================================

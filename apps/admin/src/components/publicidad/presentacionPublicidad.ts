@@ -7,9 +7,11 @@
  * Ubicación: apps/admin/src/components/publicidad/presentacionPublicidad.ts
  */
 
+// La pauta se vende por TAMAÑO (no por nombre de carrusel): patrocinadores = Grande (banner) ·
+// anuncios = Chico (tarjeta). Fundadores ya no se vende (regalo), pero se conserva por datos viejos.
 export const CARRUSEL_LABEL: Record<string, string> = {
-  anuncios: 'Anuncios',
-  patrocinadores: 'Patrocinadores',
+  patrocinadores: 'Grande',
+  anuncios: 'Chico',
   fundadores: 'Fundadores',
 };
 

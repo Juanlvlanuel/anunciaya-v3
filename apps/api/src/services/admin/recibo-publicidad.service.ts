@@ -24,7 +24,7 @@ export interface ReciboPublicidadPreparado {
     correo: string | null;
     nombre: string | null;          // nombre de pila del anunciante (saludo)
     titular: string;                // negocio o nombre completo (encabeza el recibo)
-    carruseles: string;             // "Anuncios, Patrocinadores"
+    carruseles: string;             // por tamaño: "Grande, Chico"
     concepto: ConceptoPublicidad;
     monto: number | null;
     folio: number | null;
@@ -59,7 +59,11 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
             u.nombre,
             TRIM(CONCAT(u.nombre, ' ', COALESCE(u.apellidos, '')))    AS nombre_completo,
             n.nombre                                                  AS nombre_negocio,
-            (SELECT string_agg(INITCAP(carrusel), ', ' ORDER BY carrusel) FROM publicidad_piezas WHERE compra_id = pc.id) AS carruseles,
+            (SELECT string_agg(
+                CASE carrusel WHEN 'patrocinadores' THEN 'Grande' WHEN 'anuncios' THEN 'Chico' ELSE INITCAP(carrusel) END,
+                ', '
+                ORDER BY CASE carrusel WHEN 'patrocinadores' THEN 1 WHEN 'anuncios' THEN 2 ELSE 3 END
+             ) FROM publicidad_piezas WHERE compra_id = pc.id) AS carruseles,
             TRIM(CONCAT(a.nombre, ' ', COALESCE(a.apellidos, '')))    AS atendio
         FROM publicidad_compras pc
         JOIN usuarios u ON u.id = pc.usuario_id

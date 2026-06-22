@@ -34,21 +34,18 @@ async function main() {
   const c2 = await calcularPrecioPublicidad(['patrocinadores'], 3);
   verificar('patrocinadores · 3 ciudades = 1440', c2.total === 1440, `${c2.total}`);
 
-  const c3 = await calcularPrecioPublicidad(['fundadores'], 2);
-  verificar('fundadores · 2 ciudades = 900', c3.total === 900, `${c3.total}`);
+  const c4 = await calcularPrecioPublicidad(['anuncios', 'patrocinadores'], 1);
+  verificar('combo · 1 ciudad = 935 (1100 −15%)', c4.total === 935 && c4.esCombo, `${c4.total}`);
 
-  const c4 = await calcularPrecioPublicidad(['anuncios', 'patrocinadores', 'fundadores'], 1);
-  verificar('combo · 1 ciudad = 1360 (1600 −15%)', c4.total === 1360 && c4.esCombo, `${c4.total}`);
-
-  const c5 = await calcularPrecioPublicidad(['anuncios', 'patrocinadores', 'fundadores'], 5);
-  verificar('combo · 5 ciudades = 3400 (1600 ×2.5 −15%)', c5.total === 3400, `${c5.total}`);
+  const c5 = await calcularPrecioPublicidad(['anuncios', 'patrocinadores'], 5);
+  verificar('combo · 5 ciudades = 2337.5 (1100 ×2.5 −15%)', c5.total === 2337.5, `${c5.total}`);
 
   const c6 = await calcularPrecioPublicidad(['anuncios'], 10);
   verificar('anuncios · 10 ciudades = 900 (último tramo ×3)', c6.total === 900, `${c6.total}`);
 
   // Meses por adelantado (periodos default: 1→0% · 3→10% · 6→15% · 12→25%).
-  const m1 = await calcularPrecioPublicidad(['anuncios', 'patrocinadores', 'fundadores'], 1, 3);
-  verificar('combo · 1 ciudad · 3 meses = 3672 (1360×3 −10%)', m1.total === 3672 && m1.meses === 3 && m1.descuentoPeriodo === 10, `${m1.total}`);
+  const m1 = await calcularPrecioPublicidad(['anuncios', 'patrocinadores'], 1, 3);
+  verificar('combo · 1 ciudad · 3 meses = 2524.5 (935×3 −10%)', m1.total === 2524.5 && m1.meses === 3 && m1.descuentoPeriodo === 10, `${m1.total}`);
 
   const m2 = await calcularPrecioPublicidad(['anuncios'], 1, 6);
   verificar('anuncios · 6 meses = 1530 (300×6 −15%)', m2.total === 1530, `${m2.total}`);

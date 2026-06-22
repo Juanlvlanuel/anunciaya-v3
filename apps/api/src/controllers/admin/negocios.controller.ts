@@ -37,6 +37,7 @@ import {
     editarPagoMembresia,
     reenviarReciboPago,
     anularPagoMembresia,
+    marcarDesmarcarFundador,
 } from '../../services/admin/negocios-acciones.service.js';
 import {
     altaManualNegocio,
@@ -336,6 +337,23 @@ export async function anularPagoController(req: Request, res: Response): Promise
 // =============================================================================
 // POST /api/admin/negocios/:id/suspender   (superadmin + gerente · motivo obligatorio)
 // =============================================================================
+
+export async function marcarDesmarcarFundadorController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const esFundador = req.body?.esFundador === true;
+        const r = await marcarDesmarcarFundador(panel, id, esFundador);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: esFundador ? 'Fundador marcado' : 'Fundador removido', data: r.negocio });
+    } catch (error) {
+        console.error('Error en marcarDesmarcarFundadorController:', error);
+        res.status(500).json({ success: false, message: 'Error al cambiar el estado de fundador', error: error instanceof Error ? error.message : String(error) });
+    }
+}
 
 export async function suspenderNegocioController(req: Request, res: Response): Promise<void> {
     try {

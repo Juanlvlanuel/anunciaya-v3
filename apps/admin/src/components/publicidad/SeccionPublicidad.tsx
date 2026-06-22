@@ -44,10 +44,9 @@ const OPCIONES_ESTADO: OpcionMenu[] = [
 ];
 
 const OPCIONES_CARRUSEL: OpcionMenu[] = [
-  { valor: '', etiqueta: 'Todos los carruseles' },
-  { valor: 'anuncios', etiqueta: 'Anuncios' },
-  { valor: 'patrocinadores', etiqueta: 'Patrocinadores' },
-  { valor: 'fundadores', etiqueta: 'Fundadores' },
+  { valor: '', etiqueta: 'Todos los tamaños' },
+  { valor: 'patrocinadores', etiqueta: 'Grande' },
+  { valor: 'anuncios', etiqueta: 'Chico' },
 ];
 
 const OPCIONES_ORIGEN: OpcionMenu[] = [
@@ -118,7 +117,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
   };
 
   const etiquetaEstado = OPCIONES_ESTADO.find((o) => o.valor === estado)?.etiqueta ?? 'Todos los estados';
-  const etiquetaCarrusel = OPCIONES_CARRUSEL.find((o) => o.valor === carrusel)?.etiqueta ?? 'Todos los carruseles';
+  const etiquetaCarrusel = OPCIONES_CARRUSEL.find((o) => o.valor === carrusel)?.etiqueta ?? 'Todos los tamaños';
   const etiquetaOrigen = OPCIONES_ORIGEN.find((o) => o.valor === origen)?.etiqueta ?? 'Todos los orígenes';
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Recientes';
 

@@ -132,8 +132,8 @@ tome el valor nuevo de inmediato, sin esperar el TTL de 5 minutos.
 
 ## B. La tabla `configuracion_sistema`
 
-Clave-valor **tipado y validado**: `clave` (única) · `valor` (text) · `tipo` (numero/texto/booleano/**json**)
-· `descripcion` · `categoria` (check: transacciones/notificaciones/seguridad/pagos/promociones/trials/general)
+Clave-valor **tipado y validado**: `clave` (única) · `valor` (text) · `tipo` (numero/texto/booleano/**json**/tramos_ciudades/periodos_meses)
+· `descripcion` · `categoria` (check: transacciones/notificaciones/seguridad/pagos/promociones/trials/general/**publicidad**)
 · `unidad` · `valor_minimo`/`valor_maximo` · `actualizado_por` (FK usuarios, auditoría) · timestamps.
 
 La **meta** que pinta la UI sale del **catálogo en código** (`CONFIG_EDITABLE`), no de la BD; de la BD solo

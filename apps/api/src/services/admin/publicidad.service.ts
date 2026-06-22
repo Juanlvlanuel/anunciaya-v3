@@ -374,8 +374,8 @@ export async function obtenerDetallePublicidad(
         })
         .from(publicidadPiezas)
         .where(eq(publicidadPiezas.compraId, id))
-        // Orden natural de la app (no alfabético): Anuncios → Patrocinadores → Fundadores.
-        .orderBy(sql`CASE ${publicidadPiezas.carrusel} WHEN 'anuncios' THEN 1 WHEN 'patrocinadores' THEN 2 WHEN 'fundadores' THEN 3 ELSE 4 END`);
+        // Orden por tamaño (como en la columna): Grande (patrocinadores) → Chico (anuncios) → Fundadores.
+        .orderBy(sql`CASE ${publicidadPiezas.carrusel} WHEN 'patrocinadores' THEN 1 WHEN 'anuncios' THEN 2 WHEN 'fundadores' THEN 3 ELSE 4 END`);
 
     const ciudadesFilas = await db
         .select({ id: ciudades.id, nombre: ciudades.nombre })

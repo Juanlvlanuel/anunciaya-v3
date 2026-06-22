@@ -73,6 +73,7 @@ export interface NegocioDetalle {
   activo: boolean | null;
   esBorrador: boolean | null;
   verificado: boolean | null;
+  esFundador: boolean;
   onboardingCompletado: boolean;
   creadoEn: string | null;
   fechaPrimerPago: string | null;
@@ -211,6 +212,11 @@ type RespuestaAccion = RespuestaAPI<unknown> & { advertenciaStripe?: string | nu
 export async function suspenderNegocio(id: string, motivo: string): Promise<ResultadoAccionAdmin> {
   const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/suspender`, { motivo });
   return { advertenciaStripe: data.advertenciaStripe ?? null };
+}
+
+/** Marca/quita a un negocio como Fundador de su ciudad (regalo de Publicidad). */
+export async function marcarDesmarcarFundador(id: string, esFundador: boolean): Promise<void> {
+  await api.post(`/admin/negocios/${id}/marcar-fundador`, { esFundador });
 }
 
 /** Reactiva (des-pausa) — además reanuda el cobro en Stripe si hay suscripción. */

@@ -400,6 +400,26 @@ body {
   }
 }
 
+/* Marquee continuo de logos (Fundadores · columna derecha). La fila lleva 2 copias → -50% = una copia
+   completa, así el loop reinicia sin salto. Duración via --marquee-dur (más logos = más lento). Pausa al hover. */
+@keyframes marquee-logos {
+  from {
+    transform: translateX(0);
+  }
+
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.marquee-logos {
+  animation: marquee-logos var(--marquee-dur, 20s) linear infinite;
+}
+
+.marquee-logos:hover {
+  animation-play-state: paused;
+}
+
 @keyframes zoom-in-95 {
   from {
     opacity: 0;

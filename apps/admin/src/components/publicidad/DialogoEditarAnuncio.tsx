@@ -19,7 +19,9 @@ import { subirImagenPublicidad, descartarImagenesPublicidad, type Carrusel, type
 import { toast } from '../../stores/useToastPanel';
 import { CARRUSEL_LABEL } from './presentacionPublicidad';
 
-const CARRUSELES: Carrusel[] = ['anuncios', 'patrocinadores', 'fundadores'];
+// Se vende por TAMAÑO: Grande (patrocinadores) arriba · Chico (anuncios) abajo.
+// 'fundadores' ya no se vende (es regalo manual a los primeros negocios de cada ciudad).
+const CARRUSELES: Carrusel[] = ['patrocinadores', 'anuncios'];
 
 const BTN_CANCELAR =
   'rounded-[10px] border border-borde-fuerte bg-superficie px-3.5 py-2 text-[13px] font-semibold text-texto transition hover:bg-marca-suave disabled:opacity-50';
@@ -119,7 +121,7 @@ export function DialogoEditarAnuncio({ detalle, onCerrar }: { detalle: Publicida
         <div className="grid gap-5 lg:grid-cols-2 lg:items-start">
         {/* Carruseles + imágenes */}
         <div>
-          <label className={LABEL}>Carruseles e imágenes</label>
+          <label className={LABEL}>Tamaño e imagen</label>
           <div className="flex flex-col gap-2">
             {CARRUSELES.map((c) => {
               const activo = carruseles.includes(c);

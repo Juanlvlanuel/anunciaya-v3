@@ -13,8 +13,8 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X } from 'lucide-react';
-import { obtenerCatalogoCiudades } from '../../../data/ciudadesPopulares';
+import { ArrowLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
+import { useCiudades } from '../../../hooks/queries/useCiudades';
 import { notificar } from '../../../utils/notificaciones';
 import {
   obtenerOpcionesPublicidad,
@@ -27,15 +27,32 @@ import {
   type DesglosePrecio,
 } from '../../../services/publicidadService';
 
-const CARRUSELES: Carrusel[] = ['anuncios', 'patrocinadores', 'fundadores'];
-const LABEL: Record<Carrusel, string> = { anuncios: 'Anuncios', patrocinadores: 'Patrocinadores', fundadores: 'Fundadores' };
+// La pauta se elige por TAMAÑO: Grande (banner) arriba · Chico (tarjeta) abajo.
+// 'fundadores' ya no se vende (es regalo a los primeros negocios de cada ciudad).
+const CARRUSELES: Carrusel[] = ['patrocinadores', 'anuncios'];
+const LABEL: Record<Carrusel, string> = { patrocinadores: 'Grande', anuncios: 'Chico', fundadores: 'Fundadores' };
 const DESC: Record<Carrusel, string> = {
+  patrocinadores: 'Banner grande, el espacio más visible.',
   anuncios: 'Tarjeta pequeña que rota en la columna.',
-  patrocinadores: 'Banner grande, el más visible.',
   fundadores: 'Logo circular entre los fundadores.',
 };
-const ICONO: Record<Carrusel, typeof Megaphone> = { anuncios: Megaphone, patrocinadores: Star, fundadores: Award };
-const ACENTO: Record<Carrusel, string> = { anuncios: 'text-amber-500', patrocinadores: 'text-blue-600', fundadores: 'text-violet-600' };
+const ICONO: Record<Carrusel, typeof Megaphone> = { patrocinadores: Star, anuncios: Megaphone, fundadores: Award };
+const ACENTO: Record<Carrusel, string> = { patrocinadores: 'text-blue-600', anuncios: 'text-amber-500', fundadores: 'text-violet-600' };
+// Medida recomendada de la creatividad por tamaño (coherente con el espacio real de la columna; px @~3x
+// para que se vea nítida). Se muestra para que el anunciante diseñe a la medida exacta que se ocupa.
+const MEDIDA: Record<Carrusel, string> = {
+  patrocinadores: 'Vertical · 1080 × 1350 px (4:5)',
+  anuncios: 'Horizontal · 1080 × 720 px (3:2)',
+  fundadores: 'Cuadrado · 600 × 600 px (1:1)',
+};
+// El preview del uploader toma la FORMA real del espacio (vertical / horizontal / cuadrado) con el MISMO
+// ancho para ambos — igual que en la columna, donde Grande y Chico comparten el ancho de la columna —
+// para que el anunciante vea fielmente cómo quedará su creatividad recortada con object-cover.
+const PREVIEW_BOX: Record<Carrusel, string> = {
+  patrocinadores: 'mx-auto w-full max-w-[200px] aspect-[4/5]',
+  anuncios: 'mx-auto w-full max-w-[200px] aspect-[3/2]',
+  fundadores: 'mx-auto w-full max-w-[140px] aspect-square',
+};
 const FMT = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
 export default function PaginaAnunciate() {
@@ -83,12 +100,26 @@ export default function PaginaAnunciate() {
   const limite = opciones?.limiteCiudades ?? 10;
   const duracion = opciones?.duracionDias ?? 30;
   const precioBase = (c: Carrusel) => opciones?.carruseles.find((o) => o.clave === c)?.precioBase ?? 0;
-  const ciudades = obtenerCatalogoCiudades().filter((c): c is typeof c & { id: string } => !!c.id);
+
+  // Ciudades habilitadas (de la BD, reactivo vía React Query). Mientras solo haya 1, el paso "¿En qué
+  // ciudades?" no tiene sentido: se auto-selecciona y se oculta. Al habilitar más en el Panel de Ciudades
+  // el selector reaparece solo — sin tocar código (dinámico).
+  const { data: ciudadesBD } = useCiudades();
+  const ciudades = (ciudadesBD ?? []).filter((c): c is typeof c & { id: string } => !!c.id);
+  const multiCiudad = ciudades.length > 1;
+  const ciudadUnica = ciudades.length === 1 ? ciudades[0] : null;
+  const numPasoTiempo = multiCiudad ? 3 : 2;
   const ciudadesFiltradas = (busqueda
     ? ciudades.filter((c) => `${c.nombre} ${c.estado}`.toLowerCase().includes(busqueda.toLowerCase()))
     : ciudades
   ).slice(0, 60);
   const nombreCiudad = (id: string) => ciudades.find((c) => c.id === id)?.nombre ?? '—';
+
+  // Con una sola ciudad habilitada se selecciona sola (el paso queda oculto). Con 0 o varias, no toca.
+  const ciudadUnicaId = ciudadUnica?.id ?? null;
+  useEffect(() => {
+    if (ciudadUnicaId) setCiudadIds([ciudadUnicaId]);
+  }, [ciudadUnicaId]);
 
   const toggleCarrusel = (c: Carrusel) => {
     setCarruseles((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
@@ -161,13 +192,13 @@ export default function PaginaAnunciate() {
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Pasos (2/3) */}
         <div className="flex flex-col gap-6 lg:col-span-2">
-          {/* 1 · Carruseles + imágenes — en fila */}
+          {/* 1 · Tamaños + imágenes — en fila */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2.5">
               <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">1</span>
               <h2 className="text-[15.5px] font-bold text-slate-800">Elige dónde aparecer</h2>
             </div>
-            <div className="grid gap-3 sm:grid-cols-3">
+            <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
               {CARRUSELES.map((c) => {
                 const activo = carruseles.includes(c);
                 const url = imagenes[c];
@@ -188,26 +219,32 @@ export default function PaginaAnunciate() {
                           <span className="text-[14px] font-bold text-slate-800">{LABEL[c]}</span>
                         </span>
                         <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500">{DESC[c]}</span>
+                        <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-500">
+                          <Ratio size={12} className="shrink-0 text-slate-400" /> {MEDIDA[c]}
+                        </span>
                         <span className="mt-1.5 block text-[15px] font-extrabold text-slate-900">{FMT.format(precioBase(c))}</span>
                       </span>
                     </button>
 
-                    {/* Uploader (cuando activo) */}
+                    {/* Uploader (cuando activo) — con la forma real del espacio para diseñar a la medida */}
                     {activo && (
-                      <label className="group relative m-3 mt-0 block cursor-pointer overflow-hidden rounded-lg border border-dashed border-slate-300 transition hover:border-blue-400">
-                        {url ? (
-                          <>
-                            <img src={url} alt={LABEL[c]} className="h-24 w-full object-cover" />
-                            <span className="absolute inset-0 grid place-items-center bg-black/0 text-[11px] font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white">Cambiar</span>
-                          </>
-                        ) : (
-                          <span className="flex h-24 flex-col items-center justify-center gap-1 text-slate-400">
-                            {subiendo === c ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                            <span className="text-[11.5px] font-medium">Sube tu imagen</span>
-                          </span>
-                        )}
-                        <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => onArchivo(c, e.target.files?.[0])} />
-                      </label>
+                      <div className="px-3 pb-3">
+                        <label className={`group relative block cursor-pointer overflow-hidden rounded-lg border border-dashed border-slate-300 transition hover:border-blue-400 ${PREVIEW_BOX[c]}`}>
+                          {url ? (
+                            <>
+                              <img src={url} alt={LABEL[c]} className="h-full w-full object-cover" />
+                              <span className="absolute inset-0 grid place-items-center bg-black/0 text-[11px] font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white">Cambiar</span>
+                            </>
+                          ) : (
+                            <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-400">
+                              {subiendo === c ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                              <span className="text-[11.5px] font-medium">Sube tu imagen</span>
+                            </span>
+                          )}
+                          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => onArchivo(c, e.target.files?.[0])} />
+                        </label>
+                        <p className="mt-1.5 text-center text-[10.5px] leading-snug text-slate-400">Se recorta para llenar el espacio · centra lo importante</p>
+                      </div>
                     )}
                   </div>
                 );
@@ -215,7 +252,8 @@ export default function PaginaAnunciate() {
             </div>
           </section>
 
-          {/* 2 · Ciudades */}
+          {/* 2 · Ciudades — solo si hay más de una habilitada; con una sola se auto-selecciona y se oculta */}
+          {multiCiudad ? (
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
               <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">2</span>
@@ -270,11 +308,20 @@ export default function PaginaAnunciate() {
               {ciudadesFiltradas.length === 0 && <div className="col-span-full px-3 py-4 text-center text-[12.5px] text-slate-400">Sin resultados.</div>}
             </div>
           </section>
+          ) : ciudadUnica ? (
+            <div data-testid="anunciate-ciudad-unica" className="flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
+              <MapPin size={17} className="mt-0.5 shrink-0 text-blue-600" />
+              <div className="min-w-0">
+                <p className="text-[13.5px] text-slate-700">Tu anuncio se mostrará en <b className="font-semibold text-slate-900">{ciudadUnica.nombre}, {ciudadUnica.estado}</b>.</p>
+                <p className="mt-0.5 text-[12px] text-slate-400">Pronto habilitaremos más ciudades — entonces podrás elegir en cuáles aparecer.</p>
+              </div>
+            </div>
+          ) : null}
 
-          {/* 3 · Tiempo (meses por adelantado) */}
+          {/* 3 · Tiempo (meses por adelantado) — pasa a ser el paso 2 cuando hay una sola ciudad */}
           <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">3</span>
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">{numPasoTiempo}</span>
               <h2 className="text-[15.5px] font-bold text-slate-800">¿Por cuánto tiempo?</h2>
             </div>
             <p className="mb-3 text-[12.5px] text-slate-500">Paga varios meses por adelantado y ahorra.</p>
@@ -315,7 +362,7 @@ export default function PaginaAnunciate() {
             {carruseles.length === 0 ? (
               <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
                 <Megaphone size={26} className="mx-auto text-slate-300" />
-                <p className="mt-2 text-[13px] text-slate-500">Elige al menos un carrusel para ver el precio.</p>
+                <p className="mt-2 text-[13px] text-slate-500">Elige al menos un tamaño para ver el precio.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2 text-[13.5px]">
@@ -359,7 +406,7 @@ export default function PaginaAnunciate() {
               {pagando ? 'Redirigiendo…' : 'Pagar con tarjeta'}
             </button>
             {!todasImagenes && carruseles.length > 0 && (
-              <p className="mt-2 text-center text-[11.5px] text-amber-600">Sube la imagen de cada carrusel para continuar.</p>
+              <p className="mt-2 text-center text-[11.5px] text-amber-600">Sube la imagen de cada tamaño para continuar.</p>
             )}
             <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
               <ShieldCheck size={13} /> Pago seguro con Stripe

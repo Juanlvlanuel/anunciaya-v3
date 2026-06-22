@@ -232,6 +232,72 @@ export async function cambiarCorreoDueno(
 }
 
 // =============================================================================
+// MARCAR / QUITAR FUNDADOR (regalo de Publicidad — cupo 50 por ciudad)
+// =============================================================================
+
+const CUPO_FUNDADORES_POR_CIUDAD = 50;
+
+/**
+ * Marca (o quita) a un negocio como FUNDADOR: su logo entra al carrusel "Fundadores" de la ciudad de su
+ * sucursal principal. Es un regalo (no se cobra). Requiere que el negocio tenga logo y sucursal principal
+ * con ciudad, y que la ciudad no haya llenado su cupo (50). super + gerente (alcance por región).
+ */
+export async function marcarDesmarcarFundador(
+    panel: UsuarioPanel,
+    negocioId: string,
+    esFundador: boolean,
+): Promise<ResultadoAccion> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+    const neg = cargado.negocio;
+
+    if (neg.estadoAdmin === 'archivado') {
+        return { ok: false, status: 409, mensaje: 'El negocio está cancelado/archivado' };
+    }
+
+    if (esFundador) {
+        // Logo + ciudad de la sucursal principal (lo que el carrusel necesita).
+        const [info] = (await db.execute(sql`
+            SELECT n.logo_url, ns.ciudad_id::text AS ciudad_id
+            FROM negocios n
+            LEFT JOIN negocio_sucursales ns ON ns.negocio_id = n.id AND ns.es_principal = true
+            WHERE n.id = ${negocioId}::uuid
+            LIMIT 1
+        `)).rows as Array<{ logo_url: string | null; ciudad_id: string | null }>;
+        if (!info?.logo_url) {
+            return { ok: false, status: 409, mensaje: 'El negocio no tiene logo; sube uno antes de hacerlo Fundador.' };
+        }
+        if (!info.ciudad_id) {
+            return { ok: false, status: 409, mensaje: 'El negocio no tiene una sucursal principal con ciudad.' };
+        }
+        // Cupo: máximo N fundadores por ciudad (la de su sucursal principal).
+        const [{ usados }] = (await db.execute(sql`
+            SELECT count(*)::int AS usados
+            FROM negocios n
+            JOIN negocio_sucursales ns ON ns.negocio_id = n.id AND ns.es_principal = true
+            WHERE n.es_fundador = true AND ns.ciudad_id = ${info.ciudad_id}::uuid AND n.id <> ${negocioId}::uuid
+        `)).rows as Array<{ usados: number }>;
+        if (usados >= CUPO_FUNDADORES_POR_CIUDAD) {
+            return { ok: false, status: 409, mensaje: `Esta ciudad ya tiene ${CUPO_FUNDADORES_POR_CIUDAD} fundadores (cupo lleno).` };
+        }
+    }
+
+    const ahora = new Date().toISOString();
+    await db.update(negocios).set({ esFundador, updatedAt: ahora }).where(eq(negocios.id, negocioId));
+
+    await registrarAuditoria(panel, {
+        accion: esFundador ? 'negocio_marcar_fundador' : 'negocio_quitar_fundador',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: null,
+        datosNuevos: { esFundador },
+        motivo: null,
+    });
+
+    return { ok: true, negocio: { id: neg.id, estadoAdmin: neg.estadoAdmin, activo: neg.activo, embajadorId: neg.embajadorId } };
+}
+
+// =============================================================================
 // SUSPENDER (manual)
 // =============================================================================
 

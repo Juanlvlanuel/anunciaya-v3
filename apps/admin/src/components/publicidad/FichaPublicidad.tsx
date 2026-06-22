@@ -171,7 +171,7 @@ export function FichaPublicidad({ previo, rol, onCerrar }: FichaPublicidadProps)
             {/* Espacios comprados (piezas) */}
             <div className="px-4 py-3">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
-                {r.esCombo ? 'Combo de los 3 carruseles' : 'Espacio comprado'}
+                {r.esCombo ? 'Combo de los 2 tamaños' : 'Espacio comprado'}
               </div>
               {r.piezas.length === 0 ? (
                 <div className="text-[13px] text-texto-3">Cargando espacios…</div>

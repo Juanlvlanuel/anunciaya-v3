@@ -3,9 +3,9 @@
 > Lo que **falta** del módulo 7 (Publicidad). Lo que ya **es** vive en [`Publicidad.md`](Publicidad.md).
 > Cuando un pendiente se termina, **sale** de aquí y, si cambió el comportamiento, **entra** al doc canónico.
 >
-> **Última actualización:** 21 Junio 2026.
+> **Última actualización:** 22 Junio 2026.
 
-## Estado: Fase 0-2 ✅ · **Módulo CONSTRUIDO de punta a punta** · Fase 3 (cerrar) — solo falta el commit + 1 operativo (CORS R2)
+## Estado: Fase 0-2 ✅ · **Módulo CERRADO de punta a punta** · committeado · CORS R2 resuelto · solo queda backlog
 
 ### Fase 0 — Definir ✅
 - [x] Mini-spec (qué hace / qué no / matriz de permisos por rol) → en `Publicidad.md`.
@@ -42,15 +42,23 @@
 
 ### Fase 3 — Cerrar
 - [x] `Publicidad.md` (doc canónico) al día + este checklist actualizado.
-- [x] Índices: tablero de módulos, `Panel_Admin.md`, memoria.
-- [ ] **Commit a `main`** (lo hace Juan).
-- [ ] **Operativo (Juan):** sumar el origen del **Panel** (`admin.anunciaya.mx`/`localhost:3100`) **y la app** al **CORS del bucket R2** `anunciaya-tickets` — sin eso, la subida de imágenes desde el navegador falla (los recibos no, los sube el backend).
-- [ ] **Operativo (Juan): molde de PDF de publicidad** — exportar `plantilla-recibo-publicidad.pdf` (variante del `.cdr` del recibo de membresía) a `apps/api/src/assets/recibo/`, cambiando 3 textos del diseño: "MEMBRESÍA COMERCIAL" → "PUBLICIDAD", el concepto "Membresía comercial AnunciaYA" → "Publicidad AnunciaYA", y "Tu membresía está activa hasta" → "Tu publicidad está activa hasta" (opcional: la etiqueta "Sucursal" → "Espacios"). El código ya elige ese molde para los recibos de publicidad (`generarReciboPagoPDF` con `tipoRecibo:'publicidad'`); mientras el archivo no exista, **cae al molde de membresía** (por eso el PDF aún muestra textos de membresía). El **correo** de publicidad ya usa la plantilla rica (banner + bloque-recibo), igual que membresía.
+- [x] Índices: tablero de módulos, `Panel_Admin.md`, memoria, CHANGELOG.
+- [x] **Commit a `main`** ✅ (módulo completo + recibo/correo de publicidad + molde de PDF + periodo).
+- [x] **CORS del bucket R2** ✅ — el origen del **Panel** (`admin.anunciaya.mx`/`localhost:3100`) ya está en la CORS Policy del bucket (Juan lo agregó para los comprobantes de Vendedores); la app (`anunciaya.mx`) ya subía imágenes de antes. La subida de creatividades funciona desde el Panel y el wizard.
+- [x] **Recibo de publicidad** ✅ — **correo** con plantilla rica (banner + bloque-recibo) como membresía; **PDF** con molde propio `plantilla-recibo-publicidad.pdf` (seleccionable por `tipoRecibo`, con fallback) + el campo **Periodo** poblado (meses por adelantado derivados de la vigencia). El molde lo subió Juan a `apps/api/src/assets/recibo/`.
+- [x] **Fundadores = regalo (fuera del plan de pago)** ✅ — el carrusel Fundadores **ya no se vende**: el combo pasa a **2** (Anuncios+Patrocinadores), se quitó de las opciones de compra (alta/editar/wizard) y de Configuración (`publicidad_precio_fundadores` fuera). Se otorga **manual** desde la **ficha del negocio** (toggle "Marcar Fundador" en `AccionesFicha`, super+gerente, cupo **50/ciudad**, exige `logo_url` + sucursal principal con ciudad) → `negocios.es_fundador` + `marcarDesmarcarFundador` + `POST /admin/negocios/:id/marcar-fundador` + auditoría (`negocio_marcar/quitar_fundador`). El carrusel **público** arma fundadores desde esos negocios (su logo, por la ciudad de su sucursal principal). En la app, los logos **flotan** sin card ni título (rotan solos, pausan al hover); la columna también quita su fondo (deja ver el de la app) y el CTA "Anúnciate aquí" quedó **grafito**. tsc api+admin+web verde + harness de precio (combo de 2).
+- [x] **Migración `2026-06-22-negocios-fundador.sql`** ✅ (Juan, dev+prod) — `negocios.es_fundador` + índice parcial.
+
+### Iteración 22-jun (presentación por tamaño + columna + wizard dinámico + fix de Configuración) ✅
+- [x] **Presentación por TAMAÑO (Grande/Chico)** ✅ — la pauta se vende y muestra por **tamaño** en vez de por nombre de carrusel: **Grande**=`patrocinadores`, **Chico**=`anuncios` (sin migración de datos; centro en `presentacionPublicidad.CARRUSEL_LABEL`). Cubre wizard, alta, editar, filtro del Panel, Configuración ("Precios por tamaño", "Precio · Grande/Chico"), recibo (PDF+correo "Grande, Chico") y el orden de piezas. tsc api+admin+web verde.
+- [x] **Columna derecha rediseñada** ✅ — un solo bloque inline **"PUBLICIDAD"** (sin cards): Grande (4:5) arriba + Chico (3:2) abajo con **proporciones fijas**, crossfade + pausa-al-hover + puntos flotantes; Fundadores en **marquee**; CTA grafito fijo abajo. **Lightbox por portal** (`document.body`, `z-[100]`) que tapa el header (`z-50`) y el toggle Mapa/Lista.
+- [x] **Wizard: medida por tamaño + paso de ciudades dinámico** ✅ — cada tamaño publica su **medida** (Grande 1080×1350 4:5 · Chico 1080×720 3:2, mismo ancho base) y el preview toma la forma real. El paso **"¿En qué ciudades?"** se **oculta y auto-selecciona** cuando hay **1 sola ciudad activa** (vía `useCiudades`, React Query); reaparece al habilitar más, con numeración de pasos dinámica.
+- [x] **CHECKs de `configuracion_sistema` ampliados** ✅ (2 migraciones, Juan dev+prod: `2026-06-22-configuracion-categoria-publicidad.sql` + `-tipo-publicidad.sql`) — `configuracion_categoria_check` acepta `publicidad`; `configuracion_tipo_check` acepta `tramos_ciudades`/`periodos_meses`. Sin ellos, guardar config de Publicidad por primera vez fallaba (error 23514). `schema.ts` al día.
 
 ---
 
 ## Criterios de aceptación (Definición de Terminado)
-1. El SuperAdmin fija precio base de los 3 carruseles + tramos por #ciudades + límite *X* + % del combo; cambiarlos **no** afecta anuncios ya vendidos.
+1. El SuperAdmin fija precio base de los **2 tamaños** (Grande/Chico) + tramos por #ciudades + límite *X* + % del combo; cambiarlos **no** afecta anuncios ya vendidos.
 2. Un usuario compra un anuncio por el wizard (desde la columna), paga con tarjeta, sube imagen → se ve en sus ciudades, en toda la app **en desktop**, hasta expirar.
 3. El Gerente da de alta manual un anuncio (efectivo) en su región; **no** puede dar cortesía; el SuperAdmin sí.
 4. El Gerente solo ve/controla anuncios con ≥1 ciudad en su región; el SuperAdmin ve todo (con lente de región). El Vendedor recibe 403.
@@ -63,7 +71,7 @@
 - Anuncio que toca 2 regiones: ambos gerentes lo ven/gestionan; **cancelar = solo super**.
 - **Cortesía** no genera recibo de pago (sin cobro), pero sí correo de "publicidad activa".
 - Aviso por vencer = **solo correo** (sin campana por ahora).
-- **Combo** = una compra/pago/recibo, mismas ciudades y periodo, **3 imágenes** (una por formato).
+- **Combo** = una compra/pago/recibo, mismas ciudades y periodo, **2 imágenes** (una por tamaño: Grande + Chico).
 
 ## Backlog / futuro
 - Que el clic lleve a un destino (perfil/oferta/link) en vez de solo zoom.

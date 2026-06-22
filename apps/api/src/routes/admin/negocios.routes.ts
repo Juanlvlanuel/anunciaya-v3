@@ -48,6 +48,7 @@ import {
     reenviarReciboController,
     anularPagoController,
     contarNegociosController,
+    marcarDesmarcarFundadorController,
 } from '../../controllers/admin/negocios.controller.js';
 
 const router: Router = Router();
@@ -84,6 +85,8 @@ router.get('/:id/pagos', requierePanel(['superadmin', 'gerente', 'vendedor']), l
 router.post('/:id/suspender', requierePanel(['superadmin', 'gerente']), suspenderNegocioController);
 router.post('/:id/reactivar', requierePanel(['superadmin', 'gerente']), reactivarNegocioController);
 router.post('/:id/reasignar-vendedor', requierePanel(['superadmin', 'gerente']), reasignarVendedorController);
+// Marcar/quitar Fundador (regalo de Publicidad): superadmin + gerente (alcance de región en el service).
+router.post('/:id/marcar-fundador', requierePanel(['superadmin', 'gerente']), marcarDesmarcarFundadorController);
 // Marcar pagado: superadmin + gerente (alcance de region en el service). Cancelar: SOLO superadmin (Parada 2).
 // Registrar pago: super + gerente (cualquier negocio de su alcance). El VENDEDOR también, pero
 // SOLO en sus negocios MANUALES (sin tarjeta) y sin cortesía — el service lo blinda.
