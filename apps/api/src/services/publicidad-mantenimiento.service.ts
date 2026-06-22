@@ -76,3 +76,28 @@ export async function avisarAnunciosPorVencer(): Promise<{ avisados: number; err
     }
     return { avisados, errores };
 }
+
+/**
+ * Cuenta (sin actuar) cuántos registros tocaría una corrida del cron AHORA: anuncios por expirar +
+ * pendientes abandonados por limpiar + avisos de vencimiento por enviar. Reusa las MISMAS condiciones
+ * que `expirarAnunciosVencidos` / `limpiarPendientesAbandonados` / `avisarAnunciosPorVencer` (los 3
+ * conjuntos son disjuntos por estado/vigencia) para que el preview del Panel no se desincronice de la
+ * ejecución. Una sola query con 3 subselects. Para el bloque "Tareas programadas" de Mantenimiento.
+ */
+export async function contarMantenimientoPublicidad(horas = 2): Promise<number> {
+    const dias = await obtenerConfigNumero('publicidad_aviso_dias', 3);
+    const r = await db.execute<{ total: number }>(sql`
+        SELECT
+            (SELECT COUNT(*)::int FROM publicidad_compras
+              WHERE estado = 'activa' AND expira_at < now())
+          + (SELECT COUNT(*)::int FROM publicidad_compras
+              WHERE estado = 'pendiente' AND created_at < now() - (${horas} || ' hours')::interval)
+          + (SELECT COUNT(*)::int FROM publicidad_compras
+              WHERE estado = 'activa'
+                AND aviso_vencimiento_enviado = false
+                AND expira_at > now()
+                AND expira_at <= now() + (${dias} || ' days')::interval)
+          AS total
+    `);
+    return Number(r.rows[0]?.total ?? 0);
+}

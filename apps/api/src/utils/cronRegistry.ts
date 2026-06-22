@@ -41,7 +41,7 @@ export interface EstadoCron extends DefCron {
 const MIN = 60 * 1000;
 const HORA = 60 * MIN;
 
-/** Catálogo de los 7 crons activos (mismo orden en que los arranca index.ts). */
+/** Catálogo de los 8 crons activos (mismo orden en que los arranca index.ts). */
 export const CATALOGO_CRONS: DefCron[] = [
     {
         id: 'chatya',
@@ -89,6 +89,13 @@ export const CATALOGO_CRONS: DefCron[] = [
         descripcion: 'Pasa a gracia los negocios manuales con membresía vencida.',
         cadencia: 'Cada 24 h',
         cadenciaMs: 24 * HORA,
+    },
+    {
+        id: 'publicidad-mantenimiento',
+        nombre: 'Mantenimiento de Publicidad',
+        descripcion: 'Expira anuncios vencidos, limpia checkouts abandonados y avisa de vencimientos próximos.',
+        cadencia: 'Cada 12 h',
+        cadenciaMs: 12 * HORA,
     },
 ];
 

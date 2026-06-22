@@ -11,7 +11,7 @@
 ## V1 — lo construido (referencia rápida)
 
 - ✅ **Salud del sistema** — semáforos BD/Redis/R2/Stripe + latencia, autorefresh ~45 s.
-- ✅ **Tareas programadas** — los 7 crons con cadencia + última corrida; **ejecutar ahora** con **preview**.
+- ✅ **Tareas programadas** — los 8 crons con cadencia + última corrida; **ejecutar ahora** con **preview**.
 - ✅ **Logs del BE** — ventana en memoria con filtro/pausa + **exportar** + **vaciar**.
 - ✅ **Recolector R2** — analizar (dry-run) + histórico + **ejecutar limpieza** blindada (cross-ambiente).
 - ✅ **Purgar caché** de configuración.
@@ -29,11 +29,12 @@
   tendencias y fallos pasados.
 
 ### Tareas programadas
-- ⬜ **Sumar el cron de Publicidad al catálogo.** El módulo Publicidad (en construcción en paralelo) agregó
-  un **8º cron activo** (`cron/publicidad.cron.ts`, expira anuncios + avisa 3 días antes) que **aún no
-  aparece** en `cronRegistry.ts`, no está instrumentado con `registrarEjecucionCron` y no tiene `contar*`
-  para el preview. Al cerrar Publicidad: agregarlo a `CATALOGO_CRONS`, instrumentar su corrida y darle su
-  conteo de candidatos. (Patrón: igual que los otros 7 — ver `Mantenimiento.md` §"Preview de crons".)
+- ✅ **Sumar el cron de Publicidad al catálogo.** (HECHO 22 jun) El **8º cron** (`cron/publicidad.cron.ts`,
+  cada 12 h: expira anuncios vencidos, limpia checkouts abandonados y avisa de vencimientos próximos) ya
+  está en `CATALOGO_CRONS` (`cronRegistry.ts`, id `publicidad-mantenimiento`), ya **registra telemetría**
+  (`registrarEjecucionCron`, que el cron ya llamaba) y tiene su **preview** (`contarMantenimientoPublicidad`
+  en `publicidad-mantenimiento.service.ts` → `crons-preview.service.ts`, suma los 3 conjuntos disjuntos con
+  las mismas condiciones que la ejecución). `tsc` api verde.
 - ⬜ **Pausar / reanudar** un cron (hoy los intervalos son fijos en código; requiere un flag que el cron
   consulte antes de correr).
 - ⬜ **Editar la cadencia** de un cron desde el Panel (reescribe la arquitectura de `setInterval` → cron
@@ -49,6 +50,17 @@
   migraciones manuales del proyecto).
 - ⬜ **Visor de webhooks Stripe** — eventos recibidos/fallidos/reintentos (engancha con `WebhookReintentable`).
 - ⬜ **Limpieza de tokens expirados** (`tokenStore`).
+
+### Pulido (menor)
+- ⬜ **Atribución del histórico R2.** El log de ejecuciones (`r2_reconcile_log.ejecutado_por`) muestra
+  `admin-secret` aunque la limpieza se ejecute **desde el Panel** por un superadmin. El "quién" real sí
+  queda en Auditoría (`registrarAuditoria` con el actor). Mejora: en `ejecutarLimpiezaR2Segura` pasar
+  `ejecutadoPor` derivado del panel (nombre/correo del super) para que el histórico lo refleje.
+- ⬜ **Acciones de Mantenimiento en el diccionario de Auditoría.** Las acciones nuevas
+  (`mantenimiento_r2_limpiar`, `mantenimiento_cron_ejecutar`, `mantenimiento_cache_purgar`,
+  `mantenimiento_logs_vaciar`) **se auditan**, pero el módulo Auditoría aún no las tiene en su diccionario
+  de presentación (`accionesAuditoria.tsx`): hoy degradan a fallback legible. Agregarles etiqueta + badge
+  "Sistema" para que se vean como el resto.
 
 ### Cuando se separen los buckets R2 por ambiente
 - ⬜ Con buckets dev/prod separados, el **borrado desde producción dejaría de ser inseguro** → revisar si

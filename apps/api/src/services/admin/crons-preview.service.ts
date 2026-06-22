@@ -18,6 +18,7 @@ import { contarExpiradosMarketplace } from '../marketplace/expiracion.js';
 import { contarTurnosACerrar } from '../scanya-cierre-auto.service.js';
 import { contarConversacionesInactivas } from '../../cron/chatya.cron.js';
 import { obtenerNegociosActivos } from '../alertas-motor.service.js';
+import { contarMantenimientoPublicidad } from '../publicidad-mantenimiento.service.js';
 
 export interface PreviewCron {
     candidatos: number;
@@ -79,6 +80,13 @@ const PREVIEWS: Record<string, DefPreview> = {
             n === 0
                 ? 'No hay negocios activos que revisar.'
                 : `Revisará ${n} negocio${n === 1 ? '' : 's'} activo${n === 1 ? '' : 's'} y generará o actualizará sus alertas.`,
+    },
+    'publicidad-mantenimiento': {
+        contar: contarMantenimientoPublicidad,
+        describir: (n) =>
+            n === 0
+                ? 'No hay anuncios por expirar, pendientes por limpiar ni avisos por enviar.'
+                : `Tocará ${n} registro${n === 1 ? '' : 's'}: expira anuncios vencidos, limpia checkouts abandonados y avisa de vencimientos próximos.`,
     },
 };
 
