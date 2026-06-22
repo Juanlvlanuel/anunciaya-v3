@@ -15,6 +15,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { generarReciboPagoPDF } from '../../utils/reciboPdf.js';
 import { subirArchivo } from '../r2.service.js';
+import { obtenerConfigNumero } from '../configuracion.service.js';
 
 export type ConceptoPublicidad = 'efectivo' | 'transferencia' | 'cortesia' | 'tarjeta';
 
@@ -34,6 +35,7 @@ interface FilaReciboPub {
     folio: number | null;
     monto: string | null;
     metodo_cobro: ConceptoPublicidad | null;
+    duracion_dias: number;
     hasta: string;
     fecha_pago: string;
     correo: string | null;
@@ -50,6 +52,7 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
             pc.folio,
             pc.monto::text                                            AS monto,
             pc.metodo_cobro,
+            pc.duracion_dias,
             pc.expira_at::text                                        AS hasta,
             pc.created_at::text                                       AS fecha_pago,
             u.correo,
@@ -72,6 +75,9 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
     const concepto = (fila.metodo_cobro ?? 'tarjeta') as ConceptoPublicidad;
     const titular = fila.nombre_negocio || fila.nombre_completo || 'Anunciante';
     const carruseles = fila.carruseles ?? 'Publicidad';
+    // Meses cubiertos = vigencia ÷ duración base de 1 mes (config). Llena el campo "Periodo" del recibo.
+    const duracionBase = await obtenerConfigNumero('publicidad_duracion_dias', 30);
+    const meses = duracionBase > 0 ? Math.max(1, Math.round(Number(fila.duracion_dias) / duracionBase)) : 1;
 
     let reciboUrl: string | undefined;
     if (generarPdf) try {
@@ -86,10 +92,11 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
             correoNegocio: fila.correo,
             concepto,
             monto,
-            periodoMeses: null,
+            periodoMeses: meses,
             hasta: fila.hasta,
             fechaPago: fila.fecha_pago,
             atendio: fila.atendio,
+            tipoRecibo: 'publicidad',
         });
         const sub = await subirArchivo(pdf, 'recibos', 'recibo-publicidad.pdf', 'application/pdf');
         if (sub.success && sub.data?.url) reciboUrl = sub.data.url;

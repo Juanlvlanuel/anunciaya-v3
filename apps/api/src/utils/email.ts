@@ -747,42 +747,86 @@ export async function enviarAvisoVencimientoPublicidad(
 }
 
 /**
- * Comprobante al anunciante cuando se registra/paga su publicidad (alta manual o wizard). Incluye el
- * folio, el monto y la vigencia, y el botón de descarga del recibo PDF si se generó. Best-effort.
+ * Bloque-recibo (HTML) del comprobante de PUBLICIDAD: anunciante, concepto, espacios (carruseles),
+ * monto (si aplica), forma de pago y vigencia. Mismo lenguaje visual que `bloqueReciboMembresia`.
+ */
+function bloqueReciboPublicidad(datos: { titular: string; carruseles: string; concepto: string; monto: number | null; hasta: string }): string {
+  const esCortesia = datos.concepto === 'cortesia';
+  const conceptoTexto = esCortesia ? 'Publicidad de cortes&iacute;a' : 'Pago de Publicidad';
+  const filaMonto = (!esCortesia && datos.monto != null)
+    ? `
+      <tr>
+        <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Monto</td>
+        <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 700; text-align: right;">${formatearMontoMXN(datos.monto)}</td>
+      </tr>`
+    : '';
+  const filaFormaPago = !esCortesia
+    ? `
+      <tr>
+        <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Forma de pago</td>
+        <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${conceptoLegible(datos.concepto as DatosComprobantePago['concepto'])}</td>
+      </tr>`
+    : '';
+
+  return `
+    <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 18px 20px; margin-bottom: 20px;">
+      <table role="presentation" width="100%" cellspacing="0" cellpadding="0">
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Anunciante</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${escape(datos.titular)}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Concepto</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${conceptoTexto}</td>
+        </tr>
+        <tr>
+          <td style="padding: 6px 0; font-size: 13px; color: #64748b;">Espacios</td>
+          <td style="padding: 6px 0; font-size: 14px; color: #0f172a; font-weight: 600; text-align: right;">${escape(datos.carruseles)}</td>
+        </tr>${filaMonto}${filaFormaPago}
+        <tr>
+          <td style="padding: 10px 0 0; font-size: 13px; color: #64748b; border-top: 1px solid #e2e8f0;">Publicidad activa hasta</td>
+          <td style="padding: 10px 0 0; font-size: 15px; color: #034AE3; font-weight: 700; text-align: right; border-top: 1px solid #e2e8f0;">${formatearFechaLarga(datos.hasta)}</td>
+        </tr>
+      </table>
+    </div>`;
+}
+
+/**
+ * Comprobante al anunciante cuando se registra/paga su publicidad (alta manual o wizard). Usa la MISMA
+ * plantilla rica que el recibo de membresía (`plantillaBase` + bloque-recibo) con el folio, el monto, la
+ * vigencia y el botón de descarga del recibo PDF si se generó. Best-effort.
  */
 export async function enviarComprobantePublicidad(
   correo: string,
   nombre: string,
   datos: { titular: string; carruseles: string; concepto: string; monto: number | null; folio: number | null; hasta: string; reciboUrl?: string }
 ): Promise<ResultadoEmail> {
-  const saludo = nombre ? `Hola ${escape(nombre)},` : 'Hola,';
-  const folioTxt = datos.folio != null ? ` · Folio #${String(datos.folio).padStart(5, '0')}` : '';
   const esCortesia = datos.concepto === 'cortesia';
-  const montoTxt = esCortesia ? 'Cortesía' : datos.monto != null ? formatearMontoMXN(datos.monto) : '—';
-  let hastaTxt = datos.hasta;
-  try {
-    hastaTxt = new Date(datos.hasta).toLocaleDateString('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
-  } catch {
-    /* deja el ISO si no parsea */
-  }
-  const botonRecibo = datos.reciboUrl
-    ? `<p style="margin: 18px 0;"><a href="${datos.reciboUrl}" style="display:inline-block;background:#2563eb;color:#fff;text-decoration:none;padding:10px 18px;border-radius:8px;font-size:14px;font-weight:600;">Descargar recibo</a></p>`
-    : '';
-  const html = `
-    <div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; color: #1e293b;">
-      <h2 style="color: #2563eb;">${esCortesia ? 'Tu publicidad está activa' : 'Gracias por anunciarte'}</h2>
-      <p style="font-size: 14px; line-height: 1.6;">${saludo}</p>
-      <p style="font-size: 14px; line-height: 1.6;">Tu publicidad en <strong>${escape(datos.carruseles)}</strong> ya está activa${folioTxt}.</p>
-      <table style="font-size: 14px; line-height: 1.8; color: #334155;">
-        <tr><td style="color:#64748b;padding-right:12px;">Anunciante</td><td><strong>${escape(datos.titular)}</strong></td></tr>
-        <tr><td style="color:#64748b;padding-right:12px;">Monto</td><td><strong>${montoTxt}</strong></td></tr>
-        <tr><td style="color:#64748b;padding-right:12px;">Vigente hasta</td><td>${hastaTxt}</td></tr>
-      </table>
-      ${botonRecibo}
-      <p style="font-size: 13px; color: #64748b;">Gracias por anunciarte con nosotros.</p>
-    </div>`;
+  const folioTxt = datos.folio != null ? ` &middot; Folio #${String(datos.folio).padStart(5, '0')}` : '';
+
+  const intro = esCortesia
+    ? `Activamos tu publicidad en AnunciaYA como <strong>cortes&iacute;a</strong>. Aqu&iacute; tienes el detalle:`
+    : `Confirmamos que recibimos tu pago de publicidad en AnunciaYA. <strong>Guarda este correo como tu comprobante.</strong>`;
+
+  const cierre = esCortesia
+    ? `Cualquier duda sobre tu publicidad, est&aacute;s en buenas manos: cont&aacute;ctanos cuando lo necesites.`
+    : `Este correo es tu <strong>comprobante oficial</strong>. Si no reconoces este cargo, av&iacute;sanos de inmediato.`;
+
+  const contenido = `
+    <p style="margin: 0 0 6px; font-size: 15px; line-height: 1.6; color: #334155;">
+      ${intro}
+    </p>
+    <p style="margin: 0 0 20px; font-size: 14px; line-height: 1.6; color: #334155;">
+      Tu publicidad en <strong>${escape(datos.carruseles)}</strong> ya est&aacute; activa${folioTxt}.
+    </p>
+    ${bloqueReciboPublicidad(datos)}
+    ${botonDescargaRecibo(datos.reciboUrl)}
+    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #64748b;">
+      ${cierre}
+    </p>`;
+
   const asunto = esCortesia ? 'Tu publicidad en AnunciaYA está activa' : 'Comprobante de pago — tu publicidad en AnunciaYA';
-  return enviarEmail(correo, asunto, html);
+  return enviarEmail(correo, asunto, plantillaBase(nombre, contenido));
 }
 
 /**

@@ -45,6 +45,7 @@
 - [x] Índices: tablero de módulos, `Panel_Admin.md`, memoria.
 - [ ] **Commit a `main`** (lo hace Juan).
 - [ ] **Operativo (Juan):** sumar el origen del **Panel** (`admin.anunciaya.mx`/`localhost:3100`) **y la app** al **CORS del bucket R2** `anunciaya-tickets` — sin eso, la subida de imágenes desde el navegador falla (los recibos no, los sube el backend).
+- [ ] **Operativo (Juan): molde de PDF de publicidad** — exportar `plantilla-recibo-publicidad.pdf` (variante del `.cdr` del recibo de membresía) a `apps/api/src/assets/recibo/`, cambiando 3 textos del diseño: "MEMBRESÍA COMERCIAL" → "PUBLICIDAD", el concepto "Membresía comercial AnunciaYA" → "Publicidad AnunciaYA", y "Tu membresía está activa hasta" → "Tu publicidad está activa hasta" (opcional: la etiqueta "Sucursal" → "Espacios"). El código ya elige ese molde para los recibos de publicidad (`generarReciboPagoPDF` con `tipoRecibo:'publicidad'`); mientras el archivo no exista, **cae al molde de membresía** (por eso el PDF aún muestra textos de membresía). El **correo** de publicidad ya usa la plantilla rica (banner + bloque-recibo), igual que membresía.
 
 ---
 

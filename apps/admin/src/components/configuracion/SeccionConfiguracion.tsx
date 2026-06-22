@@ -5,15 +5,18 @@
  * el SuperAdmin ajusta sin tocar código. Solo lectura por ahora; la edición (diálogos + editor de la
  * escalera) llega en Fase 2.
  *
- * Diseño tipo "ajustes" (Linear/Stripe/Notion): acordeón por categoría (horizontal en escritorio —
- * franjas que se ensanchan; vertical en móvil) con tarjetas-fila horizontales apiladas dentro de cada
- * sección abierta. La escalera (json) lleva su tabla de tramos debajo. Tokens: `Tokens_Panel.md`.
+ * Diseño tipo "ajustes" (Linear/Stripe/Notion): dos PESTAÑAS (mismo patrón que Métricas — subrayado bajo
+ * la activa) que reparten el peso del módulo:
+ *   - Membresía → precio (Stripe), pagos y comisiones, prueba y gracia (lo poco de cada uno, junto).
+ *   - Publicidad → los 9 ajustes de la pauta (precios de carruseles, multiplicador, combo, límites…).
+ * Dentro de cada pestaña, las tarjetas van en rejilla de 2 columnas en escritorio (las "tablas" —escalera,
+ * multiplicador por ciudades, periodos— ocupan el ancho completo). Tokens: `Tokens_Panel.md`.
  *
  * Ubicación: apps/admin/src/components/configuracion/SeccionConfiguracion.tsx
  */
 
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, Megaphone, CalendarClock, type LucideProps } from 'lucide-react';
+import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, Megaphone, CalendarClock, Tag, Star, Award, type LucideProps } from 'lucide-react';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
@@ -23,7 +26,6 @@ import { DialogoEditarNumero, DialogoEditarEscalera } from './DialogosConfig';
 import { DialogoEditarTramosCiudades } from './DialogoTramosCiudades';
 import { DialogoEditarPeriodos } from './DialogoPeriodos';
 import { TarjetaPrecioMembresia } from './TarjetaPrecioMembresia';
-import { PanelAcordeon } from './PanelAcordeon';
 
 /** Etiqueta legible de cada categoría de `configuracion_sistema`. */
 const ETIQUETA_CATEGORIA: Record<string, string> = {
@@ -53,6 +55,29 @@ const ICONO_CLAVE: Record<string, ComponentType<LucideProps>> = {
   publicidad_periodos: CalendarClock,
 };
 
+/** Todos los íconos comparten el azul de marca del Panel (`bg-marca`). Los mapas (por grupo y por clave)
+ *  se mantienen por si luego se quiere un color por sección: bastaría cambiar estos valores. */
+const AZUL = 'bg-marca';
+const ACENTO_GRUPO: Record<string, string> = {
+  precio: AZUL,
+  pagos: AZUL,
+  trials: AZUL,
+  carruseles: AZUL,
+  reglas: AZUL,
+};
+const ACENTO_CLAVE: Record<string, string> = {
+  comision_escalera: AZUL,
+  comision_alta_monto: AZUL,
+  trial_duracion_dias: AZUL,
+  periodo_gracia_cobro_dias: AZUL,
+  publicidad_tramos_ciudades: AZUL,
+  publicidad_combo_descuento: AZUL,
+  publicidad_limite_ciudades: AZUL,
+  publicidad_duracion_dias: AZUL,
+  publicidad_aviso_dias: AZUL,
+  publicidad_periodos: AZUL,
+};
+
 /** Ícono por categoría — encabeza la barra de cada acordeón. */
 const ICONO_CATEGORIA: Record<string, ComponentType<LucideProps>> = {
   pagos: Coins,
@@ -60,11 +85,11 @@ const ICONO_CATEGORIA: Record<string, ComponentType<LucideProps>> = {
   publicidad: Megaphone,
 };
 
-/** Cuadro neutro con ícono (estilo profesional, no caricaturesco). */
-function CajaIcono({ Icono, tam = 36 }: { Icono: ComponentType<LucideProps>; tam?: number }) {
+/** Chip de color con el ícono en blanco. `color` es una clase de fondo (bg-*). */
+function CajaIcono({ Icono, tam = 36, color = 'bg-slate-400' }: { Icono: ComponentType<LucideProps>; tam?: number; color?: string }) {
   return (
     <span
-      className="grid shrink-0 place-items-center rounded-[10px] border border-borde bg-superficie-2 text-texto-3"
+      className={`grid shrink-0 place-items-center rounded-[10px] text-white ${color}`}
       style={{ width: tam, height: tam }}
     >
       <Icono size={Math.round(tam * 0.5)} />
@@ -169,7 +194,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
       <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
           <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
-            <CajaIcono Icono={Icono} tam={32} />
+            <CajaIcono Icono={Icono} tam={32} color={ACENTO_CLAVE[c.clave] ?? 'bg-slate-400'} />
             <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h4 className="text-[14.5px] font-semibold text-texto">{c.etiqueta}</h4>
@@ -221,17 +246,97 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
   );
 }
 
+/** Encabezado sobrio de un grupo de ajustes (ícono coloreado · título). */
+function EncabezadoGrupo({ Icono, titulo, color }: { Icono: ComponentType<LucideProps>; titulo: string; color?: string }) {
+  return (
+    <div className="mb-3 flex items-center gap-2.5">
+      <CajaIcono Icono={Icono} tam={28} color={color} />
+      <h3 className="text-[14px] font-semibold text-texto">{titulo}</h3>
+    </div>
+  );
+}
+
+/** Reordena para que las tarjetas "tabla" (más altas) queden al final del grupo y se emparejen entre sí
+ *  en la rejilla, en vez de dejar un hueco junto a una tarjeta simple. `sort` es estable → preserva el
+ *  orden de catálogo dentro de cada bloque (simples primero, tablas después). */
+function tablasAlFinal(filas: ConfigFila[]): ConfigFila[] {
+  const esTabla = (t: ConfigFila['tipo']) => t === 'json' || t === 'tramos_ciudades' || t === 'periodos_meses';
+  return [...filas].sort((a, b) => Number(esTabla(a.tipo)) - Number(esTabla(b.tipo)));
+}
+
+/** Rejilla de tarjetas: dos columnas en escritorio (incluidas las tablas — escalera/tramos/periodos),
+ *  alineadas arriba para que cada tarjeta conserve su alto; una sola columna en móvil. */
+function RejillaConfig({ filas, onEditar }: { filas: ConfigFila[]; onEditar: (c: ConfigFila) => void }) {
+  return (
+    <div className="grid grid-cols-1 items-start gap-2.5 lg:grid-cols-2">
+      {filas.map((c) => (
+        <TarjetaConfig key={c.clave} c={c} onEditar={() => onEditar(c)} />
+      ))}
+    </div>
+  );
+}
+
+/** Pila de tarjetas: una sola columna (tarjetas apiladas). Para grupos que viven dentro de una columna. */
+function PilaConfig({ filas, onEditar }: { filas: ConfigFila[]; onEditar: (c: ConfigFila) => void }) {
+  return (
+    <div className="flex flex-col gap-2.5">
+      {filas.map((c) => (
+        <TarjetaConfig key={c.clave} c={c} onEditar={() => onEditar(c)} />
+      ))}
+    </div>
+  );
+}
+
+/** Identidad visual de cada carrusel — mismo ícono y acento que el wizard del anunciante (apps/web,
+ *  PaginaAnunciate.tsx) para que el super reconozca el espacio que está poniendo precio. */
+const META_CARRUSEL: Record<string, { nombre: string; Icono: typeof Megaphone; acento: string }> = {
+  publicidad_precio_anuncios: { nombre: 'Anuncios', Icono: Megaphone, acento: AZUL },
+  publicidad_precio_patrocinadores: { nombre: 'Patrocinadores', Icono: Star, acento: AZUL },
+  publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: AZUL },
+};
+
+const CLAVES_PRECIO_CARRUSEL = Object.keys(META_CARRUSEL);
+
+/** Tarjeta compacta de un precio de carrusel (ícono+nombre del carrusel · qué es · precio · Editar).
+ *  Pensada para ir de a tres en fila — calco del paso "Elige dónde aparecer" del anunciante. */
+function TarjetaPrecioCarrusel({ c, onEditar }: { c: ConfigFila; onEditar: () => void }) {
+  const meta = META_CARRUSEL[c.clave];
+  const Icono = meta?.Icono ?? Megaphone;
+  return (
+    <div className="flex flex-col rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+        <span className="flex items-center gap-2">
+          <CajaIcono Icono={Icono} tam={28} color={meta?.acento ?? 'bg-slate-400'} />
+          <h4 className="text-[14px] font-semibold text-texto">{meta?.nombre ?? c.etiqueta}</h4>
+        </span>
+        {!c.sembrado && <BadgePorDefecto />}
+      </div>
+      <p className="mt-1 text-[12.5px] leading-snug text-texto-3">{c.descripcion}</p>
+      <div className="mt-3 flex items-end justify-between gap-2">
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-[22px] font-bold leading-none text-texto">{c.valor}</span>
+          {c.unidad && <span className="text-[12px] text-texto-3">{c.unidad}</span>}
+        </div>
+        <BotonEditar clave={c.clave} onEditar={onEditar} />
+      </div>
+    </div>
+  );
+}
+
+type TabId = 'membresia' | 'publicidad';
+
+const TABS: { id: TabId; etiqueta: string }[] = [
+  { id: 'membresia', etiqueta: 'Membresía' },
+  { id: 'publicidad', etiqueta: 'Publicidad' },
+];
+
 export function SeccionConfiguracion() {
   const esEscritorio = useEsEscritorio();
   const { data, isLoading, isError } = useConfiguracion();
   const [filaEditando, setFilaEditando] = useState<ConfigFila | null>(null);
+  const [tab, setTab] = useState<TabId>('membresia');
 
-  // Acordeón: una sección activa a la vez (en horizontal siempre hay una abierta; en móvil se puede
-  // colapsar tocando la activa). Al entrar, "Precio" (la primera).
-  const [activa, setActiva] = useState<string>('precio');
-  const cambiarSeccion = (id: string) =>
-    setActiva((prev) => (!esEscritorio && prev === id ? '' : id));
-
+  // Auto-ocultar la barra inferior (móvil) al hacer scroll: registra el contenedor scrolleable.
   const scrollRef = useRef<HTMLDivElement>(null);
   const setScrollEl = useScrollPanel((s) => s.setScrollEl);
   useEffect(() => {
@@ -239,14 +344,11 @@ export function SeccionConfiguracion() {
     return () => setScrollEl(null);
   }, [esEscritorio, setScrollEl]);
 
+  // Agrupa por categoría de UI (periodo_gracia se reubica a "trials" vía GRUPO_UI).
   const items = data ?? [];
-  const categorias: string[] = [];
   const porCategoria = new Map<string, ConfigFila[]>();
   const agregar = (grupo: string, c: ConfigFila) => {
-    if (!porCategoria.has(grupo)) {
-      porCategoria.set(grupo, []);
-      categorias.push(grupo);
-    }
+    if (!porCategoria.has(grupo)) porCategoria.set(grupo, []);
     porCategoria.get(grupo)!.push(c);
   };
   // 1ª pasada: cada clave en su categoría real (las reubicadas se omiten aquí).
@@ -258,60 +360,104 @@ export function SeccionConfiguracion() {
     const grupo = GRUPO_UI[c.clave];
     if (grupo) agregar(grupo, c);
   }
+  const pagos = porCategoria.get('pagos') ?? [];
+  const trials = porCategoria.get('trials') ?? [];
+  const publicidad = porCategoria.get('publicidad') ?? [];
+  // Los 3 precios de carrusel van en su propia fila de tarjetas compactas; el resto, en la rejilla normal.
+  const preciosCarrusel = publicidad.filter((c) => CLAVES_PRECIO_CARRUSEL.includes(c.clave));
+  const reglasPublicidad = publicidad.filter((c) => !CLAVES_PRECIO_CARRUSEL.includes(c.clave));
+
+  // Estado de los grupos que dependen de la API. El Precio usa su propio hook (precargado) → se muestra
+  // siempre, aunque la lista aún esté cargando.
+  const estadoDatos = isLoading ? (
+    <EstadoSeccion variante="cargando" icono={SlidersHorizontal} titulo="Cargando configuración…" />
+  ) : isError ? (
+    <EstadoSeccion
+      variante="error"
+      icono={SlidersHorizontal}
+      titulo="No se pudo cargar la configuración."
+      descripcion="Revisa tu conexión e inténtalo de nuevo."
+    />
+  ) : null;
 
   return (
     <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
-      <div className="mx-auto w-full max-w-[1180px]">
-        {/* Acordeón horizontal en escritorio (franjas que se ensanchan) / vertical en móvil. Precio va
-            primero — toca Stripe → tarjeta dedicada. Una sección activa a la vez. */}
-        <div className={esEscritorio ? 'flex items-stretch justify-center gap-2.5' : 'flex flex-col gap-2.5'}>
-          <TarjetaPrecioMembresia
-            activa={activa === 'precio'}
-            onActivar={() => cambiarSeccion('precio')}
-            horizontal={esEscritorio}
-          />
-
-          {isLoading ? (
-            <div className="flex-1">
-              <EstadoSeccion variante="cargando" icono={SlidersHorizontal} titulo="Cargando configuración…" />
-            </div>
-          ) : isError ? (
-            <div className="flex-1">
-              <EstadoSeccion
-                variante="error"
-                icono={SlidersHorizontal}
-                titulo="No se pudo cargar la configuración."
-                descripcion="Revisa tu conexión e inténtalo de nuevo."
-              />
-            </div>
-          ) : items.length === 0 ? (
-            <div className="flex-1">
-              <EstadoSeccion icono={SlidersHorizontal} titulo="Sin valores configurables" />
-            </div>
-          ) : (
-            categorias.map((cat) => {
-              const filas = porCategoria.get(cat)!;
-              return (
-                <PanelAcordeon
-                  key={cat}
-                  id={cat}
-                  titulo={ETIQUETA_CATEGORIA[cat] ?? cat}
-                  Icono={ICONO_CATEGORIA[cat] ?? SlidersHorizontal}
-                  resumen={`${filas.length} ${filas.length === 1 ? 'ajuste' : 'ajustes'}`}
-                  activa={activa === cat}
-                  onActivar={() => cambiarSeccion(cat)}
-                  horizontal={esEscritorio}
-                >
-                  <div className="flex flex-col gap-2.5">
-                    {filas.map((c) => (
-                      <TarjetaConfig key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
-                    ))}
-                  </div>
-                </PanelAcordeon>
-              );
-            })
-          )}
+      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
+        {/* Pestañas (mismo patrón que Métricas: subrayado bajo la activa). */}
+        <div className="flex gap-5 border-b border-borde">
+          {TABS.map((t) => {
+            const activo = tab === t.id;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`config-tab-${t.id}`}
+                data-active={activo}
+                onClick={() => setTab(t.id)}
+                className={`relative px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'}`}
+              >
+                {t.etiqueta}
+                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
+              </button>
+            );
+          })}
         </div>
+
+        {/* MEMBRESÍA: precio (Stripe) + pagos y comisiones + prueba y gracia. */}
+        {tab === 'membresia' && (
+          <div className="flex flex-col gap-7" data-testid="config-vista-membresia">
+            <section>
+              <EncabezadoGrupo Icono={Tag} titulo="Precio de la membresía" color={ACENTO_GRUPO.precio} />
+              <TarjetaPrecioMembresia />
+            </section>
+
+            {estadoDatos ?? (
+              <div className="grid grid-cols-1 items-start gap-x-6 gap-y-7 lg:grid-cols-2">
+                {pagos.length > 0 && (
+                  <section>
+                    <EncabezadoGrupo Icono={ICONO_CATEGORIA.pagos ?? SlidersHorizontal} titulo={ETIQUETA_CATEGORIA.pagos} color={ACENTO_GRUPO.pagos} />
+                    <PilaConfig filas={pagos} onEditar={setFilaEditando} />
+                  </section>
+                )}
+                {trials.length > 0 && (
+                  <section>
+                    <EncabezadoGrupo Icono={ICONO_CATEGORIA.trials ?? SlidersHorizontal} titulo={ETIQUETA_CATEGORIA.trials} color={ACENTO_GRUPO.trials} />
+                    <PilaConfig filas={trials} onEditar={setFilaEditando} />
+                  </section>
+                )}
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* PUBLICIDAD: precios de los carruseles (fila de 3) + reglas y límites (rejilla de 2). */}
+        {tab === 'publicidad' && (
+          <div data-testid="config-vista-publicidad">
+            {estadoDatos ??
+              (publicidad.length === 0 ? (
+                <EstadoSeccion icono={Megaphone} titulo="Sin ajustes de publicidad" />
+              ) : (
+                <div className="flex flex-col gap-7">
+                  {preciosCarrusel.length > 0 && (
+                    <section>
+                      <EncabezadoGrupo Icono={Tag} titulo="Precios de los carruseles" color={ACENTO_GRUPO.carruseles} />
+                      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
+                        {preciosCarrusel.map((c) => (
+                          <TarjetaPrecioCarrusel key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
+                        ))}
+                      </div>
+                    </section>
+                  )}
+                  {reglasPublicidad.length > 0 && (
+                    <section>
+                      <EncabezadoGrupo Icono={SlidersHorizontal} titulo="Reglas y límites" color={ACENTO_GRUPO.reglas} />
+                      <RejillaConfig filas={tablasAlFinal(reglasPublicidad)} onEditar={setFilaEditando} />
+                    </section>
+                  )}
+                </div>
+              ))}
+          </div>
+        )}
       </div>
 
       {filaEditando &&

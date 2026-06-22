@@ -19,17 +19,33 @@ import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
 
 // ── Molde (fondo): se lee del disco UNA vez y se cachea. Rutas candidatas dev (src) y prod (dist). ──
-let plantillaCache: Uint8Array | undefined;
-function leerPlantilla(): Uint8Array {
-    if (plantillaCache) return plantillaCache;
+const plantillaCache = new Map<string, Uint8Array>();
+function leerPlantilla(archivo: string): Uint8Array {
+    const cacheado = plantillaCache.get(archivo);
+    if (cacheado) return cacheado;
     const candidatas = [
-        new URL('../assets/recibo/plantilla-recibo.pdf', import.meta.url), // dev: src/utils → src/assets
-        new URL('./assets/recibo/plantilla-recibo.pdf', import.meta.url),  // prod: dist/index.js → dist/assets
+        new URL(`../assets/recibo/${archivo}`, import.meta.url), // dev: src/utils → src/assets
+        new URL(`./assets/recibo/${archivo}`, import.meta.url),  // prod: dist/index.js → dist/assets
     ].map((u) => fileURLToPath(u));
     const ruta = candidatas.find((p) => existsSync(p));
-    if (!ruta) throw new Error('No se encontró plantilla-recibo.pdf (assets/recibo/)');
-    plantillaCache = new Uint8Array(readFileSync(ruta));
-    return plantillaCache;
+    if (!ruta) throw new Error(`No se encontró ${archivo} (assets/recibo/)`);
+    const bytes = new Uint8Array(readFileSync(ruta));
+    plantillaCache.set(archivo, bytes);
+    return bytes;
+}
+
+const MOLDE_POR_TIPO: Record<'membresia' | 'publicidad', string> = {
+    membresia: 'plantilla-recibo.pdf',
+    publicidad: 'plantilla-recibo-publicidad.pdf',
+};
+
+/** Molde de fondo del tipo pedido; si el de publicidad aún no existe en assets, cae al de membresía. */
+function leerMolde(tipo: 'membresia' | 'publicidad'): Uint8Array {
+    try {
+        return leerPlantilla(MOLDE_POR_TIPO[tipo]);
+    } catch {
+        return leerPlantilla(MOLDE_POR_TIPO.membresia);
+    }
 }
 
 // ── Mapa de coordenadas (origen abajo-izquierda, en pt). Extraído del diseño. ──
@@ -81,6 +97,8 @@ export interface DatosReciboPDF {
     fechaPago?: string;
     /** Quién registró el pago (vendedor/gerente/admin) → "Atendido por". */
     atendio?: string | null;
+    /** Molde de fondo: 'membresia' (default) o 'publicidad'. Si el de publicidad no existe en assets, cae al de membresía. */
+    tipoRecibo?: 'membresia' | 'publicidad';
 }
 
 function formaPagoLegible(c: DatosReciboPDF['concepto']): string {
@@ -138,7 +156,7 @@ function partirEnLineas(texto: string, font: PDFFont, size: number, maxAncho: nu
  * Genera el PDF del recibo (molde + datos estampados) y lo devuelve como Buffer.
  */
 export async function generarReciboPagoPDF(datos: DatosReciboPDF): Promise<Buffer> {
-    const doc = await PDFDocument.load(leerPlantilla());
+    const doc = await PDFDocument.load(leerMolde(datos.tipoRecibo ?? 'membresia'));
     const page = doc.getPages()[0];
     const helv = await doc.embedFont(StandardFonts.Helvetica);
     const helvBold = await doc.embedFont(StandardFonts.HelveticaBold);

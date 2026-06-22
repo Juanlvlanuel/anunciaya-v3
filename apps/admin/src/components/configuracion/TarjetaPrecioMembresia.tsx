@@ -17,7 +17,6 @@
 import { useState } from 'react';
 import { Tag, CalendarRange, AlertTriangle, Check } from 'lucide-react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
-import { PanelAcordeon } from './PanelAcordeon';
 import { useConfigPublica } from '../../hooks/queries/usePrecioMembresia';
 import { useCambiarPrecioMensual, useActivarPlanAnual } from '../../hooks/queries/useConfiguracionAdmin';
 
@@ -34,10 +33,10 @@ const BTN_CANCELAR =
 const BTN_GUARDAR =
   'inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-4 py-2 text-[13px] font-semibold text-marca-contraste transition disabled:cursor-not-allowed disabled:opacity-50';
 
-/** Cuadro neutro con ícono (estilo profesional, no caricaturesco). */
-function CajaIcono({ Icono }: { Icono: typeof Tag }) {
+/** Chip de color con el ícono en blanco. `color` es una clase de fondo (bg-*). */
+function CajaIcono({ Icono, color = 'bg-slate-400' }: { Icono: typeof Tag; color?: string }) {
   return (
-    <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[10px] border border-borde bg-superficie-2 text-texto-3">
+    <span className={`grid h-8 w-8 shrink-0 place-items-center rounded-[10px] text-white ${color}`}>
       <Icono size={16} />
     </span>
   );
@@ -157,43 +156,19 @@ function DialogoCambiarPrecioMensual({
 // TARJETA (en la sección Configuración)
 // =============================================================================
 
-export function TarjetaPrecioMembresia({
-  activa,
-  onActivar,
-  horizontal,
-}: {
-  activa: boolean;
-  onActivar: () => void;
-  horizontal: boolean;
-}) {
+export function TarjetaPrecioMembresia() {
   const config = useConfigPublica();
   const activarAnual = useActivarPlanAnual();
   const [modalAbierto, setModalAbierto] = useState(false);
 
-  const resumen = (
-    <span className="leading-tight">
-      {pesos(config.precioMembresia)}/mes
-      <br />
-      {config.anualDisponible ? 'anual activo' : 'sin anual'}
-    </span>
-  );
-
   return (
-    <PanelAcordeon
-      id="precio"
-      titulo="Precio de la membresía"
-      Icono={Tag}
-      resumen={resumen}
-      activa={activa}
-      onActivar={onActivar}
-      horizontal={horizontal}
-    >
-      <div className="flex flex-col gap-2.5">
+    <>
+      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
         {/* Precio mensual — fila con su botón Cambiar (apila en móvil) */}
         <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid="config-precio-membresia">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
             <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
-              <CajaIcono Icono={Tag} />
+              <CajaIcono Icono={Tag} color="bg-marca" />
               <div className="min-w-0 flex-1">
                 <h4 className="text-[14.5px] font-semibold text-texto">Precio mensual</h4>
                 <p className="mt-0.5 text-[13px] leading-relaxed text-texto-3">
@@ -222,7 +197,7 @@ export function TarjetaPrecioMembresia({
         <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid="config-plan-anual">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
             <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
-              <CajaIcono Icono={CalendarRange} />
+              <CajaIcono Icono={CalendarRange} color="bg-marca" />
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2">
                   <h4 className="text-[14.5px] font-semibold text-texto">Plan anual</h4>
@@ -263,7 +238,7 @@ export function TarjetaPrecioMembresia({
           onCerrar={() => setModalAbierto(false)}
         />
       )}
-    </PanelAcordeon>
+    </>
   );
 }
 
