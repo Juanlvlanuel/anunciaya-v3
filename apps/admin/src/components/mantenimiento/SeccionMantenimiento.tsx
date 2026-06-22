@@ -16,7 +16,7 @@
  * Ubicación: apps/admin/src/components/mantenimiento/SeccionMantenimiento.tsx
  */
 
-import { useState, type ReactNode } from 'react';
+import { useState, useMemo, type ReactNode } from 'react';
 import {
   Wrench,
   Activity,
@@ -601,6 +601,12 @@ function BloqueR2() {
 
   const huerfanas = reporte.data?.resumen.huerfanas ?? 0;
   const puedeEjecutar = reporte.data?.puedeEjecutar ?? false;
+  // Rotas agrupadas por "tabla.columna" (de mayor a menor) — revela de dónde salen.
+  const rotasPorUbicacion = useMemo(() => {
+    const m: Record<string, number> = {};
+    for (const r of reporte.data?.rotas ?? []) m[r.ubicacion] = (m[r.ubicacion] ?? 0) + 1;
+    return Object.entries(m).sort((a, b) => b[1] - a[1]);
+  }, [reporte.data]);
 
   return (
     <Tarjeta
@@ -645,27 +651,31 @@ function BloqueR2() {
             {/* Desglose por carpeta */}
             {reporte.data && Object.keys(reporte.data.porCarpeta).length > 0 && (
               <div className="mt-3 overflow-hidden rounded-[10px] border border-borde">
-                <div className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 border-b border-borde bg-superficie-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
-                  <span>Carpeta</span>
-                  <span className="text-right">En R2</span>
-                  <span className="text-right">En BD</span>
-                  <span className="text-right">Huérf.</span>
+                {/* Header + filas comparten el MISMO contenedor scrolleable (el scrollbar afecta a ambos
+                    por igual) y las MISMAS columnas de ancho fijo (alineación exacta). */}
+                <div className="max-h-[200px] overflow-y-auto">
+                  <div className="sticky top-0 grid grid-cols-[1fr_3.75rem_3.75rem_3.75rem] gap-x-3 border-b border-borde bg-superficie-2 px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4">
+                    <span>Carpeta</span>
+                    <span className="text-right">En R2</span>
+                    <span className="text-right">En BD</span>
+                    <span className="text-right">Huérf.</span>
+                  </div>
+                  <ul className="divide-y divide-borde">
+                    {Object.entries(reporte.data.porCarpeta).map(([carpeta, c]) => (
+                      <li key={carpeta} className="grid grid-cols-[1fr_3.75rem_3.75rem_3.75rem] gap-x-3 px-3 py-1.5 text-[12px]">
+                        <span className="truncate font-mono text-texto-2" title={carpeta}>{carpeta}</span>
+                        <span className="text-right tabular-nums text-texto-3">{c.enR2}</span>
+                        <span className="text-right tabular-nums text-texto-3">{c.enBD}</span>
+                        <span
+                          className="text-right font-semibold tabular-nums"
+                          style={{ color: c.huerfanas > 0 ? 'var(--panel-warn)' : 'var(--panel-text-3)' }}
+                        >
+                          {c.huerfanas}
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
                 </div>
-                <ul className="max-h-[200px] divide-y divide-borde overflow-y-auto">
-                  {Object.entries(reporte.data.porCarpeta).map(([carpeta, c]) => (
-                    <li key={carpeta} className="grid grid-cols-[1fr_auto_auto_auto] gap-x-4 px-3 py-1.5 text-[12px]">
-                      <span className="truncate font-mono text-texto-2" title={carpeta}>{carpeta}</span>
-                      <span className="text-right tabular-nums text-texto-3">{c.enR2}</span>
-                      <span className="text-right tabular-nums text-texto-3">{c.enBD}</span>
-                      <span
-                        className="text-right font-semibold tabular-nums"
-                        style={{ color: c.huerfanas > 0 ? 'var(--panel-warn)' : 'var(--panel-text-3)' }}
-                      >
-                        {c.huerfanas}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
               </div>
             )}
 
@@ -680,6 +690,38 @@ function BloqueR2() {
                     <li key={h.key} className="flex items-center gap-2 px-3 py-1.5">
                       <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-texto-2" title={h.key}>{h.key}</span>
                       <span className="shrink-0 text-[11px] text-texto-4">{formatearBytes(h.size)}</span>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {/* URLs rotas (informativo — el recolector NO las arregla) */}
+            {reporte.data && reporte.data.rotas.length > 0 && (
+              <div className="mt-3 overflow-hidden rounded-[10px] border border-borde">
+                <div className="border-b border-borde bg-superficie-2 px-3 py-1.5 text-[11.5px] font-semibold uppercase tracking-wide text-texto-4">
+                  URLs rotas · {reporte.data.rotas.length} — apuntan a archivos que ya no existen
+                </div>
+                {/* Agrupado por tabla.columna: de dónde salen */}
+                <div className="flex flex-wrap gap-1.5 border-b border-borde px-3 py-2.5">
+                  {rotasPorUbicacion.map(([ubic, n]) => (
+                    <span
+                      key={ubic}
+                      className="inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11.5px]"
+                    >
+                      <span className="font-mono text-texto-2">{ubic}</span>
+                      <span className="font-semibold text-peligro">{n}</span>
+                    </span>
+                  ))}
+                </div>
+                {/* Lista detallada */}
+                <ul className="max-h-[200px] divide-y divide-borde overflow-y-auto">
+                  {reporte.data.rotas.map((r, i) => (
+                    <li key={`${r.url}-${i}`} className="flex items-center gap-2 px-3 py-1.5">
+                      <span className="min-w-0 flex-1 truncate font-mono text-[11.5px] text-texto-2" title={r.url}>
+                        {r.url}
+                      </span>
+                      <span className="shrink-0 font-mono text-[11px] text-texto-4">{r.ubicacion}</span>
                     </li>
                   ))}
                 </ul>
