@@ -149,19 +149,19 @@ function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: { onIrAlInicio:
             </div>
 
             <div className="grid grid-cols-2 gap-3 lg:gap-3 2xl:gap-4 mb-5 lg:mb-6 2xl:mb-8">
-                <div className="bg-slate-200 border-2 border-slate-300 rounded-xl p-4 lg:p-3 2xl:p-4 text-center">
-                    <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2 shadow-md">
-                        <Edit3 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-800" />
+                <div className="text-center">
+                    <div className="w-12 h-12 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-blue-600 rounded-xl flex items-center justify-center mx-auto mb-2 lg:mb-2 2xl:mb-2.5 shadow-sm">
+                        <Edit3 className="w-5 h-5 2xl:w-5 2xl:h-5 text-white" />
                     </div>
-                    <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">100% Editable</h5>
+                    <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">100% editable</h5>
                     <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-snug">
-                        Puedes cambiar todo después en <span className="whitespace-nowrap">Business Studio</span>
+                        Cambia todo después en <span className="whitespace-nowrap">Business Studio</span>
                     </p>
                 </div>
 
-                <div className="bg-amber-100 border-2 border-amber-300 rounded-xl p-4 lg:p-3 2xl:p-4 text-center">
-                    <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2 shadow-md">
-                        <TrendingUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-600" />
+                <div className="text-center">
+                    <div className="w-12 h-12 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 bg-emerald-600 rounded-xl flex items-center justify-center mx-auto mb-2 lg:mb-2 2xl:mb-2.5 shadow-sm">
+                        <TrendingUp className="w-5 h-5 2xl:w-5 2xl:h-5 text-white" />
                     </div>
                     <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">Agrega más después</h5>
                     <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-snug">
