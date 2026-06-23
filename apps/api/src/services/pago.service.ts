@@ -601,6 +601,23 @@ export async function validarCodigoReferido(
     }
 }
 
+/**
+ * Negocio del usuario (si lo tiene): un personal que YA tuvo un negocio (cancelado desde el Panel) lo
+ * conserva ARCHIVADO; al volver a /crear-negocio, el upgrade lo REVIVE en vez de crear uno nuevo. Esto deja
+ * que el formulario lo detecte y muestre "Recupera tu negocio: X" en vez del genérico "Crea tu negocio".
+ */
+export async function obtenerNegocioArchivadoDelUsuario(
+    usuarioId: string
+): Promise<{ tiene: boolean; nombre: string | null; onboardingCompletado: boolean }> {
+    const [neg] = await db
+        .select({ nombre: negocios.nombre, onboardingCompletado: negocios.onboardingCompletado })
+        .from(negocios)
+        .where(eq(negocios.usuarioId, usuarioId))
+        .limit(1);
+    if (!neg) return { tiene: false, nombre: null, onboardingCompletado: false };
+    return { tiene: true, nombre: neg.nombre, onboardingCompletado: neg.onboardingCompletado ?? false };
+}
+
 // =============================================================================
 // FUNCIÓN AUXILIAR: MANEJAR CHECKOUT COMPLETADO
 // =============================================================================
@@ -1829,4 +1846,5 @@ export default {
     procesarWebhook,
     verificarSession,
     validarCodigoReferido,
+    obtenerNegocioArchivadoDelUsuario,
 };

@@ -166,6 +166,21 @@ export async function validarReferido(
   }
 }
 
+/**
+ * Indica si el usuario logueado ya tuvo un negocio (cancelado/archivado). El upgrade lo revive en vez de
+ * crear uno → el formulario ofrece "Recuperar tu negocio". Nunca lanza: ante error devuelve { tiene:false }.
+ */
+export async function obtenerNegocioArchivado(): Promise<{ tiene: boolean; nombre: string | null; onboardingCompletado: boolean }> {
+  try {
+    const response = await api.get<RespuestaAPI<{ tiene: boolean; nombre: string | null; onboardingCompletado: boolean }>>(
+      '/pagos/mi-negocio-archivado'
+    );
+    return response.data?.data ?? { tiene: false, nombre: null, onboardingCompletado: false };
+  } catch {
+    return { tiene: false, nombre: null, onboardingCompletado: false };
+  }
+}
+
 // =============================================================================
 // FUNCIÓN 2: VERIFICAR SESSION
 // =============================================================================
@@ -210,6 +225,7 @@ const pagoService = {
   crearCheckout,
   crearCheckoutUpgrade,
   validarReferido,
+  obtenerNegocioArchivado,
   verificarSession,
 };
 

@@ -402,6 +402,26 @@ export async function validarReferido(req: Request, res: Response): Promise<void
   }
 }
 
+/**
+ * GET /api/pagos/mi-negocio-archivado
+ * Si el usuario (personal) ya tuvo un negocio (cancelado/archivado), devuelve su nombre para que el
+ * formulario de upgrade ofrezca "Recuperar tu negocio" en vez de crear uno nuevo. Nunca lanza (200).
+ */
+export async function miNegocioArchivado(req: Request, res: Response): Promise<void> {
+  try {
+    const usuarioToken = req.usuario;
+    if (!usuarioToken) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const data = await pagoService.obtenerNegocioArchivadoDelUsuario(usuarioToken.usuarioId);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Error en miNegocioArchivado:', error);
+    res.status(200).json({ success: true, data: { tiene: false, nombre: null, onboardingCompletado: false } });
+  }
+}
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -410,6 +430,7 @@ export default {
   crearCheckout,
   crearCheckoutUpgrade,
   validarReferido,
+  miNegocioArchivado,
   webhookStripe,
   verificarSession,
 };

@@ -43,6 +43,7 @@ export function PaginaCrearNegocio() {
   const [codigoReferido, setCodigoReferido] = useState('');
   const [vendedorValidado, setVendedorValidado] = useState<{ valido: boolean; vendedor: string | null } | null>(null);
   const [validandoCodigo, setValidandoCodigo] = useState(false);
+  const [negocioArchivado, setNegocioArchivado] = useState<{ tiene: boolean; nombre: string | null } | null>(null);
 
   // ---------------------------------------------------------------------------
   // Validaciones de acceso
@@ -58,6 +59,18 @@ export function PaginaCrearNegocio() {
       navigate('/business-studio');
     }
   }, [usuario, navigate]);
+
+  // ¿El usuario ya tuvo un negocio (cancelado)? El upgrade lo REVIVE → mostramos "Recupera tu negocio" y
+  // prellenamos su nombre (editable) en vez del genérico "Crea tu negocio".
+  useEffect(() => {
+    let activo = true;
+    pagoService.obtenerNegocioArchivado().then((r) => {
+      if (!activo) return;
+      setNegocioArchivado({ tiene: r.tiene, nombre: r.nombre });
+      if (r.tiene && r.nombre) setNombreNegocio(r.nombre);
+    });
+    return () => { activo = false; };
+  }, []);
 
   // Validación EN VIVO del código de referido (debounce 450ms). Case-sensitive (lo resuelve el backend).
   // Solo se atribuye al pagar si validó a un vendedor real → un código mal escrito no se cuela.
@@ -158,9 +171,9 @@ export function PaginaCrearNegocio() {
               <Building2 className="w-5 h-5 2xl:w-6 2xl:h-6 text-white" />
             </div>
             <div>
-              <h1 className="text-lg lg:text-lg 2xl:text-xl font-bold text-slate-900">Crea tu negocio</h1>
+              <h1 className="text-lg lg:text-lg 2xl:text-xl font-bold text-slate-900">{negocioArchivado?.tiene ? 'Recupera tu negocio' : 'Crea tu negocio'}</h1>
               <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                Hola {usuario.nombre}, activa tu cuenta comercial
+                {negocioArchivado?.tiene ? `Hola ${usuario.nombre}, reactiva tu negocio anterior` : `Hola ${usuario.nombre}, activa tu cuenta comercial`}
               </p>
             </div>
           </div>
@@ -169,10 +182,12 @@ export function PaginaCrearNegocio() {
         {/* Contenido */}
         <div className="px-5 lg:px-5 2xl:px-7 pt-3 lg:pt-3 2xl:pt-4 pb-4 lg:pb-4 2xl:pb-5">
           {/* Nota informativa */}
-          <div className="flex items-start gap-2.5 bg-slate-100 rounded-xl p-2.5 lg:p-2.5 2xl:p-3 mb-3 lg:mb-3 2xl:mb-4">
-            <Sparkles className="w-4 h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0 mt-0.5" />
-            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-relaxed">
-              Configurarás el correo, ubicación y datos de tu negocio después del pago, en el asistente de configuración.
+          <div className={`flex items-start gap-2.5 rounded-xl p-2.5 lg:p-2.5 2xl:p-3 mb-3 lg:mb-3 2xl:mb-4 ${negocioArchivado?.tiene ? 'bg-emerald-50 border border-emerald-200' : 'bg-slate-100'}`}>
+            <Sparkles className={`w-4 h-4 2xl:w-5 2xl:h-5 shrink-0 mt-0.5 ${negocioArchivado?.tiene ? 'text-emerald-600' : 'text-slate-600'}`} />
+            <p className={`text-sm lg:text-[11px] 2xl:text-sm font-medium leading-relaxed ${negocioArchivado?.tiene ? 'text-emerald-800' : 'text-slate-600'}`}>
+              {negocioArchivado?.tiene
+                ? <>Tu negocio <strong>{negocioArchivado.nombre}</strong> se reactivará con sus datos al pagar. Puedes cambiarle el nombre abajo si quieres.</>
+                : 'Configurarás el correo, ubicación y datos de tu negocio después del pago, en el asistente de configuración.'}
             </p>
           </div>
 

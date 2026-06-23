@@ -67,6 +67,13 @@ router.post('/crear-checkout-upgrade', verificarToken, pagoController.crearCheck
 router.get('/validar-referido', verificarToken, pagoController.validarReferido);
 
 /**
+ * GET /api/pagos/mi-negocio-archivado
+ * Indica si el usuario logueado ya tuvo un negocio (cancelado/archivado) para ofrecer "Recuperar tu
+ * negocio" en el upgrade. REQUIERE AUTENTICACIÓN.
+ */
+router.get('/mi-negocio-archivado', verificarToken, pagoController.miNegocioArchivado);
+
+/**
  * POST /api/pagos/webhook
  * 
  * Webhook de Stripe para recibir eventos.
