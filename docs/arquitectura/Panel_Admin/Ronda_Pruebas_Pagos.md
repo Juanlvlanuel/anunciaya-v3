@@ -124,8 +124,32 @@
   capturaba la fecha **UTC** (mostraba 23 jun cuando el cobro fue el 22 a las 19:10 Sonora). Fix: los 4 setters
   usan `(now() AT TIME ZONE 'America/Hermosillo')::date`. Verificado en BD (CURRENT_DATE=23 vs Sonora=22). **Solo
   aplica a registros NUEVOS** (no migra los viejos). (b) `FichaNegocio.tsx` mostraba "Inicio Trial" aun en cobro
-  inmediato (trial=0); ahora se oculta si el primer pago ocurrió ~el mismo día del alta (umbral 3 días) o si no
-  hubo periodo de prueba.
+  inmediato (trial=0); ahora se oculta de forma DETERMINISTA: "Inicio Trial" solo se muestra mientras el negocio
+  está EN su trial (sin primer pago); una vez que paga (día-1 o al terminar el trial) muestra "Primer pago" y
+  oculta "Inicio Trial". La 1ª versión usaba un umbral de 3 días, descartado porque fallaba en negocios REVIVIDOS
+  (created_at antiguo). (commit `dcfad75`)
+- ✅ **OBS-18 — Upgrade self-service: faltaba plan anual + atribución a vendedor. IMPLEMENTADO (22 jun, `dcfad75`).**
+  `PaginaCrearNegocio` (el componente REAL; `FormularioCrearNegocio.tsx` era código muerto) estrenó **toggle
+  Mensual/Anual** (el backend ya soportaba el intervalo) e **input de código de vendedor con validación EN VIVO**
+  (`GET /pagos/validar-referido` → `validarCodigoReferido`, case-sensitive; muestra el vendedor ✓/✗ y SOLO
+  atribuye si valida → un código mal escrito no se cuela). El webhook `manejarUpgradeCompletado` setea
+  `embajadorId` al crear y al revivir → la comisión de alta se devenga al 1er cobro. El upgrade usa input manual
+  (excepción decidida al "código solo por link", ver [[project_codigo_referido_solo_link]]).
+- ✅ **OBS-19 — El upgrade con trial=0 (cobro día-1) no registraba el cobro. CORREGIDO (22 jun, `dcfad75`).**
+  `manejarUpgradeCompletado` creaba el negocio pero NO registraba el cobro inicial → dependía del
+  `invoice.payment_succeeded`, que en la carrera del día-1 da 500 y el Stripe CLI local NO reintenta → sin
+  recibo/correo/comisión. Fix: el upgrade registra el cobro día-1 **desde el checkout** (`registrarCobroReal`,
+  idempotente por invoice.id), igual que el alta nueva, + empuje de cortesía del vendedor (+14d). El 500 del
+  webhook queda como respaldo inofensivo (el checkout ya registró). **Validado E2E: recibo + correo llegaron.**
+- ✅ **OBS-20 — Recibo de membresía (cobro tarjeta): "Periodo" y "Teléfono" vacíos. CORREGIDO (22 jun, `dcfad75`).**
+  `registrarCobroReal` insertaba el pago con `mesesCubiertos: null` → "Periodo" vacío; fix: `meses = monto÷precio`
+  (1 mensual, 10 anual). El recibo leía solo `s.telefono` (sucursal) → vacío en el negocio nuevo del upgrade; fix:
+  `COALESCE(s.telefono, u.telefono)` (cae al teléfono del dueño). Solo afecta recibos NUEVOS.
+- ✅ **OBS-21 — Doble notificación al cancelar un negocio. CORREGIDO (22 jun, `dcfad75`).**
+  La cancelación deliberada la notificaban DOS emisores casi a la vez (el Panel `cancelarNegocio` + el webhook
+  `customer.subscription.deleted` rama `cancellation_requested`); la idempotencia "borrar+crear" no es atómica →
+  carrera → 2 avisos. Fix: el webhook ya no re-notifica la cancelación deliberada (hoy solo la origina el Panel,
+  que ya notifica). La rama de IMPAGO del webhook sigue notificando (ahí es el único origen).
 
 ---
 
@@ -181,8 +205,8 @@
 
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
-| 🔴 F1 | Usuario personal existente paga upgrade (`crearCheckoutUpgrade` → `upgrade_comercial`) → modo comercial + negocio nuevo | 🌐 | ⬜ | distinto del alta nueva |
-| ⚪ F2 | Upgrade que **revive un negocio archivado** (soft-delete recovery) en vez de crear uno | 🌐 | ⬜ | |
+| 🔴 F1 | Usuario personal existente paga upgrade (`crearCheckoutUpgrade` → `upgrade_comercial`) → modo comercial + negocio nuevo | 🌐 | ✅ | **E2E 22 jun (commit `dcfad75`):** upgrade desde `/crear-negocio` → usuario `comercial` + negocio nuevo. Estrenó **toggle anual + input de código de vendedor con validación en vivo** (OBS-18) y disparó los fixes del cobro día-1 (OBS-19/20/21) |
+| ⚪ F2 | Upgrade que **revive un negocio archivado** (soft-delete recovery) en vez de crear uno | 🌐 | ✅ | **E2E 22 jun:** cancelar desde el Panel → personal → upgrade → revive el **MISMO** negocio (mismo id), no crea otro; el webhook lo busca por `usuario_id` y lo reactiva (visible si ya tenía onboarding) |
 
 ### G · Acciones del Panel que mueven Stripe (Parada 2)
 
