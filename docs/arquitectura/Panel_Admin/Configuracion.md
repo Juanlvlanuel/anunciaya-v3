@@ -178,5 +178,5 @@ sin huecos ni solapes) · solo el **último** tramo sin tope (`max: null`). Se r
 
 - [`Panel_Admin.md`](Panel_Admin.md) — §9 Configuración + matriz maestra (Config = solo super).
 - [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md) — **lee** la escalera para el devengo (Fase 2).
-- [`Suscripciones_Pendientes.md`](Suscripciones_Pendientes.md) — el **precio de membresía** + promos de lanzamiento (sprint diferido).
+- [`Suscripciones_Pendientes.md`](Suscripciones_Pendientes.md) — el **precio de membresía** (editable desde el Panel, Sprint de Stripe ✅) · promos/cupones **descartados** (§Cierre de alcance).
 - [`Tokens_Panel.md`](Tokens_Panel.md) — diseño del Panel.

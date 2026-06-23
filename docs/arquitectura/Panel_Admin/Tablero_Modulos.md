@@ -28,8 +28,10 @@
   de gemelos huérfanos** aplicado: DEV 0, **PROD 1 cortesía reparada** (count=0); de paso se **corrigió un bug del
   backfill** (excluía mal los cobros de `tarjeta`, que ya tienen su evento `cobro_exitoso` de Stripe — los habría
   metido como `pago_manual` falsos y duplicado ingresos). **(4)** Migración `eventos_pago` **confirmada en prod**
-  (12 columnas). `tsc -b` del Panel verde. **Suscripciones sigue 🟡** (la V2 —precio/promos/cupones de membresía—
-  queda como el bulto grande del módulo). **Pendiente:** commit.
+  (12 columnas). `tsc -b` del Panel verde. **Committeado** (`f23e540`, push a main). **Suscripciones pasa a ✅
+  (cerrado, módulo completo):** Juan descartó la V2 (promos/cupones, CSV, reembolsos-en-bitácora, dedup-Redis);
+  el Sprint de Stripe ya cubrió precio/cobro/comisión/recibos y la membresía del dueño vive en `Mi_Perfil.md`
+  (apps/web). Ver `Suscripciones_Pendientes.md` §Cierre de alcance.
 - **Recién construido y ampliado (21 jun):** **Publicidad** (módulo 7) — el módulo **completo de punta a
   punta** (doc [`Publicidad.md`](Publicidad.md)): venta del **espacio** en los 3 carruseles de la columna
   derecha, acotada por ciudades. **Fases 0-2** completas: lectura (sección Panel + ficha + endpoint público +
@@ -168,7 +170,7 @@
 | | **· Operación ·** | | | |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |
 | 4 | **Usuarios** | ✅ | ✔ Cerrado | `Usuarios.md` · `Usuarios_Pendientes.md` |
-| 5 | **Suscripciones** | 🟡 | Bitácora V1 ✔ cerrada (solo lectura) · resto del módulo pendiente | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
+| 5 | **Suscripciones** | ✅ | ✔ Cerrado (módulo completo = bitácora financiera; **sin V2**, alcance cerrado 23 jun) | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 | | **· Red de ventas ·** | | | |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: F (cobertura avanzada multi-región) | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
@@ -198,12 +200,14 @@
   **lente de región** del superadmin. Taxonomía de roles en la columna Rol; expediente = tarjeta de
   resumen depurada (correo/ID copiables). Migración: `usuarios_ultimo_acceso_panel.sql`. **Cerrado** (Fase 3 completa, 15 jun: pulido
   visual + verificación de suspensión). V2: denuncias, deep-link desde Negocios, promover/degradar.
-- **5 · Suscripciones** — **bitácora financiera V1 construida y en uso** (doc [`Suscripciones.md`](Suscripciones.md)):
-  el libro mayor de eventos de pago (`eventos_pago`) — cobros Stripe + pagos manuales + cancelaciones, solo
-  lectura, con KPIs y alcance por rol. Aquí vive el historial financiero **completo** (el de la ficha de
-  Negocios es solo un resumen). **Resto del módulo pendiente:** precio/promos/meses gratis + tiempos
-  configurables (gracia/trial) + visibilidad de membresía en el perfil del dueño. Pendientes menores de la
-  bitácora: deep-link a Negocios, re-sync al editar pago, migración en prod.
+- **5 · Suscripciones** — **CERRADO, módulo completo** (doc [`Suscripciones.md`](Suscripciones.md)): el módulo
+  *es* el libro mayor de eventos de pago (`eventos_pago`) — cobros Stripe + pagos manuales + cancelaciones, solo
+  lectura, con KPIs, filtros, deep-link a Negocios y alcance por rol. Aquí vive el historial financiero
+  **completo** (el de la ficha de Negocios es solo un resumen). **No hay V2** (decisión Juan, 23 jun): precio
+  editable/cobro día-1/comisión al cobro/recibos = **hechos** en el Sprint de Stripe; promos/cupones, CSV,
+  reembolsos-en-bitácora y dedup-Redis = **descartados** (la cortesía manual cubre fundadores; Stripe acepta
+  promotion codes a mano); membresía del **dueño** vive en `Mi_Perfil.md` (apps/web), no en el Panel. Cabos
+  sueltos cerrados y committeados (23 jun, `f23e540`). Detalle: `Suscripciones_Pendientes.md` §Cierre de alcance.
 - **6 · Vendedores y comisiones** — **cerrado y en uso (A·B·C·E·D)** (doc [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)):
   cartera (master-detail), devengo recurrente por escalera, **comisión de alta** ($400 al primer pago real),
   liquidación (registrar pago con comprobante R2 + datos de cobro + bitácora) y **cortes de efectivo con neteo**

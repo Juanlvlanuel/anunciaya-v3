@@ -76,9 +76,9 @@ documento:
   `obtenerDetalleEvento` en `suscripciones.service.ts`). El alta manual ya **registra su pago en esa
   bitácora** vía `registrarPagoManual` (helper centralizado que inserta en la misma transacción la
   fila contable y su gemelo `pago_manual` en `eventos_pago`), así que sus cobros aparecen en
-  Suscripciones. **Pendiente:** correr el backfill `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql`
-  (idempotente, one-shot, DEV y PROD) para reconstruir los gemelos `pago_manual` históricos huérfanos
-  de altas manuales previas a la centralización. El historial de la ficha de Negocios sigue siendo solo
+  Suscripciones. El **backfill** de gemelos `pago_manual` históricos huérfanos ya se **aplicó** (23 jun): DEV 0,
+  PROD 1 cortesía reparada (`docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql`, idempotente; excluye
+  los cobros de `tarjeta`, que ya tienen su evento `cobro_exitoso` de Stripe). El historial de la ficha de Negocios sigue siendo solo
   un **resumen de pagos manuales** del negocio — no incluye los cobros de Stripe.
 - **Comisiones** (escalera, monto fijo, rediseño de `embajadores`) → checklist de **Vendedores**.
 - **Bandeja de pendientes y despliegue del Panel (Vercel + subdominio)** → pendientes del **shell**

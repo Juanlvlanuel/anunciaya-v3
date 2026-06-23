@@ -95,7 +95,7 @@ prepara el cobro para la red de vendedores. Tres frentes:
 | **DS7** | Mecanismo Stripe del cobro día-1 | Modelo decidido (paga $849 al inicio + 44 días → próximo cobro a 44d con vendedor; sin vendedor, flujo actual). El **cómo** en Stripe se valida con un **spike + Test Clock**, entre **(b)** sin trial: 1ª factura $849 hoy + ancla del ciclo a +44d / **(c)** `trial_end=+44d` + invoice $849 inmediata. **Descartado (a)** cargo one-time suelto (no dispara `invoice.payment_succeeded` → rompería el devengo de alta). Preferida: **(b)** (historial = invoices normales). | ✅ modelo decidido · ⏳ spike |
 | **DS8** | Comisión recurrente al cobro: ¿en este sprint? | **Sí, como última pieza** (comparte el gancho "devengo al cobro" con el cobro día-1). Mecánica D16/D16.1 de `Vendedores_y_comisiones_Pendientes.md`. | ✅ decidido · ⏳ construir |
 | **DS9** | Orden de construcción | **Pieza 1 (precio + Prices en BD + botón) → Pieza 2 (cobro día-1) → Pieza 3 (comisión al cobro).** | ✅ decidido |
-| **DS10** | Estructura documental | **Doc maestro del sprint** (este archivo); cada pieza, al cerrar, actualiza **su módulo**. `Suscripciones_Pendientes.md` §Fuera de V1 apunta aquí. | ✅ decidido |
+| **DS10** | Estructura documental | **Doc maestro del sprint** (este archivo); cada pieza, al cerrar, actualiza **su módulo**. `Suscripciones_Pendientes.md` §Cierre de alcance apunta aquí. | ✅ decidido |
 
 ---
 
@@ -262,7 +262,7 @@ Pieza 3 — Comisión recurrente al cobro   ✅ CONSTRUIDA + GATE VERDE (falta E
 
 - [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md) — **el backend de pagos** (webhook, estados, ciclo
   de cobro, `pagos_membresia`/`eventos_pago`, acciones de Stripe, "Registrar pago" Opción A). Lectura base.
-- [`Suscripciones_Pendientes.md`](Suscripciones_Pendientes.md) §Fuera de V1 — de donde nació este sprint.
+- [`Suscripciones_Pendientes.md`](Suscripciones_Pendientes.md) §Cierre de alcance — de donde nació este sprint.
 - [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md) — **D16 / D16.1** (comisión
   al cobro) y **D17** (abonos, ya hecho).
 - [`Panel_Admin.md`](Panel_Admin.md) — §Comisiones · §Motor de venta (Camino A/B) · matriz maestra.

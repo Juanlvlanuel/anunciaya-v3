@@ -32,7 +32,7 @@ caché), UI con editor de tramos (vista previa en vivo + rueda del mouse). La es
 | # | Pendiente | Prioridad |
 |---|---|---|
 | **P1** | **Correr la migración en PROD** (`docs/migraciones/sembrar_comision_escalera.sql`, idempotente) — la corre Juan. *Opcional*: la 1ª edición desde la UI siembra la escalera sola (UPSERT); la migración solo lo adelanta. Confirmar después la persistencia end-to-end en prod. | 🟡 |
-| **P2** | **Precio de membresía editable + promos de lanzamiento** (Coupons de Stripe) — **sprint dedicado en Suscripciones**, NO aquí. El precio real vive en Stripe; pendiente decidir *fundador para siempre* (`forever`) vs *temporal X meses* (`repeating`). | 🟡 (otro módulo) |
+| **P2** | **Precio de membresía editable** — ✅ **HECHO** (Sprint de Stripe Pieza 1: se edita desde el Panel, crea el Price en Stripe sin redeploy). **Promos/cupones de lanzamiento** — ❌ **descartados** (Suscripciones §Cierre de alcance; la cortesía manual cubre fundadores y el Checkout de Stripe ya acepta promotion codes a mano). | ✅ resuelto |
 | **P3** | **Nuevas palancas cuando se construyan sus secciones** — cada vez que una sección (ScanYA/Puntos, MarketPlace…) tenga un valor de política de negocio, registrarlo como clave en `CONFIG_EDITABLE` + leerlo con `obtenerConfig*` en vez de hardcodear. No antes. | 🟢 (orgánico) |
 | **P4** | **2ª pasada de Configuración** — categorías `general`/`notificaciones` (toggles de funciones, textos/banners) si llegan a hacer falta. | 🟢 |
 

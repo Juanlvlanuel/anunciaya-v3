@@ -26,8 +26,9 @@
 
 ## Estado del módulo
 
-**CERRADO — bitácora V1 (Fase 1 + Gate 1 verdes; Fase 2 saltada; Fase 3 cerrada).** Alcance V1: **la Bitácora financiera global** (el "libro mayor"
-de la membresía); las demás piezas quedan fuera de V1 (ver §Fuera de V1). Hecho y type-checked
+**CERRADO — módulo completo (23 jun 2026).** El módulo Suscripciones del Panel **es** la **Bitácora financiera
+global** (el "libro mayor" de la membresía). **No habrá V2:** lo que antes figuraba como "Fuera de V1" se hizo,
+se descartó o vive en otro documento — ver **§Cierre de alcance** abajo. Hecho y type-checked
 (tsc + build verdes): **(1)** migración `eventos_pago` + schema Drizzle; **(2)** persistencia — helper
 defensivo `services/suscripciones/eventos-pago.ts` + INSERT en los 3 handlers del webhook
 (cobro_exitoso/cobro_fallido/cancelacion) + gemelo `pago_manual` vía el helper único `registrarPagoManual`
@@ -69,7 +70,7 @@ negocio. Dos piezas:
 
 **Qué NO hace (V1):**
 - **No edita** precio / días de trial / días de gracia → eso es **Configuración (módulo 9)** o V2.
-- **No da** promos / meses gratis / cupones de membresía → **V2** (feature nuevo, no existe en backend).
+- **No da** promos / meses gratis / cupones de membresía → **DESCARTADO** (no se construye; la cortesía manual cubre fundadores · ver §Cierre de alcance).
 - **No muestra** la membresía al dueño ni reactiva su pago → eso vive en **apps/web** (página de
   cuenta del usuario, `Pagos_Suscripciones.md §12`), no en el Panel.
 - **No registra** pagos ni pausa/cancela → esas **acciones** ya viven en **Negocios** (Parada 2).
@@ -165,7 +166,7 @@ de tablas existentes.
 ## Checklist del carril (las 4 fases)
 
 ```
-### Módulo: SUSCRIPCIONES (Bitácora financiera V1)   ·   Fase actual: Fase 1 ✓ — lista para Fase 3 (Cerrar)
+### Módulo: SUSCRIPCIONES (Bitácora financiera)   ·   Fase actual: 3 — CERRADO (módulo completo, sin V2; 23 jun)
 
 Fase 0 — Definir
 - [x] Mini-spec (qué hace / qué no / matriz de permisos por rol)
@@ -196,9 +197,9 @@ Fase 2 — ACTUAR  → SE SALTA (módulo de solo lectura)
 
 Fase 3 — Cerrar
 - [x] Doc canónico Suscripciones.md (2 capas) ✅
-- [x] Checklist cerrado (este doc) — quedan solo pendientes menores (§Fuera de V1)
+- [x] Checklist cerrado (este doc) — sin pendientes; alcance V2 descartado (§Cierre de alcance)
 - [x] Índices: tablero ✅ · Panel_Admin.md ✅ · ROADMAP ✅ · memoria ✅ · kit claude.ai (regenerar al avanzar)
-- [~] Commit a main → lo incluye el commit del chat de Usuarios (árbol compartido)
+- [x] Cabos sueltos cerrados (23 jun): deep-link + re-sync + migración prod + backfill. Committeado (f23e540).
 ```
 
 **Notas técnicas para Fase 1:**
@@ -215,56 +216,34 @@ Fase 3 — Cerrar
     el alta manual (`altaManualNegocio.service.ts`). El `pago_manual` **no** pasa por el helper defensivo.
   > **Nota histórica:** antes el doble INSERT estaba **copiado** en ambos flujos y el **alta manual olvidaba
   > el gemelo** → sus pagos no aparecían en Suscripciones. Centralizado en `registrarPagoManual`, ya aparecen.
-- **Backfill (pendiente, correr en DEV y PROD):** `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql`
+- **Backfill (✅ APLICADO en DEV y PROD, 23 jun):** `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql`
   (idempotente, one-shot) + `apps/api/scripts/backfill-eventos-pago-manual.ts` reconstruyen los gemelos
-  `pago_manual` históricos huérfanos (sobre todo de altas manuales previas a la centralización).
+  `pago_manual` históricos huérfanos (sobre todo de altas manuales previas a la centralización). **Solo conceptos
+  manuales** (`efectivo`/`transferencia`/`cortesia`): excluye `tarjeta` (cobro de Stripe, ya tiene su evento
+  `cobro_exitoso`). Resultado: DEV 0 huérfanos · PROD 1 cortesía reparada (count final 0).
 - Se **calca de Negocios:** `routes/controllers/services/admin/negocios*` + `apps/admin/src/components/negocios/`.
 
 ---
 
-## Fuera de V1 (V2 consciente — anotado, no escondido)
+## Cierre de alcance (23 jun 2026) — no hay V2
 
-- 🟡 **SPRINT DEDICADO — Precio de membresía editable + cobro día-1 + comisión al cobro.** (Acordado con Juan,
-  17 jun 2026.) **→ Fase 0 cerrada el 18 jun; vive en su doc maestro: [`Sprint_Stripe.md`](Sprint_Stripe.md).**
-  ✅ **Pieza 1 HECHA y validada E2E (18 jun):** precio editable desde el Panel (Price creado en Stripe sin
-  redeploy, ID en config) + **plan anual** + **cobro inmediato** con trial 0 + **comprobante en cobros de tarjeta**
-  (de ahí nació el módulo [`Recibos.md`](Recibos.md)). **Faltan Pieza 2** (cobro día-1) **y Pieza 3** (comisión al
-  cobro). Cambios al cerrar Fase 0: el **descuento de precio de lanzamiento se descartó** (precio firme en $849;
-  las promos dan tiempo, no rebaja) y el **plan anual se construye también en tarjeta**. El detalle vivo está en
-  `Sprint_Stripe.md`; lo de abajo queda como el esbozo original.
-  Es un sprint **propio**, fuera de la bitácora y fuera de Configuración v1 (que ya cerró **trial y gracia** —
-  módulo 9, [`Configuracion.md`](Configuracion.md)). Alcance:
-  - **Cambiar el precio** de la membresía ($849 hoy). Ojo: los **Prices de Stripe son inmutables** → cambiar el
-    precio = crear un **Price nuevo** + apuntar la constante (`STRIPE_PRICE_COMERCIAL` / `PRECIO_MEMBRESIA`); las
-    suscripciones vigentes siguen ancladas a su precio salvo que se migren.
-  - **Precio especial de lanzamiento** → se maneja con **Coupons de Stripe** (descuento sobre el precio real),
-    **NO** cambiando el precio. **Decisión pendiente:** ¿*fundador para siempre* (`forever`) o *temporal X meses*
-    (`repeating`)?
-  - **Promos / meses gratis / cupones de membresía** (feature nuevo, no existe en backend) — candidato a su
-    propia mini-spec; entra en este sprint o en uno contiguo.
-  - **Cobro "desde el día 1" para ventas POR VENDEDOR** (decidido con Juan, 17 jun 2026): cuando hay vendedor
-    (`?ref=` por tarjeta **o** alta manual), el comercio **paga $849 al inicio** + recibe **44 días** de servicio
-    (30 + 14 de cortesía) → siguiente cobro a los 44 días. El **auto-registro sin vendedor** mantiene el flujo
-    actual ("14 días gratis → cobra el día 15"). En Stripe = pago inicial separado + suscripción con el ancla de
-    cobro corrida 44 días (NO trivial). El equivalente en **efectivo** (correr el próximo cobro a 44 días) es chico.
-    **Importa para la comisión de alta** (pieza C de Vendedores): con el cobro al día 1, la comisión de alta en
-    **tarjeta** se devenga al inicio; sin este cambio, cae al **primer cobro real** (la lógica de C ya queda lista).
-  - **Comisión RECURRENTE "al cobro" (Opción A, decidido con Juan 17 jun 2026):** hoy la recurrente se devenga
-    **mensual** (cron, foto de # activos × escalón) → si un negocio **prepaga** (p.ej. 12 meses), el vendedor cobra
-    goteando y, si se va antes, **pierde** lo futuro de una venta que él consiguió. Acordado: devengar la recurrente
-    **al momento del cobro, por los meses que el negocio pagó**, al escalón vigente (prepago de N meses → **N ×
-    escalón de golpe**). **El escalón sigue por # de negocios activos** (un negocio cuenta como **1**, pague 1 o 12
-    meses; cambia la *profundidad* del devengo, no la *amplitud* de la escalera). Recompensa el mérito al instante y
-    blinda al vendedor si se va. Implica cambiar el motor de devengo de "snapshot mensual (cron)" a "devengo por
-    cobro/periodo". Detalle en [`Vendedores_y_comisiones_Pendientes.md`](Vendedores_y_comisiones_Pendientes.md) (D16).
-  > Por qué aquí y no en Configuración: el precio **no vive en BD** (vive en Stripe), así que no es una clave de
-  > `configuracion_sistema` como trial/gracia; necesita lógica de Stripe (Prices/Coupons) propia.
-- 🟢 **Página de cuenta del dueño** (apps/web): ver su membresía + reactivar pago vía Customer Portal
-  (`Pagos_Suscripciones.md §12`). No es Panel.
-- 🟢 **Exportar CSV / reportes financieros** del periodo filtrado (corte de caja, ingresos por mes).
-- 🟢 **Migrar el dedup de idempotencia de Redis** a `eventos_pago` (sinergia `Pagos §12`).
-- ⚪ **Reembolsos / contracargos** (`charge.refunded` / `charge.dispute.created`) como eventos de la
-  bitácora (hoy se manejan a mano en Stripe).
+El módulo Suscripciones queda **cerrado** con la Bitácora financiera. Lo que en su día se anotó como
+"Fuera de V1" se **hizo**, se **descartó** o **vive en otro documento**. Decisión de Juan (23 jun): no se
+construye V2 en el Panel.
+
+- ✅ **HECHO — Precio editable + plan anual + cobro día-1 + comisión al cobro + recibos de tarjeta.** Todo el
+  Sprint de Stripe (Piezas 1-3) está construido y **validado E2E en la ronda A-Z**. Vive en su doc maestro
+  [`Sprint_Stripe.md`](Sprint_Stripe.md) (y el módulo [`Recibos.md`](Recibos.md), que nació de ahí). El precio
+  quedó **firme en $849**.
+- ❌ **DESCARTADO — Promos / meses gratis / cupones de membresía.** No se construye como trabajo del Panel. La
+  **cortesía manual** (alta manual / "Registrar pago") ya cubre a los negocios **fundadores**, y si alguna vez
+  hace falta un cupón puntual, el **Checkout de Stripe ya acepta promotion codes sin código** (verificado en la
+  ronda, decisión Z5) → se crea a mano en el dashboard de Stripe. No hay UI de cupones en el Panel.
+- ❌ **DESCARTADO — Mejoras menores.** Fuera de alcance: exportar CSV de la bitácora; reembolsos/disputas como
+  eventos (`charge.refunded`/`charge.dispute.created`) — se manejan **a mano en Stripe** (ronda Z1/Z2); migrar
+  el dedup de idempotencia de Redis a `eventos_pago`.
+- ➡️ **OTRO DOCUMENTO — Membresía / recuperar tarjeta del dueño.** **No es del Panel:** vive en `apps/web` y
+  está discutido en [`../Mi_Perfil.md`](../Mi_Perfil.md) (Customer Portal / pago manual). No se documenta aquí.
 
 ---
 

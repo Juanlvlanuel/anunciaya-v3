@@ -285,26 +285,25 @@ manuales** (`efectivo`/`transferencia`/`cortesia`): **excluye `concepto='tarjeta
 fila-recibo de un cobro de Stripe (Pieza 1) y cuyo movimiento ya vive en la bitácora como evento
 `cobro_exitoso`/`origen='stripe'` — meterla como `pago_manual` duplicaría el ingreso en los KPIs.
 
-## G. Fuera de V1 / pendientes menores
+## G. Estado y cierre de alcance
 
-- **Eventos de Stripe son asíncronos:** la cancelación aparece cuando el webhook procesa
-  `subscription.deleted` (no en el instante de la acción).
-- **Config de precio/trial/gracia, promos/meses gratis, página de cuenta del dueño** → ver
-  `Suscripciones_Pendientes.md` §Fuera de V1.
-- **Migrar el dedup de idempotencia de Redis** a `eventos_pago` (sinergia con `stripe_event_id`).
-- **Operativo (lo corre Juan):** confirmar que la migración `2026-06-11-eventos-pago.sql` está
-  aplicada en **prod** y correr el **backfill** de gemelos `pago_manual` históricos huérfanos
-  (`docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` / `scripts/backfill-eventos-pago-manual.ts`,
-  idempotente) en **dev y prod**.
+**Módulo CERRADO (23 jun 2026), sin V2.** El módulo Suscripciones del Panel *es* la Bitácora financiera;
+no se construye nada más. Detalle del cierre en `Suscripciones_Pendientes.md` §Cierre de alcance. En resumen:
 
-> **Resueltos (23 jun 2026):**
-> - **Deep-link a Negocios** — el **nombre del negocio** en la ficha del movimiento (`FichaEvento.tsx`) es un
->   botón que salta a la sección **Negocios** y resalta su fila (`navegar('negocios', { negocios: { resaltarId } })`,
->   **mismo patrón que Métricas → "Negocios en riesgo"**; el scroll+highlight lo aplica `SeccionNegocios` si el
->   negocio está en la página visible). Solo super/gerente entran a esta bitácora, y ambos ven Negocios.
-> - **Re-sync al editar un pago** — ya estaba **desde el 11 jun** (commit `5ae71be`): `editarPagoMembresia`
->   actualiza el gemelo `eventos_pago` (monto + metadata `concepto/meses/hasta`) en la **misma transacción**,
->   simétrico a `anularPagoMembresia`. El §G previo lo listaba como pendiente por error documental.
+- ✅ **Cabos sueltos cerrados (23 jun):** **deep-link** (el nombre del negocio en `FichaEvento.tsx` salta a
+  Negocios y resalta su fila — `navegar('negocios', { negocios: { resaltarId } })`, mismo patrón que Métricas;
+  tooltip con el componente `Tooltip` del Panel) · **re-sync al editar pago** (ya estaba desde el 11 jun, commit
+  `5ae71be`: `editarPagoMembresia` actualiza el gemelo en la misma tx, simétrico a `anularPagoMembresia`) ·
+  **migración `eventos_pago` confirmada en prod** (12 columnas) · **backfill** aplicado (dev 0 / prod 1 cortesía).
+- ✅ **Sprint de Stripe (precio editable + anual + cobro día-1 + comisión al cobro + recibos de tarjeta):** hecho
+  y validado; vive en [`Sprint_Stripe.md`](Sprint_Stripe.md). Precio firme en **$849**.
+- ❌ **Descartado (no se construye):** promos/cupones de membresía (la cortesía manual cubre a fundadores; el
+  Checkout de Stripe ya acepta promotion codes a mano), exportar CSV, reembolsos/disputas como eventos
+  (se manejan a mano en Stripe), migrar el dedup de Redis a `eventos_pago`.
+- ➡️ **Fuera del Panel:** la membresía y recuperar tarjeta del **dueño** viven en `apps/web` →
+  [`../Mi_Perfil.md`](../Mi_Perfil.md). No se documenta aquí.
+- ℹ️ **Nota de comportamiento (no es pendiente):** los eventos de Stripe son **asíncronos** — la cancelación
+  aparece cuando el webhook procesa `subscription.deleted`, no en el instante de la acción.
 
 ## H. Referencias
 
