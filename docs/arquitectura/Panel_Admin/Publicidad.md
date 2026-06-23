@@ -228,7 +228,7 @@ Mapa/Lista — si no, su `fixed` quedaba atrapado debajo.
    y de **periodos de meses**) · **meses por adelantado con descuento por volumen** (precio + vigencia × meses, pago
    único) · alta manual + cortesía · wizard self-service con Stripe (pago único + webhook + estado `pendiente`) ·
    recibo PDF + correo · cron de expiración/aviso/**limpieza de pendientes abandonados** · tracking de clics · extender Recibos.
-4. **Fase 3 — Cerrar** 🟡 — doc + checklist + tablero + memoria actualizados; **commit pendiente** (lo hace Juan).
+4. **Fase 3 — Cerrar** ✅ — doc + checklist + tablero + memoria actualizados; **committeado**.
 
 ### Archivos del módulo (mapa)
 - **Backend:** `services/admin/publicidad.service.ts` (lectura + **KPIs** `obtenerKpisPublicidad`) · `publicidad-acciones.service.ts` (estado + **`editarAnuncio`**) · `publicidad-alta.service.ts` ·

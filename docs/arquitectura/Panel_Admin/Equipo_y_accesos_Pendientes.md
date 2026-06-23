@@ -239,7 +239,7 @@ Fase 3 — Cerrar ✅
 - [x] Doc canónico Equipo_y_accesos.md (2 capas)
 - [x] Vaciar este checklist + estado del módulo cerrado
 - [x] Índices (tablero, Panel_Admin.md, ROADMAP, memoria)
-- [ ] Commit a main (pendiente del OK de Juan)
+- [x] Commit a main ✅ (committeado; módulo en prod)
 ```
 
 ---

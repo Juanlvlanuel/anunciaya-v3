@@ -12,7 +12,10 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta (a confirmar con Juan)
 >
-> **Última actualización:** 19 Junio 2026 — **D16/D16.1 HECHO** (Sprint Stripe · Pieza 3): el devengo recurrente (B) pasó a **"al cobro"** (anti-doble-pago del prepago; foto mensual retirada). · 17 Jun — **v1 + 2ª pasada COMPLETOS (piezas A · B · C · E · D).** Cartera (VER)
+> **Última actualización:** 23 Junio 2026 — **enlistados 2 features de territorio pedidos por Juan:** Pieza **F**
+> precisada (agregar/quitar ciudades a un vendedor, incl. de otra región) + nueva Pieza **G · Mapa de territorios +
+> CRM de campo** (el gerente zonifica la ciudad y asigna; el vendedor deja marcas de "ya pasé"). Ambas diferidas/post-beta
+> (ver §Backlog y §Desglose de piezas). · 19 Junio 2026 — **D16/D16.1 HECHO** (Sprint Stripe · Pieza 3): el devengo recurrente (B) pasó a **"al cobro"** (anti-doble-pago del prepago; foto mensual retirada). · 17 Jun — **v1 + 2ª pasada COMPLETOS (piezas A · B · C · E · D).** Cartera (VER)
 > + devengo recurrente (escalera) + **comisión de alta (C)** + liquidación con foto-comprobante + **cortes de
 > efectivo con neteo (D)**. Migraciones corridas en **dev y prod**. Builds verdes; harness de devengo y de
 > **neteo** TODO VERDE. Lo construido vive en **[`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)**.
@@ -74,7 +77,8 @@ bitácora gemela de **egresos** (lo que tú le pagas a los vendedores).
 | **C · Comisión de alta** | Pago único al concretar una venta (tarjeta pagada o efectivo confirmado). | devengo | 🟠 medio |
 | **D · Efectivo / cortes de caja** (Camino B) | "Efectivo por entregar", registrar cobros/entregas, corte por vendedor; al pagar comisión se **netea** lo que debe (no se condiciona, se descuenta). | inverso | 🟠 medio |
 | **E · Liquidación: datos de cobro + pagos + bitácora** | Datos de cobro del vendedor (transferencia/efectivo) + registrar pago + libro mayor de egresos. | liquidación | 🟠 medio |
-| **F · Cobertura avanzada (territorio)** | Multi-región parcial, multi-gerente, "mover de región = soltar cartera". | transversal | 🔴 **alto** (reescribe `panel.middleware` + Negocios/Usuarios/Suscripciones/Equipo, 4 módulos cerrados) |
+| **F · Cobertura avanzada (territorio por ciudades)** | Multi-región parcial, multi-gerente, "mover de región = soltar cartera". **Incluye (Juan 23 jun): agregar/quitar ciudades sueltas a un vendedor y asignarle ciudades de OTRA región.** | transversal | 🔴 **alto** (reescribe `panel.middleware` + Negocios/Usuarios/Suscripciones/Equipo, 4 módulos cerrados) |
+| **G · Mapa de territorios + CRM de campo** 🔵 | (G.1) el **gerente fragmenta el mapa de la ciudad en zonas** y asigna cada una a un vendedor → control de quién cubre qué parte. (G.2) el **vendedor deja marcas/pines** donde ya pasó (visitas/prospección), como mini-CRM de campo. Reusa el mapa MapLibre de Ciudades. | transversal | 🔴 **alto** (geometría/polígonos + modelo de datos nuevo + UI de mapa editable) |
 
 > **Alcance de v1 (confirmado 16 Jun):** **A + B + E** (cartera + comisión recurrente + liquidación).
 > **C** (comisión de alta) y **D** (cortes de efectivo) van en una **2ª pasada**. **F** (cobertura avanzada)
@@ -101,7 +105,7 @@ bitácora gemela de **egresos** (lo que tú le pagas a los vendedores).
 - **No registra lo que pagan los negocios** (bitácora de ingresos) → eso ya vive en **Suscripciones**.
 - **No crea / agrupa regiones ni ciudades** → eso es **Ciudades**.
 - **No construye el demo de Business Studio** del vendedor → módulo demo (diferido).
-- **No es el mapa de territorios v2** (zonas dibujadas, prospectos, mini-CRM) → diferido.
+- **No es el mapa de territorios v2** (zonas dibujadas, prospectos, mini-CRM) → **Pieza G** (diferida; ver §Backlog).
 - **(Propuesta) No rehace el modelo de cobertura avanzado** (multi-región/multi-gerente) en v1 → ver D10.
 
 ### Matriz de permisos por rol
@@ -204,7 +208,7 @@ Fase 2 — ACTUAR ✅ (B · C · E · D)
 - [x] E2 · Liquidación v2 (ABONOS) — registrarPago a abonos: parcial + dividido (transferencia+efectivo) + neteo,
       aplicado FIFO sobre `monto_pagado` (parcial→pagada). Diálogo "Registrar abono" + badge "Parcial". Datos de
       cobro: solo el vendedor edita (super solo lee). Cobro automático de efectivo enganchado (vendedor cobra → deuda).
-      Harness probar-abonos.ts TODO VERDE. Migración 2026-06-17-comision-monto-pagado.sql (dev; correr prod).
+      Harness probar-abonos.ts TODO VERDE. Migración 2026-06-17-comision-monto-pagado.sql (aplicada dev + prod, 20 jun).
 - [x] D · Cortes de efectivo + neteo — efectivo_movimientos; saldoEfectivo + registrarMovimientoManual (super/gerente);
       registrarPago NETEA (bruto − deuda = neto); pestaña Efectivo + desglose en Registrar pago.
       Harness probar-abonos.ts (cubre el neteo) TODO VERDE. Migración 2026-06-17-efectivo-movimientos.sql (dev + prod).
@@ -221,9 +225,20 @@ Fase 3 — Cerrar
   congelado`, con marcador `negocios.comision_devengada_hasta` (anti-doble-pago del prepago: un anual = 10× una vez;
   el negocio sigue contando como activo). Cron retirado. Harness `probar-comision-al-cobro.ts` TODO VERDE. Detalle en
   [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md) §4/§5 + apéndice y [`Sprint_Stripe.md`](Sprint_Stripe.md).
-  Migración `2026-06-19-comision-al-cobro.sql` (dev ✓; **prod pendiente**). **Limpieza pendiente:** quitar el endpoint
+  Migración `2026-06-19-comision-al-cobro.sql` (aplicada **dev + prod**, 20 jun; validada E2E en la ronda). **Limpieza pendiente:** quitar el endpoint
   `/comisiones/recalcular` + su hook (quedaron huérfanos al retirar la foto mensual).
-- **F · Cobertura avanzada** (multi-región / multi-gerente / mover-con-reasignación) — diferida (D10).
+- **F · Cobertura avanzada del vendedor (territorio por ciudades)** — diferida (D10). Multi-región / multi-gerente /
+  "mover de región = soltar cartera". **Detalle pedido por Juan (23 jun):** poder **agregar o quitar ciudades** a un
+  vendedor y **asignarle ciudades de otra región** (cobertura multi-región parcial). Hoy el modelo asume "vendedor de
+  UNA región" (trigger + `LIMIT 1` en `panel.middleware`); esto lo reescribe + toca Negocios/Usuarios/Suscripciones/Equipo.
+- 🔵 **G · Mapa de territorios + CRM de campo** (NUEVO, pedido por Juan 23 jun) — reusa el mapa MapLibre del módulo Ciudades:
+  - **G.1 · Zonas del gerente:** el gerente **fragmenta el mapa de la ciudad en sectores** (los que quiera — ej. 4 vendedores
+    → 4 zonas) y **asigna cada zona a un vendedor**, para controlar quién cubre qué parte de la ciudad. Granularidad
+    **intra-ciudad** (más fina que la actual, que es por ciudad completa). Requiere dibujar/persistir polígonos + asignación zona↔vendedor.
+  - **G.2 · Marcas del vendedor:** el vendedor **deja pines/señales** en los lugares **por donde ya pasó** (negocios visitados,
+    prospectos, "ya cubierto"), como **mini-CRM de campo geolocalizado**.
+  - Riesgo 🔴 alto: geometría (polígonos/GeoJSON, ¿PostGIS?), modelo de datos nuevo (zonas, asignaciones, marcas) y UI de mapa
+    editable. Es un **sub-proyecto propio** (Fase 0→3), **post-beta**.
 ```
 
 ---

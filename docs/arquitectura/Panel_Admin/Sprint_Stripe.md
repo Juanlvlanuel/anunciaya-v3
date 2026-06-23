@@ -160,7 +160,7 @@ extras). Construido:
   escalón"); se retiró el botón "Recalcular mes".
 
 **Migración:** `2026-06-19-comision-al-cobro.sql` (columna `comision_devengada_hasta` + quitar el único de periodo
-+ relajar el CHECK `forma` a "recurrente ⇒ periodo NOT NULL"). Corrida en dev; **falta prod**.
++ relajar el CHECK `forma` a "recurrente ⇒ periodo NOT NULL"). Corrida en **dev y prod** (20 jun).
 
 ---
 
@@ -179,15 +179,15 @@ extras). Construido:
   `eventos_pago`; guards que impiden editar/anular ese pago). Nació el **módulo Recibos** para ver/buscar/descargar/
   reenviar los comprobantes ([`Recibos.md`](Recibos.md)). Migración `2026-06-18-concepto-tarjeta.sql` (Juan, dev+prod).
 
-**Pieza 2:** ✅ **CONSTRUIDA (19 Jun) — falta validación E2E de Juan**
+**Pieza 2:** ✅ **CONSTRUIDA + VALIDADA E2E (Ronda de Pagos A-Z, 22-23 jun)**
 - [x] ✅ Un registro **con `?ref=`** (tarjeta) cobra **el día 0** y agenda el próximo cobro a **+44 días**
   (mensual) / **+1 año + cortesía** (anual) — calendario verificado con **Test Clock** (`probar-cobro-dia1`).
 - [x] ✅ Un registro **sin vendedor** sigue con su trial de config y cobra después (sin cambios).
 - [x] ✅ El **alta manual con vendedor** nace con vigencia `hoy + meses + cortesía` (el modal lo muestra explícito).
 - [x] ✅ La **comisión de alta** se devenga al día 0 en tarjeta (sin tocar `devengarComisionAlta`). `tsc` verdes.
-- [ ] ⬜ **Validación E2E (Juan):** registro real con `?ref=` + tarjeta → cobro hoy + próximo cobro +44d + comisión + recibo.
+- [x] ✅ **Validación E2E (Ronda de Pagos, 22-23 jun):** registro real con `?ref=` + tarjeta → cobro hoy + próximo cobro +44d + comisión + recibo.
 
-**Pieza 3:** ✅ **CONSTRUIDA + GATE VERDE (19 Jun) — falta validación E2E de Juan**
+**Pieza 3:** ✅ **CONSTRUIDA + GATE VERDE + VALIDADA E2E (Ronda de Pagos A-Z, 22-23 jun)**
 - [x] ✅ Al cobrar **N meses** (cualquier canal), el vendedor devenga `(dinero ÷ precio) × escalón` **de golpe**, y
   `comision_devengada_hasta` salta a la cobertura.
 - [x] ✅ **El 1er mes no se paga dos veces:** en el primer cobro, si hubo **comisión de alta**, el recurrente
@@ -195,14 +195,14 @@ extras). Construido:
 - [x] ✅ En meses ya cubiertos **no** se vuelve a devengar (el negocio sigue contando para el escalón).
 - [x] ✅ El escalón usado queda **congelado** al cobro (no cambia si la escalera sube después).
 - [x] ✅ Harness `probar-comision-al-cobro.ts` (anual con alta → **9×** · idempotencia · renovación · sin vendedor · anual sin alta → 10×) TODO VERDE. `tsc` verdes.
-- [ ] ⬜ **Validación E2E (Juan):** un prepago anual real con vendedor → ver **9× + la alta** (no 10× + alta) en el estado de cuenta del vendedor.
+- [x] ✅ **Validación E2E (Ronda de Pagos, 22-23 jun):** un prepago anual real con vendedor → ver **9× + la alta** (no 10× + alta) en el estado de cuenta del vendedor.
 
 ---
 
 ## Checklist del carril
 
 ```
-### Sprint: STRIPE   ·   Piezas 1·2·3 CONSTRUIDAS — falta validación E2E (Juan) + Fase 3 docs
+### Sprint: STRIPE   ·   Piezas 1·2·3 ✅ CONSTRUIDAS + VALIDADAS E2E (Ronda A-Z, 22-23 jun)
 
 Fase 0 — Definir ✅ (18 Jun 2026)
 - [x] Mini-spec (qué hace / qué no / matriz de permisos)
@@ -237,18 +237,18 @@ Pieza 1 — Precio centralizado + Prices en BD + botón   🟢 VALIDADA E2E EN T
       registra una fila pagos_membresia concepto 'tarjeta' → reusa el flujo del recibo manual
       (prepararReciboPago + enviarComprobantePagoMembresia); guards que bloquean editar/anular ese pago;
       la UI del historial oculta esos botones en filas de tarjeta y las etiqueta "Tarjeta". tsc api+admin verdes.
-      ⚠️ Migración pendiente (Juan, DEV+PROD): docs/migraciones/2026-06-18-concepto-tarjeta.sql (CHECK + 'tarjeta').
-- [ ] Opcional: validar también un checkout ANUAL e2e. Al ir a LIVE: activar el anual con la llave live + STRIPE_PRICE_COMERCIAL en Render.
-- [ ] Fase 3 Cerrar Pieza 1 (→ Pagos_Suscripciones.md / Suscripciones.md) + commit. Al cerrar el sprint o cuando Juan diga.
+      ✅ Migración aplicada (dev+prod, 20 jun): docs/migraciones/2026-06-18-concepto-tarjeta.sql (CHECK + 'tarjeta').
+- [ ] Al ir a LIVE: activar el anual con la llave live + STRIPE_PRICE_COMERCIAL en Render. (validación E2E en TEST ✅ hecha)
+- [x] Fase 3 Cerrar Pieza 1 (→ Pagos_Suscripciones.md / Suscripciones.md) + commit ✅ (sprint cerrado, en prod).
 
-Pieza 2 — Cobro día-1   ✅ CONSTRUIDA (falta E2E Juan)
+Pieza 2 — Cobro día-1   ✅ CONSTRUIDA + VALIDADA E2E (Ronda de Pagos, 22-23 jun)
 - [x] Spike `probar-cobro-dia1.ts` (Test Clock): cobra hoy → +44d → cobra, sin extras. TODO VERDE.
 - [x] Tarjeta: crearCheckoutSession omite trial con ?ref= + manejarCheckoutCompletado empuja a fin-de-periodo+cortesía
       (mensual +44d / anual +1año+cortesía). Blindajes de carrera (reintento si no hay negocio aún + GREATEST de fecha).
 - [x] Alta manual con vendedor: vigencia +cortesía + aviso visible en el modal. Comisión de alta cae sola el día 0.
-- [x] tsc api+web+admin verdes. Falta: validación E2E (Juan) + Fase 3 docs.
+- [x] tsc api+web+admin verdes. Validación E2E ✅ en la Ronda de Pagos (22-23 jun).
 
-Pieza 3 — Comisión recurrente al cobro   ✅ CONSTRUIDA + GATE VERDE (falta E2E Juan)
+Pieza 3 — Comisión recurrente al cobro   ✅ CONSTRUIDA + GATE VERDE + VALIDADA E2E (ronda 22-23 jun)
 - [x] Motor devengarComisionRecurrenteAlCobro (meses=dinero÷precio, MENOS 1 mes en el 1er cobro si hubo alta, escalón congelado) + marcador comision_devengada_hasta.
 - [x] Enganches: webhook tarjeta + alta manual + "Registrar pago" (alta ANTES del recurrente). Foto mensual retirada (cron + dispararDevengo no-op).
 - [x] Migración 2026-06-19 (columna + drop índice + relajar CHECK forma). Corrida en dev y prod.

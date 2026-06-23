@@ -81,7 +81,7 @@ Fase 3 — Cerrar
 - [x] Doc canónico Configuracion.md (2 capas)
 - [x] Vaciar este checklist + dejar solo backlog (P1–P4)
 - [x] Índices (tablero, memoria)
-- [ ] Commit a main            ← pendiente (lo aprueba Juan)
+- [x] Commit a main ✅ (committeado; módulo en prod)
 - [x] Avisar a Vendedores: la escalera ya es configurable → desbloquea su Fase 2
 ```
 

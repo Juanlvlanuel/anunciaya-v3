@@ -61,10 +61,10 @@ Lo que el módulo ganó **más allá de la spec original de Fase 0** (que asumí
 > suspendida → 403 `CUENTA_SUSPENDIDA`, no entra a AY; suspender al dueño **no** oculta su negocio).
 > El módulo queda **cerrado**. Lo único que sigue son los V2 de abajo.
 
-### 🟡 Operativo pendiente (migración ciudad→catálogo)
-- 🟡 **DROP de `usuarios.ciudad` en PROD:** el código y DEV ya viven sin la columna texto (lecturas y
-  escrituras por `ciudad_id`); falta correr el DROP en la BD de producción para cerrar la fase
-  **contract** de la migración global ciudad→catálogo. Es el último paso operativo del módulo.
+### ✅ Operativo cerrado (migración ciudad→catálogo)
+- ✅ **DROP de `usuarios.ciudad` aplicado en DEV y PROD** (validado 20 jun 2026 con consulta de huellas en el
+  Supabase de producción). El código vive 100% sobre `ciudad_id`; la fase **contract** de la migración global
+  ciudad→catálogo quedó cerrada. Sin pendientes operativos.
 
 ### 🟢 Fuera de V1 (V2 consciente — anotado, no escondido)
 - 🟢 **Acoplar la región del cliente a la visibilidad:** hoy `ciudad_id` solo mide/filtra; el gerente

@@ -4,7 +4,7 @@
 > Lo que YA funciona se documenta en `Ciudades.md` (doc canónico, se escribe en Fase 3).
 > Proceso: [`../../estandares/FLUJO_MODULO_PANEL.md`](../../estandares/FLUJO_MODULO_PANEL.md). Plantilla de oro: **Negocios**.
 >
-> **Última actualización:** 19 Junio 2026 · **Fase actual:** 1 (VER) — Frente A.
+> **Última actualización:** 23 Junio 2026 · **Fase actual:** 3 — CERRADO (módulo construido y en uso; solo quedan los pendientes menores de abajo).
 
 ---
 
@@ -127,10 +127,10 @@ Sin alcance por región → no necesita `condicionAlcance`. Ruta montada **despu
 ## Pendientes que quedan
 - [ ] **Verificación visual E2E** — levantar Panel (ver mapa, alta, agrupar) + web (que una ciudad nueva aparezca en el selector).
 - [x] **Correr el DROP** de `negocio_sucursales.ciudad` (dev+prod, 19 jun — ver arriba).
-- [ ] **Hardcodes "Puerto Peñasco" en Vacantes** (`VacanteDetalleInline`, `VacantesEmpty`, `SlideoverNuevaVacante`) — UX, no usan la columna.
+- [ ] **Hardcode "Puerto Peñasco" en Vacantes** — queda **solo** en `SlideoverNuevaVacante.tsx:83` (valor por defecto del formulario de nueva vacante); los de `VacanteDetalleInline`/`VacantesEmpty` ya se quitaron. UX/limpieza, no usa la columna.
 - [x] **Editar ciudad por fila** (nombre/estado/importancia) — menú "⋯" → Editar → `DialogoEditarCiudad` + `useEditarCiudad`. (Coords: se ajustan desde el mapa; edición de coords por mapa = futuro.)
 - [x] _Migraciones hermanas (mismo patrón, 19 jun):_ `servicios_publicaciones.ciudad`, `articulos_marketplace.ciudad` y `preguntas_comunidad.ciudad` → migradas y **DROPeadas en dev+prod**. Cubren Servicios+Vacantes, MarketPlace y Home/"Pregúntale a [ciudad]"/Coyo. Migraciones SQL en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
-- [ ] _Migración hermana — `usuarios.ciudad`:_ migrada a `ciudad_id`; **DROP corrido en DEV, falta DROP en PROD** (último paso operativo, lo aplica Juan). Cubre Perfil, expediente del Panel Usuarios y la ciudad del oferente/vendedor/prestador en Servicios/MarketPlace.
+- [x] _Migración hermana — `usuarios.ciudad`:_ migrada a `ciudad_id` y **DROPeada en DEV y PROD** (validado 20 jun). Cubre Perfil, expediente del Panel Usuarios y la ciudad del oferente/vendedor/prestador en Servicios/MarketPlace.
 - [x] _Logs de búsqueda_ (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) → se **quedan como TEXTO analítico por decisión** (NO migran a FK).
 
 ---

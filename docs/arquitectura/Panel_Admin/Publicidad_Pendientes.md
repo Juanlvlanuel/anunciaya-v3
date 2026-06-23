@@ -21,7 +21,7 @@
 - [x] Endpoint público `GET /api/publicidad?ciudadId=` (`publicidadPublica.{service,controller,routes}.ts`, montado en `routes/index.ts`) — anuncios vigentes de la ciudad, agrupados por carrusel.
 - [x] Conectar `apps/web/.../ColumnaDerecha.tsx` (antes mock) a datos reales (`usePublicidad` resuelve `ciudadId` del catálogo) + **lightbox** del clic (la imagen se agranda) + placeholder "Espacio disponible" + `/publicidad` en `RUTAS_SIN_SUCURSAL`.
 - [x] **GATE 1: verificado con DATOS REALES** ✅ — seed `sembrar-publicidad-dev.ts` (2 anuncios en Puerto Peñasco) + harness `probar-publicidad-lectura.ts` **TODO VERDE**: super ve 2 · conteos cuadran · ficha combo (3 piezas + ciudad + folio 25, correlativo con membresías) · alcance del gerente por ciudades del anuncio (su región ve 2, otra región 0, sin región 0) · endpoint público (anuncios 2 / patrocinadores 1 / fundadores 1). Pendiente solo la verificación VISUAL opcional de la UI (Panel + columna en desktop).
-- [ ] Conteo de `clicks`/`impresiones` desde la columna pública (POST de tracking) → diferido a Fase 2.
+- [x] Conteo de `clicks` desde la columna pública (POST de tracking) ✅ (hecho en Fase 2, ver abajo). _Impresiones: aún no._
 - [ ] Búsqueda por anunciante en la sección del Panel (el backend ya la soporta; el front aún no la expone) → menor.
 
 ### Fase 2 — ACTUAR  *(acciones ✅ · configuración ✅ · alta manual ✅ · wizard+Stripe ✅ · cron+tracking ✅ — falta solo recibo PDF + Recibos)*

@@ -112,7 +112,7 @@ texto salieron del ORM. Estado por tabla:
 | `servicios_publicaciones.ciudad` | Servicios + Vacantes de Business Studio | ✅ migrada + DROP (dev+prod) |
 | `articulos_marketplace.ciudad` | MarketPlace (feed, detalle, compartible, Mis Guardados, perfil vendedor) | ✅ migrada + DROP (dev+prod) |
 | `preguntas_comunidad.ciudad` | Home / "Pregúntale a [ciudad]" / Coyo | ✅ migrada + DROP (dev+prod) |
-| `usuarios.ciudad` | Perfil, expediente del Panel Usuarios, ciudad del oferente/vendedor/prestador | ✅ migrada; DROP en dev — **DROP en prod pendiente** (ver Pendientes) |
+| `usuarios.ciudad` | Perfil, expediente del Panel Usuarios, ciudad del oferente/vendedor/prestador | ✅ migrada + DROP (dev+prod), validado 20 jun |
 
 Los logs de búsqueda (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) se
 quedan como **texto analítico por decisión** (NO se migran a FK). Migraciones SQL one-shot:

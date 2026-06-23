@@ -209,7 +209,7 @@ POST  /admin/vendedores/:id/efectivo    registrar cobro/entrega (super/gerente)
 - `tsc` API + builds del Panel ✅. Harness `probar-comisiones-devengo.ts` (B, cálculo + idempotencia) TODO VERDE.
 - Harness `probar-abonos.ts` (Liquidación v2: abono **parcial** + **dividido** + **neteo**, aislado y autorreparable)
   **TODO VERDE**. Migraciones `2026-06-17-...-fase2.sql` · `...-efectivo-movimientos.sql` (dev+prod) ·
-  `...-comision-monto-pagado.sql` (**correr en prod**).
+  `...-comision-monto-pagado.sql` (dev + prod, 20 jun).
 
 ## F. Referencias
 

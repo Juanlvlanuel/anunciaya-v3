@@ -53,7 +53,7 @@
   limpieza blindada**: solo borra con acceso cross-ambiente/local, en prod queda bloqueado con aviso). Único
   módulo de "Sistema" que pasó por **Fase 2** (5 acciones, cada una con confirmación + auditoría). Estrenó los
   tokens `--panel-warn` (ámbar "lento") y `ok-suave` (verde de acción). Sin migración (todo lectura o estado
-  en memoria). 7 crons instrumentados con telemetría; `tsc` api+admin verdes. **Pendiente:** commit de Juan.
+  en memoria). 7 crons instrumentados con telemetría; `tsc` api+admin verdes. **Committeado** (en prod).
 - **Recién cerrado (21 jun):** **Auditoría** — la **UI de la bitácora** (`admin_auditoria`), el medio que
   faltaba del módulo 11 "Sistema" (doc [`Auditoria.md`](Auditoria.md)). Lista (tabla/cards) con filtros
   (acción · persona · periodo · orden) + paginación en servidor, **ficha** de detalle instantánea,
@@ -63,7 +63,7 @@
   (los ids se resuelven a nombres en el backend, sistémico) y **degrada con elegancia** ante acciones
   nuevas. La **escritura** ya existía como cimiento (`registrarAuditoria`). En el menú, "Sistema" se
   partió en dos entradas: **Auditoría** y **Mantenimiento**. Solo lectura (+ borrado super) → saltó Fase
-  2. Sin migración. Harness `probar-auditoria-lectura.ts` verde + `tsc`/build. **Pendiente:** commit de Juan.
+  2. Sin migración. Harness `probar-auditoria-lectura.ts` verde + `tsc`/build. **Committeado** (en prod).
 - **Recién cerrado (21 jun):** **Métricas** (módulo 2) — doc [`Metricas.md`](Metricas.md): la vista de
   **análisis** del Panel con **3 pestañas** (Crecimiento · Uso de la app · Usuarios) + **selector de
   periodo** (presets + rango por fechas, granularidad día/mes automática), todo scoped por rol y con
@@ -71,7 +71,7 @@
   altas/bajas, ingresos apilados por concepto, líneas de engagement, rankings con avatar/región/gerente),
   y deep-link **"Negocios en riesgo" → Negocios** con scroll + highlight. Solo lectura → saltó Fase 2.
   Sin migración. 3 harness verdes (`probar-metricas-{crecimiento,adopcion,usuarios}.ts`) + `tsc`/build.
-  Estrenó el **patrón de gráficas** en `Tokens_Panel.md`. **Pendiente:** commit de Juan.
+  Estrenó el **patrón de gráficas** en `Tokens_Panel.md`. **Committeado** (en prod).
 - **Recién cerrado (20 jun):** **Resumen / inicio** (módulo 1) — doc [`Resumen.md`](Resumen.md): tablero
   de inicio con **KPIs gruesos** (negocios activos · usuarios · ingresos del mes · cobros fallidos; el
   vendedor ve cartera/comisiones/efectivo) + **cola de pendientes accionable** (efectivo por entregar +
@@ -79,7 +79,7 @@
   tarea). La **campana** del shell pasó de demo a datos reales (mismo hook). Solo lectura → saltó Fase 2.
   Sin migración. Backend orquesta consultas de dominio (sin duplicar alcance); harness
   `probar-resumen-lectura.ts` verde + `tsc`/build. Estrenó patrón visual de **tablero KPI + cola** en
-  `Tokens_Panel.md`. **Pendiente:** commit de Juan.
+  `Tokens_Panel.md`. **Committeado** (en prod).
 - **Validado en PROD (20 jun):** verificadas con consulta de huellas (`information_schema`/`pg_constraint`)
   en el Supabase de producción — **aplicadas:** `2026-06-18-concepto-tarjeta`, `2026-06-17-comision-monto-pagado`
   (abonos), `2026-06-19-comision-al-cobro` (Pieza 3) y el **DROP de `usuarios.ciudad`** (cierre completo de la
@@ -173,7 +173,7 @@
 | 5 | **Suscripciones** | ✅ | ✔ Cerrado (módulo completo = bitácora financiera; **sin V2**, alcance cerrado 23 jun) | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 | | **· Red de ventas ·** | | | |
-| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: F (cobertura avanzada multi-región) | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
+| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: **F** (cobertura avanzada: agregar/quitar ciudades a un vendedor, incl. de otra región) + **G** (mapa de territorios: gerente zonifica la ciudad/asigna · vendedor deja marcas "ya pasé") | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
 | | **· Crecimiento ·** | | | |
 | 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |

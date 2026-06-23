@@ -3,7 +3,7 @@
 > **Qué es:** el guion para validar **end-to-end en Stripe TEST** las 3 piezas del Sprint de Stripe
 > (precio + plan anual · cobro "día 1" · comisión recurrente "al cobro"). Reusable antes de pasar a LIVE.
 >
-> **Estado:** Pieza 1 ✅ validada E2E (18 jun). Piezas 2 y 3 con harness verde; **falta esta validación E2E**.
+> **Estado:** Piezas 1, 2 y 3 ✅ **validadas E2E** — Pieza 1 (18 jun) + Piezas 2 y 3 en la **Ronda de Pagos A-Z (22-23 jun)**.
 >
 > Docs: [`Sprint_Stripe.md`](Sprint_Stripe.md) (orquestador) · [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md)
 > (ciclo de cobro) · [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md) (devengo al cobro).
