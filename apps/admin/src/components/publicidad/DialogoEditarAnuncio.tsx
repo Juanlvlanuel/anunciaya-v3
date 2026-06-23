@@ -158,7 +158,8 @@ export function DialogoEditarAnuncio({ detalle, onCerrar }: { detalle: Publicida
                           accept="image/png,image/jpeg,image/webp"
                           className="hidden"
                           data-testid={`editar-imagen-${c}`}
-                          onChange={(e) => onArchivo(c, e.target.files?.[0])}
+                          // Reset del value: permite re-elegir el mismo archivo (si no, onChange no dispara).
+                          onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(c, f); }}
                         />
                       </label>
                     </div>

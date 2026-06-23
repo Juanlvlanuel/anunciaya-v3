@@ -26,6 +26,7 @@ import {
     listarCarteraController,
     listarComisionesVendedorController,
     subirComprobanteController,
+    descartarComprobanteController,
     registrarPagoController,
     listarPagosVendedorController,
     obtenerDatosCobroController,
@@ -43,6 +44,8 @@ router.get('/conteo', requierePanel(['superadmin', 'gerente', 'vendedor']), cont
 
 // Presigned URL para subir el comprobante del pago (solo super). Antes de /:id por el comodín.
 router.post('/comprobante/upload', requierePanel(['superadmin']), subirComprobanteController);
+// Descarte de comprobantes huérfanos en R2 (al quitar/cerrar sin guardar). Solo super.
+router.post('/comprobante/descartar', requierePanel(['superadmin']), descartarComprobanteController);
 
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerVendedorController);
 

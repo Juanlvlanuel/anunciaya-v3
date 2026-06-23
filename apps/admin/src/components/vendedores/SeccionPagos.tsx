@@ -23,7 +23,7 @@ import {
   useGuardarDatosCobro,
   useEfectivoVendedor,
 } from '../../hooks/queries/useVendedoresAdmin';
-import { subirComprobante, type ComisionFila, type PagoFila, type DatosCobro } from '../../services/vendedoresService';
+import { subirComprobante, descartarComprobante, type ComisionFila, type PagoFila, type DatosCobro } from '../../services/vendedoresService';
 import { SelectorPeriodo, periodosDe } from './SelectorPeriodo';
 
 const CLASE_CAMPO =
@@ -147,6 +147,9 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
   const registrar = useRegistrarPago();
   const { data: corte } = useEfectivoVendedor(vendedorId);
   const fileRef = useRef<HTMLInputElement>(null);
+  // URLs subidas en esta sesión: al cerrar/quitar se mandan al backend, que borra de R2 las que ningún
+  // pago referencia (las guardadas quedan protegidas por reference count).
+  const subidasSesion = useRef<Set<string>>(new Set());
 
   const [transferencia, setTransferencia] = useState('');
   const [efectivoMonto, setEfectivoMonto] = useState('');
@@ -170,29 +173,60 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
   const puedeGuardar = abono > 0 && !excede && !registrar.isPending && !subiendo;
 
   const soloNum = (v: string) => v.replace(/[^0-9.]/g, '');
+  // Subida OPTIMISTA (mismo patrón que apps/web · useR2Upload): preview local INMEDIATO con un blob URL y,
+  // al terminar la subida real a R2, se reemplaza el blob por la URL pública (revocando el blob).
   const onArchivo = async (file: File | undefined) => {
     if (!file) return;
+    const anterior = comprobanteUrl;
+    const blobUrl = URL.createObjectURL(file);
+    setComprobanteUrl(blobUrl); // se ve YA, sin esperar la subida
     setSubiendo(true);
     setErrorComprobante(null);
     try {
       const url = await subirComprobante(file);
-      if (url) setComprobanteUrl(url);
-      else setErrorComprobante('No se pudo subir el comprobante. Revisa el formato (JPG/PNG/WEBP) o la conexión y vuelve a intentar.');
+      if (url) {
+        subidasSesion.current.add(url);
+        setComprobanteUrl(url); // blob → URL pública de R2
+        if (anterior && anterior !== url && !anterior.startsWith('blob:')) {
+          subidasSesion.current.delete(anterior);
+          void descartarComprobante([anterior]); // si reemplazó una de R2, bórrala
+        }
+      } else {
+        setComprobanteUrl(anterior && !anterior.startsWith('blob:') ? anterior : null); // falló → restaurar/limpiar
+        setErrorComprobante('No se pudo subir el comprobante. Revisa el formato (JPG/PNG/WEBP) o la conexión y vuelve a intentar.');
+      }
     } finally {
+      URL.revokeObjectURL(blobUrl);
       setSubiendo(false);
     }
+  };
+
+  // Quitar el comprobante: lo saca del estado y, como no quedó ligado a un pago, lo BORRA de R2 al instante.
+  const quitarComprobante = () => {
+    const url = comprobanteUrl;
+    setComprobanteUrl(null);
+    if (url && !url.startsWith('blob:')) {
+      subidasSesion.current.delete(url);
+      void descartarComprobante([url]);
+    }
+  };
+
+  // Al cerrar (X / Cancelar / tras registrar): descarta de R2 los comprobantes subidos pero no ligados a un pago.
+  const cerrarConLimpieza = () => {
+    void descartarComprobante(Array.from(subidasSesion.current));
+    onCerrar();
   };
 
   const enviar = () => {
     if (!puedeGuardar) return;
     registrar.mutate(
       { id: vendedorId, datos: { montoTransferencia: montoT, montoEfectivo: montoE, fechaPago, nota: nota.trim() || null, comprobanteUrl } },
-      { onSuccess: onCerrar },
+      { onSuccess: cerrarConLimpieza },
     );
   };
 
   return (
-    <ModalAdaptativo abierto onCerrar={onCerrar} mostrarHeader={false} sinScrollInterno ancho="md" alturaMaxima="xl" discriminador="registrar-pago">
+    <ModalAdaptativo abierto onCerrar={cerrarConLimpieza} mostrarHeader={false} sinScrollInterno ancho="md" alturaMaxima="xl" discriminador="registrar-pago">
       <div className="flex h-full min-h-0 flex-col" data-testid="dialogo-registrar-pago">
         <div className="flex shrink-0 items-center gap-2.5 border-b border-borde px-5 pt-4 pb-3.5">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca"><Wallet size={17} /></span>
@@ -276,12 +310,18 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
           {/* Comprobante */}
           <div className="mt-3">
             <label className={LABEL}>Comprobante <span className="font-normal text-texto-4">(foto, opcional)</span></label>
-            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => onArchivo(e.target.files?.[0])} data-testid="pago-archivo" />
+            <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(f); }} data-testid="pago-archivo" />
             {comprobanteUrl ? (
               <div className="flex items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3 py-2">
-                <img src={comprobanteUrl} alt="comprobante" className="h-12 w-12 rounded-[8px] object-cover" />
-                <span className="flex-1 text-[12.5px] text-ok inline-flex items-center gap-1"><Check size={14} /> Comprobante adjunto</span>
-                <button type="button" onClick={() => setComprobanteUrl(null)} className="text-[12px] font-semibold text-texto-3 hover:text-peligro">Quitar</button>
+                <img src={comprobanteUrl} alt="comprobante" className={`h-12 w-12 rounded-[8px] object-cover ${subiendo ? 'opacity-60' : ''}`} />
+                {subiendo ? (
+                  <span className="flex-1 text-[12.5px] text-texto-3 inline-flex items-center gap-1"><RefreshCw size={14} className="animate-spin" /> Subiendo…</span>
+                ) : (
+                  <span className="flex-1 text-[12.5px] text-ok inline-flex items-center gap-1"><Check size={14} /> Comprobante adjunto</span>
+                )}
+                {!subiendo && (
+                  <button type="button" onClick={quitarComprobante} className="text-[12px] font-semibold text-texto-3 hover:text-peligro">Quitar</button>
+                )}
               </div>
             ) : (
               <button
@@ -301,7 +341,7 @@ function DialogoRegistrarPago({ vendedorId, pendientes, onCerrar }: { vendedorId
         </div>
 
         <div className="flex shrink-0 items-center justify-end gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
-          <button type="button" onClick={onCerrar} disabled={registrar.isPending} className={BTN_CANCELAR}>Cancelar</button>
+          <button type="button" onClick={cerrarConLimpieza} disabled={registrar.isPending} className={BTN_CANCELAR}>Cancelar</button>
           <button type="button" data-testid="pago-registrar" onClick={enviar} disabled={!puedeGuardar} className={BTN_GUARDAR}>
             {registrar.isPending ? 'Registrando…' : `Registrar ${pesos(abono)}`}
           </button>

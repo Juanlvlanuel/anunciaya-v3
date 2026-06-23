@@ -241,7 +241,7 @@ export default function PaginaAnunciate() {
                               <span className="text-[11.5px] font-medium">Sube tu imagen</span>
                             </span>
                           )}
-                          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => onArchivo(c, e.target.files?.[0])} />
+                          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(c, f); }} />
                         </label>
                         <p className="mt-1.5 text-center text-[10.5px] leading-snug text-slate-400">Se recorta para llenar el espacio · centra lo importante</p>
                       </div>

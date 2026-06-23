@@ -22,7 +22,7 @@ import { db } from '../../db/index.js';
 import { embajadores, embajadorComisiones, pagosVendedor, vendedorDatosCobro, efectivoMovimientos } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
-import { generarPresignedUrl } from '../r2.service.js';
+import { generarPresignedUrl, eliminarArchivo } from '../r2.service.js';
 import { saldoEfectivo } from './comisiones-efectivo.service.js';
 
 const METODOS = ['transferencia', 'efectivo'] as const;
@@ -39,6 +39,36 @@ export type ResultadoLiquidacion =
 /** Presigned URL para subir la foto/comprobante del pago. Solo super (la ruta lo restringe). */
 export async function generarUrlComprobante(nombreArchivo: string, contentType: string) {
     return generarPresignedUrl('comprobantes', nombreArchivo, contentType, 300, ['image/jpeg', 'image/png', 'image/webp']);
+}
+
+/**
+ * Descarte de comprobantes huérfanos en R2 (mismo patrón que publicidad): el front manda las URLs que
+ * subió en la sesión y aquí borramos de R2 SOLO las que ningún pago referencia (reference count contra
+ * `pagos_vendedor.comprobante_url`) y SOLO de la carpeta 'comprobantes/'. Así un comprobante ya ligado a un
+ * pago jamás se borra, aunque el front lo mande por error. No lanza.
+ */
+export async function descartarComprobantesHuerfanos(urls: string[]): Promise<{ borradas: number }> {
+    if (!Array.isArray(urls)) return { borradas: 0 };
+    let borradas = 0;
+    for (const url of urls.slice(0, 12)) {
+        try {
+            if (typeof url !== 'string' || !url) continue;
+            let key: string;
+            try {
+                key = new URL(url).pathname.replace(/^\/+/, '');
+            } catch {
+                continue;
+            }
+            if (!key.startsWith('comprobantes/')) continue; // solo nuestra carpeta
+            const [usada] = await db.select({ id: pagosVendedor.id }).from(pagosVendedor).where(eq(pagosVendedor.comprobanteUrl, url)).limit(1);
+            if (usada) continue; // un pago la referencia → en uso, no tocar
+            const r = await eliminarArchivo(url);
+            if (r.success) borradas++;
+        } catch {
+            /* best-effort: una falla no detiene al resto */
+        }
+    }
+    return { borradas };
 }
 
 // =============================================================================

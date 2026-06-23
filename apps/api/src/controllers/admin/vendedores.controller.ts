@@ -23,7 +23,7 @@ import {
     type OrdenVendedores,
 } from '../../services/admin/vendedores.service.js';
 import { panelConFiltroRegion, ESTADOS_PAGO, type EstadoPago } from '../../services/admin/negocios.service.js';
-import { registrarPago, generarUrlComprobante, obtenerDatosCobro, guardarDatosCobro } from '../../services/admin/comisiones-liquidacion.service.js';
+import { registrarPago, generarUrlComprobante, descartarComprobantesHuerfanos, obtenerDatosCobro, guardarDatosCobro } from '../../services/admin/comisiones-liquidacion.service.js';
 import { registrarMovimientoManual } from '../../services/admin/comisiones-efectivo.service.js';
 import { registrarAuditoria } from '../../services/admin/auditoria.service.js';
 
@@ -192,6 +192,18 @@ export async function subirComprobanteController(req: Request, res: Response): P
     } catch (error) {
         console.error('Error en subirComprobanteController:', error);
         res.status(500).json({ success: false, message: 'Error al preparar la subida del comprobante' });
+    }
+}
+
+// POST /api/admin/vendedores/comprobante/descartar   (solo super · borra de R2 los comprobantes no usados)
+export async function descartarComprobanteController(req: Request, res: Response): Promise<void> {
+    try {
+        const urls = Array.isArray(req.body?.urls) ? req.body.urls : [];
+        const r = await descartarComprobantesHuerfanos(urls);
+        res.status(200).json({ success: true, message: 'ok', data: r });
+    } catch (error) {
+        console.error('Error en descartarComprobanteController:', error);
+        res.status(500).json({ success: false, message: 'Error al descartar comprobantes' });
     }
 }
 

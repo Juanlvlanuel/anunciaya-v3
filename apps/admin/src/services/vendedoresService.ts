@@ -16,6 +16,7 @@
  */
 
 import { api, type RespuestaAPI } from './api';
+import { optimizarImagen } from '../utils/optimizarImagen';
 
 // =============================================================================
 // TIPOS
@@ -255,19 +256,32 @@ export async function guardarDatosCobro(id: string, datos: DatosCobroInput): Pro
  */
 export async function subirComprobante(file: File): Promise<string | null> {
   try {
+    // Optimiza en el navegador (WebP, redimensionada) antes de subir — igual que las creatividades de Publicidad.
+    const optimizada = await optimizarImagen(file);
     const { data } = await api.post<RespuestaAPI<{ uploadUrl: string; publicUrl: string }>>(
       '/admin/vendedores/comprobante/upload',
-      { nombreArchivo: file.name, contentType: file.type },
+      { nombreArchivo: optimizada.name, contentType: optimizada.type },
     );
     const info = data.data;
     if (!info?.uploadUrl || !info?.publicUrl) return null;
     // El PUT directo a R2 puede LANZAR (CORS/red), no solo devolver !ok → atrapar para no romper el flujo
     // ni dejar una promesa sin capturar; el caller avisa cuando devolvemos null.
-    const r = await fetch(info.uploadUrl, { method: 'PUT', body: file, headers: { 'Content-Type': file.type } });
+    const r = await fetch(info.uploadUrl, { method: 'PUT', body: optimizada, headers: { 'Content-Type': optimizada.type } });
     if (!r.ok) return null;
     return info.publicUrl;
   } catch {
     return null;
+  }
+}
+
+/** Borra de R2 los comprobantes subidos pero NO guardados (al quitar/cerrar el modal). Best-effort. */
+export async function descartarComprobante(urls: string[]): Promise<void> {
+  const lista = urls.filter(Boolean);
+  if (lista.length === 0) return;
+  try {
+    await api.post('/admin/vendedores/comprobante/descartar', { urls: lista });
+  } catch {
+    /* best-effort: no romper el cierre del modal */
   }
 }
 
