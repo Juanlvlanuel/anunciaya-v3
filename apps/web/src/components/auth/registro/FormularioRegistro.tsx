@@ -674,7 +674,7 @@ export function FormularioRegistro({
               <label className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 lg:mb-0.5 2xl:mb-1.5">
                 Teléfono personal
               </label>
-              <div className={`flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg border-2 ${
+              <div className={`flex items-center h-11 lg:h-10 2xl:h-11 bg-slate-100 rounded-lg border-2 overflow-hidden ${
                 validacion.telefono === null
                   ? 'border-slate-300'
                   : validacion.telefono

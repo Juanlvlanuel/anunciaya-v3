@@ -63,7 +63,7 @@ export function InputTelefono({
 		<div className="flex gap-1.5 min-w-0">
 			{/* Lada — angosta para dar más espacio al número */}
 			<div
-				className="flex items-center justify-center w-12 lg:w-11 2xl:w-12 h-10 lg:h-9 2xl:h-10 bg-white rounded-lg px-1 shrink-0"
+				className="flex items-center justify-center w-12 lg:w-11 2xl:w-12 h-10 lg:h-9 2xl:h-10 bg-white rounded-lg px-1 shrink-0 overflow-hidden"
 				style={ESTILO_INPUT}
 			>
 				<input
@@ -88,7 +88,7 @@ export function InputTelefono({
 
 			{/* Número de 10 dígitos — ocupa el espacio restante */}
 			<div
-				className="flex items-center h-10 lg:h-9 2xl:h-10 bg-white rounded-lg px-3 flex-1 min-w-0"
+				className="flex items-center h-10 lg:h-9 2xl:h-10 bg-white rounded-lg px-3 flex-1 min-w-0 overflow-hidden"
 				style={ESTILO_INPUT}
 			>
 				<input
