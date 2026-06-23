@@ -10,7 +10,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { Send, Pencil, Ban, Trash2 } from 'lucide-react';
+import { Send, Pencil, Ban, Trash2, ChevronRight } from 'lucide-react';
 import { useEventoDetalle, useEliminarEvento } from '../../hooks/queries/useSuscripcionesAdmin';
 import { useReenviarRecibo, useEditarPago, useAnularPago } from '../../hooks/queries/useNegociosAdmin';
 import type { EventoFila, EventoDetalle } from '../../services/suscripcionesService';
@@ -19,7 +19,9 @@ import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { DialogoEditarPago } from '../negocios/DialogoEditarPago';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { AccionesFicha, type AccionFicha } from '../ui/AccionesFicha';
+import { Tooltip } from '../ui/Tooltip';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
+import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 import { metaTipoEvento, BadgeTipoEvento } from './estadoEvento';
 
 interface FichaEventoProps {
@@ -121,6 +123,16 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
   // es cómo cobra el negocio, no la forma de ESTE pago). El resto va a "Detalles técnicos".
   const entradasTecnicas = entradasMeta.filter(([k]) => !['concepto', 'meses', 'hasta', 'metodoCobro'].includes(k));
 
+  // Deep-link a la ficha del negocio en el módulo Negocios: salta a esa sección y resalta su fila
+  // (mismo patrón que Métricas → "Negocios en riesgo"). Cierra esta ficha al saltar. Super y gerente
+  // ven Negocios (el gerente, acotado a su región, igual que la bitácora), así que el salto es válido.
+  const navegar = useNavegacionPanel((s) => s.navegar);
+  const irANegocio = () => {
+    if (!e.negocioId) return;
+    navegar('negocios', { negocios: { resaltarId: e.negocioId } });
+    onCerrar();
+  };
+
   // ── Acciones sobre el pago: solo en los movimientos tipo "Pago manual" (los de Stripe no se tocan) ──
   const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
   const puedeActuar = rol === 'superadmin' || rol === 'gerente';
@@ -218,7 +230,21 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
         <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
           <div className="border-b border-borde px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between gap-2">
-              <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
+              {e.negocioId ? (
+                <Tooltip text="Ver en Negocios" position="bottom" className="min-w-0">
+                  <button
+                    type="button"
+                    data-testid="evento-ir-negocio"
+                    onClick={irANegocio}
+                    className="group/neg flex min-w-0 items-center gap-1 text-[13px] font-medium text-marca transition hover:underline"
+                  >
+                    <span className="min-w-0 truncate">{e.negocioNombre ?? '—'}</span>
+                    <ChevronRight size={13} className="shrink-0 opacity-70 transition group-hover/neg:translate-x-0.5 group-hover/neg:opacity-100" />
+                  </button>
+                </Tooltip>
+              ) : (
+                <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
+              )}
               <BadgeTipoEvento tipo={e.tipo} small />
             </div>
             <div className={`text-[28px] font-semibold leading-none tracking-tight ${e.monto != null ? 'text-ok' : 'text-texto-3'}`}>

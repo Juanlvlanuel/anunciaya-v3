@@ -38,9 +38,14 @@ montaje; **(4)** frontend — `suscripcionesService` + `useSuscripcionesAdmin` (
 (KPIs + tabla/cards + filtros tipo/origen/periodo) + `FichaEvento` (detalle + metadata) + enchufado en
 `PaginaPanel`. **GATE 1 verde** (11 jun): migración corrida en dev + harness `probar-bitacora-eventos.ts`
 A–J TODO OK (persistencia + idempotencia + defensividad + lectura/KPIs + alcance gerente). Como es solo
-lectura, **se salta la Fase 2** → siguiente: **Fase 3 (Cerrar)**. Pendientes menores: el **deep-link** a la
-ficha de Negocios (hoy se muestra el negocio); correr la migración en **prod** antes del deploy; y correr el
-**backfill** de gemelos `pago_manual` históricos huérfanos en **dev y prod** (ver §Faltantes).
+lectura, **se salta la Fase 2** → siguiente: **Fase 3 (Cerrar)**. Pendientes menores **TODOS cerrados (23 jun)**:
+el **deep-link** a la ficha de Negocios ✅ (el nombre del negocio en la ficha del movimiento salta a Negocios
+y resalta su fila — `FichaEvento.tsx`, mismo patrón que Métricas) · el **re-sync al editar un pago** ✅ (ya
+estaba desde el 11 jun, commit `5ae71be`) · lo **operativo** ✅: la migración `2026-06-11-eventos-pago.sql`
+**confirmada en prod** (12 columnas) y el **backfill** aplicado — **DEV 0 huérfanos**, **PROD 1 cortesía
+reparada** (count=0). En el camino se **corrigió un bug del backfill**: excluía mal los cobros de `tarjeta`
+(que ya tienen su evento `cobro_exitoso` de Stripe) y los habría metido como `pago_manual` falsos → filtro
+`concepto IN ('efectivo','transferencia','cortesia')` en el script `.ts` y el `.sql`.
 
 ---
 
@@ -169,7 +174,7 @@ Fase 0 — Definir
 
 Fase 1 — VER
 - [x] Migración: tabla eventos_pago (+ 4 índices, 1 UNIQUE, 3 CHECK) → docs/migraciones/2026-06-11-eventos-pago.sql
-      ⚠️ FALTA correrla en dev y prod (one-shot manual)
+      ✅ Corrida en dev y CONFIRMADA en prod (12 columnas, 23 jun). Backfill de huérfanos aplicado (dev 0 / prod 1 cortesía).
 - [x] Backend persistencia — DOS helpers separados:
       (a) registrarEventoPago (services/suscripciones/eventos-pago.ts) — DEFENSIVO + idempotente onConflict;
           lo usa SOLO el webhook, con INSERT en sus 3 handlers (cobro_exitoso/cobro_fallido/cancelacion).
@@ -181,7 +186,8 @@ Fase 1 — VER
 - [x] Frontend lectura: queryKeys + suscripcionesService + useSuscripcionesAdmin (RQ keepPreviousData) +
       estadoEvento (badges) + SeccionSuscripciones (KPIs + tabla/cards + filtros tipo/origen/periodo) +
       FichaEvento (detalle + metadata) + enchufado en PaginaPanel (ítem de menú ya existía). tsc + build verdes.
-      🟡 Deep-link a la ficha de Negocios: PENDIENTE (se muestra el negocio; el salto cross-módulo va aparte).
+      ✅ Deep-link a la ficha de Negocios (23 jun): el nombre del negocio en FichaEvento.tsx salta a la
+         sección Negocios y resalta su fila (navegar + resaltarId, calcado de Métricas → "Negocios en riesgo").
 - [x] GATE 1: persistencia + lectura verificadas con datos reales ✅ — migración corrida en dev + harness
       apps/api/scripts/probar-bitacora-eventos.ts (A–J TODO OK: pago_manual misma-tx + eventos Stripe +
       idempotencia + defensividad + lectura/KPIs + alcance gerente). tsc + build verdes.

@@ -14,12 +14,22 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 21 Junio 2026.
+> **Última actualización:** 23 Junio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **Cabos sueltos de Suscripciones cerrados (23 jun):** los 4 pendientes menores de la bitácora financiera
+  (módulo 5) quedaron cerrados. **(1)** **Deep-link evento → Negocios**: el nombre del negocio en la ficha del
+  movimiento (`FichaEvento.tsx`) es un botón que salta a la sección Negocios y resalta su fila (mismo patrón que
+  Métricas → "Negocios en riesgo"; tooltip con el componente `Tooltip` del Panel, no el `title` nativo). **(2)**
+  **Re-sync al editar pago**: ya estaba desde el 11 jun (commit `5ae71be`) — error documental. **(3)** **Backfill
+  de gemelos huérfanos** aplicado: DEV 0, **PROD 1 cortesía reparada** (count=0); de paso se **corrigió un bug del
+  backfill** (excluía mal los cobros de `tarjeta`, que ya tienen su evento `cobro_exitoso` de Stripe — los habría
+  metido como `pago_manual` falsos y duplicado ingresos). **(4)** Migración `eventos_pago` **confirmada en prod**
+  (12 columnas). `tsc -b` del Panel verde. **Suscripciones sigue 🟡** (la V2 —precio/promos/cupones de membresía—
+  queda como el bulto grande del módulo). **Pendiente:** commit.
 - **Recién construido y ampliado (21 jun):** **Publicidad** (módulo 7) — el módulo **completo de punta a
   punta** (doc [`Publicidad.md`](Publicidad.md)): venta del **espacio** en los 3 carruseles de la columna
   derecha, acotada por ciudades. **Fases 0-2** completas: lectura (sección Panel + ficha + endpoint público +

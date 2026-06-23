@@ -9,6 +9,9 @@
 -- Correr dos veces no duplica nada. One-shot manual: ejecutar en DEV y en PROD.
 --
 -- Notas de fidelidad:
+--   - SOLO conceptos MANUALES (efectivo/transferencia/cortesía). EXCLUYE concepto='tarjeta': esas filas
+--     son el recibo de un cobro de Stripe (Pieza 1) y su movimiento ya figura en la bitácora como evento
+--     cobro_exitoso/origen='stripe' (deduped por stripe_event_id) — meterlas como pago_manual duplicaría el ingreso.
 --   - fecha_evento = pm.fecha_pago (la fecha REAL del pago, no now()) → no desordena la bitácora.
 --   - Pago anulado  → monto NULL + metadata de anulación (igual que como anularPago deja el evento).
 --   - Cortesía       → monto NULL (ya viene null por el CHECK de pagos_membresia).
@@ -38,7 +41,8 @@ SELECT
             THEN jsonb_build_object('anulado', true, 'motivo', pm.motivo_anulacion, 'anuladoAt', pm.anulado_at)
             ELSE '{}'::jsonb END
 FROM pagos_membresia pm
-WHERE NOT EXISTS (
+WHERE pm.concepto IN ('efectivo', 'transferencia', 'cortesia')   -- solo MANUALES (excluye 'tarjeta': cobro de Stripe, ya tiene su evento cobro_exitoso)
+  AND NOT EXISTS (
     SELECT 1 FROM eventos_pago ep
     WHERE ep.referencia_id = pm.id AND ep.tipo = 'pago_manual'
 );

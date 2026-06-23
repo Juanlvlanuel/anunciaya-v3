@@ -9,6 +9,11 @@
  * Idempotente: solo inserta cuando NO existe ya el gemelo (referencia_id + tipo='pago_manual').
  * Correrlo dos veces no duplica nada.
  *
+ * SOLO pagos MANUALES (concepto efectivo/transferencia/cortesía). EXCLUYE concepto='tarjeta': esas
+ * filas son el recibo de un cobro de Stripe (Pieza 1) y su movimiento ya figura en la bitácora como
+ * evento cobro_exitoso/origen='stripe' (deduped por stripe_event_id). NO son pagos manuales —
+ * meterlas como pago_manual duplicaría el ingreso en los KPIs.
+ *
  * - DRY RUN (default): cuenta y lista los huérfanos. NO escribe.
  *       cd apps/api && pnpm exec tsx scripts/backfill-eventos-pago-manual.ts
  * - APLICAR:           inserta los gemelos faltantes y re-cuenta.
@@ -32,7 +37,8 @@ async function main() {
                pm.monto::text AS monto, pm.anulado, pm.fecha_pago::text AS fecha_pago
         FROM pagos_membresia pm
         LEFT JOIN negocios n ON n.id = pm.negocio_id
-        WHERE NOT EXISTS (
+        WHERE pm.concepto IN ('efectivo', 'transferencia', 'cortesia')   -- solo MANUALES (excluye 'tarjeta': cobro de Stripe, ya tiene su evento cobro_exitoso)
+          AND NOT EXISTS (
             SELECT 1 FROM eventos_pago ep
             WHERE ep.referencia_id = pm.id AND ep.tipo = 'pago_manual'
         )
@@ -78,7 +84,8 @@ async function main() {
                     THEN jsonb_build_object('anulado', true, 'motivo', pm.motivo_anulacion, 'anuladoAt', pm.anulado_at)
                     ELSE '{}'::jsonb END
         FROM pagos_membresia pm
-        WHERE NOT EXISTS (
+        WHERE pm.concepto IN ('efectivo', 'transferencia', 'cortesia')   -- solo MANUALES (excluye 'tarjeta': cobro de Stripe, ya tiene su evento cobro_exitoso)
+          AND NOT EXISTS (
             SELECT 1 FROM eventos_pago ep
             WHERE ep.referencia_id = pm.id AND ep.tipo = 'pago_manual'
         )
@@ -89,7 +96,8 @@ async function main() {
     const restantes = (await db.execute(sql`
         SELECT count(*)::int AS n
         FROM pagos_membresia pm
-        WHERE NOT EXISTS (
+        WHERE pm.concepto IN ('efectivo', 'transferencia', 'cortesia')   -- solo MANUALES (excluye 'tarjeta': cobro de Stripe, ya tiene su evento cobro_exitoso)
+          AND NOT EXISTS (
             SELECT 1 FROM eventos_pago ep
             WHERE ep.referencia_id = pm.id AND ep.tipo = 'pago_manual'
         )

@@ -89,7 +89,8 @@ La lista viene en **páginas de 20**.
 ### El detalle de un movimiento
 Si haces clic en un renglón, se abre una ficha de **solo lectura** con todo: el tipo, el
 origen, el monto, la fecha, el negocio, quién lo registró (si fue manual), y los identificadores
-técnicos de Stripe (para rastrear el cobro si hace falta).
+técnicos de Stripe (para rastrear el cobro si hace falta). El **nombre del negocio** en esa ficha es
+un atajo: lleva a la sección **Negocios** y resalta su fila (para bucear en ese negocio sin perder el hilo).
 
 ---
 
@@ -279,20 +280,31 @@ alcance del gerente). Verificado en verde el 11 Jun 2026. Diagnóstico ad-hoc:
 `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` y su equivalente en TypeScript
 `scripts/backfill-eventos-pago-manual.ts` reconstruyen los gemelos `pago_manual` históricos que
 quedaron huérfanos —sobre todo los de **altas manuales** previas a la centralización en
-`registrarPagoManual`, cuando el alta no asentaba el evento en la bitácora.
+`registrarPagoManual`, cuando el alta no asentaba el evento en la bitácora. **Solo conceptos
+manuales** (`efectivo`/`transferencia`/`cortesia`): **excluye `concepto='tarjeta'`**, que es la
+fila-recibo de un cobro de Stripe (Pieza 1) y cuyo movimiento ya vive en la bitácora como evento
+`cobro_exitoso`/`origen='stripe'` — meterla como `pago_manual` duplicaría el ingreso en los KPIs.
 
 ## G. Fuera de V1 / pendientes menores
 
-- **Deep-link a Negocios:** hoy se muestra el nombre del negocio; falta el salto a su ficha en el
-  módulo Negocios (toca `PaginaPanel`).
-- **Re-sincronizar al editar un pago:** corregir un pago en Negocios (`editarPagoMembresia`) no
-  actualiza aún el evento gemelo en `eventos_pago` → el monto del libro mayor puede quedar viejo.
 - **Eventos de Stripe son asíncronos:** la cancelación aparece cuando el webhook procesa
   `subscription.deleted` (no en el instante de la acción).
 - **Config de precio/trial/gracia, promos/meses gratis, página de cuenta del dueño** → ver
   `Suscripciones_Pendientes.md` §Fuera de V1.
 - **Migrar el dedup de idempotencia de Redis** a `eventos_pago` (sinergia con `stripe_event_id`).
-- **Producción:** correr la migración `2026-06-11-eventos-pago.sql` en prod antes del deploy.
+- **Operativo (lo corre Juan):** confirmar que la migración `2026-06-11-eventos-pago.sql` está
+  aplicada en **prod** y correr el **backfill** de gemelos `pago_manual` históricos huérfanos
+  (`docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` / `scripts/backfill-eventos-pago-manual.ts`,
+  idempotente) en **dev y prod**.
+
+> **Resueltos (23 jun 2026):**
+> - **Deep-link a Negocios** — el **nombre del negocio** en la ficha del movimiento (`FichaEvento.tsx`) es un
+>   botón que salta a la sección **Negocios** y resalta su fila (`navegar('negocios', { negocios: { resaltarId } })`,
+>   **mismo patrón que Métricas → "Negocios en riesgo"**; el scroll+highlight lo aplica `SeccionNegocios` si el
+>   negocio está en la página visible). Solo super/gerente entran a esta bitácora, y ambos ven Negocios.
+> - **Re-sync al editar un pago** — ya estaba **desde el 11 jun** (commit `5ae71be`): `editarPagoMembresia`
+>   actualiza el gemelo `eventos_pago` (monto + metadata `concepto/meses/hasta`) en la **misma transacción**,
+>   simétrico a `anularPagoMembresia`. El §G previo lo listaba como pendiente por error documental.
 
 ## H. Referencias
 
