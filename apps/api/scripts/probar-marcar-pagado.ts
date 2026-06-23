@@ -23,11 +23,15 @@ import { sql } from 'drizzle-orm';
 import { stripe } from '../src/config/stripe.js';
 import { marcarPagado } from '../src/services/admin/negocios-acciones.service.js';
 import type { UsuarioPanel } from '../src/middleware/panel.middleware.js';
+import { obtenerConfigTexto } from '../src/services/configuracion.service.js';
 
 const CORREO_A = 'prueba.mp.alcorriente@dev.local';
 const CORREO_B = 'prueba.mp.gracia@dev.local';
 const CORREO_C = 'prueba.mp.sinsub@dev.local';
-const PRICE = process.env.STRIPE_PRICE_COMERCIAL!;
+// El Price ACTIVO vive en config (precio editable desde el Panel); el del env quedó archivado.
+async function obtenerPriceMensual(): Promise<string> {
+    return obtenerConfigTexto('stripe_price_comercial_id', process.env.STRIPE_PRICE_COMERCIAL || '');
+}
 
 const ok = (b: boolean) => (b ? '✓' : '✗');
 
@@ -91,13 +95,15 @@ async function crearSubReal(correo: string, nombre: string) {
     const customer = await stripe.customers.create({ email: correo, name: nombre });
     const pm = await stripe.paymentMethods.attach('pm_card_visa', { customer: customer.id });
     await stripe.customers.update(customer.id, { invoice_settings: { default_payment_method: pm.id } });
-    const sub = await stripe.subscriptions.create({ customer: customer.id, items: [{ price: PRICE }], default_payment_method: pm.id });
+    // trial_period_days: la sub NO cobra al crearse → no genera un invoice pagado que un `stripe listen`
+    // activo registraría como pago extra (false negative del conteo). marcarPagado igual empuja el trial_end.
+    const sub = await stripe.subscriptions.create({ customer: customer.id, items: [{ price: await obtenerPriceMensual() }], default_payment_method: pm.id, trial_period_days: 14 });
     return { subId: sub.id, customerId: customer.id };
 }
 
 async function main() {
     if (process.env.DB_ENVIRONMENT === 'production') { console.error('✗ Abortado: production.'); process.exit(1); }
-    if (!PRICE) { console.error('✗ Falta STRIPE_PRICE_COMERCIAL.'); process.exit(1); }
+    // (El Price se lee de config con fallback al env; ver obtenerPriceMensual.)
 
     await limpiar(CORREO_A); await limpiar(CORREO_B); await limpiar(CORREO_C);
 

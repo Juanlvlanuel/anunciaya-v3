@@ -212,11 +212,11 @@
 
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
-| 🔴 G1 | **Suspender** negocio → `pause_collection:{behavior:'void'}` en Stripe + `activo=false` | 🌐🤖 | ⬜ | `probar-acciones-parada2.ts` |
-| 🔴 G2 | **Reactivar** → `pause_collection:''` (reanuda cobro) | 🌐🤖 | ⬜ | |
-| 🔴 G3 | **Marcar pagado con tarjeta** → empuja `trial_end`; la fecha manual **sobrevive** al webhook | 🌐🤖 | ⬜ | `probar-fecha-vs-webhook.ts`, `probar-marcar-pagado.ts` (tocan Stripe TEST → Tanda 2) |
-| 🔴 G4 | **Cancelar** negocio (solo super) → `subscriptions.cancel` + degrada + archiva + vouchers | 🌐🤖 | ⬜ | transaccional (toca Stripe TEST → Tanda 2) |
-| ⚪ G5 | **Anular** pago adelantado → restaura `trial_end` original (`cobro_previo`) | 🤖 | ⬜ | `probar-anular-pago.ts` (toca Stripe TEST → Tanda 2) |
+| 🔴 G1 | **Suspender** negocio → `pause_collection:{behavior:'void'}` en Stripe + `activo=false` | 🌐🤖 | ✅ | `probar-acciones-parada2.ts` (22 jun): Stripe `pause:'void'` + BD `suspendido`/`activo=false`. + defensa §4.3 (subId basura → aplica en BD + `advertenciaStripe`, no aborta) |
+| 🔴 G2 | **Reactivar** → `pause_collection:''` (reanuda cobro) | 🌐🤖 | ✅ | `probar-acciones-parada2.ts` (22 jun): Stripe `pause:null` + BD `activo=true` y `estado_admin='activo'` |
+| 🔴 G3 | **Marcar pagado con tarjeta** → empuja `trial_end`; la fecha manual **sobrevive** al webhook | 🌐🤖 | ✅ | `probar-marcar-pagado.ts` TODO OK (22 jun): [A] al corriente → empuja `trial_end` +6m + registra 1 pago tarjeta · [B] en gracia → 409 (no toca nada) · [C] sin sub → solo BD, cortesía sin monto. La fecha manual = `periodo_hasta` del registro (el webhook no lo toca) |
+| 🔴 G4 | **Cancelar** negocio (solo super) → `subscriptions.cancel` + degrada + archiva + vouchers | 🌐🤖 | ✅ | `probar-acciones-parada2.ts` (22 jun) + B3: Stripe `canceled` + BD `cancelado`/`archivado`/sub `null` + dueño a personal |
+| ⚪ G5 | **Anular** pago adelantado → restaura `trial_end` original (`cobro_previo`) | 🤖 | ✅ | `probar-anular-pago.ts` TODO OK (22 jun): pago 3m→6m traslada `trial_end`; anular 6m→regresa a +3m; anular 3m→regresa a la fecha original |
 | ⚪ G6 | **Editar** pago manual (concepto/monto/meses) — rechaza editar pago de tarjeta | 🤖 | ✅ | `probar-editar-pago.ts` TODO OK: corregir/cortesía/404/403/recalcular vigencia (22 jun) |
 
 ### H · Webhook & robustez

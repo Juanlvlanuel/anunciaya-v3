@@ -29,10 +29,14 @@ import {
     suspenderNegocio, reactivarNegocio, marcarPagado, cancelarNegocio,
 } from '../src/services/admin/negocios-acciones.service.js';
 import type { UsuarioPanel } from '../src/middleware/panel.middleware.js';
+import { obtenerConfigTexto } from '../src/services/configuracion.service.js';
 
 const CORREO_A = 'prueba.acciones@dev.local';   // negocio con suscripción real
 const CORREO_B = 'prueba.striperoto@dev.local'; // negocio con subId basura (§4.3)
-const PRICE = process.env.STRIPE_PRICE_COMERCIAL!;
+// El Price ACTIVO vive en config (precio editable desde el Panel); el del env quedó archivado.
+async function obtenerPriceMensual(): Promise<string> {
+    return obtenerConfigTexto('stripe_price_comercial_id', process.env.STRIPE_PRICE_COMERCIAL || '');
+}
 
 async function bd(negocioId: string) {
     return (await db.execute(sql`
@@ -82,7 +86,7 @@ async function crearNegocio(correo: string, nombre: string, subId: string, custo
 
 async function main() {
     if (process.env.DB_ENVIRONMENT === 'production') { console.error('✗ Abortado: production.'); process.exit(1); }
-    if (!PRICE) { console.error('✗ Falta STRIPE_PRICE_COMERCIAL.'); process.exit(1); }
+    // (El Price se lee de config con fallback al env; ver obtenerPriceMensual.)
 
     await limpiarUsuario(CORREO_A);
     await limpiarUsuario(CORREO_B);
@@ -99,7 +103,7 @@ async function main() {
     const customer = await stripe.customers.create({ email: CORREO_A, name: 'Prueba Acciones' });
     const pm = await stripe.paymentMethods.attach('pm_card_visa', { customer: customer.id });
     await stripe.customers.update(customer.id, { invoice_settings: { default_payment_method: pm.id } });
-    const sub = await stripe.subscriptions.create({ customer: customer.id, items: [{ price: PRICE }], default_payment_method: pm.id });
+    const sub = await stripe.subscriptions.create({ customer: customer.id, items: [{ price: await obtenerPriceMensual() }], default_payment_method: pm.id });
     const negA = await crearNegocio(CORREO_A, 'Acciones', sub.id, customer.id);
     console.log(`\nNegocio A: ${negA} · sub ${sub.id} (status=${sub.status})`);
 
