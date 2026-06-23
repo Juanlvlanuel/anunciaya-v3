@@ -77,7 +77,8 @@
   horizontal 3:2, $99) — pero los **IDs internos del backend NO cambiaron**: siguen `CARRUSELES_VALIDOS=['anuncios',
   'patrocinadores']` (`publicidad-precio.service.ts:21`), con el mapeo en el front (`PaginaAnunciate.tsx:33`):
   **`patrocinadores`=Grande, `anuncios`=Chico**. Por eso los harness (que usan los IDs internos) funcionan: D1
-  verde con `'anuncios'`. D2 revalidable. (El fallo de D2 el 22 jun fue de datos/precio del harness, no del modelo.)
+  verde con `'anuncios'`. **D2 ✅ revalidado**: el fallo del 22 jun era datos/precio del harness (esperaba el 1100
+  viejo y usaba `'fundadores'`, ya no vendible), no del modelo; ahora compara contra el precio REAL de config.
 - ✅ **OBS-11 — Atribución del vendedor se perdía al cancelar el checkout. CORREGIDO (22 jun).** El `?ref=`
   solo vivía en la URL y el `cancel_url` de Stripe (`…/registro?cancelado=true`) no lo preservaba → al cancelar
   y reintentar, el negocio quedaba **sin vendedor** (comisión perdida). **Fix:** el `cancel_url` de
@@ -110,9 +111,21 @@
   (18:30 del 22 → "23"). **Fix:** nueva constante `ZONA_EMPRESA='America/Hermosillo'` (`zonaHoraria.ts`);
   `formatearFechaLarga` formatea en esa zona. Afecta **todos** los recibos (membresía+publicidad) y ambos campos
   (emisión + vigencia); seguro porque todos los valores son `timestamptz` (instantes reales).
+  **OBS-15b (ampliación, 22 jun):** el CORREO tenía su PROPIA copia de `formatearFechaLarga` en `email.ts`
+  también en `timeZone:'UTC'` → el comprobante mostraba la vigencia un día después que el PDF ("23 de Julio"
+  vs "22 de Julio"). Corregido igual (importa `ZONA_EMPRESA`); afecta "Membresía activa hasta" y "Publicidad
+  activa hasta". Detectado en el E2E de E3 (folio #00046).
 - ✅ **OBS-16 — Campo "Espacios" del recibo decía "Publicidad Chico/Grande". CORREGIDO (22 jun).** Ahora dice
   **"Anuncio Chico"** · **"Anuncio Grande"** · **"Anuncios Grande y Chico"** (combo), sin la palabra "Publicidad".
   Texto armado una vez en `recibo-publicidad.service.ts` y reusado en el PDF (campo Espacios) y en el correo.
+- ✅ **OBS-17 — Modal de detalles del negocio: "Primer pago" desfasado un día + "Inicio Trial" en trial=0. CORREGIDO (22 jun).**
+  (a) `fecha_primer_pago` (columna `date`) se sellaba con `CURRENT_DATE` (×3 en `pago.service.ts` cobro real +
+  renovación, `negocios-acciones` marcar pagado) y `new Date().toISOString().slice(0,10)` (`altaManualNegocio`) →
+  capturaba la fecha **UTC** (mostraba 23 jun cuando el cobro fue el 22 a las 19:10 Sonora). Fix: los 4 setters
+  usan `(now() AT TIME ZONE 'America/Hermosillo')::date`. Verificado en BD (CURRENT_DATE=23 vs Sonora=22). **Solo
+  aplica a registros NUEVOS** (no migra los viejos). (b) `FichaNegocio.tsx` mostraba "Inicio Trial" aun en cobro
+  inmediato (trial=0); ahora se oculta si el primer pago ocurrió ~el mismo día del alta (umbral 3 días) o si no
+  hubo periodo de prueba.
 
 ---
 
@@ -149,18 +162,18 @@
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
 | 🔴 D1 | Self-service: Checkout `mode:payment` → `compra_publicidad` → anuncio `activa` + folio + recibo PDF | 🌐🤖 | ✅ | `probar-publicidad-checkout.ts` TODO OK + **E2E real 22 jun**: alta 12m por tarjeta → anuncio `activa`, folio #41, recibo PDF + correo, registros en el Panel. Detectó y se corrigió: vigencia 12×30→calendario (OBS-14), fecha por zona horaria (OBS-15), "Espacios"→"Anuncio Chico/Grande" (OBS-16) |
-| ⚪ D2 | Alta manual + cortesía desde el Panel | 🤖 | 🟡 | `probar-publicidad-alta.ts` falla por OBS-9 (rediseño de Publicidad por tamaño en curso; el script usa carruseles viejos). No es de Stripe; revalidar al estabilizar Publicidad |
+| ⚪ D2 | Alta manual + cortesía desde el Panel | 🤖 | ✅ | `probar-publicidad-alta.ts` TODO OK (22 jun): super efectivo (**monto = precio de config**: Grande+Chico 1 ciudad = $338.30 = 398×0.85), super cortesía (sin folio/monto), gerente de su región ($99 Chico), + rechazos (cortesía-gerente 403, ciudad ajena 403, correo 404, límite 400). Harness modernizado: compara contra el precio REAL de config (no el 1100 viejo) y usa carruseles vigentes ('fundadores' dejó de ser vendible) |
 | ⚪ D3 | Cron expiración + aviso 3 días antes | 🤖 | ✅ | `probar-publicidad-mantenimiento.ts` TODO OK (22 jun) |
 
 ### E · Coherencia: Stripe respeta el Panel ← *foco principal*
 
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
-| 🔴 E1 | Cambiar **precio membresía** → crea Price nuevo → siguiente checkout cobra el nuevo monto; **vigentes NO migran** | 🌐 | ⬜ | `crear-price-membresia.ts` |
+| 🔴 E1 | Cambiar **precio membresía** → crea Price nuevo → siguiente checkout cobra el nuevo monto; **vigentes NO migran** | 🌐 | ✅ | **Validado E2E a lo largo de la ronda (22 jun):** Juan cambió el precio en Configuración del Panel varias veces y cada alta/checkout posterior cobró el precio configurado (Stripe respetó el Panel). `cambiarPrecioMensual` crea el Price nuevo + archiva el viejo + reapunta `stripe_price_comercial_id`; las suscripciones vigentes no migran (Stripe las deja en su Price anterior) |
 | 🔴 E2 | Toggle **plan anual** ON → Price anual = 10× → registro ofrece anual; elegir anual usa el Price correcto | 🌐 | ✅ | E2E 22 jun: registro anual con vendedor cobró **$8,490** (folio #37, `cobro_exitoso`), vigencia ~1 año + 14d cortesía |
-| 🔴 E3 | Cambiar **días de trial** → checkout usa `trial_period_days` nuevo (0 = cobra ya) | 🌐 | 🟡 | base confirmada en A1 (config trial=14 → `trial_end` a +14d); falta el cambio dinámico (poner trial=0 → cobro inmediato) |
-| 🔴 E4 | Cambiar **días de gracia** → suspensión al día configurado | 🤖 | ⬜ | cron lee `periodo_gracia_cobro_dias` |
-| 🔴 E5 | Cambiar **escalera de comisiones** → próximo cobro usa el nuevo escalón (congelado) | 🤖 | 🟡 | la lógica YA devenga con la escalera real de config (\$200 = tramo 0–5, 22 jun); falta probar el **cambio dinámico** (editar escalera → siguiente cobro usa nuevo escalón) |
+| 🔴 E3 | Cambiar **días de trial** → checkout usa `trial_period_days` nuevo (0 = cobra ya) | 🌐 | ✅ | **E2E 22 jun:** config trial=0 + alta SIN vendedor → Stripe cobró $849 **al instante** (sin `trialing`), negocio `al_corriente`, recibo folio #00046 + correo. Junto con A1 (trial=14 → `trial_end` +14d) confirma que el checkout respeta el valor de config. Detectó OBS-15b (desfase de fecha en el correo) |
+| 🔴 E4 | Cambiar **días de gracia** → suspensión al día configurado | 🤖 | ✅ | `probar-gracia-dinamica.ts` TODO VERDE (22 jun): editar `periodo_gracia_cobro_dias` vía `actualizarConfig` a 7 → `fecha_limite_gracia` = ahora+7.000d; cambio dinámico a 3 → ahora+3.000d (sin caché viejo); gracia restaurada (14d). Vía ruta manual `expirarManualesVencidos` (misma config que el webhook de tarjeta), sin Stripe |
+| 🔴 E5 | Cambiar **escalera de comisiones** → próximo cobro usa el nuevo escalón (congelado) | 🤖 | ✅ | `probar-escalera-dinamica.ts` TODO VERDE (22 jun): editar la escalera vía `actualizarConfig` (función REAL del Panel) a \$777 → el devengo usó \$777; cambio dinámico a \$111 → el siguiente cobro usó \$111 (sin caché viejo); escalera **restaurada** (\$200/activo). Confirma que el escalón se lee de config en cada cobro |
 | 🔴 E6 | **Precio de publicidad**: base + multiplicador ciudades + combo + descuento meses → total wizard = cobro Stripe | 🤖 | ✅ | `probar-publicidad-precio.ts` 17/17 (22 jun) |
 | ⚪ E7 | **Recibos foliados continuos** (membresía + publicidad comparten secuencia) | 🤖 | ✅ | `probar-recibos-publicidad.ts` TODO OK: folios + alcance super/gerente/vendedor (22 jun) |
 

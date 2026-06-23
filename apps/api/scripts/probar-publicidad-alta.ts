@@ -18,6 +18,7 @@ import { sql } from 'drizzle-orm';
 import { db } from '../src/db/index.js';
 import type { UsuarioPanel } from '../src/middleware/panel.middleware.js';
 import { crearAnuncioManual } from '../src/services/admin/publicidad-alta.service.js';
+import { calcularPrecioPublicidad } from '../src/services/publicidad-precio.service.js';
 
 const ok = (b: boolean) => (b ? '✓' : '✗');
 let fallos = 0;
@@ -30,7 +31,7 @@ const panel = (rolEquipo: UsuarioPanel['rolEquipo'], regionId: string | null, us
   usuarioId, rolEquipo, regionId, viaSecret: false, panel2faHabilitado: false, panel2faOk: true,
 });
 
-const IMG = { anuncios: 'https://x/a.png', patrocinadores: 'https://x/p.png', fundadores: 'https://x/f.png' };
+const IMG = { anuncios: 'https://x/a.png', patrocinadores: 'https://x/p.png' };
 const creados: string[] = [];
 
 async function main() {
@@ -52,13 +53,16 @@ async function main() {
   const gerenteP = panel('gerente', c.region_id, u.id);
 
   try {
-    // 1) super · efectivo · 2 carruseles · 1 ciudad → folio + precio 1100 (300+800).
+    // 1) super · efectivo · 2 carruseles (Grande+Chico) · 1 ciudad → folio + monto = precio configurado.
+    //    El monto se compara contra el precio REAL de config (no un número fijo): así el test valida la
+    //    coherencia "el alta manual cobra lo que dice el Panel" sin romperse cuando se editan los precios.
+    const esperado1 = (await calcularPrecioPublicidad(['anuncios', 'patrocinadores'], 1, 1)).total;
     const r1 = await crearAnuncioManual(superP, {
       correoAnunciante: u.correo, carruseles: ['anuncios', 'patrocinadores'], imagenes: IMG,
       ciudadIds: [c.id], metodoCobro: 'efectivo',
     });
     if (r1.ok) creados.push(r1.id);
-    verificar('super crea (efectivo) con folio + monto 1100', r1.ok && r1.folio != null && r1.monto === 1100, JSON.stringify(r1));
+    verificar(`super crea (efectivo) con folio + monto = precio configurado (${esperado1})`, r1.ok && r1.folio != null && r1.monto === esperado1, JSON.stringify(r1));
 
     // 2) super · cortesía → sin folio ni monto.
     const r2 = await crearAnuncioManual(superP, {
@@ -68,9 +72,9 @@ async function main() {
     if (r2.ok) creados.push(r2.id);
     verificar('super cortesía → sin folio ni monto', r2.ok && r2.folio === null && r2.monto === null);
 
-    // 3) gerente de la región · efectivo → ok.
+    // 3) gerente de la región · transferencia → ok (carrusel válido: 'fundadores' ya no es vendible).
     const r3 = await crearAnuncioManual(gerenteP, {
-      correoAnunciante: u.correo, carruseles: ['fundadores'], imagenes: IMG,
+      correoAnunciante: u.correo, carruseles: ['anuncios'], imagenes: IMG,
       ciudadIds: [c.id], metodoCobro: 'transferencia',
     });
     if (r3.ok) creados.push(r3.id);
