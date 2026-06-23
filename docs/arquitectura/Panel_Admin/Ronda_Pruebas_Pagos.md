@@ -219,6 +219,8 @@
 | ⚪ G5 | **Anular** pago adelantado → restaura `trial_end` original (`cobro_previo`) | 🤖 | ✅ | `probar-anular-pago.ts` TODO OK (22 jun): pago 3m→6m traslada `trial_end`; anular 6m→regresa a +3m; anular 3m→regresa a la fecha original |
 | ⚪ G6 | **Editar** pago manual (concepto/monto/meses) — rechaza editar pago de tarjeta | 🤖 | ✅ | `probar-editar-pago.ts` TODO OK: corregir/cortesía/404/403/recalcular vigencia (22 jun) |
 
+> **G validado también E2E (22 jun)** desde el Panel sobre "Mariscos Las Plebres" (sub real): G1 `pause_collection:'void'` + suspendido · G2 `pause:null` + activo · G3 `trial_end`/próximo cobro +3m + pago registrado · G5 `trial_end`/próximo cobro **regresan** + pago `anulado` · G4 `status:canceled` + archivado + dueño a **personal**. **Stripe + BD coinciden con el harness** → G sin asteriscos.
+
 ### H · Webhook & robustez
 
 | # | Caso | Tipo | Estado | Notas |
