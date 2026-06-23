@@ -14,8 +14,8 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · 🟡 a medias · ✅ hecho · 🚫 fuera de alcance
 >
-> **Última actualización:** 19 Junio 2026 — **Piezas 1, 2 y 3 CONSTRUIDAS.** Pieza 1 validada E2E; Piezas 2 y 3
-> con **harness verde** (`probar-cobro-dia1` + `probar-comision-al-cobro`), falta la validación E2E de Juan. Pieza 2 =
+> **Última actualización:** 23 Junio 2026 — **Piezas 1, 2 y 3 CONSTRUIDAS y VALIDADAS E2E** en la **Ronda de
+> Pruebas de Pagos** (22-23 jun, ver [`Ronda_Pruebas_Pagos.md`](Ronda_Pruebas_Pagos.md) — Stripe A–Z al 100%). Pieza 2 =
 > cobro "día 1" para ventas por vendedor (sub sin trial + empuje a +44d). Pieza 3 = comisión recurrente "al cobro"
 > (anti-doble-pago del prepago, foto mensual retirada). De la Pieza 1 nació el **módulo Recibos** ([`Recibos.md`](Recibos.md)).
 
@@ -23,11 +23,12 @@
 
 ## Estado del sprint
 
-**PIEZAS 1·2·3 CONSTRUIDAS ✅ (19 Jun 2026).** Fase 0 cerrada (ver §Decisiones). **Pieza 1** validada E2E en TEST.
-**Pieza 2** (cobro día-1) y **Pieza 3** (comisión al cobro) construidas y type-checked, con **Gate verde** (harness
-`probar-cobro-dia1` y `probar-comision-al-cobro` TODO VERDE); falta la **validación E2E** de Juan (registro con
-`?ref=` + prepago anual). La migración de la Pieza 3 (`2026-06-19-comision-al-cobro.sql`) está corrida en dev;
-**falta prod**. Documentación de las 3 piezas: este doc + `../Pagos_Suscripciones.md` + `Vendedores_y_comisiones.md`.
+**PIEZAS 1·2·3 CONSTRUIDAS Y VALIDADAS E2E ✅ (cerrado 23 Jun 2026).** Fase 0 cerrada (ver §Decisiones). **Pieza 1**
+validada E2E en TEST (18 jun). **Pieza 2** (cobro día-1) y **Pieza 3** (comisión al cobro) **validadas E2E por Juan**
+en la **Ronda de Pruebas de Pagos** (22-23 jun: registro con `?ref=` + prepago anual con vendedor → alta $400 +
+recurrente 9×$250) → [`Ronda_Pruebas_Pagos.md`](Ronda_Pruebas_Pagos.md) (bloques A–H + decisiones Z + las 22 OBS,
+todo cerrado). La migración de la Pieza 3 (`2026-06-19-comision-al-cobro.sql`) está corrida en **dev y prod**
+(validado 20 jun). Documentación de las 3 piezas: este doc + `../Pagos_Suscripciones.md` + `Vendedores_y_comisiones.md`.
 
 > **Contexto de arranque:** el **valor** del precio ya se subió de $449 a $849 MXN en TODO el código
 > (web: 3 constantes `PRECIO_COMERCIAL` + displays + i18n; admin: `PRECIO_MEMBRESIA` + placeholders;

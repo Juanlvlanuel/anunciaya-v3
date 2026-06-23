@@ -8,6 +8,20 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [23 Junio 2026] - Stripe · ronda de pruebas cerrada (A–Z) + recuperación de vigencia 🔒
+
+Cierre de la **validación E2E de todo lo que toca Stripe** en AnunciaYA (membresías, upgrade, renovación, morosidad, cancelación, acciones del Panel, comisiones, publicidad y robustez del webhook). Checklist vivo `Panel_Admin/Ronda_Pruebas_Pagos.md`: **bloques A–H validados + decisiones Z tomadas + las 22 OBS resueltas/decididas/eliminadas** (ninguna abierta).
+
+- **OBS-22 — webhook responde 400 (no 500) ante firma inválida:** el catch del controller comparaba `includes('firma')` (minúscula) pero el throw dice `'Firma de webhook inválida'` → caía en el 500 genérico y Stripe **reintentaría** indefinidamente un evento que nunca valida. Fix: `toLowerCase()`.
+- **OBS-10 — la vigencia ya no retrocede en `subscription.updated`:** `manejarSuscripcionActualizada` escribía las fechas crudas (un cobro adelantado las pisaba con un periodo menor). Ahora usa `GREATEST`, igual que la renovación; no rompe "Anular pago" (G5), que escribe la fecha directo **antes** del eco del webhook.
+- **Reembolsos y disputas (Z1/Z2):** se manejan **manual** desde el Dashboard de Stripe + acciones del Panel (procedimiento documentado). **Nota recordatoria** en el modal de Cancelar del Panel — *"Cancelar no reembolsa el cobro: hazlo también en Stripe"* — visible solo si el negocio tiene suscripción.
+- **OBS-8 — script `probar-alta-manual.ts`:** consultaba `negocio_sucursales.ciudad` (columna DROPeada); ahora hace `LEFT JOIN ciudades`.
+- **Doc nuevo `Mi_Perfil.md`:** alcance de la futura sección **Membresía/Pagos del perfil personal** — vista de membresía + recuperar tarjeta vía Customer Portal (cierra **B2**) + pago manual con comprobante (**Z4**). Por eso vive en Modo Personal: al suspenderse/cancelarse, el dueño baja a personal y debe poder regularizar desde ahí.
+
+Backend `services/pago.service.ts` + `controllers/pago.controller.ts`; Panel `components/negocios/FichaNegocio.tsx`; script `scripts/probar-alta-manual.ts`. `tsc` api/admin verde. Commits `238e595` · `c3d9143`. Docs: `Panel_Admin/Ronda_Pruebas_Pagos.md` (cerrado A–Z) + `Mi_Perfil.md` + tablero/`Sprint_Stripe.md`/CLAUDE.md/pendientes actualizados.
+
+---
+
 ## [22 Junio 2026] - Publicidad · por tamaño (Grande/Chico) + columna rediseñada + wizard dinámico 📐
 
 Iteración sobre el módulo **Publicidad** (Panel + app): la pauta ahora se vende y presenta **por tamaño**, la columna de la app se rediseñó, y el wizard se adapta a cuántas ciudades hay habilitadas.

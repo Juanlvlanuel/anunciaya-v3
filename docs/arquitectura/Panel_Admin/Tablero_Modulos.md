@@ -74,8 +74,10 @@
   migración ciudad↔catálogo en dev+prod). **Ausente (opcional):** `sembrar_comision_escalera` — el módulo
   Configuración usa el default; la 1ª edición desde el Panel la siembra igual. **Hardcode "Puerto Peñasco" de
   Vacantes:** resuelto (commit `60106f0` deriva ciudad+coords de la sucursal; comentario obsoleto de
-  `servicios.service.ts` corregido). **Único pendiente operativo vivo:** la validación E2E de Juan de las Piezas
-  2 y 3 de Stripe + commitear el refinamiento `WebhookReintentable` (suelto en el working tree).
+  `servicios.service.ts` corregido). **Stripe validado A–Z al 100% (23 jun):** las Piezas 2 y 3 quedaron validadas
+  E2E por Juan en la **Ronda de Pruebas de Pagos** ([`Ronda_Pruebas_Pagos.md`](Ronda_Pruebas_Pagos.md) — bloques
+  A–H + decisiones Z + las 22 OBS, todo cerrado); el refinamiento `WebhookReintentable` se validó como H4 (carrera
+  del cobro día-1). **Sin pendientes operativos de Stripe.**
 - **Cimientos (transversal):** ✅ completos (rol + auth `requierePanel`, atribución, estado de
   membresía + webhook + cron de gracia, configs con `obtenerConfig`). **Shell + login del Panel:** ✅ en prod.
 - **Recién cerrado:** **Usuarios** — módulo completo (VER + acciones + visibilidad por jerarquía y
@@ -113,8 +115,10 @@
 - **Recién hecho (19 jun):** **Sprint de Stripe · Piezas 2 y 3** — **cobro "día 1"** para ventas por vendedor (sub
   sin trial + empuje a +44d; alta manual con cortesía visible en el modal) y **comisión recurrente "al cobro"**
   (anti-doble-pago del prepago: un anual = 10× una vez; foto mensual retirada). Harness verdes (`probar-cobro-dia1`,
-  `probar-comision-al-cobro`); falta validación E2E de Juan + correr `2026-06-19-comision-al-cobro.sql` en prod. Docs
-  [`Sprint_Stripe.md`](Sprint_Stripe.md), [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md).
+  `probar-comision-al-cobro`) **+ validado E2E por Juan (Ronda de Pagos, 22-23 jun)**; la migración
+  `2026-06-19-comision-al-cobro.sql` ya está aplicada en prod (20 jun). Docs
+  [`Sprint_Stripe.md`](Sprint_Stripe.md), [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md),
+  [`Ronda_Pruebas_Pagos.md`](Ronda_Pruebas_Pagos.md).
 - **Recién cerrado (18 jun):** **Ciudades** (módulo 8) — doc [`Ciudades.md`](Ciudades.md): mapa interactivo de
   México (MapLibre + OpenFreeMap, 4,563 ciudades INEGI) para dar de alta ciudades nuevas y agruparlas en
   regiones; pestañas Ciudades/Regiones con acciones; **endpoint público `GET /api/ciudades`** + la app web lee
@@ -131,9 +135,11 @@
   pendiente** (último paso operativo). Lecturas vía `LEFT JOIN ciudades` (alias `ciudad` conservado, front
   intacto); escrituras vía `resolverCiudadId(texto)` persistiendo solo `ciudad_id`. Logs de búsqueda quedan
   como texto analítico por decisión. Migraciones one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
-- **Siguiente:** validar E2E las Piezas 2 y 3 de Stripe (único pendiente operativo vivo) + commitear el
-  refinamiento `WebhookReintentable`. Migraciones de schema en prod ✅ y hardcodes "Puerto Peñasco" de
-  Vacantes ✅ ya resueltos (20 jun). Vendedores · cobro automático de efectivo = backlog.
+- **Stripe CERRADO (23 jun):** la **Ronda de Pruebas de Pagos** validó E2E todo lo que toca Stripe (bloques A–H +
+  decisiones Z + las 22 OBS) → [`Ronda_Pruebas_Pagos.md`](Ronda_Pruebas_Pagos.md). Migraciones de schema en prod ✅
+  y hardcodes "Puerto Peñasco" de Vacantes ✅ ya resueltos (20 jun). **Único feature futuro (no bloquea):** la
+  sección **Mi Perfil – Pagos** (Customer Portal para recuperar tarjeta + pago manual con comprobante) →
+  [`../Mi_Perfil.md`](../Mi_Perfil.md). Vendedores · cobro automático de efectivo = backlog.
 
 ---
 
