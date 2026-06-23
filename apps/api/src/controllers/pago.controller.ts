@@ -287,8 +287,9 @@ export async function webhookStripe(
     }
     console.error('❌ Error en webhookStripe:', error);
 
-    // Si la firma es inválida, devolver 400
-    if (error instanceof Error && error.message.includes('firma')) {
+    // Si la firma es inválida, devolver 400 (no 500 → Stripe NO reintenta un evento que nunca validará).
+    // toLowerCase: el service lanza "Firma de webhook inválida" (F mayúscula); el include debe ser case-insensitive.
+    if (error instanceof Error && error.message.toLowerCase().includes('firma')) {
       res.status(400).json({
         error: 'Firma de webhook inválida',
       });

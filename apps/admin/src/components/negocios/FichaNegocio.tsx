@@ -30,6 +30,7 @@ import {
   Pencil,
   Send,
   Star,
+  Banknote,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
@@ -595,7 +596,26 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         onCerrar={cerrarDialogo}
         titulo="Cancelar negocio"
         variante="danger"
-        mensaje="Baja definitiva (recuperable): se archiva el negocio, se corta su suscripción en Stripe, la cuenta del dueño baja a personal y se devuelven los puntos de los vales pendientes. No se borran datos. El motivo queda registrado."
+        mensaje={
+          <>
+            Baja definitiva (recuperable): se archiva el negocio, se corta su suscripción en Stripe, la cuenta del dueño baja a personal y se devuelven los puntos de los vales pendientes. No se borran datos. El motivo queda registrado.
+            {n.tieneSuscripcionStripe && (
+              <span
+                className="mt-3 flex items-start gap-2 rounded-[10px] border px-3 py-2 text-[12.5px] leading-relaxed text-texto-2"
+                style={{
+                  background: 'var(--panel-warn-weak)',
+                  borderColor: 'color-mix(in srgb, var(--panel-warn) 40%, transparent)',
+                }}
+              >
+                <Banknote size={15} className="mt-0.5 shrink-0" style={{ color: 'var(--panel-warn)' }} />
+                <span>
+                  Cancelar <strong className="font-semibold text-texto">no reembolsa el cobro</strong>. Si el comerciante
+                  pidió que le devuelvas su dinero, hazlo también desde el panel de Stripe.
+                </span>
+              </span>
+            )}
+          </>
+        }
         textoConfirmar="Cancelar negocio"
         requiereMotivo
         cargando={cancelar.isPending}

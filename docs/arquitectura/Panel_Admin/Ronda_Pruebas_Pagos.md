@@ -150,6 +150,11 @@
   `customer.subscription.deleted` rama `cancellation_requested`); la idempotencia "borrar+crear" no es atómica →
   carrera → 2 avisos. Fix: el webhook ya no re-notifica la cancelación deliberada (hoy solo la origina el Panel,
   que ya notifica). La rama de IMPAGO del webhook sigue notificando (ahí es el único origen).
+- ✅ **OBS-22 — Webhook devolvía 500 (no 400) ante firma inválida. CORREGIDO (22 jun).** `procesarWebhook` lanza
+  `Error('Firma de webhook inválida')` (F mayúscula), pero el catch del controller verificaba
+  `error.message.includes('firma')` (minúscula, case-sensitive) → no matcheaba → caía en el 500 genérico → Stripe
+  REINTENTARÍA un evento que nunca validará. Fix: `error.message.toLowerCase().includes('firma')` → 400. Verificado
+  con `curl` (sin firma → 400, firma falsa → 400).
 
 ---
 
@@ -225,11 +230,11 @@
 
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
-| 🔴 H1 | `customer.subscription.updated` → refresca fechas sin cambiar estado | 🌐 | ⬜ | |
-| ⚪ H2 | `customer.subscription.trial_will_end` → aviso al dueño; **suprimido si hay cortesía** manual | 🌐🤖 | ⬜ | `probar-aviso-trial.ts` |
-| 🔴 H3 | **Idempotencia**: evento reentregado (mismo `event.id`) no duplica (Redis 72h + UNIQUE `stripe_event_id`) | 🌐 | ⬜ | reenviar evento con `stripe events resend` |
-| 🔴 H4 | **`WebhookReintentable`**: carrera cobro día-1 (`invoice.payment_succeeded` antes que `checkout.session.completed`) → 500 → Stripe reintenta → se resuelve | 🌐 | ⬜ | commit suelto `WebhookReintentable` |
-| ⚪ H5 | Firma del webhook (`constructEvent`) rechaza payload no firmado / con secreto malo | 🤖 | ⬜ | |
+| 🔴 H1 | `customer.subscription.updated` → refresca fechas sin cambiar estado | 🌐 | ✅ | `manejarSuscripcionActualizada` solo refresca fechas (el estado lo gobiernan los `invoice.*`); se ejerció en todo el E2E de G con `stripe listen` activo (22 jun) |
+| ⚪ H2 | `customer.subscription.trial_will_end` → aviso al dueño; **suprimido si hay cortesía** manual | 🌐🤖 | ✅ | `probar-aviso-trial.ts` TODO OK (22 jun): efectivo/transferencia → 2 avisos "se renueva pronto"; **cortesía → 0 avisos**; trial de alta → "prueba gratis termina" |
+| 🔴 H3 | **Idempotencia**: evento reentregado (mismo `event.id`) no duplica (Redis 72h + UNIQUE `stripe_event_id`) | 🌐 | ✅ | Verificado (22 jun): la clave `stripe:evt:{id}` existe en Redis (TTL ~72h) → un reenvío se ignora. Doble candado: + UNIQUE `stripe_event_id` en `eventos_pago`. Ya visto en C2/A3 (no duplica comisión) |
+| 🔴 H4 | **`WebhookReintentable`**: carrera cobro día-1 → 500 → Stripe reintenta → se resuelve | 🌐 | ✅ | Autorresuelto E2E en A3; + el upgrade día-1 registra el cobro desde el checkout (OBS-19), así el 500 es respaldo inofensivo |
+| ⚪ H5 | Firma del webhook (`constructEvent`) rechaza payload no firmado / con secreto malo | 🤖 | ✅ | `curl` (22 jun): sin firma → 400; firma falsa → 400. **Bug corregido (OBS-22):** el catch usaba `includes('firma')` pero el throw decía "Firma" (mayúscula) → daba 500 (Stripe reintentaría); ahora `toLowerCase()` → 400 |
 
 ---
 
@@ -241,11 +246,11 @@
 
 | # | Tema | Estado actual | Decisión | Resuelto |
 |---|---|---|:--:|:--:|
-| Z1 | **Reembolsos** (`charge.refunded`) | Se ignora (default del webhook) | ⬜ ¿documentar "a mano en Stripe" o manejar? | ⬜ |
-| Z2 | **Disputas / contracargos** (`charge.dispute.*`) | Se ignora | ⬜ ¿documentar o suspender+notificar? | ⬜ |
+| Z1 | **Reembolsos** (`charge.refunded`) | Se ignora (default del webhook) | ✅ **Decidido (23 jun):** MANUAL (sin código). El doble-cobro real es casi imposible (guard `tieneModoComercial` bloquea una 2ª sub + el cobro día-1 es idempotente por `invoice.id`), así que un reembolso es **cortesía por arrepentimiento (<48h)**, no corrección de un bug. Procedimiento: **(1)** *Refund* en el Dashboard de Stripe; **(2) Cancelar** el negocio desde el Panel — el refund NO apaga la suscripción, sin este paso **vuelve a cobrar** el próximo ciclo; **(3)** ajustar/descartar la comisión del vendedor antes del corte; **(4)** el recibo queda como histórico. Se agregó **nota recordatoria** en el modal de Cancelar (solo si hay sub Stripe). | ✅ |
+| Z2 | **Disputas / contracargos** (`charge.dispute.*`) | Se ignora | ✅ **Decidido (23 jun):** MANUAL. Distinguir **(a) contracargo real** (`charge.dispute.*`: el titular desconoce el cargo ante su banco) — raro en una beta hiperlocal de comerciantes conocidos; se atiende desde el Dashboard (responder con evidencia o aceptar) y, si se pierde, **Cancelar** en el Panel. **(b) "ya pagué y no aparece"** (NO es disputa, es operativo, ya resuelto): si el cargo está en Stripe pero no se reflejó → `stripe events resend` o **Registrar pago** (ficha del negocio); si pagó por fuera (efectivo/transferencia) → **Registrar pago** manual; si la tarjeta fue rechazada → reintentar. | ✅ |
 | Z3 | **Customer Portal** (dueño gestiona/recupera su pago de tarjeta) | No existe; todo por Panel | ✅ **Decidido (22 jun):** SÍ se usa, pero **solo para tarjeta** — botón "Actualizar tarjeta y reintentar pago" en Mi Perfil – Pagos (recupera a un moroso de tarjeta, resuelve B2). Los métodos **manuales** (depósito/transferencia) NO usan Portal (comprobante + verificación). Feature futuro. | ✅ |
 | Z4 | **OXXO / SPEI** | Configurados pero el Checkout solo cobra tarjeta | ✅ **Decidido (22 jun):** NO integrar OXXO/SPEI de Stripe (OXXO no admite suscripción recurrente). En su lugar → **feature futuro**: métodos de **pago manual con comprobante** (depósito a tarjeta de AY · transferencia bancaria) en **Mi Perfil – Modo Personal**, con verificación del admin (reusa `registrarPagoManual`). Datos de cobro configurables desde el Panel. | ✅ |
-| Z5 | **Cupones de lanzamiento** | `allow_promotion_codes:true` (Stripe los gestiona), sin registro en BD | ⬜ ¿suficiente para la beta? | ⬜ |
+| Z5 | **Cupones de lanzamiento** | `allow_promotion_codes:true` (Stripe los gestiona), sin registro en BD | ✅ **Decidido (23 jun):** BACKLOG (trivial). El Checkout ya trae `allow_promotion_codes:true` (alta y upgrade) → **ya acepta códigos tecleados**; solo falta **crear el cupón en el Dashboard de Stripe** cuando se quiera (ej. "FUNDADOR2026, 50% × 3 meses"). Para la beta 1-a-1 no hace falta: regalar/descontar se hace con trial 14d, cortesía vendedor +14d o **Registrar pago** cortesía desde el Panel. | ✅ |
 
 ---
 
@@ -292,3 +297,13 @@
   En su lugar, **métodos de pago manual con comprobante** (depósito a tarjeta de AY · transferencia) en
   **Mi Perfil – Modo Personal** (feature futuro, no se construye en esta ronda; documentado en
   `PENDIENTES_PanelAdmin.md` §Página de cuenta del usuario). No bloquea el cierre de las pruebas de Stripe.
+- **23 jun** — **Bloque H cerrado + bloque Z resuelto → ronda A–Z al 100%.** H (webhook): H1 `subscription.updated`
+  (refresca fechas, ejercido en G), H2 `trial_will_end` (la cortesía del vendedor suprime el aviso), H3 idempotencia
+  (clave `stripe:evt:{id}` en Redis TTL ~72h + UNIQUE `stripe_event_id`, verificado en vivo), H4 `WebhookReintentable`
+  (carrera del cobro día-1, ya validado en A3), H5 firma → 400 (`curl` sin firma + firma falsa). **OBS-22:** el catch
+  del controller usaba `error.message.includes('firma')` (minúscula) pero el `throw` dice `'Firma de webhook inválida'`
+  (mayúscula) → respondía 500 y Stripe reintentaría un evento que nunca valida → fix `toLowerCase()`. **Z:** Z1
+  (reembolsos) y Z2 (disputas) → MANUAL documentado (procedimiento + **nota recordatoria** en el modal de Cancelar del
+  Panel, solo si hay sub Stripe); Z5 (cupones) → BACKLOG trivial (el Checkout ya acepta promotion codes, solo falta
+  crear el cupón en el Dashboard). Con esto los bloques **A–H** + las decisiones **Z** quedan cerrados:
+  **Stripe validado al 100%.**
