@@ -54,6 +54,7 @@ import {
   verificarDisponibilidadCorreo,
   actualizarUbicacionUsuario,
 } from '../services/auth.service.js';
+import { actualizarRegistroPendiente } from '../utils/tokenStore.js';
 
 // =============================================================================
 // CONTROLLER 1: REGISTRO
@@ -189,6 +190,56 @@ export async function reenviarVerificacion(req: Request, res: Response): Promise
     success: resultado.success,
     message: resultado.message,
   });
+}
+
+// =============================================================================
+// CONTROLLER: ACTUALIZAR REGISTRO PENDIENTE (OBS-12)
+// =============================================================================
+
+/**
+ * POST /api/auth/actualizar-registro-pendiente
+ *
+ * Corrige los datos editables de un registro pendiente (aún sin pagar) SIN re-enviar
+ * código: el correo ya fue verificado. Sirve para que, al volver de Stripe sin pagar, el
+ * usuario ajuste el nombre del negocio / sus datos antes de reintentar. El correo y la
+ * contraseña NO se tocan (cambiar el correo exige re-verificar → "empezar de nuevo").
+ */
+const actualizarRegistroPendienteSchema = z.object({
+  correo: z.string().trim().email('Correo inválido'),
+  nombre: z.string().trim().min(1, 'Nombre requerido').max(100),
+  apellidos: z.string().trim().min(1, 'Apellidos requeridos').max(100),
+  telefono: z.string().trim().max(20).nullable().optional(),
+  nombreNegocio: z.string().trim().max(150).nullable().optional(),
+});
+
+export async function actualizarRegistroPendienteController(req: Request, res: Response): Promise<void> {
+  const validacion = actualizarRegistroPendienteSchema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Datos inválidos',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const { correo, nombre, apellidos, telefono, nombreNegocio } = validacion.data;
+  const ok = await actualizarRegistroPendiente(correo, {
+    nombre,
+    apellidos,
+    telefono: telefono ?? null,
+    nombreNegocio: nombreNegocio ?? null,
+  });
+
+  if (!ok) {
+    res.status(410).json({
+      success: false,
+      message: 'Tu sesión de registro expiró. Empieza de nuevo.',
+    });
+    return;
+  }
+
+  res.status(200).json({ success: true, message: 'Datos actualizados' });
 }
 
 // =============================================================================

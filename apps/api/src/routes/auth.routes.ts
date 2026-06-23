@@ -30,6 +30,7 @@ import {
   cambiarContrasenaProvisionalController,
   verificarDisponibilidadCorreoController,
   actualizarUbicacionController,
+  actualizarRegistroPendienteController,
 } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { limitadorVerificacionCorreo } from '../middleware/rateLimiter.js';
@@ -48,6 +49,10 @@ router.post('/verificar-email', verificarEmailController);
 
 // POST /api/auth/reenviar-verificacion - Reenviar código al correo
 router.post('/reenviar-verificacion', reenviarVerificacion);
+
+// POST /api/auth/actualizar-registro-pendiente - Corrige datos del registro antes de pagar (OBS-12),
+// sin re-verificar el correo. Lo usa el panel "Continúa tu registro" al volver de Stripe.
+router.post('/actualizar-registro-pendiente', actualizarRegistroPendienteController);
 
 // POST /api/auth/login - Iniciar sesión
 router.post('/login', login);

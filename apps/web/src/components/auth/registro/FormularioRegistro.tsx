@@ -39,6 +39,31 @@ import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
 
 type TipoCuenta = 'personal' | 'comercial';
 
+/**
+ * Modo "reanudar" (OBS-12): reusa este MISMO formulario para continuar un pago tras cancelar en Stripe,
+ * con los datos prellenados y SIN pedir contraseña/verificación (el correo ya está validado y vive en
+ * Redis). Al enviar, en vez de registrar, persiste los cambios y va a Stripe (lo maneja el padre).
+ */
+export interface ModoReanudarForm {
+  valoresIniciales: {
+    correo: string;
+    nombreNegocio: string;
+    nombre: string;
+    apellidos: string;
+    lada: string;
+    telefono: string; // número sin lada, legible
+    intervalo: 'month' | 'year';
+  };
+  onReanudar: (datos: {
+    nombre: string;
+    apellidos: string;
+    telefono: string; // completo con lada (igual que el registro normal)
+    nombreNegocio: string;
+    intervalo: 'month' | 'year';
+  }) => void;
+  onEmpezarDeNuevo: () => void;
+}
+
 interface FormularioRegistroProps {
   onSubmit: (datos: RegistroInput) => Promise<void>;
   onGoogleCode: (code: string) => void;
@@ -50,6 +75,10 @@ interface FormularioRegistroProps {
   onTipoCuentaCambio?: (tipo: TipoCuenta) => void;
   /** Correo prellenado cuando el usuario viene desde login con un correo no registrado. */
   correoInicial?: string;
+  /** Modo "reanudar" (OBS-12): prellena y simplifica el formulario para continuar un pago sin re-verificar. */
+  modoReanudar?: ModoReanudarForm;
+  /** El registro viene por un link de vendedor (?ref=): el cobro es día-1 (sin trial), con días extra de regalo. */
+  hayVendedor?: boolean;
 }
 
 interface EstadoFormulario {
@@ -106,32 +135,35 @@ export function FormularioRegistro({
   onAbrirLogin,
   onTipoCuentaCambio,
   correoInicial,
+  modoReanudar,
+  hayVendedor,
 }: FormularioRegistroProps) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { trialDias, precioMembresia, precioMembresiaAnual, anualDisponible } = useConfigPublica();
+  const vi = modoReanudar?.valoresIniciales;
 
   // ---------------------------------------------------------------------------
   // Estado
   // ---------------------------------------------------------------------------
   const [tipoCuenta, setTipoCuenta] = useState<TipoCuenta>(
-    searchParams.get('plan') === 'comercial' ? 'comercial' : 'personal'
+    modoReanudar ? 'comercial' : searchParams.get('plan') === 'comercial' ? 'comercial' : 'personal'
   );
   // Plan de cobro del comercial: mensual o anual (el anual solo se ofrece si su Price existe en Stripe).
-  const [intervalo, setIntervalo] = useState<'month' | 'year'>('month');
+  const [intervalo, setIntervalo] = useState<'month' | 'year'>(vi?.intervalo ?? 'month');
   const [mostrarContrasena, setMostrarContrasena] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
 
   const [formulario, setFormulario] = useState<EstadoFormulario>({
-    nombreNegocio: '',
-    nombre: datosGoogle?.nombre || '',
-    apellidos: datosGoogle?.apellidos || '',
-    correo: datosGoogle?.email || correoInicial || '',
-    telefono: '',
-    lada: '+52',
+    nombreNegocio: vi?.nombreNegocio || '',
+    nombre: vi?.nombre || datosGoogle?.nombre || '',
+    apellidos: vi?.apellidos || datosGoogle?.apellidos || '',
+    correo: vi?.correo || datosGoogle?.email || correoInicial || '',
+    telefono: vi?.telefono || '',
+    lada: vi?.lada || '+52',
     contrasena: '',
     confirmarContrasena: '',
-    aceptaTerminos: false,
+    aceptaTerminos: modoReanudar ? true : false,
   });
 
   // ═══════════════════════════════════════════════════════════════════════════
@@ -332,6 +364,19 @@ export function FormularioRegistro({
     async (e: React.FormEvent) => {
       e.preventDefault();
 
+      // Modo reanudar (OBS-12): no registra ni verifica; entrega los datos corregidos al padre
+      // (que los persiste en Redis y va a Stripe). Sin contraseña ni términos.
+      if (modoReanudar) {
+        modoReanudar.onReanudar({
+          nombre: formulario.nombre.trim(),
+          apellidos: formulario.apellidos.trim(),
+          telefono: `${formulario.lada}${formulario.telefono.replace(/\D/g, '')}`,
+          nombreNegocio: formulario.nombreNegocio.trim(),
+          intervalo,
+        });
+        return;
+      }
+
       const datos: RegistroInput = {
         nombre: formulario.nombre.trim(),
         apellidos: formulario.apellidos.trim(),
@@ -355,7 +400,7 @@ export function FormularioRegistro({
 
       await onSubmit(datos);
     },
-    [formulario, tipoCuenta, intervalo, datosGoogle, onSubmit]
+    [formulario, tipoCuenta, intervalo, datosGoogle, onSubmit, modoReanudar]
   );
 
   // Handler para volver al landing
@@ -367,6 +412,16 @@ export function FormularioRegistro({
   // Validación completa del formulario
   // ---------------------------------------------------------------------------
   const esFormularioValido = useCallback((): boolean => {
+    // Modo reanudar (OBS-12): el correo ya está verificado y no hay contraseña/términos;
+    // basta con que negocio/nombre/apellidos no queden vacíos.
+    if (modoReanudar) {
+      return (
+        !!formulario.nombreNegocio.trim() &&
+        !!formulario.nombre.trim() &&
+        !!formulario.apellidos.trim()
+      );
+    }
+
     const camposBase =
       validacion.nombre === true &&
       validacion.apellidos === true &&
@@ -390,7 +445,7 @@ export function FormularioRegistro({
     }
 
     return camposBase;
-  }, [validacion, formulario.aceptaTerminos, tipoCuenta, datosGoogle]);
+  }, [validacion, formulario.aceptaTerminos, formulario.nombreNegocio, formulario.nombre, formulario.apellidos, tipoCuenta, datosGoogle, modoReanudar]);
 
   // ---------------------------------------------------------------------------
   // Render
@@ -442,12 +497,18 @@ export function FormularioRegistro({
           <div className="flex items-center justify-center w-8 h-8 2xl:w-10 2xl:h-10 rounded-full bg-linear-to-b from-slate-600 to-slate-800">
             <User className="w-4 h-4 2xl:w-5 2xl:h-5 text-white" />
           </div>
-          <h2 className="text-base lg:text-lg 2xl:text-xl font-extrabold text-slate-900">Registra tu cuenta</h2>
+          <h2 className="text-base lg:text-lg 2xl:text-xl font-extrabold text-slate-900">{modoReanudar ? 'Continúa tu registro' : 'Registra tu cuenta'}</h2>
         </div>
+        {modoReanudar && (
+          <p className="text-sm text-slate-600 mb-3">
+            Tu pago no se completó. Corrige lo que necesites y continúa, sin volver a verificar el correo.
+          </p>
+        )}
 
         {/* ------------------------------------------------------------------- */}
-        {/* TOGGLE PERSONAL/COMERCIAL - Con iconos y color naranja              */}
+        {/* TOGGLE PERSONAL/COMERCIAL - Con iconos y color naranja (oculto al reanudar) */}
         {/* ------------------------------------------------------------------- */}
+        {!modoReanudar && (
         <div className="bg-slate-200 rounded-lg p-1 flex relative mb-2 2xl:mb-4">
           {/* Indicador deslizante — dark gradient */}
           <div
@@ -479,6 +540,7 @@ export function FormularioRegistro({
             Comercial
           </button>
         </div>
+        )}
 
         {tipoCuenta === 'comercial' && (
           <div className="bg-amber-50 border border-amber-300 rounded-xl p-3 lg:p-3 2xl:p-4 mb-2 lg:mb-2 2xl:mb-3">
@@ -513,7 +575,19 @@ export function FormularioRegistro({
                   IVA incluido{intervalo === 'year' ? ' · equivale a 10 meses' : ''}
                 </p>
               </div>
-              {trialDias > 0 ? (
+              {hayVendedor ? (
+                // Registro por VENDEDOR (link ?ref=): se cobra HOY (día 1); los días de prueba se regalan
+                // como cortesía extra (no aplaza el cobro). Por eso NO decimos "se cobra el día 15".
+                <div className="text-right shrink-0">
+                  <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-xs lg:text-[11px] 2xl:text-xs font-semibold px-2.5 py-1 rounded-full">
+                    <Zap className="w-3 h-3" />
+                    Se cobra hoy
+                  </span>
+                  {trialDias > 0 && (
+                    <p className="text-xs lg:text-[11px] 2xl:text-xs font-medium text-slate-500 mt-1.5">+ {trialDias} días de cortesía</p>
+                  )}
+                </div>
+              ) : trialDias > 0 ? (
                 <div className="text-right shrink-0">
                   <span className="inline-flex items-center gap-1 bg-emerald-500 text-white text-xs lg:text-[11px] 2xl:text-xs font-semibold px-2.5 py-1 rounded-full">
                     <Gift className="w-3 h-3" />
@@ -590,7 +664,7 @@ export function FormularioRegistro({
               onChange={handleChange('correo')}
               isValid={validacion.correo}
               errorMessage="Ingresa un correo válido"
-              disabled={cargando || !!datosGoogle}
+              disabled={cargando || !!datosGoogle || !!modoReanudar}
               onBlur={handleBlur('correo')}
               autoComplete="email"
             />
@@ -639,8 +713,8 @@ export function FormularioRegistro({
             </div>
           </div>
 
-          {/* Contraseñas (oculto si viene de Google) */}
-          {!datosGoogle && (
+          {/* Contraseñas (oculto si viene de Google o en modo reanudar: el correo ya está verificado) */}
+          {!datosGoogle && !modoReanudar && (
             <>
               {/* Grid: Contraseña + Confirmar */}
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-2 lg:gap-2 2xl:gap-3">
@@ -740,7 +814,8 @@ export function FormularioRegistro({
             </div>
           )}
 
-          {/* Checkbox términos */}
+          {/* Checkbox términos (oculto al reanudar: ya los aceptó al registrarse) */}
+          {!modoReanudar && (
           <div
             onClick={handleToggleTerminos}
             className={`flex items-start gap-2 lg:gap-2.5 2xl:gap-3 p-2.5 lg:p-2.5 2xl:p-3 rounded-xl border-2 cursor-pointer ${formulario.aceptaTerminos
@@ -775,6 +850,7 @@ export function FormularioRegistro({
               </a>
             </label>
           </div>
+          )}
 
           {/* Botón submit */}
           <button
@@ -791,6 +867,8 @@ export function FormularioRegistro({
                 <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                 Procesando...
               </span>
+            ) : modoReanudar ? (
+              'Continuar al pago'
             ) : tipoCuenta === 'comercial' ? (
               'Continuar a pago'
             ) : (
@@ -798,8 +876,8 @@ export function FormularioRegistro({
             )}
           </button>
 
-          {/* Divider */}
-          {!datosGoogle && (
+          {/* Divider + Google (oculto al reanudar) */}
+          {!datosGoogle && !modoReanudar && (
             <>
               <div className="flex items-center gap-2 lg:gap-3 my-1 lg:my-1 2xl:my-1.5">
                 <div className="flex-1 h-px bg-slate-300" />
@@ -812,17 +890,27 @@ export function FormularioRegistro({
             </>
           )}
 
-          {/* Link login */}
-          <p className="text-center text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-1.5 lg:mt-1 2xl:mt-1.5 font-medium">
-            ¿Ya tienes cuenta?{' '}
+          {/* Link login / Empezar de nuevo (al reanudar) */}
+          {modoReanudar ? (
             <button
               type="button"
-              onClick={onAbrirLogin}
-              className="text-slate-800 font-bold hover:underline lg:cursor-pointer"
+              onClick={modoReanudar.onEmpezarDeNuevo}
+              className="w-full text-center text-sm text-slate-500 hover:text-slate-700 mt-2 font-medium lg:cursor-pointer"
             >
-              Inicia sesión
+              Empezar de nuevo
             </button>
-          </p>
+          ) : (
+            <p className="text-center text-sm lg:text-[11px] 2xl:text-sm text-slate-600 mt-1.5 lg:mt-1 2xl:mt-1.5 font-medium">
+              ¿Ya tienes cuenta?{' '}
+              <button
+                type="button"
+                onClick={onAbrirLogin}
+                className="text-slate-800 font-bold hover:underline lg:cursor-pointer"
+              >
+                Inicia sesión
+              </button>
+            </p>
+          )}
         </form>
       </div>
     </div>

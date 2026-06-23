@@ -47,9 +47,11 @@ const DATOS_CUENTA = {
 
 interface BrandingColumnProps {
     tipoCuenta?: 'personal' | 'comercial';
+    /** Registro por link de vendedor (?ref=): cobro día-1; los días de prueba se regalan como cortesía. */
+    hayVendedor?: boolean;
 }
 
-export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps) {
+export function BrandingColumn({ tipoCuenta = 'personal', hayVendedor = false }: BrandingColumnProps) {
     const { t } = useTranslation('landing');
     const { trialDias, precioMembresia } = useConfigPublica();
     const datos = DATOS_CUENTA[tipoCuenta];
@@ -111,7 +113,7 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                         {esComercial ? (
                             <div className="flex items-center gap-2">
                                 <span className={`text-3xl lg:text-2xl 2xl:text-4xl font-extrabold ${datos.colorPrecio}`}>
-                                    {trialDias > 0 ? t(datos.precioKey, { dias: trialDias }) : t('cta.comercial.sinTrial')}
+                                    {hayVendedor ? 'Se cobra hoy' : trialDias > 0 ? t(datos.precioKey, { dias: trialDias }) : t('cta.comercial.sinTrial')}
                                 </span>
                                 <span className="px-3 py-0.5 bg-amber-500 text-white text-sm lg:text-sm 2xl:text-base font-bold rounded-full">
                                     {t('cta.comercial.badge')}
@@ -147,11 +149,15 @@ export function BrandingColumn({ tipoCuenta = 'personal' }: BrandingColumnProps)
                             <span className="text-3xl lg:text-2xl 2xl:text-4xl font-bold text-white">
                                 ${precioMembresia}<span className="text-lg lg:text-base 2xl:text-xl font-medium text-white/50">/mes</span>
                             </span>
-                            {trialDias > 0 && (
+                            {hayVendedor && trialDias > 0 ? (
+                                <p className="text-base lg:text-sm 2xl:text-base font-semibold text-amber-300/90 mt-1">
+                                    + {trialDias} días de cortesía
+                                </p>
+                            ) : trialDias > 0 ? (
                                 <p className="text-base lg:text-sm 2xl:text-base font-medium text-white/50 mt-1">
                                     {t('cta.trial.cancela')}
                                 </p>
-                            )}
+                            ) : null}
                         </div>
                     ) : (
                         <div className="flex items-center gap-4 lg:gap-3 2xl:gap-5 mt-4 lg:mt-3 2xl:mt-5 pt-4 lg:pt-3 2xl:pt-5 border-t border-white/15">

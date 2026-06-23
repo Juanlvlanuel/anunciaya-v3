@@ -652,6 +652,35 @@ export async function obtenerRegistroPendiente(
 }
 
 // =============================================================================
+// FUNCIÓN: ACTUALIZAR REGISTRO PENDIENTE (sin re-verificar) — OBS-12
+// =============================================================================
+
+/**
+ * Actualiza los campos EDITABLES de un registro pendiente SIN re-enviar código
+ * (el correo ya fue verificado; sirve para corregir datos antes de pagar al volver
+ * de Stripe). Preserva contraseña, correo, perfil y código; re-extiende el TTL.
+ * Devuelve false si no existe (expiró) → el front debe ofrecer "empezar de nuevo".
+ */
+export async function actualizarRegistroPendiente(
+  correo: string,
+  campos: { nombre: string; apellidos: string; telefono: string | null; nombreNegocio: string | null }
+): Promise<boolean> {
+  const pendiente = await obtenerRegistroPendiente(correo);
+  if (!pendiente) return false;
+  return guardarRegistroPendiente({
+    nombre: campos.nombre,
+    apellidos: campos.apellidos,
+    correo: pendiente.correo,
+    contrasenaHash: pendiente.contrasenaHash,
+    telefono: campos.telefono,
+    perfil: pendiente.perfil,
+    membresia: pendiente.membresia,
+    codigo: pendiente.codigo,
+    nombreNegocio: campos.nombreNegocio,
+  });
+}
+
+// =============================================================================
 // FUNCIÓN: VERIFICAR CÓDIGO DE REGISTRO
 // =============================================================================
 

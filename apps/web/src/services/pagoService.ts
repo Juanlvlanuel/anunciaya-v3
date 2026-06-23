@@ -171,8 +171,12 @@ export async function crearCheckoutUpgrade(
 export async function verificarSession(
   sessionId: string
 ): Promise<RespuestaAPI<DatosUsuarioVerificado>> {
+  // El backend hace polling de hasta ~30s esperando los tokens que guarda el webhook. En el cobro "día 1"
+  // la carrera del WebhookReintentable los retrasa, así que el default de 10s cortaba antes y mandaba al
+  // usuario de vuelta a /registro con la cuenta YA creada. Subimos el timeout por encima del polling.
   const response = await api.get<RespuestaAPI<DatosUsuarioVerificado>>(
-    `/pagos/verificar-session?session_id=${sessionId}`
+    `/pagos/verificar-session?session_id=${sessionId}`,
+    { timeout: 40000 }
   );
   return response.data;
 }

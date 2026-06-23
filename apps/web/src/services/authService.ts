@@ -204,6 +204,25 @@ export async function reenviarVerificacion(correo: string): Promise<RespuestaAPI
 }
 
 /**
+ * 3.1 Actualizar datos de un registro pendiente antes de pagar (OBS-12)
+ * POST /auth/actualizar-registro-pendiente — sin re-verificar (el correo ya está validado).
+ */
+export interface ActualizarRegistroPendienteInput {
+  correo: string;
+  nombre: string;
+  apellidos: string;
+  telefono: string | null;
+  nombreNegocio: string | null;
+}
+
+export async function actualizarRegistroPendiente(
+  datos: ActualizarRegistroPendienteInput
+): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/actualizar-registro-pendiente', datos);
+  return response.data;
+}
+
+/**
  * 4. Iniciar sesión
  * POST /auth/login
  *
@@ -443,6 +462,7 @@ const authService = {
   registro,
   verificarEmail,
   reenviarVerificacion,
+  actualizarRegistroPendiente,
   login,
   refresh,
   logout,

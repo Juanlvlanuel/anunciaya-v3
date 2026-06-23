@@ -36,7 +36,37 @@ import {
 type PasoRegistro =
   | 'formulario'
   | 'verificacion'
+  | 'reanudar'       // volvió de Stripe sin pagar; sus datos siguen en Redis → puede continuar sin re-llenar
   | 'bienvenida';
+
+// OBS-12: reanudar el pago tras cancelar/volver de Stripe sin completar.
+// Guardamos SOLO datos no sensibles en sessionStorage (NUNCA la contraseña: esa ya viaja hasheada y vive
+// en Redis del backend). Al volver con ?cancelado=true, ofrecemos "Continuar al pago" sin re-llenar/re-verificar.
+const REANUDAR_KEY = 'ay_registro_reanudar';
+
+interface DatosReanudar {
+  correo: string;
+  nombreNegocio: string;
+  datosRegistro: { nombre: string; apellidos: string; telefono: string };
+  intervalo: 'month' | 'year';
+}
+
+// Separa la lada (+52, +1, …) del teléfono completo guardado para repoblar el formulario al reanudar
+// (el registro guarda el teléfono como `${lada}${numero}`; el formulario lo necesita por separado).
+const LADAS_REANUDAR = ['+52', '+1', '+34', '+57', '+54', '+56'].sort((a, b) => b.length - a.length);
+function separarLada(telefonoCompleto: string): { lada: string; telefono: string } {
+  const t = telefonoCompleto || '';
+  const formatear = (num: string) => {
+    const n = num.replace(/\D/g, '').slice(0, 10);
+    if (n.length > 6) return `${n.slice(0, 3)} ${n.slice(3, 6)} ${n.slice(6)}`;
+    if (n.length > 3) return `${n.slice(0, 3)} ${n.slice(3)}`;
+    return n;
+  };
+  for (const lada of LADAS_REANUDAR) {
+    if (t.startsWith(lada)) return { lada, telefono: formatear(t.slice(lada.length)) };
+  }
+  return { lada: '+52', telefono: formatear(t) };
+}
 
 /**
  * Datos de Google extendidos para incluir el token
@@ -167,6 +197,39 @@ export function PaginaRegistro() {
       limpiarDatosGooglePendiente();
     }
   }, [datosGooglePendiente, limpiarDatosGooglePendiente]);
+
+  // ───────────────────────────────────────────────────────────────────────────
+  // OBS-12: al volver de Stripe sin pagar (?cancelado=true), si guardamos los datos
+  // antes de ir a Stripe, mostramos el panel "Reanudar" → continuar al pago sin
+  // re-llenar ni re-verificar (los datos del registro siguen en Redis). En un
+  // registro fresco (sin cancelado) limpiamos cualquier dato viejo para no arrastrarlo.
+  // ───────────────────────────────────────────────────────────────────────────
+  useEffect(() => {
+    const cancelado = new URLSearchParams(location.search).get('cancelado') === 'true';
+    if (!cancelado) {
+      sessionStorage.removeItem(REANUDAR_KEY);
+      return;
+    }
+    const raw = sessionStorage.getItem(REANUDAR_KEY);
+    if (!raw) return;
+    try {
+      const d = JSON.parse(raw) as DatosReanudar;
+      if (!d?.correo || !d?.datosRegistro) return;
+      setEstado((prev) => ({
+        ...prev,
+        paso: 'reanudar',
+        correo: d.correo,
+        tipoCuenta: 'comercial',
+        intervalo: d.intervalo ?? 'month',
+        nombreNegocio: d.nombreNegocio ?? '',
+        datosRegistro: d.datosRegistro,
+      }));
+    } catch {
+      sessionStorage.removeItem(REANUDAR_KEY);
+    }
+    // Solo al montar: leer la URL/sessionStorage una vez.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // ---------------------------------------------------------------------------
   // Handler: Enviar formulario de registro
@@ -342,6 +405,60 @@ export function PaginaRegistro() {
   }, [estado.correo]);
 
   // ---------------------------------------------------------------------------
+  // Handler: Reanudar el pago (OBS-12) — vuelve a Stripe con el plan elegido, sin
+  // re-llenar ni re-verificar (los datos del registro siguen en Redis del backend).
+  // ---------------------------------------------------------------------------
+  const handleReanudarPago = useCallback(
+    async (datos: {
+      nombre: string;
+      apellidos: string;
+      telefono: string;
+      nombreNegocio: string;
+      intervalo: 'month' | 'year';
+    }) => {
+      try {
+        setCargando(true);
+        // Persiste las correcciones en Redis (sin re-verificar) ANTES de ir a Stripe, para que el
+        // webhook cree el negocio con los datos actualizados (el webhook lee de Redis, no de Stripe).
+        const resp = await authService.actualizarRegistroPendiente({
+          correo: estado.correo,
+          nombre: datos.nombre,
+          apellidos: datos.apellidos,
+          telefono: datos.telefono || null,
+          nombreNegocio: datos.nombreNegocio || null,
+        });
+        if (!resp.success) {
+          notificar.error(resp.message || 'No se pudo actualizar. Empieza de nuevo.');
+          setCargando(false);
+          return;
+        }
+        await redirigirAStripe(
+          estado.correo,
+          datos.nombreNegocio,
+          { nombre: datos.nombre, apellidos: datos.apellidos, telefono: datos.telefono },
+          datos.intervalo,
+        );
+      } catch (error) {
+        const mensaje = extraerMensajeError(error, 'Error al continuar el pago');
+        notificar.error(mensaje);
+        setCargando(false);
+      }
+    },
+    // redirigirAStripe es estable (function declaration del componente).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [estado.correo],
+  );
+
+  // ---------------------------------------------------------------------------
+  // Handler: Empezar de nuevo — descarta los datos guardados y vuelve al formulario.
+  // ---------------------------------------------------------------------------
+  const handleEmpezarDeNuevo = useCallback(() => {
+    sessionStorage.removeItem(REANUDAR_KEY);
+    setEstado((prev) => ({ ...prev, paso: 'formulario' }));
+    navigate(`/registro?plan=comercial${codigoReferido ? `&ref=${codigoReferido}` : ''}`, { replace: true });
+  }, [navigate, codigoReferido]);
+
+  // ---------------------------------------------------------------------------
   // Handler: Google OAuth desde el formulario de registro
   // ---------------------------------------------------------------------------
   const handleGoogleSuccess = useCallback(
@@ -437,6 +554,13 @@ export function PaginaRegistro() {
 
       const { checkoutUrl } = respuesta.data;
 
+      // OBS-12: guarda los datos (NO la contraseña) para reanudar el pago si el usuario cancela/regresa
+      // de Stripe, sin re-llenar el formulario ni re-verificar el correo. Solo flujo normal (el de Google
+      // no pasa por verificación y maneja su propio token).
+      if (!googleIdToken) {
+        const datosReanudar: DatosReanudar = { correo, nombreNegocio, datosRegistro, intervalo };
+        sessionStorage.setItem(REANUDAR_KEY, JSON.stringify(datosReanudar));
+      }
 
       // Redirigir a Stripe Checkout
       window.location.href = checkoutUrl;
@@ -513,7 +637,7 @@ export function PaginaRegistro() {
       {/* Layout desktop: 2 columnas */}
       <div className="lg:grid lg:grid-cols-2 lg:h-screen">
         {/* Columna izquierda: Branding (solo desktop) */}
-        <BrandingColumn tipoCuenta={tipoCuentaActiva} />
+        <BrandingColumn tipoCuenta={tipoCuentaActiva} hayVendedor={!!codigoReferido} />
 
         {/* Columna derecha: Formulario con scroll */}
         <div className="lg:flex lg:items-center lg:justify-center lg:p-4 2xl:p-8 lg:overflow-y-auto lg:h-screen"
@@ -521,6 +645,9 @@ export function PaginaRegistro() {
         >
           <div className="w-full">
             <FormularioRegistro
+              // Fuerza el remontaje al entrar/salir de "reanudar" para que el form re-inicialice su
+              // estado con los valores prellenados (useState no reacciona a cambios de props — OBS-12).
+              key={estado.paso === 'reanudar' ? 'form-reanudar' : 'form-normal'}
               onSubmit={handleSubmitRegistro}
               onGoogleCode={handleGoogleSuccess}
               onDesconectarGoogle={handleDesconectarGoogle}
@@ -530,6 +657,23 @@ export function PaginaRegistro() {
               onAbrirLogin={abrirModalLogin}
               onTipoCuentaCambio={setTipoCuentaActiva}
               correoInicial={correoInicial}
+              hayVendedor={!!codigoReferido}
+              modoReanudar={
+                estado.paso === 'reanudar' && estado.datosRegistro
+                  ? {
+                      valoresIniciales: {
+                        correo: estado.correo,
+                        nombreNegocio: estado.nombreNegocio,
+                        nombre: estado.datosRegistro.nombre,
+                        apellidos: estado.datosRegistro.apellidos,
+                        ...separarLada(estado.datosRegistro.telefono),
+                        intervalo: estado.intervalo,
+                      },
+                      onReanudar: handleReanudarPago,
+                      onEmpezarDeNuevo: handleEmpezarDeNuevo,
+                    }
+                  : undefined
+              }
             />
           </div>
         </div>

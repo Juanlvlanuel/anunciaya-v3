@@ -243,7 +243,10 @@ export async function crearCheckoutSession(
 
         // URLs de retorno
         success_url: `${env.FRONTEND_URL}/registro-exito?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `${env.FRONTEND_URL}/registro?cancelado=true`,
+        // El cancel_url CONSERVA el plan y el ref (atribución del vendedor): si el usuario cancela en Stripe
+        // y reintenta, no se pierde al vendedor (antes volvía a `?cancelado=true` sin ref → negocio sin
+        // vendedor → comisión perdida). El front re-lee ?ref= y ?plan= de la URL al montar.
+        cancel_url: `${env.FRONTEND_URL}/registro?cancelado=true&plan=comercial${codigoReferido ? `&ref=${encodeURIComponent(codigoReferido)}` : ''}`,
 
         // Permitir códigos promocionales
         allow_promotion_codes: true,
