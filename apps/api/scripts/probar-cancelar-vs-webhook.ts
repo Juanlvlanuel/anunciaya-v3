@@ -28,9 +28,13 @@ import { stripe } from '../src/config/stripe.js';
 import { cancelarNegocio } from '../src/services/admin/negocios-acciones.service.js';
 import { procesarCancelacionSuscripcion } from '../src/services/pago.service.js';
 import type { UsuarioPanel } from '../src/middleware/panel.middleware.js';
+import { obtenerConfigTexto } from '../src/services/configuracion.service.js';
 
 const CORREO = 'prueba.cancelar-webhook@dev.local';
-const PRICE = process.env.STRIPE_PRICE_COMERCIAL!;
+// El Price ACTIVO vive en config (precio editable desde el Panel); el del env quedó archivado.
+async function obtenerPriceMensual(): Promise<string> {
+  return obtenerConfigTexto('stripe_price_comercial_id', process.env.STRIPE_PRICE_COMERCIAL || '');
+}
 const ok = (b: boolean) => (b ? '✓' : '✗');
 let fallos = 0;
 function verificar(etiqueta: string, cond: boolean, detalle?: string) {
@@ -78,7 +82,6 @@ async function crearNegocio(correo: string, subId: string, customerId: string): 
 
 async function main() {
   if (process.env.DB_ENVIRONMENT === 'production') { console.error('✗ Abortado: production.'); process.exit(1); }
-  if (!PRICE) { console.error('✗ Falta STRIPE_PRICE_COMERCIAL.'); process.exit(1); }
 
   console.log('\n════════ Consistencia Cancelar ↔ webhook ════════');
   await limpiarUsuario(CORREO);
@@ -89,7 +92,8 @@ async function main() {
   const customer = await stripe.customers.create({ email: CORREO, name: 'Prueba CancelWebhook' });
   const pm = await stripe.paymentMethods.attach('pm_card_visa', { customer: customer.id });
   await stripe.customers.update(customer.id, { invoice_settings: { default_payment_method: pm.id } });
-  const sub = await stripe.subscriptions.create({ customer: customer.id, items: [{ price: PRICE }], default_payment_method: pm.id });
+  const price = await obtenerPriceMensual();
+  const sub = await stripe.subscriptions.create({ customer: customer.id, items: [{ price }], default_payment_method: pm.id });
   const negocioId = await crearNegocio(CORREO, sub.id, customer.id);
   console.log(`\nNegocio ${negocioId} · sub ${sub.id} (status=${sub.status})`);
 

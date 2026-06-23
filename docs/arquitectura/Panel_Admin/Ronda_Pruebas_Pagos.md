@@ -115,10 +115,10 @@
 
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
-| 🔴 B1 | Cobro fallido (`invoice.payment_failed`) → `en_gracia` → cron suspende al vencer | 🌐 | ⬜ | `probar-ciclo-morosidad.ts <paso>` · recrear sub (OBS-1) |
-| ⚪ B2 | Recuperación: pagar factura / "Marcar pagado" → `al_corriente` | 🌐 | ⬜ | |
-| 🔴 B3 | **Cancelación deliberada** desde Panel (`subscription.deleted` motivo `cancellation_requested`) → degrada a personal + archiva + devuelve vouchers | 🌐🤖 | ⬜ | `probar-acciones-parada2.ts`, `probar-cancelar-vs-webhook.ts` |
-| 🔴 B4 | **Impago** que termina en `subscription.deleted` (sin motivo de cancelación) → **suspende** (recuperable), NO cancela | 🌐 | ⬜ | distinción clave del handler |
+| 🔴 B1 | Cobro fallido (`invoice.payment_failed`) → `en_gracia` → cron suspende al vencer | 🌐 | ✅ | E2E 22 jun (`probar-ciclo-morosidad.ts`): crear→`al_corriente`, fallar (tarjeta rebota)→`en_gracia` (gracia +14d, sigue activo), suspender (cron real)→`suspendido` (`activo=false`). Fix: el harness usaba el Price del env (archivado) → ahora lee `stripe_price_comercial_id` de config |
+| ⚪ B2 | Recuperación: pagar factura / "Marcar pagado" → `al_corriente` | 🌐 | 🟡 | manual → "Marcar pagado" desde el Panel; **tarjeta** → falta el botón **"Actualizar tarjeta y reintentar pago"** del dueño en Mi Perfil – Pagos (decisión 22 jun: vía Customer Portal de Stripe, ver Z3). Hoy un moroso de tarjeta no se recupera solo |
+| 🔴 B3 | **Cancelación deliberada** desde Panel (`subscription.deleted` motivo `cancellation_requested`) → degrada a personal + archiva + devuelve vouchers | 🌐🤖 | ✅ | E2E 22 jun (`probar-cancelar-vs-webhook.ts`): cancelar→archivado/activo=false/cancelado/subId limpio/dueño personal; consistente Panel↔webhook en cualquier orden (tardío inofensivo, carrera no revive). Fix Price env→config |
+| 🔴 B4 | **Impago** que termina en `subscription.deleted` (sin motivo de cancelación) → **suspende** (recuperable), NO cancela | 🌐 | ✅ | 22 jun: `procesarCancelacionSuscripcion` con `reason='payment_failed'` → `suspendido`, dueño sigue comercial, `estado_admin` activo, subId conservado (NO degrada/archiva). Guard "el impago nunca queda cancelado" (pago.service.ts:1062) |
 
 ### C · Comisiones del vendedor
 
@@ -188,7 +188,7 @@
 |---|---|---|:--:|:--:|
 | Z1 | **Reembolsos** (`charge.refunded`) | Se ignora (default del webhook) | ⬜ ¿documentar "a mano en Stripe" o manejar? | ⬜ |
 | Z2 | **Disputas / contracargos** (`charge.dispute.*`) | Se ignora | ⬜ ¿documentar o suspender+notificar? | ⬜ |
-| Z3 | **Customer Portal** (dueño gestiona su pago) | No existe; todo por Panel | ⬜ pendiente conocido (`Pagos §12`) — ¿pre-beta o post-beta? | ⬜ |
+| Z3 | **Customer Portal** (dueño gestiona/recupera su pago de tarjeta) | No existe; todo por Panel | ✅ **Decidido (22 jun):** SÍ se usa, pero **solo para tarjeta** — botón "Actualizar tarjeta y reintentar pago" en Mi Perfil – Pagos (recupera a un moroso de tarjeta, resuelve B2). Los métodos **manuales** (depósito/transferencia) NO usan Portal (comprobante + verificación). Feature futuro. | ✅ |
 | Z4 | **OXXO / SPEI** | Configurados pero el Checkout solo cobra tarjeta | ✅ **Decidido (22 jun):** NO integrar OXXO/SPEI de Stripe (OXXO no admite suscripción recurrente). En su lugar → **feature futuro**: métodos de **pago manual con comprobante** (depósito a tarjeta de AY · transferencia bancaria) en **Mi Perfil – Modo Personal**, con verificación del admin (reusa `registrarPagoManual`). Datos de cobro configurables desde el Panel. | ✅ |
 | Z5 | **Cupones de lanzamiento** | `allow_promotion_codes:true` (Stripe los gestiona), sin registro en BD | ⬜ ¿suficiente para la beta? | ⬜ |
 
@@ -196,6 +196,12 @@
 
 ## Bitácora de avance
 
+- **22 jun** — **Bloque B (morosidad/cancelación) E2E:** B1 ✅ (`probar-ciclo-morosidad.ts`: crear→fallar(tarjeta
+  rebota)→`en_gracia`→suspender(cron)→`suspendido`), B3 ✅ (`probar-cancelar-vs-webhook.ts`: cancelación deliberada
+  → archivado/personal, consistente Panel↔webhook), B4 ✅ (impago `reason='payment_failed'` → `suspendido`, dueño
+  sigue comercial, NO degrada — guard pago.service.ts:1062). B2 🟡 (recuperación: tarjeta vía Customer Portal,
+  feature futuro, ver Z3). **Fix de 2 harness:** usaban `STRIPE_PRICE_COMERCIAL` del env (archivado al cambiar el
+  precio) → ahora leen `stripe_price_comercial_id` de config.
 - **22 jun** — Línea base (solo lectura) **completa**: E6 ✅, negocio de prueba coherente BD↔Stripe, comisión
   de alta sin indebidas, config leída (849 / anual 8490 / trial 14 / gracia 14 / escalera 200·250·300).
   Hallazgos OBS-1..OBS-3.

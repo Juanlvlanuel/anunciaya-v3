@@ -27,10 +27,15 @@ import { db } from '../src/db/index.js';
 import { sql } from 'drizzle-orm';
 import { stripe } from '../src/config/stripe.js';
 import { suspenderGraciasVencidas } from '../src/services/suscripciones/gracia.js';
+import { obtenerConfigTexto } from '../src/services/configuracion.service.js';
 
 const CORREO = 'prueba.morosidad@dev.local';
 const NOMBRE_NEGOCIO = 'Prueba · Ciclo morosidad';
-const PRICE = process.env.STRIPE_PRICE_COMERCIAL!;
+// El Price ACTIVO vive en config (precio editable desde el Panel), no en el env: el del env quedó
+// archivado al crear un Price nuevo. Lo leemos de config con fallback al env.
+async function obtenerPriceMensual(): Promise<string> {
+    return obtenerConfigTexto('stripe_price_comercial_id', process.env.STRIPE_PRICE_COMERCIAL || '');
+}
 const dormir = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
 async function reporte(negocioId: string, titulo: string) {
@@ -85,8 +90,9 @@ async function crear() {
     const customer = await stripe.customers.create({ email: CORREO, name: 'Prueba Morosidad' });
     const pm = await stripe.paymentMethods.attach('pm_card_chargeCustomerFail', { customer: customer.id });
     await stripe.customers.update(customer.id, { invoice_settings: { default_payment_method: pm.id } });
+    const price = await obtenerPriceMensual();
     const sub = await stripe.subscriptions.create({
-        customer: customer.id, items: [{ price: PRICE }], trial_period_days: 14, default_payment_method: pm.id,
+        customer: customer.id, items: [{ price }], trial_period_days: 14, default_payment_method: pm.id,
     });
 
     const u = (await db.execute(sql`
@@ -174,7 +180,6 @@ async function limpiar() {
 
 async function main() {
     if (process.env.DB_ENVIRONMENT === 'production') { console.error('✗ Abortado: production.'); process.exit(1); }
-    if (!PRICE) { console.error('✗ Falta STRIPE_PRICE_COMERCIAL.'); process.exit(1); }
 
     const paso = process.argv[2];
     switch (paso) {
