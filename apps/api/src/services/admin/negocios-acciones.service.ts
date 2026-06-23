@@ -590,7 +590,7 @@ export async function marcarPagado(
                 fechaInicioGracia: null,
                 fechaLimiteGracia: null,
                 // "Cliente desde": sella el PRIMER pago real (no en cortesía). COALESCE → solo la 1ª vez.
-                ...(opciones.concepto !== 'cortesia' ? { fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, CURRENT_DATE)` } : {}),
+                ...(opciones.concepto !== 'cortesia' ? { fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, (now() AT TIME ZONE 'America/Hermosillo')::date)` } : {}),
                 updatedAt: ahora,
             })
             .where(eq(negocios.id, negocioId))

@@ -16,6 +16,7 @@
 import nodemailer from 'nodemailer';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { env } from '../config/env.js';
+import { ZONA_EMPRESA } from './zonaHoraria.js';
 
 // URL pública del logo de AnunciaYA (para incluir en emails).
 // Usar URL pública (no base64) porque Gmail bloquea data: URIs desde 2013.
@@ -617,14 +618,14 @@ function formatearMontoMXN(monto: number): string {
 }
 
 /**
- * Formatea una fecha ISO como "12 de julio de 2026". Se interpreta en UTC para que la
- * fecha mostrada coincida con la guardada (la vigencia se almacena con `.toISOString()`),
- * evitando corrimientos de un día por zona horaria del servidor.
+ * Formatea una fecha ISO como "12 de Julio de 2026" en la zona operativa de la empresa (Sonora).
+ * Los valores son timestamptz (instantes reales); formatear en hora local evita el corrimiento de un
+ * día que daba UTC al emitir de tarde (18:30 local = 01:30 UTC del día siguiente). Igual que el PDF.
  */
 function formatearFechaLarga(iso: string): string {
   // formatToParts para capitalizar SOLO el mes ('es-MX' lo da en minúscula): "20 de Junio de 2026".
   const partes = new Intl.DateTimeFormat('es-MX', {
-    day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC',
+    day: 'numeric', month: 'long', year: 'numeric', timeZone: ZONA_EMPRESA,
   }).formatToParts(new Date(iso));
   return partes.map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value)).join('');
 }

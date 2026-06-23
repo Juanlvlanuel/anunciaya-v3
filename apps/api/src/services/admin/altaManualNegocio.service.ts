@@ -176,7 +176,9 @@ export async function altaManualNegocio(
         }
         vencISO = venc.toISOString();
     }
-    const hoyFecha = new Date().toISOString().slice(0, 10); // YYYY-MM-DD para la columna `date`
+    // YYYY-MM-DD en la zona de la empresa (Sonora), no UTC: un alta de tarde (después de las 17:00
+    // local) caía en el día siguiente con toISOString(). Coincide con la fecha que ve el comerciante.
+    const hoyFecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Hermosillo' }).format(new Date()); // YYYY-MM-DD para la columna `date`
 
     // -------------------------------------------------------------------------
     // 5) Transacción atómica: crear (usuario+negocio+sucursal) + sellar fechas + registrar el pago.

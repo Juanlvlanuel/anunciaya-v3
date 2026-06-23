@@ -1289,7 +1289,7 @@ export async function registrarCobroReal(opts: {
     // la comisión de alta se devengue (depende de fecha_primer_pago).
     await db
         .update(negocios)
-        .set({ fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, CURRENT_DATE)` })
+        .set({ fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, (now() AT TIME ZONE 'America/Hermosillo')::date)` })
         .where(eq(negocios.id, negocioId));
 
     // Bitácora financiera (idempotente por stripe_event_id = invoiceId).
@@ -1411,7 +1411,7 @@ async function manejarRenovacionPagada(invoice: Stripe.Invoice, eventId?: string
                 fechaInicioGracia: null,
                 fechaLimiteGracia: null,
                 // "Cliente desde": sella la fecha del PRIMER cobro real (COALESCE → solo la 1ª vez).
-                ...(esCobroReal ? { fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, CURRENT_DATE)` } : {}),
+                ...(esCobroReal ? { fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, (now() AT TIME ZONE 'America/Hermosillo')::date)` } : {}),
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, res.negocio.id));
