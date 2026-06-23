@@ -145,7 +145,7 @@ export function PaginaCrearNegocioExito() {
           </p>
           <button
             onClick={() => navigate('/inicio')}
-            className="w-full py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors"
+            className="w-full py-3 bg-slate-100 text-slate-700 font-semibold rounded-xl hover:bg-slate-200 transition-colors lg:cursor-pointer"
           >
             Volver al inicio
           </button>
@@ -209,7 +209,7 @@ export function PaginaCrearNegocioExito() {
           {/* Opción 1: Configurar negocio (recomendada) */}
           <button
             onClick={handleIrAOnboarding}
-            className="w-full mb-3 p-4 bg-linear-to-r from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 transition-all group"
+            className="w-full mb-3 p-4 bg-linear-to-r from-orange-500 to-orange-600 text-white rounded-xl shadow-lg shadow-orange-500/30 hover:shadow-orange-500/40 hover:from-orange-600 hover:to-orange-700 transition-all group lg:cursor-pointer"
           >
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-3">
@@ -228,7 +228,7 @@ export function PaginaCrearNegocioExito() {
           {/* Opción 2: Ir a inicio */}
           <button
             onClick={handleIrAInicio}
-            className="w-full p-3 text-slate-500 font-medium text-sm hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors"
+            className="w-full p-3 text-slate-500 font-medium text-sm hover:text-slate-700 hover:bg-slate-50 rounded-xl transition-colors lg:cursor-pointer"
           >
             Ir a Inicio
           </button>

@@ -41,41 +41,43 @@ export function ModalBienvenida({
 }: ModalBienvenidaProps) {
     if (!isOpen) return null;
 
+    const titulo = tipo === 'personal'
+        ? `¡Bienvenido a AnunciaYA, ${nombre}!`
+        : `¡Perfecto, ${nombre}!`;
+
     return (
         <div className="fixed inset-0 z-50 flex items-center justify-center">
-            {/* Backdrop */}
-            <div className="absolute inset-0"
-                style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
-            />
+            {/* Backdrop oscuro con blur — hace que el modal flote */}
+            <div className="absolute inset-0 bg-slate-900/60 backdrop-blur-sm animate-in fade-in duration-200" />
 
             {/* Modal */}
-            <div className="relative w-full max-w-lg mx-4 bg-white rounded-xl lg:rounded-lg 2xl:rounded-xl shadow-md overflow-hidden animate-in fade-in zoom-in-95 duration-200">
+            <div className="relative w-full max-w-md mx-4 bg-white rounded-2xl shadow-2xl overflow-hidden animate-in fade-in zoom-in-95 duration-200">
                 {/* Header */}
-                <div className="px-5 lg:px-6 2xl:px-8 pt-4 lg:pt-8 2xl:pt-10 pb-2 lg:pb-4 2xl:pb-6 text-center">
-                    {/* Check verde */}
-                    <div className="inline-flex items-center justify-center mb-2 lg:mb-4 2xl:mb-5">
-                        <div className="w-12 h-12 lg:w-16 lg:h-16 2xl:w-20 2xl:h-20 rounded-full border-4 border-emerald-600 flex items-center justify-center bg-emerald-100">
-                            <Check className="w-6 h-6 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 text-emerald-600 stroke-3" />
+                <div className="px-5 lg:px-6 2xl:px-8 pt-7 lg:pt-8 2xl:pt-10 pb-4 lg:pb-5 2xl:pb-6 text-center">
+                    {/* Check verde con halo */}
+                    <div className="inline-flex items-center justify-center mb-4 lg:mb-5">
+                        <div className="w-16 h-16 lg:w-[72px] lg:h-[72px] 2xl:w-20 2xl:h-20 rounded-full bg-emerald-100 flex items-center justify-center">
+                            <div className="w-12 h-12 lg:w-14 lg:h-14 2xl:w-16 2xl:h-16 rounded-full bg-emerald-600 flex items-center justify-center shadow-md shadow-emerald-600/30">
+                                <Check className="w-6 h-6 lg:w-7 lg:h-7 2xl:w-8 2xl:h-8 text-white stroke-3" />
+                            </div>
                         </div>
                     </div>
 
-                    {/* Línea decorativa */}
-                    <div className="flex items-center justify-center gap-1.5 mb-2 lg:mb-4 2xl:mb-5">
-                        <div className="w-8 lg:w-10 h-1 bg-slate-800 rounded-full" />
-                        <div className="w-2 lg:w-2.5 h-1 bg-slate-400 rounded-full" />
-                    </div>
-
-                    {/* Texto */}
-                    <h3 className="text-lg lg:text-xl 2xl:text-2xl font-extrabold text-slate-900 mb-0.5">
-                        ¡Perfecto, {nombre}!
+                    {/* Título + confirmación */}
+                    <h3 className="text-xl lg:text-xl 2xl:text-2xl font-extrabold text-slate-900 mb-1.5">
+                        {titulo}
                     </h3>
-                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                        Cuenta creada exitosamente
+                    <p className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-600">
+                        <Check className="w-4 h-4 stroke-[2.5] shrink-0" />
+                        Tu cuenta se creó correctamente
                     </p>
                 </div>
 
+                {/* Separador */}
+                <div className="mx-5 lg:mx-6 2xl:mx-8 h-px bg-slate-200" />
+
                 {/* Contenido según tipo */}
-                <div className="px-5 lg:px-6 2xl:px-8 pb-4 lg:pb-6 2xl:pb-8">
+                <div className="px-5 lg:px-6 2xl:px-8 pt-5 lg:pt-5 2xl:pt-6 pb-6 lg:pb-6 2xl:pb-8">
                     {tipo === 'personal' ? (
                         <ContenidoPersonal onIrAlInicio={onIrAlInicio} />
                     ) : (
@@ -93,32 +95,27 @@ export function ModalBienvenida({
 
 function ContenidoPersonal({ onIrAlInicio }: { onIrAlInicio: () => void }) {
     const features = [
-        { icon: Search, color: 'bg-slate-800', titulo: 'Busca negocios', descripcion: 'Encuentra lo que necesitas' },
-        { icon: Tag, color: 'bg-slate-800', titulo: 'Ofertas locales', descripcion: 'Descubre promociones' },
-        { icon: MapPin, color: 'bg-slate-800', titulo: 'Cerca de ti', descripcion: 'Negocios en tu zona' },
+        { icon: Search, color: 'bg-blue-600', titulo: 'Busca negocios', descripcion: 'Encuentra lo que necesitas' },
+        { icon: Tag, color: 'bg-amber-500', titulo: 'Ofertas locales', descripcion: 'Descubre promociones' },
+        { icon: MapPin, color: 'bg-emerald-600', titulo: 'Cerca de ti', descripcion: 'Negocios en tu zona' },
     ];
 
     return (
         <>
-            <div className="text-center mb-4 lg:mb-4 2xl:mb-6">
-                <h4 className="text-lg lg:text-lg 2xl:text-xl font-extrabold text-slate-900 mb-1">
-                    ¡Bienvenido a AnunciaYA!
-                </h4>
-                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                    Descubre negocios y ofertas en tu zona
-                </p>
-            </div>
+            <p className="text-center text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 mb-4 lg:mb-4 2xl:mb-5">
+                Con AnunciaYA puedes:
+            </p>
 
             <div className="grid grid-cols-3 gap-3 lg:gap-3 2xl:gap-4 mb-5 lg:mb-6 2xl:mb-8">
                 {features.map((feature, index) => {
                     const Icono = feature.icon;
                     return (
                         <div key={index} className="text-center">
-                            <div className={`w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 ${feature.color} rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2`}>
-                                <Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+                            <div className={`w-12 h-12 lg:w-11 lg:h-11 2xl:w-12 2xl:h-12 ${feature.color} rounded-xl flex items-center justify-center mx-auto mb-2 lg:mb-2 2xl:mb-2.5 shadow-sm`}>
+                                <Icono className="w-5 h-5 2xl:w-5 2xl:h-5 text-white" />
                             </div>
                             <h5 className="text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-900 mb-0.5">{feature.titulo}</h5>
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">{feature.descripcion}</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 leading-snug">{feature.descripcion}</p>
                         </div>
                     );
                 })}
@@ -126,7 +123,7 @@ function ContenidoPersonal({ onIrAlInicio }: { onIrAlInicio: () => void }) {
 
             <button
                 onClick={onIrAlInicio}
-                className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-white bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 lg:cursor-pointer flex items-center justify-center gap-2"
+                className="w-full h-11 lg:h-11 2xl:h-12 rounded-xl font-semibold text-base lg:text-sm 2xl:text-base text-white bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 lg:cursor-pointer flex items-center justify-center gap-2"
             >
                 <Home className="w-4 h-4" />
                 Ir al inicio
@@ -152,7 +149,7 @@ function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: { onIrAlInicio:
             </div>
 
             <div className="grid grid-cols-2 gap-3 lg:gap-3 2xl:gap-4 mb-5 lg:mb-6 2xl:mb-8">
-                <div className="bg-slate-200 border-2 border-slate-300 rounded-lg p-4 lg:p-3 2xl:p-4 text-center">
+                <div className="bg-slate-200 border-2 border-slate-300 rounded-xl p-4 lg:p-3 2xl:p-4 text-center">
                     <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2 shadow-md">
                         <Edit3 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-800" />
                     </div>
@@ -162,7 +159,7 @@ function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: { onIrAlInicio:
                     </p>
                 </div>
 
-                <div className="bg-amber-100 border-2 border-amber-300 rounded-lg p-4 lg:p-3 2xl:p-4 text-center">
+                <div className="bg-amber-100 border-2 border-amber-300 rounded-xl p-4 lg:p-3 2xl:p-4 text-center">
                     <div className="w-12 h-12 lg:w-10 lg:h-10 2xl:w-12 2xl:h-12 bg-white rounded-lg flex items-center justify-center mx-auto mb-2 lg:mb-1.5 2xl:mb-2 shadow-md">
                         <TrendingUp className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-600" />
                     </div>
@@ -177,7 +174,7 @@ function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: { onIrAlInicio:
                 {onCompletarPerfil && (
                     <button
                         onClick={onCompletarPerfil}
-                        className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-white bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 lg:cursor-pointer flex items-center justify-center gap-2"
+                        className="w-full h-11 lg:h-11 2xl:h-12 rounded-xl font-semibold text-base lg:text-sm 2xl:text-base text-white bg-linear-to-r from-slate-700 to-slate-800 hover:from-slate-800 hover:to-slate-900 shadow-lg shadow-slate-700/30 lg:cursor-pointer flex items-center justify-center gap-2"
                     >
                         Comenzar configuración
                         <ArrowRight className="w-4 h-4" />
@@ -186,7 +183,7 @@ function ContenidoComercial({ onIrAlInicio, onCompletarPerfil }: { onIrAlInicio:
 
                 <button
                     onClick={onIrAlInicio}
-                    className="w-full h-11 lg:h-10 2xl:h-11 rounded-lg font-semibold text-base lg:text-sm 2xl:text-base text-slate-700 bg-slate-200 border-2 border-slate-300 hover:bg-slate-300 lg:cursor-pointer flex items-center justify-center gap-2"
+                    className="w-full h-11 lg:h-11 2xl:h-12 rounded-xl font-semibold text-base lg:text-sm 2xl:text-base text-slate-700 bg-slate-200 border-2 border-slate-300 hover:bg-slate-300 lg:cursor-pointer flex items-center justify-center gap-2"
                 >
                     <Home className="w-4 h-4" />
                     {onCompletarPerfil ? 'Saltar por ahora' : 'Ir al inicio'}
