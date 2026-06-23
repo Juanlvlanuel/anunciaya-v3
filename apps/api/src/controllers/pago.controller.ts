@@ -164,7 +164,7 @@ export async function crearCheckoutUpgrade(
     // -------------------------------------------------------------------------
     // PASO 2: Validar datos del request
     // -------------------------------------------------------------------------
-    const { nombreNegocio } = req.body;
+    const { nombreNegocio, intervalo, codigoReferido } = req.body;
 
     if (!nombreNegocio || nombreNegocio.trim().length < 3) {
       res.status(400).json({
@@ -181,6 +181,8 @@ export async function crearCheckoutUpgrade(
       usuarioId: usuarioToken.usuarioId,
       correo: usuarioToken.correo,
       nombreNegocio: nombreNegocio.trim(),
+      intervalo: intervalo === 'year' ? 'year' : 'month',
+      codigoReferido: typeof codigoReferido === 'string' && codigoReferido.trim() ? codigoReferido.trim() : undefined,
     });
 
     // -------------------------------------------------------------------------
@@ -384,6 +386,22 @@ export async function verificarSession(
   }
 }
 
+/**
+ * GET /api/pagos/validar-referido?codigo=XXX
+ * Valida un código de vendedor EN VIVO (formulario de upgrade) y devuelve el nombre del vendedor si
+ * existe y está activo. Case-sensitive exacto. Vacío/inválido → { valido:false }. Nunca lanza (200).
+ */
+export async function validarReferido(req: Request, res: Response): Promise<void> {
+  try {
+    const codigo = typeof req.query.codigo === 'string' ? req.query.codigo : '';
+    const resultado = await pagoService.validarCodigoReferido(codigo);
+    res.status(200).json({ success: true, data: resultado });
+  } catch (error) {
+    console.error('❌ Error en validarReferido:', error);
+    res.status(200).json({ success: true, data: { valido: false, vendedor: null } });
+  }
+}
+
 // =============================================================================
 // EXPORTS
 // =============================================================================
@@ -391,6 +409,7 @@ export async function verificarSession(
 export default {
   crearCheckout,
   crearCheckoutUpgrade,
+  validarReferido,
   webhookStripe,
   verificarSession,
 };

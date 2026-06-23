@@ -74,7 +74,7 @@ export async function prepararReciboPago(pagoId: string): Promise<ReciboPreparad
             s.direccion,
             c.nombre                                                   AS ciudad,
             s.estado                                                   AS estado_sucursal,
-            s.telefono,
+            COALESCE(s.telefono, u.telefono)                           AS telefono,
             s.correo                                                   AS correo_sucursal,
             TRIM(CONCAT(a.nombre, ' ', COALESCE(a.apellidos, '')))     AS atendio
         FROM pagos_membresia p

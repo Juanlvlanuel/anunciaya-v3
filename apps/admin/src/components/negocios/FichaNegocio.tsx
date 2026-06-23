@@ -320,11 +320,11 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const suspendido = n.estadoAdmin === 'suspendido';
   const archivado = n.estadoAdmin === 'archivado';
   const esManual = n.metodoCobro === 'manual';
-  // "Inicio Trial" solo tiene sentido si hubo (o hay) un periodo de prueba real: el negocio sigue en
-  // trial (sin primer pago aún) o el primer pago ocurrió varios días después del alta. Si cobró ~el
-  // mismo día del alta (trial=0 / cobro inmediato), no hubo trial → se oculta la línea.
-  const huboTrial = !n.fechaPrimerPago || !n.creadoEn
-    || (new Date(n.fechaPrimerPago).getTime() - new Date(n.creadoEn).getTime()) / 86_400_000 >= 3;
+  // "Inicio Trial" solo mientras el negocio está EN su trial (aún sin primer pago). Una vez que pagó
+  // —cobro día-1 con trial=0, o al terminar un trial— se muestra "Primer pago" y se oculta "Inicio Trial".
+  // Determinista (no depende del alta), así un cobro inmediato no muestra un trial que no existió, ni en
+  // negocios revividos (cuyo created_at es antiguo).
+  const huboTrial = !n.fechaPrimerPago;
   // Espejo del guard 409 del backend: con suscripción, "Marcar pagado" solo si está al corriente
   // (en gracia/suspendido hay un cobro pendiente en Stripe que regularizar primero).
   const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';

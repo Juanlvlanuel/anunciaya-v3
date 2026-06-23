@@ -69,6 +69,8 @@ interface DatosCheckoutUpgrade {
     nombreNegocio: string;
     // Intervalo de cobro del plan comercial: 'month' (mensual) o 'year' (anual). Default 'month'.
     intervalo?: 'month' | 'year';
+    // Código del vendedor (opcional) para atribuir el upgrade y devengarle comisión. Case-sensitive.
+    codigoReferido?: string;
 }
 
 /**
@@ -303,7 +305,7 @@ export async function crearCheckoutSession(
 export async function crearCheckoutUpgrade(
     datos: DatosCheckoutUpgrade
 ): Promise<RespuestaCheckout> {
-    const { usuarioId, correo, nombreNegocio, intervalo = 'month' } = datos;
+    const { usuarioId, correo, nombreNegocio, intervalo = 'month', codigoReferido } = datos;
 
     // -------------------------------------------------------------------------
     // PASO 1: Verificar que el usuario existe y NO tiene modo comercial
@@ -349,6 +351,7 @@ export async function crearCheckoutUpgrade(
                 correo,
                 nombreNegocio,
                 tipo: 'upgrade_comercial',
+                ...(codigoReferido ? { codigoReferido } : {}),
             },
         },
 
@@ -359,6 +362,8 @@ export async function crearCheckoutUpgrade(
             apellidos,
             nombreNegocio,
             tipo: 'upgrade_comercial',
+            // Código del vendedor: viaja en la metadata para atribuir el upgrade en el webhook.
+            ...(codigoReferido ? { codigoReferido } : {}),
         },
 
         customer_email: correo,
@@ -570,6 +575,29 @@ async function resolverEmbajadorPorCodigo(
         // Ante cualquier fallo al resolver, NO romper el registro: sin atribución.
         console.error('❌ Error resolviendo embajador por código:', error);
         return null;
+    }
+}
+
+/**
+ * Valida un código de referido para mostrarlo EN VIVO en el formulario de upgrade. Case-sensitive exacto
+ * (igual que `resolverEmbajadorPorCodigo`): un código mal escrito = inválido, no se normaliza. Devuelve el
+ * nombre del vendedor para confirmar visualmente antes de pagar (vacío = sin vendedor, no es error).
+ */
+export async function validarCodigoReferido(
+    codigo: string | undefined | null
+): Promise<{ valido: boolean; vendedor: string | null }> {
+    if (!codigo || !codigo.trim()) return { valido: false, vendedor: null };
+    try {
+        const [row] = await db
+            .select({ nombre: usuarios.nombre, apellidos: usuarios.apellidos })
+            .from(embajadores)
+            .innerJoin(usuarios, eq(usuarios.id, embajadores.usuarioId))
+            .where(and(eq(embajadores.codigoReferido, codigo), eq(embajadores.estado, 'activo')))
+            .limit(1);
+        if (!row) return { valido: false, vendedor: null };
+        return { valido: true, vendedor: `${row.nombre} ${row.apellidos ?? ''}`.trim() };
+    } catch {
+        return { valido: false, vendedor: null };
     }
 }
 
@@ -868,6 +896,11 @@ async function manejarUpgradeCompletado(
         return;
     }
 
+    // Atribución al vendedor: si el upgrade trajo un código de referido válido y activo, el negocio
+    // queda con `embajadorId` → la comisión de alta se devenga sola en el 1er cobro (como el alta nueva).
+    const atribucion = await resolverEmbajadorPorCodigo(metadata.codigoReferido);
+    if (atribucion) console.log('🤝 Upgrade atribuido al embajador:', atribucion.embajadorId);
+
     // -------------------------------------------------------------------------
     // PASO 3: Negocio — REVIVIR el archivado si el usuario ya tuvo uno (re-registro tras
     // una cancelación MANUAL del Panel) o CREAR uno nuevo (upgrade de un personal sin
@@ -890,6 +923,8 @@ async function manejarUpgradeCompletado(
             .update(negocios)
             .set({
                 nombre: nombreNegocio || negocioPrevio.nombre,
+                // Si el upgrade trae un vendedor, (re)atribuye; si no, conserva el que ya tenía.
+                embajadorId: atribucion ? atribucion.embajadorId : negocioPrevio.embajadorId,
                 estadoAdmin: 'activo',
                 estadoMembresia: 'al_corriente',
                 activo: visible,
@@ -925,6 +960,7 @@ async function manejarUpgradeCompletado(
             .values({
                 usuarioId: usuario.id,
                 nombre: nombreNegocio || 'Mi Negocio',
+                embajadorId: atribucion?.embajadorId ?? null, // vendedor que gestionó el upgrade
                 esBorrador: true,
                 verificado: false,
                 participaPuntos: false,
@@ -957,9 +993,57 @@ async function manejarUpgradeCompletado(
 
     console.log('✅ Usuario actualizado con modo comercial:', usuario.id);
 
-    // Sella ya las fechas del periodo (próximo cobro = fin del trial) leyéndolas de Stripe, igual
-    // que en el alta nueva → el "Próximo cobro" se ve desde el upgrade (también al revivir).
+    // Cobro "día 1" del upgrade (trial=0 → cobra ya): lee el invoice inicial ANTES del empuje de cortesía
+    // (el empuje puede mover el latest_invoice a un ajuste de $0). Igual que el alta nueva.
+    let cobroInicial: { invoiceId: string; montoCentavos: number; finPeriodo: string | null } | null = null;
+    let subUpgrade: Stripe.Subscription | null = null;
+    try {
+        subUpgrade = await stripe.subscriptions.retrieve(session.subscription as string, { expand: ['latest_invoice'] });
+        const latest = subUpgrade.latest_invoice;
+        const inv = (typeof latest === 'string' ? await stripe.invoices.retrieve(latest) : latest) as unknown as {
+            id?: string; amount_paid?: number; lines?: { data?: Array<{ period?: { end?: number } }> };
+        } | null;
+        if (inv?.id && (inv.amount_paid ?? 0) > 0) {
+            cobroInicial = { invoiceId: inv.id, montoCentavos: inv.amount_paid ?? 0, finPeriodo: unixAISO(inv.lines?.data?.[0]?.period?.end) };
+        }
+    } catch (errSub) {
+        console.error('❌ Error leyendo la suscripción del upgrade:', errSub);
+    }
+
+    // Cortesía del vendedor (Pieza 2): si el upgrade trae vendedor y cobró día-1, empuja el próximo cobro
+    // (+1 periodo real + cortesía), igual que el alta nueva. Defensivo: si falla, el cobro ya ocurrió.
+    if (atribucion?.embajadorId && subUpgrade && cobroInicial) {
+        const diasCortesia = await obtenerConfigNumero('dias_cortesia_vendedor', 14);
+        const finPeriodo = finPeriodoDeSuscripcion(subUpgrade);
+        if (finPeriodo) {
+            const proximo = new Date(finPeriodo);
+            proximo.setDate(proximo.getDate() + diasCortesia);
+            const empuje = await empujarCobroSuscripcion(session.subscription as string, proximo.toISOString());
+            if (!empuje.ok) console.error('⚠️ Upgrade día-1: no se pudo empujar la cortesía del vendedor:', empuje.aviso);
+        }
+    }
+
+    // Sella ya las fechas del periodo (próximo cobro = fin del trial, o +cortesía si se empujó arriba)
+    // leyéndolas de Stripe, igual que en el alta nueva → el "Próximo cobro" se ve desde el upgrade.
     await sellarFechasPeriodoDesdeStripe(nuevoNegocio.id, session.subscription as string);
+
+    // Cobro "día 1": registra el cobro inicial (bitácora + comisión + recibo) tras sellar las fechas.
+    // Idempotente por invoice.id. NO depende del reintento del webhook invoice.payment_succeeded (que en el
+    // CLI local da 500 sin reintento) → resuelve el "no llegó recibo/correo/comisión" del upgrade con trial=0.
+    if (cobroInicial) {
+        try {
+            await registrarCobroReal({
+                negocioId: nuevoNegocio.id,
+                invoiceId: cobroInicial.invoiceId,
+                montoCentavos: cobroInicial.montoCentavos,
+                finPeriodo: cobroInicial.finPeriodo,
+                clienteId: session.customer as string,
+            });
+            console.log(`💳 Cobro "día 1" del upgrade registrado en el checkout: ${nuevoNegocio.id} (invoice ${cobroInicial.invoiceId})`);
+        } catch (errCobro) {
+            console.error('❌ Error registrando el cobro día-1 del upgrade:', errCobro);
+        }
+    }
 
     // -------------------------------------------------------------------------
     // PASO 6: Generar nuevos tokens JWT (con datos actualizados)
@@ -1126,13 +1210,11 @@ export async function procesarCancelacionSuscripcion(
                 console.error('❌ Error devolviendo puntos de vouchers tras cancelación:', errReversion);
             }
 
-            // Aviso persistente al dueño (centro de notificaciones, modo personal).
-            try {
-                const { notificarNegocioFueraDeCirculacion } = await import('./notificaciones.service.js');
-                await notificarNegocioFueraDeCirculacion(negocio.id);
-            } catch (errNotif) {
-                console.error('❌ Error notificando cancelación al dueño:', errNotif);
-            }
+            // El aviso al dueño NO se emite aquí: la cancelación deliberada (cancellation_requested) hoy SOLO
+            // la origina `cancelarNegocio` (Panel), que ya notifica. Emitirlo también aquí lo DUPLICABA por
+            // carrera (Panel y webhook llegan casi a la vez y el "borrar+crear" idempotente no es atómico).
+            // Si a futuro hay cancelación externa con este motivo (Customer Portal), reactivar aquí (idealmente
+            // con un lock de idempotencia para no volver a duplicar).
 
             // Bitácora financiera: registra la cancelación DELIBERADA (baja completa). El
             // camino de impago (arriba) NO registra cancelación: ahí solo se suspende.
@@ -1317,13 +1399,17 @@ export async function registrarCobroReal(opts: {
     // Comprobante (recibo PDF con folio correlativo + correo al dueño), mismo flujo que un pago manual.
     // Best-effort: si falla, el cobro ya quedó registrado arriba.
     try {
+        // Meses cubiertos por el dinero (= monto ÷ precio mensual): 1 en mensual, 10 en anual. Llena el
+        // campo "Periodo" del recibo (antes quedaba vacío en el cobro con tarjeta).
+        const precioMensual = await obtenerConfigNumero('precio_membresia_mxn', 849);
+        const mesesCubiertos = precioMensual > 0 ? Math.max(1, Math.round(monto / precioMensual)) : null;
         const [pagoTarjeta] = await db
             .insert(pagosMembresia)
             .values({
                 negocioId,
                 concepto: 'tarjeta',
                 monto: String(monto),
-                mesesCubiertos: null,
+                mesesCubiertos,
                 periodoHasta: coberturaHasta ?? new Date().toISOString(),
                 registradoPor: null,
             })
@@ -1742,4 +1828,5 @@ export default {
     crearCheckoutUpgrade,
     procesarWebhook,
     verificarSession,
+    validarCodigoReferido,
 };

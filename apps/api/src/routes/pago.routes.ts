@@ -60,6 +60,13 @@ router.post('/crear-checkout', pagoController.crearCheckout);
 router.post('/crear-checkout-upgrade', verificarToken, pagoController.crearCheckoutUpgrade);
 
 /**
+ * GET /api/pagos/validar-referido?codigo=XXX
+ * Valida EN VIVO un código de vendedor para el formulario de upgrade (devuelve el nombre si es válido).
+ * REQUIERE AUTENTICACIÓN (el usuario ya está logueado al hacer upgrade).
+ */
+router.get('/validar-referido', verificarToken, pagoController.validarReferido);
+
+/**
  * POST /api/pagos/webhook
  * 
  * Webhook de Stripe para recibir eventos.

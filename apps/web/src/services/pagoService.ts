@@ -43,6 +43,10 @@ export interface DatosCheckout {
  */
 export interface DatosCheckoutUpgrade {
   nombreNegocio: string;
+  // Intervalo de cobro del plan comercial: 'month' (default) o 'year'.
+  intervalo?: 'month' | 'year';
+  // Código del vendedor (opcional) para atribuir el upgrade.
+  codigoReferido?: string;
 }
 
 /**
@@ -145,6 +149,23 @@ export async function crearCheckoutUpgrade(
   return response.data;
 }
 
+/**
+ * Valida EN VIVO un código de vendedor para el formulario de upgrade. Devuelve si es válido + el nombre
+ * del vendedor (para mostrar ✓/✗ antes de pagar). Nunca lanza: ante error devuelve { valido:false }.
+ */
+export async function validarReferido(
+  codigo: string
+): Promise<{ valido: boolean; vendedor: string | null }> {
+  try {
+    const response = await api.get<RespuestaAPI<{ valido: boolean; vendedor: string | null }>>(
+      `/pagos/validar-referido?codigo=${encodeURIComponent(codigo)}`
+    );
+    return response.data?.data ?? { valido: false, vendedor: null };
+  } catch {
+    return { valido: false, vendedor: null };
+  }
+}
+
 // =============================================================================
 // FUNCIÓN 2: VERIFICAR SESSION
 // =============================================================================
@@ -188,6 +209,7 @@ export async function verificarSession(
 const pagoService = {
   crearCheckout,
   crearCheckoutUpgrade,
+  validarReferido,
   verificarSession,
 };
 
