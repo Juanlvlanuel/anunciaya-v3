@@ -79,13 +79,13 @@ anunciaya/
 
 ## Secciones de la App
 
-**4 Públicas:** Negocios ✅, MarketPlace 🚧, Ofertas 🚧, Servicios 🚧
-**Home:** Pregúntale a Peñasco 🚧 (feed conversacional + buscador hiperlocal, ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4)
+**4 Públicas:** Negocios ✅, MarketPlace ✅, Ofertas ✅, Servicios ✅
+**Home:** Pregúntale a Peñasco ✅ (feed conversacional + Coyo + filtro hiperlocal por ciudad, ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4)
 **3 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅
 **3 Comerciales:** Business Studio ✅, ScanYA ✅, Onboarding ✅
 **Administración del Sistema:** Panel Admin 🟢 prácticamente completo (`apps/admin`, en prod): los 12 módulos construidos — Resumen, Métricas, Negocios, Usuarios, Suscripciones·bitácora, Recibos, Vendedores y comisiones, Publicidad, Ciudades, Equipo y accesos, Configuración, y "Sistema" (Auditoría + Mantenimiento R2). Stripe validado E2E al 100% (ronda A–Z cerrada 23 jun, ver `docs/arquitectura/Panel_Admin/Ronda_Pruebas_Pagos.md`). Estado vivo y por módulo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
 
-> 🚧 = Ruta existe en el router pero está como placeholder (sin implementar) — o bien, sección decidida en visión estratégica pero aún sin construir.
+> ✅ = construido y en uso. Las **4 públicas**, el **Home** (Pregúntale a Peñasco) y las **comerciales** están implementadas y funcionando (verificado en código, 23 jun 2026).
 
 > **Servicios** cubre servicios e intangibles con dos modos (Ofrezco / Solicito), incluye empleos. Ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §3.2.
 
@@ -390,20 +390,20 @@ Scopes: `api`, `web`, `shared`, `chatya`, `auth`, `pagos`, `puntos`, `cardya`, `
 - **ChatYA** ✅ 100% — Sprint 7 completado (20 Mar 2026). 41 API tests + 10 E2E tests
 - **Promociones** ✅ 100% — Ofertas + Cupones unificados (22 Mar 2026). 35 API tests + 7 E2E tests
 - **Mis Cupones** ✅ 100% — Vista cliente con cards + modal revelar código (22 Mar 2026)
-- **Business Studio** (92%) — 12/13 módulos completados
-- **React Query** activo en BS (12/12: Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales) y públicas (4/4: Negocios, CardYA, Mis Cupones, Mis Guardados). Vacantes nace con React Query. ChatYA, ScanYA, Onboarding: evaluar caso por caso.
+- **Business Studio** ✅ 100% — 13/13 módulos completados (Vacantes incluido)
+- **React Query** activo en BS (13/13: Dashboard, Transacciones, Clientes, Opiniones, Alertas, Catálogo, Promociones, Puntos, Empleados, Mi Perfil, Reportes, Sucursales, Vacantes) y en las públicas (Negocios, CardYA, Mis Cupones, Mis Guardados, MarketPlace, Ofertas, Servicios, Home/Pregúntale a Peñasco). ChatYA, ScanYA, Onboarding: evaluar caso por caso.
 
-### BS Módulos Completados (12/13)
+### BS Módulos Completados (13/13)
 
-Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅, Reportes ✅, Sucursales ✅
+Dashboard ✅, Mi Perfil ✅, Catálogo ✅, Promociones ✅ (Ofertas + Cupones), Puntos ✅, Transacciones ✅, Clientes ✅, Opiniones ✅, Alertas ✅, Empleados ✅, Reportes ✅, Sucursales ✅, Vacantes ✅
 
-### BS Módulos Pendientes (1/13)
+### BS Módulos Pendientes (0/13)
 
-**Vacantes 🚧** — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios.
+Ninguno. **Vacantes** ✅ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública Servicios (CRUD + KPIs + filtros; `pages/private/business-studio/vacantes/`, backend `vacantes.routes/controller/service`).
 
 ### Siguiente Sprint
 
-Secciones Públicas (Ofertas, MarketPlace, Servicios) y Home con Pregúntale a Peñasco. Panel Admin sigue como opción alternativa post-públicas.
+Las 4 secciones públicas (Negocios, MarketPlace, Ofertas, Servicios), el Home (Pregúntale a Peñasco), Business Studio (13/13, incl. Vacantes) y el Panel Admin (12/12) están **construidas**. El producto está funcionalmente completo de cara a la **beta de Puerto Peñasco (May-Jun 2026)**; el foco pasa a **QA/pulido y preparación del lanzamiento**. El siguiente frente concreto se define con Juan.
 
 ---
 

@@ -55,7 +55,7 @@ Business Studio es el **centro de administración completo** para negocios regis
 - Panel de preview en tiempo real
 - Integración con ScanYA para datos en vivo
 
-**Progreso actual:** 12 de 13 módulos completados (92%). Datos del servidor en React Query.
+**Progreso actual:** 13 de 13 módulos completados (100%). Datos del servidor en React Query.
 
 ---
 
@@ -204,7 +204,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 | # | Módulo | Ruta | Icono | Estado |
 |---|--------|------|-------|--------|
 | 9 | Empleados | `/business-studio/empleados` | UserCog | ✅ 100% |
-| 10 | Vacantes | `/business-studio/vacantes` | Briefcase | ⏳ Pendiente — alimenta sección pública Servicios |
+| 10 | Vacantes | `/business-studio/vacantes` | Briefcase | ✅ Completo — alimenta sección pública Servicios |
 
 #### 5. Análisis & Configuración (3 módulos)
 
@@ -216,7 +216,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 
 ---
 
-## ✅ Módulos Completados (12/13)
+## ✅ Módulos Completados (13/13)
 
 ### 1. Dashboard ✅
 
@@ -554,7 +554,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 
 ### Módulos Pendientes
 
-- **Vacantes** ⏳ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios**.
+Ninguno (13/13). **Vacantes** ✅ — herramienta del comerciante para publicar ofertas de servicio/empleo en la sección pública **Servicios** (CRUD + KPIs + filtros; `pages/private/business-studio/vacantes/`, backend `vacantes.routes/controller/service`).
 
 ---
 
@@ -1055,9 +1055,9 @@ export async function actualizarInfoGeneral() { ... }
 
 ## ✅ Verificación
 
-**Última verificación documental:** 28 Abril 2026
+**Última verificación documental:** 23 Junio 2026
 
-**Módulos completados:** 12/13 ✅
+**Módulos completados:** 13/13 ✅
 - Dashboard (02/01/2026)
 - Mi Perfil (06/01/2026)
 - Catálogo (07/01/2026)
@@ -1070,16 +1070,15 @@ export async function actualizarInfoGeneral() { ... }
 - Empleados (05/04/2026)
 - Reportes (12/04/2026)
 - Sucursales (16/04/2026)
+- Vacantes (17/05/2026 — alimenta sección pública Servicios)
 
-**Módulos pendientes:** 1/13
-- Vacantes — alimenta sección pública Servicios
+**Módulos pendientes:** ninguno (0/13)
 
-**Progreso:** 12/13 módulos = 92%
+**Progreso:** 13/13 módulos = 100%
 
-**Datos del servidor:** todos los módulos BS hechos usan React Query
+**Datos del servidor:** todos los módulos BS usan React Query
 - Datos del servidor en `hooks/queries/`
 - Stores Zustand limitados a estado UI
-- Vacantes nacerá con React Query desde el inicio
 
 ---
 

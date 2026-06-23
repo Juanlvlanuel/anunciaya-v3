@@ -194,13 +194,16 @@ Ver `ROADMAP.md` y `CHANGELOG.md` para detalle.
 
 ## 9. Decisiones pendientes de aterrizar
 
-Lista viva de cosas que necesitan decisión cuando lleguemos a su momento:
+> **Actualización (23 jun 2026):** el **Home (Pregúntale a Peñasco / Coyo)** y **Servicios** ya se
+> **construyeron** (May-Jun 2026), así que casi toda esta lista se aterrizó en la implementación. Estado
+> real en `docs/ROADMAP.md` y `docs/arquitectura/Home_Coyo.md` / `docs/arquitectura/Servicios.md`.
 
-- [ ] Mascota de Pregúntale a Peñasco (define identidad visual de toda la app).
-- [ ] Diseño visual del Home con feed de Pregúntale a Peñasco.
-- [ ] Flujo y formulario de hacer una pregunta.
-- [ ] Algoritmo de matching keywords → notificaciones push a negocios/usuarios.
-- [ ] Toggle interno de Servicios (Ofrezco/Solicito en primera o tercera persona).
-- [ ] Layout y flujos internos de Servicios (modos Ofrezco / Solicito).
-- [ ] Sistema de moderación de Pregúntale a Peñasco.
-- [ ] Persistencia/expiración de preguntas en el feed.
+- [x] Mascota de Pregúntale a Peñasco → **Coyo** (animada con Rive). ✅
+- [x] Diseño visual del Home con feed de Pregúntale a Peñasco. ✅ (Fase 1 + Fase 2 + Polish UX)
+- [x] Flujo y formulario de hacer una pregunta. ✅ (input "Pregúntale a Coyo" + creación real)
+- [~] Algoritmo de matching keywords → notificaciones push. **Resuelto distinto:** Coyo usa **Gemini 2.5-flash**
+  para interpretar la pregunta y buscar en las 4 áreas; hay notificaciones cross-rol (pregunta seguida/respondida).
+- [x] Toggle interno de Servicios (Ofrezco / Solicito). ✅
+- [x] Layout y flujos internos de Servicios (modos Ofrezco / Solicito). ✅
+- [x] Sistema de moderación de Pregúntale a Peñasco. ✅ (moderación pasiva)
+- [x] Persistencia/expiración de preguntas en el feed. ✅ (expiración pasiva)
