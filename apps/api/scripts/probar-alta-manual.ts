@@ -140,8 +140,10 @@ async function main() {
     verificar('fechaPrimerPago seteada (hoy)', !!n?.fecha_primer_pago);
 
     const [s] = (await db.execute(sql`
-      SELECT es_principal, ciudad, ciudad_id::text, activa
-      FROM negocio_sucursales WHERE negocio_id = ${r1.negocioId}
+      SELECT ns.es_principal, c.nombre AS ciudad, ns.ciudad_id::text, ns.activa
+      FROM negocio_sucursales ns
+      LEFT JOIN ciudades c ON c.id = ns.ciudad_id
+      WHERE ns.negocio_id = ${r1.negocioId}
     `)).rows as Array<{ es_principal: boolean; ciudad: string; ciudad_id: string | null; activa: boolean }>;
     console.log('  [sucursal]');
     verificar('esPrincipal = true', s?.es_principal === true);

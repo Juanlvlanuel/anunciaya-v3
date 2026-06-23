@@ -10,7 +10,12 @@
 > Este doc cubre ese universo completo. Documentos hermanos: [`Sprint_Stripe_Pruebas.md`](Sprint_Stripe_Pruebas.md)
 > (guion de las 3 Piezas) y [`../Pagos_Suscripciones.md`](../Pagos_Suscripciones.md) (backend).
 >
-> **Última actualización:** 22 Junio 2026.
+> **Estado:** ✅ **CERRADO (23 jun 2026) — Stripe validado A–Z al 100%.** Los bloques A–H están en ✅ y el
+> bloque Z tiene una decisión explícita en cada punto. Los features futuros que surgieron (B2 recuperación
+> de tarjeta · Z3 Customer Portal · Z4 pago manual con comprobante) se **trasladaron** a
+> [`../Mi_Perfil.md`](../Mi_Perfil.md) para no perderlos.
+>
+> **Última actualización:** 23 Junio 2026.
 >
 > **Leyenda — Estado:** ⬜ pendiente · 🟡 en curso · ✅ verde · ⚠️ hallazgo/atención · ⛔ bloqueado · ❌ no implementado
 > **Leyenda — Tipo:** 🤖 harness automatizado · 🌐 E2E navegador + Stripe · 📖 solo lectura · 🧩 decisión de producto
@@ -51,27 +56,35 @@
 
 ### Hallazgos / puntos de atención
 
-- ⚠️ **OBS-1 — Negocio de morosidad sin suscripción.** Recrearlo con `probar-ciclo-morosidad.ts` para validar B1.
-- ⚠️ **OBS-2 — 4 negocios viejos con vendedor + pagos sin comisión de alta** (Bar La Palapa, Boutique Moda
-  Playa, Contadora Fernanda, Estética Glamour), *"en riesgo a futuro"*. Hoy 0 daño; revisar que un pago
-  futuro no dispare una alta tardía. Datos históricos.
-- ⚠️ **OBS-3 — Config de Publicidad + `comision_alta_monto` NO persistidas** → corren con default de código
-  (anuncios 300, patrocinadores 800, combo 15 %, alta \$400). Para probar coherencia E5/E6 hay que **editar
-  primero en el Panel** (UPSERT) y luego verificar.
-- ⚠️ **OBS-4 — OXXO/SPEI configurados pero no se cobran.** `metodos_pago_activos=["tarjeta","oxxo","spei"]`
-  pero el Checkout **nunca setea `payment_method_types`** → solo tarjeta. **Resuelto como decisión de producto
-  (ver Z4):** no se integran OXXO/SPEI de Stripe (OXXO no admite suscripción recurrente); en su lugar habrá
-  **métodos de pago manual con comprobante** en *Mi Perfil – Modo Personal* (feature futuro).
-- ⚠️ **OBS-5 — Sin Customer Portal.** El dueño no puede ver/reactivar/gestionar su pago; todo vive en el
-  Panel (ver Z3 y `Pagos_Suscripciones.md §12`).
-- ⚠️ **OBS-6 — Reembolsos y disputas no manejados.** `charge.refunded` y `charge.dispute.*` caen en el
-  `default` del webhook (se ignoran) (ver Z1, Z2).
-- ⚠️ **OBS-7 — Sin tests automatizados de `pago.service.ts`.** No hay `pago.test.ts` (otros módulos sí);
-  la cobertura vive en los harness `scripts/probar-*.ts` (manuales).
-- ⚠️ **OBS-8 — `probar-alta-manual.ts` obsoleto.** Su verificación final consulta `negocio_sucursales.ciudad`
-  (columna DROPeada en la migración ciudad→catálogo) → crashea **después** de crear el negocio, sin limpiar →
-  dejó 1 negocio de prueba huérfano en dev (`bf0c9f60…`). El alta en sí funciona. Fix: cambiar la query a
-  `ciudad_id` (+ limpiar el huérfano). **No es de Stripe.**
+- ✅ **OBS-1 — Negocio de morosidad sin suscripción. ATENDIDO (22 jun).** Era una nota para poder validar B1;
+  **B1 ya está ✅** (E2E con `probar-ciclo-morosidad.ts`: crear→fallar→`en_gracia`→cron→`suspendido`). Sin acción pendiente.
+- ✅ **OBS-2 — 4 negocios viejos con vendedor sin comisión de alta. SIN RIESGO (verificado 23 jun).**
+  Bar La Palapa, Boutique Moda Playa, Contadora Fernanda y Estética Glamour siguen `al_corriente`, `manual`,
+  con vendedor y `comis_alta=0` / `comis_recurrente=1`. El temor era que un cobro futuro disparara una **alta
+  tardía**; **no puede**: `devengarComisionAlta` tiene el guard `if (pagosReales > 1) return`
+  (`comisiones-devengo.service.ts:109`) → los 3 con ≥2 pagos quedan protegidos en firme; Estética Glamour
+  (1 pago) queda protegido en cuanto reciba el siguiente (lo lleva a 2). Cerrado.
+- ✅ **OBS-3 — Config de Publicidad ya PERSISTIDA (verificado 23 jun).** Al construir el módulo Publicidad se
+  hizo UPSERT: `configuracion_sistema` categoría `publicidad` tiene `precio_anuncios=99`,
+  `precio_patrocinadores=299`, `periodos`, `tramos_ciudades`, `limite_ciudades`, `aviso_dias`, `duracion_dias`
+  → ya **no** corre con el default de código. `comision_alta_monto` sigue **sin** UPSERT (corre con el default
+  $400 de `obtenerConfigNumero`), pero es editable desde el Panel (`configuracion.service.ts:124`); nadie lo ha
+  cambiado, no es un bug.
+- ✅ **OBS-4 — OXXO/SPEI configurados pero no se cobran. DECIDIDO (Z4 → `../Mi_Perfil.md`).**
+  `metodos_pago_activos=["tarjeta","oxxo","spei"]` pero el Checkout **nunca setea `payment_method_types`** → solo
+  tarjeta. Decisión de producto: **no** se integran OXXO/SPEI de Stripe (OXXO no admite suscripción recurrente);
+  en su lugar habrá **métodos de pago manual con comprobante** en *Mi Perfil – Modo Personal* (feature futuro).
+- ✅ **OBS-5 — Sin Customer Portal. DECIDIDO (Z3 → `../Mi_Perfil.md`).** El dueño no puede ver/reactivar/gestionar
+  su pago; se construirá el botón "Actualizar tarjeta y reintentar pago" (Customer Portal de Stripe) en
+  *Mi Perfil – Pagos* (feature futuro, cierra B2; ver Z3 y `../Pagos_Suscripciones.md §12`).
+- ✅ **OBS-6 — Reembolsos y disputas no manejados. DECIDIDO (Z1/Z2 → manual).** `charge.refunded` y
+  `charge.dispute.*` caen en el `default` del webhook (se ignoran) **a propósito** → se manejan **manual** desde el
+  Dashboard de Stripe + acciones del Panel (procedimiento documentado en Z1/Z2 + nota recordatoria en el modal Cancelar).
+- ✅ **OBS-8 — `probar-alta-manual.ts` obsoleto. CORREGIDO (23 jun).** Su verificación final consultaba
+  `negocio_sucursales.ciudad` (columna DROPeada en la migración ciudad→catálogo) → crasheaba **después** de crear
+  el negocio, sin limpiar → dejó 1 negocio de prueba huérfano en dev (`bf0c9f60…`). **Fix:** la query ahora hace
+  `LEFT JOIN ciudades c ON c.id = ns.ciudad_id` y lee `c.nombre` (preserva la aserción del nombre real). El huérfano
+  de dev lo limpia Juan con el SQL entregado (replica la función `limpiar()` del script). **No es de Stripe.**
 - ✅ **OBS-9 — Publicidad: el rediseño por tamaño SÍ está; es RE-BRANDING de la UI (corregido 22 jun).** La UI de
   `/anunciate` y la columna venden por **TAMAÑO** — **Grande** (banner vertical 4:5, $299) y **Chico** (tarjeta
   horizontal 3:2, $99) — pero los **IDs internos del backend NO cambiaron**: siguen `CARRUSELES_VALIDOS=['anuncios',
@@ -92,14 +105,19 @@
   Google; botón "Continuar al pago" + "Empezar de nuevo". Al continuar, las correcciones se persisten en Redis vía
   **`POST /api/auth/actualizar-registro-pendiente`** (`tokenStore.actualizarRegistroPendiente`, **sin re-enviar
   código**) → el webhook crea el negocio con los datos nuevos (el webhook lee de Redis, no de Stripe); luego va a
-  Stripe. `tsc` api+web verdes. **Pendiente:** validación E2E. Limitaciones: el flujo **Google** no usa el panel;
+  Stripe. `tsc` api+web verdes. **Validado E2E (22 jun)** vía el registro anual en modo reanudar: la atribución
+  JUAN01 y el nombre del panel llegaron al negocio. Limitaciones: el flujo **Google** no usa el panel;
   si el TTL de Redis (15 min) expira, devuelve 410 → "Empezar de nuevo".
-- ⚠️ **OBS-10 — Vigencia retrocede al forzar un cobro a mitad de cortesía.** En A3, al forzar `trial_end:'now'`
-  sobre A2 (que tenía vigencia hasta 5 ago por el cobro día-1), el nuevo cobro recalculó la vigencia a **22 jul**
-  (su periodo Stripe) → **retrocedió** ~2 semanas. El `comision_devengada_hasta` quedó bien en 5 ago (anti-doble-pago
-  OK). Es un **escenario artificial** (forzar 2 cobros el mismo día; en prod la renovación cae en 5 ago avanzando
-  la vigencia), pero sugiere revisar si el blindaje `GREATEST` debería cubrir también un cobro adelantado dentro de
-  una cobertura vigente. Bajo riesgo; anotado para revisar.
+- ✅ **OBS-10 — Vigencia retrocedía al refrescar la suscripción. CORREGIDO (23 jun).** En A3, al forzar
+  `trial_end:'now'` sobre A2 (vigencia hasta 5 ago por el cobro día-1), el `subscription.updated` recalculaba la
+  vigencia a **22 jul** (su periodo Stripe) → **retrocedía** ~2 semanas. **Causa:** `manejarSuscripcionActualizada`
+  escribía `fechaVencimiento`/`fechaProximoCobro` crudos, mientras `manejarRenovacionPagada` ya usaba `GREATEST`
+  (inconsistencia entre los dos handlers). **Fix:** mismo `GREATEST` en `manejarSuscripcionActualizada`
+  (`pago.service.ts:1677`) — el handler es un ECO y nunca debe retroceder la vigencia ya pagada. **No rompe
+  "Anular pago" (G5):** los retrocesos legítimos los escribe DIRECTO la acción del Panel (`anularPagoMembresia`)
+  ANTES del eco, así que `GREATEST(menor, menor) = menor`. Protege además el "Registrar pago" adelantado en un
+  negocio de tarjeta al corriente (caso que sí ocurre en prod). El `comision_devengada_hasta` ya quedaba bien
+  (anti-doble-pago). `tsc` api verde.
 - ✅ **OBS-14 — Vigencia de publicidad se calculaba como meses×30 (no calendario). CORREGIDO (22 jun).**
   `publicidad-checkout.service.ts` y `publicidad-alta.service.ts` ponían `expira_at = inicia + (meses×30) días`
   → 12 meses = 360 días, vencía ~5 días antes (el recibo decía 18 jun 2027 en vez del 23). **Fix:** `expira_at`
@@ -174,7 +192,7 @@
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
 | 🔴 B1 | Cobro fallido (`invoice.payment_failed`) → `en_gracia` → cron suspende al vencer | 🌐 | ✅ | E2E 22 jun (`probar-ciclo-morosidad.ts`): crear→`al_corriente`, fallar (tarjeta rebota)→`en_gracia` (gracia +14d, sigue activo), suspender (cron real)→`suspendido` (`activo=false`). Fix: el harness usaba el Price del env (archivado) → ahora lee `stripe_price_comercial_id` de config |
-| ⚪ B2 | Recuperación: pagar factura / "Marcar pagado" → `al_corriente` | 🌐 | 🟡 | manual → "Marcar pagado" desde el Panel; **tarjeta** → falta el botón **"Actualizar tarjeta y reintentar pago"** del dueño en Mi Perfil – Pagos (decisión 22 jun: vía Customer Portal de Stripe, ver Z3). Hoy un moroso de tarjeta no se recupera solo |
+| ⚪ B2 | Recuperación: pagar factura / "Registrar pago" → `al_corriente` | 🌐 | ✅ | **Manual:** *Registrar pago* desde el Panel → `al_corriente` (validado, G3). **Tarjeta (autoservicio del dueño):** trasladado a feature futuro → [`../Mi_Perfil.md`](../Mi_Perfil.md) pieza 2 (Customer Portal, Z3). Decidido: no bloquea el cierre |
 | 🔴 B3 | **Cancelación deliberada** desde Panel (`subscription.deleted` motivo `cancellation_requested`) → degrada a personal + archiva + devuelve vouchers | 🌐🤖 | ✅ | E2E 22 jun (`probar-cancelar-vs-webhook.ts`): cancelar→archivado/activo=false/cancelado/subId limpio/dueño personal; consistente Panel↔webhook en cualquier orden (tardío inofensivo, carrera no revive). Fix Price env→config |
 | 🔴 B4 | **Impago** que termina en `subscription.deleted` (sin motivo de cancelación) → **suspende** (recuperable), NO cancela | 🌐 | ✅ | 22 jun: `procesarCancelacionSuscripcion` con `reason='payment_failed'` → `suspendido`, dueño sigue comercial, `estado_admin` activo, subId conservado (NO degrada/archiva). Guard "el impago nunca queda cancelado" (pago.service.ts:1062) |
 
@@ -307,3 +325,12 @@
   Panel, solo si hay sub Stripe); Z5 (cupones) → BACKLOG trivial (el Checkout ya acepta promotion codes, solo falta
   crear el cupón en el Dashboard). Con esto los bloques **A–H** + las decisiones **Z** quedan cerrados:
   **Stripe validado al 100%.**
+- **23 jun** — **Barrido de las OBS residuales.** Cerradas: **OBS-1** (era para validar B1, ya ✅), **OBS-12**
+  (ya validada E2E vía reanudar), **OBS-2** (verificado en BD: el guard `pagosReales > 1` en
+  `comisiones-devengo.service.ts:109` impide la comisión de alta tardía → los 4 negocios viejos sin riesgo),
+  **OBS-3** (verificado: la config de Publicidad ya está persistida en `configuracion_sistema`; solo
+  `comision_alta_monto` corre con default $400, editable desde el Panel), **OBS-10** (fix `GREATEST` en
+  `manejarSuscripcionActualizada`), **OBS-8** (script `probar-alta-manual.ts`: query con `LEFT JOIN ciudades`; el
+  huérfano `bf0c9f60…` lo limpia Juan con el SQL entregado). **OBS-7 eliminada** (tests automatizados de
+  `pago.service.ts`: no aplica para la beta, los harness manuales bastan). **Con esto NO quedan OBS abiertas** —
+  las 22 quedaron resueltas, decididas o eliminadas.

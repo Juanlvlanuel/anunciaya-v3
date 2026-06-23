@@ -1674,8 +1674,12 @@ async function manejarSuscripcionActualizada(subscription: Stripe.Subscription):
         await db
             .update(negocios)
             .set({
-                fechaVencimiento: finPeriodo,
-                fechaProximoCobro: finPeriodo,
+                // GREATEST: este handler es un ECO de cualquier cambio de la sub; nunca debe RETROCEDER la
+                // vigencia ya pagada (OBS-10: un cobro adelantado traía un period.end menor y la pisaba).
+                // Mismo blindaje que manejarRenovacionPagada. Los retrocesos LEGÍTIMOS (anular/registrar pago)
+                // los escribe directo la acción del Panel ANTES de este eco, así que GREATEST no los bloquea.
+                fechaVencimiento: sql`GREATEST(${negocios.fechaVencimiento}, ${finPeriodo}::timestamptz)`,
+                fechaProximoCobro: sql`GREATEST(${negocios.fechaProximoCobro}, ${finPeriodo}::timestamptz)`,
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, res.negocio.id));
