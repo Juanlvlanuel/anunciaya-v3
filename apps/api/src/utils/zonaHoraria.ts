@@ -26,6 +26,14 @@ export type ZonaHorariaMx =
 	| 'America/Mazatlan';
 
 /**
+ * Zona operativa de AnunciaYA (sede beta: Puerto Peñasco, Sonora — UTC-7 sin DST).
+ * Las fechas de documentos emitidos por la empresa (recibos: emisión + vigencia) se
+ * formatean en esta zona para que coincidan con la hora local de la operación, NO en UTC
+ * (a las 18:30 local ya es el día siguiente en UTC → el recibo salía adelantado un día).
+ */
+export const ZONA_EMPRESA: ZonaHorariaMx = 'America/Hermosillo';
+
+/**
  * Normaliza el nombre del estado: minúsculas, sin tildes, sin espacios extras.
  */
 function normalizarEstado(estado: string): string {

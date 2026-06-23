@@ -17,6 +17,7 @@
 import { PDFDocument, StandardFonts, rgb, type PDFFont } from 'pdf-lib';
 import { readFileSync, existsSync } from 'fs';
 import { fileURLToPath } from 'url';
+import { ZONA_EMPRESA } from './zonaHoraria.js';
 
 // ── Molde (fondo): se lee del disco UNA vez y se cachea. Rutas candidatas dev (src) y prod (dist). ──
 const plantillaCache = new Map<string, Uint8Array>();
@@ -112,10 +113,12 @@ function formatearMontoMXN(monto: number): string {
     return `${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(monto)} MXN`;
 }
 
-/** Fecha ISO → "12 de Julio de 2026" (en UTC para que coincida con la guardada; mes capitalizado). */
+/** Fecha ISO → "12 de Julio de 2026" en la zona operativa de la empresa (Sonora), mes capitalizado.
+ *  Los valores son timestamptz (instantes reales); formatear en hora local evita el salto de día
+ *  que daba UTC al emitir de tarde (18:30 local = 01:30 UTC del día siguiente). */
 function formatearFechaLarga(iso: string): string {
     // formatToParts para capitalizar SOLO el mes ('es-MX' lo da en minúscula).
-    const partes = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).formatToParts(new Date(iso));
+    const partes = new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric', timeZone: ZONA_EMPRESA }).formatToParts(new Date(iso));
     return partes.map((p) => (p.type === 'month' ? p.value.charAt(0).toUpperCase() + p.value.slice(1) : p.value)).join('');
 }
 

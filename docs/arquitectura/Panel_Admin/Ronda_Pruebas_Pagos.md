@@ -72,10 +72,12 @@
   (columna DROPeada en la migración ciudad→catálogo) → crashea **después** de crear el negocio, sin limpiar →
   dejó 1 negocio de prueba huérfano en dev (`bf0c9f60…`). El alta en sí funciona. Fix: cambiar la query a
   `ciudad_id` (+ limpiar el huérfano). **No es de Stripe.**
-- ⚠️ **OBS-9 — Publicidad en rediseño sin commitear.** El módulo cambió a **venta por tamaño (Grande/Chico)**
-  pero está a medias en el working tree; los scripts (`probar-publicidad-alta.ts`) usan los carruseles viejos
-  (anuncios/patrocinadores) → fallan (`"Carrusel inválido"`, monto distinto). D2 no se revalida limpio hasta
-  estabilizar/commitear ese rediseño. **No es de Stripe.**
+- ✅ **OBS-9 — Publicidad: el rediseño por tamaño SÍ está; es RE-BRANDING de la UI (corregido 22 jun).** La UI de
+  `/anunciate` y la columna venden por **TAMAÑO** — **Grande** (banner vertical 4:5, $299) y **Chico** (tarjeta
+  horizontal 3:2, $99) — pero los **IDs internos del backend NO cambiaron**: siguen `CARRUSELES_VALIDOS=['anuncios',
+  'patrocinadores']` (`publicidad-precio.service.ts:21`), con el mapeo en el front (`PaginaAnunciate.tsx:33`):
+  **`patrocinadores`=Grande, `anuncios`=Chico**. Por eso los harness (que usan los IDs internos) funcionan: D1
+  verde con `'anuncios'`. D2 revalidable. (El fallo de D2 el 22 jun fue de datos/precio del harness, no del modelo.)
 - ✅ **OBS-11 — Atribución del vendedor se perdía al cancelar el checkout. CORREGIDO (22 jun).** El `?ref=`
   solo vivía en la URL y el `cancel_url` de Stripe (`…/registro?cancelado=true`) no lo preservaba → al cancelar
   y reintentar, el negocio quedaba **sin vendedor** (comisión perdida). **Fix:** el `cancel_url` de
@@ -97,6 +99,20 @@
   OK). Es un **escenario artificial** (forzar 2 cobros el mismo día; en prod la renovación cae en 5 ago avanzando
   la vigencia), pero sugiere revisar si el blindaje `GREATEST` debería cubrir también un cobro adelantado dentro de
   una cobertura vigente. Bajo riesgo; anotado para revisar.
+- ✅ **OBS-14 — Vigencia de publicidad se calculaba como meses×30 (no calendario). CORREGIDO (22 jun).**
+  `publicidad-checkout.service.ts` y `publicidad-alta.service.ts` ponían `expira_at = inicia + (meses×30) días`
+  → 12 meses = 360 días, vencía ~5 días antes (el recibo decía 18 jun 2027 en vez del 23). **Fix:** `expira_at`
+  ahora suma **meses de calendario** (`now() + interval 'N months'`); `duracion_dias` se conserva como meses×30
+  (el recibo deriva los meses de ahí). Verificado en BD (12m: 18→23 jun 2027, +5d). La descripción del cobro en
+  Stripe pasó de "360 días" a "N meses".
+- ✅ **OBS-15 — Recibo con fecha adelantada un día por zona horaria. CORREGIDO (22 jun).** `reciboPdf.ts`
+  formateaba en `timeZone:'UTC'` → un recibo emitido después de las 17:00 hora de Sonora saltaba al día siguiente
+  (18:30 del 22 → "23"). **Fix:** nueva constante `ZONA_EMPRESA='America/Hermosillo'` (`zonaHoraria.ts`);
+  `formatearFechaLarga` formatea en esa zona. Afecta **todos** los recibos (membresía+publicidad) y ambos campos
+  (emisión + vigencia); seguro porque todos los valores son `timestamptz` (instantes reales).
+- ✅ **OBS-16 — Campo "Espacios" del recibo decía "Publicidad Chico/Grande". CORREGIDO (22 jun).** Ahora dice
+  **"Anuncio Chico"** · **"Anuncio Grande"** · **"Anuncios Grande y Chico"** (combo), sin la palabra "Publicidad".
+  Texto armado una vez en `recibo-publicidad.service.ts` y reusado en el PDF (campo Espacios) y en el correo.
 
 ---
 
@@ -132,7 +148,7 @@
 
 | # | Caso | Tipo | Estado | Notas |
 |---|---|---|:--:|---|
-| 🔴 D1 | Self-service: Checkout `mode:payment` → `compra_publicidad` → anuncio `activa` + folio + recibo PDF | 🌐🤖 | ⬜ | `probar-publicidad-checkout.ts` |
+| 🔴 D1 | Self-service: Checkout `mode:payment` → `compra_publicidad` → anuncio `activa` + folio + recibo PDF | 🌐🤖 | ✅ | `probar-publicidad-checkout.ts` TODO OK + **E2E real 22 jun**: alta 12m por tarjeta → anuncio `activa`, folio #41, recibo PDF + correo, registros en el Panel. Detectó y se corrigió: vigencia 12×30→calendario (OBS-14), fecha por zona horaria (OBS-15), "Espacios"→"Anuncio Chico/Grande" (OBS-16) |
 | ⚪ D2 | Alta manual + cortesía desde el Panel | 🤖 | 🟡 | `probar-publicidad-alta.ts` falla por OBS-9 (rediseño de Publicidad por tamaño en curso; el script usa carruseles viejos). No es de Stripe; revalidar al estabilizar Publicidad |
 | ⚪ D3 | Cron expiración + aviso 3 días antes | 🤖 | ✅ | `probar-publicidad-mantenimiento.ts` TODO OK (22 jun) |
 

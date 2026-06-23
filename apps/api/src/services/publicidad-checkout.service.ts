@@ -67,6 +67,9 @@ export async function crearCheckoutPublicidad(usuarioId: string, input: Checkout
     const meses = Math.max(1, Math.floor(input.meses ?? 1));
     const desglose = await calcularPrecioPublicidad(carruseles, ciudadIds.length, meses);
     if (desglose.total <= 0) return err(400, 'El precio configurado es 0; usa una cortesía desde el Panel.');
+    // `duracion_dias` es informativa (meses × 30; el recibo deriva los meses de aquí).
+    // La VIGENCIA real (expira_at) se suma por meses de CALENDARIO, no por 30 días/mes:
+    // 12 meses = +1 año exacto, no 360 días (que caía ~5 días antes).
     const duracionBase = await obtenerConfigNumero('publicidad_duracion_dias', 30);
     const duracion = meses * duracionBase;
     const esCombo = carruseles.length === 3;
@@ -80,7 +83,7 @@ export async function crearCheckoutPublicidad(usuarioId: string, input: Checkout
                  duracion_dias, inicia_at, expira_at)
             VALUES
                 (${usuarioId}, ${usuario.negocio_id}, ${esCombo}, 'pendiente', 'self', 'tarjeta', ${desglose.total},
-                 ${duracion}, now(), now() + (${duracion} || ' days')::interval)
+                 ${duracion}, now(), now() + (${meses} || ' months')::interval)
             RETURNING id::text AS id
         `)).rows as Array<{ id: string }>;
         compraId = compra.id;
@@ -103,7 +106,7 @@ export async function crearCheckoutPublicidad(usuarioId: string, input: Checkout
                     unit_amount: Math.round(desglose.total * 100),
                     product_data: {
                         name: esCombo ? 'Publicidad AnunciaYA — combo' : `Publicidad AnunciaYA — ${carruseles.join(', ')}`,
-                        description: `${ciudadIds.length} ciudad(es) · ${duracion} días`,
+                        description: `${ciudadIds.length} ciudad(es) · ${meses} ${meses === 1 ? 'mes' : 'meses'}`,
                     },
                 },
                 quantity: 1,

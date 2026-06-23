@@ -24,7 +24,7 @@ export interface ReciboPublicidadPreparado {
     correo: string | null;
     nombre: string | null;          // nombre de pila del anunciante (saludo)
     titular: string;                // negocio o nombre completo (encabeza el recibo)
-    carruseles: string;             // por tamaño: "Grande, Chico"
+    carruseles: string;             // "Espacios" legible: "Anuncio Chico" · "Anuncios Grande y Chico"
     concepto: ConceptoPublicidad;
     monto: number | null;
     folio: number | null;
@@ -78,7 +78,12 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
     const monto = fila.monto != null ? Number(fila.monto) : null;
     const concepto = (fila.metodo_cobro ?? 'tarjeta') as ConceptoPublicidad;
     const titular = fila.nombre_negocio || fila.nombre_completo || 'Anunciante';
-    const carruseles = fila.carruseles ?? 'Publicidad';
+    // "Espacios" del recibo/correo a partir de los tamaños comprados (ya vienen como "Grande"/"Chico",
+    // ordenados Grande→Chico): "Anuncio Chico" · "Anuncio Grande" · "Anuncios Grande y Chico".
+    const tamanos = (fila.carruseles ?? '').split(',').map((s) => s.trim()).filter(Boolean);
+    const espacios = tamanos.length <= 1
+        ? `Anuncio ${tamanos[0] ?? ''}`.trim()
+        : `Anuncios ${tamanos.slice(0, -1).join(', ')} y ${tamanos[tamanos.length - 1]}`;
     // Meses cubiertos = vigencia ÷ duración base de 1 mes (config). Llena el campo "Periodo" del recibo.
     const duracionBase = await obtenerConfigNumero('publicidad_duracion_dias', 30);
     const meses = duracionBase > 0 ? Math.max(1, Math.round(Number(fila.duracion_dias) / duracionBase)) : 1;
@@ -88,7 +93,7 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
         const pdf = await generarReciboPagoPDF({
             folio: fila.folio != null ? String(fila.folio) : compraId,
             nombreNegocio: titular,
-            sucursal: `Publicidad — ${carruseles}`,
+            sucursal: espacios,
             nombreDueno: fila.nombre_completo,
             direccionNegocio: null,
             ciudadEstado: null,
@@ -113,7 +118,7 @@ export async function prepararReciboPublicidad(compraId: string, generarPdf = tr
         correo: fila.correo,
         nombre: fila.nombre,
         titular,
-        carruseles,
+        carruseles: espacios,
         concepto,
         monto,
         folio: fila.folio,

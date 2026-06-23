@@ -94,6 +94,9 @@ export async function crearAnuncioManual(panel: UsuarioPanel, input: AltaManualI
 
     // 5) Precio + vigencia + folio (según los meses pagados por adelantado).
     const meses = Math.max(1, Math.floor(input.meses ?? 1));
+    // `duracion_dias` es informativa (meses × 30; el recibo deriva los meses de aquí).
+    // La VIGENCIA real (expira_at) se suma por meses de CALENDARIO, no por 30 días/mes:
+    // 12 meses = +1 año exacto, no 360 días.
     const duracionBase = await obtenerConfigNumero('publicidad_duracion_dias', 30);
     const duracion = meses * duracionBase;
     let monto: number | null = null;
@@ -121,7 +124,7 @@ export async function crearAnuncioManual(panel: UsuarioPanel, input: AltaManualI
                  duracion_dias, inicia_at, expira_at, registrado_por)
             VALUES
                 (${usuario.id}, ${usuario.negocio_id}, ${esCombo}, 'activa', ${origen}, ${input.metodoCobro},
-                 ${monto}, ${folio}, ${duracion}, now(), now() + (${duracion} || ' days')::interval, ${panel.usuarioId})
+                 ${monto}, ${folio}, ${duracion}, now(), now() + (${meses} || ' months')::interval, ${panel.usuarioId})
             RETURNING id::text AS id
         `)).rows as Array<{ id: string }>;
         compraId = compra.id;
