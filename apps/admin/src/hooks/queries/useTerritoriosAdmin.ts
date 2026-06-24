@@ -147,7 +147,7 @@ function useInvalidarMarcas() {
 export function useCrearMarca() {
   const invalidar = useInvalidarMarcas();
   return useMutation({
-    mutationFn: (datos: { lat: number; lng: number; tipo: TipoMarca; nota?: string }) => territoriosService.crearMarca(datos),
+    mutationFn: (datos: { lat: number; lng: number; tipo: TipoMarca; nota?: string; negocioId?: string | null }) => territoriosService.crearMarca(datos),
     onSuccess: () => invalidar(),
     onError: (e) => toast.error(mensajeError(e, 'No se pudo crear la marca')),
   });
@@ -157,7 +157,7 @@ export function useCrearMarca() {
 export function useEditarMarca() {
   const invalidar = useInvalidarMarcas();
   return useMutation({
-    mutationFn: ({ id, datos }: { id: string; datos: { tipo?: TipoMarca; nota?: string | null } }) => territoriosService.editarMarca(id, datos),
+    mutationFn: ({ id, datos }: { id: string; datos: { tipo?: TipoMarca; nota?: string | null; negocioId?: string | null } }) => territoriosService.editarMarca(id, datos),
     onSuccess: () => { invalidar(); toast.exito('Marca guardada'); },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar la marca')),
   });

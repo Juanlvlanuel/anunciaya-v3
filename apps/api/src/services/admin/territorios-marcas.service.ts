@@ -8,9 +8,9 @@
  * Ubicación: apps/api/src/services/admin/territorios-marcas.service.ts
  */
 
-import { desc, eq } from 'drizzle-orm';
+import { and, desc, eq } from 'drizzle-orm';
 import { db } from '../../db/index.js';
-import { territorioMarcas, embajadores } from '../../db/schemas/schema.js';
+import { territorioMarcas, embajadores, negocios } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { CrearMarcaInput, EditarMarcaInput } from '../../validations/admin/territorios.schema.js';
 
@@ -24,6 +24,8 @@ export interface MarcaTerritorio {
     lng: number;
     tipo: string;
     nota: string | null;
+    negocioId: string | null;
+    negocioNombre: string | null;
     createdAt: string | null;
 }
 
@@ -33,7 +35,14 @@ async function embajadorDelUsuario(usuarioId: string): Promise<string | null> {
     return e?.id ?? null;
 }
 
-/** Las marcas del vendedor (su capa personal). Solo el vendedor; otros roles → []. */
+/** ¿El negocio existe y es del embajador? (una marca solo se liga a SUS negocios). */
+async function negocioEsDelEmbajador(negocioId: string, embId: string): Promise<boolean> {
+    const [n] = await db.select({ id: negocios.id }).from(negocios)
+        .where(and(eq(negocios.id, negocioId), eq(negocios.embajadorId, embId))).limit(1);
+    return !!n;
+}
+
+/** Las marcas del vendedor (su capa personal), con el negocio ligado si lo hay. Solo el vendedor. */
 export async function listarMisMarcas(panel: UsuarioPanel): Promise<MarcaTerritorio[]> {
     if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return [];
     const embId = await embajadorDelUsuario(panel.usuarioId);
@@ -45,9 +54,12 @@ export async function listarMisMarcas(panel: UsuarioPanel): Promise<MarcaTerrito
             lng: territorioMarcas.lng,
             tipo: territorioMarcas.tipo,
             nota: territorioMarcas.nota,
+            negocioId: territorioMarcas.negocioId,
+            negocioNombre: negocios.nombre,
             createdAt: territorioMarcas.createdAt,
         })
         .from(territorioMarcas)
+        .leftJoin(negocios, eq(negocios.id, territorioMarcas.negocioId))
         .where(eq(territorioMarcas.embajadorId, embId))
         .orderBy(desc(territorioMarcas.createdAt));
 }
@@ -57,10 +69,13 @@ export async function crearMarca(panel: UsuarioPanel, datos: CrearMarcaInput): P
     if (panel.rolEquipo !== 'vendedor' || !panel.usuarioId) return { ok: false, status: 403, mensaje: 'Solo el vendedor pone marcas.' };
     const embId = await embajadorDelUsuario(panel.usuarioId);
     if (!embId) return { ok: false, status: 403, mensaje: 'No eres un vendedor.' };
+    if (datos.negocioId && !(await negocioEsDelEmbajador(datos.negocioId, embId))) {
+        return { ok: false, status: 404, mensaje: 'Ese negocio no es tuyo.' };
+    }
 
     const [m] = await db
         .insert(territorioMarcas)
-        .values({ embajadorId: embId, lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nota: datos.nota?.trim() || null, ciudadId: datos.ciudadId ?? null })
+        .values({ embajadorId: embId, lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nota: datos.nota?.trim() || null, ciudadId: datos.ciudadId ?? null, negocioId: datos.negocioId ?? null })
         .returning({ id: territorioMarcas.id });
     return { ok: true, data: { id: m.id } };
 }
@@ -79,11 +94,18 @@ async function cargarMarcaPropia(panel: UsuarioPanel, id: string): Promise<Resul
 export async function editarMarca(panel: UsuarioPanel, id: string, datos: EditarMarcaInput): Promise<ResultadoAccion<{ id: string }>> {
     const propia = await cargarMarcaPropia(panel, id);
     if (!propia.ok) return propia;
+    if (datos.negocioId) {
+        const embId = await embajadorDelUsuario(panel.usuarioId!);
+        if (!embId || !(await negocioEsDelEmbajador(datos.negocioId, embId))) {
+            return { ok: false, status: 404, mensaje: 'Ese negocio no es tuyo.' };
+        }
+    }
     const cambios: Partial<typeof territorioMarcas.$inferInsert> = { updatedAt: new Date().toISOString() };
     if (datos.lat !== undefined) cambios.lat = datos.lat;
     if (datos.lng !== undefined) cambios.lng = datos.lng;
     if (datos.tipo !== undefined) cambios.tipo = datos.tipo;
     if (datos.nota !== undefined) cambios.nota = datos.nota?.trim() || null;
+    if (datos.negocioId !== undefined) cambios.negocioId = datos.negocioId;
     await db.update(territorioMarcas).set(cambios).where(eq(territorioMarcas.id, id));
     return { ok: true, data: { id } };
 }

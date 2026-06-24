@@ -16,6 +16,7 @@ import { useMemo, useState } from 'react';
 import { MapPin, Plus, Trash2, X } from 'lucide-react';
 import { useZonas, useMisMarcas, useNegociosMapa, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca } from '../../hooks/queries/useTerritoriosAdmin';
 import { MapaMarcas, COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO } from './MapaMarcas';
+import { SelectorBuscable, type OpcionBuscable } from '../ui/SelectorBuscable';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import type { TipoMarca } from '../../services/territoriosService';
 
@@ -26,6 +27,7 @@ interface MarcaEnEdicion {
     id: string;
     tipo: TipoMarca;
     nota: string;
+    negocioId: string; // '' = sin negocio ligado
 }
 
 export function VistaVendedorTerritorio() {
@@ -52,7 +54,7 @@ export function VistaVendedorTerritorio() {
         const m = marcas.find((x) => x.id === id);
         if (!m) return;
         setModoAgregar(false);
-        setEditando({ id: m.id, tipo: m.tipo, nota: m.nota ?? '' });
+        setEditando({ id: m.id, tipo: m.tipo, nota: m.nota ?? '', negocioId: m.negocioId ?? '' });
     };
 
     const alAgregarMarca = (lat: number, lng: number) => {
@@ -62,7 +64,7 @@ export function VistaVendedorTerritorio() {
                 onSuccess: (data) => {
                     setModoAgregar(false);
                     setFiltro(null); // la marca nueva siempre visible (no la oculta un filtro activo)
-                    setEditando({ id: data.id, tipo: 'visitado', nota: '' });
+                    setEditando({ id: data.id, tipo: 'visitado', nota: '', negocioId: '' });
                 },
             },
         );
@@ -71,7 +73,7 @@ export function VistaVendedorTerritorio() {
     const guardarMarca = () => {
         if (!editando) return;
         editar.mutate(
-            { id: editando.id, datos: { tipo: editando.tipo, nota: editando.nota.trim() || null } },
+            { id: editando.id, datos: { tipo: editando.tipo, nota: editando.nota.trim() || null, negocioId: editando.negocioId || null } },
             { onSuccess: () => setEditando(null) },
         );
     };
@@ -90,6 +92,10 @@ export function VistaVendedorTerritorio() {
     const marcasFiltradas = useMemo(
         () => (filtro === null ? marcasOrdenadas : marcasOrdenadas.filter((m) => m.tipo === filtro)),
         [marcasOrdenadas, filtro],
+    );
+    const opcNegocios: OpcionBuscable[] = useMemo(
+        () => [{ id: '', etiqueta: 'Sin negocio' }, ...negocios.map((n) => ({ id: n.id, etiqueta: n.nombre }))],
+        [negocios],
     );
 
     return (
@@ -179,6 +185,18 @@ export function VistaVendedorTerritorio() {
                                 className="w-full resize-none rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none focus:border-marca"
                             />
                         </div>
+                        {/* Negocio ligado (opcional, solo SUS negocios) */}
+                        <div className="flex flex-col gap-1.5">
+                            <span className="text-[12px] font-medium text-texto-3">Negocio</span>
+                            <SelectorBuscable
+                                value={editando.negocioId}
+                                onChange={(id) => setEditando((p) => (p ? { ...p, negocioId: id } : p))}
+                                opciones={opcNegocios}
+                                placeholder="Sin negocio"
+                                buscarPlaceholder="Buscar negocio…"
+                                testid="marca-negocio"
+                            />
+                        </div>
                         <div className="flex gap-2">
                             <button
                                 type="button"
@@ -253,6 +271,7 @@ export function VistaVendedorTerritorio() {
                                         <span className="min-w-0 flex-1">
                                             <span className="block text-[12.5px] font-medium text-texto">{ETIQUETA_TIPO[m.tipo]}</span>
                                             <span className="block truncate text-[12px] text-texto-3">{m.nota || 'Sin nota'}</span>
+                                            {m.negocioNombre && <span className="block truncate text-[11px] font-medium text-marca">{m.negocioNombre}</span>}
                                         </span>
                                     </button>
                                 ))
