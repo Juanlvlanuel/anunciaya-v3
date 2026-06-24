@@ -95,12 +95,10 @@ export const territorioMarcas = pgTable("territorio_marcas", {
 	tipo: varchar({ length: 20 }).default('visitado').notNull(),
 	nota: text(),
 	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
-	negocioId: uuid("negocio_id").references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_territorio_marcas_embajador").using("btree", table.embajadorId.asc().nullsLast()),
-	index("idx_territorio_marcas_negocio").using("btree", table.negocioId.asc().nullsLast()),
 	check("territorio_marcas_tipo_check", sql`(tipo)::text = ANY ((ARRAY['visitado'::character varying, 'interesado'::character varying, 'cerrado'::character varying, 'sin_interes'::character varying])::text[])`),
 ]);
 

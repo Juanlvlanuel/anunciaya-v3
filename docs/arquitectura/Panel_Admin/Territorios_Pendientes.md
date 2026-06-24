@@ -113,7 +113,7 @@ la zona. Cada zona = **polígono + nombre + vendedor asignado + ciudad**.
 ## Checklist del carril
 
 ```
-### Módulo: TERRITORIOS · G.1 (Zonas)   ·   Fase actual: 0 ✅ → 1 (VER)
+### Módulo: TERRITORIOS   ·   Estado: CONSTRUIDO (G.1 zonas + G.2 marcas + marcas-equipo + negocios en el mapa). Falta solo el GATE 2 visual de G.1 (prueba de Juan).
 
 Fase 0 — Definir ✅ (23 jun)
 - [x] Mini-spec (qué hace / qué no / matriz de permisos)
@@ -158,7 +158,10 @@ Fase 2 — ACTUAR (en curso · sub-paso 2a)
       `@turf/turf`: `intersect` + `area`), backend como autoridad; el front muestra el mensaje en su toast de error. tsc API verde.
 
 Fase 3 — Cerrar
-- [ ] Doc canónico Territorios.md + índices (tablero, memoria) + commit
+- [x] Doc canónico Territorios.md (commit fef6da1) + tablero (módulo 13) + memoria + commits.
+- [ ] GATE 2 visual de G.1 (prueba de Juan): dibujar/insertar/mover/quitar vértice + reasignar + borrar en una pasada.
+
+Backlog (no bloqueante): curvas entre 2 puntos al dibujar · Pieza F (multi-región) · liga marca↔negocio DESCARTADA (negocio_id se dropeó).
 ```
 
 ---
