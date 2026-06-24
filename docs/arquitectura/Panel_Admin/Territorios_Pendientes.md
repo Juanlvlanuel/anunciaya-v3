@@ -91,7 +91,8 @@ la zona. Cada zona = **polígono + nombre + vendedor asignado + ciudad**.
 | **D2** | ¿Un vendedor puede tener varias zonas? | **Sí** — varias filas con el mismo `embajador_id`. ✅ (Juan 23 jun) |
 | **D3** | ¿Las zonas pueden traslaparse? | **No** — particiones limpias. Se valida en la **app** al crear/editar (turf.js `intersect` contra las zonas de la misma ciudad); sin PostGIS no hay constraint de BD. ✅ (Juan 23 jun) |
 | **D4** | ¿Geometría: PostGIS o GeoJSON? | **GeoJSON en `jsonb`** (no PostGIS). Basta para dibujar/mostrar/asignar; la validación punto-en-polígono (G.2) y traslape (D3) se hacen en JS (turf.js). Evita habilitar la extensión. Migrar a PostGIS si hace falta consulta geoespacial pesada. |
-| **D5** | ¿Cómo se dibuja la zona sobre MapLibre? | Control de dibujo de polígonos (lib tipo `terra-draw` / `@mapbox/mapbox-gl-draw` adaptado a MapLibre). **Requisito (Juan, 23 jun): las zonas deben SEGUIR LAS CALLES — no rectángulos que corten manzanas a la mitad** "por donde sea". El gerente traza el polígono clicando las esquinas/intersecciones (las calles se ven en el mapa); se evaluará **snapping a la red de calles** (OSM) para que el corte sea exacto. Se aterriza en Fase 2; en Fase 1 (VER) solo se **muestran** las zonas (el seed usa 2 rectángulos solo de demo). |
+| **D5** | ¿Cómo se dibuja la zona sobre MapLibre? | Dibujo a mano (implementado en 2a, clic a clic). **Resultó laborioso (Juan, 23 jun)** → queda como **respaldo**, no como método principal. Ver D8. |
+| **D8** | Método de dibujo de la zona (RESUELTO, Juan 23 jun) | **Snapping a calles + edición de vértices con DOS herramientas.** Se **descartó** colonias (OSM solo tiene PUNTOS en Peñasco, no polígonos — verificado 23 jun por Overpass) y **AGEB de INEGI** (requiere conseguir/procesar un shapefile — costo de datos alto). Se va por: **(1) PEGADO A CALLES (snapping)** usando las calles que ya traen las tiles de OpenFreeMap (`queryRenderedFeatures` sobre el source-layer `transportation` → proyección del punto sobre la calle más cercana) — **sin dataset externo**. **(2) Edición de vértices con DOS herramientas:** ✏️ **Agregar punto** (clic) y ✋ **Mover punto** (arrastrar un vértice; `dragPan` se **deshabilita durante el arrastre** para que el mapa NO se mueva). Al colocar o soltar un vértice se **pega a la calle** más cercana (si hay una dentro del umbral; si no, queda donde se soltó). |
 | **D6** | ¿Migración SQL? | **Sí**, 1 tabla nueva. La corre Juan en sus 2 Supabase (dev+prod); Claude deja el SQL listo. |
 | **D7** | Auditoría | Crear/editar/asignar/quitar/borrar zona → `registrarAuditoria` → `admin_auditoria` (obligatorio por carril). |
 
@@ -130,8 +131,28 @@ Fase 1 — VER  (en curso)
 - [x] GATE 1 ✅ (23 jun): verificado visual en dev — el Panel pinta las zonas reales del seed (azul asignada,
       ámbar sin asignar) encuadradas en la ciudad. **Fase 1 (VER) cerrada.**
 
-Fase 2 — ACTUAR
-- [ ] Dibujo de polígonos + crear/editar/asignar/quitar/borrar + validación de traslape (turf) + auditoría
+Fase 2 — ACTUAR (en curso · sub-paso 2a)
+- [x] Backend de acciones: crearZona/editarZona/asignarZona/borrarZona (`territorios-acciones.service`) + Zod
+      (`territorios.schema`) + 4 endpoints (POST/PATCH `/zonas` · PATCH `/zonas/:id/vendedor` · DELETE) con
+      alcance super/gerente (gerente solo su región) + auditoría. tsc API verde.
+- [x] Frontend del dibujo: **dibujo a mano sobre MapLibre** (clic a clic + Deshacer/Terminar/Cancelar; se
+      descartó terra-draw para tener control total de cara al snapping) + **selector de ciudad** + endpoints
+      ciudades/vendedores del alcance + **diálogo** nombre/color/vendedor + mutaciones RQ + **reasignar/borrar**
+      en la lista. tsc API + Panel verdes.
+- [x] **Pulido de UI (Juan, 23 jun):** dropdowns migrados a `SelectorBuscable` (estándar del Panel; cero `<select>`
+      nativos) en ciudad, vendedor del formulario y reasignar de la lista. **Layout rediseñado:** sin header (el shell
+      ya muestra "Territorios"), **mapa a alto completo** a la izquierda y **toda la operación en la columna derecha**
+      (selector de ciudad · Nueva zona · formulario de guardado en la columna —no en overlay, para no tapar el popover— · lista).
+- [ ] GATE 2: verificar visual — dibujar una zona real en el Panel + reasignar + borrar (Juan).
+- [x] **Editor de zonas con 4 herramientas** (sin dataset externo; detección de vértices por proyección propia, no
+      por hit-test de capas de MapLibre —que no enganchaba): ✏️ **Agregar** (clic; **inserta** si caes sobre una arista,
+      si no al final) · ✋ **Mover** (arrastra un vértice) · 🗑️ **Quitar** (clic en un vértice) · 🖐️ **Mapa** (pan).
+      **El pan SOLO está activo en "Mapa"** — en Agregar/Mover/Quitar arrastrar NO mueve el mapa (resuelve el conflicto
+      pan↔herramientas; el zoom con scroll sí siempre). **Pegado a calles (snapping)** al colocar/soltar/insertar
+      (source-layer `transportation`). tsc Panel verde.
+- [ ] GATE 2 (visual, Juan): dibujar + insertar en arista + mover + quitar + guardar + reasignar/borrar zona.
+- [ ] **Curvas entre 2 puntos** (arrastrar el medio de un lado → arco): **pospuesto** (Juan, "aún no"). Backlog.
+- [ ] No-traslape (turf.js): rechazar zonas que se SOLAPEN en área (compartir un borde = OK, son adyacentes).
 
 Fase 3 — Cerrar
 - [ ] Doc canónico Territorios.md + índices (tablero, memoria) + commit

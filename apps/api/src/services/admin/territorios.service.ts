@@ -102,3 +102,50 @@ export async function listarZonas(panel: UsuarioPanel, filtros: FiltrosZonas = {
 
     return filas as ZonaTerritorio[];
 }
+
+/** Ciudades sobre las que el rol puede dibujar zonas (super = todas activas · gerente = las de su región). */
+export async function listarCiudadesDelAlcance(panel: UsuarioPanel): Promise<Array<{ id: string; nombre: string; lat: number | null; lng: number | null }>> {
+    if (panel.rolEquipo === 'superadmin') {
+        return db
+            .select({ id: ciudades.id, nombre: ciudades.nombre, lat: ciudades.lat, lng: ciudades.lng })
+            .from(ciudades)
+            .where(eq(ciudades.activa, true))
+            .orderBy(asc(ciudades.nombre));
+    }
+    if (panel.rolEquipo === 'gerente') {
+        if (!panel.regionId) return [];
+        return db
+            .select({ id: ciudades.id, nombre: ciudades.nombre, lat: ciudades.lat, lng: ciudades.lng })
+            .from(ciudades)
+            .where(and(eq(ciudades.activa, true), eq(ciudades.regionId, panel.regionId)))
+            .orderBy(asc(ciudades.nombre));
+    }
+    return [];
+}
+
+/** Vendedores asignables a una zona según el rol (super = todos activos · gerente = los de su región). */
+export async function listarVendedoresAsignables(panel: UsuarioPanel): Promise<Array<{ embajadorId: string; nombre: string | null }>> {
+    if (panel.rolEquipo === 'vendedor') return [];
+
+    if (panel.rolEquipo === 'superadmin') {
+        return db
+            .select({ embajadorId: embajadores.id, nombre: usuarios.nombre })
+            .from(embajadores)
+            .leftJoin(usuarios, eq(usuarios.id, embajadores.usuarioId))
+            .where(eq(embajadores.estado, 'activo'))
+            .orderBy(asc(usuarios.nombre));
+    }
+
+    // gerente: vendedores con al menos una ciudad de su región.
+    if (!panel.regionId) return [];
+    const filas = (await db.execute(sql`
+        SELECT DISTINCT e.id::text AS embajador_id, u.nombre AS nombre
+        FROM embajadores e
+        JOIN usuarios u ON u.id = e.usuario_id
+        JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+        JOIN ciudades c ON c.id = ec.ciudad_id
+        WHERE e.estado = 'activo' AND c.region_id = ${panel.regionId}
+        ORDER BY u.nombre
+    `)).rows as Array<{ embajador_id: string; nombre: string | null }>;
+    return filas.map((f) => ({ embajadorId: f.embajador_id, nombre: f.nombre }));
+}

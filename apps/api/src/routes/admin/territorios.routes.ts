@@ -15,11 +15,31 @@
 
 import { Router } from 'express';
 import { requierePanel } from '../../middleware/panel.middleware.js';
-import { listarZonasController } from '../../controllers/admin/territorios.controller.js';
+import {
+    listarZonasController,
+    listarCiudadesController,
+    listarVendedoresController,
+    crearZonaController,
+    editarZonaController,
+    asignarZonaController,
+    borrarZonaController,
+} from '../../controllers/admin/territorios.controller.js';
 
 const router: Router = Router();
 
-// Listar zonas (los 3 roles; el service acota por rol).
+// ─── VER (Fase 1) — los 3 roles; el service acota por rol ────────────────────────
 router.get('/zonas', requierePanel(['superadmin', 'gerente', 'vendedor']), listarZonasController);
+
+// Ciudades del alcance (super + gerente, para elegir dónde dibujar).
+router.get('/ciudades', requierePanel(['superadmin', 'gerente']), listarCiudadesController);
+
+// Vendedores asignables a una zona (super + gerente, para el selector al crear/asignar).
+router.get('/vendedores', requierePanel(['superadmin', 'gerente']), listarVendedoresController);
+
+// ─── ACTUAR (Fase 2) — super + gerente (el vendedor no dibuja ni asigna) ─────────
+router.post('/zonas', requierePanel(['superadmin', 'gerente']), crearZonaController);
+router.patch('/zonas/:id', requierePanel(['superadmin', 'gerente']), editarZonaController);
+router.patch('/zonas/:id/vendedor', requierePanel(['superadmin', 'gerente']), asignarZonaController);
+router.delete('/zonas/:id', requierePanel(['superadmin', 'gerente']), borrarZonaController);
 
 export default router;

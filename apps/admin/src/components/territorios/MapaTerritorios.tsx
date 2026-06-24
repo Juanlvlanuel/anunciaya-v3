@@ -1,21 +1,25 @@
 /**
  * MapaTerritorios.tsx
  * ===================
- * Mapa interactivo (MapLibre + tiles OpenFreeMap, sin API key) que pinta las ZONAS del
- * territorio como polígonos. Calca la técnica de `MapaCiudades` pero, en vez de los puntos
- * del catálogo INEGI, dibuja las particiones (`territorio_zonas.poligono`, GeoJSON Polygon)
- * con su color, borde y etiqueta de nombre.
+ * Mapa (MapLibre + tiles OpenFreeMap) que pinta las ZONAS como polígonos y, en modo DIBUJO,
+ * deja trazar/editar una zona con DOS herramientas y PEGADO A CALLES (snapping):
  *
- * Fase 1 (VER): solo MUESTRA las zonas (centra el mapa en ellas con fitBounds). El dibujo /
- * edición de polígonos llega en Fase 2.
+ *   ✏️ Agregar punto (clic) — pone un vértice y lo pega a la calle más cercana.
+ *   ✋ Mover punto         — arrastra un vértice; el mapa NO se mueve mientras arrastras
+ *                           (dragPan off), y al soltar el vértice se vuelve a pegar a la calle.
+ *
+ * El snapping usa las calles que ya traen las tiles (source-layer `transportation`): proyecta
+ * el punto sobre la calle más cercana dentro de un umbral en píxeles. Sin dataset externo.
+ * En Fase 1 (VER) solo se muestran las zonas existentes.
  *
  * Ubicación: apps/admin/src/components/territorios/MapaTerritorios.tsx
  */
 
 import { useEffect, useRef, useState } from 'react';
-import maplibregl, { type Map as MapaLibre, type GeoJSONSource } from 'maplibre-gl';
+import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
-import type { ZonaTerritorio } from '../../services/territoriosService';
+import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
+import type { ZonaTerritorio, PoligonoGeoJSON } from '../../services/territoriosService';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
 const CENTRO_MX: [number, number] = [-102.5, 23.6];
@@ -23,13 +27,25 @@ const ID_SOURCE = 'zonas';
 const ID_FILL = 'zonas-fill';
 const ID_LINE = 'zonas-line';
 const ID_LABEL = 'zonas-label';
+const ID_DIBUJO = 'dibujo';
+const ID_DIBUJO_FILL = 'dibujo-fill';
+const ID_DIBUJO_LINE = 'dibujo-line';
+const ID_DIBUJO_PTS = 'dibujo-pts';
+const ID_DIBUJO_PTS_C = 'dibujo-pts-circle';
 const COLOR_DEFECTO = '#2563eb';
+const COLOR_DIBUJO = '#0ea5e9';
+const SNAP_PX = 18; // radio de búsqueda de calle para el pegado (px)
+
+type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
 
 interface MapaTerritoriosProps {
     zonas: ZonaTerritorio[];
+    centro?: [number, number] | null;
+    modoDibujo?: boolean;
+    onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
+    onCancelarDibujo?: () => void;
 }
 
-/** FeatureCollection de polígonos a partir de las zonas (cada zona = un Feature). */
 function construirGeoJSON(zonas: ZonaTerritorio[]) {
     return {
         type: 'FeatureCollection' as const,
@@ -38,25 +54,18 @@ function construirGeoJSON(zonas: ZonaTerritorio[]) {
             .map((z) => ({
                 type: 'Feature' as const,
                 geometry: z.poligono,
-                properties: {
-                    id: z.id,
-                    nombre: z.nombre,
-                    vendedor: z.vendedorNombre ?? 'Sin asignar',
-                    color: z.color || COLOR_DEFECTO,
-                },
+                properties: { id: z.id, nombre: z.nombre, color: z.color || COLOR_DEFECTO },
             })),
     };
 }
 
-/** Bounding box [[minLng,minLat],[maxLng,maxLat]] de todas las zonas; null si no hay. */
 function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, number]] | null {
     let minLng = Infinity, minLat = Infinity, maxLng = -Infinity, maxLat = -Infinity;
     let hay = false;
     for (const z of zonas) {
         if (z.poligono?.type !== 'Polygon') continue;
         for (const anillo of z.poligono.coordinates) {
-            for (const punto of anillo) {
-                const [lng, lat] = punto;
+            for (const [lng, lat] of anillo) {
                 hay = true;
                 if (lng < minLng) minLng = lng;
                 if (lat < minLat) minLat = lat;
@@ -68,17 +77,122 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, centro, modoDibujo = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
+    const verticesRef = useRef<[number, number][]>([]);
+    const modoDibujoRef = useRef(modoDibujo);
+    const herramientaRef = useRef<Herramienta>('crear');
+    const dragRef = useRef<number | null>(null);
+    const onCompletoRef = useRef(onPoligonoCompleto);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [listo, setListo] = useState(false);
+    const [numVertices, setNumVertices] = useState(0);
+    const [herramienta, setHerramienta] = useState<Herramienta>('crear');
 
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
+    useEffect(() => { onCompletoRef.current = onPoligonoCompleto; }, [onPoligonoCompleto]);
 
-    // Crear el mapa una sola vez.
+    /** Pega un punto a la calle más cercana (source-layer `transportation`) dentro del umbral. */
+    function snapACalle(mapa: MapaLibre, lng: number, lat: number): [number, number] {
+        let p: { x: number; y: number };
+        try { p = mapa.project([lng, lat]); } catch { return [lng, lat]; }
+        const caja: [PointLike, PointLike] = [[p.x - SNAP_PX, p.y - SNAP_PX], [p.x + SNAP_PX, p.y + SNAP_PX]];
+        let feats;
+        try { feats = mapa.queryRenderedFeatures(caja); } catch { return [lng, lat]; }
+        let mejor: [number, number] | null = null;
+        let mejorDist = Infinity;
+        for (const f of feats) {
+            if (f.sourceLayer !== 'transportation') continue;
+            const g = f.geometry as { type: string; coordinates: number[][] | number[][][] };
+            const lineas: number[][][] =
+                g.type === 'LineString' ? [g.coordinates as number[][]] : g.type === 'MultiLineString' ? (g.coordinates as number[][][]) : [];
+            for (const linea of lineas) {
+                for (let i = 0; i + 1 < linea.length; i++) {
+                    const pa = mapa.project(linea[i] as [number, number]);
+                    const pb = mapa.project(linea[i + 1] as [number, number]);
+                    const dx = pb.x - pa.x, dy = pb.y - pa.y;
+                    const len2 = dx * dx + dy * dy;
+                    let t = len2 ? ((p.x - pa.x) * dx + (p.y - pa.y) * dy) / len2 : 0;
+                    t = Math.max(0, Math.min(1, t));
+                    const sx = pa.x + t * dx, sy = pa.y + t * dy;
+                    const dist = Math.hypot(sx - p.x, sy - p.y);
+                    if (dist < mejorDist) {
+                        mejorDist = dist;
+                        const ll = mapa.unproject([sx, sy]);
+                        mejor = [ll.lng, ll.lat];
+                    }
+                }
+            }
+        }
+        return mejor && mejorDist <= SNAP_PX ? mejor : [lng, lat];
+    }
+
+    /** Índice del LADO (i → i+1) del polígono más cercano al punto de pantalla, o -1 si ninguno cerca. */
+    function indiceAristaCercana(mapa: MapaLibre, px: { x: number; y: number }, v: [number, number][]): number {
+        if (v.length < 3) return -1; // sin polígono aún → no hay aristas que partir
+        const UMBRAL = 8; // px
+        let mejor = -1;
+        let mejorDist = UMBRAL;
+        for (let i = 0; i < v.length; i++) {
+            const a = mapa.project(v[i]);
+            const b = mapa.project(v[(i + 1) % v.length]);
+            const dx = b.x - a.x, dy = b.y - a.y;
+            const len2 = dx * dx + dy * dy;
+            let t = len2 ? ((px.x - a.x) * dx + (px.y - a.y) * dy) / len2 : 0;
+            t = Math.max(0, Math.min(1, t));
+            const sx = a.x + t * dx, sy = a.y + t * dy;
+            const dist = Math.hypot(sx - px.x, sy - px.y);
+            if (dist < mejorDist) { mejorDist = dist; mejor = i; }
+        }
+        return mejor;
+    }
+
+    /** Índice del vértice del dibujo más cercano al punto de pantalla (≤ tolerancia px), o -1.
+     *  Se calcula proyectando los vértices a pantalla — NO depende del hit-test de capas de MapLibre. */
+    function indiceVerticeEn(mapa: MapaLibre, point: { x: number; y: number }): number {
+        const R = 12;
+        const v = verticesRef.current;
+        let mejor = -1;
+        let mejorDist = R;
+        for (let i = 0; i < v.length; i++) {
+            const p = mapa.project(v[i]);
+            const d = Math.hypot(p.x - point.x, p.y - point.y);
+            if (d < mejorDist) { mejorDist = d; mejor = i; }
+        }
+        return mejor;
+    }
+
+    /** Re-pinta el trazo en construcción (relleno + línea + vértices con su índice). */
+    function pintarDibujo(mapa: MapaLibre) {
+        const v = verticesRef.current;
+        const src = mapa.getSource(ID_DIBUJO) as GeoJSONSource | undefined;
+        const srcPts = mapa.getSource(ID_DIBUJO_PTS) as GeoJSONSource | undefined;
+        if (src) {
+            const features = [
+                ...(v.length >= 3 ? [{ type: 'Feature' as const, geometry: { type: 'Polygon' as const, coordinates: [[...v, v[0]]] }, properties: {} }] : []),
+                ...(v.length >= 2 ? [{ type: 'Feature' as const, geometry: { type: 'LineString' as const, coordinates: v }, properties: {} }] : []),
+            ];
+            src.setData({ type: 'FeatureCollection' as const, features });
+        }
+        if (srcPts) {
+            srcPts.setData({
+                type: 'FeatureCollection' as const,
+                features: v.map((c, i) => ({ type: 'Feature' as const, geometry: { type: 'Point' as const, coordinates: c }, properties: { idx: i } })),
+            });
+        }
+    }
+
+    function limpiarDibujo() {
+        verticesRef.current = [];
+        setNumVertices(0);
+        const mapa = mapaRef.current;
+        if (mapa) pintarDibujo(mapa);
+    }
+
+    // ── Crear el mapa una sola vez ───────────────────────────────────────────────
     useEffect(() => {
         if (!contenedorRef.current || mapaRef.current) return;
 
@@ -94,26 +208,15 @@ export function MapaTerritorios({ zonas }: MapaTerritoriosProps) {
 
         mapa.on('load', () => {
             mapa.addSource(ID_SOURCE, { type: 'geojson', data: construirGeoJSON(zonasRef.current) });
-            mapa.addLayer({
-                id: ID_FILL,
-                type: 'fill',
-                source: ID_SOURCE,
-                paint: { 'fill-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'fill-opacity': 0.22 },
-            });
-            mapa.addLayer({
-                id: ID_LINE,
-                type: 'line',
-                source: ID_SOURCE,
-                layout: { 'line-join': 'round' },
-                paint: { 'line-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'line-width': 2, 'line-opacity': 0.85 },
-            });
-            mapa.addLayer({
-                id: ID_LABEL,
-                type: 'symbol',
-                source: ID_SOURCE,
-                layout: { 'text-field': ['get', 'nombre'], 'text-size': 12, 'text-anchor': 'center' },
-                paint: { 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 },
-            });
+            mapa.addLayer({ id: ID_FILL, type: 'fill', source: ID_SOURCE, paint: { 'fill-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'fill-opacity': 0.22 } });
+            mapa.addLayer({ id: ID_LINE, type: 'line', source: ID_SOURCE, layout: { 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'line-width': 2, 'line-opacity': 0.85 } });
+            mapa.addLayer({ id: ID_LABEL, type: 'symbol', source: ID_SOURCE, layout: { 'text-field': ['get', 'nombre'], 'text-size': 12, 'text-anchor': 'center' }, paint: { 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 } });
+
+            mapa.addSource(ID_DIBUJO, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            mapa.addLayer({ id: ID_DIBUJO_FILL, type: 'fill', source: ID_DIBUJO, paint: { 'fill-color': COLOR_DIBUJO, 'fill-opacity': 0.18 } });
+            mapa.addLayer({ id: ID_DIBUJO_LINE, type: 'line', source: ID_DIBUJO, layout: { 'line-join': 'round' }, paint: { 'line-color': COLOR_DIBUJO, 'line-width': 2.5, 'line-dasharray': [2, 1] } });
+            mapa.addSource(ID_DIBUJO_PTS, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+            mapa.addLayer({ id: ID_DIBUJO_PTS_C, type: 'circle', source: ID_DIBUJO_PTS, paint: { 'circle-radius': 6, 'circle-color': '#ffffff', 'circle-stroke-color': COLOR_DIBUJO, 'circle-stroke-width': 2.5 } });
 
             setListo(true);
             setCargando(false);
@@ -121,34 +224,187 @@ export function MapaTerritorios({ zonas }: MapaTerritoriosProps) {
             if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 0, maxZoom: 14 });
         });
 
-        mapa.on('error', (e) => { console.error('[MapaTerritorios] error de MapLibre:', e.error); });
+        // Clic según la herramienta activa.
+        mapa.on('click', (e) => {
+            if (!modoDibujoRef.current) return;
+            const h = herramientaRef.current;
+            if (h === 'crear') {
+                // ✏️ Agregar: si el clic cae sobre una ARISTA del polígono, INSERTA ahí (refinar borde); si no, al final.
+                const v = verticesRef.current;
+                const nuevo = snapACalle(mapa, e.lngLat.lng, e.lngLat.lat);
+                const lado = indiceAristaCercana(mapa, e.point, v);
+                verticesRef.current = lado >= 0 ? [...v.slice(0, lado + 1), nuevo, ...v.slice(lado + 1)] : [...v, nuevo];
+                pintarDibujo(mapa);
+                setNumVertices(verticesRef.current.length);
+            } else if (h === 'borrar') {
+                // 🗑️ Quitar: clic (cerca de) un vértice lo elimina.
+                const idx = indiceVerticeEn(mapa, e.point);
+                if (idx < 0) return;
+                verticesRef.current = verticesRef.current.filter((_, i) => i !== idx);
+                pintarDibujo(mapa);
+                setNumVertices(verticesRef.current.length);
+            }
+        });
+
+        // ✋ Mover punto: agarrar un vértice (herramienta "mover") → arrastrar sin mover el mapa.
+        mapa.on('mousedown', (e) => {
+            if (!modoDibujoRef.current || herramientaRef.current !== 'mover') return;
+            const idx = indiceVerticeEn(mapa, e.point);
+            if (idx < 0) return;
+            dragRef.current = idx;
+            mapa.dragPan.disable();
+            mapa.getCanvas().style.cursor = 'grabbing';
+            e.preventDefault();
+        });
+        mapa.on('mousemove', (e) => {
+            // Arrastrando un vértice (herramienta Mover).
+            if (dragRef.current !== null) {
+                const idx = dragRef.current;
+                verticesRef.current = verticesRef.current.map((v, i) => (i === idx ? [e.lngLat.lng, e.lngLat.lat] : v));
+                pintarDibujo(mapa);
+                return;
+            }
+            // Cursor de hover según herramienta (cálculo propio, no hit-test de capas).
+            if (!modoDibujoRef.current) return;
+            const h = herramientaRef.current;
+            if (h === 'mover' || h === 'borrar') {
+                const sobre = indiceVerticeEn(mapa, e.point) >= 0;
+                mapa.getCanvas().style.cursor = sobre ? (h === 'mover' ? 'grab' : 'pointer') : '';
+            }
+        });
+        mapa.on('mouseup', () => {
+            if (dragRef.current === null) return;
+            const idx = dragRef.current;
+            const v = verticesRef.current[idx];
+            if (v) {
+                const snapped = snapACalle(mapa, v[0], v[1]);
+                verticesRef.current = verticesRef.current.map((vv, i) => (i === idx ? snapped : vv));
+                pintarDibujo(mapa);
+            }
+            dragRef.current = null;
+            // Re-asegurar el pan según la herramienta: tras mover un punto NO debe quedar paneable
+            // a menos que estés en la herramienta "Mapa".
+            if (herramientaRef.current === 'mano') mapa.dragPan.enable();
+            else mapa.dragPan.disable();
+            mapa.getCanvas().style.cursor = '';
+        });
+
+        mapa.on('error', (ev) => { console.error('[MapaTerritorios] error de MapLibre:', ev.error); });
 
         return () => { mapa.remove(); mapaRef.current = null; };
     }, []);
 
-    // Re-pintar + re-encuadrar cuando cambian las zonas.
+    // ── Re-pintar zonas cuando cambian ───────────────────────────────────────────
     useEffect(() => {
         const mapa = mapaRef.current;
         if (!mapa || !listo) return;
         const source = mapa.getSource(ID_SOURCE) as GeoJSONSource | undefined;
         if (!source) return;
         source.setData(construirGeoJSON(zonas));
-        const bounds = calcularBounds(zonas);
-        if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 300, maxZoom: 14 });
-    }, [zonas, listo]);
+        if (!modoDibujoRef.current) {
+            const bounds = calcularBounds(zonas);
+            if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 300, maxZoom: 14 });
+            else if (centro) mapa.flyTo({ center: centro, zoom: 12, duration: 400 });
+        }
+    }, [zonas, listo, centro]);
+
+    // ── Entrar/salir del modo dibujo ─────────────────────────────────────────────
+    useEffect(() => {
+        modoDibujoRef.current = modoDibujo;
+        const mapa = mapaRef.current;
+        if (!mapa || !listo) return;
+        if (modoDibujo) {
+            setHerramienta('crear');
+            herramientaRef.current = 'crear';
+            mapa.dragPan.disable(); // las herramientas mandan; el pan solo en la "Mano"
+            mapa.getCanvas().style.cursor = 'crosshair';
+        } else {
+            mapa.dragPan.enable();
+            mapa.getCanvas().style.cursor = '';
+            limpiarDibujo();
+        }
+    }, [modoDibujo, listo]);
+
+    // ── Cambiar de herramienta ───────────────────────────────────────────────────
+    useEffect(() => {
+        herramientaRef.current = herramienta;
+        const mapa = mapaRef.current;
+        if (!mapa || !modoDibujo) return;
+        if (herramienta === 'mano') {
+            mapa.dragPan.enable(); // solo la Mano mueve el mapa al arrastrar
+            mapa.getCanvas().style.cursor = 'grab';
+        } else {
+            mapa.dragPan.disable(); // Agregar/Mover/Quitar: arrastrar NO mueve el mapa
+            mapa.getCanvas().style.cursor = herramienta === 'crear' ? 'crosshair' : '';
+        }
+    }, [herramienta, modoDibujo]);
+
+    const deshacer = () => {
+        verticesRef.current = verticesRef.current.slice(0, -1);
+        setNumVertices(verticesRef.current.length);
+        const mapa = mapaRef.current;
+        if (mapa) pintarDibujo(mapa);
+    };
+
+    const terminar = () => {
+        const v = verticesRef.current;
+        if (v.length < 3) return;
+        onCompletoRef.current?.({ type: 'Polygon', coordinates: [[...v, v[0]]] });
+        limpiarDibujo();
+    };
+
+    const botonHerr = (h: Herramienta, Icono: typeof Pencil, texto: string) => (
+        <button
+            type="button"
+            data-testid={`dibujo-herr-${h}`}
+            onClick={() => setHerramienta(h)}
+            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium transition ${herramienta === h ? 'bg-marca text-white' : 'text-texto-2 hover:bg-superficie-2'}`}
+        >
+            <Icono size={13} /> {texto}
+        </button>
+    );
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-[12px] border border-borde">
             <div ref={contenedorRef} className="h-full w-full" data-testid="territorios-mapa" />
+
             {cargando && !error && (
                 <div className="absolute inset-0 grid place-items-center bg-superficie/70 text-[13px] text-texto-3">Cargando mapa…</div>
             )}
             {error && (
                 <div className="absolute inset-0 grid place-items-center bg-superficie/90 px-6 text-center text-[13px] text-peligro">{error}</div>
             )}
-            {listo && !error && zonas.length === 0 && (
+            {listo && !error && !modoDibujo && zonas.length === 0 && (
                 <div className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-full border border-borde bg-superficie/95 px-3 py-1.5 text-[12px] text-texto-3 shadow-pop-panel">
                     Aún no hay zonas dibujadas en este mapa.
+                </div>
+            )}
+
+            {/* Barra de dibujo: herramientas + acciones */}
+            {modoDibujo && (
+                <div className="absolute inset-x-0 top-3 mx-auto flex w-fit max-w-[95%] flex-wrap items-center justify-center gap-2 rounded-full border border-borde bg-superficie/95 px-2 py-1.5 shadow-pop-panel">
+                    <div className="flex items-center gap-0.5 rounded-full bg-superficie-2 p-0.5">
+                        {botonHerr('crear', Pencil, 'Agregar')}
+                        {botonHerr('mover', Move, 'Mover')}
+                        {botonHerr('borrar', Trash2, 'Quitar')}
+                        {botonHerr('mano', Hand, 'Mapa')}
+                    </div>
+                    <span className="px-1 text-[12px] text-texto-3">
+                        {herramienta === 'crear'
+                            ? (numVertices < 3 ? `Clic en las esquinas (${numVertices}/3)` : `${numVertices} puntos`)
+                            : herramienta === 'mover' ? 'Arrastra un punto'
+                            : herramienta === 'borrar' ? 'Clic en un punto para quitarlo'
+                            : 'Arrastra para mover el mapa'}
+                    </span>
+                    <button type="button" data-testid="dibujo-deshacer" onClick={deshacer} disabled={numVertices === 0} title="Deshacer punto" className="grid h-7 w-7 place-items-center rounded-full text-texto-2 transition hover:bg-superficie-2 disabled:opacity-40">
+                        <Undo2 size={15} />
+                    </button>
+                    <button type="button" data-testid="dibujo-terminar" onClick={terminar} disabled={numVertices < 3} title="Terminar zona" className="flex items-center gap-1 rounded-full bg-ok px-2.5 py-1 text-[12px] font-medium text-white transition hover:opacity-90 disabled:opacity-40">
+                        <Check size={14} /> Terminar
+                    </button>
+                    <button type="button" data-testid="dibujo-cancelar" onClick={() => { limpiarDibujo(); onCancelarDibujo?.(); }} title="Cancelar" className="grid h-7 w-7 place-items-center rounded-full text-texto-2 transition hover:bg-superficie-2">
+                        <X size={15} />
+                    </button>
                 </div>
             )}
         </div>

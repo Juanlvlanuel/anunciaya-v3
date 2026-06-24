@@ -41,3 +41,72 @@ export async function listarZonas(filtros: FiltrosZonas = {}): Promise<ZonaTerri
   });
   return data.data ?? [];
 }
+
+/** Una ciudad sobre la que se pueden dibujar zonas. */
+export interface CiudadAlcance {
+  id: string;
+  nombre: string;
+  lat: number | null;
+  lng: number | null;
+}
+
+/** Ciudades del alcance del rol (super = todas activas · gerente = su región). */
+export async function listarCiudadesDelAlcance(): Promise<CiudadAlcance[]> {
+  const { data } = await api.get<RespuestaAPI<CiudadAlcance[]>>('/admin/territorios/ciudades');
+  return data.data ?? [];
+}
+
+/** Un vendedor asignable a una zona. */
+export interface VendedorAsignable {
+  embajadorId: string;
+  nombre: string | null;
+}
+
+/** Vendedores asignables (super = todos · gerente = los de su región). */
+export async function listarVendedoresAsignables(): Promise<VendedorAsignable[]> {
+  const { data } = await api.get<RespuestaAPI<VendedorAsignable[]>>('/admin/territorios/vendedores');
+  return data.data ?? [];
+}
+
+// =============================================================================
+// ACCIONES (Fase 2)
+// =============================================================================
+
+export interface CrearZonaInput {
+  ciudadId: string;
+  nombre: string;
+  poligono: PoligonoGeoJSON;
+  color?: string;
+  embajadorId?: string | null;
+}
+
+export interface EditarZonaInput {
+  nombre?: string;
+  poligono?: PoligonoGeoJSON;
+  color?: string | null;
+}
+
+/** Crear una zona (polígono dibujado). */
+export async function crearZona(datos: CrearZonaInput): Promise<{ id: string }> {
+  const { data } = await api.post<RespuestaAPI<{ id: string }>>('/admin/territorios/zonas', datos);
+  if (!data.data) throw new Error(data.message || 'Respuesta inválida del servidor');
+  return data.data;
+}
+
+/** Editar una zona (nombre / polígono / color). */
+export async function editarZona(id: string, datos: EditarZonaInput): Promise<{ id: string }> {
+  const { data } = await api.patch<RespuestaAPI<{ id: string }>>(`/admin/territorios/zonas/${id}`, datos);
+  return data.data ?? { id };
+}
+
+/** Asignar / quitar (null) el vendedor de una zona. */
+export async function asignarZona(id: string, embajadorId: string | null): Promise<{ id: string }> {
+  const { data } = await api.patch<RespuestaAPI<{ id: string }>>(`/admin/territorios/zonas/${id}/vendedor`, { embajadorId });
+  return data.data ?? { id };
+}
+
+/** Borrar una zona. */
+export async function borrarZona(id: string): Promise<{ id: string }> {
+  const { data } = await api.delete<RespuestaAPI<{ id: string }>>(`/admin/territorios/zonas/${id}`);
+  return data.data ?? { id };
+}
