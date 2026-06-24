@@ -2,7 +2,7 @@
 
 > **Qué es:** el módulo **Territorios** del Panel Admin — una **sección nueva** en el grupo "Red de
 > ventas" con un **mapa interactivo** para gestionar el territorio de la red de ventas. Lo que YA
-> funciona se documentará en `Territorios.md` (doc canónico, se escribe en Fase 3).
+> funciona vive en el doc canónico [`Territorios.md`](Territorios.md); este archivo es el checklist de lo que falta.
 >
 > **Proceso:** carril [`../../estandares/FLUJO_MODULO_PANEL.md`](../../estandares/FLUJO_MODULO_PANEL.md)
 > (0 Definir → 1 VER → 2 ACTUAR → 3 Cerrar). **Plantillas de oro:** **Ciudades** (el mapa MapLibre) +
@@ -10,7 +10,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta
 >
-> **Última actualización:** 23 Junio 2026 · **Fase actual:** G.1 en Fase 2 (ACTUAR; falta GATE 2 visual) · **G.2 (Marcas) construido E2E** (backend + frontend, validado visual con Juan); pendiente solo el doc canónico `Territorios.md`.
+> **Última actualización:** 23 Junio 2026 · **Fase actual:** módulo **CONSTRUIDO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, y lectura de marcas para gerente/super) — doc canónico `Territorios.md` escrito. **Backlog:** GATE 2 visual completo de G.1, Pieza F (multi-región), curvas en el dibujo.
 
 ---
 
@@ -189,6 +189,10 @@ donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** ma
 - **Tipos de marca (A):** `Visitado` · `Interesado` · `Cerrado` (ya es cliente) · `Sin interés`. ✅
 - **Ligar a negocio (B):** empezar **libre** (pin + nota); *ligar a un negocio existente* = mejora posterior. ✅
 - **Quién pone marcas (C):** **solo el vendedor** (las suyas); gerente/super solo lectura. ✅
+
+> **Vista del gerente/super (lectura) HECHO ✅ (commit ddbb953, 23 jun):** ven los **pines de sus vendedores** en
+> el mapa admin con popup **estado/nota/vendedor** + filtro por estado ("Marcas del equipo"). Endpoint
+> `GET /territorios/marcas-equipo` (alcance por rol; liga marca→vendedor→zona→ciudad). Validado visual con Juan.
 
 **Modelo de datos (tabla nueva, se crea al construir G.2):** `territorio_marcas`: `id` · `embajador_id` →
 `embajadores(id)` · `lat` · `lng` · `tipo` (enum de los 4) · `nota` (text) · `negocio_id` (FK suave, opcional) ·

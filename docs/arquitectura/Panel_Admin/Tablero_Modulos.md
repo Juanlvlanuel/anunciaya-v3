@@ -173,7 +173,8 @@
 | 5 | **Suscripciones** | ✅ | ✔ Cerrado (módulo completo = bitácora financiera; **sin V2**, alcance cerrado 23 jun) | `Suscripciones.md` · `Suscripciones_Pendientes.md` |
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 | | **· Red de ventas ·** | | | |
-| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: **F** (cobertura avanzada: agregar/quitar ciudades a un vendedor, incl. de otra región) + **G** (mapa de territorios: gerente zonifica la ciudad/asigna · vendedor deja marcas "ya pasé") | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
+| 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: **F** (cobertura avanzada: agregar/quitar ciudades a un vendedor, incl. de otra región). **G (mapa de territorios) → construido como módulo Territorios ✅** | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
+| 13 | **Territorios** | ✅ | ✔ Construido (G.1 zonas: editor 4-herramientas + snapping + no-traslape turf · G.2 "Mi territorio" del vendedor con marcas estado/nota · gerente/super ven marcas de sus vendedores en lectura) · backlog: F multi-región + curvas en dibujo | `Territorios.md` · `Territorios_Pendientes.md` |
 | | **· Crecimiento ·** | | | |
 | 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
