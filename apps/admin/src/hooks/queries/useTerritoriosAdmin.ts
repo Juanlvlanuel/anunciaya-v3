@@ -14,7 +14,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../config/queryKeys';
 import * as territoriosService from '../../services/territoriosService';
-import type { CrearZonaInput, EditarZonaInput, FiltrosZonas, TipoMarca } from '../../services/territoriosService';
+import type { CrearZonaInput, EditarZonaInput, FiltrosZonas, TipoMarca, MarcaTerritorio } from '../../services/territoriosService';
 import { toast } from '../../stores/useToastPanel';
 
 /** Extrae el mensaje de error del backend (o uno por defecto). */
@@ -163,13 +163,26 @@ export function useEditarMarca() {
   });
 }
 
-/** Reubicar una marca (arrastrar el pin). Silencioso: sin toast en cada soltada. */
+/**
+ * Reubicar una marca (arrastrar el pin). Optimista: mueve la marca en la caché al instante para que
+ * el pin NO "regrese" a su lugar mientras el servidor responde; revierte si falla. Silencioso (sin toast).
+ */
 export function useMoverMarca() {
-  const invalidar = useInvalidarMarcas();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, lat, lng }: { id: string; lat: number; lng: number }) => territoriosService.editarMarca(id, { lat, lng }),
-    onSuccess: () => invalidar(),
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo mover la marca')),
+    onMutate: async ({ id, lat, lng }) => {
+      await qc.cancelQueries({ queryKey: queryKeys.territorios.marcas() });
+      const previo = qc.getQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas());
+      qc.setQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas(), (old) =>
+        (old ?? []).map((m) => (m.id === id ? { ...m, lat, lng } : m)));
+      return { previo };
+    },
+    onError: (e, _vars, ctx) => {
+      if (ctx?.previo) qc.setQueryData(queryKeys.territorios.marcas(), ctx.previo);
+      toast.error(mensajeError(e, 'No se pudo mover la marca'));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.territorios.marcas() }),
   });
 }
 
