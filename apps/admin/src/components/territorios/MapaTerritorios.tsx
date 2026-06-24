@@ -46,6 +46,7 @@ interface MapaTerritoriosProps {
     marcas?: MarcaEquipo[];
     centro?: [number, number] | null;
     modoDibujo?: boolean;
+    introAnimado?: boolean; // intro de cine (México → vuelo a sus zonas), p.ej. para el gerente
     onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
     onCancelarDibujo?: () => void;
 }
@@ -113,7 +114,7 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false, introAnimado = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
@@ -125,6 +126,8 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
     const onCompletoRef = useRef(onPoligonoCompleto);
     const popupEqRef = useRef<maplibregl.Popup | null>(null);
     const popupEqIdRef = useRef<string | null>(null);
+    const introAnimadoRef = useRef(introAnimado);
+    const introHechoRef = useRef(false);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [listo, setListo] = useState(false);
@@ -133,6 +136,7 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
 
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
+    useEffect(() => { introAnimadoRef.current = introAnimado; }, [introAnimado]);
     useEffect(() => { onCompletoRef.current = onPoligonoCompleto; }, [onPoligonoCompleto]);
 
     /** Oculta el popup de marca (si hay alguno abierto). */
@@ -292,8 +296,11 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
 
             setListo(true);
             setCargando(false);
-            const bounds = calcularBounds(zonasRef.current);
-            if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 0, maxZoom: 14 });
+            // Sin intro: encuadra al instante. Con intro de cine: se queda en México y el effect de zonas vuela.
+            if (!introAnimadoRef.current) {
+                const bounds = calcularBounds(zonasRef.current);
+                if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 0, maxZoom: 14 });
+            }
         });
 
         // Clic según la herramienta activa.
@@ -382,15 +389,20 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
     useEffect(() => {
         const mapa = mapaRef.current;
         if (!mapa || !listo) return;
-        const source = mapa.getSource(ID_SOURCE) as GeoJSONSource | undefined;
-        if (!source) return;
-        source.setData(construirGeoJSON(zonas));
-        if (!modoDibujoRef.current) {
-            const bounds = calcularBounds(zonas);
-            if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 300, maxZoom: 14 });
-            else if (centro) mapa.flyTo({ center: centro, zoom: 12, duration: 400 });
+        (mapa.getSource(ID_SOURCE) as GeoJSONSource | undefined)?.setData(construirGeoJSON(zonas));
+        if (modoDibujoRef.current) return;
+        const bounds = calcularBounds(zonas);
+
+        // Intro de cine (gerente, una sola vez): se ve México y vuela con zoom hasta sus zonas (su región).
+        if (introAnimado && !introHechoRef.current && bounds) {
+            introHechoRef.current = true;
+            const t = setTimeout(() => mapa.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 2600, essential: true }), 900);
+            return () => clearTimeout(t);
         }
-    }, [zonas, listo, centro]);
+
+        if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 300, maxZoom: 14 });
+        else if (centro) mapa.flyTo({ center: centro, zoom: 12, duration: 400 });
+    }, [zonas, listo, centro, introAnimado]);
 
     // ── Re-pintar las marcas de vendedores cuando cambian ────────────────────────
     useEffect(() => {

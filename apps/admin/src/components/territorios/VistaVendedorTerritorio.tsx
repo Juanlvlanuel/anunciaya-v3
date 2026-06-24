@@ -105,7 +105,7 @@ export function VistaVendedorTerritorio() {
             </div>
 
             {/* Columna derecha: solo herramientas del vendedor */}
-            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pt-3">
+            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pr-3 lg:pt-3">
                 <button
                     type="button"
                     data-testid="marca-agregar"

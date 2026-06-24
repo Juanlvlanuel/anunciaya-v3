@@ -112,6 +112,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                         marcas={marcasFiltradas}
                         centro={centro}
                         modoDibujo={dibujando}
+                        introAnimado={rol === 'gerente'}
                         onPoligonoCompleto={alPoligonoCompleto}
                         onCancelarDibujo={() => setDibujando(false)}
                     />
@@ -120,7 +121,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
             {/* Columna derecha: SOLO super/gerente (gestión de zonas). El vendedor ve solo su mapa + (G.2) sus marcas. */}
             {puedeEditar && (
-            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pt-3">
+            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pr-3 lg:pt-3">
                 {puedeEditar && (
                     <div className="flex shrink-0 flex-col gap-2">
                         <SelectorBuscable
