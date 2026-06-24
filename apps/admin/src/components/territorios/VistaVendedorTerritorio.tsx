@@ -39,6 +39,10 @@ export function VistaVendedorTerritorio() {
     const [modoAgregar, setModoAgregar] = useState(false);
     const [editando, setEditando] = useState<MarcaEnEdicion | null>(null);
     const [confirmarBorrar, setConfirmarBorrar] = useState(false);
+    const [filtro, setFiltro] = useState<TipoMarca | null>(null);
+
+    // Filtros excluyentes: un solo estado a la vez (clic en el activo lo quita → muestra todas).
+    const seleccionarFiltro = (t: TipoMarca) => setFiltro((f) => (f === t ? null : t));
 
     const sinZona = !cargandoZonas && zonas.length === 0;
 
@@ -55,6 +59,7 @@ export function VistaVendedorTerritorio() {
             {
                 onSuccess: (data) => {
                     setModoAgregar(false);
+                    setFiltro(null); // la marca nueva siempre visible (no la oculta un filtro activo)
                     setEditando({ id: data.id, tipo: 'visitado', nota: '' });
                 },
             },
@@ -80,6 +85,10 @@ export function VistaVendedorTerritorio() {
         () => [...marcas].sort((a, b) => (b.createdAt ?? '').localeCompare(a.createdAt ?? '')),
         [marcas],
     );
+    const marcasFiltradas = useMemo(
+        () => (filtro === null ? marcasOrdenadas : marcasOrdenadas.filter((m) => m.tipo === filtro)),
+        [marcasOrdenadas, filtro],
+    );
 
     return (
         <div className="flex h-full flex-col gap-3 lg:flex-row" data-testid="seccion-mi-territorio">
@@ -87,7 +96,7 @@ export function VistaVendedorTerritorio() {
             <div className="min-h-[320px] min-w-0 flex-1">
                 <MapaMarcas
                     zonas={zonas}
-                    marcas={marcas}
+                    marcas={marcasFiltradas}
                     modoAgregar={modoAgregar}
                     onAgregarMarca={alAgregarMarca}
                     onClicMarca={abrirMarca}
@@ -178,14 +187,26 @@ export function VistaVendedorTerritorio() {
                     </div>
                 ) : (
                     <>
-                        {/* Leyenda de estados */}
-                        <div className="flex shrink-0 flex-wrap gap-x-3 gap-y-1 rounded-[10px] border border-borde bg-superficie px-3 py-2">
-                            {TIPOS.map((t) => (
-                                <span key={t} className="flex items-center gap-1.5 text-[11.5px] text-texto-3">
-                                    <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
-                                    {ETIQUETA_TIPO[t]}
-                                </span>
-                            ))}
+                        {/* Filtros por estado (chips clickeables; sin selección = todas) */}
+                        <div className="flex shrink-0 flex-wrap gap-1.5">
+                            {TIPOS.map((t) => {
+                                const activo = filtro === t;
+                                return (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        data-testid={`filtro-${t}`}
+                                        onClick={() => seleccionarFiltro(t)}
+                                        aria-pressed={activo}
+                                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition ${
+                                            activo ? 'border-marca bg-marca-suave font-medium text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'
+                                        }`}
+                                    >
+                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
+                                        {ETIQUETA_TIPO[t]}
+                                    </button>
+                                );
+                            })}
                         </div>
 
                         {/* Lista de mis marcas */}
@@ -198,8 +219,12 @@ export function VistaVendedorTerritorio() {
                                 <div className="rounded-[10px] border border-dashed border-borde px-3 py-6 text-center text-[13px] text-texto-3">
                                     Aún no tienes marcas. Usa "Agregar marca" y toca el mapa.
                                 </div>
+                            ) : marcasFiltradas.length === 0 ? (
+                                <div className="rounded-[10px] border border-dashed border-borde px-3 py-6 text-center text-[13px] text-texto-3">
+                                    Ninguna marca con ese filtro.
+                                </div>
                             ) : (
-                                marcasOrdenadas.map((m) => (
+                                marcasFiltradas.map((m) => (
                                     <button
                                         key={m.id}
                                         type="button"
