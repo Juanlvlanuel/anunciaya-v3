@@ -7,13 +7,14 @@
  *
  * La LECTURA (listar zonas) vive en `territorios.service.ts`.
  *
- * Pendiente (siguiente sub-paso de Fase 2): validación de NO-TRASLAPE entre zonas de la misma
- * ciudad (requiere turf.js) y el "pegado a calles" (snapping) del dibujo.
+ * No-traslape: crear/editar valida con turf que el polígono no se solape EN ÁREA con otra zona de
+ * la misma ciudad (compartir un borde = OK). El "pegado a calles" (snapping) del dibujo es del front.
  *
  * Ubicación: apps/api/src/services/admin/territorios-acciones.service.ts
  */
 
-import { eq } from 'drizzle-orm';
+import { and, eq, ne } from 'drizzle-orm';
+import { polygon as turfPolygon, featureCollection, intersect, area } from '@turf/turf';
 import { db } from '../../db/index.js';
 import { territorioZonas, ciudades, embajadores } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
@@ -61,6 +62,56 @@ async function embajadorExiste(embajadorId: string): Promise<boolean> {
 }
 
 // =============================================================================
+// NO-TRASLAPE (turf)
+// =============================================================================
+
+/** Asegura que cada anillo esté cerrado (primer punto = último) para que turf no falle. */
+function cerrarAnillos(coords: number[][][]): number[][][] {
+    return coords.map((anillo) => {
+        if (anillo.length < 3) return anillo;
+        const a = anillo[0];
+        const b = anillo[anillo.length - 1];
+        return a[0] === b[0] && a[1] === b[1] ? anillo : [...anillo, a];
+    });
+}
+
+/**
+ * ¿El polígono nuevo se solapa EN ÁREA con otra zona de la misma ciudad? Compartir solo un borde
+ * (zonas adyacentes) NO cuenta: se exige que el área de intersección supere el 1% de la zona más
+ * chica (tolera "slivers" por bordes dibujados a mano que no coinciden al milímetro).
+ */
+async function seSolapaConOtraZona(ciudadId: string, poligono: { coordinates: number[][][] }, excluirId?: string): Promise<boolean> {
+    const cond = excluirId
+        ? and(eq(territorioZonas.ciudadId, ciudadId), ne(territorioZonas.id, excluirId))
+        : eq(territorioZonas.ciudadId, ciudadId);
+    const otras = await db.select({ poligono: territorioZonas.poligono }).from(territorioZonas).where(cond);
+    if (otras.length === 0) return false;
+
+    let nuevo;
+    try {
+        nuevo = turfPolygon(cerrarAnillos(poligono.coordinates));
+    } catch {
+        return false; // polígono inválido → no bloqueamos por traslape (el Zod/insert lo atajan)
+    }
+    const areaNuevo = area(nuevo);
+
+    for (const o of otras) {
+        const geo = o.poligono as { type?: string; coordinates?: number[][][] } | null;
+        if (!geo || geo.type !== 'Polygon' || !geo.coordinates) continue;
+        try {
+            const otro = turfPolygon(cerrarAnillos(geo.coordinates));
+            const inter = intersect(featureCollection([nuevo, otro]));
+            if (!inter) continue;
+            const areaMin = Math.min(areaNuevo, area(otro)) || 1;
+            if (area(inter) > areaMin * 0.01) return true;
+        } catch {
+            continue;
+        }
+    }
+    return false;
+}
+
+// =============================================================================
 // ACCIONES
 // =============================================================================
 
@@ -71,6 +122,9 @@ export async function crearZona(panel: UsuarioPanel, datos: CrearZonaInput): Pro
     }
     if (datos.embajadorId && !(await embajadorExiste(datos.embajadorId))) {
         return { ok: false, status: 404, mensaje: 'El vendedor indicado no existe.' };
+    }
+    if (await seSolapaConOtraZona(datos.ciudadId, datos.poligono)) {
+        return { ok: false, status: 409, mensaje: 'La zona se traslapa con otra de la misma ciudad. Ajusta el contorno.' };
     }
 
     const [creada] = await db
@@ -101,6 +155,10 @@ export async function crearZona(panel: UsuarioPanel, datos: CrearZonaInput): Pro
 export async function editarZona(panel: UsuarioPanel, id: string, datos: EditarZonaInput): Promise<ResultadoAccion<{ id: string }>> {
     const cargada = await cargarZonaConAlcance(panel, id);
     if (!cargada.ok) return cargada;
+
+    if (datos.poligono !== undefined && (await seSolapaConOtraZona(cargada.data.ciudadId, datos.poligono, id))) {
+        return { ok: false, status: 409, mensaje: 'La zona se traslapa con otra de la misma ciudad. Ajusta el contorno.' };
+    }
 
     const cambios: Partial<typeof territorioZonas.$inferInsert> = { updatedAt: new Date().toISOString() };
     if (datos.nombre !== undefined) cambios.nombre = datos.nombre.trim();

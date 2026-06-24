@@ -152,7 +152,10 @@ Fase 2 — ACTUAR (en curso · sub-paso 2a)
       (source-layer `transportation`). tsc Panel verde.
 - [ ] GATE 2 (visual, Juan): dibujar + insertar en arista + mover + quitar + guardar + reasignar/borrar zona.
 - [ ] **Curvas entre 2 puntos** (arrastrar el medio de un lado → arco): **pospuesto** (Juan, "aún no"). Backlog.
-- [ ] No-traslape (turf.js): rechazar zonas que se SOLAPEN en área (compartir un borde = OK, son adyacentes).
+- [x] **No-traslape (turf.js) ✅ (23 jun):** crear/editar zona **rechaza (409)** si el polígono se solapa EN ÁREA con
+      otra de la misma ciudad. Umbral: área de intersección > **1%** de la zona más chica (compartir un borde = OK;
+      tolera *slivers* de bordes dibujados a mano). En `territorios-acciones.service.ts` (`seSolapaConOtraZona` con
+      `@turf/turf`: `intersect` + `area`), backend como autoridad; el front muestra el mensaje en su toast de error. tsc API verde.
 
 Fase 3 — Cerrar
 - [ ] Doc canónico Territorios.md + índices (tablero, memoria) + commit
