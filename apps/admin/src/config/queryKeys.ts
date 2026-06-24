@@ -184,6 +184,10 @@ export const queryKeys = {
     lista: (filtros: FiltrosCiudadesKey) => ['ciudades', 'lista', filtros] as const,
     regiones: () => ['ciudades', 'regiones'] as const,
   },
+  territorios: {
+    all: () => ['territorios'] as const,
+    zonas: (ciudadId?: string) => ['territorios', 'zonas', ciudadId ?? 'todas'] as const,
+  },
   configuracion: {
     all: () => ['configuracion'] as const,
     lista: () => ['configuracion', 'lista'] as const,

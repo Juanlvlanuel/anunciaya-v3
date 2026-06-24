@@ -33,6 +33,7 @@ import publicidadRoutes from './publicidad.routes.js';
 import regionesRoutes from './regiones.routes.js';
 import configuracionRoutes from './configuracion.routes.js';
 import ciudadesRoutes from './ciudades.routes.js';
+import territoriosRoutes from './territorios.routes.js';
 
 const router: Router = Router();
 
@@ -81,6 +82,11 @@ router.use('/equipo', equipoRoutes);
 // ANTES del gate global de superadmin: la sección la usan los 3 roles (el vendedor solo ve su
 // propia cartera; el gerente su equipo). Cada ruta trae su propio requierePanel con los roles.
 router.use('/vendedores', vendedoresRoutes);
+
+// ─── Territorios (superadmin + gerente + vendedor · alcance por rol) ──────────────
+// ANTES del gate global de superadmin: la sección (mapa de zonas) la usan los 3 roles
+// (el vendedor solo ve su pedazo asignado; el gerente su región). Cada ruta trae su requierePanel.
+router.use('/territorios', territoriosRoutes);
 
 // ─── Recibos (superadmin + gerente + vendedor · alcance por rol) ─────────────────
 // ANTES del gate global de superadmin: los 3 roles consultan recibos (el vendedor solo los de sus

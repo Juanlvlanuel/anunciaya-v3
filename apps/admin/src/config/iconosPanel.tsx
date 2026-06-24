@@ -21,6 +21,7 @@ import {
   Wrench,
   Receipt,
   ScrollText,
+  Map,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -33,6 +34,7 @@ export const ICONOS_SECCION: Record<string, LucideIcon> = {
   suscripciones: CreditCard,
   recibos: Receipt,
   comisiones: CircleDollarSign,
+  territorios: Map,
   publicidad: Megaphone,
   ciudades: MapPin,
   configuracion: SlidersHorizontal,

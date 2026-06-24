@@ -35,6 +35,7 @@ import { SeccionEquipo } from '../components/equipo/SeccionEquipo';
 import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
 import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
 import { SeccionCiudades } from '../components/ciudades/SeccionCiudades';
+import { SeccionTerritorios } from '../components/territorios/SeccionTerritorios';
 import { SeccionAuditoria } from '../components/auditoria/SeccionAuditoria';
 import { SeccionPublicidad } from '../components/publicidad/SeccionPublicidad';
 import { SeccionMantenimiento } from '../components/mantenimiento/SeccionMantenimiento';
@@ -188,6 +189,8 @@ function PaginaPanel() {
     <SeccionEquipo />
   ) : seccionActivaId === 'comisiones' ? (
     <SeccionVendedores rol={rol} />
+  ) : seccionActivaId === 'territorios' ? (
+    <SeccionTerritorios rol={rol} />
   ) : seccionActivaId === 'configuracion' ? (
     <SeccionConfiguracion />
   ) : seccionActivaId === 'ciudades' ? (

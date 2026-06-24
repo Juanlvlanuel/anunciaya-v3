@@ -66,6 +66,25 @@ export const embajadorCiudades = pgTable("embajador_ciudades", {
 	primaryKey({ columns: [table.embajadorId, table.ciudadId], name: "embajador_ciudades_pkey" }),
 ]);
 
+// `territorio_zonas` = particiones del mapa de la red de ventas (módulo Territorios, G.1).
+// El gerente/super dibuja zonas (polígonos GeoJSON) sobre una ciudad y se las ASIGNA a un
+// vendedor (`embajador_id`, NULL = sin asignar). El vendedor solo verá su pedazo (capa G.2).
+// Geometría como GeoJSON en jsonb (sin PostGIS); el no-traslape se valida en la app.
+export const territorioZonas = pgTable("territorio_zonas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	ciudadId: uuid("ciudad_id").notNull().references((): AnyPgColumn => ciudades.id, { onDelete: 'cascade' }),
+	embajadorId: uuid("embajador_id").references((): AnyPgColumn => embajadores.id, { onDelete: 'set null' }),
+	nombre: varchar({ length: 80 }).notNull(),
+	poligono: jsonb().$type<{ type: 'Polygon'; coordinates: number[][][] }>().notNull(),
+	color: varchar({ length: 9 }),
+	creadaPor: uuid("creada_por").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_territorio_zonas_ciudad").using("btree", table.ciudadId.asc().nullsLast()),
+	index("idx_territorio_zonas_embajador").using("btree", table.embajadorId.asc().nullsLast()),
+]);
+
 export const usuarios = pgTable("usuarios", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	nombre: varchar({ length: 100 }).notNull(),
