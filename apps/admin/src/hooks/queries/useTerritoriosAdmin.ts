@@ -64,6 +64,17 @@ export function useMarcasEquipo(ciudadId?: string, enabled = true) {
   });
 }
 
+/** Negocios reales para el mapa (alcance por rol), filtrables por ciudad. */
+export function useNegociosMapa(ciudadId?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.territorios.negociosMapa(ciudadId),
+    queryFn: () => territoriosService.listarNegociosMapa(ciudadId),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 60,
+  });
+}
+
 // =============================================================================
 // MUTACIONES — invalidan toda la familia ['territorios']
 // =============================================================================

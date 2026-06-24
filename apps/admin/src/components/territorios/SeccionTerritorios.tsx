@@ -19,13 +19,14 @@ import {
     useCiudadesDelAlcance,
     useVendedoresAsignables,
     useMarcasEquipo,
+    useNegociosMapa,
     useCrearZona,
     useAsignarZona,
     useBorrarZona,
 } from '../../hooks/queries/useTerritoriosAdmin';
 import { MapaTerritorios } from './MapaTerritorios';
 import { VistaVendedorTerritorio } from './VistaVendedorTerritorio';
-import { COLOR_TIPO, ETIQUETA_TIPO } from './MapaMarcas';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO } from './MapaMarcas';
 import { SelectorBuscable, type OpcionBuscable } from '../ui/SelectorBuscable';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import type { RolPanel } from '../../data/menuPanel';
@@ -53,12 +54,14 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const { data: vendedores = [] } = useVendedoresAsignables(puedeEditar);
     const { data: zonas = [], isLoading, isError } = useZonas(ciudadId ? { ciudadId } : {});
     const { data: marcas = [] } = useMarcasEquipo(ciudadId || undefined, puedeEditar);
+    const { data: negocios = [] } = useNegociosMapa(ciudadId || undefined, puedeEditar);
     const crear = useCrearZona();
     const asignar = useAsignarZona();
     const borrar = useBorrarZona();
 
     const [dibujando, setDibujando] = useState(false);
     const [filtroMarca, setFiltroMarca] = useState<TipoMarca | null>(null);
+    const [mostrarNegocios, setMostrarNegocios] = useState(true);
     const [poligonoNuevo, setPoligonoNuevo] = useState<PoligonoGeoJSON | null>(null);
     const [nombre, setNombre] = useState('');
     const [color, setColor] = useState(COLORES[0]);
@@ -110,6 +113,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     <MapaTerritorios
                         zonas={zonas}
                         marcas={marcasFiltradas}
+                        negocios={mostrarNegocios ? negocios : []}
                         centro={centro}
                         modoDibujo={dibujando}
                         introAnimado={rol === 'gerente'}
@@ -169,6 +173,28 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                                 );
                             })}
                         </div>
+                    </div>
+                )}
+
+                {/* Toggle de los negocios reales en el mapa + leyenda de atribución */}
+                {!poligonoNuevo && (
+                    <div className="flex shrink-0 flex-col gap-1.5">
+                        <button
+                            type="button"
+                            data-testid="toggle-negocios"
+                            onClick={() => setMostrarNegocios((v) => !v)}
+                            aria-pressed={mostrarNegocios}
+                            className={`flex items-center justify-between gap-2 rounded-[10px] border px-3 py-2 text-[12.5px] transition ${mostrarNegocios ? 'border-marca bg-marca-suave text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'}`}
+                        >
+                            <span>Negocios en el mapa</span>
+                            <span className={`text-[11px] ${mostrarNegocios ? 'text-marca' : 'text-texto-3'}`}>{mostrarNegocios ? 'Visibles' : 'Ocultos'}</span>
+                        </button>
+                        {mostrarNegocios && negocios.length > 0 && (
+                            <div className="flex flex-wrap gap-x-3 gap-y-1 px-1 text-[11px] text-texto-3">
+                                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: COLOR_NEGOCIO.sinVendedor }} />Sin vendedor</span>
+                                <span className="flex items-center gap-1.5"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: COLOR_NEGOCIO.conVendedor }} />Con vendedor</span>
+                            </div>
+                        )}
                     </div>
                 )}
 

@@ -248,6 +248,19 @@ input:-webkit-autofill:focus {
 }
 
 /* =============================================================================
+   POPUPS de los mapas de Territorios (MapLibre) — contenedor pulido
+   =============================================================================
+   Solo afecta a los popups marcados con className "popup-territorio" (negocios,
+   marcas, marcas del equipo): bordes redondeados + sombra suave. El contenido va
+   con estilos inline en el HTML inyectado. */
+.popup-territorio .maplibregl-popup-content {
+  border-radius: 12px;
+  padding: 10px 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 8px 28px -8px rgba(15, 23, 42, 0.28), 0 2px 8px -3px rgba(15, 23, 42, 0.12);
+}
+
+/* =============================================================================
    AUXILIARES — animaciones, spinner y decorado del login
    ============================================================================= */
 

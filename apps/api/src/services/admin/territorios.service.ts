@@ -180,6 +180,64 @@ export async function listarMarcasEquipo(panel: UsuarioPanel, ciudadId?: string)
     }));
 }
 
+/** Un negocio real de la app, para pintarlo en el mapa de territorios. */
+export interface NegocioMapa {
+    id: string;
+    nombre: string;
+    lat: number;
+    lng: number;
+    estado: string;             // efectivo: al_corriente / en_gracia / suspendido / cancelado
+    embajadorId: string | null; // null = sin vendedor (auto-registrado)
+    vendedorNombre: string | null;
+}
+
+/**
+ * Negocios reales (con su ubicación de sucursal principal) para el mapa de Territorios. Alcance:
+ *   - vendedor → SOLO sus negocios (`embajador_id` = su embajador).
+ *   - gerente  → todos los de su región (con y sin vendedor) — el gerente decide a quién asignar.
+ *   - super    → todos (o los de la ciudad indicada).
+ * La ubicación sale de `negocio_sucursales.ubicacion` (geography Point) vía ST_Y/ST_X; las sucursales
+ * sin ubicación capturada se omiten.
+ */
+export async function listarNegociosMapa(panel: UsuarioPanel, ciudadId?: string): Promise<NegocioMapa[]> {
+    if (panel.rolEquipo === 'gerente' && !panel.regionId) return [];
+    if (panel.rolEquipo === 'vendedor' && !panel.usuarioId) return [];
+
+    const cond: SQL[] = [sql`s.ubicacion IS NOT NULL`];
+    if (ciudadId) cond.push(sql`s.ciudad_id = ${ciudadId}`);
+    if (panel.rolEquipo === 'gerente') {
+        cond.push(sql`EXISTS (SELECT 1 FROM ciudades c WHERE c.id = s.ciudad_id AND c.region_id = ${panel.regionId})`);
+    } else if (panel.rolEquipo === 'vendedor') {
+        cond.push(sql`n.embajador_id IN (SELECT id FROM embajadores WHERE usuario_id = ${panel.usuarioId})`);
+    }
+
+    const filas = (await db.execute(sql`
+        SELECT n.id::text AS id, n.nombre AS nombre,
+               ST_Y(s.ubicacion::geometry) AS lat, ST_X(s.ubicacion::geometry) AS lng,
+               CASE WHEN n.estado_admin = 'archivado' THEN 'cancelado'
+                    WHEN n.estado_admin = 'suspendido' THEN 'suspendido'
+                    ELSE n.estado_membresia END AS estado,
+               n.embajador_id::text AS embajador_id,
+               u.nombre AS vendedor_nombre
+        FROM negocios n
+        JOIN negocio_sucursales s ON s.negocio_id = n.id AND s.es_principal = true
+        LEFT JOIN embajadores e ON e.id = n.embajador_id
+        LEFT JOIN usuarios u ON u.id = e.usuario_id
+        WHERE ${sql.join(cond, sql` AND `)}
+        ORDER BY n.nombre
+    `)).rows as Array<{ id: string; nombre: string; lat: string | number; lng: string | number; estado: string; embajador_id: string | null; vendedor_nombre: string | null }>;
+
+    return filas.map((f) => ({
+        id: f.id,
+        nombre: f.nombre,
+        lat: Number(f.lat),
+        lng: Number(f.lng),
+        estado: f.estado,
+        embajadorId: f.embajador_id,
+        vendedorNombre: f.vendedor_nombre,
+    }));
+}
+
 /** Vendedores asignables a una zona según el rol (super = todos activos · gerente = los de su región). */
 export async function listarVendedoresAsignables(panel: UsuarioPanel): Promise<Array<{ embajadorId: string; nombre: string | null }>> {
     if (panel.rolEquipo === 'vendedor') return [];

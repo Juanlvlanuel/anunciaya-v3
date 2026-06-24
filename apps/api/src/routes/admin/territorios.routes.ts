@@ -20,6 +20,7 @@ import {
     listarCiudadesController,
     listarVendedoresController,
     listarMarcasEquipoController,
+    listarNegociosMapaController,
     crearZonaController,
     editarZonaController,
     asignarZonaController,
@@ -43,6 +44,9 @@ router.get('/vendedores', requierePanel(['superadmin', 'gerente']), listarVended
 
 // Marcas de los vendedores, solo lectura (super + gerente; ?ciudadId opcional).
 router.get('/marcas-equipo', requierePanel(['superadmin', 'gerente']), listarMarcasEquipoController);
+
+// Negocios reales para el mapa (3 roles; el service acota: vendedor=suyos · gerente/super=alcance).
+router.get('/negocios', requierePanel(['superadmin', 'gerente', 'vendedor']), listarNegociosMapaController);
 
 // ─── ACTUAR (Fase 2) — super + gerente (el vendedor no dibuja ni asigna) ─────────
 router.post('/zonas', requierePanel(['superadmin', 'gerente']), crearZonaController);

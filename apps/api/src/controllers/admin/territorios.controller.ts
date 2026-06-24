@@ -8,7 +8,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance, listarMarcasEquipo } from '../../services/admin/territorios.service.js';
+import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance, listarMarcasEquipo, listarNegociosMapa } from '../../services/admin/territorios.service.js';
 import { crearZona, editarZona, asignarZona, borrarZona } from '../../services/admin/territorios-acciones.service.js';
 import { listarMisMarcas, crearMarca, editarMarca, borrarMarca } from '../../services/admin/territorios-marcas.service.js';
 import { crearZonaSchema, editarZonaSchema, asignarZonaSchema, crearMarcaSchema, editarMarcaSchema } from '../../validations/admin/territorios.schema.js';
@@ -67,6 +67,18 @@ export async function listarMarcasEquipoController(req: Request, res: Response):
     } catch (error) {
         console.error('Error en listarMarcasEquipoController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener las marcas del equipo' });
+    }
+}
+
+/** GET /api/admin/territorios/negocios — negocios reales para el mapa (3 roles; el service acota; ?ciudadId opcional). */
+export async function listarNegociosMapaController(req: Request, res: Response): Promise<void> {
+    try {
+        const { ciudadId } = req.query;
+        const data = await listarNegociosMapa(req.usuarioPanel!, typeof ciudadId === 'string' ? ciudadId : undefined);
+        res.status(200).json({ success: true, message: 'Negocios del mapa obtenidos', data });
+    } catch (error) {
+        console.error('Error en listarNegociosMapaController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener los negocios del mapa' });
     }
 }
 

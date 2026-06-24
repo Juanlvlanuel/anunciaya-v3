@@ -19,8 +19,8 @@ import { useEffect, useRef, useState } from 'react';
 import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
-import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo } from '../../services/territoriosService';
-import { COLOR_TIPO, ETIQUETA_TIPO } from './MapaMarcas';
+import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, NegocioMapa } from '../../services/territoriosService';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio } from './MapaMarcas';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
 const CENTRO_MX: [number, number] = [-102.5, 23.6];
@@ -34,7 +34,10 @@ const ID_DIBUJO_LINE = 'dibujo-line';
 const ID_DIBUJO_PTS = 'dibujo-pts';
 const ID_DIBUJO_PTS_C = 'dibujo-pts-circle';
 const ID_MARCAS_EQ = 'marcas-eq';
+const ID_MARCAS_EQ_SOMBRA = 'marcas-eq-sombra';
 const ID_MARCAS_EQ_C = 'marcas-eq-circle';
+const ID_NEGOCIOS = 'negocios';
+const ID_NEGOCIOS_C = 'negocios-circle';
 const COLOR_DEFECTO = '#2563eb';
 const COLOR_DIBUJO = '#0ea5e9';
 const SNAP_PX = 18; // radio de búsqueda de calle para el pegado (px)
@@ -44,6 +47,7 @@ type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
 interface MapaTerritoriosProps {
     zonas: ZonaTerritorio[];
     marcas?: MarcaEquipo[];
+    negocios?: NegocioMapa[];
     centro?: [number, number] | null;
     modoDibujo?: boolean;
     introAnimado?: boolean; // intro de cine (México → vuelo a sus zonas), p.ej. para el gerente
@@ -72,15 +76,16 @@ function contenidoPopupEq(m: MarcaEquipo): string {
     const nota = m.nota?.trim();
     const vendedor = m.vendedorNombre?.trim();
     const filaNota = nota
-        ? `<div style="font-size:12px;line-height:1.35;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
-        : `<div style="font-size:12px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
+        ? `<div style="font-size:11.5px;line-height:1.45;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
+        : `<div style="font-size:11px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
     const filaVend = vendedor
-        ? `<div style="font-size:11px;color:#64748b;margin-top:2px;">Vendedor: ${escaparHtml(vendedor)}</div>`
+        ? `<div style="font-size:11px;color:#64748b;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(vendedor)}</span></div>`
         : '';
-    return `<div style="display:flex;flex-direction:column;gap:3px;min-width:120px;max-width:230px;">`
-        + `<div style="display:flex;align-items:center;gap:6px;font-weight:600;font-size:12.5px;color:#0f172a;">`
-        + `<span style="width:10px;height:10px;border-radius:9999px;background:${COLOR_TIPO[m.tipo]};display:inline-block;"></span>${ETIQUETA_TIPO[m.tipo]}</div>`
-        + filaNota + filaVend + `</div>`;
+    const fecha = fechaCorta(m.createdAt);
+    const filaFecha = fecha ? `<div style="font-size:10.5px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
+    return `<div style="display:flex;flex-direction:column;gap:6px;min-width:135px;max-width:230px;">`
+        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true)
+        + filaNota + filaVend + filaFecha + `</div>`;
 }
 
 function construirGeoJSON(zonas: ZonaTerritorio[]) {
@@ -114,11 +119,12 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false, introAnimado = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, introAnimado = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
     const marcasRef = useRef<MarcaEquipo[]>(marcas);
+    const negociosRef = useRef<NegocioMapa[]>(negocios);
     const verticesRef = useRef<[number, number][]>([]);
     const modoDibujoRef = useRef(modoDibujo);
     const herramientaRef = useRef<Herramienta>('crear');
@@ -126,6 +132,7 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
     const onCompletoRef = useRef(onPoligonoCompleto);
     const popupEqRef = useRef<maplibregl.Popup | null>(null);
     const popupEqIdRef = useRef<string | null>(null);
+    const popupNegRef = useRef<maplibregl.Popup | null>(null);
     const introAnimadoRef = useRef(introAnimado);
     const introHechoRef = useRef(false);
     const [cargando, setCargando] = useState(true);
@@ -136,6 +143,7 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
 
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
+    useEffect(() => { negociosRef.current = negocios; }, [negocios]);
     useEffect(() => { introAnimadoRef.current = introAnimado; }, [introAnimado]);
     useEffect(() => { onCompletoRef.current = onPoligonoCompleto; }, [onPoligonoCompleto]);
 
@@ -269,7 +277,10 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
         mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
         // Popup de hover de las marcas de vendedores (solo lectura).
-        popupEqRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px' });
+        popupEqRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px', className: 'popup-territorio' });
+        // Popup de hover de los negocios reales.
+        const popupNeg = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px', className: 'popup-territorio' });
+        popupNegRef.current = popupNeg;
 
         mapa.on('load', () => {
             mapa.addSource(ID_SOURCE, { type: 'geojson', data: construirGeoJSON(zonasRef.current) });
@@ -277,16 +288,41 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
             mapa.addLayer({ id: ID_LINE, type: 'line', source: ID_SOURCE, layout: { 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'line-width': 2, 'line-opacity': 0.85 } });
             mapa.addLayer({ id: ID_LABEL, type: 'symbol', source: ID_SOURCE, layout: { 'text-field': ['get', 'nombre'], 'text-size': 12, 'text-anchor': 'center' }, paint: { 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 } });
 
-            // Marcas de los vendedores (solo lectura), debajo de las capas de dibujo.
+            // Marcas de los vendedores (solo lectura), debajo de las capas de dibujo. Sombra + disco con borde.
             mapa.addSource(ID_MARCAS_EQ, { type: 'geojson', data: marcasEqGeoJSON(marcasRef.current) });
+            mapa.addLayer({
+                id: ID_MARCAS_EQ_SOMBRA, type: 'circle', source: ID_MARCAS_EQ,
+                paint: { 'circle-radius': 8.5, 'circle-color': '#0f172a', 'circle-opacity': 0.18, 'circle-blur': 0.6, 'circle-translate': [0, 1.5] },
+            });
             mapa.addLayer({
                 id: ID_MARCAS_EQ_C, type: 'circle', source: ID_MARCAS_EQ,
                 paint: {
-                    'circle-radius': 6,
+                    'circle-radius': 7,
                     'circle-color': ['match', ['get', 'tipo'], 'visitado', COLOR_TIPO.visitado, 'interesado', COLOR_TIPO.interesado, 'cerrado', COLOR_TIPO.cerrado, 'sin_interes', COLOR_TIPO.sin_interes, COLOR_TIPO.visitado],
-                    'circle-stroke-color': '#ffffff', 'circle-stroke-width': 1.5,
+                    'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5,
                 },
             });
+
+            // Negocios reales (solo lectura), debajo de las capas de dibujo.
+            mapa.addSource(ID_NEGOCIOS, { type: 'geojson', data: negociosGeoJSON(negociosRef.current) });
+            mapa.addLayer({
+                id: ID_NEGOCIOS_C, type: 'circle', source: ID_NEGOCIOS,
+                paint: {
+                    'circle-radius': 6,
+                    'circle-color': '#ffffff',
+                    'circle-stroke-width': 3,
+                    'circle-stroke-color': ['case', ['==', ['get', 'embajadorId'], ''], COLOR_NEGOCIO.sinVendedor, COLOR_NEGOCIO.conVendedor],
+                },
+            });
+            mapa.on('mouseenter', ID_NEGOCIOS_C, (e) => {
+                if (modoDibujoRef.current) return;
+                const f = e.features?.[0];
+                if (!f) return;
+                mapa.getCanvas().style.cursor = 'pointer';
+                const coords = (f.geometry as { coordinates: [number, number] }).coordinates;
+                popupNeg.setLngLat(coords).setHTML(contenidoPopupNegocio(f.properties as Record<string, string>)).addTo(mapa);
+            });
+            mapa.on('mouseleave', ID_NEGOCIOS_C, () => { mapa.getCanvas().style.cursor = ''; popupNeg.remove(); });
 
             mapa.addSource(ID_DIBUJO, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
             mapa.addLayer({ id: ID_DIBUJO_FILL, type: 'fill', source: ID_DIBUJO, paint: { 'fill-color': COLOR_DIBUJO, 'fill-opacity': 0.18 } });
@@ -382,7 +418,7 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
         mapa.on('mouseout', ocultarPopupEq);
         mapa.on('error', (ev) => { console.error('[MapaTerritorios] error de MapLibre:', ev.error); });
 
-        return () => { popupEqRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
+        return () => { popupEqRef.current?.remove(); popupNegRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
     }, []);
 
     // ── Re-pintar zonas cuando cambian ───────────────────────────────────────────
@@ -404,12 +440,13 @@ export function MapaTerritorios({ zonas, marcas = [], centro, modoDibujo = false
         else if (centro) mapa.flyTo({ center: centro, zoom: 12, duration: 400 });
     }, [zonas, listo, centro, introAnimado]);
 
-    // ── Re-pintar las marcas de vendedores cuando cambian ────────────────────────
+    // ── Re-pintar marcas de vendedores y negocios cuando cambian ─────────────────
     useEffect(() => {
         const mapa = mapaRef.current;
         if (!mapa || !listo) return;
         (mapa.getSource(ID_MARCAS_EQ) as GeoJSONSource | undefined)?.setData(marcasEqGeoJSON(marcas));
-    }, [marcas, listo]);
+        (mapa.getSource(ID_NEGOCIOS) as GeoJSONSource | undefined)?.setData(negociosGeoJSON(negocios));
+    }, [marcas, negocios, listo]);
 
     // ── Entrar/salir del modo dibujo ─────────────────────────────────────────────
     useEffect(() => {

@@ -14,8 +14,8 @@
 
 import { useMemo, useState } from 'react';
 import { MapPin, Plus, Trash2, X } from 'lucide-react';
-import { useZonas, useMisMarcas, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca } from '../../hooks/queries/useTerritoriosAdmin';
-import { MapaMarcas, COLOR_TIPO, ETIQUETA_TIPO } from './MapaMarcas';
+import { useZonas, useMisMarcas, useNegociosMapa, useCrearMarca, useEditarMarca, useMoverMarca, useBorrarMarca } from '../../hooks/queries/useTerritoriosAdmin';
+import { MapaMarcas, COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO } from './MapaMarcas';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import type { TipoMarca } from '../../services/territoriosService';
 
@@ -31,6 +31,7 @@ interface MarcaEnEdicion {
 export function VistaVendedorTerritorio() {
     const { data: zonas = [], isLoading: cargandoZonas } = useZonas({});
     const { data: marcas = [] } = useMisMarcas();
+    const { data: negocios = [] } = useNegociosMapa();
     const crear = useCrearMarca();
     const editar = useEditarMarca();
     const mover = useMoverMarca();
@@ -40,6 +41,7 @@ export function VistaVendedorTerritorio() {
     const [editando, setEditando] = useState<MarcaEnEdicion | null>(null);
     const [confirmarBorrar, setConfirmarBorrar] = useState(false);
     const [filtro, setFiltro] = useState<TipoMarca | null>(null);
+    const [mostrarNegocios, setMostrarNegocios] = useState(true);
 
     // Filtros excluyentes: un solo estado a la vez (clic en el activo lo quita → muestra todas).
     const seleccionarFiltro = (t: TipoMarca) => setFiltro((f) => (f === t ? null : t));
@@ -97,6 +99,7 @@ export function VistaVendedorTerritorio() {
                 <MapaMarcas
                     zonas={zonas}
                     marcas={marcasFiltradas}
+                    negocios={mostrarNegocios ? negocios : []}
                     modoAgregar={modoAgregar}
                     onAgregarMarca={alAgregarMarca}
                     onClicMarca={abrirMarca}
@@ -122,6 +125,18 @@ export function VistaVendedorTerritorio() {
                         Toca el mapa donde quieras poner la marca.
                     </p>
                 )}
+
+                {/* Toggle de mis negocios reales en el mapa */}
+                <button
+                    type="button"
+                    data-testid="toggle-negocios"
+                    onClick={() => setMostrarNegocios((v) => !v)}
+                    aria-pressed={mostrarNegocios}
+                    className={`flex shrink-0 items-center justify-between gap-2 rounded-[10px] border px-3 py-2 text-[12.5px] transition ${mostrarNegocios ? 'border-marca bg-marca-suave text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'}`}
+                >
+                    <span className="flex items-center gap-2"><span className="h-2.5 w-2.5 rounded-[3px]" style={{ backgroundColor: COLOR_NEGOCIO.conVendedor }} />Mis negocios</span>
+                    <span className={`text-[11px] ${mostrarNegocios ? 'text-marca' : 'text-texto-3'}`}>{mostrarNegocios ? 'Visibles' : 'Ocultos'}</span>
+                </button>
 
                 {editando ? (
                     /* Editor de la marca seleccionada */

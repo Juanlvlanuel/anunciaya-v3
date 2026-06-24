@@ -87,6 +87,25 @@ export async function listarMarcasEquipo(ciudadId?: string): Promise<MarcaEquipo
   return data.data ?? [];
 }
 
+/** Un negocio real de la app, para pintarlo en el mapa de territorios. */
+export interface NegocioMapa {
+  id: string;
+  nombre: string;
+  lat: number;
+  lng: number;
+  estado: string;             // al_corriente / en_gracia / suspendido / cancelado
+  embajadorId: string | null; // null = sin vendedor (auto-registrado)
+  vendedorNombre: string | null;
+}
+
+/** Negocios reales para el mapa (alcance por rol en el backend). ?ciudadId opcional. */
+export async function listarNegociosMapa(ciudadId?: string): Promise<NegocioMapa[]> {
+  const { data } = await api.get<RespuestaAPI<NegocioMapa[]>>('/admin/territorios/negocios', {
+    params: { ciudadId: ciudadId || undefined },
+  });
+  return data.data ?? [];
+}
+
 // =============================================================================
 // ACCIONES (Fase 2)
 // =============================================================================
