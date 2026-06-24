@@ -75,13 +75,9 @@ function escaparHtml(s: string): string {
 function contenidoPopupEq(m: MarcaEquipo): string {
     const nota = m.nota?.trim();
     const vendedor = m.vendedorNombre?.trim();
-    const negocio = m.negocioNombre?.trim();
     const filaNota = nota
         ? `<div style="font-size:11.5px;line-height:1.45;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
         : `<div style="font-size:11px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
-    const filaNegocio = negocio
-        ? `<div style="font-size:11px;color:#64748b;">Negocio: <span style="color:#334155;font-weight:600;">${escaparHtml(negocio)}</span></div>`
-        : '';
     const filaVend = vendedor
         ? `<div style="font-size:11px;color:#64748b;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(vendedor)}</span></div>`
         : '';
@@ -89,7 +85,7 @@ function contenidoPopupEq(m: MarcaEquipo): string {
     const filaFecha = fecha ? `<div style="font-size:10.5px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
     return `<div style="display:flex;flex-direction:column;gap:6px;min-width:135px;max-width:230px;">`
         + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true)
-        + filaNota + filaNegocio + filaVend + filaFecha + `</div>`;
+        + filaNota + filaVend + filaFecha + `</div>`;
 }
 
 function construirGeoJSON(zonas: ZonaTerritorio[]) {
