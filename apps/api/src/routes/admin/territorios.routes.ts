@@ -19,6 +19,7 @@ import {
     listarZonasController,
     listarCiudadesController,
     listarVendedoresController,
+    listarMarcasEquipoController,
     crearZonaController,
     editarZonaController,
     asignarZonaController,
@@ -39,6 +40,9 @@ router.get('/ciudades', requierePanel(['superadmin', 'gerente']), listarCiudades
 
 // Vendedores asignables a una zona (super + gerente, para el selector al crear/asignar).
 router.get('/vendedores', requierePanel(['superadmin', 'gerente']), listarVendedoresController);
+
+// Marcas de los vendedores, solo lectura (super + gerente; ?ciudadId opcional).
+router.get('/marcas-equipo', requierePanel(['superadmin', 'gerente']), listarMarcasEquipoController);
 
 // ─── ACTUAR (Fase 2) — super + gerente (el vendedor no dibuja ni asigna) ─────────
 router.post('/zonas', requierePanel(['superadmin', 'gerente']), crearZonaController);

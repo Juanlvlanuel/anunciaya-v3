@@ -18,18 +18,21 @@ import {
     useZonas,
     useCiudadesDelAlcance,
     useVendedoresAsignables,
+    useMarcasEquipo,
     useCrearZona,
     useAsignarZona,
     useBorrarZona,
 } from '../../hooks/queries/useTerritoriosAdmin';
 import { MapaTerritorios } from './MapaTerritorios';
 import { VistaVendedorTerritorio } from './VistaVendedorTerritorio';
+import { COLOR_TIPO, ETIQUETA_TIPO } from './MapaMarcas';
 import { SelectorBuscable, type OpcionBuscable } from '../ui/SelectorBuscable';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import type { RolPanel } from '../../data/menuPanel';
-import type { PoligonoGeoJSON } from '../../services/territoriosService';
+import type { PoligonoGeoJSON, TipoMarca } from '../../services/territoriosService';
 
 const COLORES = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
+const TIPOS_MARCA: TipoMarca[] = ['visitado', 'interesado', 'cerrado', 'sin_interes'];
 
 interface SeccionTerritoriosProps {
     rol: RolPanel;
@@ -49,11 +52,13 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const { data: ciudades = [] } = useCiudadesDelAlcance(puedeEditar);
     const { data: vendedores = [] } = useVendedoresAsignables(puedeEditar);
     const { data: zonas = [], isLoading, isError } = useZonas(ciudadId ? { ciudadId } : {});
+    const { data: marcas = [] } = useMarcasEquipo(ciudadId || undefined, puedeEditar);
     const crear = useCrearZona();
     const asignar = useAsignarZona();
     const borrar = useBorrarZona();
 
     const [dibujando, setDibujando] = useState(false);
+    const [filtroMarca, setFiltroMarca] = useState<TipoMarca | null>(null);
     const [poligonoNuevo, setPoligonoNuevo] = useState<PoligonoGeoJSON | null>(null);
     const [nombre, setNombre] = useState('');
     const [color, setColor] = useState(COLORES[0]);
@@ -71,6 +76,10 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const opcVendedores: OpcionBuscable[] = useMemo(
         () => [{ id: '', etiqueta: 'Sin asignar' }, ...vendedores.map((v) => ({ id: v.embajadorId, etiqueta: v.nombre ?? 'Vendedor' }))],
         [vendedores],
+    );
+    const marcasFiltradas = useMemo(
+        () => (filtroMarca === null ? marcas : marcas.filter((m) => m.tipo === filtroMarca)),
+        [marcas, filtroMarca],
     );
 
     const alPoligonoCompleto = (poly: PoligonoGeoJSON) => {
@@ -100,6 +109,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 ) : (
                     <MapaTerritorios
                         zonas={zonas}
+                        marcas={marcasFiltradas}
                         centro={centro}
                         modoDibujo={dibujando}
                         onPoligonoCompleto={alPoligonoCompleto}
@@ -110,7 +120,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
             {/* Columna derecha: SOLO super/gerente (gestión de zonas). El vendedor ve solo su mapa + (G.2) sus marcas. */}
             {puedeEditar && (
-            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72">
+            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pt-3">
                 {puedeEditar && (
                     <div className="flex shrink-0 flex-col gap-2">
                         <SelectorBuscable
@@ -133,6 +143,31 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                                 <Plus size={15} /> Nueva zona
                             </button>
                         )}
+                    </div>
+                )}
+
+                {/* Filtro de las marcas del equipo (lectura): mismo set que se pinta en el mapa */}
+                {!poligonoNuevo && marcas.length > 0 && (
+                    <div className="flex shrink-0 flex-col gap-1.5">
+                        <span className="text-[11.5px] font-medium text-texto-3">Marcas del equipo ({marcasFiltradas.length})</span>
+                        <div className="flex flex-wrap gap-1.5">
+                            {TIPOS_MARCA.map((t) => {
+                                const activo = filtroMarca === t;
+                                return (
+                                    <button
+                                        key={t}
+                                        type="button"
+                                        data-testid={`filtro-marca-${t}`}
+                                        onClick={() => setFiltroMarca((f) => (f === t ? null : t))}
+                                        aria-pressed={activo}
+                                        className={`flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition ${activo ? 'border-marca bg-marca-suave font-medium text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'}`}
+                                    >
+                                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
+                                        {ETIQUETA_TIPO[t]}
+                                    </button>
+                                );
+                            })}
+                        </div>
                     </div>
                 )}
 

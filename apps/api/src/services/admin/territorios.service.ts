@@ -123,6 +123,63 @@ export async function listarCiudadesDelAlcance(panel: UsuarioPanel): Promise<Arr
     return [];
 }
 
+/** Una marca de un vendedor, vista por el gerente/super (solo lectura). */
+export interface MarcaEquipo {
+    id: string;
+    lat: number;
+    lng: number;
+    tipo: string;
+    nota: string | null;
+    vendedorNombre: string | null;
+    createdAt: string | null;
+}
+
+/**
+ * Marcas de los VENDEDORES, para que gerente/super las vean (solo lectura). Como una marca no
+ * guarda ciudad de forma fiable, se liga al vendedor por su ZONA: "marcas de la ciudad X" = marcas
+ * de los vendedores con zona asignada en X. Alcance: super = todas (o de la ciudad) · gerente = las
+ * de vendedores con zona en su región (o en la ciudad indicada, que ya es de su región).
+ */
+export async function listarMarcasEquipo(panel: UsuarioPanel, ciudadId?: string): Promise<MarcaEquipo[]> {
+    if (panel.rolEquipo === 'vendedor') return [];
+    if (panel.rolEquipo === 'gerente' && !panel.regionId) return [];
+
+    // Sub-filtro: embajadores con zona en el alcance (ciudad y/o región).
+    const condZona: SQL[] = [sql`tz.embajador_id IS NOT NULL`];
+    if (ciudadId) condZona.push(sql`tz.ciudad_id = ${ciudadId}`);
+    if (panel.rolEquipo === 'gerente') condZona.push(sql`c.region_id = ${panel.regionId}`);
+
+    // Super + "todas las ciudades" → todas las marcas; en otro caso, acota por los embajadores en alcance.
+    const filtroEmbajador =
+        panel.rolEquipo === 'superadmin' && !ciudadId
+            ? sql``
+            : sql`WHERE m.embajador_id IN (
+                SELECT DISTINCT tz.embajador_id FROM territorio_zonas tz
+                JOIN ciudades c ON c.id = tz.ciudad_id
+                WHERE ${sql.join(condZona, sql` AND `)}
+            )`;
+
+    const filas = (await db.execute(sql`
+        SELECT m.id::text AS id, m.lat AS lat, m.lng AS lng, m.tipo AS tipo, m.nota AS nota,
+               m.created_at AS created_at, u.nombre AS vendedor_nombre
+        FROM territorio_marcas m
+        JOIN embajadores e ON e.id = m.embajador_id
+        LEFT JOIN usuarios u ON u.id = e.usuario_id
+        ${filtroEmbajador}
+        ORDER BY m.created_at DESC
+    `)).rows as Array<{ id: string; lat: string | number; lng: string | number; tipo: string; nota: string | null; created_at: string | null; vendedor_nombre: string | null }>;
+
+    return filas.map((f) => ({
+        id: f.id,
+        lat: Number(f.lat),
+        lng: Number(f.lng),
+        tipo: f.tipo,
+        nota: f.nota,
+        vendedorNombre: f.vendedor_nombre,
+        createdAt: f.created_at,
+    }));
+}
+
 /** Vendedores asignables a una zona según el rol (super = todos activos · gerente = los de su región). */
 export async function listarVendedoresAsignables(panel: UsuarioPanel): Promise<Array<{ embajadorId: string; nombre: string | null }>> {
     if (panel.rolEquipo === 'vendedor') return [];

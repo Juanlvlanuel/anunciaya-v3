@@ -8,7 +8,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance } from '../../services/admin/territorios.service.js';
+import { listarZonas, listarVendedoresAsignables, listarCiudadesDelAlcance, listarMarcasEquipo } from '../../services/admin/territorios.service.js';
 import { crearZona, editarZona, asignarZona, borrarZona } from '../../services/admin/territorios-acciones.service.js';
 import { listarMisMarcas, crearMarca, editarMarca, borrarMarca } from '../../services/admin/territorios-marcas.service.js';
 import { crearZonaSchema, editarZonaSchema, asignarZonaSchema, crearMarcaSchema, editarMarcaSchema } from '../../validations/admin/territorios.schema.js';
@@ -55,6 +55,18 @@ export async function listarVendedoresController(req: Request, res: Response): P
     } catch (error) {
         console.error('Error en listarVendedoresController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener los vendedores' });
+    }
+}
+
+/** GET /api/admin/territorios/marcas-equipo — marcas de los vendedores, lectura (super + gerente; ?ciudadId opcional). */
+export async function listarMarcasEquipoController(req: Request, res: Response): Promise<void> {
+    try {
+        const { ciudadId } = req.query;
+        const data = await listarMarcasEquipo(req.usuarioPanel!, typeof ciudadId === 'string' ? ciudadId : undefined);
+        res.status(200).json({ success: true, message: 'Marcas del equipo obtenidas', data });
+    } catch (error) {
+        console.error('Error en listarMarcasEquipoController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener las marcas del equipo' });
     }
 }
 

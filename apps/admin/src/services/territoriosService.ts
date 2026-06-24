@@ -68,6 +68,25 @@ export async function listarVendedoresAsignables(): Promise<VendedorAsignable[]>
   return data.data ?? [];
 }
 
+/** Una marca de un vendedor vista por gerente/super (solo lectura). */
+export interface MarcaEquipo {
+  id: string;
+  lat: number;
+  lng: number;
+  tipo: TipoMarca;
+  nota: string | null;
+  vendedorNombre: string | null;
+  createdAt: string | null;
+}
+
+/** Marcas de los vendedores para gerente/super (lectura). ?ciudadId opcional (todas si se omite). */
+export async function listarMarcasEquipo(ciudadId?: string): Promise<MarcaEquipo[]> {
+  const { data } = await api.get<RespuestaAPI<MarcaEquipo[]>>('/admin/territorios/marcas-equipo', {
+    params: { ciudadId: ciudadId || undefined },
+  });
+  return data.data ?? [];
+}
+
 // =============================================================================
 // ACCIONES (Fase 2)
 // =============================================================================

@@ -53,6 +53,17 @@ export function useVendedoresAsignables(enabled = true) {
   });
 }
 
+/** Marcas de los vendedores para gerente/super (solo lectura), filtrables por ciudad. */
+export function useMarcasEquipo(ciudadId?: string, enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.territorios.marcasEquipo(ciudadId),
+    queryFn: () => territoriosService.listarMarcasEquipo(ciudadId),
+    enabled,
+    placeholderData: keepPreviousData,
+    staleTime: 1000 * 60,
+  });
+}
+
 // =============================================================================
 // MUTACIONES — invalidan toda la familia ['territorios']
 // =============================================================================
