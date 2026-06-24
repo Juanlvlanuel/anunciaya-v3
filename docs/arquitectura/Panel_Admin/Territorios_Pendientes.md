@@ -187,7 +187,7 @@ donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** ma
 
 **Decisiones confirmadas (Juan, 23 jun):**
 - **Tipos de marca (A):** `Visitado` · `Interesado` · `Cerrado` (ya es cliente) · `Sin interés`. ✅
-- **Ligar a negocio (B):** ✅ **HECHO (commit e65ebd7, 24 jun):** el vendedor liga una marca a uno de **sus** negocios (columna `negocio_id` en `territorio_marcas`; selector en el editor; el backend valida que el negocio sea suyo). Los popups y la lista muestran el negocio ligado.
+- **Ligar a negocio (B):** construido y luego **REVERTIDO (commit 7a52c00, 24 jun):** sin caso de uso — el onboarding obliga a capturar ubicación, así que nunca hay negocios sin ubicar y ligar a uno que ya está en el mapa es redundante. Las marcas quedan como prospección pura; la columna `negocio_id` quedó inerte en la BD.
 - **Quién pone marcas (C):** **solo el vendedor** (las suyas); gerente/super solo lectura. ✅
 
 > **Vista del gerente/super (lectura) HECHO ✅ (commit ddbb953, 23 jun):** ven los **pines de sus vendedores** en

@@ -49,9 +49,8 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
 - Ve **solo su zona** — el resto del mapa se **oscurece** y el paneo queda **limitado** a su pedazo (no se
   puede ir a otra parte). De arranque hace un **vuelo con zoom** desde México hasta su zona.
 - **"Agregar marca":** toca el mapa y pone un pin (dentro de su zona; fuera está bloqueado). Cada marca
-  guarda un **estado** (color), una **nota** y, opcionalmente, queda **ligada a uno de sus negocios**
-  (selector en el editor). Puede **editar**, **borrar** y **arrastrar** el pin para reubicarlo. Al pasar el
-  cursor sobre un pin se ven su nota y el negocio ligado.
+  guarda un **estado** (color) y una **nota**. Puede **editar**, **borrar** y **arrastrar** el pin para
+  reubicarlo. Al pasar el cursor sobre un pin se ve su nota.
 - Una **lista** de sus marcas con **filtro por estado** (excluyente).
 - Toggle **"Mis negocios"**: pinta **solo sus negocios** (los que tiene asignados); no ve los de otros ni los sin asignar.
 
@@ -96,7 +95,7 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 - **`territorio_marcas`** (migración `docs/migraciones/2026-06-23-territorio-marcas.sql`): `id` ·
   `embajador_id` → `embajadores` CASCADE · `lat`/`lng` **numeric(9,6)** · `tipo` varchar(20) default
   `'visitado'` + CHECK (`visitado`/`interesado`/`cerrado`/`sin_interes`) · `nota` text · `ciudad_id` →
-  `ciudades` SET NULL · `negocio_id` → `negocios` SET NULL (liga opcional, migración `2026-06-24`) · timestamps.
+  `ciudades` SET NULL · timestamps. (Existe una columna `negocio_id` pero quedó **inerte**: la liga marca↔negocio se revirtió por no tener caso de uso — el onboarding siempre captura ubicación.)
 
 > **Geometría en JS, no PostGIS** (D4): basta para dibujar/mostrar/asignar. El punto-en-polígono (bloqueo
 > de marcas) se hace en JS (ray casting) y el **no-traslape** con **`@turf/turf`** (`intersect` + `area`).
