@@ -23,6 +23,10 @@ import {
     editarZonaController,
     asignarZonaController,
     borrarZonaController,
+    listarMarcasController,
+    crearMarcaController,
+    editarMarcaController,
+    borrarMarcaController,
 } from '../../controllers/admin/territorios.controller.js';
 
 const router: Router = Router();
@@ -41,5 +45,11 @@ router.post('/zonas', requierePanel(['superadmin', 'gerente']), crearZonaControl
 router.patch('/zonas/:id', requierePanel(['superadmin', 'gerente']), editarZonaController);
 router.patch('/zonas/:id/vendedor', requierePanel(['superadmin', 'gerente']), asignarZonaController);
 router.delete('/zonas/:id', requierePanel(['superadmin', 'gerente']), borrarZonaController);
+
+// ─── MARCAS del vendedor (G.2) — solo el vendedor gestiona las suyas ─────────────
+router.get('/marcas', requierePanel(['vendedor']), listarMarcasController);
+router.post('/marcas', requierePanel(['vendedor']), crearMarcaController);
+router.patch('/marcas/:id', requierePanel(['vendedor']), editarMarcaController);
+router.delete('/marcas/:id', requierePanel(['vendedor']), borrarMarcaController);
 
 export default router;

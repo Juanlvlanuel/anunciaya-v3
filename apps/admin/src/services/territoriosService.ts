@@ -110,3 +110,43 @@ export async function borrarZona(id: string): Promise<{ id: string }> {
   const { data } = await api.delete<RespuestaAPI<{ id: string }>>(`/admin/territorios/zonas/${id}`);
   return data.data ?? { id };
 }
+
+// =============================================================================
+// MARCAS DEL VENDEDOR (G.2)
+// =============================================================================
+
+export type TipoMarca = 'visitado' | 'interesado' | 'cerrado' | 'sin_interes';
+
+export interface MarcaTerritorio {
+  id: string;
+  lat: number;
+  lng: number;
+  tipo: TipoMarca;
+  nota: string | null;
+  createdAt: string | null;
+}
+
+/** Las marcas del vendedor (su capa personal). */
+export async function listarMisMarcas(): Promise<MarcaTerritorio[]> {
+  const { data } = await api.get<RespuestaAPI<MarcaTerritorio[]>>('/admin/territorios/marcas');
+  return data.data ?? [];
+}
+
+/** Crear una marca (pin del vendedor). */
+export async function crearMarca(datos: { lat: number; lng: number; tipo: TipoMarca; nota?: string }): Promise<{ id: string }> {
+  const { data } = await api.post<RespuestaAPI<{ id: string }>>('/admin/territorios/marcas', datos);
+  if (!data.data) throw new Error(data.message || 'Respuesta inválida del servidor');
+  return data.data;
+}
+
+/** Editar el estado, la nota y/o la posición (lat/lng) de una marca. */
+export async function editarMarca(id: string, datos: { lat?: number; lng?: number; tipo?: TipoMarca; nota?: string | null }): Promise<{ id: string }> {
+  const { data } = await api.patch<RespuestaAPI<{ id: string }>>(`/admin/territorios/marcas/${id}`, datos);
+  return data.data ?? { id };
+}
+
+/** Borrar una marca. */
+export async function borrarMarca(id: string): Promise<{ id: string }> {
+  const { data } = await api.delete<RespuestaAPI<{ id: string }>>(`/admin/territorios/marcas/${id}`);
+  return data.data ?? { id };
+}

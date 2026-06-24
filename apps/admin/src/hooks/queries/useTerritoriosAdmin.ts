@@ -14,7 +14,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../config/queryKeys';
 import * as territoriosService from '../../services/territoriosService';
-import type { CrearZonaInput, EditarZonaInput, FiltrosZonas } from '../../services/territoriosService';
+import type { CrearZonaInput, EditarZonaInput, FiltrosZonas, TipoMarca } from '../../services/territoriosService';
 import { toast } from '../../stores/useToastPanel';
 
 /** Extrae el mensaje de error del backend (o uno por defecto). */
@@ -99,5 +99,64 @@ export function useBorrarZona() {
     mutationFn: (id: string) => territoriosService.borrarZona(id),
     onSuccess: () => { invalidar(); toast.exito('Zona eliminada'); },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar la zona')),
+  });
+}
+
+// =============================================================================
+// MARCAS DEL VENDEDOR (G.2)
+// =============================================================================
+
+/** Mis marcas (solo el vendedor). */
+export function useMisMarcas(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.territorios.marcas(),
+    queryFn: () => territoriosService.listarMisMarcas(),
+    enabled,
+    staleTime: 1000 * 60,
+  });
+}
+
+function useInvalidarMarcas() {
+  const qc = useQueryClient();
+  return () => qc.invalidateQueries({ queryKey: queryKeys.territorios.marcas() });
+}
+
+/** Crear una marca (sin toast: tras crear se abre el editor de la marca). */
+export function useCrearMarca() {
+  const invalidar = useInvalidarMarcas();
+  return useMutation({
+    mutationFn: (datos: { lat: number; lng: number; tipo: TipoMarca; nota?: string }) => territoriosService.crearMarca(datos),
+    onSuccess: () => invalidar(),
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo crear la marca')),
+  });
+}
+
+/** Editar el estado/nota de una marca. */
+export function useEditarMarca() {
+  const invalidar = useInvalidarMarcas();
+  return useMutation({
+    mutationFn: ({ id, datos }: { id: string; datos: { tipo?: TipoMarca; nota?: string | null } }) => territoriosService.editarMarca(id, datos),
+    onSuccess: () => { invalidar(); toast.exito('Marca guardada'); },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar la marca')),
+  });
+}
+
+/** Reubicar una marca (arrastrar el pin). Silencioso: sin toast en cada soltada. */
+export function useMoverMarca() {
+  const invalidar = useInvalidarMarcas();
+  return useMutation({
+    mutationFn: ({ id, lat, lng }: { id: string; lat: number; lng: number }) => territoriosService.editarMarca(id, { lat, lng }),
+    onSuccess: () => invalidar(),
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo mover la marca')),
+  });
+}
+
+/** Borrar una marca. */
+export function useBorrarMarca() {
+  const invalidar = useInvalidarMarcas();
+  return useMutation({
+    mutationFn: (id: string) => territoriosService.borrarMarca(id),
+    onSuccess: () => { invalidar(); toast.exito('Marca eliminada'); },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar la marca')),
   });
 }

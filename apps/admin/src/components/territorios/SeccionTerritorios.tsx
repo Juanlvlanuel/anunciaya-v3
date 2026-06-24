@@ -23,6 +23,7 @@ import {
     useBorrarZona,
 } from '../../hooks/queries/useTerritoriosAdmin';
 import { MapaTerritorios } from './MapaTerritorios';
+import { VistaVendedorTerritorio } from './VistaVendedorTerritorio';
 import { SelectorBuscable, type OpcionBuscable } from '../ui/SelectorBuscable';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import type { RolPanel } from '../../data/menuPanel';
@@ -35,8 +36,14 @@ interface SeccionTerritoriosProps {
 }
 
 export function SeccionTerritorios({ rol }: SeccionTerritoriosProps) {
+    // El vendedor tiene su propia vista ("Mi territorio"): solo su zona + sus marcas.
+    if (rol === 'vendedor') return <VistaVendedorTerritorio />;
+    return <VistaAdminTerritorio rol={rol} />;
+}
+
+/** Vista de gestión (super/gerente): dibujar zonas, asignarlas y borrarlas. */
+function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const puedeEditar = rol === 'superadmin' || rol === 'gerente';
-    const esVendedor = rol === 'vendedor';
 
     const [ciudadId, setCiudadId] = useState('');
     const { data: ciudades = [] } = useCiudadesDelAlcance(puedeEditar);
@@ -182,11 +189,9 @@ export function SeccionTerritorios({ rol }: SeccionTerritoriosProps) {
                             <div className="rounded-[10px] border border-borde px-3 py-6 text-center text-[13px] text-texto-3">Cargando…</div>
                         ) : zonas.length === 0 ? (
                             <div className="rounded-[10px] border border-dashed border-borde px-3 py-6 text-center text-[13px] text-texto-3">
-                                {esVendedor
-                                    ? 'Aún no tienes una zona asignada.'
-                                    : ciudadId
-                                        ? 'Esta ciudad no tiene zonas. Dibuja la primera con "Nueva zona".'
-                                        : 'Elige una ciudad para ver/dibujar sus zonas.'}
+                                {ciudadId
+                                    ? 'Esta ciudad no tiene zonas. Dibuja la primera con "Nueva zona".'
+                                    : 'Elige una ciudad para ver/dibujar sus zonas.'}
                             </div>
                         ) : (
                             zonas.map((z) => (

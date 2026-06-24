@@ -85,6 +85,23 @@ export const territorioZonas = pgTable("territorio_zonas", {
 	index("idx_territorio_zonas_embajador").using("btree", table.embajadorId.asc().nullsLast()),
 ]);
 
+// `territorio_marcas` = pines personales del VENDEDOR sobre su pedazo del mapa (módulo Territorios, G.2).
+// Cada marca = lugar por donde pasó, con un ESTADO (tipo) y una NOTA. Son suyas (embajador_id).
+export const territorioMarcas = pgTable("territorio_marcas", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	embajadorId: uuid("embajador_id").notNull().references((): AnyPgColumn => embajadores.id, { onDelete: 'cascade' }),
+	lat: numeric({ precision: 9, scale: 6, mode: 'number' }).notNull(),
+	lng: numeric({ precision: 9, scale: 6, mode: 'number' }).notNull(),
+	tipo: varchar({ length: 20 }).default('visitado').notNull(),
+	nota: text(),
+	ciudadId: uuid("ciudad_id").references((): AnyPgColumn => ciudades.id, { onDelete: 'set null' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_territorio_marcas_embajador").using("btree", table.embajadorId.asc().nullsLast()),
+	check("territorio_marcas_tipo_check", sql`(tipo)::text = ANY ((ARRAY['visitado'::character varying, 'interesado'::character varying, 'cerrado'::character varying, 'sin_interes'::character varying])::text[])`),
+]);
+
 export const usuarios = pgTable("usuarios", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	nombre: varchar({ length: 100 }).notNull(),

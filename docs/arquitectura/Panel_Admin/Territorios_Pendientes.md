@@ -10,7 +10,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta
 >
-> **Última actualización:** 23 Junio 2026 · **Fase actual:** 0 (Definir) ✅ → arrancando **Fase 1 (VER)** de G.1.
+> **Última actualización:** 23 Junio 2026 · **Fase actual:** G.1 en Fase 2 (ACTUAR; falta GATE 2 visual) · **G.2 (Marcas) construido E2E** (backend + frontend, validado visual con Juan); pendiente solo el doc canónico `Territorios.md`.
 
 ---
 
@@ -160,7 +160,24 @@ Fase 3 — Cerrar
 
 ---
 
-# G.2 · Marcas del vendedor (SEGUNDA PIEZA) — Fase 0 (definida, se construye tras G.1)
+# G.2 · Marcas del vendedor (SEGUNDA PIEZA) — en construcción
+
+> **Backend HECHO (23 jun):** tabla `territorio_marcas` (migración `docs/migraciones/2026-06-23-territorio-marcas.sql`,
+> **aplicada por Juan en DEV y PROD**) + schema Drizzle `territorioMarcas` + Zod (`crearMarcaSchema`/`editarMarcaSchema`;
+> editar admite `lat/lng` para reubicar) + service `territorios-marcas.service.ts` (listarMisMarcas/crear/editar/borrar,
+> **solo el vendedor** — alcance por su `embajador_id`) + 4 endpoints `GET/POST/PATCH/DELETE /territorios/marcas`
+> (`requierePanel(['vendedor'])`). tsc API verde.
+>
+> **Frontend HECHO (23 jun):** vista del vendedor `VistaVendedorTerritorio.tsx` + mapa `MapaMarcas.tsx`:
+> - **Solo su zona:** el exterior se **oscurece** con una capa-máscara semi-oscura ("mundo con huecos") y el **paneo se
+>   limita** a su zona (`maxBounds`); la zona queda al 100%.
+> - **Intro animado:** arranca en México completo y **vuela con zoom** hasta la zona; ahí enciende la máscara.
+> - **Marcas:** "Agregar marca" (clic → pin con estado/color + **nota**), **editar** estado/nota, **borrar**, **arrastrar**
+>   el pin para reubicarlo, y **popup al hover** con estado + nota. Pines de color por estado.
+> - **Bloqueo:** crear o mover marcas **fuera de la zona** no se permite (point-in-polygon por ray casting + aviso).
+> - Hooks RQ (`useMisMarcas`/`useCrearMarca`/`useEditarMarca`/`useMoverMarca`/`useBorrarMarca`); `SeccionTerritorios`
+>   bifurca por rol (vendedor → "Mi territorio"). tsc Panel + API verdes; validado visual con Juan (23 jun).
+> **Pendiente:** doc canónico `Territorios.md` (Fase 3).
 
 **Qué hace:** el vendedor abre "Mi territorio" → ve **solo su zona asignada** → coloca **pines** de los lugares por
 donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** marcas; gerente/super solo las **ven**.
