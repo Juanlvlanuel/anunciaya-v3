@@ -40,6 +40,10 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
 - Por cada zona: **reasignar** vendedor o **borrar**.
 - **Marcas del equipo:** los pines de los vendedores aparecen sobre el mapa; al pasar el cursor se ve un
   globo con **estado + nota + quién la puso**, y unos chips permiten **filtrar por estado**.
+- **Negocios reales:** con el toggle "Negocios en el mapa" se pintan los **comercios de la app** (pin tipo
+  **anillo**, distinto de las marcas) en su ubicación real. Diferenciados por atribución: **sin vendedor =
+  oportunidad** (violeta, para asignar) · **con vendedor = captado** (teal). Popup con nombre, estado de
+  membresía y vendedor. Los **auto-registrados sin vendedor solo los ve el gerente/super** (al vendedor no).
 
 **Vista del Vendedor** ("Mi territorio"):
 - Ve **solo su zona** — el resto del mapa se **oscurece** y el paneo queda **limitado** a su pedazo (no se
@@ -48,6 +52,7 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   guarda un **estado** (color) y una **nota**. Puede **editar**, **borrar** y **arrastrar** el pin para
   reubicarlo. Al pasar el cursor sobre un pin se ve su nota.
 - Una **lista** de sus marcas con **filtro por estado** (excluyente).
+- Toggle **"Mis negocios"**: pinta **solo sus negocios** (los que tiene asignados); no ve los de otros ni los sin asignar.
 
 ### Cómo se conecta con la app
 Es un módulo **interno del Panel** (operación de la red de ventas). No tiene contraparte pública en
@@ -99,14 +104,14 @@ Es un módulo **interno del Panel** (operación de la red de ventas). No tiene c
 ### Backend (`apps/api`)
 | Archivo | Rol |
 |---|---|
-| `services/admin/territorios.service.ts` | Lecturas con alcance por rol: `listarZonas` · `listarCiudadesDelAlcance` · `listarVendedoresAsignables` · **`listarMarcasEquipo`** (marcas de los vendedores para gerente/super; liga marca→vendedor→zona→ciudad) |
+| `services/admin/territorios.service.ts` | Lecturas con alcance por rol: `listarZonas` · `listarCiudadesDelAlcance` · `listarVendedoresAsignables` · **`listarMarcasEquipo`** (marcas de los vendedores; liga marca→vendedor→zona→ciudad) · **`listarNegociosMapa`** (negocios reales; ubicación de la sucursal principal `negocio_sucursales.ubicacion` —geography— vía `ST_Y/ST_X`) |
 | `services/admin/territorios-acciones.service.ts` | Acciones de zona: `crearZona`/`editarZona`/`asignarZona`/`borrarZona` con alcance + **no-traslape** (`seSolapaConOtraZona`, turf; rechaza 409 si la intersección supera el 1% de la zona más chica) + auditoría |
 | `services/admin/territorios-marcas.service.ts` | CRUD de las marcas del **vendedor**: `listarMisMarcas`/`crearMarca`/`editarMarca` (admite `lat/lng` para reubicar)/`borrarMarca`, acotado a su `embajador_id` |
 | `controllers/admin/territorios.controller.ts` · `routes/admin/territorios.routes.ts` | Controllers + rutas (montadas **antes** del gate global de superadmin, porque entran los 3 roles) |
 | `validations/admin/territorios.schema.ts` | Zod: `crearZonaSchema`/`editarZonaSchema`/`asignarZonaSchema` · `crearMarcaSchema`/`editarMarcaSchema` |
 
 **Endpoints** (prefijo `/api/admin/territorios`):
-- `GET /zonas` (3 roles · `?ciudadId`) · `GET /ciudades` · `GET /vendedores` · `GET /marcas-equipo` (super+gerente · `?ciudadId`)
+- `GET /zonas` (3 roles · `?ciudadId`) · `GET /ciudades` · `GET /vendedores` · `GET /marcas-equipo` (super+gerente) · `GET /negocios` (3 roles, alcance en el service · `?ciudadId`)
 - `POST /zonas` · `PATCH /zonas/:id` · `PATCH /zonas/:id/vendedor` · `DELETE /zonas/:id` (super+gerente)
 - `GET /marcas` · `POST /marcas` · `PATCH /marcas/:id` · `DELETE /marcas/:id` (solo vendedor)
 
