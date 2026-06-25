@@ -13,7 +13,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Pencil, Trash2 } from 'lucide-react';
 import {
     useZonas,
     useCiudadesDelAlcance,
@@ -21,6 +21,7 @@ import {
     useMarcasEquipo,
     useNegociosMapa,
     useCrearZona,
+    useEditarZona,
     useAsignarZona,
     useBorrarZona,
 } from '../../hooks/queries/useTerritoriosAdmin';
@@ -30,7 +31,7 @@ import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO } from './MapaMarcas';
 import { SelectorBuscable, type OpcionBuscable } from '../ui/SelectorBuscable';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import type { RolPanel } from '../../data/menuPanel';
-import type { PoligonoGeoJSON, TipoMarca } from '../../services/territoriosService';
+import type { PoligonoGeoJSON, TipoMarca, ZonaTerritorio } from '../../services/territoriosService';
 
 const COLORES = ['#2563eb', '#16a34a', '#f59e0b', '#db2777', '#7c3aed', '#0891b2'];
 const TIPOS_MARCA: TipoMarca[] = ['visitado', 'interesado', 'cerrado', 'sin_interes'];
@@ -56,10 +57,12 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const { data: marcas = [] } = useMarcasEquipo(ciudadId || undefined, puedeEditar);
     const { data: negocios = [] } = useNegociosMapa(ciudadId || undefined, puedeEditar);
     const crear = useCrearZona();
+    const editar = useEditarZona();
     const asignar = useAsignarZona();
     const borrar = useBorrarZona();
 
     const [dibujando, setDibujando] = useState(false);
+    const [zonaEditando, setZonaEditando] = useState<ZonaTerritorio | null>(null);
     const [filtroMarca, setFiltroMarca] = useState<TipoMarca | null>(null);
     const [mostrarNegocios, setMostrarNegocios] = useState(true);
     const [poligonoNuevo, setPoligonoNuevo] = useState<PoligonoGeoJSON | null>(null);
@@ -67,6 +70,10 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     const [color, setColor] = useState(COLORES[0]);
     const [embajadorId, setEmbajadorId] = useState('');
     const [zonaABorrar, setZonaABorrar] = useState<{ id: string; nombre: string } | null>(null);
+    const [foco, setFoco] = useState<{ poligono: PoligonoGeoJSON; nonce: number } | null>(null);
+
+    /** Vuela (zoom cine) hacia la zona al hacer clic en su nombre. Nonce para re-volar aunque sea la misma. */
+    const enfocarZona = (z: ZonaTerritorio) => setFoco((f) => ({ poligono: z.poligono, nonce: (f?.nonce ?? 0) + 1 }));
 
     const ciudadSel = useMemo(() => ciudades.find((c) => c.id === ciudadId), [ciudades, ciudadId]);
     const centro: [number, number] | null =
@@ -84,21 +91,53 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         () => (filtroMarca === null ? marcas : marcas.filter((m) => m.tipo === filtroMarca)),
         [marcas, filtroMarca],
     );
+    // Al editar una zona, ocúltala de la capa de zonas (su contorno ya se ve en el editor, sin duplicar).
+    const zonasPintadas = useMemo(
+        () => (zonaEditando ? zonas.filter((z) => z.id !== zonaEditando.id) : zonas),
+        [zonas, zonaEditando],
+    );
+
+    /** Entrar a editar una zona existente: precarga sus datos y abre el editor con su contorno. */
+    const editarZonaInline = (z: ZonaTerritorio) => {
+        setZonaEditando(z);
+        setNombre(z.nombre);
+        setColor(z.color ?? COLORES[0]);
+        setEmbajadorId(z.embajadorId ?? '');
+        setPoligonoNuevo(null);
+        setDibujando(true);
+    };
+
+    const cancelarForm = () => {
+        setPoligonoNuevo(null);
+        setZonaEditando(null);
+        setDibujando(false);
+    };
 
     const alPoligonoCompleto = (poly: PoligonoGeoJSON) => {
         setPoligonoNuevo(poly);
         setDibujando(false);
-        setNombre('');
-        setColor(COLORES[0]);
-        setEmbajadorId('');
+        if (!zonaEditando) {
+            // Solo al crear se limpian; al editar, nombre/color ya están precargados.
+            setNombre('');
+            setColor(COLORES[0]);
+            setEmbajadorId('');
+        }
     };
 
     const guardarZona = () => {
-        if (!poligonoNuevo || !ciudadId || !nombre.trim()) return;
-        crear.mutate(
-            { ciudadId, nombre: nombre.trim(), poligono: poligonoNuevo, color, embajadorId: embajadorId || null },
-            { onSuccess: () => setPoligonoNuevo(null) },
-        );
+        if (!poligonoNuevo || !nombre.trim()) return;
+        if (zonaEditando) {
+            editar.mutate(
+                { id: zonaEditando.id, datos: { nombre: nombre.trim(), poligono: poligonoNuevo, color } },
+                { onSuccess: () => { setPoligonoNuevo(null); setZonaEditando(null); } },
+            );
+        } else {
+            if (!ciudadId) return;
+            crear.mutate(
+                { ciudadId, nombre: nombre.trim(), poligono: poligonoNuevo, color, embajadorId: embajadorId || null },
+                { onSuccess: () => setPoligonoNuevo(null) },
+            );
+        }
     };
 
     return (
@@ -111,14 +150,18 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     </div>
                 ) : (
                     <MapaTerritorios
-                        zonas={zonas}
+                        zonas={zonasPintadas}
                         marcas={marcasFiltradas}
                         negocios={mostrarNegocios ? negocios : []}
                         centro={centro}
                         modoDibujo={dibujando}
+                        poligonoEditando={zonaEditando?.poligono ?? null}
+                        poligonoPreview={poligonoNuevo}
+                        enfocarPoligono={foco?.poligono ?? null}
+                        enfocarNonce={foco?.nonce ?? 0}
                         introAnimado={rol === 'gerente'}
                         onPoligonoCompleto={alPoligonoCompleto}
-                        onCancelarDibujo={() => setDibujando(false)}
+                        onCancelarDibujo={cancelarForm}
                     />
                 )}
             </div>
@@ -201,7 +244,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 {/* Formulario de la zona recién dibujada (en la columna, no en overlay) */}
                 {poligonoNuevo ? (
                     <div className="flex shrink-0 flex-col gap-2 rounded-[12px] border border-borde bg-superficie-2 p-3" data-testid="form-nueva-zona">
-                        <h2 className="text-[14px] font-semibold text-texto">Guardar zona</h2>
+                        <h2 className="text-[14px] font-semibold text-texto">{zonaEditando ? 'Editar zona' : 'Guardar zona'}</h2>
                         <input
                             autoFocus
                             data-testid="zona-nombre"
@@ -221,23 +264,25 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                                 />
                             ))}
                         </div>
-                        <SelectorBuscable
-                            value={embajadorId}
-                            onChange={setEmbajadorId}
-                            opciones={opcVendedores}
-                            placeholder="Sin asignar"
-                            buscarPlaceholder="Buscar vendedor…"
-                            testid="zona-vendedor-nuevo"
-                        />
+                        {!zonaEditando && (
+                            <SelectorBuscable
+                                value={embajadorId}
+                                onChange={setEmbajadorId}
+                                opciones={opcVendedores}
+                                placeholder="Sin asignar"
+                                buscarPlaceholder="Buscar vendedor…"
+                                testid="zona-vendedor-nuevo"
+                            />
+                        )}
                         <div className="flex gap-2">
-                            <button type="button" onClick={() => setPoligonoNuevo(null)} className="flex-1 rounded-[10px] border border-borde px-3 py-2 text-[13px] text-texto-2 transition hover:bg-superficie">
+                            <button type="button" onClick={cancelarForm} className="flex-1 rounded-[10px] border border-borde px-3 py-2 text-[13px] text-texto-2 transition hover:bg-superficie">
                                 Cancelar
                             </button>
                             <button
                                 type="button"
                                 data-testid="zona-guardar"
                                 onClick={guardarZona}
-                                disabled={!nombre.trim() || crear.isPending}
+                                disabled={!nombre.trim() || crear.isPending || editar.isPending}
                                 className="flex-1 rounded-[10px] bg-marca px-3 py-2 text-[13px] font-medium text-white transition hover:opacity-90 disabled:opacity-40"
                             >
                                 Guardar
@@ -260,8 +305,19 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                                 <div key={z.id} data-testid={`zona-${z.id}`} className="flex flex-col gap-1.5 rounded-[10px] border border-borde bg-superficie p-2.5">
                                     <div className="flex items-center gap-2">
                                         <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: z.color ?? '#2563eb' }} />
-                                        <span className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-texto">{z.nombre}</span>
-                                        {puedeEditar && (
+                                        <button type="button" data-testid={`zona-ir-${z.id}`} onClick={() => enfocarZona(z)} title="Ir a la zona" className="min-w-0 flex-1 truncate text-left text-[13.5px] font-medium text-texto transition hover:text-marca">{z.nombre}</button>
+                                        {z.puedoEditar && (
+                                            <button
+                                                type="button"
+                                                data-testid={`zona-editar-${z.id}`}
+                                                onClick={() => editarZonaInline(z)}
+                                                title="Editar zona"
+                                                className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+                                            >
+                                                <Pencil size={14} />
+                                            </button>
+                                        )}
+                                        {z.puedoEditar && (
                                             <button
                                                 type="button"
                                                 data-testid={`zona-borrar-${z.id}`}
@@ -273,7 +329,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                                             </button>
                                         )}
                                     </div>
-                                    {puedeEditar ? (
+                                    {z.puedoEditar ? (
                                         <SelectorBuscable
                                             value={z.embajadorId ?? ''}
                                             onChange={(id) => asignar.mutate({ id: z.id, embajadorId: id || null })}

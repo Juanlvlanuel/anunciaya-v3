@@ -40,17 +40,25 @@ async function ciudadEnAlcance(panel: UsuarioPanel, ciudadId: string): Promise<b
     return false;
 }
 
-/** Carga una zona y verifica que su ciudad esté en el alcance del rol (fuera → 404). */
+/**
+ * Carga una zona y verifica que el rol pueda gestionarla (fuera → 404/403):
+ *   - super   → SOLO las zonas que él mismo creó (no toca las de los gerentes).
+ *   - gerente → cualquier zona de su región.
+ */
 async function cargarZonaConAlcance(
     panel: UsuarioPanel,
     id: string,
-): Promise<ResultadoAccion<{ id: string; ciudadId: string; embajadorId: string | null }>> {
+): Promise<ResultadoAccion<{ id: string; ciudadId: string; embajadorId: string | null; creadaPor: string | null }>> {
     const [z] = await db
-        .select({ id: territorioZonas.id, ciudadId: territorioZonas.ciudadId, embajadorId: territorioZonas.embajadorId })
+        .select({ id: territorioZonas.id, ciudadId: territorioZonas.ciudadId, embajadorId: territorioZonas.embajadorId, creadaPor: territorioZonas.creadaPor })
         .from(territorioZonas)
         .where(eq(territorioZonas.id, id))
         .limit(1);
     if (!z) return { ok: false, status: 404, mensaje: 'Zona no encontrada.' };
+    if (panel.rolEquipo === 'superadmin') {
+        if (z.creadaPor !== panel.usuarioId) return { ok: false, status: 403, mensaje: 'Solo puedes editar las zonas que tú creaste.' };
+        return { ok: true, data: z };
+    }
     if (!(await ciudadEnAlcance(panel, z.ciudadId))) return { ok: false, status: 404, mensaje: 'Zona no encontrada.' };
     return { ok: true, data: z };
 }

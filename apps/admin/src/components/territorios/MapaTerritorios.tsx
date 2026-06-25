@@ -50,9 +50,18 @@ interface MapaTerritoriosProps {
     negocios?: NegocioMapa[];
     centro?: [number, number] | null;
     modoDibujo?: boolean;
+    poligonoEditando?: PoligonoGeoJSON | null; // si se edita una zona: su contorno se precarga en el editor
+    poligonoPreview?: PoligonoGeoJSON | null;  // polígono ya terminado pero aún sin guardar (preview en el form)
+    enfocarPoligono?: PoligonoGeoJSON | null;  // al cambiar enfocarNonce, vuela (zoom cine) hacia este polígono
+    enfocarNonce?: number;
     introAnimado?: boolean; // intro de cine (México → vuelo a sus zonas), p.ej. para el gerente
     onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
     onCancelarDibujo?: () => void;
+}
+
+/** Bounding box de un solo polígono (reusa calcularBounds). */
+function boundsDePoligono(poly: PoligonoGeoJSON): [[number, number], [number, number]] | null {
+    return calcularBounds([{ poligono: poly } as ZonaTerritorio]);
 }
 
 function marcasEqGeoJSON(marcas: MarcaEquipo[]) {
@@ -119,7 +128,7 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, introAnimado = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
@@ -135,6 +144,11 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     const popupNegRef = useRef<maplibregl.Popup | null>(null);
     const introAnimadoRef = useRef(introAnimado);
     const introHechoRef = useRef(false);
+    const poligonoEditandoRef = useRef(poligonoEditando);
+    const enfocarPoligonoRef = useRef(enfocarPoligono);
+    const centroRef = useRef(centro);
+    const pendienteEncuadrarRef = useRef(true);  // reencuadrar al cargar / cambiar de ciudad, NO al guardar
+    const yaEncuadroRef = useRef(false);
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [listo, setListo] = useState(false);
@@ -145,6 +159,10 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
     useEffect(() => { negociosRef.current = negocios; }, [negocios]);
     useEffect(() => { introAnimadoRef.current = introAnimado; }, [introAnimado]);
+    useEffect(() => { poligonoEditandoRef.current = poligonoEditando; }, [poligonoEditando]);
+    useEffect(() => { enfocarPoligonoRef.current = enfocarPoligono; }, [enfocarPoligono]);
+    // Cambió la ciudad (centro) → marcar para reencuadrar cuando lleguen sus zonas.
+    useEffect(() => { centroRef.current = centro; pendienteEncuadrarRef.current = true; }, [centro]);
     useEffect(() => { onCompletoRef.current = onPoligonoCompleto; }, [onPoligonoCompleto]);
 
     /** Oculta el popup de marca (si hay alguno abierto). */
@@ -332,11 +350,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
 
             setListo(true);
             setCargando(false);
-            // Sin intro: encuadra al instante. Con intro de cine: se queda en México y el effect de zonas vuela.
-            if (!introAnimadoRef.current) {
-                const bounds = calcularBounds(zonasRef.current);
-                if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 0, maxZoom: 14 });
-            }
+            // El encuadre inicial lo hace el effect de zonas (pendienteEncuadrar arranca en true).
         });
 
         // Clic según la herramienta activa.
@@ -421,7 +435,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         return () => { popupEqRef.current?.remove(); popupNegRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
     }, []);
 
-    // ── Re-pintar zonas cuando cambian ───────────────────────────────────────────
+    // ── Re-pintar zonas cuando cambian (encuadra SOLO al cargar / cambiar de ciudad) ─────────────
     useEffect(() => {
         const mapa = mapaRef.current;
         if (!mapa || !listo) return;
@@ -432,13 +446,21 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         // Intro de cine (gerente, una sola vez): se ve México y vuela con zoom hasta sus zonas (su región).
         if (introAnimado && !introHechoRef.current && bounds) {
             introHechoRef.current = true;
+            pendienteEncuadrarRef.current = false;
+            yaEncuadroRef.current = true;
             const t = setTimeout(() => mapa.fitBounds(bounds, { padding: 60, maxZoom: 14, duration: 2600, essential: true }), 900);
             return () => clearTimeout(t);
         }
 
-        if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: 300, maxZoom: 14 });
-        else if (centro) mapa.flyTo({ center: centro, zoom: 12, duration: 400 });
-    }, [zonas, listo, centro, introAnimado]);
+        // Reencuadrar solo si está pendiente (carga inicial o cambio de ciudad) — NO al guardar/editar.
+        if (pendienteEncuadrarRef.current) {
+            const dur = yaEncuadroRef.current ? 400 : 0;
+            pendienteEncuadrarRef.current = false;
+            yaEncuadroRef.current = true;
+            if (bounds) mapa.fitBounds(bounds, { padding: 60, duration: dur, maxZoom: 14 });
+            else if (centroRef.current) mapa.flyTo({ center: centroRef.current, zoom: 12, duration: dur });
+        }
+    }, [zonas, listo, introAnimado]);
 
     // ── Re-pintar marcas de vendedores y negocios cuando cambian ─────────────────
     useEffect(() => {
@@ -455,16 +477,56 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         if (!mapa || !listo) return;
         if (modoDibujo) {
             ocultarPopupEq(); // sin popups de marca mientras se dibuja
-            setHerramienta('crear');
-            herramientaRef.current = 'crear';
-            mapa.dragPan.disable(); // las herramientas mandan; el pan solo en la "Mano"
-            mapa.getCanvas().style.cursor = 'crosshair';
+            const editar = poligonoEditandoRef.current;
+            if (editar && editar.coordinates?.[0]?.length) {
+                // Editar una zona: precargar su contorno (sin el punto de cierre duplicado) y arrancar en "Mover".
+                const anillo = editar.coordinates[0].slice();
+                if (anillo.length > 1) {
+                    const a = anillo[0], b = anillo[anillo.length - 1];
+                    if (a[0] === b[0] && a[1] === b[1]) anillo.pop();
+                }
+                verticesRef.current = anillo.map((c) => [c[0], c[1]] as [number, number]);
+                setNumVertices(verticesRef.current.length);
+                pintarDibujo(mapa);
+                setHerramienta('mover');
+                herramientaRef.current = 'mover';
+                mapa.dragPan.disable();
+                mapa.getCanvas().style.cursor = '';
+            } else {
+                setHerramienta('crear');
+                herramientaRef.current = 'crear';
+                mapa.dragPan.disable(); // las herramientas mandan; el pan solo en la "Mano"
+                mapa.getCanvas().style.cursor = 'crosshair';
+            }
         } else {
             mapa.dragPan.enable();
             mapa.getCanvas().style.cursor = '';
             limpiarDibujo();
         }
     }, [modoDibujo, listo]);
+
+    // ── Preview del polígono terminado pero sin guardar (mientras está abierto el form) ──────────
+    useEffect(() => {
+        const mapa = mapaRef.current;
+        if (!mapa || !listo || modoDibujo) return; // en modo dibujo manda el editor
+        const src = mapa.getSource(ID_DIBUJO) as GeoJSONSource | undefined;
+        const srcPts = mapa.getSource(ID_DIBUJO_PTS) as GeoJSONSource | undefined;
+        if (poligonoPreview) {
+            src?.setData({ type: 'FeatureCollection', features: [{ type: 'Feature', geometry: poligonoPreview, properties: {} }] });
+            srcPts?.setData({ type: 'FeatureCollection', features: [] });
+        } else {
+            src?.setData({ type: 'FeatureCollection', features: [] });
+            srcPts?.setData({ type: 'FeatureCollection', features: [] });
+        }
+    }, [poligonoPreview, modoDibujo, listo]);
+
+    // ── Volar (zoom cine) a una zona cuando se hace clic en ella en la lista ─────────────────────
+    useEffect(() => {
+        const mapa = mapaRef.current;
+        if (!mapa || !listo || !enfocarNonce || !enfocarPoligonoRef.current) return;
+        const b = boundsDePoligono(enfocarPoligonoRef.current);
+        if (b) mapa.fitBounds(b, { padding: 60, maxZoom: 15, duration: 1400, essential: true });
+    }, [enfocarNonce, listo]);
 
     // ── Cambiar de herramienta ───────────────────────────────────────────────────
     useEffect(() => {
@@ -515,7 +577,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             {error && (
                 <div className="absolute inset-0 grid place-items-center bg-superficie/90 px-6 text-center text-[13px] text-peligro">{error}</div>
             )}
-            {listo && !error && !modoDibujo && zonas.length === 0 && (
+            {listo && !error && !modoDibujo && !poligonoPreview && zonas.length === 0 && (
                 <div className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-full border border-borde bg-superficie/95 px-3 py-1.5 text-[12px] text-texto-3 shadow-pop-panel">
                     Aún no hay zonas dibujadas en este mapa.
                 </div>

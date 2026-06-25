@@ -37,7 +37,12 @@ Los **3 roles** del Panel, con vistas distintas (el menú se llama **"Territorio
   está activo en la herramienta "Mapa" (así dibujar no mueve el mapa).
 - Al guardar: nombre + color + vendedor. El sistema **rechaza** la zona si se **encima** con otra de la
   misma ciudad (las zonas son particiones, no se solapan).
-- Por cada zona: **reasignar** vendedor o **borrar**.
+- Por cada zona: **editar** (nombre, color y **re-dibujar el contorno** con las 4 herramientas — reabre el
+  editor con el polígono precargado, sin tocar la asignación), **reasignar** vendedor o **borrar**. Clic en el
+  **nombre** de una zona → el mapa **vuela** (zoom cine) hacia ella.
+- **Permiso de edición:** el **super** solo edita/borra/reasigna las zonas que **él creó** (las de los gerentes
+  las ve en lectura, sin botones); el **gerente**, cualquiera de **su región**. El front recibe un flag
+  `puedoEditar` por zona; el backend es la autoridad.
 - **Marcas del equipo:** los pines de los vendedores aparecen sobre el mapa; al pasar el cursor se ve un
   globo con **estado + nota + quién la puso**, y unos chips permiten **filtrar por estado**.
 - **Negocios reales:** con el toggle "Negocios en el mapa" se pintan los **comercios de la app** (pin tipo

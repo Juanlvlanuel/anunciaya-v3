@@ -156,6 +156,11 @@ Fase 2 — ACTUAR (en curso · sub-paso 2a)
       otra de la misma ciudad. Umbral: área de intersección > **1%** de la zona más chica (compartir un borde = OK;
       tolera *slivers* de bordes dibujados a mano). En `territorios-acciones.service.ts` (`seSolapaConOtraZona` con
       `@turf/turf`: `intersect` + `area`), backend como autoridad; el front muestra el mensaje en su toast de error. tsc API verde.
+- [x] **Editar zona desde el front ✅ (25 jun):** botón ✏️ por zona → reabre el editor con el contorno precargado
+      (nombre/color editables + re-dibujar vértices), guarda con `editarZona`. El polígono terminado se ve como **preview**
+      mientras el form está abierto; el mapa **NO reencuadra** al guardar (solo al cargar/cambiar de ciudad); **clic en el
+      nombre vuela** (zoom cine) a la zona. **Permiso:** super solo edita/borra las que él creó (`creada_por`), gerente toda
+      su región — flag `puedoEditar` por zona en `listarZonas` + guard en `cargarZonaConAlcance` (backend autoridad).
 
 Fase 3 — Cerrar
 - [x] Doc canónico Territorios.md (commit fef6da1) + tablero (módulo 13) + memoria + commits.

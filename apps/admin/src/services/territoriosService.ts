@@ -27,6 +27,7 @@ export interface ZonaTerritorio {
   nombre: string;
   poligono: PoligonoGeoJSON;
   color: string | null;
+  puedoEditar: boolean;          // si el rol actual puede editar/borrar esta zona
   createdAt: string | null;
 }
 

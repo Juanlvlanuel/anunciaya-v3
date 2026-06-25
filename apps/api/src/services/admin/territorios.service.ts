@@ -35,6 +35,7 @@ export interface ZonaTerritorio {
     nombre: string;
     poligono: PoligonoGeoJSON;
     color: string | null;
+    puedoEditar: boolean;             // si el rol actual puede editar/borrar esta zona
     createdAt: string | null;
 }
 
@@ -91,6 +92,7 @@ export async function listarZonas(panel: UsuarioPanel, filtros: FiltrosZonas = {
             nombre: territorioZonas.nombre,
             poligono: territorioZonas.poligono,
             color: territorioZonas.color,
+            creadaPor: territorioZonas.creadaPor,
             createdAt: territorioZonas.createdAt,
         })
         .from(territorioZonas)
@@ -100,7 +102,11 @@ export async function listarZonas(panel: UsuarioPanel, filtros: FiltrosZonas = {
         .where(cond.length ? and(...cond) : undefined)
         .orderBy(asc(territorioZonas.nombre));
 
-    return filas as ZonaTerritorio[];
+    // puedoEditar: gerente = toda su región (ya viene acotada) · super = solo las que él creó.
+    return filas.map(({ creadaPor, ...z }) => ({
+        ...z,
+        puedoEditar: panel.rolEquipo === 'gerente' ? true : (panel.rolEquipo === 'superadmin' && creadaPor === panel.usuarioId),
+    })) as ZonaTerritorio[];
 }
 
 /** Ciudades sobre las que el rol puede dibujar zonas (super = todas activas · gerente = las de su región). */
