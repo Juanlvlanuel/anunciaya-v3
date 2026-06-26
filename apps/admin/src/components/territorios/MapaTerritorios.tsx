@@ -67,11 +67,13 @@ function boundsDePoligono(poly: PoligonoGeoJSON): [[number, number], [number, nu
 function marcasEqGeoJSON(marcas: MarcaEquipo[]) {
     return {
         type: 'FeatureCollection' as const,
-        features: marcas.map((m) => ({
-            type: 'Feature' as const,
-            geometry: { type: 'Point' as const, coordinates: [m.lng, m.lat] },
-            properties: { id: m.id, tipo: m.tipo },
-        })),
+        features: marcas
+            .filter((m) => Number.isFinite(m.lng) && Number.isFinite(m.lat))
+            .map((m) => ({
+                type: 'Feature' as const,
+                geometry: { type: 'Point' as const, coordinates: [m.lng, m.lat] },
+                properties: { id: m.id, tipo: m.tipo },
+            })),
     };
 }
 
@@ -282,17 +284,25 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
 
     // ── Crear el mapa una sola vez ───────────────────────────────────────────────
     useEffect(() => {
-        if (!contenedorRef.current || mapaRef.current) return;
+        const contenedor = contenedorRef.current;
+        if (!contenedor || mapaRef.current) return;
 
         const mapa = new maplibregl.Map({
-            container: contenedorRef.current,
+            container: contenedor,
             style: ESTILO_TILES,
             center: CENTRO_MX,
             zoom: 4.3,
             attributionControl: { compact: true },
         });
         mapaRef.current = mapa;
-        mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+        mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+
+        // El estilo base de OpenFreeMap referencia íconos de POI (swimming_pool, atm, office…) que su
+        // sprite no siempre trae: MapLibre avisa "Image X could not be loaded" en cada zoom. Damos un
+        // pixel transparente para los íconos faltantes → sin warning y sin dibujar nada de más.
+        mapa.on('styleimagemissing', (e) => {
+            if (!mapa.hasImage(e.id)) mapa.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
+        });
 
         // Popup de hover de las marcas de vendedores (solo lectura).
         popupEqRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px', className: 'popup-territorio' });
@@ -304,7 +314,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             mapa.addSource(ID_SOURCE, { type: 'geojson', data: construirGeoJSON(zonasRef.current) });
             mapa.addLayer({ id: ID_FILL, type: 'fill', source: ID_SOURCE, paint: { 'fill-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'fill-opacity': 0.22 } });
             mapa.addLayer({ id: ID_LINE, type: 'line', source: ID_SOURCE, layout: { 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'line-width': 2, 'line-opacity': 0.85 } });
-            mapa.addLayer({ id: ID_LABEL, type: 'symbol', source: ID_SOURCE, layout: { 'text-field': ['get', 'nombre'], 'text-size': 12, 'text-anchor': 'center' }, paint: { 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 } });
+            mapa.addLayer({ id: ID_LABEL, type: 'symbol', source: ID_SOURCE, layout: { 'text-field': ['get', 'nombre'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-anchor': 'center' }, paint: { 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 } });
 
             // Marcas de los vendedores (solo lectura), debajo de las capas de dibujo. Sombra + disco con borde.
             mapa.addSource(ID_MARCAS_EQ, { type: 'geojson', data: marcasEqGeoJSON(marcasRef.current) });
@@ -432,7 +442,13 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         mapa.on('mouseout', ocultarPopupEq);
         mapa.on('error', (ev) => { console.error('[MapaTerritorios] error de MapLibre:', ev.error); });
 
-        return () => { popupEqRef.current?.remove(); popupNegRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
+        // El contenedor cambia de alto cuando el header/nav del shell colapsan (modo mapa móvil) o al
+        // rotar; MapLibre solo escucha el resize de la VENTANA, así que sin esto el canvas queda con
+        // el tamaño viejo y deja una franja en blanco abajo. El ResizeObserver lo mantiene al día.
+        const ro = new ResizeObserver(() => mapa.resize());
+        ro.observe(contenedor);
+
+        return () => { ro.disconnect(); popupEqRef.current?.remove(); popupNegRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
     }, []);
 
     // ── Re-pintar zonas cuando cambian (encuadra SOLO al cargar / cambiar de ciudad) ─────────────
@@ -561,15 +577,19 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             type="button"
             data-testid={`dibujo-herr-${h}`}
             onClick={() => setHerramienta(h)}
-            className={`flex items-center gap-1 rounded-full px-2.5 py-1 text-[12px] font-medium transition ${herramienta === h ? 'bg-marca text-white' : 'text-texto-2 hover:bg-superficie-2'}`}
+            aria-label={texto}
+            title={texto}
+            className={`grid h-11 w-11 place-items-center rounded-full border shadow-tarjeta-panel transition ${herramienta === h ? 'border-marca bg-marca text-white' : 'border-borde bg-superficie text-texto-2 hover:bg-superficie-2'}`}
         >
-            <Icono size={13} /> {texto}
+            <Icono size={18} />
         </button>
     );
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-[12px] border border-borde">
-            <div ref={contenedorRef} className="h-full w-full" data-testid="territorios-mapa" />
+            {/* Fondo = color del mapa (liberty es beige claro): si el canvas WebGL se limpia un
+                instante al redimensionarse (subir/bajar la hoja, rotar), NO destella en blanco. */}
+            <div ref={contenedorRef} className="h-full w-full bg-[#f8f4f0]" data-testid="territorios-mapa" />
 
             {cargando && !error && (
                 <div className="absolute inset-0 grid place-items-center bg-superficie/70 text-[13px] text-texto-3">Cargando mapa…</div>
@@ -583,31 +603,32 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                 </div>
             )}
 
-            {/* Barra de dibujo: herramientas + acciones */}
+            {/* Herramientas de dibujo: botones FLOTANTES individuales (sin contenedor/píldora), arriba
+                a la izquierda (zona visible del mapa en los tres layouts). */}
             {modoDibujo && (
-                <div className="absolute inset-x-0 top-3 mx-auto flex w-fit max-w-[95%] flex-wrap items-center justify-center gap-2 rounded-full border border-borde bg-superficie/95 px-2 py-1.5 shadow-pop-panel">
-                    <div className="flex items-center gap-0.5 rounded-full bg-superficie-2 p-0.5">
+                <div className="absolute inset-x-0 top-3 z-20 mx-auto flex w-fit max-w-[95%] flex-col items-center gap-2">
+                    <div className="flex items-center gap-1.5">
                         {botonHerr('crear', Pencil, 'Agregar')}
                         {botonHerr('mover', Move, 'Mover')}
                         {botonHerr('borrar', Trash2, 'Quitar')}
                         {botonHerr('mano', Hand, 'Mapa')}
+                        <button type="button" data-testid="dibujo-deshacer" onClick={deshacer} disabled={numVertices === 0} aria-label="Deshacer punto" title="Deshacer punto" className="grid h-11 w-11 place-items-center rounded-full border border-borde bg-superficie text-texto-2 shadow-tarjeta-panel transition hover:bg-superficie-2 disabled:opacity-40">
+                            <Undo2 size={17} />
+                        </button>
+                        <button type="button" data-testid="dibujo-terminar" onClick={terminar} disabled={numVertices < 3} aria-label="Terminar zona" title="Terminar zona" className="grid h-11 w-11 place-items-center rounded-full bg-ok text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:opacity-40">
+                            <Check size={19} />
+                        </button>
+                        <button type="button" data-testid="dibujo-cancelar" onClick={() => { limpiarDibujo(); onCancelarDibujo?.(); }} aria-label="Cancelar" title="Cancelar" className="grid h-11 w-11 place-items-center rounded-full border border-borde bg-superficie text-texto-2 shadow-tarjeta-panel transition hover:bg-superficie-2">
+                            <X size={17} />
+                        </button>
                     </div>
-                    <span className="px-1 text-[12px] text-texto-3">
+                    <span className="rounded-full border border-borde bg-superficie/95 px-2.5 py-1 text-[11.5px] text-texto-3 shadow-pop-panel">
                         {herramienta === 'crear'
                             ? (numVertices < 3 ? `Clic en las esquinas (${numVertices}/3)` : `${numVertices} puntos`)
                             : herramienta === 'mover' ? 'Arrastra un punto'
                             : herramienta === 'borrar' ? 'Clic en un punto para quitarlo'
                             : 'Arrastra para mover el mapa'}
                     </span>
-                    <button type="button" data-testid="dibujo-deshacer" onClick={deshacer} disabled={numVertices === 0} title="Deshacer punto" className="grid h-7 w-7 place-items-center rounded-full text-texto-2 transition hover:bg-superficie-2 disabled:opacity-40">
-                        <Undo2 size={15} />
-                    </button>
-                    <button type="button" data-testid="dibujo-terminar" onClick={terminar} disabled={numVertices < 3} title="Terminar zona" className="flex items-center gap-1 rounded-full bg-ok px-2.5 py-1 text-[12px] font-medium text-white transition hover:opacity-90 disabled:opacity-40">
-                        <Check size={14} /> Terminar
-                    </button>
-                    <button type="button" data-testid="dibujo-cancelar" onClick={() => { limpiarDibujo(); onCancelarDibujo?.(); }} title="Cancelar" className="grid h-7 w-7 place-items-center rounded-full text-texto-2 transition hover:bg-superficie-2">
-                        <X size={15} />
-                    </button>
                 </div>
             )}
         </div>

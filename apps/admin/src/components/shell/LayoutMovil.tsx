@@ -39,15 +39,28 @@ export function LayoutMovil(props: LayoutMovilProps) {
   // Auto-ocultar la barra inferior al scrollear (la sección registra su contenedor scrolleable).
   useHideOnScroll();
   const navVisible = useScrollPanel((s) => s.navVisible);
+  const headerVisible = useScrollPanel((s) => s.headerVisible);
   const navRef = useRef<HTMLDivElement>(null);
+  const headerRef = useRef<HTMLDivElement>(null);
   const [altoNav, setAltoNav] = useState(0);
+  const [altoHeader, setAltoHeader] = useState(0);
   useEffect(() => {
     if (navRef.current) setAltoNav(navRef.current.offsetHeight);
+    if (headerRef.current) setAltoHeader(headerRef.current.offsetHeight);
   }, []);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden bg-superficie">
-      <EncabezadoMovil rol={props.rol} regionActivaId={props.regionActivaId} onCambiarRegion={props.onCambiarRegion} />
+      {/* El header colapsa su ALTURA cuando una sección pide "modo mapa" (Territorios). Recorta solo
+          al estar colapsado; visible usa overflow-visible para no cortar dropdowns (selector de región). */}
+      <div
+        className={`shrink-0 transition-[height] duration-300 ease-out ${headerVisible ? 'overflow-visible' : 'overflow-hidden'}`}
+        style={altoHeader ? { height: headerVisible ? altoHeader : 0 } : undefined}
+      >
+        <div ref={headerRef}>
+          <EncabezadoMovil rol={props.rol} regionActivaId={props.regionActivaId} onCambiarRegion={props.onCambiarRegion} />
+        </div>
+      </div>
 
       <main className="flex-1 overflow-y-auto pb-1.5">{props.children}</main>
 

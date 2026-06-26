@@ -126,6 +126,36 @@ api.interceptors.response.use(
   },
 );
 
+// =============================================================================
+// KEEP-ALIVE — refresco PROACTIVO del token
+// =============================================================================
+// El access token dura 1h y SOLO se renueva al hacer peticiones (vía el 401 de arriba). Si el
+// usuario trabaja un buen rato solo en la UI (dibujar, ajustar) sin tocar el backend, el access
+// vence en silencio y la siguiente petición lo manda al login. Este refresco proactivo lo evita.
+
+let ultimoRefresh = Date.now();
+/** Milisegundos desde el último refresco exitoso (para el keep-alive al volver a la pestaña). */
+export function msDesdeUltimoRefresh(): number {
+  return Date.now() - ultimoRefresh;
+}
+/** Renueva el token sin esperar a un 401 (keep-alive). Devuelve true si renovó. NO cierra sesión si
+ *  falla: un fallo aquí se resolverá en el próximo 401, con el cierre limpio del interceptor. */
+export async function refrescarSesion(): Promise<boolean> {
+  const refreshToken = localStorage.getItem(CLAVE_REFRESH_TOKEN);
+  if (!refreshToken) return false;
+  try {
+    const resp = await axios.post(`${BASE_URL}/auth/refresh`, { refreshToken });
+    if (resp.data?.success && resp.data?.data?.accessToken) {
+      useAuthPanelStore.getState().setTokens(resp.data.data.accessToken, resp.data.data.refreshToken);
+      ultimoRefresh = Date.now();
+      return true;
+    }
+  } catch {
+    /* sin sesión válida en el servidor; el interceptor de 401 hará el cierre cuando toque */
+  }
+  return false;
+}
+
 /** Respuesta estándar del backend (misma forma que apps/web). */
 export interface RespuestaAPI<T = unknown> {
   success: boolean;

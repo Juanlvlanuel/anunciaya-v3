@@ -12,6 +12,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuthPanelStore } from '../stores/useAuthPanelStore';
 import { useFiltroRegion } from '../stores/useFiltroRegion';
+import { refrescarSesion, msDesdeUltimoRefresh } from '../services/api';
 import { useEsEscritorio } from '../hooks/useEsEscritorio';
 import { useConteoNegocios } from '../hooks/queries/useNegociosAdmin';
 import { useConteoUsuarios } from '../hooks/queries/useUsuariosAdmin';
@@ -124,6 +125,21 @@ function PaginaPanel() {
   // al Panel, para que la sección abra sin el estado "Cargando…" ni el parpadeo del precio.
   const puedeConfig = useMemo(() => items.some((i) => i.id === 'configuracion'), [items]);
   usePrecargarConfiguracion(puedeConfig);
+
+  // Keep-alive de la sesión: el access token dura 1h y solo se renueva al hacer peticiones; este
+  // refresco proactivo (cada ~50 min, y al volver a la pestaña si ya pasó el intervalo) evita que el
+  // token venza mientras el usuario trabaja solo en la UI y lo expulse al login.
+  const haySesion = !!usuario;
+  useEffect(() => {
+    if (!haySesion) return;
+    const INTERVALO = 50 * 60 * 1000;
+    const id = window.setInterval(() => { void refrescarSesion(); }, INTERVALO);
+    const alVolver = () => {
+      if (document.visibilityState === 'visible' && msDesdeUltimoRefresh() > INTERVALO) void refrescarSesion();
+    };
+    document.addEventListener('visibilitychange', alVolver);
+    return () => { window.clearInterval(id); document.removeEventListener('visibilitychange', alVolver); };
+  }, [haySesion]);
 
   // Deep-link desde el Resumen / la campana: cuando se pide navegar a una sección (con filtro
   // inicial), cambiamos a ella y limpiamos el destino. El filtro lo consume la sección destino.

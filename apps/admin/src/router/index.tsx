@@ -31,7 +31,9 @@ const router = createBrowserRouter([
 ]);
 
 export function AppRouter() {
-  return <RouterProvider router={router} />;
+  // future.v7_startTransition: silencia el aviso de React Router v7 (envuelve los
+  // cambios de estado de navegación en React.startTransition). Comportamiento idéntico.
+  return <RouterProvider router={router} future={{ v7_startTransition: true }} />;
 }
 
 export default AppRouter;

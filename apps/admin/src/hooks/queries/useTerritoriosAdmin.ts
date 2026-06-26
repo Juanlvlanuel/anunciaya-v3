@@ -14,7 +14,7 @@
 import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../config/queryKeys';
 import * as territoriosService from '../../services/territoriosService';
-import type { CrearZonaInput, EditarZonaInput, FiltrosZonas, TipoMarca, MarcaTerritorio } from '../../services/territoriosService';
+import type { CrearZonaInput, EditarZonaInput, FiltrosZonas, TipoMarca, MarcaTerritorio, ZonaTerritorio } from '../../services/territoriosService';
 import { toast } from '../../stores/useToastPanel';
 
 /** Extrae el mensaje de error del backend (o uno por defecto). */
@@ -94,13 +94,27 @@ export function useCrearZona() {
   });
 }
 
-/** Editar una zona (nombre/polígono/color). */
+/**
+ * Editar una zona (nombre/polígono/color). Optimista: aplica los cambios en la caché al instante para
+ * que el mapa no muestre el contorno viejo mientras responde el servidor; revierte si falla.
+ */
 export function useEditarZona() {
-  const invalidar = useInvalidarTerritorios();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, datos }: { id: string; datos: EditarZonaInput }) => territoriosService.editarZona(id, datos),
-    onSuccess: () => { invalidar(); toast.exito('Zona actualizada'); },
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo actualizar la zona')),
+    onMutate: async ({ id, datos }) => {
+      await qc.cancelQueries({ queryKey: ['territorios', 'zonas'] });
+      const previas = qc.getQueriesData<ZonaTerritorio[]>({ queryKey: ['territorios', 'zonas'] });
+      qc.setQueriesData<ZonaTerritorio[]>({ queryKey: ['territorios', 'zonas'] }, (old) =>
+        old?.map((z) => (z.id === id ? { ...z, ...datos } : z)));
+      return { previas };
+    },
+    onError: (e, _vars, ctx) => {
+      ctx?.previas?.forEach(([key, data]) => qc.setQueryData(key, data));
+      toast.error(mensajeError(e, 'No se pudo actualizar la zona'));
+    },
+    onSuccess: () => toast.exito('Zona actualizada'),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.territorios.all() }),
   });
 }
 
@@ -143,13 +157,27 @@ function useInvalidarMarcas() {
   return () => qc.invalidateQueries({ queryKey: queryKeys.territorios.marcas() });
 }
 
-/** Crear una marca (sin toast: tras crear se abre el editor de la marca). */
+/** Crear una marca. Optimista: pinta el pin al instante en la posición tocada (sin esperar al
+ *  servidor → sin lag); al confirmar, el refetch lo reemplaza por el real. Revierte si falla. */
 export function useCrearMarca() {
-  const invalidar = useInvalidarMarcas();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (datos: { lat: number; lng: number; tipo: TipoMarca; nota?: string }) => territoriosService.crearMarca(datos),
-    onSuccess: () => invalidar(),
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo crear la marca')),
+    onMutate: async (datos) => {
+      await qc.cancelQueries({ queryKey: queryKeys.territorios.marcas() });
+      const previo = qc.getQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas());
+      const optimista: MarcaTerritorio = {
+        id: `temp-${previo?.length ?? 0}-${datos.lat}-${datos.lng}`,
+        lat: datos.lat, lng: datos.lng, tipo: datos.tipo, nota: datos.nota ?? null, createdAt: null,
+      };
+      qc.setQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas(), (old) => [...(old ?? []), optimista]);
+      return { previo };
+    },
+    onError: (e, _vars, ctx) => {
+      if (ctx?.previo) qc.setQueryData(queryKeys.territorios.marcas(), ctx.previo);
+      toast.error(mensajeError(e, 'No se pudo crear la marca'));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.territorios.marcas() }),
   });
 }
 

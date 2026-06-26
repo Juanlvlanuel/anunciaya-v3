@@ -27,11 +27,11 @@ export function useHideOnScroll(): void {
   const acumulado = useRef(0);
 
   useEffect(() => {
-    // En escritorio no hay barra inferior; sin contenedor no hay nada que escuchar.
-    if (esEscritorio || !scrollEl) {
-      setNavVisible(true);
-      return;
-    }
+    // En escritorio no hay barra inferior; sin contenedor no hay nada que escuchar. NO forzamos
+    // navVisible aquí: cada sección ya lo restaura al (re)registrar su scroll (setScrollEl resetea
+    // navVisible+headerVisible a true), y forzarlo pisaría a las secciones que controlan el chrome
+    // a mano (Territorios en "modo mapa" oculta header+nav mientras miras el mapa).
+    if (esEscritorio || !scrollEl) return;
 
     ultimoTop.current = scrollEl.scrollTop;
     acumulado.current = 0;

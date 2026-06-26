@@ -41,6 +41,9 @@ export function SelectorBuscable({
   const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
   const [busqueda, setBusqueda] = useState('');
+  // Nonce que se incrementa cuando el teclado virtual encoge el área visible (visualViewport),
+  // para recolocar el popover sobre el teclado y que el buscador no quede tapado.
+  const [vpNonce, setVpNonce] = useState(0);
   const refInput = useRef<HTMLDivElement>(null);
   const refDrop = useRef<HTMLDivElement>(null);
   const refBuscar = useRef<HTMLInputElement>(null);
@@ -52,13 +55,16 @@ export function SelectorBuscable({
     return q ? opciones.filter((o) => o.etiqueta.toLowerCase().includes(q)) : opciones;
   }, [opciones, busqueda]);
 
-  // Al abrir: limpiar la búsqueda y enfocar el campo.
+  // Al abrir: limpiar la búsqueda y, SOLO en escritorio, enfocar el buscador (teclado físico:
+  // puedes filtrar de inmediato). En móvil NO se autoenfoca: sacaría el teclado nativo apenas
+  // abres el menú; si el usuario quiere filtrar, toca el buscador a propósito.
   useEffect(() => {
     if (!abierto) return;
     setBusqueda('');
+    if (!esEscritorio) return;
     const t = setTimeout(() => refBuscar.current?.focus(), 30);
     return () => clearTimeout(t);
-  }, [abierto]);
+  }, [abierto, esEscritorio]);
 
   // Cerrar al hacer clic fuera, Escape, o scroll/resize de la PÁGINA (no el de la lista interna).
   useEffect(() => {
@@ -73,7 +79,11 @@ export function SelectorBuscable({
       if (refDrop.current?.contains(e.target as Node)) return;
       setAbierto(false);
     };
-    const onResize = () => setAbierto(false);
+    // El teclado virtual del celular dispara 'resize' al enfocar el buscador (le quita ALTO al
+    // viewport). Eso NO debe cerrar el dropdown —si no, en móvil se abre y se cierra al instante—:
+    // cerramos solo si cambió el ANCHO (rotación o resize real de la ventana).
+    const anchoAlAbrir = window.innerWidth;
+    const onResize = () => { if (window.innerWidth !== anchoAlAbrir) setAbierto(false); };
     document.addEventListener('mousedown', fuera);
     document.addEventListener('keydown', escape);
     window.addEventListener('scroll', onScroll, true);
@@ -86,6 +96,16 @@ export function SelectorBuscable({
     };
   }, [abierto]);
 
+  // Cuando el teclado virtual aparece, visualViewport cambia de alto/offset: recolocamos el popover.
+  useEffect(() => {
+    const vp = window.visualViewport;
+    if (!abierto || !vp) return;
+    const onVp = () => setVpNonce((n) => n + 1);
+    vp.addEventListener('resize', onVp);
+    vp.addEventListener('scroll', onVp);
+    return () => { vp.removeEventListener('resize', onVp); vp.removeEventListener('scroll', onVp); };
+  }, [abierto]);
+
   const elegir = (id: string) => {
     onChange(id);
     setAbierto(false);
@@ -93,21 +113,30 @@ export function SelectorBuscable({
 
   // Posición del popover (portal fixed): bajo el input, o arriba si no cabe.
   const estiloDrop = useMemo(() => {
+    void vpNonce; // recalcular cuando el teclado virtual cambia el área visible
     if (!abierto || !refInput.current) return { top: 0, left: 0 } as const;
     const r = refInput.current.getBoundingClientRect();
+    // Área REALMENTE visible (descontando el teclado virtual, si lo hay).
+    const vp = window.visualViewport;
+    const vpTop = vp?.offsetTop ?? 0;
+    const vpBottom = vpTop + (vp?.height ?? window.innerHeight);
     const ANCHO = Math.max(220, r.width);
-    const ALTO = 300;
-    // En PC el dropdown SIEMPRE abre hacia abajo; el flip (abrir arriba si no cabe) solo en móvil.
-    const abreArriba = !esEscritorio && window.innerHeight - r.bottom < ALTO && r.top > window.innerHeight - r.bottom;
     let left = r.left;
     if (left + ANCHO > window.innerWidth - 8) left = window.innerWidth - ANCHO - 8;
     if (left < 8) left = 8;
+    // Abre hacia el lado del trigger con más espacio VISIBLE; en PC siempre hacia abajo. La altura
+    // se acota a ese espacio para que el buscador (arriba del popover) no quede bajo el teclado.
+    const espacioAbajo = vpBottom - r.bottom - 12;
+    const espacioArriba = r.top - vpTop - 12;
+    const abreArriba = !esEscritorio && espacioAbajo < 220 && espacioArriba > espacioAbajo;
+    const maxHeight = Math.max(150, Math.min(360, abreArriba ? espacioArriba : espacioAbajo));
     return {
       width: ANCHO,
       left,
+      maxHeight,
       ...(abreArriba ? { bottom: window.innerHeight - r.top + 6 } : { top: r.bottom + 6 }),
     } as const;
-  }, [abierto, esEscritorio]);
+  }, [abierto, esEscritorio, vpNonce]);
 
   return (
     <div ref={refInput} className="relative">
@@ -128,10 +157,10 @@ export function SelectorBuscable({
         createPortal(
           <div
             ref={refDrop}
-            className="animar-entrada fixed z-[60] rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel"
+            className="animar-entrada fixed z-[60] flex flex-col overflow-hidden rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel"
             style={estiloDrop}
           >
-            <div className="relative mb-1">
+            <div className="relative mb-1 shrink-0">
               <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-texto-4" />
               <input
                 ref={refBuscar}
@@ -154,7 +183,7 @@ export function SelectorBuscable({
               )}
             </div>
 
-            <div className="max-h-[240px] overflow-y-auto">
+            <div className="min-h-0 flex-1 overflow-y-auto">
               {filtradas.length === 0 ? (
                 <div className="px-2.5 py-3 text-center text-[12.5px] text-texto-4">Sin resultados</div>
               ) : (
