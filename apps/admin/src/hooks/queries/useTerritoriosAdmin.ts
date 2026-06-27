@@ -214,12 +214,24 @@ export function useMoverMarca() {
   });
 }
 
-/** Borrar una marca. */
+/** Borrar una marca. Optimista: quita el pin de la caché al instante (sin esperar al servidor);
+ *  revierte si falla. */
 export function useBorrarMarca() {
-  const invalidar = useInvalidarMarcas();
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => territoriosService.borrarMarca(id),
-    onSuccess: () => { invalidar(); toast.exito('Marca eliminada'); },
-    onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar la marca')),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: queryKeys.territorios.marcas() });
+      const previo = qc.getQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas());
+      qc.setQueryData<MarcaTerritorio[]>(queryKeys.territorios.marcas(), (old) =>
+        (old ?? []).filter((m) => m.id !== id));
+      return { previo };
+    },
+    onError: (e, _id, ctx) => {
+      if (ctx?.previo) qc.setQueryData(queryKeys.territorios.marcas(), ctx.previo);
+      toast.error(mensajeError(e, 'No se pudo eliminar la marca'));
+    },
+    onSuccess: () => toast.exito('Marca eliminada'),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.territorios.marcas() }),
   });
 }

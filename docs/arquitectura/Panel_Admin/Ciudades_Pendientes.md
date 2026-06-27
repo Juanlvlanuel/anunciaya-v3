@@ -35,7 +35,7 @@ no basta: hay que enchufar la app a la tabla.
 
 **Qué NO hace**
 - No toca negocios/usuarios/vendedores directamente (ellos *deducen* la región vía ciudad).
-- No dibuja territorios en mapa (Vendedores v2).
+- No dibuja territorios/zonas en mapa (eso es el módulo [Territorios](Territorios.md)).
 - No gestiona la cobertura de vendedores (`embajador_ciudades`) — solo respeta su regla "una región".
 - **No elimina regiones** (solo desactiva) — borrar dispara `SET NULL` en ciudades y en el gerente asignado.
 

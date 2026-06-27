@@ -15,9 +15,9 @@
 > tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
 > los demás docs: el código manda, el doc lo refleja).
 >
-> **Última actualización:** 20 Junio 2026 (§5 patrón "Tablero de inicio — KPIs + cola de pendientes"
-> estrenado en Resumen: tarjeta KPI clicable responsive móvil-apilado/escritorio-horizontal, bloques de
-> cola con estado vacío positivo).
+> **Última actualización:** 26 Junio 2026 (§5 patrón "Mapa interactivo a pantalla" estrenado en
+> Ciudades y ampliado en Territorios: mapa fijo al viewport + hoja peek + controles flotantes + FAB
+> `+`/`×` + cards inline con botones-ícono circulares; eventos `touch*` para arrastre de vértices).
 
 ---
 
@@ -191,6 +191,30 @@ inicio (`components/resumen/SeccionResumen.tsx`).
   etiqueta + valor, con **barra de fondo proporcional** por fila (no una línea suelta debajo).
 - **KPI con variación:** valor 24/27/30 + chip `↑/↓ %` (verde/rojo por sentido); se **oculta** cuando el
   periodo anterior es 0 (de 0 a N no es "100%"). Sin línea de contexto bajo el número (ensucia).
+
+**Mapa interactivo a pantalla (estrenado en Ciudades, ampliado en Territorios)** — secciones cuyo
+lienzo principal es un mapa **MapLibre** (tiles OpenFreeMap). Detalle frágil completo en
+[`Territorios.md`](Territorios.md) §"Patrones de UI móvil"; aquí lo **reusable**:
+- **Mapa fijo al viewport (móvil vertical):** el mapa va `fixed inset-0 z-0` para que **no se
+  redimensione** al colapsar header/nav (si el canvas se reajusta, destella beige). Encima, una hoja
+  **peek** (`HojaMovil`, bottom-sheet de altura parcial expandible) y un overlay de controles con
+  `pointer-events-none` + hijos `[&>*]:pointer-events-auto`. La tarjeta de detalle de un pin se monta
+  por **portal a `body`** (`z-[60]`) porque el mapa `fixed` crea su propio *stacking context* y, si no,
+  queda **bajo** la barra de ciudad. Tres layouts del mismo módulo: vertical (hoja peek) / horizontal
+  (panel deslizable) / escritorio (sidebar).
+- **Controles flotantes sobre el mapa:** zoom (`NavigationControl`) arriba-derecha + botón **centrar**;
+  se **desplazan** hacia abajo cuando aparece la barra de herramientas de edición (no se empalman). El
+  **FAB** redondo (~52px) abajo-derecha alterna **`+`/`×`** para abrir/cerrar el modo crear (en
+  horizontal se corre según el panel esté abierto). Botones de herramienta ~52px, separados `gap-2`.
+- **Cards inline en la hoja:** **filas** (no tarjetas con borde grueso) — `border-b` entre filas,
+  identidad/input a la izquierda + **botones-ícono circulares** (`h-10 w-10`, ícono ~20px) a la
+  derecha: **ver en el mapa** (color del estado/zona), **editar** (`marca`), **borrar** (`peligro`).
+  Los círculos aquí son **botones de acción táctiles** de color contextual —no decoración pastel—, así
+  que cumplen la regla de §10.
+- **Pines = símbolos, no discos:** negocios = pin-gota con ícono de tienda; marcas = pin con punto de
+  color por estado (`addImage` sobre canvas). Popups grandes con **offset por dirección** (`OFFSET_PIN`)
+  para que no tapen el pin. En táctil, el arrastre de vértices usa eventos **`touch*`** (MapLibre no
+  emite `mouse*` en táctil).
 
 ---
 

@@ -45,10 +45,11 @@ export function useNegociosLista(filtros: ParametrosLista) {
 
 /** Total de negocios del alcance (contador del menú). Se refresca al cambiar de región
  *  (useFiltroRegion invalida `negocios.all()`) y al alta/baja de un negocio. */
-export function useConteoNegocios() {
+export function useConteoNegocios(enabled = true) {
   return useQuery({
     queryKey: queryKeys.negocios.conteo(),
     queryFn: () => negociosService.contarNegocios(),
+    enabled,
     staleTime: 1000 * 60,
   });
 }

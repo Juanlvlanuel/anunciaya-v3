@@ -54,7 +54,7 @@ export function LayoutMovil(props: LayoutMovilProps) {
       {/* El header colapsa su ALTURA cuando una sección pide "modo mapa" (Territorios). Recorta solo
           al estar colapsado; visible usa overflow-visible para no cortar dropdowns (selector de región). */}
       <div
-        className={`shrink-0 transition-[height] duration-300 ease-out ${headerVisible ? 'overflow-visible' : 'overflow-hidden'}`}
+        className={`relative z-30 shrink-0 transition-[height] duration-300 ease-out ${headerVisible ? 'overflow-visible' : 'overflow-hidden'}`}
         style={altoHeader ? { height: headerVisible ? altoHeader : 0 } : undefined}
       >
         <div ref={headerRef}>
@@ -62,12 +62,14 @@ export function LayoutMovil(props: LayoutMovilProps) {
         </div>
       </div>
 
-      <main className="flex-1 overflow-y-auto pb-1.5">{props.children}</main>
+      {/* En Territorios el mapa es FIJO al viewport; el pb-1.5 dejaría ver una franja del mapa entre la
+          hoja y el nav. Sin pb, la hoja blanca llega hasta el nav. */}
+      <main className={`flex-1 overflow-y-auto ${props.seccionActivaId === 'territorios' ? '' : 'pb-1.5'}`}>{props.children}</main>
 
       {/* La barra colapsa su ALTURA al ocultarse: el contenido (y la paginación al fondo de la
           sección) gana ese espacio solo, por reflow del flex. */}
       <div
-        className="shrink-0 overflow-hidden transition-[height] duration-300 ease-out"
+        className="relative z-30 shrink-0 overflow-hidden transition-[height] duration-300 ease-out"
         style={altoNav ? { height: navVisible ? altoNav : 0 } : undefined}
       >
         <div

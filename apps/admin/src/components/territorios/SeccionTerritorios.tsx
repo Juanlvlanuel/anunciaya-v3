@@ -16,7 +16,7 @@
  */
 
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, Pencil, Trash2, ChevronRight, ChevronLeft, Store } from 'lucide-react';
+import { Plus, Pencil, Trash2, ChevronRight, ChevronLeft, Store, X, MapPin } from 'lucide-react';
 import {
     useZonas,
     useCiudadesDelAlcance,
@@ -208,7 +208,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             enfocarNonce={foco?.nonce ?? 0}
             introAnimado={rol === 'gerente'}
             onPoligonoCompleto={alPoligonoCompleto}
-            onCancelarDibujo={cancelarForm}
+            mapaFijo={!esEscritorio && !esHorizontal}
         />
     );
 
@@ -220,12 +220,17 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
             placeholder="Elige una ciudad…"
             buscarPlaceholder="Buscar ciudad…"
             testid="territorios-ciudad"
+            textoClase="text-[15px]"
         />
     );
 
-    // Filtro de las marcas del equipo (lectura): mismo set que se pinta en el mapa.
-    const piezaFiltros = !poligonoNuevo && marcas.length > 0 ? (
-        <div className="flex gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    // Filtro de las marcas del equipo (lectura): mismo set que se pinta en el mapa. En la hoja móvil
+    // (`carrusel`) van en 1 sola fila deslizable; en el panel de PC se acomodan en varias filas.
+    const hayFiltros = !poligonoNuevo && marcas.length > 0;
+    const piezaFiltros = (carrusel: boolean) => (hayFiltros ? (
+        <div className={carrusel
+            ? 'flex gap-1 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden'
+            : 'flex flex-wrap gap-1'}>
             {TIPOS_MARCA.map((t) => {
                 const activo = filtroMarca === t;
                 return (
@@ -235,15 +240,15 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                         data-testid={`filtro-marca-${t}`}
                         onClick={() => setFiltroMarca((f) => (f === t ? null : t))}
                         aria-pressed={activo}
-                        className={`flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11.5px] transition ${activo ? 'border-marca bg-marca-suave font-medium text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'}`}
+                        className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] transition ${activo ? 'border-marca bg-marca-suave font-medium text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'}`}
                     >
-                        <span className="h-2.5 w-2.5 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
                         {ETIQUETA_TIPO[t]}
                     </button>
                 );
             })}
         </div>
-    ) : null;
+    ) : null);
 
     // Toggle de negocios como botón flotante (solo ícono) sobre el mapa. `posicion` ubica la esquina
     // según el layout (abajo-izquierda en horizontal/escritorio; bajo la barra de ciudad en vertical).
@@ -257,13 +262,37 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                         onClick={() => setMostrarNegocios((v) => !v)}
                         aria-pressed={mostrarNegocios}
                         aria-label={mostrarNegocios ? 'Ocultar negocios del mapa' : 'Mostrar negocios del mapa'}
-                        className={`grid h-11 w-11 place-items-center rounded-full border shadow-tarjeta-panel transition ${mostrarNegocios ? 'border-marca bg-marca text-white' : 'border-borde bg-superficie text-texto-3'}`}
+                        className={`grid h-[52px] w-[52px] place-items-center rounded-full border shadow-tarjeta-panel transition ${mostrarNegocios ? 'border-marca bg-marca text-white' : 'border-borde bg-superficie text-texto-3'}`}
                     >
-                        <Store size={18} />
+                        <Store size={22} />
                     </button>
                 </Tooltip>
             </div>
         ) : null;
+
+    // FAB sobre el mapa (abajo a la derecha), con tooltip. Alterna "+" (iniciar dibujo) ↔ "X" (cancelar
+    // el dibujo en curso): así el Cancelar vive en el FAB y no en la barra de herramientas. Se oculta al
+    // nombrar la zona (el mini-form tiene su propio Cancelar).
+    const fabZona = (posicion: string) => {
+        if (poligonoNuevo) return null;
+        const cancelar = dibujando;
+        return (
+            <div className={`absolute z-10 ${posicion}`}>
+                <Tooltip text={cancelar ? 'Cancelar' : (!ciudadId ? 'Elige una ciudad primero' : 'Dibujar una zona')} position="left">
+                    <button
+                        type="button"
+                        data-testid="territorios-nueva-zona"
+                        onClick={() => (cancelar ? cancelarForm() : setDibujando(true))}
+                        disabled={!cancelar && !ciudadId}
+                        aria-label={cancelar ? 'Cancelar dibujo' : 'Nueva zona'}
+                        className="grid h-[52px] w-[52px] place-items-center rounded-full bg-marca text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:bg-marca-suave disabled:text-marca"
+                    >
+                        {cancelar ? <X size={26} /> : <Plus size={26} />}
+                    </button>
+                </Tooltip>
+            </div>
+        );
+    };
 
     // Mini-form sobre el MAPA (al Terminar de dibujar): nombre + colores + Guardar, sin cambiar de
     // pantalla. El vendedor se asigna después desde la lista. Enter guarda.
@@ -315,7 +344,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
 
     // Lista de zonas (en el panel/hoja). El formulario ya NO vive aquí: salió al mini-form del mapa.
     const piezaLista = (
-        <div className="flex min-h-0 flex-1 flex-col gap-1.5">
+        <div className="flex min-h-0 flex-1 flex-col">
             {isLoading ? (
                 <div className="rounded-[10px] border border-borde px-3 py-6 text-center text-[13px] text-texto-3">Cargando…</div>
             ) : zonas.length === 0 ? (
@@ -326,49 +355,70 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 </div>
             ) : (
                 zonas.map((z) => (
-                    <div key={z.id} data-testid={`zona-${z.id}`} className="flex flex-col gap-1.5 rounded-[10px] border border-borde bg-superficie p-2.5">
+                    <div key={z.id} data-testid={`zona-${z.id}`} className="flex flex-col gap-1.5 border-b border-borde py-2.5 last:border-b-0">
                         <div className="flex items-center gap-2">
                             <span className="h-3 w-3 shrink-0 rounded-[3px]" style={{ backgroundColor: z.color ?? '#2563eb' }} />
-                            <button type="button" data-testid={`zona-ir-${z.id}`} onClick={() => enfocarZona(z)} className="min-w-0 flex-1 truncate text-left text-[13.5px] font-medium text-texto transition hover:text-marca">{z.nombre}</button>
-                            {z.puedoEditar && (
-                                <Tooltip text="Editar zona" className="shrink-0">
-                                    <button
-                                        type="button"
-                                        data-testid={`zona-editar-${z.id}`}
-                                        onClick={() => editarZonaInline(z)}
-                                        aria-label="Editar zona"
-                                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-texto-3 transition hover:bg-marca-suave hover:text-marca"
-                                    >
-                                        <Pencil size={17} />
-                                    </button>
-                                </Tooltip>
-                            )}
-                            {z.puedoEditar && (
-                                <Tooltip text="Borrar zona" className="shrink-0">
-                                    <button
-                                        type="button"
-                                        data-testid={`zona-borrar-${z.id}`}
-                                        onClick={() => setZonaABorrar({ id: z.id, nombre: z.nombre })}
-                                        aria-label="Borrar zona"
-                                        className="grid h-7 w-7 shrink-0 place-items-center rounded-full text-texto-3 transition hover:bg-peligro-suave hover:text-peligro"
-                                    >
-                                        <Trash2 size={18} />
-                                    </button>
-                                </Tooltip>
-                            )}
+                            <span data-testid={`zona-nombre-${z.id}`} className="min-w-0 flex-1 truncate text-[13.5px] font-medium text-texto">{z.nombre}</span>
                         </div>
-                        {z.puedoEditar ? (
-                            <SelectorBuscable
-                                value={z.embajadorId ?? ''}
-                                onChange={(id) => asignar.mutate({ id: z.id, embajadorId: id || null })}
-                                opciones={opcVendedores}
-                                placeholder="Sin asignar"
-                                buscarPlaceholder="Buscar vendedor…"
-                                testid={`zona-vendedor-${z.id}`}
-                            />
-                        ) : (
-                            <span className="truncate text-[12px] text-texto-3">{z.vendedorNombre ?? 'Sin asignar'} · {z.ciudadNombre ?? '—'}</span>
-                        )}
+                        <div className="flex items-center gap-2">
+                            {z.puedoEditar ? (
+                                <div className="min-w-0 flex-1">
+                                    <SelectorBuscable
+                                        value={z.embajadorId ?? ''}
+                                        onChange={(id) => asignar.mutate({ id: z.id, embajadorId: id || null })}
+                                        opciones={opcVendedores}
+                                        placeholder="Sin asignar"
+                                        buscarPlaceholder="Buscar vendedor…"
+                                        testid={`zona-vendedor-${z.id}`}
+                                        textoClase="text-[15px]"
+                                    />
+                                </div>
+                            ) : (
+                                <span className="min-w-0 flex-1 truncate text-[12px] text-texto-3">{z.vendedorNombre ?? 'Sin asignar'} · {z.ciudadNombre ?? '—'}</span>
+                            )}
+                            <div className="flex shrink-0 items-center gap-1.5">
+                                {/* Ver la zona en el mapa (antes era el clic en el nombre). Siempre disponible,
+                                    también en zonas que el rol no edita. Círculo con el color de la zona. */}
+                                <Tooltip text="Ver en el mapa">
+                                    <button
+                                        type="button"
+                                        data-testid={`zona-ir-${z.id}`}
+                                        onClick={() => enfocarZona(z)}
+                                        aria-label="Ver zona en el mapa"
+                                        style={{ backgroundColor: `${z.color ?? '#2563eb'}1f`, color: z.color ?? '#2563eb' }}
+                                        className="grid h-10 w-10 place-items-center rounded-full transition hover:opacity-80"
+                                    >
+                                        <MapPin size={20} />
+                                    </button>
+                                </Tooltip>
+                                {z.puedoEditar && (
+                                    <Tooltip text="Editar zona">
+                                        <button
+                                            type="button"
+                                            data-testid={`zona-editar-${z.id}`}
+                                            onClick={() => editarZonaInline(z)}
+                                            aria-label="Editar zona"
+                                            className="grid h-10 w-10 place-items-center rounded-full bg-marca-suave text-marca transition hover:opacity-80"
+                                        >
+                                            <Pencil size={20} />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                                {z.puedoEditar && (
+                                    <Tooltip text="Borrar zona">
+                                        <button
+                                            type="button"
+                                            data-testid={`zona-borrar-${z.id}`}
+                                            onClick={() => setZonaABorrar({ id: z.id, nombre: z.nombre })}
+                                            aria-label="Borrar zona"
+                                            className="grid h-10 w-10 place-items-center rounded-full bg-peligro-suave text-peligro transition hover:opacity-80"
+                                        >
+                                            <Trash2 size={20} />
+                                        </button>
+                                    </Tooltip>
+                                )}
+                            </div>
+                        </div>
                     </div>
                 ))
             )}
@@ -388,33 +438,13 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
         />
     ) : null;
 
-    // Contenido del panel de gestión (ciudad + nueva zona + filtros + negocios + lista/form). Se monta
-    // en la columna derecha tanto en ESCRITORIO (288px) como en MÓVIL HORIZONTAL (1/3 de la pantalla).
-    const contenidoPanel = (
+    // Contenido del panel de gestión (ciudad + filtros + lista/form). El "Nueva zona" ya NO vive aquí:
+    // es un FAB sobre el mapa en todos los layouts. `filtrosCarrusel`: en HORIZONTAL (panel angosto) los
+    // 4 filtros van en 1 fila deslizable; en ESCRITORIO se acomodan con flex-wrap.
+    const contenidoPanel = (filtrosCarrusel: boolean) => (
         <>
-            <div className="flex shrink-0 items-stretch gap-2">
-                <div className="min-w-0 flex-1">{piezaCiudad}</div>
-                {!poligonoNuevo && (
-                    <Tooltip text={!ciudadId ? 'Elige una ciudad primero' : 'Dibujar una zona'} className="shrink-0 items-stretch">
-                        <button
-                            type="button"
-                            data-testid="territorios-nueva-zona"
-                            onClick={() => setDibujando(true)}
-                            disabled={!ciudadId || dibujando}
-                            aria-label="Nueva zona"
-                            className="grid h-full shrink-0 place-items-center rounded-[10px] bg-marca px-3.5 text-white transition hover:opacity-90 disabled:opacity-40"
-                        >
-                            <Plus size={18} />
-                        </button>
-                    </Tooltip>
-                )}
-            </div>
-            {piezaFiltros && (
-                <div className="flex shrink-0 flex-col gap-1.5">
-                    <span className="text-[11.5px] font-medium text-texto-3">Marcas del equipo ({marcasFiltradas.length})</span>
-                    {piezaFiltros}
-                </div>
-            )}
+            <div className="shrink-0">{piezaCiudad}</div>
+            {hayFiltros && <div className="shrink-0">{piezaFiltros(filtrosCarrusel)}</div>}
             <div className="flex min-h-0 flex-1 flex-col overflow-y-auto">{piezaLista}</div>
         </>
     );
@@ -423,7 +453,13 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     if (!esEscritorio && esHorizontal && puedeEditar) {
         return (
             <div className="relative h-full w-full overflow-hidden" data-testid="seccion-territorios">
-                <div className="absolute inset-0">{elMapa}{botonNegocios('bottom-3 left-3')}{miniFormZona}</div>
+                <div className="absolute inset-0">
+                    {elMapa}
+                    {botonNegocios('bottom-3 left-3')}
+                    {/* FAB de Zona: sigue al panel — a su izquierda cuando está abierto, a la esquina cuando se cierra. */}
+                    {fabZona(`bottom-3 transition-[right] duration-300 ${panelAbierto ? 'right-[calc(45%+0.75rem)]' : 'right-3'}`)}
+                    {miniFormZona}
+                </div>
                 <aside
                     className={`absolute inset-y-0 right-0 z-20 flex w-[45%] flex-col gap-2 border-l border-borde bg-superficie p-2.5 shadow-tarjeta-panel transition-transform duration-300 ${panelAbierto ? 'translate-x-0' : 'translate-x-full'}`}
                 >
@@ -438,7 +474,7 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                     >
                         {panelAbierto ? <ChevronRight size={18} /> : <ChevronLeft size={18} />}
                     </button>
-                    {contenidoPanel}
+                    {contenidoPanel(true)}
                 </aside>
                 {dialogoBorrar}
             </div>
@@ -449,23 +485,19 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     if (!esEscritorio && puedeEditar) {
         return (
             <div className="relative h-full w-full overflow-hidden" data-testid="seccion-territorios">
-                <div className="absolute inset-0">{elMapa}{botonNegocios('bottom-[64px] left-3')}{miniFormZona}</div>
+                {/* Mapa FIJO al viewport: no se redimensiona cuando el header/nav del shell colapsan
+                    (modo mapa), así la transición de la hoja NO provoca flash/estiramiento del canvas. El
+                    header/nav (z-30) se superponen y, al ocultarse, revelan mapa ya renderizado. */}
+                <div className="fixed inset-0 z-0">{elMapa}</div>
+                {/* Overlay sin captura de eventos (pointer-events-none) para que los clics en zonas
+                    vacías lleguen al mapa/controles de zoom (z-0); los hijos sí los reciben. */}
+                <div className="pointer-events-none absolute inset-0 z-10 [&>*]:pointer-events-auto">{botonNegocios('bottom-[64px] left-3')}{fabZona('bottom-[64px] right-3')}{miniFormZona}</div>
 
-                {/* Barra flotante: ciudad + nueva zona. Se oculta mientras se DIBUJA o se nombra la zona
-                    (la barra de dibujo / el mini-form ocupan el top); reaparece al cancelar o terminar. */}
+                {/* Barra flotante: solo la ciudad (el "Nueva zona" pasó a ser un FAB abajo a la derecha).
+                    Se oculta mientras se DIBUJA o se nombra la zona; reaparece al cancelar o terminar. */}
                 {!dibujando && !poligonoNuevo && (
-                    <div className="absolute inset-x-2 top-2 z-10 flex gap-2">
-                        <div className="min-w-0 flex-1 rounded-[10px] shadow-tarjeta-panel">{piezaCiudad}</div>
-                        <button
-                            type="button"
-                            data-testid="territorios-nueva-zona"
-                            onClick={() => setDibujando(true)}
-                            disabled={!ciudadId || dibujando}
-                            title={!ciudadId ? 'Elige una ciudad primero' : 'Dibujar una zona'}
-                            className="flex shrink-0 items-center gap-1 rounded-[10px] bg-marca px-3 text-[13px] font-medium text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:opacity-40"
-                        >
-                            <Plus size={16} /> Zona
-                        </button>
+                    <div className="absolute left-2 right-14 top-2 z-10">
+                        <div className="rounded-[10px] shadow-tarjeta-panel">{piezaCiudad}</div>
                     </div>
                 )}
 
@@ -473,7 +505,8 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
                 <HojaMovil
                     expandida={hojaExpandida}
                     onExpandidaChange={setHojaExpandida}
-                    resumen={piezaFiltros}
+                    resumen={piezaFiltros(true)}
+                    altura="68%"
                 >
                     {piezaLista}
                 </HojaMovil>
@@ -486,11 +519,11 @@ function VistaAdminTerritorio({ rol }: SeccionTerritoriosProps) {
     // ── Escritorio: mapa a la izquierda + columna derecha de gestión ───────────
     return (
         <div className="flex h-full flex-col gap-3 lg:flex-row" data-testid="seccion-territorios">
-            <div className="relative min-h-[320px] min-w-0 flex-1">{elMapa}{botonNegocios('bottom-3 left-3')}{miniFormZona}</div>
+            <div className="relative min-h-[320px] min-w-0 flex-1">{elMapa}{botonNegocios('bottom-3 left-3')}{puedeEditar && fabZona('bottom-3 right-3')}{miniFormZona}</div>
 
             {puedeEditar && (
                 <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pr-3 lg:pt-3">
-                    {contenidoPanel}
+                    {contenidoPanel(false)}
                 </aside>
             )}
 

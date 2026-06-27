@@ -1,6 +1,6 @@
 # Panel Admin — Tablero de módulos
 
-> **Qué es:** el estado de los **12 módulos del Panel de un vistazo**. Es el **índice maestro**:
+> **Qué es:** el estado de los **13 módulos del Panel de un vistazo**. Es el **índice maestro**:
 > dice en qué fase está cada módulo y dónde están sus dos documentos. Para el detalle de pendientes,
 > abre el `<Modulo>_Pendientes.md`; para el proceso, el carril.
 >
@@ -14,12 +14,21 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 23 Junio 2026.
+> **Última actualización:** 26 Junio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **Ronda de pulido UX de Territorios (26 jun):** sesión larga de pulido del módulo 13 en sus dos vistas
+  (**vendedor** "Mi territorio" y **gerente/super** "Territorios"), sin tocar backend ni datos. Lo grueso:
+  **mapa fijo al viewport** en móvil vertical (elimina el destello beige al expandir/colapsar la hoja),
+  **hoja peek** + 3 layouts responsive (vertical/horizontal/escritorio), **negocios y marcas como pines
+  símbolo** (pin-tienda / pin-punto), **tarjeta de detalle solo-lectura** al tocar un pin del gerente (por
+  portal sobre la barra de ciudad), **FAB `+`/`×`** dinámico, **cards inline** con botones-ícono circulares
+  (ver/editar/borrar), filtros responsive (carrusel/wrap), arrastre de vértices con `touch`, y el `maxBounds`
+  del vendedor **retirado** (pan libre, solo queda el overlay). Docs actualizados: `Territorios.md` (§Patrones
+  de UI móvil + ⚠️ "mapa fijo — NO romper") y `Tokens_Panel.md` (§5 patrón "Mapa interactivo a pantalla"). `tsc`/eslint del Panel verdes. **Pendiente:** GATE 2 visual de G.1 (que Juan dibuje una zona real) + commit.
 - **Cabos sueltos de Suscripciones cerrados (23 jun):** los 4 pendientes menores de la bitácora financiera
   (módulo 5) quedaron cerrados. **(1)** **Deep-link evento → Negocios**: el nombre del negocio en la ficha del
   movimiento (`FichaEvento.tsx`) es un botón que salta a la sección Negocios y resalta su fila (mismo patrón que
@@ -174,7 +183,7 @@
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 | | **· Red de ventas ·** | | | |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: **F** (cobertura avanzada: agregar/quitar ciudades a un vendedor, incl. de otra región). **G (mapa de territorios) → construido como módulo Territorios ✅** | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
-| 13 | **Territorios** | ✅ | ✔ Construido (G.1 zonas: editor 4-herramientas + snapping + no-traslape turf · G.2 "Mi territorio" del vendedor con marcas estado/nota · gerente/super ven marcas de sus vendedores en lectura) · backlog: F multi-región + curvas en dibujo | `Territorios.md` · `Territorios_Pendientes.md` |
+| 13 | **Territorios** | ✅ | ✔ Construido + **ronda de pulido UX móvil (26 jun)** (G.1 zonas: editor 4-herramientas + snapping + no-traslape turf · G.2 "Mi territorio" del vendedor con marcas estado/nota · gerente/super ven marcas de sus vendedores + negocios reales en lectura) · backlog: **GATE 2 visual de G.1** + F multi-región + curvas en dibujo | `Territorios.md` · `Territorios_Pendientes.md` |
 | | **· Crecimiento ·** | | | |
 | 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |

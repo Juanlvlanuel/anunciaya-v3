@@ -83,7 +83,7 @@ anunciaya/
 **Home:** Pregúntale a Peñasco ✅ (feed conversacional + Coyo + filtro hiperlocal por ciudad, ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4)
 **3 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅
 **3 Comerciales:** Business Studio ✅, ScanYA ✅, Onboarding ✅
-**Administración del Sistema:** Panel Admin 🟢 prácticamente completo (`apps/admin`, en prod): los 12 módulos construidos — Resumen, Métricas, Negocios, Usuarios, Suscripciones·bitácora, Recibos, Vendedores y comisiones, Publicidad, Ciudades, Equipo y accesos, Configuración, y "Sistema" (Auditoría + Mantenimiento R2). Stripe validado E2E al 100% (ronda A–Z cerrada 23 jun, ver `docs/arquitectura/Panel_Admin/Ronda_Pruebas_Pagos.md`). Estado vivo y por módulo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
+**Administración del Sistema:** Panel Admin 🟢 prácticamente completo (`apps/admin`, en prod): los 13 módulos construidos — Resumen, Métricas, Negocios, Usuarios, Suscripciones·bitácora, Recibos, Vendedores y comisiones, Territorios, Publicidad, Ciudades, Equipo y accesos, Configuración, y "Sistema" (Auditoría + Mantenimiento R2). Stripe validado E2E al 100% (ronda A–Z cerrada 23 jun, ver `docs/arquitectura/Panel_Admin/Ronda_Pruebas_Pagos.md`). Estado vivo y por módulo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
 
 > ✅ = construido y en uso. Las **4 públicas**, el **Home** (Pregúntale a Peñasco) y las **comerciales** están implementadas y funcionando (verificado en código, 23 jun 2026).
 
@@ -403,7 +403,7 @@ Ninguno. **Vacantes** ✅ — herramienta del comerciante para publicar ofertas 
 
 ### Siguiente Sprint
 
-Las 4 secciones públicas (Negocios, MarketPlace, Ofertas, Servicios), el Home (Pregúntale a Peñasco), Business Studio (13/13, incl. Vacantes) y el Panel Admin (12/12) están **construidas**. El producto está funcionalmente completo de cara a la **beta de Puerto Peñasco (May-Jun 2026)**; el foco pasa a **QA/pulido y preparación del lanzamiento**. El siguiente frente concreto se define con Juan.
+Las 4 secciones públicas (Negocios, MarketPlace, Ofertas, Servicios), el Home (Pregúntale a Peñasco), Business Studio (13/13, incl. Vacantes) y el Panel Admin (13/13, incl. Territorios) están **construidas**. El producto está funcionalmente completo de cara a la **beta de Puerto Peñasco (May-Jun 2026)**; el foco pasa a **QA/pulido y preparación del lanzamiento**. El siguiente frente concreto se define con Juan.
 
 ---
 

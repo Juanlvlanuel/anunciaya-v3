@@ -10,7 +10,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta
 >
-> **Última actualización:** 23 Junio 2026 · **Fase actual:** módulo **CONSTRUIDO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, y lectura de marcas para gerente/super) — doc canónico `Territorios.md` escrito. **Backlog:** GATE 2 visual completo de G.1, Pieza F (multi-región), curvas en el dibujo.
+> **Última actualización:** 26 Junio 2026 · **Fase actual:** módulo **CONSTRUIDO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, lectura de marcas + negocios para gerente/super) — doc canónico `Territorios.md` escrito + **ronda de pulido UX móvil (26 jun)** aplicada a ambas vistas (ver `Territorios.md` §"Patrones de UI móvil"). **Backlog:** GATE 2 visual completo de G.1, Pieza F (multi-región), curvas en el dibujo.
 
 ---
 
@@ -180,15 +180,16 @@ Backlog (no bloqueante): curvas entre 2 puntos al dibujar · Pieza F (multi-regi
 > (`requierePanel(['vendedor'])`). tsc API verde.
 >
 > **Frontend HECHO (23 jun):** vista del vendedor `VistaVendedorTerritorio.tsx` + mapa `MapaMarcas.tsx`:
-> - **Solo su zona:** el exterior se **oscurece** con una capa-máscara semi-oscura ("mundo con huecos") y el **paneo se
->   limita** a su zona (`maxBounds`); la zona queda al 100%.
+> - **Solo su zona:** el exterior se **oscurece** con una capa-máscara semi-oscura ("mundo con huecos"); la zona
+>   queda al 100%. *(El `maxBounds` que acotaba el paneo se **retiró** en el pulido del 26 jun → el
+>   vendedor se mueve libre, solo queda el overlay.)*
 > - **Intro animado:** arranca en México completo y **vuela con zoom** hasta la zona; ahí enciende la máscara.
 > - **Marcas:** "Agregar marca" (clic → pin con estado/color + **nota**), **editar** estado/nota, **borrar**, **arrastrar**
->   el pin para reubicarlo, y **popup al hover** con estado + nota. Pines de color por estado.
+>   el pin para reubicarlo. Marcas como `maplibregl.Marker` HTML (pin-símbolo por estado); popup de detalle en PC.
 > - **Bloqueo:** crear o mover marcas **fuera de la zona** no se permite (point-in-polygon por ray casting + aviso).
 > - Hooks RQ (`useMisMarcas`/`useCrearMarca`/`useEditarMarca`/`useMoverMarca`/`useBorrarMarca`); `SeccionTerritorios`
 >   bifurca por rol (vendedor → "Mi territorio"). tsc Panel + API verdes; validado visual con Juan (23 jun).
-> **Pendiente:** doc canónico `Territorios.md` (Fase 3).
+> **Fase 3 ✅:** doc canónico `Territorios.md` escrito + ronda de pulido UX móvil (26 jun) documentada ahí.
 
 **Qué hace:** el vendedor abre "Mi territorio" → ve **solo su zona asignada** → coloca **pines** de los lugares por
 donde ya pasó. Cada marca: ubicación + tipo + nota + fecha. CRUD de **sus** marcas; gerente/super solo las **ven**.

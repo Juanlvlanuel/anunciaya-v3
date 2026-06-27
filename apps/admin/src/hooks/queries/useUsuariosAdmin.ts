@@ -31,11 +31,13 @@ export function useUsuariosLista(filtros: ParametrosLista) {
   });
 }
 
-/** Total de usuarios del alcance (badge del menú). Carga al abrir el Panel. */
-export function useConteoUsuarios() {
+/** Total de usuarios del alcance (badge del menú). Carga al abrir el Panel. `enabled` lo gatea por
+ *  rol: el vendedor no tiene el módulo Usuarios y el endpoint le respondería 403. */
+export function useConteoUsuarios(enabled = true) {
   return useQuery({
     queryKey: queryKeys.usuarios.conteo(),
     queryFn: () => usuariosService.contarUsuarios(),
+    enabled,
     staleTime: 1000 * 60,
   });
 }

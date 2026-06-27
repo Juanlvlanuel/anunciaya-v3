@@ -311,6 +311,13 @@ pago real** (tarjeta cobrada o pago manual). Idempotente: una por negocio.
 
 ## Vendedores v2 — Mapa de territorios
 
+> ✅ **YA CONSTRUIDO (jun 2026) como módulo propio [`Territorios.md`](Territorios.md) (módulo 13).** Lo de
+> abajo es el **diseño histórico** (3 Jun 2026); la verdad viva del módulo está en `Territorios.md` /
+> `Territorios_Pendientes.md`. Diferencias respecto a este diseño: la geometría se guarda como **GeoJSON en
+> `jsonb` (sin PostGIS)**; las zonas se dibujan con **snapping a calles + editor de vértices**; las marcas del
+> vendedor son **prospección pura** (estado + nota, sin "convertir a venta" ni ligar a negocio — eso se evaluó y
+> se descartó). Backlog del módulo: GATE 2 visual de G.1 + cobertura multi-región (Pieza F).
+
 **Diseñado completo (3 Jun 2026). Construcción DIFERIDA** — se hace después del motor de venta.
 Razón: es el módulo más pesado del Panel y solo aporta cuando hay varios vendedores coordinándose. Diseñarlo hoy, construirlo cuando el motor ya gire.
 

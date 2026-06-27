@@ -13,10 +13,11 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type LngLatBoundsLike } from 'maplibre-gl';
+import maplibregl, { type Map as MapaLibre, type GeoJSONSource } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import type { ZonaTerritorio, MarcaTerritorio, TipoMarca, NegocioMapa } from '../../services/territoriosService';
 import { toast } from '../../stores/useToastPanel';
+import { useScrollPanel } from '../../stores/useScrollPanel';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
 const CENTRO_MX: [number, number] = [-102.5, 23.6];
@@ -46,16 +47,21 @@ function escaparHtml(s: string): string {
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
-/** Una "píldora" de color para los popups (texto fg sobre fondo bg). */
-export function badgeHtml(label: string, fg: string, bg: string): string {
-    return `<span style="display:inline-flex;align-items:center;font-size:10.5px;font-weight:600;line-height:1.5;padding:1px 8px;border-radius:999px;background:${bg};color:${fg};white-space:nowrap;">${escaparHtml(label)}</span>`;
+/** Una "píldora" de color para los popups (texto fg sobre fondo bg). `grande` = popup de negocio. */
+export function badgeHtml(label: string, fg: string, bg: string, grande = false): string {
+    const fs = grande ? '12px' : '10.5px';
+    const pad = grande ? '2px 10px' : '1px 8px';
+    return `<span style="display:inline-flex;align-items:center;font-size:${fs};font-weight:600;line-height:1.5;padding:${pad};border-radius:999px;background:${bg};color:${fg};white-space:nowrap;">${escaparHtml(label)}</span>`;
 }
 
-/** Encabezado del popup: punto de color (con halo) + título en negrita. `redondo` = pin de marca; si no, negocio. */
-export function tituloPopup(color: string, texto: string, redondo: boolean): string {
+/** Encabezado del popup: punto de color (con halo) + título en negrita. `redondo` = pin de marca; si no,
+ *  negocio. `grande` = popup de negocio (texto y punto más grandes). */
+export function tituloPopup(color: string, texto: string, redondo: boolean, grande = false): string {
+    const punto = grande ? '11px' : '9px';
+    const fs = grande ? '15px' : '13px';
     return `<div style="display:flex;align-items:center;gap:8px;">`
-        + `<span style="width:9px;height:9px;border-radius:${redondo ? '9999px' : '3px'};background:${color};box-shadow:0 0 0 3px ${color}1f;flex-shrink:0;"></span>`
-        + `<span style="font-weight:650;font-size:13px;color:#0f172a;line-height:1.2;">${escaparHtml(texto)}</span></div>`;
+        + `<span style="width:${punto};height:${punto};border-radius:${redondo ? '9999px' : '3px'};background:${color};box-shadow:0 0 0 3px ${color}1f;flex-shrink:0;"></span>`
+        + `<span style="font-weight:650;font-size:${fs};color:#0f172a;line-height:1.2;">${escaparHtml(texto)}</span></div>`;
 }
 
 /** Fecha corta legible (es-MX) o '' si no hay. */
@@ -65,23 +71,33 @@ export function fechaCorta(iso: string | null): string {
 }
 
 /** Color de la píldora del estado de membresía de un negocio. */
-const ESTADO_BADGE: Record<string, { fg: string; bg: string; label: string }> = {
+export const ESTADO_BADGE: Record<string, { fg: string; bg: string; label: string }> = {
     al_corriente: { fg: '#15803d', bg: '#dcfce7', label: 'Al corriente' },
     en_gracia: { fg: '#b45309', bg: '#fef3c7', label: 'En gracia' },
     suspendido: { fg: '#b91c1c', bg: '#fee2e2', label: 'Suspendido' },
     cancelado: { fg: '#475569', bg: '#e2e8f0', label: 'Cancelado' },
 };
 
+/** Offset por dirección de los popups: el pin se ancla en su PUNTA (icon-anchor bottom). Arriba sube
+ *  sobre el pin (-34 = alto); a los lados sube hasta la CABEZA (-21) para que el popup apunte centrado
+ *  al pin y no a la punta (si no, los popups laterales salen desfasados hacia abajo). Mismo pin en
+ *  marcas y negocios → mismo offset. */
+export const OFFSET_PIN: maplibregl.Offset = {
+    top: [0, 12], 'top-left': [0, 12], 'top-right': [0, 12],
+    bottom: [0, -34], 'bottom-left': [0, -34], 'bottom-right': [0, -34],
+    left: [14, -21], right: [-14, -21], center: [0, -21],
+};
+
 /** HTML del popup de hover de una marca: estado como TÍTULO + nota + fecha. */
 function contenidoPopup(m: MarcaTerritorio): string {
     const nota = m.nota?.trim();
     const cuerpo = nota
-        ? `<div style="font-size:13px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
-        : `<div style="font-size:12.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
+        ? `<div style="font-size:14px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
+        : `<div style="font-size:13.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
     const fecha = fechaCorta(m.createdAt);
-    const filaFecha = fecha ? `<div style="font-size:11.5px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
-    return `<div style="display:flex;flex-direction:column;gap:7px;min-width:170px;max-width:280px;">`
-        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true)
+    const filaFecha = fecha ? `<div style="font-size:13px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
+    return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
+        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true, true)
         + cuerpo + filaFecha + `</div>`;
 }
 
@@ -111,13 +127,13 @@ export function contenidoPopupNegocio(props: { nombre?: string; estado?: string;
     const conVendedor = !!props.embajadorId;
     const punto = conVendedor ? COLOR_NEGOCIO.conVendedor : COLOR_NEGOCIO.sinVendedor;
     const est = ESTADO_BADGE[props.estado ?? ''] ?? { fg: '#475569', bg: '#e2e8f0', label: props.estado || '—' };
-    const atrib = conVendedor ? badgeHtml('Asignado', '#0e7490', '#cffafe') : badgeHtml('Oportunidad', '#6d28d9', '#ede9fe');
+    const atrib = conVendedor ? badgeHtml('Asignado', '#0e7490', '#cffafe', true) : badgeHtml('Oportunidad', '#6d28d9', '#ede9fe', true);
     const vendedorLinea = conVendedor
-        ? `<div style="font-size:11px;color:#64748b;line-height:1.3;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(props.vendedorNombre || '—')}</span></div>`
+        ? `<div style="font-size:13px;color:#64748b;line-height:1.3;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(props.vendedorNombre || '—')}</span></div>`
         : '';
-    return `<div style="display:flex;flex-direction:column;gap:7px;min-width:160px;max-width:240px;">`
-        + tituloPopup(punto, props.nombre || 'Negocio', false)
-        + `<div style="display:flex;flex-wrap:wrap;gap:5px;">${badgeHtml(est.label, est.fg, est.bg)}${atrib}</div>`
+    return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
+        + tituloPopup(punto, props.nombre || 'Negocio', false, true)
+        + `<div style="display:flex;flex-wrap:wrap;gap:6px;">${badgeHtml(est.label, est.fg, est.bg, true)}${atrib}</div>`
         + vendedorLinea
         + `</div>`;
 }
@@ -130,14 +146,33 @@ function svgPin(color: string): string {
 }
 /** Elemento HTML de un pin: el wrapper es el element del Marker (MapLibre lo posiciona con su propio
  *  transform → NO tocarlo); el INNER es el que escalamos al resaltar. anchor 'bottom' = la punta marca. */
-function elementoPin(tipo: TipoMarca): HTMLDivElement {
+export function elementoPin(tipo: TipoMarca): HTMLDivElement {
     const el = document.createElement('div');
     el.dataset.tipo = tipo;
-    el.style.cursor = 'grab';
+    el.style.cursor = 'pointer';
     const inner = document.createElement('div');
     inner.style.transformOrigin = 'bottom center';
     inner.style.transition = 'transform 0.15s ease';
     inner.innerHTML = svgPin(COLOR_TIPO[tipo]);
+    el.appendChild(inner);
+    return el;
+}
+/** SVG de un pin de NEGOCIO (gota + tienda blanca), mismo perfil que el sprite del mapa. */
+function svgPinNegocio(color: string): string {
+    const cx = 13, cy = 12.5;
+    return `<svg width="26" height="34" viewBox="0 0 26 34" xmlns="http://www.w3.org/2000/svg" style="display:block;filter:drop-shadow(0 2px 2px rgba(15,23,42,0.32));">`
+        + `<path d="M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z" fill="${color}" stroke="#ffffff" stroke-width="2"/>`
+        + `<path d="M${cx - 5} ${cy} L${cx - 5.5} ${cy - 3.4} L${cx + 5.5} ${cy - 3.4} L${cx + 5} ${cy} M${cx - 4} ${cy} L${cx - 4} ${cy + 4.6} L${cx + 4} ${cy + 4.6} L${cx + 4} ${cy}" fill="none" stroke="#ffffff" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>`
+        + `</svg>`;
+}
+/** Elemento HTML de un pin de negocio (para resaltarlo igual que las marcas). */
+export function elementoPinNegocio(color: string): HTMLDivElement {
+    const el = document.createElement('div');
+    el.style.cursor = 'pointer';
+    const inner = document.createElement('div');
+    inner.style.transformOrigin = 'bottom center';
+    inner.style.transition = 'transform 0.15s ease';
+    inner.innerHTML = svgPinNegocio(color);
     el.appendChild(inner);
     return el;
 }
@@ -147,8 +182,53 @@ function actualizarColorPin(el: HTMLElement, tipo: TipoMarca): void {
     el.dataset.tipo = tipo;
     el.querySelector('path')?.setAttribute('fill', COLOR_TIPO[tipo]);
 }
+/** Ícono de un negocio para el sprite del mapa: un PIN (gota, mismo perfil que las marcas) del color
+ *  de atribución, con el ícono de tienda blanco DENTRO en vez del punto. Renderizado a 2x (retina). */
+export function iconoNegocio(color: string): { data: ImageData; ratio: number } {
+    const escala = 2, w = 26, h = 34, cw = w * escala, ch = h * escala;
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const ctx = c.getContext('2d');
+    if (!ctx) return { data: new ImageData(cw, ch), ratio: escala };
+    ctx.scale(escala, escala);
+    // Gota (mismo perfil que el pin de las marcas).
+    const gota = new Path2D('M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z');
+    ctx.shadowColor = 'rgba(15,23,42,0.32)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = color; ctx.fill(gota);
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(gota);
+    // Tienda blanca dentro (centrada en la "cabeza" de la gota).
+    ctx.lineJoin = 'round'; ctx.lineCap = 'round'; ctx.lineWidth = 1.5;
+    const cx = 13, cy = 12.5;
+    ctx.beginPath();
+    ctx.moveTo(cx - 5, cy); ctx.lineTo(cx - 5.5, cy - 3.4); ctx.lineTo(cx + 5.5, cy - 3.4); ctx.lineTo(cx + 5, cy);
+    ctx.moveTo(cx - 4, cy); ctx.lineTo(cx - 4, cy + 4.6); ctx.lineTo(cx + 4, cy + 4.6); ctx.lineTo(cx + 4, cy);
+    ctx.stroke();
+    return { data: ctx.getImageData(0, 0, cw, ch), ratio: escala };
+}
+
+/** Ícono de un PIN de marca para el sprite del mapa: la misma gota que las marcas del vendedor (color
+ *  del estado) con un punto blanco en la cabeza. Para mapas de solo lectura (gerente). 2x retina. */
+export function iconoPinMarca(color: string): { data: ImageData; ratio: number } {
+    const escala = 2, w = 26, h = 34, cw = w * escala, ch = h * escala;
+    const c = document.createElement('canvas');
+    c.width = cw; c.height = ch;
+    const ctx = c.getContext('2d');
+    if (!ctx) return { data: new ImageData(cw, ch), ratio: escala };
+    ctx.scale(escala, escala);
+    const gota = new Path2D('M13 0C5.82 0 0 5.82 0 13c0 9.4 13 21 13 21s13-11.6 13-21C26 5.82 20.18 0 13 0z');
+    ctx.shadowColor = 'rgba(15,23,42,0.32)'; ctx.shadowBlur = 2; ctx.shadowOffsetY = 2;
+    ctx.fillStyle = color; ctx.fill(gota);
+    ctx.shadowColor = 'transparent';
+    ctx.lineWidth = 2; ctx.strokeStyle = '#fff'; ctx.stroke(gota);
+    // Punto blanco (cabeza), igual que svgPin (cx=13, cy=13, r=4.5).
+    ctx.beginPath(); ctx.arc(13, 13, 4.5, 0, Math.PI * 2);
+    ctx.fillStyle = '#fff'; ctx.fill();
+    return { data: ctx.getImageData(0, 0, cw, ch), ratio: escala };
+}
+
 /** Resalta (agranda) el pin seleccionado para diferenciarlo del resto. */
-function aplicarResalte(el: HTMLElement, seleccionado: boolean): void {
+export function aplicarResalte(el: HTMLElement, seleccionado: boolean): void {
     const inner = el.firstElementChild as HTMLElement | null;
     if (!inner) return;
     inner.style.transform = seleccionado ? 'scale(1.45)' : 'scale(1)';
@@ -166,6 +246,9 @@ interface MapaMarcasProps {
     onMoverMarca?: (id: string, lat: number, lng: number) => void;
     /** Id de la marca con el editor abierto: se resalta (agranda). */
     marcaSeleccionadaId?: string | null;
+    mapaFijo?: boolean; // el mapa va `fixed` al viewport (móvil vertical) → baja el zoom cuando el header asoma
+    enfocarMarca?: [number, number] | null; // [lng,lat] a centrar (botón "ver en el mapa", sin abrir editor)
+    enfocarNonce?: number;                   // al cambiar, vuela (centra) a `enfocarMarca`
 }
 
 function zonasGeoJSON(zonas: ZonaTerritorio[]) {
@@ -233,21 +316,21 @@ function boundsDeZonas(zonas: ZonaTerritorio[]): [[number, number], [number, num
 /** Easing cinematográfico (ease-in-out cubic): arranca y termina suave, acelera en medio. */
 const EASING_CINE = (t: number): number => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2);
 
-/** Centra el pin horizontalmente y lo deja en la franja inferior (debajo del editor centrado). Si el
- *  zoom actual es tan cercano que no permitiría acomodarlo, ALEJA lo necesario para que sí quepa.
- *  Vuelo cinematográfico (suave→rápido→suave). */
-function centrarPinBajoEditor(mapa: MapaLibre, coords: [number, number], zonas: ZonaTerritorio[]): void {
-    const formH = 290;
-    let zoom = mapa.getZoom();
-    const b = boundsDeZonas(zonas);
-    if (b) {
-        const cam = mapa.cameraForBounds(b, { padding: 70 });
-        if (cam?.zoom != null) zoom = Math.min(zoom, cam.zoom + 1.2); // no más cerca que "ver la zona + algo"
-    }
-    mapa.flyTo({ center: coords, offset: [0, formH / 2], zoom, curve: 1.5, duration: 1000, easing: EASING_CINE, essential: true });
+/** Coloca el pin en la franja inferior (debajo del editor/tarjeta centrada) SOLO desplazando el mapa:
+ *  mantiene el zoom actual. `altoForm` = alto aprox del modal (el editor del vendedor ~290; la tarjeta
+ *  de solo lectura del gerente es más corta → se pasa menor para que el pin no quede muy separado). */
+export function centrarPinBajoEditor(mapa: MapaLibre, coords: [number, number], altoForm = 330): void {
+    const topForm = 12;     // el modal va en top-3 (~12px desde el tope del mapa)
+    const esEscritorio = typeof window !== 'undefined' && window.matchMedia('(min-width: 1024px)').matches;
+    const separacion = esEscritorio ? 30 : 42; // aire entre el modal y el pin (justo debajo)
+    // La punta del pin queda a (topForm + altoForm + separacion) desde el tope; el offset de easeTo es
+    // relativo al centro del contenedor (offset>0 = más abajo). SIN zoom → easeTo solo hace pan.
+    const alto = mapa.getContainer().offsetHeight || 0;
+    const offsetY = (topForm + altoForm + separacion) - alto / 2;
+    mapa.easeTo({ center: coords, offset: [0, offsetY], duration: 700, easing: EASING_CINE, essential: true });
 }
 
-export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, onAgregarMarca, onClicMarca, onMoverMarca, marcaSeleccionadaId = null }: MapaMarcasProps) {
+export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, onAgregarMarca, onClicMarca, onMoverMarca, marcaSeleccionadaId = null, mapaFijo = false, enfocarMarca = null, enfocarNonce = 0 }: MapaMarcasProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const marcasRef = useRef<MarcaTerritorio[]>(marcas);
@@ -264,6 +347,9 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
     const marcaSeleccionadaRef = useRef<string | null>(marcaSeleccionadaId);
     const [cargando, setCargando] = useState(true);
     const [listo, setListo] = useState(false);
+    const headerVisible = useScrollPanel((s) => s.headerVisible); // mapa fijo: baja el zoom cuando el header asoma
+    const enfocarMarcaRef = useRef(enfocarMarca);
+    useEffect(() => { enfocarMarcaRef.current = enfocarMarca; }, [enfocarMarca]);
 
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
     // Resalta el pin con el editor abierto (y quita el resalte de los demás).
@@ -308,6 +394,8 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
                 window.setTimeout(() => { recienArrastrado = false; }, 250);
                 if (dentroDeZona(ll.lng, ll.lat, zonasRef.current)) {
                     onMoverRef.current?.(idMarca, ll.lat, ll.lng);
+                    // Si este pin tiene el editor abierto, re-centra el mapa a su nueva ubicación.
+                    if (marcaSeleccionadaRef.current === idMarca) centrarPinBajoEditor(mapa, [ll.lng, ll.lat]);
                 } else {
                     const orig = marcasRef.current.find((x) => x.id === idMarca);
                     if (orig) marker.setLngLat([orig.lng, orig.lat]); // fuera de la zona: el pin vuelve
@@ -319,7 +407,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
                 if (recienArrastrado || modoAgregarRef.current) return;
                 onClicRef.current?.(idMarca);
                 const cur = marcasRef.current.find((x) => x.id === idMarca);
-                if (cur) centrarPinBajoEditor(mapa, [cur.lng, cur.lat], zonasRef.current);
+                if (cur) centrarPinBajoEditor(mapa, [cur.lng, cur.lat]);
             });
             el.addEventListener('mouseenter', () => {
                 if (modoAgregarRef.current || !popup) return;
@@ -343,6 +431,8 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
             attributionControl: { compact: true },
         });
         mapaRef.current = mapa;
+        // Zoom con la rueda MÁS rápido (menos giros para acercar/alejar). Default es 1/450.
+        mapa.scrollZoom.setWheelZoomRate(1 / 200);
         mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
 
         // Botón "Centrar mi zona": encuadra la zona del vendedor en pantalla. Va en el mismo grupo
@@ -370,8 +460,14 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         mapa.addControl(ctrlCentrar, 'top-right');
 
         // El contenedor cambia de alto al colapsar header/nav (modo mapa) o al rotar; MapLibre solo
-        // escucha el resize de la ventana, así que sin esto el canvas queda con el tamaño viejo.
-        const ro = new ResizeObserver(() => mapa.resize());
+        // escucha el resize de la ventana, así que sin esto el canvas queda con el tamaño viejo. DEBOUNCE:
+        // durante una transición NO redimensionamos en cada frame (cada resize limpia el canvas → destello
+        // beige); el canvas conserva su render (el CSS lo estira al 100%) y se actualiza al asentarse.
+        let tResize = 0;
+        const ro = new ResizeObserver(() => {
+            window.clearTimeout(tResize);
+            tResize = window.setTimeout(() => mapa.resize(), 160);
+        });
         ro.observe(contenedorRef.current);
 
         // El estilo base de OpenFreeMap pide íconos de POI que su sprite no siempre trae: damos un
@@ -380,13 +476,16 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
             if (!mapa.hasImage(e.id)) mapa.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
         });
 
-        // Popup de hover de las marcas (estado + nota) y de los negocios (solo lectura).
-        const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 30, maxWidth: '240px', className: 'popup-territorio' });
+        // Popup de hover de las marcas (estado + nota) y de los negocios (solo lectura). Mismo tamaño
+        // y mismo offset por dirección (OFFSET_PIN) en ambos → se ven unificados.
+        const popup = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: OFFSET_PIN, maxWidth: '310px', className: 'popup-territorio' });
         popupRef.current = popup;
-        const popupNeg = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px', className: 'popup-territorio' });
+        const popupNeg = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: OFFSET_PIN, maxWidth: '310px', className: 'popup-territorio' });
         popupNegRef.current = popupNeg;
 
         mapa.on('load', () => {
+            // Atribución colapsada por defecto (solo el ⓘ): MapLibre la abre la 1ª vez con esta clase.
+            mapa.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
             // Máscara que oscurece el exterior (se enciende al aterrizar). Va primero: debajo de todo.
             mapa.addSource(ID_MASCARA, { type: 'geojson', data: mascaraGeoJSON(zonas) });
             mapa.addLayer({ id: ID_MASCARA_FILL, type: 'fill', source: ID_MASCARA, paint: { 'fill-color': '#0f172a', 'fill-opacity': 0 } });
@@ -396,15 +495,17 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
             mapa.addLayer({ id: ID_ZONA_LINE, type: 'line', source: ID_ZONA, paint: { 'line-color': ['coalesce', ['get', 'color'], '#2563eb'], 'line-width': 2.5, 'line-opacity': 0.9 } });
             // Negocios reales (contexto, solo lectura), debajo de los pines del vendedor.
             mapa.addSource(ID_NEGOCIOS, { type: 'geojson', data: negociosGeoJSON(negociosRef.current) });
+            if (!mapa.hasImage('negocio-sin')) { const i = iconoNegocio(COLOR_NEGOCIO.sinVendedor); mapa.addImage('negocio-sin', i.data, { pixelRatio: i.ratio }); }
+            if (!mapa.hasImage('negocio-con')) { const i = iconoNegocio(COLOR_NEGOCIO.conVendedor); mapa.addImage('negocio-con', i.data, { pixelRatio: i.ratio }); }
             mapa.addLayer({
                 id: ID_NEGOCIOS_C,
-                type: 'circle',
+                type: 'symbol',
                 source: ID_NEGOCIOS,
-                paint: {
-                    'circle-radius': 6,
-                    'circle-color': '#ffffff',
-                    'circle-stroke-width': 3,
-                    'circle-stroke-color': ['case', ['==', ['get', 'embajadorId'], ''], COLOR_NEGOCIO.sinVendedor, COLOR_NEGOCIO.conVendedor],
+                layout: {
+                    'icon-image': ['case', ['==', ['get', 'embajadorId'], ''], 'negocio-sin', 'negocio-con'],
+                    'icon-anchor': 'bottom',
+                    'icon-allow-overlap': true,
+                    'icon-size': 1,
                 },
             });
             mapa.on('mouseenter', ID_NEGOCIOS_C, (e) => {
@@ -416,6 +517,15 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
                 popupNeg.setLngLat(coords).setHTML(contenidoPopupNegocio(f.properties as Record<string, string>)).addTo(mapa);
             });
             mapa.on('mouseleave', ID_NEGOCIOS_C, () => { mapa.getCanvas().style.cursor = ''; popupNeg.remove(); });
+            // CLICK/TAP en un negocio: muestra su popup (en táctil no hay hover). Si ya había uno abierto,
+            // popupNeg es una instancia única → se MUEVE al nuevo negocio, cerrando el anterior.
+            mapa.on('click', ID_NEGOCIOS_C, (e) => {
+                if (modoAgregarRef.current) return; // en modo agregar el clic crea una marca
+                const f = e.features?.[0];
+                if (!f) return;
+                const coords = (f.geometry as { coordinates: [number, number] }).coordinates;
+                popupNeg.setLngLat(coords).setHTML(contenidoPopupNegocio(f.properties as Record<string, string>)).addTo(mapa);
+            });
 
             // Marcas del vendedor: PINES (Markers HTML arrastrables).
             sincronizarMarcas();
@@ -429,6 +539,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
             if (!modoAgregarRef.current) return;
             if (dentroDeZona(e.lngLat.lng, e.lngLat.lat, zonasRef.current)) {
                 onAgregarRef.current?.(e.lngLat.lat, e.lngLat.lng);
+                centrarPinBajoEditor(mapa, [e.lngLat.lng, e.lngLat.lat]); // deja el pin nuevo bajo el editor
             } else {
                 toast.advertencia('Solo puedes poner marcas dentro de tu zona.');
             }
@@ -437,6 +548,7 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         mapa.on('error', (ev) => { console.error('[MapaMarcas] error de MapLibre:', ev.error); });
 
         return () => {
+            window.clearTimeout(tResize);
             ro.disconnect();
             markersRef.current.forEach((mk) => mk.remove());
             markersRef.current.clear();
@@ -464,13 +576,12 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         const b = boundsDeZonas(zonas);
         if (!b) return;
         ajustadoRef.current = true;
-        const mLng = (b[1][0] - b[0][0]) * 0.15 + 0.005;
-        const mLat = (b[1][1] - b[0][1]) * 0.15 + 0.005;
         const timer = setTimeout(() => {
             mapa.fitBounds(b, { padding: 24, maxZoom: 16, duration: 2600, easing: EASING_CINE, essential: true });
             mapa.once('moveend', () => {
+                // Enciende el overlay oscuro sobre lo que NO es su zona. NO acotamos el paneo: el vendedor
+                // puede alejar y moverse a cualquier parte del mapa; la máscara sigue resaltando su zona.
                 if (mapa.getLayer(ID_MASCARA_FILL)) mapa.setPaintProperty(ID_MASCARA_FILL, 'fill-opacity', 0.5);
-                mapa.setMaxBounds([[b[0][0] - mLng, b[0][1] - mLat], [b[1][0] + mLng, b[1][1] + mLat]] as LngLatBoundsLike);
             });
         }, 900);
         return () => clearTimeout(timer);
@@ -484,22 +595,24 @@ export function MapaMarcas({ zonas, marcas, negocios = [], modoAgregar = false, 
         mapa.getCanvas().style.cursor = modoAgregar ? 'crosshair' : '';
     }, [modoAgregar, listo]);
 
-    // Con un editor abierto, libera el maxBounds para poder centrar el pin bajo el modal aunque esté
-    // cerca del borde de la zona; al cerrarlo, vuelve a acotar el paneo a la zona (+ margen).
+    // Mapa FIJO con el header del shell asomado (hoja expandida): baja el zoom/centrar (arriba-derecha)
+    // para que no queden detrás del header. Se anima junto con la transición del header.
     useEffect(() => {
+        const grupo = mapaRef.current?.getContainer().querySelector('.maplibregl-ctrl-top-right') as HTMLElement | null;
+        if (!grupo) return;
+        grupo.style.transition = 'margin-top 0.3s ease-out';
+        grupo.style.marginTop = (mapaFijo && headerVisible) ? '64px' : '';
+    }, [mapaFijo, headerVisible, listo]);
+
+    // "Ver en el mapa" (desde la lista): centra Y ACERCA la marca (sin abrir el editor). El resalte lo
+    // aplica el effect de marcaSeleccionadaId (= foco.id). No aleja si ya estás más cerca de zoom 16.
+    useEffect(() => {
+        if (enfocarNonce === 0) return;
         const mapa = mapaRef.current;
-        if (!mapa || !listo) return;
-        if (marcaSeleccionadaId) {
-            mapa.setMaxBounds(null);
-        } else {
-            const b = boundsDeZonas(zonasRef.current);
-            if (b) {
-                const mLng = (b[1][0] - b[0][0]) * 0.15 + 0.005;
-                const mLat = (b[1][1] - b[0][1]) * 0.15 + 0.005;
-                mapa.setMaxBounds([[b[0][0] - mLng, b[0][1] - mLat], [b[1][0] + mLng, b[1][1] + mLat]] as LngLatBoundsLike);
-            }
-        }
-    }, [marcaSeleccionadaId, listo]);
+        const c = enfocarMarcaRef.current;
+        if (!mapa || !listo || !c) return;
+        mapa.easeTo({ center: c, zoom: Math.max(mapa.getZoom(), 16), duration: 800, easing: EASING_CINE, essential: true });
+    }, [enfocarNonce, listo]);
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-[12px] border border-borde bg-superficie-2">

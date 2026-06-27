@@ -27,6 +27,8 @@ interface SelectorBuscableProps {
   buscarPlaceholder?: string;
   disabled?: boolean;
   testid?: string;
+  /** Clase Tailwind de tamaño de texto (trigger + buscador + opciones). Default 'text-[13px]'. */
+  textoClase?: string;
 }
 
 export function SelectorBuscable({
@@ -37,6 +39,7 @@ export function SelectorBuscable({
   buscarPlaceholder = 'Buscar…',
   disabled = false,
   testid,
+  textoClase = 'text-[13px]',
 }: SelectorBuscableProps) {
   const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
@@ -145,7 +148,7 @@ export function SelectorBuscable({
         data-testid={testid}
         disabled={disabled}
         onClick={() => setAbierto((v) => !v)}
-        className={`flex w-full items-center justify-between gap-2 rounded-[10px] border bg-campo px-3 py-2.5 text-[13px] outline-none transition ${
+        className={`flex w-full items-center justify-between gap-2 rounded-[10px] border bg-campo px-3 py-2.5 ${textoClase} outline-none transition ${
           abierto ? 'border-marca bg-superficie [box-shadow:0_0_0_3px_var(--panel-ring)]' : 'border-campo-borde hover:border-borde-fuerte'
         } disabled:cursor-not-allowed disabled:opacity-50`}
       >
@@ -169,7 +172,7 @@ export function SelectorBuscable({
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder={buscarPlaceholder}
                 data-testid={testid ? `${testid}-buscar` : undefined}
-                className="w-full rounded-[8px] border border-campo-borde bg-campo py-2 pl-8 pr-7 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
+                className={`w-full rounded-[8px] border border-campo-borde bg-campo py-2 pl-8 pr-7 ${textoClase} text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie`}
               />
               {busqueda && (
                 <button
@@ -195,7 +198,7 @@ export function SelectorBuscable({
                       type="button"
                       onClick={() => elegir(o.id)}
                       data-testid={testid ? `${testid}-opcion-${o.id}` : undefined}
-                      className={`flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left text-[13px] transition ${
+                      className={`flex w-full items-center gap-2 rounded-[8px] px-2.5 py-2 text-left ${textoClase} transition ${
                         sel ? 'bg-marca-suave font-medium text-marca' : 'text-texto hover:bg-marca-suave'
                       }`}
                     >

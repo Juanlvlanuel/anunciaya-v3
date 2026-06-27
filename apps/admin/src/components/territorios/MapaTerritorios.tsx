@@ -16,11 +16,14 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import maplibregl, { type Map as MapaLibre, type GeoJSONSource, type PointLike } from 'maplibre-gl';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import { Undo2, Check, X, Pencil, Move, Trash2, Hand } from 'lucide-react';
 import type { ZonaTerritorio, PoligonoGeoJSON, MarcaEquipo, NegocioMapa } from '../../services/territoriosService';
-import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio } from './MapaMarcas';
+import { COLOR_TIPO, ETIQUETA_TIPO, COLOR_NEGOCIO, ESTADO_BADGE, tituloPopup, fechaCorta, negociosGeoJSON, contenidoPopupNegocio, iconoNegocio, iconoPinMarca, centrarPinBajoEditor, elementoPin, elementoPinNegocio, aplicarResalte, OFFSET_PIN } from './MapaMarcas';
+import { Tooltip } from '../ui/Tooltip';
+import { useScrollPanel } from '../../stores/useScrollPanel';
 
 const ESTILO_TILES = 'https://tiles.openfreemap.org/styles/liberty';
 const CENTRO_MX: [number, number] = [-102.5, 23.6];
@@ -34,8 +37,7 @@ const ID_DIBUJO_LINE = 'dibujo-line';
 const ID_DIBUJO_PTS = 'dibujo-pts';
 const ID_DIBUJO_PTS_C = 'dibujo-pts-circle';
 const ID_MARCAS_EQ = 'marcas-eq';
-const ID_MARCAS_EQ_SOMBRA = 'marcas-eq-sombra';
-const ID_MARCAS_EQ_C = 'marcas-eq-circle';
+const ID_MARCAS_EQ_C = 'marcas-eq-pin';
 const ID_NEGOCIOS = 'negocios';
 const ID_NEGOCIOS_C = 'negocios-circle';
 const COLOR_DEFECTO = '#2563eb';
@@ -43,6 +45,11 @@ const COLOR_DIBUJO = '#0ea5e9';
 const SNAP_PX = 18; // radio de búsqueda de calle para el pegado (px)
 
 type Herramienta = 'crear' | 'mover' | 'borrar' | 'mano';
+
+/** Datos del pin abierto en la tarjeta de detalle (solo lectura). */
+type DetallePin =
+    | { tipo: 'marca'; estado: MarcaEquipo['tipo']; nota: string | null; vendedor: string | null; fecha: string | null }
+    | { tipo: 'negocio'; nombre: string; estado: string; asignado: boolean; vendedor: string | null };
 
 interface MapaTerritoriosProps {
     zonas: ZonaTerritorio[];
@@ -56,7 +63,7 @@ interface MapaTerritoriosProps {
     enfocarNonce?: number;
     introAnimado?: boolean; // intro de cine (México → vuelo a sus zonas), p.ej. para el gerente
     onPoligonoCompleto?: (poligono: PoligonoGeoJSON) => void;
-    onCancelarDibujo?: () => void;
+    mapaFijo?: boolean; // el mapa va `fixed` al viewport (móvil vertical) → la tarjeta de detalle se porta a body
 }
 
 /** Bounding box de un solo polígono (reusa calcularBounds). */
@@ -87,15 +94,15 @@ function contenidoPopupEq(m: MarcaEquipo): string {
     const nota = m.nota?.trim();
     const vendedor = m.vendedorNombre?.trim();
     const filaNota = nota
-        ? `<div style="font-size:11.5px;line-height:1.45;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
-        : `<div style="font-size:11px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
+        ? `<div style="font-size:14px;line-height:1.5;color:#475569;white-space:pre-wrap;word-break:break-word;">${escaparHtml(nota)}</div>`
+        : `<div style="font-size:13.5px;color:#94a3b8;font-style:italic;">Sin nota</div>`;
     const filaVend = vendedor
-        ? `<div style="font-size:11px;color:#64748b;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(vendedor)}</span></div>`
+        ? `<div style="font-size:13px;color:#64748b;">Vendedor: <span style="color:#334155;font-weight:600;">${escaparHtml(vendedor)}</span></div>`
         : '';
     const fecha = fechaCorta(m.createdAt);
-    const filaFecha = fecha ? `<div style="font-size:10.5px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
-    return `<div style="display:flex;flex-direction:column;gap:6px;min-width:135px;max-width:230px;">`
-        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true)
+    const filaFecha = fecha ? `<div style="font-size:13px;color:#94a3b8;">Marcado el ${fecha}</div>` : '';
+    return `<div style="display:flex;flex-direction:column;gap:9px;min-width:210px;max-width:300px;">`
+        + tituloPopup(COLOR_TIPO[m.tipo], ETIQUETA_TIPO[m.tipo], true, true)
         + filaNota + filaVend + filaFecha + `</div>`;
 }
 
@@ -130,7 +137,7 @@ function calcularBounds(zonas: ZonaTerritorio[]): [[number, number], [number, nu
     return hay ? [[minLng, minLat], [maxLng, maxLat]] : null;
 }
 
-export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, onCancelarDibujo }: MapaTerritoriosProps) {
+export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, modoDibujo = false, poligonoEditando = null, poligonoPreview = null, enfocarPoligono = null, enfocarNonce = 0, introAnimado = false, onPoligonoCompleto, mapaFijo = false }: MapaTerritoriosProps) {
     const contenedorRef = useRef<HTMLDivElement>(null);
     const mapaRef = useRef<MapaLibre | null>(null);
     const zonasRef = useRef<ZonaTerritorio[]>(zonas);
@@ -144,6 +151,7 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     const popupEqRef = useRef<maplibregl.Popup | null>(null);
     const popupEqIdRef = useRef<string | null>(null);
     const popupNegRef = useRef<maplibregl.Popup | null>(null);
+    const marcadorResalteRef = useRef<maplibregl.Marker | null>(null); // pin HTML resaltado de la marca abierta
     const introAnimadoRef = useRef(introAnimado);
     const introHechoRef = useRef(false);
     const poligonoEditandoRef = useRef(poligonoEditando);
@@ -154,8 +162,13 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     const [cargando, setCargando] = useState(true);
     const [error, setError] = useState<string | null>(null);
     const [listo, setListo] = useState(false);
+    const headerVisible = useScrollPanel((s) => s.headerVisible); // mapa fijo: baja el zoom cuando el header asoma
     const [numVertices, setNumVertices] = useState(0);
     const [herramienta, setHerramienta] = useState<Herramienta>('crear');
+    // Detalle de una marca/negocio en SOLO LECTURA (tarjeta sobre el mapa, al hacer clic en un pin).
+    // El gerente solo VE, no edita. null = cerrado.
+    const [detalle, setDetalle] = useState<DetallePin | null>(null);
+    const cerrarDetalle = () => { setDetalle(null); marcadorResalteRef.current?.remove(); marcadorResalteRef.current = null; };
 
     useEffect(() => { zonasRef.current = zonas; }, [zonas]);
     useEffect(() => { marcasRef.current = marcas; }, [marcas]);
@@ -174,13 +187,18 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
 
     /** Marca del equipo más cercana al punto de pantalla (proyección propia), o null. */
     function marcaEnEq(mapa: MapaLibre, point: { x: number; y: number }): string | null {
-        const R = 12;
+        // Las marcas son PINES anclados en la punta (icon-anchor bottom): el cuerpo va de la punta hacia
+        // ARRIBA (~34px de alto, ~26 de ancho). Hit-test sobre ese rectángulo (no un radio en la punta).
         let mejor: string | null = null;
-        let mejorDist = R;
+        let mejorScore = Infinity;
         for (const m of marcasRef.current) {
-            const p = mapa.project([m.lng, m.lat]);
-            const d = Math.hypot(p.x - point.x, p.y - point.y);
-            if (d < mejorDist) { mejorDist = d; mejor = m.id; }
+            const p = mapa.project([m.lng, m.lat]); // punta del pin
+            const dx = point.x - p.x;
+            const dy = point.y - p.y; // negativo = sobre el cuerpo del pin
+            if (dx >= -13 && dx <= 13 && dy >= -34 && dy <= 3) {
+                const score = Math.abs(dy + 21); // más cerca de la cabeza (21px sobre la punta)
+                if (score < mejorScore) { mejorScore = score; mejor = m.id; }
+            }
         }
         return mejor;
     }
@@ -295,7 +313,34 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             attributionControl: { compact: true },
         });
         mapaRef.current = mapa;
-        mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'bottom-right');
+        // Zoom con la rueda MÁS rápido (menos giros para acercar/alejar). Default es 1/450.
+        mapa.scrollZoom.setWheelZoomRate(1 / 200);
+        mapa.addControl(new maplibregl.NavigationControl({ showCompass: false }), 'top-right');
+
+        // Botón "Centrar": encuadra todas las zonas de la ciudad (o el centro si no hay). Va en el mismo
+        // grupo top-right que el zoom → se apila justo debajo (abajo-derecha la ocupa el FAB en móvil).
+        const ctrlCentrar: maplibregl.IControl = {
+            onAdd() {
+                const div = document.createElement('div');
+                div.className = 'maplibregl-ctrl maplibregl-ctrl-group';
+                const btn = document.createElement('button');
+                btn.type = 'button';
+                btn.title = 'Centrar zonas';
+                btn.setAttribute('aria-label', 'Centrar zonas');
+                btn.style.display = 'grid';
+                btn.style.placeItems = 'center';
+                btn.innerHTML = '<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><line x1="2" x2="5" y1="12" y2="12"/><line x1="19" x2="22" y1="12" y2="12"/><line x1="12" x2="12" y1="2" y2="5"/><line x1="12" x2="12" y1="19" y2="22"/><circle cx="12" cy="12" r="7"/><circle cx="12" cy="12" r="3"/></svg>';
+                btn.onclick = () => {
+                    const b = calcularBounds(zonasRef.current);
+                    if (b) mapa.fitBounds(b, { padding: 60, maxZoom: 15, duration: 900, essential: true });
+                    else if (centroRef.current) mapa.flyTo({ center: centroRef.current, zoom: 12, duration: 900, essential: true });
+                };
+                div.appendChild(btn);
+                return div;
+            },
+            onRemove() {},
+        };
+        mapa.addControl(ctrlCentrar, 'top-right');
 
         // El estilo base de OpenFreeMap referencia íconos de POI (swimming_pool, atm, office…) que su
         // sprite no siempre trae: MapLibre avisa "Image X could not be loaded" en cada zoom. Damos un
@@ -304,42 +349,51 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             if (!mapa.hasImage(e.id)) mapa.addImage(e.id, { width: 1, height: 1, data: new Uint8Array(4) });
         });
 
-        // Popup de hover de las marcas de vendedores (solo lectura).
-        popupEqRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px', className: 'popup-territorio' });
-        // Popup de hover de los negocios reales.
-        const popupNeg = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 12, maxWidth: '250px', className: 'popup-territorio' });
+        // Popup de hover de las marcas de vendedores (solo lectura). Pin → offset por dirección.
+        popupEqRef.current = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: OFFSET_PIN, maxWidth: '310px', className: 'popup-territorio' });
+        // Popup de hover de los negocios reales (pin → offset por dirección, como el del vendedor).
+        const popupNeg = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: OFFSET_PIN, maxWidth: '310px', className: 'popup-territorio' });
         popupNegRef.current = popupNeg;
 
         mapa.on('load', () => {
+            // Atribución colapsada por defecto (solo el ⓘ): MapLibre la abre la 1ª vez con esta clase.
+            mapa.getContainer().querySelector('.maplibregl-ctrl-attrib')?.classList.remove('maplibregl-compact-show');
             mapa.addSource(ID_SOURCE, { type: 'geojson', data: construirGeoJSON(zonasRef.current) });
             mapa.addLayer({ id: ID_FILL, type: 'fill', source: ID_SOURCE, paint: { 'fill-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'fill-opacity': 0.22 } });
             mapa.addLayer({ id: ID_LINE, type: 'line', source: ID_SOURCE, layout: { 'line-join': 'round' }, paint: { 'line-color': ['coalesce', ['get', 'color'], COLOR_DEFECTO], 'line-width': 2, 'line-opacity': 0.85 } });
             mapa.addLayer({ id: ID_LABEL, type: 'symbol', source: ID_SOURCE, layout: { 'text-field': ['get', 'nombre'], 'text-font': ['Noto Sans Regular'], 'text-size': 12, 'text-anchor': 'center' }, paint: { 'text-color': '#1f2937', 'text-halo-color': '#ffffff', 'text-halo-width': 1.4 } });
 
-            // Marcas de los vendedores (solo lectura), debajo de las capas de dibujo. Sombra + disco con borde.
+            // Marcas de los vendedores (solo lectura): PIN gota con punto blanco (color del estado),
+            // igual que las marcas del vendedor. Sprite por tipo (la gota ya trae su sombra).
             mapa.addSource(ID_MARCAS_EQ, { type: 'geojson', data: marcasEqGeoJSON(marcasRef.current) });
+            for (const [t, col] of Object.entries(COLOR_TIPO)) {
+                const id = `marca-${t}`;
+                if (!mapa.hasImage(id)) { const i = iconoPinMarca(col); mapa.addImage(id, i.data, { pixelRatio: i.ratio }); }
+            }
             mapa.addLayer({
-                id: ID_MARCAS_EQ_SOMBRA, type: 'circle', source: ID_MARCAS_EQ,
-                paint: { 'circle-radius': 8.5, 'circle-color': '#0f172a', 'circle-opacity': 0.18, 'circle-blur': 0.6, 'circle-translate': [0, 1.5] },
-            });
-            mapa.addLayer({
-                id: ID_MARCAS_EQ_C, type: 'circle', source: ID_MARCAS_EQ,
-                paint: {
-                    'circle-radius': 7,
-                    'circle-color': ['match', ['get', 'tipo'], 'visitado', COLOR_TIPO.visitado, 'interesado', COLOR_TIPO.interesado, 'cerrado', COLOR_TIPO.cerrado, 'sin_interes', COLOR_TIPO.sin_interes, COLOR_TIPO.visitado],
-                    'circle-stroke-color': '#ffffff', 'circle-stroke-width': 2.5,
+                id: ID_MARCAS_EQ_C, type: 'symbol', source: ID_MARCAS_EQ,
+                layout: {
+                    'icon-image': ['match', ['get', 'tipo'],
+                        'visitado', 'marca-visitado', 'interesado', 'marca-interesado',
+                        'cerrado', 'marca-cerrado', 'sin_interes', 'marca-sin_interes', 'marca-visitado'],
+                    'icon-anchor': 'bottom',
+                    'icon-allow-overlap': true,
+                    'icon-size': 1,
                 },
             });
 
-            // Negocios reales (solo lectura), debajo de las capas de dibujo.
+            // Negocios reales (solo lectura), debajo de las capas de dibujo. PIN gota con tienda blanca
+            // (violeta = sin vendedor, teal = con vendedor), igual que el mapa del vendedor.
             mapa.addSource(ID_NEGOCIOS, { type: 'geojson', data: negociosGeoJSON(negociosRef.current) });
+            if (!mapa.hasImage('negocio-sin')) { const i = iconoNegocio(COLOR_NEGOCIO.sinVendedor); mapa.addImage('negocio-sin', i.data, { pixelRatio: i.ratio }); }
+            if (!mapa.hasImage('negocio-con')) { const i = iconoNegocio(COLOR_NEGOCIO.conVendedor); mapa.addImage('negocio-con', i.data, { pixelRatio: i.ratio }); }
             mapa.addLayer({
-                id: ID_NEGOCIOS_C, type: 'circle', source: ID_NEGOCIOS,
-                paint: {
-                    'circle-radius': 6,
-                    'circle-color': '#ffffff',
-                    'circle-stroke-width': 3,
-                    'circle-stroke-color': ['case', ['==', ['get', 'embajadorId'], ''], COLOR_NEGOCIO.sinVendedor, COLOR_NEGOCIO.conVendedor],
+                id: ID_NEGOCIOS_C, type: 'symbol', source: ID_NEGOCIOS,
+                layout: {
+                    'icon-image': ['case', ['==', ['get', 'embajadorId'], ''], 'negocio-sin', 'negocio-con'],
+                    'icon-anchor': 'bottom',
+                    'icon-allow-overlap': true,
+                    'icon-size': 1,
                 },
             });
             mapa.on('mouseenter', ID_NEGOCIOS_C, (e) => {
@@ -365,7 +419,46 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
 
         // Clic según la herramienta activa.
         mapa.on('click', (e) => {
-            if (!modoDibujoRef.current) return;
+            if (!modoDibujoRef.current) {
+                // Modo VER: clic sobre un pin abre el detalle SOLO LECTURA (tarjeta sobre el mapa). Cierra
+                // cualquier popup de hover (PC). Clic en vacío cierra el detalle.
+                const idMarca = marcaEnEq(mapa, e.point);
+                if (idMarca) {
+                    const m = marcasRef.current.find((x) => x.id === idMarca);
+                    if (m) {
+                        setDetalle({ tipo: 'marca', estado: m.tipo, nota: m.nota ?? null, vendedor: m.vendedorNombre ?? null, fecha: m.createdAt });
+                        // Pin HTML resaltado (crece + glow) ENCIMA del symbol pin, igual que el vendedor.
+                        // pointer-events none → no bloquea el clic al mapa (el symbol pin sigue debajo).
+                        const elPin = elementoPin(m.tipo);
+                        elPin.style.pointerEvents = 'none';
+                        aplicarResalte(elPin, true);
+                        marcadorResalteRef.current?.remove();
+                        marcadorResalteRef.current = new maplibregl.Marker({ element: elPin, anchor: 'bottom' }).setLngLat([m.lng, m.lat]).addTo(mapa);
+                        centrarPinBajoEditor(mapa, [m.lng, m.lat], 200); // tarjeta de marca ~200px de alto
+                    }
+                    ocultarPopupEq(); popupNegRef.current?.remove();
+                    return;
+                }
+                const neg = mapa.queryRenderedFeatures(e.point, { layers: [ID_NEGOCIOS_C] })[0];
+                if (neg) {
+                    const p = neg.properties as Record<string, string>;
+                    const coords = (neg.geometry as { coordinates: [number, number] }).coordinates;
+                    const asignado = !!p.embajadorId;
+                    setDetalle({ tipo: 'negocio', nombre: p.nombre || 'Negocio', estado: p.estado || '', asignado, vendedor: p.vendedorNombre || null });
+                    // Pin de negocio resaltado (crece + glow) ENCIMA del symbol pin, igual que las marcas.
+                    const elPin = elementoPinNegocio(asignado ? COLOR_NEGOCIO.conVendedor : COLOR_NEGOCIO.sinVendedor);
+                    elPin.style.pointerEvents = 'none';
+                    aplicarResalte(elPin, true);
+                    marcadorResalteRef.current?.remove();
+                    marcadorResalteRef.current = new maplibregl.Marker({ element: elPin, anchor: 'bottom' }).setLngLat(coords).addTo(mapa);
+                    centrarPinBajoEditor(mapa, coords, 145); // tarjeta de negocio ~145px de alto
+                    ocultarPopupEq(); popupNegRef.current?.remove();
+                    return;
+                }
+                setDetalle(null);
+                marcadorResalteRef.current?.remove(); marcadorResalteRef.current = null;
+                return;
+            }
             const h = herramientaRef.current;
             if (h === 'crear') {
                 // ✏️ Agregar: si el clic cae sobre una ARISTA del polígono, INSERTA ahí (refinar borde); si no, al final.
@@ -406,7 +499,10 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             // Modo VER (sin dibujo): hover sobre marcas de vendedores → popup de lectura.
             if (!modoDibujoRef.current) {
                 const id = marcaEnEq(mapa, e.point);
-                mapa.getCanvas().style.cursor = id ? 'pointer' : '';
+                // Sobre cualquier pin (marca o negocio) → manita pointer. Sin esto, el mousemove borraba
+                // el pointer que el mouseenter de negocios ya había puesto.
+                const sobreNeg = !id && mapa.queryRenderedFeatures(e.point, { layers: [ID_NEGOCIOS_C] }).length > 0;
+                mapa.getCanvas().style.cursor = (id || sobreNeg) ? 'pointer' : '';
                 if (id && id !== popupEqIdRef.current) {
                     const m = marcasRef.current.find((x) => x.id === id);
                     if (m && popupEqRef.current) { popupEqRef.current.setLngLat([m.lng, m.lat]).setHTML(contenidoPopupEq(m)).addTo(mapa); popupEqIdRef.current = id; }
@@ -439,16 +535,53 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
             mapa.getCanvas().style.cursor = '';
         });
 
+        // TÁCTIL (móvil): MapLibre NO emite mousedown/move/up con el dedo, así que el arrastre de vértices
+        // (herramienta Mover) necesita los eventos touch. Replican exactamente la misma lógica.
+        mapa.on('touchstart', (e) => {
+            if (!modoDibujoRef.current || herramientaRef.current !== 'mover') return;
+            const idx = indiceVerticeEn(mapa, e.point);
+            if (idx < 0) return;
+            dragRef.current = idx;
+            mapa.dragPan.disable();
+            e.preventDefault();
+        });
+        mapa.on('touchmove', (e) => {
+            if (dragRef.current === null) return;
+            const idx = dragRef.current;
+            verticesRef.current = verticesRef.current.map((v, i) => (i === idx ? [e.lngLat.lng, e.lngLat.lat] : v));
+            pintarDibujo(mapa);
+            e.preventDefault();
+        });
+        mapa.on('touchend', () => {
+            if (dragRef.current === null) return;
+            const idx = dragRef.current;
+            const v = verticesRef.current[idx];
+            if (v) {
+                const snapped = snapACalle(mapa, v[0], v[1]);
+                verticesRef.current = verticesRef.current.map((vv, i) => (i === idx ? snapped : vv));
+                pintarDibujo(mapa);
+            }
+            dragRef.current = null;
+            if (herramientaRef.current === 'mano') mapa.dragPan.enable();
+            else mapa.dragPan.disable();
+        });
+
         mapa.on('mouseout', ocultarPopupEq);
         mapa.on('error', (ev) => { console.error('[MapaTerritorios] error de MapLibre:', ev.error); });
 
         // El contenedor cambia de alto cuando el header/nav del shell colapsan (modo mapa móvil) o al
-        // rotar; MapLibre solo escucha el resize de la VENTANA, así que sin esto el canvas queda con
-        // el tamaño viejo y deja una franja en blanco abajo. El ResizeObserver lo mantiene al día.
-        const ro = new ResizeObserver(() => mapa.resize());
+        // rotar; MapLibre solo escucha el resize de la VENTANA, así que sin esto el canvas queda con el
+        // tamaño viejo. DEBOUNCE: durante una transición animada NO redimensionamos en cada frame —cada
+        // mapa.resize() limpia el canvas un instante (destello beige)—; el canvas conserva su último
+        // render (el CSS lo estira al 100% para cubrir el hueco) y se actualiza UNA vez al asentarse.
+        let tResize = 0;
+        const ro = new ResizeObserver(() => {
+            window.clearTimeout(tResize);
+            tResize = window.setTimeout(() => mapa.resize(), 160);
+        });
         ro.observe(contenedor);
 
-        return () => { ro.disconnect(); popupEqRef.current?.remove(); popupNegRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
+        return () => { window.clearTimeout(tResize); ro.disconnect(); popupEqRef.current?.remove(); popupNegRef.current?.remove(); marcadorResalteRef.current?.remove(); mapa.remove(); mapaRef.current = null; };
     }, []);
 
     // ── Re-pintar zonas cuando cambian (encuadra SOLO al cargar / cambiar de ciudad) ─────────────
@@ -558,6 +691,17 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
         }
     }, [herramienta, modoDibujo]);
 
+    // Baja los controles de zoom/centrar (arriba-derecha) cuando algo arriba podría taparlos: en modo
+    // dibujo, la barra de herramientas; en mapa FIJO con el header del shell asomado (hoja expandida),
+    // el header. Se anima junto con esas transiciones.
+    useEffect(() => {
+        const grupo = mapaRef.current?.getContainer().querySelector('.maplibregl-ctrl-top-right') as HTMLElement | null;
+        if (!grupo) return;
+        grupo.style.transition = 'margin-top 0.3s ease-out';
+        const off = modoDibujo ? 66 : (mapaFijo && headerVisible ? 64 : 0);
+        grupo.style.marginTop = off ? `${off}px` : '';
+    }, [modoDibujo, mapaFijo, headerVisible, listo]);
+
     const deshacer = () => {
         verticesRef.current = verticesRef.current.slice(0, -1);
         setNumVertices(verticesRef.current.length);
@@ -573,17 +717,71 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
     };
 
     const botonHerr = (h: Herramienta, Icono: typeof Pencil, texto: string) => (
-        <button
-            type="button"
-            data-testid={`dibujo-herr-${h}`}
-            onClick={() => setHerramienta(h)}
-            aria-label={texto}
-            title={texto}
-            className={`grid h-11 w-11 place-items-center rounded-full border shadow-tarjeta-panel transition ${herramienta === h ? 'border-marca bg-marca text-white' : 'border-borde bg-superficie text-texto-2 hover:bg-superficie-2'}`}
-        >
-            <Icono size={18} />
-        </button>
+        <Tooltip text={texto} position="bottom">
+            <button
+                type="button"
+                data-testid={`dibujo-herr-${h}`}
+                onClick={() => setHerramienta(h)}
+                aria-label={texto}
+                className={`grid h-[52px] w-[52px] place-items-center rounded-full border shadow-tarjeta-panel transition ${herramienta === h ? 'border-marca bg-marca text-white' : 'border-borde bg-superficie text-texto-2 hover:bg-superficie-2'}`}
+            >
+                <Icono size={22} />
+            </button>
+        </Tooltip>
     );
+
+    // Tarjeta de detalle SOLO LECTURA de un pin. Si el mapa es FIJO (móvil vertical) se PORTA a body para
+    // escapar del stacking del wrapper `fixed` (si no, quedaría debajo de la barra de ciudad).
+    const tarjetaDetalle = detalle && !modoDibujo ? (
+        <div className={`${mapaFijo ? 'fixed z-[60]' : 'absolute z-30'} left-1/2 top-3 w-[min(380px,calc(100%-1.5rem))] -translate-x-1/2 rounded-[14px] border border-borde bg-superficie p-3.5 shadow-tarjeta-panel`} data-testid="detalle-pin">
+            <button type="button" onClick={cerrarDetalle} aria-label="Cerrar" className="absolute right-2.5 top-2.5 grid h-8 w-8 place-items-center rounded-full text-texto-3 transition hover:bg-superficie-2">
+                <X size={18} />
+            </button>
+            {detalle.tipo === 'marca' ? (
+                <>
+                    <span className="inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-[13px] font-semibold" style={{ backgroundColor: `${COLOR_TIPO[detalle.estado]}1f`, color: COLOR_TIPO[detalle.estado] }}>
+                        <span className="h-2 w-2 rounded-full" style={{ backgroundColor: COLOR_TIPO[detalle.estado] }} />
+                        {ETIQUETA_TIPO[detalle.estado]}
+                    </span>
+                    <div className="mt-3 rounded-[10px] bg-superficie-2 px-3 py-2.5">
+                        {detalle.nota
+                            ? <p className="whitespace-pre-wrap break-words text-[14px] leading-relaxed text-texto-2">{detalle.nota}</p>
+                            : <p className="text-[13px] italic text-texto-3">Sin nota</p>}
+                    </div>
+                    <div className="mt-3 flex flex-col gap-2 border-t border-borde pt-2.5 text-[13px]">
+                        <div className="flex items-center justify-between gap-3">
+                            <span className="text-texto-3">Vendedor</span>
+                            <span className="truncate font-medium text-texto">{detalle.vendedor ?? '—'}</span>
+                        </div>
+                        {detalle.fecha && (
+                            <div className="flex items-center justify-between gap-3">
+                                <span className="text-texto-3">Marcado</span>
+                                <span className="text-texto-2">{fechaCorta(detalle.fecha)}</span>
+                            </div>
+                        )}
+                    </div>
+                </>
+            ) : (
+                <>
+                    <div className="flex items-center gap-2 pr-7">
+                        <span className="h-2.5 w-2.5 shrink-0 rounded-[3px]" style={{ backgroundColor: detalle.asignado ? COLOR_NEGOCIO.conVendedor : COLOR_NEGOCIO.sinVendedor }} />
+                        <h3 className="truncate text-[15px] font-semibold text-texto">{detalle.nombre}</h3>
+                    </div>
+                    <div className="mt-2.5 flex flex-wrap gap-1.5">
+                        {(() => { const e = ESTADO_BADGE[detalle.estado] ?? { fg: '#475569', bg: '#e2e8f0', label: detalle.estado || '—' };
+                            return <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ backgroundColor: e.bg, color: e.fg }}>{e.label}</span>; })()}
+                        {detalle.asignado
+                            ? <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ backgroundColor: '#cffafe', color: '#0e7490' }}>Asignado</span>
+                            : <span className="rounded-full px-2.5 py-1 text-[12px] font-semibold" style={{ backgroundColor: '#ede9fe', color: '#6d28d9' }}>Oportunidad</span>}
+                    </div>
+                    <div className="mt-3 flex items-center justify-between gap-3 border-t border-borde pt-2.5 text-[13px]">
+                        <span className="text-texto-3">Vendedor</span>
+                        <span className="truncate font-medium text-texto">{detalle.vendedor ?? '—'}</span>
+                    </div>
+                </>
+            )}
+        </div>
+    ) : null;
 
     return (
         <div className="relative h-full w-full overflow-hidden rounded-[12px] border border-borde">
@@ -603,24 +801,29 @@ export function MapaTerritorios({ zonas, marcas = [], negocios = [], centro, mod
                 </div>
             )}
 
+            {/* Detalle SOLO LECTURA de un pin: inline (escritorio/horizontal) o portado a body (mapa fijo). */}
+            {!mapaFijo && tarjetaDetalle}
+            {mapaFijo && tarjetaDetalle && createPortal(tarjetaDetalle, document.body)}
+
             {/* Herramientas de dibujo: botones FLOTANTES individuales (sin contenedor/píldora), arriba
                 a la izquierda (zona visible del mapa en los tres layouts). */}
             {modoDibujo && (
                 <div className="absolute inset-x-0 top-3 z-20 mx-auto flex w-fit max-w-[95%] flex-col items-center gap-2">
-                    <div className="flex items-center gap-1.5">
+                    <div className="flex items-center gap-2">
                         {botonHerr('crear', Pencil, 'Agregar')}
                         {botonHerr('mover', Move, 'Mover')}
                         {botonHerr('borrar', Trash2, 'Quitar')}
                         {botonHerr('mano', Hand, 'Mapa')}
-                        <button type="button" data-testid="dibujo-deshacer" onClick={deshacer} disabled={numVertices === 0} aria-label="Deshacer punto" title="Deshacer punto" className="grid h-11 w-11 place-items-center rounded-full border border-borde bg-superficie text-texto-2 shadow-tarjeta-panel transition hover:bg-superficie-2 disabled:opacity-40">
-                            <Undo2 size={17} />
-                        </button>
-                        <button type="button" data-testid="dibujo-terminar" onClick={terminar} disabled={numVertices < 3} aria-label="Terminar zona" title="Terminar zona" className="grid h-11 w-11 place-items-center rounded-full bg-ok text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:opacity-40">
-                            <Check size={19} />
-                        </button>
-                        <button type="button" data-testid="dibujo-cancelar" onClick={() => { limpiarDibujo(); onCancelarDibujo?.(); }} aria-label="Cancelar" title="Cancelar" className="grid h-11 w-11 place-items-center rounded-full border border-borde bg-superficie text-texto-2 shadow-tarjeta-panel transition hover:bg-superficie-2">
-                            <X size={17} />
-                        </button>
+                        <Tooltip text="Deshacer punto" position="bottom">
+                            <button type="button" data-testid="dibujo-deshacer" onClick={deshacer} disabled={numVertices === 0} aria-label="Deshacer punto" className="grid h-[52px] w-[52px] place-items-center rounded-full border border-borde bg-superficie text-texto-2 shadow-tarjeta-panel transition hover:bg-superficie-2 disabled:opacity-40">
+                                <Undo2 size={21} />
+                            </button>
+                        </Tooltip>
+                        <Tooltip text="Terminar zona" position="bottom">
+                            <button type="button" data-testid="dibujo-terminar" onClick={terminar} disabled={numVertices < 3} aria-label="Terminar zona" className="grid h-[52px] w-[52px] place-items-center rounded-full bg-ok text-white shadow-tarjeta-panel transition hover:opacity-90 disabled:opacity-40">
+                                <Check size={23} />
+                            </button>
+                        </Tooltip>
                     </div>
                     <span className="rounded-full border border-borde bg-superficie/95 px-2.5 py-1 text-[11.5px] text-texto-3 shadow-pop-panel">
                         {herramienta === 'crear'

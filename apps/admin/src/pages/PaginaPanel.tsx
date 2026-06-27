@@ -92,12 +92,18 @@ function PaginaPanel() {
   const regionActivaId = regionFiltro ?? '';
   const onCambiarRegion = (id: string) => setRegionFiltro(id || null);
 
+  // Menú según el rol (se calcula ANTES de los conteos para gatearlos: un rol que no tiene el módulo
+  // —p. ej. el vendedor con Usuarios/Equipo— no debe pedir su conteo, el endpoint le daría 403).
+  const rolMenu = (usuario?.rolEquipo ?? null) as RolPanel | null;
+  const items = useMemo(() => (rolMenu ? itemsParaRol(rolMenu) : []), [rolMenu]);
+  const puedeVer = useCallback((id: string) => items.some((i) => i.id === id), [items]);
+
   // Contadores del menú: Negocios = conteo general del alcance; Usuarios = total de la sección
   // (refleja los filtros aplicados; lo publica SeccionUsuarios en el store).
-  const { data: totalNegocios } = useConteoNegocios();
-  const { data: totalUsuariosGeneral } = useConteoUsuarios();
+  const { data: totalNegocios } = useConteoNegocios(puedeVer('negocios'));
+  const { data: totalUsuariosGeneral } = useConteoUsuarios(puedeVer('usuarios'));
   const totalUsuariosFiltrado = useContadorPanel((s) => s.usuarios);
-  const { data: totalEquipoGeneral } = useConteoEquipo();
+  const { data: totalEquipoGeneral } = useConteoEquipo(puedeVer('equipo'));
   const totalEquipoFiltrado = useContadorPanel((s) => s.equipo);
   // Filtrado (de la sección activa) si lo hay; si no, el conteo general (visible desde el inicio).
   const totalUsuarios = totalUsuariosFiltrado ?? totalUsuariosGeneral;
@@ -110,10 +116,8 @@ function PaginaPanel() {
     return Object.keys(c).length ? c : undefined;
   }, [totalNegocios, totalUsuarios, totalEquipo]);
 
-  // Menú según el rol. Si la sección recordada (de una recarga) no aplica a este
-  // rol, se cae a la primera del menú; "seguridad" (Mi cuenta) siempre es válida.
-  const rolMenu = (usuario?.rolEquipo ?? null) as RolPanel | null;
-  const items = useMemo(() => (rolMenu ? itemsParaRol(rolMenu) : []), [rolMenu]);
+  // Si la sección recordada (de una recarga) no aplica a este rol, se cae a la primera del menú;
+  // "seguridad" (Mi cuenta) siempre es válida. (rolMenu/items se declaran arriba, junto a los conteos.)
   useEffect(() => {
     if (!items.length) return;
     if (seccionActivaId !== 'seguridad' && !items.some((i) => i.id === seccionActivaId)) {

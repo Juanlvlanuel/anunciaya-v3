@@ -31,11 +31,13 @@ export function useEquipoLista(filtros: ParametrosLista) {
   });
 }
 
-/** Total de cuentas de equipo del alcance (badge del menú). Carga al abrir el Panel. */
-export function useConteoEquipo() {
+/** Total de cuentas de equipo del alcance (badge del menú). Carga al abrir el Panel. `enabled` lo gatea
+ *  por rol: el vendedor no tiene el módulo Equipo y el endpoint le respondería 403. */
+export function useConteoEquipo(enabled = true) {
   return useQuery({
     queryKey: queryKeys.equipo.conteo(),
     queryFn: () => equipoService.contarEquipo(),
+    enabled,
     staleTime: 1000 * 60,
   });
 }
