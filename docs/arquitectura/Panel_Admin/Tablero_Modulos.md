@@ -14,12 +14,18 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 26 Junio 2026.
+> **Última actualización:** 27 Junio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **GATE 2 visual de Territorios validado (27 jun):** Juan probó en vivo el editor de zonas (G.1) — dibujar
+  una zona real con las 4 herramientas (✏️ agregar · ✋ mover · 🗑️ quitar · 🖐️ mapa), insertar vértice en
+  arista, snapping a calles, rechazo por traslape (409), reasignar a vendedor y borrar. **Territorios pasa a
+  ✔ Cerrado (módulo completo).** Con esto, **los 13 módulos del Panel quedan cerrados** → el Panel está
+  funcionalmente completo; el foco es QA/pulido pre-beta. **Siguiente frente sugerido:** Mi Perfil – Pagos
+  (recuperación de tarjeta morosa + pago manual con comprobante), `docs/arquitectura/Mi_Perfil.md`.
 - **Ronda de pulido UX de Territorios (26 jun):** sesión larga de pulido del módulo 13 en sus dos vistas
   (**vendedor** "Mi territorio" y **gerente/super** "Territorios"), sin tocar backend ni datos. Lo grueso:
   **mapa fijo al viewport** en móvil vertical (elimina el destello beige al expandir/colapsar la hoja),
@@ -183,7 +189,7 @@
 | 12 | **Recibos** | ✅ | ✔ Cerrado | `Recibos.md` |
 | | **· Red de ventas ·** | | | |
 | 6 | **Vendedores y comisiones** | ✅ | ✔ Cerrado (A·B·C·E·D + Liquidación v2 abonos + comisión "al cobro"/Stripe Pieza 3 ✅ validada en la ronda) · backlog: **F** (cobertura avanzada: agregar/quitar ciudades a un vendedor, incl. de otra región). **G (mapa de territorios) → construido como módulo Territorios ✅** | `Vendedores_y_comisiones.md` · `Vendedores_y_comisiones_Pendientes.md` |
-| 13 | **Territorios** | ✅ | ✔ Construido + **ronda de pulido UX móvil (26 jun)** (G.1 zonas: editor 4-herramientas + snapping + no-traslape turf · G.2 "Mi territorio" del vendedor con marcas estado/nota · gerente/super ven marcas de sus vendedores + negocios reales en lectura) · backlog: **GATE 2 visual de G.1** + F multi-región + curvas en dibujo | `Territorios.md` · `Territorios_Pendientes.md` |
+| 13 | **Territorios** | ✅ | ✔ Cerrado · **GATE 2 visual validado (27 jun)** + ronda de pulido UX móvil (26 jun) (G.1 zonas: editor 4-herramientas + snapping + no-traslape turf · G.2 "Mi territorio" del vendedor con marcas estado/nota · gerente/super ven marcas de sus vendedores + negocios reales en lectura) · backlog: F multi-región + curvas en dibujo | `Territorios.md` · `Territorios_Pendientes.md` |
 | | **· Crecimiento ·** | | | |
 | 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |

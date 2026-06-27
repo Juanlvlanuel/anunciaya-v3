@@ -5,10 +5,11 @@
 > Capa 1 = en lenguaje de persona; Capa 2 = apéndice técnico. Lo que FALTA vive en
 > [`Territorios_Pendientes.md`](Territorios_Pendientes.md).
 >
-> **Estado:** ✅ construido + **ronda de pulido UX (26 jun)** en ambas vistas (rediseño responsive móvil/
-> horizontal/escritorio, mapa fijo al viewport, pines, FABs, cards inline, tarjeta de detalle). `tsc` de
-> `apps/api` y `apps/admin` en verde. Backlog: cobertura multi-región (Pieza F) y curvas en el dibujo.
-> **Última actualización:** 26 Junio 2026.
+> **Estado:** ✅ **CERRADO** (GATE 2 visual de G.1 validado por Juan, 27 jun) + **ronda de pulido UX (26 jun)**
+> en ambas vistas (rediseño responsive móvil/horizontal/escritorio, mapa fijo al viewport, pines, FABs, cards
+> inline, tarjeta de detalle). `tsc` de `apps/api` y `apps/admin` en verde. Backlog (no bloqueante): cobertura
+> multi-región (Pieza F) y curvas en el dibujo.
+> **Última actualización:** 27 Junio 2026.
 
 ---
 
@@ -182,5 +183,7 @@ Ambas vistas comparten un **shell responsive** de 3 layouts (vertical = mapa tot
 - `tsc -b` de `apps/admin` y `tsc --noEmit` de `apps/api` en **verde**.
 - Validado visual con Juan (23 jun): rechazo por traslape, vista del vendedor (zona acotada + marcas +
   drag + filtros) y vista del gerente (marcas de sus vendedores con popup + filtro).
-- Pendiente: GATE 2 visual completo de G.1 (insertar/mover/quitar vértice + reasignar + borrar en una
-  pasada) y la Pieza F (cobertura multi-región) — ver [`Territorios_Pendientes.md`](Territorios_Pendientes.md).
+- **GATE 2 visual de G.1 validado por Juan (27 jun):** dibujar zona real + insertar/mover/quitar vértice +
+  snapping a calles + reasignar + borrar en una pasada. **Módulo cerrado.**
+- Backlog (no bloqueante): la Pieza F (cobertura multi-región) y las curvas en el dibujo — ver
+  [`Territorios_Pendientes.md`](Territorios_Pendientes.md).

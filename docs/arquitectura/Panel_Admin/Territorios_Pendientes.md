@@ -10,7 +10,7 @@
 >
 > **Leyenda:** 🔴 bloqueante · 🟡 importante · 🟢 mejora · ⬜ por hacer · ✅ hecho · 🔵 propuesta
 >
-> **Última actualización:** 26 Junio 2026 · **Fase actual:** módulo **CONSTRUIDO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, lectura de marcas + negocios para gerente/super) — doc canónico `Territorios.md` escrito + **ronda de pulido UX móvil (26 jun)** aplicada a ambas vistas (ver `Territorios.md` §"Patrones de UI móvil"). **Backlog:** GATE 2 visual completo de G.1, Pieza F (multi-región), curvas en el dibujo.
+> **Última actualización:** 27 Junio 2026 · **Fase actual:** módulo **CERRADO** (G.1 zonas + no-traslape, G.2 marcas del vendedor, lectura de marcas + negocios para gerente/super) — doc canónico `Territorios.md` escrito + **ronda de pulido UX móvil (26 jun)** aplicada a ambas vistas (ver `Territorios.md` §"Patrones de UI móvil") + **GATE 2 visual validado por Juan (27 jun)**. **Backlog (no bloqueante):** Pieza F (multi-región), curvas en el dibujo.
 
 ---
 
@@ -98,22 +98,22 @@ la zona. Cada zona = **polígono + nombre + vendedor asignado + ciudad**.
 
 ## Criterios de aceptación (Definición de Terminado)
 
-**VER (Gate 1):**
-- [ ] El **super/gerente** ve la sección "Territorios" en el menú; el mapa carga la ciudad y **pinta las zonas
+**VER (Gate 1):** ✅ cerrado (23 jun)
+- [x] El **super/gerente** ve la sección "Territorios" en el menú; el mapa carga la ciudad y **pinta las zonas
   existentes** (polígonos con color + nombre + vendedor asignado), con alcance por rol (gerente solo su región).
-- [ ] El **vendedor** entra a "Mi territorio" y ve **solo su(s) zona(s) asignada(s)** (no el resto de la ciudad).
-- [ ] `tsc --noEmit` + build del Panel verdes.
+- [x] El **vendedor** entra a "Mi territorio" y ve **solo su(s) zona(s) asignada(s)** (no el resto de la ciudad).
+- [x] `tsc --noEmit` + build del Panel verdes.
 
-**ACTUAR (Gate 2):**
-- [ ] Crear una zona dibujando un polígono + nombre + color → se persiste; **rechaza** si se traslapa con otra (D3).
-- [ ] Asignar / reasignar / quitar el vendedor de una zona; borrar una zona.
-- [ ] Solo super/gerente actúan (vendedor 403); el backend valida el alcance (no confía en la UI).
-- [ ] Toda acción → `admin_auditoria`.
+**ACTUAR (Gate 2):** ✅ validado por Juan (27 jun)
+- [x] Crear una zona dibujando un polígono + nombre + color → se persiste; **rechaza** si se traslapa con otra (D3).
+- [x] Asignar / reasignar / quitar el vendedor de una zona; borrar una zona.
+- [x] Solo super/gerente actúan (vendedor 403); el backend valida el alcance (no confía en la UI).
+- [x] Toda acción → `admin_auditoria`.
 
 ## Checklist del carril
 
 ```
-### Módulo: TERRITORIOS   ·   Estado: CONSTRUIDO (G.1 zonas + G.2 marcas + marcas-equipo + negocios en el mapa). Falta solo el GATE 2 visual de G.1 (prueba de Juan).
+### Módulo: TERRITORIOS   ·   Estado: CERRADO (G.1 zonas + G.2 marcas + marcas-equipo + negocios en el mapa). GATE 2 visual de G.1 validado por Juan (27 jun).
 
 Fase 0 — Definir ✅ (23 jun)
 - [x] Mini-spec (qué hace / qué no / matriz de permisos)
@@ -143,14 +143,14 @@ Fase 2 — ACTUAR (en curso · sub-paso 2a)
       nativos) en ciudad, vendedor del formulario y reasignar de la lista. **Layout rediseñado:** sin header (el shell
       ya muestra "Territorios"), **mapa a alto completo** a la izquierda y **toda la operación en la columna derecha**
       (selector de ciudad · Nueva zona · formulario de guardado en la columna —no en overlay, para no tapar el popover— · lista).
-- [ ] GATE 2: verificar visual — dibujar una zona real en el Panel + reasignar + borrar (Juan).
+- [x] GATE 2: verificar visual — dibujar una zona real en el Panel + reasignar + borrar (Juan, 27 jun). ✅
 - [x] **Editor de zonas con 4 herramientas** (sin dataset externo; detección de vértices por proyección propia, no
       por hit-test de capas de MapLibre —que no enganchaba): ✏️ **Agregar** (clic; **inserta** si caes sobre una arista,
       si no al final) · ✋ **Mover** (arrastra un vértice) · 🗑️ **Quitar** (clic en un vértice) · 🖐️ **Mapa** (pan).
       **El pan SOLO está activo en "Mapa"** — en Agregar/Mover/Quitar arrastrar NO mueve el mapa (resuelve el conflicto
       pan↔herramientas; el zoom con scroll sí siempre). **Pegado a calles (snapping)** al colocar/soltar/insertar
       (source-layer `transportation`). tsc Panel verde.
-- [ ] GATE 2 (visual, Juan): dibujar + insertar en arista + mover + quitar + guardar + reasignar/borrar zona.
+- [x] GATE 2 (visual, Juan, 27 jun): dibujar + insertar en arista + mover + quitar + guardar + reasignar/borrar zona. ✅
 - [ ] **Curvas entre 2 puntos** (arrastrar el medio de un lado → arco): **pospuesto** (Juan, "aún no"). Backlog.
 - [x] **No-traslape (turf.js) ✅ (23 jun):** crear/editar zona **rechaza (409)** si el polígono se solapa EN ÁREA con
       otra de la misma ciudad. Umbral: área de intersección > **1%** de la zona más chica (compartir un borde = OK;
@@ -162,9 +162,9 @@ Fase 2 — ACTUAR (en curso · sub-paso 2a)
       nombre vuela** (zoom cine) a la zona. **Permiso:** super solo edita/borra las que él creó (`creada_por`), gerente toda
       su región — flag `puedoEditar` por zona en `listarZonas` + guard en `cargarZonaConAlcance` (backend autoridad).
 
-Fase 3 — Cerrar
+Fase 3 — Cerrar ✅
 - [x] Doc canónico Territorios.md (commit fef6da1) + tablero (módulo 13) + memoria + commits.
-- [ ] GATE 2 visual de G.1 (prueba de Juan): dibujar/insertar/mover/quitar vértice + reasignar + borrar en una pasada.
+- [x] GATE 2 visual de G.1 (prueba de Juan, 27 jun): dibujar/insertar/mover/quitar vértice + reasignar + borrar en una pasada. ✅
 
 Backlog (no bloqueante): curvas entre 2 puntos al dibujar · Pieza F (multi-región) · liga marca↔negocio DESCARTADA (negocio_id se dropeó).
 ```
