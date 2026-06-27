@@ -5,10 +5,10 @@
  * Leen query/params, validan, llaman al service y arman la respuesta. El acceso y el rol ya los
  * validó `requierePanel(['superadmin','gerente'])` en la ruta.
  *
- * Las acciones de escritura (alta de vendedor/gerente, editar datos, reasignar región, revocar/
- * reactivar acceso) ya están implementadas; sus controllers viven más abajo. La gestión de
- * ciudades/territorio del vendedor no es de este módulo (se difirió a "Vendedores y comisiones");
- * aquí solo se asigna la cobertura inicial al dar de alta.
+ * Las acciones de escritura (alta de vendedor/gerente, editar datos, reasignar región, cambiar
+ * ciudades, revocar/reactivar acceso) ya están implementadas; sus controllers viven más abajo.
+ * Cambiar las ciudades de un vendedor DENTRO de su región vive aquí; mover a otra región
+ * (multi-región, Pieza F) sigue diferido a "Vendedores y comisiones".
  *
  * Ubicación: apps/api/src/controllers/admin/equipo.controller.ts
  */
@@ -32,6 +32,7 @@ import {
     reactivarAcceso,
     editarDatos,
     reasignarRegion,
+    editarCiudades,
     sugerirCodigoReferido,
 } from '../../services/admin/equipo-acciones.service.js';
 import {
@@ -39,6 +40,7 @@ import {
     altaGerenteSchema,
     editarDatosSchema,
     reasignarRegionSchema,
+    editarCiudadesSchema,
 } from '../../validations/admin/equipo.schema.js';
 
 const POR_PAGINA_DEFAULT = 20;
@@ -314,5 +316,28 @@ export async function reasignarRegionController(req: Request, res: Response): Pr
     } catch (error) {
         console.error('Error en reasignarRegionController:', error);
         res.status(500).json({ success: false, message: 'Error al reasignar la región' });
+    }
+}
+
+// =============================================================================
+// PATCH /api/admin/equipo/:id/ciudades   (cambiar la cobertura de un vendedor — super + gerente)
+// =============================================================================
+
+export async function editarCiudadesController(req: Request, res: Response): Promise<void> {
+    try {
+        const parsed = editarCiudadesSchema.safeParse(req.body);
+        if (!parsed.success) {
+            res.status(400).json({ success: false, message: parsed.error.issues[0]?.message ?? 'Datos inválidos' });
+            return;
+        }
+        const r = await editarCiudades(req.usuarioPanel!, req.params.id, parsed.data.ciudadIds);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Ciudades actualizadas' });
+    } catch (error) {
+        console.error('Error en editarCiudadesController:', error);
+        res.status(500).json({ success: false, message: 'Error al actualizar las ciudades' });
     }
 }

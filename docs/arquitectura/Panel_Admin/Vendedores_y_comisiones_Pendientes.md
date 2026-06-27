@@ -231,6 +231,14 @@ Fase 3 — Cerrar
   "mover de región = soltar cartera". **Detalle pedido por Juan (23 jun):** poder **agregar o quitar ciudades** a un
   vendedor y **asignarle ciudades de otra región** (cobertura multi-región parcial). Hoy el modelo asume "vendedor de
   UNA región" (trigger + `LIMIT 1` en `panel.middleware`); esto lo reescribe + toca Negocios/Usuarios/Suscripciones/Equipo.
+  - **Parte (a) — agregar/quitar ciudades DENTRO de la región: ✅ HECHA (27 jun, en Equipo).** Acción "Cambiar
+    ciudades" (`PATCH /admin/equipo/:id/ciudades`); ver [`Equipo_y_accesos.md`](Equipo_y_accesos.md) §6. Lo que sigue
+    diferido aquí es solo la **multi-región** (parte (b): ciudades de otra región / mover-con-reasignación).
+  - **Workaround oficial para la beta (decisión Juan, 27 jun):** la multi-región **ocasional** se resuelve con una
+    **segunda cuenta de vendedor** (otro correo / alias `+región`), cada cuenta acotada a UNA región — costo cero, el
+    modelo ya lo soporta. Su techo (comisiones/efectivo/identidad fragmentados por cuenta) es lo que justificará
+    construir la Pieza F cuando un vendedor opere 2 regiones a diario. Detalle en
+    [`Equipo_y_accesos_Pendientes.md`](Equipo_y_accesos_Pendientes.md) §Diferido → "Workaround oficial para la beta".
 - ✅ **G · Mapa de territorios + CRM de campo** — **CONSTRUIDO como módulo propio [Territorios](Territorios.md)** (módulo 13, jun 2026); ya no es backlog de este módulo. Lo entregado:
   - **G.1 · Zonas del gerente ✅:** el gerente **fragmenta el mapa de la ciudad en zonas** (polígonos GeoJSON en `jsonb`, sin
     PostGIS) con editor de 4 herramientas + snapping a calles + no-traslape (turf) y **asigna cada zona a un vendedor**.

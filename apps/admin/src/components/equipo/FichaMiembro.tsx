@@ -16,7 +16,7 @@
  */
 
 import { useState } from 'react';
-import { X, CheckCircle2, AlertTriangle, Copy, Check, Ban, RotateCcw, Pencil, Globe } from 'lucide-react';
+import { X, CheckCircle2, AlertTriangle, Copy, Check, Ban, RotateCcw, Pencil, Globe, MapPin } from 'lucide-react';
 import { useMiembroEquipo, useRevocarAcceso, useReactivarAcceso } from '../../hooks/queries/useEquipoAdmin';
 import type { MiembroEquipoFila, MiembroEquipo } from '../../services/equipoService';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
@@ -28,6 +28,7 @@ import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { metaAcceso, rolLabel } from './estadoAcceso';
 import { DialogoEditarDatos } from './DialogoEditarDatos';
 import { DialogoReasignarRegion } from './DialogoReasignarRegion';
+import { DialogoEditarCiudades } from './DialogoEditarCiudades';
 
 interface FichaMiembroProps {
   /** Fila que se abrió: sirve de placeholder para mostrar la ficha al instante. */
@@ -46,6 +47,8 @@ function placeholderDesdeFila(f: MiembroEquipoFila): MiembroEquipo {
     panel2faHabilitado: false,
     regionId: null,
     negociosAtribuidos: 0,
+    ciudadIds: [],
+    regionVendedorId: null,
   };
 }
 
@@ -114,10 +117,12 @@ export function FichaMiembro({ previo, onCerrar }: FichaMiembroProps) {
   const esGerenteActivo = esGerente && !revocado;
   const revocar = useRevocarAcceso();
   const reactivar = useReactivarAcceso();
-  const [dialogo, setDialogo] = useState<null | 'revocar' | 'reactivar' | 'editar' | 'region'>(null);
+  const [dialogo, setDialogo] = useState<null | 'revocar' | 'reactivar' | 'editar' | 'region' | 'ciudades'>(null);
   const cerrarDialogo = () => setDialogo(null);
 
   const puedeEditarDatos = esSuper || (rolPanel === 'gerente' && esVendedor);
+  // Cambiar ciudades: solo vendedor ACTIVO (el revocado tiene rol_equipo NULL → el backend lo rechaza).
+  const puedeEditarCiudades = esVendedorActivo && (esSuper || rolPanel === 'gerente');
   const puedeReasignar = esSuper && esGerenteActivo;
   const puedeRevocar = (esVendedorActivo && (esSuper || rolPanel === 'gerente')) || (esGerenteActivo && esSuper);
   const puedeReactivar = revocado && (esVendedor ? esSuper || rolPanel === 'gerente' : esSuper);
@@ -125,6 +130,9 @@ export function FichaMiembro({ previo, onCerrar }: FichaMiembroProps) {
   const acciones: AccionFicha[] = [];
   if (puedeEditarDatos) {
     acciones.push({ icono: Pencil, etiqueta: 'Editar datos', color: 'marca', testid: 'ficha-miembro-editar', onClick: () => setDialogo('editar') });
+  }
+  if (puedeEditarCiudades) {
+    acciones.push({ icono: MapPin, etiqueta: 'Cambiar ciudades', color: 'marca', testid: 'ficha-miembro-ciudades', onClick: () => setDialogo('ciudades') });
   }
   if (puedeReasignar) {
     acciones.push({ icono: Globe, etiqueta: 'Reasignar región', color: 'marca', testid: 'ficha-miembro-region', onClick: () => setDialogo('region') });
@@ -289,6 +297,17 @@ export function FichaMiembro({ previo, onCerrar }: FichaMiembroProps) {
         miembroId={m.id}
         nombre={m.nombre}
         regionActualNombre={m.regionNombre}
+      />
+    )}
+    {dialogo === 'ciudades' && (
+      <DialogoEditarCiudades
+        abierto
+        onCerrar={cerrarDialogo}
+        miembroId={m.id}
+        nombre={m.nombre}
+        regionNombre={m.regionNombre}
+        regionVendedorId={m.regionVendedorId}
+        ciudadIdsActuales={m.ciudadIds}
       />
     )}
     {dialogo === 'revocar' && (

@@ -2,8 +2,9 @@
  * routes/admin/equipo.routes.ts
  * =============================
  * Rutas de la sección "Equipo y accesos" del Panel Admin: lectura (lista + ficha) y acciones
- * (alta de vendedor, revocar y reactivar acceso). La gestión de territorio/ciudades vive en
- * "Vendedores y comisiones" (módulo 6).
+ * (alta de vendedor, editar datos/región, cambiar ciudades, revocar y reactivar acceso). Cambiar
+ * las ciudades de un vendedor dentro de su región vive aquí; la multi-región (mover a otra región,
+ * Pieza F) sigue en "Vendedores y comisiones" (módulo 6).
  *
  * PERMISO (ver Equipo_y_accesos_Pendientes.md):
  *   - Lectura → superadmin (todo el equipo) + gerente (solo sus vendedores, alcance en el service).
@@ -34,6 +35,7 @@ import {
     reactivarAccesoController,
     editarDatosController,
     reasignarRegionController,
+    editarCiudadesController,
 } from '../../controllers/admin/equipo.controller.js';
 
 const router: Router = Router();
@@ -53,6 +55,7 @@ router.post('/:id/revocar', requierePanel(['superadmin', 'gerente']), revocarAcc
 router.post('/:id/reactivar', requierePanel(['superadmin', 'gerente']), reactivarAccesoController);
 router.patch('/:id/datos', requierePanel(['superadmin', 'gerente']), editarDatosController); // editar datos (alcance en service)
 router.patch('/:id/region', requierePanel(['superadmin']), reasignarRegionController); // reasignar región: solo super
+router.patch('/:id/ciudades', requierePanel(['superadmin', 'gerente']), editarCiudadesController); // cambiar cobertura del vendedor (su región)
 
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerMiembroController);
 

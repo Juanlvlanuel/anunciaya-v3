@@ -175,3 +175,16 @@ export function useReasignarRegion() {
     onError: (e) => toast.error(mensajeError(e, 'No se pudo reasignar la región')),
   });
 }
+
+/** Cambiar la cobertura de ciudades de un vendedor (dentro de su región). */
+export function useEditarCiudades() {
+  const refrescar = useRefrescarEquipo();
+  return useMutation({
+    mutationFn: ({ id, ciudadIds }: { id: string; ciudadIds: string[] }) => equipoService.editarCiudades(id, ciudadIds),
+    onSuccess: (_d, { id }) => {
+      refrescar(id);
+      toast.exito('Ciudades actualizadas');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudieron actualizar las ciudades')),
+  });
+}

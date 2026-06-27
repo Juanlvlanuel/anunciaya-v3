@@ -13,10 +13,11 @@
  *   - altaGerente           — crea/promueve un gerente (rol + region_id). Solo superadmin.
  *   - editarDatos           — corrige nombre/apellidos/teléfono/correo de un miembro (alcance por rol).
  *   - reasignarRegion       — cambia la región de un gerente. Solo superadmin.
+ *   - editarCiudades        — agrega/quita ciudades a un vendedor DENTRO de su región (Caso A).
  *
- * NOTA: la gestión de TERRITORIO (cambiar/ampliar/mover ciudades) NO vive aquí — es del módulo
- * "Vendedores y comisiones" (ver Equipo_y_accesos_Pendientes.md §Diferido). El alta asigna la cobertura
- * inicial reusando validarCiudades + reemplazarCiudades.
+ * NOTA: cambiar las ciudades de un vendedor dentro de SU región ya vive aquí (editarCiudades). Lo que
+ * sigue diferido a "Vendedores y comisiones" es la multi-región (Pieza F): mover un vendedor a OTRA
+ * región (= soltar la cartera). Ver Equipo_y_accesos_Pendientes.md §Diferido.
  *
  * ALCANCE (sincronizado con la lectura): el gerente solo crea/revoca/reactiva vendedores de SU región;
  * el superadmin sobre cualquier región. Toda acción → admin_auditoria.
@@ -590,6 +591,72 @@ export async function reasignarRegion(panel: UsuarioPanel, miembroId: string, re
         entidadId: miembroId,
         datosPrevios: { regionId: v.regionId },
         datosNuevos: { regionId },
+        motivo: null,
+    });
+
+    return { ok: true };
+}
+
+// =============================================================================
+// EDITAR CIUDADES (cobertura del vendedor, DENTRO de su región) — super + gerente (su región)
+// =============================================================================
+
+/**
+ * Cambia las ciudades que cubre un vendedor (agregar / quitar) SIN sacarlo de su región.
+ * Es el "Caso A" de la cobertura: el modelo ya permite varias ciudades por vendedor; aquí solo
+ * faltaba poder editarlas después del alta. Mover a OTRA región (multi-región) es la Pieza F, que
+ * sigue diferida — por eso este guard exige que la región resultante coincida con la actual.
+ */
+export async function editarCiudades(
+    panel: UsuarioPanel,
+    miembroId: string,
+    ciudadIds: string[],
+): Promise<ResultadoAccionEquipo> {
+    const v = await cargarMiembro(miembroId);
+    if (!v) return { ok: false, status: 404, mensaje: 'Miembro del equipo no encontrado.' };
+    if (v.rolEquipo !== 'vendedor' || !v.embajadorId) {
+        return { ok: false, status: 409, mensaje: 'Solo se puede cambiar la cobertura de un vendedor.' };
+    }
+
+    // Alcance: el gerente solo edita vendedores de SU región (el super, cualquiera).
+    const sinAlcance = vendedorFueraDeAlcance(panel, v);
+    if (sinAlcance) return sinAlcance;
+
+    // Ciudades válidas + región común (el trigger de BD exige una sola región).
+    const ciudadesOk = await validarCiudades(ciudadIds);
+    if (!ciudadesOk.ok) return ciudadesOk;
+
+    // El gerente no puede mover al vendedor fuera de su región.
+    if (panel.rolEquipo === 'gerente' && ciudadesOk.regionId !== panel.regionId) {
+        return { ok: false, status: 403, mensaje: 'Las ciudades seleccionadas no son de tu región.' };
+    }
+    // Esta acción NO cambia la región del vendedor (eso es la Pieza F: "mover de región = soltar la
+    // cartera"). Si el vendedor ya cubre una región, las ciudades nuevas deben ser de ESA misma región.
+    if (v.regionVendedor && ciudadesOk.regionId !== v.regionVendedor) {
+        return {
+            ok: false,
+            status: 409,
+            mensaje: 'Las ciudades deben ser de la región actual del vendedor. Cambiarlo de región es otra operación.',
+        };
+    }
+
+    const embajadorId = v.embajadorId;
+    // Cobertura previa, para la bitácora.
+    const previas = (await db.execute(
+        sql`SELECT ciudad_id::text AS id FROM embajador_ciudades WHERE embajador_id = ${embajadorId}::uuid`,
+    )).rows as Array<{ id: string }>;
+    const ciudadIdsPrevias = previas.map((p) => p.id);
+
+    await db.transaction(async (tx) => {
+        await reemplazarCiudades(tx, embajadorId, ciudadIds);
+    });
+
+    await registrarAuditoria(panel, {
+        accion: 'equipo_cambiar_ciudades',
+        entidadTipo: 'usuario',
+        entidadId: miembroId,
+        datosPrevios: { ciudadIds: ciudadIdsPrevias },
+        datosNuevos: { ciudadIds, regionId: ciudadesOk.regionId },
         motivo: null,
     });
 

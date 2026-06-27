@@ -10,8 +10,8 @@
  *   GET /admin/equipo/:id     → ficha de un miembro del equipo
  *
  * Incluye también las mutaciones (alta de vendedor/gerente, editar datos, reasignar región,
- * revocar/reactivar acceso). La gestión de ciudades/territorio del vendedor no vive aquí (se
- * difirió a "Vendedores y comisiones"); aquí solo se asigna la cobertura inicial al dar de alta.
+ * cambiar ciudades, revocar/reactivar acceso). Cambiar las ciudades de un vendedor dentro de su
+ * región vive aquí; mover a otra región (multi-región, Pieza F) sigue en "Vendedores y comisiones".
  *
  * Tipos camelCase — el backend ya transforma snake → camel.
  *
@@ -69,6 +69,8 @@ export interface MiembroEquipo extends MiembroEquipoFila {
   panel2faHabilitado: boolean;
   regionId: string | null;
   negociosAtribuidos: number;
+  ciudadIds: string[];              // cobertura actual del vendedor (para el editor de ciudades)
+  regionVendedorId: string | null;  // su región deducida (preselección del super en el selector)
 }
 
 export interface ParametrosLista {
@@ -211,4 +213,9 @@ export async function editarDatos(id: string, datos: DatosEditar): Promise<{ cor
 /** Reasigna la región de un gerente. Solo superadmin. */
 export async function reasignarRegion(id: string, regionId: string): Promise<void> {
   await api.patch(`/admin/equipo/${id}/region`, { regionId });
+}
+
+/** Cambia la cobertura de ciudades de un vendedor (dentro de su región). Super + gerente (su región). */
+export async function editarCiudades(id: string, ciudadIds: string[]): Promise<void> {
+  await api.patch(`/admin/equipo/${id}/ciudades`, { ciudadIds });
 }

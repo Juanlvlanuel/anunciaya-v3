@@ -94,13 +94,18 @@ contraseña). Si ya es del equipo, se rechaza.
 
 ---
 
-## 6. Editar datos · reasignar región
+## 6. Editar datos · reasignar región · cambiar ciudades
 
 - **Editar datos:** corrige nombre, apellidos y teléfono **siempre**. El **correo** solo se puede
   cambiar **mientras la cuenta no tiene contraseña** (modelo C — para arreglar un typo del alta; se
   reenvía el código al nuevo). Una vez verificado, el correo (la llave de acceso) queda **solo lectura**
   y lo cambia la persona desde su perfil.
 - **Reasignar región** (solo super, sobre gerentes): cambia la región a cargo de un gerente.
+- **Cambiar ciudades** (super + gerente de su región, sobre vendedores activos): agrega/quita ciudades a
+  la cobertura del vendedor **dentro de su región** (Caso A). El diálogo precarga sus ciudades con la
+  **región fija**; un guard del backend **rechaza cambiar de región** (eso es la Pieza F, multi-región,
+  diferida al módulo "Vendedores y comisiones"). El modelo ya admitía varias ciudades por vendedor; esto
+  solo agregó poder editarlas después del alta.
 
 ---
 
@@ -125,6 +130,7 @@ El revocado **no desaparece**: sigue en la lista como "Sin acceso", listo para r
 | Crear gerente | ✅ | — | — |
 | Editar datos | ✅ (cualquiera) | ✅ (sus vendedores) | — |
 | Reasignar región (gerente) | ✅ | — | — |
+| Cambiar ciudades (vendedor, su región) | ✅ | ✅ (sus vendedores) | — |
 | Revocar / reactivar vendedor | ✅ | ✅ (su región) | — |
 | Revocar / reactivar gerente | ✅ | — | — |
 
@@ -194,6 +200,7 @@ del módulo 6. Ese modelo de cobertura avanzado quedó **diseñado y diferido** 
 | `POST /gerentes` | **solo super** | Alta de gerente |
 | `PATCH /:id/datos` | super + gerente | Editar nombre/apellidos/teléfono/correo (alcance + correo solo modelo C) |
 | `PATCH /:id/region` | **solo super** | Reasignar región de un gerente |
+| `PATCH /:id/ciudades` | super + gerente | Cambiar las ciudades de un vendedor (dentro de su región) |
 | `POST /:id/revocar` · `/:id/reactivar` | super + gerente | Cortar / devolver acceso (gerentes solo super) |
 
 ## C. Detalles de implementación

@@ -115,6 +115,9 @@ export interface MiembroEquipo extends MiembroEquipoFila {
     panel2faHabilitado: boolean;
     regionId: string | null;       // gerente: usuarios.region_id
     negociosAtribuidos: number;    // informativo (su cartera detallada vive en Vendedores)
+    // Cobertura del vendedor (para el editor "Cambiar ciudades"). Vacío/null si no es vendedor.
+    ciudadIds: string[];           // ids de las ciudades que cubre
+    regionVendedorId: string | null; // region_id deducida de sus ciudades (preselección del super)
 }
 
 // =============================================================================
@@ -222,6 +225,20 @@ const SUB_REGION_VENDEDOR = sql<string | null>`(
     LIMIT 1
 )`;
 const SUB_CODIGO = sql<string | null>`(SELECT e.codigo_referido FROM embajadores e WHERE e.usuario_id = usuarios.id LIMIT 1)`;
+// IDs de las ciudades que cubre el vendedor (para precargar el editor de cobertura) + su region_id deducida.
+const SUB_CIUDAD_IDS = sql<string[]>`(
+    SELECT COALESCE(array_agg(ec.ciudad_id::text), '{}')
+    FROM embajadores e
+    JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+    WHERE e.usuario_id = usuarios.id
+)`;
+const SUB_REGION_VENDEDOR_ID = sql<string | null>`(
+    SELECT c.region_id::text
+    FROM embajadores e
+    JOIN embajador_ciudades ec ON ec.embajador_id = e.id
+    JOIN ciudades c ON c.id = ec.ciudad_id
+    WHERE e.usuario_id = usuarios.id LIMIT 1
+)`;
 const SUB_ESTADO_EMB = sql<string | null>`(SELECT e.estado FROM embajadores e WHERE e.usuario_id = usuarios.id LIMIT 1)`;
 
 /** Arma la fila a partir de los campos crudos (resuelve región y datos de vendedor según el rol). */
@@ -439,6 +456,8 @@ export async function obtenerMiembro(
             regionGerente: regiones.nombre,
             regionVendedor: SUB_REGION_VENDEDOR,
             ciudades: SUB_CIUDADES,
+            ciudadIds: SUB_CIUDAD_IDS,
+            regionVendedorId: SUB_REGION_VENDEDOR_ID,
             codigoReferido: SUB_CODIGO,
             estadoEmbajador: SUB_ESTADO_EMB,
             negociosAtribuidos: sql<number>`(
@@ -465,5 +484,7 @@ export async function obtenerMiembro(
         panel2faHabilitado: !!u.panel2faHabilitado,
         regionId: u.regionId ?? null,
         negociosAtribuidos: Number(u.negociosAtribuidos ?? 0),
+        ciudadIds: Array.isArray(u.ciudadIds) ? u.ciudadIds : [],
+        regionVendedorId: u.regionVendedorId ?? null,
     };
 }

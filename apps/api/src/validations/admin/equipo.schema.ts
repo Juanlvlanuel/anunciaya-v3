@@ -58,3 +58,9 @@ export const reasignarRegionSchema = z.object({
     regionId: z.string().uuid('Región inválida'),
 });
 export type ReasignarRegionInput = z.infer<typeof reasignarRegionSchema>;
+
+/** Cambiar la cobertura de ciudades de un vendedor (1+ y, por el trigger, de una misma región). */
+export const editarCiudadesSchema = z.object({
+    ciudadIds: z.array(z.string().uuid('Ciudad inválida')).min(1, 'Selecciona al menos una ciudad.'),
+});
+export type EditarCiudadesInput = z.infer<typeof editarCiudadesSchema>;

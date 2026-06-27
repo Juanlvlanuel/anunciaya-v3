@@ -56,9 +56,9 @@ nómina/CRM.**
 
 ### Qué NO hace (fronteras con otros módulos)
 - **No modera personas** (suspender/reactivar la cuenta en toda la app) → eso es **Usuarios**.
-- **No gestiona comisiones / cartera / cortes de caja, ni ajusta el territorio (ciudades) del
-  vendedor después del alta** → eso es **Vendedores y comisiones** (aquí solo se crea, se asigna la
-  **cobertura inicial** al dar de alta, y se da de baja al vendedor).
+- **No gestiona comisiones / cartera / cortes de caja** → eso es **Vendedores y comisiones**. Sí ajusta
+  la cobertura de ciudades del vendedor **dentro de su región** (Caso A, "Cambiar ciudades"); lo que NO
+  hace es la **multi-región** (ciudades de otra región / mover-con-reasignación = Pieza F, módulo 6).
 - **No edita datos personales** (nombre, teléfono, foto — los cambia cada quien en su perfil).
 - **No crea / agrupa regiones ni ciudades** → eso es **Ciudades**.
 - **No construye el demo de Business Studio** del vendedor → eso es el módulo Vendedores/demo; aquí
@@ -121,8 +121,11 @@ Leyenda: **Total** = toda la plataforma · **Sus vendedores** = solo los de su r
 - [x] **A9** — Revocar acceso → `rol_equipo=NULL` + `embajadores.estado='inactivo'`; corte inmediato;
   **atribución conservada** (la fila embajador persiste). El revocado **sigue visible** ("Sin acceso") y
   se **reactiva** de un clic (E4). ✓ harness
-- [—] **A10** *(diferido a "Vendedores y comisiones")* — la gestión de territorio (ajustar/ampliar/mover
-  ciudades) no vive en Equipo. La cobertura inicial se asigna en el alta (A6); el resto es del módulo 6.
+- [x] **A10** — **Cambiar ciudades del vendedor DENTRO de su región (Caso A, 27 jun 2026):** acción
+  "Cambiar ciudades" en la ficha (super + gerente de su región) → `PATCH /admin/equipo/:id/ciudades`
+  (`editarCiudades`); reusa `validarCiudades` + `reemplazarCiudades`, con guard que **bloquea cambiar de
+  región** (eso es la Pieza F). Auditoría `equipo_cambiar_ciudades`. Verificado visual (Juan). La
+  **multi-región** (ciudades de otra región / mover-con-reasignación) sigue diferida al módulo 6 (§Diferido).
 - [x] **A11** — Toda alta/baja/cambio llama a `registrarAuditoria` → `admin_auditoria` (actor, acción, antes/después).
 - [x] **A12** — El backend valida el alcance (no confía en la UI) · `tsc` backend ✅ · `tsc -b`+`vite build` del Panel ✅.
 
@@ -161,10 +164,12 @@ Leyenda: **Total** = toda la plataforma · **Sus vendedores** = solo los de su r
 5. **Revocar acceso** — `rol_equipo=NULL`. Vendedor (super/gerente; + embajador `inactivo`) · gerente
    (solo super; conserva `region_id`). El revocado sigue visible como "Sin acceso".
 6. **Reactivar acceso** — devuelve el acceso a un vendedor o gerente revocado (conserva código/ciudades o región).
+7. **Cambiar ciudades** — agrega/quita ciudades a un vendedor **dentro de su región** (Caso A). Super +
+   gerente (su región). Reincorporada el **27 jun 2026** (ver A10).
 
-> **"Cambiar ciudades" se quitó de Equipo (decisión 16 Jun).** La **gestión de territorio** (ajustar/
-> ampliar/mover ciudades) vive en **"Vendedores y comisiones"**. En Equipo, la cobertura del vendedor
-> solo se fija en el **alta**.
+> **"Cambiar ciudades" — Caso A reincorporado (27 jun 2026).** Agregar/quitar ciudades a un vendedor
+> **dentro de su región** ya vive en Equipo (acción 7). Lo único que sigue en **"Vendedores y comisiones"**
+> es la **multi-región** (ciudades de otra región / mover-con-reasignación de cartera = Pieza F, §Diferido).
 
 **E4 — revocados visibles (decisión 16 Jun, a partir de prueba de Juan):** un vendedor revocado **sigue
 apareciendo en la lista** con badge **"Sin acceso"** (el universo de la lista incluye a los ex-vendedores:
@@ -207,8 +212,27 @@ para razonarlo bien), NO en Equipo:
 - **Dos operaciones distintas:** (a) **agregar/quitar ciudades puntuales** (ajuste fino, incl. de
   regiones vecinas) y (b) **mover de región** (con reasignación de cartera).
 
-> En **Equipo y accesos (v1)**, "cambiar ciudades" solo hace (a) **dentro de la región actual**. Todo
-> lo demás (multi-región, multi-gerente, mover-con-reasignación) es trabajo del módulo 6.
+> En **Equipo y accesos**, "Cambiar ciudades" hace (a) **dentro de la región actual** — **ya implementado
+> (Caso A, 27 jun 2026)**. Todo lo demás (multi-región, multi-gerente, mover-con-reasignación = la operación
+> (b)) sigue siendo trabajo del módulo 6.
+
+### Workaround oficial para la beta: una segunda cuenta por región (decisión Juan, 27 jun 2026)
+
+Mientras la Pieza F no se construya, un vendedor que deba cubrir **otra región** se resuelve dándole una
+**segunda cuenta de vendedor** (con su propio correo, p. ej. un alias `+norte` / `+centro` — los alias `+`
+cuentan como correos distintos), cada cuenta acotada a **una** región. El modelo **ya lo soporta sin cambios**
+(cada cuenta cumple el trigger "una región" y el `LIMIT 1` del alcance por separado), **costo de desarrollo
+cero**.
+
+- **Cuándo basta:** cobertura **ocasional** de otra región (el escenario de la beta de Peñasco). Es la
+  solución recomendada por ahora; no cierra ninguna puerta (si luego se construye la Pieza F, las dos
+  carteras se pueden fusionar).
+- **Su techo (por qué NO sustituye a la Pieza F):** todo se **fragmenta por cuenta** → dos logins (no ve
+  las dos carteras juntas), **dos códigos de referido** (riesgo de atribuir a la región equivocada),
+  **comisiones devengadas por separado** (la escalera cuenta los activos de cada cuenta aparte, no sumados
+  → puede pagar distinto que una sola cartera), **dos cortes de efectivo / dos liquidaciones** (para quien
+  paga son dos vendedores aunque sea la misma persona) y se **cuenta doble** en reportes. Si un vendedor
+  opera **dos regiones en serio y a diario**, ese costo operativo justifica construir la Pieza F.
 
 ---
 

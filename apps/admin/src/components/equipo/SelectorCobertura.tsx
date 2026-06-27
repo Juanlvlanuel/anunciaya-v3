@@ -27,9 +27,13 @@ interface SelectorCoberturaProps {
   onRegionChange: (id: string) => void;
   ciudadIds: string[];
   onToggleCiudad: (id: string) => void;
+  /** Si se pasa, la región queda FIJA (no editable) y se muestra como etiqueta. Para "editar ciudades":
+   *  el cambio de región es otra operación (Pieza F), así que aquí solo se togglean ciudades. */
+  regionFijaNombre?: string | null;
 }
 
-export function SelectorCobertura({ regionId, onRegionChange, ciudadIds, onToggleCiudad }: SelectorCoberturaProps) {
+export function SelectorCobertura({ regionId, onRegionChange, ciudadIds, onToggleCiudad, regionFijaNombre }: SelectorCoberturaProps) {
+  const regionFija = regionFijaNombre !== undefined;
   const rol = useAuthPanelStore((s) => s.usuario?.rolEquipo);
   const esSuper = rol === 'superadmin';
 
@@ -51,14 +55,23 @@ export function SelectorCobertura({ regionId, onRegionChange, ciudadIds, onToggl
       {esSuper && (
         <div>
           <label className={LABEL}>Región</label>
-          <SelectorBuscable
-            testid="cobertura-region"
-            value={regionId}
-            onChange={onRegionChange}
-            opciones={opcionesRegion}
-            placeholder="Selecciona una región"
-            buscarPlaceholder="Buscar región…"
-          />
+          {regionFija ? (
+            <div
+              data-testid="cobertura-region-fija"
+              className="rounded-[10px] border border-borde bg-superficie-2 px-3 py-2.5 text-[13px] font-medium text-texto-2"
+            >
+              {regionFijaNombre ?? '—'}
+            </div>
+          ) : (
+            <SelectorBuscable
+              testid="cobertura-region"
+              value={regionId}
+              onChange={onRegionChange}
+              opciones={opcionesRegion}
+              placeholder="Selecciona una región"
+              buscarPlaceholder="Buscar región…"
+            />
+          )}
         </div>
       )}
 
