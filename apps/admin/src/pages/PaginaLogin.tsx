@@ -165,10 +165,16 @@ function PaginaLogin() {
 
   // Enlace de activación del equipo (?activarCuenta=<correo>): abrir directo "crea tu contraseña"
   // en el paso del código (la persona ya lo recibió en el correo) y limpiar el parámetro de la URL.
+  // Se lee SÍNCRONO (no solo en el efecto) para que el redirect por sesión de abajo no se dispare
+  // antes de procesar el enlace.
+  const correoActivarURL = new URLSearchParams(window.location.search).get('activarCuenta');
   useEffect(() => {
-    const correoActivar = new URLSearchParams(window.location.search).get('activarCuenta');
-    if (!correoActivar) return;
-    setCorreo(correoActivar);
+    if (!correoActivarURL) return;
+    // El enlace de activación es del MIEMBRO NUEVO, no de quien esté logueado en este navegador.
+    // Si hay una sesión activa (p. ej. el admin que acaba de dar de alta al vendedor), ciérrala:
+    // si no, el redirect a /inicio secuestra la activación y el correo del admin se cuela en el form.
+    if (usuarioSesion) cerrarSesion();
+    setCorreo(correoActivarURL);
     setModoActivacion(true);
     setPantalla('recuperar');
     window.history.replaceState({}, '', window.location.pathname);
@@ -182,8 +188,10 @@ function PaginaLogin() {
     setError2fa(false);
   }
 
-  // Si ya hay sesión del Panel hidratada, saltar el login.
-  if (hidratado && usuarioSesion && accessTokenSesion) {
+  // Si ya hay sesión del Panel hidratada, saltar el login — SALVO que llegue un enlace de
+  // activación de un miembro del equipo: ese miembro debe poder crear su contraseña aunque el
+  // admin que lo dio de alta siga logueado en este navegador (la sesión se cierra en el efecto).
+  if (hidratado && usuarioSesion && accessTokenSesion && !correoActivarURL && !modoActivacion) {
     return <Navigate to="/inicio" replace />;
   }
 
