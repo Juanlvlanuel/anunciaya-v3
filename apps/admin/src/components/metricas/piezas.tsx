@@ -155,20 +155,18 @@ export function TarjetaKpi({
   return (
     <div
       data-testid={testid}
-      className="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel lg:flex-row lg:items-start lg:gap-3.5 2xl:p-5"
+      className="group relative flex items-center gap-4 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel lg:flex-col lg:items-stretch lg:gap-0 2xl:p-5"
     >
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-marca-suave text-marca">
-        <Icono size={20} />
-      </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-[12px] font-semibold uppercase tracking-wide text-texto-4 lg:truncate">{etiqueta}</span>
-        <span className="flex items-baseline gap-2">
-          <span className="text-[24px] font-bold leading-none lg:text-[27px] 2xl:text-[30px]" style={{ color }}>
-            {formatoValor(kpi.valor, tipo)}
-          </span>
-          <ChipVariacion kpi={kpi} sentido={sentido} />
+      {/* Variante "cifra dominante". Móvil: tarjeta horizontal (cifra+variación a la izquierda · etiqueta
+          al lado · ícono al extremo). Escritorio (lg:flex-col): cifra arriba + ícono en la esquina + etiqueta debajo. */}
+      <span className="flex shrink-0 items-baseline gap-2 lg:pr-6">
+        <span className="text-[28px] font-bold leading-none tabular-nums lg:text-[32px] 2xl:text-[36px]" style={{ color }}>
+          {formatoValor(kpi.valor, tipo)}
         </span>
+        <ChipVariacion kpi={kpi} sentido={sentido} />
       </span>
+      <span className="min-w-0 flex-1 text-[14px] font-semibold text-texto lg:mt-3 lg:flex-none lg:truncate">{etiqueta}</span>
+      <Icono size={18} className="ml-auto shrink-0 text-texto-4 lg:absolute lg:right-4 lg:top-4 lg:ml-0 2xl:right-5 2xl:top-5" />
     </div>
   );
 }
@@ -191,24 +189,19 @@ export function TarjetaProgreso({
   testid?: string;
 }) {
   const pct = total > 0 ? Math.round((valor / total) * 100) : 0;
-  // Misma estructura/altura que TarjetaKpi (sin barra de progreso, que generaba aire): el "de N" y el
-  // "%" van en línea con el valor.
+  // Misma estructura "cifra dominante" que TarjetaKpi: el "de N" y el "%" acompañan al valor en baseline.
   return (
     <div
       data-testid={testid}
-      className="flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel lg:flex-row lg:items-start lg:gap-3.5 2xl:p-5"
+      className="group relative flex items-center gap-4 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel lg:flex-col lg:items-stretch lg:gap-0 2xl:p-5"
     >
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-marca-suave text-marca">
-        <Icono size={20} />
+      <span className="flex shrink-0 items-baseline gap-1.5 lg:pr-6">
+        <span className="text-[28px] font-bold leading-none tabular-nums lg:text-[32px] 2xl:text-[36px]">{FMT_NUM.format(valor)}</span>
+        <span className="text-[14px] font-semibold text-texto-3">de {FMT_NUM.format(total)}</span>
+        <span className="text-[13px] font-semibold text-marca">· {pct}%</span>
       </span>
-      <span className="flex min-w-0 flex-1 flex-col gap-1">
-        <span className="text-[12px] font-semibold uppercase tracking-wide text-texto-4 lg:truncate">{etiqueta}</span>
-        <span className="flex items-baseline gap-1.5">
-          <span className="text-[24px] font-bold leading-none lg:text-[27px] 2xl:text-[30px]">{FMT_NUM.format(valor)}</span>
-          <span className="text-[14px] font-semibold text-texto-3">de {FMT_NUM.format(total)}</span>
-          <span className="text-[12.5px] font-semibold text-marca">· {pct}%</span>
-        </span>
-      </span>
+      <span className="min-w-0 flex-1 text-[14px] font-semibold text-texto lg:mt-3 lg:flex-none lg:truncate">{etiqueta}</span>
+      <Icono size={18} className="ml-auto shrink-0 text-texto-4 lg:absolute lg:right-4 lg:top-4 lg:ml-0 2xl:right-5 2xl:top-5" />
     </div>
   );
 }

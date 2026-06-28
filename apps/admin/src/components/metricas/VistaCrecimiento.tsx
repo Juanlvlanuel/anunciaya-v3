@@ -41,7 +41,7 @@ export function VistaCrecimiento({ periodo, rol }: { periodo: PeriodoSel; rol: R
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 2xl:gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4 2xl:gap-4">
         <TarjetaKpi testid="metricas-kpi-negociosActivos" icono={Store} etiqueta={esVendedor ? 'Mi cartera' : 'Negocios activos'} kpi={kpis.negociosActivos} />
         <TarjetaKpi testid="metricas-kpi-altas" icono={TrendingUp} etiqueta="Altas" kpi={kpis.altas} sentido="positivo" />
         <TarjetaKpi testid="metricas-kpi-churn" icono={TrendingDown} etiqueta="Bajas" kpi={kpis.churn} sentido="negativo" />

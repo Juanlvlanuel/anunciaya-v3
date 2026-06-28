@@ -40,7 +40,7 @@ export function VistaAdopcion({ periodo }: { periodo: PeriodoSel }) {
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-4 2xl:gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4 2xl:gap-4">
         <TarjetaProgreso testid="metricas-adopcion-usan" icono={Smartphone} etiqueta="Usan la app" valor={negocios.activosEnApp.valor} total={negocios.totalQuePagan} />
         <TarjetaKpi testid="metricas-adopcion-clientes-total" icono={Users} etiqueta="Clientes" kpi={{ valor: clientes.total, anterior: null }} />
         <TarjetaKpi testid="metricas-adopcion-clientes-activos" icono={UserCheck} etiqueta="Activos" kpi={clientes.activos} acento="ok" sentido="positivo" />

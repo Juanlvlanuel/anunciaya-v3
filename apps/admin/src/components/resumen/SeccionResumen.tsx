@@ -148,11 +148,12 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
         {/* ── Encabezado: saludo + fecha de hoy ────────────────────────────── */}
         <div className="flex flex-col gap-0.5">
           <h2 className="text-[18px] font-semibold tracking-[-0.2px] text-texto">{saludo}</h2>
-          <p className="text-[12.5px] text-texto-3">{fechaHoy}</p>
+          <p className="text-[13px] text-texto-3">{fechaHoy}</p>
         </div>
 
         {/* ── KPIs ─────────────────────────────────────────────────────────── */}
-        <div className={`grid grid-cols-2 gap-3 ${colsLg} 2xl:gap-4`}>
+        {/* Móvil: 1 columna (tarjetas horizontales apiladas una sobre otra). Escritorio: 3/4 columnas. */}
+        <div className={`grid grid-cols-1 gap-3 ${colsLg} 2xl:gap-4`}>
           {kpis.map((k) => {
             const meta = META_KPI[k.clave];
             if (!meta) return null;
@@ -167,24 +168,22 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
                 type="button"
                 data-testid={`resumen-kpi-${k.clave}`}
                 onClick={() => navegar(meta.destino, meta.filtro)}
-                className="group flex flex-col gap-2.5 rounded-[14px] border border-borde bg-superficie p-4 text-left shadow-tarjeta-panel transition hover:border-borde-fuerte hover:bg-superficie-2 lg:flex-row lg:items-start lg:gap-3.5 2xl:p-5"
+                className="group relative flex items-center gap-4 rounded-[14px] border border-borde bg-superficie p-4 text-left shadow-tarjeta-panel transition hover:border-borde-fuerte hover:bg-superficie-2 lg:flex-col lg:items-stretch lg:gap-0 2xl:p-5"
               >
-                {/* Móvil: ícono arriba, texto debajo a lo ancho (sin truncar). Escritorio: ícono a la izquierda. */}
-                <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-marca-suave text-marca">
-                  <Icono size={20} />
+                {/* Variante "cifra dominante". Móvil: tarjeta horizontal a todo el ancho (cifra a la
+                    izquierda · texto al lado · ícono al extremo). Escritorio (lg:flex-col): cifra arriba
+                    con el ícono en la esquina superior derecha y el texto debajo. */}
+                <span
+                  className="shrink-0 text-[28px] font-bold leading-none tabular-nums lg:truncate lg:pr-6 lg:text-[32px] 2xl:text-[36px]"
+                  style={{ color: colorAcento(acento) }}
+                >
+                  {valor}
                 </span>
-                <span className="flex min-w-0 flex-1 flex-col gap-1">
-                  <span className="flex items-start justify-between gap-1">
-                    <span className="text-[12px] font-semibold uppercase tracking-wide text-texto-4 lg:truncate">
-                      {meta.etiqueta}
-                    </span>
-                    <ChevronRight size={15} className="hidden shrink-0 text-texto-4 opacity-0 transition group-hover:opacity-100 lg:block" />
-                  </span>
-                  <span className="text-[24px] font-bold leading-none lg:truncate lg:text-[27px] 2xl:text-[30px]" style={{ color: colorAcento(acento) }}>
-                    {valor}
-                  </span>
-                  {contexto && <span className="text-[11.5px] text-texto-3 lg:truncate">{contexto}</span>}
+                <span className="flex min-w-0 flex-col lg:mt-3">
+                  <span className="text-[14px] font-semibold text-texto lg:truncate">{meta.etiqueta}</span>
+                  {contexto && <span className="mt-0.5 text-[13px] text-texto-3 lg:truncate">{contexto}</span>}
                 </span>
+                <Icono size={18} className="ml-auto shrink-0 text-texto-4 transition group-hover:text-marca lg:absolute lg:right-4 lg:top-4 lg:ml-0 2xl:right-5 2xl:top-5" />
               </button>
             );
           })}
@@ -193,8 +192,8 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
         {/* ── Cola de pendientes ───────────────────────────────────────────── */}
         <div className="flex flex-col gap-3">
           <div className="flex items-center justify-between">
-            <h3 className="text-[13px] font-semibold uppercase tracking-wide text-texto-3">Pendientes por resolver</h3>
-            <span className="font-mono text-[11px] text-texto-4">
+            <h3 className="text-[14px] font-semibold text-texto-2">Pendientes por resolver</h3>
+            <span className="font-mono text-[12px] text-texto-4">
               {pendientes.contador} {pendientes.contador === 1 ? 'tarea' : 'tareas'}
             </span>
           </div>

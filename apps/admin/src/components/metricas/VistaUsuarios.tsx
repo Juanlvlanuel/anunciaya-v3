@@ -30,7 +30,7 @@ export function VistaUsuarios({ periodo }: { periodo: PeriodoSel }) {
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
       {/* KPIs */}
-      <div className="grid grid-cols-2 gap-3 lg:grid-cols-3 2xl:gap-4">
+      <div className="grid grid-cols-1 gap-3 lg:grid-cols-3 2xl:gap-4">
         <TarjetaKpi testid="metricas-usuarios-total" icono={Users} etiqueta="Usuarios" kpi={kpis.total} />
         <TarjetaKpi testid="metricas-usuarios-nuevos" icono={UserPlus} etiqueta="Nuevos" kpi={kpis.nuevos} sentido="positivo" />
         <TarjetaKpi testid="metricas-usuarios-activos" icono={UserCheck} etiqueta="Activos" kpi={kpis.activos} acento="ok" />

@@ -161,12 +161,16 @@ controla cuál sección está activa (una a la vez).
 inicio (`components/resumen/SeccionResumen.tsx`).
 - **Encabezado:** saludo por hora + nombre (`h2` ~18px) y fecha de hoy (`texto-3`). No repite el título
   de la sección (ya vive en la barra negra).
-- **Tarjeta KPI** (clicable → deep-link): ícono en cuadro `bg-marca-suave text-marca` (`rounded-[11px]`,
-  ~44px), valor `font-bold` 24/27/30px (base/lg/2xl) con **acento por color** (`ok` ingresos, `peligro`
-  si fallidos>0), etiqueta uppercase `texto-4` y una línea de contexto `texto-3`. `shadow-tarjeta-panel`.
-  **Responsive obligatorio:** **móvil apilado** (ícono arriba, texto a lo ancho, **sin** truncar) /
-  **escritorio horizontal** (`lg:flex-row` + `lg:truncate`). Grid `grid-cols-2 lg:grid-cols-4` (3 KPIs →
-  `lg:grid-cols-3`).
+- **Tarjeta KPI** (clicable → deep-link) — patrón **"cifra dominante"**: el **valor manda arriba**
+  (`font-bold` 28/32/36px base/lg/2xl, `tabular-nums`) con **acento por color** (`ok` ingresos,
+  `peligro` si fallidos>0) y un **ícono discreto** (18px, `texto-4` → `marca` en hover) en la esquina
+  superior derecha — **sin** caja/círculo pastel (alinea con §10). Debajo: **etiqueta en sentence case**
+  `text-[14px]` `texto` (no uppercase micro) y una línea de contexto `text-[13px]` `texto-3`.
+  `shadow-tarjeta-panel`. **Responsive:** **móvil = tarjeta horizontal** a todo el ancho (cifra a la
+  izquierda · etiqueta+contexto al lado · ícono al extremo, `relative` + ícono `ml-auto`) apiladas
+  **una por fila** (`grid-cols-1`); **escritorio = vertical** (`lg:flex-col`, cifra arriba + ícono
+  `lg:absolute` en la esquina + texto debajo, con `lg:truncate`). Grid `grid-cols-1 lg:grid-cols-4`
+  (3 KPIs → `lg:grid-cols-3`).
 - **Cola de pendientes:** dos `BloquePendiente` (`lg:grid-cols-2`), cada uno con header (ícono
   marca-suave + título + badge contador) y hasta **5 filas** (`FilaPendiente`: ícono + identidad +
   valor a la derecha). **"Ver todos →"** solo cuando hay más de las mostradas. **Estado vacío
@@ -189,8 +193,11 @@ inicio (`components/resumen/SeccionResumen.tsx`).
 - **Tooltip:** componente propio con tokens (no el default), label legible (mes/día), valores en `abs`.
 - **Ranking / leaderboard:** filas con posición + (avatar real opcional, reusa `AvatarNegocio`) +
   etiqueta + valor, con **barra de fondo proporcional** por fila (no una línea suelta debajo).
-- **KPI con variación:** valor 24/27/30 + chip `↑/↓ %` (verde/rojo por sentido); se **oculta** cuando el
-  periodo anterior es 0 (de 0 a N no es "100%"). Sin línea de contexto bajo el número (ensucia).
+- **KPI con variación** (`TarjetaKpi`/`TarjetaProgreso`): mismo patrón **"cifra dominante"** que el
+  Resumen — valor 28/32/36 con chip `↑/↓ %` en baseline (verde/rojo por sentido; se **oculta** cuando el
+  periodo anterior es 0), etiqueta en sentence case debajo (`text-[14px]`) e ícono discreto 18px en la
+  esquina (sin caja pastel). **Móvil = tarjeta horizontal** a 1 columna (`grid-cols-1`) / **escritorio
+  vertical** (`lg:flex-col`, `lg:grid-cols-3|4`). Sin línea de contexto bajo el número (ensucia).
 
 **Mapa interactivo a pantalla (estrenado en Ciudades, ampliado en Territorios)** — secciones cuyo
 lienzo principal es un mapa **MapLibre** (tiles OpenFreeMap). Detalle frágil completo en
