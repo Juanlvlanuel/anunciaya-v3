@@ -383,15 +383,18 @@ export const Navbar = () => {
     : usuario?.nombre?.charAt(0).toUpperCase() || '?';
 
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
-  // En el Home (/inicio) el buscador del header es inerte: la sección es
-  // 'general' (sin overlay ni página que lea el query) y además compite
-  // visualmente con el input de Coyo. Se vuelve INVISIBLE solo aquí (no se
-  // desmonta) para conservar el ancho que ocupaba — así ubicación, tabs y
-  // acciones no se reacomodan: es "ocultar", no "quitar". Además se matan
-  // las transiciones del subárbol ([&_*]:transition-none!) porque la lupa y
-  // el pill usan transition-all (incluye `visibility`); sin esto, al navegar
-  // a /inicio se vería la animación de ocultarse en vez de desaparecer ya.
-  const esInicio = location.pathname === '/inicio';
+  // El buscador del header solo sirve en las 4 secciones con overlay
+  // (Negocios, MarketPlace, Ofertas, Servicios) — son las únicas donde una
+  // página lee el `query` y filtra. En cualquier sección 'general' (Home
+  // /inicio, CardYA, Mis Cupones, Mis Publicaciones, Perfil, Guardados…) es
+  // inerte y, en el Home, compite visualmente con el input de Coyo. Por eso
+  // se vuelve INVISIBLE en todas ellas (no se desmonta) para conservar el
+  // ancho que ocupaba — así ubicación, tabs y acciones no se reacomodan: es
+  // "ocultar", no "quitar". Además se matan las transiciones del subárbol
+  // ([&_*]:transition-none!) porque la lupa y el pill usan transition-all
+  // (incluye `visibility`); sin esto, al navegar se vería la animación de
+  // ocultarse en vez de desaparecer ya.
+  const ocultarBuscador = !seccionUsaOverlay;
 
   const NAV_ITEMS = esComercial
     ? NAV_ITEMS_BASE
@@ -487,8 +490,8 @@ export const Navbar = () => {
                     queda fuera del pill como elemento independiente. ===== */}
                 <div
                   ref={buscadorRef}
-                  className={`relative flex items-center ${esInicio ? 'invisible pointer-events-none [&_*]:transition-none!' : ''}`}
-                  aria-hidden={esInicio || undefined}
+                  className={`relative flex items-center ${ocultarBuscador ? 'invisible pointer-events-none [&_*]:transition-none!' : ''}`}
+                  aria-hidden={ocultarBuscador || undefined}
                   onMouseLeave={() => {
                     if (document.activeElement !== inputBuscadorRef.current && !searchQuery.trim()) {
                       setBuscadorExpandido(false);

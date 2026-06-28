@@ -25,7 +25,7 @@ import Stripe from 'stripe';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
 import { db } from '../db/index.js';
-import { usuarios, negocios, negocioSucursales, embajadores, pagosMembresia, eventosPago } from '../db/schemas/schema.js';
+import { usuarios, negocios, negocioSucursales, embajadores, pagosMembresia } from '../db/schemas/schema.js';
 import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
@@ -400,6 +400,108 @@ export async function crearCheckoutUpgrade(
 }
 
 // =============================================================================
+// FUNCIÓN 1.6: ACTIVAR COBRO CON TARJETA EN UN NEGOCIO EXISTENTE (manual → tarjeta)
+// =============================================================================
+
+/**
+ * Crea un Checkout (subscription) para que un negocio que hoy paga MANUAL active el cobro con
+ * tarjeta. RESPETA la vigencia restante: si `fecha_vencimiento` es futura, la suscripción nace con
+ * `trial_end` en esa fecha (no cobra ahora; el primer cargo cae al vencer lo pagado). Si el negocio
+ * está vencido/en gracia/suspendido, cobra de inmediato (recupera al moroso). No crea negocio.
+ */
+export async function crearCheckoutActivarTarjeta(usuarioId: string): Promise<RespuestaCheckout> {
+    const [usuario] = await db.select().from(usuarios).where(eq(usuarios.id, usuarioId)).limit(1);
+    if (!usuario) throw new Error('Usuario no encontrado');
+    if (!usuario.tieneModoComercial || !usuario.negocioId) throw new Error('No tienes un negocio comercial');
+
+    const [neg] = await db.select().from(negocios).where(eq(negocios.id, usuario.negocioId)).limit(1);
+    if (!neg) throw new Error('Negocio no encontrado');
+    if (neg.estadoAdmin === 'archivado') throw new Error('Tu negocio está cancelado');
+    if (neg.metodoCobro === 'tarjeta' || usuario.stripeSubscriptionId) throw new Error('Ya tienes cobro con tarjeta');
+
+    const priceComercial = await obtenerPriceComercial('month');
+
+    // Respeta la vigencia: trial_end = fecha_vencimiento si es futura (no cobra ya). Si venció, cobro
+    // inmediato (sin trial). Margen de 1 min para no mandar a Stripe un trial_end prácticamente "ahora".
+    const ahoraMs = Date.now();
+    const vencMs = neg.fechaVencimiento ? new Date(neg.fechaVencimiento).getTime() : 0;
+    const usarTrial = vencMs > ahoraMs + 60_000;
+
+    const session = await stripe.checkout.sessions.create({
+        mode: 'subscription',
+        line_items: [{ price: priceComercial, quantity: 1 }],
+        subscription_data: {
+            ...(usarTrial ? { trial_end: Math.floor(vencMs / 1000) } : {}),
+            metadata: { usuarioId, negocioId: neg.id, tipo: 'activar_tarjeta' },
+        },
+        metadata: { usuarioId, negocioId: neg.id, tipo: 'activar_tarjeta' },
+        ...(usuario.stripeCustomerId
+            ? { customer: usuario.stripeCustomerId }
+            : { customer_email: usuario.correo }),
+        success_url: `${env.FRONTEND_URL}/perfil?tarjeta=activada`,
+        cancel_url: `${env.FRONTEND_URL}/perfil`,
+        allow_promotion_codes: true,
+        locale: 'es',
+    });
+
+    return { sessionId: session.id, checkoutUrl: session.url! };
+}
+
+/**
+ * Webhook de `checkout.session.completed` para `tipo='activar_tarjeta'`: asocia la suscripción y el
+ * cliente al usuario, pasa el negocio a `metodo_cobro='tarjeta'` y sella las fechas. NO crea negocio.
+ * Si cobró de inmediato (negocio vencido), registra el cobro (recibo + comisión, idempotente por invoice).
+ */
+async function manejarActivacionTarjeta(session: Stripe.Checkout.Session): Promise<void> {
+    const md = session.metadata;
+    const usuarioId = md?.usuarioId;
+    const negocioId = md?.negocioId;
+    if (!usuarioId || !negocioId) {
+        console.error('⚠️ activar_tarjeta sin metadata (usuarioId/negocioId)');
+        return;
+    }
+    const subId = session.subscription as string;
+
+    await db
+        .update(usuarios)
+        .set({
+            stripeSubscriptionId: subId,
+            stripeCustomerId: (session.customer as string) || undefined,
+            updatedAt: new Date().toISOString(),
+        })
+        .where(eq(usuarios.id, usuarioId));
+    await db
+        .update(negocios)
+        .set({ metodoCobro: 'tarjeta', updatedAt: new Date().toISOString() })
+        .where(eq(negocios.id, negocioId));
+
+    // Sella `fecha_proximo_cobro`/`fecha_vencimiento` desde Stripe (current_period_end = trial_end o el cobro).
+    await sellarFechasPeriodoDesdeStripe(negocioId, subId);
+
+    // Cobro inmediato (negocio vencido sin trial): registra recibo + comisión (idempotente por invoice).
+    try {
+        const sub = await stripe.subscriptions.retrieve(subId, { expand: ['latest_invoice'] });
+        const latest = sub.latest_invoice;
+        const inv = (typeof latest === 'string' ? await stripe.invoices.retrieve(latest) : latest) as unknown as {
+            id?: string; amount_paid?: number; lines?: { data?: Array<{ period?: { end?: number } }> };
+        } | null;
+        if (inv?.id && (inv.amount_paid ?? 0) > 0) {
+            await registrarCobroReal({
+                negocioId,
+                invoiceId: inv.id,
+                montoCentavos: inv.amount_paid ?? 0,
+                finPeriodo: unixAISO(inv.lines?.data?.[0]?.period?.end),
+                clienteId: session.customer as string,
+            });
+        }
+    } catch (e) {
+        console.error('❌ activar_tarjeta: error registrando el cobro inicial:', e);
+    }
+
+    console.log(`💳 Tarjeta activada en negocio existente: ${negocioId} (sub ${subId})`);
+}
+
+// =============================================================================
 // FUNCIÓN 2: PROCESAR WEBHOOK DE STRIPE
 // =============================================================================
 
@@ -652,6 +754,12 @@ async function manejarCheckoutCompletado(
     // -------------------------------------------------------------------------
     // PASO 1.5: Si es upgrade, delegar a función específica
     // -------------------------------------------------------------------------
+    // Activar cobro con tarjeta en un negocio EXISTENTE (manual → tarjeta). No crea negocio.
+    if (metadata.tipo === 'activar_tarjeta') {
+        await manejarActivacionTarjeta(session);
+        return;
+    }
+
     if (metadata.tipo === 'upgrade_comercial') {
         await manejarUpgradeCompletado(session);
         return;
@@ -1351,13 +1459,22 @@ export async function registrarCobroReal(opts: {
     const { negocioId, invoiceId, montoCentavos, finPeriodo, clienteId } = opts;
     const monto = montoCentavos / 100;
 
-    // Idempotencia: si este invoice ya está en la bitácora, no repetir (evita doble comisión/recibo).
-    const [ya] = await db
-        .select({ id: eventosPago.id })
-        .from(eventosPago)
-        .where(eq(eventosPago.stripeEventId, invoiceId))
-        .limit(1);
-    if (ya) return;
+    // CANDADO ATÓMICO de idempotencia: insertar la fila de bitácora ES el cerrojo. El INSERT con
+    // onConflictDoNothing sobre stripe_event_id (=invoiceId) solo "gana" una vez; si NO gana, este
+    // invoice ya lo registró otro proceso (o un reintento) → abortamos ANTES de comisión/recibo. Esto
+    // reemplaza el viejo SELECT-luego-INSERT, que tenía una race entre checkout.session.completed e
+    // invoice.payment_succeeded (mismo invoice, casi simultáneos) → ambos pasaban el SELECT y emitían
+    // DOS recibos. Por eso la bitácora se registra ARRIBA (antes era el penúltimo paso).
+    const gane = await registrarEventoPago({
+        negocioId,
+        tipo: 'cobro_exitoso',
+        origen: 'stripe',
+        monto,
+        fechaEvento: new Date().toISOString(),
+        stripeEventId: invoiceId,
+        metadata: { customerId: clienteId, finPeriodo, invoiceId },
+    });
+    if (!gane) return;
 
     // VIGENCIA real = hasta cuándo está cubierto el negocio (lo que el cliente ve "activa hasta" en el recibo
     // y el periodo que cubre la comisión): el fin facturado por Stripe MÁS la cortesía del vendedor en el
@@ -1391,16 +1508,7 @@ export async function registrarCobroReal(opts: {
         .set({ fechaPrimerPago: sql`COALESCE(${negocios.fechaPrimerPago}, (now() AT TIME ZONE 'America/Hermosillo')::date)` })
         .where(eq(negocios.id, negocioId));
 
-    // Bitácora financiera (idempotente por stripe_event_id = invoiceId).
-    await registrarEventoPago({
-        negocioId,
-        tipo: 'cobro_exitoso',
-        origen: 'stripe',
-        monto,
-        fechaEvento: new Date().toISOString(),
-        stripeEventId: invoiceId,
-        metadata: { customerId: clienteId, finPeriodo, invoiceId },
-    });
+    // (La bitácora financiera ya se registró ARRIBA, como candado atómico de idempotencia.)
 
     // Comisión del vendedor: alta (pago único) + recurrente AL COBRO. Best-effort + idempotente.
     try {
@@ -1847,6 +1955,7 @@ export async function verificarSession(
 export default {
     crearCheckoutSession,
     crearCheckoutUpgrade,
+    crearCheckoutActivarTarjeta,
     procesarWebhook,
     verificarSession,
     validarCodigoReferido,

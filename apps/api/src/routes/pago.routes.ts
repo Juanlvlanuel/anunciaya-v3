@@ -74,8 +74,48 @@ router.get('/validar-referido', verificarToken, pagoController.validarReferido);
 router.get('/mi-negocio-archivado', verificarToken, pagoController.miNegocioArchivado);
 
 /**
+ * GET /api/pagos/mi-membresia
+ * Estado de la membresía del negocio del usuario logueado + historial de recibos
+ * (Mi Perfil · Modo Personal · sección Membresía/Pagos). REQUIERE AUTENTICACIÓN.
+ */
+router.get('/mi-membresia', verificarToken, pagoController.miMembresia);
+
+/**
+ * GET /api/pagos/mi-recibo/:reciboId/descargar
+ * Devuelve la URL del PDF de un recibo propio (validado contra el negocio del usuario).
+ * REQUIERE AUTENTICACIÓN.
+ */
+router.get('/mi-recibo/:reciboId/descargar', verificarToken, pagoController.descargarMiRecibo);
+
+/**
+ * POST /api/pagos/portal
+ * Crea una sesión del Customer Portal de Stripe (actualizar tarjeta + pagar factura pendiente)
+ * y devuelve su URL. REQUIERE AUTENTICACIÓN.
+ */
+router.post('/portal', verificarToken, pagoController.crearPortal);
+
+// ─── Pago manual (transferencia/depósito + comprobante → cola de verificación) ───
+
+/** GET /api/pagos/datos-cobro — datos de la cuenta de AnunciaYA para depositar. */
+router.get('/datos-cobro', verificarToken, pagoController.datosCobro);
+
+/** POST /api/pagos/comprobante/url-subida — presigned URL para subir el comprobante a R2. */
+router.post('/comprobante/url-subida', verificarToken, pagoController.urlSubidaComprobante);
+
+/** POST /api/pagos/solicitud-pago-manual — crea la solicitud (cola de verificación). */
+router.post('/solicitud-pago-manual', verificarToken, pagoController.crearSolicitudPagoManual);
+
+// ─── Cambio de método de cobro (tarjeta ↔ manual) ───
+
+/** POST /api/pagos/cambiar-a-manual — cancela el cobro automático y pasa a pago manual. */
+router.post('/cambiar-a-manual', verificarToken, pagoController.cambiarAManual);
+
+/** POST /api/pagos/cambiar-a-tarjeta — Checkout para activar el cobro con tarjeta (respeta vigencia). */
+router.post('/cambiar-a-tarjeta', verificarToken, pagoController.cambiarATarjeta);
+
+/**
  * POST /api/pagos/webhook
- * 
+ *
  * Webhook de Stripe para recibir eventos.
  * 
  * CRÍTICO: Este endpoint usa express.raw() para obtener el body sin parsear.

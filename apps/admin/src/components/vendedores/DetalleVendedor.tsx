@@ -357,19 +357,26 @@ function cap(s: string): string {
 function fechaDia(d: Date): string {
   return `${d.getDate()} ${cap(MESES[d.getMonth()] ?? '')} ${d.getFullYear()}`;
 }
-/** Concepto del pago que generó la comisión: alta, mensualidad o anualidad. */
+/** Concepto del pago que generó la comisión: alta, o el nº de meses pagados (1 = mensualidad, 12 = anualidad). */
 function conceptoPago(c: ComisionFila): string {
   if (c.tipo === 'alta') return 'Comisión de alta';
-  return (c.meses ?? 1) > 1 ? 'Pago de Anualidad' : 'Pago de Mensualidad';
+  const meses = c.meses ?? 1;
+  if (meses === 1) return 'Pago de Mensualidad';
+  if (meses === 12) return 'Pago de Anualidad';
+  return `Pago de ${meses} meses`;
 }
-/** Periodo EXACTO que comprende el pago: del DÍA del cobro (`creada`) a la cobertura real (`coberturaHasta`
- *  = fecha de próximo cobro, que ya incluye la cortesía del vendedor). Una mensualidad cobrada el 18 Jun con
- *  vigencia al 18 Jul → "18 Jun 2026 – 18 Jul 2026". La alta es pago único → solo su fecha. Sin datos, cae al
- *  mes del periodo. */
+/** Periodo EXACTO que cubren los meses pagados: de `coberturaHasta − meses` a `coberturaHasta` (la cobertura
+ *  real, que ya incluye la cortesía). Se calcula hacia atrás desde la cobertura — NO desde el día del cobro —
+ *  porque si el negocio ya estaba cubierto por adelantado, el pago extiende a partir de esa cobertura previa
+ *  (ej. cubierto a jul; paga 3 meses → "Jul – Oct", no desde el día del cobro). La alta es pago único → solo
+ *  su fecha. Sin datos, cae al mes del periodo. */
 function periodoCobertura(c: ComisionFila): string {
   if (c.tipo === 'alta') return c.creada ? fechaDia(new Date(c.creada)) : '—';
-  if (!c.coberturaHasta || !c.creada) return c.periodo ? cap(periodoLegible(c.periodo)) : '—';
-  return `${fechaDia(new Date(c.creada))} – ${fechaDia(new Date(c.coberturaHasta))}`;
+  if (!c.coberturaHasta) return c.periodo ? cap(periodoLegible(c.periodo)) : '—';
+  const hasta = new Date(c.coberturaHasta);
+  const desde = new Date(hasta);
+  desde.setMonth(desde.getMonth() - (c.meses ?? 1));
+  return `${fechaDia(desde)} – ${fechaDia(hasta)}`;
 }
 
 function KpiComision({ etiqueta, monto, color, icono: Icono }: { etiqueta: string; monto: number; color?: string; icono: LucideIcon }) {
@@ -393,7 +400,7 @@ function FilaComision({ c, cols }: { c: ComisionFila; cols: string }) {
     >
       {/* Negocio (logo + nombre) */}
       <span className="flex min-w-0 items-center gap-3">
-        <AvatarNegocio nombre={negocio} tam={38} />
+        <AvatarNegocio nombre={negocio} logoUrl={c.logoUrl} tam={44} />
         <span className="truncate text-[14px] font-semibold text-texto">{negocio}</span>
       </span>
       {/* Concepto */}

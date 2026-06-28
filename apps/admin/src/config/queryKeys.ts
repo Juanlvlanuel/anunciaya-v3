@@ -143,6 +143,8 @@ export const queryKeys = {
     all: () => ['suscripciones'] as const,
     lista: (filtros: FiltrosSuscripcionesKey) => ['suscripciones', 'lista', filtros] as const,
     detalle: (id: string) => ['suscripciones', 'detalle', id] as const,
+    solicitudes: () => ['suscripciones', 'solicitudes'] as const,
+    datosCobro: () => ['suscripciones', 'datos-cobro'] as const,
   },
   recibos: {
     all: () => ['recibos'] as const,

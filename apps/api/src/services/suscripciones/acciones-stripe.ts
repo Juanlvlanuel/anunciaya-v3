@@ -37,6 +37,21 @@ function mensajeError(error: unknown): string {
 }
 
 /**
+ * ¿El error de Stripe es "la suscripción ya no existe" (code `resource_missing`, 404)?
+ * Pasa sobre todo en TEST cuando Stripe purga datos viejos; en PROD las subs canceladas NO se
+ * borran (siguen existiendo con status 'canceled'). Es un caso esperable, no un fallo del sistema:
+ * se loguea como `warn` (sin stack) y se trata igual que una sub cancelada.
+ */
+function esSubInexistente(error: unknown): boolean {
+    return !!(
+        error &&
+        typeof error === 'object' &&
+        'code' in error &&
+        (error as { code?: string }).code === 'resource_missing'
+    );
+}
+
+/**
  * Pausa el cobro automático de la tarjeta SIN generar deuda (behavior 'void').
  * Defensiva: si la suscripción ya está cancelada en Stripe, no hay nada que pausar.
  */
@@ -51,6 +66,10 @@ export async function pausarCobroSuscripcion(subscriptionId: string): Promise<Re
         });
         return { ok: true };
     } catch (error) {
+        if (esSubInexistente(error)) {
+            console.warn(`[Stripe] La suscripción ${subscriptionId} ya no existe; no se pudo pausar.`);
+            return { ok: false, aviso: 'La suscripción ya no existe en Stripe; no se pudo pausar el cobro.' };
+        }
         console.error('[Stripe] Error pausando cobro de suscripción', subscriptionId, error);
         return { ok: false, aviso: `No se pudo pausar el cobro en Stripe (${mensajeError(error)}).` };
     }
@@ -71,6 +90,10 @@ export async function reanudarCobroSuscripcion(subscriptionId: string): Promise<
         });
         return { ok: true };
     } catch (error) {
+        if (esSubInexistente(error)) {
+            console.warn(`[Stripe] La suscripción ${subscriptionId} ya no existe; no se pudo reanudar.`);
+            return { ok: false, aviso: 'La suscripción ya no existe en Stripe; no se pudo reanudar el cobro.' };
+        }
         console.error('[Stripe] Error reanudando cobro de suscripción', subscriptionId, error);
         return { ok: false, aviso: `No se pudo reanudar el cobro en Stripe (${mensajeError(error)}).` };
     }
@@ -89,6 +112,11 @@ export async function cancelarSuscripcion(subscriptionId: string): Promise<Resul
         await stripe.subscriptions.cancel(subscriptionId);
         return { ok: true };
     } catch (error) {
+        if (esSubInexistente(error)) {
+            // Ya no existe en Stripe = el corte ya está hecho → idempotente, ok.
+            console.warn(`[Stripe] La suscripción ${subscriptionId} ya no existe; se considera cancelada.`);
+            return { ok: true };
+        }
         console.error('[Stripe] Error cancelando suscripción', subscriptionId, error);
         return { ok: false, aviso: `No se pudo cancelar la suscripción en Stripe (${mensajeError(error)}).` };
     }
@@ -133,6 +161,10 @@ export async function empujarCobroSuscripcion(subscriptionId: string, hastaISO: 
         });
         return { ok: true };
     } catch (error) {
+        if (esSubInexistente(error)) {
+            console.warn(`[Stripe] La suscripción ${subscriptionId} ya no existe; no se pudo empujar el cobro.`);
+            return { ok: false, aviso: 'La suscripción ya no existe en Stripe; el cobro automático no se reprogramó.' };
+        }
         console.error('[Stripe] Error empujando cobro de suscripción', subscriptionId, error);
         return { ok: false, aviso: `No se pudo empujar el cobro en Stripe (${mensajeError(error)}).` };
     }
@@ -152,6 +184,10 @@ export async function leerProximoCobroStripe(subscriptionId: string): Promise<st
         const unix = (sub as unknown as { current_period_end?: number | null }).current_period_end;
         return unix ? new Date(unix * 1000).toISOString() : null;
     } catch (error) {
+        if (esSubInexistente(error)) {
+            console.warn(`[Stripe] La suscripción ${subscriptionId} ya no existe; sin próximo cobro.`);
+            return null;
+        }
         console.error('[Stripe] Error leyendo próximo cobro de suscripción', subscriptionId, error);
         return null;
     }

@@ -19,13 +19,15 @@ import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
-import { useBitacora, usePrefetchEvento } from '../../hooks/queries/useSuscripcionesAdmin';
+import { useBitacora, usePrefetchEvento, useSolicitudesPendientes } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { OrdenEvento, EventoFila, ConteosEventos } from '../../services/suscripcionesService';
 import { metaTipoEvento, BadgeTipoEvento, TIPOS_EVENTO_FILTRO } from './estadoEvento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { AvatarNegocio } from '../negocios/avatares';
 import { FichaEvento } from './FichaEvento';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
+import { PestanaPorVerificar } from './PestanaPorVerificar';
+import { PestanaDatosCobro } from './PestanaDatosCobro';
 
 const POR_PAGINA = 20;
 
@@ -83,7 +85,8 @@ function desdeDelPeriodo(periodo: string): string | undefined {
   return d.toISOString();
 }
 
-export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
+/** Cuerpo de la pestaña "Bitácora" (el libro mayor financiero). Es la vista original del módulo. */
+function PestanaBitacora() {
   const esEscritorio = useEsEscritorio();
 
   const [busqueda, setBusqueda] = useState('');
@@ -555,6 +558,78 @@ function Paginacion({
           Siguiente <ChevronRight size={14} />
         </button>
       </div>
+    </div>
+  );
+}
+
+// =============================================================================
+// WRAPPER CON PESTAÑAS
+// =============================================================================
+
+type TabSuscripciones = 'bitacora' | 'por-verificar' | 'datos-cobro';
+
+const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string }[] = [
+  { id: 'bitacora', etiqueta: 'Bitácora' },
+  { id: 'por-verificar', etiqueta: 'Por verificar' },
+  { id: 'datos-cobro', etiqueta: 'Datos de depósito' },
+];
+
+/**
+ * Sección Suscripciones del Panel con 3 pestañas:
+ *   - Bitácora      → el libro mayor financiero (vista original, autogestiona su alto/scroll).
+ *   - Por verificar → cola de pagos manuales con comprobante (aprobar/rechazar).
+ *   - Datos de depósito → cuenta bancaria que ve el dueño (editar = solo superadmin).
+ *
+ * Alcance por rol/región lo aplica el backend. El badge "Por verificar" usa el mismo hook que
+ * la pestaña, así su contador y la lista siempre cuadran.
+ */
+export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
+  const [tab, setTab] = useState<TabSuscripciones>('bitacora');
+  const { data: solicitudes } = useSolicitudesPendientes();
+  const pendientes = solicitudes?.length ?? 0;
+
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      {/* Pestañas */}
+      <div className="shrink-0 px-4 pt-3 lg:px-5">
+        <div className="flex gap-5 overflow-x-auto border-b border-borde [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {TABS_SUSCRIPCIONES.map((t) => {
+            const activo = tab === t.id;
+            const badge = t.id === 'por-verificar' && pendientes > 0 ? pendientes : null;
+            return (
+              <button
+                key={t.id}
+                type="button"
+                data-testid={`suscripciones-tab-${t.id}`}
+                data-active={activo}
+                onClick={() => setTab(t.id)}
+                className={`relative inline-flex items-center gap-1.5 whitespace-nowrap px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${
+                  activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'
+                }`}
+              >
+                {t.etiqueta}
+                {badge != null && (
+                  <span className="txt-badge inline-flex min-w-[18px] items-center justify-center rounded-full bg-marca px-1.5 text-[11px] font-semibold text-marca-contraste">
+                    {badge}
+                  </span>
+                )}
+                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Vista activa */}
+      {tab === 'bitacora' ? (
+        <div className="min-h-0 flex-1">
+          <PestanaBitacora />
+        </div>
+      ) : (
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-5">
+          {tab === 'por-verificar' ? <PestanaPorVerificar /> : <PestanaDatosCobro />}
+        </div>
+      )}
     </div>
   );
 }

@@ -19,6 +19,7 @@
 
 import type { Request, Response } from 'express';
 import pagoService, { WebhookReintentable } from '../services/pago.service.js';
+import membresiaService from '../services/membresia.service.js';
 
 // =============================================================================
 // CONTROLADOR 1: CREAR CHECKOUT SESSION
@@ -424,6 +425,218 @@ export async function miNegocioArchivado(req: Request, res: Response): Promise<v
 }
 
 // =============================================================================
+// CONTROLADOR 7: MI MEMBRESÍA (vista del dueño — Mi Perfil · Modo Personal)
+// =============================================================================
+
+/**
+ * GET /api/pagos/mi-membresia
+ * Devuelve el estado de la membresía del negocio del usuario logueado + historial de recibos.
+ * Si no tiene negocio, devuelve { tieneNegocio: false }. REQUIERE AUTENTICACIÓN.
+ */
+export async function miMembresia(req: Request, res: Response): Promise<void> {
+  try {
+    const usuarioToken = req.usuario;
+    if (!usuarioToken) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const data = await membresiaService.obtenerMiMembresia(usuarioToken.usuarioId);
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Error en miMembresia:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener la membresía' });
+  }
+}
+
+/**
+ * GET /api/pagos/mi-recibo/:reciboId/descargar
+ * Genera/regenera el PDF de un recibo propio y devuelve su URL en R2. Valida que el recibo
+ * pertenezca al negocio del usuario logueado. REQUIERE AUTENTICACIÓN.
+ */
+export async function descargarMiRecibo(req: Request, res: Response): Promise<void> {
+  try {
+    const usuarioToken = req.usuario;
+    if (!usuarioToken) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const reciboId = req.params.reciboId;
+    if (!reciboId) {
+      res.status(400).json({ success: false, message: 'reciboId es requerido' });
+      return;
+    }
+    const resultado = await membresiaService.descargarMiRecibo(usuarioToken.usuarioId, reciboId);
+    if (!resultado.ok) {
+      res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+      return;
+    }
+    res.status(200).json({ success: true, data: { reciboUrl: resultado.reciboUrl } });
+  } catch (error) {
+    console.error('❌ Error en descargarMiRecibo:', error);
+    res.status(500).json({ success: false, message: 'Error al descargar el recibo' });
+  }
+}
+
+/**
+ * POST /api/pagos/portal
+ * Crea una sesión del Customer Portal de Stripe y devuelve su URL para redirigir al dueño.
+ * Permite actualizar la tarjeta y pagar la factura pendiente. REQUIERE AUTENTICACIÓN.
+ */
+export async function crearPortal(req: Request, res: Response): Promise<void> {
+  try {
+    const usuarioToken = req.usuario;
+    if (!usuarioToken) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const resultado = await membresiaService.crearSesionPortal(usuarioToken.usuarioId);
+    if (!resultado.ok) {
+      res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+      return;
+    }
+    res.status(200).json({ success: true, data: { url: resultado.url } });
+  } catch (error) {
+    console.error('❌ Error en crearPortal:', error);
+    res.status(500).json({ success: false, message: 'Error al abrir el portal de pagos' });
+  }
+}
+
+// =============================================================================
+// CONTROLADOR 9: PAGO MANUAL (datos de cobro · comprobante · solicitud)
+// =============================================================================
+
+/**
+ * GET /api/pagos/datos-cobro
+ * Datos de la cuenta de AnunciaYA para depositar/transferir (los configura el Panel).
+ * REQUIERE AUTENTICACIÓN.
+ */
+export async function datosCobro(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const data = await membresiaService.obtenerDatosCobroConPrecio();
+    res.status(200).json({ success: true, data });
+  } catch (error) {
+    console.error('❌ Error en datosCobro:', error);
+    res.status(500).json({ success: false, message: 'Error al obtener los datos de cobro' });
+  }
+}
+
+/**
+ * POST /api/pagos/comprobante/url-subida
+ * Genera una presigned URL para que el dueño suba el comprobante a R2. REQUIERE AUTENTICACIÓN.
+ * Body: { nombreArchivo, contentType }
+ */
+export async function urlSubidaComprobante(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const { nombreArchivo, contentType } = req.body ?? {};
+    if (!nombreArchivo || !contentType) {
+      res.status(400).json({ success: false, message: 'nombreArchivo y contentType son requeridos' });
+      return;
+    }
+    const r = await membresiaService.generarUrlComprobante(nombreArchivo, contentType);
+    if (!r.success || !r.data) {
+      res.status(r.code ?? 502).json({ success: false, message: r.message });
+      return;
+    }
+    res.status(200).json({ success: true, data: r.data });
+  } catch (error) {
+    console.error('❌ Error en urlSubidaComprobante:', error);
+    res.status(500).json({ success: false, message: 'Error al preparar la subida del comprobante' });
+  }
+}
+
+/**
+ * POST /api/pagos/solicitud-pago-manual
+ * Crea una solicitud de pago manual (cola de verificación). REQUIERE AUTENTICACIÓN.
+ * Body: { monto, mesesDeclarados, referencia?, nota?, comprobanteUrl }
+ */
+export async function crearSolicitudPagoManual(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const { monto, mesesDeclarados, referencia, nota, comprobanteUrl } = req.body ?? {};
+    const resultado = await membresiaService.crearSolicitudPagoManual(req.usuario.usuarioId, {
+      monto,
+      mesesDeclarados,
+      referencia,
+      nota,
+      comprobanteUrl,
+    });
+    if (!resultado.ok) {
+      res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+      return;
+    }
+    res.status(201).json({ success: true, data: { solicitudId: resultado.solicitudId } });
+  } catch (error) {
+    console.error('❌ Error en crearSolicitudPagoManual:', error);
+    res.status(500).json({ success: false, message: 'Error al enviar la solicitud de pago' });
+  }
+}
+
+// =============================================================================
+// CONTROLADOR 10: CAMBIO DE MÉTODO DE COBRO (tarjeta ↔ manual)
+// =============================================================================
+
+/**
+ * POST /api/pagos/cambiar-a-manual
+ * Pasa el negocio de cobro con tarjeta a pago manual (cancela el cobro automático sin archivar,
+ * respeta la vigencia). REQUIERE AUTENTICACIÓN.
+ */
+export async function cambiarAManual(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const r = await membresiaService.cambiarAPagoManual(req.usuario.usuarioId);
+    if (!r.ok) {
+      res.status(r.status).json({ success: false, message: r.mensaje });
+      return;
+    }
+    res.status(200).json({
+      success: true,
+      message: r.advertencia ?? 'Cambiaste a pago por transferencia.',
+      data: { advertencia: r.advertencia ?? null },
+    });
+  } catch (error) {
+    console.error('❌ Error en cambiarAManual:', error);
+    res.status(500).json({ success: false, message: 'Error al cambiar el método de cobro' });
+  }
+}
+
+/**
+ * POST /api/pagos/cambiar-a-tarjeta
+ * Crea un Checkout de Stripe para activar el cobro con tarjeta en un negocio existente que paga
+ * manual (respeta la vigencia). Devuelve la URL del checkout. REQUIERE AUTENTICACIÓN.
+ */
+export async function cambiarATarjeta(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const resultado = await pagoService.crearCheckoutActivarTarjeta(req.usuario.usuarioId);
+    res.status(200).json({ success: true, data: resultado });
+  } catch (error) {
+    console.error('❌ Error en cambiarATarjeta:', error);
+    if (error instanceof Error && /Ya tienes|No tienes|cancelado|no encontrado/i.test(error.message)) {
+      res.status(400).json({ success: false, message: error.message });
+      return;
+    }
+    res.status(500).json({ success: false, message: 'Error al activar el cobro con tarjeta' });
+  }
+}
+
+// =============================================================================
 // EXPORTS
 // =============================================================================
 
@@ -434,4 +647,12 @@ export default {
   miNegocioArchivado,
   webhookStripe,
   verificarSession,
+  miMembresia,
+  descargarMiRecibo,
+  crearPortal,
+  datosCobro,
+  urlSubidaComprobante,
+  crearSolicitudPagoManual,
+  cambiarAManual,
+  cambiarATarjeta,
 };

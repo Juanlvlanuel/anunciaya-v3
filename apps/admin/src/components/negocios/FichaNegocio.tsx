@@ -182,11 +182,11 @@ function HistorialPagos({ negocioId, puedeActuar, puedeReenviar, esManual, permi
   // registrando de nuevo. La lista viene del más reciente al más antiguo → es el primer no anulado.
   const ultimoPagoId = pagos.find((p) => !p.anulado)?.id;
   return (
-    <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
-      <div className="border-b border-borde px-4 py-3">
+    <div className="flex flex-col overflow-hidden rounded-[12px] border border-borde bg-superficie-2 lg:min-h-0 lg:flex-1">
+      <div className="shrink-0 border-b border-borde px-4 py-3">
         <p className="text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4">Historial de pagos</p>
       </div>
-      <div className="px-4 py-2.5">
+      <div className="overflow-y-auto px-4 py-2.5 lg:min-h-0 lg:flex-1">
       {isLoading && <p className="text-[12.5px] text-texto-3">Cargando pagos…</p>}
       {!isLoading && pagos.length === 0 && <p className="text-[12.5px] text-texto-4">Sin pagos registrados.</p>}
       {!isLoading && pagos.length > 0 && (
@@ -452,16 +452,17 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
           </div>
         </div>
 
-        {/* Cuerpo: 2 columnas en desktop (sin scroll), 1 columna en móvil (bottom-sheet scrollea). */}
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:overflow-visible">
+        {/* Cuerpo: en desktop NO scrollea el cuerpo (datos fijos + historial con scroll propio);
+            en móvil scrollea todo el bottom-sheet. */}
+        <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:flex lg:flex-col lg:overflow-hidden">
           {isError && (
             <div className="mb-3 rounded-[10px] border border-borde px-3 py-2 text-center text-[12px] text-peligro">
               No se pudo cargar el detalle completo.
             </div>
           )}
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
             {/* Card protagonista: estado de membresía destacado + lista corrida (Membresía · Dueño · Vendedor · Negocio) */}
-            <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
+            <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2 lg:shrink-0">
               {/* Encabezado protagonista: estado de membresía + vigencia (todo el "membrete") */}
               <div className="border-b border-borde px-4 py-3.5">
                 <p className="mb-2 text-[11px] font-semibold uppercase tracking-[0.04em] text-texto-4">Membresía</p>

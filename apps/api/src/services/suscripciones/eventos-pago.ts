@@ -40,10 +40,17 @@ export interface DatosEventoPago {
  * Idempotente: `onConflictDoNothing` sobre stripe_event_id (un event.id reentregado no
  * duplica fila). Si el INSERT falla por cualquier motivo, solo loguea — la bitácora es
  * secundaria respecto al estado del negocio, que es la fuente de verdad.
+ *
+ * DEVUELVE `true` solo si esta llamada INSERTÓ realmente la fila (ganó el candado). Devuelve
+ * `false` si ya existía ese `stripe_event_id` (otro proceso/reintento lo registró) o si el
+ * INSERT falló. Esto permite usar el INSERT como CANDADO ATÓMICO de idempotencia: el primero
+ * que inserta es el único que debe ejecutar el trabajo asociado (comisión, recibo). Resuelve
+ * la race entre checkout.session.completed e invoice.payment_succeeded (mismo invoice → 2
+ * recibos). Para filas con stripe_event_id NULL (manual) siempre inserta → devuelve `true`.
  */
-export async function registrarEventoPago(datos: DatosEventoPago): Promise<void> {
+export async function registrarEventoPago(datos: DatosEventoPago): Promise<boolean> {
     try {
-        await db
+        const filas = await db
             .insert(eventosPago)
             .values({
                 negocioId: datos.negocioId,
@@ -57,8 +64,11 @@ export async function registrarEventoPago(datos: DatosEventoPago): Promise<void>
                 referenciaId: datos.referenciaId ?? null,
                 metadata: datos.metadata ?? null,
             })
-            .onConflictDoNothing({ target: eventosPago.stripeEventId });
+            .onConflictDoNothing({ target: eventosPago.stripeEventId })
+            .returning({ id: eventosPago.id });
+        return filas.length > 0;
     } catch (error) {
         console.error('❌ Error registrando evento en la bitácora financiera (no crítico):', error);
+        return false;
     }
 }

@@ -114,3 +114,63 @@ export async function obtenerDetalleEvento(id: string): Promise<EventoDetalle | 
 export async function eliminarEvento(id: string): Promise<void> {
   await api.delete<RespuestaAPI<null>>(`/admin/suscripciones/${id}`);
 }
+
+// =============================================================================
+// COLA "POR VERIFICAR" (pago manual con comprobante) — lado admin
+// =============================================================================
+
+/** Una solicitud de pago manual pendiente de verificar (la sube el dueño en Mi Perfil). */
+export interface SolicitudCola {
+  id: string;
+  negocioId: string;
+  negocioNombre: string;
+  correoDueno: string | null;
+  estadoMembresia: string;
+  /** numeric → string; el front formatea en MXN. Monto DECLARADO por el dueño. */
+  monto: string;
+  mesesDeclarados: number;
+  referencia: string | null;
+  nota: string | null;
+  comprobanteUrl: string;
+  creadoAt: string;
+}
+
+/** Datos bancarios de depósito (los ve el dueño en Mi Perfil; solo super los edita). */
+export interface DatosCobro {
+  banco: string;
+  titular: string;
+  clabe: string;
+  cuenta: string;
+  tarjeta: string;
+  instrucciones: string;
+}
+
+/** Lista las solicitudes pendientes de verificar (alcance por rol/región lo aplica el backend). */
+export async function listarSolicitudes(): Promise<SolicitudCola[]> {
+  const { data } = await api.get<RespuestaAPI<SolicitudCola[]>>('/admin/suscripciones/solicitudes');
+  return data.data ?? [];
+}
+
+/** Aprueba una solicitud. Si no se pasan monto/meses, el backend usa los DECLARADOS por el dueño. */
+export async function aprobarSolicitud(
+  solicitudId: string,
+  datos?: { monto?: number; meses?: number },
+): Promise<void> {
+  await api.post<RespuestaAPI<null>>(`/admin/suscripciones/solicitudes/${solicitudId}/aprobar`, datos ?? {});
+}
+
+/** Rechaza una solicitud con un motivo obligatorio. */
+export async function rechazarSolicitud(solicitudId: string, motivo: string): Promise<void> {
+  await api.post<RespuestaAPI<null>>(`/admin/suscripciones/solicitudes/${solicitudId}/rechazar`, { motivo });
+}
+
+/** Lee los datos bancarios de depósito. */
+export async function obtenerDatosCobro(): Promise<DatosCobro | null> {
+  const { data } = await api.get<RespuestaAPI<DatosCobro>>('/admin/suscripciones/datos-cobro');
+  return data.data ?? null;
+}
+
+/** Guarda los datos bancarios de depósito (solo superadmin; el backend lo blinda). */
+export async function guardarDatosCobro(datos: DatosCobro): Promise<void> {
+  await api.put<RespuestaAPI<null>>('/admin/suscripciones/datos-cobro', datos);
+}

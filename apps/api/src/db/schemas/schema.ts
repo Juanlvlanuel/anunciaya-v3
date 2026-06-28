@@ -321,6 +321,34 @@ export const pagosMembresia = pgTable("pagos_membresia", {
 	check("pagos_membresia_cortesia_sin_monto_check", sql`((concepto)::text <> 'cortesia'::text) OR (monto IS NULL)`),
 ]);
 
+// Cola de verificación de PAGO MANUAL (Mi Perfil – Pagos · Pieza 3). El dueño que paga por
+// transferencia/depósito sube un comprobante y crea una SOLICITUD; un admin la aprueba (genera
+// el pago real vía registrarPagoManual → pago_membresia_id) o la rechaza con motivo. Esta tabla
+// es solo la cola; el registro contable sigue en pagos_membresia. Migración
+// docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql.
+export const pagosManualesSolicitudes = pgTable("pagos_manuales_solicitudes", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	negocioId: uuid("negocio_id").notNull().references((): AnyPgColumn => negocios.id, { onDelete: 'cascade' }),
+	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
+	monto: numeric({ precision: 10, scale: 2 }).notNull(),          // declarado por el dueño
+	mesesDeclarados: integer("meses_declarados").notNull(),         // meses que dice pagar
+	referencia: varchar({ length: 120 }),                           // folio/referencia de la transferencia
+	nota: varchar({ length: 500 }),
+	comprobanteUrl: text("comprobante_url").notNull(),              // comprobante en R2
+	estado: varchar({ length: 20 }).default('pendiente').notNull(), // pendiente | aprobado | rechazado
+	creadoAt: timestamp("creado_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	revisadoPor: uuid("revisado_por").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }),
+	revisadoAt: timestamp("revisado_at", { withTimezone: true, mode: 'string' }),
+	motivoRechazo: varchar("motivo_rechazo", { length: 500 }),
+	pagoMembresiaId: uuid("pago_membresia_id").references((): AnyPgColumn => pagosMembresia.id, { onDelete: 'set null' }),
+}, (table) => [
+	index("idx_pagos_manuales_solicitudes_negocio").using("btree", table.negocioId.asc().nullsLast(), table.creadoAt.desc().nullsFirst()),
+	index("idx_pagos_manuales_solicitudes_pendientes").using("btree", table.creadoAt.desc().nullsFirst()).where(sql`(estado = 'pendiente')`),
+	check("pagos_manuales_solicitudes_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'aprobado'::character varying, 'rechazado'::character varying])::text[])`),
+	check("pagos_manuales_solicitudes_monto_check", sql`monto > (0)::numeric`),
+	check("pagos_manuales_solicitudes_meses_check", sql`meses_declarados > 0`),
+]);
+
 // Bitácora financiera global (Panel Admin · módulo Suscripciones). El "libro mayor" de la
 // membresía: un renglón por cada movimiento de dinero/membresía, de DOS orígenes:
 //   - origen='stripe': lo persiste el webhook (cobro_exitoso / cobro_fallido / cancelacion).

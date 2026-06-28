@@ -150,6 +150,7 @@ export interface ComisionFila {
   montoUnitario: number | null;
   escalon: string | null;
   negocioNombre: string | null;  // negocio que generó el cobro
+  logoUrl: string | null;        // logo del negocio para el avatar de la fila
   coberturaHasta: string | null; // fin del periodo que cubrió el pago
   pagadaAt: string | null;
   creada: string | null;

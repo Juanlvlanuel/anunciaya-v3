@@ -82,6 +82,7 @@ export function MainLayout() {
   const esMisPublicaciones = location.pathname.startsWith('/mis-publicaciones');
   const esServicios = location.pathname.startsWith('/servicios');
   const esAnunciate = location.pathname === '/anunciate';
+  const esPerfil = location.pathname === '/perfil';
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
@@ -109,7 +110,7 @@ export function MainLayout() {
   // Registrar ref de scroll en el store global
   // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
   // ---------------------------------------------------------------------------
-  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones || esServicios;
+  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones || esServicios || esPerfil;
   useEffect(() => {
     if (esDesktop) {
       setMainScrollRef(mainRef);

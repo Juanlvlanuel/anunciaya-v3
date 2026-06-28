@@ -352,4 +352,13 @@ export const queryKeys = {
       ['publicidad', 'porCiudad', ciudadId] as const,
   },
 
+  // ─── Mi Perfil · Modo Personal — Membresía / Pagos ────────────────────────
+  // Vista self-service del dueño: estado de su membresía comercial + recibos.
+  // Una sola key (el backend filtra por el negocio del usuario del JWT).
+  membresia: {
+    all: () => ['membresia'] as const,
+    mi: () => ['membresia', 'mi'] as const,
+    datosCobro: () => ['membresia', 'datosCobro'] as const,
+  },
+
 } as const;

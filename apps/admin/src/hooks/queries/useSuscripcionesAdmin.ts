@@ -12,7 +12,7 @@ import { useQuery, useQueryClient, useMutation, keepPreviousData } from '@tansta
 import { useCallback } from 'react';
 import { queryKeys } from '../../config/queryKeys';
 import * as suscripcionesService from '../../services/suscripcionesService';
-import type { ParametrosBitacora, EventoDetalle } from '../../services/suscripcionesService';
+import type { ParametrosBitacora, EventoDetalle, DatosCobro } from '../../services/suscripcionesService';
 import { toast } from '../../stores/useToastPanel';
 
 /** Extrae el mensaje de error del backend (o uno por defecto). */
@@ -71,5 +71,72 @@ export function useEliminarEvento() {
       toast.exito('Movimiento eliminado');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo eliminar el movimiento')),
+  });
+}
+
+// =============================================================================
+// COLA "POR VERIFICAR" (pago manual con comprobante)
+// =============================================================================
+
+/** Lista de solicitudes pendientes de verificar. `habilitado` la gatea por rol/acceso. */
+export function useSolicitudesPendientes(habilitado = true) {
+  return useQuery({
+    queryKey: queryKeys.suscripciones.solicitudes(),
+    queryFn: suscripcionesService.listarSolicitudes,
+    enabled: habilitado,
+  });
+}
+
+/** Aprueba una solicitud (monto/meses opcionales; si faltan, se usan los declarados). */
+export function useAprobarSolicitud() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ solicitudId, monto, meses }: { solicitudId: string; monto?: number; meses?: number }) =>
+      suscripcionesService.aprobarSolicitud(solicitudId, { monto, meses }),
+    onSuccess: () => {
+      // Refresca la cola Y la bitácora (la aprobación registra un movimiento manual).
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });
+      toast.exito('Pago aprobado y registrado');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo aprobar la solicitud')),
+  });
+}
+
+/** Rechaza una solicitud con motivo obligatorio. */
+export function useRechazarSolicitud() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ solicitudId, motivo }: { solicitudId: string; motivo: string }) =>
+      suscripcionesService.rechazarSolicitud(solicitudId, motivo),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.solicitudes() });
+      toast.exito('Solicitud rechazada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo rechazar la solicitud')),
+  });
+}
+
+// =============================================================================
+// DATOS DE DEPÓSITO (cuenta bancaria)
+// =============================================================================
+
+/** Lee los datos bancarios de depósito. */
+export function useDatosCobro() {
+  return useQuery({
+    queryKey: queryKeys.suscripciones.datosCobro(),
+    queryFn: suscripcionesService.obtenerDatosCobro,
+  });
+}
+
+/** Guarda los datos bancarios de depósito (solo superadmin). */
+export function useGuardarDatosCobro() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (datos: DatosCobro) => suscripcionesService.guardarDatosCobro(datos),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.datosCobro() });
+      toast.exito('Datos de depósito guardados');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudieron guardar los datos')),
   });
 }
