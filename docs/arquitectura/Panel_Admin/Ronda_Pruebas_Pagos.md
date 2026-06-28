@@ -13,7 +13,8 @@
 > **Estado:** ✅ **CERRADO (23 jun 2026) — Stripe validado A–Z al 100%.** Los bloques A–H están en ✅ y el
 > bloque Z tiene una decisión explícita en cada punto. Los features futuros que surgieron (B2 recuperación
 > de tarjeta · Z3 Customer Portal · Z4 pago manual con comprobante) se **trasladaron** a
-> [`../Mi_Perfil.md`](../Mi_Perfil.md) para no perderlos.
+> [`../Mi_Perfil.md`](../Mi_Perfil.md) — y **ya quedaron CONSTRUIDOS y validados E2E el 28 jun 2026**. Este doc
+> conserva las decisiones de la ronda como histórico; el estado actual de esos features vive en `../Mi_Perfil.md`.
 >
 > **Última actualización:** 23 Junio 2026.
 >

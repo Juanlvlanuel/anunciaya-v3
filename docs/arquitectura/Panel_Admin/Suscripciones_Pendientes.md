@@ -243,7 +243,8 @@ construye V2 en el Panel.
   eventos (`charge.refunded`/`charge.dispute.created`) — se manejan **a mano en Stripe** (ronda Z1/Z2); migrar
   el dedup de idempotencia de Redis a `eventos_pago`.
 - ➡️ **OTRO DOCUMENTO — Membresía / recuperar tarjeta del dueño.** **No es del Panel:** vive en `apps/web` y
-  está discutido en [`../Mi_Perfil.md`](../Mi_Perfil.md) (Customer Portal / pago manual). No se documenta aquí.
+  está **construido y documentado** en [`../Mi_Perfil.md`](../Mi_Perfil.md) (Customer Portal / pago manual,
+  QA E2E cerrado 28 jun 2026). No se documenta aquí.
 
 ---
 

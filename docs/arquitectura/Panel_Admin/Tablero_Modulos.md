@@ -24,8 +24,10 @@
   una zona real con las 4 herramientas (✏️ agregar · ✋ mover · 🗑️ quitar · 🖐️ mapa), insertar vértice en
   arista, snapping a calles, rechazo por traslape (409), reasignar a vendedor y borrar. **Territorios pasa a
   ✔ Cerrado (módulo completo).** Con esto, **los 13 módulos del Panel quedan cerrados** → el Panel está
-  funcionalmente completo; el foco es QA/pulido pre-beta. **Siguiente frente sugerido:** Mi Perfil – Pagos
-  (recuperación de tarjeta morosa + pago manual con comprobante), `docs/arquitectura/Mi_Perfil.md`.
+  funcionalmente completo; el foco es QA/pulido pre-beta. **Mi Perfil – Pagos** (apps/web) —el último hueco
+  funcional de cara a la beta— quedó **construido y con QA E2E cerrado (28 jun 2026)**, commiteado y desplegado:
+  recuperar tarjeta morosa (Customer Portal) + pago manual con comprobante (cola de verificación) + cambio
+  bidireccional de método; ver `docs/arquitectura/Mi_Perfil.md`.
 - **Ronda de pulido UX de Territorios (26 jun):** sesión larga de pulido del módulo 13 en sus dos vistas
   (**vendedor** "Mi territorio" y **gerente/super** "Territorios"), sin tocar backend ni datos. Lo grueso:
   **mapa fijo al viewport** en móvil vertical (elimina el destello beige al expandir/colapsar la hoja),
@@ -164,9 +166,10 @@
   como texto analítico por decisión. Migraciones one-shot en `docs/migraciones/2026-06-19-*-ciudad-*.sql`.
 - **Stripe CERRADO (23 jun):** la **Ronda de Pruebas de Pagos** validó E2E todo lo que toca Stripe (bloques A–H +
   decisiones Z + las 22 OBS) → [`Ronda_Pruebas_Pagos.md`](Ronda_Pruebas_Pagos.md). Migraciones de schema en prod ✅
-  y hardcodes "Puerto Peñasco" de Vacantes ✅ ya resueltos (20 jun). **Único feature futuro (no bloquea):** la
-  sección **Mi Perfil – Pagos** (Customer Portal para recuperar tarjeta + pago manual con comprobante) →
-  [`../Mi_Perfil.md`](../Mi_Perfil.md). Vendedores · cobro automático de efectivo = backlog.
+  y hardcodes "Puerto Peñasco" de Vacantes ✅ ya resueltos (20 jun). **Mi Perfil – Pagos ✅ construido y con QA
+  E2E cerrado (28 jun):** Customer Portal para recuperar tarjeta + pago manual con comprobante (cola de
+  verificación) + cambio bidireccional de método → [`../Mi_Perfil.md`](../Mi_Perfil.md). Vendedores · cobro
+  automático de efectivo = backlog.
 
 ---
 

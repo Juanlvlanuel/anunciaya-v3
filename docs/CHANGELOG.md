@@ -8,6 +8,21 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [28 Junio 2026] - Mi Perfil – Pagos (Modo Personal) self-service + cola de verificación ✅
+
+Se **construyó y cerró (QA E2E)** la sección **Membresía y Pagos** de **Mi Perfil** en Modo Personal (`apps/web`, ruta `/perfil`) — el último hueco funcional de cara a la beta. Cierra los features que la Ronda de Stripe había trasladado (B2/Z3/Z4). Doc canónico: `docs/arquitectura/Mi_Perfil.md`.
+
+- **Vista de membresía + recibos:** estado, método de cobro, próximo cobro/gracia, "Cliente desde" y recibos PDF descargables.
+- **Recuperar tarjeta** (Customer Portal de Stripe) para morosos de tarjeta.
+- **Pago manual con comprobante:** tabla nueva `pagos_manuales_solicitudes` (cola "Por verificar" en el Panel) + datos de depósito configurables (banco/CLABE/cuenta/tarjeta OXXO). El dueño elige meses (monto = meses × precio) y sube el comprobante a R2; el admin aprueba/rechaza (alcance por rol/región).
+- **Cambio bidireccional de método de cobro:** "Cancelar cobro automático" (tarjeta→manual, no archiva) y "Activar tarjeta" (manual→tarjeta, respeta la vigencia / cobro inmediato si está vencido).
+- **Fix — race de doble recibo:** `registrarCobroReal` usa el INSERT de `eventos_pago` (UNIQUE en `stripe_event_id`) como **candado atómico** en vez del viejo SELECT-luego-INSERT; evita 2 recibos cuando `checkout.session.completed` e `invoice.payment_succeeded` del mismo invoice entran casi a la vez (p. ej. al activar tarjeta con cobro inmediato).
+- **Fix (admin) — scroll interno** del historial de pagos en la ficha de negocio del Panel (datos fijos + recibos con scroll propio en PC).
+
+Migración `2026-06-27-pagos-manuales-solicitudes.sql` corrida en prod. Backend `services/membresia.service.ts`, `services/admin/pagos-manuales-cola.service.ts`, `services/pago.service.ts`, `services/suscripciones/eventos-pago.ts`; web `pages/private/perfil/`; Panel `components/suscripciones/`. `tsc` api verde. Commit `d6f8acb`, desplegado. **Pendientes:** configurar datos de depósito + Customer Portal en Stripe live; tabs Datos Personales/Seguridad (placeholders); tests automatizados (API + E2E).
+
+---
+
 ## [23 Junio 2026] - Stripe · ronda de pruebas cerrada (A–Z) + recuperación de vigencia 🔒
 
 Cierre de la **validación E2E de todo lo que toca Stripe** en AnunciaYA (membresías, upgrade, renovación, morosidad, cancelación, acciones del Panel, comisiones, publicidad y robustez del webhook). Checklist vivo `Panel_Admin/Ronda_Pruebas_Pagos.md`: **bloques A–H validados + decisiones Z tomadas + las 22 OBS resueltas/decididas/eliminadas** (ninguna abierta).

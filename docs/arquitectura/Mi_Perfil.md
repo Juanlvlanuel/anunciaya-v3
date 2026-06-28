@@ -1,11 +1,17 @@
 # Mi Perfil — Cuenta del usuario (Modo Personal)
 
-> **Estado:** ✅ **CONSTRUIDO y validado E2E (27 Junio 2026).** La página de Mi Perfil (Modo Personal)
+> **Estado:** ✅ **CONSTRUIDO y QA E2E cerrado (28 Junio 2026).** La página de Mi Perfil (Modo Personal)
 > existe con su sección **Membresía / Pagos** completa: vista de membresía + recibos, recuperar tarjeta
 > (Customer Portal), pago manual con comprobante (cola de verificación en el Panel) y **cambio
-> bidireccional de método de cobro** (tarjeta ↔ transferencia). Era el único hueco de cara a la beta.
+> bidireccional de método de cobro** (tarjeta ↔ transferencia). Era el último hueco funcional de cara a la
+> beta; commiteado y desplegado (commit `d6f8acb`).
 >
-> **Última actualización:** 27 Junio 2026.
+> **QA E2E (28 jun):** validados a mano cobro inmediato al activar tarjeta, vigencia futura, cambio
+> bidireccional, no-duplicado, pago sin vendedor (sin comisión), datos de depósito vacíos, permisos de la
+> cola (gerente/vendedor), descargar recibo y anti-huérfanas R2. Lo de comisiones/escalera/morosidad ya
+> estaba cerrado en la Ronda de Pagos / Sprint Stripe (no se re-probó).
+>
+> **Última actualización:** 28 Junio 2026.
 
 ---
 
@@ -102,16 +108,26 @@ Migración `docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql`. `compro
   webhook `activar_tarjeta` asocia la suscripción al negocio existente (no crea negocio).
 - **Anti-huérfanas R2:** el comprobante se borra de R2 al Cancelar/Quitar (`useR2Upload.reset`) y al **desmontar**
   el componente sin enviar (cleanup); el endpoint `DELETE /r2/imagen` valida reference-count antes de borrar.
+- **Idempotencia del cobro (anti-doble-recibo):** `registrarCobroReal` usa el INSERT en `eventos_pago`
+  (UNIQUE en `stripe_event_id`) como **candado atómico** — `registrarEventoPago` devuelve si insertó y, si no
+  gana, se aborta antes de comisión/recibo. Esto evita que dos webhooks del mismo invoice entrando casi a la
+  vez (`checkout.session.completed` + `invoice.payment_succeeded`, p. ej. al **activar tarjeta con cobro
+  inmediato**) emitan **dos recibos**. Reemplazó al viejo guard SELECT-luego-INSERT (que tenía esa race).
+  Ver [`Pagos_Suscripciones.md`](Pagos_Suscripciones.md).
 
 ---
 
 ## Pendientes / mejoras
 
-- **PROD:** correr la migración `2026-06-27-pagos-manuales-solicitudes.sql`, configurar los datos de depósito
-  en el Panel live y el Customer Portal en Stripe live.
+- **PROD:** migración `2026-06-27-pagos-manuales-solicitudes.sql` ✅ corrida. Falta configurar los **datos de
+  depósito** en el Panel live y el **Customer Portal** en Stripe live.
+- **Tests automatizados:** faltan **API tests** (Vitest: crear/aprobar/rechazar solicitud, acumulación de
+  vigencia, no-duplicado, permisos por rol) y **E2E** (Playwright: flujo del dueño en `/perfil`). Es el único
+  hueco respecto al nivel de cierre de los demás módulos.
 - **Datos Personales** y **Seguridad**: tabs aún en placeholder (avatar/datos, contraseña/2FA).
-- **Aviso por correo al dueño** cuando se **rechaza** un pago manual (hoy solo cambia el estado).
+- **Aviso por correo al dueño** cuando se **rechaza** un pago manual (hoy solo cambia el estado / aviso in-app).
 - **Humanizar** en el módulo Auditoría las acciones nuevas (`pago_manual_aprobar/rechazar`, `datos_cobro_actualizar`).
+- **Stripe Elements integrado** (post-beta): evitar el "X días gratis" del Checkout hosted al activar tarjeta con vigencia futura.
 
 ## Referencias
 
