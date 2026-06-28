@@ -581,7 +581,7 @@ export default function PaginaPerfilPersonal() {
                                             );
                                         }
                                         return (
-                                            <ul className="divide-y divide-slate-200 max-h-[28rem] overflow-y-auto">
+                                            <ul className="divide-y divide-slate-200 max-h-[38rem] overflow-y-auto">
                                                 {items.map((it) =>
                                                     it.kind === 'recibo' ? (
                                                         <li
