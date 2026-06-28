@@ -19,7 +19,7 @@ Se **construyó y cerró (QA E2E)** la sección **Membresía y Pagos** de **Mi P
 - **Fix — race de doble recibo:** `registrarCobroReal` usa el INSERT de `eventos_pago` (UNIQUE en `stripe_event_id`) como **candado atómico** en vez del viejo SELECT-luego-INSERT; evita 2 recibos cuando `checkout.session.completed` e `invoice.payment_succeeded` del mismo invoice entran casi a la vez (p. ej. al activar tarjeta con cobro inmediato).
 - **Fix (admin) — scroll interno** del historial de pagos en la ficha de negocio del Panel (datos fijos + recibos con scroll propio en PC).
 
-Migración `2026-06-27-pagos-manuales-solicitudes.sql` corrida en prod. Backend `services/membresia.service.ts`, `services/admin/pagos-manuales-cola.service.ts`, `services/pago.service.ts`, `services/suscripciones/eventos-pago.ts`; web `pages/private/perfil/`; Panel `components/suscripciones/`. `tsc` api verde. Commit `d6f8acb`, desplegado. **Pendientes:** configurar datos de depósito + Customer Portal en Stripe live; tabs Datos Personales/Seguridad (placeholders); tests automatizados (API + E2E).
+Migración `2026-06-27-pagos-manuales-solicitudes.sql` corrida en prod. Backend `services/membresia.service.ts`, `services/admin/pagos-manuales-cola.service.ts`, `services/pago.service.ts`, `services/suscripciones/eventos-pago.ts`; web `pages/private/perfil/`; Panel `components/suscripciones/`. `tsc` api verde. Commit `d6f8acb`, desplegado. **Pendientes:** configurar datos de depósito + Customer Portal en Stripe live; tabs Datos Personales/Seguridad (placeholders).
 
 ---
 

@@ -121,9 +121,6 @@ Migración `docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql`. `compro
 
 - **PROD:** migración `2026-06-27-pagos-manuales-solicitudes.sql` ✅ corrida. Falta configurar los **datos de
   depósito** en el Panel live y el **Customer Portal** en Stripe live.
-- **Tests automatizados:** faltan **API tests** (Vitest: crear/aprobar/rechazar solicitud, acumulación de
-  vigencia, no-duplicado, permisos por rol) y **E2E** (Playwright: flujo del dueño en `/perfil`). Es el único
-  hueco respecto al nivel de cierre de los demás módulos.
 - **Datos Personales** y **Seguridad**: tabs aún en placeholder (avatar/datos, contraseña/2FA).
 - **Aviso por correo al dueño** cuando se **rechaza** un pago manual (hoy solo cambia el estado / aviso in-app).
 - **Humanizar** en el módulo Auditoría las acciones nuevas (`pago_manual_aprobar/rechazar`, `datos_cobro_actualizar`).
