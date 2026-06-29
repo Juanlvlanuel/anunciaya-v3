@@ -135,6 +135,8 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
   // "Ver todos" solo si hay más pendientes de los que se muestran en el tablero.
   const hayMasEfectivo = !esVendedor && pendientes.efectivo.totalVendedores > pendientes.efectivo.items.length;
   const hayMasGracia = pendientes.gracia.total > pendientes.gracia.items.length;
+  const hayMasSolicitudes = pendientes.solicitudes.total > pendientes.solicitudes.items.length;
+  const hayMasComisiones = pendientes.comisiones.totalVendedores > pendientes.comisiones.items.length;
   const periodoMes = capitalizar(new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
   const primerNombre = nombreUsuario.trim().split(' ')[0];
   const saludo = primerNombre ? `${saludoPorHora()}, ${primerNombre}` : saludoPorHora();
@@ -229,7 +231,11 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
                       titulo={v.nombre}
                       subtitulo="Por entregar"
                       valor={FMT_MONEDA.format(v.saldo)}
-                      onClick={() => navegar('comisiones')}
+                      onClick={() =>
+                        navegar('comisiones', v.usuarioId
+                          ? { vendedores: { usuarioId: v.usuarioId, embajadorId: v.embajadorId, nombre: v.nombre, tab: 'efectivo' } }
+                          : undefined)
+                      }
                     />
                   ))}
             </BloquePendiente>
@@ -261,6 +267,62 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
                 );
               })}
             </BloquePendiente>
+
+            {/* Pagos manuales por verificar (super + gerente de su región) */}
+            {data.rol !== 'vendedor' && (
+              <BloquePendiente
+                testid="resumen-pendiente-pagos"
+                icono={CreditCard}
+                titulo="Pagos por verificar"
+                contador={pendientes.solicitudes.total}
+                resumen={pendientes.solicitudes.total > 0 ? 'Comprobantes por aprobar o rechazar' : undefined}
+                vacioTexto="Ningún pago manual por verificar."
+                hayMas={hayMasSolicitudes}
+                onAbrirTodo={() => navegar('suscripciones', { suscripciones: { pestana: 'por-verificar' } })}
+              >
+                {pendientes.solicitudes.items.map((s) => (
+                  <FilaPendiente
+                    key={s.id}
+                    testid={`resumen-solicitud-item-${s.id}`}
+                    icono={CreditCard}
+                    titulo={s.negocioNombre}
+                    subtitulo="Pago manual con comprobante"
+                    valor={FMT_MONEDA.format(Number(s.monto))}
+                    onClick={() => navegar('suscripciones', { suscripciones: { pestana: 'por-verificar' } })}
+                  />
+                ))}
+              </BloquePendiente>
+            )}
+
+            {/* Comisiones por liquidar a vendedores (solo superadmin; con lente de región no aplica) */}
+            {data.rol === 'superadmin' && (
+              <BloquePendiente
+                testid="resumen-pendiente-comisiones"
+                icono={CircleDollarSign}
+                titulo="Comisiones por pagar"
+                contador={pendientes.comisiones.totalVendedores}
+                resumen={pendientes.comisiones.monto > 0 ? `${FMT_MONEDA.format(pendientes.comisiones.monto)} por liquidar` : undefined}
+                vacioTexto="Ninguna comisión por pagar."
+                hayMas={hayMasComisiones}
+                onAbrirTodo={() => navegar('comisiones')}
+              >
+                {pendientes.comisiones.items.map((c) => (
+                  <FilaPendiente
+                    key={c.embajadorId}
+                    testid={`resumen-comision-item-${c.embajadorId}`}
+                    icono={CircleDollarSign}
+                    titulo={c.nombre}
+                    subtitulo="Por liquidar"
+                    valor={FMT_MONEDA.format(c.monto)}
+                    onClick={() =>
+                      navegar('comisiones', c.usuarioId
+                        ? { vendedores: { usuarioId: c.usuarioId, embajadorId: c.embajadorId, nombre: c.nombre, tab: 'pagos' } }
+                        : undefined)
+                    }
+                  />
+                ))}
+              </BloquePendiente>
+            )}
           </div>
         </div>
       </div>

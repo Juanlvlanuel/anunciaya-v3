@@ -584,7 +584,24 @@ const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string }[] = [
  * la pestaña, así su contador y la lista siempre cuadran.
  */
 export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
-  const [tab, setTab] = useState<TabSuscripciones>('bitacora');
+  // Pestaña inicial: respeta un deep-link entrante (ej. campana → "Por verificar"). Se lee del store al
+  // montar (getState, sin suscripción) para no parpadear en Bitácora antes de saltar a la pestaña pedida.
+  const [tab, setTab] = useState<TabSuscripciones>(() => {
+    const p = useNavegacionPanel.getState().filtroSuscripciones?.pestana;
+    return p === 'por-verificar' || p === 'datos-cobro' ? p : 'bitacora';
+  });
+  // Si el deep-link de pestaña llega con el módulo ya montado, salta y consume el filtro (one-shot). El
+  // deep-link de `tipo` (cobros fallidos → Bitácora) lo sigue consumiendo PestanaBitacora.
+  const filtroSusc = useNavegacionPanel((s) => s.filtroSuscripciones);
+  const consumirFiltroSuscripciones = useNavegacionPanel((s) => s.consumirFiltroSuscripciones);
+  useEffect(() => {
+    const p = filtroSusc?.pestana;
+    if (p === 'por-verificar' || p === 'datos-cobro') {
+      setTab(p);
+      consumirFiltroSuscripciones();
+    }
+  }, [filtroSusc, consumirFiltroSuscripciones]);
+
   const { data: solicitudes } = useSolicitudesPendientes();
   const pendientes = solicitudes?.length ?? 0;
 

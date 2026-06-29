@@ -27,7 +27,8 @@ import {
 import { contarUsuarios } from './usuarios.service.js';
 import { resumenIngresos } from './suscripciones.service.js';
 import { listarEfectivoPendiente, saldoEfectivo, type EfectivoPendiente } from './comisiones-efectivo.service.js';
-import { comisionesPendientesDe } from './comisiones-liquidacion.service.js';
+import { comisionesPendientesDe, listarComisionesPorPagar, type ComisionesPorPagar } from './comisiones-liquidacion.service.js';
+import { listarSolicitudesPendientes, type SolicitudCola } from './pagos-manuales-cola.service.js';
 
 // =============================================================================
 // TIPOS
@@ -39,9 +40,18 @@ export interface KpiResumen {
     valor: number;
 }
 
+export interface SolicitudesResumen {
+    items: SolicitudCola[]; // hasta `limite` para el tablero del Resumen
+    total: number;          // cuántas solicitudes de pago manual hay por verificar
+}
+
 export interface PendientesResumen {
     efectivo: EfectivoPendiente;
     gracia: ListaEnGracia;
+    /** Pagos manuales con comprobante por verificar (super + gerente de su región). */
+    solicitudes: SolicitudesResumen;
+    /** Comisiones por liquidar a vendedores (solo superadmin). */
+    comisiones: ComisionesPorPagar;
     /** Total de tareas para el contador de la campana. */
     contador: number;
 }
@@ -81,12 +91,14 @@ export async function obtenerResumen(panel: UsuarioPanel): Promise<ResumenPanel>
 async function resumenAdmin(panel: UsuarioPanel): Promise<ResumenPanel> {
     const desdeMes = inicioDeMesISO();
 
-    const [negociosActivos, usuarios, ingresos, efectivo, gracia] = await Promise.all([
+    const [negociosActivos, usuarios, ingresos, efectivo, gracia, solicitudesArr, comisiones] = await Promise.all([
         contarNegociosActivos(panel),
         contarUsuarios(panel.rolEquipo, panel.regionId),
         resumenIngresos(panel, desdeMes),
         listarEfectivoPendiente(panel),
         listarNegociosEnGracia(panel),
+        listarSolicitudesPendientes(panel),     // pagos manuales por verificar (super + gerente)
+        listarComisionesPorPagar(panel),         // comisiones por liquidar (solo super)
     ]);
 
     const kpis: KpiResumen[] = [
@@ -96,13 +108,17 @@ async function resumenAdmin(panel: UsuarioPanel): Promise<ResumenPanel> {
         { clave: 'cobrosFallidos', valor: ingresos.fallidos },
     ];
 
+    const solicitudes: SolicitudesResumen = { items: solicitudesArr.slice(0, 5), total: solicitudesArr.length };
+
     return {
         rol: panel.rolEquipo,
         kpis,
         pendientes: {
             efectivo,
             gracia,
-            contador: efectivo.totalVendedores + gracia.total,
+            solicitudes,
+            comisiones,
+            contador: efectivo.totalVendedores + gracia.total + solicitudes.total + comisiones.totalVendedores,
         },
     };
 }
@@ -137,6 +153,9 @@ async function resumenVendedor(panel: UsuarioPanel): Promise<ResumenPanel> {
         pendientes: {
             efectivo,
             gracia,
+            // El vendedor no verifica pagos manuales (super/gerente) ni liquida comisiones (solo super).
+            solicitudes: { items: [], total: 0 },
+            comisiones: { items: [], totalVendedores: 0, monto: 0 },
             contador: (saldo > 0 ? 1 : 0) + gracia.total,
         },
     };

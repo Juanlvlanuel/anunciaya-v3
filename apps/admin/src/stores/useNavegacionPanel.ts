@@ -23,6 +23,16 @@ export interface FiltroNegociosInicial {
 }
 export interface FiltroSuscripcionesInicial {
   tipo?: string;
+  /** Pestaña inicial del módulo Suscripciones (ej. 'por-verificar' para la cola de pagos manuales). */
+  pestana?: string;
+}
+export interface FiltroVendedoresInicial {
+  /** usuarios.id del vendedor a abrir directo (= VendedorFila.id). Si falta, abre la lista. */
+  usuarioId?: string;
+  embajadorId?: string;
+  nombre?: string;
+  /** Pestaña inicial del detalle del vendedor: 'efectivo' (Por entregar) | 'pagos' | 'comisiones' | 'cartera'. */
+  tab?: string;
 }
 
 interface NavegacionPanelState {
@@ -30,26 +40,35 @@ interface NavegacionPanelState {
   destino: string | null;
   filtroNegocios: FiltroNegociosInicial | null;
   filtroSuscripciones: FiltroSuscripcionesInicial | null;
+  filtroVendedores: FiltroVendedoresInicial | null;
   navegar: (
     destino: string,
-    filtros?: { negocios?: FiltroNegociosInicial; suscripciones?: FiltroSuscripcionesInicial },
+    filtros?: {
+      negocios?: FiltroNegociosInicial;
+      suscripciones?: FiltroSuscripcionesInicial;
+      vendedores?: FiltroVendedoresInicial;
+    },
   ) => void;
   limpiarDestino: () => void;
   /** Lee y limpia el filtro inicial de Negocios (one-shot). */
   consumirFiltroNegocios: () => FiltroNegociosInicial | null;
   /** Lee y limpia el filtro inicial de Suscripciones (one-shot). */
   consumirFiltroSuscripciones: () => FiltroSuscripcionesInicial | null;
+  /** Lee y limpia el filtro inicial de Vendedores (one-shot). */
+  consumirFiltroVendedores: () => FiltroVendedoresInicial | null;
 }
 
 export const useNavegacionPanel = create<NavegacionPanelState>((set, get) => ({
   destino: null,
   filtroNegocios: null,
   filtroSuscripciones: null,
+  filtroVendedores: null,
   navegar: (destino, filtros) =>
     set({
       destino,
       filtroNegocios: filtros?.negocios ?? null,
       filtroSuscripciones: filtros?.suscripciones ?? null,
+      filtroVendedores: filtros?.vendedores ?? null,
     }),
   limpiarDestino: () => set({ destino: null }),
   consumirFiltroNegocios: () => {
@@ -60,6 +79,11 @@ export const useNavegacionPanel = create<NavegacionPanelState>((set, get) => ({
   consumirFiltroSuscripciones: () => {
     const f = get().filtroSuscripciones;
     if (f) set({ filtroSuscripciones: null });
+    return f;
+  },
+  consumirFiltroVendedores: () => {
+    const f = get().filtroVendedores;
+    if (f) set({ filtroVendedores: null });
     return f;
   },
 }));

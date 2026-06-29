@@ -109,8 +109,16 @@ async function main(): Promise<void> {
     const gr = sup.pendientes.gracia;
     verificar('gracia.total ≥ items mostrados', gr.total >= gr.items.length, `total=${gr.total}, items=${gr.items.length}`);
     verificar('items de gracia ordenados por fecha límite asc', ordenado(gr.items, (i) => (i.fechaLimiteGracia ? new Date(i.fechaLimiteGracia).getTime() : null), 'asc'));
-    verificar('contador == efectivo.totalVendedores + gracia.total', sup.pendientes.contador === ef.totalVendedores + gr.total, `contador=${sup.pendientes.contador}`);
-    console.log(`    (super: ${negActivos} negocios activos, ${ef.totalVendedores} vendedor(es) deben efectivo, ${gr.total} en gracia)`);
+    const sol = sup.pendientes.solicitudes;
+    verificar('solicitudes.total entero ≥ 0', enteroNoNeg(sol.total), String(sol.total));
+    verificar('solicitudes.total ≥ items mostrados', sol.total >= sol.items.length, `total=${sol.total}, items=${sol.items.length}`);
+    const com = sup.pendientes.comisiones;
+    verificar('comisiones.monto ≥ 0', numNoNeg(com.monto), String(com.monto));
+    verificar('comisiones.totalVendedores ≥ items mostrados', com.totalVendedores >= com.items.length, `total=${com.totalVendedores}, items=${com.items.length}`);
+    verificar('todos los items de comisiones tienen monto > 0', com.items.every((i) => i.monto > 0));
+    verificar('items de comisiones ordenados por monto desc', ordenado(com.items, (i) => i.monto, 'desc'));
+    verificar('contador == efectivo + gracia + solicitudes + comisiones', sup.pendientes.contador === ef.totalVendedores + gr.total + sol.total + com.totalVendedores, `contador=${sup.pendientes.contador}`);
+    console.log(`    (super: ${negActivos} negocios activos, ${ef.totalVendedores} deben efectivo, ${gr.total} en gracia, ${sol.total} pagos por verificar, ${com.totalVendedores} comisiones por pagar)`);
 
     // ─── [3] GERENTE: acotado a su región (⊆ super) ───────────────────────────────
     console.log('\n[3] obtenerResumen como GERENTE — alcance ⊆ super');
@@ -120,7 +128,16 @@ async function main(): Promise<void> {
         verificar('negociosActivos(gerente) ≤ negociosActivos(super)', (kpi(vistaGte, 'negociosActivos') ?? 0) <= (negActivos ?? 0));
         verificar('efectivo vendedores(gerente) ≤ super', vistaGte.pendientes.efectivo.totalVendedores <= ef.totalVendedores);
         verificar('gracia total(gerente) ≤ super', vistaGte.pendientes.gracia.total <= gr.total);
-        verificar('contador(gerente) coherente', vistaGte.pendientes.contador === vistaGte.pendientes.efectivo.totalVendedores + vistaGte.pendientes.gracia.total);
+        verificar('solicitudes(gerente) ≤ super', vistaGte.pendientes.solicitudes.total <= sol.total);
+        verificar('gerente NO ve comisiones por pagar (solo super)', vistaGte.pendientes.comisiones.totalVendedores === 0);
+        verificar(
+            'contador(gerente) coherente',
+            vistaGte.pendientes.contador ===
+                vistaGte.pendientes.efectivo.totalVendedores +
+                    vistaGte.pendientes.gracia.total +
+                    vistaGte.pendientes.solicitudes.total +
+                    vistaGte.pendientes.comisiones.totalVendedores,
+        );
 
         // Lente de región del super == ver como gerente de esa región.
         const lente = await obtenerResumen(panelConFiltroRegion(panel('superadmin'), gte.region_id));
@@ -150,6 +167,8 @@ async function main(): Promise<void> {
         verificar('efectivoPorEntregar (KPI) == saldoEfectivo', kpi(vend, 'efectivoPorEntregar') === saldo, `kpi=${kpi(vend, 'efectivoPorEntregar')}, saldo=${saldo}`);
         verificar('pendientes.efectivo.monto == saldo', vend.pendientes.efectivo.monto === saldo);
         verificar('vendedor NO ve la red (efectivo.items vacío)', vend.pendientes.efectivo.items.length === 0);
+        verificar('vendedor NO ve pagos por verificar', vend.pendientes.solicitudes.total === 0);
+        verificar('vendedor NO ve comisiones por pagar', vend.pendientes.comisiones.totalVendedores === 0);
         verificar('contador == (saldo>0?1:0) + gracia.total', vend.pendientes.contador === (saldo > 0 ? 1 : 0) + vend.pendientes.gracia.total);
     } else {
         console.log('    (no hay vendedores — se omite)');

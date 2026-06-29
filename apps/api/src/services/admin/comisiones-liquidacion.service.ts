@@ -17,7 +17,7 @@
  * Ubicación: apps/api/src/services/admin/comisiones-liquidacion.service.ts
  */
 
-import { and, eq, asc } from 'drizzle-orm';
+import { and, eq, asc, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { embajadores, embajadorComisiones, pagosVendedor, vendedorDatosCobro, efectivoMovimientos } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
@@ -239,6 +239,63 @@ export async function comisionesPendientesDe(embajadorId: string): Promise<numbe
         .from(embajadorComisiones)
         .where(and(eq(embajadorComisiones.embajadorId, embajadorId), eq(embajadorComisiones.estado, 'pendiente')));
     return filas.reduce((s, c) => s + (Number(c.monto) - Number(c.pagado)), 0);
+}
+
+// =============================================================================
+// COMISIONES POR PAGAR (pendiente del Resumen — solo super; vendedores con saldo > 0)
+// =============================================================================
+
+export interface ItemComisionPorPagar {
+    embajadorId: string;
+    usuarioId: string | null;
+    nombre: string;
+    monto: number; // Σ pendiente de liquidar de ese vendedor
+}
+
+export interface ComisionesPorPagar {
+    items: ItemComisionPorPagar[]; // los `limite` con mayor saldo
+    totalVendedores: number;        // cuántos vendedores tienen comisión por cobrarte
+    monto: number;                  // suma de todo lo pendiente de liquidar
+}
+
+/**
+ * Vendedores con comisiones PENDIENTES de liquidar (Σ monto_comision − monto_pagado > 0) en la red,
+ * para la cola de pendientes del Resumen. SOLO el superadmin: registrar el pago es tesorería exclusiva
+ * del super (`registrarPago`), así que el pendiente solo tiene sentido —y acción— para él. El gerente y
+ * el vendedor reciben vacío (al super con lente de región el middleware lo degrada a gerente, así que
+ * ahí tampoco aparece: las comisiones se pagan globales, no por región).
+ */
+export async function listarComisionesPorPagar(panel: UsuarioPanel, limite = 5): Promise<ComisionesPorPagar> {
+    const vacio: ComisionesPorPagar = { items: [], totalVendedores: 0, monto: 0 };
+    if (panel.rolEquipo !== 'superadmin') return vacio;
+
+    const filas = (
+        await db.execute(sql`
+            SELECT e.id AS embajador_id, e.usuario_id AS usuario_id,
+                   (u.nombre || ' ' || COALESCE(u.apellidos, '')) AS nombre,
+                   COALESCE(SUM(ec.monto_comision - ec.monto_pagado), 0) AS monto
+            FROM embajador_comisiones ec
+            JOIN embajadores e ON e.id = ec.embajador_id
+            JOIN usuarios u ON u.id = e.usuario_id
+            WHERE ec.estado = 'pendiente'
+            GROUP BY e.id, e.usuario_id, u.nombre, u.apellidos
+            HAVING COALESCE(SUM(ec.monto_comision - ec.monto_pagado), 0) > 0
+            ORDER BY monto DESC
+        `)
+    ).rows as Array<{ embajador_id: string; usuario_id: string | null; nombre: string; monto: string | number }>;
+
+    const todos: ItemComisionPorPagar[] = filas.map((f) => ({
+        embajadorId: f.embajador_id,
+        usuarioId: f.usuario_id ?? null,
+        nombre: (f.nombre ?? '').trim() || '—',
+        monto: Number(f.monto),
+    }));
+
+    return {
+        items: todos.slice(0, limite),
+        totalVendedores: todos.length,
+        monto: todos.reduce((s, v) => s + v.monto, 0),
+    };
 }
 
 // =============================================================================

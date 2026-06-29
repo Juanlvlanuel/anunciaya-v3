@@ -51,9 +51,38 @@ export interface ListaEnGracia {
   total: number;
 }
 
+/** Una solicitud de pago manual por verificar (subset de la cola; el backend manda más campos). */
+export interface SolicitudResumen {
+  id: string;
+  negocioId: string;
+  negocioNombre: string;
+  monto: string;
+  creadoAt: string;
+}
+
+export interface SolicitudesResumen {
+  items: SolicitudResumen[];
+  total: number;
+}
+
+export interface ItemComisionPorPagar {
+  embajadorId: string;
+  usuarioId: string | null;
+  nombre: string;
+  monto: number;
+}
+
+export interface ComisionesPorPagar {
+  items: ItemComisionPorPagar[];
+  totalVendedores: number;
+  monto: number;
+}
+
 export interface PendientesResumen {
   efectivo: EfectivoPendiente;
   gracia: ListaEnGracia;
+  solicitudes: SolicitudesResumen;
+  comisiones: ComisionesPorPagar;
   contador: number;
 }
 
@@ -69,6 +98,8 @@ const VACIO: ResumenPanel = {
   pendientes: {
     efectivo: { items: [], totalVendedores: 0, monto: 0 },
     gracia: { items: [], total: 0 },
+    solicitudes: { items: [], total: 0 },
+    comisiones: { items: [], totalVendedores: 0, monto: 0 },
     contador: 0,
   },
 };

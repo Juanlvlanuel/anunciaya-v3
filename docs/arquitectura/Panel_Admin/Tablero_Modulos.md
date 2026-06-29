@@ -14,12 +14,24 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 27 Junio 2026.
+> **Última actualización:** 29 Junio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **Pendientes del Panel ampliados (29 jun):** la cola de pendientes del **Resumen** —y la **campana**
+  del shell— pasó de 2 a **4 tipos**: se sumaron **Pagos por verificar** (cola de pagos manuales con
+  comprobante; super + gerente) y **Comisiones por pagar** (comisiones por liquidar; **solo super**),
+  calcando el patrón de efectivo/gracia (queries derivadas del estado actual, **sin tabla nueva** ni
+  Fase 2 — reusan acciones ya existentes: aprobar/rechazar pago, registrar abono). Los pendientes de
+  vendedor ahora **abren el detalle en la pestaña que resuelve la tarea** (efectivo→"Por entregar",
+  comisiones→"Pagos") y pagos→**Suscripciones · "Por verificar"** (deep-link a tab vía
+  `useNavegacionPanel`). Backend: `listarComisionesPorPagar` (nuevo) + ensamblado en `resumen.service`;
+  alcance por rol (pagos: super+gerente·región; comisiones: solo super, con lente no aplica). `tsc`
+  api+admin y `vite build` verdes; harness `probar-resumen-lectura.ts` ampliado y **verde con datos
+  reales**; **E2E por Juan (los 4 pendientes)**. Seed nuevo `seed-pago-manual-pendiente-dev.ts`. Docs:
+  `Resumen.md` + `Resumen_Pendientes.md` al día. **Pendiente: commit a main.**
 - **GATE 2 visual de Territorios validado (27 jun):** Juan probó en vivo el editor de zonas (G.1) — dibujar
   una zona real con las 4 herramientas (✏️ agregar · ✋ mover · 🗑️ quitar · 🖐️ mapa), insertar vértice en
   arista, snapping a calles, rechazo por traslape (409), reasignar a vendedor y borrar. **Territorios pasa a
@@ -183,7 +195,7 @@
 | # | Módulo | Estado | Fase | Docs |
 |---|---|---|---|---|
 | | **· General ·** | | | |
-| 1 | **Resumen / inicio** | ✅ | Construido (VER · solo lectura, salta Fase 2) | `Resumen.md` · `Resumen_Pendientes.md` |
+| 1 | **Resumen / inicio** | ✅ | Construido (VER · solo lectura, salta Fase 2) · cola de pendientes **4 tipos** + deep-link a tab (29 jun) | `Resumen.md` · `Resumen_Pendientes.md` |
 | 2 | **Métricas** | ✅ | ✔ Cerrado (VER · solo lectura, salta Fase 2) | `Metricas.md` · `Metricas_Pendientes.md` |
 | | **· Operación ·** | | | |
 | 3 | **Negocios** | ✅ | ✔ Cerrado · backlog menor | `Negocios.md` · `Negocios_Pendientes.md` |

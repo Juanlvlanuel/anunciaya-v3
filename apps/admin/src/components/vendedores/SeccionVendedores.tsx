@@ -21,11 +21,31 @@ import type { OrdenVendedores, VendedorFila, ConteosEstado } from '../../service
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { MenuFiltro } from '../negocios/MenuFiltro';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
-import { DetalleVendedor, CuerpoCartera } from './DetalleVendedor';
+import { DetalleVendedor, CuerpoCartera, type TabVendedor } from './DetalleVendedor';
+import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 
 type RolPanel = 'superadmin' | 'gerente' | 'vendedor';
 
 const POR_PAGINA = 20;
+
+const TABS_VENDEDOR: TabVendedor[] = ['cartera', 'comisiones', 'pagos', 'efectivo'];
+
+/** Placeholder mínimo para abrir el detalle por deep-link (React Query rellena con `useCartera`). */
+function placeholderDesdeFiltro(f: { usuarioId?: string; embajadorId?: string; nombre?: string }): VendedorFila {
+  return {
+    id: f.usuarioId ?? '',
+    embajadorId: f.embajadorId ?? '',
+    nombre: f.nombre ?? '',
+    correo: '',
+    codigoReferido: '',
+    linkReferido: null,
+    estadoEmbajador: 'activo',
+    regionNombre: null,
+    ciudades: null,
+    negociosEnCartera: 0,
+    negociosActivos: 0,
+  };
+}
 
 const TABS_ESTADO = [
   { id: '', label: 'Todos' },
@@ -115,12 +135,29 @@ function ListaVendedores() {
   const [estado, setEstado] = useState('');
   const [orden, setOrden] = useState<OrdenVendedores>('cartera_desc');
   const [pagina, setPagina] = useState(1);
-  const [vendedorAbierto, setVendedorAbierto] = useState<VendedorFila | null>(null);
+  // Deep-link desde un pendiente (campana/Resumen): abre directo el vendedor en la pestaña de la tarea
+  // (efectivo → "Por entregar", comisiones → "Pagos"). Se lee al montar (getState) para no parpadear.
+  const [vendedorAbierto, setVendedorAbierto] = useState<VendedorFila | null>(() => {
+    const f = useNavegacionPanel.getState().filtroVendedores;
+    return f?.usuarioId ? placeholderDesdeFiltro(f) : null;
+  });
+  const [tabInicial, setTabInicial] = useState<TabVendedor | undefined>(() => {
+    const f = useNavegacionPanel.getState().filtroVendedores;
+    return f?.usuarioId && f.tab && (TABS_VENDEDOR as string[]).includes(f.tab) ? (f.tab as TabVendedor) : undefined;
+  });
   const [paginaCartera, setPaginaCartera] = useState(1);
   const prefetch = usePrefetchVendedor();
 
-  const abrir = (v: VendedorFila) => { setVendedorAbierto(v); setPaginaCartera(1); };
-  const cerrar = () => { setVendedorAbierto(null); setPaginaCartera(1); };
+  // Consume el filtro one-shot (ya se leyó en los initializers de arriba) para que no se reaplique al
+  // volver a la sección desde el menú.
+  useEffect(() => {
+    if (useNavegacionPanel.getState().filtroVendedores) {
+      useNavegacionPanel.getState().consumirFiltroVendedores();
+    }
+  }, []);
+
+  const abrir = (v: VendedorFila) => { setVendedorAbierto(v); setTabInicial(undefined); setPaginaCartera(1); };
+  const cerrar = () => { setVendedorAbierto(null); setTabInicial(undefined); setPaginaCartera(1); };
 
   const listaRef = useRef<HTMLDivElement>(null);
   const setScrollEl = useScrollPanel((s) => s.setScrollEl);
@@ -154,7 +191,7 @@ function ListaVendedores() {
 
   // Master-detail: al abrir un vendedor, su detalle reemplaza la lista (full-width).
   if (vendedorAbierto) {
-    return <DetalleVendedor previo={vendedorAbierto} onCerrar={cerrar} pagina={paginaCartera} setPagina={setPaginaCartera} />;
+    return <DetalleVendedor previo={vendedorAbierto} onCerrar={cerrar} pagina={paginaCartera} setPagina={setPaginaCartera} tabInicial={tabInicial} />;
   }
 
   const items = data?.items ?? [];

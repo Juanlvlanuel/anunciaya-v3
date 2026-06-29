@@ -61,11 +61,16 @@ export function BandejaPendientes({ rol, variante }: BandejaPendientesProps) {
         });
       }
     } else if (p.efectivo.totalVendedores > 0) {
+      // Con un solo vendedor, el clic abre su detalle directo en "Por entregar"; con varios, la lista.
+      const uno = p.efectivo.totalVendedores === 1 ? p.efectivo.items[0] : null;
       items.push({
         icono: 'comisiones',
         titulo: 'Efectivo por entregar',
         subtitulo: `${p.efectivo.totalVendedores} vendedor(es) · ${FMT_MONEDA.format(p.efectivo.monto)}`,
-        ir: () => irA('comisiones'),
+        ir: () =>
+          irA('comisiones', uno?.usuarioId
+            ? { vendedores: { usuarioId: uno.usuarioId, embajadorId: uno.embajadorId, nombre: uno.nombre, tab: 'efectivo' } }
+            : undefined),
       });
     }
     if (p.gracia.total > 0) {
@@ -74,6 +79,29 @@ export function BandejaPendientes({ rol, variante }: BandejaPendientesProps) {
         titulo: esVendedor ? 'Mis negocios en gracia' : 'Negocios en gracia',
         subtitulo: `${p.gracia.total} por suspenderse`,
         ir: () => irA('negocios', { negocios: { estadoPago: 'en_gracia' } }),
+      });
+    }
+    // Pagos manuales por verificar (super + gerente). El backend da 0 al vendedor.
+    if (p.solicitudes.total > 0) {
+      items.push({
+        icono: 'suscripciones',
+        titulo: 'Pagos por verificar',
+        subtitulo: `${p.solicitudes.total} con comprobante`,
+        ir: () => irA('suscripciones', { suscripciones: { pestana: 'por-verificar' } }),
+      });
+    }
+    // Comisiones por liquidar a vendedores (solo super). El backend da 0 a gerente/vendedor.
+    if (p.comisiones.totalVendedores > 0) {
+      // Con un solo vendedor, el clic abre su detalle directo en "Pagos" (registrar abono); con varios, la lista.
+      const uno = p.comisiones.totalVendedores === 1 ? p.comisiones.items[0] : null;
+      items.push({
+        icono: 'comisiones',
+        titulo: 'Comisiones por pagar',
+        subtitulo: `${p.comisiones.totalVendedores} vendedor(es) · ${FMT_MONEDA.format(p.comisiones.monto)}`,
+        ir: () =>
+          irA('comisiones', uno?.usuarioId
+            ? { vendedores: { usuarioId: uno.usuarioId, embajadorId: uno.embajadorId, nombre: uno.nombre, tab: 'pagos' } }
+            : undefined),
       });
     }
   }

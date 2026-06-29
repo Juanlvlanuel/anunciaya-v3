@@ -513,6 +513,7 @@ export function CuerpoCartera({
   pagina,
   setPagina,
   vistaVendedor = false,
+  tabInicial,
 }: {
   cartera: CarteraVendedor | null | undefined;
   placeholder: VendedorFila | VendedorDetalle;
@@ -521,14 +522,17 @@ export function CuerpoCartera({
   pagina: number;
   setPagina: (p: number) => void;
   vistaVendedor?: boolean;
+  /** Pestaña con la que abre (deep-link desde un pendiente: 'efectivo' / 'pagos'). Default por rol. */
+  tabInicial?: TabVendedor;
 }) {
   const vendedor = cartera?.vendedor ?? placeholder;
   const items = cartera?.items ?? [];
   const total = cartera?.total ?? 0;
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA_CARTERA));
 
-  // Pestaña activa: el vendedor arranca en "Comisiones" (su cartera vive en "Mi cartera"); super/gerente en "Cartera".
-  const [tab, setTab] = useState<TabVendedor>(vistaVendedor ? 'comisiones' : 'cartera');
+  // Pestaña activa: respeta el deep-link (ej. campana → "Por entregar"); si no, el vendedor arranca en
+  // "Comisiones" (su cartera vive en "Mi cartera") y super/gerente en "Cartera".
+  const [tab, setTab] = useState<TabVendedor>(tabInicial ?? (vistaVendedor ? 'comisiones' : 'cartera'));
 
   return (
     <div className="grid gap-5 lg:h-full lg:min-h-0 lg:grid-cols-[320px_minmax(0,1fr)] lg:items-stretch" data-testid="cuerpo-cartera">
@@ -563,11 +567,13 @@ export function CuerpoCartera({
  * Vista de detalle del vendedor (super/gerente). Reemplaza la lista (full-width), con botón "Volver"
  * que también responde al back nativo. Abre al instante con la fila como placeholder; React Query rellena.
  */
-export function DetalleVendedor({ previo, onCerrar, pagina, setPagina }: {
+export function DetalleVendedor({ previo, onCerrar, pagina, setPagina, tabInicial }: {
   previo: VendedorFila;
   onCerrar: () => void;
   pagina: number;
   setPagina: (p: number) => void;
+  /** Pestaña con la que abre el detalle (deep-link desde un pendiente del Resumen/campana). */
+  tabInicial?: TabVendedor;
 }) {
   const esEscritorio = useEsEscritorio();
   const { data, isLoading, isError } = useCartera(previo.id, { pagina, porPagina: POR_PAGINA_CARTERA });
@@ -600,7 +606,7 @@ export function DetalleVendedor({ previo, onCerrar, pagina, setPagina }: {
 
       {/* Cuerpo a todo el ancho. En escritorio no scrollea como un todo: la lista llena el alto y scrollea. */}
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto p-4 lg:overflow-hidden lg:p-6">
-        <CuerpoCartera cartera={data} placeholder={previo} isLoading={isLoading} isError={isError} pagina={pagina} setPagina={setPagina} />
+        <CuerpoCartera cartera={data} placeholder={previo} isLoading={isLoading} isError={isError} pagina={pagina} setPagina={setPagina} tabInicial={tabInicial} />
       </div>
     </div>
   );

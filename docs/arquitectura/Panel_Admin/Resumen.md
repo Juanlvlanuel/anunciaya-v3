@@ -11,6 +11,11 @@
 > carril **salta la Fase 2 (Actuar)**. Backend verificado con harness contra datos reales; `tsc`
 > api+admin y `vite build` verdes. **Sin migración SQL** (lee tablas ya existentes).
 >
+> **Ampliación (29 jun 2026):** la cola de pendientes pasó de 2 a **4 tipos** (se sumaron *Pagos por
+> verificar* y *Comisiones por pagar*) y los pendientes de vendedor ahora **abren su detalle en la
+> pestaña que resuelve la tarea** (deep-link a tab). Reusa acciones ya existentes (aprobar/rechazar
+> pago manual, registrar abono), por eso sigue saltando Fase 2. Verificado E2E por Juan + harness verde.
+>
 > Documentos hermanos: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) ·
 > [`Negocios.md`](Negocios.md) (negocios en gracia) · [`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)
 > (efectivo y comisiones) · [`Suscripciones.md`](Suscripciones.md) (ingresos / cobros fallidos) ·
@@ -50,15 +55,20 @@ confía en la UI):
   · Cobros fallidos*; el Vendedor ve *Mi cartera activa · Comisiones pendientes · Efectivo por entregar*.
 - **Negocio activo:** `estado_admin = 'activo'` y membresía **al corriente o en gracia** (misma
   definición que la comisión recurrente).
-- **Cola de pendientes:** dos tipos de tarea —**Efectivo por entregar** (vendedores que cobraron en
-  efectivo y no han entregado, `saldo > 0`) y **Negocios en gracia** (cobro fallido, por suspenderse).
+- **Cola de pendientes:** cuatro tipos de tarea, cada uno según el rol que lo ve —**Efectivo por
+  entregar** (vendedores con `saldo > 0`), **Negocios en gracia** (cobro fallido, por suspenderse),
+  **Pagos por verificar** (solicitudes de pago manual con comprobante; super + gerente) y **Comisiones
+  por pagar** (comisiones por liquidar a vendedores; solo el super).
 - **Deep-link:** el clic en un KPI o un pendiente abre la **sección que resuelve la tarea**, ya
   **filtrada** cuando aplica (ej. Negocios → solo "en gracia").
 
-> **¿Por qué 2 tipos de pendiente y no 3?** El diseño viejo listaba *efectivo por confirmar*,
-> *negocios en gracia* y *vendedores con faltante*. Pero el módulo de Vendedores se construyó con
-> **neteo, no confirmación**: no existe un estado "entrega por confirmar". En el modelo real,
-> *"efectivo por confirmar"* y *"vendedores con faltante"* son **lo mismo** (vendedores con `saldo > 0`).
+> **¿Cómo se eligen los tipos de pendiente?** La regla de admisión es dura: *si al hacer clic vas a
+> EJECUTAR algo, entra; si solo informa, no.* Arrancó con 2 (efectivo + gracia) y el **29 jun 2026** se
+> sumaron **Pagos por verificar** y **Comisiones por pagar** —las otras dos colas accionables vivas del
+> Panel— calcando el mismo patrón. Quedaron **fuera** los avisos informativos (cobros fallidos = síntoma
+> de "en gracia"; disputas/reembolsos Stripe = externos; publicidad por vencer = se autoexpira): ya
+> tienen casa en Auditoría / Métricas / Suscripciones. Sobre el neteo: *"efectivo por confirmar"* y
+> *"vendedores con faltante"* son lo mismo (`saldo > 0`), por eso el efectivo es **un** tipo, no dos.
 
 ## 4. ¿Qué veo en la pantalla?
 
@@ -66,9 +76,11 @@ confía en la UI):
   20 de junio de 2026").
 - **KPIs:** tarjetas con ícono, valor grande, etiqueta y una línea de contexto. **Escritorio:** ícono
   a la izquierda. **Móvil:** apiladas (ícono arriba, texto a lo ancho) para que nada se trunque.
-- **Cola "Pendientes por resolver":** dos bloques (Efectivo por entregar · Negocios en gracia). Cada
+- **Cola "Pendientes por resolver":** hasta **cuatro bloques** según el rol —Efectivo por entregar ·
+  Negocios en gracia · Pagos por verificar (super + gerente) · Comisiones por pagar (solo super). Cada
   uno muestra hasta **5 filas**; si hay más, aparece **"Ver todos →"**. Si no hay nada, un **estado
-  vacío positivo** (check verde: "Ningún vendedor debe efectivo").
+  vacío positivo** (check verde). El **clic en una fila abre directo la tarea**: el vendedor en la
+  pestaña que la resuelve, o el negocio/cola que toca (ver §5).
 - **La campana** (arriba en la barra) usa la **misma data**: su badge es el total de pendientes del rol.
 
 ## 5. ¿Qué puedo hacer? (navegación)
@@ -79,7 +91,13 @@ Todo el módulo es lectura; lo "accionable" es **navegar para resolver**:
 - Clic en **Usuarios** → sección **Usuarios**.
 - Clic en **Ingresos del mes** → sección **Suscripciones**. Clic en **Cobros fallidos** → Suscripciones
   **filtrado** por tipo `cobro_fallido`.
-- Clic en **Efectivo por entregar** / **Comisiones pendientes** → **Vendedores y comisiones**.
+- Clic en **Efectivo por entregar** → abre el **detalle del vendedor en la pestaña "Por entregar"** (si
+  la cola tiene un solo vendedor; con varios, abre la lista). El KPI **Comisiones pendientes** (vista del
+  vendedor) → **Vendedores y comisiones**.
+- Clic en **Comisiones por pagar** → abre el **detalle del vendedor en la pestaña "Pagos"** (donde el
+  super registra el abono; el diálogo muestra el saldo a pagar con el neteo del efectivo).
+- Clic en **Pagos por verificar** → **Suscripciones · pestaña "Por verificar"** (aprobar/rechazar la
+  solicitud de pago manual).
 - Clic en un **negocio en gracia** (o "Ver todos") → **Negocios filtrado** por "en gracia".
 
 ## 6. Preguntas frecuentes
@@ -107,7 +125,9 @@ Todo el módulo es lectura; lo "accionable" es **navegar para resolver**:
 | KPI usuarios | `services/admin/usuarios.service.ts` (`contarUsuarios`) |
 | KPI ingresos/fallidos | `services/admin/suscripciones.service.ts` (`resumenIngresos`) |
 | Efectivo por entregar | `services/admin/comisiones-efectivo.service.ts` (`listarEfectivoPendiente`, `saldoEfectivo`) |
-| Comisiones pendientes (vendedor) | `services/admin/comisiones-liquidacion.service.ts` (`comisionesPendientesDe`) |
+| Comisiones pendientes (KPI vendedor) | `services/admin/comisiones-liquidacion.service.ts` (`comisionesPendientesDe`) |
+| Comisiones por pagar (super) | `services/admin/comisiones-liquidacion.service.ts` (`listarComisionesPorPagar`) |
+| Pagos manuales por verificar | `services/admin/pagos-manuales-cola.service.ts` (`listarSolicitudesPendientes`) |
 | Controller | `controllers/admin/resumen.controller.ts` (aplica `panelConFiltroRegion`) |
 | Rutas | `routes/admin/resumen.routes.ts` (montadas en `routes/admin/index.ts` **antes** del gate global) |
 | Harness | `scripts/probar-resumen-lectura.ts` · Seed dev: `scripts/seed-efectivo-pendiente-dev.ts` (+ `seed-negocios-estados-dev.ts`) |
@@ -120,15 +140,15 @@ Todo el módulo es lectura; lo "accionable" es **navegar para resolver**:
 | Hook RQ | `hooks/queries/useResumen.ts` (`useResumen`, staleTime 1 min) |
 | Sección | `components/resumen/SeccionResumen.tsx` (encabezado + KPIs + cola; subcomponentes `BloquePendiente`, `FilaPendiente`) |
 | Campana (mismo hook) | `components/shell/BandejaPendientes.tsx` |
-| Deep-link | `stores/useNavegacionPanel.ts` (destino + filtro inicial, one-shot) |
-| Consumo del filtro | `components/negocios/SeccionNegocios.tsx` (`estadoPago`) · `components/suscripciones/SeccionSuscripciones.tsx` (`tipo`) |
+| Deep-link | `stores/useNavegacionPanel.ts` (destino + filtro inicial, one-shot: `negocios`/`suscripciones`/`vendedores`) |
+| Consumo del filtro | `components/negocios/SeccionNegocios.tsx` (`estadoPago`) · `components/suscripciones/SeccionSuscripciones.tsx` (`tipo` + `pestana`) · `components/vendedores/SeccionVendedores.tsx` + `DetalleVendedor.tsx` (abre el vendedor en `tabInicial`) |
 | Cableado · keys | `pages/PaginaPanel.tsx` · `config/queryKeys.ts` (`resumen`) |
 
 ## Endpoint (los 3 roles, alcance por rol en el service)
 
 | Método | Ruta | Qué hace |
 |---|---|---|
-| `GET` | `/api/admin/resumen` | Devuelve `{ rol, kpis: [{clave, valor}], pendientes: { efectivo, gracia, contador } }`. Una sola llamada agregada. Respeta `?regionId=` (lente del super) vía `panelConFiltroRegion`. |
+| `GET` | `/api/admin/resumen` | Devuelve `{ rol, kpis: [{clave, valor}], pendientes: { efectivo, gracia, solicitudes, comisiones, contador } }`. Una sola llamada agregada. Respeta `?regionId=` (lente del super) vía `panelConFiltroRegion`. |
 
 El **front mapea cada `clave`** (`negociosActivos`, `usuarios`, `ingresosMes`, `cobrosFallidos`,
 `carteraActiva`, `comisionesPendientes`, `efectivoPorEntregar`) → etiqueta, formato, ícono, acento y
@@ -145,11 +165,19 @@ Cada consulta reusa el predicado de su dominio (no se duplica):
   sobre `eventos_pago`; el vendedor no entra a este KPI).
 - **Efectivo por entregar** → agrupado por embajador con `saldo > 0`; gerente acotado por
   `embajador_ciudades → ciudades.region_id`; el vendedor ve solo su propio saldo.
+- **Pagos por verificar** → `listarSolicitudesPendientes`: super = todas; gerente = su región (vía
+  `negocio_sucursales → ciudades.region_id` del negocio); vendedor = no aplica (0).
+- **Comisiones por pagar** → `listarComisionesPorPagar`: **solo superadmin** (agrupado por embajador con
+  Σ pendiente > 0). Con lente de región el middleware degrada al super a gerente, así que ahí tampoco
+  aparece — las comisiones se liquidan globales, no por región.
 
 ## Notas
 
 - **Sin migración SQL.** Lee `negocios`, `usuarios`, `eventos_pago`, `efectivo_movimientos`,
-  `embajador_comisiones` — todas ya existentes.
+  `embajador_comisiones`, `pagos_manuales_solicitudes` — todas ya existentes.
+- **Contador de la campana** = `efectivo.totalVendedores + gracia.total + solicitudes.total +
+  comisiones.totalVendedores`. Para poblar las colas en dev: `seed-pago-manual-pendiente-dev.ts`
+  (pagos por verificar) y `seed-negocios-estados-dev.ts` (gracia).
 - **Ingresos del mes** = `SUM(monto)` de `cobro_exitoso` + `pago_manual` desde el inicio del mes en
   curso. **Cobros fallidos** = `COUNT` de `cobro_fallido` del mes.
 - **Cola:** hasta **5 filas** por bloque (`limite = 5` en las consultas); "Ver todos" solo aparece si
@@ -161,6 +189,9 @@ Cada consulta reusa el predicado de su dominio (no se duplica):
 ## Pendientes / futuro
 
 - **Métricas (#2):** el análisis profundo (actividad, gráficas, tendencias) es un módulo aparte.
-- **Deep-link de efectivo/comisiones:** hoy abre Vendedores sin filtro; podría pre-seleccionar al
-  vendedor o la pestaña de efectivo.
+- **Deep-link a vendedor + pestaña** (efectivo→"Por entregar", comisiones→"Pagos"): ✅ hecho (29 jun).
+  Con **varios** vendedores en el pendiente, la **campana** abre la lista (no un tab); cada fila del
+  Resumen sí abre su vendedor. Futuro: que la campana con varios también ofrezca elegir.
+- El pendiente de efectivo del **propio vendedor** (su vista "Mi cartera") aún no deep-linkea a su tab
+  "Por entregar" (abre en "Comisiones" por default); pendiente menor.
 - **Más KPIs** (ej. negocios nuevos del mes, usuarios nuevos) cuando se quiera enriquecer el tablero.
