@@ -29,6 +29,7 @@ import {
   verificar2faSchema,
   desactivar2faSchema,
   campoContrasena,
+  actualizarPerfilSchema,
 } from '../validations/auth.schema.js';
 import {
   registrarUsuario,
@@ -53,6 +54,8 @@ import {
   cambiarContrasenaProvisional,
   verificarDisponibilidadCorreo,
   actualizarUbicacionUsuario,
+  actualizarPerfilUsuario,
+  generarUrlAvatar,
 } from '../services/auth.service.js';
 import { actualizarRegistroPendiente } from '../utils/tokenStore.js';
 
@@ -864,6 +867,67 @@ export async function actualizarUbicacionController(
       success: false,
       message: 'Error al actualizar la ubicación',
     });
+  }
+}
+
+// =============================================================================
+// CONTROLLER: ACTUALIZAR PERFIL (datos personales) + AVATAR
+// =============================================================================
+
+/**
+ * PATCH /api/auth/perfil
+ * Actualiza los datos personales del usuario logueado. Todos los campos son
+ * opcionales; devuelve el usuario actualizado para refrescar el front.
+ */
+export async function actualizarPerfilController(req: Request, res: Response): Promise<void> {
+  if (!req.usuario) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+
+  const validacion = actualizarPerfilSchema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Datos inválidos',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const resultado = await actualizarPerfilUsuario(req.usuario.usuarioId, validacion.data);
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+    data: resultado.data,
+  });
+}
+
+/**
+ * POST /api/auth/avatar/url-subida
+ * Genera una presigned URL para que el usuario suba su avatar a R2.
+ * Body: { nombreArchivo, contentType }
+ */
+export async function urlSubidaAvatarController(req: Request, res: Response): Promise<void> {
+  try {
+    if (!req.usuario) {
+      res.status(401).json({ success: false, message: 'No autenticado' });
+      return;
+    }
+    const { nombreArchivo, contentType } = req.body ?? {};
+    if (!nombreArchivo || !contentType) {
+      res.status(400).json({ success: false, message: 'nombreArchivo y contentType son requeridos' });
+      return;
+    }
+    const r = await generarUrlAvatar(nombreArchivo, contentType);
+    if (!r.success || !r.data) {
+      res.status(r.code ?? 502).json({ success: false, message: r.message });
+      return;
+    }
+    res.status(200).json({ success: true, data: r.data });
+  } catch (error) {
+    console.error('❌ Error en urlSubidaAvatarController:', error);
+    res.status(500).json({ success: false, message: 'Error al preparar la subida del avatar' });
   }
 }
 

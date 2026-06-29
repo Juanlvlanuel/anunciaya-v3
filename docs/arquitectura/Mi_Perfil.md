@@ -20,8 +20,8 @@
 La página de **cuenta/perfil del usuario** en su **Modo Personal** (`apps/web`, FUERA de Business Studio),
 en la ruta `/perfil`. Header con el patrón de las demás secciones (CardYA, Mis Guardados) + tabs tipo chip:
 
-- **Datos Personales** 🟡 placeholder "Próximamente".
-- **Seguridad** 🟡 placeholder "Próximamente".
+- **Datos Personales** ✅ avatar, nombre, apellidos, teléfono, fecha de nacimiento, género y ciudad (correo solo-lectura).
+- **Seguridad** ✅ cambiar contraseña + verificación en dos pasos (2FA).
 - **Membresía y Pagos** ✅ funcional (abre por defecto en este tab).
 
 > Antes de esto, `/perfil` renderizaba por error el perfil del **negocio** de Business Studio. Se cableó a
@@ -45,6 +45,32 @@ estado de membresía que ya existen en `negocios`.
 | 2 | **Recuperar tarjeta** (Customer Portal) | Botón que abre `stripe.billingPortal.sessions.create` para actualizar la tarjeta y pagar la factura pendiente. Copy ramificado: "Actualizar tarjeta y reintentar pago" (urgente, dark gradient) / "Administrar tarjeta" (al corriente). | ✅ |
 | 3 | **Pago manual** con comprobante | Datos de depósito (banco/CLABE/cuenta/**tarjeta OXXO**) + el dueño elige **meses completos** (el monto se autocalcula = meses × precio) + sube comprobante (R2) → crea una **solicitud** que un admin verifica en el Panel. | ✅ |
 | 4 | **Cambio de método de cobro** | Bidireccional: **Cancelar cobro automático** (tarjeta → manual) y **Activar pago con tarjeta** (manual → tarjeta). Respeta la vigencia. | ✅ |
+
+---
+
+## Datos Personales y Seguridad — alcance construido (29 jun 2026)
+
+Los otros dos tabs de `/perfil`, sobre la **cuenta del usuario** (no el negocio). No requirieron migración: todos los campos ya existían en `usuarios`.
+
+### Tab "Datos Personales"
+
+Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reusa `InputTelefono`; se guarda compacto `+{lada}{10 dígitos}`), fecha de nacimiento, género (`masculino/femenino/otro/no_especificado`) y ciudad. El **correo es solo-lectura** (cambiarlo exige re-verificación, fuera de alcance). El avatar usa `useR2Upload` con `maxWidth: 512` (un avatar no necesita más; se optimiza a WebP en el cliente antes de subir) y presigned a la carpeta R2 `avatares`, con anti-huérfanas: borra de R2 al desmontar si se subió sin guardar, **y al pulsar "Quitar" tras subir** (`reset()`); el backend borra el avatar viejo al reemplazarlo. La ciudad reusa `ModalUbicacion` (catálogo hidratado) y se ancla por texto → `ciudad_id`. Guarda solo los campos que cambiaron.
+
+> **Limpieza de BD (29 jun):** se eliminaron del schema `usuarios` las columnas legado de Cloudinary `avatar_public_id` y `avatar_thumb_public_id` (con R2 se trabaja por URL/key, nunca se usaron). DROP en `docs/migraciones/2026-06-29-drop-usuarios-avatar-public-ids.sql` (correr en DEV+PROD **después** de desplegar este código).
+
+### Tab "Seguridad"
+
+- **Contraseña:** reusa `PATCH /auth/cambiar-contrasena` (ya existía). Las cuentas con `autenticado_por_google` ven un aviso en vez del formulario (no tienen contraseña).
+- **2FA:** reusa los endpoints existentes `POST /auth/2fa/generar` (devuelve el **QR ya en base64** + secreto), `POST /auth/2fa/activar` (devuelve los **códigos de respaldo**) y `DELETE /auth/2fa/desactivar`. El estado en la UI sale de `usuario.dobleFactorHabilitado`, que el builder `usuarioAPublico` ahora proyecta como **2FA confirmado** (`dobleFactorHabilitado && dobleFactorConfirmado`), no como "secreto generado".
+
+### Backend nuevo (solo Datos Personales)
+
+| Endpoint | Rol |
+|---|---|
+| `PATCH /auth/perfil` | `actualizarPerfilUsuario` — update parcial de los datos del usuario; devuelve el `UsuarioPublico` actualizado. |
+| `POST /auth/avatar/url-subida` | `generarUrlAvatar` — presigned R2 (carpeta `avatares`, jpeg/png/webp). |
+
+`auth.schema.ts` → `actualizarPerfilSchema` (todos los campos opcionales). El front: `authService.actualizarPerfil` / `generarUrlAvatar`; componentes `pages/private/perfil/components/TabDatosPersonales.tsx` y `TabSeguridad.tsx`; tras guardar se llama `useAuthStore.recargarDatosUsuario()`.
 
 ---
 
@@ -121,7 +147,7 @@ Migración `docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql`. `compro
 
 - **PROD:** migración `2026-06-27-pagos-manuales-solicitudes.sql` ✅ corrida. Falta configurar los **datos de
   depósito** en el Panel live y el **Customer Portal** en Stripe live.
-- **Datos Personales** y **Seguridad**: tabs aún en placeholder (avatar/datos, contraseña/2FA).
+- **Datos Personales** y **Seguridad**: ✅ construidos (29 jun 2026, pendiente QA E2E a mano). Ver sección abajo.
 - **Aviso por correo al dueño** cuando se **rechaza** un pago manual (hoy solo cambia el estado / aviso in-app).
 - **Humanizar** en el módulo Auditoría las acciones nuevas (`pago_manual_aprobar/rechazar`, `datos_cobro_actualizar`).
 - **Stripe Elements integrado** (post-beta): evitar el "X días gratis" del Checkout hosted al activar tarjeta con vigencia futura.

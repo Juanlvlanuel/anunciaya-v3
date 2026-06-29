@@ -31,6 +31,8 @@ import {
   verificarDisponibilidadCorreoController,
   actualizarUbicacionController,
   actualizarRegistroPendienteController,
+  actualizarPerfilController,
+  urlSubidaAvatarController,
 } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { limitadorVerificacionCorreo } from '../middleware/rateLimiter.js';
@@ -93,6 +95,12 @@ router.get('/sesiones', verificarToken, sesiones);
 
 // PATCH /api/auth/cambiar-contrasena - Cambiar contraseña (usuario logueado)
 router.patch('/cambiar-contrasena', verificarToken, cambiarContrasenaController);
+
+// PATCH /api/auth/perfil - Actualizar datos personales (nombre, teléfono, avatar, etc.)
+router.patch('/perfil', verificarToken, actualizarPerfilController);
+
+// POST /api/auth/avatar/url-subida - Presigned URL para subir el avatar a R2
+router.post('/avatar/url-subida', verificarToken, urlSubidaAvatarController);
 
 // POST /api/auth/2fa/generar - Generar secreto + QR
 router.post('/2fa/generar', verificarToken, generar2faController);

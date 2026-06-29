@@ -135,8 +135,6 @@ export const usuarios = pgTable("usuarios", {
 	calificacionPromedio: numeric("calificacion_promedio", { precision: 2, scale: 1 }).default('0'),
 	totalCalificaciones: integer("total_calificaciones").default(0),
 	avatarUrl: text("avatar_url"),
-	avatarPublicId: varchar("avatar_public_id", { length: 100 }),
-	avatarThumbPublicId: varchar("avatar_thumb_public_id", { length: 100 }),
 	fechaNacimiento: date("fecha_nacimiento"),
 	genero: varchar({ length: 20 }).default('no_especificado'),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),

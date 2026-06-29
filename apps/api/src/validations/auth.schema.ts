@@ -305,3 +305,69 @@ export const desactivar2faSchema = z.object({
 });
 
 export type Desactivar2faInput = z.infer<typeof desactivar2faSchema>;
+
+// =============================================================================
+// SCHEMA 13: ACTUALIZAR PERFIL (datos personales del usuario logueado)
+// =============================================================================
+// Para: PATCH /api/auth/perfil
+// Todos los campos son OPCIONALES: solo se actualizan los que llegan. El correo
+// NO es editable aquí (cambiarlo exige re-verificación, fuera de alcance).
+
+export const actualizarPerfilSchema = z
+  .object({
+    nombre: z
+      .string()
+      .trim()
+      .min(2, 'El nombre debe tener al menos 2 caracteres')
+      .max(100, 'El nombre no puede exceder 100 caracteres')
+      .optional(),
+
+    apellidos: z
+      .string()
+      .trim()
+      .min(2, 'Los apellidos deben tener al menos 2 caracteres')
+      .max(100, 'Los apellidos no pueden exceder 100 caracteres')
+      .optional(),
+
+    // Lada (1-4 dígitos) + 10 dígitos del número, en formato compacto: +52..., +1..., etc.
+    // (el front usa InputTelefono con lada editable). null = quitar teléfono.
+    telefono: z
+      .string()
+      .trim()
+      .regex(/^\+\d{11,14}$/, 'El teléfono debe incluir la lada y 10 dígitos (ej. +52 6381234567)')
+      .nullable()
+      .optional(),
+
+    // Fecha en formato AAAA-MM-DD (columna `date`). null = quitar la fecha.
+    fechaNacimiento: z
+      .string()
+      .trim()
+      .regex(/^\d{4}-\d{2}-\d{2}$/, 'La fecha debe tener formato AAAA-MM-DD')
+      .nullable()
+      .optional(),
+
+    // Valores del CHECK en la BD (usuarios.genero).
+    genero: z
+      .enum(['masculino', 'femenino', 'otro', 'no_especificado'])
+      .optional(),
+
+    // Nombre de la ciudad (el service lo ancla al catálogo → ciudad_id). null = quitar.
+    ciudad: z
+      .string()
+      .trim()
+      .max(120, 'La ciudad no puede exceder 120 caracteres')
+      .nullable()
+      .optional(),
+
+    // URL pública de R2 ya subida desde el front. null = quitar avatar.
+    avatarUrl: z
+      .string()
+      .url('El avatar debe ser una URL válida')
+      .nullable()
+      .optional(),
+  })
+  .refine((data) => Object.keys(data).length > 0, {
+    message: 'Debes enviar al menos un campo para actualizar',
+  });
+
+export type ActualizarPerfilInput = z.infer<typeof actualizarPerfilSchema>;

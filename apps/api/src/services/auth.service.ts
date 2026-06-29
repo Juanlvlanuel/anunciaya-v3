@@ -31,6 +31,7 @@ import {
 } from '../utils/email.js';
 import { generarTokens, type PayloadToken, verificarRefreshToken } from '../utils/jwt.js';
 import { resolverCiudadId } from '../utils/ciudades.js';
+import { generarPresignedUrl, eliminarArchivo, esUrlR2 } from './r2.service.js';
 
 /**
  * Para gerentes (sucursalAsignada !== null), resuelve el `usuarioId` del dueño del
@@ -86,6 +87,7 @@ import type {
   Activar2faInput,
   Verificar2faInput,
   Desactivar2faInput,
+  ActualizarPerfilInput,
 } from '../validations/auth.schema.js';
 import {
   guardarSesion,
@@ -229,7 +231,10 @@ async function usuarioAPublico(
     correoVerificado: usuario.correoVerificado ?? false,
     telefono: usuario.telefono ?? null,
     avatarUrl: usuario.avatarUrl ?? null,
-    dobleFactorHabilitado: usuario.dobleFactorHabilitado ?? false,
+    // Para el front, "habilitado" = 2FA realmente ACTIVO (confirmado). El flag
+    // `dobleFactorHabilitado` se vuelve true al GENERAR el QR aunque el usuario
+    // nunca confirme, por eso aquí exigimos también `dobleFactorConfirmado`.
+    dobleFactorHabilitado: Boolean(usuario.dobleFactorHabilitado && usuario.dobleFactorConfirmado),
     autenticadoPorGoogle: usuario.autenticadoPorGoogle ?? false,
     fechaNacimiento: usuario.fechaNacimiento ?? null,
     genero: usuario.genero ?? null,
@@ -2589,6 +2594,83 @@ export async function actualizarUbicacionUsuario(
   } catch (error) {
     console.error('❌ Error en actualizarUbicacionUsuario:', error);
     return { success: false, message: 'Error al actualizar la ubicación', code: 500 };
+  }
+}
+
+// =============================================================================
+// ACTUALIZAR PERFIL (datos personales) + AVATAR
+// =============================================================================
+
+/** Presigned URL para que el usuario suba su avatar a R2 (carpeta 'avatares'). */
+export async function generarUrlAvatar(nombreArchivo: string, contentType: string) {
+  return generarPresignedUrl('avatares', nombreArchivo, contentType, 300, [
+    'image/jpeg',
+    'image/png',
+    'image/webp',
+  ]);
+}
+
+/**
+ * Actualiza los datos personales del usuario logueado (nombre, apellidos, teléfono,
+ * fecha de nacimiento, género, ciudad y/o avatar). Solo toca los campos que llegan.
+ *
+ * - La ciudad llega como texto y se ancla al catálogo (texto → ciudad_id), igual que
+ *   `actualizarUbicacionUsuario`.
+ * - Anti-huérfanas R2: si cambia el avatar y el anterior vivía en R2, se borra el viejo
+ *   (el avatar es 1:1 con el usuario, así que tras el UPDATE ya no lo referencia nadie).
+ *
+ * Devuelve el `UsuarioPublico` actualizado para refrescar el front en una sola llamada.
+ */
+export async function actualizarPerfilUsuario(
+  usuarioId: string,
+  datos: ActualizarPerfilInput,
+): Promise<RespuestaServicio<UsuarioPublico>> {
+  try {
+    // Foto del avatar anterior (para limpiar R2 si cambia)
+    const [actual] = await db
+      .select({ avatarUrl: usuarios.avatarUrl })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
+
+    if (!actual) {
+      return { success: false, message: 'Usuario no encontrado', code: 404 };
+    }
+
+    // Set parcial: solo los campos presentes en el body
+    const cambios: Partial<typeof usuarios.$inferInsert> = {};
+    if (datos.nombre !== undefined) cambios.nombre = datos.nombre;
+    if (datos.apellidos !== undefined) cambios.apellidos = datos.apellidos;
+    if (datos.telefono !== undefined) cambios.telefono = datos.telefono;
+    if (datos.fechaNacimiento !== undefined) cambios.fechaNacimiento = datos.fechaNacimiento;
+    if (datos.genero !== undefined) cambios.genero = datos.genero;
+    if (datos.avatarUrl !== undefined) cambios.avatarUrl = datos.avatarUrl;
+    if (datos.ciudad !== undefined) {
+      cambios.ciudadId = datos.ciudad ? await resolverCiudadId(datos.ciudad) : null;
+    }
+    cambios.updatedAt = new Date().toISOString();
+
+    await db.update(usuarios).set(cambios).where(eq(usuarios.id, usuarioId));
+
+    // Anti-huérfanas: borrar el avatar viejo de R2 si fue reemplazado (y era de R2,
+    // no la URL externa de Google con la que algunos se registran).
+    const avatarAnterior = actual.avatarUrl;
+    if (
+      datos.avatarUrl !== undefined &&
+      avatarAnterior &&
+      avatarAnterior !== datos.avatarUrl &&
+      esUrlR2(avatarAnterior)
+    ) {
+      await eliminarArchivo(avatarAnterior).catch((e) => {
+        console.warn('No se pudo borrar el avatar anterior de R2:', e);
+      });
+    }
+
+    // Reusa el builder (incluye datos de negocio) para devolver el usuario completo.
+    return obtenerUsuarioActual(usuarioId);
+  } catch (error) {
+    console.error('Error en actualizarPerfilUsuario:', error);
+    return { success: false, message: 'Error interno al actualizar el perfil', code: 500 };
   }
 }
 

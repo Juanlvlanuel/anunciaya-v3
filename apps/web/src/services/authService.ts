@@ -399,6 +399,47 @@ export async function desactivar2FA(codigo: string): Promise<RespuestaAPI> {
 }
 
 // =============================================================================
+// DATOS PERSONALES (Mi Perfil – Modo Personal)
+// =============================================================================
+
+/**
+ * Campos editables del perfil del usuario. Todos opcionales: se envían solo los
+ * que cambian. El correo NO es editable (cambiarlo exige re-verificación).
+ */
+export interface ActualizarPerfilInput {
+  nombre?: string;
+  apellidos?: string;
+  telefono?: string | null;
+  fechaNacimiento?: string | null;
+  genero?: 'masculino' | 'femenino' | 'otro' | 'no_especificado';
+  ciudad?: string | null;
+  avatarUrl?: string | null;
+}
+
+/**
+ * 18. Actualizar datos personales del usuario logueado
+ * PATCH /auth/perfil
+ */
+export async function actualizarPerfil(datos: ActualizarPerfilInput): Promise<RespuestaAPI<Usuario>> {
+  const response = await api.patch<RespuestaAPI<Usuario>>('/auth/perfil', datos);
+  return response.data;
+}
+
+/**
+ * 19. Presigned URL para subir el avatar a R2 (forma compatible con useR2Upload)
+ * POST /auth/avatar/url-subida
+ */
+export async function generarUrlAvatar(
+  nombreArchivo: string,
+  contentType: string,
+): Promise<RespuestaAPI<{ uploadUrl: string; publicUrl: string; key?: string; expiresIn?: number }>> {
+  const response = await api.post<
+    RespuestaAPI<{ uploadUrl: string; publicUrl: string; key?: string; expiresIn?: number }>
+  >('/auth/avatar/url-subida', { nombreArchivo, contentType });
+  return response.data;
+}
+
+// =============================================================================
 // VERIFICAR DISPONIBILIDAD DE CORREO
 // =============================================================================
 

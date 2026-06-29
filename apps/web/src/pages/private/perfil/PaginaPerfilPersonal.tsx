@@ -30,6 +30,8 @@ import { cambiarAPagoManual, cambiarATarjeta, crearSesionPortal, obtenerUrlRecib
 import type { EstadoMembresia, ReciboMembresia, SolicitudRechazada } from '../../../services/membresiaService';
 import notificar from '../../../utils/notificaciones';
 import SeccionPagoManual from './components/SeccionPagoManual';
+import TabDatosPersonales from './components/TabDatosPersonales';
+import TabSeguridad from './components/TabSeguridad';
 import Tooltip from '@/components/ui/Tooltip';
 
 // Campana migrada a Iconify (igual que las demás secciones).
@@ -89,22 +91,6 @@ function formatearMonto(monto: string | null): string {
 function formatearFolio(folio: number | null): string {
     if (folio === null) return 'S/F';
     return `#${String(folio).padStart(5, '0')}`;
-}
-
-/** Estado "Próximamente" para tabs aún sin contenido (Datos Personales, Seguridad). */
-function TabProximamente({ Icono, titulo, descripcion }: { Icono: LucideIcon; titulo: string; descripcion: string }) {
-    return (
-        <div className="rounded-xl bg-white border border-slate-300 shadow-sm p-8 text-center">
-            <div className="w-12 h-12 mx-auto rounded-xl bg-slate-200 flex items-center justify-center mb-3">
-                <Icono className="w-6 h-6 text-slate-500" strokeWidth={2} />
-            </div>
-            <p className="text-sm font-semibold text-slate-700">{titulo}</p>
-            <p className="text-sm text-slate-600 mt-1 max-w-sm mx-auto">{descripcion}</p>
-            <span className="inline-block mt-3 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 bg-slate-200 rounded-full px-2.5 py-1">
-                Próximamente
-            </span>
-        </div>
-    );
 }
 
 /** Fila "Etiqueta — valor" en una sola línea para la tarjeta de estado. Título con mayor peso. */
@@ -672,21 +658,9 @@ export default function PaginaPerfilPersonal() {
                 </section>
                 )}
 
-                {tabActivo === 'datos' && (
-                    <TabProximamente
-                        Icono={IdCard}
-                        titulo="Datos personales"
-                        descripcion="Aquí podrás editar tu nombre, teléfono y foto de perfil."
-                    />
-                )}
+                {tabActivo === 'datos' && <TabDatosPersonales />}
 
-                {tabActivo === 'seguridad' && (
-                    <TabProximamente
-                        Icono={Shield}
-                        titulo="Seguridad"
-                        descripcion="Aquí podrás cambiar tu contraseña y activar la verificación en dos pasos."
-                    />
-                )}
+                {tabActivo === 'seguridad' && <TabSeguridad />}
             </div>
 
             {/* Modal: confirmar cancelación del cobro automático (tarjeta → manual) */}
