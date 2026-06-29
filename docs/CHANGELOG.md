@@ -8,6 +8,28 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [29 Junio 2026] - Mi Perfil: tabs Datos Personales y Seguridad ✅ (Modo Personal completo)
+
+Se construyeron los **dos tabs restantes** de **Mi Perfil** (`apps/web`, `/perfil`), dejando la página completa con sus 3 tabs. Doc canónico: `docs/arquitectura/Mi_Perfil.md`. Commits `23efa53` y `0738fbe`. **Pendiente QA E2E a mano.**
+
+### Agregado
+
+- **Tab Datos Personales** — avatar (subido a R2 vía `useR2Upload`, optimizado a WebP con `maxWidth 512`, anti-huérfanas + lightbox `ModalImagenes` al hacer click), nombre, apellidos, teléfono con **lada editable** (`InputTelefono`), fecha de nacimiento, género (`CustomSelect`) y ciudad (`ModalUbicacion`); correo solo-lectura. Backend nuevo: `PATCH /auth/perfil` (`actualizarPerfilUsuario`) + `POST /auth/avatar/url-subida` (`generarUrlAvatar`) + `actualizarPerfilSchema`.
+- **Tab Seguridad** — **crear o cambiar contraseña** según `tieneContrasena` (campo nuevo del `UsuarioPublico`): las cuentas **Google** (sin contraseña) ahora pueden **crearla** vía `POST /auth/establecer-contrasena` —conservando su login con Google— y las que ya la tienen la **cambian** vía `PATCH /auth/cambiar-contrasena`; **validación en vivo** de nueva/confirmar + error inline de la actual. **2FA** (reusa `/auth/2fa/generar|activar|desactivar`; el backend ya manda el QR en base64 y los códigos de respaldo). **Vincular Google** a cuentas de solo-contraseña vía nuevo `POST /auth/google/vincular` (valida que el correo de Google coincida; el estado sale de `autenticadoPorGoogle`). "Quitar Google" queda pendiente (requiere endurecer el login, que hoy es por correo y auto-vincula).
+- **Más acciones de Seguridad**: **cerrar sesión en todos los dispositivos** (reusa `POST /auth/logout-todos`); **cambiar correo con verificación** por código de 6 dígitos al nuevo correo (`POST /auth/cambiar-correo/solicitar` + `/confirmar`, código en Redis 15 min/5 intentos); **eliminar cuenta (soft-delete)** (`POST /auth/eliminar-cuenta`: confirma con contraseña —o correo en cuentas Google—, **bloquea si hay negocio en circulación**, pone `estado='inactivo'` + cierra todas las sesiones; datos conservados para recuperación por soporte).
+- **Tab "Membresía y Pagos" condicional** — solo visible si el usuario tiene negocio comercial o publicidad vigente; `obtenerMiMembresia` ahora devuelve `tienePublicidad`. Tab por defecto: Datos Personales.
+
+### Corregido / Cambiado
+
+- **Builder `usuarioAPublico`**: `dobleFactorHabilitado` ahora refleja el 2FA **confirmado** (`habilitado && confirmado`), no el "secreto generado".
+- **Caché entre cuentas**: `useMiMembresia` incluye el `usuarioId` en su query key, y `useAuthStore` limpia el caché de React Query (`queryClient.clear()`) en `logout` y `loginExitoso` → ninguna sección sirve datos de la cuenta anterior al cambiar de usuario. Patrón documentado en `docs/estandares/PATRON_REACT_QUERY.md` (regla 10).
+
+### Limpieza de BD
+
+- Eliminadas del schema `usuarios` las columnas legado de Cloudinary `avatar_public_id` y `avatar_thumb_public_id` (con R2 se trabaja por URL/key, nunca se usaron). DROP: `docs/migraciones/2026-06-29-drop-usuarios-avatar-public-ids.sql` (corrido en dev+prod).
+
+---
+
 ## [28 Junio 2026] - Mi Perfil – Pagos (Modo Personal) self-service + cola de verificación ✅
 
 Se **construyó y cerró (QA E2E)** la sección **Membresía y Pagos** de **Mi Perfil** en Modo Personal (`apps/web`, ruta `/perfil`) — el último hueco funcional de cara a la beta. Cierra los features que la Ronda de Stripe había trasladado (B2/Z3/Z4). Doc canónico: `docs/arquitectura/Mi_Perfil.md`.

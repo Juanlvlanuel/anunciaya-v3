@@ -88,6 +88,10 @@ import type {
   Verificar2faInput,
   Desactivar2faInput,
   ActualizarPerfilInput,
+  EstablecerContrasenaInput,
+  SolicitarCambioCorreoInput,
+  ConfirmarCambioCorreoInput,
+  EliminarCuentaInput,
 } from '../validations/auth.schema.js';
 import {
   guardarSesion,
@@ -145,6 +149,9 @@ interface UsuarioPublico {
   avatarUrl: string | null;
   dobleFactorHabilitado: boolean;
   autenticadoPorGoogle: boolean;
+  /** ¿La cuenta ya tiene una contraseña establecida? Las cuentas Google puras no la tienen
+   *  hasta que la crean desde Seguridad. Decide entre "Crear" y "Cambiar" contraseña en el front. */
+  tieneContrasena: boolean;
   fechaNacimiento: string | null;
   genero: string | null;
   ciudad: string | null;
@@ -236,6 +243,7 @@ async function usuarioAPublico(
     // nunca confirme, por eso aquí exigimos también `dobleFactorConfirmado`.
     dobleFactorHabilitado: Boolean(usuario.dobleFactorHabilitado && usuario.dobleFactorConfirmado),
     autenticadoPorGoogle: usuario.autenticadoPorGoogle ?? false,
+    tieneContrasena: !!usuario.contrasenaHash,
     fechaNacimiento: usuario.fechaNacimiento ?? null,
     genero: usuario.genero ?? null,
     ciudad: ciudadNombre,
@@ -1621,6 +1629,333 @@ export async function cambiarContrasena(
       message: 'Error interno al cambiar la contraseña',
       code: 500,
     };
+  }
+}
+
+/**
+ * Establece la PRIMERA contraseña de una cuenta que aún no tiene (típicamente Google).
+ * No pide contraseña actual porque no existe. Falla si la cuenta ya tiene una (debe usar
+ * `cambiarContrasena`). El usuario conserva además su inicio de sesión con Google.
+ */
+export async function establecerContrasena(
+  usuarioId: string,
+  datos: EstablecerContrasenaInput,
+): Promise<RespuestaServicio> {
+  try {
+    const [usuario] = await db
+      .select({ id: usuarios.id, contrasenaHash: usuarios.contrasenaHash })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
+
+    if (!usuario) {
+      return { success: false, message: 'Usuario no encontrado', code: 404 };
+    }
+
+    // Si ya tiene contraseña, este no es el flujo correcto (evita pisarla sin verificar la actual).
+    if (usuario.contrasenaHash) {
+      return {
+        success: false,
+        message: 'Tu cuenta ya tiene una contraseña. Usa "Cambiar contraseña".',
+        code: 400,
+      };
+    }
+
+    const nuevaContrasenaHash = await bcrypt.hash(datos.nuevaContrasena, SALT_ROUNDS);
+
+    await db
+      .update(usuarios)
+      .set({ contrasenaHash: nuevaContrasenaHash, updatedAt: new Date().toISOString() })
+      .where(eq(usuarios.id, usuario.id));
+
+    return {
+      success: true,
+      message: 'Contraseña creada. Ahora también puedes iniciar sesión con tu correo y contraseña.',
+      code: 200,
+    };
+  } catch (error) {
+    console.error('Error en establecerContrasena:', error);
+    return { success: false, message: 'Error interno al crear la contraseña', code: 500 };
+  }
+}
+
+/**
+ * Vincula Google a la cuenta logueada (agrega Google como método de inicio de sesión).
+ * Intercambia el `code` (flujo auth-code) por el ID token, lo verifica y exige que el correo
+ * de Google COINCIDA con el de la cuenta (el login con Google se resuelve por correo). No
+ * desvincula: "Quitar Google" se aborda aparte (requiere endurecer el login). Idempotente.
+ */
+export async function vincularGoogle(
+  usuarioId: string,
+  datos: GoogleAuthInput,
+): Promise<RespuestaServicio> {
+  try {
+    // Intercambiar el code por el ID token y verificarlo (mismo flujo que loginConGoogle).
+    let ticket;
+    try {
+      const clienteIntercambio = new OAuth2Client(
+        env.GOOGLE_CLIENT_ID,
+        env.GOOGLE_CLIENT_SECRET,
+        'postmessage',
+      );
+      const { tokens } = await clienteIntercambio.getToken(datos.code);
+      if (!tokens.id_token) {
+        return { success: false, message: 'Google no devolvió el token de identidad', code: 401 };
+      }
+      ticket = await googleClient.verifyIdToken({ idToken: tokens.id_token, audience: env.GOOGLE_CLIENT_ID });
+    } catch (error) {
+      console.error('Error verificando el código de Google (vincular):', error);
+      return { success: false, message: 'Código de Google inválido o expirado', code: 401 };
+    }
+
+    const payload = ticket.getPayload();
+    if (!payload?.email) {
+      return { success: false, message: 'No se pudo obtener información de Google', code: 400 };
+    }
+    const emailGoogle = payload.email.toLowerCase();
+
+    const [usuario] = await db
+      .select({
+        id: usuarios.id,
+        correo: usuarios.correo,
+        autenticadoPorGoogle: usuarios.autenticadoPorGoogle,
+      })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
+
+    if (!usuario) {
+      return { success: false, message: 'Usuario no encontrado', code: 404 };
+    }
+
+    // El login con Google se resuelve por correo: vincular un Google con OTRO correo no tendría
+    // efecto y abriría la puerta a confusiones, así que se exige coincidencia exacta.
+    if (usuario.correo.toLowerCase() !== emailGoogle) {
+      return {
+        success: false,
+        message: 'El correo de esa cuenta de Google no coincide con el de tu cuenta. Entra a Google con el correo de tu cuenta.',
+        code: 400,
+      };
+    }
+
+    if (usuario.autenticadoPorGoogle) {
+      return { success: true, message: 'Tu cuenta ya estaba vinculada con Google.', code: 200 };
+    }
+
+    await db
+      .update(usuarios)
+      .set({ autenticadoPorGoogle: true, updatedAt: new Date().toISOString() })
+      .where(eq(usuarios.id, usuario.id));
+
+    return { success: true, message: 'Tu cuenta quedó vinculada con Google.', code: 200 };
+  } catch (error) {
+    console.error('Error en vincularGoogle:', error);
+    return { success: false, message: 'Error interno al vincular con Google', code: 500 };
+  }
+}
+
+// =============================================================================
+// CAMBIAR CORREO (con verificación por código al NUEVO correo)
+// =============================================================================
+
+/** Redis: cambio de correo pendiente por usuario. */
+const PREFIJO_CAMBIO_CORREO = 'cambio_correo:';
+const TTL_CAMBIO_CORREO_SEG = 900; // 15 min
+const MAX_INTENTOS_CAMBIO_CORREO = 5;
+
+interface DatosCambioCorreo {
+  nuevoCorreo: string;
+  codigo: string;
+  intentos: number;
+}
+
+/**
+ * Paso 1 del cambio de correo: valida el nuevo correo (libre y distinto del actual), genera un
+ * código de 6 dígitos, lo guarda en Redis (15 min) y lo envía AL NUEVO correo. No cambia nada en BD.
+ */
+export async function solicitarCambioCorreo(
+  usuarioId: string,
+  datos: SolicitarCambioCorreoInput,
+): Promise<RespuestaServicio> {
+  try {
+    const nuevoCorreo = datos.nuevoCorreo.trim().toLowerCase();
+
+    const [usuario] = await db
+      .select({ nombre: usuarios.nombre, correo: usuarios.correo })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
+    if (!usuario) {
+      return { success: false, message: 'Usuario no encontrado', code: 404 };
+    }
+    if (usuario.correo.toLowerCase() === nuevoCorreo) {
+      return { success: false, message: 'Ese ya es tu correo actual.', code: 400 };
+    }
+
+    const [existente] = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(eq(usuarios.correo, nuevoCorreo))
+      .limit(1);
+    if (existente) {
+      return { success: false, message: 'Ese correo ya está registrado en otra cuenta.', code: 409 };
+    }
+
+    const codigo = crypto.randomInt(100000, 999999).toString();
+    const payload: DatosCambioCorreo = { nuevoCorreo, codigo, intentos: 0 };
+    await redis.set(`${PREFIJO_CAMBIO_CORREO}${usuarioId}`, JSON.stringify(payload), 'EX', TTL_CAMBIO_CORREO_SEG);
+
+    await enviarCodigoVerificacion(nuevoCorreo, usuario.nombre, codigo);
+
+    return { success: true, message: 'Te enviamos un código a tu nuevo correo.', code: 200 };
+  } catch (error) {
+    console.error('Error en solicitarCambioCorreo:', error);
+    return { success: false, message: 'Error interno al solicitar el cambio de correo', code: 500 };
+  }
+}
+
+/**
+ * Paso 2 del cambio de correo: verifica el código y, si es válido, aplica el nuevo correo
+ * (marcándolo como verificado, ya que el código probó que el usuario lo controla).
+ */
+export async function confirmarCambioCorreo(
+  usuarioId: string,
+  datos: ConfirmarCambioCorreoInput,
+): Promise<RespuestaServicio> {
+  try {
+    const clave = `${PREFIJO_CAMBIO_CORREO}${usuarioId}`;
+    const raw = await redis.get(clave);
+    if (!raw) {
+      return { success: false, message: 'No hay un cambio de correo pendiente o expiró. Solicítalo de nuevo.', code: 400 };
+    }
+
+    const pendiente = JSON.parse(raw) as DatosCambioCorreo;
+
+    if (pendiente.intentos >= MAX_INTENTOS_CAMBIO_CORREO) {
+      await redis.del(clave);
+      return { success: false, message: 'Demasiados intentos. Solicita el cambio de correo de nuevo.', code: 429 };
+    }
+
+    if (pendiente.codigo !== datos.codigo.trim()) {
+      pendiente.intentos += 1;
+      // Reescribir conservando el TTL restante (no reiniciarlo).
+      const ttlMs = await redis.pttl(clave);
+      await redis.set(clave, JSON.stringify(pendiente), 'PX', ttlMs > 0 ? ttlMs : TTL_CAMBIO_CORREO_SEG * 1000);
+      const restantes = MAX_INTENTOS_CAMBIO_CORREO - pendiente.intentos;
+      return { success: false, message: `Código incorrecto. Te ${restantes === 1 ? 'queda' : 'quedan'} ${restantes} intento${restantes === 1 ? '' : 's'}.`, code: 400 };
+    }
+
+    // Re-validar que el correo siga libre (alguien pudo registrarlo mientras tanto).
+    const [existente] = await db
+      .select({ id: usuarios.id })
+      .from(usuarios)
+      .where(eq(usuarios.correo, pendiente.nuevoCorreo))
+      .limit(1);
+    if (existente && existente.id !== usuarioId) {
+      await redis.del(clave);
+      return { success: false, message: 'Ese correo se registró mientras tanto. Intenta con otro.', code: 409 };
+    }
+
+    await db
+      .update(usuarios)
+      .set({
+        correo: pendiente.nuevoCorreo,
+        correoVerificado: true,
+        correoVerificadoAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(usuarios.id, usuarioId));
+
+    await redis.del(clave);
+
+    return { success: true, message: 'Tu correo se actualizó correctamente.', code: 200 };
+  } catch (error) {
+    console.error('Error en confirmarCambioCorreo:', error);
+    return { success: false, message: 'Error interno al confirmar el cambio de correo', code: 500 };
+  }
+}
+
+// =============================================================================
+// ELIMINAR CUENTA (soft-delete: desactiva + anonimización futura)
+// =============================================================================
+
+/**
+ * Da de baja la cuenta del usuario logueado (soft-delete). Verifica la contraseña si la tiene,
+ * BLOQUEA si es dueño de un negocio en circulación (debe cancelar la suscripción antes), pone
+ * `estado='inactivo'` (el login ya rechaza estados != 'activo') y cierra todas las sesiones.
+ * Los datos se conservan para una posible recuperación por soporte (la purga/anonimización
+ * definitiva queda como mejora futura: necesita campo `eliminado_at` + cron).
+ */
+export async function eliminarCuenta(
+  usuarioId: string,
+  datos: EliminarCuentaInput,
+): Promise<RespuestaServicio> {
+  try {
+    const [usuario] = await db
+      .select({
+        id: usuarios.id,
+        contrasenaHash: usuarios.contrasenaHash,
+        rolEquipo: usuarios.rolEquipo,
+      })
+      .from(usuarios)
+      .where(eq(usuarios.id, usuarioId))
+      .limit(1);
+    if (!usuario) {
+      return { success: false, message: 'Usuario no encontrado', code: 404 };
+    }
+
+    // Las cuentas del equipo (vendedor/gerente/superadmin) se gestionan en el Panel, no aquí.
+    if (usuario.rolEquipo) {
+      return { success: false, message: 'Las cuentas del equipo no pueden eliminarse desde aquí. Contacta a un administrador.', code: 403 };
+    }
+
+    // Si tiene contraseña, exigir verificarla; si no (Google puro), basta la sesión activa.
+    if (usuario.contrasenaHash) {
+      if (!datos.contrasena) {
+        return { success: false, message: 'Ingresa tu contraseña para confirmar.', code: 400 };
+      }
+      const ok = await bcrypt.compare(datos.contrasena, usuario.contrasenaHash);
+      if (!ok) {
+        return { success: false, message: 'La contraseña es incorrecta.', code: 401 };
+      }
+    }
+
+    // Bloquear si es DUEÑO de un negocio en circulación (primero debe cancelar la suscripción).
+    const [negocio] = await db
+      .select({
+        activo: negocios.activo,
+        estadoMembresia: negocios.estadoMembresia,
+        estadoAdmin: negocios.estadoAdmin,
+      })
+      .from(negocios)
+      .where(eq(negocios.usuarioId, usuarioId))
+      .limit(1);
+    if (negocio && !estaFueraDeCirculacion(negocio)) {
+      return {
+        success: false,
+        message: 'Tienes un negocio activo. Primero cancela tu suscripción comercial desde Membresía y Pagos; luego podrás eliminar tu cuenta.',
+        code: 409,
+      };
+    }
+
+    // Soft-delete: desactivar (el login bloquea estados != 'activo') + motivo.
+    await db
+      .update(usuarios)
+      .set({
+        estado: 'inactivo',
+        fechaCambioEstado: new Date().toISOString(),
+        motivoCambioEstado: 'Baja solicitada por el usuario',
+        updatedAt: new Date().toISOString(),
+      })
+      .where(eq(usuarios.id, usuarioId));
+
+    // Cerrar todas las sesiones (incluida la actual).
+    await eliminarTodasLasSesiones(usuarioId);
+
+    return { success: true, message: 'Tu cuenta se eliminó. Se cerrará tu sesión.', code: 200 };
+  } catch (error) {
+    console.error('Error en eliminarCuenta:', error);
+    return { success: false, message: 'Error interno al eliminar la cuenta', code: 500 };
   }
 }
 

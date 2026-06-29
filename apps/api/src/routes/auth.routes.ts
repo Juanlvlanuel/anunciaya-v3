@@ -33,6 +33,11 @@ import {
   actualizarRegistroPendienteController,
   actualizarPerfilController,
   urlSubidaAvatarController,
+  establecerContrasenaController,
+  vincularGoogleController,
+  solicitarCambioCorreoController,
+  confirmarCambioCorreoController,
+  eliminarCuentaController,
 } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { limitadorVerificacionCorreo } from '../middleware/rateLimiter.js';
@@ -95,6 +100,21 @@ router.get('/sesiones', verificarToken, sesiones);
 
 // PATCH /api/auth/cambiar-contrasena - Cambiar contraseña (usuario logueado)
 router.patch('/cambiar-contrasena', verificarToken, cambiarContrasenaController);
+
+// POST /api/auth/establecer-contrasena - Crear la primera contraseña (cuentas sin contraseña, ej. Google)
+router.post('/establecer-contrasena', verificarToken, establecerContrasenaController);
+
+// POST /api/auth/google/vincular - Vincular Google a la cuenta logueada (agrega método de login)
+router.post('/google/vincular', verificarToken, vincularGoogleController);
+
+// POST /api/auth/cambiar-correo/solicitar - Paso 1: envía un código de verificación al nuevo correo
+router.post('/cambiar-correo/solicitar', verificarToken, limitadorVerificacionCorreo, solicitarCambioCorreoController);
+
+// POST /api/auth/cambiar-correo/confirmar - Paso 2: aplica el nuevo correo con el código recibido
+router.post('/cambiar-correo/confirmar', verificarToken, confirmarCambioCorreoController);
+
+// POST /api/auth/eliminar-cuenta - Da de baja la cuenta del usuario (soft-delete)
+router.post('/eliminar-cuenta', verificarToken, eliminarCuentaController);
 
 // PATCH /api/auth/perfil - Actualizar datos personales (nombre, teléfono, avatar, etc.)
 router.patch('/perfil', verificarToken, actualizarPerfilController);

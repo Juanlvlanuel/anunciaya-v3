@@ -1,17 +1,15 @@
 # Mi Perfil — Cuenta del usuario (Modo Personal)
 
-> **Estado:** ✅ **CONSTRUIDO y QA E2E cerrado (28 Junio 2026).** La página de Mi Perfil (Modo Personal)
-> existe con su sección **Membresía / Pagos** completa: vista de membresía + recibos, recuperar tarjeta
-> (Customer Portal), pago manual con comprobante (cola de verificación en el Panel) y **cambio
-> bidireccional de método de cobro** (tarjeta ↔ transferencia). Era el último hueco funcional de cara a la
-> beta; commiteado y desplegado (commit `d6f8acb`).
+> **Estado:** ✅ **Los 3 tabs construidos.** `/perfil` (Modo Personal) está completo:
+> - **Datos Personales** — avatar, nombre, apellidos, teléfono (lada editable), fecha de nacimiento, género y ciudad. Es el tab por defecto.
+> - **Seguridad** — cambiar contraseña (con validación en vivo) + verificación en dos pasos (2FA).
+> - **Membresía y Pagos** — vista de membresía + recibos, recuperar tarjeta (Customer Portal), pago manual con comprobante y cambio bidireccional de método de cobro. **Solo visible** si el usuario tiene negocio comercial o publicidad vigente.
 >
-> **QA E2E (28 jun):** validados a mano cobro inmediato al activar tarjeta, vigencia futura, cambio
-> bidireccional, no-duplicado, pago sin vendedor (sin comisión), datos de depósito vacíos, permisos de la
-> cola (gerente/vendedor), descargar recibo y anti-huérfanas R2. Lo de comisiones/escalera/morosidad ya
-> estaba cerrado en la Ronda de Pagos / Sprint Stripe (no se re-probó).
+> **Historia:**
+> - **Membresía / Pagos** — construido + QA E2E cerrado **28 jun 2026** (commit `d6f8acb`). Era el último hueco funcional de cara a la beta. QA: cobro inmediato al activar tarjeta, vigencia futura, cambio bidireccional, no-duplicado, pago sin vendedor (sin comisión), datos de depósito vacíos, permisos de la cola (gerente/vendedor), descargar recibo y anti-huérfanas R2.
+> - **Datos Personales + Seguridad** — construidos **29 jun 2026** (commits `23efa53` y `0738fbe`); **pendiente QA E2E a mano**.
 >
-> **Última actualización:** 28 Junio 2026.
+> **Última actualización:** 29 Junio 2026.
 
 ---
 
@@ -60,8 +58,12 @@ Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reu
 
 ### Tab "Seguridad"
 
-- **Contraseña:** reusa `PATCH /auth/cambiar-contrasena` (ya existía). Las cuentas con `autenticado_por_google` ven un aviso en vez del formulario (no tienen contraseña). **Validación en vivo** de la *nueva* (checklist de requisitos: 8+ / mayúscula / minúscula / número) y de *confirmar* (coincidencia), con el botón deshabilitado hasta que todo sea válido. La **contraseña actual** NO se valida en vivo contra el servidor (sería un oráculo de fuerza bruta): se marca el campo en rojo con error inline solo al intentar, si el backend la rechaza.
+- **Contraseña:** el tab decide entre **Crear** y **Cambiar** según `tieneContrasena` (campo nuevo del `UsuarioPublico` = `!!contrasena_hash`). Si la cuenta **no tiene contraseña** (típicamente **Google**), muestra el flujo de **crear** —sin pedir la actual, que no existe— vía `POST /auth/establecer-contrasena` (el service valida que no tenga ya una); la cuenta queda con **Google + contraseña** (conserva ambos métodos de login). Si ya tiene, es **cambiar** vía `PATCH /auth/cambiar-contrasena` (pide la actual). **Validación en vivo** de la *nueva* (checklist: 8+ / mayúscula / minúscula / número) y de *confirmar* (coincidencia), con el botón deshabilitado hasta que todo sea válido. La **contraseña actual** NO se valida en vivo contra el servidor (sería un oráculo de fuerza bruta): se marca el campo en rojo con error inline solo al intentar, si el backend la rechaza.
 - **2FA:** reusa los endpoints existentes `POST /auth/2fa/generar` (devuelve el **QR ya en base64** + secreto), `POST /auth/2fa/activar` (devuelve los **códigos de respaldo**) y `DELETE /auth/2fa/desactivar`. El estado en la UI sale de `usuario.dobleFactorHabilitado`, que el builder `usuarioAPublico` ahora proyecta como **2FA confirmado** (`dobleFactorHabilitado && dobleFactorConfirmado`), no como "secreto generado".
+- **Inicio de sesión con Google (vincular):** una cuenta de solo-contraseña puede **agregar Google** como método de login desde Seguridad — `useGoogleLogin` (flujo `auth-code`) → `POST /auth/google/vincular` (`vincularGoogle`), que **exige que el correo de Google coincida** con el de la cuenta (el login con Google se resuelve por correo). El estado (Vinculado/No vinculado) sale de `usuario.autenticadoPorGoogle`. **Por ahora solo vincular**: "Quitar Google" queda pendiente porque sería cosmético sin endurecer el login (hoy `loginConGoogle` busca por correo y **auto-vincula** en el primer acceso, así que bajar el flag no impediría volver a entrar con Google; desvincular de verdad exige que el login respete el flag y deje de auto-vincular — decisión de seguridad pendiente).
+- **Cerrar sesión en todos los dispositivos:** botón (con confirmación) que invalida **todas** las sesiones reusando `POST /auth/logout-todos`; cierra también la de este dispositivo y redirige al login.
+- **Cambiar correo (con verificación):** flujo de 2 pasos — `POST /auth/cambiar-correo/solicitar` envía un código de 6 dígitos al **nuevo** correo (en Redis, clave `cambio_correo:{usuarioId}`, 15 min, 5 intentos, valida que no esté en uso y que sea distinto del actual); `POST /auth/cambiar-correo/confirmar` aplica el correo y lo marca `correoVerificado=true`. Reusa `enviarCodigoVerificacion`. El correo dejó de ser solo-lectura en Datos Personales (su hint ahora apunta a Seguridad).
+- **Eliminar cuenta (soft-delete):** `POST /auth/eliminar-cuenta`. Confirma con **contraseña** (o, en cuentas Google sin contraseña, escribiendo el correo exacto). **Bloquea** si el usuario es dueño de un negocio **en circulación** (debe cancelar la suscripción desde Membresía y Pagos primero) y si es cuenta de equipo (`rolEquipo`). Pone `estado='inactivo'` (el login ya rechaza estados ≠ `activo`) + cierra todas las sesiones. **Conserva los datos** (recuperable por soporte). Pendiente futuro: purga/anonimización definitiva tras N días (necesita columna `eliminado_at` + cron).
 
 ### Backend nuevo (solo Datos Personales)
 
@@ -73,6 +75,8 @@ Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reu
 `auth.schema.ts` → `actualizarPerfilSchema` (todos los campos opcionales). El front: `authService.actualizarPerfil` / `generarUrlAvatar`; componentes `pages/private/perfil/components/TabDatosPersonales.tsx` y `TabSeguridad.tsx`; tras guardar se llama `useAuthStore.recargarDatosUsuario()`.
 
 **Visibilidad del tab Membresía:** `obtenerMiMembresia` (`membresia.service.ts`) ahora devuelve también `tienePublicidad` (EXISTS en `publicidad_compras` con `estado='activa' AND expira_at > now()` para el `usuario_id`). El front muestra el tab solo si `tieneNegocio || tienePublicidad`.
+
+**Caché entre cuentas:** `useMiMembresia` incluye el `usuarioId` en su query key (`queryKeys.membresia.mi(usuarioId)`) para que al **cambiar de cuenta** NO se sirva el caché del usuario anterior — de eso depende que el tab aparezca/desaparezca sin tener que refrescar. Como **blindaje global**, `useAuthStore` además llama `queryClient.clear()` en `logout` y al inicio de `loginExitoso`, así ninguna sección de la app sirve datos cacheados entre cuentas (cubre también el login directo sin logout previo). Detalle del patrón en [`PATRON_REACT_QUERY.md`](../estandares/PATRON_REACT_QUERY.md).
 
 ---
 
@@ -104,8 +108,12 @@ Migración `docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql`. `compro
 
 ### Frontend
 
-- **Web (dueño):** `pages/private/perfil/PaginaPerfilPersonal.tsx` + `components/SeccionPagoManual.tsx`;
-  `services/membresiaService.ts`; `hooks/queries/useMiMembresia.ts`; key `queryKeys.membresia`.
+- **Web (usuario):** `pages/private/perfil/PaginaPerfilPersonal.tsx` (orquesta los 3 tabs + header) +
+  `components/`: `TabDatosPersonales.tsx`, `TabSeguridad.tsx`, `SeccionPagoManual.tsx`. Servicios:
+  `services/membresiaService.ts` y `services/authService.ts` (`actualizarPerfil`, `generarUrlAvatar`,
+  `cambiarContrasena`, `generar2FA`/`activar2FA`/`desactivar2FA`). Hook: `hooks/queries/useMiMembresia.ts`
+  (key `queryKeys.membresia.mi(usuarioId)`). Reusa `CustomSelect`, `InputTelefono`, `ModalUbicacion`,
+  `ModalImagenes` y `useR2Upload`.
 - **Panel:** `components/suscripciones/SeccionSuscripciones.tsx` (3 pestañas: Bitácora · **Por verificar** ·
   **Datos de depósito**), `PestanaPorVerificar.tsx`, `PestanaDatosCobro.tsx`, `DialogoAprobarSolicitud.tsx`;
   `services/suscripcionesService.ts`; `hooks/queries/useSuscripcionesAdmin.ts`.
@@ -147,9 +155,8 @@ Migración `docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql`. `compro
 
 ## Pendientes / mejoras
 
-- **PROD:** migración `2026-06-27-pagos-manuales-solicitudes.sql` ✅ corrida. Falta configurar los **datos de
-  depósito** en el Panel live y el **Customer Portal** en Stripe live.
-- **Datos Personales** y **Seguridad**: ✅ construidos (29 jun 2026, pendiente QA E2E a mano). Ver sección abajo.
+- **QA E2E a mano de Datos Personales y Seguridad** (29 jun): subir/quitar avatar, guardar datos, lada del teléfono, cambiar contraseña (incl. error de contraseña actual), activar/desactivar 2FA con app autenticadora, y el cambio de cuenta (que el tab Membresía aparezca/desaparezca sin refrescar).
+- **PROD (Pagos):** migraciones `2026-06-27-pagos-manuales-solicitudes.sql` y `2026-06-29-drop-usuarios-avatar-public-ids.sql` ✅ corridas. Falta configurar los **datos de depósito** en el Panel live y el **Customer Portal** en Stripe live.
 - **Aviso por correo al dueño** cuando se **rechaza** un pago manual (hoy solo cambia el estado / aviso in-app).
 - **Humanizar** en el módulo Auditoría las acciones nuevas (`pago_manual_aprobar/rechazar`, `datos_cobro_actualizar`).
 - **Stripe Elements integrado** (post-beta): evitar el "X días gratis" del Checkout hosted al activar tarjeta con vigencia futura.

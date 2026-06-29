@@ -371,3 +371,51 @@ export const actualizarPerfilSchema = z
   });
 
 export type ActualizarPerfilInput = z.infer<typeof actualizarPerfilSchema>;
+
+// =============================================================================
+// SCHEMA 14: ESTABLECER CONTRASEÑA (cuenta SIN contraseña — p. ej. Google)
+// =============================================================================
+// Para: POST /api/auth/establecer-contrasena
+// La cuenta crea su PRIMERA contraseña: no hay "actual" que pedir (no existe).
+// El service valida que el usuario realmente no tenga contraseña aún.
+
+export const establecerContrasenaSchema = z.object({
+  nuevaContrasena: campoContrasena,
+});
+
+export type EstablecerContrasenaInput = z.infer<typeof establecerContrasenaSchema>;
+
+// =============================================================================
+// SCHEMA 15: CAMBIAR CORREO — solicitar (envía código al nuevo correo)
+// =============================================================================
+// Para: POST /api/auth/cambiar-correo/solicitar
+
+export const solicitarCambioCorreoSchema = z.object({
+  nuevoCorreo: campoCorreo,
+});
+
+export type SolicitarCambioCorreoInput = z.infer<typeof solicitarCambioCorreoSchema>;
+
+// =============================================================================
+// SCHEMA 16: CAMBIAR CORREO — confirmar (con el código recibido)
+// =============================================================================
+// Para: POST /api/auth/cambiar-correo/confirmar
+
+export const confirmarCambioCorreoSchema = z.object({
+  codigo: campoCodigo,
+});
+
+export type ConfirmarCambioCorreoInput = z.infer<typeof confirmarCambioCorreoSchema>;
+
+// =============================================================================
+// SCHEMA 17: ELIMINAR CUENTA (soft-delete)
+// =============================================================================
+// Para: POST /api/auth/eliminar-cuenta
+// `contrasena` se requiere solo si la cuenta tiene contraseña (lo valida el service);
+// las cuentas Google sin contraseña confirman de otra forma en el front.
+
+export const eliminarCuentaSchema = z.object({
+  contrasena: z.string().optional(),
+});
+
+export type EliminarCuentaInput = z.infer<typeof eliminarCuentaSchema>;

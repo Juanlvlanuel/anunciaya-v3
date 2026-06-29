@@ -308,6 +308,42 @@ export async function cambiarContrasena(datos: CambiarContrasenaInput): Promise<
 }
 
 /**
+ * 12c. Establecer la PRIMERA contraseña (cuentas sin contraseña, ej. Google)
+ * POST /auth/establecer-contrasena
+ */
+export async function establecerContrasena(datos: { nuevaContrasena: string }): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/establecer-contrasena', datos);
+  return response.data;
+}
+
+/**
+ * 12d. Cambiar correo — paso 1: envía un código al NUEVO correo
+ * POST /auth/cambiar-correo/solicitar
+ */
+export async function solicitarCambioCorreo(nuevoCorreo: string): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/cambiar-correo/solicitar', { nuevoCorreo });
+  return response.data;
+}
+
+/**
+ * 12e. Cambiar correo — paso 2: aplica el nuevo correo con el código recibido
+ * POST /auth/cambiar-correo/confirmar
+ */
+export async function confirmarCambioCorreo(codigo: string): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/cambiar-correo/confirmar', { codigo });
+  return response.data;
+}
+
+/**
+ * 12f. Eliminar (dar de baja) la cuenta del usuario logueado — soft-delete
+ * POST /auth/eliminar-cuenta. `contrasena` solo si la cuenta tiene una.
+ */
+export async function eliminarCuenta(contrasena?: string): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/eliminar-cuenta', contrasena ? { contrasena } : {});
+  return response.data;
+}
+
+/**
  * 12b. Cambiar contraseña provisional (gerentes nuevos)
  * POST /auth/cambiar-contrasena-provisional
  */
@@ -352,6 +388,15 @@ export type RespuestaLoginGoogle = RespuestaLogin | RespuestaGoogleNuevo;
 export async function loginConGoogle(code: string): Promise<RespuestaAPI<RespuestaLoginGoogle>> {
   const response = await api.post<RespuestaAPI<RespuestaLoginGoogle>>('/auth/google', { code });
 
+  return response.data;
+}
+
+/**
+ * 13b. Vincular Google a la cuenta logueada (agrega Google como método de login)
+ * POST /auth/google/vincular
+ */
+export async function vincularGoogle(code: string): Promise<RespuestaAPI> {
+  const response = await api.post<RespuestaAPI>('/auth/google/vincular', { code });
   return response.data;
 }
 

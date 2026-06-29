@@ -15,10 +15,12 @@
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Check, Copy, Eye, EyeOff, KeyRound, Loader2, Shield, ShieldCheck, Smartphone } from 'lucide-react';
+import { AlertTriangle, Check, Copy, Eye, EyeOff, KeyRound, Loader2, LogOut, Mail, Shield, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
+import { useGoogleLogin } from '@react-oauth/google';
+import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
-import { activar2FA, cambiarContrasena, desactivar2FA, generar2FA } from '@/services/authService';
+import { activar2FA, cambiarContrasena, confirmarCambioCorreo, desactivar2FA, eliminarCuenta, establecerContrasena, generar2FA, logoutTodos, solicitarCambioCorreo, vincularGoogle } from '@/services/authService';
 import notificar from '@/utils/notificaciones';
 
 /** Dark Gradient de Marca (TC-7) — botones de acción primaria. */
@@ -60,12 +62,15 @@ function ReqItem({ ok, label }: { ok: boolean; label: string }) {
 export default function TabSeguridad() {
     const usuario = useAuthStore((s) => s.usuario);
     const recargarDatosUsuario = useAuthStore((s) => s.recargarDatosUsuario);
+    const logout = useAuthStore((s) => s.logout);
 
     // ── Contraseña ──
     const [actual, setActual] = useState('');
     const [nueva, setNueva] = useState('');
     const [confirmar, setConfirmar] = useState('');
-    const [verPass, setVerPass] = useState(false);
+    const [verActual, setVerActual] = useState(false);
+    const [verNueva, setVerNueva] = useState(false);
+    const [verConfirmar, setVerConfirmar] = useState(false);
     const [cambiandoPass, setCambiandoPass] = useState(false);
     // Error de la contraseña ACTUAL: no se valida en vivo contra el servidor (sería un
     // oráculo de fuerza bruta); se marca inline tras intentar, cuando el backend la rechaza.
@@ -78,6 +83,51 @@ export default function TabSeguridad() {
     const [procesando2fa, setProcesando2fa] = useState(false);
     const [codigosRespaldo, setCodigosRespaldo] = useState<string[] | null>(null);
     const [copiado, setCopiado] = useState(false);
+
+    // ── Cambiar correo ──
+    const [faseCorreo, setFaseCorreo] = useState<'idle' | 'pedir' | 'codigo'>('idle');
+    const [nuevoCorreo, setNuevoCorreo] = useState('');
+    const [codigoCorreo, setCodigoCorreo] = useState('');
+    const [procesandoCorreo, setProcesandoCorreo] = useState(false);
+
+    // ── Sesiones ──
+    const [confirmarCerrarSesiones, setConfirmarCerrarSesiones] = useState(false);
+    const [cerrandoSesiones, setCerrandoSesiones] = useState(false);
+
+    // ── Eliminar cuenta ──
+    const [confirmarEliminar, setConfirmarEliminar] = useState(false);
+    const [contrasenaEliminar, setContrasenaEliminar] = useState('');
+    const [correoConfirmEliminar, setCorreoConfirmEliminar] = useState('');
+    const [eliminandoCuenta, setEliminandoCuenta] = useState(false);
+
+    // ── Vincular Google ──
+    const [vinculandoGoogle, setVinculandoGoogle] = useState(false);
+
+    async function manejarVincularGoogle(code: string) {
+        if (vinculandoGoogle) return;
+        setVinculandoGoogle(true);
+        try {
+            const res = await vincularGoogle(code);
+            if (res.success) {
+                notificar.exito(res.message || 'Cuenta vinculada con Google.');
+                await recargarDatosUsuario();
+            } else {
+                notificar.error(res.message || 'No se pudo vincular con Google.');
+            }
+        } catch {
+            notificar.error('No se pudo vincular con Google.');
+        } finally {
+            setVinculandoGoogle(false);
+        }
+    }
+
+    // El hook de Google va ANTES del return condicional (regla de hooks).
+    const iniciarVincularGoogle = useGoogleLogin({
+        flow: 'auth-code',
+        scope: 'openid email profile',
+        onSuccess: (resp) => manejarVincularGoogle(resp.code),
+        onError: () => notificar.error('No se pudo conectar con Google. Inténtalo de nuevo.'),
+    });
 
     if (!usuario) return null;
 
@@ -92,25 +142,36 @@ export default function TabSeguridad() {
     const nuevaValida = reqLongitud && reqMayus && reqMinus && reqNumero;
     const confirmaCoincide = confirmar.length > 0 && nueva === confirmar;
     const nuevaIgualActual = nueva.length > 0 && nueva === actual;
-    const puedeCambiar = !!actual && nuevaValida && confirmaCoincide && !nuevaIgualActual && !cambiandoPass;
+    // ¿La cuenta ya tiene contraseña? Si no (típicamente Google), el flujo es CREARLA (sin pedir la
+    // actual, que no existe). Fallback por si el dato aún no llegó del backend: asumir que tiene salvo Google.
+    const tieneContrasena = usuario.tieneContrasena ?? !esGoogle;
+    const modoCrear = !tieneContrasena;
+    const puedeGuardar =
+        nuevaValida && confirmaCoincide && !cambiandoPass && (modoCrear || (!!actual && !nuevaIgualActual));
 
-    // ── Handlers: contraseña ──
-    async function cambiarPass() {
-        if (!puedeCambiar) return;
+    // ── Handlers: contraseña (crear si no tiene; cambiar si ya tiene) ──
+    async function guardarContrasena() {
+        if (!puedeGuardar) return;
         setErrorActual(null);
         setCambiandoPass(true);
         try {
-            const res = await cambiarContrasena({ contrasenaActual: actual, nuevaContrasena: nueva });
+            const res = modoCrear
+                ? await establecerContrasena({ nuevaContrasena: nueva })
+                : await cambiarContrasena({ contrasenaActual: actual, nuevaContrasena: nueva });
             if (res.success) {
-                notificar.exito('Contraseña actualizada.');
+                notificar.exito(modoCrear ? 'Contraseña creada.' : 'Contraseña actualizada.');
                 setActual(''); setNueva(''); setConfirmar('');
+                // Al crearla, la cuenta pasa a "tener contraseña" → recargar para que el form cambie a "Cambiar".
+                if (modoCrear) await recargarDatosUsuario();
+            } else if (modoCrear) {
+                notificar.error(res.message || 'No se pudo crear la contraseña.');
             } else {
-                // La nueva/confirmar ya se validaron en vivo, así que el único error que
+                // En "cambiar", la nueva/confirmar ya se validaron en vivo, así que el error que
                 // puede venir del backend es la contraseña actual incorrecta → inline.
                 setErrorActual(res.message || 'La contraseña actual es incorrecta.');
             }
         } catch {
-            notificar.error('No se pudo cambiar la contraseña. Intenta de nuevo.');
+            notificar.error('No se pudo guardar la contraseña. Intenta de nuevo.');
         } finally {
             setCambiandoPass(false);
         }
@@ -187,32 +248,135 @@ export default function TabSeguridad() {
         );
     }
 
+    // ── Handler: cerrar sesión en TODOS los dispositivos (incluido este) ──
+    async function cerrarTodasLasSesiones() {
+        if (cerrandoSesiones) return;
+        setCerrandoSesiones(true);
+        try {
+            const res = await logoutTodos();
+            if (res.success) {
+                notificar.exito('Cerraste sesión en todos tus dispositivos.');
+                logout('manual'); // la sesión de ESTE dispositivo también se invalidó → salir y redirigir
+            } else {
+                notificar.error(res.message || 'No se pudieron cerrar las sesiones.');
+                setCerrandoSesiones(false);
+            }
+        } catch {
+            notificar.error('No se pudieron cerrar las sesiones.');
+            setCerrandoSesiones(false);
+        }
+        // En éxito, logout() desmonta y redirige; no reseteamos cerrandoSesiones.
+    }
+
+    // ── Handlers: cambiar correo ──
+    async function enviarCodigoCorreo() {
+        if (procesandoCorreo) return;
+        const correo = nuevoCorreo.trim().toLowerCase();
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) { notificar.error('Escribe un correo válido.'); return; }
+        if (correo === (usuario?.correo ?? '').toLowerCase()) { notificar.error('Ese ya es tu correo actual.'); return; }
+        setProcesandoCorreo(true);
+        try {
+            const res = await solicitarCambioCorreo(correo);
+            if (res.success) {
+                notificar.exito(res.message || 'Te enviamos un código a tu nuevo correo.');
+                setCodigoCorreo('');
+                setFaseCorreo('codigo');
+            } else {
+                notificar.error(res.message || 'No se pudo enviar el código.');
+            }
+        } catch {
+            notificar.error('No se pudo enviar el código.');
+        } finally {
+            setProcesandoCorreo(false);
+        }
+    }
+
+    async function confirmarCorreo() {
+        if (procesandoCorreo) return;
+        if (codigoCorreo.length !== 6) { notificar.error('Ingresa el código de 6 dígitos.'); return; }
+        setProcesandoCorreo(true);
+        try {
+            const res = await confirmarCambioCorreo(codigoCorreo);
+            if (res.success) {
+                notificar.exito('Tu correo se actualizó.');
+                setFaseCorreo('idle');
+                setNuevoCorreo('');
+                setCodigoCorreo('');
+                await recargarDatosUsuario();
+            } else {
+                notificar.error(res.message || 'Código incorrecto.');
+            }
+        } catch {
+            notificar.error('No se pudo cambiar el correo.');
+        } finally {
+            setProcesandoCorreo(false);
+        }
+    }
+
+    function cancelarCambioCorreo() {
+        setFaseCorreo('idle');
+        setNuevoCorreo('');
+        setCodigoCorreo('');
+    }
+
+    // ── Handler: eliminar cuenta (soft-delete) ──
+    async function eliminarMiCuenta() {
+        if (eliminandoCuenta) return;
+        // Confirmación: contraseña si la tiene; si no (Google), escribir el correo exacto.
+        if (tieneContrasena) {
+            if (!contrasenaEliminar) { notificar.error('Ingresa tu contraseña para confirmar.'); return; }
+        } else if (correoConfirmEliminar.trim().toLowerCase() !== (usuario?.correo ?? '').toLowerCase()) {
+            notificar.error('Escribe tu correo exactamente para confirmar.');
+            return;
+        }
+        setEliminandoCuenta(true);
+        try {
+            const res = await eliminarCuenta(tieneContrasena ? contrasenaEliminar : undefined);
+            if (res.success) {
+                notificar.exito('Tu cuenta se eliminó.');
+                logout('manual'); // el backend ya cerró las sesiones → salir y redirigir
+            } else {
+                notificar.error(res.message || 'No se pudo eliminar la cuenta.');
+                setEliminandoCuenta(false);
+            }
+        } catch {
+            notificar.error('No se pudo eliminar la cuenta.');
+            setEliminandoCuenta(false);
+        }
+    }
+
     return (
-        <div data-testid="tab-seguridad" className="space-y-4">
+        <div data-testid="tab-seguridad">
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-start">
+
+            {/* ── Columna izquierda: Contraseña + Correo ── */}
+            <div className="space-y-3">
             {/* ════════════ CONTRASEÑA ════════════ */}
-            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-5 lg:p-6">
-                <div className="flex items-center gap-2 mb-4">
+            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
+                <div className="flex items-center gap-2 mb-3">
                     <KeyRound className="w-4 h-4 text-slate-600" strokeWidth={2} />
                     <h2 className="text-sm font-bold text-slate-800">Contraseña</h2>
                 </div>
 
-                {esGoogle ? (
-                    <div className="flex items-start gap-2.5 rounded-lg bg-slate-100 border border-slate-300 px-3 py-3">
-                        <Smartphone className="w-4 h-4 text-slate-500 shrink-0 mt-0.5" strokeWidth={2} />
-                        <p className="text-sm font-medium text-slate-600">
-                            Tu cuenta inicia sesión con Google, así que no tiene una contraseña que cambiar.
-                        </p>
-                    </div>
-                ) : (
-                    <div className="space-y-3">
-                        {/* Contraseña actual — se valida al intentar (no en cada tecla) */}
+                <div className="space-y-3">
+                    {modoCrear && (
+                        <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2.5">
+                            <Smartphone className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" strokeWidth={2} />
+                            <p className="text-xs text-slate-600">
+                                Tu cuenta entra con Google. Crea una contraseña para entrar también con tu correo.
+                            </p>
+                        </div>
+                    )}
+
+                    {/* Contraseña actual — solo si la cuenta ya tiene una. Se valida al intentar (no en cada tecla). */}
+                    {!modoCrear && (
                         <div>
                             <label htmlFor="seg-actual" className="block text-sm font-semibold text-slate-700 mb-1.5">Contraseña actual</label>
                             <div className="relative">
                                 <input
                                     id="seg-actual"
                                     data-testid="input-pass-actual"
-                                    type={verPass ? 'text' : 'password'}
+                                    type={verActual ? 'text' : 'password'}
                                     value={actual}
                                     onChange={(e) => { setActual(e.target.value); if (errorActual) setErrorActual(null); }}
                                     autoComplete="current-password"
@@ -221,85 +385,246 @@ export default function TabSeguridad() {
                                 />
                                 <button
                                     type="button"
-                                    onClick={() => setVerPass((v) => !v)}
-                                    aria-label={verPass ? 'Ocultar contraseñas' : 'Mostrar contraseñas'}
+                                    onClick={() => setVerActual((v) => !v)}
+                                    aria-label={verActual ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 lg:hover:text-slate-700 cursor-pointer"
                                 >
-                                    {verPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    {verActual ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
                             </div>
                             {errorActual && (
                                 <p data-testid="error-pass-actual" className="text-xs text-red-600 font-medium mt-1">{errorActual}</p>
                             )}
                         </div>
+                    )}
 
-                        {/* Nueva / Confirmar — validación en vivo */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
-                            <div>
-                                <label htmlFor="seg-nueva" className="block text-sm font-semibold text-slate-700 mb-1.5">Nueva contraseña</label>
+                    {/* Nueva / Confirmar — validación en vivo */}
+                    <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div>
+                            <label htmlFor="seg-nueva" className="block text-sm font-semibold text-slate-700 mb-1.5">{modoCrear ? 'Contraseña' : 'Nueva contraseña'}</label>
+                            <div className="relative">
                                 <input
                                     id="seg-nueva"
                                     data-testid="input-pass-nueva"
-                                    type={verPass ? 'text' : 'password'}
+                                    type={verNueva ? 'text' : 'password'}
                                     value={nueva}
                                     onChange={(e) => setNueva(e.target.value)}
                                     autoComplete="new-password"
-                                    className={inputClase(nueva ? (nuevaValida ? 'ok' : 'error') : 'neutro')}
+                                    className={`${inputClase(nueva ? (nuevaValida ? 'ok' : 'error') : 'neutro')} pr-10`}
                                 />
+                                <button
+                                    type="button"
+                                    onClick={() => setVerNueva((v) => !v)}
+                                    aria-label={verNueva ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 lg:hover:text-slate-700 cursor-pointer"
+                                >
+                                    {verNueva ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
-                            <div>
-                                <label htmlFor="seg-confirmar" className="block text-sm font-semibold text-slate-700 mb-1.5">Confirmar nueva</label>
+                        </div>
+                        <div>
+                            <label htmlFor="seg-confirmar" className="block text-sm font-semibold text-slate-700 mb-1.5">{modoCrear ? 'Confirmar contraseña' : 'Confirmar nueva'}</label>
+                            <div className="relative">
                                 <input
                                     id="seg-confirmar"
                                     data-testid="input-pass-confirmar"
-                                    type={verPass ? 'text' : 'password'}
+                                    type={verConfirmar ? 'text' : 'password'}
                                     value={confirmar}
                                     onChange={(e) => setConfirmar(e.target.value)}
                                     autoComplete="new-password"
-                                    className={inputClase(confirmar ? (confirmaCoincide ? 'ok' : 'error') : 'neutro')}
+                                    className={`${inputClase(confirmar ? (confirmaCoincide ? 'ok' : 'error') : 'neutro')} pr-10`}
                                 />
-                                {confirmar.length > 0 && !confirmaCoincide && (
-                                    <p className="text-xs text-red-600 font-medium mt-1">Las contraseñas no coinciden.</p>
-                                )}
+                                <button
+                                    type="button"
+                                    onClick={() => setVerConfirmar((v) => !v)}
+                                    aria-label={verConfirmar ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                                    className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 lg:hover:text-slate-700 cursor-pointer"
+                                >
+                                    {verConfirmar ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                </button>
                             </div>
+                            {confirmar.length > 0 && !confirmaCoincide && (
+                                <p className="text-xs text-red-600 font-medium mt-1">Las contraseñas no coinciden.</p>
+                            )}
                         </div>
+                    </div>
 
-                        {/* Requisitos en vivo (o guía si aún no escribe) */}
-                        {nueva ? (
-                            <div data-testid="requisitos-pass" className="flex flex-wrap gap-x-3 gap-y-1">
-                                <ReqItem ok={reqLongitud} label="8+ caracteres" />
-                                <ReqItem ok={reqMayus} label="1 mayúscula" />
-                                <ReqItem ok={reqMinus} label="1 minúscula" />
-                                <ReqItem ok={reqNumero} label="1 número" />
-                            </div>
-                        ) : (
-                            <p className="text-xs text-slate-500">Mínimo 8 caracteres, con una mayúscula, una minúscula y un número.</p>
-                        )}
+                    {/* Requisitos en vivo (o guía si aún no escribe) */}
+                    {nueva ? (
+                        <div data-testid="requisitos-pass" className="flex flex-wrap gap-x-3 gap-y-1">
+                            <ReqItem ok={reqLongitud} label="8+ caracteres" />
+                            <ReqItem ok={reqMayus} label="1 mayúscula" />
+                            <ReqItem ok={reqMinus} label="1 minúscula" />
+                            <ReqItem ok={reqNumero} label="1 número" />
+                        </div>
+                    ) : (
+                        <p className="text-xs text-slate-500">Mínimo 8 caracteres, con una mayúscula, una minúscula y un número.</p>
+                    )}
 
-                        {nuevaIgualActual && (
-                            <p className="text-xs text-amber-600 font-medium">La nueva contraseña debe ser diferente a la actual.</p>
-                        )}
+                    {!modoCrear && nuevaIgualActual && (
+                        <p className="text-xs text-amber-600 font-medium">La nueva contraseña debe ser diferente a la actual.</p>
+                    )}
 
-                        <div className="flex justify-end pt-1">
+                    <div className="flex justify-end pt-1">
+                        <button
+                            data-testid="btn-cambiar-pass"
+                            onClick={guardarContrasena}
+                            disabled={!puedeGuardar}
+                            style={{ background: GRADIENTE_MARCA }}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                        >
+                            {cambiandoPass && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {modoCrear ? 'Crear contraseña' : 'Cambiar contraseña'}
+                        </button>
+                    </div>
+                </div>
+            </section>
+
+            {/* ════════════ CORREO ════════════ */}
+            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
+                <div className="flex items-center gap-2 mb-3">
+                    <Mail className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                    <h2 className="text-sm font-bold text-slate-800">Correo electrónico</h2>
+                </div>
+
+                {faseCorreo === 'idle' && (
+                    <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
+                        <p className="text-xs text-slate-500">
+                            Tu correo actual es <span className="font-semibold text-slate-700">{usuario.correo}</span>
+                        </p>
+                        <button
+                            data-testid="btn-cambiar-correo"
+                            onClick={() => { setNuevoCorreo(''); setFaseCorreo('pedir'); }}
+                            style={{ background: GRADIENTE_MARCA }}
+                            className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer text-white shadow-md"
+                        >
+                            Cambiar correo
+                        </button>
+                    </div>
+                )}
+
+                {faseCorreo === 'pedir' && (
+                    <div className="space-y-3">
+                        <div>
+                            <label htmlFor="seg-nuevo-correo" className="block text-sm font-semibold text-slate-700 mb-1.5">Nuevo correo</label>
+                            <input
+                                id="seg-nuevo-correo"
+                                data-testid="input-nuevo-correo"
+                                type="email"
+                                value={nuevoCorreo}
+                                onChange={(e) => setNuevoCorreo(e.target.value)}
+                                placeholder="tucorreo@ejemplo.com"
+                                autoComplete="email"
+                                className={inputClase('neutro')}
+                            />
+                            <p className="text-xs text-slate-500 mt-1">Te enviaremos un código de verificación a este correo.</p>
+                        </div>
+                        <div className="flex gap-2 justify-end">
                             <button
-                                data-testid="btn-cambiar-pass"
-                                onClick={cambiarPass}
-                                disabled={!puedeCambiar}
-                                style={puedeCambiar ? { background: GRADIENTE_MARCA } : undefined}
-                                className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold ${
-                                    puedeCambiar ? 'text-white shadow-md cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                }`}
+                                onClick={cancelarCambioCorreo}
+                                disabled={procesandoCorreo}
+                                className="rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300 disabled:opacity-60"
                             >
-                                {cambiandoPass && <Loader2 className="w-4 h-4 animate-spin" />}
-                                Cambiar contraseña
+                                Cancelar
+                            </button>
+                            <button
+                                data-testid="btn-enviar-codigo-correo"
+                                onClick={enviarCodigoCorreo}
+                                disabled={procesandoCorreo || !nuevoCorreo.trim()}
+                                style={{ background: GRADIENTE_MARCA }}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {procesandoCorreo && <Loader2 className="w-4 h-4 animate-spin" />}
+                                Enviar código
+                            </button>
+                        </div>
+                    </div>
+                )}
+
+                {faseCorreo === 'codigo' && (
+                    <div className="space-y-3">
+                        <p className="text-sm font-medium text-slate-600">
+                            Ingresa el código de 6 dígitos que enviamos a <span className="font-semibold text-slate-800">{nuevoCorreo.trim().toLowerCase()}</span>.
+                        </p>
+                        <input
+                            data-testid="input-codigo-correo"
+                            type="text"
+                            inputMode="numeric"
+                            value={codigoCorreo}
+                            onChange={(e) => setCodigoCorreo(e.target.value.replace(/\D/g, '').slice(0, 6))}
+                            placeholder="000000"
+                            className={`${inputClase('neutro')} max-w-[180px] tracking-[0.3em] text-center font-bold`}
+                        />
+                        <div className="flex gap-2 justify-end">
+                            <button
+                                onClick={cancelarCambioCorreo}
+                                disabled={procesandoCorreo}
+                                className="rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300 disabled:opacity-60"
+                            >
+                                Cancelar
+                            </button>
+                            <button
+                                data-testid="btn-confirmar-correo"
+                                onClick={confirmarCorreo}
+                                disabled={procesandoCorreo || codigoCorreo.length !== 6}
+                                style={{ background: GRADIENTE_MARCA }}
+                                className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                            >
+                                {procesandoCorreo && <Loader2 className="w-4 h-4 animate-spin" />}
+                                Cambiar correo
                             </button>
                         </div>
                     </div>
                 )}
             </section>
 
+            {/* ════════════ GOOGLE ════════════ */}
+            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Icon icon="flat-color-icons:google" className="w-4 h-4 shrink-0" />
+                        <div className="min-w-0">
+                            <h2 className="text-sm font-bold text-slate-800">Inicio de sesión con Google</h2>
+                            <p className="text-xs text-slate-500 mt-0.5">
+                                Entra a AnunciaYA con tu cuenta de Google.
+                            </p>
+                        </div>
+                    </div>
+                    <span
+                        data-testid="estado-google"
+                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            esGoogle ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
+                        }`}
+                    >
+                        {esGoogle ? 'Vinculado' : 'No vinculado'}
+                    </span>
+                </div>
+
+                <div className="mt-3">
+                    {esGoogle ? (
+                        <p className="text-xs text-slate-500">
+                            Vinculada a <span className="font-semibold text-slate-700">{usuario.correo}</span>
+                        </p>
+                    ) : (
+                        <button
+                            data-testid="btn-vincular-google"
+                            onClick={() => iniciarVincularGoogle()}
+                            disabled={vinculandoGoogle}
+                            style={{ background: GRADIENTE_MARCA }}
+                            className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer text-white shadow-md disabled:opacity-60 disabled:cursor-default"
+                        >
+                            {vinculandoGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon icon="flat-color-icons:google" className="w-4 h-4" />}
+                            Vincular Google
+                        </button>
+                    )}
+                </div>
+            </section>
+            </div>
+
+            {/* ── Columna derecha: 2FA · Sesiones · Eliminar cuenta ── */}
+            <div className="space-y-3">
             {/* ════════════ 2FA ════════════ */}
-            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-5 lg:p-6">
+            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                         {dosFactoresActivo ? (
@@ -309,14 +634,14 @@ export default function TabSeguridad() {
                         )}
                         <div className="min-w-0">
                             <h2 className="text-sm font-bold text-slate-800">Verificación en dos pasos</h2>
-                            <p className="text-xs text-slate-600 mt-0.5">
+                            <p className="text-xs text-slate-500 mt-0.5">
                                 Pide un código de tu app de autenticación al iniciar sesión.
                             </p>
                         </div>
                     </div>
                     <span
                         data-testid="estado-2fa"
-                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-semibold ${
+                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
                             dosFactoresActivo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
                         }`}
                     >
@@ -324,7 +649,7 @@ export default function TabSeguridad() {
                     </span>
                 </div>
 
-                <div className="mt-4">
+                <div className="mt-3">
                     {/* Estado activo → botón desactivar / confirmación */}
                     {dosFactoresActivo && fase2fa !== 'confirmarDesactivar' && (
                         <button
@@ -355,7 +680,7 @@ export default function TabSeguridad() {
                                 <button
                                     onClick={() => { setFase2fa('idle'); setCodigo2fa(''); }}
                                     disabled={procesando2fa}
-                                    className="flex-1 lg:flex-none rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-white text-slate-700 border border-slate-300 lg:hover:bg-slate-200 disabled:opacity-60"
+                                    className="flex-1 lg:flex-none rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300 disabled:opacity-60"
                                 >
                                     Cancelar
                                 </button>
@@ -419,7 +744,7 @@ export default function TabSeguridad() {
                                 <button
                                     onClick={() => { setFase2fa('idle'); setQrData(null); setCodigo2fa(''); }}
                                     disabled={procesando2fa}
-                                    className="rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-white text-slate-700 border border-slate-300 lg:hover:bg-slate-200 disabled:opacity-60"
+                                    className="rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300 disabled:opacity-60"
                                 >
                                     Cancelar
                                 </button>
@@ -427,12 +752,8 @@ export default function TabSeguridad() {
                                     data-testid="btn-confirmar-activar-2fa"
                                     onClick={confirmarActivacion}
                                     disabled={procesando2fa || codigo2fa.length !== 6}
-                                    style={!procesando2fa && codigo2fa.length === 6 ? { background: GRADIENTE_MARCA } : undefined}
-                                    className={`inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold ${
-                                        !procesando2fa && codigo2fa.length === 6
-                                            ? 'text-white shadow-md cursor-pointer'
-                                            : 'bg-slate-300 text-slate-500 cursor-not-allowed'
-                                    }`}
+                                    style={{ background: GRADIENTE_MARCA }}
+                                    className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
                                     {procesando2fa && <Loader2 className="w-4 h-4 animate-spin" />}
                                     Activar
@@ -442,6 +763,46 @@ export default function TabSeguridad() {
                     )}
                 </div>
             </section>
+
+            {/* ════════════ SESIONES ════════════ */}
+            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
+                <div className="flex items-center gap-2 mb-2">
+                    <LogOut className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                    <h2 className="text-sm font-bold text-slate-800">Sesiones</h2>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">
+                    Cierra la sesión en todos tus dispositivos. Tendrás que volver a entrar.
+                </p>
+                <button
+                    data-testid="btn-cerrar-todas-sesiones"
+                    onClick={() => setConfirmarCerrarSesiones(true)}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-white text-red-600 border border-red-300 lg:hover:bg-red-50"
+                >
+                    <LogOut className="w-4 h-4" strokeWidth={2} />
+                    Cerrar sesión en todos los dispositivos
+                </button>
+            </section>
+
+            {/* ════════════ ELIMINAR CUENTA ════════════ */}
+            <section className="rounded-xl bg-white border border-red-200 shadow-sm p-4 lg:p-5">
+                <div className="flex items-center gap-2 mb-2">
+                    <Trash2 className="w-4 h-4 text-red-600" strokeWidth={2} />
+                    <h2 className="text-sm font-bold text-slate-800">Eliminar cuenta</h2>
+                </div>
+                <p className="text-xs text-slate-500 mb-3">
+                    Tu cuenta se desactivará y no podrás iniciar sesión. Reversible por soporte un tiempo.
+                </p>
+                <button
+                    data-testid="btn-eliminar-cuenta"
+                    onClick={() => { setContrasenaEliminar(''); setCorreoConfirmEliminar(''); setConfirmarEliminar(true); }}
+                    className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-white text-red-600 border border-red-300 lg:hover:bg-red-50"
+                >
+                    <Trash2 className="w-4 h-4" strokeWidth={2} />
+                    Eliminar mi cuenta
+                </button>
+            </section>
+            </div>
+            </div>
 
             {/* Modal: códigos de respaldo tras activar 2FA */}
             <ModalAdaptativo
@@ -470,7 +831,7 @@ export default function TabSeguridad() {
                         <button
                             data-testid="btn-copiar-codigos"
                             onClick={copiarCodigos}
-                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-white text-slate-700 border border-slate-300 lg:hover:bg-slate-200"
+                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300"
                         >
                             {copiado ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.5} /> : <Copy className="w-4 h-4" strokeWidth={2} />}
                             {copiado ? 'Copiados' : 'Copiar'}
@@ -482,6 +843,102 @@ export default function TabSeguridad() {
                             className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer text-white shadow-md"
                         >
                             Ya los guardé
+                        </button>
+                    </div>
+                </div>
+            </ModalAdaptativo>
+
+            {/* Modal: confirmar cerrar sesión en todos los dispositivos */}
+            <ModalAdaptativo
+                abierto={confirmarCerrarSesiones}
+                onCerrar={() => !cerrandoSesiones && setConfirmarCerrarSesiones(false)}
+                titulo="Cerrar sesión en todos los dispositivos"
+                iconoTitulo={<LogOut className="w-5 h-5 text-red-600" strokeWidth={2} />}
+                ancho="md"
+            >
+                <div data-testid="modal-cerrar-sesiones" className="space-y-4">
+                    <p className="text-sm font-medium text-slate-600">
+                        Se cerrará tu sesión en todos los dispositivos, <span className="font-semibold text-slate-800">incluido este</span>. Tendrás que volver a iniciar sesión.
+                    </p>
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={() => setConfirmarCerrarSesiones(false)}
+                            disabled={cerrandoSesiones}
+                            className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300 disabled:opacity-60"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            data-testid="btn-confirmar-cerrar-sesiones"
+                            onClick={cerrarTodasLasSesiones}
+                            disabled={cerrandoSesiones}
+                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-red-600 text-white lg:hover:bg-red-700 disabled:opacity-60 disabled:cursor-default"
+                        >
+                            {cerrandoSesiones && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Cerrar todo
+                        </button>
+                    </div>
+                </div>
+            </ModalAdaptativo>
+
+            {/* Modal: confirmar eliminar cuenta */}
+            <ModalAdaptativo
+                abierto={confirmarEliminar}
+                onCerrar={() => !eliminandoCuenta && setConfirmarEliminar(false)}
+                titulo="Eliminar mi cuenta"
+                iconoTitulo={<Trash2 className="w-5 h-5 text-red-600" strokeWidth={2} />}
+                ancho="md"
+            >
+                <div data-testid="modal-eliminar-cuenta" className="space-y-4">
+                    <div className="flex items-start gap-2.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
+                        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" strokeWidth={2} />
+                        <p className="text-sm font-medium text-red-900">
+                            Se desactivará tu cuenta y se cerrará tu sesión. Tus datos se conservan para una posible recuperación por soporte, pero no podrás iniciar sesión.
+                        </p>
+                    </div>
+                    {tieneContrasena ? (
+                        <div>
+                            <label htmlFor="seg-pass-eliminar" className="block text-sm font-semibold text-slate-700 mb-1.5">Confirma con tu contraseña</label>
+                            <input
+                                id="seg-pass-eliminar"
+                                data-testid="input-pass-eliminar"
+                                type="password"
+                                value={contrasenaEliminar}
+                                onChange={(e) => setContrasenaEliminar(e.target.value)}
+                                autoComplete="current-password"
+                                className={inputClase('neutro')}
+                            />
+                        </div>
+                    ) : (
+                        <div>
+                            <label htmlFor="seg-correo-eliminar" className="block text-sm font-semibold text-slate-700 mb-1.5">Escribe tu correo para confirmar</label>
+                            <input
+                                id="seg-correo-eliminar"
+                                data-testid="input-correo-eliminar"
+                                type="email"
+                                value={correoConfirmEliminar}
+                                onChange={(e) => setCorreoConfirmEliminar(e.target.value)}
+                                placeholder={usuario.correo}
+                                className={inputClase('neutro')}
+                            />
+                        </div>
+                    )}
+                    <div className="flex gap-2 pt-1">
+                        <button
+                            onClick={() => setConfirmarEliminar(false)}
+                            disabled={eliminandoCuenta}
+                            className="flex-1 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300 disabled:opacity-60"
+                        >
+                            Cancelar
+                        </button>
+                        <button
+                            data-testid="btn-confirmar-eliminar-cuenta"
+                            onClick={eliminarMiCuenta}
+                            disabled={eliminandoCuenta}
+                            className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-red-600 text-white lg:hover:bg-red-700 disabled:opacity-60 disabled:cursor-default"
+                        >
+                            {eliminandoCuenta && <Loader2 className="w-4 h-4 animate-spin" />}
+                            Sí, eliminar
                         </button>
                     </div>
                 </div>

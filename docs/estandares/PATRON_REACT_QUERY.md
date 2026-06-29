@@ -365,6 +365,35 @@ if (u) useAuthStore.getState().setUsuario({ ...u, logoNegocio: url });
 
 ---
 
+### 10. Caché por-usuario — `usuarioId` en la key + limpiar al cambiar de cuenta
+
+El caché de React Query **persiste entre sesiones** (no se borra solo al hacer logout). Si una query usa una key **estática** para datos que dependen del usuario, al **cambiar de cuenta en el mismo dispositivo** se sirve el caché del usuario anterior hasta que el `staleTime` expire o se refresque la página. Síntoma típico: "la sección X muestra datos de la cuenta anterior hasta que recargo".
+
+**Dos capas de defensa (usar ambas):**
+
+1. **Granular — el `usuarioId` va en la key** de toda query cuyo contenido dependa del usuario logueado (no solo del JWT). Así, al cambiar de cuenta la key cambia y React Query refetchea en vez de servir caché viejo. Para invalidar basta el prefijo sin id (match por prefijo cubre la key específica):
+
+```typescript
+// queryKeys.ts — id opcional: con id para la query, sin id para invalidar por prefijo
+membresia: {
+  mi: (usuarioId?: string) =>
+    usuarioId ? (['membresia', 'mi', usuarioId] as const) : (['membresia', 'mi'] as const),
+},
+
+// hook
+const usuarioId = useAuthStore((s) => s.usuario?.id);
+useQuery({ queryKey: queryKeys.membresia.mi(usuarioId), enabled: !!usuarioId, queryFn: ... });
+
+// invalidar (cualquier componente) — el prefijo cubre ['membresia','mi',<id>]
+qc.invalidateQueries({ queryKey: queryKeys.membresia.mi() });
+```
+
+2. **Global — `queryClient.clear()` al cambiar de sesión.** `useAuthStore` llama `queryClient.clear()` en `logout` **y** al inicio de `loginExitoso` (cubre también el login directo con otra cuenta sin logout previo). Es la red de seguridad para cualquier query que se haya dejado con key estática. El `queryClient` de `config/queryClient.ts` es un singleton, así que el store lo importa directo (sin ciclo de imports).
+
+> Sin la capa 2, cada query nueva con datos del usuario necesitaría acordarse de meter el `usuarioId` en la key; con ella, el peor caso es un refetch de más tras el login. La capa 1 sigue siendo la correcta per-query (evita borrar todo el caché innecesariamente en operaciones normales).
+
+---
+
 ## Patrones Avanzados
 
 Seis patrones que aparecen repetidos en el código pero que no son obvios al leer la estructura estándar. Conocerlos ahorra reinventarlos cada vez.

@@ -30,6 +30,10 @@ import {
   desactivar2faSchema,
   campoContrasena,
   actualizarPerfilSchema,
+  establecerContrasenaSchema,
+  solicitarCambioCorreoSchema,
+  confirmarCambioCorreoSchema,
+  eliminarCuentaSchema,
 } from '../validations/auth.schema.js';
 import {
   registrarUsuario,
@@ -56,6 +60,11 @@ import {
   actualizarUbicacionUsuario,
   actualizarPerfilUsuario,
   generarUrlAvatar,
+  establecerContrasena,
+  vincularGoogle,
+  solicitarCambioCorreo,
+  confirmarCambioCorreo,
+  eliminarCuenta,
 } from '../services/auth.service.js';
 import { actualizarRegistroPendiente } from '../utils/tokenStore.js';
 
@@ -568,6 +577,115 @@ export async function cambiarContrasenaController(req: Request, res: Response): 
     success: resultado.success,
     message: resultado.message,
   });
+}
+
+/**
+ * POST /api/auth/establecer-contrasena
+ * Crea la PRIMERA contraseña de una cuenta que no tiene (típicamente Google). No pide
+ * contraseña actual (no existe); el service valida que la cuenta no tenga ya una.
+ */
+export async function establecerContrasenaController(req: Request, res: Response): Promise<void> {
+  if (!req.usuario) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+
+  const validacion = establecerContrasenaSchema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Datos inválidos',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const resultado = await establecerContrasena(req.usuario.usuarioId, validacion.data);
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+  });
+}
+
+/**
+ * POST /api/auth/google/vincular
+ * Vincula Google a la cuenta logueada (agrega Google como método de login). Body: { code }.
+ */
+export async function vincularGoogleController(req: Request, res: Response): Promise<void> {
+  if (!req.usuario) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+
+  const validacion = googleAuthSchema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({
+      success: false,
+      message: 'Código de Google requerido',
+      errors: formatearErroresZod(validacion.error),
+    });
+    return;
+  }
+
+  const resultado = await vincularGoogle(req.usuario.usuarioId, validacion.data);
+  res.status(resultado.code ?? 200).json({
+    success: resultado.success,
+    message: resultado.message,
+  });
+}
+
+/**
+ * POST /api/auth/cambiar-correo/solicitar
+ * Paso 1: envía un código al NUEVO correo. Body: { nuevoCorreo }.
+ */
+export async function solicitarCambioCorreoController(req: Request, res: Response): Promise<void> {
+  if (!req.usuario) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+  const validacion = solicitarCambioCorreoSchema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({ success: false, message: 'Datos inválidos', errors: formatearErroresZod(validacion.error) });
+    return;
+  }
+  const resultado = await solicitarCambioCorreo(req.usuario.usuarioId, validacion.data);
+  res.status(resultado.code ?? 200).json({ success: resultado.success, message: resultado.message });
+}
+
+/**
+ * POST /api/auth/cambiar-correo/confirmar
+ * Paso 2: aplica el nuevo correo si el código es válido. Body: { codigo }.
+ */
+export async function confirmarCambioCorreoController(req: Request, res: Response): Promise<void> {
+  if (!req.usuario) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+  const validacion = confirmarCambioCorreoSchema.safeParse(req.body);
+  if (!validacion.success) {
+    res.status(400).json({ success: false, message: 'Código inválido', errors: formatearErroresZod(validacion.error) });
+    return;
+  }
+  const resultado = await confirmarCambioCorreo(req.usuario.usuarioId, validacion.data);
+  res.status(resultado.code ?? 200).json({ success: resultado.success, message: resultado.message });
+}
+
+/**
+ * POST /api/auth/eliminar-cuenta
+ * Da de baja la cuenta del usuario logueado (soft-delete). Body: { contrasena? }.
+ */
+export async function eliminarCuentaController(req: Request, res: Response): Promise<void> {
+  if (!req.usuario) {
+    res.status(401).json({ success: false, message: 'No autenticado' });
+    return;
+  }
+  const validacion = eliminarCuentaSchema.safeParse(req.body ?? {});
+  if (!validacion.success) {
+    res.status(400).json({ success: false, message: 'Datos inválidos', errors: formatearErroresZod(validacion.error) });
+    return;
+  }
+  const resultado = await eliminarCuenta(req.usuario.usuarioId, validacion.data);
+  res.status(resultado.code ?? 200).json({ success: resultado.success, message: resultado.message });
 }
 
 // =============================================================================

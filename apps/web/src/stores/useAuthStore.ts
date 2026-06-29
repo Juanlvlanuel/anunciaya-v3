@@ -17,6 +17,7 @@ import { create } from 'zustand';
 import { esTokenExpirado } from '../utils/tokenUtils'; // ← AGREGAR ESTA LÍNEA
 import api from '../services/api';
 import { conectarSocket, desconectarSocket } from '../services/socketService';
+import { queryClient } from '../config/queryClient';
 
 // =============================================================================
 // CONSTANTES
@@ -55,6 +56,8 @@ export interface Usuario {
   avatarUrl?: string | null;
   dobleFactorHabilitado?: boolean;
   autenticadoPorGoogle?: boolean;
+  /** ¿La cuenta ya tiene contraseña? Las cuentas Google puras no, hasta que la crean. */
+  tieneContrasena?: boolean;
   fechaNacimiento?: string | null;
   genero?: string | null;
   ciudad?: string | null;
@@ -262,6 +265,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   // ACCIÓN: Login exitoso (actualiza todo de una vez)
   // ---------------------------------------------------------------------------
   loginExitoso: async (usuario: Usuario, accessToken: string, refreshToken: string) => {
+
+    // Caché limpio para la nueva sesión: cubre también el cambio de cuenta SIN logout
+    // previo (login directo con otra cuenta) para que no se sirvan datos del usuario
+    // anterior. En un logout normal ya se limpió; re-limpiar aquí es barato e idempotente.
+    queryClient.clear();
 
     // Consumir el flag de logout reciente → garantiza que al re-loguear
     // siempre se vaya a /inicio, independiente de cuántos re-renders
@@ -610,6 +618,11 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     // Limpiar localStorage
     limpiarStorageAuth();
+
+    // Limpiar TODO el caché de React Query: evita que la próxima cuenta que inicie
+    // sesión en este dispositivo vea datos cacheados del usuario que sale (membresía,
+    // dashboard, etc.). Las queries se vuelven a pedir frescas tras el nuevo login.
+    queryClient.clear();
 
     // Limpiar ruta pendiente (evita redirigir a la ruta anterior al re-loguear)
     sessionStorage.removeItem('ay_ruta_pendiente');
