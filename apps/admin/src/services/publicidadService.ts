@@ -39,6 +39,7 @@ export interface PublicidadFila {
   esCombo: boolean;
   carruseles: string[];
   totalCiudades: number;
+  clicksTotales: number;
   estado: string;
   origen: string;
   monto: string | null;

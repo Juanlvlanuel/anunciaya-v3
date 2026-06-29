@@ -232,7 +232,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
   }
 
   // ── Vista ESCRITORIO ────────────────────────────────────────────────────────
-  const cols = 'minmax(190px,2fr) minmax(150px,1.5fr) 0.9fr 1fr 1.1fr 40px';
+  const cols = 'minmax(190px,2fr) minmax(150px,1.5fr) 0.9fr 0.7fr 1fr 1.1fr 40px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -298,6 +298,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
           <span>Anunciante</span>
           <span>Carrusel</span>
           <span>Ciudades</span>
+          <span>Clics</span>
           <span>Estado</span>
           <span>Vence</span>
           <span />
@@ -410,6 +411,7 @@ function FilaAnuncio({ r, cols, onAbrir, onPrefetch }: { r: PublicidadFila; cols
       </span>
       <span className="min-w-0 truncate text-[13px] text-texto-2">{textoCarruseles(r.carruseles, r.esCombo)}</span>
       <span className="text-[13px] text-texto-2">{r.totalCiudades} {r.totalCiudades === 1 ? 'ciudad' : 'ciudades'}</span>
+      <span className="inline-flex items-center gap-1 text-[13px] text-texto-2"><MousePointerClick size={14} className="text-texto-4" /> {r.clicksTotales}</span>
       <span className="min-w-0"><EstadoChip estado={r.estado} /></span>
       <span className="min-w-0"><Vence r={r} /></span>
       <span className="flex items-center justify-end text-texto-4">
@@ -443,6 +445,9 @@ function CardAnuncio({ r, onAbrir, onPrefetch }: { r: PublicidadFila; onAbrir: (
           <EstadoChip estado={r.estado} />
           <span className="inline-flex items-center gap-1 text-[12px] text-texto-4">
             <MapPin size={12} /> {r.totalCiudades}
+          </span>
+          <span className="inline-flex items-center gap-1 text-[12px] text-texto-4">
+            <MousePointerClick size={12} /> {r.clicksTotales}
           </span>
         </span>
       </span>

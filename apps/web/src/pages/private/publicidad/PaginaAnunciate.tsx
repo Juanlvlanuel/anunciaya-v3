@@ -8,6 +8,8 @@
  * Layout: header con identidad + 2/3 para los pasos (carruseles en fila + ciudades) y 1/3 para el
  * resumen sticky con el desglose línea por línea. Usa el ancho, sin scroll lateral.
  *
+ * Paleta: neutra (slate) + dark gradient de marca para activos/CTA. Sin acentos azules (tokens AY).
+ *
  * Ubicación: apps/web/src/pages/private/publicidad/PaginaAnunciate.tsx
  */
 
@@ -15,12 +17,14 @@ import { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ArrowLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
 import { useCiudades } from '../../../hooks/queries/useCiudades';
+import { LogoStripe } from '../../../components/ui/LogoStripe';
 import { notificar } from '../../../utils/notificaciones';
 import {
   obtenerOpcionesPublicidad,
   obtenerPrecioPublicidad,
   subirImagenPublicidad,
   descartarImagenesPublicidad,
+  descartarImagenesPublicidadBeacon,
   crearCheckoutPublicidad,
   type Carrusel,
   type OpcionesPublicidad,
@@ -37,7 +41,8 @@ const DESC: Record<Carrusel, string> = {
   fundadores: 'Logo circular entre los fundadores.',
 };
 const ICONO: Record<Carrusel, typeof Megaphone> = { patrocinadores: Star, anuncios: Megaphone, fundadores: Award };
-const ACENTO: Record<Carrusel, string> = { patrocinadores: 'text-blue-600', anuncios: 'text-amber-500', fundadores: 'text-violet-600' };
+// Iconos de identidad en neutro (sin acentos de color — tokens AY).
+const ACENTO: Record<Carrusel, string> = { patrocinadores: 'text-slate-700', anuncios: 'text-slate-700', fundadores: 'text-slate-700' };
 // Medida recomendada de la creatividad por tamaño (coherente con el espacio real de la columna; px @~3x
 // para que se vea nítida). Se muestra para que el anunciante diseñe a la medida exacta que se ocupa.
 const MEDIDA: Record<Carrusel, string> = {
@@ -55,6 +60,10 @@ const PREVIEW_BOX: Record<Carrusel, string> = {
 };
 const FMT = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 
+// Clave donde se espejan las URLs subidas en esta visita. Sobrevive a un refresh (el useRef no), para
+// poder limpiar de R2 las creatividades que quedaron huérfanas si el `pagehide` no alcanzó a completar.
+const STORAGE_PENDIENTES = 'anunciate:imagenesPendientes';
+
 export default function PaginaAnunciate() {
   const navigate = useNavigate();
 
@@ -71,16 +80,56 @@ export default function PaginaAnunciate() {
   // ligadas a un anuncio (reference count). Las pagadas quedan protegidas.
   const subidasSesion = useRef<Set<string>>(new Set());
 
+  // Espeja el set en sessionStorage (sobrevive al refresh; el useRef no).
+  const persistirPendientes = () => {
+    try {
+      const urls = Array.from(subidasSesion.current);
+      if (urls.length) sessionStorage.setItem(STORAGE_PENDIENTES, JSON.stringify(urls));
+      else sessionStorage.removeItem(STORAGE_PENDIENTES);
+    } catch { /* sessionStorage no disponible */ }
+  };
+  const registrarSubida = (url: string) => { subidasSesion.current.add(url); persistirPendientes(); };
+  const olvidarSubida = (url: string) => { subidasSesion.current.delete(url); persistirPendientes(); };
+
   useEffect(() => {
     obtenerOpcionesPublicidad().then(setOpciones).catch(() => {});
   }, []);
 
-  // Al salir de la página (sin haber pagado): descarta las creatividades subidas que no quedaron ligadas.
+  // RED DE SEGURIDAD (refresh/cierre): al montar, limpia de R2 las creatividades que una visita anterior
+  // dejó pendientes (si el `pagehide` no alcanzó a completar). El reference count lo hace idempotente.
+  useEffect(() => {
+    try {
+      const previas = sessionStorage.getItem(STORAGE_PENDIENTES);
+      if (previas) {
+        const urls = JSON.parse(previas) as unknown;
+        if (Array.isArray(urls)) {
+          const limpias = urls.filter((u): u is string => typeof u === 'string');
+          if (limpias.length) void descartarImagenesPublicidad(limpias);
+        }
+        sessionStorage.removeItem(STORAGE_PENDIENTES);
+      }
+    } catch { /* sessionStorage no disponible o JSON inválido */ }
+  }, []);
+
+  // CANCELAR vía navegación SPA (botón back de la página, cambiar de ruta): al desmontar, descarta las
+  // creatividades subidas no pagadas y limpia el espejo.
   useEffect(() => {
     return () => {
       const urls = Array.from(subidasSesion.current);
       if (urls.length) void descartarImagenesPublicidad(urls);
+      try { sessionStorage.removeItem(STORAGE_PENDIENTES); } catch { /* noop */ }
     };
+  }, []);
+
+  // CANCELAR vía navegador (refrescar, cerrar pestaña, ir a una URL externa): el desmontaje de React no
+  // corre de forma fiable, así que se usa `pagehide` + `fetch keepalive` (sobrevive a la descarga).
+  useEffect(() => {
+    const alSalir = () => {
+      const urls = Array.from(subidasSesion.current);
+      if (urls.length) descartarImagenesPublicidadBeacon(urls);
+    };
+    window.addEventListener('pagehide', alSalir);
+    return () => window.removeEventListener('pagehide', alSalir);
   }, []);
 
   useEffect(() => {
@@ -100,6 +149,9 @@ export default function PaginaAnunciate() {
   const limite = opciones?.limiteCiudades ?? 10;
   const duracion = opciones?.duracionDias ?? 30;
   const precioBase = (c: Carrusel) => opciones?.carruseles.find((o) => o.clave === c)?.precioBase ?? 0;
+  // Precio de lanzamiento (oferta) del tamaño: 0 si no hay. Si > 0, se cobra este y el base se tacha.
+  const precioLanzamiento = (c: Carrusel) => opciones?.carruseles.find((o) => o.clave === c)?.precioLanzamiento ?? 0;
+  const precioEfectivo = (c: Carrusel) => (precioLanzamiento(c) > 0 ? precioLanzamiento(c) : precioBase(c));
 
   // Ciudades habilitadas (de la BD, reactivo vía React Query). Mientras solo haya 1, el paso "¿En qué
   // ciudades?" no tiene sentido: se auto-selecciona y se oculta. Al habilitar más en el Panel de Ciudades
@@ -124,6 +176,9 @@ export default function PaginaAnunciate() {
   const toggleCarrusel = (c: Carrusel) => {
     setCarruseles((prev) => (prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]));
     if (carruseles.includes(c)) {
+      // Al deseleccionar un tamaño con imagen ya subida, descártala (si no, queda huérfana en R2).
+      const img = imagenes[c];
+      if (img) { olvidarSubida(img); void descartarImagenesPublicidad([img]); }
       setImagenes((prev) => {
         const n = { ...prev };
         delete n[c];
@@ -137,7 +192,10 @@ export default function PaginaAnunciate() {
     setSubiendo(c);
     try {
       const url = await subirImagenPublicidad(file);
-      subidasSesion.current.add(url);
+      // Si se reemplaza una creatividad anterior del mismo tamaño, descarta la vieja (queda huérfana).
+      const anterior = imagenes[c];
+      if (anterior && anterior !== url) { olvidarSubida(anterior); void descartarImagenesPublicidad([anterior]); }
+      registrarSubida(url);
       setImagenes((prev) => ({ ...prev, [c]: url }));
     } catch {
       notificar.error('No se pudo subir la imagen.');
@@ -157,6 +215,10 @@ export default function PaginaAnunciate() {
     setPagando(true);
     try {
       const url = await crearCheckoutPublicidad({ carruseles, imagenes, ciudadIds, meses });
+      // Ya quedaron ligadas a la compra pendiente → no descartarlas al salir (pagehide/desmontaje).
+      // Si el pago se abandona en Stripe, el cron de pendientes las limpia. Reference count = respaldo.
+      subidasSesion.current.clear();
+      try { sessionStorage.removeItem(STORAGE_PENDIENTES); } catch { /* noop */ }
       window.location.href = url;
     } catch (e) {
       notificar.error(e instanceof Error ? e.message : 'No se pudo iniciar el pago.');
@@ -176,16 +238,17 @@ export default function PaginaAnunciate() {
           type="button"
           onClick={() => navigate(-1)}
           aria-label="Volver"
-          className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-200 bg-white text-slate-600 transition hover:bg-slate-50"
+          className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-200"
         >
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-[20px] font-extrabold tracking-tight text-slate-800">Anúnciate en AnunciaYA</h1>
-          <p className="text-[12.5px] text-slate-500">Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.</p>
+          <h1 className="text-[20px] font-extrabold tracking-tight text-slate-900">Anúnciate en AnunciaYA</h1>
+          <p className="text-[12.5px] font-medium text-slate-600">Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.</p>
         </div>
-        <div className="ml-auto hidden items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-slate-600 lg:flex">
-          <ShieldCheck size={15} className="text-emerald-500" /> Pago seguro con Stripe
+        <div className="ml-auto hidden items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-slate-600 lg:flex">
+          <ShieldCheck size={15} className="text-emerald-600" />
+          <span className="flex items-center gap-1">Pago seguro con <LogoStripe alto={15} /></span>
         </div>
       </div>
 
@@ -193,10 +256,10 @@ export default function PaginaAnunciate() {
         {/* Pasos (2/3) */}
         <div className="flex flex-col gap-6 lg:col-span-2">
           {/* 1 · Tamaños + imágenes — en fila */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">1</span>
-              <h2 className="text-[15.5px] font-bold text-slate-800">Elige dónde aparecer</h2>
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-800 text-[13px] font-bold text-white">1</span>
+              <h2 className="text-[15.5px] font-bold text-slate-900">Elige dónde aparecer</h2>
             </div>
             <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
               {CARRUSELES.map((c) => {
@@ -206,44 +269,52 @@ export default function PaginaAnunciate() {
                 return (
                   <div
                     key={c}
-                    className={`flex flex-col overflow-hidden rounded-xl border-2 transition ${activo ? 'border-blue-500 shadow-sm' : 'border-slate-200 hover:border-blue-200'}`}
+                    className={`flex flex-col overflow-hidden rounded-xl border-2 ${activo ? 'border-slate-800 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
                   >
                     {/* Cabecera clickeable (selecciona) */}
                     <button type="button" data-testid={`anunciate-carrusel-${c}`} onClick={() => toggleCarrusel(c)} className="flex cursor-pointer items-start gap-2.5 p-3.5 text-left">
-                      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 transition ${activo ? 'border-blue-600 bg-blue-600 text-white' : 'border-slate-300'}`}>
+                      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 ${activo ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300'}`}>
                         {activo && <Check size={13} />}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
                           <Icono size={15} className={ACENTO[c]} />
-                          <span className="text-[14px] font-bold text-slate-800">{LABEL[c]}</span>
+                          <span className="text-[14px] font-bold text-slate-900">{LABEL[c]}</span>
                         </span>
-                        <span className="mt-0.5 block text-[11.5px] leading-snug text-slate-500">{DESC[c]}</span>
-                        <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-500">
-                          <Ratio size={12} className="shrink-0 text-slate-400" /> {MEDIDA[c]}
+                        <span className="mt-0.5 block text-[12px] leading-snug text-slate-600">{DESC[c]}</span>
+                        <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-600">
+                          <Ratio size={12} className="shrink-0 text-slate-500" /> {MEDIDA[c]}
                         </span>
-                        <span className="mt-1.5 block text-[15px] font-extrabold text-slate-900">{FMT.format(precioBase(c))}</span>
+                        {precioLanzamiento(c) > 0 ? (
+                          <span className="mt-1.5 flex flex-wrap items-baseline gap-1.5">
+                            <span className="text-[12px] font-semibold text-slate-500 line-through">{FMT.format(precioBase(c))}</span>
+                            <span className="text-[15px] font-extrabold text-slate-900">{FMT.format(precioLanzamiento(c))}</span>
+                            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700">Lanzamiento</span>
+                          </span>
+                        ) : (
+                          <span className="mt-1.5 block text-[15px] font-extrabold text-slate-900">{FMT.format(precioBase(c))}</span>
+                        )}
                       </span>
                     </button>
 
                     {/* Uploader (cuando activo) — con la forma real del espacio para diseñar a la medida */}
                     {activo && (
                       <div className="px-3 pb-3">
-                        <label className={`group relative block cursor-pointer overflow-hidden rounded-lg border border-dashed border-slate-300 transition hover:border-blue-400 ${PREVIEW_BOX[c]}`}>
+                        <label className={`group relative block cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-slate-300 lg:hover:border-slate-400 ${PREVIEW_BOX[c]}`}>
                           {url ? (
                             <>
                               <img src={url} alt={LABEL[c]} className="h-full w-full object-cover" />
                               <span className="absolute inset-0 grid place-items-center bg-black/0 text-[11px] font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white">Cambiar</span>
                             </>
                           ) : (
-                            <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-400">
+                            <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-500">
                               {subiendo === c ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
                               <span className="text-[11.5px] font-medium">Sube tu imagen</span>
                             </span>
                           )}
                           <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(c, f); }} />
                         </label>
-                        <p className="mt-1.5 text-center text-[10.5px] leading-snug text-slate-400">Se recorta para llenar el espacio · centra lo importante</p>
+                        <p className="mt-1.5 text-center text-[11px] leading-snug text-slate-600">Se recorta para llenar el espacio · centra lo importante</p>
                       </div>
                     )}
                   </div>
@@ -254,38 +325,38 @@ export default function PaginaAnunciate() {
 
           {/* 2 · Ciudades — solo si hay más de una habilitada; con una sola se auto-selecciona y se oculta */}
           {multiCiudad ? (
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">2</span>
-              <h2 className="text-[15.5px] font-bold text-slate-800">¿En qué ciudades?</h2>
-              <span className="ml-auto text-[12.5px] font-medium text-slate-400">{ciudadIds.length}/{limite}</span>
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-800 text-[13px] font-bold text-white">2</span>
+              <h2 className="text-[15.5px] font-bold text-slate-900">¿En qué ciudades?</h2>
+              <span className="ml-auto text-[12.5px] font-semibold text-slate-600">{ciudadIds.length}/{limite}</span>
             </div>
-            <p className="mb-3 text-[12.5px] text-slate-500">Mientras en más ciudades aparezcas, mayor el alcance (y el precio).</p>
+            <p className="mb-3 text-[12.5px] font-medium text-slate-600">Mientras en más ciudades aparezcas, mayor el alcance (y el precio).</p>
 
             {ciudadIds.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {ciudadIds.map((id) => (
-                  <span key={id} className="inline-flex items-center gap-1 rounded-full bg-blue-100 py-1 pl-2.5 pr-1.5 text-[12px] font-medium text-blue-700">
+                  <span key={id} className="inline-flex items-center gap-1 rounded-full bg-slate-200 py-1 pl-2.5 pr-1.5 text-[12px] font-semibold text-slate-700">
                     {nombreCiudad(id)}
-                    <button type="button" onClick={() => toggleCiudad(id)} aria-label="Quitar" className="grid h-4 w-4 cursor-pointer place-items-center rounded-full hover:bg-blue-200"><X size={11} /></button>
+                    <button type="button" onClick={() => toggleCiudad(id)} aria-label="Quitar" className="grid h-4 w-4 cursor-pointer place-items-center rounded-full hover:bg-slate-300"><X size={11} /></button>
                   </span>
                 ))}
               </div>
             )}
 
             <div className="relative">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar ciudad…"
                 data-testid="anunciate-buscar-ciudad"
-                className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2.5 pl-9 pr-3 text-[13.5px] text-slate-800 placeholder:text-slate-400 outline-none transition focus:border-blue-500 focus:bg-white [color-scheme:light]"
+                className="w-full rounded-lg border-2 border-slate-300 bg-slate-100 py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-500 outline-none focus:border-slate-800 focus:bg-white [color-scheme:light]"
               />
             </div>
 
             {/* Lista de ciudades en grid de 2 columnas (usa el ancho, menos scroll) */}
-            <div className="mt-3 grid max-h-72 grid-cols-1 gap-1 overflow-y-auto sm:grid-cols-2">
+            <div className="mt-3 grid max-h-72 grid-cols-1 gap-1 overflow-y-auto lg:grid-cols-2">
               {ciudadesFiltradas.map((c) => {
                 const sel = ciudadIds.includes(c.id);
                 return (
@@ -294,38 +365,38 @@ export default function PaginaAnunciate() {
                     key={c.id}
                     data-testid={`anunciate-ciudad-${c.id}`}
                     onClick={() => toggleCiudad(c.id)}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border px-3 py-2 text-left text-[13px] transition ${sel ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600 hover:border-blue-300 hover:bg-blue-50/50'}`}
+                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border-2 px-3 py-2 text-left text-[13px] font-medium ${sel ? 'border-slate-800 bg-slate-100 text-slate-900' : 'border-slate-300 text-slate-600 lg:hover:border-slate-400 lg:hover:bg-slate-100'}`}
                   >
                     <span className="flex min-w-0 items-center gap-1.5">
                       <MapPin size={13} className="shrink-0" />
                       <span className="truncate">{c.nombre}</span>
-                      <span className="truncate text-[11px] text-slate-400">· {c.estado}</span>
+                      <span className="truncate text-[11px] text-slate-500">· {c.estado}</span>
                     </span>
                     {sel && <Check size={14} className="shrink-0" />}
                   </button>
                 );
               })}
-              {ciudadesFiltradas.length === 0 && <div className="col-span-full px-3 py-4 text-center text-[12.5px] text-slate-400">Sin resultados.</div>}
+              {ciudadesFiltradas.length === 0 && <div className="col-span-full px-3 py-4 text-center text-[12.5px] font-medium text-slate-600">Sin resultados.</div>}
             </div>
           </section>
           ) : ciudadUnica ? (
-            <div data-testid="anunciate-ciudad-unica" className="flex items-start gap-2.5 rounded-2xl border border-slate-200 bg-slate-50 px-5 py-4">
-              <MapPin size={17} className="mt-0.5 shrink-0 text-blue-600" />
+            <div data-testid="anunciate-ciudad-unica" className="flex items-start gap-2.5 rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4">
+              <MapPin size={17} className="mt-0.5 shrink-0 text-slate-700" />
               <div className="min-w-0">
-                <p className="text-[13.5px] text-slate-700">Tu anuncio se mostrará en <b className="font-semibold text-slate-900">{ciudadUnica.nombre}, {ciudadUnica.estado}</b>.</p>
-                <p className="mt-0.5 text-[12px] text-slate-400">Pronto habilitaremos más ciudades — entonces podrás elegir en cuáles aparecer.</p>
+                <p className="text-[13.5px] font-medium text-slate-700">Tu anuncio se mostrará en <b className="font-bold text-slate-900">{ciudadUnica.nombre}, {ciudadUnica.estado}</b>.</p>
+                <p className="mt-0.5 text-[12px] font-medium text-slate-600">Pronto habilitaremos más ciudades — entonces podrás elegir en cuáles aparecer.</p>
               </div>
             </div>
           ) : null}
 
           {/* 3 · Tiempo (meses por adelantado) — pasa a ser el paso 2 cuando hay una sola ciudad */}
-          <section className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
+          <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-blue-600 text-[13px] font-bold text-white">{numPasoTiempo}</span>
-              <h2 className="text-[15.5px] font-bold text-slate-800">¿Por cuánto tiempo?</h2>
+              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-800 text-[13px] font-bold text-white">{numPasoTiempo}</span>
+              <h2 className="text-[15.5px] font-bold text-slate-900">¿Por cuánto tiempo?</h2>
             </div>
-            <p className="mb-3 text-[12.5px] text-slate-500">Paga varios meses por adelantado y ahorra.</p>
-            <div className="grid grid-cols-2 gap-2.5 sm:grid-cols-4">
+            <p className="mb-3 text-[12.5px] font-medium text-slate-600">Paga varios meses por adelantado y ahorra.</p>
+            <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
               {(opciones?.periodos ?? [{ meses: 1, descuento: 0 }]).map((p) => {
                 const activo = meses === p.meses;
                 const totalPeriodo = precio ? precio.mensual * p.meses * (1 - p.descuento / 100) : null;
@@ -335,17 +406,17 @@ export default function PaginaAnunciate() {
                     key={p.meses}
                     data-testid={`anunciate-periodo-${p.meses}`}
                     onClick={() => setMeses(p.meses)}
-                    className={`relative flex cursor-pointer flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left transition ${activo ? 'border-blue-500 bg-blue-50/60 shadow-sm' : 'border-slate-200 hover:border-blue-300'}`}
+                    className={`relative flex cursor-pointer flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left ${activo ? 'border-slate-800 bg-slate-100 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
                   >
                     {p.descuento > 0 && (
-                      <span className="absolute right-2 top-2 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[10.5px] font-bold text-emerald-700">−{p.descuento}%</span>
+                      <span className="absolute right-2 top-2 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700">−{p.descuento}%</span>
                     )}
-                    <span className="text-[18px] font-extrabold leading-none text-slate-800">{p.meses}</span>
-                    <span className="text-[11.5px] font-medium text-slate-500">{p.meses === 1 ? 'mes' : 'meses'}</span>
+                    <span className="text-[18px] font-extrabold leading-none text-slate-900">{p.meses}</span>
+                    <span className="text-[11.5px] font-medium text-slate-600">{p.meses === 1 ? 'mes' : 'meses'}</span>
                     {totalPeriodo !== null ? (
-                      <span className="mt-1 text-[12.5px] font-bold text-slate-700">{FMT.format(totalPeriodo)}</span>
+                      <span className="mt-1 text-[12.5px] font-bold text-slate-800">{FMT.format(totalPeriodo)}</span>
                     ) : (
-                      <span className="mt-1 text-[11.5px] text-slate-400">{p.descuento > 0 ? `Ahorra ${p.descuento}%` : 'Precio base'}</span>
+                      <span className="mt-1 text-[11.5px] font-medium text-slate-600">{p.descuento > 0 ? `Ahorra ${p.descuento}%` : 'Precio base'}</span>
                     )}
                   </button>
                 );
@@ -356,21 +427,30 @@ export default function PaginaAnunciate() {
 
         {/* Resumen (1/3) — sticky */}
         <aside className="lg:sticky lg:top-6 lg:self-start">
-          <div className="rounded-2xl border border-slate-200 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-[15.5px] font-bold text-slate-800">Resumen</h2>
+          <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
+            <h2 className="mb-4 text-[15.5px] font-bold text-slate-900">Resumen</h2>
 
             {carruseles.length === 0 ? (
-              <div className="rounded-xl border border-dashed border-slate-200 px-4 py-8 text-center">
-                <Megaphone size={26} className="mx-auto text-slate-300" />
-                <p className="mt-2 text-[13px] text-slate-500">Elige al menos un tamaño para ver el precio.</p>
+              <div className="rounded-xl border-2 border-dashed border-slate-300 px-4 py-8 text-center">
+                <Megaphone size={26} className="mx-auto text-slate-400" />
+                <p className="mt-2 text-[13px] font-medium text-slate-600">Elige al menos un tamaño para ver el precio.</p>
               </div>
             ) : (
               <div className="flex flex-col gap-2 text-[13.5px]">
                 {carruseles.map((c) => (
-                  <Linea key={c} label={LABEL[c]} valor={FMT.format(precioBase(c))} />
+                  <Linea
+                    key={c}
+                    label={LABEL[c]}
+                    valor={FMT.format(precioEfectivo(c))}
+                    tachado={precioLanzamiento(c) > 0 ? FMT.format(precioBase(c)) : undefined}
+                  />
                 ))}
-                <div className="my-1 border-t border-slate-100" />
-                <Linea label="Subtotal" valor={precio ? FMT.format(precio.base) : '—'} />
+                <div className="my-1 border-t border-slate-200" />
+                <Linea
+                  label="Subtotal"
+                  valor={precio ? FMT.format(precio.base) : '—'}
+                  tachado={precio && precio.hayLanzamiento ? FMT.format(precio.baseLista) : undefined}
+                />
                 {precio && precio.factor !== 1 && (
                   <Linea label={`${ciudadIds.length} ciudades (×${precio.factor})`} valor={`+ ${FMT.format(conFactor - precio.base)}`} sub />
                 )}
@@ -388,10 +468,10 @@ export default function PaginaAnunciate() {
                 )}
                 <div className="my-1.5 border-t border-slate-200" />
                 <div className="flex items-end justify-between">
-                  <span className="text-[14px] font-bold text-slate-800">Total</span>
+                  <span className="text-[14px] font-bold text-slate-900">Total</span>
                   <span className="text-[24px] font-extrabold leading-none text-slate-900">{precio ? FMT.format(precio.total) : '—'}</span>
                 </div>
-                <p className="mt-1 text-[11.5px] text-slate-400">{precio ? precio.meses * duracion : duracion} días de vigencia · pago único</p>
+                <p className="mt-1 text-[11.5px] font-medium text-slate-600">{precio ? precio.meses * duracion : duracion} días de vigencia · pago único</p>
               </div>
             )}
 
@@ -400,16 +480,21 @@ export default function PaginaAnunciate() {
               onClick={pagar}
               disabled={!puedePagar}
               data-testid="anunciate-pagar"
-              className="mt-5 flex w-full cursor-pointer items-center justify-center gap-2 rounded-xl bg-blue-600 py-3.5 text-[14.5px] font-bold text-white shadow-sm transition hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-50"
+              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14.5px] font-bold text-white transition-all duration-150 ${
+                puedePagar
+                  ? 'cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]'
+                  : 'cursor-not-allowed bg-slate-400'
+              }`}
             >
               {pagando ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
               {pagando ? 'Redirigiendo…' : 'Pagar con tarjeta'}
             </button>
             {!todasImagenes && carruseles.length > 0 && (
-              <p className="mt-2 text-center text-[11.5px] text-amber-600">Sube la imagen de cada tamaño para continuar.</p>
+              <p className="mt-2 text-center text-[11.5px] font-medium text-amber-600">Sube la imagen de cada tamaño para continuar.</p>
             )}
-            <p className="mt-3 flex items-center justify-center gap-1.5 text-[11px] text-slate-400">
-              <ShieldCheck size={13} /> Pago seguro con Stripe
+            <p className="mt-3 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-slate-600">
+              <ShieldCheck size={17} className="text-emerald-600" />
+              <span className="flex items-center gap-1.5">Pago seguro con <LogoStripe alto={16} /></span>
             </p>
           </div>
         </aside>
@@ -418,11 +503,14 @@ export default function PaginaAnunciate() {
   );
 }
 
-function Linea({ label, valor, fuerte, sub, verde }: { label: string; valor: string; fuerte?: boolean; sub?: boolean; verde?: boolean }) {
+function Linea({ label, valor, tachado, fuerte, sub, verde }: { label: string; valor: string; tachado?: string; fuerte?: boolean; sub?: boolean; verde?: boolean }) {
   return (
     <div className="flex items-center justify-between">
-      <span className={sub ? 'text-[12.5px] text-slate-500' : fuerte ? 'font-semibold text-slate-700' : 'text-slate-600'}>{label}</span>
-      <span className={`tabular-nums ${verde ? 'font-semibold text-emerald-600' : fuerte ? 'font-semibold text-slate-700' : 'text-slate-600'}`}>{valor}</span>
+      <span className={sub ? 'text-[12.5px] font-medium text-slate-600' : fuerte ? 'font-semibold text-slate-700' : 'font-medium text-slate-600'}>{label}</span>
+      <span className="flex items-baseline gap-1.5">
+        {tachado && <span className="text-[11.5px] tabular-nums text-slate-500 line-through">{tachado}</span>}
+        <span className={`tabular-nums ${verde ? 'font-semibold text-emerald-600' : fuerte ? 'font-semibold text-slate-700' : 'font-medium text-slate-700'}`}>{valor}</span>
+      </span>
     </div>
   );
 }

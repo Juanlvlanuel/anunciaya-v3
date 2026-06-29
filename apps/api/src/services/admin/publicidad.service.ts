@@ -76,6 +76,7 @@ export interface PublicidadFila {
     esCombo: boolean;
     carruseles: string[];       // los carruseles comprados (de las piezas)
     totalCiudades: number;
+    clicksTotales: number;      // suma de clicks de todas las piezas del anuncio
     estado: string;
     origen: string;
     monto: string | null;       // numeric → string; NULL en cortesía
@@ -275,6 +276,7 @@ export async function listarPublicidad(
             expiraAt: publicidadCompras.expiraAt,
             carruseles: sql<string[]>`COALESCE((SELECT array_agg(pp.carrusel ORDER BY pp.carrusel) FROM publicidad_piezas pp WHERE pp.compra_id = ${publicidadCompras.id}), ARRAY[]::varchar[])`,
             totalCiudades: sql<number>`(SELECT count(*) FROM publicidad_compra_ciudades pcc WHERE pcc.compra_id = ${publicidadCompras.id})`,
+            clicksTotales: sql<number>`COALESCE((SELECT SUM(pp.clicks) FROM publicidad_piezas pp WHERE pp.compra_id = ${publicidadCompras.id}), 0)`,
         })
         .from(publicidadCompras)
         .leftJoin(usuarios, eq(usuarios.id, publicidadCompras.usuarioId))
@@ -294,6 +296,7 @@ export async function listarPublicidad(
         esCombo: f.esCombo,
         carruseles: f.carruseles ?? [],
         totalCiudades: Number(f.totalCiudades ?? 0),
+        clicksTotales: Number(f.clicksTotales ?? 0),
         estado: f.estado,
         origen: f.origen,
         monto: f.monto ?? null,

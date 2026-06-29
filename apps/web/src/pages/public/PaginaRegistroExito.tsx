@@ -14,6 +14,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import pagoService from '@/services/pagoService';
 import { notificar } from '@/utils/notificaciones';
 import { ModalBienvenida } from '@/components/auth/registro';
+import { LogoStripe } from '@/components/ui/LogoStripe';
 
 // =============================================================================
 // TIPOS
@@ -130,7 +131,7 @@ export function PaginaRegistroExito() {
                             <div className="w-5 h-5 rounded-full bg-emerald-600 flex items-center justify-center shrink-0">
                                 <Check className="w-3 h-3 text-white" />
                             </div>
-                            <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">Pago procesado por Stripe</span>
+                            <span className="flex items-center gap-1.5 text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-700">Pago procesado por <LogoStripe alto={14} /></span>
                         </div>
                         <div className="flex items-center gap-3">
                             <div className="w-5 h-5 rounded-full border-2 border-slate-800 flex items-center justify-center shrink-0">

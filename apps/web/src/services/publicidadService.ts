@@ -9,6 +9,9 @@
 
 import { api, get } from './api';
 import { optimizarImagen } from '../utils/optimizarImagen';
+import { useAuthStore } from '../stores/useAuthStore';
+
+const API_BASE = import.meta.env.VITE_API_URL || '/api';
 
 export type Carrusel = 'anuncios' | 'patrocinadores' | 'fundadores';
 
@@ -35,7 +38,9 @@ export async function obtenerPublicidadPorCiudad(ciudadId: string): Promise<Publ
 // =============================================================================
 
 export interface DesglosePrecio {
-  base: number;
+  base: number;             // suma de precios EFECTIVOS (lo que se cobra)
+  baseLista: number;        // suma de precios de LISTA (para tachar si hay lanzamiento)
+  hayLanzamiento: boolean;  // algún carrusel elegido tiene precio de lanzamiento activo
   factor: number;
   esCombo: boolean;
   descuento: number;        // % del combo
@@ -54,7 +59,8 @@ export interface OpcionesPublicidad {
   limiteCiudades: number;
   duracionDias: number;
   comboDescuento: number;
-  carruseles: Array<{ clave: Carrusel; precioBase: number }>;
+  // precioLanzamiento = 0 si no hay oferta; si > 0 es el precio que se cobra y precioBase se tacha.
+  carruseles: Array<{ clave: Carrusel; precioBase: number; precioLanzamiento: number }>;
   periodos: PeriodoPublicidad[];
 }
 
@@ -74,7 +80,7 @@ export async function obtenerOpcionesPublicidad(): Promise<OpcionesPublicidad> {
 
 export async function obtenerPrecioPublicidad(carruseles: Carrusel[], ciudades: number, meses = 1): Promise<DesglosePrecio> {
   const res = await get<DesglosePrecio>(`/publicidad/precio?carruseles=${carruseles.join(',')}&ciudades=${ciudades}&meses=${meses}`);
-  return res.data ?? { base: 0, factor: 1, esCombo: false, descuento: 0, mensual: 0, meses: 1, descuentoPeriodo: 0, total: 0 };
+  return res.data ?? { base: 0, baseLista: 0, hayLanzamiento: false, factor: 1, esCombo: false, descuento: 0, mensual: 0, meses: 1, descuentoPeriodo: 0, total: 0 };
 }
 
 /** Optimiza (redimensiona + WebP), pide presigned URL, sube a R2 (PUT) y devuelve la URL pública. Requiere sesión. */
@@ -109,6 +115,31 @@ export async function descartarImagenesPublicidad(urls: string[]): Promise<void>
     await api.post('/publicidad/imagenes-descartadas', { urls: lista });
   } catch {
     /* best-effort: no romper la navegación */
+  }
+}
+
+/**
+ * Variante de `descartarImagenesPublicidad` para el evento `pagehide` (refrescar / cerrar la pestaña /
+ * navegar a una URL externa): usa `fetch` con `keepalive` para que la petición sobreviva a la descarga
+ * de la página. Incluye el token en el header (por eso no se usa `navigator.sendBeacon`, que no permite
+ * headers). Best-effort: el reference count del backend + el recolector R2 son la red de seguridad final.
+ */
+export function descartarImagenesPublicidadBeacon(urls: string[]): void {
+  const lista = urls.filter(Boolean);
+  if (lista.length === 0) return;
+  try {
+    const token = useAuthStore.getState().accessToken;
+    void fetch(`${API_BASE}/publicidad/imagenes-descartadas`, {
+      method: 'POST',
+      keepalive: true,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({ urls: lista }),
+    });
+  } catch {
+    /* best-effort: no romper la descarga de la página */
   }
 }
 

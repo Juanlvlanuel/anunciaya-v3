@@ -187,11 +187,20 @@ export function FichaPublicidad({ previo, rol, onCerrar }: FichaPublicidadProps)
                       <div className="min-w-0 flex-1">
                         <div className="truncate text-[13.5px] font-medium text-texto">{CARRUSEL_LABEL[p.carrusel] ?? p.carrusel}</div>
                         <div className="text-[12px] text-texto-4">
-                          {p.clicks} {p.clicks === 1 ? 'clic' : 'clics'} · {p.impresiones} vistas
+                          {p.clicks} {p.clicks === 1 ? 'clic' : 'clics'}
                         </div>
                       </div>
                     </div>
                   ))}
+                  {/* Total del anuncio (solo en combo: con una sola pieza el total es la pieza misma). */}
+                  {r.piezas.length > 1 && (
+                    <div className="flex items-center justify-between rounded-[10px] bg-superficie-2 px-3 py-2">
+                      <span className="text-[12.5px] font-semibold text-texto-3">Total del anuncio</span>
+                      <span className="text-[13px] font-semibold text-texto">
+                        {r.clicksTotales} {r.clicksTotales === 1 ? 'clic' : 'clics'}
+                      </span>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

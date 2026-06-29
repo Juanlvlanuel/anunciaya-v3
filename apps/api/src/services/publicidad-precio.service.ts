@@ -31,6 +31,21 @@ const PRECIO_DEFAULT: Record<CarruselPub, number> = {
     patrocinadores: 800,
 };
 
+// Precio de lanzamiento (oferta) por tamaño. 0 = sin oferta; si es > 0 y menor al precio base, se cobra
+// este y el base se muestra tachado en el wizard. Lo fija el SuperAdmin en Configuración.
+const PRECIO_LANZAMIENTO_CLAVE: Record<CarruselPub, string> = {
+    anuncios: 'publicidad_precio_lanzamiento_anuncios',
+    patrocinadores: 'publicidad_precio_lanzamiento_patrocinadores',
+};
+
+/** Precio efectivo de un tamaño: el de lanzamiento si está activo (>0 y menor al base), si no el base. */
+async function preciosDeCarrusel(c: CarruselPub): Promise<{ lista: number; efectivo: number }> {
+    const lista = await obtenerConfigNumero(PRECIO_CLAVE[c], PRECIO_DEFAULT[c]);
+    const lanz = await obtenerConfigNumero(PRECIO_LANZAMIENTO_CLAVE[c], 0);
+    const efectivo = lanz > 0 && lanz < lista ? lanz : lista;
+    return { lista, efectivo };
+}
+
 /** Factor del tramo que contiene `n` ciudades (si supera todos los topes, usa el último). */
 function factorDeTramo(tramos: TramoCiudades[], n: number): number {
     for (const t of tramos) {
@@ -40,7 +55,9 @@ function factorDeTramo(tramos: TramoCiudades[], n: number): number {
 }
 
 export interface DesglosePrecio {
-    base: number;             // suma de precios base de los carruseles elegidos
+    base: number;             // suma de precios EFECTIVOS (lo que se cobra) de los carruseles elegidos
+    baseLista: number;        // suma de precios de LISTA (para tachar si hay lanzamiento)
+    hayLanzamiento: boolean;  // algún carrusel elegido tiene precio de lanzamiento activo
     factor: number;           // multiplicador por # de ciudades
     esCombo: boolean;
     descuento: number;        // % del combo (0 si no es combo)
@@ -68,7 +85,14 @@ export async function calcularPrecioPublicidad(
     const unicos = Array.from(new Set(carruseles));
 
     let base = 0;
-    for (const c of unicos) base += await obtenerConfigNumero(PRECIO_CLAVE[c], PRECIO_DEFAULT[c]);
+    let baseLista = 0;
+    let hayLanzamiento = false;
+    for (const c of unicos) {
+        const { lista, efectivo } = await preciosDeCarrusel(c);
+        base += efectivo;
+        baseLista += lista;
+        if (efectivo < lista) hayLanzamiento = true;
+    }
 
     const tramos = await obtenerConfigJson<TramoCiudades[]>('publicidad_tramos_ciudades', TRAMOS_CIUDADES_DEFAULT);
     const factor = factorDeTramo(tramos, Math.max(1, Math.floor(numCiudades)));
@@ -87,14 +111,15 @@ export async function calcularPrecioPublicidad(
     const descuentoPeriodo = periodos.find((p) => p.meses === m)?.descuento ?? 0;
     const total = Math.round(mensual * m * (1 - descuentoPeriodo / 100) * 100) / 100;
 
-    return { base, factor, esCombo, descuento, mensual, meses: m, descuentoPeriodo, total };
+    return { base, baseLista, hayLanzamiento, factor, esCombo, descuento, mensual, meses: m, descuentoPeriodo, total };
 }
 
 export interface OpcionesPublicidad {
     limiteCiudades: number;
     duracionDias: number;
     comboDescuento: number;
-    carruseles: Array<{ clave: CarruselPub; precioBase: number }>;
+    // precioLanzamiento = 0 si no hay oferta; si > 0 es el precio que se cobra y precioBase se muestra tachado.
+    carruseles: Array<{ clave: CarruselPub; precioBase: number; precioLanzamiento: number }>;
     periodos: TramoPeriodo[];
 }
 
@@ -102,7 +127,8 @@ export interface OpcionesPublicidad {
 export async function obtenerOpcionesPublicidad(): Promise<OpcionesPublicidad> {
     const carruseles: OpcionesPublicidad['carruseles'] = [];
     for (const c of CARRUSELES_VALIDOS) {
-        carruseles.push({ clave: c, precioBase: await obtenerConfigNumero(PRECIO_CLAVE[c], PRECIO_DEFAULT[c]) });
+        const { lista, efectivo } = await preciosDeCarrusel(c);
+        carruseles.push({ clave: c, precioBase: lista, precioLanzamiento: efectivo < lista ? efectivo : 0 });
     }
     return {
         limiteCiudades: await obtenerConfigNumero('publicidad_limite_ciudades', 10),

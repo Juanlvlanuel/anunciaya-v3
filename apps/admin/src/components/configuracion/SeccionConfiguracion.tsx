@@ -290,9 +290,13 @@ function PilaConfig({ filas, onEditar }: { filas: ConfigFila[]; onEditar: (c: Co
 
 /** Identidad visual de cada carrusel — mismo ícono y acento que el wizard del anunciante (apps/web,
  *  PaginaAnunciate.tsx) para que el super reconozca el espacio que está poniendo precio. */
+// Orden por PARES: cada tamaño seguido de su precio de lanzamiento (el grid de 2 columnas los empareja
+// en la misma fila → base a la izquierda, su lanzamiento a la derecha).
 const META_CARRUSEL: Record<string, { nombre: string; Icono: typeof Megaphone; acento: string }> = {
-  publicidad_precio_patrocinadores: { nombre: 'Grande', Icono: Star, acento: 'bg-blue-600' },
   publicidad_precio_anuncios: { nombre: 'Chico', Icono: Megaphone, acento: 'bg-amber-500' },
+  publicidad_precio_lanzamiento_anuncios: { nombre: 'Lanzamiento · Chico', Icono: Tag, acento: 'bg-emerald-500' },
+  publicidad_precio_patrocinadores: { nombre: 'Grande', Icono: Star, acento: 'bg-blue-600' },
+  publicidad_precio_lanzamiento_patrocinadores: { nombre: 'Lanzamiento · Grande', Icono: Tag, acento: 'bg-emerald-500' },
   publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: 'bg-violet-600' },
 };
 
@@ -365,7 +369,9 @@ export function SeccionConfiguracion() {
   const trials = porCategoria.get('trials') ?? [];
   const publicidad = porCategoria.get('publicidad') ?? [];
   // Los 3 precios de carrusel van en su propia fila de tarjetas compactas; el resto, en la rejilla normal.
-  const preciosCarrusel = publicidad.filter((c) => CLAVES_PRECIO_CARRUSEL.includes(c.clave));
+  const preciosCarrusel = publicidad
+    .filter((c) => CLAVES_PRECIO_CARRUSEL.includes(c.clave))
+    .sort((a, b) => CLAVES_PRECIO_CARRUSEL.indexOf(a.clave) - CLAVES_PRECIO_CARRUSEL.indexOf(b.clave));
   const reglasPublicidad = publicidad.filter((c) => !CLAVES_PRECIO_CARRUSEL.includes(c.clave));
 
   // Estado de los grupos que dependen de la API. El Precio usa su propio hook (precargado) → se muestra
@@ -442,7 +448,7 @@ export function SeccionConfiguracion() {
                   {preciosCarrusel.length > 0 && (
                     <section>
                       <EncabezadoGrupo Icono={Tag} titulo="Precios por tamaño" color={ACENTO_GRUPO.carruseles} />
-                      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-3">
+                      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
                         {preciosCarrusel.map((c) => (
                           <TarjetaPrecioCarrusel key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
                         ))}

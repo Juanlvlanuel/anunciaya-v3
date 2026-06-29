@@ -17,8 +17,20 @@
 > activa; reaparece al habilitar más). Y se **destrabó el guardado de Configuración**: faltaba `'publicidad'`
 > en el CHECK de `categoria` y los tipos `tramos_ciudades`/`periodos_meses` en el CHECK de `tipo` de
 > `configuracion_sistema` (2 migraciones, corridas en dev+prod).
+>
+> **Cambios 29-jun:** (1) **Precio de lanzamiento por tamaño** — dos claves nuevas opcionales
+> (`publicidad_precio_lanzamiento_patrocinadores`/`_anuncios`); si valen `> 0` y menos que el precio base,
+> se **cobra ese** y el base se muestra **tachado** (`~$299~ $199`) con chip "Lanzamiento" en el wizard y
+> Resumen. Sin migración (categoría/tipo ya permitidos). El cobro de Stripe usa el efectivo (mismo
+> `calcularPrecioPublicidad`), igual el alta manual y el recibo. (2) **Clics por anuncio** visibles en la
+> **lista** (columna desktop + dato en card móvil; `listarPublicidad` suma `publicidad_piezas.clicks` por
+> compra) y el **total** en la ficha (combo). Las **impresiones/"vistas" se retiraron de la UI**: el campo
+> existe en BD pero **no hay tracking** que lo incremente (pendiente, ver "Ingresos / métricas"). (3) **Sello
+> "Pago seguro con Stripe"** con el **wordmark oficial** (componente `LogoStripe`, color de marca #635BFF) en
+> el wizard y en `PaginaRegistroExito`. (4) **Wizard `/anunciate` repintado a tokens AY** (paleta slate + dark
+> gradient, sin acentos azules) y **limpieza de creatividades huérfanas reforzada** (ver "Creatividades (R2)").
 > **Sección del menú:** Crecimiento. **Plantilla de oro:** Negocios.
-> **Última actualización:** 22 Junio 2026.
+> **Última actualización:** 29 Junio 2026.
 >
 > Este documento es la **verdad** del módulo (qué es y cómo funciona). El checklist vivo de lo
 > que falta está en [`Publicidad_Pendientes.md`](Publicidad_Pendientes.md). El proceso de
@@ -71,7 +83,8 @@ El anunciante elige **cuántos meses paga por adelantado** (1 / 3 / 6 / 12 — c
 **% de descuento por volumen** y **extiende la vigencia**: `vigencia = meses × publicidad_duracion_dias`. El
 cobro sigue siendo **pago único** (sin renovación automática). Los periodos y sus descuentos los fija el
 SuperAdmin desde **Configuración** (clave `publicidad_periodos`). Total:
-`total = (Σ precios_base) × factorCiudades × (combo) × meses × (1 − descuentoPeriodo%)`.
+`total = (Σ precios_efectivos) × factorCiudades × (combo) × meses × (1 − descuentoPeriodo%)`, donde
+`precio_efectivo` = el de **lanzamiento** del tamaño si está activo, si no el base.
 
 ### Dónde se ve
 En **todas las secciones** de la app que tengan la columna de carruseles, pero **solo en computadora
@@ -141,6 +154,7 @@ Reemplazan el schema **dormido** `planes_anuncios`/`promociones_pagadas` (jubila
 En el catálogo `CONFIG_EDITABLE` de Configuración, con **editores dedicados** para los valores JSON (tramos
 de ciudades · periodos de meses) además de los numéricos. Se muestran como **"Precios por tamaño"**:
 - `publicidad_precio_patrocinadores` (etiqueta **"Precio · Grande"**) · `publicidad_precio_anuncios` (etiqueta **"Precio · Chico"**) — MXN, base por tamaño. (`publicidad_precio_fundadores` **se retiró**: Fundadores ya no se vende.)
+- `publicidad_precio_lanzamiento_patrocinadores` (**"Lanzamiento · Grande"**) · `publicidad_precio_lanzamiento_anuncios` (**"Lanzamiento · Chico"**) — MXN, **oferta opcional por tamaño**. `0` = sin oferta; si `> 0` y menor al precio base, se **cobra este** y el base se muestra **tachado**. En Configuración aparecen **emparejadas** con su precio base ("Precios por tamaño", rejilla de 2). Para el cálculo cuenta el **precio efectivo** (lanzamiento si aplica), sobre el que se aplican combo/ciudades/periodos.
 - `publicidad_combo_descuento` (% del combo de los **2 tamaños**).
 - `publicidad_tramos_ciudades` (JSON, escalera por # de ciudades → factor; tipo `tramos_ciudades`).
 - `publicidad_limite_ciudades` (*X* máximo **por anuncio**).
@@ -170,8 +184,18 @@ activa"). La sección **Recibos** del Panel se extiende para leer también estos
 
 ### Ingresos / métricas
 Las métricas de ingresos del módulo se calculan desde `publicidad_compras` (no pasan por `eventos_pago`, que
-asume `negocio_id NOT NULL` y aquí el anunciante puede no tener negocio). Engagement = `clicks`/`impresiones`
-de `publicidad_piezas`.
+asume `negocio_id NOT NULL` y aquí el anunciante puede no tener negocio). Engagement = `clicks` de
+`publicidad_piezas` (el "ver grande"/zoom en la columna, vía `registrarClickPieza`).
+
+**Clics por anuncio (29-jun):** además del KPI global de clics, `listarPublicidad` trae `clicksTotales` por
+anuncio (subquery `SUM(publicidad_piezas.clicks)` por compra, dentro del alcance del rol) → se muestra como
+**columna "Clics"** en la lista (desktop) y dato en la card (móvil). La **ficha** muestra el desglose por
+pieza + el **total** (en combo).
+
+> **`impresiones` no tiene tracking.** La columna `publicidad_piezas.impresiones` existe pero **ningún código
+> la incrementa** (siempre 0), por eso las "vistas" se **quitaron de la UI** (29-jun). Para activarlas habría
+> que contar la impresión al mostrar la pieza en `ColumnaDerecha` (endpoint nuevo + regla de conteo con
+> throttle) — pendiente, no urgente para la beta.
 
 ### Creatividades (R2): medida, optimización + sin huérfanas
 El anunciante sube su propia imagen **por tamaño**, con la **medida recomendada a la vista** en el wizard
@@ -186,6 +210,16 @@ el front manda las URLs subidas en esa sesión y `descartarImagenesHuerfanas` (`
 **borra de R2 solo las que ningún anuncio referencia** (reference count contra `publicidad_piezas`) y solo de la
 carpeta `publicidad/`. Así las guardadas nunca se tocan y las canceladas/reemplazadas se limpian al instante; el
 **recolector R2** queda como red de seguridad (p. ej. si se cierra la pestaña a media subida).
+
+**Cobertura de cancelación del wizard `/anunciate` (29-jun).** Cada forma de salir limpia las creatividades
+huérfanas: (a) **navegación SPA** (botón ← de la página, cambiar de ruta) → cleanup de React al desmontar →
+`descartarImagenesPublicidad` (axios); (b) **refrescar / cerrar pestaña / URL externa** → evento `pagehide` +
+`descartarImagenesPublicidadBeacon` (`fetch` con `keepalive`, que sobrevive a la descarga e incluye el token —
+`sendBeacon` no se usa porque no permite headers de auth); (c) **red de seguridad** → las URLs se espejan en
+`sessionStorage` y, al montar, se descarta lo que una visita anterior dejó pendiente (por si el `keepalive` no
+alcanzó); (d) **reemplazar imagen / deseleccionar tamaño** → se descarta la anterior en el momento; (e) **al
+pagar** se limpia el registro antes de redirigir (ya quedan ligadas; el reference count y el cron de pendientes
+son el respaldo). El reference count hace todo esto **idempotente** (reintentar nunca borra algo ligado).
 
 ### Superficie pública (apps/web)
 `apps/web/src/components/layout/ColumnaDerecha.tsx` muestra un **solo bloque inline "PUBLICIDAD"** (sin cards)
@@ -242,7 +276,7 @@ Mapa/Lista — si no, su `fixed` quedaba atrapado debajo.
   `services/publicidadService.ts` · `hooks/queries/usePublicidadAdmin.ts`. Etiquetas de config en `services/admin/configuracion.service.ts` ("Precio · Grande/Chico").
 - **App (apps/web):** `components/layout/ColumnaDerecha.tsx` (bloque inline **"PUBLICIDAD"** Grande+Chico con proporciones fijas + Fundadores en marquee + lightbox por portal + botón "Anúnciate aquí" → navega a `/anunciate`) ·
   **`pages/private/publicidad/PaginaAnunciate.tsx`** (compra self-service en **página dedicada**: tamaños con **medida**, **paso de ciudades dinámico** vía `useCiudades`,
-  **selector de meses** y desglose de precio línea por línea; reemplazó el modal) · `services/publicidadService.ts` · `hooks/queries/{usePublicidad,useCiudades}.ts`.
+  **selector de meses** y desglose de precio línea por línea; reemplazó el modal; **precio de lanzamiento tachado**, **paleta slate/tokens AY**, **limpieza de huérfanas** vía `pagehide`/`keepalive` + `sessionStorage`) · `components/ui/LogoStripe.tsx` (wordmark oficial de Stripe, reutilizable; también en `pages/public/PaginaRegistroExito.tsx`) · `services/publicidadService.ts` (`descartarImagenesPublicidadBeacon`) · `hooks/queries/{usePublicidad,useCiudades}.ts`.
 - **Harness (apps/api/scripts):** `verificar-publicidad` · `sembrar-publicidad-dev` · `probar-publicidad-{lectura,acciones,precio,alta,checkout,mantenimiento}` · `probar-recibos-publicidad`.
 
 ---
