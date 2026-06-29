@@ -354,10 +354,14 @@ export const queryKeys = {
 
   // ─── Mi Perfil · Modo Personal — Membresía / Pagos ────────────────────────
   // Vista self-service del dueño: estado de su membresía comercial + recibos.
-  // Una sola key (el backend filtra por el negocio del usuario del JWT).
+  // `mi` incluye el usuarioId para que al CAMBIAR DE CUENTA no se sirva el caché del
+  // usuario anterior (de eso depende que el tab "Membresía y Pagos" aparezca/desaparezca
+  // según el usuario, sin refrescar). Para invalidar basta el prefijo `mi()` (sin id):
+  // React Query hace match por prefijo y cubre la key específica `['membresia','mi',id]`.
   membresia: {
     all: () => ['membresia'] as const,
-    mi: () => ['membresia', 'mi'] as const,
+    mi: (usuarioId?: string) =>
+      usuarioId ? (['membresia', 'mi', usuarioId] as const) : (['membresia', 'mi'] as const),
     datosCobro: () => ['membresia', 'datosCobro'] as const,
   },
 

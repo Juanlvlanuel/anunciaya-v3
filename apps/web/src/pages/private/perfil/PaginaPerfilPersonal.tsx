@@ -117,12 +117,19 @@ export default function PaginaPerfilPersonal() {
 
     const queryClient = useQueryClient();
     const { data, isPending, isError, refetch } = useMiMembresia();
-    const [tabActivo, setTabActivo] = useState<TabPerfil>('membresia');
+    const [tabActivo, setTabActivo] = useState<TabPerfil>('datos');
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
     const [abriendoPortal, setAbriendoPortal] = useState(false);
     const [confirmarManual, setConfirmarManual] = useState(false);
     const [confirmarTarjeta, setConfirmarTarjeta] = useState(false);
     const [procesandoCobro, setProcesandoCobro] = useState(false);
+
+    // El tab "Membresía y Pagos" solo aparece si el usuario tiene negocio comercial o
+    // publicidad pagada/vigente; un usuario puramente personal no lo ve. Mientras carga
+    // (data aún undefined) se oculta hasta confirmarlo.
+    const mostrarMembresia = !!data && (data.tieneNegocio || data.tienePublicidad);
+    const tabsVisibles = TABS_PERFIL.filter((t) => t.id !== 'membresia' || mostrarMembresia);
+    const tabActivoEfectivo: TabPerfil = tabActivo === 'membresia' && !mostrarMembresia ? 'datos' : tabActivo;
 
     async function activarTarjeta() {
         if (procesandoCobro) return;
@@ -333,8 +340,8 @@ export default function PaginaPerfilPersonal() {
                             {/* ── TABS estilo CHIPS (alineado a CardYA / Mis Guardados) ── */}
                             <div className="flex items-center px-3 pb-3 lg:px-0 lg:pb-0">
                                 <div className="flex items-center gap-2 lg:flex-none overflow-x-auto flex-1 -mx-3 px-3 lg:mx-0 lg:px-6 lg:py-3 2xl:px-8 [&::-webkit-scrollbar]:hidden" style={{ scrollbarWidth: 'none' }}>
-                                    {TABS_PERFIL.map(({ id, label, Icono }) => {
-                                        const activo = tabActivo === id;
+                                    {tabsVisibles.map(({ id, label, Icono }) => {
+                                        const activo = tabActivoEfectivo === id;
                                         return (
                                             <button
                                                 key={id}
@@ -361,7 +368,7 @@ export default function PaginaPerfilPersonal() {
 
             {/* ── Contenido ── */}
             <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-5xl lg:mx-auto">
-                {tabActivo === 'membresia' && (
+                {tabActivoEfectivo === 'membresia' && (
                 <section data-testid="seccion-membresia">
                     {/* Loading */}
                     {isPending && (
@@ -658,9 +665,9 @@ export default function PaginaPerfilPersonal() {
                 </section>
                 )}
 
-                {tabActivo === 'datos' && <TabDatosPersonales />}
+                {tabActivoEfectivo === 'datos' && <TabDatosPersonales />}
 
-                {tabActivo === 'seguridad' && <TabSeguridad />}
+                {tabActivoEfectivo === 'seguridad' && <TabSeguridad />}
             </div>
 
             {/* Modal: confirmar cancelación del cobro automático (tarjeta → manual) */}

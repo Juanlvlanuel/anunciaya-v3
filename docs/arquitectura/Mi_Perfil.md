@@ -20,9 +20,9 @@
 La página de **cuenta/perfil del usuario** en su **Modo Personal** (`apps/web`, FUERA de Business Studio),
 en la ruta `/perfil`. Header con el patrón de las demás secciones (CardYA, Mis Guardados) + tabs tipo chip:
 
-- **Datos Personales** ✅ avatar, nombre, apellidos, teléfono, fecha de nacimiento, género y ciudad (correo solo-lectura).
+- **Datos Personales** ✅ avatar, nombre, apellidos, teléfono, fecha de nacimiento, género y ciudad (correo solo-lectura). Es el tab **por defecto**.
 - **Seguridad** ✅ cambiar contraseña + verificación en dos pasos (2FA).
-- **Membresía y Pagos** ✅ funcional (abre por defecto en este tab).
+- **Membresía y Pagos** ✅ funcional. **Solo se muestra** si el usuario tiene negocio comercial **o** publicidad pagada/vigente; un usuario puramente personal no lo ve.
 
 > Antes de esto, `/perfil` renderizaba por error el perfil del **negocio** de Business Studio. Se cableó a
 > la nueva `PaginaPerfilPersonal`. En móvil, `/perfil` se sumó a `esPaginaConHeaderPropio` en `MainLayout`
@@ -60,7 +60,7 @@ Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reu
 
 ### Tab "Seguridad"
 
-- **Contraseña:** reusa `PATCH /auth/cambiar-contrasena` (ya existía). Las cuentas con `autenticado_por_google` ven un aviso en vez del formulario (no tienen contraseña).
+- **Contraseña:** reusa `PATCH /auth/cambiar-contrasena` (ya existía). Las cuentas con `autenticado_por_google` ven un aviso en vez del formulario (no tienen contraseña). **Validación en vivo** de la *nueva* (checklist de requisitos: 8+ / mayúscula / minúscula / número) y de *confirmar* (coincidencia), con el botón deshabilitado hasta que todo sea válido. La **contraseña actual** NO se valida en vivo contra el servidor (sería un oráculo de fuerza bruta): se marca el campo en rojo con error inline solo al intentar, si el backend la rechaza.
 - **2FA:** reusa los endpoints existentes `POST /auth/2fa/generar` (devuelve el **QR ya en base64** + secreto), `POST /auth/2fa/activar` (devuelve los **códigos de respaldo**) y `DELETE /auth/2fa/desactivar`. El estado en la UI sale de `usuario.dobleFactorHabilitado`, que el builder `usuarioAPublico` ahora proyecta como **2FA confirmado** (`dobleFactorHabilitado && dobleFactorConfirmado`), no como "secreto generado".
 
 ### Backend nuevo (solo Datos Personales)
@@ -71,6 +71,8 @@ Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reu
 | `POST /auth/avatar/url-subida` | `generarUrlAvatar` — presigned R2 (carpeta `avatares`, jpeg/png/webp). |
 
 `auth.schema.ts` → `actualizarPerfilSchema` (todos los campos opcionales). El front: `authService.actualizarPerfil` / `generarUrlAvatar`; componentes `pages/private/perfil/components/TabDatosPersonales.tsx` y `TabSeguridad.tsx`; tras guardar se llama `useAuthStore.recargarDatosUsuario()`.
+
+**Visibilidad del tab Membresía:** `obtenerMiMembresia` (`membresia.service.ts`) ahora devuelve también `tienePublicidad` (EXISTS en `publicidad_compras` con `estado='activa' AND expira_at > now()` para el `usuario_id`). El front muestra el tab solo si `tieneNegocio || tienePublicidad`.
 
 ---
 

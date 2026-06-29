@@ -15,9 +15,9 @@
  * Ubicación: apps/api/src/services/membresia.service.ts
  */
 
-import { and, desc, eq } from 'drizzle-orm';
+import { and, desc, eq, gt, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { negocios, pagosMembresia, pagosManualesSolicitudes, usuarios } from '../db/schemas/schema.js';
+import { negocios, pagosMembresia, pagosManualesSolicitudes, publicidadCompras, usuarios } from '../db/schemas/schema.js';
 import { prepararReciboPago } from './admin/recibo-pago.service.js';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
@@ -70,6 +70,8 @@ export interface SolicitudRechazada {
 
 export interface MiMembresia {
     tieneNegocio: boolean;
+    /** ¿Tiene publicidad pagada o de cortesía vigente? (anuncios de la columna derecha). */
+    tienePublicidad: boolean;
     solicitudPendiente: SolicitudPendiente | null;
     ultimoRechazo: UltimoRechazo | null;
     solicitudesRechazadas: SolicitudRechazada[];
@@ -121,8 +123,20 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
         .where(eq(negocios.usuarioId, usuarioId))
         .limit(1);
 
+    // ¿Tiene publicidad activa y vigente? (self-service, manual o cortesía).
+    const pub = await db
+        .select({ id: publicidadCompras.id })
+        .from(publicidadCompras)
+        .where(and(
+            eq(publicidadCompras.usuarioId, usuarioId),
+            eq(publicidadCompras.estado, 'activa'),
+            gt(publicidadCompras.expiraAt, sql`now()`),
+        ))
+        .limit(1);
+    const tienePublicidad = pub.length > 0;
+
     if (!neg) {
-        return { tieneNegocio: false, solicitudPendiente: null, ultimoRechazo: null, solicitudesRechazadas: [], negocio: null, recibos: [] };
+        return { tieneNegocio: false, tienePublicidad, solicitudPendiente: null, ultimoRechazo: null, solicitudesRechazadas: [], negocio: null, recibos: [] };
     }
 
     // Última solicitud (cualquier estado): si es 'pendiente' → "en revisión"; si es 'rechazado' → aviso de rechazo.
@@ -174,6 +188,7 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
 
     return {
         tieneNegocio: true,
+        tienePublicidad,
         solicitudPendiente:
             solicitud?.estado === 'pendiente'
                 ? {

@@ -77,6 +77,8 @@ export interface SolicitudRechazada {
 
 export interface MiMembresia {
     tieneNegocio: boolean;
+    /** ¿Tiene publicidad pagada o de cortesía vigente? (anuncios de la columna derecha). */
+    tienePublicidad: boolean;
     solicitudPendiente: SolicitudPendiente | null;
     ultimoRechazo: UltimoRechazo | null;
     solicitudesRechazadas: SolicitudRechazada[];

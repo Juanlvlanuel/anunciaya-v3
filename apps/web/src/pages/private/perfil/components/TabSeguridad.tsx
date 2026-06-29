@@ -27,13 +27,34 @@ const GRADIENTE_MARCA = 'linear-gradient(135deg, #1e293b, #334155)';
 const INPUT =
     'w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 focus:outline-none focus:border-blue-500';
 
-/** Mismos requisitos que el backend (campoContrasena). Devuelve el primer error o null. */
-function validarContrasena(c: string): string | null {
-    if (c.length < 8) return 'La contraseña debe tener al menos 8 caracteres.';
-    if (!/[A-Z]/.test(c)) return 'Debe incluir al menos una mayúscula.';
-    if (!/[a-z]/.test(c)) return 'Debe incluir al menos una minúscula.';
-    if (!/[0-9]/.test(c)) return 'Debe incluir al menos un número.';
-    return null;
+const INPUT_BASE =
+    'w-full rounded-lg border-2 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 focus:outline-none';
+
+/** Clase del input de contraseña según su estado de validación en vivo. */
+function inputClase(estado: 'neutro' | 'error' | 'ok'): string {
+    const color =
+        estado === 'error'
+            ? 'border-red-400 focus:border-red-500'
+            : estado === 'ok'
+              ? 'border-emerald-400 focus:border-emerald-500'
+              : 'border-slate-300 focus:border-blue-500';
+    return `${INPUT_BASE} ${color}`;
+}
+
+/** Requisito de contraseña: check verde si se cumple, punto gris si falta. */
+function ReqItem({ ok, label }: { ok: boolean; label: string }) {
+    return (
+        <span className={`inline-flex items-center gap-1 text-xs font-medium ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+            {ok ? (
+                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+            ) : (
+                <span className="w-3.5 h-3.5 inline-flex items-center justify-center">
+                    <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
+                </span>
+            )}
+            {label}
+        </span>
+    );
 }
 
 export default function TabSeguridad() {
@@ -46,6 +67,9 @@ export default function TabSeguridad() {
     const [confirmar, setConfirmar] = useState('');
     const [verPass, setVerPass] = useState(false);
     const [cambiandoPass, setCambiandoPass] = useState(false);
+    // Error de la contraseña ACTUAL: no se valida en vivo contra el servidor (sería un
+    // oráculo de fuerza bruta); se marca inline tras intentar, cuando el backend la rechaza.
+    const [errorActual, setErrorActual] = useState<string | null>(null);
 
     // ── 2FA ──
     const [fase2fa, setFase2fa] = useState<'idle' | 'mostrarQR' | 'confirmarDesactivar'>('idle');
@@ -60,15 +84,20 @@ export default function TabSeguridad() {
     const esGoogle = usuario.autenticadoPorGoogle === true;
     const dosFactoresActivo = usuario.dobleFactorHabilitado === true;
 
+    // ── Validación en vivo de la contraseña (lado cliente, sin tocar el servidor) ──
+    const reqLongitud = nueva.length >= 8;
+    const reqMayus = /[A-Z]/.test(nueva);
+    const reqMinus = /[a-z]/.test(nueva);
+    const reqNumero = /[0-9]/.test(nueva);
+    const nuevaValida = reqLongitud && reqMayus && reqMinus && reqNumero;
+    const confirmaCoincide = confirmar.length > 0 && nueva === confirmar;
+    const nuevaIgualActual = nueva.length > 0 && nueva === actual;
+    const puedeCambiar = !!actual && nuevaValida && confirmaCoincide && !nuevaIgualActual && !cambiandoPass;
+
     // ── Handlers: contraseña ──
     async function cambiarPass() {
-        if (cambiandoPass) return;
-        if (!actual) { notificar.error('Ingresa tu contraseña actual.'); return; }
-        const errorNueva = validarContrasena(nueva);
-        if (errorNueva) { notificar.error(errorNueva); return; }
-        if (nueva !== confirmar) { notificar.error('Las contraseñas no coinciden.'); return; }
-        if (nueva === actual) { notificar.error('La nueva contraseña debe ser diferente a la actual.'); return; }
-
+        if (!puedeCambiar) return;
+        setErrorActual(null);
         setCambiandoPass(true);
         try {
             const res = await cambiarContrasena({ contrasenaActual: actual, nuevaContrasena: nueva });
@@ -76,10 +105,12 @@ export default function TabSeguridad() {
                 notificar.exito('Contraseña actualizada.');
                 setActual(''); setNueva(''); setConfirmar('');
             } else {
-                notificar.error(res.message || 'No se pudo cambiar la contraseña.');
+                // La nueva/confirmar ya se validaron en vivo, así que el único error que
+                // puede venir del backend es la contraseña actual incorrecta → inline.
+                setErrorActual(res.message || 'La contraseña actual es incorrecta.');
             }
         } catch {
-            notificar.error('No se pudo cambiar la contraseña.');
+            notificar.error('No se pudo cambiar la contraseña. Intenta de nuevo.');
         } finally {
             setCambiandoPass(false);
         }
@@ -174,6 +205,7 @@ export default function TabSeguridad() {
                     </div>
                 ) : (
                     <div className="space-y-3">
+                        {/* Contraseña actual — se valida al intentar (no en cada tecla) */}
                         <div>
                             <label htmlFor="seg-actual" className="block text-sm font-semibold text-slate-700 mb-1.5">Contraseña actual</label>
                             <div className="relative">
@@ -182,9 +214,10 @@ export default function TabSeguridad() {
                                     data-testid="input-pass-actual"
                                     type={verPass ? 'text' : 'password'}
                                     value={actual}
-                                    onChange={(e) => setActual(e.target.value)}
+                                    onChange={(e) => { setActual(e.target.value); if (errorActual) setErrorActual(null); }}
                                     autoComplete="current-password"
-                                    className={`${INPUT} pr-10`}
+                                    aria-invalid={!!errorActual}
+                                    className={`${inputClase(errorActual ? 'error' : 'neutro')} pr-10`}
                                 />
                                 <button
                                     type="button"
@@ -195,7 +228,12 @@ export default function TabSeguridad() {
                                     {verPass ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                                 </button>
                             </div>
+                            {errorActual && (
+                                <p data-testid="error-pass-actual" className="text-xs text-red-600 font-medium mt-1">{errorActual}</p>
+                            )}
                         </div>
+
+                        {/* Nueva / Confirmar — validación en vivo */}
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-3">
                             <div>
                                 <label htmlFor="seg-nueva" className="block text-sm font-semibold text-slate-700 mb-1.5">Nueva contraseña</label>
@@ -206,7 +244,7 @@ export default function TabSeguridad() {
                                     value={nueva}
                                     onChange={(e) => setNueva(e.target.value)}
                                     autoComplete="new-password"
-                                    className={INPUT}
+                                    className={inputClase(nueva ? (nuevaValida ? 'ok' : 'error') : 'neutro')}
                                 />
                             </div>
                             <div>
@@ -218,21 +256,38 @@ export default function TabSeguridad() {
                                     value={confirmar}
                                     onChange={(e) => setConfirmar(e.target.value)}
                                     autoComplete="new-password"
-                                    className={INPUT}
+                                    className={inputClase(confirmar ? (confirmaCoincide ? 'ok' : 'error') : 'neutro')}
                                 />
+                                {confirmar.length > 0 && !confirmaCoincide && (
+                                    <p className="text-xs text-red-600 font-medium mt-1">Las contraseñas no coinciden.</p>
+                                )}
                             </div>
                         </div>
-                        <p className="text-xs text-slate-500">Mínimo 8 caracteres, con una mayúscula, una minúscula y un número.</p>
+
+                        {/* Requisitos en vivo (o guía si aún no escribe) */}
+                        {nueva ? (
+                            <div data-testid="requisitos-pass" className="flex flex-wrap gap-x-3 gap-y-1">
+                                <ReqItem ok={reqLongitud} label="8+ caracteres" />
+                                <ReqItem ok={reqMayus} label="1 mayúscula" />
+                                <ReqItem ok={reqMinus} label="1 minúscula" />
+                                <ReqItem ok={reqNumero} label="1 número" />
+                            </div>
+                        ) : (
+                            <p className="text-xs text-slate-500">Mínimo 8 caracteres, con una mayúscula, una minúscula y un número.</p>
+                        )}
+
+                        {nuevaIgualActual && (
+                            <p className="text-xs text-amber-600 font-medium">La nueva contraseña debe ser diferente a la actual.</p>
+                        )}
+
                         <div className="flex justify-end pt-1">
                             <button
                                 data-testid="btn-cambiar-pass"
                                 onClick={cambiarPass}
-                                disabled={cambiandoPass || !actual || !nueva || !confirmar}
-                                style={!cambiandoPass && actual && nueva && confirmar ? { background: GRADIENTE_MARCA } : undefined}
+                                disabled={!puedeCambiar}
+                                style={puedeCambiar ? { background: GRADIENTE_MARCA } : undefined}
                                 className={`inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold ${
-                                    !cambiandoPass && actual && nueva && confirmar
-                                        ? 'text-white shadow-md cursor-pointer'
-                                        : 'bg-slate-300 text-slate-500 cursor-not-allowed'
+                                    puedeCambiar ? 'text-white shadow-md cursor-pointer' : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                                 }`}
                             >
                                 {cambiandoPass && <Loader2 className="w-4 h-4 animate-spin" />}

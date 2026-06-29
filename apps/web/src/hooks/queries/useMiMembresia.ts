@@ -16,11 +16,14 @@ import { queryKeys } from '../../config/queryKeys';
 
 /** Vista de membresía del dueño. Habilitado solo con sesión activa. */
 export function useMiMembresia() {
-    const haySesion = useAuthStore((s) => !!s.usuario);
+    // El usuarioId va en la query key: al cambiar de cuenta la key cambia y React Query
+    // refetchea en vez de servir el caché del usuario anterior (de eso depende que el tab
+    // "Membresía y Pagos" aparezca/desaparezca según el usuario, sin tener que refrescar).
+    const usuarioId = useAuthStore((s) => s.usuario?.id);
 
     return useQuery({
-        queryKey: queryKeys.membresia.mi(),
+        queryKey: queryKeys.membresia.mi(usuarioId),
         queryFn: () => membresiaService.obtenerMiMembresia().then((r) => r.data ?? null),
-        enabled: haySesion,
+        enabled: !!usuarioId,
     });
 }

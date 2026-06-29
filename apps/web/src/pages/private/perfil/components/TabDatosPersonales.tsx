@@ -13,12 +13,13 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Calendar, Camera, Loader2, Mail, MapPin, Save, Trash2, User as UserIcon } from 'lucide-react';
+import { Calendar, Camera, Loader2, Mail, MapPin, Save, Trash2, User as UserIcon, ZoomIn } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
 import { actualizarPerfil, generarUrlAvatar, type ActualizarPerfilInput } from '@/services/authService';
 import { eliminarImagenHuerfana } from '@/services/r2Service';
 import { ModalUbicacion } from '@/components/layout/ModalUbicacion';
+import { ModalImagenes } from '@/components/ui/ModalImagenes';
 import { CustomSelect, type SelectOption } from '@/components/ui/CustomSelect';
 import { InputTelefono, normalizarTelefono } from '@/components/ui/InputTelefono';
 import notificar from '@/utils/notificaciones';
@@ -61,6 +62,7 @@ export default function TabDatosPersonales() {
     const [genero, setGenero] = useState<Genero>((usuario?.genero as Genero) ?? 'no_especificado');
     const [ciudad, setCiudad] = useState(usuario?.ciudad ?? '');
     const [modalCiudad, setModalCiudad] = useState(false);
+    const [verAvatarGrande, setVerAvatarGrande] = useState(false);
     const [guardando, setGuardando] = useState(false);
 
     // ── Avatar (useR2Upload) ──
@@ -159,11 +161,22 @@ export default function TabDatosPersonales() {
             <div className="flex items-center gap-4">
                 <div className="relative shrink-0">
                     {avatarMostrado ? (
-                        <img
-                            src={avatarMostrado}
-                            alt="Foto de perfil"
-                            className="w-20 h-20 rounded-full object-cover border-2 border-slate-300"
-                        />
+                        <button
+                            type="button"
+                            data-testid="avatar-expandir"
+                            onClick={() => setVerAvatarGrande(true)}
+                            aria-label="Ver foto de perfil en grande"
+                            className="group relative block w-20 h-20 rounded-full cursor-pointer focus:outline-none"
+                        >
+                            <img
+                                src={avatarMostrado}
+                                alt="Foto de perfil"
+                                className="w-20 h-20 rounded-full object-cover border-2 border-slate-300"
+                            />
+                            <span className="absolute inset-0 rounded-full flex items-center justify-center bg-black/0 group-hover:bg-black/35 transition-colors">
+                                <ZoomIn className="w-5 h-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" strokeWidth={2.5} />
+                            </span>
+                        </button>
                     ) : (
                         <div
                             className="w-20 h-20 rounded-full flex items-center justify-center text-white shrink-0 shadow-md"
@@ -329,6 +342,15 @@ export default function TabDatosPersonales() {
                 <ModalUbicacion
                     onClose={() => setModalCiudad(false)}
                     onSeleccionar={(c) => setCiudad(c.nombre)}
+                />
+            )}
+
+            {/* Lightbox del avatar en grande (reusa el visor de imágenes de la app) */}
+            {avatarMostrado && (
+                <ModalImagenes
+                    images={[avatarMostrado]}
+                    isOpen={verAvatarGrande}
+                    onClose={() => setVerAvatarGrande(false)}
                 />
             )}
         </div>
