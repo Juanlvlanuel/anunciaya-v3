@@ -321,6 +321,14 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const suspendido = n.estadoAdmin === 'suspendido';
   const archivado = n.estadoAdmin === 'archivado';
   const esManual = n.metodoCobro === 'manual';
+  // Chip de método de cobro: tarjeta → "Pago con tarjeta"; manual → el último concepto registrado
+  // (transferencia/efectivo/depósito), con fallback genérico si aún no hay pagos. Reusa la MISMA query del
+  // historial (misma key → sin doble fetch).
+  const pagosNegocio = usePagosNegocio(previo.id, true, PAGOS_INICIAL + 1).data ?? [];
+  const ultimoConceptoManual = pagosNegocio.find((p) => !p.anulado && p.concepto !== 'tarjeta')?.concepto;
+  const metodoCobroLabel = esManual
+    ? (ultimoConceptoManual ? CONCEPTO_LABEL[ultimoConceptoManual] ?? 'Transferencia/Efectivo' : 'Transferencia/Efectivo')
+    : 'Pago con tarjeta';
   // "Inicio Trial" solo mientras el negocio está EN su trial (aún sin primer pago). Una vez que pagó
   // —cobro día-1 con trial=0, o al terminar un trial— se muestra "Primer pago" y se oculta "Inicio Trial".
   // Determinista (no depende del alta), así un cobro inmediato no muestra un trial que no existió, ni en
@@ -469,11 +477,9 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
                 <div className="text-[20px] font-semibold leading-none tracking-tight" style={{ color: metaEf.color }}>
                   {metaEf.etiqueta}
                 </div>
-                {!esManual && (
-                  <div className="mt-2.5 flex flex-wrap gap-1.5">
-                    <ChipDato testid="chip-stripe" texto={n.tieneSuscripcionStripe ? 'Suscripción activa' : 'Sin suscripción'} activo={n.tieneSuscripcionStripe} />
-                  </div>
-                )}
+                <div className="mt-2.5 flex flex-wrap gap-1.5">
+                  <ChipDato testid="chip-metodo" texto={metodoCobroLabel} activo={!esManual} />
+                </div>
                 {/* Fechas de la membresía — dentro del membrete, junto al estado */}
                 <div className="mt-2.5">
                   {n.estadoPago === 'al_corriente' && (
