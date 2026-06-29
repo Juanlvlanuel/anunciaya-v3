@@ -343,13 +343,28 @@ Luego avisa al dueño (correo de "recibo cancelado", best-effort). Frontend: `Di
 | Si fallan todos los reintentos → **factura** | Dejar como vencida |
 | Si se abre una **disputa** | Dejar la suscripción como vencida (no cancela) |
 
-Pendiente replicar **todo en modo live** + verificar la empresa en Stripe (§12).
+Pendiente replicar **todo en modo live** + verificar la empresa en Stripe (ver §11.1).
+
+### 11.1 Checklist — switch a Stripe Live (día del lanzamiento)
+
+Test y Live son entornos **separados** en Stripe: nada de lo configurado en Test se copia solo. El día que se
+active el cobro real hay que replicar en **modo Live** (y dejar el backend de Render apuntando a las claves Live):
+
+- [ ] **Cuenta de Stripe activada/verificada** (datos de empresa/identidad) — sin esto no se cobra dinero real.
+- [ ] **Claves Live** (`STRIPE_SECRET_KEY` + publishable) en Render.
+- [ ] **Webhook Live**: crear el endpoint en el Dashboard (modo Live) → copiar su **`whsec`** a `STRIPE_WEBHOOK_SECRET` en Render; suscribir los mismos eventos que en Test.
+- [ ] **Price de la membresía en Live**: recrearlo y guardar el nuevo `price_id` desde el Panel (Configuración → precio); el de Test no existe en Live.
+- [ ] **Customer Portal en Live**: Settings → Billing → Customer portal → activar **"Allow customers to update their payment methods"** y **Guardar** (si no, `billingPortal.sessions.create` falla). La cancelación de suscripción mejor **desactivada** (se maneja desde el Panel).
+- [ ] **Reintentos / dunning** (tabla de §11) configurados igual en Live (4 intentos / 2 semanas; impago = "marcar como impagada", no cancelar).
+- [ ] **Datos de depósito** del pago manual capturados en el Panel **de producción** (Suscripciones → Datos de depósito): banco/CLABE/cuenta/tarjeta OXXO. *(Ya hecho.)*
+- [ ] **Cron en Render** activo (el plan free se duerme → pasar a pagado o cron externo) para gracia/vencimientos.
+- [ ] **Migraciones one-shot** aplicadas en la BD de PROD.
 
 ---
 
 ## 12. Pendientes / extensiones
 
-- **Página de cuenta/perfil del usuario** (fuera del BS, **accesible desde modo Personal**): cambiar contraseña, 2FA, datos personales, avatar **y su suscripción** (estado + **botón reactivar pago** vía Customer Portal de Stripe). Crítico para que un negocio impago se recupere solo.
+- **Página de cuenta/perfil del usuario** (modo Personal, `/perfil`): la sección **Membresía y Pagos** ya está **construida** (vista de membresía + recibos, recuperar tarjeta vía Customer Portal, pago manual con comprobante y cambio de método) — ver [`Mi_Perfil.md`](Mi_Perfil.md). Pendientes solo los tabs **Datos Personales** y **Seguridad** (contraseña/2FA/avatar).
 - **Bitácora de eventos de pago en el Panel**: el **libro mayor ya existe** — la tabla `eventos_pago` (§2) registra TODOS los movimientos: los eventos de Stripe (`cobro_exitoso`/`cobro_fallido`/`cancelacion`, vía el webhook con `registrarEventoPago`, §5) **y** los pagos manuales (`pago_manual`, vía `registrarPagoManual`, §9.1). La **lectura backend ya está** (`admin/suscripciones.service.ts`: `listarEventos` + `obtenerDetalleEvento`, con KPIs de ingresos/fallidos, filtros y alcance por rol). Lo pendiente es **parte de la UI** (sección con filtros en el Panel). **Backfill** `docs/migraciones/2026-06-15-backfill-eventos-pago-manual.sql` + `apps/api/scripts/backfill-eventos-pago-manual.ts` (idempotente, one-shot, correr en **DEV y PROD**) reconstruye los gemelos `pago_manual` históricos huérfanos. Sinergia: migrar el dedup de idempotencia de Redis a esa tabla.
 - **Copy del trial**: el texto del front debe **leer el valor de config** (no un número fijo) para no desincronizarse.
 - **Reembolsos / contracargos** (`charge.refunded` / `charge.dispute.created`): hoy se manejan manualmente en Stripe; handler automático opcional a futuro.

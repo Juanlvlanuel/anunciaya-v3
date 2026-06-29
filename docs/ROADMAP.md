@@ -48,7 +48,7 @@
 - [x] **Mi Perfil – Pagos (Modo Personal)** ✅ (28 Jun 2026 — sección Membresía/Pagos en `/perfil`: vista de membresía + recibos PDF, Customer Portal para recuperar tarjeta morosa, pago manual con comprobante + cola de verificación en el Panel, y cambio bidireccional de método de cobro; era el último hueco funcional de cara a la beta. `docs/arquitectura/Mi_Perfil.md`)
 - [ ] Beta privada: 50 negocios piloto (después del Panel)
 - [ ] Lanzamiento público
-- [ ] Stripe modo LIVE (config hecha en test; falta verificar empresa + replicar en producción)
+- [ ] Stripe modo LIVE (config hecha en test; falta verificar empresa + replicar en producción) — **checklist completo en `docs/arquitectura/Pagos_Suscripciones.md §11.1`**
 
 ---
 
