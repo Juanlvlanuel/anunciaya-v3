@@ -1,8 +1,10 @@
 # 🛡️ Panel Admin — Arquitectura
 
-**Última actualización:** 19 Junio 2026
-**Estado:** 🚧 Diseño completo · Fase 0 (backend) completa · **Shell + Login del Panel construidos** · **Sección Negocios construida y en producción** → su documento propio: [`Negocios.md`](Negocios.md) · **Modelo ciudad↔región rediseñado** (completo en dev + prod, incluido el DROP del Paso 10) · 10 secciones internas restantes
-**Progreso:** Diseño 100% · Backend Fase 0 100% · Frontend shell+login ✅ · Secciones internas: **Negocios ✅** (detalle en [`Negocios.md`](Negocios.md)) · resto 0%
+**Última actualización:** 30 Junio 2026
+**Estado:** ✅ **Panel completo — los 14 módulos construidos y en producción.** Shell + Login + 2FA + filtro global de región construidos. Cada módulo tiene su documento propio (ver §Los módulos). El foco pasó a QA/pulido pre-beta (Puerto Peñasco, May-Jun 2026).
+**Progreso:** Diseño 100% · Backend 100% · Frontend 100% · **Módulos 14/14 en prod.** Estado vivo por módulo en [`Tablero_Modulos.md`](Tablero_Modulos.md).
+
+> **Nota de lectura:** las secciones de *diseño* más abajo (Motor de venta, Comisiones, Vendedores v2, Schema, Orden de construcción, Cimientos) son el registro histórico del diseño (3-19 Jun) y conservan su redacción original con marcadores ✅ donde ya se construyó. La verdad viva de cada módulo está en su documento propio y en `Tablero_Modulos.md`.
 
 > Este documento reemplaza la versión anterior (que describía solo 2 roles y auth separada).
 > El diseño de los 3 niveles, el motor de venta/comisiones y el mapa de territorios se
@@ -100,52 +102,50 @@ Reglas del modelo:
 
 ---
 
-## Matriz de permisos (11 secciones × 3 niveles)
+## Matriz de permisos (14 módulos × 3 niveles)
 
 Leyenda: **Total** = plataforma completa · **Su región** = limitado a su región · **Lo suyo** = solo lo propio · **—** = sin acceso
 
-| Sección | SuperAdmin | Gerente Regional | Vendedor |
+| Módulo | SuperAdmin | Gerente Regional | Vendedor |
 |---|---|---|---|
 | **Resumen / inicio** | Total | Su región | Lo suyo |
 | **Métricas** | Total | Su región | Lo suyo |
 | **Negocios** | Total (incl. cancelar) | Su región (pausar, marcar pagado, NO cancelar) | Crear + ver lo suyo |
 | **Usuarios** | Total (incl. moderar) | Soporte (su alcance) · NO modera | — |
 | **Suscripciones** | Total | Solo ver (su región) | — |
+| **Recibos** | Total | Su región | Los suyos |
 | **Vendedores y comisiones** | Total (fija montos) | Su equipo (ve, NO fija montos) | Las suyas |
+| **Territorios** | Total | Su región | Su zona ("Mi territorio") |
 | **Publicidad** | Total | Su región | — |
 | **Ciudades** | Total | — | — |
+| **Categorías** | Total | — | — |
 | **Configuración** | Total | — | — |
 | **Equipo y accesos** | Total | Sus vendedores | — |
-| **Sistema (mantenimiento + auditoría)** | Total | — | — |
+| **Sistema** (Auditoría · Mantenimiento) | Total | Auditoría: su equipo · Mantenimiento: — | — |
 
-Regla de fondo: lo que es **estructura o dinero** (ciudades, configuración, sistema, precios, escalera de comisiones, cancelar negocios) es **solo del SuperAdmin**. Lo operativo del día a día se delega al Gerente sobre su región.
+Regla de fondo: lo que es **estructura o dinero** (ciudades, categorías, configuración, sistema/mantenimiento, precios, escalera de comisiones, cancelar negocios) es **solo del SuperAdmin**. Lo operativo del día a día se delega al Gerente sobre su región.
 
 ---
 
-## Las 11 secciones
+## Los módulos (14, todos ✅ en prod)
 
-1. **Resumen / inicio** — **Tiene documento propio:** 📄 **[`Resumen.md`](Resumen.md)**. Tablero de bienvenida con los números gruesos (negocios activos, usuarios, ingresos del mes, cobros fallidos), filtrado por el alcance del rol, con **deep-link** a la sección que resuelve cada tarea. El vendedor ve lo suyo (cartera/comisiones/efectivo). **Estado: construido y en uso** (solo lectura; saltó Fase 2).
-   - **Cola de pendientes (centro de trabajo, NO notificaciones tipo feed):** lista de tareas accionables del admin. Regla: si al hacer clic te lleva a HACER algo, entra; si solo informa, no. Items reales (**ya construidos**): **efectivo por entregar** (vendedores con saldo en efectivo sin entregar) y **negocios en gracia** (fallaron cobro, por suspenderse — el gerente puede salvarlos). Son **2 tipos, no 3**: con el **neteo** del módulo Vendedores, "efectivo por confirmar" y "vendedores con faltante" colapsan en "saldo > 0". **NO incluye "negocios por aprobar"** (no existe aprobación, los negocios se publican solos) ni avisos informativos (esos van a Sistema). La **campana del shell** usa esta misma data real (ya no es demo).
-2. **Métricas** — **Tiene documento propio:** 📄 **[`Metricas.md`](Metricas.md)**. La vista de **análisis**: 3 pestañas (Crecimiento · Uso de la app · Usuarios) con KPIs (variación vs. periodo anterior), **gráficas de tendencia** (recharts) y rankings, con **selector de periodo** (presets + rango por fechas, granularidad día/mes automática), scoped por rol y respetando la lente de región. Incluye el deep-link "Negocios en riesgo" → Negocios (scroll + highlight). **Estado: construido y en uso** (solo lectura; saltó Fase 2). La analítica de comportamiento (tiempo por sección, recorridos de navegación) es un módulo posterior porque **hoy no se captura** — requiere instrumentar seguimiento de eventos.
-3. **Negocios** — ver, administrar y dar de alta los negocios que pagan membresía. **Tiene documento propio:** 📄 **[`Negocios.md`](Negocios.md)** (lista y filtros, ficha, acciones de la membresía, alta manual sin Stripe, y la tabla de permisos por rol). Decisión de diseño relevante: **los negocios se publican automáticamente** al pagar + completar onboarding — NO hay aprobación manual (Modelo A). **Estado: construida y en producción.**
-4. **Usuarios** — mesa de ayuda + moderación de personas. **Tiene documento propio:** 📄 **[`Usuarios.md`](Usuarios.md)** (taxonomía de roles, visibilidad por jerarquía + región, expediente 360, soporte de acceso y moderación). **Permiso partido:** *soporte* (desbloquear, código de acceso, corregir correo) = **super + gerente**; *moderación* (suspender/reactivar) = **solo super**. El gerente está **acotado por región** (ve a los clientes de toda la plataforma; dueños/encargados/vendedores solo de su región; nunca otros gerentes). **El vendedor no entra a este módulo.** Promover/degradar perfil es V2. **Estado: construida y en uso.**
-5. **Suscripciones / membresías** — **Tiene documento propio:** 📄 **[`Suscripciones.md`](Suscripciones.md)** (la **bitácora financiera** = el libro mayor de todos los eventos de pago: cobros de Stripe + pagos manuales + cancelaciones, **solo lectura**, con KPIs de ingresos/fallidos y alcance por rol). La bitácora (`eventos_pago`) se alimenta por **dos vías**: (a) los **eventos automáticos de Stripe** (cobro_exitoso / cobro_fallido / cancelación) que persiste el helper **defensivo** `registrarEventoPago` desde el **webhook** (idempotente por `stripe_event_id`, nunca lanza); (b) el **`pago_manual`**, escrito por el helper **transaccional** `registrarPagoManual` (inserta la fila contable en `pagos_membresia` y su gemelo en `eventos_pago` en la **misma transacción**), usado tanto por **marcar pagado** como por el **alta manual** — por eso los pagos del alta manual **ya aparecen** en la bitácora. **Estado: bitácora V1 construida y en uso** (tabla `eventos_pago` + lectura con KPIs, verificada con harness; centralización del pago manual + backfill de gemelos históricos, 15 Jun 2026). El **resto del módulo sigue pendiente**: precio de membresía, promos de pago (ej. 3 meses con descuento, pago anual), regalar meses gratis a negocios puntuales, y **tiempos configurables**: periodo de gracia para cobros vencidos y duración del trial (hoy 14 días → editable desde el Panel). Los tiempos viven en `configuracionSistema` (la tabla ya tiene `trial_duracion_dias=14` y otras configs de trials/pagos).
-   - **Visibilidad para el negocio (feature firme):** cada negocio ve su **estado de membresía y fecha de vencimiento en su página de cuenta/perfil** ("activo hasta X") — **fuera del BS, accesible desde el modo Personal** (al vencer, la cuenta baja a personal). Es buena UX (el negocio quiere saber hasta cuándo pagó) **y** la defensa principal contra el robo invisible del efectivo: si pagó y ve "vencido", reclama a AnunciaYA. Reusa las 5 columnas de estado de membresía del webhook.
-6. **Vendedores y comisiones** — la red completa: alta/baja, regiones, comisiones, cortes de efectivo. (Ver Motor de venta + Comisiones.)
-7. **Publicidad** — **segunda fuente de ingresos.** Los comerciantes pagan por aparecer en los carruseles de la columna derecha de la app (Anuncios, Patrocinadores, Fundadores). **Asignación por ciudad, individual** — un negocio paga por aparecer en la ciudad X; puede también pagar por aparecer en **todas** las ciudades donde opera AY. **Precios configurables** (por ciudad, ya que no valen igual). **Métricas:** uso/KPIs de los carruseles, qué negocios pautan, y **cuánto generan**. El Gerente gestiona la publicidad de su región; los precios los fija el SuperAdmin.
-8. **Ciudades** — habilitar/agregar ciudades para expandir la app **sin tocar código**, y **agruparlas en regiones** (asignar `ciudades.region_id`). La tabla **`ciudades` ya existe y está poblada** (desde `ciudadesPopulares`); la **UI del Panel** (mapa MapLibre con el catálogo INEGI) ya da de alta/agrupa ciudades que quedan disponibles en TODA la app sin redeploy (catálogo hidratable consumido por `useCiudades`). (Ver §Concepto de "región" y "ciudad".)
-9. **Configuración** — valores editables sin código (textos/banners, toggles de funciones, límites/umbrales, **la escalera de comisiones**, **periodo de gracia de cobros** y **duración del trial**). El backend **ya lee** la tabla `configuracionSistema` (clave-valor, ya poblada) vía los helpers `obtenerConfigNumero()`/`obtenerConfigTexto()`/`obtenerConfigBooleano()` — p. ej. el trial sale de `trial_duracion_dias` (default 14) y la gracia de `periodo_gracia_cobro_dias`. Lo que sigue **pendiente** es la **UI** de la sección Configuración para editar esos valores desde el Panel (hoy se cambian en BD).
-10. **Equipo y accesos** — crear/administrar las cuentas internas (los 3 niveles). **Tiene documento
-    propio:** 📄 **[`Equipo_y_accesos.md`](Equipo_y_accesos.md)** (alta de vendedor/gerente, editar datos,
-    reasignar región, revocar/reactivar con revocados visibles, typeahead + promoción de cuentas
-    existentes). **Permiso partido:** crear/mover/revocar gerentes = **solo super**; alta/edición de
-    vendedores = **super + gerente** (su región). Sin migración (reusa `rol_equipo`/`region_id`/
-    `embajadores`). El modelo de cobertura avanzado del vendedor se difirió a "Vendedores y comisiones". **Estado: construida y en uso.**
-    **Estado: construida y en uso.**
-11. **Sistema** — dos medios, ambos construidos: **Mantenimiento** (📄 **[`Mantenimiento.md`](Mantenimiento.md)**)
-    = centro de operación técnica en 4 pestañas (Salud BD/Redis/R2/Stripe · Tareas programadas con ejecutar+preview ·
-    Logs del BE · Recolector R2 con limpieza blindada por cross-ambiente) + 5 acciones auditadas; y **Auditoría**
-    (📄 **[`Auditoria.md`](Auditoria.md)**) = bitácora de quién hizo qué. En el menú son dos entradas separadas.
+> Orden del menú del Panel. Cada uno con su documento canónico. Estado vivo en [`Tablero_Modulos.md`](Tablero_Modulos.md).
+
+1. **Resumen / inicio** — 📄 **[`Resumen.md`](Resumen.md)**. Tablero de bienvenida con los números gruesos (negocios activos, usuarios, ingresos del mes, cobros fallidos), filtrado por el alcance del rol, con **deep-link** a la sección que resuelve cada tarea. El vendedor ve lo suyo (cartera/comisiones/efectivo). **✅ en prod** (solo lectura).
+   - **Cola de pendientes (centro de trabajo, NO feed):** tareas accionables del admin. **4 tipos** (desde 29 jun): efectivo por entregar · negocios en gracia · pagos por verificar · comisiones por pagar, con deep-link a la sección/pestaña que resuelve cada tarea. La **campana del shell** usa esta misma data real.
+2. **Métricas** — 📄 **[`Metricas.md`](Metricas.md)**. Vista de **análisis**: 3 pestañas (Crecimiento · Uso de la app · Usuarios) con KPIs, gráficas de tendencia (recharts), rankings y **selector de periodo** (presets + rango), scoped por rol con lente de región. **✅ en prod** (solo lectura).
+3. **Negocios** — 📄 **[`Negocios.md`](Negocios.md)**. Ver, administrar y dar de alta los negocios que pagan membresía (lista/filtros, ficha, acciones de membresía, alta manual sin Stripe). Los negocios se publican **automáticamente** al pagar + completar onboarding (Modelo A, sin aprobación). **✅ en prod** (la plantilla de oro del Panel).
+4. **Usuarios** — 📄 **[`Usuarios.md`](Usuarios.md)**. Mesa de ayuda + moderación de personas. **Permiso partido:** soporte (desbloquear, código de acceso, corregir correo) = super + gerente; moderación (suspender/reactivar) = solo super. Gerente acotado por región; el vendedor no entra. **✅ en prod.**
+5. **Suscripciones / membresías** — 📄 **[`Suscripciones.md`](Suscripciones.md)**. La **bitácora financiera** = libro mayor de todos los eventos de pago (`eventos_pago`: cobros Stripe + pagos manuales + cancelaciones), solo lectura, con KPIs y alcance por rol + deep-link a Negocios. **✅ CERRADA, módulo completo** (sin V2 — decisión 23 jun: precio editable/cobro día-1/comisión al cobro/recibos se hicieron en el Sprint de Stripe; promos/cupones/CSV descartados; la membresía del **dueño** vive en `Mi_Perfil.md`).
+6. **Recibos** — 📄 **[`Recibos.md`](Recibos.md)**. Ver/buscar (por folio)/descargar/reenviar los comprobantes de membresía (manuales + tarjeta, foliados). Alcance super/gerente/vendedor (el vendedor, los suyos). **✅ en prod.**
+7. **Vendedores y comisiones** — 📄 **[`Vendedores_y_comisiones.md`](Vendedores_y_comisiones.md)**. La red de ventas completa: cartera (master-detail), **comisión de alta** ($400 al primer pago real), **recurrente "al cobro"** por escalera, **liquidación** con comprobante R2 y **cortes de efectivo con neteo**. **✅ en prod** (A·B·C·D·E + Stripe pieza 3). Backlog: cobertura multi-región (Pieza F).
+8. **Territorios** — 📄 **[`Territorios.md`](Territorios.md)**. Mapa de la red de ventas: el super/gerente **dibuja zonas** (GeoJSON en jsonb, snapping a calles + editor de vértices, no-traslape con turf) y se las asigna a vendedores; el vendedor ve "Mi territorio" (su zona enmascarada + **marcas** de prospección con estado/nota). **✅ CERRADO** (GATE 2 validado 27 jun). Backlog: cobertura multi-región.
+9. **Publicidad** — 📄 **[`Publicidad.md`](Publicidad.md)**. **Segunda fuente de ingresos:** venta del espacio en los carruseles de la columna derecha (Grande/Chico; Fundadores=regalo), **acotada por ciudades**, con precios configurables. Wizard self-service + Stripe, alta manual + cortesía, cron de expiración, recibos (UNION con membresía). El gerente gestiona la de su región. **✅ en prod.**
+10. **Ciudades** — 📄 **[`Ciudades.md`](Ciudades.md)**. Habilitar/agregar ciudades **sin tocar código** (mapa MapLibre con catálogo INEGI de 4,563) y agruparlas en regiones. La app web consume el catálogo por API (hidratable, sin redeploy). **✅ en prod.** (Ver §Concepto de "región" y "ciudad".)
+11. **Categorías** — 📄 **[`Categorias.md`](Categorias.md)**. Catálogo de **giros** (categorías + subcategorías) gestionable desde el Panel sin SQL, con **disponibilidad por ciudad** (2 tablas N:M; global por default; auto-poblado por demanda al clasificar un negocio). El endpoint público filtra por la ciudad activa. **✅ en prod** (30 jun).
+12. **Configuración** — 📄 **[`Configuracion.md`](Configuracion.md)**. El **tablero económico**: las palancas que tocan la caja (escalera de comisiones, trial, gracia, precio de membresía + plan anual, precios de publicidad), editables sin código, con auditoría y reset de caché. Solo SuperAdmin. **✅ en prod** (v1).
+13. **Equipo y accesos** — 📄 **[`Equipo_y_accesos.md`](Equipo_y_accesos.md)**. El "RR.HH./IT" del Panel: alta de vendedor/gerente, editar datos, reasignar región, cambiar ciudades del vendedor, revocar/reactivar, typeahead + promoción. **Permiso partido:** crear/mover/revocar gerentes = solo super; alta/edición de vendedores = super + gerente (su región). **✅ en prod.**
+14. **Sistema** — dos medios, ambos **✅ en prod**: **Auditoría** (📄 **[`Auditoria.md`](Auditoria.md)**) = bitácora de quién hizo qué (lista + ficha + alcance por rol + sistema de presentación que humaniza ~50 acciones sin jerga ni UUIDs); y **Mantenimiento** (📄 **[`Mantenimiento.md`](Mantenimiento.md)**) = centro técnico en 4 pestañas (Salud BD/Redis/R2/Stripe · Crons con ejecutar+preview · Logs del BE · Recolector R2 blindado por cross-ambiente) + 5 acciones auditadas. En el menú son dos entradas separadas.
 
 ---
 
@@ -480,14 +480,14 @@ App web **aparte**, espejo de `apps/web`, construida en la sesión del 4 Jun 202
 
 ---
 
-## Orden de construcción (fases)
+## Orden de construcción (fases) — ✅ TODAS COMPLETAS
 
-> Diseño completo hoy; **construcción por etapas**. El mapa (v2) está diseñado pero se teclea al final.
+> Registro histórico del plan. Las 4 fases están **construidas y en prod** (30 jun 2026).
 
-- **Fase 0 — Cimientos:** rol de equipo + auth del Panel · atribución en checkout · enforcement de `usuarios.estado` · webhook `subscription.updated`.
-- **Fase 1 — Motor (lo que genera ingreso):** Negocios · Usuarios · Suscripciones · Vendedores + comisiones (despertar `embajadores`/`embajador_comisiones`, ajustar a monto fijo + escalera) · Equipo y accesos.
-- **Fase 1.5 — Operación:** Métricas (lo medible hoy) · Resumen · Ciudades (migración + UI) · Configuración · Publicidad.
-- **Fase 2 — Vendedores v2:** mapa de territorios, prospectos, recorrido.
+- **Fase 0 — Cimientos** ✅: rol de equipo + auth del Panel · atribución en checkout · enforcement de `usuarios.estado` · webhook `subscription.updated`.
+- **Fase 1 — Motor (ingreso)** ✅: Negocios · Usuarios · Suscripciones · Recibos · Vendedores + comisiones · Equipo y accesos.
+- **Fase 1.5 — Operación** ✅: Métricas · Resumen · Ciudades · Categorías · Configuración · Publicidad · Sistema (Auditoría + Mantenimiento).
+- **Fase 2 — Vendedores v2** ✅: mapa de **Territorios** (zonas + marcas de prospección). Backlog: cobertura multi-región (Pieza F).
 
 ---
 
