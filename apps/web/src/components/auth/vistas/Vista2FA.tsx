@@ -172,7 +172,7 @@ export function Vista2FA({
 
   // Clases
   const getCodeInputClasses = (valor: string) => {
-    const base = 'w-10 h-12 text-center text-lg font-bold border-2 rounded-lg focus:outline-none bg-slate-100';
+    const base = 'w-10 h-12 text-center text-lg font-bold border-2 rounded-lg focus:outline-none bg-slate-100 text-slate-800 caret-slate-800';
     if (valor === '') return `${base} border-slate-300`;
     return `${base} border-emerald-500`;
   };
