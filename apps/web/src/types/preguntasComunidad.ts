@@ -9,6 +9,18 @@
  * Ubicación: apps/web/src/types/preguntasComunidad.ts
  */
 
+import type { Comentario } from './comentarios';
+
+/** Comentario en una pregunta de la comunidad (alias del genérico compartido). */
+export type ComentarioComunidad = Comentario;
+
+/** Input para crear un comentario (raíz o respuesta) en una pregunta. */
+export interface CrearComentarioComunidadInput {
+    preguntaId: string;
+    texto: string;
+    parentId?: string | null;
+}
+
 export type EstadoPregunta = 'activa' | 'cerrada' | 'oculta';
 
 /**
@@ -147,31 +159,6 @@ export interface PreguntaComunidad {
 }
 
 // =============================================================================
-// RESPUESTAS DE LA COMUNIDAD (Sprint 1)
-// =============================================================================
-
-export type EstadoRespuesta = 'activa' | 'borrada';
-
-/**
- * Respuesta de un vecino a una pregunta del Home. Backend devuelve solo
- * las `estado='activa'` (las borradas no llegan al frontend).
- */
-export interface RespuestaPreguntaComunidad {
-    id: string;
-    preguntaId: string;
-    texto: string;
-    estado: EstadoRespuesta;
-    createdAt: string;
-    updatedAt: string;
-
-    // Datos del autor de la respuesta (flatten)
-    autorId: string;
-    autorNombre: string;
-    autorApellidos: string;
-    autorAvatarUrl: string | null;
-}
-
-// =============================================================================
 // INPUTS
 // =============================================================================
 
@@ -183,17 +170,6 @@ export interface CrearPreguntaInput {
 
 export interface ListarPreguntasPorCiudadInput {
     ciudad: string;
-    limit?: number;
-    offset?: number;
-}
-
-export interface CrearRespuestaInput {
-    preguntaId: string;
-    texto: string;
-}
-
-export interface ListarRespuestasInput {
-    preguntaId: string;
     limit?: number;
     offset?: number;
 }

@@ -50,8 +50,7 @@ import {
     type CrearPreguntaInput,
     type EstadoCoyo,
     type EstadoCoyoResponse,
-    type RespuestaPreguntaComunidad,
-    type CrearRespuestaInput,
+    type CrearComentarioComunidadInput,
     type EditarPreguntaInput,
 } from '../../types/preguntasComunidad';
 import { useGpsStore } from '../../stores/useGpsStore';
@@ -305,30 +304,20 @@ export function useEstadoCoyo(preguntaId: string, estadoInicial: EstadoCoyo) {
 // RESPUESTAS DE LA COMUNIDAD (Sprint 1)
 // =============================================================================
 
-const LIMIT_RESPUESTAS_DEFAULT = 20;
-const OFFSET_RESPUESTAS_DEFAULT = 0;
-
 /**
- * Lista las respuestas activas de una pregunta. El componente decide cuándo
- * habilitarlo (típicamente al hacer click en "Ver N respuestas"), así que
- * el hook acepta un flag `enabled` además del preguntaId.
- *
- * Las respuestas vienen en orden cronológico (la más vieja primero) — flujo
- * natural de conversación. Backend limita a 50 por página.
+ * Lista el árbol de comentarios (hilos de 1 nivel) de una pregunta. El
+ * componente decide cuándo habilitarlo (al expandir "Ver N comentarios").
  */
-export function useRespuestas(
+export function useComentariosComunidad(
     preguntaId: string,
-    opciones?: { limit?: number; offset?: number; enabled?: boolean },
+    opciones?: { enabled?: boolean },
 ) {
-    const limit = opciones?.limit ?? LIMIT_RESPUESTAS_DEFAULT;
-    const offset = opciones?.offset ?? OFFSET_RESPUESTAS_DEFAULT;
     const enabled = opciones?.enabled ?? true;
-
     return useQuery({
-        queryKey: queryKeys.preguntasComunidad.respuestas(preguntaId, { limit, offset }),
+        queryKey: queryKeys.preguntasComunidad.comentarios(preguntaId),
         queryFn: () =>
             preguntasComunidadService
-                .listarRespuestas({ preguntaId, limit, offset })
+                .listarComentarios(preguntaId)
                 .then((r) => r.data ?? []),
         enabled: enabled && preguntaId.length > 0,
         placeholderData: keepPreviousData,
@@ -336,72 +325,65 @@ export function useRespuestas(
 }
 
 /**
- * Helper: invalida el feed por ciudad (para refrescar conteos
- * totalRespuestas/totalInteresados) Y la lista de respuestas de la pregunta.
- * Se usa después de cualquier mutación que toque respuestas.
+ * Helper: invalida el feed por ciudad (conteos) + el árbol de comentarios de
+ * la pregunta. Se usa tras cualquier mutación de comentarios.
  */
-function invalidarFeedYRespuestas(
+function invalidarFeedYComentarios(
     qc: ReturnType<typeof useQueryClient>,
     preguntaId: string,
 ) {
     qc.invalidateQueries({ queryKey: ['preguntasComunidad', 'porCiudad'] });
     qc.invalidateQueries({
-        queryKey: ['preguntasComunidad', 'respuestas', preguntaId],
+        queryKey: ['preguntasComunidad', 'comentarios', preguntaId],
     });
 }
 
-/**
- * Publica una respuesta. Al éxito invalida la lista de respuestas (para
- * mostrar la nueva) y el feed (para actualizar el contador
- * `totalRespuestas` de la card).
- */
-export function useCrearRespuesta() {
+/** Publica un comentario raíz o (con `parentId`) una respuesta. */
+export function useCrearComentarioComunidad() {
     const qc = useQueryClient();
-
     return useMutation({
-        mutationFn: async (
-            input: CrearRespuestaInput,
-        ): Promise<RespuestaPreguntaComunidad | undefined> => {
-            const res = await preguntasComunidadService.crearRespuesta(input);
+        mutationFn: async (input: CrearComentarioComunidadInput) => {
+            const res = await preguntasComunidadService.crearComentario(input);
             if (!res.success) {
-                throw new Error(
-                    (res as unknown as { error?: string }).error
-                        ?? res.message
-                        ?? 'Error al publicar la respuesta',
-                );
+                throw new Error(res.message ?? 'Error al publicar el comentario');
             }
             return res.data;
         },
         onSuccess: (_data, variables) => {
-            invalidarFeedYRespuestas(qc, variables.preguntaId);
+            invalidarFeedYComentarios(qc, variables.preguntaId);
         },
     });
 }
 
-/**
- * Soft-delete de la propia respuesta. Solo el autor de la respuesta puede
- * borrarla. Al éxito invalida la lista (para que desaparezca) y el feed
- * (para que el contador `totalRespuestas` baje).
- */
-export function useBorrarMiRespuesta() {
+/** El autor edita su comentario (sin límite de tiempo). */
+export function useEditarComentarioComunidad() {
     const qc = useQueryClient();
-
     return useMutation({
-        mutationFn: async (variables: { respuestaId: string; preguntaId: string }) => {
-            const res = await preguntasComunidadService.borrarMiRespuesta(
-                variables.respuestaId,
-            );
-            if (!res.success) {
-                throw new Error(
-                    (res as unknown as { error?: string }).error
-                        ?? res.message
-                        ?? 'Error al borrar la respuesta',
-                );
-            }
+        mutationFn: async (variables: { comentarioId: string; preguntaId: string; texto: string }) => {
+            const res = await preguntasComunidadService.editarComentario({
+                comentarioId: variables.comentarioId,
+                texto: variables.texto,
+            });
+            if (!res.success) throw new Error(res.message ?? 'Error al editar el comentario');
             return res.data;
         },
         onSuccess: (_data, variables) => {
-            invalidarFeedYRespuestas(qc, variables.preguntaId);
+            invalidarFeedYComentarios(qc, variables.preguntaId);
+        },
+    });
+}
+
+/** Soft-delete del propio comentario (el autor de la pregunta no modera). */
+export function useEliminarComentarioComunidad() {
+    const qc = useQueryClient();
+    return useMutation({
+        mutationFn: async (variables: { comentarioId: string; preguntaId: string }) => {
+            const res = await preguntasComunidadService.eliminarComentario(variables.comentarioId);
+            if (!res.success) throw new Error(res.message ?? 'Error al borrar el comentario');
+            return res.data;
+        },
+        onSuccess: (_data, variables) => {
+            invalidarFeedYComentarios(qc, variables.preguntaId);
         },
     });
 }

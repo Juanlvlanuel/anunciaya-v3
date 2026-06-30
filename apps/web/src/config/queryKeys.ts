@@ -332,15 +332,11 @@ export const queryKeys = {
     detalle: (preguntaId: string) =>
       ['preguntasComunidad', 'detalle', preguntaId] as const,
     /**
-     * Respuestas de la comunidad para UNA pregunta. Paginadas.
-     * Invalidar todas las páginas de una pregunta: prefix
-     * `['preguntasComunidad', 'respuestas', preguntaId]`.
+     * Árbol de comentarios (hilos de 1 nivel) de UNA pregunta.
+     * Invalidar: prefix `['preguntasComunidad', 'comentarios', preguntaId]`.
      */
-    respuestas: (
-      preguntaId: string,
-      paginacion: { limit: number; offset: number },
-    ) =>
-      ['preguntasComunidad', 'respuestas', preguntaId, paginacion] as const,
+    comentarios: (preguntaId: string) =>
+      ['preguntasComunidad', 'comentarios', preguntaId] as const,
   },
 
   // ─── Publicidad — Columna derecha (por ciudad) ────────────────────────────

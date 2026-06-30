@@ -58,7 +58,10 @@ export type TipoNotificacion =
   /** A los vecinos que marcaron "Yo también quiero saber" en una pregunta,
    *  cuando otro vecino responde a esa pregunta. NO al autor (recibe su
    *  propia notif distinta) ni al propio responder (no auto-notif). */
-  | 'pregunta_comunidad_seguida_respondida';
+  | 'pregunta_comunidad_seguida_respondida'
+  /** Comentarios de comunidad (hilos): al autor de un comentario cuando le
+   *  responden dentro del hilo de una pregunta del Home. */
+  | 'comunidad_respuesta_comentario';
 
 // Idem ReferenciaTipo: 'dinamica' removido, 'empleo' → 'servicio' en Fase D.
 export type ReferenciaTipo =

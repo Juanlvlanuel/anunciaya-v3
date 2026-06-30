@@ -25,15 +25,14 @@
  * Ubicación: apps/web/src/services/preguntasComunidadService.ts
  */
 
-import { api, del, get, patch, post } from './api';
+import { api, del, get, patch, post, put } from './api';
 import type {
     PreguntaComunidad,
     CrearPreguntaInput,
     ListarPreguntasPorCiudadInput,
     EstadoCoyoResponse,
-    RespuestaPreguntaComunidad,
-    CrearRespuestaInput,
-    ListarRespuestasInput,
+    ComentarioComunidad,
+    CrearComentarioComunidadInput,
     EditarPreguntaInput,
 } from '../types/preguntasComunidad';
 
@@ -156,56 +155,39 @@ export async function obtenerEstadoCoyo(preguntaId: string) {
 // =============================================================================
 
 /**
- * POST /api/preguntas-comunidad/:preguntaId/respuestas
- *
- * Crea una respuesta a una pregunta. El backend toma el `usuarioId` del JWT.
- * Devuelve la respuesta creada con los datos del autor incluidos.
- *
- * Reglas backend (relevantes para UX):
- *   - 400 si texto vacío o > 1000 chars.
- *   - 404 si la pregunta no existe.
- *   - 409 si la pregunta no está 'activa' (cerrada/oculta no aceptan).
+ * GET /api/preguntas-comunidad/:preguntaId/comentarios
+ * Devuelve el árbol de comentarios (raíces + respuestas, 1 nivel) de la pregunta.
  */
-export async function crearRespuesta({ preguntaId, texto }: CrearRespuestaInput) {
-    return post<RespuestaPreguntaComunidad>(
-        `/preguntas-comunidad/${preguntaId}/respuestas`,
-        { texto },
+export async function listarComentarios(preguntaId: string) {
+    return get<ComentarioComunidad[]>(`/preguntas-comunidad/${preguntaId}/comentarios`);
+}
+
+/**
+ * POST /api/preguntas-comunidad/:preguntaId/comentarios
+ * Crea un comentario raíz o (con `parentId`) una respuesta. El backend toma el
+ * `usuarioId` del JWT. Reglas de Coyo: el autor de la pregunta no puede comentar.
+ */
+export async function crearComentario({ preguntaId, texto, parentId }: CrearComentarioComunidadInput) {
+    return post<{ id: string }>(
+        `/preguntas-comunidad/${preguntaId}/comentarios`,
+        { texto, parentId: parentId ?? null },
     );
 }
 
 /**
- * GET /api/preguntas-comunidad/:preguntaId/respuestas?limit=...&offset=...
- *
- * Lista respuestas activas (estado='activa') de una pregunta, en orden
- * cronológico ascendente (la más vieja primero — flujo natural de
- * conversación). Backend limita a 50 por página.
+ * PUT /api/preguntas-comunidad/comentarios/:comentarioId
+ * El autor edita su comentario (sin límite de tiempo).
  */
-export async function listarRespuestas({
-    preguntaId,
-    limit,
-    offset,
-}: ListarRespuestasInput) {
-    const params = new URLSearchParams();
-    if (typeof limit === 'number') params.set('limit', String(limit));
-    if (typeof offset === 'number') params.set('offset', String(offset));
-    const qs = params.toString();
-    return get<RespuestaPreguntaComunidad[]>(
-        `/preguntas-comunidad/${preguntaId}/respuestas${qs ? `?${qs}` : ''}`,
-    );
+export async function editarComentario({ comentarioId, texto }: { comentarioId: string; texto: string }) {
+    return put<undefined>(`/preguntas-comunidad/comentarios/${comentarioId}`, { texto });
 }
 
 /**
- * DELETE /api/preguntas-comunidad/respuestas/:respuestaId
- *
- * Soft-delete (estado='borrada'). Solo el AUTOR de la respuesta puede
- * borrarla. El autor de la pregunta NO cura su tablón.
- *
- * Reglas backend:
- *   - 403 si quien llama no es el autor.
- *   - Idempotente si ya estaba borrada.
+ * DELETE /api/preguntas-comunidad/comentarios/:comentarioId
+ * Soft-delete. Solo el AUTOR del comentario (el autor de la pregunta no modera).
  */
-export async function borrarMiRespuesta(respuestaId: string) {
-    return del<{ borrada: boolean }>(`/preguntas-comunidad/respuestas/${respuestaId}`);
+export async function eliminarComentario(comentarioId: string) {
+    return del<undefined>(`/preguntas-comunidad/comentarios/${comentarioId}`);
 }
 
 // =============================================================================
@@ -307,9 +289,10 @@ export default {
     listarMisPreguntas,
     obtenerPregunta,
     obtenerEstadoCoyo,
-    crearRespuesta,
-    listarRespuestas,
-    borrarMiRespuesta,
+    listarComentarios,
+    crearComentario,
+    editarComentario,
+    eliminarComentario,
     marcarInteres,
     quitarInteres,
     cerrarMiPregunta,

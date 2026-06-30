@@ -1760,7 +1760,7 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying, 'comunidad_respuesta_comentario'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying])::text[]))`),
 ]);
 
@@ -2422,46 +2422,23 @@ export const preguntasComunidad = pgTable("preguntas_comunidad", {
 ]);
 
 // ============================================================================
-// RESPUESTAS DE LA COMUNIDAD A PREGUNTAS DEL HOME (Sprint 1 — 2026-06-01)
+// Comunidad — Comentarios con hilos de 1 nivel (reemplaza respuestas_preguntas_comunidad)
 // ============================================================================
-//
-// Cada fila es una respuesta de un vecino a una pregunta del Home. NO hay
-// respuestas a respuestas (sin threads) — diseño deliberado para mantener el
-// feed ordenado y evitar que se convierta en chat grupal.
-//
-// Migración: docs/migraciones/2026-06-01-respuestas-interes-resuelta.sql
-// ============================================================================
-export const respuestasPreguntasComunidad = pgTable("respuestas_preguntas_comunidad", {
+// Espejo de marketplace_comentarios / servicios_comentarios para el Home/Coyo.
+// Migración: docs/migraciones/2026-06-30-comunidad-comentarios.sql.
+
+export const comunidadComentarios = pgTable("comunidad_comentarios", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
-	preguntaId: uuid("pregunta_id").notNull(),
-	usuarioId: uuid("usuario_id").notNull(),
-	texto: varchar({ length: 1000 }).notNull(),
-	// `activa` por default; `borrada` cuando el autor de la respuesta la elimine
-	// (soft-delete para conservar orden cronológico).
-	estado: varchar({ length: 20 }).default('activa').notNull(),
+	preguntaId: uuid("pregunta_id").notNull().references(() => preguntasComunidad.id, { onDelete: 'cascade' }),
+	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	parentId: uuid("parent_id").references((): AnyPgColumn => comunidadComentarios.id, { onDelete: 'cascade' }),
+	texto: varchar({ length: 500 }).notNull(),
+	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
-	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	// Índice del feed por pregunta — más reciente primero, solo activas.
-	index("idx_respuestas_pregunta_fecha")
-		.using("btree", table.preguntaId.asc().nullsLast(), table.createdAt.desc().nullsFirst())
-		.where(sql`estado = 'activa'`),
-	// Para "mis respuestas" en el perfil del usuario.
-	index("idx_respuestas_usuario").using("btree", table.usuarioId.asc().nullsLast()),
-	foreignKey({
-		columns: [table.preguntaId],
-		foreignColumns: [preguntasComunidad.id],
-		name: "fk_respuestas_preguntas_comunidad_pregunta"
-	}).onDelete("cascade"),
-	foreignKey({
-		columns: [table.usuarioId],
-		foreignColumns: [usuarios.id],
-		name: "fk_respuestas_preguntas_comunidad_usuario"
-	}).onDelete("cascade"),
-	check("respuestas_preguntas_comunidad_estado_check",
-		sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'borrada'::character varying])::text[])`),
-	check("respuestas_preguntas_comunidad_texto_len",
-		sql`length(trim(texto)) > 0 AND length(texto) <= 1000`),
+	index("idx_comunidad_comentarios_pregunta").using("btree", table.preguntaId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_comunidad_comentarios_parent").using("btree", table.parentId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
 ]);
 
 // ============================================================================

@@ -20,10 +20,11 @@ import {
     reintentarMiPregunta,
 } from '../services/preguntasComunidad.service.js';
 import {
-    crearRespuesta,
-    listarRespuestasPorPregunta,
-    borrarMiRespuesta,
-} from '../services/respuestasPreguntasComunidad.service.js';
+    listarComentarios,
+    crearComentario,
+    editarComentario,
+    eliminarComentario,
+} from '../services/comentariosComunidad.service.js';
 import {
     marcarInteres,
     quitarInteres,
@@ -272,129 +273,109 @@ export async function obtenerPreguntaPorIdController(req: Request, res: Response
 }
 
 // =============================================================================
-// POST /api/preguntas-comunidad/:preguntaId/respuestas
+// COMENTARIOS (hilos de 1 nivel — reemplaza el Q&A de respuestas)
 // =============================================================================
 
-export async function crearRespuestaController(req: Request, res: Response) {
+const COMENTARIO_MIN = 2;
+const COMENTARIO_MAX = 500;
+
+// GET /api/preguntas-comunidad/:preguntaId/comentarios
+export async function listarComentariosController(req: Request, res: Response) {
+    try {
+        const { preguntaId } = req.params;
+        if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
+            return res.status(400).json({ success: false, message: 'El ID de la pregunta no es un UUID válido' });
+        }
+        const resultado = await listarComentarios(preguntaId);
+        return res.status(resultado.code).json(resultado);
+    } catch (error) {
+        console.error('Error en listarComentariosController:', error);
+        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+}
+
+// POST /api/preguntas-comunidad/:preguntaId/comentarios  body: { texto, parentId? }
+export async function crearComentarioController(req: Request, res: Response) {
     try {
         const usuarioId = obtenerUsuarioId(req);
         const { preguntaId } = req.params;
+        const { texto, parentId } = (req.body ?? {}) as { texto?: unknown; parentId?: unknown };
+
+        if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
+            return res.status(400).json({ success: false, message: 'El ID de la pregunta no es un UUID válido' });
+        }
+        if (typeof texto !== 'string' || texto.trim().length < COMENTARIO_MIN) {
+            return res.status(400).json({ success: false, message: `El comentario debe tener al menos ${COMENTARIO_MIN} caracteres` });
+        }
+        if (texto.length > COMENTARIO_MAX) {
+            return res.status(400).json({ success: false, message: `El comentario no puede exceder ${COMENTARIO_MAX} caracteres` });
+        }
+        if (parentId !== undefined && parentId !== null && (typeof parentId !== 'string' || !UUID_REGEX.test(parentId))) {
+            return res.status(400).json({ success: false, message: 'parentId inválido' });
+        }
+
+        const resultado = await crearComentario(
+            preguntaId,
+            usuarioId,
+            texto.trim(),
+            (parentId as string | null | undefined) ?? null
+        );
+        if (!resultado.success) {
+            return res.status(resultado.code).json({ success: false, message: resultado.message });
+        }
+        return res.status(201).json({ success: true, data: resultado.data });
+    } catch (error) {
+        console.error('Error en crearComentarioController:', error);
+        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+    }
+}
+
+// PUT /api/preguntas-comunidad/comentarios/:comentarioId  body: { texto }
+export async function editarComentarioController(req: Request, res: Response) {
+    try {
+        const usuarioId = obtenerUsuarioId(req);
+        const { comentarioId } = req.params;
         const { texto } = (req.body ?? {}) as { texto?: unknown };
 
-        if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'El ID de la pregunta no es un UUID válido',
-            });
+        if (!comentarioId || !UUID_REGEX.test(comentarioId)) {
+            return res.status(400).json({ success: false, message: 'El ID del comentario no es un UUID válido' });
         }
-        if (typeof texto !== 'string') {
-            return res.status(400).json({
-                success: false,
-                message: 'texto es requerido (string)',
-            });
+        if (typeof texto !== 'string' || texto.trim().length < COMENTARIO_MIN) {
+            return res.status(400).json({ success: false, message: `El comentario debe tener al menos ${COMENTARIO_MIN} caracteres` });
+        }
+        if (texto.length > COMENTARIO_MAX) {
+            return res.status(400).json({ success: false, message: `El comentario no puede exceder ${COMENTARIO_MAX} caracteres` });
         }
 
-        const resultado = await crearRespuesta({ preguntaId, usuarioId, texto });
+        const resultado = await editarComentario(comentarioId, usuarioId, texto.trim());
         if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
+            return res.status(resultado.code).json({ success: false, message: resultado.message });
         }
-
-        return res.status(201).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
+        return res.status(200).json({ success: true });
     } catch (error) {
-        console.error('Error en crearRespuestaController:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-        });
+        console.error('Error en editarComentarioController:', error);
+        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 }
 
-// =============================================================================
-// GET /api/preguntas-comunidad/:preguntaId/respuestas?limit=20&offset=0
-// =============================================================================
-
-export async function listarRespuestasController(req: Request, res: Response) {
-    try {
-        const { preguntaId } = req.params;
-        if (!preguntaId || !UUID_REGEX.test(preguntaId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'El ID de la pregunta no es un UUID válido',
-            });
-        }
-
-        const limit = parseInt(req.query.limit as string) || undefined;
-        const offset = parseInt(req.query.offset as string) || undefined;
-
-        const resultado = await listarRespuestasPorPregunta({
-            preguntaId,
-            limit,
-            offset,
-        });
-
-        if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
-        }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
-    } catch (error) {
-        console.error('Error en listarRespuestasController:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-        });
-    }
-}
-
-// =============================================================================
-// DELETE /api/preguntas-comunidad/respuestas/:respuestaId
-// =============================================================================
-
-export async function borrarMiRespuestaController(req: Request, res: Response) {
+// DELETE /api/preguntas-comunidad/comentarios/:comentarioId
+export async function eliminarComentarioController(req: Request, res: Response) {
     try {
         const usuarioId = obtenerUsuarioId(req);
-        const { respuestaId } = req.params;
+        const { comentarioId } = req.params;
 
-        if (!respuestaId || !UUID_REGEX.test(respuestaId)) {
-            return res.status(400).json({
-                success: false,
-                message: 'El ID de la respuesta no es un UUID válido',
-            });
+        if (!comentarioId || !UUID_REGEX.test(comentarioId)) {
+            return res.status(400).json({ success: false, message: 'El ID del comentario no es un UUID válido' });
         }
 
-        const resultado = await borrarMiRespuesta(respuestaId, usuarioId);
+        const resultado = await eliminarComentario(comentarioId, usuarioId);
         if (!resultado.success) {
-            return res.status(resultado.code || 500).json({
-                success: false,
-                message: resultado.message,
-            });
+            return res.status(resultado.code).json({ success: false, message: resultado.message });
         }
-
-        return res.status(200).json({
-            success: true,
-            message: resultado.message,
-            data: resultado.data,
-        });
+        return res.status(200).json({ success: true });
     } catch (error) {
-        console.error('Error en borrarMiRespuestaController:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error interno del servidor',
-        });
+        console.error('Error en eliminarComentarioController:', error);
+        return res.status(500).json({ success: false, message: 'Error interno del servidor' });
     }
 }
 

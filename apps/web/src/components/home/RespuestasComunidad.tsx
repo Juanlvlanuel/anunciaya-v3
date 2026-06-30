@@ -1,60 +1,44 @@
 /**
  * RespuestasComunidad.tsx
  * =========================
- * Bloque colapsable de respuestas debajo de una pregunta del Home.
+ * Bloque colapsable de COMENTARIOS debajo de una pregunta del Home.
+ * Reescrito sobre el componente genérico `ComentarioItem` (hilos de 1 nivel),
+ * el mismo de MarketPlace y Servicios.
  *
- * Comportamiento:
- *   - Por defecto colapsado: muestra un botón "Ver N respuestas".
- *   - Al abrir: muestra la lista de respuestas (cronológica ascendente) +
- *     una caja para responder (si la pregunta está 'activa').
- *   - Si N=0 y la pregunta está activa: muestra solo la caja para responder
- *     (con CTA "Sé el primero en responder").
- *   - El autor de cada respuesta ve un botón "Eliminar" en la suya. El autor
- *     de la PREGUNTA NO cura este tablón (decisión de producto).
- *
- * Datos:
- *   - `useRespuestas(preguntaId, { enabled: abierto })` — carga al abrir.
- *   - `useCrearRespuesta()` — invalida lista + feed.
- *   - `useBorrarMiRespuesta()` — soft-delete (estado='borrada' en BD).
+ * Reglas propias de Coyo (preservadas):
+ *   - El AUTOR de la pregunta NO comenta en su hilo (no se le muestra input;
+ *     el backend además devuelve 403).
+ *   - Solo el AUTOR de un comentario puede borrarlo → `ComentarioItem` recibe
+ *     `permiteEliminarDueno={false}` (el autor de la pregunta no modera).
+ *   - Etiqueta de autor: "Autor".
  *
  * Ubicación: apps/web/src/components/home/RespuestasComunidad.tsx
  */
 
-import { useRef, useState, type FormEvent } from 'react';
-import { Send, Loader2, MessageSquare, Trash2, Pointer, X } from 'lucide-react';
+import { useState } from 'react';
+import { MessageSquare, Pointer, X, Send, Loader2, AlertCircle } from 'lucide-react';
 import {
-    useRespuestas,
-    useCrearRespuesta,
-    useBorrarMiRespuesta,
+    useComentariosComunidad,
+    useCrearComentarioComunidad,
+    useEditarComentarioComunidad,
+    useEliminarComentarioComunidad,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { notificar } from '../../utils/notificaciones';
-import { formatearTiempoRelativo } from '../../utils/marketplace';
-import { ModalImagenes } from '../ui/ModalImagenes';
-import type { RespuestaPreguntaComunidad } from '../../types/preguntasComunidad';
+import { ComentarioItem, type UsuarioComentario } from '../marketplace/ComentarioItem';
 
-const TEXTO_MAX_RESPUESTA = 1000;
+const TEXTO_MIN = 2;
+const TEXTO_MAX = 500;
 
 interface RespuestasComunidadProps {
     preguntaId: string;
-    /** Conteo proveniente del feed (subquery). Sirve para el botón "Ver N respuestas". */
+    /** Autor (dueño) de la pregunta — `vendedorId` para `ComentarioItem`. */
+    autorPreguntaId: string;
+    /** Conteo del feed para el botón "Ver N comentarios". */
     totalRespuestas: number;
-    /** Si la pregunta no está 'activa', se oculta la caja de responder. */
+    /** Si la pregunta no está 'activa', se oculta el input. */
     puedeResponder: boolean;
-    /**
-     * `true` si el caller es el AUTOR de la pregunta. Cuando lo es:
-     *   - NO se muestra el CTA "Sé el primero en responder" (no tiene
-     *     sentido invitar al autor a responderse a sí mismo).
-     *   - NO se muestra la caja para responder dentro del panel
-     *     expandido (el autor solo lee lo que la comunidad le dice).
-     *   - SÍ se muestra "Ver N respuestas" cuando ya hay respuestas
-     *     (el autor necesita poder leerlas).
-     *
-     * El autor de una pregunta interactúa con la comunidad vía el menú
-     * de autor (cerrar / marcar resuelta / editar / borrar), NO
-     * respondiéndose a sí mismo. Si quiere agregar contexto antes de
-     * tener respuestas, puede usar "Editar".
-     */
+    /** `true` si el caller es el AUTOR de la pregunta (no comenta su propio hilo). */
     esAutor: boolean;
     /** Acción opcional a la derecha del trigger (ej. botón "Yo también"). */
     accionDerecha?: React.ReactNode;
@@ -62,6 +46,7 @@ interface RespuestasComunidadProps {
 
 export function RespuestasComunidad({
     preguntaId,
+    autorPreguntaId,
     totalRespuestas,
     puedeResponder,
     esAutor,
@@ -69,12 +54,9 @@ export function RespuestasComunidad({
 }: RespuestasComunidadProps) {
     const [abierto, setAbierto] = useState(false);
 
-    // ¿El caller puede ESCRIBIR una respuesta? Solo si la pregunta está
-    // activa Y no es el autor. El autor lee pero no responde.
+    // El autor de la pregunta lee pero no comenta.
     const puedeEscribir = puedeResponder && !esAutor;
 
-    // Sin trigger (ni respuestas ni poder escribir) y sin acción a la
-    // derecha → no hay nada que mostrar.
     const hayTrigger = totalRespuestas > 0 || puedeEscribir;
     if (!hayTrigger && !accionDerecha) {
         return null;
@@ -88,36 +70,26 @@ export function RespuestasComunidad({
                 data-testid={`pregunta-toggle-respuestas-${preguntaId}`}
                 className="group inline-flex items-center gap-1.5 -ml-0.5 text-sm lg:text-xs 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
                 aria-expanded={abierto}
-                aria-controls={`respuestas-${preguntaId}`}
+                aria-controls={`comentarios-${preguntaId}`}
             >
                 <MessageSquare className="w-3.5 h-3.5 shrink-0" strokeWidth={2.25} aria-hidden="true" />
-                <span>
-                    {abierto
-                        ? totalRespuestas === 1
-                            ? 'Ocultar respuesta'
-                            : 'Ocultar respuestas'
-                        : totalRespuestas === 1
-                            ? 'Ver respuesta (1)'
-                            : `Ver respuestas (${totalRespuestas})`}
-                </span>
+                <span>{abierto ? 'Ocultar' : `Comentarios (${totalRespuestas})`}</span>
             </button>
         ) : puedeEscribir ? (
-            // Sin respuestas y SE PUEDE escribir → "Responder" con dedo
-            // animado. Nunca le aparece al autor (esAutor → puedeEscribir=false).
             <button
                 type="button"
                 onClick={() => setAbierto((v) => !v)}
                 data-testid={`pregunta-toggle-respuestas-${preguntaId}`}
                 className="group inline-flex items-center gap-1.5 -ml-0.5 text-sm lg:text-xs 2xl:text-sm font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
                 aria-expanded={abierto}
-                aria-controls={`respuestas-${preguntaId}`}
+                aria-controls={`comentarios-${preguntaId}`}
             >
                 <span aria-hidden="true" className={abierto ? 'inline-flex' : 'finger-bob inline-flex'}>
                     {abierto
                         ? <X className="w-4 h-4" strokeWidth={2.5} />
                         : <Pointer className="w-4 h-4 rotate-180" strokeWidth={2} />}
                 </span>
-                <span>{abierto ? 'Cancelar' : 'Responder'}</span>
+                <span>{abierto ? 'Cancelar' : 'Comentar'}</span>
             </button>
         ) : null;
 
@@ -129,16 +101,13 @@ export function RespuestasComunidad({
             </div>
 
             {abierto && (
-                <div
-                    id={`respuestas-${preguntaId}`}
-                    className="pl-3 lg:pl-4 border-l-2 border-slate-300 space-y-2.5"
-                >
-                    {totalRespuestas > 0 && (
-                        <ListaRespuestas preguntaId={preguntaId} />
-                    )}
-                    {puedeEscribir && (
-                        <CajaResponder preguntaId={preguntaId} />
-                    )}
+                <div id={`comentarios-${preguntaId}`}>
+                    <PanelComentarios
+                        preguntaId={preguntaId}
+                        autorPreguntaId={autorPreguntaId}
+                        puedeEscribir={puedeEscribir}
+                        hayComentarios={totalRespuestas > 0}
+                    />
                 </div>
             )}
         </div>
@@ -146,290 +115,204 @@ export function RespuestasComunidad({
 }
 
 // =============================================================================
-// LISTA DE RESPUESTAS
+// PANEL: lista de comentarios (hilos) + input raíz
 // =============================================================================
 
-function ListaRespuestas({ preguntaId }: { preguntaId: string }) {
-    const { data, isPending, isError, refetch } = useRespuestas(preguntaId, {
-        enabled: true,
-    });
-
-    if (isPending) {
-        return (
-            <ul className="space-y-2 animate-pulse" aria-hidden="true">
-                {[0, 1].map((i) => (
-                    <li
-                        key={i}
-                        className="flex items-start gap-2.5 bg-slate-50 rounded-lg p-2.5"
-                    >
-                        <div className="shrink-0 w-7 h-7 rounded-full bg-slate-200" />
-                        <div className="flex-1 space-y-1.5">
-                            <div className="h-2.5 w-1/4 bg-slate-200 rounded" />
-                            <div className="h-2.5 w-full bg-slate-200 rounded" />
-                            <div className="h-2.5 w-3/4 bg-slate-200 rounded" />
-                        </div>
-                    </li>
-                ))}
-            </ul>
-        );
-    }
-
-    if (isError) {
-        return (
-            <div className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600 py-2">
-                No pudimos cargar las respuestas.{' '}
-                <button
-                    type="button"
-                    onClick={() => refetch()}
-                    className="font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
-                >
-                    Reintentar
-                </button>
-            </div>
-        );
-    }
-
-    const respuestas = data ?? [];
-    if (respuestas.length === 0) {
-        return null;
-    }
-
-    return (
-        <ul className="space-y-2">
-            {respuestas.map((r) => (
-                <ItemRespuesta key={r.id} respuesta={r} preguntaId={preguntaId} />
-            ))}
-        </ul>
-    );
-}
-
-// =============================================================================
-// ITEM DE RESPUESTA
-// =============================================================================
-
-function ItemRespuesta({
-    respuesta,
+function PanelComentarios({
     preguntaId,
+    autorPreguntaId,
+    puedeEscribir,
+    hayComentarios,
 }: {
-    respuesta: RespuestaPreguntaComunidad;
     preguntaId: string;
+    autorPreguntaId: string;
+    puedeEscribir: boolean;
+    hayComentarios: boolean;
 }) {
-    const usuarioId = useAuthStore((s) => s.usuario?.id);
-    const esAutorRespuesta = usuarioId === respuesta.autorId;
-    const borrar = useBorrarMiRespuesta();
-
-    const tiempo = (() => {
-        try {
-            return formatearTiempoRelativo(respuesta.createdAt);
-        } catch {
-            return '';
-        }
-    })();
-
-    const iniciales = obtenerIniciales(respuesta.autorNombre, respuesta.autorApellidos);
-
-    const handleBorrar = () => {
-        if (borrar.isPending) return;
-        borrar.mutate(
-            { respuestaId: respuesta.id, preguntaId },
-            {
-                onError: (err) => {
-                    const mensaje =
-                        err instanceof Error ? err.message : 'No se pudo borrar la respuesta';
-                    notificar.error(mensaje);
-                },
-            },
-        );
-    };
-
-    return (
-        <li
-            className="flex items-start gap-2.5 bg-slate-200 rounded-lg p-2.5"
-            data-testid={`respuesta-${respuesta.id}`}
-        >
-            <AvatarMini
-                url={respuesta.autorAvatarUrl}
-                alt={respuesta.autorNombre}
-                fallback={iniciales}
-            />
-            <div className="min-w-0 flex-1">
-                <div className="flex items-baseline gap-2 flex-wrap">
-                    <span className="text-sm lg:text-xs 2xl:text-sm font-bold text-slate-800 truncate">
-                        {respuesta.autorNombre}
-                    </span>
-                    {tiempo && (
-                        <span className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">{tiempo}</span>
-                    )}
-                </div>
-                <p className="mt-0.5 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-700 leading-relaxed wrap-break-word">
-                    {respuesta.texto}
-                </p>
-            </div>
-            {esAutorRespuesta && (
-                <button
-                    type="button"
-                    onClick={handleBorrar}
-                    disabled={borrar.isPending}
-                    aria-label="Borrar mi respuesta"
-                    data-testid={`respuesta-borrar-${respuesta.id}`}
-                    className="shrink-0 inline-flex items-center justify-center w-9 h-9 rounded-full text-slate-500 hover:text-red-600 hover:bg-red-100 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                    {borrar.isPending ? (
-                        <Loader2 className="w-4 h-4 animate-spin" aria-hidden="true" />
-                    ) : (
-                        <Trash2 className="w-4 h-4" strokeWidth={2} aria-hidden="true" />
-                    )}
-                </button>
-            )}
-        </li>
+    const usuario = useAuthStore((s) => s.usuario);
+    const { data: comentarios = [], isPending, isError, refetch } = useComentariosComunidad(
+        preguntaId,
+        { enabled: hayComentarios },
     );
-}
+    const crear = useCrearComentarioComunidad();
+    const editar = useEditarComentarioComunidad();
+    const eliminar = useEliminarComentarioComunidad();
 
-// =============================================================================
-// CAJA DE RESPONDER
-// =============================================================================
-
-function CajaResponder({ preguntaId }: { preguntaId: string }) {
     const [texto, setTexto] = useState('');
-    const [flying, setFlying] = useState(false);
-    const ref = useRef<HTMLInputElement>(null);
-    const crear = useCrearRespuesta();
+    const [error, setError] = useState<string | null>(null);
 
-    const puedeEnviar = texto.trim().length > 0 && !crear.isPending;
+    const usuarioActual: UsuarioComentario | null = usuario
+        ? {
+              id: usuario.id,
+              nombre: usuario.nombre ?? '',
+              apellidos: usuario.apellidos ?? '',
+              avatarUrl: usuario.avatarUrl ?? null,
+          }
+        : null;
 
-    const handleEnviar = () => {
-        if (!puedeEnviar) return;
-        setFlying(true);
-        crear.mutate(
-            { preguntaId, texto: texto.trim() },
+    const msg = (e: unknown) => (e instanceof Error ? e.message : undefined);
+
+    const handleCrearRaiz = async (e: React.FormEvent) => {
+        e.preventDefault();
+        const limpio = texto.trim();
+        if (limpio.length < TEXTO_MIN) {
+            setError(`Escribe al menos ${TEXTO_MIN} caracteres`);
+            return;
+        }
+        setError(null);
+        try {
+            await crear.mutateAsync({ preguntaId, texto: limpio });
+            setTexto('');
+        } catch (e) {
+            setError(msg(e) ?? 'No se pudo publicar el comentario');
+        }
+    };
+
+    const handleResponder = async (parentId: string, txt: string): Promise<boolean> => {
+        try {
+            await crear.mutateAsync({ preguntaId, texto: txt, parentId });
+            return true;
+        } catch (e) {
+            notificar.error(msg(e) ?? 'No se pudo publicar la respuesta');
+            return false;
+        }
+    };
+
+    const handleEditar = async (id: string, txt: string): Promise<boolean> => {
+        try {
+            await editar.mutateAsync({ comentarioId: id, preguntaId, texto: txt });
+            notificar.exito('Comentario actualizado');
+            return true;
+        } catch (e) {
+            notificar.error(msg(e) ?? 'No se pudo guardar');
+            return false;
+        }
+    };
+
+    const handleEliminar = (id: string) => {
+        if (!confirm('¿Eliminar este comentario?')) return;
+        eliminar.mutate(
+            { comentarioId: id, preguntaId },
             {
-                onSuccess: () => {
-                    setTexto('');
-                },
-                onError: (err) => {
-                    const mensaje =
-                        err instanceof Error ? err.message : 'No se pudo publicar la respuesta';
-                    notificar.error(mensaje);
-                },
+                onSuccess: () => notificar.exito('Comentario eliminado'),
+                onError: (e) => notificar.error(msg(e) ?? 'No se pudo eliminar'),
             },
         );
     };
 
-    const onSubmit = (e: FormEvent<HTMLFormElement>) => {
-        e.preventDefault();
-        handleEnviar();
-    };
-
     return (
-        <form onSubmit={onSubmit} className="flex items-center gap-2">
-            <div
-                className="flex-1 min-w-0 flex items-center gap-1.5 bg-white rounded-full border-2 border-slate-300 focus-within:border-slate-500 px-5 py-2"
-                style={{ boxShadow: 'inset 0 1px 2px rgba(0,0,0,0.04)' }}
-            >
-                <input
-                    ref={ref}
-                    type="text"
-                    value={texto}
-                    onChange={(e) => setTexto(e.target.value.slice(0, TEXTO_MAX_RESPUESTA))}
-                    placeholder="Responde a tu vecino…"
-                    maxLength={TEXTO_MAX_RESPUESTA}
-                    disabled={crear.isPending}
-                    aria-label="Tu respuesta"
-                    data-testid={`respuesta-input-${preguntaId}`}
-                    className="flex-1 min-w-0 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 disabled:text-slate-400 disabled:cursor-not-allowed"
-                />
-                {texto && !crear.isPending && (
+        <div className="space-y-3">
+            {hayComentarios && isPending && (
+                <div className="pl-3 lg:pl-4 border-l-2 border-slate-300 py-2 text-sm font-medium text-slate-600">
+                    Cargando comentarios…
+                </div>
+            )}
+
+            {hayComentarios && isError && (
+                <div className="pl-3 lg:pl-4 border-l-2 border-slate-300 py-2 text-sm font-medium text-slate-600">
+                    No pudimos cargar los comentarios.{' '}
                     <button
                         type="button"
-                        aria-label="Borrar"
-                        onClick={() => {
-                            setTexto('');
-                            ref.current?.focus();
-                        }}
-                        className="shrink-0 inline-flex items-center justify-center w-5 h-5 rounded-full bg-slate-500 hover:bg-slate-600 lg:cursor-pointer transition-colors"
+                        onClick={() => refetch()}
+                        className="font-semibold text-blue-600 hover:text-blue-700 lg:cursor-pointer"
                     >
-                        <X className="w-3 h-3 text-white" strokeWidth={2.5} />
+                        Reintentar
                     </button>
-                )}
-            </div>
-            <button
-                type="submit"
-                disabled={!puedeEnviar}
-                aria-label="Publicar respuesta"
-                data-testid={`respuesta-enviar-${preguntaId}`}
-                className="send-btn shrink-0 inline-flex items-center justify-center w-11 h-11 lg:w-10 lg:h-10 2xl:w-11 2xl:h-11 rounded-full text-white lg:cursor-pointer active:scale-[0.94] disabled:opacity-50 disabled:cursor-not-allowed"
-                style={{ background: 'linear-gradient(135deg, #1e293b, #334155)', boxShadow: '0 3px 10px rgba(30,41,59,0.35)' }}
-            >
-                {crear.isPending ? (
-                    <Loader2 className="w-4 h-4 shrink-0 animate-spin" aria-hidden="true" />
-                ) : (
-                    <span
-                        className={`send-ico inline-flex ${flying ? 'flying' : ''}`}
-                        onAnimationEnd={() => setFlying(false)}
-                    >
-                        <Send className="w-4 h-4 shrink-0" aria-hidden="true" />
-                    </span>
-                )}
-            </button>
-        </form>
-    );
-}
+                </div>
+            )}
 
-// =============================================================================
-// AVATAR MINI — pequeño helper con fallback robusto
-// =============================================================================
+            {comentarios.length > 0 && (
+                <div className="space-y-3">
+                    {comentarios.map((c) => (
+                        <ComentarioItem
+                            key={c.id}
+                            comentario={c}
+                            vendedorId={autorPreguntaId}
+                            etiquetaAutor="Autor"
+                            permiteEliminarDueno={false}
+                            usuarioActual={usuarioActual}
+                            puedeComentar={puedeEscribir}
+                            enviandoRespuesta={crear.isPending}
+                            onEditar={handleEditar}
+                            onEliminar={handleEliminar}
+                            onResponder={handleResponder}
+                        />
+                    ))}
+                </div>
+            )}
 
-function AvatarMini({
-    url,
-    alt,
-    fallback,
-}: {
-    url: string | null;
-    alt: string;
-    fallback: string;
-}) {
-    const [errorImagen, setErrorImagen] = useState(false);
-    const [visorAbierto, setVisorAbierto] = useState(false);
-    const mostrarImagen = !!url && !errorImagen;
+            {/* Input raíz — solo si el usuario puede escribir (no el autor). */}
+            {puedeEscribir && (
+                <form onSubmit={handleCrearRaiz}>
+                    <div className="flex items-center gap-2.5">
+                        {usuario?.avatarUrl ? (
+                            <img
+                                src={usuario.avatarUrl}
+                                alt=""
+                                aria-hidden="true"
+                                className="h-9 w-9 shrink-0 rounded-full object-cover ring-2 ring-slate-200"
+                            />
+                        ) : (
+                            <div
+                                className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-bold text-white shadow-md ring-2 ring-slate-200"
+                                style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
+                                aria-hidden="true"
+                            >
+                                {((usuario?.nombre ?? '?').charAt(0) +
+                                    (usuario?.apellidos ?? '').charAt(0)).toUpperCase()}
+                            </div>
+                        )}
 
-    if (mostrarImagen && url) {
-        return (
-            <>
-                <button
-                    type="button"
-                    onClick={(e) => {
-                        e.stopPropagation();
-                        setVisorAbierto(true);
-                    }}
-                    aria-label={`Ver foto de ${alt}`}
-                    className="shrink-0 w-9 h-9 rounded-full overflow-hidden shadow-md lg:cursor-pointer active:scale-[0.97]"
-                >
-                    <img
-                        src={url}
-                        alt={alt}
-                        className="w-full h-full object-cover"
-                        onError={() => setErrorImagen(true)}
-                    />
-                </button>
-                <ModalImagenes images={[url]} isOpen={visorAbierto} onClose={() => setVisorAbierto(false)} />
-            </>
-        );
-    }
+                        <div className="flex flex-1 items-center gap-2 rounded-full border-2 border-slate-300 bg-slate-100 py-1 pl-4 pr-1.5 transition-all focus-within:border-blue-500 focus-within:bg-white focus-within:ring-2 focus-within:ring-blue-500/20">
+                            <input
+                                type="text"
+                                data-testid={`comunidad-input-comentario-${preguntaId}`}
+                                value={texto}
+                                onChange={(e) => {
+                                    setTexto(e.target.value);
+                                    if (error) setError(null);
+                                }}
+                                placeholder="Responde a tu vecino…"
+                                maxLength={TEXTO_MAX}
+                                disabled={crear.isPending}
+                                className="flex-1 bg-transparent py-1.5 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                            />
+                            <button
+                                type="submit"
+                                data-testid={`comunidad-enviar-comentario-${preguntaId}`}
+                                disabled={crear.isPending || texto.trim().length < TEXTO_MIN}
+                                aria-label="Publicar comentario"
+                                className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full transition-all disabled:cursor-not-allowed lg:cursor-pointer ${
+                                    texto.trim().length >= TEXTO_MIN && !crear.isPending
+                                        ? 'bg-blue-600 text-white shadow-sm lg:hover:bg-blue-700'
+                                        : 'bg-transparent text-slate-400'
+                                }`}
+                            >
+                                {crear.isPending ? (
+                                    <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />
+                                ) : (
+                                    <Send className="h-4 w-4" strokeWidth={2.5} />
+                                )}
+                            </button>
+                        </div>
+                    </div>
 
-    return (
-        <div
-            className="shrink-0 w-9 h-9 rounded-full overflow-hidden flex items-center justify-center text-xs font-bold text-white shadow-md"
-            style={{ background: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 50%, #1d4ed8 100%)' }}
-        >
-            <span aria-hidden="true">{fallback}</span>
+                    <div className="mt-1 flex items-center px-3 text-sm">
+                        {error ? (
+                            <span className="flex items-center gap-1 text-rose-600">
+                                <AlertCircle className="h-3.5 w-3.5" strokeWidth={2.5} />
+                                {error}
+                            </span>
+                        ) : (
+                            <span className="text-slate-600">
+                                {texto.length > 0 ? `${texto.length}/${TEXTO_MAX}` : ''}
+                            </span>
+                        )}
+                    </div>
+                </form>
+            )}
         </div>
     );
-}
-
-function obtenerIniciales(nombre: string, apellidos: string): string {
-    const a = (nombre || '').trim().charAt(0).toUpperCase();
-    const b = (apellidos || '').trim().charAt(0).toUpperCase();
-    return (a + b) || '?';
 }
 
 export default RespuestasComunidad;

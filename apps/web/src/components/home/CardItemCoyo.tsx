@@ -39,7 +39,7 @@ function ChipsRicos({ item }: { item: ItemCoyo }) {
                 <Star className="w-3 h-3 text-amber-500 fill-amber-500 shrink-0" strokeWidth={2.5} aria-hidden="true" />
                 <span>
                     {item.rating.toFixed(1)}
-                    <span className="text-slate-400"> ({item.totalResenas})</span>
+                    <span className="text-slate-600"> ({item.totalResenas})</span>
                 </span>
             </span>,
         );

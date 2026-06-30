@@ -112,6 +112,8 @@ interface ComentarioFilaProps {
     usuarioActual: UsuarioComentario | null;
     /** Texto de la etiqueta cuando el autor es el dueño (ej. "Vendedor", "Autor"). */
     etiquetaAutor: string;
+    /** ¿El dueño de la publicación puede borrar comentarios ajenos? (Coyo: false). */
+    permiteEliminarDueno: boolean;
     /** Edita el comentario. Devuelve true si se guardó. */
     onEditar: (id: string, texto: string) => Promise<boolean>;
     onEliminar: (id: string) => void;
@@ -125,6 +127,7 @@ function ComentarioFila({
     vendedorId,
     usuarioActual,
     etiquetaAutor,
+    permiteEliminarDueno,
     onEditar,
     onEliminar,
     onResponder,
@@ -140,7 +143,7 @@ function ComentarioFila({
 
     const esAutor = !!usuarioActual && usuarioActual.id === comentario.autorId;
     const puedeEliminar =
-        !!usuarioActual && (esAutor || usuarioActual.id === vendedorId);
+        !!usuarioActual && (esAutor || (permiteEliminarDueno && usuarioActual.id === vendedorId));
     // Contactar por ChatYA al autor de un comentario ajeno.
     const puedeContactar = !!usuarioActual && !esAutor;
     // Acciones que en móvil se agrupan en el menú ⋮ (Responder queda fuera).
@@ -424,7 +427,7 @@ function InputRespuesta({
                         maxLength={TEXTO_MAX}
                         autoFocus
                         disabled={enviando}
-                        className="flex-1 bg-transparent py-1 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                        className="min-w-0 flex-1 bg-transparent py-1 text-base font-medium text-slate-800 placeholder:font-normal placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
                     />
                     <button
                         type="submit"
@@ -478,6 +481,9 @@ export interface ComentarioItemProps {
     usuarioActual: UsuarioComentario | null;
     /** Texto de la etiqueta del dueño. Default "Vendedor" (MP); "Autor" en Servicios. */
     etiquetaAutor?: string;
+    /** ¿El dueño de la publicación puede borrar comentarios ajenos? Default true
+     *  (MP/Servicios). En Coyo es false (solo el autor del comentario lo borra). */
+    permiteEliminarDueno?: boolean;
     /** Si el usuario puede escribir (autenticado y en modo personal). */
     puedeComentar: boolean;
     enviandoRespuesta: boolean;
@@ -492,6 +498,7 @@ export function ComentarioItem({
     vendedorId,
     usuarioActual,
     etiquetaAutor = 'Vendedor',
+    permiteEliminarDueno = true,
     puedeComentar,
     enviandoRespuesta,
     onEditar,
@@ -510,6 +517,7 @@ export function ComentarioItem({
                 vendedorId={vendedorId}
                 usuarioActual={usuarioActual}
                 etiquetaAutor={etiquetaAutor}
+                permiteEliminarDueno={permiteEliminarDueno}
                 onEditar={onEditar}
                 onEliminar={onEliminar}
                 onResponder={puedeComentar ? () => setRespondiendo((v) => !v) : undefined}
@@ -525,6 +533,7 @@ export function ComentarioItem({
                             vendedorId={vendedorId}
                             usuarioActual={usuarioActual}
                             etiquetaAutor={etiquetaAutor}
+                            permiteEliminarDueno={permiteEliminarDueno}
                             onEditar={onEditar}
                             onEliminar={onEliminar}
                             tamanoAvatar="sm"

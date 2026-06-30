@@ -62,14 +62,12 @@ export function BotonInteresComunidad({
         }
     };
 
-    // Texto del botón según estado.
-    const texto = activo
-        ? totalInteresados > 1
-            ? `Te avisaremos · ${totalInteresados}`
-            : 'Te avisaremos'
-        : totalInteresados > 0
-            ? `Yo también quiero saber · ${totalInteresados}`
-            : 'Yo también quiero saber';
+    // Texto del botón según estado. En móvil se usa una versión corta
+    // ("Me interesa") y en laptop/desktop la larga ("Yo también quiero saber").
+    const sufijo = totalInteresados > 0 ? ` · ${totalInteresados}` : '';
+    const textoActivo = activo && totalInteresados > 1 ? `Te avisaremos · ${totalInteresados}` : 'Te avisaremos';
+    const textoLargo = `Yo también quiero saber${sufijo}`;
+    const textoCorto = `Me interesa${sufijo}`;
 
     return (
         <button
@@ -96,13 +94,20 @@ export function BotonInteresComunidad({
                 <Loader2 className="w-3.5 h-3.5 shrink-0 animate-spin" aria-hidden="true" />
             ) : (
                 <Sparkles
-                    className={`w-3.5 h-3.5 shrink-0 ${activo ? 'text-blue-600' : 'text-slate-500'}`}
+                    className={`w-3.5 h-3.5 shrink-0 ${activo ? 'text-blue-600' : 'text-slate-600'}`}
                     strokeWidth={2.5}
                     aria-hidden="true"
                     fill={activo ? 'currentColor' : 'none'}
                 />
             )}
-            <span>{texto}</span>
+            {activo ? (
+                <span>{textoActivo}</span>
+            ) : (
+                <>
+                    <span className="lg:hidden">{textoCorto}</span>
+                    <span className="hidden lg:inline">{textoLargo}</span>
+                </>
+            )}
         </button>
     );
 }

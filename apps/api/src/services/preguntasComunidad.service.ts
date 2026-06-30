@@ -13,11 +13,11 @@
 import { db } from '../db/index.js';
 import {
     preguntasComunidad,
-    respuestasPreguntasComunidad,
+    comunidadComentarios,
     usuarios,
     ciudades,
 } from '../db/schemas/schema.js';
-import { eq, and, desc, sql } from 'drizzle-orm';
+import { eq, and, desc, sql, isNull } from 'drizzle-orm';
 import { resolverCiudadId } from '../utils/ciudades.js';
 import type {
     CrearPreguntaInput,
@@ -96,9 +96,9 @@ async function cerrarPreguntasVencidasDeCiudad(ciudadId: string): Promise<void> 
                   COALESCE(
                       (
                           SELECT MAX(created_at)
-                          FROM respuestas_preguntas_comunidad
+                          FROM comunidad_comentarios
                           WHERE pregunta_id = preguntas_comunidad.id
-                            AND estado = 'activa'
+                            AND deleted_at IS NULL
                       ),
                       preguntas_comunidad.created_at
                   ) < NOW() - (${DIAS_EXPIRACION} || ' days')::interval
@@ -308,9 +308,9 @@ export async function listarPreguntasPorCiudad(
                 // Conteos del Sprint 1 — subqueries inline
                 totalRespuestas: sql<number>`(
                     SELECT COUNT(*)::int
-                    FROM respuestas_preguntas_comunidad
+                    FROM comunidad_comentarios
                     WHERE pregunta_id = ${preguntasComunidad.id}
-                      AND estado = 'activa'
+                      AND deleted_at IS NULL
                 )`,
                 totalInteresados: sql<number>`(
                     SELECT COUNT(*)::int
@@ -435,9 +435,9 @@ export async function obtenerPreguntaPorId(
                 coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
                 totalRespuestas: sql<number>`(
                     SELECT COUNT(*)::int
-                    FROM respuestas_preguntas_comunidad
+                    FROM comunidad_comentarios
                     WHERE pregunta_id = ${preguntasComunidad.id}
-                      AND estado = 'activa'
+                      AND deleted_at IS NULL
                 )`,
                 totalInteresados: sql<number>`(
                     SELECT COUNT(*)::int
@@ -546,9 +546,9 @@ export async function listarMisPreguntas(input: {
                 coyoProcesadoAt: preguntasComunidad.coyoProcesadoAt,
                 totalRespuestas: sql<number>`(
                     SELECT COUNT(*)::int
-                    FROM respuestas_preguntas_comunidad
+                    FROM comunidad_comentarios
                     WHERE pregunta_id = ${preguntasComunidad.id}
-                      AND estado = 'activa'
+                      AND deleted_at IS NULL
                 )`,
                 totalInteresados: sql<number>`(
                     SELECT COUNT(*)::int
@@ -881,16 +881,16 @@ export async function editarMiPregunta(
             };
         }
 
-        // Verificar que NO haya respuestas activas
+        // Verificar que NO haya comentarios vivos
         const [conteoRespuestas] = await db
             .select({
                 total: sql<number>`COUNT(*)::int`,
             })
-            .from(respuestasPreguntasComunidad)
+            .from(comunidadComentarios)
             .where(
                 and(
-                    eq(respuestasPreguntasComunidad.preguntaId, input.preguntaId),
-                    eq(respuestasPreguntasComunidad.estado, 'activa'),
+                    eq(comunidadComentarios.preguntaId, input.preguntaId),
+                    isNull(comunidadComentarios.deletedAt),
                 ),
             );
 

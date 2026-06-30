@@ -21,7 +21,8 @@
  * Ubicación: apps/web/src/components/home/CardPreguntaEditorial.tsx
  */
 
-import { useState, memo, type FormEvent } from 'react';
+import { useState, useEffect, useRef, memo, type FormEvent } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
     Sparkles,
     CheckCircle2,
@@ -30,7 +31,9 @@ import {
     AlertTriangle,
     RefreshCcw,
     Loader2,
+    MoreVertical,
 } from 'lucide-react';
+import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
 import {
     useEstadoCoyo,
     useReintentarMiPregunta,
@@ -104,7 +107,7 @@ function BloqueSinRespuesta({ preguntaId, esAutor }: { preguntaId: string; esAut
                 <AlertTriangle className="w-4 h-4 text-slate-600 shrink-0" strokeWidth={2.5} aria-hidden="true" />
                 <span className="text-sm font-bold text-slate-700">Coyo no pudo procesar tu pregunta</span>
             </div>
-            <p className="text-sm lg:text-base text-slate-600 leading-relaxed">
+            <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 leading-relaxed">
                 {esAutor
                     ? 'Hubo un problema temporal con el asistente. Puedes intentar de nuevo.'
                     : 'Coyo no pudo responder ahorita, pero los vecinos sí pueden ayudar.'}
@@ -147,7 +150,7 @@ function BloqueNoAplica({ texto }: { texto: string }) {
                 <Sparkles className={`w-4 h-4 shrink-0 ${tono.icono}`} strokeWidth={2.5} aria-hidden="true" />
                 <span className="text-sm font-bold text-slate-700">{tono.titulo}</span>
             </div>
-            <p className="text-sm lg:text-base text-slate-600 leading-relaxed wrap-break-word">{texto}</p>
+            <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 leading-relaxed wrap-break-word">{texto}</p>
         </div>
     );
 }
@@ -172,7 +175,7 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                     alt="Coyo está pensando"
                     className="shrink-0 w-16 h-16 lg:w-20 lg:h-20"
                 />
-                <span className="text-base lg:text-lg font-extrabold">
+                <span className="text-base lg:text-lg 2xl:text-lg font-extrabold">
                     <span style={{ color: '#d97534' }}>Coyo</span>
                     <span className="text-slate-600"> está pensando</span>
                 </span>
@@ -206,13 +209,13 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                     aria-hidden="true"
                     className="w-11 h-11 lg:w-12 lg:h-12 shrink-0 object-contain"
                 />
-                <span className="text-base lg:text-lg font-extrabold">
+                <span className="text-base lg:text-lg 2xl:text-lg font-extrabold">
                     <span style={{ color: '#d97534' }}>Coyo</span>
                     <span className="text-slate-700">{encabezado.replace('Coyo', '')}</span>
                 </span>
             </div>
             {respuestaCoyo && (
-                <p className="text-sm lg:text-base font-medium text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
+                <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
             )}
             {items.length > 0 && (
                 <div className="-mx-1 px-1 flex gap-2.5 overflow-x-auto pb-1.5 mp-scroll">
@@ -324,6 +327,7 @@ interface CardPreguntaEditorialProps {
 
 function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
     const usuarioId = useAuthStore((s) => s.usuario?.id);
+    const navigate = useNavigate();
     const esAutor = !!usuarioId && usuarioId === pregunta.autorId;
     const preguntaActiva = pregunta.estadoPregunta === 'activa';
     const mostrarInteres = preguntaActiva && !esAutor;
@@ -355,7 +359,14 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                 <div className="flex items-center gap-2.5 min-w-0">
                     <Avatar url={pregunta.autorAvatarUrl} alt={pregunta.autorNombre} fallback={iniciales} />
                     <div className="min-w-0">
-                        <p className="text-base font-bold text-slate-800 truncate leading-tight">{pregunta.autorNombre}</p>
+                        <button
+                            type="button"
+                            data-testid={`pregunta-autor-${pregunta.id}`}
+                            onClick={() => navigate(`/marketplace/usuario/${pregunta.autorId}`)}
+                            className="block max-w-full truncate text-left text-base font-bold text-slate-800 leading-tight lg:cursor-pointer lg:hover:underline"
+                        >
+                            {pregunta.autorNombre}
+                        </button>
                         {tiempo && <p className="text-sm lg:text-xs 2xl:text-sm text-slate-600 font-medium">{tiempo}</p>}
                     </div>
                     {/* Badges de estado — solo aparecen en "Mis preguntas"
@@ -385,7 +396,11 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                         </span>
                     )}
                 </div>
-                {esAutor && <MenuAutorPregunta pregunta={pregunta} onEditar={() => setEditando(true)} />}
+                {esAutor ? (
+                    <MenuAutorPregunta pregunta={pregunta} onEditar={() => setEditando(true)} />
+                ) : usuarioId ? (
+                    <MenuContactarAutor pregunta={pregunta} />
+                ) : null}
             </div>
 
             {/* Pregunta (editable inline) */}
@@ -396,7 +411,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                     onCerrar={() => setEditando(false)}
                 />
             ) : (
-                <p className="mt-3 text-lg lg:text-xl font-semibold text-slate-800 leading-snug text-balance wrap-break-word">
+                <p className="mt-3 text-lg lg:text-lg 2xl:text-xl font-semibold text-slate-800 leading-snug text-balance wrap-break-word">
                     {pregunta.texto}
                 </p>
             )}
@@ -407,6 +422,7 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
             {/* Acciones: trigger de respuestas (izq) + "Yo también" (der), misma fila */}
             <RespuestasComunidad
                 preguntaId={pregunta.id}
+                autorPreguntaId={pregunta.autorId}
                 totalRespuestas={pregunta.totalRespuestas}
                 puedeResponder={preguntaActiva}
                 esAutor={esAutor}
@@ -421,6 +437,67 @@ function CardPreguntaEditorialBase({ pregunta }: CardPreguntaEditorialProps) {
                 }
             />
         </li>
+    );
+}
+
+// =============================================================================
+// MENÚ "CONTACTAR" — kebab para quien NO es el autor de la pregunta
+// =============================================================================
+// Abre ChatYA directo con el autor de la pregunta. Espejo del menú kebab de
+// los comentarios, pero a nivel de la card de la pregunta.
+
+function MenuContactarAutor({ pregunta }: { pregunta: PreguntaComunidad }) {
+    const [abierto, setAbierto] = useState(false);
+    const ref = useRef<HTMLDivElement>(null);
+    const iniciarChat = useIniciarChatDirectoPersona();
+
+    useEffect(() => {
+        if (!abierto) return;
+        const onFuera = (e: MouseEvent) => {
+            if (ref.current && !ref.current.contains(e.target as Node)) setAbierto(false);
+        };
+        document.addEventListener('mousedown', onFuera);
+        return () => document.removeEventListener('mousedown', onFuera);
+    }, [abierto]);
+
+    return (
+        <div ref={ref} className="relative shrink-0">
+            <button
+                type="button"
+                data-testid={`pregunta-menu-contactar-${pregunta.id}`}
+                aria-label="Más opciones"
+                onClick={() => setAbierto((v) => !v)}
+                className="flex h-9 w-9 items-center justify-center rounded-full text-slate-600 hover:bg-slate-200 lg:cursor-pointer"
+            >
+                <MoreVertical className="h-5 w-5" strokeWidth={2} />
+            </button>
+            {abierto && (
+                <div className="absolute right-0 top-full z-20 mt-1 min-w-[160px] overflow-hidden rounded-xl border border-slate-200 bg-white py-1 shadow-lg">
+                    <button
+                        type="button"
+                        data-testid={`pregunta-contactar-${pregunta.id}`}
+                        onClick={() => {
+                            setAbierto(false);
+                            void iniciarChat({
+                                usuarioId: pregunta.autorId,
+                                nombre: pregunta.autorNombre,
+                                apellidos: pregunta.autorApellidos,
+                                avatarUrl: pregunta.autorAvatarUrl,
+                            });
+                        }}
+                        className="flex w-full items-center gap-2 px-3 py-2 text-sm font-semibold text-slate-700 active:bg-slate-100 lg:cursor-pointer lg:hover:bg-slate-100"
+                    >
+                        <img
+                            src="/IconoRojoChatYA.webp"
+                            alt=""
+                            aria-hidden="true"
+                            className="h-6 w-auto shrink-0 object-contain"
+                        />
+                        Contactar
+                    </button>
+                </div>
+            )}
+        </div>
     );
 }
 

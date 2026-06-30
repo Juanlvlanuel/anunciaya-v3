@@ -17,9 +17,10 @@ import {
     listarMisPreguntasController,
     obtenerPreguntaPorIdController,
     obtenerEstadoCoyoController,
-    crearRespuestaController,
-    listarRespuestasController,
-    borrarMiRespuestaController,
+    listarComentariosController,
+    crearComentarioController,
+    editarComentarioController,
+    eliminarComentarioController,
     marcarInteresController,
     quitarInteresController,
     cerrarMiPreguntaController,
@@ -89,34 +90,36 @@ router.get('/mis-preguntas', listarMisPreguntasController);
 router.get('/:id', obtenerPreguntaPorIdController);
 
 // =============================================================================
-// RESPUESTAS DE LA COMUNIDAD
+// COMENTARIOS DE LA COMUNIDAD (hilos de 1 nivel — reemplaza las respuestas)
 // =============================================================================
-// Sprint 1 — vecinos pueden responder a preguntas del Home. Sin threads
-// (no respuestas a respuestas) por diseño. Solo el autor de la respuesta
-// puede borrarla. Soft-delete con `estado='borrada'`.
+// Vecinos comentan preguntas del Home. Hilos de 1 nivel (responder a un
+// comentario cuelga del raíz). Reglas de Coyo: el autor de la pregunta NO
+// comenta en su hilo (403) ni modera; solo el autor de un comentario lo borra.
+// Las rutas `/comentarios/:id` van ANTES de las dinámicas `/:preguntaId/*`.
 
 /**
- * POST /api/preguntas-comunidad/:preguntaId/respuestas
- * Crea una respuesta a una pregunta del Home.
- * Body: { texto: string }
- * usuarioId del token.
+ * GET /api/preguntas-comunidad/:preguntaId/comentarios
+ * Árbol de comentarios (raíces + respuestas) de la pregunta. Público.
  */
-router.post('/:preguntaId/respuestas', crearRespuestaController);
+router.get('/:preguntaId/comentarios', listarComentariosController);
 
 /**
- * GET /api/preguntas-comunidad/:preguntaId/respuestas?limit=20&offset=0
- * Lista respuestas activas (estado='activa') de una pregunta,
- * ordenadas cronológicamente ascendente (la más vieja primero — flujo
- * natural de conversación).
+ * POST /api/preguntas-comunidad/:preguntaId/comentarios
+ * Crea un comentario. Body: { texto, parentId? }.
  */
-router.get('/:preguntaId/respuestas', listarRespuestasController);
+router.post('/:preguntaId/comentarios', crearComentarioController);
 
 /**
- * DELETE /api/preguntas-comunidad/respuestas/:respuestaId
- * Soft-delete de una respuesta. Solo el autor de la respuesta puede
- * borrarla — devuelve 403 si otro usuario lo intenta. Idempotente.
+ * PUT /api/preguntas-comunidad/comentarios/:comentarioId
+ * El autor edita su comentario (sin límite de tiempo). Body: { texto }.
  */
-router.delete('/respuestas/:respuestaId', borrarMiRespuestaController);
+router.put('/comentarios/:comentarioId', editarComentarioController);
+
+/**
+ * DELETE /api/preguntas-comunidad/comentarios/:comentarioId
+ * Soft-delete. Solo el autor del comentario (el autor de la pregunta NO modera).
+ */
+router.delete('/comentarios/:comentarioId', eliminarComentarioController);
 
 // =============================================================================
 // "YO TAMBIÉN QUIERO SABER" — toggle de interés en una pregunta

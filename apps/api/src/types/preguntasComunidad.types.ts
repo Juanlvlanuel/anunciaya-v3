@@ -94,45 +94,6 @@ export interface PreguntaComunidadResponse {
 }
 
 // =============================================================================
-// RESPUESTAS DE LA COMUNIDAD (Sprint 1 — 2026-06-01)
-// =============================================================================
-
-/** Estado de una respuesta. `borrada` es soft-delete del autor. */
-export type EstadoRespuesta = 'activa' | 'borrada';
-
-export interface CrearRespuestaInput {
-    preguntaId: string;
-    usuarioId: string;
-    texto: string;
-}
-
-export interface ListarRespuestasInput {
-    preguntaId: string;
-    limit?: number;
-    offset?: number;
-}
-
-/**
- * Una respuesta de un vecino a una pregunta del Home. Incluye los datos
- * básicos del autor (mismo patrón que `PreguntaComunidadResponse`) para
- * que el frontend pinte la respuesta sin un round-trip extra.
- */
-export interface RespuestaPreguntaComunidadResponse {
-    id: string;
-    preguntaId: string;
-    texto: string;
-    estado: EstadoRespuesta;
-    createdAt: string;
-    updatedAt: string;
-
-    // Autor de la respuesta
-    autorId: string;
-    autorNombre: string;
-    autorApellidos: string;
-    autorAvatarUrl: string | null;
-}
-
-// =============================================================================
 // "YO TAMBIÉN QUIERO SABER" (Sprint 1 — 2026-06-01)
 // =============================================================================
 

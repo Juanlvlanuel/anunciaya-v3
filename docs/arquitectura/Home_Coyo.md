@@ -72,23 +72,28 @@ final.
 | **`estado_coyo`** | varchar(20) NOT NULL | `'pendiente'` | 5 valores (ver abajo) |
 | **`coyo_procesado_at`** | timestamptz | `NULL` | Cuándo terminó el orquestador |
 
-### `respuestas_preguntas_comunidad`
+### `comunidad_comentarios`
 
-Respuestas que los vecinos dejan en las preguntas del Home (hilo plano —
-sin threads).
+Comentarios que los vecinos dejan en las preguntas del Home, con **hilos de
+1 nivel** (un comentario raíz puede recibir respuestas; responder a una
+respuesta cuelga del raíz, no se anida más). Usa el **mismo componente
+genérico** de comentarios de MarketPlace y Servicios. Reemplazó a la tabla
+`respuestas_preguntas_comunidad` (eliminada con DROP — ver §Migraciones).
 
 | Columna | Tipo | Default | Notas |
 |---|---|---|---|
 | `id` | uuid PK | `gen_random_uuid()` | — |
 | `pregunta_id` | uuid NOT NULL | — | FK a `preguntas_comunidad(id)` ON DELETE CASCADE |
-| `usuario_id` | uuid NOT NULL | — | FK a `usuarios(id)` ON DELETE CASCADE (autor de la respuesta) |
-| `texto` | text NOT NULL | — | CHECK: `length(texto) BETWEEN 1 AND 1000` |
-| `estado` | varchar(20) NOT NULL | `'activa'` | `'activa' \| 'borrada'` — soft-delete (el autor de la respuesta puede borrarla) |
-| `created_at` / `updated_at` | timestamptz | `now()` | — |
+| `autor_id` | uuid NOT NULL | — | FK a `usuarios(id)` ON DELETE CASCADE (autor del comentario) |
+| `parent_id` | uuid | `NULL` | Self-FK a `comunidad_comentarios(id)` ON DELETE CASCADE. `NULL` = comentario **raíz**; con valor = respuesta que cuelga del raíz (1 solo nivel) |
+| `texto` | varchar(500) NOT NULL | — | **mín 2 / máx 500** caracteres |
+| `editado_at` | timestamptz | `NULL` | Se sella cuando el autor edita el comentario |
+| `created_at` | timestamptz | `now()` | — |
+| `deleted_at` | timestamptz | `NULL` | Soft-delete (el autor del comentario lo borra) |
 
 Índices:
-- `idx_respuestas_pregunta_creacion (pregunta_id, created_at) WHERE estado='activa'` — listado cronológico ascendente.
-- `idx_respuestas_usuario (usuario_id)` — "mis respuestas" futuro.
+- `idx_comunidad_comentarios_pregunta` — listado por pregunta.
+- `idx_comunidad_comentarios_parent` — armado del árbol de 1 nivel.
 
 ### `preguntas_interesados`
 
@@ -125,7 +130,7 @@ pregunta que NO es suya. Idempotente por PK compuesta.
 | Pieza | Archivo |
 |---|---|
 | Service principal | `apps/api/src/services/preguntasComunidad.service.ts` (`crearPregunta`, `listarPreguntasPorCiudad`, control del autor) |
-| Service respuestas | `apps/api/src/services/respuestasPreguntasComunidad.service.ts` |
+| Service comentarios | `apps/api/src/services/comentariosComunidad.service.ts` (usa el helper compartido `apps/api/src/services/comentarios/arbol.ts`) |
 | Service interés | `apps/api/src/services/interesPreguntasComunidad.service.ts` |
 | Service notificaciones de Coyo | `apps/api/src/services/coyo/notificacionesCoyo.service.ts` |
 | Controller | `apps/api/src/controllers/preguntasComunidad.controller.ts` |
@@ -141,9 +146,10 @@ GET     /api/preguntas-comunidad/mis-preguntas                 listarMisPregunta
 GET     /api/preguntas-comunidad/:id/coyo                      obtenerEstadoCoyoController   ← sondeo
 GET     /api/preguntas-comunidad/:id                           obtenerPreguntaPorIdController ← deep-link de notificaciones
 
-POST    /api/preguntas-comunidad/:preguntaId/respuestas        crearRespuestaController
-GET     /api/preguntas-comunidad/:preguntaId/respuestas        listarRespuestasController
-DELETE  /api/preguntas-comunidad/respuestas/:respuestaId       borrarMiRespuestaController
+GET     /api/preguntas-comunidad/:preguntaId/comentarios       listarComentariosController   ← árbol de 1 nivel (público)
+POST    /api/preguntas-comunidad/:preguntaId/comentarios       crearComentarioController     ← body { texto, parentId? }
+PUT     /api/preguntas-comunidad/comentarios/:comentarioId     editarComentarioController    ← { texto } (solo autor)
+DELETE  /api/preguntas-comunidad/comentarios/:comentarioId     borrarComentarioController    ← solo autor del comentario
 
 POST    /api/preguntas-comunidad/:preguntaId/interes           marcarInteresController
 DELETE  /api/preguntas-comunidad/:preguntaId/interes           quitarInteresController
@@ -157,7 +163,7 @@ POST    /api/preguntas-comunidad/:preguntaId/reintentar        reintentarMiPregu
 ```
 
 Orden de declaración importante en `routes.ts`: las rutas estáticas
-(`/respuestas/:respuestaId`) van **antes** que las dinámicas
+(`/comentarios/:comentarioId`) van **antes** que las dinámicas
 (`/:preguntaId/...`) — Express toma la primera que matchea. `GET /:id`
 (un segmento) convive con `GET /:id/coyo` (dos segmentos) sin chocar.
 
@@ -173,23 +179,24 @@ Orden de declaración importante en `routes.ts`: las rutas estáticas
 - `crearPregunta` hace `INSERT` y luego **fire-and-forget** a `procesarPreguntaConCoyo(nueva.id)` con `.catch(log)`. La publicación NO espera ni falla por Coyo.
 - `listarPreguntasPorCiudad`:
   - Filtra por `estadoPregunta = 'activa'` (las `'oculta'` no aparecen — útil para preguntas inapropiadas que Coyo cierra automáticamente).
-  - Devuelve los 4 campos de Coyo + 3 conteos (`totalRespuestas`, `totalInteresados`, `yoTambienInteresado`) + `resueltaAt`, todos calculados con subqueries inline. Los índices de `respuestas_preguntas_comunidad` y la PK compuesta de `preguntas_interesados` mantienen cada subquery en O(log n).
+  - Devuelve los 4 campos de Coyo + 3 conteos (`totalRespuestas`, `totalInteresados`, `yoTambienInteresado`) + `resueltaAt`, todos calculados con subqueries inline. `totalRespuestas` cuenta los comentarios vivos (`deleted_at IS NULL`) de `comunidad_comentarios`. Los índices de `comunidad_comentarios` y la PK compuesta de `preguntas_interesados` mantienen cada subquery en O(log n).
   - **Antes** del SELECT ejecuta `cerrarPreguntasVencidasDeCiudad(ciudad)` — el "cron pasivo" de expiración 14d (ver §Expiración pasiva).
 - `obtenerEstadoCoyo` devuelve solo los 4 campos de Coyo (`{ estadoCoyo, respuestaCoyo, resultadosCoyo, coyoProcesadoAt }`), usado por el polling.
 
-### Respuestas, interés y control del autor
+### Comentarios, interés y control del autor
 
 | Endpoint | Reglas |
 |---|---|
-| `crearRespuesta` | Texto 1–1000 chars. La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **El autor NO puede responder a su propia pregunta** — backend devuelve 403. Dispara **2 notificaciones** fire-and-forget: (1) `pregunta_comunidad_respondida` al autor de la pregunta, (2) `pregunta_comunidad_seguida_respondida` a TODOS los interesados (los que marcaron "Yo también quiero saber") excepto el responder y el autor. |
-| `listarRespuestas` | Solo `estado='activa'`, orden cronológico ascendente (la más vieja primero — flujo natural de conversación). |
-| `borrarMiRespuesta` | Soft-delete (estado='borrada'). **Solo el autor de la respuesta** puede borrarla — el autor de la PREGUNTA no cura el tablón (decisión de producto: confiar en la comunidad). Idempotente. |
+| `crearComentario` | Texto **2–500 chars**. Body `{ texto, parentId? }`: sin `parentId` es un comentario **raíz**; con `parentId` es una **respuesta** que cuelga del raíz (1 nivel — responder a una respuesta sigue colgando del mismo raíz). La pregunta debe estar `'activa'` (cerrada/oculta no aceptan). **El autor de la pregunta NO puede comentar en su propio hilo** — backend devuelve 403. Notificaciones fire-and-forget: un **comentario raíz** dispara (1) `pregunta_comunidad_respondida` al autor de la pregunta y (2) `pregunta_comunidad_seguida_respondida` a TODOS los interesados ("Yo también quiero saber") excepto el comentarista y el autor; una **respuesta dentro de un hilo** dispara `comunidad_respuesta_comentario` al autor del comentario respondido. |
+| `listarComentarios` | **Público** (no requiere token). Devuelve el **árbol de 1 nivel** (raíces con sus respuestas anidadas), armado con el helper compartido `comentarios/arbol.ts`. Solo vivos (`deleted_at IS NULL`), orden cronológico ascendente. |
+| `editarComentario` | `{ texto }` (2–500 chars). **Solo el autor del comentario**, sin límite de tiempo. Sella `editado_at`. (Capacidad NUEVA respecto al modelo viejo de respuestas planas.) |
+| `borrarComentario` | Soft-delete (`deleted_at=NOW()`). **Solo el autor del comentario** puede borrarlo — el autor de la PREGUNTA NO modera comentarios ajenos (decisión de producto: confiar en la comunidad). Borrar un comentario raíz **cascadea** a sus respuestas. Idempotente. |
 | `marcarInteres` / `quitarInteres` | Idempotentes: `INSERT ... ON CONFLICT DO NOTHING` / `DELETE`. Devuelven el conteo `totalInteresados` actualizado. Bloqueado en el frontend para el AUTOR de la pregunta (no tiene sentido auto-marcarse). |
-| `cerrarMiPregunta` | El autor cambia `estado_pregunta='cerrada'`. La pregunta sale del feed pero las respuestas se conservan. |
-| `marcarResuelta` | El autor pone `resuelta_at=NOW()`. La pregunta sigue `'activa'` y puede recibir más respuestas, pero la UI muestra un badge "Resuelta". |
-| `borrarMiPregunta` | Soft-delete: `estado_pregunta='oculta'`. La pregunta y sus respuestas se conservan en BD pero desaparecen del feed. |
-| `eliminarPermanenteMiPregunta` | **Hard-delete** (DELETE real de la fila). Solo válido sobre preguntas YA eliminadas (`estado_pregunta='oculta'`) — devuelve 409 si está en otro estado. Respuestas e interesados caen en **cascada** (FK `ON DELETE CASCADE`). Solo el autor. Es el 2º paso deliberado de la "papelera" desde Mis preguntas (las preguntas del Home NO tienen archivos en R2, así que el borrado es limpio). |
-| `editarMiPregunta` | **Solo si `totalRespuestas === 0`** — backend valida y devuelve 409 si ya hay respuestas activas. Al editar resetea los campos de Coyo (`estado_coyo='pendiente'`, demás a null) y re-dispara `procesarPreguntaConCoyo` fire-and-forget. |
+| `cerrarMiPregunta` | El autor cambia `estado_pregunta='cerrada'`. La pregunta sale del feed pero los comentarios se conservan. |
+| `marcarResuelta` | El autor pone `resuelta_at=NOW()`. La pregunta sigue `'activa'` y puede recibir más comentarios, pero la UI muestra un badge "Resuelta". |
+| `borrarMiPregunta` | Soft-delete: `estado_pregunta='oculta'`. La pregunta y sus comentarios se conservan en BD pero desaparecen del feed. |
+| `eliminarPermanenteMiPregunta` | **Hard-delete** (DELETE real de la fila). Solo válido sobre preguntas YA eliminadas (`estado_pregunta='oculta'`) — devuelve 409 si está en otro estado. Comentarios e interesados caen en **cascada** (FK `ON DELETE CASCADE`). Solo el autor. Es el 2º paso deliberado de la "papelera" desde Mis preguntas (las preguntas del Home NO tienen archivos en R2, así que el borrado es limpio). |
+| `editarMiPregunta` | **Solo si `totalRespuestas === 0`** (sin comentarios vivos) — backend valida y devuelve 409 si ya hay comentarios. Al editar resetea los campos de Coyo (`estado_coyo='pendiente'`, demás a null) y re-dispara `procesarPreguntaConCoyo` fire-and-forget. |
 | `reintentarMiPregunta` | **Solo si `estado_coyo === 'sin_respuesta'`** — backend devuelve 409 si está en otro estado. Solo el autor; solo preguntas activas. Resetea los 4 campos de Coyo y re-dispara `procesarPreguntaConCoyo` fire-and-forget. Sprint 2.D. |
 
 ### Service centralizado `negocioManagement` (no aplica aquí)
@@ -628,32 +635,33 @@ un caso así, se amplía la heurística.
 
 ## Notificaciones del Home
 
-El Home dispara **tres** tipos de notificaciones al sistema central
+El Home dispara **cuatro** tipos de notificaciones al sistema central
 (`crearNotificacion()`):
 
-### 1. `pregunta_comunidad_respondida` — autor recibe respuesta
+### 1. `pregunta_comunidad_respondida` — autor recibe un comentario raíz
 
-Cuando un vecino crea una respuesta a una pregunta, **fire-and-forget**:
+Cuando un vecino crea un **comentario raíz** en una pregunta, **fire-and-forget**:
 
 - Destinatario: el `usuarioId` del autor de la pregunta.
 - Modo: `'personal'`.
 - Título: **"Respondió tu pregunta"** (singular, casa con el nombre del
   actor mostrado arriba).
 - `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
-- Mensaje: primeros 100 caracteres de la respuesta + `…`.
-- `actorNombre` + `actorImagenUrl`: datos del vecino que respondió.
-- Auto-notificación bloqueada: si el responder es el propio autor de la
+- Mensaje: primeros 100 caracteres del comentario + `…`.
+- `actorNombre` + `actorImagenUrl`: datos del vecino que comentó.
+- Auto-notificación bloqueada: si el comentarista es el propio autor de la
   pregunta, NO se envía nada (además el backend devuelve 403 en ese
   caso — defensa en profundidad).
 
 Si el `crearNotificacion` falla (red, BD), solo se loguea — no rompe la
-creación de la respuesta.
+creación del comentario.
 
 ### 2. `pregunta_comunidad_seguida_respondida` — interesados reciben aviso
 
 Cumple la promesa "Te avisaremos" del botón "Yo también quiero saber".
-Después de la notificación al autor (bloque 1), se dispara también para
-**todos los interesados** (los que marcaron "yo también" en esa pregunta).
+Tras un **comentario raíz**, después de la notificación al autor (bloque 1),
+se dispara también para **todos los interesados** (los que marcaron "yo
+también" en esa pregunta).
 
 - Destinatarios: `SELECT usuarioId FROM preguntas_interesados WHERE
   pregunta_id = X AND usuario_id != responder AND usuario_id != autor`.
@@ -697,26 +705,46 @@ Reglas en todos los casos:
 Helper común: `resolverDestinatarioSucursal(sucursalId)` centraliza la
 lógica gerente-con-fallback-dueño.
 
+### 4. `comunidad_respuesta_comentario` — te respondieron en un hilo
+
+Cuando un vecino crea una **respuesta dentro de un hilo** (un comentario con
+`parentId`), **fire-and-forget**:
+
+- Destinatario: el `autorId` del comentario **respondido** (el dueño del
+  comentario raíz, no el autor de la pregunta).
+- Modo: `'personal'`.
+- `referenciaTipo='pregunta_comunidad'`, `referenciaId=preguntaId`.
+- Mensaje: primeros 100 caracteres de la respuesta + `…`.
+- `actorNombre` + `actorImagenUrl`: datos del vecino que respondió.
+- Auto-notificación bloqueada: si quien responde es el propio dueño del
+  comentario respondido, NO se envía nada.
+
+(Tipo NUEVO respecto al modelo viejo de respuestas planas, que no tenía
+hilos.)
+
 ### CHECK constraints
 
-Los tres tipos están en `notificaciones_tipo_check` y `pregunta_comunidad`
+Los cuatro tipos están en `notificaciones_tipo_check` y `pregunta_comunidad`
 está en `notificaciones_referencia_tipo_check`. Migraciones:
 `docs/migraciones/2026-06-01-notificaciones-coyo-comunidad.sql`
-(agregó los primeros dos + el referenciaTipo) y
+(agregó los primeros dos + el referenciaTipo),
 `docs/migraciones/2026-06-01-notif-pregunta-seguida.sql` (agregó el
-tercero).
+tercero) y
+`docs/migraciones/2026-06-30-notificaciones-tipo-comunidad-comentario.sql`
+(agregó `comunidad_respuesta_comentario`, el cuarto).
 
 ### Frontend: íconos y navegación
 
-`PanelNotificaciones.tsx` mapea los tres tipos a familias visuales:
+`PanelNotificaciones.tsx` mapea los cuatro tipos a familias visuales:
 
 | Tipo | Familia | Tile (gradient) | Glifo |
 |---|---|---|---|
 | `pregunta_comunidad_respondida` | `comunidad` | azul (#2563eb → #1d4ed8) | `IcoChat` (chat-circle-dots) |
 | `pregunta_comunidad_seguida_respondida` | `comunidad` | azul (mismo) | `IcoChat` (mismo) |
+| `comunidad_respuesta_comentario` | `comunidad` | azul (mismo) | `IcoChat` (mismo) |
 | `coyo_recomendacion` | `coyo` | violeta→índigo (#a855f7 → #6366f1) | `IcoSparkle` (sparkle-fill) |
 
-Los 3 tipos usan el **layout compacto del Home/Coyo**: nombre arriba
+Los 4 tipos usan el **layout compacto del Home/Coyo**: nombre arriba
 (con clase `.pn-title` para consistencia con el resto del panel) +
 respuesta entre comillas en 1 línea con ellipsis + tiempo abajo. Sin
 título visible (queda en `aria-label`). Click en cualquiera navega a
@@ -730,11 +758,11 @@ Home, navegar con "atrás" ni recargar).
 ## Expiración pasiva (14d inactividad · 7d resuelta)
 
 Las preguntas se autocierran (`estado_pregunta='cerrada'`) y salen del feed
-público por **dos** motivos: (1) **14 días sin nuevas respuestas activas**
+público por **dos** motivos: (1) **14 días sin nuevos comentarios vivos**
 (inactividad), o (2) **7 días desde que el autor las marcó como resueltas**
 (las resueltas se quedan un tiempo de gracia en el feed y luego se limpian
-solas). El autor sigue viéndolas en `Mis preguntas` con badge "Cerrada". Las
-respuestas existentes se conservan.
+solas). El autor sigue viéndolas en `Mis preguntas` con badge "Cerrada". Los
+comentarios existentes se conservan.
 
 **Diseño "cron pasivo"** (sin cron de Render):
 
@@ -753,8 +781,8 @@ respuestas existentes se conservan.
 
 ```sql
 COALESCE(
-  (SELECT MAX(created_at) FROM respuestas_preguntas_comunidad
-   WHERE pregunta_id = preguntas_comunidad.id AND estado='activa'),
+  (SELECT MAX(created_at) FROM comunidad_comentarios
+   WHERE pregunta_id = preguntas_comunidad.id AND deleted_at IS NULL),
   preguntas_comunidad.created_at
 )
 ```
@@ -763,7 +791,7 @@ Si la diferencia con `NOW()` supera 14 días, la pregunta se cierra.
 
 **Reglas de producto incorporadas:**
 
-- Solo NUEVAS respuestas activas resetean el timer de **inactividad**. Likes
+- Solo NUEVOS comentarios vivos resetean el timer de **inactividad**. Likes
   ("yo también quiero saber") no lo afectan. `resuelta_at` no resetea ese
   timer, pero dispara su PROPIO cierre (ver siguiente regla).
 - Una pregunta marcada como **resuelta** se cierra a los
@@ -818,13 +846,15 @@ Constantes editables (al inicio del service): `DIAS_EXPIRACION = 14`
 | Estado vacío del feed | `apps/web/src/components/home/EstadosVacios.tsx` |
 | Helpers de navegación/formato | `apps/web/src/components/home/navegacionCoyo.ts` |
 | Botón "Yo también quiero saber" | `apps/web/src/components/home/BotonInteresComunidad.tsx` |
-| Respuestas de la comunidad | `apps/web/src/components/home/RespuestasComunidad.tsx` |
-| Menú del autor + modal de confirmación | `apps/web/src/components/home/MenuAutorPregunta.tsx` |
+| Comentarios de la comunidad (hilos 1 nivel) | `apps/web/src/components/home/RespuestasComunidad.tsx` (reescrito sobre el componente genérico `ComentarioItem`) |
+| Item de comentario genérico (compartido MP/Servicios) | `apps/web/src/components/marketplace/ComentarioItem.tsx` |
+| Menú del autor de la pregunta + modal de confirmación | `apps/web/src/components/home/MenuAutorPregunta.tsx` |
+| Menú "Contactar" para quien NO es el autor (en el header de la card) | inline en `apps/web/src/components/home/CardPreguntaEditorial.tsx` (`MenuContactarAutor`) |
 | Componente Coyo animado | `apps/web/src/components/CoyoAnimado.tsx` |
 | Hook estado visual de Coyo | `apps/web/src/hooks/useCoyoEstadoVisual.ts` |
 | Hooks RQ | `apps/web/src/hooks/queries/usePreguntasComunidad.ts` |
 | Service | `apps/web/src/services/preguntasComunidadService.ts` |
-| Types | `apps/web/src/types/preguntasComunidad.ts` |
+| Types | `apps/web/src/types/preguntasComunidad.ts` (`ComentarioComunidad` = alias del genérico `Comentario` de `types/comentarios.ts`; los viejos `RespuestaPreguntaComunidad`/`CrearRespuestaInput`/`ListarRespuestasInput` fueron eliminados) |
 | Query keys | `apps/web/src/config/queryKeys.ts` (sección `preguntasComunidad`) |
 | Asset Rive | `apps/web/public/coyo.riv` |
 
@@ -930,10 +960,11 @@ useCrearPregunta()
 useEstadoCoyo(preguntaId, estadoInicial)  // sondeo 2s mientras pendiente/procesando
 usePregunta(preguntaId)                   // UNA pregunta por id (deep-link de notificaciones)
 
-// Respuestas + interés
-useRespuestas(preguntaId, { enabled })    // lista paginada (carga al abrir el hilo)
-useCrearRespuesta()
-useBorrarMiRespuesta()
+// Comentarios + interés
+useComentariosComunidad(preguntaId, { enabled })  // árbol de 1 nivel (carga al abrir el hilo)
+useCrearComentarioComunidad()
+useEditarComentarioComunidad()
+useEliminarComentarioComunidad()
 useMarcarInteres()                        // OPTIMISTIC UPDATE
 useQuitarInteres()                        // OPTIMISTIC UPDATE
 
@@ -951,7 +982,7 @@ TODAS las queries del feed (`porCiudad`) que contengan la pregunta
 (cualquier ciudad/paginación) antes de la respuesta del server.
 Snapshot guardado en `onMutate` para rollback en `onError`. Invalidación
 final en `onSettled` para sincronizar con el conteo real. Esta es la
-única acción del Home con optimistic — crear pregunta/respuesta usan
+única acción del Home con optimistic — crear pregunta/comentario usan
 patrón normal (sin optimistic).
 
 **Sondeo en `useEstadoCoyo`:**
@@ -996,14 +1027,17 @@ El feed del Home funciona al estilo Facebook (Jun 2026):
 Cada pregunta del feed es un `<li>` (estilo "Editorial") con:
 
 - **Header del autor:** `Avatar` (foto con lightbox `ModalImagenes`, o
-  fallback con gradiente azul de marca + iniciales) + nombre + tiempo
-  relativo + chip "Resuelta" (si `resueltaAt`) + `MenuAutorPregunta` (solo
-  al autor).
+  fallback con gradiente azul de marca + iniciales) + **nombre clickeable
+  → perfil del autor** + tiempo relativo + chip "Resuelta" (si `resueltaAt`).
+  El **kebab del header** es contextual: el AUTOR de la pregunta ve su
+  `MenuAutorPregunta` (Editar/Resolver/Cerrar/Eliminar); quien NO es el
+  autor ve `MenuContactarAutor` — un kebab con **"Contactar"** que abre
+  ChatYA con el autor.
 - **Pregunta** grande. Si el autor activa "Editar", el texto se reemplaza
   por el **editor inline** (`EditorPregunta`, un `<textarea>`) — sin modal.
 - **Respuesta de Coyo** (`RespuestaCoyo`): monta `useEstadoCoyo` para
   sondear; si el feed ya trae estado final, no hace requests.
-- **Acciones** (`RespuestasComunidad`): trigger de respuestas a la
+- **Acciones** (`RespuestasComunidad`): trigger de comentarios a la
   izquierda + "Yo también quiero saber" (`BotonInteresComunidad`) a la
   derecha, en la misma fila.
 
@@ -1135,14 +1169,15 @@ navegan a `/inicio?preguntaId=<id>`. Al abrir el Home con ese parámetro,
 |---|---|
 | `AreaPreguntaCoyo` | Módulo de subcomponentes reutilizados por `EscenaCoyo`: `CoyoInput` (input inline controlado), `SaludoTecleado`, `TextoTecleado` (efecto máquina de escribir). Ya NO se monta como hero — lo reemplazó la escena. |
 | `EscenaCoyo` | Escena "Casa de Coyo" (rail PC + hero móvil): cielo/cerro/cueva por ambiente + Coyo Rive saliendo de la cueva + saludo/burbuja/input vivos. Ver §Escena "Casa de Coyo". |
-| `CardPreguntaEditorial` | Card del feed: header del autor (avatar con lightbox + menú) + pregunta (con editor inline) + `RespuestaCoyo` + acciones de comunidad. Orquesta el sondeo de Coyo. |
+| `CardPreguntaEditorial` | Card del feed: header del autor (avatar con lightbox + nombre clickeable al perfil + kebab contextual: `MenuAutorPregunta` para el autor / `MenuContactarAutor` para los demás) + pregunta (con editor inline) + `RespuestaCoyo` + comentarios de comunidad. Orquesta el sondeo de Coyo. |
 | `CardItemCoyo` | Tarjeta de resultado de tamaño fijo dentro del carrusel único de Coyo. Click → detalle. |
 | `EstadosVacios` (`FeedVacio`) | Estado vacío del feed con cabeza de Coyo + chips de ejemplo que precargan el input. |
 | `AdornoRailCoyo` / `AdornoCoyoMovil` | **Legado, sin uso** tras la escena: era el adorno decorativo del rail anterior (cueva + huellas + sparkles). `EscenaCoyo` lo reemplazó. |
 | `navegacionCoyo.ts` | Helpers puros: `rutaDetalleItemCoyo`, `detectarSubtipoNoAplica`, `obtenerIniciales`, `itemsPlanosCoyo`. |
 | `BotonInteresComunidad` | Toggle "Yo también quiero saber". Estado base (slate) → activo (azul) con contador. Loader durante la mutación. Se oculta para el autor y para preguntas no-activas. |
-| `RespuestasComunidad` | Bloque colapsable: trigger "Ver N respuestas" o **"Responder" ↔ "Cancelar"** (dinámico — al abrir el cuadro cambia a "Cancelar" con ícono X) → lista cronológica + `CajaResponder` (input pill + botón circular). Avatares con lightbox. Cada respuesta del usuario actual tiene botón borrar (soft-delete). Acepta `accionDerecha` (ej. el botón "Yo también"). |
-| `MenuAutorPregunta` | Dropdown (3 puntitos) solo al autor. Acciones con reglas de visibilidad: Editar (solo si 0 respuestas → edición inline vía `onEditar`), Marcar resuelta, Cerrar, Eliminar (soft, si NO está `oculta`), y **"Borrar para siempre"** (hard-delete, SOLO en las ya eliminadas/`oculta`). Las destructivas usan `ModalConfirmacion` (wrapper compacto sobre `ModalAdaptativo`: icono en círculo de color + título corto + 1 línea + Cancelar/Confirmar). |
+| `RespuestasComunidad` | Bloque colapsable de **comentarios con hilos de 1 nivel**, reescrito sobre el componente genérico `ComentarioItem` (compartido con MarketPlace/Servicios). Trigger "Ver N comentarios" o **"Comentar" ↔ "Cancelar"** (dinámico) → árbol de comentarios + caja de escribir. Cada `ComentarioItem` trae: avatar clickeable → `ModalImagenes`, nombre → perfil, etiqueta de autor **"Autor"**, menú kebab (⋮) con **Contactar (ChatYA)/Editar/Eliminar**, y **"Responder"** visible (cuelga la respuesta del raíz). Recibe **`permiteEliminarDueno={false}`** (el autor de la pregunta NO modera comentarios ajenos — solo el autor de cada comentario lo borra/edita). Acepta `accionDerecha` (ej. el botón "Yo también"). |
+| `MenuContactarAutor` | Kebab (⋮) del header de la card que ve **quien NO es el autor**: una acción **"Contactar"** que abre ChatYA con el autor de la pregunta. Definido inline en `CardPreguntaEditorial`. |
+| `MenuAutorPregunta` | Dropdown (3 puntitos) del header solo para el AUTOR de la pregunta. Acciones con reglas de visibilidad: Editar (solo si 0 comentarios → edición inline vía `onEditar`), Marcar resuelta, Cerrar, Eliminar (soft, si NO está `oculta`), y **"Borrar para siempre"** (hard-delete, SOLO en las ya eliminadas/`oculta`). Las destructivas usan `ModalConfirmacion` (wrapper compacto sobre `ModalAdaptativo`: icono en círculo de color + título corto + 1 línea + Cancelar/Confirmar). |
 
 ### Histórico del autor — toggle "Comunidad · Mis preguntas"
 
@@ -1426,9 +1461,12 @@ Todas en `docs/migraciones/`:
 | `2026-05-24-servicios-buscador-fts.sql` | FTS para buscador de servicios | ✅ | ✅ |
 | `2026-05-24-ofertas-buscador-fts.sql` | FTS para buscador de ofertas | ✅ | ✅ |
 | `2026-05-24-coyo-respuesta-en-pregunta.sql` | 4 columnas de Coyo + CHECK + índice parcial | ✅ | ✅ |
-| `2026-06-01-respuestas-interes-resuelta.sql` | Tablas `respuestas_preguntas_comunidad` + `preguntas_interesados` + columna `resuelta_at` | ✅ | ✅ |
+| `2026-06-01-respuestas-interes-resuelta.sql` | Tablas `respuestas_preguntas_comunidad` (luego reemplazada) + `preguntas_interesados` + columna `resuelta_at` | ✅ | ✅ |
 | `2026-06-01-notificaciones-coyo-comunidad.sql` | Extiende CHECKs de `notificaciones` con `pregunta_comunidad_respondida`, `coyo_recomendacion`, `pregunta_comunidad` | ✅ | ✅ |
 | `2026-06-01-notif-pregunta-seguida.sql` | Extiende `notificaciones_tipo_check` con `pregunta_comunidad_seguida_respondida` (a interesados) | ✅ | ✅ |
+| `2026-06-30-comunidad-comentarios.sql` | Crea `comunidad_comentarios` (+ índices `idx_comunidad_comentarios_pregunta` / `_parent`) y **migra los datos** de `respuestas_preguntas_comunidad` (expand) | ⏳ | ⏳ |
+| `2026-06-30-notificaciones-tipo-comunidad-comentario.sql` | Extiende `notificaciones_tipo_check` con `comunidad_respuesta_comentario` | ⏳ | ⏳ |
+| `2026-06-30-drop-respuestas-preguntas-comunidad.sql` | **DROP** de `respuestas_preguntas_comunidad` (contract) tras migrar los datos | ⏳ | ⏳ |
 
 Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 `DROP CONSTRAINT IF EXISTS`) y compatibles con la receta del wrapper
@@ -1440,8 +1478,8 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 
 | Capa | Archivo |
 |---|---|
-| **BD** | `apps/api/src/db/schemas/schema.ts` (`preguntasComunidad`, `respuestasPreguntasComunidad`, `preguntasInteresados`) |
-| **Backend — feed** | `services/preguntasComunidad.service.ts`, `services/respuestasPreguntasComunidad.service.ts`, `services/interesPreguntasComunidad.service.ts`, `controllers/preguntasComunidad.controller.ts`, `routes/preguntasComunidad.routes.ts`, `types/preguntasComunidad.types.ts` |
+| **BD** | `apps/api/src/db/schemas/schema.ts` (`preguntasComunidad`, `comunidadComentarios`, `preguntasInteresados`) |
+| **Backend — feed** | `services/preguntasComunidad.service.ts`, `services/comentariosComunidad.service.ts` (+ helper compartido `services/comentarios/arbol.ts`), `services/interesPreguntasComunidad.service.ts`, `controllers/preguntasComunidad.controller.ts` (incluye los controllers de comentarios), `routes/preguntasComunidad.routes.ts`, `types/preguntasComunidad.types.ts` |
 | **Backend — Coyo** | `services/coyo/coyoIA.service.ts`, `services/coyo/orquestador.ts`, `services/coyo/buscadorUnificado.ts`, `services/coyo/categoriasCatalogo.service.ts`, `services/coyo/notificacionesCoyo.service.ts`, `controllers/coyo.controller.ts`, `routes/coyo.routes.ts`, `validations/coyo.schema.ts` |
 | **Backend — buscadores** | `services/marketplace/buscador.ts`, `services/servicios/buscador.ts`, `services/ofertas/buscador.ts`, `services/negocios.service.ts` (`listarSucursalesCercanas`) |
 | **Backend — helpers compartidos** | `services/_helpers/busquedaFlexible.ts` |
@@ -1450,7 +1488,8 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 | **Backend — tests** | `__tests__/coyo-filtro-caso-a.test.ts`, `__tests__/coyo-filtro-caso-b.test.ts` |
 | **Frontend — feed Home** | `pages/private/PaginaInicio.tsx` (orquestador 2 columnas: `SegmentoFeed`, `FeedHeader`, `ContenidoFeed`, `MisPreguntasVacio`, `BloquePreguntaDestacada`, `IndicadorHuellitas`; layouts móvil/desktop inline), `hooks/queries/usePreguntasComunidad.ts` (`usePregunta`, `useMisPreguntasLista`, `useEliminarPermanenteMiPregunta`), `services/preguntasComunidadService.ts` (`obtenerPregunta`, `listarMisPreguntas`, `eliminarPermanenteMiPregunta`), `hooks/usePullToRefresh.ts`, `types/preguntasComunidad.ts`, `config/queryKeys.ts` |
 | **Frontend — escena Coyo** | `components/home/escena-coyo/EscenaCoyo.tsx`, `components/home/escena-coyo/coyoTokens.ts`, `components/home/escena-coyo/useAmbient.ts`, `components/home/escena-coyo/CoyoDecor.tsx` (+ keyframes `cdc-*` en `index.css`, fuente Nunito en `index.html`) |
-| **Frontend — componentes Home** | `components/home/AreaPreguntaCoyo.tsx` (exporta `CoyoInput`/`SaludoTecleado`/`TextoTecleado`), `components/home/CardPreguntaEditorial.tsx`, `components/home/CardItemCoyo.tsx`, `components/home/EstadosVacios.tsx`, `components/home/AdornoRailCoyo.tsx` (legado, sin uso), `components/home/navegacionCoyo.ts`, `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx`, `components/home/MenuAutorPregunta.tsx` |
+| **Frontend — componentes Home** | `components/home/AreaPreguntaCoyo.tsx` (exporta `CoyoInput`/`SaludoTecleado`/`TextoTecleado`), `components/home/CardPreguntaEditorial.tsx` (incluye `MenuContactarAutor` inline), `components/home/CardItemCoyo.tsx`, `components/home/EstadosVacios.tsx`, `components/home/AdornoRailCoyo.tsx` (legado, sin uso), `components/home/navegacionCoyo.ts`, `components/home/BotonInteresComunidad.tsx`, `components/home/RespuestasComunidad.tsx` (reescrito sobre `ComentarioItem`), `components/home/MenuAutorPregunta.tsx` |
+| **Frontend — comentarios (genérico)** | `components/marketplace/ComentarioItem.tsx` (compartido MP/Servicios/Coyo), `types/comentarios.ts` (`Comentario`), hooks `useComentariosComunidad`/`useCrearComentarioComunidad`/`useEditarComentarioComunidad`/`useEliminarComentarioComunidad` en `hooks/queries/usePreguntasComunidad.ts` |
 | **Frontend — scroll/perf** | `hooks/useScrollDirection.ts`, `hooks/useHideOnScroll.ts`, `stores/useMainScrollStore.ts` (botón "ir arriba"); `React.memo` en `CardPreguntaEditorial`, `CardItemCoyo`, `CoyoAnimado` |
 | **Frontend — Coyo animado** | `components/CoyoAnimado.tsx` (componente Rive + state machine), `hooks/useCoyoEstadoVisual.ts` (calcula estado visual a partir del estado de la app) |
 | **Frontend — notificaciones** | `components/layout/PanelNotificaciones.tsx` (mapeo de íconos + navegación), `types/notificaciones.ts` |
@@ -1460,7 +1499,22 @@ Todas las migraciones son idempotentes (`CREATE ... IF NOT EXISTS`,
 
 ---
 
-> **Última revisión:** Jun 2026 — rediseño "2 columnas" del frontend
+> **Última revisión:** 30 jun 2026 — las **respuestas planas** de la comunidad
+> fueron reemplazadas por un sistema de **comentarios con hilos de 1 nivel**, el
+> mismo componente genérico (`ComentarioItem`) de MarketPlace y Servicios. Tabla
+> nueva `comunidad_comentarios` (reemplaza `respuestas_preguntas_comunidad`, que
+> se elimina con DROP); longitud **2–500** (antes 1000); nuevos endpoints
+> `GET/POST /:preguntaId/comentarios` + `PUT/DELETE /comentarios/:comentarioId`
+> (con **editar**, capacidad nueva); service `comentariosComunidad.service.ts`
+> (+ helper `comentarios/arbol.ts`). En el header de la card el nombre del autor
+> es clickeable → perfil y hay kebab **"Contactar"** (`MenuContactarAutor`) para
+> quien no es el autor. Notificación nueva `comunidad_respuesta_comentario` (te
+> respondieron en un hilo). Reglas que NO cambian: el autor de la pregunta no
+> comenta en su hilo (403) ni modera comentarios ajenos (solo el autor de cada
+> comentario lo borra/edita). El backend de Coyo (IA, orquestador, buscador,
+> expiración, "yo también", marcar resuelta, deep-link) no cambió.
+>
+> **Jun 2026 — rediseño "2 columnas" del frontend
 > (rail Coyo + feed con toggle Comunidad · Mis preguntas, carrusel único
 > de resultados, edición inline, modales de confirmación compactos).
 > Eliminados: página `/inicio/mis-preguntas` + su endpoint backend,
