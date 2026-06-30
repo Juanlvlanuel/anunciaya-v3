@@ -81,6 +81,7 @@ export interface ConteosRol {
 export interface MiembroEquipoFila {
     id: string;
     nombre: string;            // nombre + apellidos
+    avatarUrl: string | null;  // foto de perfil (null → iniciales)
     correo: string;
     rolEquipo: string;         // superadmin | gerente | vendedor
     estadoCuenta: string;      // activo | suspendido | inactivo
@@ -243,7 +244,7 @@ const SUB_ESTADO_EMB = sql<string | null>`(SELECT e.estado FROM embajadores e WH
 
 /** Arma la fila a partir de los campos crudos (resuelve región y datos de vendedor según el rol). */
 function aFila(f: {
-    id: string; nombre: string | null; apellidos: string | null; correo: string;
+    id: string; nombre: string | null; apellidos: string | null; avatarUrl: string | null; correo: string;
     rolEquipo: string | null; estado: string; ultimoAccesoPanel: string | null; createdAt: string | null;
     tieneContrasena: boolean; regionGerente: string | null; regionVendedor: string | null;
     ciudades: string | null; codigoReferido: string | null; estadoEmbajador: string | null;
@@ -258,6 +259,7 @@ function aFila(f: {
     return {
         id: f.id,
         nombre: nombreCompleto(f.nombre, f.apellidos),
+        avatarUrl: f.avatarUrl ?? null,
         correo: f.correo,
         rolEquipo: rol,
         estadoCuenta: f.estado,
@@ -319,6 +321,7 @@ export async function listarEquipo(filtros: FiltrosEquipo): Promise<ListaEquipo>
             id: usuarios.id,
             nombre: usuarios.nombre,
             apellidos: usuarios.apellidos,
+            avatarUrl: usuarios.avatarUrl,
             correo: usuarios.correo,
             rolEquipo: usuarios.rolEquipo,
             estado: usuarios.estado,
@@ -443,6 +446,7 @@ export async function obtenerMiembro(
             id: usuarios.id,
             nombre: usuarios.nombre,
             apellidos: usuarios.apellidos,
+            avatarUrl: usuarios.avatarUrl,
             correo: usuarios.correo,
             telefono: usuarios.telefono,
             rolEquipo: usuarios.rolEquipo,

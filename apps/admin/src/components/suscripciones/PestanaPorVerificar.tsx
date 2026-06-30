@@ -159,7 +159,7 @@ function FilaSolicitud({
     <div className="flex flex-col gap-3 bg-superficie p-3.5 lg:flex-row lg:items-center lg:gap-4" data-testid={`solicitud-fila-${s.id}`}>
       {/* Identidad */}
       <div className="flex min-w-0 flex-1 items-center gap-3">
-        <AvatarNegocio nombre={s.negocioNombre} logoUrl={null} tam={40} />
+        <AvatarNegocio nombre={s.negocioNombre} logoUrl={s.logoUrl} tam={40} />
         <div className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{s.negocioNombre}</span>
           <span className={`inline-flex items-center gap-1 text-[12.5px] ${s.correoDueno ? 'text-texto-3' : 'text-texto-4'}`}>

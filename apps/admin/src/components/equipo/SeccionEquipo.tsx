@@ -441,7 +441,7 @@ function FilaMiembro({
       style={{ gridTemplateColumns: cols }}
     >
       <span className="flex min-w-0 items-center gap-3">
-        <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={null} tam={38} />
+        <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={m.avatarUrl} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{m.nombre || '(Sin nombre)'}</span>
           <span className="truncate text-[13px] text-texto-3">{m.correo}</span>
@@ -479,7 +479,7 @@ function CardMiembro({ m, onAbrir, onPrefetch }: { m: MiembroEquipoFila; onAbrir
       onMouseEnter={onPrefetch}
       className="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie p-3 text-left transition active:bg-marca-suave"
     >
-      <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={null} tam={42} />
+      <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={m.avatarUrl} tam={42} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14.5px] font-semibold text-texto">{m.nombre || '(Sin nombre)'}</span>
         <span className="truncate text-[12.5px] font-medium text-marca">{rolLabel(m.rolEquipo)}</span>

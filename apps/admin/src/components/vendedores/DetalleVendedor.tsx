@@ -30,6 +30,7 @@ import { BadgeEstadoPago, estadoEfectivo } from '../negocios/estadoPago';
 import { AvatarNegocio } from '../negocios/avatares';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
+import { VisorImagen } from '../ui/VisorImagen';
 import { SeccionPagos } from './SeccionPagos';
 import { SeccionEfectivo } from './SeccionEfectivo';
 
@@ -118,18 +119,23 @@ function PanelIdentidad({ v }: { v: VendedorFila | VendedorDetalle }) {
         <button
           type="button"
           data-testid="vendedor-avatar"
-          onClick={() => setVerAvatar((x) => !x)}
+          onClick={() => setVerAvatar(true)}
           aria-label="Ver foto del vendedor"
           className="rounded-full transition hover:opacity-90 focus:outline-none focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
         >
-          <AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={null} tam={64} />
+          <AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={v.avatarUrl} tam={64} />
         </button>
         <span className="mt-3 text-[17px] font-bold tracking-[-0.2px] text-texto">{v.nombre || '(Sin nombre)'}</span>
         <span className="mt-2"><BadgeEmbajador estado={v.estadoEmbajador} /></span>
-        {verAvatar && (
-          <p className="mt-2 text-[11px] text-texto-4">Este vendedor aún no tiene foto de perfil.</p>
-        )}
       </div>
+
+      <VisorImagen
+        src={v.avatarUrl}
+        alt={v.nombre || v.correo}
+        abierto={verAvatar}
+        onCerrar={() => setVerAvatar(false)}
+        fallback={<AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={null} tam={200} />}
+      />
       {/* KPIs protagonistas */}
       <div className="grid grid-cols-2 border-t border-borde">
         <div className="px-3 py-4 text-center">

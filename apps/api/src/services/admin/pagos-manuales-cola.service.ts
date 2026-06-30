@@ -47,6 +47,7 @@ export interface SolicitudCola {
     id: string;
     negocioId: string;
     negocioNombre: string;
+    logoUrl: string | null;
     correoDueno: string | null;
     estadoMembresia: string;
     monto: string;
@@ -66,6 +67,7 @@ export async function listarSolicitudesPendientes(panel: UsuarioPanel): Promise<
             id: pagosManualesSolicitudes.id,
             negocioId: pagosManualesSolicitudes.negocioId,
             negocioNombre: negocios.nombre,
+            logoUrl: negocios.logoUrl,
             correoDueno: usuarios.correo,
             estadoMembresia: negocios.estadoMembresia,
             monto: pagosManualesSolicitudes.monto,
@@ -83,6 +85,7 @@ export async function listarSolicitudesPendientes(panel: UsuarioPanel): Promise<
 
     return filas.map((f) => ({
         ...f,
+        logoUrl: f.logoUrl ?? null,
         correoDueno: f.correoDueno ?? null,
         referencia: f.referencia ?? null,
         nota: f.nota ?? null,

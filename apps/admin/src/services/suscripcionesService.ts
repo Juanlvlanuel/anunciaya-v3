@@ -124,6 +124,7 @@ export interface SolicitudCola {
   id: string;
   negocioId: string;
   negocioNombre: string;
+  logoUrl: string | null;
   correoDueno: string | null;
   estadoMembresia: string;
   /** numeric → string; el front formatea en MXN. Monto DECLARADO por el dueño. */

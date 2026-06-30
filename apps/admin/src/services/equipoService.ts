@@ -37,6 +37,7 @@ export interface ConteosRol {
 export interface MiembroEquipoFila {
   id: string;
   nombre: string;
+  avatarUrl: string | null;
   correo: string;
   rolEquipo: string;          // superadmin | gerente | vendedor
   estadoCuenta: string;       // activo | suspendido | inactivo

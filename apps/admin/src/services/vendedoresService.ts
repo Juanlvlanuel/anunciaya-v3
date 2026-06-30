@@ -35,6 +35,7 @@ export interface VendedorFila {
   id: string;                // usuarios.id (la persona)
   embajadorId: string;
   nombre: string;
+  avatarUrl: string | null;
   correo: string;
   codigoReferido: string;
   linkReferido: string | null;

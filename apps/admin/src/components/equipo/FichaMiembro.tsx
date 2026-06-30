@@ -21,6 +21,7 @@ import { useMiembroEquipo, useRevocarAcceso, useReactivarAcceso } from '../../ho
 import type { MiembroEquipoFila, MiembroEquipo } from '../../services/equipoService';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { VisorImagen } from '../ui/VisorImagen';
 import { AccionesFicha, type AccionFicha } from '../ui/AccionesFicha';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Dato, fecha } from '../negocios/FichaNegocio';
@@ -169,11 +170,11 @@ export function FichaMiembro({ previo, onCerrar }: FichaMiembroProps) {
           <button
             type="button"
             data-testid="ficha-miembro-avatar"
-            onClick={() => setVerAvatar((v) => !v)}
+            onClick={() => setVerAvatar(true)}
             aria-label="Avatar"
             className="shrink-0 rounded-full transition hover:opacity-90 focus:outline-none focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
           >
-            <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={null} tam={46} />
+            <AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={m.avatarUrl} tam={46} />
           </button>
           <div className="flex min-w-0 flex-1 flex-col items-start gap-1">
             <span className="truncate text-[17px] font-bold tracking-[-0.2px] text-texto" data-testid="ficha-miembro-nombre">
@@ -272,13 +273,16 @@ export function FichaMiembro({ previo, onCerrar }: FichaMiembroProps) {
             </p>
           )}
 
-          {verAvatar && (
-            <p className="mt-2 px-1 text-[11px] text-texto-4">
-              Esta cuenta no tiene foto de perfil personal todavía.
-            </p>
-          )}
         </div>
       </div>
+
+      <VisorImagen
+        src={m.avatarUrl}
+        alt={m.nombre || m.correo}
+        abierto={verAvatar}
+        onCerrar={() => setVerAvatar(false)}
+        fallback={<AvatarUsuario nombre={m.nombre || m.correo} avatarUrl={null} tam={200} />}
+      />
     </ModalAdaptativo>
 
     {dialogo === 'editar' && (

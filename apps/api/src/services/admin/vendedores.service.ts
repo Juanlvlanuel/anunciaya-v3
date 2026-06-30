@@ -68,6 +68,7 @@ export interface VendedorFila {
     id: string;                 // usuarios.id (la persona; consistente con Equipo)
     embajadorId: string;        // embajadores.id (para la cartera/atribución)
     nombre: string;             // nombre + apellidos
+    avatarUrl: string | null;   // foto de perfil (null → iniciales)
     correo: string;
     codigoReferido: string;
     linkReferido: string | null;
@@ -232,7 +233,7 @@ function ordenarPor(orden?: OrdenVendedores): SQL[] {
 
 /** Arma una fila de vendedor a partir de los campos crudos. */
 function aFila(f: {
-    id: string; embajadorId: string; nombre: string | null; apellidos: string | null; correo: string;
+    id: string; embajadorId: string; nombre: string | null; apellidos: string | null; avatarUrl: string | null; correo: string;
     codigoReferido: string; estadoEmbajador: string; regionNombre: string | null; ciudades: string | null;
     negociosEnCartera: number; negociosActivos: number;
 }): VendedorFila {
@@ -240,6 +241,7 @@ function aFila(f: {
         id: f.id,
         embajadorId: f.embajadorId,
         nombre: nombreCompleto(f.nombre, f.apellidos),
+        avatarUrl: f.avatarUrl ?? null,
         correo: f.correo,
         codigoReferido: f.codigoReferido,
         linkReferido: linkDeReferido(f.codigoReferido),
@@ -307,6 +309,7 @@ export async function listarVendedores(panel: UsuarioPanel, filtros: FiltrosVend
             embajadorId: embajadores.id,
             nombre: usuarios.nombre,
             apellidos: usuarios.apellidos,
+            avatarUrl: usuarios.avatarUrl,
             correo: usuarios.correo,
             codigoReferido: embajadores.codigoReferido,
             estadoEmbajador: embajadores.estado,
@@ -359,6 +362,7 @@ async function leerVendedor(panel: UsuarioPanel, usuarioId: string): Promise<Ven
             embajadorId: embajadores.id,
             nombre: usuarios.nombre,
             apellidos: usuarios.apellidos,
+            avatarUrl: usuarios.avatarUrl,
             correo: usuarios.correo,
             telefono: usuarios.telefono,
             codigoReferido: embajadores.codigoReferido,

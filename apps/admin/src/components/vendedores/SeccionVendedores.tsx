@@ -36,6 +36,7 @@ function placeholderDesdeFiltro(f: { usuarioId?: string; embajadorId?: string; n
     id: f.usuarioId ?? '',
     embajadorId: f.embajadorId ?? '',
     nombre: f.nombre ?? '',
+    avatarUrl: null,
     correo: '',
     codigoReferido: '',
     linkReferido: null,
@@ -402,7 +403,7 @@ function FilaVendedor({ v, cols, onAbrir, onPrefetch }: { v: VendedorFila; cols:
       style={{ gridTemplateColumns: cols }}
     >
       <span className="flex min-w-0 items-center gap-3">
-        <AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={null} tam={38} />
+        <AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={v.avatarUrl} tam={38} />
         <span className="flex min-w-0 flex-col">
           <span className="truncate text-[14px] font-semibold text-texto">{v.nombre || '(Sin nombre)'}</span>
           <span className="truncate text-[13px] text-texto-3">{v.correo}</span>
@@ -437,7 +438,7 @@ function CardVendedor({ v, onAbrir, onPrefetch }: { v: VendedorFila; onAbrir: ()
       onMouseEnter={onPrefetch}
       className="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie p-3 text-left transition active:bg-marca-suave"
     >
-      <AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={null} tam={42} />
+      <AvatarUsuario nombre={v.nombre || v.correo} avatarUrl={v.avatarUrl} tam={42} />
       <span className="flex min-w-0 flex-1 flex-col gap-0.5">
         <span className="truncate text-[14px] font-semibold text-texto">{v.nombre || '(Sin nombre)'}</span>
         <span className="truncate text-[13.5px] text-texto-3">{v.regionNombre ?? '—'}</span>

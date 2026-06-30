@@ -162,7 +162,7 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         UNION ALL
         SELECT 'publicidad'::text AS origen, pc.id::text AS id, pc.folio,
                pc.negocio_id::text AS negocio_id,
-               COALESCE(n3.nombre, TRIM(CONCAT(u.nombre,' ',COALESCE(u.apellidos,'')))) AS titular, n3.logo_url,
+               COALESCE(n3.nombre, TRIM(CONCAT(u.nombre,' ',COALESCE(u.apellidos,'')))) AS titular, COALESCE(n3.logo_url, u.avatar_url) AS logo_url,
                NULL AS ciudad, pc.metodo_cobro AS concepto, pc.monto::text AS monto,
                pc.created_at::text AS fecha_pago, pc.expira_at::text AS periodo_hasta,
                u.correo, NULL AS registrado_por, false AS anulado
