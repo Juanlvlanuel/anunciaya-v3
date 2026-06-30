@@ -261,7 +261,7 @@ gestionan en "Equipo y accesos").
 > ficha te avisa que es dueño de un negocio.
 
 ### Reactivar *(moderación — solo superadmin)*
-**Para qué:** deshacer una suspensión. La cuenta vuelve a poder entrar. Motivo opcional.
+**Para qué:** devolver el acceso a una cuenta no-activa — una **suspensión** (moderación) o una **baja voluntaria** del usuario (`estado='inactivo'`, desde Seguridad → Eliminar cuenta). La cuenta vuelve a poder entrar. Motivo opcional.
 
 ---
 
@@ -314,8 +314,9 @@ No. Suspender solo bloquea el **login** de la persona. Su negocio sigue su propi
 app. Apagar el negocio es "Pausar", en el módulo Negocios.
 
 **¿Puedo borrar una cuenta?**
-No hay "borrar". La baja es **Suspender** (reversible, conserva todo). El borrado real de datos
-(privacidad/LFPDPPP) es una mejora futura.
+No hay "borrar" desde el Panel. La baja por moderación es **Suspender**; el propio usuario puede
+darse de baja desde su perfil (deja la cuenta `inactivo`). Ambas son reversibles con **Reactivar**
+y conservan todo. El borrado real de datos (privacidad/LFPDPPP) es una mejora futura.
 
 **El superadmin, ¿aparece dentro de una región con la lente?**
 No. El superadmin no pertenece a ninguna región; solo se ve con "Toda la plataforma".
@@ -441,9 +442,11 @@ Las escrituras viven en `usuarios-acciones.service.ts`. Cada una carga la cuenta
   si ya está suspendida (409). El login corta a las cuentas no-activas.
 - **`reactivarUsuario`** (solo super): `estado='activo'` + `fecha_cambio_estado` + `motivo_cambio_estado`. 409 si ya activa. (El "cuándo" de la reactivación queda en `fecha_cambio_estado` y en la auditoría `usuario_reactivar`.)
 
-**Estado de la cuenta** (`activo` / `suspendido` / `inactivo`): el badge usa
-`metaEstadoUsuario`. `inactivo` se reserva para una baja voluntaria futura (no es un botón). La
-única palanca hoy es Suspender ↔ Reactivar.
+**Estado de la cuenta** (`activo` / `suspendido` / `inactivo`): el badge usa `metaEstadoUsuario`.
+`suspendido` = baja por moderación (Suspender); `inactivo` = **baja voluntaria del usuario**
+(`POST /auth/eliminar-cuenta`, Seguridad → Eliminar cuenta; soft-delete que conserva los datos).
+El botón **Reactivar** aplica a **ambas** (cualquier `estado !== 'activo'`) y las devuelve a
+`activo`; **Suspender** solo se ofrece sobre cuentas activas. (UI: `FichaUsuario.tsx`, flag `noActiva`.)
 
 ## E. El expediente — qué expone (sin secretos)
 
@@ -534,7 +537,7 @@ visibilidad por región (ver §6). Acoplarlo a la visibilidad del cliente es V2.
 
 ---
 
-*Última actualización: 19 Junio 2026 · migración ciudad→catálogo **completada** para `usuarios`
+*Última actualización: 29 Junio 2026 · el botón **Reactivar** ahora cubre las bajas voluntarias del usuario (`estado='inactivo'`, no solo suspensiones) — `FichaUsuario.tsx` decide con `estado !== 'activo'`. Antes (19 Junio 2026): migración ciudad→catálogo **completada** para `usuarios`
 (expand→migrate→contract): la ciudad se lee solo del catálogo vía `ciudad_id` (expediente, filtro y
 métrica); el texto `usuarios.ciudad` se DROPeó en DEV y el DROP en PROD queda como último paso (ver
 §12, Apéndice G y Apéndice I). Antes (16 Jun 2026): agrega medición/filtrado por ciudad

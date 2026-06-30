@@ -180,7 +180,8 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
   const reactivar = useReactivarUsuario();
 
   const bloqueado = d.bloqueadoPorIntentos;
-  const suspendido = u.estado === 'suspendido';
+  // Cualquier cuenta no-activa (suspendida por moderación o inactiva por baja del usuario) se puede reactivar.
+  const noActiva = u.estado !== 'activo';
   const esEquipo = !!s.rolEquipo;
 
   // Razones por las que NO puede iniciar sesión (derivadas del diagnóstico).
@@ -220,7 +221,7 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
     });
     if (esSuperadmin && !esEquipo) {
       acciones.push(
-        suspendido
+        noActiva
           ? {
               icono: PlayCircle,
               etiqueta: 'Reactivar cuenta',
