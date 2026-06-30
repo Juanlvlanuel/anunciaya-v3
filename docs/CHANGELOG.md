@@ -8,6 +8,29 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [30 Junio 2026] - Panel · módulo "Categorías" (catálogo de giros + disponibilidad por ciudad) 🏷️🗺️
+
+Nuevo módulo del Panel Admin (solo SuperAdmin, **módulo 14**): gestiona el catálogo de **giros** —categorías y subcategorías de negocio— sin SQL, y decide **en qué ciudades** aparece cada uno. Calcado de Ciudades. Commit `65e388f`, en prod. Doc: `docs/arquitectura/Panel_Admin/Categorias.md`.
+
+### Agregado
+
+- **CRUD del catálogo desde el Panel** — crear/editar/activar-desactivar categorías y subcategorías (lista densa estilo tabla, con buscador y filtro de estado). "Quitar" = **desactivar** (nunca borra; conserva la integridad con los negocios ya clasificados).
+- **Disponibilidad por ciudad** — 2 tablas N:M nuevas (`categoria_ciudades`, `subcategoria_ciudades`). Regla: sin filas = **global** (todas las ciudades); con filas = solo esas. Una subcategoría solo puede estar donde su categoría también esté. Migración `2026-06-29-catalogo-categorias-por-ciudad.sql` (dev+prod).
+- **Endpoint público filtra por ciudad** — `GET /api/categorias[/:id/subcategorias]` acepta `?ciudadId=` (retrocompatible); el **filtro de Negocios** (`apps/web`) pasa la ciudad activa del usuario (`resolverCiudadId`).
+- **Auto-poblado por demanda** — si un comercio se clasifica (onboarding / Business Studio) en una cat/sub **acotada** cuya ciudad no estaba incluida, **se permite y su ciudad se habilita automáticamente** (`autohabilitarCatalogoPorCiudad`). Evita reordenar el wizard de alta.
+- **12ª categoría "Bienes Raíces"** + 8 subcategorías (Inmobiliarias · Agentes/Asesores · Venta de Casas y Departamentos · Terrenos y Lotes · Renta de Inmuebles · Desarrolladoras · Administración de Propiedades · Avalúos). Migración `2026-06-29-categoria-bienes-raices.sql`.
+
+### Cambiado / Limpieza
+
+- **Emojis del catálogo eliminados** — la app web nunca renderizó el `icono` (mostraba un placeholder). Se quitó de la UI (tabla + modales), del ORM, del endpoint público, de `negocios.service`/`ofertas.service` (que lo serializaban en la categoría) y de los tipos. Columna `icono` **DROPeada** en dev+prod (`2026-06-29-drop-catalogo-icono.sql`, fase contract tras el deploy).
+- **Auditoría** — ~12 acciones nuevas (`categoria_*` / `subcategoria_*`) humanizadas en el diccionario de presentación; el id va en los datos (no en `entidad_id`, que es uuid).
+
+### Nota operativa
+
+- El DROP de `icono` se corrió en PROD **antes** del deploy del código que dejaba de leerla → caída breve de Negocios/Ofertas/Categorías hasta el deploy de `65e388f`. Lección: un contract-DROP va siempre **después** del deploy.
+
+---
+
 ## [29 Junio 2026] - Mi Perfil: tabs Datos Personales y Seguridad ✅ (Modo Personal completo)
 
 Se construyeron los **dos tabs restantes** de **Mi Perfil** (`apps/web`, `/perfil`), dejando la página completa con sus 3 tabs. Doc canónico: `docs/arquitectura/Mi_Perfil.md`. Commits `23efa53` y `0738fbe`. **Pendiente QA E2E a mano.**
@@ -42,6 +65,18 @@ Se **construyó y cerró (QA E2E)** la sección **Membresía y Pagos** de **Mi P
 - **Fix (admin) — scroll interno** del historial de pagos en la ficha de negocio del Panel (datos fijos + recibos con scroll propio en PC).
 
 Migración `2026-06-27-pagos-manuales-solicitudes.sql` corrida en prod. Backend `services/membresia.service.ts`, `services/admin/pagos-manuales-cola.service.ts`, `services/pago.service.ts`, `services/suscripciones/eventos-pago.ts`; web `pages/private/perfil/`; Panel `components/suscripciones/`. `tsc` api verde. Commit `d6f8acb`, desplegado. **Pendientes:** configurar datos de depósito + Customer Portal en Stripe live; tabs Datos Personales/Seguridad (placeholders).
+
+---
+
+## [27 Junio 2026] - Panel · módulo "Territorios" (mapa de la red de ventas) 🗺️📍
+
+Módulo 13 del Panel ("Red de ventas"): el SuperAdmin/Gerente **dibuja zonas** en el mapa y se las asigna a vendedores; el vendedor ve "Mi territorio". GATE 2 visual validado el 27 jun. Doc: `docs/arquitectura/Panel_Admin/Territorios.md`.
+
+### Agregado
+
+- **G.1 — Zonas** — el super/gerente dibuja particiones del mapa (polígonos **GeoJSON en `jsonb`, sin PostGIS**) con snapping a calles + editor de vértices, no-traslape validado con turf, y las asigna a un vendedor (NULL = sin asignar).
+- **G.2 — "Mi territorio" del vendedor** — ve solo su zona (resto enmascarado) y siembra **marcas** de prospección (pines con estado visitado/interesado/cerrado/sin-interés + nota). El gerente/super ve las marcas de sus vendedores + los negocios reales en lectura.
+- 2 tablas nuevas (`territorio_zonas`, `territorio_marcas`) en dev+prod. + ronda de pulido UX móvil (26 jun): mapa fijo al viewport, pines-símbolo, tarjeta de detalle por portal, FABs, cards inline.
 
 ---
 
@@ -87,6 +122,16 @@ Nuevo **módulo 7 del Panel Admin** (`apps/admin`) + su **superficie pública** 
 **Recibo de publicidad propio:** el correo usa la plantilla rica (banner + bloque-recibo) como membresía, y el PDF usa un molde propio `plantilla-recibo-publicidad.pdf` (seleccionable por `tipoRecibo`, con fallback) con el campo **Periodo** poblado (meses por adelantado). **CORS R2** ya cubría el bucket (el Panel se agregó con Vendedores; la app ya subía imágenes).
 
 Backend `services/admin/publicidad*` + `publicidad-{precio,checkout,mantenimiento}.service` + `publicidadPublica.*`; front Panel `components/publicidad/*` + web `PaginaAnunciate.tsx`/`ColumnaDerecha.tsx`. Harness `probar-publicidad-*` verdes + `tsc` api/admin/web. Docs: `Panel_Admin/Publicidad.md` + `Publicidad_Pendientes.md`.
+
+---
+
+## [21 Junio 2026] - Panel · módulo "Mantenimiento" (centro de operación técnica) 🛠️
+
+Segundo medio del módulo "Sistema" (junto a Auditoría), módulo 11: centro técnico del SuperAdmin en 4 pestañas. Doc: `docs/arquitectura/Panel_Admin/Mantenimiento.md`.
+
+### Agregado
+
+- **Salud** (semáforos BD/Redis/R2/Stripe + latencia), **Tareas programadas** (los crons con cadencia + última corrida + ejecutar ahora con **preview** de qué procesaría), **Logs del BE** (ventana en memoria con filtro/pausa + exportar/vaciar) y **Recolector R2** (analizar + ejecutar limpieza **blindada por cross-ambiente**: solo borra con acceso local; en prod queda bloqueado con aviso). 5 acciones, todas auditadas. Sin migración (lectura/estado en memoria).
 
 ---
 
