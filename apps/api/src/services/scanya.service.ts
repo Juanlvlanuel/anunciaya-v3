@@ -1566,6 +1566,7 @@ export async function identificarCliente(
                 apellidos: usuarios.apellidos,
                 avatarUrl: usuarios.avatarUrl,
                 telefono: usuarios.telefono,
+                estado: usuarios.estado,
             })
             .from(usuarios)
             .where(
@@ -1582,6 +1583,15 @@ export async function identificarCliente(
                 success: false,
                 message: 'Cliente no registrado en AnunciaYA',
                 code: 404,
+            };
+        }
+
+        // Una cuenta dada de baja (inactiva) o suspendida no participa en el programa de puntos.
+        if (cliente.estado !== 'activo') {
+            return {
+                success: false,
+                message: 'La cuenta de este cliente no está activa.',
+                code: 403,
             };
         }
 
@@ -2007,6 +2017,7 @@ export async function otorgarPuntos(
                 nombre: usuarios.nombre,
                 apellidos: usuarios.apellidos,
                 avatarUrl: usuarios.avatarUrl,
+                estado: usuarios.estado,
             })
             .from(usuarios)
             .where(eq(usuarios.id, datos.clienteId))
@@ -2017,6 +2028,15 @@ export async function otorgarPuntos(
                 success: false,
                 message: 'Cliente no encontrado',
                 code: 404,
+            };
+        }
+
+        // Una cuenta dada de baja (inactiva) o suspendida no puede acumular puntos.
+        if (cliente.estado !== 'activo') {
+            return {
+                success: false,
+                message: 'La cuenta de este cliente no está activa; no puede acumular puntos.',
+                code: 403,
             };
         }
 
@@ -3075,6 +3095,21 @@ export async function validarVoucher(
             return {
                 success: false,
                 message: 'Este voucher no pertenece al usuario indicado',
+                code: 403,
+            };
+        }
+
+        // La cuenta del cliente debe estar activa: una cuenta dada de baja (inactiva) o
+        // suspendida no participa en el programa de puntos, así que su voucher no se canjea.
+        const [duenoVoucher] = await db
+            .select({ estado: usuarios.estado })
+            .from(usuarios)
+            .where(eq(usuarios.id, usuarioIdVoucher))
+            .limit(1);
+        if (duenoVoucher && duenoVoucher.estado !== 'activo') {
+            return {
+                success: false,
+                message: 'La cuenta de este cliente no está activa; el voucher no puede canjearse.',
                 code: 403,
             };
         }

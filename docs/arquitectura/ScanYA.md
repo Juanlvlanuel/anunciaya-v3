@@ -455,6 +455,20 @@ Cuando el dueño desactiva una sucursal desde Business Studio (`negocio_sucursal
 
 ---
 
+## 🚫 Bloqueo de puntos/canje a cuentas no-activas
+
+Un cliente cuya cuenta **no está activa** (`usuarios.estado !== 'activo'`) — porque la **dio de baja** él mismo (Mi Perfil → Seguridad → Eliminar cuenta → `'inactivo'`) o porque un admin la **suspendió** (`'suspendido'`) — **no participa en el programa de puntos**: ni acumula ni canjea. El cliente **no inicia sesión** en ScanYA (lo identifica el cajero por teléfono/QR), así que su estado **no lo cubre el login**; por eso la validación va en el propio servicio.
+
+| Función (`services/scanya.service.ts`) | Cuándo | Respuesta si la cuenta no está activa |
+|---|---|---|
+| `identificarCliente` | el cajero busca al cliente por teléfono (paso previo) | `403` — *"La cuenta de este cliente no está activa."* |
+| `otorgarPuntos` | al registrar la venta y acumular puntos | `403` — *"…no puede acumular puntos."* |
+| `validarVoucher` | al entregar/canjear una recompensa | `403` — *"…el voucher no puede canjearse."* |
+
+**Implementación:** cada función ya cargaba al cliente; solo se agregó `usuarios.estado` al `SELECT` existente + un guard `estado !== 'activo'` (sin consulta extra). El mensaje al cajero es **genérico** ("no está activa"), sin distinguir baja voluntaria de suspensión (privacidad). Para devolver el acceso, un superadmin **reactiva** la cuenta desde el Panel → Usuarios (ver [`Panel_Admin/Usuarios.md`](Panel_Admin/Usuarios.md)).
+
+---
+
 ## 🧹 Limpieza de notificaciones de voucher al canjearse
 
 Cuando CardYA genera un voucher, emite una notificación `tipo = 'voucher_pendiente'` a dueño + gerentes del negocio (ver `docs/arquitectura/CardYA.md`). Esa notificación queda en el panel hasta que el voucher se entregue.
