@@ -28,6 +28,8 @@
 21. [Carrusel con Drag-to-Scroll (estándar de la app)](#21-carrusel-con-drag-to-scroll-estándar-de-la-app)
 22. [Modales contenidos en preview (PortalTargetContext)](#22-modales-contenidos-en-preview-portaltargetcontext)
 23. [Lightbox / Modal de Imágenes — Indicadores y Botones Flotantes](#23-lightbox--modal-de-imágenes--indicadores-y-botones-flotantes)
+24. [DatePicker (Calendario)](#24-datepicker-calendario)
+25. [Highlight de Foco en Inputs y Selects](#25-highlight-de-foco-en-inputs-y-selects)
 
 ---
 
@@ -1928,3 +1930,68 @@ Botones circulares con sombra, semi-transparentes, que flotan sobre la imagen en
 - Imágenes individuales sin paginación (no necesitan badge).
 - Iconos de UI generales (usar tokens de íconos estándar).
 - Cards estáticas (la jerarquía visual del card ya delimita la imagen).
+
+---
+
+## 24. DatePicker (Calendario)
+
+Componente `apps/web/src/components/ui/DatePicker.tsx`. Selector de fecha en portal (`createPortal` a `document.body`), usado en Ofertas, Reportes y Mi Perfil (Fecha de nacimiento). Rediseñado el 29 jun 2026.
+
+### Navegación por niveles (día → mes → año)
+
+El título del header es clickeable y **sube de nivel**: días → meses → años. Las flechas `‹ ›` avanzan según la vista activa (mes / año / bloque de 12 años). Click en un año vuelve a meses; click en un mes vuelve a días. Al **reabrir** siempre arranca en la vista de días. Pensado para fechas lejanas (ej. nacimiento) sin cientos de clics mes a mes.
+
+### Estilo (tamaños FIJOS, no escalado proporcional)
+
+- Contenedor: `rounded-2xl p-3 shadow-[0_12px_48px_-8px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 border border-slate-100`.
+- **Ancho = ancho del input** (`rect.width`, acotado 264–360px). NO un ancho fijo arbitrario — el calendario nunca debe sobresalir del input.
+- Header: flechas en botones `w-8 h-8 rounded-lg hover:bg-slate-100`; título `text-lg font-bold` (un escalón sobre los días).
+- Encabezados de día (Do, Lu…): `text-xs font-semibold text-slate-400`.
+- Días: `aspect-square rounded-lg text-base`; hover `hover:bg-slate-100`.
+- **Seleccionado** (día/mes/año): `bg-slate-800 text-white font-semibold shadow-sm shadow-slate-900/30` → acento **slate de marca, NO azul**.
+- **Hoy**: `ring-1 ring-inset ring-slate-300 font-bold` (anillo sutil, sin fondo) — distinto del seleccionado.
+- Botones de mes/año: `grid grid-cols-3 gap-1.5`, cada uno `py-2 rounded-lg text-base`.
+- Footer (Limpiar / Hoy): **solo en la vista de días**, `border-t border-slate-100`, botones `rounded-lg` (Hoy en `bg-slate-100`).
+- Único azul permitido: el borde del **input** al estar abierto (`border-blue-600`), que es el color de foco estándar (ver §25).
+
+### Props relevantes
+
+- `iconoIzquierda` — icono de calendario a la izquierda (estilo Correo/Ciudad) en vez de la derecha.
+- `centradoEnMovil` — en móvil abre como modal centrado con backdrop en vez de dropdown.
+- `maxDate` / `minDate` — acotan el rango (ej. `maxDate = hoy` para fecha de nacimiento).
+
+### Cierre robusto (no debe cerrarse solo)
+
+El click-fuera usa **`composedPath()`** (no `contains(target)`, que falla cuando el botón clicado se re-renderiza al cambiar de vista) + un **grace period** de un frame (`requestAnimationFrame`) para que el mismo click que abre no lo cierre. Listener `pointerdown` en captura. **NO** se cierra por scroll (el `scroll` con `capture:true` disparaba cierres espurios con la inercia del trackpad).
+
+---
+
+## 25. Highlight de Foco en Inputs y Selects
+
+Estado **de foco** (o abierto/activo) unificado para todos los inputs, selects y controles tipo input: **borde azul + halo (ring)**.
+
+```
+focus:border-blue-600 focus:ring-2 focus:ring-blue-300                       ← en <input>
+focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-300   ← en contenedores con input adentro
+```
+
+Siempre con `transition-colors` y `focus:outline-none`. En estados de validación el `ring` toma el color del estado: `focus:ring-red-200` (error), `focus:ring-emerald-200` (ok), `focus:ring-amber-200` (typo).
+
+### ⚠️ Un `box-shadow` inline tapa el `ring`
+
+El `ring` de Tailwind ES un `box-shadow`. Si el elemento tiene `style={{ boxShadow: ... }}` **inline**, este reemplaza por completo el box-shadow y **el ring no aparece** (se ve el borde azul, pero sin halo). Solución: mover cualquier sombra (ej. inset) a clases (`shadow-[inset_…]`), donde Tailwind la combina con el ring vía variables CSS. Caso real corregido: `InputTelefono`.
+
+### Props de componentes compartidos (variar por módulo sin romper otros)
+
+Aceptan props opcionales (default = comportamiento histórico) para unificar por módulo sin afectar el resto de la app:
+
+| Componente | Prop | Para |
+|---|---|---|
+| `InputTelefono` | `claseAlto`, `claseTexto` | igualar altura/texto al resto de inputs |
+| `CustomSelect` | `claseControl` (padding/altura), `claseActivo` (borde+ring abierto) | BS sigue slate; Mi Perfil pasa azul |
+| `InputCorreoValidado` | `claseAlto`, `claseTexto`, `mensajeDisponible` | igualar tamaño + texto de éxito por contexto |
+| `DatePicker` | `iconoIzquierda` | icono a la izquierda |
+
+**Regla del select abierto:** `hover:border-slate-400` solo aplica **cerrado** → `open ? claseActivo : 'border-slate-300 hover:border-slate-400'`, para que el hover no pise el borde activo estando abierto.
+
+**Referencia de implementación:** los 8 campos de Mi Perfil → Datos Personales y todos los inputs de Seguridad usan este patrón con altura `h-11 lg:h-10 2xl:h-11` y texto `text-base lg:text-sm 2xl:text-base`.

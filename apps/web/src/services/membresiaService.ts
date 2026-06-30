@@ -75,10 +75,27 @@ export interface SolicitudRechazada {
     fecha: string | null;
 }
 
+/** Una campaña de publicidad del usuario (espejo de apps/api PublicidadCompra). */
+export interface PublicidadCompra {
+    id: string;
+    estado: string;              // activa | pausada | expirada | cancelada
+    esCombo: boolean;
+    origen: string;              // self | manual | cortesia
+    monto: string | null;
+    folio: number | null;
+    reciboUrl: string | null;
+    iniciaAt: string | null;
+    expiraAt: string | null;
+    carruseles: string[];        // 'patrocinadores' (Grande) | 'anuncios' (Chico) | 'fundadores'
+    ciudades: string[];
+}
+
 export interface MiMembresia {
     tieneNegocio: boolean;
     /** ¿Tiene publicidad pagada o de cortesía vigente? (anuncios de la columna derecha). */
     tienePublicidad: boolean;
+    /** Campañas de publicidad del usuario (activas + historial). */
+    publicidad: PublicidadCompra[];
     solicitudPendiente: SolicitudPendiente | null;
     ultimoRechazo: UltimoRechazo | null;
     solicitudesRechazadas: SolicitudRechazada[];

@@ -30,6 +30,7 @@ import { cambiarAPagoManual, cambiarATarjeta, crearSesionPortal, obtenerUrlRecib
 import type { EstadoMembresia, ReciboMembresia, SolicitudRechazada } from '../../../services/membresiaService';
 import notificar from '../../../utils/notificaciones';
 import SeccionPagoManual from './components/SeccionPagoManual';
+import SeccionMiPublicidad from './components/SeccionMiPublicidad';
 import TabDatosPersonales from './components/TabDatosPersonales';
 import TabSeguridad from './components/TabSeguridad';
 import Tooltip from '@/components/ui/Tooltip';
@@ -127,8 +128,12 @@ export default function PaginaPerfilPersonal() {
     // El tab "Membresía y Pagos" solo aparece si el usuario tiene negocio comercial o
     // publicidad pagada/vigente; un usuario puramente personal no lo ve. Mientras carga
     // (data aún undefined) se oculta hasta confirmarlo.
-    const mostrarMembresia = !!data && (data.tieneNegocio || data.tienePublicidad);
-    const tabsVisibles = TABS_PERFIL.filter((t) => t.id !== 'membresia' || mostrarMembresia);
+    const mostrarMembresia = !!data && (data.tieneNegocio || data.publicidad.length > 0);
+    // El label del tab cambia según el tipo de cuenta: "Membresía y Pagos" para cuentas
+    // comerciales (con negocio); solo "Pagos" para cuentas personales que únicamente anuncian.
+    const tabsVisibles = TABS_PERFIL
+        .filter((t) => t.id !== 'membresia' || mostrarMembresia)
+        .map((t) => (t.id === 'membresia' && !data?.tieneNegocio ? { ...t, label: 'Pagos' } : t));
     const tabActivoEfectivo: TabPerfil = tabActivo === 'membresia' && !mostrarMembresia ? 'datos' : tabActivo;
 
     async function activarTarjeta() {
@@ -354,7 +359,7 @@ export default function PaginaPerfilPersonal() {
                                                         : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-blue-400/60',
                                                 ].join(' ')}
                                             >
-                                                <Icono className="w-4 h-4" strokeWidth={2.5} />
+                                                <Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
                                                 <span>{label}</span>
                                             </button>
                                         );
@@ -380,7 +385,7 @@ export default function PaginaPerfilPersonal() {
                     {/* Error */}
                     {isError && (
                         <div className="rounded-xl bg-white border border-slate-300 shadow-sm p-5 text-center">
-                            <p className="text-sm text-slate-600 mb-3">No se pudo cargar tu membresía.</p>
+                            <p className="text-sm font-medium text-slate-600 mb-3">No se pudo cargar tu membresía.</p>
                             <button
                                 onClick={() => refetch()}
                                 className="text-sm font-semibold text-blue-700 hover:text-blue-800 cursor-pointer"
@@ -390,17 +395,21 @@ export default function PaginaPerfilPersonal() {
                         </div>
                     )}
 
-                    {/* Sin negocio */}
+                    {/* Sin negocio: si tiene publicidad muestra sus campañas; si no, el aviso. */}
                     {!isPending && !isError && data && !data.tieneNegocio && (
-                        <div
-                            data-testid="membresia-sin-negocio"
-                            className="rounded-xl bg-white border border-slate-300 shadow-sm p-6 text-center"
-                        >
-                            <p className="text-sm font-medium text-slate-700">No tienes una membresía comercial.</p>
-                            <p className="text-sm text-slate-600 mt-1">
-                                Cuando registres tu negocio, aquí verás el estado de tu membresía y tus recibos.
-                            </p>
-                        </div>
+                        data.publicidad.length > 0 ? (
+                            <SeccionMiPublicidad publicidad={data.publicidad} />
+                        ) : (
+                            <div
+                                data-testid="membresia-sin-negocio"
+                                className="rounded-xl bg-white border border-slate-300 shadow-sm p-6 text-center"
+                            >
+                                <p className="text-sm font-medium text-slate-700">No tienes una membresía comercial.</p>
+                                <p className="text-sm font-medium text-slate-600 mt-1">
+                                    Cuando registres tu negocio, aquí verás el estado de tu membresía y tus recibos.
+                                </p>
+                            </div>
+                        )
                     )}
 
                     {/* Con negocio — layout de 2 columnas en desktop (estado+acciones / recibos) */}
@@ -513,7 +522,7 @@ export default function PaginaPerfilPersonal() {
                                                         style={{ background: GRADIENTE_MARCA }}
                                                         className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer text-white shadow-md disabled:opacity-60 disabled:cursor-default"
                                                     >
-                                                        {primaria.cargando ? <Loader2 className="w-4 h-4 animate-spin" /> : <CreditCard className="w-4 h-4" strokeWidth={2} />}
+                                                        {primaria.cargando ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <CreditCard className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />}
                                                         {primaria.label}
                                                     </button>
                                                 )}
@@ -530,7 +539,7 @@ export default function PaginaPerfilPersonal() {
                                                             disabled={a.cargando}
                                                             className="flex-1 flex items-center justify-center gap-2 rounded-lg px-3 py-2 lg:py-2.5 text-sm font-semibold cursor-pointer bg-white text-slate-700 border border-slate-300 lg:hover:bg-slate-200 disabled:opacity-60 disabled:cursor-default"
                                                         >
-                                                            {a.cargando ? <Loader2 className="w-4 h-4 animate-spin" /> : <a.Icono className="w-4 h-4" strokeWidth={2} />}
+                                                            {a.cargando ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <a.Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />}
                                                             {a.label}
                                                         </button>
                                                     ))}
@@ -554,7 +563,7 @@ export default function PaginaPerfilPersonal() {
                             <div className="lg:col-span-2">
                                 <div className="rounded-xl bg-white border border-slate-300 shadow-sm overflow-hidden">
                                     <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-                                        <FileText className="w-4 h-4 text-slate-500" strokeWidth={2} />
+                                        <FileText className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-500" strokeWidth={2} />
                                         <p className="text-sm font-bold text-slate-800">Historial de pagos</p>
                                     </div>
                                     {(() => {
@@ -568,7 +577,7 @@ export default function PaginaPerfilPersonal() {
 
                                         if (items.length === 0) {
                                             return (
-                                                <div className="p-6 text-center text-sm text-slate-600">
+                                                <div className="p-6 text-center text-sm font-medium text-slate-600">
                                                     Aún no tienes pagos.
                                                 </div>
                                             );
@@ -588,16 +597,16 @@ export default function PaginaPerfilPersonal() {
                                                                         {formatearFolio(it.recibo.folio)}
                                                                     </span>
                                                                     {it.recibo.anulado ? (
-                                                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                                                                        <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
                                                                             Anulado
                                                                         </span>
                                                                     ) : (
-                                                                        <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
+                                                                        <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
                                                                             <CheckCircle className="w-3 h-3" strokeWidth={2.5} /> Pagado
                                                                         </span>
                                                                     )}
                                                                 </div>
-                                                                <p className="text-xs text-slate-600">
+                                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                                                                     {CONCEPTO_TEXTO[it.recibo.concepto] ?? it.recibo.concepto} ·{' '}
                                                                     {formatearFecha(it.recibo.fechaPago)}
                                                                 </p>
@@ -614,9 +623,9 @@ export default function PaginaPerfilPersonal() {
                                                                     className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
                                                                 >
                                                                     {descargandoId === it.recibo.id ? (
-                                                                        <Loader2 className="w-4 h-4 animate-spin" />
+                                                                        <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />
                                                                     ) : (
-                                                                        <Download className="w-4 h-4" strokeWidth={2} />
+                                                                        <Download className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                                                                     )}
                                                                 </button>
                                                             </Tooltip>
@@ -628,14 +637,14 @@ export default function PaginaPerfilPersonal() {
                                                             className="flex items-start gap-3 px-4 py-3"
                                                         >
                                                             <div className="min-w-0 flex-1">
-                                                                <span className="inline-flex items-center gap-1 text-xs font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                                                                <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
                                                                     <XCircle className="w-3 h-3" strokeWidth={2.5} /> Rechazado
                                                                 </span>
-                                                                <p className="text-xs text-slate-600 mt-1">
+                                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1">
                                                                     Transferencia · {formatearFecha(it.rechazo.fecha)}
                                                                 </p>
                                                                 {it.rechazo.motivo && (
-                                                                    <p className="text-xs text-red-700 mt-0.5">Motivo: {it.rechazo.motivo}</p>
+                                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-0.5">Motivo: {it.rechazo.motivo}</p>
                                                                 )}
                                                             </div>
                                                             <span className="text-sm font-semibold text-slate-500 line-through shrink-0">
@@ -649,7 +658,7 @@ export default function PaginaPerfilPersonal() {
                                                                     aria-label="Ver comprobante"
                                                                     className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer shrink-0"
                                                                 >
-                                                                    <ExternalLink className="w-4 h-4" strokeWidth={2} />
+                                                                    <ExternalLink className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                                                                 </a>
                                                             </Tooltip>
                                                         </li>
@@ -660,6 +669,13 @@ export default function PaginaPerfilPersonal() {
                                     })()}
                                 </div>
                             </div>
+                        </div>
+                    )}
+
+                    {/* Publicidad del usuario, además de su membresía (si compró anuncios) */}
+                    {!isPending && !isError && data?.tieneNegocio && data.publicidad.length > 0 && (
+                        <div className="mt-6">
+                            <SeccionMiPublicidad publicidad={data.publicidad} />
                         </div>
                     )}
                 </section>
@@ -685,7 +701,7 @@ export default function PaginaPerfilPersonal() {
 
                     {/* Fecha de vigencia destacada */}
                     <div className="flex items-center gap-2.5 rounded-lg bg-slate-100 border border-slate-300 px-3 py-2.5">
-                        <CalendarCheck className="w-4 h-4 text-slate-600 shrink-0" strokeWidth={2} />
+                        <CalendarCheck className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0" strokeWidth={2} />
                         <p className="text-sm font-medium text-slate-700">
                             Activa hasta el{' '}
                             <span className="font-bold text-slate-800">
@@ -709,7 +725,7 @@ export default function PaginaPerfilPersonal() {
                                     key={label}
                                     className="inline-flex items-center gap-1.5 rounded-full bg-white border border-slate-300 px-2.5 py-1 text-sm font-medium text-slate-700"
                                 >
-                                    <Icono className="w-4 h-4 text-slate-500" strokeWidth={2} />
+                                    <Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500" strokeWidth={2} />
                                     {label}
                                 </span>
                             ))}
@@ -731,7 +747,7 @@ export default function PaginaPerfilPersonal() {
                             style={{ background: GRADIENTE_MARCA }}
                             className="flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer text-white shadow-md disabled:opacity-60 disabled:cursor-default"
                         >
-                            {procesandoCobro && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {procesandoCobro && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                             Sí, cambiar
                         </button>
                     </div>
@@ -757,14 +773,14 @@ export default function PaginaPerfilPersonal() {
                                         Vas a activar el cobro automático con tarjeta.
                                     </p>
                                     <div className="flex items-center gap-2.5 rounded-lg bg-slate-100 border border-slate-300 px-3 py-2.5">
-                                        <CalendarCheck className="w-4 h-4 text-slate-600 shrink-0" strokeWidth={2} />
+                                        <CalendarCheck className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0" strokeWidth={2} />
                                         <p className="text-sm font-medium text-slate-700">
                                             No se te cobrará hasta el{' '}
                                             <span className="font-bold text-slate-800">{formatearFecha(vencISO)}</span> — ya
                                             tienes esa vigencia pagada.
                                         </p>
                                     </div>
-                                    <p className="text-sm text-slate-500">
+                                    <p className="text-sm font-medium text-slate-500">
                                         Stripe puede mostrarlo como “periodo gratis”; es normal: no es un cargo nuevo, solo
                                         guarda tu tarjeta para el próximo cobro.
                                     </p>
@@ -790,7 +806,7 @@ export default function PaginaPerfilPersonal() {
                                     style={{ background: GRADIENTE_MARCA }}
                                     className="flex-1 flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer text-white shadow-md disabled:opacity-60 disabled:cursor-default"
                                 >
-                                    {procesandoCobro && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {procesandoCobro && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                                     Continuar
                                 </button>
                             </div>

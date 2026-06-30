@@ -21,9 +21,15 @@ interface InputTelefonoProps {
 	disabled?: boolean;
 	testIdNumero?: string;
 	testIdLada?: string;
+	/** Clase de altura de los campos. Default coincide con el patrón histórico del componente. */
+	claseAlto?: string;
+	/** Clase de tamaño de texto de los campos. Default coincide con el patrón histórico. */
+	claseTexto?: string;
 }
 
-const ESTILO_INPUT = { border: '2px solid #cbd5e1', boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' } as const;
+// Borde + sombra interior + halo azul al enfocar. El inset va en className (no en style inline)
+// para que NO tape el ring del foco de Tailwind, así el highlight queda igual al de los demás inputs.
+const BORDE_FOCO = 'border-2 border-slate-300 shadow-[inset_0_2px_4px_rgba(0,0,0,0.05)] transition-colors focus-within:border-blue-600 focus-within:ring-2 focus-within:ring-blue-300';
 
 /**
  * Divide un string de teléfono en lada + número.
@@ -56,6 +62,8 @@ export function InputTelefono({
 	disabled = false,
 	testIdNumero,
 	testIdLada,
+	claseAlto = 'h-10 lg:h-9 2xl:h-10',
+	claseTexto = 'text-sm lg:text-xs 2xl:text-sm',
 }: InputTelefonoProps) {
 	const { lada, numero } = normalizarTelefono(value);
 
@@ -63,8 +71,7 @@ export function InputTelefono({
 		<div className="flex gap-1.5 min-w-0">
 			{/* Lada — angosta para dar más espacio al número */}
 			<div
-				className="flex items-center justify-center w-12 lg:w-11 2xl:w-12 h-10 lg:h-9 2xl:h-10 bg-white rounded-lg px-1 shrink-0 overflow-hidden"
-				style={ESTILO_INPUT}
+				className={`flex items-center justify-center w-12 lg:w-11 2xl:w-12 ${claseAlto} bg-white rounded-lg px-1 shrink-0 overflow-hidden ${BORDE_FOCO}`}
 			>
 				<input
 					id={`${prefijo}-lada`}
@@ -81,15 +88,14 @@ export function InputTelefono({
 					}}
 					placeholder="+52"
 					maxLength={4}
-					className="w-full bg-transparent outline-none text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 text-center"
+					className={`w-full bg-transparent outline-none ${claseTexto} font-medium text-slate-800 text-center`}
 					data-testid={testIdLada}
 				/>
 			</div>
 
 			{/* Número de 10 dígitos — ocupa el espacio restante */}
 			<div
-				className="flex items-center h-10 lg:h-9 2xl:h-10 bg-white rounded-lg px-3 flex-1 min-w-0 overflow-hidden"
-				style={ESTILO_INPUT}
+				className={`flex items-center ${claseAlto} bg-white rounded-lg px-3 flex-1 min-w-0 overflow-hidden ${BORDE_FOCO}`}
 			>
 				<input
 					id={`${prefijo}-numero`}
@@ -104,7 +110,7 @@ export function InputTelefono({
 					}}
 					placeholder={placeholder}
 					maxLength={10}
-					className="w-full min-w-0 bg-transparent outline-none text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800"
+					className={`w-full min-w-0 bg-transparent outline-none ${claseTexto} font-medium text-slate-800`}
 					data-testid={testIdNumero}
 				/>
 			</div>

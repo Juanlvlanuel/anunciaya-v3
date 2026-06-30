@@ -59,6 +59,12 @@ interface Props {
 	onValidezCambio?: (resultado: ResultadoValidacionCorreo) => void;
 	testIdPrefix?: string;
 	disabled?: boolean;
+	/** Texto del estado "disponible". Default pensado para registro; en cambio de correo conviene algo neutro. */
+	mensajeDisponible?: string;
+	/** Clase de altura del input (default = patrón histórico del registro). */
+	claseAlto?: string;
+	/** Clase de tamaño de texto del input (default = patrón histórico del registro). */
+	claseTexto?: string;
 }
 
 type EstadoValidacion =
@@ -100,6 +106,9 @@ export function InputCorreoValidado({
 	onValidezCambio,
 	testIdPrefix = 'correo',
 	disabled = false,
+	mensajeDisponible = 'Correo disponible — se creará una cuenta nueva',
+	claseAlto = 'h-10 lg:h-9 2xl:h-10',
+	claseTexto = 'text-sm lg:text-xs 2xl:text-sm',
 }: Props) {
 	// Debounce del valor para la query de disponibilidad
 	const valorDebounced = useDebounce(value, 400);
@@ -191,10 +200,10 @@ export function InputCorreoValidado({
 	// ============================================
 
 	// Color del borde según estado
-	let borderClass = 'border-slate-300';
-	if (estado.tipo === 'error') borderClass = 'border-red-400';
-	else if (estado.tipo === 'typo') borderClass = 'border-amber-400';
-	else if (estado.tipo === 'valido-nuevo' || estado.tipo === 'valido-promocion') borderClass = 'border-emerald-400';
+	let borderClass = 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-300';
+	if (estado.tipo === 'error') borderClass = 'border-red-400 focus:ring-2 focus:ring-red-200';
+	else if (estado.tipo === 'typo') borderClass = 'border-amber-400 focus:ring-2 focus:ring-amber-200';
+	else if (estado.tipo === 'valido-nuevo' || estado.tipo === 'valido-promocion') borderClass = 'border-emerald-400 focus:ring-2 focus:ring-emerald-200';
 
 	// Indicador derecho del input
 	// Cuando el estado es 'error' el ícono es clickeable y limpia el input (convención UX de la X).
@@ -257,7 +266,7 @@ export function InputCorreoValidado({
 					spellCheck={false}
 					placeholder={placeholder}
 					disabled={disabled}
-					className={`w-full h-10 lg:h-9 2xl:h-10 pl-3 pr-10 text-sm lg:text-xs 2xl:text-sm font-medium text-slate-800 border-2 ${borderClass} rounded-lg bg-white transition-colors
+					className={`w-full ${claseAlto} pl-3 pr-10 ${claseTexto} font-medium text-slate-800 border-2 ${borderClass} rounded-lg bg-white transition-colors focus:outline-none
 						disabled:bg-slate-100 disabled:cursor-not-allowed`}
 					data-testid={`${testIdPrefix}-input`}
 				/>
@@ -315,7 +324,7 @@ export function InputCorreoValidado({
 					className="mt-1 text-sm lg:text-[11px] 2xl:text-sm font-medium text-emerald-600"
 					data-testid={`${testIdPrefix}-mensaje`}
 				>
-					Correo disponible — se creará una cuenta nueva
+					{mensajeDisponible}
 				</p>
 			)}
 

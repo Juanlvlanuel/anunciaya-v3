@@ -139,11 +139,11 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                 {/* Estado */}
                 <div className="flex items-center gap-2">
                     <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-amber-200 shrink-0">
-                        <Clock className="w-4 h-4 text-amber-700" strokeWidth={2.5} />
+                        <Clock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-700" strokeWidth={2.5} />
                     </span>
                     <div>
                         <p className="text-sm font-bold text-amber-900 leading-tight">Pago en revisión</p>
-                        <p className="text-xs lg:text-[11px] 2xl:text-xs font-semibold text-amber-700">
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-amber-700">
                             Un administrador lo revisará pronto
                         </p>
                     </div>
@@ -171,7 +171,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 rounded-lg bg-white border border-amber-300 px-3 py-1.5 text-sm font-semibold text-amber-800 lg:hover:bg-amber-200"
                     >
-                        Ver comprobante <ExternalLink className="w-3.5 h-3.5" />
+                        Ver comprobante <ExternalLink className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" />
                     </a>
                 </div>
             </div>
@@ -193,7 +193,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                             aria-label="Cerrar aviso"
                             className="shrink-0 mt-0.5 text-red-600 lg:hover:text-red-800 cursor-pointer"
                         >
-                            <XCircle className="w-4 h-4" strokeWidth={2} />
+                            <XCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                         </button>
                         <p className="flex-1">
                             Tu último comprobante fue rechazado.
@@ -207,7 +207,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                     onClick={() => setAbierto(true)}
                     className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-white text-slate-700 border border-slate-300 shadow-sm lg:hover:bg-slate-200"
                 >
-                    <Banknote className="w-4 h-4" strokeWidth={2} />
+                    <Banknote className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                     Pagar por transferencia o depósito
                 </button>
             </div>
@@ -218,7 +218,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
     return (
         <div data-testid="pago-manual-form" className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5 space-y-4">
             <div className="flex items-center gap-2">
-                <Banknote className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                <Banknote className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600" strokeWidth={2} />
                 <p className="text-sm font-bold text-slate-800">Pagar por transferencia o depósito</p>
             </div>
 
@@ -326,7 +326,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                         <img src={imageUrl} alt="Comprobante" className="w-16 h-16 rounded-lg object-cover border border-slate-300" />
                         {isUploading ? (
                             <span className="text-sm font-medium text-slate-600 flex items-center gap-1.5">
-                                <Loader2 className="w-4 h-4 animate-spin" /> Subiendo…
+                                <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> Subiendo…
                             </span>
                         ) : (
                             <button
@@ -343,7 +343,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                         data-testid="input-comprobante"
                         className="flex items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-300 px-4 py-3 text-sm font-medium text-slate-600 cursor-pointer lg:hover:bg-slate-200"
                     >
-                        <Upload className="w-4 h-4" strokeWidth={2} />
+                        <Upload className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                         Subir foto del comprobante
                         <input
                             type="file"
@@ -379,7 +379,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                         puedeEnviar ? 'text-white shadow-md cursor-pointer' : 'bg-slate-400 text-white cursor-not-allowed'
                     }`}
                 >
-                    {enviando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Check className="w-4 h-4" strokeWidth={2.5} />}
+                    {enviando ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />}
                     Enviar
                 </button>
             </div>

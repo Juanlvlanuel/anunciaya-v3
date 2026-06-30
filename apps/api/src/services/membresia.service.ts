@@ -15,9 +15,9 @@
  * Ubicación: apps/api/src/services/membresia.service.ts
  */
 
-import { and, desc, eq, gt, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
 import { db } from '../db/index.js';
-import { negocios, pagosMembresia, pagosManualesSolicitudes, publicidadCompras, usuarios } from '../db/schemas/schema.js';
+import { ciudades, negocios, pagosMembresia, pagosManualesSolicitudes, publicidadCompras, publicidadCompraCiudades, publicidadPiezas, usuarios } from '../db/schemas/schema.js';
 import { prepararReciboPago } from './admin/recibo-pago.service.js';
 import { stripe } from '../config/stripe.js';
 import { env } from '../config/env.js';
@@ -68,10 +68,27 @@ export interface SolicitudRechazada {
     fecha: string | null; // cuándo se rechazó (revisadoAt)
 }
 
+/** Una campaña de publicidad del usuario (compra del espacio en la columna derecha). */
+export interface PublicidadCompra {
+    id: string;
+    estado: string;              // activa | pausada | expirada | cancelada
+    esCombo: boolean;            // compró Grande + Chico
+    origen: string;              // self | manual | cortesia
+    monto: string | null;        // MXN; NULL en cortesía
+    folio: number | null;
+    reciboUrl: string | null;    // PDF público en R2 (NULL en cortesía)
+    iniciaAt: string | null;
+    expiraAt: string | null;
+    carruseles: string[];        // ['patrocinadores' (Grande), 'anuncios' (Chico), 'fundadores']
+    ciudades: string[];          // nombres de ciudades donde se muestra
+}
+
 export interface MiMembresia {
     tieneNegocio: boolean;
     /** ¿Tiene publicidad pagada o de cortesía vigente? (anuncios de la columna derecha). */
     tienePublicidad: boolean;
+    /** Campañas de publicidad del usuario (activas + historial), para la vista "Tu publicidad". */
+    publicidad: PublicidadCompra[];
     solicitudPendiente: SolicitudPendiente | null;
     ultimoRechazo: UltimoRechazo | null;
     solicitudesRechazadas: SolicitudRechazada[];
@@ -98,8 +115,57 @@ export interface MiMembresia {
 // VISTA DE MEMBRESÍA DEL DUEÑO
 // =============================================================================
 
+/** Campañas de publicidad del usuario (todas menos las 'pendiente'), con sus carruseles y ciudades. */
+async function obtenerPublicidadDelUsuario(usuarioId: string): Promise<PublicidadCompra[]> {
+    const compras = await db
+        .select({
+            id: publicidadCompras.id,
+            estado: publicidadCompras.estado,
+            esCombo: publicidadCompras.esCombo,
+            origen: publicidadCompras.origen,
+            monto: publicidadCompras.monto,
+            folio: publicidadCompras.folio,
+            reciboUrl: publicidadCompras.reciboUrl,
+            iniciaAt: publicidadCompras.iniciaAt,
+            expiraAt: publicidadCompras.expiraAt,
+        })
+        .from(publicidadCompras)
+        .where(and(eq(publicidadCompras.usuarioId, usuarioId), ne(publicidadCompras.estado, 'pendiente'), isNull(publicidadCompras.renovacionDe)))
+        .orderBy(desc(publicidadCompras.createdAt));
+
+    if (compras.length === 0) return [];
+
+    const ids = compras.map((c) => c.id);
+    const [piezas, ciudadesFilas] = await Promise.all([
+        db
+            .select({ compraId: publicidadPiezas.compraId, carrusel: publicidadPiezas.carrusel })
+            .from(publicidadPiezas)
+            .where(inArray(publicidadPiezas.compraId, ids)),
+        db
+            .select({ compraId: publicidadCompraCiudades.compraId, nombre: ciudades.nombre })
+            .from(publicidadCompraCiudades)
+            .innerJoin(ciudades, eq(ciudades.id, publicidadCompraCiudades.ciudadId))
+            .where(inArray(publicidadCompraCiudades.compraId, ids)),
+    ]);
+
+    return compras.map((c) => ({
+        id: c.id,
+        estado: c.estado,
+        esCombo: c.esCombo,
+        origen: c.origen,
+        monto: c.monto ?? null,
+        folio: c.folio ?? null,
+        reciboUrl: c.reciboUrl ?? null,
+        iniciaAt: c.iniciaAt ?? null,
+        expiraAt: c.expiraAt ?? null,
+        carruseles: piezas.filter((p) => p.compraId === c.id).map((p) => p.carrusel),
+        ciudades: ciudadesFilas.filter((cf) => cf.compraId === c.id).map((cf) => cf.nombre),
+    }));
+}
+
 /**
- * Devuelve el estado de la membresía del negocio del usuario logueado + su historial de recibos.
+ * Devuelve el estado de la membresía del negocio del usuario logueado + su historial de recibos,
+ * y la lista de campañas de publicidad del usuario (para la vista "Tu publicidad").
  * Si el usuario no tiene negocio (solo personal), devuelve `{ tieneNegocio: false }`.
  */
 export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia> {
@@ -123,20 +189,15 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
         .where(eq(negocios.usuarioId, usuarioId))
         .limit(1);
 
-    // ¿Tiene publicidad activa y vigente? (self-service, manual o cortesía).
-    const pub = await db
-        .select({ id: publicidadCompras.id })
-        .from(publicidadCompras)
-        .where(and(
-            eq(publicidadCompras.usuarioId, usuarioId),
-            eq(publicidadCompras.estado, 'activa'),
-            gt(publicidadCompras.expiraAt, sql`now()`),
-        ))
-        .limit(1);
-    const tienePublicidad = pub.length > 0;
+    // Campañas de publicidad del usuario (activas + historial). El flag `tienePublicidad`
+    // (decide si el tab "Membresía y Pagos" se muestra) = tiene alguna activa y vigente.
+    const publicidad = await obtenerPublicidadDelUsuario(usuarioId);
+    const tienePublicidad = publicidad.some(
+        (p) => p.estado === 'activa' && p.expiraAt !== null && new Date(p.expiraAt).getTime() > Date.now(),
+    );
 
     if (!neg) {
-        return { tieneNegocio: false, tienePublicidad, solicitudPendiente: null, ultimoRechazo: null, solicitudesRechazadas: [], negocio: null, recibos: [] };
+        return { tieneNegocio: false, tienePublicidad, publicidad, solicitudPendiente: null, ultimoRechazo: null, solicitudesRechazadas: [], negocio: null, recibos: [] };
     }
 
     // Última solicitud (cualquier estado): si es 'pendiente' → "en revisión"; si es 'rechazado' → aviso de rechazo.
@@ -189,6 +250,7 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
     return {
         tieneNegocio: true,
         tienePublicidad,
+        publicidad,
         solicitudPendiente:
             solicitud?.estado === 'pendiente'
                 ? {

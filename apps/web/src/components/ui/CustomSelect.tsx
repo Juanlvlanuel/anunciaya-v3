@@ -50,6 +50,10 @@ interface Props<T extends string> {
     testId?: string;
     /** Ancho fijo del menú (default: full width del trigger). */
     className?: string;
+    /** Clases de padding/altura del botón trigger (default coincide con el patrón histórico). */
+    claseControl?: string;
+    /** Clases del estado abierto (borde + ring). Default slate, estilo Business Studio. */
+    claseActivo?: string;
 }
 
 export function CustomSelect<T extends string>({
@@ -62,6 +66,8 @@ export function CustomSelect<T extends string>({
     id,
     testId,
     className = '',
+    claseControl = 'px-3.5 py-2.5',
+    claseActivo = 'border-slate-900 ring-2 ring-slate-900/15',
 }: Props<T>) {
     const [open, setOpen] = useState(false);
     const ref = useRef<HTMLDivElement>(null);
@@ -105,13 +111,12 @@ export function CustomSelect<T extends string>({
                 onClick={() => setOpen((v) => !v)}
                 data-testid={testId}
                 className={
-                    'w-full flex items-center gap-2 px-3.5 py-2.5 text-left ' +
+                    'w-full flex items-center gap-2 ' + claseControl + ' text-left ' +
                     'text-base lg:text-sm 2xl:text-base font-medium text-slate-900 ' +
                     'bg-white border-2 rounded-lg lg:cursor-pointer ' +
-                    'hover:border-slate-400 ' +
                     (open
-                        ? 'border-slate-900 ring-2 ring-slate-900/15'
-                        : 'border-slate-300')
+                        ? claseActivo
+                        : 'border-slate-300 hover:border-slate-400')
                 }
             >
                 <span

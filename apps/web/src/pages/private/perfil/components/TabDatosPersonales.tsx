@@ -13,7 +13,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { Calendar, Camera, Loader2, Mail, MapPin, Save, Trash2, User as UserIcon, ZoomIn } from 'lucide-react';
+import { Camera, Loader2, Mail, MapPin, Save, Trash2, User as UserIcon, ZoomIn } from 'lucide-react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { useR2Upload } from '@/hooks/useR2Upload';
 import { actualizarPerfil, generarUrlAvatar, type ActualizarPerfilInput } from '@/services/authService';
@@ -21,6 +21,7 @@ import { eliminarImagenHuerfana } from '@/services/r2Service';
 import { ModalUbicacion } from '@/components/layout/ModalUbicacion';
 import { ModalImagenes } from '@/components/ui/ModalImagenes';
 import { CustomSelect, type SelectOption } from '@/components/ui/CustomSelect';
+import { DatePicker } from '@/components/ui/DatePicker';
 import { InputTelefono, normalizarTelefono } from '@/components/ui/InputTelefono';
 import notificar from '@/utils/notificaciones';
 
@@ -28,7 +29,13 @@ import notificar from '@/utils/notificaciones';
 const GRADIENTE_MARCA = 'linear-gradient(135deg, #1e293b, #334155)';
 
 const INPUT =
-    'w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 focus:outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-500';
+    'w-full rounded-lg border-2 border-slate-300 px-3 h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-300 disabled:bg-slate-100 disabled:text-slate-500';
+
+/** Hoy en formato YYYY-MM-DD — tope para la fecha de nacimiento (no se nace en el futuro). */
+const HOY_ISO = (() => {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+})();
 
 type Genero = NonNullable<ActualizarPerfilInput['genero']>;
 
@@ -198,7 +205,7 @@ export default function TabDatosPersonales() {
                             data-testid="input-avatar"
                             className="inline-flex items-center gap-1.5 rounded-lg bg-white text-slate-700 border border-slate-300 px-3 py-1.5 text-sm font-semibold cursor-pointer lg:hover:bg-slate-200"
                         >
-                            <Camera className="w-4 h-4" strokeWidth={2} />
+                            <Camera className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                             {avatarMostrado ? 'Cambiar' : 'Subir foto'}
                             <input
                                 type="file"
@@ -218,7 +225,7 @@ export default function TabDatosPersonales() {
                                 disabled={isUploading}
                                 className="inline-flex items-center gap-1.5 rounded-lg bg-white text-red-600 border border-slate-300 px-3 py-1.5 text-sm font-semibold cursor-pointer lg:hover:bg-red-50 disabled:opacity-50"
                             >
-                                <Trash2 className="w-4 h-4" strokeWidth={2} />
+                                <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                                 Quitar
                             </button>
                         )}
@@ -258,8 +265,8 @@ export default function TabDatosPersonales() {
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-semibold text-slate-700 mb-1.5">Correo</label>
-                    <div className="flex items-center gap-2 rounded-lg border-2 border-slate-200 bg-slate-100 px-3 py-2" title="Para cambiar tu correo, ve a la pestaña Seguridad">
-                        <Mail className="w-4 h-4 text-slate-500 shrink-0" strokeWidth={2} />
+                    <div className="flex items-center gap-2 rounded-lg border-2 border-slate-200 bg-slate-100 px-3 h-11 lg:h-10 2xl:h-11" title="Para cambiar tu correo, ve a la pestaña Seguridad">
+                        <Mail className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" strokeWidth={2} />
                         <span className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 truncate">{usuario.correo}</span>
                     </div>
                 </div>
@@ -269,6 +276,8 @@ export default function TabDatosPersonales() {
                         prefijo="tel-perfil"
                         value={telefono}
                         onChange={setTelefono}
+                        claseAlto="h-11 lg:h-10 2xl:h-11"
+                        claseTexto="text-base lg:text-sm 2xl:text-base"
                         testIdNumero="input-telefono"
                         testIdLada="input-telefono-lada"
                     />
@@ -278,17 +287,15 @@ export default function TabDatosPersonales() {
             {/* ── Fecha de nacimiento / Género / Ciudad ── */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
                 <div>
-                    <label htmlFor="dp-fecha" className="block text-sm font-semibold text-slate-700 mb-1.5">Fecha de nacimiento</label>
-                    <div className="relative">
-                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-500 pointer-events-none" strokeWidth={2} />
-                        <input
-                            id="dp-fecha"
-                            data-testid="input-fecha-nacimiento"
-                            type="date"
+                    <label className="block text-sm font-semibold text-slate-700 mb-1.5">Fecha de nacimiento</label>
+                    <div data-testid="input-fecha-nacimiento">
+                        <DatePicker
                             value={fechaNacimiento}
-                            max="9999-12-31"
-                            onChange={(e) => setFechaNacimiento(e.target.value)}
-                            className={`${INPUT} pl-9`}
+                            onChange={setFechaNacimiento}
+                            maxDate={HOY_ISO}
+                            placeholder="Selecciona tu fecha"
+                            centradoEnMovil
+                            iconoIzquierda
                         />
                     </div>
                 </div>
@@ -301,6 +308,8 @@ export default function TabDatosPersonales() {
                         value={genero}
                         options={GENEROS}
                         onChange={setGenero}
+                        claseControl="px-3.5 h-11 lg:h-10 2xl:h-11"
+                        claseActivo="border-blue-600 ring-2 ring-blue-300"
                     />
                 </div>
                 <div>
@@ -309,9 +318,9 @@ export default function TabDatosPersonales() {
                         data-testid="btn-ciudad"
                         type="button"
                         onClick={() => setModalCiudad(true)}
-                        className="w-full flex items-center gap-2 rounded-lg border-2 border-slate-300 px-3.5 py-2.5 text-base lg:text-sm 2xl:text-base font-medium text-left lg:cursor-pointer hover:border-slate-400"
+                        className="w-full flex items-center gap-2 rounded-lg border-2 border-slate-300 px-3.5 h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base font-medium text-left lg:cursor-pointer hover:border-slate-400 transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-300"
                     >
-                        <MapPin className="w-4 h-4 text-slate-500 shrink-0" strokeWidth={2} />
+                        <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" strokeWidth={2} />
                         <span className={`flex-1 truncate ${ciudad ? 'text-slate-900' : 'text-slate-500'}`}>
                             {ciudad || 'Elegir ciudad'}
                         </span>
@@ -332,7 +341,7 @@ export default function TabDatosPersonales() {
                             : 'bg-slate-300 text-slate-500 cursor-not-allowed'
                     }`}
                 >
-                    {guardando ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" strokeWidth={2} />}
+                    {guardando ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <Save className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />}
                     Guardar cambios
                 </button>
             </div>

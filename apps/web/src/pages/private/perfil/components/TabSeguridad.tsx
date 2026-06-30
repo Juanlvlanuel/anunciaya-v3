@@ -20,6 +20,7 @@ import { useGoogleLogin } from '@react-oauth/google';
 import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/stores/useAuthStore';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
+import { InputCorreoValidado, type ResultadoValidacionCorreo } from '@/components/ui/InputCorreoValidado';
 import { activar2FA, cambiarContrasena, confirmarCambioCorreo, desactivar2FA, eliminarCuenta, establecerContrasena, generar2FA, logoutTodos, solicitarCambioCorreo, vincularGoogle } from '@/services/authService';
 import notificar from '@/utils/notificaciones';
 
@@ -27,30 +28,30 @@ import notificar from '@/utils/notificaciones';
 const GRADIENTE_MARCA = 'linear-gradient(135deg, #1e293b, #334155)';
 
 const INPUT =
-    'w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 focus:outline-none focus:border-blue-500';
+    'w-full rounded-lg border-2 border-slate-300 px-3 h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 transition-colors focus:outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-300';
 
 const INPUT_BASE =
-    'w-full rounded-lg border-2 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 focus:outline-none';
+    'w-full rounded-lg border-2 px-3 h-11 lg:h-10 2xl:h-11 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 transition-colors focus:outline-none';
 
 /** Clase del input de contraseña según su estado de validación en vivo. */
 function inputClase(estado: 'neutro' | 'error' | 'ok'): string {
     const color =
         estado === 'error'
-            ? 'border-red-400 focus:border-red-500'
+            ? 'border-red-400 focus:border-red-500 focus:ring-2 focus:ring-red-200'
             : estado === 'ok'
-              ? 'border-emerald-400 focus:border-emerald-500'
-              : 'border-slate-300 focus:border-blue-500';
+              ? 'border-emerald-400 focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200'
+              : 'border-slate-300 focus:border-blue-600 focus:ring-2 focus:ring-blue-300';
     return `${INPUT_BASE} ${color}`;
 }
 
 /** Requisito de contraseña: check verde si se cumple, punto gris si falta. */
 function ReqItem({ ok, label }: { ok: boolean; label: string }) {
     return (
-        <span className={`inline-flex items-center gap-1 text-xs font-medium ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
+        <span className={`inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-medium ${ok ? 'text-emerald-600' : 'text-slate-400'}`}>
             {ok ? (
-                <Check className="w-3.5 h-3.5" strokeWidth={2.5} />
+                <Check className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
             ) : (
-                <span className="w-3.5 h-3.5 inline-flex items-center justify-center">
+                <span className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 inline-flex items-center justify-center">
                     <span className="w-1.5 h-1.5 rounded-full bg-slate-300" />
                 </span>
             )}
@@ -87,6 +88,8 @@ export default function TabSeguridad() {
     // ── Cambiar correo ──
     const [faseCorreo, setFaseCorreo] = useState<'idle' | 'pedir' | 'codigo'>('idle');
     const [nuevoCorreo, setNuevoCorreo] = useState('');
+    // Validez del nuevo correo (formato + unicidad en AY), reportada por InputCorreoValidado.
+    const [correoNuevoValido, setCorreoNuevoValido] = useState(false);
     const [codigoCorreo, setCodigoCorreo] = useState('');
     const [procesandoCorreo, setProcesandoCorreo] = useState(false);
 
@@ -301,6 +304,7 @@ export default function TabSeguridad() {
                 notificar.exito('Tu correo se actualizó.');
                 setFaseCorreo('idle');
                 setNuevoCorreo('');
+                setCorreoNuevoValido(false);
                 setCodigoCorreo('');
                 await recargarDatosUsuario();
             } else {
@@ -316,6 +320,7 @@ export default function TabSeguridad() {
     function cancelarCambioCorreo() {
         setFaseCorreo('idle');
         setNuevoCorreo('');
+        setCorreoNuevoValido(false);
         setCodigoCorreo('');
     }
 
@@ -354,15 +359,15 @@ export default function TabSeguridad() {
             {/* ════════════ CONTRASEÑA ════════════ */}
             <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-center gap-2 mb-3">
-                    <KeyRound className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                    <KeyRound className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600" strokeWidth={2} />
                     <h2 className="text-sm font-bold text-slate-800">Contraseña</h2>
                 </div>
 
                 <div className="space-y-3">
                     {modoCrear && (
                         <div className="flex items-start gap-2.5 rounded-lg bg-blue-50 border border-blue-200 px-3 py-2.5">
-                            <Smartphone className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" strokeWidth={2} />
-                            <p className="text-xs text-slate-600">
+                            <Smartphone className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-600 shrink-0 mt-0.5" strokeWidth={2} />
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
                                 Tu cuenta entra con Google. Crea una contraseña para entrar también con tu correo.
                             </p>
                         </div>
@@ -389,11 +394,11 @@ export default function TabSeguridad() {
                                     aria-label={verActual ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 lg:hover:text-slate-700 cursor-pointer"
                                 >
-                                    {verActual ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    {verActual ? <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" /> : <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
                                 </button>
                             </div>
                             {errorActual && (
-                                <p data-testid="error-pass-actual" className="text-xs text-red-600 font-medium mt-1">{errorActual}</p>
+                                <p data-testid="error-pass-actual" className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-medium mt-1">{errorActual}</p>
                             )}
                         </div>
                     )}
@@ -418,7 +423,7 @@ export default function TabSeguridad() {
                                     aria-label={verNueva ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 lg:hover:text-slate-700 cursor-pointer"
                                 >
-                                    {verNueva ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    {verNueva ? <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" /> : <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
                                 </button>
                             </div>
                         </div>
@@ -440,11 +445,11 @@ export default function TabSeguridad() {
                                     aria-label={verConfirmar ? 'Ocultar contraseña' : 'Mostrar contraseña'}
                                     className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-500 lg:hover:text-slate-700 cursor-pointer"
                                 >
-                                    {verConfirmar ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                                    {verConfirmar ? <EyeOff className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" /> : <Eye className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
                                 </button>
                             </div>
                             {confirmar.length > 0 && !confirmaCoincide && (
-                                <p className="text-xs text-red-600 font-medium mt-1">Las contraseñas no coinciden.</p>
+                                <p className="text-sm lg:text-[11px] 2xl:text-sm text-red-600 font-medium mt-1">Las contraseñas no coinciden.</p>
                             )}
                         </div>
                     </div>
@@ -458,11 +463,11 @@ export default function TabSeguridad() {
                             <ReqItem ok={reqNumero} label="1 número" />
                         </div>
                     ) : (
-                        <p className="text-xs text-slate-500">Mínimo 8 caracteres, con una mayúscula, una minúscula y un número.</p>
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500">Mínimo 8 caracteres, con una mayúscula, una minúscula y un número.</p>
                     )}
 
                     {!modoCrear && nuevaIgualActual && (
-                        <p className="text-xs text-amber-600 font-medium">La nueva contraseña debe ser diferente a la actual.</p>
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm text-amber-600 font-medium">La nueva contraseña debe ser diferente a la actual.</p>
                     )}
 
                     <div className="flex justify-end pt-1">
@@ -473,7 +478,7 @@ export default function TabSeguridad() {
                             style={{ background: GRADIENTE_MARCA }}
                             className="inline-flex items-center justify-center gap-2 rounded-lg px-5 py-2.5 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                         >
-                            {cambiandoPass && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {cambiandoPass && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                             {modoCrear ? 'Crear contraseña' : 'Cambiar contraseña'}
                         </button>
                     </div>
@@ -483,18 +488,18 @@ export default function TabSeguridad() {
             {/* ════════════ CORREO ════════════ */}
             <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-center gap-2 mb-3">
-                    <Mail className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                    <Mail className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600" strokeWidth={2} />
                     <h2 className="text-sm font-bold text-slate-800">Correo electrónico</h2>
                 </div>
 
                 {faseCorreo === 'idle' && (
                     <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-3">
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500">
                             Tu correo actual es <span className="font-semibold text-slate-700">{usuario.correo}</span>
                         </p>
                         <button
                             data-testid="btn-cambiar-correo"
-                            onClick={() => { setNuevoCorreo(''); setFaseCorreo('pedir'); }}
+                            onClick={() => { setNuevoCorreo(''); setCorreoNuevoValido(false); setFaseCorreo('pedir'); }}
                             style={{ background: GRADIENTE_MARCA }}
                             className="shrink-0 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer text-white shadow-md"
                         >
@@ -506,18 +511,22 @@ export default function TabSeguridad() {
                 {faseCorreo === 'pedir' && (
                     <div className="space-y-3">
                         <div>
-                            <label htmlFor="seg-nuevo-correo" className="block text-sm font-semibold text-slate-700 mb-1.5">Nuevo correo</label>
-                            <input
-                                id="seg-nuevo-correo"
-                                data-testid="input-nuevo-correo"
-                                type="email"
+                            <InputCorreoValidado
                                 value={nuevoCorreo}
-                                onChange={(e) => setNuevoCorreo(e.target.value)}
+                                onChange={setNuevoCorreo}
+                                onValidezCambio={(r: ResultadoValidacionCorreo) => setCorreoNuevoValido(r.valido)}
+                                modo="registro"
+                                label="Nuevo correo"
                                 placeholder="tucorreo@ejemplo.com"
-                                autoComplete="email"
-                                className={inputClase('neutro')}
+                                correosExcluidos={usuario?.correo ? [usuario.correo] : []}
+                                mensajeExclusion="Ese ya es tu correo actual"
+                                mensajeDisponible="Correo disponible"
+                                claseAlto="h-11 lg:h-10 2xl:h-11"
+                                claseTexto="text-base lg:text-sm 2xl:text-base"
+                                testIdPrefix="nuevo-correo"
+                                disabled={procesandoCorreo}
                             />
-                            <p className="text-xs text-slate-500 mt-1">Te enviaremos un código de verificación a este correo.</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-1">Te enviaremos un código de verificación a este correo.</p>
                         </div>
                         <div className="flex gap-2 justify-end">
                             <button
@@ -530,11 +539,11 @@ export default function TabSeguridad() {
                             <button
                                 data-testid="btn-enviar-codigo-correo"
                                 onClick={enviarCodigoCorreo}
-                                disabled={procesandoCorreo || !nuevoCorreo.trim()}
+                                disabled={procesandoCorreo || !correoNuevoValido}
                                 style={{ background: GRADIENTE_MARCA }}
                                 className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                {procesandoCorreo && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {procesandoCorreo && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                                 Enviar código
                             </button>
                         </div>
@@ -570,7 +579,7 @@ export default function TabSeguridad() {
                                 style={{ background: GRADIENTE_MARCA }}
                                 className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                             >
-                                {procesandoCorreo && <Loader2 className="w-4 h-4 animate-spin" />}
+                                {procesandoCorreo && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                                 Cambiar correo
                             </button>
                         </div>
@@ -582,17 +591,17 @@ export default function TabSeguridad() {
             <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
-                        <Icon icon="flat-color-icons:google" className="w-4 h-4 shrink-0" />
+                        <Icon icon="flat-color-icons:google" className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 shrink-0" />
                         <div className="min-w-0">
                             <h2 className="text-sm font-bold text-slate-800">Inicio de sesión con Google</h2>
-                            <p className="text-xs text-slate-500 mt-0.5">
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-0.5">
                                 Entra a AnunciaYA con tu cuenta de Google.
                             </p>
                         </div>
                     </div>
                     <span
                         data-testid="estado-google"
-                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-semibold ${
                             esGoogle ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
                         }`}
                     >
@@ -602,7 +611,7 @@ export default function TabSeguridad() {
 
                 <div className="mt-3">
                     {esGoogle ? (
-                        <p className="text-xs text-slate-500">
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500">
                             Vinculada a <span className="font-semibold text-slate-700">{usuario.correo}</span>
                         </p>
                     ) : (
@@ -613,7 +622,7 @@ export default function TabSeguridad() {
                             style={{ background: GRADIENTE_MARCA }}
                             className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer text-white shadow-md disabled:opacity-60 disabled:cursor-default"
                         >
-                            {vinculandoGoogle ? <Loader2 className="w-4 h-4 animate-spin" /> : <Icon icon="flat-color-icons:google" className="w-4 h-4" />}
+                            {vinculandoGoogle ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <Icon icon="flat-color-icons:google" className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />}
                             Vincular Google
                         </button>
                     )}
@@ -628,26 +637,25 @@ export default function TabSeguridad() {
                 <div className="flex items-start justify-between gap-3">
                     <div className="flex items-center gap-2 min-w-0">
                         {dosFactoresActivo ? (
-                            <ShieldCheck className="w-4 h-4 text-emerald-600 shrink-0" strokeWidth={2} />
+                            <ShieldCheck className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-emerald-600 shrink-0" strokeWidth={2} />
                         ) : (
-                            <Shield className="w-4 h-4 text-slate-600 shrink-0" strokeWidth={2} />
+                            <Shield className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600 shrink-0" strokeWidth={2} />
                         )}
-                        <div className="min-w-0">
-                            <h2 className="text-sm font-bold text-slate-800">Verificación en dos pasos</h2>
-                            <p className="text-xs text-slate-500 mt-0.5">
-                                Pide un código de tu app de autenticación al iniciar sesión.
-                            </p>
-                        </div>
+                        <h2 className="text-sm font-bold text-slate-800 min-w-0">Verificación en dos pasos</h2>
                     </div>
                     <span
                         data-testid="estado-2fa"
-                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-xs font-semibold ${
+                        className={`shrink-0 inline-flex items-center px-2.5 py-1 rounded-full text-sm lg:text-[11px] 2xl:text-sm font-semibold ${
                             dosFactoresActivo ? 'bg-emerald-100 text-emerald-700' : 'bg-slate-200 text-slate-600'
                         }`}
                     >
                         {dosFactoresActivo ? 'Activada' : 'Desactivada'}
                     </span>
                 </div>
+
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-2">
+                    Pide un código de tu app de autenticación al iniciar sesión.
+                </p>
 
                 <div className="mt-3">
                     {/* Estado activo → botón desactivar / confirmación */}
@@ -690,7 +698,7 @@ export default function TabSeguridad() {
                                     disabled={procesando2fa || codigo2fa.length !== 6}
                                     className="flex-1 lg:flex-none inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-red-600 text-white lg:hover:bg-red-700 disabled:opacity-60 disabled:cursor-default"
                                 >
-                                    {procesando2fa && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {procesando2fa && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                                     Desactivar
                                 </button>
                             </div>
@@ -706,7 +714,7 @@ export default function TabSeguridad() {
                             style={!procesando2fa ? { background: GRADIENTE_MARCA } : undefined}
                             className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-default"
                         >
-                            {procesando2fa ? <Loader2 className="w-4 h-4 animate-spin" /> : <Shield className="w-4 h-4" strokeWidth={2} />}
+                            {procesando2fa ? <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" /> : <Shield className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />}
                             Activar
                         </button>
                     )}
@@ -725,8 +733,8 @@ export default function TabSeguridad() {
                                     className="w-40 h-40 rounded-lg border border-slate-300 bg-white shrink-0"
                                 />
                                 <div className="flex-1 min-w-0 w-full">
-                                    <p className="text-xs text-slate-600 mb-1">¿No puedes escanear? Captura este código en tu app:</p>
-                                    <code className="block break-all rounded bg-white border border-slate-300 px-2 py-1.5 text-xs font-mono text-slate-800 mb-3">
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mb-1">¿No puedes escanear? Captura este código en tu app:</p>
+                                    <code className="block break-all rounded bg-white border border-slate-300 px-2 py-1.5 text-sm lg:text-[11px] 2xl:text-sm font-mono font-medium text-slate-800 mb-3">
                                         {qrData.secreto}
                                     </code>
                                     <input
@@ -755,7 +763,7 @@ export default function TabSeguridad() {
                                     style={{ background: GRADIENTE_MARCA }}
                                     className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold text-white shadow-md cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
                                 >
-                                    {procesando2fa && <Loader2 className="w-4 h-4 animate-spin" />}
+                                    {procesando2fa && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                                     Activar
                                 </button>
                             </div>
@@ -767,10 +775,10 @@ export default function TabSeguridad() {
             {/* ════════════ SESIONES ════════════ */}
             <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-center gap-2 mb-2">
-                    <LogOut className="w-4 h-4 text-slate-600" strokeWidth={2} />
+                    <LogOut className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600" strokeWidth={2} />
                     <h2 className="text-sm font-bold text-slate-800">Sesiones</h2>
                 </div>
-                <p className="text-xs text-slate-500 mb-3">
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mb-3">
                     Cierra la sesión en todos tus dispositivos. Tendrás que volver a entrar.
                 </p>
                 <button
@@ -778,7 +786,7 @@ export default function TabSeguridad() {
                     onClick={() => setConfirmarCerrarSesiones(true)}
                     className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-white text-red-600 border border-red-300 lg:hover:bg-red-50"
                 >
-                    <LogOut className="w-4 h-4" strokeWidth={2} />
+                    <LogOut className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                     Cerrar sesión en todos los dispositivos
                 </button>
             </section>
@@ -786,10 +794,10 @@ export default function TabSeguridad() {
             {/* ════════════ ELIMINAR CUENTA ════════════ */}
             <section className="rounded-xl bg-white border border-red-200 shadow-sm p-4 lg:p-5">
                 <div className="flex items-center gap-2 mb-2">
-                    <Trash2 className="w-4 h-4 text-red-600" strokeWidth={2} />
+                    <Trash2 className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-red-600" strokeWidth={2} />
                     <h2 className="text-sm font-bold text-slate-800">Eliminar cuenta</h2>
                 </div>
-                <p className="text-xs text-slate-500 mb-3">
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mb-3">
                     Tu cuenta se desactivará y no podrás iniciar sesión. Reversible por soporte un tiempo.
                 </p>
                 <button
@@ -797,7 +805,7 @@ export default function TabSeguridad() {
                     onClick={() => { setContrasenaEliminar(''); setCorreoConfirmEliminar(''); setConfirmarEliminar(true); }}
                     className="inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2 text-sm font-semibold cursor-pointer bg-white text-red-600 border border-red-300 lg:hover:bg-red-50"
                 >
-                    <Trash2 className="w-4 h-4" strokeWidth={2} />
+                    <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                     Eliminar mi cuenta
                 </button>
             </section>
@@ -814,7 +822,7 @@ export default function TabSeguridad() {
             >
                 <div data-testid="modal-codigos-respaldo" className="space-y-4">
                     <div className="flex items-start gap-2.5 rounded-lg bg-amber-100 border border-amber-300 px-3 py-2.5">
-                        <AlertTriangle className="w-4 h-4 text-amber-700 shrink-0 mt-0.5" strokeWidth={2} />
+                        <AlertTriangle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-700 shrink-0 mt-0.5" strokeWidth={2} />
                         <p className="text-sm font-medium text-amber-900">
                             Si pierdes tu teléfono, estos códigos son la única forma de entrar. Guárdalos en un
                             lugar seguro; cada uno sirve una sola vez.
@@ -833,7 +841,7 @@ export default function TabSeguridad() {
                             onClick={copiarCodigos}
                             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-slate-200 text-slate-700 border border-slate-300 lg:hover:bg-slate-300"
                         >
-                            {copiado ? <Check className="w-4 h-4 text-emerald-600" strokeWidth={2.5} /> : <Copy className="w-4 h-4" strokeWidth={2} />}
+                            {copiado ? <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-emerald-600" strokeWidth={2.5} /> : <Copy className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />}
                             {copiado ? 'Copiados' : 'Copiar'}
                         </button>
                         <button
@@ -874,7 +882,7 @@ export default function TabSeguridad() {
                             disabled={cerrandoSesiones}
                             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-red-600 text-white lg:hover:bg-red-700 disabled:opacity-60 disabled:cursor-default"
                         >
-                            {cerrandoSesiones && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {cerrandoSesiones && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                             Cerrar todo
                         </button>
                     </div>
@@ -891,7 +899,7 @@ export default function TabSeguridad() {
             >
                 <div data-testid="modal-eliminar-cuenta" className="space-y-4">
                     <div className="flex items-start gap-2.5 rounded-lg bg-red-50 border border-red-200 px-3 py-2.5">
-                        <AlertTriangle className="w-4 h-4 text-red-600 shrink-0 mt-0.5" strokeWidth={2} />
+                        <AlertTriangle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-600 shrink-0 mt-0.5" strokeWidth={2} />
                         <p className="text-sm font-medium text-red-900">
                             Se desactivará tu cuenta y se cerrará tu sesión. Tus datos se conservan para una posible recuperación por soporte, pero no podrás iniciar sesión.
                         </p>
@@ -937,7 +945,7 @@ export default function TabSeguridad() {
                             disabled={eliminandoCuenta}
                             className="flex-1 inline-flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-red-600 text-white lg:hover:bg-red-700 disabled:opacity-60 disabled:cursor-default"
                         >
-                            {eliminandoCuenta && <Loader2 className="w-4 h-4 animate-spin" />}
+                            {eliminandoCuenta && <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />}
                             Sí, eliminar
                         </button>
                     </div>

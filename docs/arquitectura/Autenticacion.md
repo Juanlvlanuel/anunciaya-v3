@@ -103,7 +103,7 @@ Este documento describe la **arquitectura conceptual** del sistema de autenticac
 
 ## 🔗 Endpoints de Autenticación
 
-> ✅ **VERIFICADO:** Extraídos de `/apps/api/src/routes/auth.routes.ts` (30 Enero 2026)
+> ✅ **VERIFICADO:** Extraídos de `/apps/api/src/routes/auth.routes.ts` (30 Enero 2026; ampliado el **29 Junio 2026** con la gestión de cuenta desde Mi Perfil — datos personales, avatar, establecer contraseña, vincular Google, cambiar correo y baja de cuenta. Detalle en [`Mi_Perfil.md`](Mi_Perfil.md))
 
 ### Endpoints Públicos (Sin Autenticación)
 
@@ -125,11 +125,18 @@ Este documento describe la **arquitectura conceptual** del sistema de autenticac
 
 | Método | Endpoint | Propósito |
 |--------|----------|-----------|
-| GET | `/api/auth/yo` | Obtener datos del usuario actual |
+| GET | `/api/auth/yo` | Obtener datos del usuario actual (incluye `tieneContrasena`, `autenticadoPorGoogle`) |
 | POST | `/api/auth/logout` | Cerrar sesión actual |
-| POST | `/api/auth/logout-todos` | Cerrar todas las sesiones |
+| POST | `/api/auth/logout-todos` | Cerrar todas las sesiones (todos los dispositivos) |
 | GET | `/api/auth/sesiones` | Ver sesiones activas |
-| PATCH | `/api/auth/cambiar-contrasena` | Cambiar contraseña (usuario logueado) |
+| PATCH | `/api/auth/perfil` | Actualizar datos personales (nombre, apellidos, teléfono, fecha, género, ciudad, avatar) |
+| POST | `/api/auth/avatar/url-subida` | Presigned URL para subir el avatar a R2 (carpeta `avatares`) |
+| PATCH | `/api/auth/cambiar-contrasena` | Cambiar contraseña (cuenta que YA tiene una) |
+| POST | `/api/auth/establecer-contrasena` | Crear la PRIMERA contraseña (cuentas sin contraseña, ej. Google) |
+| POST | `/api/auth/google/vincular` | Vincular Google a la cuenta (valida que el correo coincida) |
+| POST | `/api/auth/cambiar-correo/solicitar` | Enviar código de verificación al NUEVO correo (Redis 15 min/5 intentos) |
+| POST | `/api/auth/cambiar-correo/confirmar` | Aplicar el nuevo correo con el código recibido |
+| POST | `/api/auth/eliminar-cuenta` | Dar de baja la cuenta (soft-delete: `estado='inactivo'` + cierra sesiones; bloquea si hay negocio en circulación) |
 | POST | `/api/auth/2fa/generar` | Generar secreto + QR para 2FA |
 | POST | `/api/auth/2fa/activar` | Confirmar y activar 2FA |
 | DELETE | `/api/auth/2fa/desactivar` | Desactivar 2FA |
@@ -451,9 +458,9 @@ registro_pendiente:{email}
 **NO existe tabla separada `oauth_accounts`**
 
 **Campos en usuarios:**
-- `autenticado_por_google` (boolean) - true si usa Google
+- `autenticado_por_google` (boolean) - true si la cuenta puede entrar con Google
 - `correo_verificado` (boolean) - automáticamente true con Google
-- `contrasena_hash` (varchar(255), nullable) - NULL cuando usa Google
+- `contrasena_hash` (varchar(255), nullable) - NULL si la cuenta **solo** usa Google; **deja de ser NULL** si crea una contraseña desde Seguridad (`/auth/establecer-contrasena`). El campo de salida `tieneContrasena` del `UsuarioPublico` = `!!contrasena_hash`.
 
 ---
 
@@ -483,6 +490,14 @@ Response: { accessToken, refreshToken, usuario }
 ```
 
 **Implementación:** `/apps/api/src/services/auth.service.ts` (función `loginConGoogle`)
+
+### Vincular / quitar Google desde Mi Perfil → Seguridad
+
+El vínculo Google se resuelve **por correo** (no se guarda un `google_id`): `loginConGoogle` busca al usuario por el email del token y, si existe, **auto-marca** `autenticado_por_google=true` en el primer acceso.
+
+- **Vincular** (cuenta de solo-contraseña que agrega Google): `POST /auth/google/vincular` (`vincularGoogle`) — intercambia el `code`, verifica el token y **exige que el correo de Google coincida** con el de la cuenta. Idempotente.
+- **Crear contraseña** (cuenta Google que también quiere entrar con correo): `POST /auth/establecer-contrasena` (`establecerContrasena`) — establece la primera `contrasena_hash` (no pide la "actual"); conserva Google.
+- **Quitar Google → PENDIENTE.** Sería cosmético sin endurecer el login: como se auto-vincula por correo, bajar el flag no impediría volver a entrar. Para "quitar" real haría falta que el login RECHACE si la cuenta existe pero `autenticado_por_google=false` (quitando el auto-vínculo), más un endpoint que exija `tieneContrasena`.
 
 ---
 

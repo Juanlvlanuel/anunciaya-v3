@@ -42,6 +42,8 @@ interface DatePickerProps {
     className?: string;
     /** En móvil (<1024px) abre el calendario centrado en pantalla en lugar de dropdown */
     centradoEnMovil?: boolean;
+    /** Coloca el icono de calendario a la izquierda (estilo Correo/Ciudad) en vez de la derecha. */
+    iconoIzquierda?: boolean;
 }
 
 // =============================================================================
@@ -95,6 +97,7 @@ export function DatePicker({
     maxDate,
     className = '',
     centradoEnMovil = false,
+    iconoIzquierda = false,
 }: DatePickerProps) {
     const [abierto, setAbierto] = useState(false);
     const [mesActual, setMesActual] = useState<number>(new Date().getMonth());
@@ -102,6 +105,9 @@ export function DatePicker({
     const contenedorRef = useRef<HTMLDivElement>(null);
     const calendarRef = useRef<HTMLDivElement>(null);
     const touchStartX = useRef<number | null>(null);
+    // Vista interna: días (default), selección de mes, o selección de año.
+    const [vista, setVista] = useState<'dias' | 'meses' | 'anios'>('dias');
+    const [anioBloque, setAnioBloque] = useState<number>(new Date().getFullYear() - 5);
 
     // Sincronizar con valor seleccionado
     useEffect(() => {
@@ -114,43 +120,44 @@ export function DatePicker({
         }
     }, [value]);
 
-    // Cerrar al hacer click fuera
+    // Al abrir, siempre empezar en la vista de días.
     useEffect(() => {
-        const handleClickFuera = (e: MouseEvent) => {
-            const target = e.target as Node;
-            const dentroDelInput = contenedorRef.current && contenedorRef.current.contains(target);
-            const dentroDelCalendario = calendarRef.current && calendarRef.current.contains(target);
-            
-            if (!dentroDelInput && !dentroDelCalendario) {
-                setAbierto(false);
-            }
+        if (abierto) setVista('dias');
+    }, [abierto]);
+
+    // Cerrar al hacer click fuera.
+    // Usa composedPath() (robusto con el portal y con los botones que se re-renderizan al
+    // cambiar de mes/año/vista — `contains(target)` fallaba ahí) y se registra un frame después
+    // de abrir (grace period) para que el mismo click que abre el calendario no lo cierre.
+    useEffect(() => {
+        if (!abierto) return;
+
+        const clicEsDentro = (e: Event): boolean => {
+            const path = (typeof e.composedPath === 'function' ? e.composedPath() : []) as EventTarget[];
+            const cont = contenedorRef.current;
+            const cal = calendarRef.current;
+            const target = e.target instanceof Node ? e.target : null;
+            if (cont && (path.includes(cont) || (target && cont.contains(target)))) return true;
+            if (cal && (path.includes(cal) || (target && cal.contains(target)))) return true;
+            return false;
         };
 
-        if (abierto) {
-            document.addEventListener('mousedown', handleClickFuera);
-        }
+        const handlePointerDown = (e: PointerEvent) => {
+            if (!clicEsDentro(e)) setAbierto(false);
+        };
+
+        const raf = requestAnimationFrame(() => {
+            document.addEventListener('pointerdown', handlePointerDown, true);
+        });
 
         return () => {
-            document.removeEventListener('mousedown', handleClickFuera);
+            cancelAnimationFrame(raf);
+            document.removeEventListener('pointerdown', handlePointerDown, true);
         };
     }, [abierto]);
 
-    // Cerrar al hacer scroll
-    useEffect(() => {
-        const handleScroll = () => {
-            if (abierto) {
-                setAbierto(false);
-            }
-        };
-
-        if (abierto) {
-            window.addEventListener('scroll', handleScroll, true);
-        }
-
-        return () => {
-            window.removeEventListener('scroll', handleScroll, true);
-        };
-    }, [abierto]);
+    // (Se retiró el auto-cierre por scroll: con capture:true se disparaba con el scroll residual
+    // del trackpad al abrir y cerraba el calendario solo. El click-fuera ya cubre el cierre.)
 
     const handleMesAnterior = () => {
         if (mesActual === 0) {
@@ -169,6 +176,28 @@ export function DatePicker({
             setMesActual(mesActual + 1);
         }
     };
+
+    // Las flechas del header avanzan según la vista: mes / año / bloque de 12 años.
+    const irAtras = () => {
+        if (vista === 'dias') handleMesAnterior();
+        else if (vista === 'meses') setAñoActual(añoActual - 1);
+        else setAnioBloque(anioBloque - 12);
+    };
+    const irAdelante = () => {
+        if (vista === 'dias') handleMesSiguiente();
+        else if (vista === 'meses') setAñoActual(añoActual + 1);
+        else setAnioBloque(anioBloque + 12);
+    };
+    // Click en el título sube de nivel: días → meses → años.
+    const avanzarVista = () => {
+        if (vista === 'dias') setVista('meses');
+        else if (vista === 'meses') { setAnioBloque(añoActual - 5); setVista('anios'); }
+    };
+    const tituloHeader = vista === 'dias'
+        ? `${MESES[mesActual]} ${añoActual}`
+        : vista === 'meses'
+            ? `${añoActual}`
+            : `${anioBloque} – ${anioBloque + 11}`;
 
     const handleSeleccionarDia = (dia: number) => {
         const fechaSeleccionada = formatearFecha(añoActual, mesActual, dia);
@@ -197,13 +226,6 @@ export function DatePicker({
         onChange('');
         setAbierto(false);
     };
-
-    // Ancho de referencia para escalar el calendario
-    // En modo modal centrado en móvil usa 308px (336px card - 2×14px padding)
-    // En modo dropdown usa el ancho real del input
-    const escalaW = (centradoEnMovil && typeof window !== 'undefined' && window.innerWidth < 1024)
-        ? 308
-        : (contenedorRef.current?.getBoundingClientRect().width ?? 0);
 
     // Generar días del mes
     const diasEnMes = getDiasEnMes(añoActual, mesActual);
@@ -245,7 +267,7 @@ export function DatePicker({
                 type="button"
                 onClick={() => !disabled && setAbierto(!abierto)}
                 disabled={disabled}
-                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center justify-between px-3 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium transition-colors ${disabled
+                className={`w-full h-11 lg:h-10 2xl:h-11 flex items-center ${iconoIzquierda ? 'gap-2' : 'justify-between'} px-3 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium transition-colors ${disabled
                         ? 'bg-slate-100 text-slate-400 cursor-not-allowed border-slate-200'
                         : error
                             ? 'border-red-300 hover:border-red-400 cursor-pointer'
@@ -254,10 +276,11 @@ export function DatePicker({
                                 : 'border-slate-300 hover:border-slate-400 cursor-pointer'
                     }`}
             >
-                <span className={value ? 'text-slate-700' : 'text-slate-400'}>
+                {iconoIzquierda && <Calendar className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-500 shrink-0" />}
+                <span className={`${iconoIzquierda ? 'flex-1 text-left' : ''} ${value ? 'text-slate-700' : 'text-slate-400'}`}>
                     {value ? formatearParaMostrar(value) : placeholder}
                 </span>
-                <Calendar className="w-4 h-4 text-slate-400" />
+                {!iconoIzquierda && <Calendar className="w-4 h-4 text-slate-400" />}
             </button>
 
             {/* Calendario desplegable / modal centrado */}
@@ -273,7 +296,7 @@ export function DatePicker({
                     )}
                 <div
                     ref={calendarRef}
-                    className="fixed bg-white rounded-xl shadow-2xl border-2 border-slate-200"
+                    className="fixed bg-white rounded-2xl p-3 shadow-[0_12px_48px_-8px_rgba(15,23,42,0.25)] ring-1 ring-slate-900/5 border border-slate-100"
                     onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX; }}
                     onTouchEnd={(e) => {
                         if (touchStartX.current === null) return;
@@ -294,7 +317,6 @@ export function DatePicker({
                                     left: '50%',
                                     transform: 'translate(-50%, -50%)',
                                     width: '336px',
-                                    padding: '14px',
                                 };
                             }
 
@@ -302,7 +324,9 @@ export function DatePicker({
                             const rect = contenedorRef.current.getBoundingClientRect();
 
                             // Dimensiones del calendario
-                            const anchoCalendario = isMobile ? 240 : rect.width;
+                            // El calendario toma el ancho del input (acotado para que los días
+                            // no queden ni apretados ni demasiado grandes).
+                            const anchoCalendario = Math.min(Math.max(rect.width, 264), isMobile ? 320 : 360);
                             const alturaEstimada = 280;
 
                             // Detectar espacio disponible en todas direcciones
@@ -331,119 +355,51 @@ export function DatePicker({
                             }
 
                             return {
-                                top: abreArriba ? undefined : rect.bottom + 4,
-                                bottom: abreArriba ? (window.innerHeight - rect.top + 4) : undefined,
+                                top: abreArriba ? undefined : rect.bottom + 6,
+                                bottom: abreArriba ? (window.innerHeight - rect.top + 6) : undefined,
                                 left: leftPosition,
-                                width: isMobile ? '240px' : `${rect.width}px`,
-                                padding: isMobile ? '8px' : `${Math.max(8, rect.width * 0.025)}px`,
+                                width: `${anchoCalendario}px`,
                             };
                         })()
                     }}
                 >
                     {/* Header - Navegación mes/año */}
-                    <div
-                        className="flex items-center justify-between"
-                        style={{
-                            marginBottom: contenedorRef.current
-                                ? `${Math.max(6, escalaW * 0.02)}px`
-                                : '6px'
-                        }}
-                    >
+                    <div className="flex items-center justify-between mb-2">
                         <button
                             type="button"
-                            onClick={handleMesAnterior}
-                            className="hover:bg-slate-200 rounded transition-colors cursor-pointer"
-                            style={{
-                                padding: escalaW > 0
-                                    ? `${Math.max(2, escalaW * 0.01)}px`
-                                    : '2px'
-                            }}
+                            onClick={irAtras}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
                         >
-                            <ChevronLeft
-                                style={{
-                                    width: contenedorRef.current
-                                        ? `${Math.max(16, escalaW * 0.085)}px`
-                                        : '16px',
-                                    height: contenedorRef.current
-                                        ? `${Math.max(16, escalaW * 0.085)}px`
-                                        : '16px'
-                                }}
-                                className="text-slate-600"
-                            />
+                            <ChevronLeft className="w-[18px] h-[18px]" strokeWidth={2.5} />
                         </button>
-                        <div
-                            className="font-bold text-slate-800"
-                            style={{
-                                fontSize: escalaW > 0
-                                    ? `${Math.max(13, escalaW * 0.07)}px`
-                                    : '13px'
-                            }}
-                        >
-                            {MESES[mesActual]} {añoActual}
-                        </div>
                         <button
                             type="button"
-                            onClick={handleMesSiguiente}
-                            className="hover:bg-slate-200 rounded transition-colors cursor-pointer"
-                            style={{
-                                padding: escalaW > 0
-                                    ? `${Math.max(2, escalaW * 0.01)}px`
-                                    : '2px'
-                            }}
+                            onClick={avanzarVista}
+                            className="px-3 py-1 rounded-lg text-lg font-bold text-slate-800 hover:bg-slate-100 transition-colors cursor-pointer"
                         >
-                            <ChevronRight
-                                style={{
-                                    width: contenedorRef.current
-                                        ? `${Math.max(16, escalaW * 0.085)}px`
-                                        : '12px',
-                                    height: contenedorRef.current
-                                        ? `${Math.max(16, escalaW * 0.085)}px`
-                                        : '12px'
-                                }}
-                                className="text-slate-600"
-                            />
+                            {tituloHeader}
+                        </button>
+                        <button
+                            type="button"
+                            onClick={irAdelante}
+                            className="w-8 h-8 flex items-center justify-center rounded-lg text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
+                        >
+                            <ChevronRight className="w-[18px] h-[18px]" strokeWidth={2.5} />
                         </button>
                     </div>
 
+                    {vista === 'dias' && (<>
                     {/* Días de la semana */}
-                    <div
-                        className="grid grid-cols-7"
-                        style={{
-                            gap: contenedorRef.current
-                                ? `${Math.max(1, escalaW * 0.005)}px`
-                                : '1px',
-                            marginBottom: contenedorRef.current
-                                ? `${Math.max(4, escalaW * 0.015)}px`
-                                : '4px'
-                        }}
-                    >
+                    <div className="grid grid-cols-7 mb-1">
                         {DIAS_SEMANA.map((dia) => (
-                            <div
-                                key={dia}
-                                className="text-center font-bold text-slate-500"
-                                style={{
-                                    fontSize: contenedorRef.current
-                                        ? `${Math.max(10, escalaW * 0.055)}px`
-                                        : '10px',
-                                    padding: contenedorRef.current
-                                        ? `${Math.max(2, escalaW * 0.008)}px`
-                                        : '2px'
-                                }}
-                            >
+                            <div key={dia} className="text-center text-xs font-semibold text-slate-400 py-1.5">
                                 {dia}
                             </div>
                         ))}
                     </div>
 
                     {/* Días del mes */}
-                    <div
-                        className="grid grid-cols-7"
-                        style={{
-                            gap: contenedorRef.current
-                                ? `${Math.max(1, escalaW * 0.005)}px`
-                                : '1px'
-                        }}
-                    >
+                    <div className="grid grid-cols-7 gap-0.5">
                         {diasArray.map((dia, index) => {
                             if (dia === null) {
                                 return <div key={`empty-${index}`} />;
@@ -459,75 +415,82 @@ export function DatePicker({
                                     type="button"
                                     onClick={() => !deshabilitado && handleSeleccionarDia(dia)}
                                     disabled={deshabilitado}
-                                    className={`
-                                        aspect-square flex items-center justify-center rounded-lg font-medium transition-all
-                                        ${deshabilitado
+                                    className={`aspect-square flex items-center justify-center rounded-lg text-base transition-all ${
+                                        deshabilitado
                                             ? 'text-slate-300 cursor-not-allowed'
                                             : seleccionado
-                                                ? 'bg-blue-600 text-white font-bold shadow-md cursor-pointer'
+                                                ? 'bg-slate-800 text-white font-semibold shadow-sm shadow-slate-900/30 cursor-pointer'
                                                 : hoy
-                                                    ? 'bg-blue-100 text-blue-700 font-bold ring-2 ring-blue-600 cursor-pointer'
-                                                    : 'text-slate-700 hover:bg-slate-200 cursor-pointer'
-                                        }
-                                    `}
-                                    style={{
-                                        fontSize: contenedorRef.current
-                                            ? `${Math.max(13, escalaW * 0.065)}px`
-                                            : '13px'
-                                    }}
+                                                    ? 'text-slate-900 font-bold ring-1 ring-inset ring-slate-300 hover:bg-slate-100 cursor-pointer'
+                                                    : 'text-slate-700 font-medium hover:bg-slate-100 cursor-pointer'
+                                    }`}
                                 >
                                     {dia}
                                 </button>
                             );
                         })}
                     </div>
+                    </>)}
 
-                    {/* Footer - Botones rápidos */}
-                    <div
-                        className="flex border-t border-slate-200"
-                        style={{
-                            gap: contenedorRef.current
-                                ? `${Math.max(4, escalaW * 0.01)}px`
-                                : '4px',
-                            marginTop: contenedorRef.current
-                                ? `${Math.max(6, escalaW * 0.02)}px`
-                                : '6px',
-                            paddingTop: contenedorRef.current
-                                ? `${Math.max(6, escalaW * 0.02)}px`
-                                : '6px'
-                        }}
-                    >
+                    {/* Vista: selección de mes */}
+                    {vista === 'meses' && (
+                        <div className="grid grid-cols-3 gap-1.5 py-1">
+                            {MESES.map((nombreMes, idx) => (
+                                <button
+                                    key={nombreMes}
+                                    type="button"
+                                    onClick={() => { setMesActual(idx); setVista('dias'); }}
+                                    className={`py-2 rounded-lg text-base transition-all cursor-pointer ${
+                                        idx === mesActual
+                                            ? 'bg-slate-800 text-white font-semibold shadow-sm shadow-slate-900/30'
+                                            : 'text-slate-700 font-medium hover:bg-slate-100'
+                                    }`}
+                                >
+                                    {nombreMes.slice(0, 3)}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Vista: selección de año */}
+                    {vista === 'anios' && (
+                        <div className="grid grid-cols-3 gap-1.5 py-1">
+                            {Array.from({ length: 12 }, (_, i) => anioBloque + i).map((anio) => (
+                                <button
+                                    key={anio}
+                                    type="button"
+                                    onClick={() => { setAñoActual(anio); setVista('meses'); }}
+                                    className={`py-2 rounded-lg text-base transition-all cursor-pointer ${
+                                        anio === añoActual
+                                            ? 'bg-slate-800 text-white font-semibold shadow-sm shadow-slate-900/30'
+                                            : 'text-slate-700 font-medium hover:bg-slate-100'
+                                    }`}
+                                >
+                                    {anio}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Footer - Botones rápidos (solo en la vista de días) */}
+                    {vista === 'dias' && (
+                    <div className="flex items-center gap-1.5 mt-2 pt-2 border-t border-slate-100">
                         <button
                             type="button"
                             onClick={handleLimpiar}
-                            className="flex-1 font-semibold text-slate-600 hover:bg-slate-200 rounded transition-colors cursor-pointer"
-                            style={{
-                                fontSize: escalaW > 0
-                                    ? `${Math.max(12, escalaW * 0.06)}px`
-                                    : '12px',
-                                padding: escalaW > 0
-                                    ? `${Math.max(6, escalaW * 0.02)}px`
-                                    : '6px'
-                            }}
+                            className="flex-1 py-1.5 rounded-lg text-sm font-semibold text-slate-500 hover:bg-slate-100 hover:text-slate-700 transition-colors cursor-pointer"
                         >
                             Limpiar
                         </button>
                         <button
                             type="button"
                             onClick={handleHoy}
-                            className="flex-1 font-semibold text-blue-700 bg-blue-100 hover:bg-blue-300 rounded transition-colors cursor-pointer"
-                            style={{
-                                fontSize: escalaW > 0
-                                    ? `${Math.max(12, escalaW * 0.06)}px`
-                                    : '12px',
-                                padding: escalaW > 0
-                                    ? `${Math.max(6, escalaW * 0.02)}px`
-                                    : '6px'
-                            }}
+                            className="flex-1 py-1.5 rounded-lg text-sm font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
                         >
                             Hoy
                         </button>
                     </div>
+                    )}
                 </div>
                 </>,
                 document.body
