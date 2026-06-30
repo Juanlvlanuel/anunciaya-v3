@@ -270,7 +270,7 @@ export function SeccionCategorias() {
             {vista.map(({ cat, subs, abierta }) => (
               <div key={cat.id}>
                 {/* Fila categoría */}
-                <div className={`flex items-center gap-4 border-b border-borde px-4 py-3 transition hover:bg-marca-suave/40 ${!cat.activa ? 'opacity-60' : ''}`}>
+                <div className={`flex items-center gap-4 border-b border-borde px-4 py-3 transition ${!cat.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}>
                   <button
                     type="button"
                     onClick={() => toggleExpandir(cat.id)}
@@ -310,7 +310,7 @@ export function SeccionCategorias() {
                       <p className="px-4 py-2.5 pl-14 text-[12.5px] text-texto-4">Sin subcategorías todavía.</p>
                     )}
                     {subs.map((sub) => (
-                      <div key={sub.id} className={`flex items-center gap-4 px-4 py-2 pl-14 transition hover:bg-marca-suave/40 ${!sub.activa ? 'opacity-60' : ''}`}>
+                      <div key={sub.id} className={`flex items-center gap-4 px-4 py-2 pl-14 transition ${!sub.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}>
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-borde-fuerte" />
                         <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
                           <span className="truncate text-[13.5px] font-medium text-texto-2">{sub.nombre}</span>

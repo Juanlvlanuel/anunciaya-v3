@@ -293,7 +293,7 @@ export function SeccionCiudades() {
       <EstadoSeccion icono={MapPin} titulo="Aún no hay ciudades" />
     )
   ) : esEscritorio ? (
-    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde">
+    <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
       <div className="grid shrink-0 items-center gap-3.5 border-b border-borde bg-superficie px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4" style={{ gridTemplateColumns: cols }}>
         <span>Ciudad</span>
         <span>Estado</span>
@@ -321,7 +321,7 @@ export function SeccionCiudades() {
     ) : listaRegiones.length === 0 ? (
       <EstadoSeccion icono={Layers} titulo="Aún no hay regiones" descripcion="Crea una región para empezar a agrupar ciudades." accion={{ etiqueta: 'Crear región', onClick: () => setDialogoRegion({ modo: 'crear', region: null }) }} />
     ) : esEscritorio ? (
-      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
         <div className="grid shrink-0 items-center gap-3.5 border-b border-borde bg-superficie px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4" style={{ gridTemplateColumns: colsReg }}>
           <span>Región</span>
           <span>Ciudades</span>
@@ -340,7 +340,7 @@ export function SeccionCiudades() {
   const accionando = crearMultiple.isPending || agrupar.isPending;
   const contenidoMapa = (
     <div className="relative flex min-h-0 flex-1 flex-col">
-      <Suspense fallback={<div className="grid h-full place-items-center rounded-[12px] border border-borde text-[13px] text-texto-3">Cargando mapa…</div>}>
+      <Suspense fallback={<div className="grid h-full place-items-center rounded-[12px] border border-borde shadow-tarjeta-panel text-[13px] text-texto-3">Cargando mapa…</div>}>
         <MapaCiudades catalogoPorClave={catalogoPorClave} catalogoConCoords={catalogoConCoords} seleccionadas={seleccionClaves} onToggle={onToggle} />
       </Suspense>
       {seleccion.size > 0 && (

@@ -344,7 +344,7 @@ export function MapaCiudades({ catalogoPorClave, catalogoConCoords, seleccionada
     }, [seleccionadas, cargando]);
 
     return (
-        <div className="relative h-full w-full overflow-hidden rounded-[12px] border border-borde">
+        <div className="relative h-full w-full overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
             <div ref={contenedorRef} className="h-full w-full" data-testid="ciudades-mapa" />
             {cargando && !error && (
                 <div className="absolute inset-0 grid place-items-center bg-superficie/70 text-[13px] text-texto-3">

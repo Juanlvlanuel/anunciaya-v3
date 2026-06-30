@@ -192,7 +192,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
 
   if (esTabla) {
     return (
-      <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
+      <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
         <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
           <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
             <CajaIcono Icono={Icono} tam={32} color={ACENTO_CLAVE[c.clave] ?? 'bg-slate-400'} />
@@ -216,7 +216,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
   }
 
   return (
-    <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
+    <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
       <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
         {/* Identidad (texto a todo el ancho en móvil) */}
         <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
@@ -308,7 +308,7 @@ function TarjetaPrecioCarrusel({ c, onEditar }: { c: ConfigFila; onEditar: () =>
   const meta = META_CARRUSEL[c.clave];
   const Icono = meta?.Icono ?? Megaphone;
   return (
-    <div className="flex flex-col rounded-[12px] border border-borde bg-superficie px-4 py-4" data-testid={`config-${c.clave}`}>
+    <div className="flex flex-col rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="flex items-center gap-2">
           <CajaIcono Icono={Icono} tam={28} color={meta?.acento ?? 'bg-slate-400'} />

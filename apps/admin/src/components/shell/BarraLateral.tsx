@@ -49,10 +49,10 @@ export function BarraLateral({
 
   return (
     <div className="flex h-full flex-col">
-      <nav className="flex-1 overflow-y-auto px-3 py-3">
+      <nav className="flex-1 overflow-y-auto px-3 py-2">
         {grupos.map((g) => (
-          <div key={g.id} className="mb-3">
-            <div className="px-2.5 pb-1.5 pt-1 text-[13px] font-semibold text-etiqueta-grupo">{g.etiqueta}</div>
+          <div key={g.id} className="mb-2">
+            <div className="px-2.5 pb-1 pt-1 text-[13px] font-semibold text-etiqueta-grupo">{g.etiqueta}</div>
             {g.items.map((it) => {
               const activo = it.id === seccionActivaId;
               const contador = contadores?.[it.id] ?? it.contadorPorRol?.[rol];
@@ -65,7 +65,7 @@ export function BarraLateral({
                   onClick={() => onSeleccionar(it.id)}
                   onPointerEnter={() => precargar(it.id)}
                   onFocus={() => precargar(it.id)}
-                  className={`relative mb-0.5 flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-2 text-left text-[13.5px] transition ${
+                  className={`relative mb-0.5 flex w-full items-center gap-2.5 rounded-[9px] px-2.5 py-1.5 text-left text-[13.5px] transition ${
                     activo ? 'bg-marca-suave font-semibold text-marca' : 'text-texto-2 hover:bg-marca-suave'
                   }`}
                 >
@@ -85,7 +85,7 @@ export function BarraLateral({
       </nav>
 
       {/* Mi cuenta — avatar con menú (Seguridad + Cerrar sesión) */}
-      <div className="relative border-t border-borde p-2.5" ref={refMenu}>
+      <div className="relative border-t border-borde p-2" ref={refMenu}>
         {menuAbierto && (
           <div className="animar-entrada absolute inset-x-2.5 bottom-[calc(100%-4px)] z-30 rounded-[12px] border border-borde bg-superficie p-1.5 shadow-pop-panel">
             <button
@@ -116,7 +116,7 @@ export function BarraLateral({
           onClick={() => setMenuAbierto((v) => !v)}
           className="flex w-full items-center gap-2.5 rounded-[10px] px-2 py-1.5 transition hover:bg-marca-suave"
         >
-          <AvatarUsuario nombre={nombre} avatarUrl={avatarUrl} tam={40} />
+          <AvatarUsuario nombre={nombre} avatarUrl={avatarUrl} tam={38} />
           <span className="flex flex-1 flex-col overflow-hidden text-left">
             <span className="truncate text-[13px] font-semibold text-texto">{nombre}</span>
             <span className="truncate text-[12px] text-texto-2">{ETIQUETA_ROL[rol]}</span>
