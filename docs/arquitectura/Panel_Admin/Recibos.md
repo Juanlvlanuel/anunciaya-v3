@@ -1,14 +1,15 @@
 # Panel Admin · Módulo Recibos 🧾
 
-> **En una frase:** la pantalla del Panel donde el equipo ve **todos los recibos de pago de
-> membresía** (manuales y de tarjeta, ya foliados), los **busca por folio**, los **descarga** en
-> PDF y los **reenvía por correo** a uno o varios destinatarios.
+> **En una frase:** la pantalla del Panel donde el equipo ve **todos los recibos de pago** —de
+> **membresía** (suscripción comercial) y de **publicidad**— ya foliados, los **busca por folio**, los
+> **filtra por origen**, los **descarga** en PDF y los **reenvía por correo** a uno o varios destinatarios.
 >
 > **Cómo leer este documento:** dos capas. La primera (§1–§6) explica el módulo **en lenguaje de
 > persona**. La segunda (**Apéndice técnico**) es la referencia para quien toca el código.
 >
 > **Estado:** desplegado y en uso. Construido el **18 Junio 2026** (commit `feat(admin): módulo
-> Recibos del Panel`). `tsc` api+admin verdes.
+> Recibos del Panel`); extendido a **publicidad** (UNION) con el módulo Publicidad; **filtro por origen
+> (tabs) + columna "Tipo"** el **29 Junio 2026**. `tsc` api+admin verdes.
 >
 > Documentos hermanos: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) ·
 > [`Suscripciones.md`](Suscripciones.md) (la bitácora de **movimientos**; Recibos es la lista de
@@ -53,9 +54,11 @@ Negocios/Suscripciones, más el del vendedor por `embajador_id`.
 
 ## 4. ¿Qué veo en la pantalla?
 
-Un **buscador** (por folio o nombre de negocio) y una **lista** (tabla en escritorio, tarjetas en
-móvil) con: **folio · negocio · forma de pago · monto · fecha**. Los recibos anulados salen tachados
-y con la etiqueta "Anulado". Paginada.
+Arriba, **tabs de origen** — **Todos · Suscripciones · Publicidad** — para ver uno u otro tipo (o ambos).
+Debajo, un **buscador** (por folio o nombre de negocio/anunciante) y una **lista** (tabla en escritorio,
+tarjetas en móvil) con: **folio · negocio · _tipo_ · forma de pago · monto · fecha**. La columna **"Tipo"**
+muestra un chip **Suscripción** (azul de marca) o **Publicidad** (ámbar) para distinguirlos de un vistazo
+en la vista "Todos". Los recibos anulados salen tachados y con la etiqueta "Anulado". Paginada.
 
 ## 5. ¿Qué puedo hacer? (acciones)
 
@@ -103,7 +106,7 @@ y con la etiqueta "Anulado". Paginada.
 
 | Método | Ruta | Qué hace |
 |---|---|---|
-| `GET` | `/api/admin/recibos` | Lista paginada. Filtros: `busqueda` (folio o negocio), `negocioId`, `desde`, `hasta`, `orden` (`folio_desc`/`folio_asc`/`fecha_recientes`/`fecha_antiguos`), `pagina`, `porPagina`. |
+| `GET` | `/api/admin/recibos` | Lista paginada. Filtros: `busqueda` (folio o negocio/anunciante), `negocioId`, `desde`, `hasta`, **`origen`** (`membresia`/`publicidad`; ausente = ambos — filtra cada rama del UNION), `orden` (`folio_desc`/`folio_asc`/`fecha_recientes`/`fecha_antiguos`), `pagina`, `porPagina`. |
 | `GET` | `/api/admin/recibos/:id/pdf` | Verifica alcance → `prepararReciboPago` → `{ reciboUrl }` (R2). |
 | `POST` | `/api/admin/recibos/:id/reenviar` | Body `{ correos: string[] }` → regenera + envía a cada correo → audita (`recibo_reenviar`). |
 
@@ -116,9 +119,12 @@ y con la etiqueta "Anulado". Paginada.
 
 ## Notas
 
-- **Fuente única:** `pagos_membresia` (manuales + tarjeta). El recibo de **tarjeta** lo inserta el
-  webhook `invoice.payment_succeeded` con concepto `'tarjeta'` (ver `Pagos_Suscripciones.md` §10 y la
-  migración `docs/migraciones/2026-06-18-concepto-tarjeta.sql`). Por eso comparten la **serie de folios**.
+- **Dos fuentes en UNION:** `pagos_membresia` (suscripción: manuales + tarjeta) **+** `publicidad_compras`
+  con folio (anuncios pagados: alta manual, wizard self-service y **renovaciones**). Cada fila lleva
+  `origen` (`'membresia'`/`'publicidad'`); la query filtra cada rama según el tab elegido. El recibo de
+  **tarjeta** de membresía lo inserta el webhook `invoice.payment_succeeded` con concepto `'tarjeta'`. Todo
+  comparte la **misma serie de folios** (`pagos_membresia_folio_seq`), así la numeración es continua entre
+  membresía y publicidad.
 - **Descargar** regenera el PDF on-demand (no se persiste una URL fija en BD).
 - **Reenvío** es best-effort por destinatario; devuelve cuántos se enviaron (0 → 502).
 - **Solo lectura + reenvío:** editar/anular un pago vive en la ficha de Negocios (y los de tarjeta

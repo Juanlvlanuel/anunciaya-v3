@@ -81,7 +81,11 @@ Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reu
 >
 > El **nombre del tab** también es dinámico: **"Membresía y Pagos"** para cuentas con negocio comercial, y solo **"Pagos"** para cuentas personales que únicamente tienen publicidad (`tabsVisibles` reescribe el label cuando `!data.tieneNegocio`).
 >
-> `SeccionMiPublicidad.tsx` (`components/`) renderiza cada campaña: **tamaño** (Grande = `patrocinadores`, Chico = `anuncios`), **ciudades**, **vigencia** (Activa/Vencida según `expira_at`), **importe** (o "Cortesía") y **recibo** (PDF público en R2 — `recibo_url` se abre directo, sin endpoint), + botón "Anunciar más" → `/anunciate`.
+> `SeccionMiPublicidad.tsx` (`components/`) renderiza cada campaña: **tamaño** (Grande = `patrocinadores`, Chico = `anuncios`), **ciudades**, **vigencia** (Activa/Vencida según `expira_at`), botón **"Anunciar más"** → `/anunciate` (anuncio nuevo) y, por anuncio, botón **"Renovar"** → `/anunciate` en **modo renovación** (extiende la vigencia; ver `Panel_Admin/Publicidad.md` §Renovación).
+>
+> **Historial de pagos por anuncio (29-jun):** cada campaña lista **todos sus pagos** — el **inicial** + cada **renovación** — con su **folio, fecha, monto y recibo** (PDF público en R2) y un **thumbnail** de la creatividad de ese pago que abre un **lightbox** (porteado a `document.body` para tapar columnas/navbar). El backend los trae en `recibos[]` (`membresia.service.obtenerPublicidadDelUsuario`). La cortesía no genera recibo → muestra "Importe: Cortesía".
+>
+> **Resultado del pago:** al volver de Stripe (pagar/renovar) aterriza en esta pestaña (`?tab=pagos`) y un **modal global** (`ModalPagoPublicidad`, en `MainLayout`) confirma el pago (éxito/renovada) o avisa la cancelación, y refresca la lista.
 
 **Caché entre cuentas:** `useMiMembresia` incluye el `usuarioId` en su query key (`queryKeys.membresia.mi(usuarioId)`) para que al **cambiar de cuenta** NO se sirva el caché del usuario anterior — de eso depende que el tab aparezca/desaparezca sin tener que refrescar. Como **blindaje global**, `useAuthStore` además llama `queryClient.clear()` en `logout` y al inicio de `loginExitoso`, así ninguna sección de la app sirve datos cacheados entre cuentas (cubre también el login directo sin logout previo). Detalle del patrón en [`PATRON_REACT_QUERY.md`](../estandares/PATRON_REACT_QUERY.md).
 

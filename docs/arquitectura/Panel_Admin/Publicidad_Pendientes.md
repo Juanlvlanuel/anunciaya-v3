@@ -85,6 +85,7 @@
 - Cobro automático de efectivo de la publicidad enganchado a la cartera del vendedor (si algún día el vendedor la vende).
 - **Tope de inventario + tiempo visible configurables por carrusel** (ver "Inventario y rotación" abajo) — proteger el valor del espacio cuando escale. No urgente para la beta.
 - **Conteo de impresiones/"vistas"** — la columna `publicidad_piezas.impresiones` existe pero nada la incrementa; las vistas se retiraron de la UI (29-jun). Para activarlas: contar al mostrar la pieza en `ColumnaDerecha` (endpoint + regla de conteo con throttle).
+- **Limpieza de creatividades al cancelar/eliminar (R2)** — cada pago (inicial + renovaciones) conserva su imagen en `publicidad_piezas` para el historial visual de "Tu publicidad", así que esas imágenes **no se limpian** (nunca quedan huérfanas). Mejora: al **cancelar/archivar** un anuncio, borrar de R2 todas las imágenes de sus filas de pago (con reference count). No urgente para la beta (volumen mínimo).
 
 ---
 

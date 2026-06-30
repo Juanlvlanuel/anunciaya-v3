@@ -223,6 +223,22 @@ imagen, ciudades, tamaños y meses, y al pagar **extiende la vigencia** en vez d
   (crea el pago + Stripe). Service: `publicidad-renovacion.service.ts`. El botón en `SeccionMiPublicidad`
   navega a `/anunciate` con `state.renovarId`.
 
+### Resultado del pago + historial de recibos (29-jun)
+- **Modal de resultado de pago** (`apps/web/.../layout/ModalPagoPublicidad.tsx`, montado en `MainLayout`):
+  detecta el query `?publicidad=exito|renovada|cancelado` con que Stripe devuelve a la app y muestra un modal
+  de **confirmación** (verde) o **cancelación** (ámbar); al confirmarse refresca "Tu publicidad" + carruseles
+  (invalida `membresia`/`publicidad`) y limpia el param. El **rechazo de tarjeta** lo gestiona Stripe en su
+  pantalla; a la app solo vuelve por éxito o cancelación.
+- **Retorno a la pestaña Pagos:** los `success_url`/`cancel_url` (checkout nuevo y renovación) apuntan a
+  `/perfil?tab=pagos&publicidad=…`; `PaginaPerfilPersonal` lee `?tab=pagos` para abrir "Membresía y Pagos".
+- **Historial de pagos por anuncio** (Mi Perfil → "Tu publicidad", `SeccionMiPublicidad`): cada anuncio
+  lista **todos sus pagos** (inicial + renovaciones), cada uno con su **folio, fecha, monto y recibo**, y un
+  **thumbnail** de la creatividad de ese pago que abre un **lightbox** (porteado a `document.body`). El backend
+  (`membresia.service.obtenerPublicidadDelUsuario`) trae `recibos[]` por anuncio (filas con folio: la propia +
+  `renovacion_de = id`) con sus imágenes. ⚠️ Como cada pago conserva su creatividad (referenciada en
+  `publicidad_piezas`), esas imágenes **no se limpian de R2** (trade-off del historial visual; ver pendiente
+  "limpieza al cancelar" en `Publicidad_Pendientes.md`).
+
 ### Creatividades (R2): medida, optimización + sin huérfanas
 El anunciante sube su propia imagen **por tamaño**, con la **medida recomendada a la vista** en el wizard
 (Grande **1080×1350 px** 4:5 · Chico **1080×720 px** 3:2 — mismo ancho base, coherente con que en la columna
