@@ -41,14 +41,18 @@ type DlgDisponibilidad =
 // =============================================================================
 
 function Kpi({ icono: Icono, valor, etiqueta, testid }: { icono: typeof Tags; valor: number; etiqueta: string; testid?: string }) {
+  // Móvil: tarjeta compacta para carrusel horizontal. Escritorio: tamaño completo.
   return (
-    <div data-testid={testid} className="flex items-center gap-3.5 rounded-[14px] border border-borde bg-superficie px-4 py-3.5 shadow-tarjeta-panel">
-      <span className="grid h-11 w-11 shrink-0 place-items-center rounded-[11px] bg-marca-suave text-marca">
-        <Icono size={20} />
+    <div
+      data-testid={testid}
+      className="flex w-[44vw] max-w-[180px] shrink-0 snap-start items-center gap-2.5 rounded-[12px] border border-borde bg-superficie px-3 py-2.5 shadow-tarjeta-panel lg:w-auto lg:max-w-none lg:gap-3.5 lg:rounded-[14px] lg:px-4 lg:py-3.5"
+    >
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca lg:h-11 lg:w-11 lg:rounded-[11px]">
+        <Icono className="h-[18px] w-[18px] lg:h-5 lg:w-5" />
       </span>
       <div className="min-w-0">
-        <div className="text-[26px] font-bold leading-none tabular-nums text-texto">{valor}</div>
-        <div className="mt-1 truncate text-[12.5px] font-medium text-texto-3">{etiqueta}</div>
+        <div className="text-[19px] font-bold leading-none tabular-nums text-texto lg:text-[26px]">{valor}</div>
+        <div className="mt-0.5 truncate text-[11px] font-medium text-texto-3 lg:mt-1 lg:text-[12.5px]">{etiqueta}</div>
       </div>
     </div>
   );
@@ -100,14 +104,12 @@ export function SeccionCategorias() {
 
   // KPIs
   const kpis = useMemo(() => {
-    let subs = 0, acotadas = 0, negocios = 0;
+    let subs = 0, negocios = 0;
     for (const c of catalogo) {
       subs += c.subcategorias.length;
       negocios += c.totalNegocios;
-      if (c.ciudades.length > 0) acotadas += 1;
-      for (const s of c.subcategorias) if (s.ciudades.length > 0) acotadas += 1;
     }
-    return { categorias: catalogo.length, subs, acotadas, negocios };
+    return { categorias: catalogo.length, subs, negocios };
   }, [catalogo]);
 
   // Vista filtrada (búsqueda + estado). Con búsqueda, abre las categorías con match en sus subs.
@@ -173,10 +175,9 @@ export function SeccionCategorias() {
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
       {/* KPIs de cabecera */}
       {!isLoading && !isError && (
-        <div className="mb-4 grid shrink-0 grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="mb-4 -mx-4 flex shrink-0 snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
           <Kpi icono={Tags} valor={kpis.categorias} etiqueta="Categorías" testid="kpi-categorias" />
           <Kpi icono={FolderTree} valor={kpis.subs} etiqueta="Subcategorías" testid="kpi-subcategorias" />
-          <Kpi icono={MapPin} valor={kpis.acotadas} etiqueta="Acotadas por ciudad" testid="kpi-acotadas" />
           <Kpi icono={Store} valor={kpis.negocios} etiqueta="Negocios clasificados" testid="kpi-negocios" />
         </div>
       )}
