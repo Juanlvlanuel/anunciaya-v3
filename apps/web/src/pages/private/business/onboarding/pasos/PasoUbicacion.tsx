@@ -14,7 +14,8 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
+import { Mapa, Marker, type MapRef, type MarkerDragEvent, type MapLayerMouseEvent } from '@/components/mapa/Mapa';
+import { PinMapa } from '@/components/mapa/MarcadorPopup';
 import {
     Loader2, Search, Maximize2, X
 } from 'lucide-react';
@@ -25,7 +26,6 @@ import { ICONOS } from '@/config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Navigation = (p: IconoWrapperProps) => <Icon icon={ICONOS.distancia} {...p} />;
-import L from 'leaflet';
 import { useOnboardingStore } from '@/stores/useOnboardingStore';
 import { useGpsStore } from '@/stores/useGpsStore';
 import { api } from '@/services/api';
@@ -35,91 +35,28 @@ import { ModalUbicacion } from '@/components/layout/ModalUbicacion';
 import { detectarZonaHoraria } from '@/utils/zonaHoraria';
 import { CargandoPaso } from '../componentes';
 
-import 'leaflet/dist/leaflet.css';
-
-
-
-// =============================================================================
-// FIX DE ICONOS DE LEAFLET
-// =============================================================================
-
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
 // =============================================================================
 // COMPONENTES AUXILIARES DEL MAPA
 // =============================================================================
 
-interface CentrarMapaProps {
+interface MarcadorArrastrableProps {
     lat: number;
     lng: number;
-    forzar?: number;
-}
-
-function CentrarMapa({ lat, lng, forzar }: CentrarMapaProps) {
-    const map = useMap();
-    const forzarAnterior = useRef(forzar);
-
-    useEffect(() => {
-        // Solo restablecer zoom cuando se presiona el botón centrar
-        if (forzar !== forzarAnterior.current) {
-            map.setView([lat, lng], 15);
-            forzarAnterior.current = forzar;
-        }
-    }, [lat, lng, forzar, map]);
-
-    return null;
-}
-
-interface MarcadorArrastrableProps {
-    posicion: [number, number];
     onMover: (lat: number, lng: number) => void;
 }
 
-function MarcadorArrastrable({ posicion, onMover }: MarcadorArrastrableProps) {
-    const [posicionLocal, setPosicionLocal] = useState<[number, number]>(posicion);
-
-    useEffect(() => {
-        setPosicionLocal(posicion);
-    }, [posicion]);
-
-    const eventHandlers = {
-        dragend(e: L.DragEndEvent) {
-            const marker = e.target;
-            const position = marker.getLatLng();
-            setPosicionLocal([position.lat, position.lng]);
-            onMover(position.lat, position.lng);
-        },
-    };
-
-    return <Marker position={posicionLocal} draggable={true} eventHandlers={eventHandlers} />;
-}
-
-interface DetectarClicMapaProps {
-    onClic: (lat: number, lng: number) => void;
-}
-
-function DetectarClicMapa({ onClic }: DetectarClicMapaProps) {
-    const map = useMap();
-
-    useEffect(() => {
-        const handleClick = (e: L.LeafletMouseEvent) => {
-            onClic(e.latlng.lat, e.latlng.lng);
-        };
-
-        map.on('click', handleClick);
-
-        return () => {
-            map.off('click', handleClick);
-        };
-    }, [map, onClic]);
-
-    return null;
+function MarcadorArrastrable({ lat, lng, onMover }: MarcadorArrastrableProps) {
+    return (
+        <Marker
+            longitude={lng}
+            latitude={lat}
+            draggable
+            anchor="bottom"
+            onDragEnd={(e: MarkerDragEvent) => onMover(e.lngLat.lat, e.lngLat.lng)}
+        >
+            <PinMapa color="azul" />
+        </Marker>
+    );
 }
 
 // =============================================================================
@@ -183,6 +120,10 @@ export function PasoUbicacion() {
     const contenedorGeneralRef = useRef<HTMLDivElement>(null);
     const inputCiudadRef = useRef<HTMLInputElement>(null);
     const sugerenciasRef = useRef<HTMLDivElement>(null);
+
+    // Refs de los mapas (compacto + fullscreen) para centrado imperativo.
+    const mapCompactoRef = useRef<MapRef | null>(null);
+    const mapFullscreenRef = useRef<MapRef | null>(null);
 
     // ---------------------------------------------------------------------------
     // Validación
@@ -403,6 +344,21 @@ export function PasoUbicacion() {
         setLatitud(lat);
         setLongitud(lng);
     }, []);
+
+    const handleClicMapa = useCallback((e: MapLayerMouseEvent) => {
+        handleMoverMarcador(e.lngLat.lat, e.lngLat.lng);
+    }, [handleMoverMarcador]);
+
+    // Centrar ambos mapas cuando se presiona "centrar" o se detecta GPS/ciudad
+    // (forzarCentrado se incrementa en esos casos). Reemplaza al antiguo
+    // sub-componente CentrarMapa que usaba useMap(). Depende SOLO de
+    // forzarCentrado para no recentrar en cada arrastre del marcador.
+    useEffect(() => {
+        if (forzarCentrado === 0) return;
+        mapCompactoRef.current?.flyTo({ center: [longitud, latitud], zoom: 15 });
+        mapFullscreenRef.current?.flyTo({ center: [longitud, latitud], zoom: 15 });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [forzarCentrado]);
 
     // ---------------------------------------------------------------------------
     // Detectar ubicación GPS
@@ -641,17 +597,16 @@ export function PasoUbicacion() {
                         )}
 
                         {mapaListo ? (
-                            <MapContainer
-                                center={[latitud, longitud]}
-                                zoom={15}
-                                style={{ height: '250px', width: '100%' }}
-                                className="lg:h-[280px]! 2xl:h-80! z-0!"
-                            >
-                                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <MarcadorArrastrable posicion={[latitud, longitud]} onMover={handleMoverMarcador} />
-                                <DetectarClicMapa onClic={handleMoverMarcador} />
-                                <CentrarMapa lat={latitud} lng={longitud} forzar={forzarCentrado} />
-                            </MapContainer>
+                            <div className="h-[250px] lg:h-[280px] 2xl:h-80 w-full">
+                                <Mapa
+                                    ref={mapCompactoRef}
+                                    initialViewState={{ longitude: longitud, latitude: latitud, zoom: 15 }}
+                                    onClick={handleClicMapa}
+                                    style={{ height: '100%', width: '100%' }}
+                                >
+                                    <MarcadorArrastrable lat={latitud} lng={longitud} onMover={handleMoverMarcador} />
+                                </Mapa>
+                            </div>
                         ) : (
                             <div className="flex items-center justify-center h-[250px] lg:h-[280px] 2xl:h-80 bg-slate-50">
                                 <Loader2 className="w-6 h-6 animate-spin text-slate-600" />
@@ -709,18 +664,14 @@ export function PasoUbicacion() {
 
                         {/* Mapa a pantalla completa */}
                         <div className="flex-1 min-h-0 relative">
-                            <MapContainer
-                                center={[latitud, longitud]}
-                                zoom={16}
+                            <Mapa
+                                ref={mapFullscreenRef}
+                                initialViewState={{ longitude: longitud, latitude: latitud, zoom: 16 }}
+                                onClick={handleClicMapa}
                                 style={{ height: '100%', width: '100%' }}
-                                scrollWheelZoom={true}
-                                zoomControl={true}
                             >
-                                <TileLayer attribution='&copy; OpenStreetMap' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                                <MarcadorArrastrable posicion={[latitud, longitud]} onMover={handleMoverMarcador} />
-                                <DetectarClicMapa onClic={handleMoverMarcador} />
-                                <CentrarMapa lat={latitud} lng={longitud} forzar={forzarCentrado} />
-                            </MapContainer>
+                                <MarcadorArrastrable lat={latitud} lng={longitud} onMover={handleMoverMarcador} />
+                            </Mapa>
                         </div>
                     </div>
                 </div>,

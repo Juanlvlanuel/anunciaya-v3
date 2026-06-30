@@ -180,7 +180,7 @@ Este documento describe la **arquitectura del sistema de Negocios**:
 │            │                                 │
 │  [Card 1]  │                                 │
 │  [Card 2]  │      MAPA INTERACTIVO           │
-│  [Card 3]  │   (Leaflet con marcadores)      │
+│  [Card 3]  │   (MapLibre con marcadores)      │
 │  [Card 4]  │                                 │
 │     ↓      │        📍 📍 📍                  │
 │   scroll   │                                 │
@@ -243,7 +243,7 @@ Este documento describe la **arquitectura del sistema de Negocios**:
 
 ### Mapa Interactivo
 
-**Tecnología:** Leaflet
+**Tecnología:** MapLibre (react-map-gl + tiles OpenFreeMap)
 
 **Funcionalidades:**
 - Marcadores de negocios en ubicaciones exactas
@@ -2334,7 +2334,7 @@ apps/web/src/
 ├── components/
 │   └── negocios/
 │       ├── TarjetaNegocio.tsx           (Card en carrusel)
-│       ├── MapaNegocios.tsx             (Mapa Leaflet)
+│       ├── MapaNegocios.tsx             (Mapa MapLibre)
 │       ├── PanelFiltros.tsx             (Filtros)
 │       ├── ModalDetalleItem.tsx         (Modal producto)
 │       └── ModalHorarios.tsx            (Modal horarios)

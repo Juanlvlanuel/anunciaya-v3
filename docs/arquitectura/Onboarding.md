@@ -81,7 +81,7 @@ El sistema actualiza:
 **¿Qué contiene?**
 - Input: Dirección completa (5-250 caracteres)
 - Input: Ciudad (2-120 caracteres)
-- Mapa Leaflet interactivo
+- Mapa MapLibre interactivo (react-map-gl)
 - Marcador arrastrable
 - Botón "Usar GPS" (detección automática)
 - Zona horaria: Se calcula automáticamente según ubicación

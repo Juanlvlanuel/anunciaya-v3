@@ -19,8 +19,7 @@ import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { normalizarTexto } from '../../../utils/normalizarTexto';
-import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { Mapa, Marker, Popup, useMap, type MapRef, type MarkerEvent } from '../../../components/mapa/Mapa';
 import { ChipsFiltros } from '../../../components/negocios/ChipsFiltros';
 import {
   List,
@@ -61,9 +60,6 @@ import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
 import type { NegocioResumen } from '../../../types/negocios';
 
-// Importar estilos de Leaflet
-import 'leaflet/dist/leaflet.css';
-
 // =============================================================================
 // CONSTANTES
 // =============================================================================
@@ -84,58 +80,68 @@ const TABS_NEGOCIOS_MOBILE: { id: TabNegocios; label: string; Icono: typeof List
 // ICONOS DE MARKERS
 // =============================================================================
 
-const iconoNegocio = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+const URL_MARKER_AZUL = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png';
+const URL_MARKER_ROJO = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png';
+const URL_MARKER_VERDE = 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png';
+const URL_MARKER_SOMBRA = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png';
 
-const iconoSeleccionadoAnimado = new L.DivIcon({
-  className: '',
-  html: `<div class="pin-seleccionado-wrapper">
-    <div class="pin-pulse-ring"></div>
-    <div class="pin-pulse-ring pin-pulse-ring-2"></div>
-    <img src="https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png" class="pin-icon-img" />
-    <img src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png" class="pin-shadow-img" />
-  </div>`,
-  iconSize: [30, 49],
-  iconAnchor: [15, 49],
-  popupAnchor: [1, -40],
-});
+/** Pin normal de un negocio (azul). Punta abajo → anchor="bottom". */
+function PinNegocioMapa() {
+  return (
+    <img
+      src={URL_MARKER_AZUL}
+      alt=""
+      style={{ width: 25, height: 41, display: 'block', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}
+      draggable={false}
+    />
+  );
+}
 
-const iconoUsuario = new L.Icon({
-  iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-green.png',
-  shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41]
-});
+/** Pin del negocio seleccionado (rojo) con anillos de pulso animados. */
+function PinSeleccionado() {
+  return (
+    <div className="pin-seleccionado-wrapper">
+      <div className="pin-pulse-ring" />
+      <div className="pin-pulse-ring pin-pulse-ring-2" />
+      <img src={URL_MARKER_ROJO} className="pin-icon-img" alt="" draggable={false} />
+      <img src={URL_MARKER_SOMBRA} className="pin-shadow-img" alt="" draggable={false} />
+    </div>
+  );
+}
+
+/** Pin de la ubicación del usuario (verde). */
+function PinUsuario() {
+  return (
+    <img
+      src={URL_MARKER_VERDE}
+      alt=""
+      style={{ width: 25, height: 41, display: 'block', filter: 'drop-shadow(0 2px 3px rgba(0,0,0,0.3))' }}
+      draggable={false}
+    />
+  );
+}
 
 // =============================================================================
 // ESTILOS CSS
 // =============================================================================
 
 const POPUP_STYLES = `
-  .popup-negocio .leaflet-popup-content-wrapper {
+  .popup-negocio .maplibregl-popup-content {
     padding: 0;
     border-radius: 16px;
     overflow: hidden;
     border: 2px solid #94a3b8;
     box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
   }
-  .popup-negocio .leaflet-popup-content {
+  .popup-negocio .maplibregl-popup-content {
     margin: 0;
     min-width: 240px;
     max-width: 270px;
   }
-  .popup-negocio .leaflet-popup-tip {
+  .popup-negocio .maplibregl-popup-tip {
     box-shadow: 0 2px 4px rgba(0,0,0,0.06);
   }
-  .popup-negocio .leaflet-popup-close-button {
+  .popup-negocio .maplibregl-popup-close-button {
     top: 8px !important;
     right: 8px !important;
     width: 30px !important;
@@ -158,7 +164,7 @@ const POPUP_STYLES = `
     pointer-events: auto !important;
     position: absolute !important;
   }
-  .popup-negocio .leaflet-popup-close-button:hover {
+  .popup-negocio .maplibregl-popup-close-button:hover {
     color: #fff !important;
     background: rgba(255,255,255,0.3) !important;
   }
@@ -361,51 +367,17 @@ function PopupNegocio({ negocio, onVerPerfil, onChat }: PopupNegocioProps) {
 }
 
 // =============================================================================
-// COMPONENTE: Controles del Mapa (overlay dentro del mapa)
-// =============================================================================
-
-function ControlesMapa({ onMapReady }: { onMapReady?: (map: L.Map) => void }) {
-  const map = useMap();
-  const { latitud, longitud } = useGpsStore();
-
-  useEffect(() => {
-    if (latitud && longitud) {
-      map.setView([latitud, longitud], 15);
-    }
-  }, [latitud, longitud, map]);
-
-  useEffect(() => {
-    if (onMapReady) onMapReady(map);
-  }, [map, onMapReady]);
-
-  // Invalidar tamaño cuando el contenedor cambie
-  useEffect(() => {
-    setTimeout(() => map.invalidateSize(), 300);
-  }, [map]);
-
-  return null;
-}
-
-// =============================================================================
 // COMPONENTE: Controles de zoom (overlay blanco)
 // =============================================================================
 
-function MapaControlesZoom({ latitud, longitud }: { mapRef?: unknown; latitud: number | null; longitud: number | null }) {
-  const map = useMap();
-  const controlRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (controlRef.current) {
-      L.DomEvent.disableClickPropagation(controlRef.current);
-      L.DomEvent.disableScrollPropagation(controlRef.current);
-    }
-  }, []);
+function MapaControlesZoom({ latitud, longitud }: { latitud: number | null; longitud: number | null }) {
+  const { current: map } = useMap();
 
   return (
-    <div ref={controlRef} className="absolute bottom-3 left-3 lg:left-auto lg:right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+    <div className="absolute bottom-3 left-3 lg:left-auto lg:right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
       <button
         data-testid="btn-mapa-zoom-in"
-        onPointerDown={(e) => { e.stopPropagation(); map.zoomIn(); }}
+        onPointerDown={(e) => { e.stopPropagation(); map?.zoomIn(); }}
         className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer transition-colors active:bg-slate-700"
       >
         <Plus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
@@ -413,7 +385,7 @@ function MapaControlesZoom({ latitud, longitud }: { mapRef?: unknown; latitud: n
       <div className="w-px h-auto bg-slate-700 my-1.5" />
       <button
         data-testid="btn-mapa-zoom-out"
-        onPointerDown={(e) => { e.stopPropagation(); map.zoomOut(); }}
+        onPointerDown={(e) => { e.stopPropagation(); map?.zoomOut(); }}
         className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer transition-colors active:bg-slate-700"
       >
         <Minus className="w-5 h-5 lg:w-4 lg:h-4 text-white" />
@@ -423,7 +395,7 @@ function MapaControlesZoom({ latitud, longitud }: { mapRef?: unknown; latitud: n
         data-testid="btn-mapa-centrar"
         onPointerDown={(e) => {
           e.stopPropagation();
-          if (latitud && longitud) map.setView([latitud, longitud], 15);
+          if (latitud && longitud) map?.flyTo({ center: [longitud, latitud], zoom: 15 });
         }}
         className="w-11 h-11 lg:w-9 lg:h-9 flex items-center justify-center cursor-pointer transition-colors active:bg-slate-700"
       >
@@ -443,99 +415,88 @@ interface MapaNegocionProps {
   latitud: number | null;
   longitud: number | null;
   negocioSeleccionadoId: string | null;
-  getIconoMarker: (id: string) => L.Icon | L.DivIcon;
-  handleSeleccionarNegocio: (id: string, mapa?: L.Map, marcador?: L.Marker) => void;
+  handleSeleccionarNegocio: (id: string, mapa?: MapRef | null) => void;
   setNegocioSeleccionadoId: (id: string | null) => void;
-  onMapReady: (map: L.Map) => void;
+  onMapReady: (map: MapRef | null) => void;
   navigate: ReturnType<typeof useNavigate>;
-  markerRefs: React.MutableRefObject<Record<string, L.Marker>>;
   onChat: (negocio: NegocioResumen) => void;
-  className?: string;
 }
 
-// Marcadores como hijo de <MapContainer> para resolver el mapa de ESTA instancia
-// vía useMap() (la visible). Se montan 2 <MapaNegocio> (lg:hidden + hidden lg:block)
-// y el `mapRef` compartido apunta al oculto (size 0); el del marker clickeado es el
-// visible, así `flyTo` corre sobre el mapa correcto y nunca recibe (NaN, NaN).
-function MarcadoresNegocios({
-  negocios, getIconoMarker, handleSeleccionarNegocio,
-  setNegocioSeleccionadoId, navigate, markerRefs, onChat,
-}: Pick<
-  MapaNegocionProps,
-  'negocios' | 'getIconoMarker' | 'handleSeleccionarNegocio' |
-  'setNegocioSeleccionadoId' | 'navigate' | 'markerRefs' | 'onChat'
->) {
-  const mapa = useMap();
-  return (
-    <>
-      {negocios.map((negocio) => {
-        if (!negocio.latitud || !negocio.longitud) return null;
-        const posicion: [number, number] = [negocio.latitud, negocio.longitud];
-
-        return (
-          <Marker
-            key={negocio.sucursalId}
-            position={posicion}
-            icon={getIconoMarker(negocio.sucursalId)}
-            eventHandlers={{
-              click: (e: L.LeafletMouseEvent) => handleSeleccionarNegocio(negocio.sucursalId, mapa, e.target as L.Marker),
-              add: (e: L.LeafletEvent) => { markerRefs.current[negocio.sucursalId] = e.target as L.Marker; },
-              popupclose: () => { setNegocioSeleccionadoId(null); },
-            }}
-          >
-            <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
-              <PopupNegocio
-                negocio={negocio}
-                onVerPerfil={() => navigate(`/negocios/${negocio.sucursalId}`)}
-                onChat={() => onChat(negocio)}
-              />
-            </Popup>
-          </Marker>
-        );
-      })}
-    </>
-  );
-}
-
+// Un solo <Mapa> por instancia (se montan 2: lg:hidden movil + hidden lg:block
+// desktop). El popup del negocio seleccionado lo dibuja el estado
+// `negocioSeleccionadoId` (no se ata al marcador como en Leaflet). El flyTo al
+// seleccionar corre sobre la instancia clickeada (su propia ref).
 function MapaNegocio({
   centroInicial, negocios, latitud, longitud,
-  getIconoMarker, handleSeleccionarNegocio, setNegocioSeleccionadoId,
-  onMapReady, navigate, markerRefs, onChat, className = '',
+  negocioSeleccionadoId, handleSeleccionarNegocio, setNegocioSeleccionadoId,
+  onMapReady, navigate, onChat,
 }: MapaNegocionProps) {
-  return (
-    <MapContainer
-      center={centroInicial}
-      zoom={14}
-      className={`w-full h-full ${className}`}
-      zoomControl={false}
-    >
-      <TileLayer
-        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-        url="https://tile.openstreetmap.org/{z}/{x}/{y}.png"
-        keepBuffer={8}
-        updateWhenZooming={false}
-        updateWhenIdle={true}
-      />
+  const mapaRef = useRef<MapRef | null>(null);
 
+  // Recentrar a la ubicacion del usuario cuando cambia el GPS (igual que el
+  // antiguo ControlesMapa). react-map-gl reajusta el tamano con el contenedor,
+  // asi que ya no hace falta invalidateSize al cambiar de tab.
+  useEffect(() => {
+    if (latitud && longitud) mapaRef.current?.flyTo({ center: [longitud, latitud], zoom: 15 });
+  }, [latitud, longitud]);
+
+  const negocioSel = negocios.find(
+    (n) => n.sucursalId === negocioSeleccionadoId && n.latitud && n.longitud,
+  );
+
+  return (
+    <Mapa
+      ref={(r) => { mapaRef.current = r; onMapReady(r); }}
+      initialViewState={{ longitude: centroInicial[1], latitude: centroInicial[0], zoom: 14 }}
+      attributionControl={false}
+      style={{ width: '100%', height: '100%' }}
+    >
       {latitud && longitud && (
-        <Marker position={[latitud, longitud]} icon={iconoUsuario}>
-          <Popup><p className="font-semibold text-center">Tu ubicación</p></Popup>
+        <Marker longitude={longitud} latitude={latitud} anchor="bottom">
+          <PinUsuario />
         </Marker>
       )}
 
-      <MarcadoresNegocios
-        negocios={negocios}
-        getIconoMarker={getIconoMarker}
-        handleSeleccionarNegocio={handleSeleccionarNegocio}
-        setNegocioSeleccionadoId={setNegocioSeleccionadoId}
-        navigate={navigate}
-        markerRefs={markerRefs}
-        onChat={onChat}
-      />
+      {negocios.map((negocio) => {
+        if (!negocio.latitud || !negocio.longitud) return null;
+        return (
+          <Marker
+            key={negocio.sucursalId}
+            longitude={negocio.longitud}
+            latitude={negocio.latitud}
+            anchor="bottom"
+            style={{ cursor: 'pointer' }}
+            onClick={(e: MarkerEvent<MouseEvent>) => {
+              e.originalEvent.stopPropagation();
+              handleSeleccionarNegocio(negocio.sucursalId, mapaRef.current);
+            }}
+          >
+            {negocio.sucursalId === negocioSeleccionadoId ? <PinSeleccionado /> : <PinNegocioMapa />}
+          </Marker>
+        );
+      })}
 
-      <ControlesMapa onMapReady={onMapReady} />
+      {negocioSel && negocioSel.latitud != null && negocioSel.longitud != null && (
+        <Popup
+          longitude={negocioSel.longitud}
+          latitude={negocioSel.latitud}
+          anchor="bottom"
+          offset={46}
+          className="popup-negocio"
+          maxWidth="270px"
+          closeOnClick={true}
+          onClose={() => setNegocioSeleccionadoId(null)}
+        >
+          <PopupNegocio
+            negocio={negocioSel}
+            onVerPerfil={() => navigate(`/negocios/${negocioSel.sucursalId}`)}
+            onChat={() => onChat(negocioSel)}
+          />
+        </Popup>
+      )}
+
       <MapaControlesZoom latitud={latitud} longitud={longitud} />
-    </MapContainer>
+    </Mapa>
   );
 }
 
@@ -547,7 +508,7 @@ export function PaginaNegocios() {
   const navigate = useNavigate();
   // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
   const handleVolver = useVolverAtras('/inicio');
-  const mapRef = useRef<L.Map | null>(null);
+  const mapRef = useRef<MapRef | null>(null);
   const btnCategoriaRef = useRef<HTMLButtonElement>(null);
   const btnSubcategoriaRef = useRef<HTMLButtonElement>(null);
   const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
@@ -555,8 +516,8 @@ export function PaginaNegocios() {
 
   const handleChatPopup = useCallback((negocio: NegocioResumen) => {
     if (!negocio.usuarioId) return;
-    // Cerrar el popup del marker antes de abrir el chat (evita overlays apilados).
-    markerRefs.current[negocio.sucursalId]?.closePopup();
+    // El popup queda cubierto por el overlay del chat (z-index superior); su
+    // cierre lo maneja el estado de selección, ya no se ata al marcador.
     // Sufijo de sucursal coherente con el resto del UI: solo si >1 sucursales,
     // y para la principal usar "Matriz" en lugar del nombre (duplicado).
     const sucursalParaHeader =
@@ -576,7 +537,6 @@ export function PaginaNegocios() {
   }, [iniciarChatNegocio]);
 
   // Refs para sincronización bidireccional
-  const markerRefs = useRef<Record<string, L.Marker>>({});
   const cardRefs = useRef<Record<string, HTMLDivElement | null>>({});
 
   // Estado
@@ -708,32 +668,36 @@ export function PaginaNegocios() {
   }, []);
 
   // Sincronización bidireccional
-  const handleSeleccionarNegocio = useCallback((sucursalId: string, mapaClickeado?: L.Map, marcadorClickeado?: L.Marker) => {
+  const handleSeleccionarNegocio = useCallback((sucursalId: string, mapaClickeado?: MapRef | null) => {
     const nuevoId = negocioSeleccionadoId === sucursalId ? null : sucursalId;
     setNegocioSeleccionadoId(nuevoId);
 
-    // Preferir el mapa/marcador de la instancia que el usuario tocó (la visible).
-    // El `mapRef` compartido apunta al mapa oculto (size 0) y `flyTo` sobre un mapa
-    // de tamaño 0 genera LatLng (NaN, NaN). Fallback a mapRef para clicks de card.
+    // Preferir el mapa de la instancia que el usuario tocó (la visible). El
+    // `mapRef` compartido puede apuntar al mapa oculto (size 0); flyTo sobre él
+    // no se vería. Fallback a mapRef para clicks desde una card.
     const mapa = mapaClickeado ?? mapRef.current;
 
     if (mapa && nuevoId) {
       const negocio = negocios.find(n => n.sucursalId === nuevoId);
       const lat = Number(negocio?.latitud);
       const lng = Number(negocio?.longitud);
-      // Offset basado en el alto del contenedor. El guard `containerHeight > 0`
-      // salta el flyTo si el mapa está oculto/sin layout (evita el NaN de Leaflet).
+      // El guard `containerHeight > 0` salta el flyTo si el mapa está oculto/sin layout.
       const containerHeight = mapa.getContainer().clientHeight;
       if (negocio && !isNaN(lat) && !isNaN(lng) && lat !== 0 && lng !== 0 && containerHeight > 0) {
         mapa.stop();
-        // Centrar el mapa para que el popup (que abre hacia arriba) quede visible.
-        // El popup ocupa ~250px hacia arriba, centramos el pin en el tercio inferior.
-        const targetPoint = mapa.project([lat, lng], 17);
-        targetPoint.y -= containerHeight * 0.25; // Desplazar 25% hacia arriba
-        const targetLatLng = mapa.unproject(targetPoint, 17);
-        mapa.flyTo(targetLatLng, 17, { duration: 0.5 });
-        const marcador = marcadorClickeado ?? markerRefs.current[nuevoId];
-        setTimeout(() => { marcador?.openPopup(); }, 600);
+        // Dejar el pin en el tercio inferior para que el popup (que abre hacia
+        // arriba) quede visible: un offset positivo en Y baja el centro objetivo.
+        // Vuelo "cinematográfico": duración larga (ms), curva de vuelo con arco
+        // y easing suave (easeInOutCubic) para acelerar/desacelerar sin tirones.
+        mapa.flyTo({
+          center: [lng, lat],
+          zoom: 17,
+          offset: [0, Math.round(containerHeight * 0.22)],
+          duration: 1400,
+          curve: 1.6,
+          easing: (t) => (t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2),
+          essential: true,
+        });
       }
     }
 
@@ -743,11 +707,6 @@ export function PaginaNegocios() {
       }, 100);
     }
   }, [negocios, negocioSeleccionadoId]);
-
-  const getIconoMarker = (sucursalId: string): L.Icon | L.DivIcon => {
-    if (sucursalId === negocioSeleccionadoId) return iconoSeleccionadoAnimado;
-    return iconoNegocio;
-  };
 
   // Cerrar dropdowns al hacer clic fuera
   useEffect(() => {
@@ -822,12 +781,11 @@ export function PaginaNegocios() {
     return () => observer.disconnect();
   }, []);
 
-  // Invalidar mapa al cambiar tab a mapa + sincronizar store
+  // Sincronizar store al cambiar de tab. (react-map-gl reajusta el tamaño del
+  // mapa con el contenedor vía ResizeObserver, así que ya no hace falta el
+  // viejo invalidateSize de Leaflet al volver a la vista mapa.)
   useEffect(() => {
     setVistaActiva(tabActiva === 'mapa' ? 'mapa' : 'lista');
-    if (tabActiva === 'mapa') {
-      setTimeout(() => { mapRef.current?.invalidateSize(); }, 200);
-    }
   }, [tabActiva, setVistaActiva]);
 
   // Props compartidos del mapa
@@ -837,12 +795,10 @@ export function PaginaNegocios() {
     latitud,
     longitud,
     negocioSeleccionadoId,
-    getIconoMarker,
     handleSeleccionarNegocio,
     setNegocioSeleccionadoId,
-    onMapReady: (m: L.Map) => { mapRef.current = m; },
+    onMapReady: (m: MapRef | null) => { mapRef.current = m; },
     navigate,
-    markerRefs,
     onChat: handleChatPopup,
   };
 

@@ -8,6 +8,27 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [30 Junio 2026] - Mapas: migración `apps/web` de Leaflet → MapLibre (react-map-gl) 🗺️
+
+`apps/web` quedó migrado de `react-leaflet` (tiles raster OpenStreetMap) a **MapLibre GL** vía **`react-map-gl@8`**, con los mismos tiles vectoriales **OpenFreeMap** (`liberty`, sin API key) que ya usaba el Panel. El stack de mapas del proyecto queda **unificado**. `tsc` + `vite build` verdes, ESLint 0 errores. Doc: `docs/arquitectura/Migracion_MapLibre.md`. **Pendiente QA visual a mano.**
+
+### Agregado
+
+- **Wrapper `<Mapa>`** (`components/mapa/Mapa.tsx`) que encapsula el estilo/tiles (constante `ESTILO_MAPA`, punto único de cambio) y reexporta `Marker`/`Popup`/`Source`/`Layer`/`NavigationControl`/`useMap` + tipos.
+- **Helpers** `geo.ts` (`circuloGeoJSON` → radio de privacidad de MarketPlace como polígono) y `MarcadorPopup.tsx` (`<MarcadorPopup>` marcador con pin + popup "click para abrir", y `<PinMapa>` pin SVG por color).
+
+### Cambiado
+
+- **8 mapas migrados:** Negocios (mapa principal: markers + popup por selección + flyTo con offset + pin animado + zoom custom), Perfil de Negocio (3 mapas con popups ricos), Onboarding/Paso Ubicación, BS Mi Perfil/Ubicación, BS Crear Sucursal, MarketPlace/MapaUbicacion (círculo o pin exacto), ChatYA/ModalUbicacionChat (pin arrastrable + reverse geocode) y ChatYA/BurbujaMensaje (mini-mapa).
+- Popups: clases CSS `.leaflet-popup-*` → `.maplibregl-popup-*`. Markers/popups dejan de atarse (Leaflet) y se manejan por estado (react-map-gl). `invalidateSize` ya no hace falta (auto-resize).
+
+### Limpieza
+
+- **Dependencias:** se quitaron `leaflet`, `react-leaflet`, `@types/leaflet`; se agregaron `maplibre-gl`, `react-map-gl` y `@types/geojson` (dev, antes transitivo de `@types/leaflet`).
+- Se borró el `<link>` a `leaflet.css` de `index.html` y las reglas `.leaflet-control-zoom` de `index.css`. Sin residuos de Leaflet en el repo.
+
+---
+
 ## [30 Junio 2026] - Panel · módulo "Categorías" (catálogo de giros + disponibilidad por ciudad) 🏷️🗺️
 
 Nuevo módulo del Panel Admin (solo SuperAdmin, **módulo 14**): gestiona el catálogo de **giros** —categorías y subcategorías de negocio— sin SQL, y decide **en qué ciudades** aparece cada uno. Calcado de Ciudades. Commit `65e388f`, en prod. Doc: `docs/arquitectura/Panel_Admin/Categorias.md`.

@@ -268,7 +268,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 
 **Funcionalidad:**
 - 6 tabs de edición
-- Mapa Leaflet interactivo (ubicación)
+- Mapa MapLibre interactivo (ubicación)
 - Upload de imágenes optimista (R2 vía presigned URL)
 - Panel CardYA integrado
 - Horarios con soporte 24/7, cerrado, break/comida
@@ -299,7 +299,7 @@ Los 13 módulos están organizados en 5 secciones lógicas:
 - `PaginaPerfil.tsx` - Página con tabs
 - `TabInformacion.tsx` - Datos generales + Panel CardYA
 - `TabContacto.tsx` - Contacto y redes
-- `TabUbicacion.tsx` - Mapa Leaflet
+- `TabUbicacion.tsx` - Mapa MapLibre (react-map-gl)
 - `TabHorarios.tsx` - Horarios 7 días
 - `TabImagenes.tsx` - Upload imágenes
 - `TabOperacion.tsx` - Métodos pago + servicios

@@ -60,9 +60,8 @@ import type { NegocioCompleto } from '../../../types/negocios';
 import { useVotos } from '../../../hooks/useVotos';
 import { useSaveBubble } from '../../../hooks/useSaveBubble';
 import { api } from '../../../services/api';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Mapa, type MapRef } from '../../../components/mapa/Mapa';
+import { MarcadorPopup } from '../../../components/mapa/MarcadorPopup';
 import { ModalHorarios, formatearHora, calcularEstadoNegocio } from '../../../components/negocios/ModalHorarios';
 import { ModalBottom } from '../../../components/ui/ModalBottom';
 import { Modal } from '../../../components/ui/Modal';
@@ -80,14 +79,6 @@ import { LayoutPublico } from '../../../components/layout';
 import { ModalImagenes } from '../../../components/ui';
 import Tooltip from '../../../components/ui/Tooltip';
 
-// Fix de iconos de Leaflet (necesario en Vite/React)
-// @ts-expect-error - Leaflet no exporta el tipo correcto para _getIconUrl
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-    iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
 
 // =============================================================================
 // TIPOS LOCALES
@@ -207,7 +198,7 @@ interface ModalMapaProps {
 
 function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProps) {
 
-    const mapRef = useRef<L.Map | null>(null);
+    const mapRef = useRef<MapRef | null>(null);
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
@@ -216,25 +207,6 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
         window.addEventListener('keydown', handleKeyDown);
         return () => window.removeEventListener('keydown', handleKeyDown);
     }, [onClose]);
-
-    // Iconos personalizados para los marcadores
-    const negocioIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-red.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
-
-    const userIcon = new L.Icon({
-        iconUrl: 'https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-2x-blue.png',
-        shadowUrl: 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/images/marker-shadow.png',
-        iconSize: [25, 41],
-        iconAnchor: [12, 41],
-        popupAnchor: [1, -34],
-        shadowSize: [41, 41]
-    });
 
     // Calcular el centro del mapa si hay ubicación de usuario
     const centerLat = userLat && userLng ? (negocio.latitud + userLat) / 2 : negocio.latitud;
@@ -319,15 +291,18 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                     <div className="absolute bottom-6 right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
                         <button
                             onClick={() => {
-                                if (mapRef.current) {
-                                    if (userLat && userLng) {
-                                        mapRef.current.fitBounds([
-                                            [negocio.latitud, negocio.longitud],
-                                            [userLat, userLng]
-                                        ], { padding: [50, 50] });
-                                    } else {
-                                        mapRef.current.setView([negocio.latitud, negocio.longitud], 16);
-                                    }
+                                const map = mapRef.current;
+                                if (!map) return;
+                                if (userLat && userLng) {
+                                    map.fitBounds(
+                                        [
+                                            [Math.min(negocio.longitud, userLng), Math.min(negocio.latitud, userLat)],
+                                            [Math.max(negocio.longitud, userLng), Math.max(negocio.latitud, userLat)],
+                                        ],
+                                        { padding: 50 },
+                                    );
+                                } else {
+                                    map.flyTo({ center: [negocio.longitud, negocio.latitud], zoom: 16 });
                                 }
                             }}
                             className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
@@ -337,7 +312,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                         </button>
                         <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
-                            onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) + 1)}
+                            onClick={() => mapRef.current?.zoomIn()}
                             className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Acercar"
                         >
@@ -345,7 +320,7 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                         </button>
                         <div className="w-px h-auto bg-slate-700 my-1.5" />
                         <button
-                            onClick={() => mapRef.current?.setZoom((mapRef.current?.getZoom() || 14) - 1)}
+                            onClick={() => mapRef.current?.zoomOut()}
                             className="w-11 h-11 @5xl:w-9 @5xl:h-9 flex items-center justify-center cursor-pointer active:bg-slate-700"
                             title="Alejar"
                         >
@@ -353,28 +328,19 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                         </button>
                     </div>
 
-                    <MapContainer
+                    <Mapa
                         ref={mapRef}
-                        center={[centerLat, centerLng]}
-                        zoom={userLat && userLng ? 14 : 16}
-                        scrollWheelZoom={true}
-                        zoomControl={false}
-                        className="w-full h-full"
+                        initialViewState={{ longitude: centerLng, latitude: centerLat, zoom: userLat && userLng ? 14 : 16 }}
+                        attributionControl={false}
+                        style={{ width: '100%', height: '100%' }}
                     >
-                        <TileLayer
-                            attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                            keepBuffer={5}
-                            updateWhenZooming={false}
-                            updateWhenIdle={true}
-                        />
-
                         {/* Marcador del negocio */}
-                        <Marker
-                            position={[negocio.latitud, negocio.longitud]}
-                            icon={negocioIcon}
+                        <MarcadorPopup
+                            lng={negocio.longitud}
+                            lat={negocio.latitud}
+                            color="rojo"
+                            popupClassName="popup-negocio"
                         >
-                            <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
                                 <div>
                                     {/* Header oscuro con glow azul */}
                                     <div
@@ -478,23 +444,17 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
                                         </div>
                                     </div>
                                 </div>
-                            </Popup>
-                        </Marker>
+                        </MarcadorPopup>
 
                         {/* Marcador del usuario si existe */}
                         {userLat && userLng && (
-                            <Marker
-                                position={[userLat, userLng]}
-                                icon={userIcon}
-                            >
-                                <Popup>
-                                    <div className="text-center">
-                                        <strong className="text-base">Tu ubicación</strong>
-                                    </div>
-                                </Popup>
-                            </Marker>
+                            <MarcadorPopup lng={userLng} lat={userLat} color="azul" maxWidth="180px">
+                                <div className="text-center">
+                                    <strong className="text-base">Tu ubicación</strong>
+                                </div>
+                            </MarcadorPopup>
                         )}
-                    </MapContainer>
+                    </Mapa>
                 </div>
             </div>
         </div>,
@@ -1574,24 +1534,21 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                     <span>Ubicación</span>
                                 </h4>
 
-                                {/* MAPA LEAFLET */}
+                                {/* MAPA (MapLibre / react-map-gl) */}
                                 {negocio.latitud && negocio.longitud ? (
                                     <div className="w-full h-80 @[96rem]:h-72 rounded-xl overflow-hidden mb-5 @[96rem]:mb-4 relative z-0">
-                                        <MapContainer
-                                            center={[negocio.latitud, negocio.longitud]}
-                                            zoom={16}
-                                            scrollWheelZoom={false}
-                                            className="w-full h-full"
+                                        <Mapa
+                                            initialViewState={{ longitude: negocio.longitud, latitude: negocio.latitud, zoom: 16 }}
+                                            attributionControl={false}
+                                            style={{ width: '100%', height: '100%' }}
                                         >
-                                            <TileLayer
-                                                attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                                keepBuffer={5}
-                                                updateWhenZooming={false}
-                                                updateWhenIdle={true}
-                                            />
-                                            <Marker position={[negocio.latitud, negocio.longitud]}>
-                                                <Popup className="popup-sidebar" autoPan={true} autoPanPadding={[40, 40]}>
+                                            <MarcadorPopup
+                                                lng={negocio.longitud}
+                                                lat={negocio.latitud}
+                                                color="rojo"
+                                                popupClassName="popup-sidebar"
+                                                maxWidth="220px"
+                                            >
                                                     <div>
                                                         {/* Header oscuro compacto */}
                                                         <div className="relative px-3 py-2 overflow-hidden" style={{ background: '#000000' }}>
@@ -1664,9 +1621,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                             </div>
                                                         </div>
                                                     </div>
-                                                </Popup>
-                                            </Marker>
-                                        </MapContainer>
+                                            </MarcadorPopup>
+                                        </Mapa>
                                     </div>
                                 ) : (
                                     <div className="w-full h-80 @[96rem]:h-72 bg-slate-200 rounded-xl flex items-center justify-center mb-5 @[96rem]:mb-4">
@@ -1984,27 +1940,24 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         </div>
                         {/* Estilos popup dentro del ModalBottom */}
                         <style>{`
-                            .popup-negocio .leaflet-popup-content-wrapper { padding: 0 !important; border-radius: 16px !important; overflow: hidden !important; border: 2px solid #94a3b8 !important; box-shadow: 0 4px 24px rgba(0,0,0,0.12) !important; }
-                            .popup-negocio .leaflet-popup-content { margin: 0 !important; min-width: 240px !important; max-width: 270px !important; }
-                            .popup-negocio .leaflet-popup-close-button { top: 8px !important; right: 8px !important; width: 30px !important; height: 30px !important; font-size: 20px !important; font-weight: 700 !important; color: rgba(255,255,255,0.7) !important; background: rgba(255,255,255,0.15) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; line-height: 0 !important; padding: 0 0 1px 0 !important; cursor: pointer !important; z-index: 9999 !important; position: absolute !important; }
-                            .popup-negocio .leaflet-popup-close-button:hover { color: #fff !important; background: rgba(255,255,255,0.3) !important; }
+                            .popup-negocio .maplibregl-popup-content { padding: 0 !important; border-radius: 16px !important; overflow: hidden !important; border: 2px solid #94a3b8 !important; box-shadow: 0 4px 24px rgba(0,0,0,0.12) !important; }
+                            .popup-negocio .maplibregl-popup-close-button { top: 8px !important; right: 8px !important; width: 30px !important; height: 30px !important; font-size: 20px !important; font-weight: 700 !important; color: rgba(255,255,255,0.7) !important; background: rgba(255,255,255,0.15) !important; border-radius: 50% !important; display: flex !important; align-items: center !important; justify-content: center !important; line-height: 0 !important; padding: 0 0 1px 0 !important; cursor: pointer !important; z-index: 9999 !important; position: absolute !important; }
+                            .popup-negocio .maplibregl-popup-close-button:hover { color: #fff !important; background: rgba(255,255,255,0.3) !important; }
                             .popup-negocio p { margin: 0 !important; }
                         `}</style>
                         {/* Mapa */}
                         <div className="flex-1 min-h-0 relative overflow-visible">
-                            <MapContainer
-                                center={[negocio.latitud, negocio.longitud]}
-                                zoom={16}
-                                scrollWheelZoom={true}
-                                zoomControl={false}
-                                className="w-full h-full"
+                            <Mapa
+                                initialViewState={{ longitude: negocio.longitud, latitude: negocio.latitud, zoom: 16 }}
+                                attributionControl={false}
+                                style={{ width: '100%', height: '100%' }}
                             >
-                                <TileLayer
-                                    attribution='© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                                />
-                                <Marker position={[negocio.latitud, negocio.longitud]}>
-                                    <Popup className="popup-negocio" autoPan={true} autoPanPadding={[70, 70]}>
+                                <MarcadorPopup
+                                    lng={negocio.longitud}
+                                    lat={negocio.latitud}
+                                    color="rojo"
+                                    popupClassName="popup-negocio"
+                                >
                                         <div>
                                             <div className="relative px-4 py-3 overflow-hidden" style={{ background: '#000000' }}>
                                                 <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 80% 20%, rgba(59,130,246,0.12) 0%, transparent 60%)' }} />
@@ -2076,14 +2029,13 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                                 </div>
                                             </div>
                                         </div>
-                                    </Popup>
-                                </Marker>
+                                </MarcadorPopup>
                                 {userLat && userLng && (
-                                    <Marker position={[userLat, userLng]}>
-                                        <Popup><p className="font-semibold text-center">Tu ubicación</p></Popup>
-                                    </Marker>
+                                    <MarcadorPopup lng={userLng} lat={userLat} color="azul" maxWidth="180px">
+                                        <p className="font-semibold text-center">Tu ubicación</p>
+                                    </MarcadorPopup>
                                 )}
-                            </MapContainer>
+                            </Mapa>
                         </div>
                     </ModalBottom>
                 ) : (
@@ -2215,22 +2167,17 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 )
             )}
 
-            {/* Estilos CSS para popups del mapa */}
+            {/* Estilos CSS para popups del mapa (MapLibre) */}
             <style>{`
-                .popup-sidebar .leaflet-popup-content-wrapper {
+                .popup-sidebar .maplibregl-popup-content {
                     padding: 0;
                     border-radius: 12px;
                     overflow: hidden;
                     border: 2px solid #94a3b8;
                     box-shadow: 0 4px 16px rgba(0,0,0,0.12);
-                }
-                .popup-sidebar .leaflet-popup-content {
-                    margin: 0 !important;
                     width: 220px !important;
-                    min-width: 220px !important;
-                    max-width: 220px !important;
                 }
-                .popup-sidebar .leaflet-popup-close-button {
+                .popup-sidebar .maplibregl-popup-close-button {
                     top: 6px !important;
                     right: 6px !important;
                     width: 24px !important;
@@ -2249,30 +2196,25 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     z-index: 9999 !important;
                     position: absolute !important;
                 }
-                .popup-sidebar .leaflet-popup-close-button:hover {
+                .popup-sidebar .maplibregl-popup-close-button:hover {
                     color: #fff !important;
                     background: rgba(255,255,255,0.3) !important;
                 }
                 .popup-sidebar p { margin: 0 !important; }
-                .popup-negocio .leaflet-popup-content-wrapper {
+                .popup-negocio .maplibregl-popup-content {
                     padding: 0;
                     border-radius: 16px;
                     overflow: hidden;
                     border: 2px solid #94a3b8;
                     box-shadow: 0 4px 24px rgba(0,0,0,0.12), 0 1px 4px rgba(0,0,0,0.06);
                 }
-                .popup-negocio .leaflet-popup-content {
-                    margin: 0;
-                    min-width: 240px;
-                    max-width: 270px;
-                }
-                .popup-negocio .leaflet-popup-tip {
+                .popup-negocio .maplibregl-popup-tip {
                     box-shadow: 0 2px 4px rgba(0,0,0,0.06);
                 }
                 .popup-negocio p {
                     margin: 0 !important;
                 }
-                .popup-negocio .leaflet-popup-close-button {
+                .popup-negocio .maplibregl-popup-close-button {
                     top: 8px !important;
                     right: 8px !important;
                     width: 30px !important;
@@ -2295,7 +2237,7 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                     pointer-events: auto !important;
                     position: absolute !important;
                 }
-                .popup-negocio .leaflet-popup-close-button:hover {
+                .popup-negocio .maplibregl-popup-close-button:hover {
                     color: #fff !important;
                     background: rgba(255,255,255,0.3) !important;
                 }

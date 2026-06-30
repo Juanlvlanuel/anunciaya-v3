@@ -588,7 +588,7 @@ Scroll vertical continuo, no estático. Invita a explorar.
 - **Layout móvil — secciones envueltas en cards** (estilo Mercado Libre):
   - Cada bloque (Descripción, Card vendedor, Mapa, Comentarios) vive dentro de su propio card `rounded-xl border border-slate-200 bg-white shadow-sm p-4` sobre el fondo gradient nativo de la app.
   - El contenedor raíz de la página (`PaginaArticuloMarketplace`) usa `bg-transparent` (no `bg-white`) para heredar el gradient del MainLayout.
-  - El `MapaUbicacion` crea su propio stacking context (`relative z-0 isolate`) para que los z-index 400+ de Leaflet no escapen y tapen el BottomNav o la BarraContacto fija.
+  - El `MapaUbicacion` crea su propio stacking context (`relative z-0 isolate`) para que los controles/canvas de MapLibre no escapen y tapen el BottomNav o la BarraContacto fija.
   - `pb-[150px]` en el contenedor para reservar espacio bajo el contenido y que la BarraContacto fija + BottomNav no oculten la última sección.
 
 #### Comportamiento

@@ -15,9 +15,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Mapa, Marker, type MapRef, type MarkerDragEvent } from '../mapa/Mapa';
 import { Send, Loader, AlertCircle } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
@@ -53,70 +51,62 @@ const GRADIENTE = {
 // ÍCONO PERSONALIZADO DEL PIN
 // =============================================================================
 
-const iconoPin = L.divIcon({
-  className: '',
-  html: `
-    <div style="
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      filter: drop-shadow(0 4px 8px rgba(37,99,235,0.45));
-    ">
-      <div style="
-        width: 36px; height: 36px;
-        background: linear-gradient(135deg, #3b82f6, #1d4ed8);
-        border-radius: 50%;
-        border: 3px solid white;
-        display: flex; align-items: center; justify-content: center;
-      ">
+/** Pin del chat como elemento HTML (hijo del <Marker>), con punta abajo. */
+function PinChat() {
+  return (
+    <div
+      style={{
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        cursor: 'pointer',
+        filter: 'drop-shadow(0 4px 8px rgba(37,99,235,0.45))',
+      }}
+    >
+      <div
+        style={{
+          width: 36,
+          height: 36,
+          background: 'linear-gradient(135deg, #3b82f6, #1d4ed8)',
+          borderRadius: '50%',
+          border: '3px solid white',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
         </svg>
       </div>
-      <div style="width: 3px; height: 10px; background: #1d4ed8; border-radius: 0 0 2px 2px;" />
-      <div style="width: 8px; height: 3px; background: rgba(0,0,0,0.2); border-radius: 50%;" />
+      <div style={{ width: 3, height: 10, background: '#1d4ed8', borderRadius: '0 0 2px 2px' }} />
+      <div style={{ width: 8, height: 3, background: 'rgba(0,0,0,0.2)', borderRadius: '50%' }} />
     </div>
-  `,
-  iconAnchor: [18, 49],
-  iconSize: [36, 49],
-});
+  );
+}
 
 // =============================================================================
 // SUB-COMPONENTES
 // =============================================================================
 
 interface MarkerArrastrableProps {
-  posicion: [number, number];
+  lat: number;
+  lng: number;
   onDragEnd: (lat: number, lng: number) => void;
 }
 
-function MarkerArrastrable({ posicion, onDragEnd }: MarkerArrastrableProps) {
-  const markerRef = useRef<L.Marker>(null);
-
-  const handleDragEnd = useCallback(() => {
-    const marker = markerRef.current;
-    if (!marker) return;
-    const { lat, lng } = marker.getLatLng();
-    onDragEnd(lat, lng);
-  }, [onDragEnd]);
-
+function MarkerArrastrable({ lat, lng, onDragEnd }: MarkerArrastrableProps) {
   return (
     <Marker
-      ref={markerRef}
-      position={posicion}
-      icon={iconoPin}
+      longitude={lng}
+      latitude={lat}
       draggable
-      eventHandlers={{ dragend: handleDragEnd }}
-    />
+      anchor="bottom"
+      onDragEnd={(e: MarkerDragEvent) => onDragEnd(e.lngLat.lat, e.lngLat.lng)}
+    >
+      <PinChat />
+    </Marker>
   );
-}
-
-function CentrarMapa({ posicion }: { posicion: [number, number] }) {
-  const map = useMapEvents({});
-  useEffect(() => {
-    map.setView(posicion, 16);
-  }, [posicion, map]);
-  return null;
 }
 
 // =============================================================================
@@ -132,6 +122,13 @@ export function ModalUbicacionChat({ abierto, onCerrar, onEnviar }: ModalUbicaci
   const [cargandoDireccion, setCargandoDireccion] = useState(false);
   const [enviando, setEnviando] = useState(false);
   const posicionInicial = useRef<[number, number] | null>(null);
+  const mapaRef = useRef<MapRef | null>(null);
+
+  // Recentrar el mapa cuando cambia la posición (GPS inicial, drag o "volver a GPS").
+  // Reemplaza al antiguo sub-componente CentrarMapa (que usaba useMapEvents).
+  useEffect(() => {
+    mapaRef.current?.jumpTo({ center: [posicion[1], posicion[0]] });
+  }, [posicion]);
 
   // ── Obtener GPS al abrir ──
   useEffect(() => {
@@ -289,17 +286,14 @@ export function ModalUbicacionChat({ abierto, onCerrar, onEnviar }: ModalUbicaci
             <>
               {/* Mapa */}
               <div className="relative" style={{ height: 300 }}>
-                <MapContainer
-                  center={posicion}
-                  zoom={16}
-                  style={{ height: '100%', width: '100%' }}
-                  zoomControl={false}
+                <Mapa
+                  ref={mapaRef}
+                  initialViewState={{ longitude: posicion[1], latitude: posicion[0], zoom: 16 }}
                   attributionControl={false}
+                  style={{ height: '100%', width: '100%' }}
                 >
-                  <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-                  <MarkerArrastrable posicion={posicion} onDragEnd={handleDragEnd} />
-                  <CentrarMapa posicion={posicion} />
-                </MapContainer>
+                  <MarkerArrastrable lat={posicion[0]} lng={posicion[1]} onDragEnd={handleDragEnd} />
+                </Mapa>
 
                 {/* Botón volver a GPS */}
                 <button

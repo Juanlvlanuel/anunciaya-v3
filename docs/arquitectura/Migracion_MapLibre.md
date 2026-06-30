@@ -1,14 +1,29 @@
 # Migración Leaflet → MapLibre GL JS
 
-**Fecha:** 7 Abril 2026 (planeado) · **Decisión de ejecutar:** 18 Junio 2026
-**Estado:** ✅ Aprobado — **EN PROGRESO**. El **Panel** (`apps/admin`, módulo Ciudades) ya **nace en MapLibre** (`maplibre-gl` directo, tiles **OpenFreeMap** sin API key, mapa de 4,563 ciudades). Falta migrar **`apps/web`** (Leaflet → MapLibre).
-**Prioridad:** Media-Alta (mejora UX significativa + unifica el stack de mapas)
+**Fecha:** 7 Abril 2026 (planeado) · **Decisión de ejecutar:** 18 Junio 2026 · **Completada:** 30 Junio 2026
+**Estado:** ✅ **COMPLETA.** Todo el proyecto usa **MapLibre + tiles OpenFreeMap** (sin API key). El **Panel** (`apps/admin`, módulo Ciudades) ya nacía en MapLibre (`maplibre-gl` directo, 4,563 ciudades). **`apps/web`** quedó migrado de `react-leaflet` a **`react-map-gl`** (8 mapas) y se eliminaron `leaflet`, `react-leaflet`, `@types/leaflet`. `tsc` + `vite build` verdes; sin residuos de Leaflet en el repo.
+**Prioridad:** Media-Alta (mejora UX significativa + unifica el stack de mapas) — cumplida.
 
-> **Enfoque acordado (18 jun 2026):**
-> - **Tiles:** **OpenFreeMap** (vector, gratis, **sin API key**) en todo el proyecto — no MapTiler/Stadia (que piden key). Cambiable en 1 línea si se quiere self-host en prod.
-> - **`apps/web`:** usar **`react-map-gl`** (wrapper React de MapLibre) — la migración desde `react-leaflet` es casi 1-a-1 (`MapContainer`→`Map`, `TileLayer`→estilo, `Marker`/`Popup`/`Circle`→equivalentes). El Panel usa `maplibre-gl` directo porque su caso es una capa de miles de puntos (no markers sueltos).
-> - **Componente wrapper reutilizable** `<Mapa>` en `apps/web` que encapsule estilo/tiles, para que los ~7 mapas no repitan configuración.
-> - Al terminar, **quitar** `leaflet`, `react-leaflet`, `@types/leaflet` de `apps/web`.
+> **Enfoque ejecutado (= acordado el 18 jun 2026):**
+> - **Tiles:** **OpenFreeMap** (vector, gratis, **sin API key**), estilo `liberty` (`https://tiles.openfreemap.org/styles/liberty`) — el mismo del Panel. Punto único de cambio: `ESTILO_MAPA` en `apps/web/src/components/mapa/Mapa.tsx`.
+> - **`apps/web`:** **`react-map-gl@8` (subpath `react-map-gl/maplibre`)** + `maplibre-gl@5`. La conversión desde `react-leaflet` fue casi 1-a-1 (`MapContainer`→`<Mapa>`, `TileLayer`→estilo del wrapper, `Marker`/`Popup`/`Circle`→equivalentes). El Panel sigue con `maplibre-gl` directo (su caso es una capa de miles de puntos).
+> - **Wrapper reutilizable** `<Mapa>` (`apps/web/src/components/mapa/Mapa.tsx`) que encapsula estilo/tiles y reexporta `Marker`/`Popup`/`Source`/`Layer`/`NavigationControl`/`useMap` + tipos. Helpers: `geo.ts` (`circuloGeoJSON` para el radio de privacidad de MarketPlace) y `MarcadorPopup.tsx` (marcador con pin + popup "click para abrir", usado por los mapas de perfiles de negocio).
+> - **Dependencias:** se quitaron `leaflet`, `react-leaflet`, `@types/leaflet`; se agregaron `maplibre-gl`, `react-map-gl` y `@types/geojson` (dev). El CSS de `maplibre-gl` lo importa el wrapper; se borró el `<link>` a `leaflet.css` de `index.html` y las reglas `.leaflet-*` de `index.css`.
+
+## Equivalencias aplicadas (Leaflet → react-map-gl)
+
+| Leaflet | react-map-gl |
+|---|---|
+| `<MapContainer center={[lat,lng]} zoom>` | `<Mapa initialViewState={{ longitude, latitude, zoom }}>` |
+| `<TileLayer url=...>` | (estilo OpenFreeMap dentro del wrapper) |
+| `<Marker position icon={L.Icon/divIcon}>` | `<Marker longitude latitude anchor="bottom">{pin JSX}</Marker>` |
+| `<Marker draggable eventHandlers={{dragend}}>` | `<Marker draggable onDragEnd={e => e.lngLat}>` |
+| `<Marker><Popup>…</Popup></Marker>` | estado + `<Popup longitude latitude>` (o `<MarcadorPopup>`) |
+| `<Circle radius={metros}>` | `<Source geojson={circuloGeoJSON(...)}>` + `<Layer fill/line>` |
+| `useMap()` + `map.on('click')` | prop `onClick` del `<Mapa>` |
+| `map.setView` / `flyTo([lat,lng])` | `map.jumpTo/flyTo({ center: [lng,lat] })` (vía `MapRef`) |
+| `map.invalidateSize()` | innecesario (auto-resize por ResizeObserver) |
+| `.leaflet-popup-*` (CSS) | `.maplibregl-popup-*` (CSS) |
 
 ---
 
@@ -35,53 +50,40 @@ Migrar a **MapLibre GL JS** — fork open-source de Mapbox GL. Usa **vector tile
 
 ## Archivos a modificar
 
-### Sección Negocios
-- `apps/web/src/pages/private/negocios/PaginaNegocios.tsx` — mapa principal con markers, popups, sincronización card↔marker
-- `apps/web/src/pages/private/negocios/PaginaPerfilNegocio.tsx` — mapa pequeño de ubicación del negocio
+### Infraestructura nueva (`apps/web/src/components/mapa/`)
+- `Mapa.tsx` — wrapper `<Mapa>` con tiles OpenFreeMap (`ESTILO_MAPA`) + reexports de react-map-gl. **Punto único** para cambiar proveedor de tiles.
+- `geo.ts` — `circuloGeoJSON(lng, lat, radioMetros)` para áreas en metros (radio de privacidad).
+- `MarcadorPopup.tsx` — `<MarcadorPopup>` (pin + popup click-para-abrir) y `<PinMapa>` (pin "gota" SVG por color).
 
-### Mi Perfil (Business Studio)
-- `apps/web/src/pages/private/business-studio/perfil/components/TabUbicacion.tsx` — mapa con marker arrastrable para editar ubicación
+### Mapas migrados (8)
+- `pages/private/negocios/PaginaNegocios.tsx` — mapa principal: markers + popup por selección + flyTo con offset + pin animado + controles de zoom custom (el más complejo).
+- `pages/private/negocios/PaginaPerfilNegocio.tsx` — **3 mapas** (modal desktop, sidebar, modal móvil) con popups ricos.
+- `pages/private/business/onboarding/pasos/PasoUbicacion.tsx` — marker arrastrable + click-para-mover + "Mi Ubicación" + fullscreen.
+- `pages/private/business-studio/perfil/components/TabUbicacion.tsx` — ídem (el mapa sigue al marcador).
+- `pages/private/business-studio/sucursales/ModalCrearSucursal.tsx` — marker arrastrable + fullscreen.
+- `components/marketplace/MapaUbicacion.tsx` — círculo de radio aproximado (`<Source>`+`<Layer>`) o pin exacto.
+- `components/chatya/ModalUbicacionChat.tsx` — elegir/compartir ubicación (marker arrastrable + reverse geocode).
+- `components/chatya/BurbujaMensaje.tsx` — mini-mapa estático de ubicación compartida.
 
-### Componentes compartidos
-- `apps/web/src/components/negocios/ModalHorarios.tsx` — verificar si usa mapa
-- `apps/web/src/components/layout/ModalUbicacion.tsx` — modal fullscreen con mapa (si existe)
+> `components/servicios/MapaPlaceholderServicio.tsx` **no usa mapa** (es un SVG decorativo) — quedó fuera.
 
-## Dependencias
+## Dependencias (estado final)
 
-### Eliminar
-- `react-leaflet`
-- `leaflet`
-- `@types/leaflet`
+| | Paquete |
+|---|---|
+| Eliminadas | `leaflet`, `react-leaflet`, `@types/leaflet` |
+| Agregadas | `maplibre-gl@5`, `react-map-gl@8`, `@types/geojson` (dev) |
 
-### Instalar
-- `maplibre-gl` — motor de mapas
-- `react-map-gl` — wrapper React (soporta MapLibre como backend)
+> `@types/geojson` se agregó explícito porque venía transitivo de `@types/leaflet`; al quitar Leaflet, el namespace global `GeoJSON` (usado por `geo.ts`) dejó de resolverse.
 
-### Tiles gratuitos (elegir uno)
-- **MapTiler** — gratis hasta 100K loads/mes, estilos bonitos
-- **Stadia Maps** — gratis hasta 200K tiles/mes, sin tarjeta de crédito
-- **Protomaps** — tiles servidos desde un solo archivo PMTiles, self-hosted
+## Plan de implementación — ✅ ejecutado
 
-## Plan de implementación
-
-1. Instalar dependencias (`maplibre-gl`, `react-map-gl`)
-2. Crear componente wrapper `<Mapa>` reutilizable que encapsule la configuración de MapLibre
-3. Migrar `PaginaNegocios.tsx`:
-   - Reemplazar `MapContainer` → `Map` de react-map-gl
-   - Reemplazar `TileLayer` → estilo vectorial
-   - Reemplazar `Marker` → `Marker` de react-map-gl
-   - Reemplazar `Popup` → `Popup` de react-map-gl
-   - Adaptar sincronización card↔marker (viewport controlado)
-   - Adaptar iconos de markers (usar imágenes como sprites)
-4. Migrar `TabUbicacion.tsx`:
-   - Marker arrastrable (drag events)
-   - Click en mapa para mover marker
-   - Botón "Mi Ubicación"
-5. Migrar `PaginaPerfilNegocio.tsx`:
-   - Mapa estático de ubicación
-6. Eliminar dependencias de Leaflet
-7. Verificar en móvil y desktop
-8. Verificar en producción (Vercel)
+1. ✅ Instalar `maplibre-gl` + `react-map-gl`.
+2. ✅ Crear wrapper `<Mapa>` + helpers (`geo.ts`, `MarcadorPopup.tsx`).
+3. ✅ Migrar los 8 mapas (ver tabla de equivalencias arriba).
+4. ✅ Eliminar dependencias de Leaflet + residuos (`index.html`, `index.css`).
+5. ✅ Verificar `tsc -b` + `vite build` (verdes) y ESLint (0 errores).
+6. ⏳ **Pendiente de QA manual** en móvil/desktop y en prod (Vercel) — la migración compila y bundlea; falta validación visual a mano (drag de markers, popups, flyTo, fullscreen).
 
 ## Referencias
 - [MapLibre GL JS](https://maplibre.org/)

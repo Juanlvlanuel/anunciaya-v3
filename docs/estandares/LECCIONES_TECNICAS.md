@@ -33,7 +33,7 @@
 
 ### Layout y CSS
 
-- **Leaflet stacking context** — Leaflet crea su propio stacking context. Requiere `z-[1000]` para overlays sobre mapas.
+- **Mapas (MapLibre) stacking context** — el canvas/controles de MapLibre crean su propio stacking context. Requiere `z-[1000]` para overlays sobre mapas. (Aplicaba igual con Leaflet; `apps/web` migró a MapLibre el 30 jun.)
 - **`translate-y` vs `margin-top`** — `translate-y` mueve elementos visualmente sin afectar box model. `margin-top` infla el contenedor padre.
 - **`box-shadow: inset` en scroll containers** — NO se fija al viewport del scroll container, se mueve con el contenido. Para overlays fijos en carousels usar un wrapper con divs posicionados absolute.
 - **Stacking context en drawers** — Drawers con `position: fixed` dentro de un padre con `z-index` + `position` quedan atrapados en su stacking context. Solución: `createPortal(jsx, document.body)` — ver TC-18.

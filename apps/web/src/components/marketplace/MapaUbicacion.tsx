@@ -28,9 +28,8 @@
  * Ubicación: apps/web/src/components/marketplace/MapaUbicacion.tsx
  */
 
-import { MapContainer, TileLayer, Circle, Marker } from 'react-leaflet';
-import L from 'leaflet';
-import 'leaflet/dist/leaflet.css';
+import { Mapa, Marker, Source, Layer, NavigationControl } from '../mapa/Mapa';
+import { circuloGeoJSON } from '../mapa/geo';
 
 interface MapaUbicacionProps {
     /** Latitud (aproximada si `exacto=false`, exacta si `exacto=true`) */
@@ -67,38 +66,39 @@ const ZOOM_INICIAL_APROXIMADO = 15;
 const ZOOM_INICIAL_EXACTO = 17;
 
 /**
- * Pin custom usando `divIcon` con HTML — evita problemas de paths de
- * iconos default de Leaflet con bundlers (Vite no resuelve las imágenes
- * de `leaflet/dist/images/`). Diseño: círculo sky-600 con sombra +
- * borde blanco para contraste sobre cualquier tile del mapa.
+ * Pin custom como elemento HTML (hijo de <Marker>). Diseño: círculo sky-600
+ * con sombra + borde blanco para contraste sobre cualquier tile del mapa.
+ * La punta del pin (esquina inferior) se ancla a la coordenada con
+ * `anchor="bottom"` en el <Marker>.
  */
-const pinExacto = L.divIcon({
-    className: '',
-    html: `
-        <div style="
-            width: 28px;
-            height: 28px;
-            border-radius: 50% 50% 50% 0;
-            background: #0284c7;
-            border: 3px solid white;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-            transform: rotate(-45deg);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-        ">
-            <div style="
-                width: 8px;
-                height: 8px;
-                background: white;
-                border-radius: 50%;
-                transform: rotate(45deg);
-            "></div>
+function PinExacto() {
+    return (
+        <div
+            style={{
+                width: 28,
+                height: 28,
+                borderRadius: '50% 50% 50% 0',
+                background: '#0284c7',
+                border: '3px solid white',
+                boxShadow: '0 4px 12px rgba(0,0,0,0.3)',
+                transform: 'rotate(-45deg)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+            }}
+        >
+            <div
+                style={{
+                    width: 8,
+                    height: 8,
+                    background: 'white',
+                    borderRadius: '50%',
+                    transform: 'rotate(45deg)',
+                }}
+            />
         </div>
-    `,
-    iconSize: [28, 28],
-    iconAnchor: [14, 28], // punta del pin abajo
-});
+    );
+}
 
 const MENSAJE_PRIVACIDAD_DEFAULT =
     'Mostraremos un círculo de 500m, no la dirección exacta. Acuerda el punto de encuentro por chat.';
@@ -116,43 +116,40 @@ export function MapaUbicacion({
     return (
         <div data-testid="mapa-ubicacion-marketplace" className="space-y-2">
             {/* `relative isolate z-0` crea un stacking context propio para
-                que los elementos internos de Leaflet (que usan z-index 400+
-                por default) NO escapen y tapen elementos globales como el
-                BottomNav o la BarraContacto fija. */}
-            <div className="relative z-0 max-w-full overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-200 isolate">
-                <MapContainer
-                    center={[lat, lng]}
-                    zoom={zoom}
-                    scrollWheelZoom={exacto}
-                    dragging={exacto}
-                    touchZoom={exacto}
-                    doubleClickZoom={exacto}
-                    boxZoom={exacto}
-                    keyboard={exacto}
-                    zoomControl={exacto}
+                que los controles del mapa NO escapen y tapen elementos
+                globales como el BottomNav o la BarraContacto fija. */}
+            <div className="relative z-0 max-w-full overflow-hidden rounded-xl border-2 border-slate-300 bg-slate-200 isolate h-48 w-full lg:h-56 2xl:h-64">
+                <Mapa
+                    initialViewState={{ longitude: lng, latitude: lat, zoom }}
+                    interactive={exacto}
                     attributionControl={false}
-                    className="h-48 w-full lg:h-56 2xl:h-64"
-                    style={exacto ? undefined : { pointerEvents: 'none' }}
+                    dragRotate={false}
+                    style={{ width: '100%', height: '100%' }}
                 >
-                    <TileLayer
-                        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                        attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-                    />
+                    {exacto && <NavigationControl showCompass={false} position="top-right" />}
                     {exacto ? (
-                        <Marker position={[lat, lng]} icon={pinExacto} />
+                        <Marker longitude={lng} latitude={lat} anchor="bottom">
+                            <PinExacto />
+                        </Marker>
                     ) : (
-                        <Circle
-                            center={[lat, lng]}
-                            radius={RADIO_PRIVACIDAD_METROS}
-                            pathOptions={{
-                                color: '#0d9488',
-                                weight: 2,
-                                fillColor: '#14b8a6',
-                                fillOpacity: 0.15,
-                            }}
-                        />
+                        <Source
+                            id="radio-privacidad"
+                            type="geojson"
+                            data={circuloGeoJSON(lng, lat, RADIO_PRIVACIDAD_METROS)}
+                        >
+                            <Layer
+                                id="radio-privacidad-fill"
+                                type="fill"
+                                paint={{ 'fill-color': '#14b8a6', 'fill-opacity': 0.15 }}
+                            />
+                            <Layer
+                                id="radio-privacidad-line"
+                                type="line"
+                                paint={{ 'line-color': '#0d9488', 'line-width': 2 }}
+                            />
+                        </Source>
                     )}
-                </MapContainer>
+                </Mapa>
             </div>
 
             {zonaAproximada && (

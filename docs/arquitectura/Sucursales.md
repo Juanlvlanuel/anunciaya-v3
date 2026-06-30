@@ -418,7 +418,7 @@ Campos (todos visibles de una vez, con scroll interno si el viewport es pequeño
 - **Dirección** — texto libre.
 - **Teléfono** y **WhatsApp** — usan el componente reutilizable `InputTelefono` (ver sección "Componente `InputTelefono`") con lada `+52` por defecto y 10 dígitos.
 - **Correo** — input type email.
-- **Ubicación en el mapa** *(obligatorio)* — mapa Leaflet con marcador arrastrable que aparece al seleccionar ciudad. El dueño arrastra el marcador o toca el mapa para ajustar la ubicación exacta. Sin coordenadas fijadas, el botón "Crear sucursal" queda deshabilitado. Incluye botón flotante `Maximize2` para abrir el popup fullscreen del mapa.
+- **Ubicación en el mapa** *(obligatorio)* — mapa MapLibre (react-map-gl) con marcador arrastrable que aparece al seleccionar ciudad. El dueño arrastra el marcador o toca el mapa para ajustar la ubicación exacta. Sin coordenadas fijadas, el botón "Crear sucursal" queda deshabilitado. Incluye botón flotante `Maximize2` para abrir el popup fullscreen del mapa.
 
 Al pie del formulario aparece un **checklist visual** con `CheckCircle2` emerald listando lo que se clonará de Matriz:
 

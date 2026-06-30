@@ -178,7 +178,7 @@
   `negocio_sucursales.ciudad` de las lecturas/escrituras de **13 servicios** + sacarla del ORM (migración de
   DROP lista). Verificado con 3 harness (lectura, acciones, contract-runtime de 18 funciones) + tsc/builds.
   Solo SuperAdmin. Decisión: unificar mapas en
-  MapLibre (`apps/web` migra de Leaflet después, ver `Migracion_MapLibre.md`).
+  MapLibre (`apps/web` migró de Leaflet a react-map-gl el 30 jun ✅, ver `Migracion_MapLibre.md`).
 - **Recién cerrado (19 jun):** **Migración ciudad → catálogo `ciudades` (FK `ciudad_id`)** completa
   (expand-migrate-contract). Migradas y columna texto DROPeada en dev+prod: `negocio_sucursales.ciudad`
   (Negocios, Ofertas, CardYA, ChatYA, Business Studio, casi todo el Panel), `servicios_publicaciones.ciudad`

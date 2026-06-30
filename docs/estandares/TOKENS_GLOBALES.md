@@ -370,7 +370,7 @@ Jerarquía de capas de la app. Cada nivel debe respetar su rango para evitar que
 | BottomNav (móvil) | `51` | Tailwind | `BottomNav` fijo en la parte inferior — 1 nivel sobre header sticky |
 | Overlays de contenido | `60` – `100` | Tailwind | Tooltips, dropdowns, popovers dentro del flujo normal |
 | Drawers / Menús laterales | `1001` – `1002` | `style` inline | Overlay (`1001`) + Panel (`1002`). Ver TC-18 |
-| Leaflet overlays | `1000+` | Leaflet interno | Requiere `z-[1000]` para overlays sobre mapas |
+| Mapas (MapLibre) overlays | `1000+` | controles/canvas del mapa | Requiere `z-[1000]` para overlays sobre mapas |
 
 ### Reglas
 

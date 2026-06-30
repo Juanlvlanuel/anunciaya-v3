@@ -16,8 +16,7 @@
 import { memo, useRef, useCallback, useState, useEffect, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Check, CheckCheck, SmilePlus, AlertCircle, ChevronDown, Image as ImageIcon, FileText, Download, Reply, Play, Pause, Mic, Ticket, ChevronRight, ImageOff } from 'lucide-react';
-import { MapContainer, TileLayer, Marker } from 'react-leaflet';
-import L from 'leaflet';
+import { Mapa, Marker } from '../mapa/Mapa';
 import type { Mensaje, ContenidoImagen } from '../../types/chatya';
 import { SelectorEmojis } from './SelectorEmojis';
 import { EmojiNoto } from './EmojiNoto';
@@ -87,22 +86,28 @@ function parsearContenidoUbicacion(raw: string): ContenidoUbicacion | null {
   }
 }
 
-// Pin para la burbuja de ubicación
-const iconoPinBurbuja = L.divIcon({
-  className: '',
-  html: `<div style="
-    width:28px;height:28px;
-    background:linear-gradient(135deg,#3b82f6,#1d4ed8);
-    border-radius:50%;border:2.5px solid white;
-    display:flex;align-items:center;justify-content:center;
-    box-shadow:0 2px 8px rgba(37,99,235,0.5)">
-    <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
-      <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-    </svg>
-  </div>`,
-  iconAnchor: [14, 28],
-  iconSize: [28, 28],
-});
+// Pin para la burbuja de ubicación (hijo HTML del <Marker>).
+function PinBurbuja() {
+  return (
+    <div
+      style={{
+        width: 28,
+        height: 28,
+        background: 'linear-gradient(135deg,#3b82f6,#1d4ed8)',
+        borderRadius: '50%',
+        border: '2.5px solid white',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        boxShadow: '0 2px 8px rgba(37,99,235,0.5)',
+      }}
+    >
+      <svg width="13" height="13" viewBox="0 0 24 24" fill="white">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z" />
+      </svg>
+    </div>
+  );
+}
 
 // =============================================================================
 // COMPONENTE: MensajeSistema
@@ -608,7 +613,6 @@ function UbicacionBurbuja({
 
   const { latitud, longitud } = datos;
   const googleMapsUrl = `https://www.google.com/maps?q=${latitud},${longitud}`;
-  const posicion: [number, number] = [latitud, longitud];
 
   return (
     <a
@@ -620,21 +624,16 @@ function UbicacionBurbuja({
       style={{ width: 260, height: 160 }}
     >
       <div className="w-full h-full pointer-events-none">
-        <MapContainer
-          center={posicion}
-          zoom={16}
-          style={{ height: '100%', width: '100%' }}
-          zoomControl={false}
-          dragging={false}
-          scrollWheelZoom={false}
-          doubleClickZoom={false}
-          touchZoom={false}
-          keyboard={false}
+        <Mapa
+          initialViewState={{ longitude: longitud, latitude: latitud, zoom: 16 }}
+          interactive={false}
           attributionControl={false}
+          style={{ height: '100%', width: '100%' }}
         >
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          <Marker position={posicion} icon={iconoPinBurbuja} />
-        </MapContainer>
+          <Marker longitude={longitud} latitude={latitud} anchor="bottom">
+            <PinBurbuja />
+          </Marker>
+        </Mapa>
       </div>
     </a>
   );

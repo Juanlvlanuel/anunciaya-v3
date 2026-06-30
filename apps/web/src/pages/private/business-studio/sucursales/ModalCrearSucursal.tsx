@@ -23,54 +23,27 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const CreditCard = (p: IconoWrapperProps) => <Icon icon={ICONOS.pagos} {...p} />;
-import { MapContainer, TileLayer, Marker, useMap } from 'react-leaflet';
-import L from 'leaflet';
+import { Mapa, Marker, type MapRef, type MarkerDragEvent } from '@/components/mapa/Mapa';
+import { PinMapa } from '@/components/mapa/MarcadorPopup';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { useCrearSucursal, useSucursalesLista } from '../../../../hooks/queries/useSucursales';
 import { notificar } from '../../../../utils/notificaciones';
 import { buscarCiudades, type CiudadConNombreCompleto } from '../../../../data/ciudadesPopulares';
 import { InputTelefono, normalizarTelefono } from '../../../../components/ui/InputTelefono';
 import { InputCorreoValidado } from '../../../../components/ui/InputCorreoValidado';
-import 'leaflet/dist/leaflet.css';
-
-// Fix iconos de Leaflet (mismo patrón que TabUbicacion de Mi Perfil)
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-delete (L.Icon.Default.prototype as any)._getIconUrl;
-L.Icon.Default.mergeOptions({
-	iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-	iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-	shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
-
-// Componente interno: centra el mapa cuando cambian las coordenadas
-function CentrarMapa({ lat, lng, forzar }: { lat: number; lng: number; forzar: number }) {
-	const map = useMap();
-	useEffect(() => {
-		map.setView([lat, lng], map.getZoom() || 14);
-	}, [lat, lng, forzar, map]);
-	return null;
-}
 
 // Componente interno: marcador arrastrable que notifica cambios de posición
 function MarcadorArrastrable({ lat, lng, onMover }: { lat: number; lng: number; onMover: (lat: number, lng: number) => void }) {
-	const [pos, setPos] = useState<[number, number]>([lat, lng]);
-
-	useEffect(() => {
-		setPos([lat, lng]);
-	}, [lat, lng]);
-
 	return (
 		<Marker
-			position={pos}
+			longitude={lng}
+			latitude={lat}
 			draggable
-			eventHandlers={{
-				dragend(e: L.DragEndEvent) {
-					const p = e.target.getLatLng();
-					setPos([p.lat, p.lng]);
-					onMover(p.lat, p.lng);
-				},
-			}}
-		/>
+			anchor="bottom"
+			onDragEnd={(e: MarkerDragEvent) => onMover(e.lngLat.lat, e.lngLat.lng)}
+		>
+			<PinMapa color="azul" />
+		</Marker>
 	);
 }
 
@@ -328,6 +301,17 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 	const [latitud, setLatitud] = useState<number | null>(null);
 	const [longitud, setLongitud] = useState<number | null>(null);
 	const [mapaKey, setMapaKey] = useState(0); // fuerza re-centrado al cambiar ciudad
+	const mapCompactoRef = useRef<MapRef | null>(null);
+	const mapFullscreenRef = useRef<MapRef | null>(null);
+
+	// Mantener ambos mapas centrados en la posición actual (sigue al marcador y
+	// se fuerza al seleccionar ciudad vía mapaKey). Reemplaza al sub-componente
+	// CentrarMapa que usaba useMap().
+	useEffect(() => {
+		if (latitud === null || longitud === null) return;
+		mapCompactoRef.current?.jumpTo({ center: [longitud, latitud] });
+		mapFullscreenRef.current?.jumpTo({ center: [longitud, latitud] });
+	}, [latitud, longitud, mapaKey]);
 
 	// Estados del flujo
 	const [mostrandoProgreso, setMostrandoProgreso] = useState(false);
@@ -614,17 +598,11 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 										className="relative rounded-lg overflow-hidden border-2 border-slate-300"
 										style={{ height: 240 }}
 									>
-										<MapContainer
-											center={[latitud, longitud]}
-											zoom={14}
+										<Mapa
+											ref={mapCompactoRef}
+											initialViewState={{ longitude: longitud, latitude: latitud, zoom: 14 }}
 											style={{ height: '100%', width: '100%' }}
-											scrollWheelZoom={false}
 										>
-											<TileLayer
-												url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-												attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-											/>
-											<CentrarMapa lat={latitud} lng={longitud} forzar={mapaKey} />
 											<MarcadorArrastrable
 												lat={latitud}
 												lng={longitud}
@@ -633,7 +611,7 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 													setLongitud(lng);
 												}}
 											/>
-										</MapContainer>
+										</Mapa>
 										{/* Botón expandir — flotante sobre el mapa */}
 										<button
 											type="button"
@@ -745,17 +723,11 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 
 					{/* Mapa a pantalla completa */}
 					<div className="flex-1 min-h-0 relative">
-						<MapContainer
-							center={[latitud, longitud]}
-							zoom={16}
+						<Mapa
+							ref={mapFullscreenRef}
+							initialViewState={{ longitude: longitud, latitude: latitud, zoom: 16 }}
 							style={{ height: '100%', width: '100%' }}
-							scrollWheelZoom={true}
 						>
-							<TileLayer
-								url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-								attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-							/>
-							<CentrarMapa lat={latitud} lng={longitud} forzar={mapaKey} />
 							<MarcadorArrastrable
 								lat={latitud}
 								lng={longitud}
@@ -764,7 +736,7 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 									setLongitud(lng);
 								}}
 							/>
-						</MapContainer>
+						</Mapa>
 					</div>
 
 					{/* Footer con botón listo */}

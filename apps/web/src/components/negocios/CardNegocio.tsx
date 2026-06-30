@@ -589,7 +589,7 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
   // =========================================================================
   const renderCard = () => (
     <div
-      className="relative w-full h-60 @[96rem]:h-[220px] rounded-2xl transition-all duration-300 hover:shadow-2xl hover:-translate-y-1"
+      className="relative w-full h-60 @[96rem]:h-[220px] rounded-2xl transition-all duration-300 hover:shadow-2xl"
       style={{ boxShadow: '0 8px 32px rgba(0,0,0,0.13), 0 2px 8px rgba(0,0,0,0.06)' }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
@@ -745,14 +745,25 @@ export function CardNegocio({ negocio, seleccionado, onSelect, modoPreview = fal
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}
       onClick={onSelect}
-      className={`shrink-0 cursor-pointer transition-all duration-200 ${
-        seleccionado ? 'ring-2 ring-blue-400 scale-[1.02] rounded-2xl' : ''
+      className={`relative shrink-0 cursor-pointer transition-all duration-300 hover:-translate-y-1 ${
+        seleccionado ? 'rounded-2xl' : ''
       }`}
       style={seleccionado ? {
-        boxShadow: '0 0 20px rgba(59, 130, 246, 0.4), 0 0 40px rgba(59, 130, 246, 0.15)',
+        boxShadow: '0 10px 30px rgba(245,158,11,0.5), 0 0 46px rgba(245,158,11,0.28)',
       } : undefined}
     >
       {renderCard()}
+
+      {/* Marco de selección — anillo INTERIOR (box-shadow inset): muy visible y,
+          al dibujarse dentro de la card, el contenedor no lo recorta. Reemplaza
+          al antiguo scale-[1.02], que agrandaba la card y la cortaba por la
+          izquierda. pointer-events-none para no bloquear los botones. */}
+      {seleccionado && (
+        <div
+          className="pointer-events-none absolute inset-0 rounded-2xl z-30"
+          style={{ boxShadow: 'inset 0 0 0 4px #f59e0b' }}
+        />
+      )}
 
       {/* Like animation portal */}
       {renderLikeAnimation()}

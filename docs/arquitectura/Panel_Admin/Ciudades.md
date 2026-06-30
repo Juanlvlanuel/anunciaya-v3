@@ -95,7 +95,7 @@ falla, queda la semilla.
 
 ### Decisiones de diseño
 - **Mapas unificados en MapLibre** (decisión 18 jun): el Panel nace en MapLibre + OpenFreeMap (sin API key);
-  `apps/web` migrará de Leaflet a MapLibre como sprint aparte (ver `Migracion_MapLibre.md`).
+  `apps/web` quedó migrado de Leaflet a MapLibre (react-map-gl) el **30 jun** — ver `Migracion_MapLibre.md`. ✅
 - **Dataset empaquetado** (INEGI, uso libre con atribución) en vez de un servicio de geocoding.
 - **Orden del catálogo del Panel:** por estado y, dentro de cada estado, por nombre.
 
