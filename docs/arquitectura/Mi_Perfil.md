@@ -7,7 +7,7 @@
 >
 > **Historia:**
 > - **Membresía / Pagos** — construido + QA E2E cerrado **28 jun 2026** (commit `d6f8acb`). Era el último hueco funcional de cara a la beta. QA: cobro inmediato al activar tarjeta, vigencia futura, cambio bidireccional, no-duplicado, pago sin vendedor (sin comisión), datos de depósito vacíos, permisos de la cola (gerente/vendedor), descargar recibo y anti-huérfanas R2.
-> - **Datos Personales + Seguridad** — construidos **29 jun 2026** (commits `23efa53` y `0738fbe`); UI refinada en `13736c3`. **QA E2E (Juan):** Datos Personales ✅ completo · Seguridad → solo **contraseña ✅** (faltan 2FA, vincular Google, cambiar correo, cerrar sesiones y eliminar cuenta).
+> - **Datos Personales + Seguridad** — construidos **29 jun 2026** (commits `23efa53` y `0738fbe`); UI refinada en `13736c3`. **QA E2E (Juan): Datos Personales ✅ y Seguridad ✅ completos** (probado a mano, sin issues).
 >
 > **Última actualización:** 29 Junio 2026.
 
@@ -175,7 +175,7 @@ Migración `docs/migraciones/2026-06-27-pagos-manuales-solicitudes.sql`. `compro
 
 ## Pendientes / mejoras
 
-- **QA E2E a mano — restante de Seguridad.** Ya probado por Juan: **Datos Personales** ✅ completo y **contraseña** ✅. **Faltan**: **2FA** (activar/desactivar con app autenticadora), **vincular Google**, **cambiar correo** (validación inline de formato/unicidad + código al nuevo), **cerrar sesión en todos los dispositivos** y **eliminar cuenta** (soft-delete, bloqueo si negocio en circulación). Validar también el cambio de cuenta (que el tab Membresía aparezca/desaparezca sin refrescar).
+- **Features futuros de Seguridad:** **"Quitar Google"** (hoy solo vincular; requiere endurecer el login para que respete el flag y deje de auto-vincular por correo) y **purga/anonimización definitiva** del soft-delete tras N días (necesita columna `eliminado_at` + cron). _QA E2E a mano de Datos Personales y Seguridad: ✅ completada sin issues (ver Historia)._
 - **PROD (Pagos):** migraciones `2026-06-27-pagos-manuales-solicitudes.sql` y `2026-06-29-drop-usuarios-avatar-public-ids.sql` ✅ corridas. Falta configurar los **datos de depósito** en el Panel live y el **Customer Portal** en Stripe live.
 - **Aviso por correo al dueño** cuando se **rechaza** un pago manual (hoy solo cambia el estado / aviso in-app).
 - **Humanizar** en el módulo Auditoría las acciones nuevas (`pago_manual_aprobar/rechazar`, `datos_cobro_actualizar`).
