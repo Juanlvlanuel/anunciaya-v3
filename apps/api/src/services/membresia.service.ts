@@ -15,7 +15,7 @@
  * Ubicación: apps/api/src/services/membresia.service.ts
  */
 
-import { and, desc, eq, inArray, isNull, ne } from 'drizzle-orm';
+import { and, desc, eq, inArray, isNull, ne, sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { ciudades, negocios, pagosMembresia, pagosManualesSolicitudes, publicidadCompras, publicidadCompraCiudades, publicidadPiezas, usuarios } from '../db/schemas/schema.js';
 import { prepararReciboPago } from './admin/recibo-pago.service.js';
@@ -68,6 +68,16 @@ export interface SolicitudRechazada {
     fecha: string | null; // cuándo se rechazó (revisadoAt)
 }
 
+/** Un recibo de pago de un anuncio: el pago inicial o una renovación posterior. */
+export interface ReciboPublicidad {
+    folio: number | null;
+    reciboUrl: string | null;    // PDF público en R2
+    monto: string | null;        // MXN
+    fecha: string | null;        // cuándo se pagó (created_at)
+    esRenovacion: boolean;       // false = pago inicial · true = renovación
+    imagenes: string[];          // creatividad(es) que correspondieron a ESE pago (preview + lightbox)
+}
+
 /** Una campaña de publicidad del usuario (compra del espacio en la columna derecha). */
 export interface PublicidadCompra {
     id: string;
@@ -81,6 +91,8 @@ export interface PublicidadCompra {
     expiraAt: string | null;
     carruseles: string[];        // ['patrocinadores' (Grande), 'anuncios' (Chico), 'fundadores']
     ciudades: string[];          // nombres de ciudades donde se muestra
+    // Todos los pagos del anuncio (inicial + renovaciones), cada uno con su folio y recibo.
+    recibos: ReciboPublicidad[];
 }
 
 export interface MiMembresia {
@@ -136,7 +148,8 @@ async function obtenerPublicidadDelUsuario(usuarioId: string): Promise<Publicida
     if (compras.length === 0) return [];
 
     const ids = compras.map((c) => c.id);
-    const [piezas, ciudadesFilas] = await Promise.all([
+    const idsSql = sql.join(ids.map((id) => sql`${id}::uuid`), sql`, `);
+    const [piezas, ciudadesFilas, recibosFilas] = await Promise.all([
         db
             .select({ compraId: publicidadPiezas.compraId, carrusel: publicidadPiezas.carrusel })
             .from(publicidadPiezas)
@@ -146,7 +159,33 @@ async function obtenerPublicidadDelUsuario(usuarioId: string): Promise<Publicida
             .from(publicidadCompraCiudades)
             .innerJoin(ciudades, eq(ciudades.id, publicidadCompraCiudades.ciudadId))
             .where(inArray(publicidadCompraCiudades.compraId, ids)),
+        // Recibos del anuncio: el pago inicial (la propia compra) + cada renovación (renovacion_de = id),
+        // todos los que tengan folio. La cortesía no genera recibo (folio NULL) → no aparece.
+        db.execute(sql`
+            SELECT id::text AS id, renovacion_de::text AS "renovacionDe", folio,
+                   recibo_url AS "reciboUrl", monto::text AS monto, created_at::text AS "fecha"
+            FROM publicidad_compras
+            WHERE folio IS NOT NULL AND (id IN (${idsSql}) OR renovacion_de IN (${idsSql}))
+            ORDER BY created_at ASC
+        `),
     ]);
+    const recibos = recibosFilas.rows as Array<{ id: string; renovacionDe: string | null; folio: number | null; reciboUrl: string | null; monto: string | null; fecha: string | null }>;
+
+    // Creatividad(es) de cada fila de pago (inicial + renovaciones), para el preview/lightbox de cada recibo.
+    const recibosIds = recibos.map((r) => r.id);
+    const imgsPorPago = new Map<string, string[]>();
+    if (recibosIds.length) {
+        const imgsSql = sql.join(recibosIds.map((id) => sql`${id}::uuid`), sql`, `);
+        const imgs = (await db.execute(sql`
+            SELECT compra_id::text AS "compraId", imagen_url AS "imagenUrl"
+            FROM publicidad_piezas WHERE compra_id IN (${imgsSql}) ORDER BY carrusel ASC
+        `)).rows as Array<{ compraId: string; imagenUrl: string }>;
+        for (const im of imgs) {
+            const arr = imgsPorPago.get(im.compraId) ?? [];
+            arr.push(im.imagenUrl);
+            imgsPorPago.set(im.compraId, arr);
+        }
+    }
 
     return compras.map((c) => ({
         id: c.id,
@@ -160,6 +199,9 @@ async function obtenerPublicidadDelUsuario(usuarioId: string): Promise<Publicida
         expiraAt: c.expiraAt ?? null,
         carruseles: piezas.filter((p) => p.compraId === c.id).map((p) => p.carrusel),
         ciudades: ciudadesFilas.filter((cf) => cf.compraId === c.id).map((cf) => cf.nombre),
+        recibos: recibos
+            .filter((r) => r.id === c.id || r.renovacionDe === c.id)
+            .map((r) => ({ folio: r.folio ?? null, reciboUrl: r.reciboUrl ?? null, monto: r.monto ?? null, fecha: r.fecha ?? null, esRenovacion: !!r.renovacionDe, imagenes: imgsPorPago.get(r.id) ?? [] })),
     }));
 }
 

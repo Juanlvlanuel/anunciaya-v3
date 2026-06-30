@@ -36,6 +36,7 @@ import { ChatOverlay } from './ChatOverlay';
 import { ColumnaIzquierda } from './ColumnaIzquierda';
 import { ColumnaDerecha } from './ColumnaDerecha';
 import { PanelNotificaciones } from './PanelNotificaciones';
+import { ModalPagoPublicidad } from './ModalPagoPublicidad';
 import { PanelPreviewNegocio } from './PanelPreviewNegocio';
 import { OverlayBuscadorMarketplace } from '../marketplace/OverlayBuscadorMarketplace';
 import { OverlayBuscadorOfertas } from '../ofertas/OverlayBuscadorOfertas';
@@ -419,6 +420,7 @@ export function MainLayout() {
 
           <ChatOverlay />
           <PanelNotificaciones />
+          <ModalPagoPublicidad />
 
           {/* ===== OVERLAYS DE BUSCADOR POR SECCIÓN (global en sub-rutas) =====
               Cada overlay se monta en el layout raíz para que funcione en

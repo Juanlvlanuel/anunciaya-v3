@@ -47,6 +47,7 @@ export interface ParametrosRecibos {
   negocioId?: string;
   desde?: string;
   hasta?: string;
+  origen?: OrigenRecibo;        // solo membresía o solo publicidad (undefined = ambos)
   orden?: OrdenRecibo;
   pagina: number;
   porPagina: number;

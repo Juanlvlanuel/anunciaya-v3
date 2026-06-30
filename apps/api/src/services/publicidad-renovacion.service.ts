@@ -210,8 +210,8 @@ export async function crearCheckoutRenovacion(usuarioId: string, compraOriginalI
         ],
         customer_email: usuario.correo,
         metadata: { tipo: 'renovacion_publicidad', renovacionId, compraOriginalId, usuarioId, meses: String(meses) },
-        success_url: `${base}/perfil?publicidad=renovada`,
-        cancel_url: `${base}/perfil?publicidad=cancelado`,
+        success_url: `${base}/perfil?tab=pagos&publicidad=renovada`,
+        cancel_url: `${base}/perfil?tab=pagos&publicidad=cancelado`,
         locale: 'es',
         expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
     });

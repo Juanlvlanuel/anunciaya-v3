@@ -37,6 +37,7 @@ export interface FiltrosRecibos {
     negocioId?: string;
     desde?: string;
     hasta?: string;
+    origen?: OrigenRecibo;       // filtra por tipo: solo membresía o solo publicidad (undefined = ambos)
     orden?: OrdenRecibo;
     pagina: number;
     porPagina: number;
@@ -127,6 +128,7 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
     const negocioId = filtros.negocioId ?? null;
     const desde = filtros.desde ?? null;
     const hasta = filtros.hasta ?? null;
+    const origen = filtros.origen ?? null;   // 'membresia' | 'publicidad' | null (ambos)
 
     // Filtros comunes por lado (búsqueda por folio/titular, negocio, fechas).
     const filtroMem = sql`
@@ -134,7 +136,8 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         AND (${like}::text IS NULL OR CAST(pm.folio AS TEXT) ILIKE ${like} OR EXISTS (SELECT 1 FROM negocios n WHERE n.id = pm.negocio_id AND n.nombre ILIKE ${like}))
         AND (${negocioId}::uuid IS NULL OR pm.negocio_id = ${negocioId}::uuid)
         AND (${desde}::timestamptz IS NULL OR pm.fecha_pago >= ${desde}::timestamptz)
-        AND (${hasta}::timestamptz IS NULL OR pm.fecha_pago <= ${hasta}::timestamptz)`;
+        AND (${hasta}::timestamptz IS NULL OR pm.fecha_pago <= ${hasta}::timestamptz)
+        AND (${origen}::text IS NULL OR ${origen}::text = 'membresia')`;
 
     // El filtro por negocioId solo aplica a membresía (publicidad no es por negocio); con negocioId,
     // se excluye publicidad.
@@ -144,7 +147,8 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         AND ${alcPub}
         AND (${like}::text IS NULL OR CAST(pc.folio AS TEXT) ILIKE ${like} OR EXISTS (SELECT 1 FROM usuarios u2 WHERE u2.id = pc.usuario_id AND TRIM(CONCAT(u2.nombre,' ',COALESCE(u2.apellidos,''))) ILIKE ${like}) OR EXISTS (SELECT 1 FROM negocios n2 WHERE n2.id = pc.negocio_id AND n2.nombre ILIKE ${like}))
         AND (${desde}::timestamptz IS NULL OR pc.created_at >= ${desde}::timestamptz)
-        AND (${hasta}::timestamptz IS NULL OR pc.created_at <= ${hasta}::timestamptz)`;
+        AND (${hasta}::timestamptz IS NULL OR pc.created_at <= ${hasta}::timestamptz)
+        AND (${origen}::text IS NULL OR ${origen}::text = 'publicidad')`;
 
     const baseUnion = sql`
         SELECT 'membresia'::text AS origen, pm.id::text AS id, pm.folio,

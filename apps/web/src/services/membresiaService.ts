@@ -75,6 +75,16 @@ export interface SolicitudRechazada {
     fecha: string | null;
 }
 
+/** Un recibo de pago de un anuncio: el pago inicial o una renovación posterior. */
+export interface ReciboPublicidad {
+    folio: number | null;
+    reciboUrl: string | null;
+    monto: string | null;
+    fecha: string | null;        // cuándo se pagó
+    esRenovacion: boolean;       // false = pago inicial · true = renovación
+    imagenes: string[];          // creatividad(es) de ese pago (preview + lightbox)
+}
+
 /** Una campaña de publicidad del usuario (espejo de apps/api PublicidadCompra). */
 export interface PublicidadCompra {
     id: string;
@@ -88,6 +98,7 @@ export interface PublicidadCompra {
     expiraAt: string | null;
     carruseles: string[];        // 'patrocinadores' (Grande) | 'anuncios' (Chico) | 'fundadores'
     ciudades: string[];
+    recibos: ReciboPublicidad[]; // todos los pagos del anuncio (inicial + renovaciones)
 }
 
 export interface MiMembresia {

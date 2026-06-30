@@ -17,7 +17,7 @@ import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useRecibos, useDescargarRecibo, useReenviarRecibo } from '../../hooks/queries/useRecibosAdmin';
-import type { ReciboFila } from '../../services/recibosService';
+import type { ReciboFila, OrigenRecibo } from '../../services/recibosService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { Tooltip } from '../ui/Tooltip';
@@ -32,6 +32,24 @@ const FMT_FECHA = {
   format: (d: Date): string => `${String(d.getDate()).padStart(2, '0')} ${MESES_CORTOS[d.getMonth()]} ${d.getFullYear()}`,
 };
 const CONCEPTO_LABEL: Record<string, string> = { efectivo: 'Efectivo', transferencia: 'Transferencia', cortesia: 'Cortesía', tarjeta: 'Tarjeta' };
+
+/** Filtro por tipo de recibo (tabs). '' = ambos orígenes. */
+const TABS_ORIGEN: { id: '' | OrigenRecibo; etiqueta: string }[] = [
+  { id: '', etiqueta: 'Todos' },
+  { id: 'membresia', etiqueta: 'Suscripciones' },
+  { id: 'publicidad', etiqueta: 'Publicidad' },
+];
+
+/** Chip del origen del recibo (suscripción de membresía vs publicidad) — patrón sobrio del Panel. */
+function ChipOrigenRecibo({ origen }: { origen: OrigenRecibo }) {
+  const esPub = origen === 'publicidad';
+  return (
+    <span className="txt-badge inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-2 py-0.5 text-[11px] font-medium text-texto-3 whitespace-nowrap">
+      <span className="h-[6px] w-[6px] shrink-0 rounded-full" style={{ background: esPub ? '#f59e0b' : 'var(--panel-brand)' }} />
+      {esPub ? 'Publicidad' : 'Suscripción'}
+    </span>
+  );
+}
 
 function fmtFecha(iso: string | null): string {
   if (!iso) return '—';
@@ -153,6 +171,7 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
   const esEscritorio = useEsEscritorio();
   const [busqueda, setBusqueda] = useState('');
   const [busquedaAplicada, setBusquedaAplicada] = useState('');
+  const [origen, setOrigen] = useState<'' | OrigenRecibo>('');
   const [pagina, setPagina] = useState(1);
   const [reenviando, setReenviando] = useState<ReciboFila | null>(null);
 
@@ -167,6 +186,7 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
 
   const { data, isLoading, isError } = useRecibos({
     busqueda: busquedaAplicada || undefined,
+    origen: origen || undefined,
     orden: 'folio_desc',
     pagina,
     porPagina: POR_PAGINA,
@@ -187,11 +207,30 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
   // Columnas del grid (escritorio): el header fijo y las filas comparten el mismo template.
   // Negocio absorbe el grueso del ancho; el Monto va a la derecha de su columna, así que la Fecha
   // lleva un padding-left (pl-3) para que no queden encimados.
-  const cols = '90px minmax(220px,2.7fr) 1.1fr 0.9fr 1.2fr 96px';
+  const cols = '90px minmax(200px,2.4fr) 1.15fr 1.1fr 0.9fr 1.2fr 96px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-6">
       <div className="flex min-h-0 w-full flex-1 flex-col">
+        {/* Tabs por origen del recibo (mismo patrón que Métricas: subrayado bajo la activa). */}
+        <div className="mb-4 flex gap-5 border-b border-borde">
+          {TABS_ORIGEN.map((t) => {
+            const activo = origen === t.id;
+            return (
+              <button
+                key={t.id || 'todos'}
+                type="button"
+                data-testid={`recibos-tab-${t.id || 'todos'}`}
+                onClick={() => { setOrigen(t.id); setPagina(1); }}
+                className={`relative px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'}`}
+              >
+                {t.etiqueta}
+                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
+              </button>
+            );
+          })}
+        </div>
+
         {/* Buscador (mismo estilo que Negocios) */}
         <div className="relative mb-4 w-full shrink-0">
           <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-3" />
@@ -234,6 +273,7 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
             >
               <span>Folio</span>
               <span>Negocio</span>
+              <span>Tipo</span>
               <span>Forma de pago</span>
               <span>Monto</span>
               <span className="pl-8">Fecha</span>
@@ -259,6 +299,7 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
                       </span>
                     </span>
                   </span>
+                  <span className="min-w-0"><ChipOrigenRecibo origen={r.origen} /></span>
                   <span className="min-w-0 truncate text-texto-2">
                     {CONCEPTO_LABEL[r.concepto] ?? r.concepto}
                     {r.anulado && <span className="ml-2"><BadgeAnulado /></span>}
@@ -296,6 +337,8 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
                   <span className="shrink-0 text-[15px] font-bold tabular-nums text-texto">{fmtMonto(r.monto)}</span>
                 </div>
                 <div className="mt-2.5 flex flex-wrap items-center gap-x-2 gap-y-1 text-[11.5px] text-texto-4">
+                  <ChipOrigenRecibo origen={r.origen} />
+                  <span aria-hidden>·</span>
                   <span className="font-semibold tabular-nums text-texto-3">{fmtFolio(r.folio)}</span>
                   <span aria-hidden>·</span>
                   <span>{CONCEPTO_LABEL[r.concepto] ?? r.concepto}</span>

@@ -9,6 +9,7 @@
  * resumen sticky con el desglose línea por línea. Usa el ancho, sin scroll lateral.
  *
  * Paleta: neutra (slate) + dark gradient de marca para activos/CTA. Sin acentos azules (tokens AY).
+ * Tipografía responsive de 3 breakpoints (móvil ≥14px · laptop 11px · desktop 14px) — Regla 1.
  *
  * Ubicación: apps/web/src/pages/private/publicidad/PaginaAnunciate.tsx
  */
@@ -72,6 +73,11 @@ const fmtFecha = (iso: string | null) => {
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')} ${MESES_LARGOS[d.getMonth()]} ${d.getFullYear()}`;
 };
+
+// Tokens de texto responsive reutilizados (móvil / laptop / desktop) — Regla 1.
+const TXT_CUERPO = 'text-sm lg:text-[11px] 2xl:text-sm';        // labels, descripciones, valores normales
+const TXT_TITULO_SECCION = 'text-base lg:text-sm 2xl:text-base'; // títulos de paso / Resumen
+const TXT_BADGE = 'text-xs lg:text-[11px] 2xl:text-xs';          // chips informativos (Lanzamiento, −%)
 
 export default function PaginaAnunciate() {
   const navigate = useNavigate();
@@ -180,6 +186,9 @@ export default function PaginaAnunciate() {
   // Precio de lanzamiento (oferta) del tamaño: 0 si no hay. Si > 0, se cobra este y el base se tacha.
   const precioLanzamiento = (c: Carrusel) => opciones?.carruseles.find((o) => o.clave === c)?.precioLanzamiento ?? 0;
   const precioEfectivo = (c: Carrusel) => (precioLanzamiento(c) > 0 ? precioLanzamiento(c) : precioBase(c));
+  // En modo renovación el tamaño es FIJO (el del anuncio): solo se muestran esos y no se puede cambiar
+  // (cambiar de tamaño sería otro anuncio → "Anunciar más"). Sí se puede cambiar la imagen.
+  const tamanosVisibles = renovarId ? CARRUSELES.filter((c) => carruseles.includes(c)) : CARRUSELES;
 
   // Ciudades habilitadas (de la BD, reactivo vía React Query). Mientras solo haya 1, el paso "¿En qué
   // ciudades?" no tiene sentido: se auto-selecciona y se oculta. Al habilitar más en el Panel de Ciudades
@@ -273,11 +282,11 @@ export default function PaginaAnunciate() {
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-[20px] font-extrabold tracking-tight text-slate-900">{renovarId ? 'Renovar tu anuncio' : 'Anúnciate en AnunciaYA'}</h1>
-          <p className="text-[12.5px] font-medium text-slate-600">{renovarId ? 'Extiende la vigencia de tu anuncio — puedes ajustar imagen, ciudades y tiempo.' : 'Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.'}</p>
+          <h1 className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-slate-900">{renovarId ? 'Renovar tu anuncio' : 'Anúnciate en AnunciaYA'}</h1>
+          <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">{renovarId ? 'Extiende la vigencia de tu anuncio — puedes ajustar imagen, ciudades y tiempo.' : 'Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.'}</p>
         </div>
-        <div className="ml-auto hidden items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-slate-600 lg:flex">
-          <ShieldCheck size={15} className="text-emerald-600" />
+        <div className={`ml-auto hidden items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 font-semibold text-slate-600 lg:flex ${TXT_CUERPO}`}>
+          <ShieldCheck size={16} className="text-emerald-600" />
           <span className="flex items-center gap-1">Pago seguro con <LogoStripe alto={15} /></span>
         </div>
       </div>
@@ -288,11 +297,12 @@ export default function PaginaAnunciate() {
           {/* 1 · Tamaños + imágenes — en fila */}
           <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-800 text-[13px] font-bold text-white">1</span>
-              <h2 className="text-[15.5px] font-bold text-slate-900">Elige dónde aparecer</h2>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-sm lg:text-xs 2xl:text-sm font-bold text-white">1</span>
+              <h2 className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>{renovarId ? 'Tu espacio' : 'Elige dónde aparecer'}</h2>
             </div>
+            {renovarId && <p className={`-mt-2 mb-4 font-medium text-slate-600 ${TXT_CUERPO}`}>El tamaño se mantiene al renovar; puedes cambiar la imagen.</p>}
             <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
-              {CARRUSELES.map((c) => {
+              {tamanosVisibles.map((c) => {
                 const activo = carruseles.includes(c);
                 const url = imagenes[c];
                 const Icono = ICONO[c];
@@ -301,28 +311,28 @@ export default function PaginaAnunciate() {
                     key={c}
                     className={`flex flex-col overflow-hidden rounded-xl border-2 ${activo ? 'border-slate-800 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
                   >
-                    {/* Cabecera clickeable (selecciona) */}
-                    <button type="button" data-testid={`anunciate-carrusel-${c}`} onClick={() => toggleCarrusel(c)} className="flex cursor-pointer items-start gap-2.5 p-3.5 text-left">
+                    {/* Cabecera: selecciona el tamaño (en renovación queda fija, no togglea) */}
+                    <button type="button" data-testid={`anunciate-carrusel-${c}`} onClick={renovarId ? undefined : () => toggleCarrusel(c)} className={`flex items-start gap-2.5 p-3.5 text-left ${renovarId ? 'cursor-default' : 'cursor-pointer'}`}>
                       <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 ${activo ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300'}`}>
-                        {activo && <Check size={13} />}
+                        {activo && <Check size={14} />}
                       </span>
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
-                          <Icono size={15} className={ACENTO[c]} />
-                          <span className="text-[14px] font-bold text-slate-900">{LABEL[c]}</span>
+                          <Icono size={16} className={ACENTO[c]} />
+                          <span className="text-sm lg:text-[13px] 2xl:text-sm font-bold text-slate-900">{LABEL[c]}</span>
                         </span>
-                        <span className="mt-0.5 block text-[12px] leading-snug text-slate-600">{DESC[c]}</span>
-                        <span className="mt-1 flex items-center gap-1 text-[11px] font-medium text-slate-600">
-                          <Ratio size={12} className="shrink-0 text-slate-500" /> {MEDIDA[c]}
+                        <span className={`mt-0.5 block leading-snug text-slate-600 ${TXT_CUERPO}`}>{DESC[c]}</span>
+                        <span className={`mt-1 flex items-center gap-1 font-medium text-slate-600 ${TXT_CUERPO}`}>
+                          <Ratio size={14} className="shrink-0 text-slate-500" /> {MEDIDA[c]}
                         </span>
                         {precioLanzamiento(c) > 0 ? (
                           <span className="mt-1.5 flex flex-wrap items-baseline gap-1.5">
-                            <span className="text-[12px] font-semibold text-slate-500 line-through">{FMT.format(precioBase(c))}</span>
-                            <span className="text-[15px] font-extrabold text-slate-900">{FMT.format(precioLanzamiento(c))}</span>
-                            <span className="rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700">Lanzamiento</span>
+                            <span className={`font-semibold text-slate-500 line-through ${TXT_CUERPO}`}>{FMT.format(precioBase(c))}</span>
+                            <span className="text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">{FMT.format(precioLanzamiento(c))}</span>
+                            <span className={`rounded-full bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-700 ${TXT_BADGE}`}>Lanzamiento</span>
                           </span>
                         ) : (
-                          <span className="mt-1.5 block text-[15px] font-extrabold text-slate-900">{FMT.format(precioBase(c))}</span>
+                          <span className="mt-1.5 block text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">{FMT.format(precioBase(c))}</span>
                         )}
                       </span>
                     </button>
@@ -334,17 +344,17 @@ export default function PaginaAnunciate() {
                           {url ? (
                             <>
                               <img src={url} alt={LABEL[c]} className="h-full w-full object-cover" />
-                              <span className="absolute inset-0 grid place-items-center bg-black/0 text-[11px] font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white">Cambiar</span>
+                              <span className={`absolute inset-0 grid place-items-center bg-black/0 font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white ${TXT_CUERPO}`}>Cambiar</span>
                             </>
                           ) : (
                             <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-500">
                               {subiendo === c ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                              <span className="text-[11.5px] font-medium">Sube tu imagen</span>
+                              <span className={`font-medium ${TXT_CUERPO}`}>Sube tu imagen</span>
                             </span>
                           )}
                           <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(c, f); }} />
                         </label>
-                        <p className="mt-1.5 text-center text-[11px] leading-snug text-slate-600">Se recorta para llenar el espacio · centra lo importante</p>
+                        <p className={`mt-1.5 text-center leading-snug text-slate-600 ${TXT_CUERPO}`}>Se recorta para llenar el espacio · centra lo importante</p>
                       </div>
                     )}
                   </div>
@@ -357,31 +367,31 @@ export default function PaginaAnunciate() {
           {multiCiudad ? (
           <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-800 text-[13px] font-bold text-white">2</span>
-              <h2 className="text-[15.5px] font-bold text-slate-900">¿En qué ciudades?</h2>
-              <span className="ml-auto text-[12.5px] font-semibold text-slate-600">{ciudadIds.length}/{limite}</span>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-sm lg:text-xs 2xl:text-sm font-bold text-white">2</span>
+              <h2 className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>¿En qué ciudades?</h2>
+              <span className={`ml-auto font-semibold text-slate-600 ${TXT_CUERPO}`}>{ciudadIds.length}/{limite}</span>
             </div>
-            <p className="mb-3 text-[12.5px] font-medium text-slate-600">Mientras en más ciudades aparezcas, mayor el alcance (y el precio).</p>
+            <p className={`mb-3 font-medium text-slate-600 ${TXT_CUERPO}`}>Mientras en más ciudades aparezcas, mayor el alcance (y el precio).</p>
 
             {ciudadIds.length > 0 && (
               <div className="mb-3 flex flex-wrap gap-1.5">
                 {ciudadIds.map((id) => (
-                  <span key={id} className="inline-flex items-center gap-1 rounded-full bg-slate-200 py-1 pl-2.5 pr-1.5 text-[12px] font-semibold text-slate-700">
+                  <span key={id} className={`inline-flex items-center gap-1 rounded-full bg-slate-200 py-1 pl-2.5 pr-1.5 font-semibold text-slate-700 ${TXT_CUERPO}`}>
                     {nombreCiudad(id)}
-                    <button type="button" onClick={() => toggleCiudad(id)} aria-label="Quitar" className="grid h-4 w-4 cursor-pointer place-items-center rounded-full hover:bg-slate-300"><X size={11} /></button>
+                    <button type="button" onClick={() => toggleCiudad(id)} aria-label="Quitar" className="grid h-4 w-4 cursor-pointer place-items-center rounded-full hover:bg-slate-300"><X size={12} /></button>
                   </span>
                 ))}
               </div>
             )}
 
             <div className="relative">
-              <Search size={15} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
               <input
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
                 placeholder="Buscar ciudad…"
                 data-testid="anunciate-buscar-ciudad"
-                className="w-full rounded-lg border-2 border-slate-300 bg-slate-100 py-2.5 pl-9 pr-3 text-[13.5px] font-medium text-slate-800 placeholder:text-slate-500 outline-none focus:border-slate-800 focus:bg-white [color-scheme:light]"
+                className="w-full rounded-lg border-2 border-slate-300 bg-slate-100 py-2.5 pl-9 pr-3 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 outline-none focus:border-slate-800 focus:bg-white [color-scheme:light]"
               />
             </div>
 
@@ -395,26 +405,26 @@ export default function PaginaAnunciate() {
                     key={c.id}
                     data-testid={`anunciate-ciudad-${c.id}`}
                     onClick={() => toggleCiudad(c.id)}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border-2 px-3 py-2 text-left text-[13px] font-medium ${sel ? 'border-slate-800 bg-slate-100 text-slate-900' : 'border-slate-300 text-slate-600 lg:hover:border-slate-400 lg:hover:bg-slate-100'}`}
+                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border-2 px-3 py-2 text-left font-medium ${TXT_CUERPO} ${sel ? 'border-slate-800 bg-slate-100 text-slate-900' : 'border-slate-300 text-slate-600 lg:hover:border-slate-400 lg:hover:bg-slate-100'}`}
                   >
                     <span className="flex min-w-0 items-center gap-1.5">
-                      <MapPin size={13} className="shrink-0" />
+                      <MapPin size={14} className="shrink-0" />
                       <span className="truncate">{c.nombre}</span>
-                      <span className="truncate text-[11px] text-slate-500">· {c.estado}</span>
+                      <span className="truncate text-slate-500">· {c.estado}</span>
                     </span>
-                    {sel && <Check size={14} className="shrink-0" />}
+                    {sel && <Check size={15} className="shrink-0" />}
                   </button>
                 );
               })}
-              {ciudadesFiltradas.length === 0 && <div className="col-span-full px-3 py-4 text-center text-[12.5px] font-medium text-slate-600">Sin resultados.</div>}
+              {ciudadesFiltradas.length === 0 && <div className={`col-span-full px-3 py-4 text-center font-medium text-slate-600 ${TXT_CUERPO}`}>Sin resultados.</div>}
             </div>
           </section>
           ) : ciudadUnica ? (
             <div data-testid="anunciate-ciudad-unica" className="flex items-start gap-2.5 rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4">
-              <MapPin size={17} className="mt-0.5 shrink-0 text-slate-700" />
+              <MapPin size={18} className="mt-0.5 shrink-0 text-slate-700" />
               <div className="min-w-0">
-                <p className="text-[13.5px] font-medium text-slate-700">Tu anuncio se mostrará en <b className="font-bold text-slate-900">{ciudadUnica.nombre}, {ciudadUnica.estado}</b>.</p>
-                <p className="mt-0.5 text-[12px] font-medium text-slate-600">Pronto habilitaremos más ciudades — entonces podrás elegir en cuáles aparecer.</p>
+                <p className={`font-medium text-slate-700 ${TXT_CUERPO}`}>Tu anuncio se mostrará en <b className="font-bold text-slate-900">{ciudadUnica.nombre}, {ciudadUnica.estado}</b>.</p>
+                <p className={`mt-0.5 font-medium text-slate-600 ${TXT_CUERPO}`}>Pronto habilitaremos más ciudades — entonces podrás elegir en cuáles aparecer.</p>
               </div>
             </div>
           ) : null}
@@ -422,10 +432,10 @@ export default function PaginaAnunciate() {
           {/* 3 · Tiempo (meses por adelantado) — pasa a ser el paso 2 cuando hay una sola ciudad */}
           <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 place-items-center rounded-full bg-slate-800 text-[13px] font-bold text-white">{numPasoTiempo}</span>
-              <h2 className="text-[15.5px] font-bold text-slate-900">¿Por cuánto tiempo?</h2>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-sm lg:text-xs 2xl:text-sm font-bold text-white">{numPasoTiempo}</span>
+              <h2 className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>¿Por cuánto tiempo?</h2>
             </div>
-            <p className="mb-3 text-[12.5px] font-medium text-slate-600">Paga varios meses por adelantado y ahorra.</p>
+            <p className={`mb-3 font-medium text-slate-600 ${TXT_CUERPO}`}>Paga varios meses por adelantado y ahorra.</p>
             <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
               {(opciones?.periodos ?? [{ meses: 1, descuento: 0 }]).map((p) => {
                 const activo = meses === p.meses;
@@ -439,14 +449,14 @@ export default function PaginaAnunciate() {
                     className={`relative flex cursor-pointer flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left ${activo ? 'border-slate-800 bg-slate-100 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
                   >
                     {p.descuento > 0 && (
-                      <span className="absolute right-2 top-2 rounded-full bg-emerald-100 px-1.5 py-0.5 text-[11px] font-bold text-emerald-700">−{p.descuento}%</span>
+                      <span className={`absolute right-2 top-2 rounded-full bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-700 ${TXT_BADGE}`}>−{p.descuento}%</span>
                     )}
-                    <span className="text-[18px] font-extrabold leading-none text-slate-900">{p.meses}</span>
-                    <span className="text-[11.5px] font-medium text-slate-600">{p.meses === 1 ? 'mes' : 'meses'}</span>
+                    <span className="text-lg lg:text-base 2xl:text-lg font-extrabold leading-none text-slate-900">{p.meses}</span>
+                    <span className={`font-medium text-slate-600 ${TXT_CUERPO}`}>{p.meses === 1 ? 'mes' : 'meses'}</span>
                     {totalPeriodo !== null ? (
-                      <span className="mt-1 text-[12.5px] font-bold text-slate-800">{FMT.format(totalPeriodo)}</span>
+                      <span className={`mt-1 font-bold text-slate-800 ${TXT_CUERPO}`}>{FMT.format(totalPeriodo)}</span>
                     ) : (
-                      <span className="mt-1 text-[11.5px] font-medium text-slate-600">{p.descuento > 0 ? `Ahorra ${p.descuento}%` : 'Precio base'}</span>
+                      <span className={`mt-1 font-medium text-slate-600 ${TXT_CUERPO}`}>{p.descuento > 0 ? `Ahorra ${p.descuento}%` : 'Precio base'}</span>
                     )}
                   </button>
                 );
@@ -458,15 +468,15 @@ export default function PaginaAnunciate() {
         {/* Resumen (1/3) — sticky */}
         <aside className="lg:sticky lg:top-6 lg:self-start">
           <div className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
-            <h2 className="mb-4 text-[15.5px] font-bold text-slate-900">Resumen</h2>
+            <h2 className={`mb-4 ${TXT_TITULO_SECCION} font-bold text-slate-900`}>Resumen</h2>
 
             {carruseles.length === 0 ? (
               <div className="rounded-xl border-2 border-dashed border-slate-300 px-4 py-8 text-center">
                 <Megaphone size={26} className="mx-auto text-slate-400" />
-                <p className="mt-2 text-[13px] font-medium text-slate-600">Elige al menos un tamaño para ver el precio.</p>
+                <p className={`mt-2 font-medium text-slate-600 ${TXT_CUERPO}`}>Elige al menos un tamaño para ver el precio.</p>
               </div>
             ) : (
-              <div className="flex flex-col gap-2 text-[13.5px]">
+              <div className={`flex flex-col gap-2 ${TXT_CUERPO}`}>
                 {carruseles.map((c) => (
                   <Linea
                     key={c}
@@ -498,12 +508,12 @@ export default function PaginaAnunciate() {
                 )}
                 <div className="my-1.5 border-t border-slate-200" />
                 <div className="flex items-end justify-between">
-                  <span className="text-[14px] font-bold text-slate-900">Total</span>
-                  <span className="text-[24px] font-extrabold leading-none text-slate-900">{precio ? FMT.format(precio.total) : '—'}</span>
+                  <span className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>Total</span>
+                  <span className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold leading-none text-slate-900">{precio ? FMT.format(precio.total) : '—'}</span>
                 </div>
-                <p className="mt-1 text-[11.5px] font-medium text-slate-600">{precio ? precio.meses * duracion : duracion} días de vigencia · pago único</p>
+                <p className={`mt-1 font-medium text-slate-600 ${TXT_CUERPO}`}>{precio ? precio.meses * duracion : duracion} días de vigencia · pago único</p>
                 {renovarId && vigenciaActual && (
-                  <p className="mt-1 text-[11.5px] font-semibold text-slate-700">
+                  <p className={`mt-1 font-semibold text-slate-700 ${TXT_CUERPO}`}>
                     Vence el {fmtFecha(vigenciaActual)} · se le suman {precio?.meses ?? meses} {(precio?.meses ?? meses) === 1 ? 'mes' : 'meses'}.
                   </p>
                 )}
@@ -515,7 +525,7 @@ export default function PaginaAnunciate() {
               onClick={pagar}
               disabled={!puedePagar}
               data-testid="anunciate-pagar"
-              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-[14.5px] font-bold text-white transition-all duration-150 ${
+              className={`mt-5 flex w-full items-center justify-center gap-2 rounded-xl py-3.5 text-base lg:text-sm 2xl:text-base font-bold text-white transition-all duration-150 ${
                 puedePagar
                   ? 'cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]'
                   : 'cursor-not-allowed bg-slate-400'
@@ -525,9 +535,9 @@ export default function PaginaAnunciate() {
               {pagando ? 'Redirigiendo…' : renovarId ? 'Renovar y pagar' : 'Pagar con tarjeta'}
             </button>
             {!todasImagenes && carruseles.length > 0 && (
-              <p className="mt-2 text-center text-[11.5px] font-medium text-amber-600">Sube la imagen de cada tamaño para continuar.</p>
+              <p className={`mt-2 text-center font-medium text-amber-600 ${TXT_CUERPO}`}>Sube la imagen de cada tamaño para continuar.</p>
             )}
-            <p className="mt-3 flex items-center justify-center gap-1.5 text-[13px] font-semibold text-slate-600">
+            <p className={`mt-3 flex items-center justify-center gap-1.5 font-semibold text-slate-600 ${TXT_CUERPO}`}>
               <ShieldCheck size={17} className="text-emerald-600" />
               <span className="flex items-center gap-1.5">Pago seguro con <LogoStripe alto={16} /></span>
             </p>
@@ -539,11 +549,12 @@ export default function PaginaAnunciate() {
 }
 
 function Linea({ label, valor, tachado, fuerte, sub, verde }: { label: string; valor: string; tachado?: string; fuerte?: boolean; sub?: boolean; verde?: boolean }) {
+  // El tamaño lo hereda del contenedor del resumen (responsive); aquí solo el peso/color.
   return (
     <div className="flex items-center justify-between">
-      <span className={sub ? 'text-[12.5px] font-medium text-slate-600' : fuerte ? 'font-semibold text-slate-700' : 'font-medium text-slate-600'}>{label}</span>
+      <span className={fuerte ? 'font-semibold text-slate-700' : sub ? 'pl-2 font-medium text-slate-600' : 'font-medium text-slate-600'}>{label}</span>
       <span className="flex items-baseline gap-1.5">
-        {tachado && <span className="text-[11.5px] tabular-nums text-slate-500 line-through">{tachado}</span>}
+        {tachado && <span className="tabular-nums text-slate-500 line-through">{tachado}</span>}
         <span className={`tabular-nums ${verde ? 'font-semibold text-emerald-600' : fuerte ? 'font-semibold text-slate-700' : 'font-medium text-slate-700'}`}>{valor}</span>
       </span>
     </div>

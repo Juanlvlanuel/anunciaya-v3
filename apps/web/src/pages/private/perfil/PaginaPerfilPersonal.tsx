@@ -15,6 +15,7 @@
  */
 
 import { useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
 import { ArrowRightLeft, Ban, Banknote, CalendarCheck, CheckCircle, ChevronLeft, CreditCard, Download, ExternalLink, FileText, IdCard, Landmark, Loader2, Shield, User, XCircle, type LucideIcon } from 'lucide-react';
@@ -118,7 +119,10 @@ export default function PaginaPerfilPersonal() {
 
     const queryClient = useQueryClient();
     const { data, isPending, isError, refetch } = useMiMembresia();
-    const [tabActivo, setTabActivo] = useState<TabPerfil>('datos');
+    const [searchParams] = useSearchParams();
+    // Permite aterrizar directo en una pestaña vía ?tab= (p. ej. al volver de Stripe tras pagar/renovar
+    // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad").
+    const [tabActivo, setTabActivo] = useState<TabPerfil>(() => (searchParams.get('tab') === 'pagos' ? 'membresia' : 'datos'));
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
     const [abriendoPortal, setAbriendoPortal] = useState(false);
     const [confirmarManual, setConfirmarManual] = useState(false);

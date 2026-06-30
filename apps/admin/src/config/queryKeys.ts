@@ -73,6 +73,7 @@ export interface FiltrosRecibosKey {
   negocioId?: string;
   desde?: string;
   hasta?: string;
+  origen?: string;
   orden?: string;
   pagina?: number;
   porPagina?: number;

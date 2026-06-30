@@ -41,12 +41,15 @@ export async function listarRecibosController(req: Request, res: Response): Prom
         const hasta = typeof req.query.hasta === 'string' ? req.query.hasta : undefined;
         const ordenRaw = typeof req.query.orden === 'string' ? req.query.orden : '';
         const orden = ORDENES_RECIBO.includes(ordenRaw as OrdenRecibo) ? (ordenRaw as OrdenRecibo) : undefined;
+        const origenRaw = typeof req.query.origen === 'string' ? req.query.origen : '';
+        const origen = origenRaw === 'membresia' || origenRaw === 'publicidad' ? origenRaw : undefined;
 
         const data = await listarRecibos(panel, {
             busqueda: busqueda || undefined,
             negocioId,
             desde,
             hasta,
+            origen,
             orden,
             pagina: enteroPositivo(req.query.pagina, 1),
             porPagina: enteroPositivo(req.query.porPagina, POR_PAGINA_DEFAULT, POR_PAGINA_MAX),

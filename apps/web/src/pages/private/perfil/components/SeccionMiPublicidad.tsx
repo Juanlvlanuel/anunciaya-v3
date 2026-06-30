@@ -11,8 +11,11 @@
  * Ubicación: apps/web/src/pages/private/perfil/components/SeccionMiPublicidad.tsx
  */
 
-import { ExternalLink, FileText, MapPin, Megaphone, Plus, RotateCw } from 'lucide-react';
+import { useState } from 'react';
+import { createPortal } from 'react-dom';
+import { ExternalLink, FileText, MapPin, Megaphone, Plus, RotateCw, X } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { usePortalTarget } from '@/hooks/usePortalTarget';
 import type { PublicidadCompra } from '@/services/membresiaService';
 
 /** Dark Gradient de Marca (TC-7) — botón de acción primaria. */
@@ -83,6 +86,12 @@ function Dato({ label, valor }: { label: string; valor: string }) {
 
 export default function SeccionMiPublicidad({ publicidad }: { publicidad: PublicidadCompra[] }) {
     const navigate = useNavigate();
+    // Creatividad ampliada (lightbox) al hacer clic en el preview de un pago.
+    const [imagenAmpliada, setImagenAmpliada] = useState<string | null>(null);
+    // Portal a document.body (o contenedor de preview) para que el lightbox escape del stacking context
+    // del contenido — si no, queda debajo de las columnas (z-30) y el navbar (z-50).
+    const portalTarget = usePortalTarget();
+    const esContenidoPreview = portalTarget !== document.body;
 
     return (
         <div data-testid="seccion-mi-publicidad">
@@ -126,42 +135,96 @@ export default function SeccionMiPublicidad({ publicidad }: { publicidad: Public
 
                             <div className="px-4 py-2.5 border-t border-slate-200 divide-y divide-slate-200">
                                 <Dato label="Vigencia" valor={vigenciaTexto(p)} />
-                                <Dato label="Importe" valor={p.origen === 'cortesia' ? 'Cortesía' : formatearMonto(p.monto)} />
+                                {p.recibos.length === 0 && (
+                                    <Dato label="Importe" valor={p.origen === 'cortesia' ? 'Cortesía' : formatearMonto(p.monto)} />
+                                )}
                             </div>
 
-                            {(p.reciboUrl || p.estado !== 'cancelada') && (
-                                <div className="px-4 pb-3 pt-1 flex items-center justify-between gap-3">
-                                    {p.reciboUrl ? (
-                                        <a
-                                            href={p.reciboUrl}
-                                            target="_blank"
-                                            rel="noopener noreferrer"
-                                            data-testid={`pub-recibo-${p.id}`}
-                                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-blue-700 lg:hover:text-blue-800 cursor-pointer"
-                                        >
-                                            <FileText className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                                            Ver recibo
-                                            <ExternalLink className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2} />
-                                        </a>
-                                    ) : (
-                                        <span />
-                                    )}
-                                    {p.estado !== 'cancelada' && (
-                                        <button
-                                            onClick={() => navigate('/anunciate', { state: { renovarId: p.id } })}
-                                            data-testid={`pub-renovar-${p.id}`}
-                                            className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 cursor-pointer lg:hover:bg-slate-200"
-                                        >
-                                            <RotateCw className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
-                                            Renovar
-                                        </button>
-                                    )}
+                            {/* Pagos del anuncio: el inicial + cada renovación, cada uno con su recibo propio. */}
+                            {p.recibos.length > 0 && (
+                                <div className="px-4 border-t border-slate-200 divide-y divide-slate-200">
+                                    {p.recibos.map((r, i) => (
+                                        <div key={i} className="flex items-center gap-3 py-2.5">
+                                            {r.imagenes.length > 0 && (
+                                                <div className="flex shrink-0 gap-1">
+                                                    {r.imagenes.map((url, j) => (
+                                                        <button
+                                                            key={j}
+                                                            type="button"
+                                                            onClick={() => setImagenAmpliada(url)}
+                                                            aria-label="Ver anuncio en grande"
+                                                            data-testid={`pub-thumb-${p.id}-${i}-${j}`}
+                                                            className="h-11 w-11 shrink-0 cursor-zoom-in overflow-hidden rounded-md border border-slate-300 lg:hover:border-slate-400"
+                                                        >
+                                                            <img src={url} alt="Anuncio" className="h-full w-full object-cover" />
+                                                        </button>
+                                                    ))}
+                                                </div>
+                                            )}
+                                            <div className="min-w-0 flex-1">
+                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-700">
+                                                    {r.esRenovacion ? 'Renovación' : 'Pago inicial'}
+                                                    {r.folio != null && <span className="font-medium text-slate-500"> · Folio {r.folio}</span>}
+                                                </p>
+                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500">
+                                                    {formatearFecha(r.fecha)} · {formatearMonto(r.monto)}
+                                                </p>
+                                            </div>
+                                            {r.reciboUrl && (
+                                                <a
+                                                    href={r.reciboUrl}
+                                                    target="_blank"
+                                                    rel="noopener noreferrer"
+                                                    data-testid={`pub-recibo-${p.id}-${i}`}
+                                                    className="shrink-0 inline-flex items-center gap-1.5 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-blue-700 lg:hover:text-blue-800 cursor-pointer"
+                                                >
+                                                    <FileText className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                                                    Ver recibo
+                                                    <ExternalLink className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2} />
+                                                </a>
+                                            )}
+                                        </div>
+                                    ))}
+                                </div>
+                            )}
+
+                            {p.estado !== 'cancelada' && (
+                                <div className="flex justify-end px-4 pb-3 pt-2.5">
+                                    <button
+                                        onClick={() => navigate('/anunciate', { state: { renovarId: p.id } })}
+                                        data-testid={`pub-renovar-${p.id}`}
+                                        className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 cursor-pointer lg:hover:bg-slate-200"
+                                    >
+                                        <RotateCw className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
+                                        Renovar
+                                    </button>
                                 </div>
                             )}
                         </div>
                     );
                 })}
             </div>
+
+            {/* Lightbox: amplía la creatividad del pago. Se PORTEA a document.body para escapar del
+                stacking context del contenido (si no, queda debajo de las columnas y el navbar). */}
+            {imagenAmpliada && createPortal(
+                <div
+                    className={`${esContenidoPreview ? 'absolute' : 'fixed'} inset-0 z-[100] flex cursor-zoom-out items-center justify-center bg-black/80 p-4`}
+                    onClick={() => setImagenAmpliada(null)}
+                    data-testid="pub-lightbox"
+                >
+                    <img src={imagenAmpliada} alt="Anuncio" className="max-h-[90vh] max-w-[90vw] rounded-xl object-contain shadow-2xl" />
+                    <button
+                        type="button"
+                        onClick={() => setImagenAmpliada(null)}
+                        aria-label="Cerrar"
+                        className="absolute right-4 top-4 grid h-10 w-10 place-items-center rounded-full bg-white/15 text-white lg:hover:bg-white/25"
+                    >
+                        <X className="h-5 w-5" />
+                    </button>
+                </div>,
+                portalTarget
+            )}
         </div>
     );
 }

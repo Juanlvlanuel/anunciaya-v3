@@ -114,8 +114,8 @@ export async function crearCheckoutPublicidad(usuarioId: string, input: Checkout
         ],
         customer_email: usuario.correo,
         metadata: { tipo: 'compra_publicidad', compraId, usuarioId },
-        success_url: `${base}/inicio?publicidad=exito`,
-        cancel_url: `${base}/inicio?publicidad=cancelado`,
+        success_url: `${base}/perfil?tab=pagos&publicidad=exito`,
+        cancel_url: `${base}/perfil?tab=pagos&publicidad=cancelado`,
         locale: 'es',
         // La sesión caduca en 1h (mín. de Stripe: 30 min); el cron borra los 'pendiente' abandonados.
         expires_at: Math.floor(Date.now() / 1000) + 60 * 60,
