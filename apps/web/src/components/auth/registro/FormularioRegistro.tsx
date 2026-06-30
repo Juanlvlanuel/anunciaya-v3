@@ -681,24 +681,27 @@ export function FormularioRegistro({
                     ? 'border-emerald-500 bg-emerald-100'
                     : 'border-red-500 bg-red-100'
               }`} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
-                {/* Selector de lada */}
+                {/* Selector de lada — ancho fijo holgado y sin bandera emoji
+                    (empujaba el código fuera de vista; en Windows sale como "MX") */}
                 <div className="relative shrink-0">
                   <select
                     value={formulario.lada}
                     onChange={handleChange('lada')}
                     disabled={cargando}
-                    className="w-20 lg:w-18 2xl:w-20 h-full px-2 lg:px-1.5 2xl:px-2 pr-5 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 appearance-none cursor-pointer focus:outline-none disabled:opacity-50 border-r-2 border-slate-300"
+                    className="w-[4.5rem] lg:w-16 2xl:w-[4.5rem] h-full pl-3 lg:pl-2.5 2xl:pl-3 pr-6 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 appearance-none cursor-pointer focus:outline-none disabled:opacity-50 border-r-2 border-slate-300"
                   >
                     {LADAS.map((lada) => (
-                      <option key={lada.codigo} value={lada.codigo}>
-                        {lada.pais} {lada.codigo}
+                      <option key={lada.codigo} value={lada.codigo} title={lada.nombre}>
+                        {lada.codigo}
                       </option>
                     ))}
                   </select>
                   <ChevronDown className="absolute right-1 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-600 pointer-events-none" />
                 </div>
 
-                {/* Input teléfono */}
+                {/* Input teléfono — min-w-0 para que el flex item se encoja y NO
+                    desborde el contenedor (si no, al recibir foco con Tab/click el
+                    contenedor overflow-hidden hace scroll y esconde la lada) */}
                 <input
                   type="tel"
                   placeholder="638 123 4567"
@@ -707,7 +710,7 @@ export function FormularioRegistro({
                   onBlur={handleBlur('telefono')}
                   disabled={cargando}
                   autoComplete="tel-national"
-                  className="flex-1 h-full px-3 lg:px-2.5 2xl:px-3 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
+                  className="flex-1 min-w-0 h-full px-3 lg:px-2.5 2xl:px-3 bg-transparent text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50"
                 />
               </div>
             </div>
@@ -972,7 +975,7 @@ function InputField({
           onBlur={onBlur}
           disabled={disabled}
           autoComplete={autoComplete}
-          className={`w-full h-11 lg:h-10 2xl:h-11 pl-10 lg:pl-9 2xl:pl-10 pr-10 bg-slate-100 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isValid === null
+          className={`w-full h-11 lg:h-10 2xl:h-11 pl-10 lg:pl-9 2xl:pl-10 ${rightElement ? 'pr-10' : 'pr-3'} bg-slate-100 border-2 rounded-lg text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none disabled:opacity-50 disabled:cursor-not-allowed ${isValid === null
             ? 'border-slate-300 focus:border-slate-500'
             : isValid
               ? 'border-emerald-500 bg-emerald-100'
