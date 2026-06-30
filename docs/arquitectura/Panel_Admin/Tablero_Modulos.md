@@ -219,7 +219,7 @@
 | | **· Crecimiento ·** | | | |
 | 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
-| 14 | **Categorías** | 🟡 | Construido (CRUD catálogo de giros + disponibilidad por ciudad, solo super) · `tsc`/build verdes · **falta** correr migración + E2E + commit | `Categorias.md` · `Categorias_Pendientes.md` |
+| 14 | **Categorías** | ✅ | En prod (CRUD catálogo de giros + disponibilidad por ciudad, solo super) · commit `65e388f` + migraciones dev/prod + harness verde · falta solo E2E visual | `Categorias.md` · `Categorias_Pendientes.md` |
 | | **· Administración ·** | | | |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |

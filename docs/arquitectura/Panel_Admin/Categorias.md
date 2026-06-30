@@ -5,8 +5,8 @@
 > Capa 1 = en lenguaje de persona; Capa 2 = apéndice técnico. Lo que FALTA vive en
 > [`Categorias_Pendientes.md`](Categorias_Pendientes.md).
 >
-> **Estado:** ✅ construido (código + tsc/build verde en api/admin/web). Falta correr la
-> migración en dev/prod y la verificación E2E a mano. **Última actualización:** 29 Junio 2026.
+> **Estado:** ✅ desplegado y operativo en PROD (commit `65e388f`, 30 jun) — migraciones corridas
+> en dev+prod, harness verde. Solo falta la verificación visual E2E a mano. **Última actualización:** 30 Junio 2026.
 
 ---
 
