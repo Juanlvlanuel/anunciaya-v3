@@ -3,7 +3,7 @@
 > Lo que **falta** del módulo 7 (Publicidad). Lo que ya **es** vive en [`Publicidad.md`](Publicidad.md).
 > Cuando un pendiente se termina, **sale** de aquí y, si cambió el comportamiento, **entra** al doc canónico.
 >
-> **Última actualización:** 22 Junio 2026.
+> **Última actualización:** 29 Junio 2026.
 
 ## Estado: Fase 0-2 ✅ · **Módulo CERRADO de punta a punta** · committeado · CORS R2 resuelto · solo queda backlog
 
@@ -78,3 +78,31 @@
 - Publicidad en móvil.
 - Métricas avanzadas (CTR, por ciudad).
 - Cobro automático de efectivo de la publicidad enganchado a la cartera del vendedor (si algún día el vendedor la vende).
+- **Tope de inventario + tiempo visible configurables por carrusel** (ver "Inventario y rotación" abajo) — proteger el valor del espacio cuando escale. No urgente para la beta.
+- **Conteo de impresiones/"vistas"** — la columna `publicidad_piezas.impresiones` existe pero nada la incrementa; las vistas se retiraron de la UI (29-jun). Para activarlas: contar al mostrar la pieza en `ColumnaDerecha` (endpoint + regla de conteo con throttle).
+
+---
+
+## Inventario y rotación de la columna (análisis + mejora futura)
+
+> Anotado el **29-jun** a partir de una conversación con Juan. **No construido** — decidido en papel para cuando escale.
+
+### Estado actual (HOY): inventario ILIMITADO
+Los carruseles de publicidad **crecen sin límite y muestran TODOS los anuncios** que se vendan:
+- **Backend** ([`publicidadPublica.service.ts`](../../../apps/api/src/services/publicidadPublica.service.ts) → `listarPublicidadPublica`): la query trae **todas** las piezas vigentes de la ciudad para Grande (`patrocinadores`) y Chico (`anuncios`), ordenadas por `prioridad DESC, createdAt DESC`. **No hay `LIMIT`.**
+- **Front** ([`ColumnaDerecha.tsx`](../../../apps/web/src/components/layout/ColumnaDerecha.tsx)): el carrusel rota sobre el arreglo completo (`useCarruselAuto(grandes.length, 6000)` · Chico `4500`ms), **sin `slice`/recorte**. Los puntos indicadores reflejan el total real.
+- ⚠️ Nota: el `publicidad_limite_ciudades` ("Máximo de ciudades", config) es el tope de **ciudades por anuncio**, **NO** un tope de anuncios por carrusel. No existe ese segundo tope.
+
+### El problema cuando escale: dilución 1/N
+El espacio **visible es fijo** (siempre **1 Grande + 1 Chico a la vez**, rotando). Lo que crece es la cola de rotación, así que cada anuncio recibe una **cuota de pantalla de `1/N`** (N = anuncios de ese tamaño en la ciudad). Más ventas → cada anuncio se ve menos seguido → el espacio "premium" se devalúa solo, y no hay forma de cobrar la escasez.
+
+### Las dos palancas (y por qué una NO sustituye a la otra)
+1. **Tope de inventario** (máx. anuncios activos por **ciudad × tamaño**): arregla la **cuota** (garantiza un mínimo de pantalla por anuncio) y crea **escasez cobrable**. Al llegar al cupo: "agotado en esta ciudad" o lista de espera.
+2. **Tiempo visible por anuncio** (hoy hardcoded 6s Grande / 4.5s Chico): mejora la **calidad** de cada aparición (más segundos de lectura) y el **ritmo**, pero **NO** arregla la dilución. Matemática: si cada anuncio dura `t` y hay `N`, cada uno se ve `t` seg pero vuelve cada `N×t` seg → cuota = `t/(N×t)` = **1/N**, **independiente de `t`**. El tiempo se cancela.
+
+**Son complementarias:** el tope protege el valor; el tiempo afina la experiencia.
+
+### Diseño propuesto (cuando se construya)
+- Hacer **configurables desde el Panel** (Configuración → Publicidad) el **tiempo de rotación** por tamaño y un **tope de anuncios activos por ciudad×tamaño** (hoy ambos son constantes en el código).
+- Idealmente **amarrar las dos** a una promesa de visibilidad: p. ej. *"el ciclo completo de un tamaño no debe pasar de ~30s"* → el tope sale solo: `N_max = ciclo_objetivo / t` (con 6s → máx 5; con 10s → máx 3).
+- Backend: `LIMIT` / lógica de selección en `listarPublicidadPublica` + validación de cupo en el wizard/alta (`publicidad-checkout`/`publicidad-alta`). Front: leer el tiempo de config en `ColumnaDerecha`.
