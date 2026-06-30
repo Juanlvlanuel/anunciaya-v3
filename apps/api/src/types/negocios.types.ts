@@ -60,7 +60,6 @@ export interface PerfilSucursalRow {
         categoria: {
             id: number;
             nombre: string;
-            icono: string;
         };
     }> | null;
 
@@ -165,7 +164,6 @@ export interface SucursalResumenRow {
         categoria: {
             id: number;
             nombre: string;
-            icono: string;
         };
     }> | null;
 

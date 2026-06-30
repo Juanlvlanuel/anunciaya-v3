@@ -136,6 +136,10 @@ export const actualizarInfoGeneral = async (
             }
         });
 
+        // Auto-habilitar el catálogo por ciudad según la demanda real (best-effort,
+        // fuera de la transacción para no abortarla si algo falla).
+        await autohabilitarCatalogoPorCiudad(negocioId);
+
         return {
             success: true,
             message: 'Información general actualizada correctamente',
@@ -143,6 +147,50 @@ export const actualizarInfoGeneral = async (
     } catch (error) {
         console.error('Error en actualizarInfoGeneral:', error);
         throw new Error('Error al actualizar información general del negocio');
+    }
+};
+
+/**
+ * Auto-habilita la disponibilidad por ciudad del catálogo según la DEMANDA REAL:
+ * cuando un negocio se clasifica en una categoría/subcategoría que está ACOTADA a
+ * ciertas ciudades, agrega las ciudades de las sucursales del negocio a ese conjunto
+ * (la "habilita" ahí). Las categorías/subcategorías GLOBALES (sin filas de
+ * disponibilidad) no se tocan: ya aparecen en todas las ciudades.
+ *
+ * Coherencia: el 1.er INSERT habilita la CATEGORÍA acotada en la ciudad, así una
+ * subcategoría (global o no) nunca queda visible sin su categoría.
+ *
+ * Idempotente (ON CONFLICT DO NOTHING) y best-effort: si falla, se loggea y NO
+ * rompe el flujo que la invoca (alta/edición del negocio). La invocan el cierre del
+ * onboarding y la edición del giro en Business Studio.
+ */
+export const autohabilitarCatalogoPorCiudad = async (negocioId: string): Promise<void> => {
+    try {
+        // 1) Categorías ACOTADAS → habilitar las ciudades del negocio donde falten.
+        await db.execute(sql`
+            INSERT INTO categoria_ciudades (categoria_id, ciudad_id)
+            SELECT DISTINCT sc.categoria_id, s.ciudad_id
+            FROM asignacion_subcategorias a
+            JOIN subcategorias_negocio sc ON sc.id = a.subcategoria_id
+            JOIN negocio_sucursales s ON s.negocio_id = a.negocio_id
+            WHERE a.negocio_id = ${negocioId}
+              AND s.ciudad_id IS NOT NULL
+              AND EXISTS (SELECT 1 FROM categoria_ciudades cc WHERE cc.categoria_id = sc.categoria_id)
+            ON CONFLICT DO NOTHING
+        `);
+        // 2) Subcategorías ACOTADAS → habilitar las ciudades del negocio donde falten.
+        await db.execute(sql`
+            INSERT INTO subcategoria_ciudades (subcategoria_id, ciudad_id)
+            SELECT DISTINCT a.subcategoria_id, s.ciudad_id
+            FROM asignacion_subcategorias a
+            JOIN negocio_sucursales s ON s.negocio_id = a.negocio_id
+            WHERE a.negocio_id = ${negocioId}
+              AND s.ciudad_id IS NOT NULL
+              AND EXISTS (SELECT 1 FROM subcategoria_ciudades sc WHERE sc.subcategoria_id = a.subcategoria_id)
+            ON CONFLICT DO NOTHING
+        `);
+    } catch (error) {
+        console.error('[autohabilitarCatalogoPorCiudad] no se pudo sincronizar la disponibilidad:', error);
     }
 };
 

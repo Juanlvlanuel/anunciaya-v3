@@ -43,7 +43,7 @@ import {
     getFeedInfinito,
     getPublicacion,
     postRegistrarVista,
-    getPreguntasPublicacion,
+    getComentariosPublicacion,
     getSugerenciasBuscador,
     getBuscarServicios,
     postUploadImagen,
@@ -53,11 +53,9 @@ import {
     patchCambiarEstado,
     postReactivarPublicacion,
     deletePublicacion,
-    postCrearPregunta,
-    postResponderPregunta,
-    putEditarPreguntaPropia,
-    deletePreguntaPropia,
-    deletePreguntaDueno,
+    postCrearComentario,
+    putEditarComentario,
+    deleteComentario,
     deleteFotoServicioHuerfana,
     getPerfilPrestador,
     getPublicacionesDelPrestador,
@@ -103,14 +101,15 @@ router.get('/buscar/sugerencias', verificarToken, getSugerenciasBuscador);
 router.get('/buscar', verificarToken, getBuscarServicios);
 
 /**
- * GET /api/servicios/publicaciones/:id/preguntas
+ * GET /api/servicios/publicaciones/:id/comentarios
  * IMPORTANTE: declarado ANTES de /publicaciones/:id para que Express no
  * confunda la ruta con el detalle.
+ * Público: devuelve todos los comentarios (árbol de 1 nivel) de la publicación.
  */
 router.get(
-    '/publicaciones/:id/preguntas',
+    '/publicaciones/:id/comentarios',
     verificarTokenOpcional,
-    getPreguntasPublicacion
+    getComentariosPublicacion
 );
 
 /**
@@ -228,59 +227,36 @@ router.delete(
 // =============================================================================
 
 /**
- * POST /api/servicios/publicaciones/:id/preguntas
- * El autor hace una pregunta pública sobre la publicación.
+ * POST /api/servicios/publicaciones/:id/comentarios
+ * Comenta la publicación. Body: { texto, parentId? }.
  */
 router.post(
-    '/publicaciones/:id/preguntas',
+    '/publicaciones/:id/comentarios',
     verificarToken,
     requiereModoPersonal,
-    postCrearPregunta
+    postCrearComentario
 );
 
 /**
- * POST /api/servicios/preguntas/:id/responder
- * El dueño responde una pregunta pendiente.
- */
-router.post(
-    '/preguntas/:id/responder',
-    verificarToken,
-    requiereModoPersonal,
-    postResponderPregunta
-);
-
-/**
- * PUT /api/servicios/preguntas/:id/mia
- * El autor edita el texto de su propia pregunta (solo si pendiente).
+ * PUT /api/servicios/comentarios/:id
+ * El autor edita su comentario (sin límite de tiempo).
  */
 router.put(
-    '/preguntas/:id/mia',
+    '/comentarios/:id',
     verificarToken,
     requiereModoPersonal,
-    putEditarPreguntaPropia
+    putEditarComentario
 );
 
 /**
- * DELETE /api/servicios/preguntas/:id/mia
- * IMPORTANTE: declarado ANTES de /preguntas/:id para evitar conflicto Express.
- * El autor retira su pregunta (solo si pendiente).
+ * DELETE /api/servicios/comentarios/:id
+ * Elimina un comentario. Permitido al autor o al dueño de la publicación.
  */
 router.delete(
-    '/preguntas/:id/mia',
+    '/comentarios/:id',
     verificarToken,
     requiereModoPersonal,
-    deletePreguntaPropia
-);
-
-/**
- * DELETE /api/servicios/preguntas/:id
- * El dueño elimina una pregunta de su publicación.
- */
-router.delete(
-    '/preguntas/:id',
-    verificarToken,
-    requiereModoPersonal,
-    deletePreguntaDueno
+    deleteComentario
 );
 
 /**

@@ -37,8 +37,16 @@ export type TipoNotificacion =
   | 'marketplace_expirada'
   | 'marketplace_nueva_pregunta'
   | 'marketplace_pregunta_respondida'
+  /** Comentarios MarketPlace (hilos): al dueño cuando comentan su artículo. */
+  | 'marketplace_nuevo_comentario'
+  /** Comentarios MarketPlace (hilos): al autor cuando responden su comentario. */
+  | 'marketplace_respuesta_comentario'
   | 'servicios_nueva_pregunta'
   | 'servicios_pregunta_respondida'
+  /** Comentarios de Servicios (hilos): al dueño cuando comentan su publicación. */
+  | 'servicios_nuevo_comentario'
+  /** Comentarios de Servicios (hilos): al autor cuando responden su comentario. */
+  | 'servicios_respuesta_comentario'
   // ── Sprint 1.D — Home / Coyo ────────────────────────────────────────────
   /** Al autor de una pregunta cuando otro vecino responde en el Home. */
   | 'pregunta_comunidad_respondida'

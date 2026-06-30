@@ -49,6 +49,7 @@ const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p}
 import { useNegociosLista } from '../../../hooks/queries/useNegocios';
 import { useFiltrosNegociosStore } from '../../../stores/useFiltrosNegociosStore';
 import { useGpsStore } from '../../../stores/useGpsStore';
+import { resolverCiudadId } from '../../../data/ciudadesPopulares';
 import { usePerfilCategorias, usePerfilSubcategorias } from '../../../hooks/queries/usePerfil';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
@@ -601,6 +602,12 @@ export function PaginaNegocios() {
   const { latitud, longitud } = useGpsStore();
   const ciudadGps = useGpsStore(s => s.ciudad);
   const nombreCiudad = ciudadGps?.nombre || 'tu ciudad';
+  // UUID de la ciudad activa (si el catálogo ya está hidratado) para filtrar el
+  // catálogo de giros por su disponibilidad por ciudad. Sin match → catálogo global.
+  const ciudadIdActiva = useMemo(
+    () => resolverCiudadId(ciudadGps?.nombre, ciudadGps?.estado),
+    [ciudadGps?.nombre, ciudadGps?.estado],
+  );
   const { data: negociosRaw = [], isPending: loading } = useNegociosLista();
   const searchQuery = useSearchStore((s) => s.query);
   const setSearchQuery = useSearchStore((s) => s.setQuery);
@@ -659,7 +666,7 @@ export function PaginaNegocios() {
     });
   }, [searchQueryDiferido, negociosRaw]);
 
-  const { data: categorias = [] } = usePerfilCategorias();
+  const { data: categorias = [] } = usePerfilCategorias(ciudadIdActiva);
   const {
     categoria, setCategoria,
     subcategorias: subcategoriasSeleccionadas, setSubcategorias,
@@ -675,7 +682,7 @@ export function PaginaNegocios() {
     resetearFiltrosTemporales,
   } = useFiltrosNegociosStore();
 
-  const { data: opcionesSubcategorias = [] } = usePerfilSubcategorias(categoria ?? 0);
+  const { data: opcionesSubcategorias = [] } = usePerfilSubcategorias(categoria ?? 0, ciudadIdActiva);
 
   const centroInicial: [number, number] = latitud && longitud
     ? [latitud, longitud]

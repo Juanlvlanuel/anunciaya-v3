@@ -228,7 +228,6 @@ export interface OfertaFeedRow {
     categoria: {
       id: number;
       nombre: string;
-      icono: string;
     };
   }> | null;
 

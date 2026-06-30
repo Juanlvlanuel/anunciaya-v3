@@ -15,7 +15,6 @@ import { ChevronDown } from 'lucide-react';
 interface Categoria {
   id: number;
   nombre: string;
-  icono: string;
 }
 
 interface SelectorCategoriaProps {

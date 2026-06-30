@@ -22,6 +22,7 @@ import {
   Receipt,
   ScrollText,
   Map,
+  Tags,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -37,6 +38,7 @@ export const ICONOS_SECCION: Record<string, LucideIcon> = {
   territorios: Map,
   publicidad: Megaphone,
   ciudades: MapPin,
+  categorias: Tags,
   configuracion: SlidersHorizontal,
   equipo: ShieldCheck,
   auditoria: ScrollText,

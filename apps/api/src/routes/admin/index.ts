@@ -33,6 +33,7 @@ import publicidadRoutes from './publicidad.routes.js';
 import regionesRoutes from './regiones.routes.js';
 import configuracionRoutes from './configuracion.routes.js';
 import ciudadesRoutes from './ciudades.routes.js';
+import categoriasRoutes from './categorias.routes.js';
 import territoriosRoutes from './territorios.routes.js';
 
 const router: Router = Router();
@@ -122,6 +123,10 @@ router.use('/configuracion', configuracionRoutes);
 
 // Ciudades: catálogo de ciudades + regiones (solo superadmin, ya cubierto por el gate).
 router.use('/ciudades', ciudadesRoutes);
+
+// Categorías: catálogo de negocios (categorías/subcategorías) + disponibilidad por
+// ciudad (solo superadmin, ya cubierto por el gate).
+router.use('/categorias', categoriasRoutes);
 
 // A futuro, agregar aquí:
 // router.use('/reportes-globales', reportesGlobalesRoutes);

@@ -1,6 +1,6 @@
 # Arquitectura — Sección Servicios
 
-> Última actualización: 2026-05-22 (Sprint 9.3 — Q&A con notificaciones, perfil prestador rediseñado, fotos optimistas, TTL fin-de-día con zona horaria).
+> Última actualización: 2026-06-30 (Q&A reemplazado por **Comentarios públicos** con hilos de 1 nivel — `servicios_comentarios`, `SeccionComentariosServicio`, reusa `ComentarioItem` de MP).
 > Visión estratégica: [`docs/VISION_ESTRATEGICA_AnunciaYA.md`](../VISION_ESTRATEGICA_AnunciaYA.md) §3.2.
 
 Servicios es la sección pública unificada para **servicios e intangibles** (incluye empleos).
@@ -193,6 +193,12 @@ Aplica en `OferenteCard`, `SidebarSobreNegocio` y `CardServicio`. Mismo patrón 
 
 `useIniciarChatServicio` encapsula la lógica de iniciar conversación ChatYA reutilizable desde la card y el detalle.
 
+### 3.4 Comentarios en el detalle (SeccionComentariosServicio)
+
+`SeccionComentariosServicio.tsx` (reemplaza a `SeccionPreguntasServicio.tsx`, eliminado) se monta en `PaginaServicio.tsx` (detalle). Reusa el componente genérico `ComentarioItem` de MarketPlace con `etiquetaAutor="Autor"`. Renderiza cada hilo con avatar clickeable (abre la foto con `ModalImagenes`), nombre clickeable → perfil (vía `BotonComentarista`), etiqueta de autor cuando el comentarista es el dueño de la publicación, un menú kebab (⋮) dentro de la burbuja con Contactar/Editar/Eliminar (según permiso) y "Responder" visible. El botón "Contactar" abre ChatYA directo con el autor.
+
+> El **feed** (`CardServicio.tsx`) **NO** muestra comentarios inline — la sección de comentarios solo vive en el detalle (a diferencia de MarketPlace, donde el feed sí los muestra).
+
 ---
 
 ## 4. Backend
@@ -207,17 +213,18 @@ Aplica en `OferenteCard`, `SidebarSobreNegocio` y `CardServicio`. Mismo patrón 
 | POST | `/servicios/upload-imagen` | Presigned URL R2 |
 | DELETE | `/servicios/foto-huerfana` | Reference count + borra de R2 |
 
-### 4.2 Endpoints Q&A público
+### 4.2 Endpoints Comentarios público
 
 | Método | Ruta | Uso |
 |---|---|---|
-| GET | `/servicios/publicaciones/:id/preguntas` | Lista pública (respondidas + pendientes propias) |
-| POST | `/servicios/publicaciones/:id/preguntas` | Crear pregunta (autor ≠ dueño) |
-| PUT | `/servicios/preguntas/:id` | Editar pregunta propia si no tiene respuesta |
-| PUT | `/servicios/preguntas/:id/respuesta` | Dueño responde |
-| DELETE | `/servicios/preguntas/:id` | Soft delete (autor si pendiente, dueño cualquiera) |
+| GET | `/servicios/publicaciones/:id/comentarios` | Público. Devuelve el árbol de 1 nivel `{ success, data: ComentarioNodo[] }` (cada nodo: `id, autorId, autorNombre, autorApellidos, autorAvatarUrl, texto, esVendedor` (autor == dueño de la publicación), `editadoAt, createdAt, respuestas[]`). Lo ve cualquiera (sin estado "pendiente"). |
+| POST | `/servicios/publicaciones/:id/comentarios` | Crear comentario o respuesta. Body `{ texto, parentId? }` (texto 2-500 chars). `parentId` ausente = raíz; con valor = respuesta (el backend sube el `parentId` al raíz → hilos de 1 nivel). El dueño de la publicación también puede comentar/responder. |
+| PUT | `/servicios/comentarios/:id` | Editar comentario. Body `{ texto }`. Solo el autor, **sin límite de tiempo**. |
+| DELETE | `/servicios/comentarios/:id` | Eliminar (soft delete). Autor del comentario **o** dueño de la publicación; borrar un raíz hace soft-delete en cascada de sus respuestas. |
 
-Service: `apps/api/src/services/servicios/preguntas.ts`. Validación: `apps/api/src/validations/servicios.schema.ts`. `PREGUNTA_MIN` = 5 (frontend y Zod backend, Sprint 9.3 — antes 10 bloqueaba palabras de 7 letras como "Gracias").
+Service: `apps/api/src/services/servicios/comentarios.ts` (reemplaza a `servicios/preguntas.ts`, eliminado). Helper compartido del árbol: `apps/api/src/services/comentarios/arbol.ts` (`armarArbolComentarios`, tipos `ComentarioNodo` / `ComentarioPlano`), el mismo que usa MarketPlace. Validación en `apps/api/src/validations/servicios.schema.ts` (`{ texto: 2-500 chars, parentId?: uuid }`).
+
+> **Sin moderación de texto:** Servicios NO valida palabras prohibidas en los comentarios (el Q&A viejo tampoco lo hacía). MarketPlace sí mantiene su moderación de texto.
 
 ### 4.3 Moderación pasiva
 
@@ -234,20 +241,49 @@ Las publicaciones de Servicios (servicio, solicito, vacante) tienen `expira_at` 
 
 Aplica también a `marketplace.service.ts`, `vacantes.service.ts`, `cardya.service.ts` (cupones/recompensas) y `marketplace/expiracion.ts`.
 
-### 4.5 Q&A — Notificaciones
+### 4.5 Comentarios — Notificaciones
 
-Las preguntas y respuestas detonan notificaciones (Sprint 9.3). Ver `docs/arquitectura/Notificaciones.md` sección "Servicios — Q&A".
+Los comentarios y respuestas detonan notificaciones. Ver `docs/arquitectura/Notificaciones.md`.
 
 | Evento | Tipo notificación | Destinatario | Mensaje |
 |---|---|---|---|
-| Usuario hace pregunta | `servicios_nueva_pregunta` | Dueño publicación | `Tienes una nueva pregunta` / `Te preguntaron sobre "{titulo}"` |
-| Dueño responde | `servicios_pregunta_respondida` | Autor pregunta | `Tu pregunta fue respondida` / `Ya hay respuesta sobre "{titulo}"` |
+| Usuario comenta (raíz) | `servicios_nuevo_comentario` | Dueño publicación | `Tienes un nuevo comentario` / `Comentaron sobre "{titulo}"` |
+| Alguien responde un comentario | `servicios_respuesta_comentario` | Autor del comentario respondido | `Respondieron tu comentario` / `Hay una respuesta sobre "{titulo}"` |
 
-Ambas usan `modo: 'personal'` (llegan al perfil personal del receptor sin importar contexto BS), `referenciaTipo: 'servicio'`, `referenciaId: publicacionId`. Click → `/servicios/{publicacionId}`. La llamada a `crearNotificacion` está envuelta en `.catch()` silencioso — la notificación no es crítica al flujo Q&A.
+Ambas usan `modo: 'personal'` (llegan al perfil personal del receptor sin importar contexto BS), `referenciaTipo: 'servicio'`, `referenciaId: publicacionId`. Click → `/servicios/{publicacionId}`. La llamada a `crearNotificacion` está envuelta en `.catch()` silencioso — la notificación no es crítica al flujo de comentarios.
 
-El check constraint de la BD (`notificaciones_tipo_check`) fue actualizado para incluir `servicios_nueva_pregunta` y `servicios_pregunta_respondida` (migración manual, ver `apps/api/src/db/schemas/schema.ts`).
+El check constraint de la BD (`notificaciones_tipo_check`) incluye `servicios_nuevo_comentario` y `servicios_respuesta_comentario`. Los tipos viejos `servicios_nueva_pregunta` y `servicios_pregunta_respondida` se **conservan en el CHECK** por compatibilidad histórica, aunque ya no se emiten (ver `apps/api/src/db/schemas/schema.ts`).
 
-Mismo patrón aplica a MP (`marketplace_nueva_pregunta`, `marketplace_pregunta_respondida`).
+Mismo patrón aplica a MP (`marketplace_nuevo_comentario`, `marketplace_respuesta_comentario`).
+
+### 4.6 Tabla `servicios_comentarios`
+
+Reemplaza a `servicios_preguntas`, que fue **eliminada con DROP**.
+
+```sql
+CREATE TABLE servicios_comentarios (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  publicacion_id UUID NOT NULL REFERENCES servicios_publicaciones(id) ON DELETE CASCADE,
+  autor_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES servicios_comentarios(id) ON DELETE CASCADE,  -- NULL = raíz; con valor = respuesta
+  texto VARCHAR(500) NOT NULL,
+  editado_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+  deleted_at TIMESTAMPTZ
+);
+
+CREATE INDEX idx_servicios_comentarios_publicacion
+  ON servicios_comentarios(publicacion_id)
+  WHERE deleted_at IS NULL;
+
+CREATE INDEX idx_servicios_comentarios_parent
+  ON servicios_comentarios(parent_id)
+  WHERE deleted_at IS NULL;
+```
+
+**Migraciones:** `docs/migraciones/2026-06-30-servicios-comentarios.sql` (creación + migración de datos) y `docs/migraciones/2026-06-30-drop-servicios-preguntas.sql` (fase *contract*).
+
+**Modelo (común con MarketPlace):** comentarios **públicos al instante** (sin "pendiente" ni visibilidad restringida); **hilos de 1 nivel** (el backend sube el `parentId` al raíz); texto 2-500 chars; **editar** solo el autor sin límite de tiempo; **eliminar** el autor o el dueño de la publicación (soft-delete en cascada de las respuestas al borrar un raíz); el dueño también puede comentar/responder (etiqueta de autor "Autor").
 
 ---
 
@@ -256,6 +292,8 @@ Mismo patrón aplica a MP (`marketplace_nueva_pregunta`, `marketplace_pregunta_r
 ### 5.1 React Query
 
 `apps/web/src/hooks/queries/useServicios.ts`. Cumple [`PATRON_REACT_QUERY.md`](../estandares/PATRON_REACT_QUERY.md): query keys centralizadas, `staleTime` 2 min, `placeholderData: keepPreviousData` en filtros.
+
+Hooks de comentarios: `useComentariosServicio`, `useCrearComentarioServicio`, `useEditarComentarioServicio`, `useEliminarComentarioServicio`.
 
 ### 5.2 Estado local (sin Zustand)
 
@@ -275,6 +313,7 @@ A diferencia de la primera iteración del composer (que usaba un store global), 
 - `CategoriaClasificado = 'hogar' | 'cuidados' | 'eventos' | 'belleza-bienestar' | 'empleo' | 'otros'`
 - `PrecioServicio` (discriminated union: fijo, hora, mensual, rango, a-convenir)
 - `PublicacionServicio`, `PublicacionDetalle`
+- `ComentarioServicio` — alias del tipo genérico `Comentario` (`apps/web/src/types/comentarios.ts`, compartido con MP). El tipo viejo `PreguntaServicio` fue eliminado.
 
 ---
 
@@ -323,15 +362,19 @@ apps/web/src/
     ├── MisPublicacionesServiciosSection.tsx            ← navigate a /servicios?editar/?crear
     ├── ServiciosHeader.tsx, TabsServicios.tsx
     ├── OferenteCard.tsx                                ← variante móvil del sidebar (personas + empresa)
-    ├── SeccionPreguntasServicio.tsx                    ← Q&A público con copy por tipo
+    ├── SeccionComentariosServicio.tsx                  ← Comentarios públicos (reemplaza a SeccionPreguntasServicio.tsx); reusa ComentarioItem de MP con etiquetaAutor="Autor"
     ├── BarraContactoServicio.tsx                       ← WhatsApp SVG + ChatYA.webp + UserPlus + Tooltip
     └── CardServicio.tsx, CardVacante.tsx, CardServicioMio.tsx, …
 
+apps/web/src/components/marketplace/
+└── ComentarioItem.tsx                                  ← componente genérico de hilo, reutilizado por Servicios
+
 apps/api/src/services/servicios/
 ├── servicios.service.ts                                ← CRUD + moderación pasiva
-├── preguntas.ts                                        ← Q&A + crearNotificacion (2 tipos)
+├── comentarios.ts                                      ← Comentarios + crearNotificacion (reemplaza a preguntas.ts, eliminado)
 └── perfilPrestador.ts                                  ← perfil + filtro tipo IN ('servicio-persona','solicito')
-apps/api/src/validations/servicios.schema.ts            ← Zod (PREGUNTA_MIN=5)
+apps/api/src/services/comentarios/arbol.ts              ← helper compartido armarArbolComentarios (MP + Servicios)
+apps/api/src/validations/servicios.schema.ts            ← Zod (comentario: texto 2-500 chars, parentId? uuid)
 apps/api/src/utils/expiracion.ts                        ← sqlExpiracionFinDeDia (TTL fin-de-día)
 apps/api/src/utils/zonaHoraria.ts                       ← getZonaHorariaPorCiudad (mapeo IANA)
 ```
@@ -343,10 +386,11 @@ apps/api/src/utils/zonaHoraria.ts                       ← getZonaHorariaPorCiu
 | Sprint | Resumen |
 |---|---|
 | 2–7 | Wizard de 3 pasos (eliminado en Sprint 9) |
-| 5 | Perfil del prestador, reseñas, Q&A público |
+| 5 | Perfil del prestador, reseñas, Q&A público (Q&A reemplazado por Comentarios el 30 jun 2026) |
 | 7 | Mis Publicaciones, edición |
 | 8 | BS Vacantes (cierre del módulo BS) |
 | **9** | Composer inline en el feed (sin overlay, sin ruta). Fila de íconos "Agregar a tu publicación" estilo Facebook. Triggers externos vía query params (`?crear=`, `?editar=`). Cámara compacta + strip de thumbnails. Hint inline anti-venta. Borradores discoverables. |
 | **9.1** | Composer MP inline + layout 920px (`min-w-0` para respetar `max-w-[920px]`). Replicación del composer Servicios. |
 | **9.2** | TTL "fin del día" con zona horaria (`sqlExpiracionFinDeDia` + `getZonaHorariaPorCiudad`). Fotos optimistas (blob previews + `Promise.allSettled`). Rediseño detalle Servicios (ChatYA inline). BS Vacantes visibles para todo el equipo de la sucursal (antes solo el creador — se quitó el filtro `usuario_id`). |
 | **9.3** | **Perfil prestador rediseñado** (HeroCard con avatar simplificado, KPIs grid con `auto-rows-fr [&>*]:h-full`, BadgeCheck invertido, sin ciudad). Perfil personal excluye vacantes con filtro `tipo IN ('servicio-persona', 'solicito')`. SidebarSobreNegocio + OferenteCard + CardVendedor con mismo patrón sky/amber. Q&A personalizado por tipo (`textosSeccionPreguntas`), `PREGUNTA_MIN: 10 → 5`. **Notificaciones Q&A:** `servicios_nueva_pregunta` + `servicios_pregunta_respondida` (mismo patrón que MP), deep-link al detalle vía `referenciaTipo: 'servicio'`. Botones contacto inline con logos de marca (WhatsApp SVG + ChatYA.webp + UserPlus). |
+| **Comentarios (30 jun 2026)** | El Q&A público se **reemplazó** por **comentarios públicos con hilos de 1 nivel** (común con MarketPlace). Tabla `servicios_comentarios` (DROP de `servicios_preguntas`), endpoints `…/comentarios` (GET árbol · POST · PUT · DELETE), notificaciones `servicios_nuevo_comentario` / `servicios_respuesta_comentario`. Frontend: `SeccionComentariosServicio.tsx` (reusa `ComentarioItem` con `etiquetaAutor="Autor"`), hooks `useComentariosServicio` & co. Helper backend `services/comentarios/arbol.ts` y tipo `types/comentarios.ts` compartidos con MP. El feed `CardServicio.tsx` NO muestra comentarios inline. Sin moderación de texto. Eliminados: `servicios/preguntas.ts`, tipo `PreguntaServicio`. |

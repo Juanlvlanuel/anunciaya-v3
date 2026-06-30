@@ -70,7 +70,7 @@ import { GaleriaArticulo } from '../../../components/marketplace/GaleriaArticulo
 import { CardVendedor } from '../../../components/marketplace/CardVendedor';
 import { MapaUbicacion } from '../../../components/marketplace/MapaUbicacion';
 import { BarraContacto } from '../../../components/marketplace/BarraContacto';
-import { SeccionPreguntas } from '../../../components/marketplace/SeccionPreguntas';
+import { SeccionComentarios } from '../../../components/marketplace/SeccionComentarios';
 import { DropdownCompartir } from '../../../components/compartir/DropdownCompartir';
 import Tooltip from '../../../components/ui/Tooltip';
 import { Spinner } from '../../../components/ui/Spinner';
@@ -103,8 +103,6 @@ export function PaginaArticuloMarketplace() {
     // hace scroll y el BottomNav se oculta, los botones bajan para no quedar
     // flotando sobre un espacio vacío.
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
-
-    const esDueno = !!usuarioActual && !!articulo && usuarioActual.id === articulo.vendedor.id;
 
     // ─── Botón guardar ─────────────────────────────────────────────────────────
     // El backend devuelve `articulo.guardado` con el estado real del usuario
@@ -440,10 +438,9 @@ export function PaginaArticuloMarketplace() {
                             interno de `SeccionPreguntas` tiene contenido
                             largo sin word-break que intente expandir. */}
                         <div className="mx-3 min-w-0 rounded-xl border-2 border-slate-300 bg-white p-3 shadow-md lg:mx-0 lg:p-4">
-                            <SeccionPreguntas
+                            <SeccionComentarios
                                 articuloId={articulo.id}
                                 vendedor={articulo.vendedor}
-                                esDueno={esDueno}
                             />
                         </div>
                     </div>

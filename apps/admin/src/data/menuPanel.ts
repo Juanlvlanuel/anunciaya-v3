@@ -87,6 +87,7 @@ export const GRUPOS_MENU: GrupoMenu[] = [
     items: [
       { id: 'publicidad', etiqueta: 'Publicidad', icono: 'publicidad', roles: ['superadmin', 'gerente'] },
       { id: 'ciudades', etiqueta: 'Ciudades', icono: 'ciudades', roles: ['superadmin'] },
+      { id: 'categorias', etiqueta: 'Categorías', icono: 'categorias', roles: ['superadmin'] },
     ],
   },
   {
@@ -113,6 +114,7 @@ export const ETIQUETAS_CORTAS: Record<string, string> = {
   recibos: 'Recibos',
   publicidad: 'Ads',
   ciudades: 'Ciudades',
+  categorias: 'Categorías',
   auditoria: 'Auditoría',
 };
 

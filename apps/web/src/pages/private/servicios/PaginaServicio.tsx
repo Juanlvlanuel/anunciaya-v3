@@ -68,7 +68,7 @@ import { OferenteCard } from '../../../components/servicios/OferenteCard';
 import { MapaUbicacion } from '../../../components/marketplace/MapaUbicacion';
 import { BarraContactoServicio } from '../../../components/servicios/BarraContactoServicio';
 import { ModalCrearResena } from '../../../components/servicios/ModalCrearResena';
-import { SeccionPreguntasServicio } from '../../../components/servicios/SeccionPreguntasServicio';
+import { SeccionComentariosServicio } from '../../../components/servicios/SeccionComentariosServicio';
 import { ServiciosHeader } from '../../../components/servicios/ServiciosHeader';
 import { Spinner } from '../../../components/ui/Spinner';
 import type { PublicacionDetalle } from '../../../types/servicios';
@@ -405,7 +405,7 @@ export function PaginaServicio() {
 
     const cardPreguntas = (
         <SeccionCard>
-            <SeccionPreguntasServicio publicacion={publicacion} />
+            <SeccionComentariosServicio publicacion={publicacion} />
         </SeccionCard>
     );
 

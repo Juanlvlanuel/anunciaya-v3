@@ -858,7 +858,6 @@ export const metricasUsuario = pgTable("metricas_usuario", {
 
 export const categoriasNegocio = pgTable("categorias_negocio", {
 	nombre: varchar({ length: 50 }).notNull(),
-	icono: varchar({ length: 50 }),
 	orden: smallint().default(0),
 	activa: boolean().default(true),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
@@ -873,10 +872,32 @@ export const subcategoriasNegocio = pgTable("subcategorias_negocio", {
 	nombre: varchar({ length: 50 }).notNull(),
 	orden: smallint().default(0),
 	activa: boolean().default(true),
-	icono: varchar({ length: 50 }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	unique("subcategorias_negocio_unique").on(table.categoriaId, table.nombre),
+]);
+
+// Disponibilidad del catálogo POR CIUDAD (capa N:M sobre el catálogo global).
+// Regla: si una categoría/subcategoría NO tiene filas aquí → es GLOBAL (todas las
+// ciudades); si tiene filas → solo en esas. Las gestiona el módulo Categorías del
+// Panel (solo SuperAdmin). categorias/subcategorias.id son serial (integer);
+// ciudades.id es uuid.
+export const categoriaCiudades = pgTable("categoria_ciudades", {
+	categoriaId: integer("categoria_id").notNull().references(() => categoriasNegocio.id, { onDelete: 'cascade' }),
+	ciudadId: uuid("ciudad_id").notNull().references((): AnyPgColumn => ciudades.id, { onDelete: 'cascade' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_categoria_ciudades_ciudad").using("btree", table.ciudadId.asc().nullsLast()),
+	primaryKey({ columns: [table.categoriaId, table.ciudadId], name: "categoria_ciudades_pkey" }),
+]);
+
+export const subcategoriaCiudades = pgTable("subcategoria_ciudades", {
+	subcategoriaId: integer("subcategoria_id").notNull().references(() => subcategoriasNegocio.id, { onDelete: 'cascade' }),
+	ciudadId: uuid("ciudad_id").notNull().references((): AnyPgColumn => ciudades.id, { onDelete: 'cascade' }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
+}, (table) => [
+	index("idx_subcategoria_ciudades_ciudad").using("btree", table.ciudadId.asc().nullsLast()),
+	primaryKey({ columns: [table.subcategoriaId, table.ciudadId], name: "subcategoria_ciudades_pkey" }),
 ]);
 
 export const configuracionSistema = pgTable("configuracion_sistema", {
@@ -1739,7 +1760,7 @@ export const notificaciones = pgTable("notificaciones", {
 		name: "fk_notificaciones_sucursal"
 	}).onDelete("cascade"),
 	check("notificaciones_modo_check", sql`(modo)::text = ANY ((ARRAY['personal'::character varying, 'comercial'::character varying])::text[])`),
-	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying])::text[])`),
+	check("notificaciones_tipo_check", sql`(tipo)::text = ANY ((ARRAY['puntos_ganados'::character varying, 'voucher_generado'::character varying, 'voucher_cobrado'::character varying, 'nueva_oferta'::character varying, 'nueva_recompensa'::character varying, 'recompensa_desbloqueada'::character varying, 'cupon_asignado'::character varying, 'cupon_revocado'::character varying, 'nuevo_cliente'::character varying, 'voucher_pendiente'::character varying, 'stock_bajo'::character varying, 'nueva_resena'::character varying, 'sistema'::character varying, 'nuevo_marketplace'::character varying, 'nuevo_servicio'::character varying, 'alerta_seguridad'::character varying, 'marketplace_nuevo_mensaje'::character varying, 'marketplace_proxima_expirar'::character varying, 'marketplace_expirada'::character varying, 'marketplace_nueva_pregunta'::character varying, 'marketplace_pregunta_respondida'::character varying, 'servicios_nueva_pregunta'::character varying, 'servicios_pregunta_respondida'::character varying, 'pregunta_comunidad_respondida'::character varying, 'coyo_recomendacion'::character varying, 'pregunta_comunidad_seguida_respondida'::character varying, 'negocio_fuera_circulacion'::character varying, 'membresia_en_gracia'::character varying, 'marketplace_nuevo_comentario'::character varying, 'marketplace_respuesta_comentario'::character varying, 'servicios_nuevo_comentario'::character varying, 'servicios_respuesta_comentario'::character varying])::text[])`),
 	check("notificaciones_referencia_tipo_check", sql`(referencia_tipo IS NULL OR (referencia_tipo)::text = ANY ((ARRAY['transaccion'::character varying, 'voucher'::character varying, 'oferta'::character varying, 'recompensa'::character varying, 'resena'::character varying, 'cupon'::character varying, 'marketplace'::character varying, 'servicio'::character varying, 'alerta'::character varying, 'pregunta_comunidad'::character varying])::text[]))`),
 ]);
 
@@ -2136,25 +2157,26 @@ export const marketplaceBusquedasLog = pgTable("marketplace_busquedas_log", {
 ]);
 
 // ============================================================================
-// MarketPlace — Preguntas y Respuestas (Sprint 9.2)
+// MarketPlace — Comentarios con hilos de 1 nivel (reemplaza marketplace_preguntas)
 // ============================================================================
+// Modelo nuevo: comentarios públicos al instante. 1 fila = 1 mensaje.
+// `parent_id` NULL = raíz; con valor = respuesta (1 nivel). Migración de datos:
+// docs/migraciones/2026-06-29-marketplace-comentarios.sql.
 
-export const marketplacePreguntas = pgTable("marketplace_preguntas", {
+export const marketplaceComentarios = pgTable("marketplace_comentarios", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	articuloId: uuid("articulo_id").notNull().references(() => articulosMarketplace.id, { onDelete: 'cascade' }),
-	compradorId: uuid("comprador_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
-	pregunta: varchar({ length: 200 }).notNull(),
-	respuesta: varchar({ length: 500 }),
-	respondidaAt: timestamp("respondida_at", { withTimezone: true, mode: 'string' }),
-	editadaAt: timestamp("editada_at", { withTimezone: true, mode: 'string' }),
+	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
+	// Auto-FK: una respuesta apunta a su comentario raíz. AnyPgColumn rompe la
+	// inferencia circular de tipos que TS no puede resolver solo.
+	parentId: uuid("parent_id").references((): AnyPgColumn => marketplaceComentarios.id, { onDelete: 'cascade' }),
+	texto: varchar({ length: 500 }).notNull(),
+	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	// Constraint único eliminado (07-may-2026): un comprador puede hacer
-	// múltiples preguntas en el mismo artículo. Ver migración
-	// 2026-05-07-marketplace-preguntas-sin-limite.sql.
-	index("idx_preguntas_articulo").using("btree", table.articuloId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
-	index("idx_preguntas_respondidas").using("btree", table.articuloId.asc().nullsLast(), table.respondidaAt.asc().nullsLast()).where(sql`respondida_at IS NOT NULL AND deleted_at IS NULL`),
+	index("idx_mp_comentarios_articulo").using("btree", table.articuloId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_mp_comentarios_parent").using("btree", table.parentId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
 ]);
 
 // ============================================================================
@@ -2297,26 +2319,23 @@ export const serviciosPublicaciones = pgTable("servicios_publicaciones", {
 ]);
 
 // ============================================================================
-// Servicios — Preguntas y Respuestas (Q&A público en detalle)
+// Servicios — Comentarios con hilos de 1 nivel (reemplaza servicios_preguntas)
 // ============================================================================
+// Espejo de marketplace_comentarios. Migración:
+// docs/migraciones/2026-06-30-servicios-comentarios.sql.
 
-export const serviciosPreguntas = pgTable("servicios_preguntas", {
+export const serviciosComentarios = pgTable("servicios_comentarios", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	publicacionId: uuid("publicacion_id").notNull().references(() => serviciosPublicaciones.id, { onDelete: 'cascade' }),
 	autorId: uuid("autor_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
-	pregunta: varchar({ length: 200 }).notNull(),
-	respuesta: varchar({ length: 500 }),
-	respondidaAt: timestamp("respondida_at", { withTimezone: true, mode: 'string' }),
-	editadaAt: timestamp("editada_at", { withTimezone: true, mode: 'string' }),
+	parentId: uuid("parent_id").references((): AnyPgColumn => serviciosComentarios.id, { onDelete: 'cascade' }),
+	texto: varchar({ length: 500 }).notNull(),
+	editadoAt: timestamp("editado_at", { withTimezone: true, mode: 'string' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
 	deletedAt: timestamp("deleted_at", { withTimezone: true, mode: 'string' }),
 }, (table) => [
-	// Un autor puede hacer múltiples preguntas en la misma publicación
-	// (no hay UNIQUE constraint, mismo patrón que marketplace_preguntas
-	// post-2026-05-07).
-	index("idx_servicios_preg_publicacion").using("btree", table.publicacionId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
-	index("idx_servicios_preg_respondidas").using("btree", table.publicacionId.asc().nullsLast(), table.respondidaAt.asc().nullsLast()).where(sql`respondida_at IS NOT NULL AND deleted_at IS NULL`),
-	index("idx_servicios_preg_autor").using("btree", table.autorId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_servicios_comentarios_publicacion").using("btree", table.publicacionId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
+	index("idx_servicios_comentarios_parent").using("btree", table.parentId.asc().nullsLast()).where(sql`deleted_at IS NULL`),
 ]);
 
 // ============================================================================

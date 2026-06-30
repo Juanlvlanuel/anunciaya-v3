@@ -10,7 +10,7 @@
  * mis-publicaciones + cambio de estado + soft delete + registrar vista +
  * presigned R2.
  *
- * Q&A vive en `services/servicios/preguntas.ts` (mismo patrón que MarketPlace).
+ * Comentarios viven en `services/servicios/comentarios.ts` (mismo patrón que MarketPlace).
  * Filtros de moderación llegarán en Sprint 4. Buscador en Sprint 6. Cron en
  * Sprint 7. Reseñas en Sprint 5.
  *

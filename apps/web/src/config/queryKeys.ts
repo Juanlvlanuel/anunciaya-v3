@@ -38,9 +38,9 @@ export const queryKeys = {
       ['perfil', 'sucursal', sucursalId] as const,
     sucursales: (negocioId: string) =>
       ['perfil', 'sucursales', negocioId] as const,
-    categorias: () => ['perfil', 'categorias'] as const,
-    subcategorias: (categoriaId: number) =>
-      ['perfil', 'subcategorias', categoriaId] as const,
+    categorias: (ciudadId?: string) => ['perfil', 'categorias', ciudadId ?? 'todas'] as const,
+    subcategorias: (categoriaId: number, ciudadId?: string) =>
+      ['perfil', 'subcategorias', categoriaId, ciudadId ?? 'todas'] as const,
   },
 
   // ─── Business Studio — Catálogo ───────────────────────────────────────────
@@ -221,8 +221,8 @@ export const queryKeys = {
       ['marketplace', 'buscar', 'sugerencias', q, ciudad] as const,
     populares: (ciudad: string) =>
       ['marketplace', 'buscar', 'populares', ciudad] as const,
-    preguntas: (articuloId: string) =>
-      ['marketplace', 'preguntas', articuloId] as const,
+    comentarios: (articuloId: string) =>
+      ['marketplace', 'comentarios', articuloId] as const,
   },
 
   // ─── Sección pública — Servicios ──────────────────────────────────────────
@@ -262,8 +262,8 @@ export const queryKeys = {
       paginacion: { limit: number; offset: number }
     ) =>
       ['servicios', 'mis-publicaciones', estado ?? 'todos', paginacion] as const,
-    preguntas: (publicacionId: string) =>
-      ['servicios', 'preguntas', publicacionId] as const,
+    comentarios: (publicacionId: string) =>
+      ['servicios', 'comentarios', publicacionId] as const,
     sugerencias: (q: string, ciudad: string) =>
       ['servicios', 'buscar', 'sugerencias', q, ciudad] as const,
   },

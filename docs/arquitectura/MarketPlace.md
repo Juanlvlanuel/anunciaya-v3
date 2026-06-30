@@ -1,8 +1,8 @@
 # 🛒 MarketPlace — Compra-venta de Objetos entre Usuarios
 
-> **Última actualización:** 22 Mayo 2026 (Sprint 9.3 — perfil rediseñado, fotos optimistas, TTL fin-de-día con zona horaria, botones contacto con logos de marca).
+> **Última actualización:** 30 Junio 2026 (Q&A reemplazado por **Comentarios públicos** con hilos de 1 nivel — `marketplace_comentarios`, `SeccionComentarios`, `ComentarioItem`).
 > **Estado:** ✅ En producción.
-> **Versión:** 1.6.0
+> **Versión:** 1.7.0
 > **Pendientes opcionales:**
 >  - Sistema de Niveles del Vendedor (ver §Niveles)
 >  - Stories de contactos arriba del feed
@@ -586,7 +586,7 @@ Scroll vertical continuo, no estático. Invita a explorar.
   - Si dueño + estado=pausada → reemplaza la barra con botón "Reactivar publicación"
 
 - **Layout móvil — secciones envueltas en cards** (estilo Mercado Libre):
-  - Cada bloque (Descripción, Card vendedor, Mapa, Q&A) vive dentro de su propio card `rounded-xl border border-slate-200 bg-white shadow-sm p-4` sobre el fondo gradient nativo de la app.
+  - Cada bloque (Descripción, Card vendedor, Mapa, Comentarios) vive dentro de su propio card `rounded-xl border border-slate-200 bg-white shadow-sm p-4` sobre el fondo gradient nativo de la app.
   - El contenedor raíz de la página (`PaginaArticuloMarketplace`) usa `bg-transparent` (no `bg-white`) para heredar el gradient del MainLayout.
   - El `MapaUbicacion` crea su propio stacking context (`relative z-0 isolate`) para que los z-index 400+ de Leaflet no escapen y tapen el BottomNav o la BarraContacto fija.
   - `pb-[150px]` en el contenedor para reservar espacio bajo el contenido y que la BarraContacto fija + BottomNav no oculten la última sección.
@@ -1016,10 +1016,12 @@ Permitir compartir un artículo en redes sociales (WhatsApp, Facebook, etc.) con
 
 El sidebar de thumbnails laterales del feed real (cuando `tieneMultiples && !modoModal && !ocultarThumbnailsLaterales`) usa `absolute top-0 right-0 bottom-0 hidden w-24 flex-col gap-2 overflow-y-auto bg-slate-200 p-2 lg:flex` para tomar el alto exacto del wrapper relative (= alto de la galería principal). Si las miniaturas exceden ese alto, scrollean internamente con `overflow-y-auto`.
 
+**Comentarios inline en el feed:** `CardArticuloFeed.tsx` trae `topComentarios` (árbol de 1 nivel, antes `topPreguntas`) y `totalComentarios` (antes `totalPreguntasRespondidas`). Muestra los hilos inline con el mismo `ComentarioItem` que el detalle + un input de comentario (mínimo 2 caracteres).
+
 ### ChatYA
 
 - Contacto comprador → vendedor desde `useChatYAStore.abrirChatTemporal()` con `contextoTipo='marketplace'` y `contextoReferenciaId={articuloId}` cuando viene del detalle de un artículo (genera card de contexto embebida del artículo).
-- Para chats desde el perfil del usuario (P3) o desde el popup del comentarista (`BotonComentarista`) usa `contextoTipo='directo'` sin card.
+- Para chats desde el perfil del usuario (P3) o desde el botón **Contactar** del menú kebab de un comentario (`ComentarioItem`) usa `contextoTipo='directo'` sin card.
 - La columna específica `chat_conversaciones.articulo_marketplace_id` existe en BD pero no se llena vía el endpoint actual de `abrirChatTemporal`. Queda para una iteración futura cuando se necesite.
 
 ### Mis Guardados
@@ -1078,8 +1080,10 @@ Eventos del MarketPlace que disparan notificaciones:
 - **`marketplace_proxima_expirar`** — 3 días antes de expirar
 - **`marketplace_expirada`** — al auto-pausar por TTL
 - **`marketplace_nuevo_mensaje`** — reservado (lo dispara ChatYA cuando aplica)
-- **`marketplace_nueva_pregunta`** — al vendedor cuando un comprador pregunta
-- **`marketplace_pregunta_respondida`** — al comprador cuando el vendedor responde
+- **`marketplace_nuevo_comentario`** — al dueño del artículo cuando alguien comenta
+- **`marketplace_respuesta_comentario`** — al autor de un comentario cuando le responden
+
+> Los tipos viejos `marketplace_nueva_pregunta` / `marketplace_pregunta_respondida` se **conservan** en el CHECK de `notificaciones.tipo` por compatibilidad histórica, pero ya no se emiten.
 
 **Click en notificación → navega al artículo:** `PanelNotificaciones.tsx → obtenerRutaDestino()` mapea cualquier notificación con `referenciaTipo === 'marketplace'` a `/marketplace/articulo/${referenciaId}`. Cubre los 5 tipos `marketplace_*` arriba — la `referenciaId` siempre es el UUID del artículo.
 
@@ -1107,7 +1111,7 @@ Eventos del MarketPlace que disparan notificaciones:
 | GET | `/api/marketplace/articulos/:id` | Detalle público de un artículo |
 | POST | `/api/marketplace/articulos/:id/vista` | Registrar vista (incrementa contador) |
 | POST | `/api/marketplace/articulos/:id/heartbeat` | Heartbeat "viendo ahora" (Redis sorted set TTL 2min) |
-| GET | `/api/marketplace/articulos/:id/preguntas` | Q&A público. Visitante autenticado: `{ data: respondidas[], miPreguntaPendiente }`. Dueño: `{ data: { pendientes, respondidas } }`. |
+| GET | `/api/marketplace/articulos/:id/comentarios` | Comentarios públicos. Devuelve el árbol de 1 nivel `{ success, data: ComentarioNodo[] }`. Cada nodo: `id, autorId, autorNombre, autorApellidos, autorAvatarUrl, texto, esVendedor` (autor == dueño del artículo), `editadoAt, createdAt, respuestas[]`. Lo ve cualquiera (no hay estado "pendiente" ni visibilidad restringida). |
 | GET | `/api/marketplace/buscar/sugerencias` | Sugerencias en vivo con preview (top 5 con `id, titulo, precio, condicion, fotoPortada, ciudad`) |
 | GET | `/api/marketplace/buscar/populares` | Top búsquedas populares por ciudad (cache Redis 1h) |
 | GET | `/api/marketplace/buscar` | Resultados de búsqueda con filtros (ya no consumido por frontend desde 14-may-2026 — ver §P5) |
@@ -1125,12 +1129,9 @@ Eventos del MarketPlace que disparan notificaciones:
 | DELETE | `/api/marketplace/articulos/:id` | Eliminar (soft delete, solo dueño) |
 | GET | `/api/marketplace/mis-articulos` | Lista paginada de artículos del usuario actual |
 | POST | `/api/marketplace/upload-imagen` | Presigned URL para subir foto a R2 (prefijo `marketplace/`) |
-| POST | `/api/marketplace/articulos/:id/preguntas` | Comprador hace pregunta pública |
-| POST | `/api/marketplace/preguntas/:id/responder` | Vendedor responde una pregunta pendiente |
-| PUT | `/api/marketplace/preguntas/:id/mia` | Comprador edita su pregunta pendiente (10-200 chars) — solo si `respondida_at IS NULL`. Setea `editada_at = NOW()`. |
-| POST | `/api/marketplace/preguntas/:id/derivar-a-chat` | Vendedor abre ChatYA con el comprador. **NO** elimina la pregunta pública — derivar a chat solo abre el canal privado y la pregunta sigue visible en el Q&A público. |
-| DELETE | `/api/marketplace/preguntas/:id` | Vendedor elimina pregunta de su artículo (soft delete) |
-| DELETE | `/api/marketplace/preguntas/:id/mia` | Comprador retira su pregunta — solo si `respondida_at IS NULL` (409 si ya hay respuesta) |
+| POST | `/api/marketplace/articulos/:id/comentarios` | Crear comentario o respuesta. Body `{ texto, parentId? }` (texto 2-500 chars). `parentId` ausente = comentario raíz; con valor = respuesta. Si `parentId` apunta a una respuesta, el backend sube el `parentId` al raíz (hilos de 1 nivel). Mantiene la **moderación de texto** (rechazo duro) del Q&A viejo. El dueño del artículo también puede comentar/responder en su propia publicación. |
+| PUT | `/api/marketplace/comentarios/:id` | Editar comentario. Body `{ texto }`. Solo el autor, **sin límite de tiempo**. |
+| DELETE | `/api/marketplace/comentarios/:id` | Eliminar comentario (soft delete). Autor del comentario **o** dueño del artículo. Borrar un raíz hace soft-delete en cascada de sus respuestas. |
 
 ### Middleware aplicable
 
@@ -1149,8 +1150,9 @@ Eventos del MarketPlace que disparan notificaciones:
 - `misArticulosQuerySchema` — paginación + filtro opcional por estado
 - `uploadImagenSchema` — tipos `image/jpeg | image/png | image/webp`
 - `sugerenciasQuerySchema`, `popularesQuerySchema`, `buscarQuerySchema` — buscador
+- `crearComentarioSchema` (`{ texto: 2-500 chars, parentId?: uuid }`) y `editarComentarioSchema` (`{ texto: 2-500 chars }`) — comentarios públicos
 
-Todos aceptan `confirmadoPorUsuario?: boolean` para flujo de moderación con sugerencia suave.
+Los schemas de artículo aceptan `confirmadoPorUsuario?: boolean` para flujo de moderación con sugerencia suave.
 
 ---
 
@@ -1238,37 +1240,41 @@ CREATE INDEX idx_busquedas_ciudad_fecha ON marketplace_busquedas_log(ciudad, cre
 - Check `entity_type` incluye `'sucursal'` para el follow de negocios. MarketPlace no usa esta tabla para conexiones entre personas (esas viven en `chat_contactos`).
 
 **`notificaciones`**:
-- Check `tipo` incluye `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`, `'marketplace_nueva_pregunta'`, `'marketplace_pregunta_respondida'`.
-- **Columna `tipo`:** `VARCHAR(50)`. El tipo `marketplace_pregunta_respondida` mide 31 caracteres y necesita este ancho para que el INSERT no falle silenciosamente por el `.catch(() => {})` del service. Migración aplicada: `docs/migraciones/2026-05-05-notificaciones-tipo-varchar50.sql`.
+- Check `tipo` incluye `'marketplace_nuevo_mensaje'`, `'marketplace_proxima_expirar'`, `'marketplace_expirada'`, `'marketplace_nuevo_comentario'`, `'marketplace_respuesta_comentario'`. Los tipos viejos `'marketplace_nueva_pregunta'` y `'marketplace_pregunta_respondida'` se **conservan en el CHECK** por compatibilidad histórica (filas antiguas), aunque ya no se emiten.
+- **Columna `tipo`:** `VARCHAR(50)`. El tipo `marketplace_respuesta_comentario` mide 33 caracteres y necesita este ancho para que el INSERT no falle silenciosamente por el `.catch(() => {})` del service. Migración aplicada: `docs/migraciones/2026-05-05-notificaciones-tipo-varchar50.sql`.
 
-**`marketplace_preguntas`**:
+**`marketplace_comentarios`** (reemplaza a `marketplace_preguntas`, que fue **eliminada con DROP**):
 ```sql
-CREATE TABLE marketplace_preguntas (
+CREATE TABLE marketplace_comentarios (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   articulo_id UUID NOT NULL REFERENCES articulos_marketplace(id) ON DELETE CASCADE,
-  comprador_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
-  pregunta VARCHAR(200) NOT NULL,
-  respuesta VARCHAR(500),
-  respondida_at TIMESTAMPTZ,
+  autor_id UUID NOT NULL REFERENCES usuarios(id) ON DELETE CASCADE,
+  parent_id UUID REFERENCES marketplace_comentarios(id) ON DELETE CASCADE,  -- NULL = raíz; con valor = respuesta
+  texto VARCHAR(500) NOT NULL,
+  editado_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  deleted_at TIMESTAMPTZ,
-  CONSTRAINT preguntas_unique_comprador UNIQUE (articulo_id, comprador_id)
+  deleted_at TIMESTAMPTZ
 );
 
-CREATE INDEX idx_preguntas_articulo
-  ON marketplace_preguntas(articulo_id)
+CREATE INDEX idx_mp_comentarios_articulo
+  ON marketplace_comentarios(articulo_id)
   WHERE deleted_at IS NULL;
 
-CREATE INDEX idx_preguntas_respondidas
-  ON marketplace_preguntas(articulo_id, respondida_at)
-  WHERE respondida_at IS NOT NULL AND deleted_at IS NULL;
+CREATE INDEX idx_mp_comentarios_parent
+  ON marketplace_comentarios(parent_id)
+  WHERE deleted_at IS NULL;
 ```
 
-**Sistema de Q&A público:** una pregunta por usuario por artículo (UNIQUE). Estado inferido: `respuesta IS NULL` → pendiente, `IS NOT NULL` → respondida, `deleted_at IS NOT NULL` → eliminada. Visibilidad pública solo si `respondida_at IS NOT NULL` (los visitantes solo ven respondidas; el dueño ve pendientes + respondidas).
+**Migraciones:** `docs/migraciones/2026-06-29-marketplace-comentarios.sql` (creación de la tabla + migración de datos del Q&A viejo) y `docs/migraciones/2026-06-30-drop-marketplace-preguntas.sql` (fase *contract* que elimina `marketplace_preguntas`).
 
-**Vista visitante autenticado — su propia pregunta pendiente:** además del array de respondidas, el endpoint `GET /articulos/:id/preguntas` devuelve `miPreguntaPendiente: { id, pregunta, createdAt } | null` cuando el caller no es el dueño y tiene una pregunta sin responder en ese artículo. El frontend (`SeccionPreguntas.tsx`) renderiza un bloque amber **"Tu pregunta está pendiente"** con la pregunta + tiempo relativo + botón "Retirar pregunta" (usa `DELETE /preguntas/:id/mia`). El botón "Hacer una pregunta" se oculta automáticamente cuando ya hay pendiente, evitando que el usuario reciba un 409 del UNIQUE constraint.
+**Sistema de Comentarios públicos:** los comentarios son **públicos al instante** — ya no existe el estado "pendiente" ni la visibilidad restringida. Cualquiera ve todos los comentarios de un artículo.
 
-**Botón "Mensaje privado" (vista dueño):** abre ChatYA con datos del comprador (handler `derivarPreguntaAChat`) y **no hace soft delete de la pregunta** — la pregunta pública se conserva visible. Tiene `title` con tooltip explicativo: *"Abre un chat privado con el comprador. La pregunta sigue visible públicamente."*
+- **Hilos de 1 nivel:** un comentario raíz (`parent_id IS NULL`) puede tener respuestas. "Responder a una respuesta" cuelga del mismo hilo raíz — el backend resuelve subiendo el `parentId` recibido hasta el raíz antes de insertar. El árbol se arma con el helper compartido `armarArbolComentarios` de `apps/api/src/services/comentarios/arbol.ts` (tipos `ComentarioNodo` / `ComentarioPlano`), reutilizado por MarketPlace y Servicios.
+- **Longitud del texto:** mínimo 2, máximo 500 caracteres.
+- **Permisos:** **editar** lo hace solo el autor, sin límite de tiempo (setea `editado_at = NOW()`). **Eliminar** lo hace el autor del comentario **o** el dueño del artículo; borrar un raíz hace soft-delete en cascada de sus respuestas. El **dueño del artículo** también puede comentar/responder en su propia publicación (sus comentarios llevan la etiqueta de autor "Vendedor", calculada con `esVendedor = autor == dueño del artículo`).
+- **Notificaciones:** crear un comentario raíz notifica al dueño del artículo (`marketplace_nuevo_comentario`); responder notifica al autor del comentario que se respondió (`marketplace_respuesta_comentario`).
+
+Se retiró toda la "gestión/moderación del dueño" del modelo viejo: ya no hay "responder como vendedor en burbuja especial", ni "derivar a chat", ni endpoints `/mia`, ni badge "Pendiente". El contacto directo con el autor se hace desde el botón **Contactar** del menú kebab de cada comentario (abre ChatYA).
 
 ---
 
@@ -1587,11 +1593,12 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - Sprint 5 — Perfil del Vendedor
 - Sprint 6 — Buscador Potenciado
 - Sprint 7 — Polish + Crons + Página Pública
-- Sprint 8 — Q&A público (preguntas/respuestas en el detalle, notificaciones `marketplace_*_pregunta_*`)
+- Sprint 8 — Q&A público (preguntas/respuestas en el detalle, notificaciones `marketplace_*_pregunta_*`) — **reemplazado en el Sprint de Comentarios (30 jun 2026)**
 - Sprint 9 — Composer inline (sustituye al wizard `/marketplace/publicar`, replicación 1:1 del composer de Servicios)
 - Sprint 9.1 — Layout `max-w-[920px]` con `min-w-0` en el detalle para respetar el contenedor sin overflow
 - Sprint 9.2 — TTL "fin del día" con zona horaria (`sqlExpiracionFinDeDia` + `getZonaHorariaPorCiudad`) + fotos optimistas (blob previews + `Promise.allSettled`)
 - Sprint 9.3 — Perfil rediseñado (avatar simplificado, BadgeCheck invertido, sin ciudad, KPIs `border-2 bg-slate-100 divide-x-2`) + botones contacto con logos de marca (WhatsApp SVG inline + ChatYA.webp + UserPlus con Tooltip). Mismo patrón compartido con `OferenteCard`/`SidebarSobreNegocio` de Servicios.
+- **Comentarios (30 jun 2026)** — el Q&A público (preguntas/respuestas, badge "Pendiente", visibilidad restringida) se **reemplazó** por **comentarios públicos con hilos de 1 nivel**. Tabla `marketplace_comentarios` (DROP de `marketplace_preguntas`), endpoints `…/comentarios` (GET árbol · POST · PUT · DELETE), notificaciones `marketplace_nuevo_comentario` / `marketplace_respuesta_comentario`. Frontend: `SeccionComentarios.tsx` (sustituye a `SeccionPreguntas.tsx`) + `ComentarioItem.tsx` (genérico, etiqueta "Vendedor"); el feed (`CardArticuloFeed.tsx`) muestra `topComentarios` + `totalComentarios`. Helper backend compartido `services/comentarios/arbol.ts` y tipo frontend genérico `types/comentarios.ts` reutilizados por Servicios.
 
 ### Archivos del módulo
 
@@ -1600,6 +1607,8 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/api/src/services/marketplace/filtros.ts` — Capa 1 de moderación
 - `apps/api/src/services/marketplace/buscador.ts` — Lógica de búsqueda
 - `apps/api/src/services/marketplace/expiracion.ts` — TTL y reactivación
+- `apps/api/src/services/marketplace/comentarios.ts` — Comentarios públicos (CRUD + árbol + notificaciones). Reemplaza a `marketplace/preguntas.ts` (eliminado)
+- `apps/api/src/services/comentarios/arbol.ts` — helper compartido `armarArbolComentarios` (tipos `ComentarioNodo` / `ComentarioPlano`), reutilizado por MP y Servicios
 - `apps/api/src/controllers/marketplace.controller.ts` — Handlers
 - `apps/api/src/routes/marketplace.routes.ts` — Rutas
 - `apps/api/src/validations/marketplace.schema.ts` — Schemas Zod
@@ -1619,8 +1628,9 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 - `apps/web/src/components/marketplace/ReelMarketplace.tsx` — carrusel auto-scroll
 - `apps/web/src/components/marketplace/ChipsFiltrosFeed.tsx` — chips de filtro
 - `apps/web/src/components/marketplace/ModalArticuloDetalle.tsx` — modal overlay del detalle
-- `apps/web/src/components/marketplace/SeccionPreguntas.tsx` — Q&A público
-- `apps/web/src/components/marketplace/BotonComentarista.tsx` — botón con context menu
+- `apps/web/src/components/marketplace/SeccionComentarios.tsx` — Comentarios públicos del detalle (reemplaza a `SeccionPreguntas.tsx`, eliminado)
+- `apps/web/src/components/marketplace/ComentarioItem.tsx` — componente genérico reutilizable que renderiza un hilo (avatar/nombre clickeables, etiqueta de autor configurable vía prop `etiquetaAutor`, menú kebab Contactar/Editar/Eliminar, botón Responder). Reusado por Servicios
+- `apps/web/src/components/marketplace/BotonComentarista.tsx` — enlace al perfil del autor (simplificado: se le quitó el menú de clic-derecho)
 
 **Frontend — Componentes generales:**
 - `apps/web/src/components/marketplace/CardArticulo.tsx` — card compacta (usada en Guardados, Resultados de búsqueda y grid del Perfil del usuario)
@@ -1633,16 +1643,19 @@ El mensaje automático de confirmación requiere modificar `BurbujaMensaje.tsx` 
 
 **Frontend — Hooks, guards, utils:**
 - `apps/web/src/router/guards/ModoPersonalEstrictoGuard.tsx`
-- `apps/web/src/hooks/queries/useMarketplace.ts` — hooks de mutación + perfil + KPIs
+- `apps/web/src/hooks/queries/useMarketplace.ts` — hooks de mutación + perfil + KPIs + comentarios (`useComentariosArticulo`, `useCrearComentario`, `useEditarComentario`, `useEliminarComentario`)
 - `apps/web/src/hooks/queries/useFeedInfinitoMarketplace.ts` — `useInfiniteQuery` del feed
 - `apps/web/src/utils/busquedasRecientes.ts` — helper para localStorage por sección (compartido con Ofertas y Negocios)
 - `apps/web/src/utils/normalizarTexto.ts` — helper accent-insensitive para filtros in-memory
 - `apps/web/src/utils/moderacionMarketplace.ts` — validación inline cliente
 - `apps/web/src/utils/optimizarImagen.ts` — redimensión + compresión WebP
-- `apps/web/src/types/marketplace.ts`
+- `apps/web/src/types/marketplace.ts` (`ComentarioMarketplace` es alias del tipo genérico `Comentario`)
+- `apps/web/src/types/comentarios.ts` — interface genérica `Comentario` compartida (MP usa `ComentarioMarketplace`, Servicios `ComentarioServicio`, ambos alias)
+
+**Eliminados al migrar a Comentarios (30 jun 2026):** `apps/api/src/services/marketplace/preguntas.ts`, `apps/web/src/components/marketplace/SeccionPreguntas.tsx`, los tipos `PreguntaMarketplace` / `PreguntasVisitante` / `PreguntasParaVendedor` / `MiPreguntaPendiente` / `PreguntaInlineFeed` y el helper `agruparPorComprador`.
 
 ---
 
-**Última actualización:** 13 Mayo 2026
-**Estado del módulo:** ✅ En producción (versión 1.5.1)
+**Última actualización:** 30 Junio 2026 (Comentarios públicos reemplazan al Q&A)
+**Estado del módulo:** ✅ En producción (versión 1.7.0)
 **Próximo paso:** evaluar Sistema de Niveles del Vendedor cuando haya data real de la beta (mínimo 2-3 meses de uso o 50+ ventas confirmadas)

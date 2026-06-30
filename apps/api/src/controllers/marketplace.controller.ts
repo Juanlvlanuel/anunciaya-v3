@@ -47,22 +47,16 @@ import {
     sugerenciasQuerySchema,
     popularesQuerySchema,
     buscarQuerySchema,
-    crearPreguntaSchema,
-    editarPreguntaSchema,
-    responderPreguntaSchema,
+    crearComentarioSchema,
+    editarComentarioSchema,
     formatearErroresZod,
 } from '../validations/marketplace.schema.js';
 import {
-    crearPregunta,
-    editarPreguntaPropia,
-    obtenerPreguntasPublicas,
-    obtenerPreguntasParaVendedor,
-    obtenerMiPreguntaPendiente,
-    responderPregunta,
-    eliminarPregunta,
-    eliminarPreguntaComprador,
-    derivarPreguntaAChat,
-} from '../services/marketplace/preguntas.js';
+    listarComentarios,
+    crearComentario,
+    editarComentario,
+    eliminarComentario,
+} from '../services/marketplace/comentarios.js';
 
 // =============================================================================
 // HELPERS
@@ -701,60 +695,37 @@ export async function postReactivarArticulo(req: Request, res: Response) {
 }
 
 // =============================================================================
-// PREGUNTAS Y RESPUESTAS (Sprint 9.2)
+// COMENTARIOS (hilos de 1 nivel — reemplaza el Q&A Sprint 9.2)
 // =============================================================================
 
 /**
- * GET /api/marketplace/articulos/:id/preguntas
- * Si el caller es el dueño del artículo → vista de vendedor (pendientes + respondidas).
- * Si no → solo preguntas respondidas (vista pública).
+ * GET /api/marketplace/articulos/:id/comentarios
+ * Devuelve TODOS los comentarios vivos del artículo en árbol de 1 nivel.
+ * Público (sin filtros de visibilidad). Token opcional: el frontend deduce los
+ * permisos (editar = autor; eliminar = autor o dueño) con el usuario actual y
+ * el `vendedor.id` del artículo que ya tiene.
  */
-export async function getPreguntasArticulo(req: Request, res: Response) {
+export async function getComentariosArticulo(req: Request, res: Response) {
     try {
         const { id } = req.params;
         if (!UUID_REGEX.test(id)) {
             return res.status(400).json({ success: false, message: 'ID de artículo inválido' });
         }
 
-        const usuarioId = obtenerUsuarioId(req);
-
-        if (usuarioId) {
-            const resultado = await obtenerPreguntasParaVendedor(id, usuarioId);
-            if (resultado.success) {
-                return res.json({ success: true, esDueno: true, data: resultado.data });
-            }
-            if (resultado.message === 'Artículo no encontrado') {
-                return res.status(404).json(resultado);
-            }
-            // No es el dueño → caer a vista pública con preguntaPendiente del usuario
-        }
-
-        // `obtenerPreguntasPublicas` ya filtra: respondidas para todos +
-        // pendientes propias del visitante autenticado (patrón ML). Las
-        // pendientes ajenas quedan ocultas hasta que el vendedor responde.
-        const preguntas = await obtenerPreguntasPublicas(id, usuarioId ?? undefined);
-        // `miPreguntaPendiente` se mantiene para compatibilidad — el frontend
-        // lo usa para condicionar el mensaje "Sé el primero en preguntar".
-        const miPreguntaPendiente = usuarioId
-            ? await obtenerMiPreguntaPendiente(id, usuarioId)
-            : null;
-        return res.json({
-            success: true,
-            esDueno: false,
-            data: preguntas,
-            miPreguntaPendiente,
-        });
+        const comentarios = await listarComentarios(id);
+        return res.json({ success: true, data: comentarios });
     } catch (error) {
-        console.error('Error en getPreguntasArticulo:', error);
-        return res.status(500).json({ success: false, message: 'Error al obtener las preguntas' });
+        console.error('Error en getComentariosArticulo:', error);
+        return res.status(500).json({ success: false, message: 'Error al obtener los comentarios' });
     }
 }
 
 /**
- * POST /api/marketplace/articulos/:id/preguntas
- * El comprador autenticado hace una pregunta pública sobre el artículo.
+ * POST /api/marketplace/articulos/:id/comentarios
+ * El usuario autenticado comenta el artículo. Si `parentId` viene en el body,
+ * es una respuesta a ese comentario.
  */
-export async function postCrearPregunta(req: Request, res: Response) {
+export async function postCrearComentario(req: Request, res: Response) {
     try {
         const { id } = req.params;
         if (!UUID_REGEX.test(id)) {
@@ -766,7 +737,7 @@ export async function postCrearPregunta(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: 'No autenticado' });
         }
 
-        const validacion = crearPreguntaSchema.safeParse(req.body);
+        const validacion = crearComentarioSchema.safeParse(req.body);
         if (!validacion.success) {
             return res.status(400).json({
                 success: false,
@@ -775,36 +746,39 @@ export async function postCrearPregunta(req: Request, res: Response) {
             });
         }
 
-        const resultado = await crearPregunta(id, usuarioId, validacion.data.pregunta);
+        const resultado = await crearComentario(
+            id,
+            usuarioId,
+            validacion.data.texto,
+            validacion.data.parentId ?? null
+        );
 
         if (!resultado.success) {
-            const esConflicto = resultado.message.includes('Ya tienes una pregunta');
             const esForbidden = resultado.message.includes('propio artículo');
-            if (esConflicto) return res.status(409).json(resultado);
+            const esModeracion = resultado.message.includes('moderación') ||
+                                 resultado.message.includes('prohibid') ||
+                                 resultado.message.includes('permitid');
             if (esForbidden) return res.status(403).json(resultado);
-            if (resultado.message.includes('moderación') || resultado.message.includes('prohibid') || resultado.message.includes('permitid')) {
-                return res.status(422).json(resultado);
-            }
+            if (esModeracion) return res.status(422).json(resultado);
             return res.status(404).json(resultado);
         }
 
         return res.status(201).json(resultado);
     } catch (error) {
-        console.error('Error en postCrearPregunta:', error);
-        return res.status(500).json({ success: false, message: 'Error al enviar la pregunta' });
+        console.error('Error en postCrearComentario:', error);
+        return res.status(500).json({ success: false, message: 'Error al publicar el comentario' });
     }
 }
 
 /**
- * PUT /api/marketplace/preguntas/:id/mia
- * El comprador edita el texto de su propia pregunta. Solo permitido si la
- * pregunta sigue pendiente (sin respuesta del vendedor).
+ * PUT /api/marketplace/comentarios/:id
+ * El autor edita su comentario (sin límite de tiempo).
  */
-export async function putEditarPreguntaPropia(req: Request, res: Response) {
+export async function putEditarComentario(req: Request, res: Response) {
     try {
         const { id } = req.params;
         if (!UUID_REGEX.test(id)) {
-            return res.status(400).json({ success: false, message: 'ID de pregunta inválido' });
+            return res.status(400).json({ success: false, message: 'ID de comentario inválido' });
         }
 
         const usuarioId = obtenerUsuarioId(req);
@@ -812,7 +786,7 @@ export async function putEditarPreguntaPropia(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: 'No autenticado' });
         }
 
-        const validacion = editarPreguntaSchema.safeParse(req.body);
+        const validacion = editarComentarioSchema.safeParse(req.body);
         if (!validacion.success) {
             return res.status(400).json({
                 success: false,
@@ -821,110 +795,35 @@ export async function putEditarPreguntaPropia(req: Request, res: Response) {
             });
         }
 
-        const resultado = await editarPreguntaPropia(id, usuarioId, validacion.data.pregunta);
+        const resultado = await editarComentario(id, usuarioId, validacion.data.texto);
 
         if (!resultado.success) {
             const esForbidden = resultado.message.includes('No puedes editar');
-            const esNotFound = resultado.message.includes('no encontrada');
             const esModeracion = resultado.message.includes('moderación') ||
                                  resultado.message.includes('prohibid') ||
                                  resultado.message.includes('permitid');
-            const esConflicto = resultado.message.includes('ya fue respondida');
-            if (esConflicto) return res.status(409).json(resultado);
             if (esForbidden) return res.status(403).json(resultado);
             if (esModeracion) return res.status(422).json(resultado);
-            if (esNotFound) return res.status(404).json(resultado);
-            return res.status(400).json(resultado);
-        }
-
-        return res.json(resultado);
-    } catch (error) {
-        console.error('Error en putEditarPreguntaPropia:', error);
-        return res.status(500).json({ success: false, message: 'Error al editar la pregunta' });
-    }
-}
-
-/**
- * POST /api/marketplace/preguntas/:id/responder
- * El vendedor responde una pregunta pendiente de su artículo.
- */
-export async function postResponderPregunta(req: Request, res: Response) {
-    try {
-        const { id } = req.params;
-        if (!UUID_REGEX.test(id)) {
-            return res.status(400).json({ success: false, message: 'ID de pregunta inválido' });
-        }
-
-        const usuarioId = obtenerUsuarioId(req);
-        if (!usuarioId) {
-            return res.status(401).json({ success: false, message: 'No autenticado' });
-        }
-
-        const validacion = responderPreguntaSchema.safeParse(req.body);
-        if (!validacion.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Datos inválidos',
-                errores: formatearErroresZod(validacion.error),
-            });
-        }
-
-        const resultado = await responderPregunta(id, usuarioId, validacion.data.respuesta);
-
-        if (!resultado.success) {
-            if (resultado.message.includes('ya tiene respuesta')) return res.status(409).json(resultado);
-            if (resultado.message.includes('No tienes acceso')) return res.status(403).json(resultado);
-            if (resultado.message.includes('no encontrada')) return res.status(404).json(resultado);
-            return res.status(422).json(resultado);
-        }
-
-        return res.json(resultado);
-    } catch (error) {
-        console.error('Error en postResponderPregunta:', error);
-        return res.status(500).json({ success: false, message: 'Error al responder la pregunta' });
-    }
-}
-
-/**
- * POST /api/marketplace/preguntas/:id/derivar-a-chat
- * El vendedor deriva una pregunta a chat privado. Soft delete + devuelve datos
- * del comprador para que el frontend abra ChatYA.
- */
-export async function postDerivarPreguntaAChat(req: Request, res: Response) {
-    try {
-        const { id } = req.params;
-        if (!UUID_REGEX.test(id)) {
-            return res.status(400).json({ success: false, message: 'ID de pregunta inválido' });
-        }
-
-        const usuarioId = obtenerUsuarioId(req);
-        if (!usuarioId) {
-            return res.status(401).json({ success: false, message: 'No autenticado' });
-        }
-
-        const resultado = await derivarPreguntaAChat(id, usuarioId);
-
-        if (!resultado.success) {
-            if (resultado.message.includes('No tienes acceso')) return res.status(403).json(resultado);
             return res.status(404).json(resultado);
         }
 
         return res.json(resultado);
     } catch (error) {
-        console.error('Error en postDerivarPreguntaAChat:', error);
-        return res.status(500).json({ success: false, message: 'Error al derivar la pregunta' });
+        console.error('Error en putEditarComentario:', error);
+        return res.status(500).json({ success: false, message: 'Error al editar el comentario' });
     }
 }
 
 /**
- * DELETE /api/marketplace/preguntas/:id
- * El vendedor elimina una pregunta (respondida o pendiente) de su artículo.
+ * DELETE /api/marketplace/comentarios/:id
+ * Elimina un comentario. Permitido al autor o al dueño del artículo. Si es un
+ * comentario raíz, arrastra sus respuestas.
  */
-export async function deletePreguntaVendedor(req: Request, res: Response) {
+export async function deleteComentario(req: Request, res: Response) {
     try {
         const { id } = req.params;
         if (!UUID_REGEX.test(id)) {
-            return res.status(400).json({ success: false, message: 'ID de pregunta inválido' });
+            return res.status(400).json({ success: false, message: 'ID de comentario inválido' });
         }
 
         const usuarioId = obtenerUsuarioId(req);
@@ -932,47 +831,16 @@ export async function deletePreguntaVendedor(req: Request, res: Response) {
             return res.status(401).json({ success: false, message: 'No autenticado' });
         }
 
-        const resultado = await eliminarPregunta(id, usuarioId);
+        const resultado = await eliminarComentario(id, usuarioId);
 
         if (!resultado.success) {
-            if (resultado.message.includes('No tienes acceso')) return res.status(403).json(resultado);
-            return res.status(404).json(resultado);
-        }
-
-        return res.json(resultado);
-    } catch (error) {
-        console.error('Error en deletePreguntaVendedor:', error);
-        return res.status(500).json({ success: false, message: 'Error al eliminar la pregunta' });
-    }
-}
-
-/**
- * DELETE /api/marketplace/preguntas/:id/mia
- * El comprador retira su propia pregunta, solo si aún no tiene respuesta.
- */
-export async function deletePreguntaMia(req: Request, res: Response) {
-    try {
-        const { id } = req.params;
-        if (!UUID_REGEX.test(id)) {
-            return res.status(400).json({ success: false, message: 'ID de pregunta inválido' });
-        }
-
-        const usuarioId = obtenerUsuarioId(req);
-        if (!usuarioId) {
-            return res.status(401).json({ success: false, message: 'No autenticado' });
-        }
-
-        const resultado = await eliminarPreguntaComprador(id, usuarioId);
-
-        if (!resultado.success) {
-            if (resultado.message.includes('ya fue respondida')) return res.status(409).json(resultado);
             if (resultado.message.includes('No puedes eliminar')) return res.status(403).json(resultado);
             return res.status(404).json(resultado);
         }
 
         return res.json(resultado);
     } catch (error) {
-        console.error('Error en deletePreguntaMia:', error);
-        return res.status(500).json({ success: false, message: 'Error al retirar la pregunta' });
+        console.error('Error en deleteComentario:', error);
+        return res.status(500).json({ success: false, message: 'Error al eliminar el comentario' });
     }
 }

@@ -11,7 +11,8 @@ import {
 
 export const obtenerCategorias = async (req: Request, res: Response) => {
     try {
-        const categorias = await obtenerTodasCategorias();
+        const ciudadId = typeof req.query.ciudadId === 'string' ? req.query.ciudadId : undefined;
+        const categorias = await obtenerTodasCategorias(ciudadId);
 
         res.status(200).json({
             success: true,
@@ -43,7 +44,8 @@ export const obtenerSubcategorias = async (req: Request, res: Response) => {
             });
         }
 
-        const subcategorias = await obtenerSubcategoriasPorCategoria(categoriaId);
+        const ciudadId = typeof req.query.ciudadId === 'string' ? req.query.ciudadId : undefined;
+        const subcategorias = await obtenerSubcategoriasPorCategoria(categoriaId, ciudadId);
 
         // Si la categoría no existe o no tiene subcategorías
         if (subcategorias.length === 0) {

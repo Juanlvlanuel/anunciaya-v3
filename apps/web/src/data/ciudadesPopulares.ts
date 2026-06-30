@@ -640,6 +640,21 @@ export function normalizarTexto(texto: string): string {
 }
 
 /**
+ * Resuelve el UUID de una ciudad (tabla `ciudades`) a partir de su nombre y estado,
+ * usando el catálogo activo (hidratado desde la BD). Devuelve undefined si no hay match
+ * o si la entrada solo existe en la semilla (sin id). Útil para pasar `?ciudadId=` a la API.
+ */
+export function resolverCiudadId(nombre?: string | null, estado?: string | null): string | undefined {
+  if (!nombre) return undefined;
+  const n = normalizarTexto(nombre);
+  const e = estado ? normalizarTexto(estado) : '';
+  const match = obtenerCatalogoCiudades().find(
+    (c) => !!c.id && normalizarTexto(c.nombre) === n && (!e || normalizarTexto(c.estado) === e),
+  );
+  return match?.id;
+}
+
+/**
  * Busca ciudades por texto (nombre, estado o alias)
  */
 export function buscarCiudades(texto: string, limite: number = 10): CiudadConNombreCompleto[] {

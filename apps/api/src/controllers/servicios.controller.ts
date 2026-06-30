@@ -28,13 +28,11 @@ import {
     eliminarFotoServicioSiHuerfana,
 } from '../services/servicios.service.js';
 import {
-    obtenerPreguntasPublicas,
-    crearPregunta,
-    responderPregunta,
-    editarPreguntaPropia,
-    eliminarPreguntaPropia,
-    eliminarPreguntaDueno,
-} from '../services/servicios/preguntas.js';
+    listarComentarios,
+    crearComentario,
+    editarComentario,
+    eliminarComentario,
+} from '../services/servicios/comentarios.js';
 import {
     obtenerSugerenciasServicios,
     buscarServicios,
@@ -53,9 +51,8 @@ import {
     feedInfinitoQuerySchema,
     misPublicacionesQuerySchema,
     uploadImagenSchema,
-    crearPreguntaSchema,
-    editarPreguntaSchema,
-    responderPreguntaSchema,
+    crearComentarioSchema,
+    editarComentarioSchema,
     crearResenaSchema,
     buscarServiciosQuerySchema,
     formatearErroresZod,
@@ -253,23 +250,21 @@ export async function getBuscarServicios(req: Request, res: Response) {
 }
 
 /**
- * GET /api/servicios/publicaciones/:id/preguntas
- * Si el caller es dueño → todas. Si es autor de alguna pendiente → la suya
- * + respondidas. Visitante anónimo → solo respondidas.
+ * GET /api/servicios/publicaciones/:id/comentarios
+ * Público: devuelve todos los comentarios (árbol de 1 nivel) de la publicación.
  */
-export async function getPreguntasPublicacion(req: Request, res: Response) {
+export async function getComentariosPublicacion(req: Request, res: Response) {
     try {
         const { id } = req.params;
         if (!validarUUID(id, res, 'ID de la publicación')) return;
 
-        const usuarioActualId = obtenerUsuarioId(req);
-        const resultado = await obtenerPreguntasPublicas(id, usuarioActualId);
+        const resultado = await listarComentarios(id);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
-        console.error('Error en getPreguntasPublicacion:', error);
+        console.error('Error en getComentariosPublicacion:', error);
         return res.status(500).json({
             success: false,
-            message: 'Error al obtener las preguntas',
+            message: 'Error al obtener los comentarios',
         });
     }
 }
@@ -491,14 +486,15 @@ export async function deletePublicacion(req: Request, res: Response) {
 }
 
 // =============================================================================
-// PRIVADOS — Q&A (Preguntas y respuestas)
+// PRIVADOS — Comentarios (hilos de 1 nivel)
 // =============================================================================
 
 /**
- * POST /api/servicios/publicaciones/:id/preguntas
- * El autor hace una pregunta pública sobre la publicación.
+ * POST /api/servicios/publicaciones/:id/comentarios
+ * Comenta la publicación. Body: { texto, parentId? }. Si `parentId` viene, es
+ * una respuesta a ese comentario.
  */
-export async function postCrearPregunta(req: Request, res: Response) {
+export async function postCrearComentario(req: Request, res: Response) {
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
@@ -506,7 +502,7 @@ export async function postCrearPregunta(req: Request, res: Response) {
         const { id } = req.params;
         if (!validarUUID(id, res, 'ID de la publicación')) return;
 
-        const validacion = crearPreguntaSchema.safeParse(req.body);
+        const validacion = crearComentarioSchema.safeParse(req.body);
         if (!validacion.success) {
             return res.status(400).json({
                 success: false,
@@ -515,66 +511,35 @@ export async function postCrearPregunta(req: Request, res: Response) {
             });
         }
 
-        const resultado = await crearPregunta(id, usuarioId, validacion.data.pregunta);
-        return res.status(resultado.code).json(resultado);
-    } catch (error) {
-        console.error('Error en postCrearPregunta:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error al crear la pregunta',
-        });
-    }
-}
-
-/**
- * POST /api/servicios/preguntas/:id/responder
- * El dueño de la publicación responde una pregunta pendiente.
- */
-export async function postResponderPregunta(req: Request, res: Response) {
-    try {
-        const usuarioId = exigirUsuarioId(req, res);
-        if (!usuarioId) return;
-
-        const { id } = req.params;
-        if (!validarUUID(id, res, 'ID de la pregunta')) return;
-
-        const validacion = responderPreguntaSchema.safeParse(req.body);
-        if (!validacion.success) {
-            return res.status(400).json({
-                success: false,
-                message: 'Datos inválidos',
-                errores: formatearErroresZod(validacion.error),
-            });
-        }
-
-        const resultado = await responderPregunta(
+        const resultado = await crearComentario(
             id,
             usuarioId,
-            validacion.data.respuesta
+            validacion.data.texto,
+            validacion.data.parentId ?? null
         );
         return res.status(resultado.code).json(resultado);
     } catch (error) {
-        console.error('Error en postResponderPregunta:', error);
+        console.error('Error en postCrearComentario:', error);
         return res.status(500).json({
             success: false,
-            message: 'Error al responder la pregunta',
+            message: 'Error al publicar el comentario',
         });
     }
 }
 
 /**
- * PUT /api/servicios/preguntas/:id/mia
- * El autor edita el texto de su propia pregunta (solo si pendiente).
+ * PUT /api/servicios/comentarios/:id
+ * El autor edita su comentario (sin límite de tiempo).
  */
-export async function putEditarPreguntaPropia(req: Request, res: Response) {
+export async function putEditarComentario(req: Request, res: Response) {
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
 
         const { id } = req.params;
-        if (!validarUUID(id, res, 'ID de la pregunta')) return;
+        if (!validarUUID(id, res, 'ID del comentario')) return;
 
-        const validacion = editarPreguntaSchema.safeParse(req.body);
+        const validacion = editarComentarioSchema.safeParse(req.body);
         if (!validacion.success) {
             return res.status(400).json({
                 success: false,
@@ -583,63 +548,36 @@ export async function putEditarPreguntaPropia(req: Request, res: Response) {
             });
         }
 
-        const resultado = await editarPreguntaPropia(
-            id,
-            usuarioId,
-            validacion.data.pregunta
-        );
+        const resultado = await editarComentario(id, usuarioId, validacion.data.texto);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
-        console.error('Error en putEditarPreguntaPropia:', error);
+        console.error('Error en putEditarComentario:', error);
         return res.status(500).json({
             success: false,
-            message: 'Error al editar la pregunta',
+            message: 'Error al editar el comentario',
         });
     }
 }
 
 /**
- * DELETE /api/servicios/preguntas/:id/mia
- * El autor retira su pregunta (solo si pendiente).
+ * DELETE /api/servicios/comentarios/:id
+ * Elimina un comentario. Permitido al autor o al dueño de la publicación.
  */
-export async function deletePreguntaPropia(req: Request, res: Response) {
+export async function deleteComentario(req: Request, res: Response) {
     try {
         const usuarioId = exigirUsuarioId(req, res);
         if (!usuarioId) return;
 
         const { id } = req.params;
-        if (!validarUUID(id, res, 'ID de la pregunta')) return;
+        if (!validarUUID(id, res, 'ID del comentario')) return;
 
-        const resultado = await eliminarPreguntaPropia(id, usuarioId);
+        const resultado = await eliminarComentario(id, usuarioId);
         return res.status(resultado.code).json(resultado);
     } catch (error) {
-        console.error('Error en deletePreguntaPropia:', error);
+        console.error('Error en deleteComentario:', error);
         return res.status(500).json({
             success: false,
-            message: 'Error al retirar la pregunta',
-        });
-    }
-}
-
-/**
- * DELETE /api/servicios/preguntas/:id
- * El dueño elimina una pregunta de su publicación.
- */
-export async function deletePreguntaDueno(req: Request, res: Response) {
-    try {
-        const usuarioId = exigirUsuarioId(req, res);
-        if (!usuarioId) return;
-
-        const { id } = req.params;
-        if (!validarUUID(id, res, 'ID de la pregunta')) return;
-
-        const resultado = await eliminarPreguntaDueno(id, usuarioId);
-        return res.status(resultado.code).json(resultado);
-    } catch (error) {
-        console.error('Error en deletePreguntaDueno:', error);
-        return res.status(500).json({
-            success: false,
-            message: 'Error al eliminar la pregunta',
+            message: 'Error al eliminar el comentario',
         });
     }
 }

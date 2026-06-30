@@ -31,6 +31,7 @@ import { resolverCiudadId } from '../utils/ciudades.js';
 import { eliminarArchivo, generarPresignedUrl } from './r2.service.js';
 import { validarTextoPublicacion } from './marketplace/filtros.js';
 import type { ResultadoValidacion } from './marketplace/filtros.js';
+import { armarArbolComentarios, type ComentarioNodo } from './marketplace/comentarios.js';
 import type {
     CrearArticuloInput,
     ActualizarArticuloInput,
@@ -94,7 +95,7 @@ interface ArticuloFeedRow extends ArticuloRow {
     distanciaMetros: number | null;
     viendo: number;
     vistas24h: number;
-    totalPreguntasRespondidas: number;
+    totalComentarios: number;
 }
 
 // =============================================================================
@@ -586,16 +587,15 @@ export async function obtenerFeed(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS distancia_metros,
-                COALESCE(pq.total, 0) AS total_preguntas_respondidas
+                COALESCE(cq.total, 0) AS total_comentarios
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
-                FROM marketplace_preguntas
-                WHERE respondida_at IS NOT NULL
-                  AND deleted_at IS NULL
+                FROM marketplace_comentarios
+                WHERE deleted_at IS NULL
                 GROUP BY articulo_id
-            ) pq ON pq.articulo_id = a.id
+            ) cq ON cq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND c.nombre = ${ciudad}
@@ -617,16 +617,15 @@ export async function obtenerFeed(
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
                 ) AS distancia_metros,
-                COALESCE(pq.total, 0) AS total_preguntas_respondidas
+                COALESCE(cq.total, 0) AS total_comentarios
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
-                FROM marketplace_preguntas
-                WHERE respondida_at IS NOT NULL
-                  AND deleted_at IS NULL
+                FROM marketplace_comentarios
+                WHERE deleted_at IS NULL
                 GROUP BY articulo_id
-            ) pq ON pq.articulo_id = a.id
+            ) cq ON cq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND c.nombre = ${ciudad}
@@ -636,7 +635,7 @@ export async function obtenerFeed(
 
         type RawFeedRow = RawArticuloDb & {
             distancia_metros: number | null;
-            total_preguntas_respondidas: number;
+            total_comentarios: number;
         };
         const recientesRows = recientesResultado.rows as unknown as RawFeedRow[];
         const cercanosRows = cercanosResultado.rows as unknown as RawFeedRow[];
@@ -653,7 +652,7 @@ export async function obtenerFeed(
                     row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
                 viendo,
                 vistas24h,
-                totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,
+                totalComentarios: row.total_comentarios ?? 0,
             };
         };
 
@@ -689,25 +688,10 @@ export interface ArticuloFeedInfinitoRow extends ArticuloFeedRow {
         avatarUrl: string | null;
     };
     /**
-     * Todas las preguntas del artículo (respondidas + pendientes), ordenadas
-     * con respondidas primero, luego pendientes por created_at DESC.
-     * Sin LIMIT — el cliente renderiza todas inline.
+     * Árbol de comentarios del artículo (raíces + respuestas, 1 nivel).
+     * Sin LIMIT — el cliente decide cuántos hilos muestra inline.
      */
-    topPreguntas: Array<{
-        id: string;
-        pregunta: string;
-        respuesta: string | null;
-        respondidaAt: string | null;
-        /** Si != null, el comprador editó la pregunta. Mostrar "(editada)". */
-        editadaAt: string | null;
-        createdAt: string;
-        comprador: {
-            id: string;
-            nombre: string;
-            apellidos: string;
-            avatarUrl: string | null;
-        };
-    }>;
+    topComentarios: ComentarioNodo[];
     /**
      * Si el usuario actual (token opcional) tiene este artículo en sus
      * guardados. Siempre false cuando no hay sesión.
@@ -792,48 +776,30 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 u.nombre AS vendedor_nombre,
                 u.apellidos AS vendedor_apellidos,
                 u.avatar_url AS vendedor_avatar,
-                COALESCE(pq.total, 0) AS total_preguntas_respondidas,
+                COALESCE(cq.total, 0) AS total_comentarios,
                 COALESCE(
                     (
-                        SELECT json_agg(
-                            p ORDER BY
-                                CASE WHEN p.respondida_at IS NULL THEN 1 ELSE 0 END,
-                                p.respondida_at DESC NULLS LAST,
-                                p.created_at DESC
-                        )
+                        SELECT json_agg(cc ORDER BY cc.created_at ASC)
                         FROM (
                             SELECT
-                                mp.id,
-                                mp.pregunta,
-                                mp.respuesta,
-                                mp.respondida_at,
-                                mp.editada_at,
-                                mp.created_at,
-                                uc.id AS comprador_id,
-                                uc.nombre AS comprador_nombre,
-                                uc.apellidos AS comprador_apellidos,
-                                uc.avatar_url AS comprador_avatar
-                            FROM marketplace_preguntas mp
-                            INNER JOIN usuarios uc ON uc.id = mp.comprador_id
-                            WHERE mp.articulo_id = a.id
-                              AND mp.deleted_at IS NULL
-                              -- Visibilidad estilo Mercado Libre: respondidas
-                              -- públicas; pendientes solo para su autor o el
-                              -- dueño del artículo.
-                              AND (
-                                  mp.respondida_at IS NOT NULL
-                                  OR (
-                                      ${opciones.usuarioId ?? null}::uuid IS NOT NULL
-                                      AND (
-                                          mp.comprador_id = ${opciones.usuarioId ?? null}::uuid
-                                          OR a.usuario_id = ${opciones.usuarioId ?? null}::uuid
-                                      )
-                                  )
-                              )
-                        ) p
+                                mc.id,
+                                mc.autor_id,
+                                mc.parent_id,
+                                mc.texto,
+                                (mc.autor_id = a.usuario_id) AS es_vendedor,
+                                mc.editado_at,
+                                mc.created_at,
+                                uc.nombre AS autor_nombre,
+                                uc.apellidos AS autor_apellidos,
+                                uc.avatar_url AS autor_avatar_url
+                            FROM marketplace_comentarios mc
+                            INNER JOIN usuarios uc ON uc.id = mc.autor_id
+                            WHERE mc.articulo_id = a.id
+                              AND mc.deleted_at IS NULL
+                        ) cc
                     ),
                     '[]'::json
-                ) AS top_preguntas,
+                ) AS comentarios,
                 ${opciones.usuarioId
                     ? sql`EXISTS (
                             SELECT 1 FROM guardados g
@@ -847,11 +813,10 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
-                FROM marketplace_preguntas
-                WHERE respondida_at IS NOT NULL
-                  AND deleted_at IS NULL
+                FROM marketplace_comentarios
+                WHERE deleted_at IS NULL
                 GROUP BY articulo_id
-            ) pq ON pq.articulo_id = a.id
+            ) cq ON cq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND c.nombre = ${opciones.ciudad}
@@ -862,21 +827,18 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             OFFSET ${offset}
         `);
 
-        type RawTopPregunta = {
+        // Fila plana de comentario tal como sale del json_agg (snake_case).
+        type RawComentarioPlano = {
             id: string;
-            pregunta: string;
-            // Pendientes pueden venir sin respuesta — el cliente decide cómo
-            // mostrarlas (07-may-2026: respondidas primero, pendientes con
-            // indicador "Pendiente de respuesta").
-            respuesta: string | null;
-            respondida_at: string | null;
-            // Si != null, el comprador editó la pregunta — UI muestra "(editada)".
-            editada_at: string | null;
+            autor_id: string;
+            parent_id: string | null;
+            texto: string;
+            es_vendedor: boolean;
+            editado_at: string | null;
             created_at: string;
-            comprador_id: string;
-            comprador_nombre: string;
-            comprador_apellidos: string;
-            comprador_avatar: string | null;
+            autor_nombre: string;
+            autor_apellidos: string;
+            autor_avatar_url: string | null;
         };
 
         type RawFeedInfinitoRow = RawArticuloDb & {
@@ -885,8 +847,8 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             vendedor_nombre: string;
             vendedor_apellidos: string;
             vendedor_avatar: string | null;
-            total_preguntas_respondidas: number;
-            top_preguntas: RawTopPregunta[] | null;
+            total_comentarios: number;
+            comentarios: RawComentarioPlano[] | null;
             usuario_guardo: boolean;
         };
 
@@ -910,27 +872,27 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                             : null,
                     viendo,
                     vistas24h,
-                    totalPreguntasRespondidas: row.total_preguntas_respondidas ?? 0,
+                    totalComentarios: row.total_comentarios ?? 0,
                     vendedor: {
                         id: row.vendedor_id,
                         nombre: row.vendedor_nombre,
                         apellidos: row.vendedor_apellidos,
                         avatarUrl: row.vendedor_avatar,
                     },
-                    topPreguntas: (row.top_preguntas ?? []).map((p) => ({
-                        id: p.id,
-                        pregunta: p.pregunta,
-                        respuesta: p.respuesta,
-                        respondidaAt: p.respondida_at,
-                        editadaAt: p.editada_at,
-                        createdAt: p.created_at,
-                        comprador: {
-                            id: p.comprador_id,
-                            nombre: p.comprador_nombre,
-                            apellidos: p.comprador_apellidos,
-                            avatarUrl: p.comprador_avatar,
-                        },
-                    })),
+                    topComentarios: armarArbolComentarios(
+                        (row.comentarios ?? []).map((c) => ({
+                            id: c.id,
+                            autorId: c.autor_id,
+                            autorNombre: c.autor_nombre,
+                            autorApellidos: c.autor_apellidos,
+                            autorAvatarUrl: c.autor_avatar_url,
+                            parentId: c.parent_id,
+                            texto: c.texto,
+                            esVendedor: c.es_vendedor,
+                            editadoAt: c.editado_at,
+                            createdAt: c.created_at,
+                        }))
+                    ),
                     guardado: row.usuario_guardo === true,
                 };
             })

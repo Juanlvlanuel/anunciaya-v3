@@ -13,6 +13,11 @@
  * Ubicación: apps/web/src/types/servicios.ts
  */
 
+import type { Comentario } from './comentarios';
+
+/** Comentario de una publicación de servicio (alias del genérico compartido). */
+export type ComentarioServicio = Comentario;
+
 export type ModoServicio = 'ofrezco' | 'solicito';
 
 export type TipoPublicacion =
@@ -277,25 +282,6 @@ export interface ResenaServicio {
 
 /** Orden del feed infinito. */
 export type OrdenFeedInfinito = 'recientes' | 'cerca';
-
-/** Q&A — pregunta visible en el detalle. */
-export interface PreguntaServicio {
-    id: string;
-    publicacionId: string;
-    autor: {
-        id: string;
-        nombre: string;
-        apellidos: string;
-        avatarUrl: string | null;
-    };
-    pregunta: string;
-    respuesta: string | null;
-    respondidaAt: string | null;
-    editadaAt: string | null;
-    createdAt: string;
-    /** Solo true para el autor y el dueño cuando la pregunta no tiene respuesta. */
-    pendiente: boolean;
-}
 
 /** Filtros del buscador (URL state). Sprint 6. */
 export interface FiltrosBusquedaServicios {

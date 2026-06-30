@@ -113,11 +113,11 @@ export function CardArticulo({
                 texto: `${articulo.totalGuardados} personas lo guardaron`,
             };
         }
-        const nPreguntas = articulo.totalPreguntasRespondidas ?? 0;
-        if (nPreguntas >= 1) {
+        const nComentarios = articulo.totalComentarios ?? 0;
+        if (nComentarios >= 1) {
             return {
                 icono: <MessageCircle className="h-3.5 w-3.5 shrink-0" strokeWidth={2} />,
-                texto: `${nPreguntas} pregunta${nPreguntas > 1 ? 's' : ''} respondida${nPreguntas > 1 ? 's' : ''}`,
+                texto: `${nComentarios} comentario${nComentarios > 1 ? 's' : ''}`,
             };
         }
         if ((articulo.vistas24h ?? 0) >= 20) {

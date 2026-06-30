@@ -15,6 +15,7 @@
 import { eq, and, or, isNull, sql } from 'drizzle-orm';
 import { db } from '../db';
 import { resolverCiudadId } from '../utils/ciudades.js';
+import { autohabilitarCatalogoPorCiudad } from './negocioManagement.service';
 import {
     negocios,
     asignacionSubcategorias,
@@ -238,6 +239,11 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(usuarios.id, usuarioId));
+
+        // Auto-habilitar el catálogo por ciudad según la demanda real: si el negocio
+        // se clasificó en una categoría/subcategoría acotada que no incluía su ciudad,
+        // se habilita ahí (best-effort, no rompe el cierre del onboarding).
+        await autohabilitarCatalogoPorCiudad(negocioId);
 
         // ───────────────────────────────────────────────────────────────────
         // NUEVO: Si participa_puntos = true, crear configuración inicial

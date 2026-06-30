@@ -33,7 +33,7 @@ import type {
     SugerenciaServicio,
     PublicacionDetalle,
     PublicacionServicio,
-    PreguntaServicio,
+    ComentarioServicio,
     PerfilPrestador,
     ResenaServicio,
 } from '../../types/servicios';
@@ -438,20 +438,16 @@ export function useEliminarPublicacionServicio() {
 // Q&A — PREGUNTAS Y RESPUESTAS
 // =============================================================================
 
-/**
- * Consume `GET /api/servicios/publicaciones/:id/preguntas`. El backend
- * aplica el filtro de privacidad: visitante anónimo solo ve respondidas,
- * autor ve sus pendientes + respondidas, dueño ve todas.
- */
-export function usePreguntasServicio(publicacionId: string | undefined) {
+/** `GET /api/servicios/publicaciones/:id/comentarios` — árbol de 1 nivel. */
+export function useComentariosServicio(publicacionId: string | undefined) {
     return useQuery({
-        queryKey: queryKeys.servicios.preguntas(publicacionId ?? ''),
-        queryFn: async (): Promise<PreguntaServicio[]> => {
+        queryKey: queryKeys.servicios.comentarios(publicacionId ?? ''),
+        queryFn: async (): Promise<ComentarioServicio[]> => {
             if (!publicacionId) return [];
             const response = await api.get<{
                 success: boolean;
-                data: PreguntaServicio[];
-            }>(`/servicios/publicaciones/${publicacionId}/preguntas`);
+                data: ComentarioServicio[];
+            }>(`/servicios/publicaciones/${publicacionId}/comentarios`);
             return response.data.success ? response.data.data : [];
         },
         enabled: !!publicacionId,
@@ -459,117 +455,68 @@ export function usePreguntasServicio(publicacionId: string | undefined) {
     });
 }
 
-/**
- * `POST /api/servicios/publicaciones/:id/preguntas` — el autor envía una
- * pregunta pública. Invalida el listado de preguntas al éxito.
- */
-export function useCrearPreguntaServicio() {
+/** `POST /api/servicios/publicaciones/:id/comentarios` — crea raíz o (con parentId) respuesta. */
+export function useCrearComentarioServicio() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: async (vars: {
             publicacionId: string;
-            pregunta: string;
+            texto: string;
+            parentId?: string | null;
         }) => {
             const response = await api.post<{ success: boolean; data?: { id: string }; message?: string }>(
-                `/servicios/publicaciones/${vars.publicacionId}/preguntas`,
-                { pregunta: vars.pregunta },
+                `/servicios/publicaciones/${vars.publicacionId}/comentarios`,
+                { texto: vars.texto, parentId: vars.parentId ?? null },
             );
             return response.data;
         },
         onSuccess: (_, vars) => {
             qc.invalidateQueries({
-                queryKey: queryKeys.servicios.preguntas(vars.publicacionId),
+                queryKey: queryKeys.servicios.comentarios(vars.publicacionId),
             });
         },
     });
 }
 
-/**
- * `POST /api/servicios/preguntas/:id/responder` — el dueño responde una
- * pregunta pendiente. Invalida el listado de preguntas de la publicación.
- */
-export function useResponderPreguntaServicio() {
+/** `PUT /api/servicios/comentarios/:id` — el autor edita su comentario. */
+export function useEditarComentarioServicio() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: async (vars: {
-            preguntaId: string;
+            comentarioId: string;
             publicacionId: string;
-            respuesta: string;
-        }) => {
-            const response = await api.post<{ success: boolean; message?: string }>(
-                `/servicios/preguntas/${vars.preguntaId}/responder`,
-                { respuesta: vars.respuesta },
-            );
-            return response.data;
-        },
-        onSuccess: (_, vars) => {
-            qc.invalidateQueries({
-                queryKey: queryKeys.servicios.preguntas(vars.publicacionId),
-            });
-        },
-    });
-}
-
-/** `PUT /api/servicios/preguntas/:id/mia` — el autor edita su pregunta pendiente. */
-export function useEditarPreguntaPropiaServicio() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: async (vars: {
-            preguntaId: string;
-            publicacionId: string;
-            pregunta: string;
+            texto: string;
         }) => {
             const response = await api.put<{ success: boolean; message?: string }>(
-                `/servicios/preguntas/${vars.preguntaId}/mia`,
-                { pregunta: vars.pregunta },
+                `/servicios/comentarios/${vars.comentarioId}`,
+                { texto: vars.texto },
             );
             return response.data;
         },
         onSuccess: (_, vars) => {
             qc.invalidateQueries({
-                queryKey: queryKeys.servicios.preguntas(vars.publicacionId),
+                queryKey: queryKeys.servicios.comentarios(vars.publicacionId),
             });
         },
     });
 }
 
-/** `DELETE /api/servicios/preguntas/:id/mia` — el autor retira su pregunta pendiente. */
-export function useEliminarPreguntaPropiaServicio() {
+/** `DELETE /api/servicios/comentarios/:id` — autor o dueño de la publicación. */
+export function useEliminarComentarioServicio() {
     const qc = useQueryClient();
     return useMutation({
         mutationFn: async (vars: {
-            preguntaId: string;
+            comentarioId: string;
             publicacionId: string;
         }) => {
             const response = await api.delete<{ success: boolean; message?: string }>(
-                `/servicios/preguntas/${vars.preguntaId}/mia`,
+                `/servicios/comentarios/${vars.comentarioId}`,
             );
             return response.data;
         },
         onSuccess: (_, vars) => {
             qc.invalidateQueries({
-                queryKey: queryKeys.servicios.preguntas(vars.publicacionId),
-            });
-        },
-    });
-}
-
-/** `DELETE /api/servicios/preguntas/:id` — el dueño elimina una pregunta. */
-export function useEliminarPreguntaDuenoServicio() {
-    const qc = useQueryClient();
-    return useMutation({
-        mutationFn: async (vars: {
-            preguntaId: string;
-            publicacionId: string;
-        }) => {
-            const response = await api.delete<{ success: boolean; message?: string }>(
-                `/servicios/preguntas/${vars.preguntaId}`,
-            );
-            return response.data;
-        },
-        onSuccess: (_, vars) => {
-            qc.invalidateQueries({
-                queryKey: queryKeys.servicios.preguntas(vars.publicacionId),
+                queryKey: queryKeys.servicios.comentarios(vars.publicacionId),
             });
         },
     });

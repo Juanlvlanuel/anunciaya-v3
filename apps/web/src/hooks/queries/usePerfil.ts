@@ -24,14 +24,12 @@ import { queryKeys } from '../../config/queryKeys';
 interface Categoria {
   id: number;
   nombre: string;
-  icono: string;
   orden: number;
 }
 
 interface Subcategoria {
   id: number;
   nombre: string;
-  icono: string;
   orden: number;
 }
 
@@ -78,12 +76,17 @@ export function usePerfilSucursales() {
 // CATEGORÍAS (referencia estática)
 // =============================================================================
 
-export function usePerfilCategorias() {
+/**
+ * Categorías del catálogo. Si se pasa `ciudadId`, devuelve solo las disponibles en
+ * esa ciudad (capa de disponibilidad del Panel); sin él, el catálogo completo.
+ */
+export function usePerfilCategorias(ciudadId?: string) {
   return useQuery({
-    queryKey: queryKeys.perfil.categorias(),
+    queryKey: queryKeys.perfil.categorias(ciudadId),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: Categoria[] }>(
-        '/categorias'
+        '/categorias',
+        { params: ciudadId ? { ciudadId } : undefined }
       );
       return response.data.success ? response.data.data : [];
     },
@@ -95,12 +98,13 @@ export function usePerfilCategorias() {
 // SUBCATEGORÍAS (depende de categoría seleccionada)
 // =============================================================================
 
-export function usePerfilSubcategorias(categoriaId: number) {
+export function usePerfilSubcategorias(categoriaId: number, ciudadId?: string) {
   return useQuery({
-    queryKey: queryKeys.perfil.subcategorias(categoriaId),
+    queryKey: queryKeys.perfil.subcategorias(categoriaId, ciudadId),
     queryFn: async () => {
       const response = await api.get<{ success: boolean; data: Subcategoria[] }>(
-        `/categorias/${categoriaId}/subcategorias`
+        `/categorias/${categoriaId}/subcategorias`,
+        { params: ciudadId ? { ciudadId } : undefined }
       );
       return response.data.success ? response.data.data : [];
     },

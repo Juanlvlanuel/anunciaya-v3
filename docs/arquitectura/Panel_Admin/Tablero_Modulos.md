@@ -20,6 +20,17 @@
 
 ## Estado de hoy
 
+- **Módulo nuevo: Categorías (29 jun, módulo 14).** CRUD del **catálogo de giros** (categorías +
+  subcategorías) desde el Panel —sin SQL— + **disponibilidad por ciudad** (2 tablas N:M nuevas
+  `categoria_ciudades`/`subcategoria_ciudades`). Solo SuperAdmin, calcado de Ciudades (estructura de
+  plataforma). Catálogo **global por default**; acotar por ciudad es aditivo; subcategoría ⊆ ciudades de
+  su categoría; "quitar" = desactivar. El contrato público `GET /api/categorias[/:id/subcategorias]` acepta
+  `?ciudadId=` (retrocompatible); el **filtro de Negocios** (apps/web) ya filtra por la ciudad activa.
+  **Onboarding/Business Studio siguen con catálogo completo** (decisión abierta, ver `Categorias_Pendientes.md`).
+  Nació tras agregar la 12ª categoría **Bienes Raíces** por SQL. `tsc`/build verdes en api/admin/web.
+  **Pendiente:** correr 2 migraciones (`2026-06-29-categoria-bienes-raices.sql` +
+  `2026-06-29-catalogo-categorias-por-ciudad.sql`) en dev+prod, harness `probar-categorias-acciones.ts`,
+  E2E visual, índices (Panel_Admin.md/ROADMAP) y commit. Docs: `Categorias.md` + `Categorias_Pendientes.md`.
 - **Pendientes del Panel ampliados (29 jun):** la cola de pendientes del **Resumen** —y la **campana**
   del shell— pasó de 2 a **4 tipos**: se sumaron **Pagos por verificar** (cola de pagos manuales con
   comprobante; super + gerente) y **Comisiones por pagar** (comisiones por liquidar; **solo super**),
@@ -208,6 +219,7 @@
 | | **· Crecimiento ·** | | | |
 | 7 | **Publicidad** | ✅ | ✔ Cerrado (Fases 0-2: lectura+KPIs · acciones+editar · config económica+meses · alta manual+cortesía · wizard self-service+Stripe · cron · recibo/correo propios+periodo · creatividades optimizadas/sin huérfanas) · committeado · CORS R2 ✓ | `Publicidad.md` · `Publicidad_Pendientes.md` |
 | 8 | **Ciudades** | ✅ | Construido (mapa interactivo + alta/agrupar + app web desde BD) · migración ciudad→catálogo cerrada (DROP dev+prod completo, incl. `usuarios.ciudad`, validado 20 jun) | `Ciudades.md` · `Ciudades_Pendientes.md` |
+| 14 | **Categorías** | 🟡 | Construido (CRUD catálogo de giros + disponibilidad por ciudad, solo super) · `tsc`/build verdes · **falta** correr migración + E2E + commit | `Categorias.md` · `Categorias_Pendientes.md` |
 | | **· Administración ·** | | | |
 | 10 | **Equipo y accesos** | ✅ | ✔ Cerrado | `Equipo_y_accesos.md` · `Equipo_y_accesos_Pendientes.md` |
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |

@@ -13,6 +13,8 @@
  * Ubicación: apps/web/src/types/marketplace.ts
  */
 
+import type { Comentario } from './comentarios';
+
 export type CondicionArticulo = 'nuevo' | 'seminuevo' | 'usado' | 'para_reparar';
 
 export type EstadoArticulo = 'activa' | 'pausada' | 'vendida' | 'eliminada';
@@ -87,65 +89,15 @@ export interface ArticuloFeed extends ArticuloMarketplace {
     viendo?: number;
     /** Vistas en las últimas 24h (Redis). */
     vistas24h?: number;
-    /** Preguntas con respuesta visible públicamente (Sprint 9.2). */
-    totalPreguntasRespondidas?: number;
+    /** Total de comentarios (raíces + respuestas) del artículo. */
+    totalComentarios?: number;
 }
 
 /**
- * Una pregunta sobre un artículo (vista pública o del vendedor).
- * - Vista pública: solo preguntas con `respondidaAt != null`.
- * - Vista vendedor: pendientes (`respuesta == null`) + respondidas.
+ * Comentario del artículo (modelo nuevo: hilos de 1 nivel, público al instante).
+ * Alias del tipo genérico compartido `Comentario` (ver types/comentarios.ts).
  */
-export interface PreguntaMarketplace {
-    id: string;
-    /** UUID del comprador — necesario para BotonComentarista (P3 navegación). */
-    compradorId: string;
-    /** Nombre completo (no anonimizado) — antes era "Nombre I." */
-    compradorNombre: string;
-    /** Apellidos completos del comprador. */
-    compradorApellidos: string;
-    /** URL del avatar (puede ser null si el comprador no subió foto). */
-    compradorAvatarUrl: string | null;
-    pregunta: string;
-    respuesta: string | null;
-    respondidaAt: string | null;
-    /** Timestamp de la última edición (null si nunca se editó). */
-    editadaAt: string | null;
-    createdAt: string;
-}
-
-export interface PreguntasParaVendedor {
-    pendientes: PreguntaMarketplace[];
-    respondidas: PreguntaMarketplace[];
-}
-
-/**
- * Pregunta pendiente del propio comprador autenticado en un artículo —
- * se muestra en la vista visitante para que el usuario sepa que su pregunta
- * está esperando respuesta y pueda retirarla. Distinto de los datos públicos
- * porque incluye solo lo necesario para el bloque inline.
- */
-export interface MiPreguntaPendiente {
-    id: string;
-    pregunta: string;
-    createdAt: string;
-}
-
-/**
- * Respuesta del endpoint cuando el visitante NO es dueño:
- * - `preguntas`: TODAS las preguntas activas (respondidas + pendientes),
- *   con datos completos del comprador (id, nombre, apellidos, avatarUrl)
- *   para renderizar avatar + nombre clickeable hacia el perfil P3
- *   (mismo patrón que el feed).
- * - `miPreguntaPendiente`: pregunta del propio usuario aún sin respuesta,
- *   o `null` si no está autenticado o no ha preguntado. Se conserva
- *   principalmente para saber si ocultar el botón "Hacer una pregunta"
- *   (evita duplicados — el backend rechaza con 409).
- */
-export interface PreguntasVisitante {
-    preguntas: PreguntaMarketplace[];
-    miPreguntaPendiente: MiPreguntaPendiente | null;
-}
+export type ComentarioMarketplace = Comentario;
 
 /**
  * Respuesta del endpoint `GET /api/marketplace/feed`.
@@ -227,28 +179,6 @@ export interface VendedorEnFeed {
 }
 
 /**
- * Pregunta inline en la card del feed.
- * Si `respuesta` y `respondidaAt` son null → pregunta pendiente (visible
- * públicamente con indicador "Pendiente de respuesta").
- * Si `editadaAt` != null → la pregunta fue editada por el comprador, mostrar
- * marca "(editada)" junto al nombre.
- */
-export interface PreguntaInlineFeed {
-    id: string;
-    pregunta: string;
-    respuesta: string | null;
-    respondidaAt: string | null;
-    editadaAt: string | null;
-    createdAt: string;
-    comprador: {
-        id: string;
-        nombre: string;
-        apellidos: string;
-        avatarUrl: string | null;
-    };
-}
-
-/**
  * Artículo del feed infinito — extiende `ArticuloFeed` con los datos del
  * vendedor y todas las preguntas del artículo (respondidas + pendientes),
  * respondidas primero, sin límite.
@@ -256,10 +186,10 @@ export interface PreguntaInlineFeed {
 export interface ArticuloFeedInfinito extends ArticuloFeed {
     vendedor: VendedorEnFeed;
     /**
-     * Todas las preguntas del artículo, respondidas primero. Pendientes con
-     * `respuesta=null`. Vacío si el artículo no tiene preguntas.
+     * Árbol de comentarios del artículo (raíces + respuestas, 1 nivel).
+     * Vacío si el artículo no tiene comentarios.
      */
-    topPreguntas: PreguntaInlineFeed[];
+    topComentarios: ComentarioMarketplace[];
     /**
      * Si el usuario actual tiene este artículo en sus guardados. False si no
      * hay sesión. Permite que el corazón se vea relleno al cargar la página.

@@ -224,8 +224,7 @@ export async function obtenerFeedOfertas(
               'nombre', sc.nombre,
               'categoria', json_build_object(
                 'id', c.id,
-                'nombre', c.nombre,
-                'icono', c.icono
+                'nombre', c.nombre
               )
             ))
             FROM asignacion_subcategorias asig_sub

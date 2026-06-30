@@ -29,10 +29,7 @@ import type {
     CondicionArticulo,
     PerfilVendedorMarketplace,
     PublicacionesDeVendedor,
-    PreguntaMarketplace,
-    PreguntasParaVendedor,
-    PreguntasVisitante,
-    MiPreguntaPendiente,
+    ComentarioMarketplace,
     OrdenFeedInfinito,
     RespuestaFeedInfinito,
 } from '../../types/marketplace';
@@ -623,187 +620,89 @@ export function useBuscadorPopulares(ciudad: string | null) {
 }
 
 // =============================================================================
-// PREGUNTAS Y RESPUESTAS (Sprint 9.2)
+// COMENTARIOS (hilos de 1 nivel — reemplaza el Q&A)
 // =============================================================================
 
-/**
- * Obtiene preguntas de un artículo.
- * - Si `esDueno=true` → devuelve `{ pendientes, respondidas }`.
- * - Si `esDueno=false` → devuelve `{ respondidas, miPreguntaPendiente }`
- *   donde `miPreguntaPendiente` es la pregunta del usuario autenticado que
- *   aún no tiene respuesta (o `null` si no aplica). Permite mostrarle al
- *   comprador que su pregunta está pendiente y darle opción de retirarla.
- */
-export function usePreguntasArticulo(
-    articuloId: string | undefined,
-    esDueno: boolean
-) {
+/** Árbol de comentarios (raíces + respuestas) de un artículo. */
+export function useComentariosArticulo(articuloId: string | undefined) {
     return useQuery({
-        queryKey: queryKeys.marketplace.preguntas(articuloId ?? ''),
-        queryFn: async (): Promise<PreguntasVisitante | PreguntasParaVendedor> => {
-            const response = await api.get<{
-                success: boolean;
-                data: PreguntaMarketplace[] | PreguntasParaVendedor;
-                miPreguntaPendiente?: MiPreguntaPendiente | null;
-            }>(`/marketplace/articulos/${articuloId}/preguntas`);
-            if (esDueno) {
-                return response.data.data as PreguntasParaVendedor;
-            }
-            return {
-                preguntas: response.data.data as PreguntaMarketplace[],
-                miPreguntaPendiente: response.data.miPreguntaPendiente ?? null,
-            };
+        queryKey: queryKeys.marketplace.comentarios(articuloId ?? ''),
+        queryFn: async (): Promise<ComentarioMarketplace[]> => {
+            const response = await api.get<{ success: boolean; data: ComentarioMarketplace[] }>(
+                `/marketplace/articulos/${articuloId}/comentarios`
+            );
+            return response.data.data ?? [];
         },
         enabled: !!articuloId,
         staleTime: 60 * 1000,
     });
 }
 
-export function useCrearPregunta() {
+/** Crea un comentario raíz o (con `parentId`) una respuesta. */
+export function useCrearComentario() {
     const queryClient = useQueryClient();
     return useMutation<
-        { success: boolean; message: string },
+        { success: boolean; message: string; data?: { id: string } },
         unknown,
-        { articuloId: string; pregunta: string }
+        { articuloId: string; texto: string; parentId?: string | null }
     >({
-        mutationFn: async ({ articuloId, pregunta }) => {
+        mutationFn: async ({ articuloId, texto, parentId }) => {
             const response = await api.post(
-                `/marketplace/articulos/${articuloId}/preguntas`,
-                { pregunta }
+                `/marketplace/articulos/${articuloId}/comentarios`,
+                { texto, parentId: parentId ?? null }
             );
             return response.data;
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
-                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+                queryKey: queryKeys.marketplace.comentarios(variables.articuloId),
             });
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'feed-infinito'] });
         },
     });
 }
 
-export function useResponderPregunta() {
+/** El autor edita su comentario (sin límite de tiempo). */
+export function useEditarComentario() {
     const queryClient = useQueryClient();
     return useMutation<
         { success: boolean; message: string },
         unknown,
-        { preguntaId: string; articuloId: string; respuesta: string }
+        { comentarioId: string; articuloId: string; texto: string }
     >({
-        mutationFn: async ({ preguntaId, respuesta }) => {
-            const response = await api.post(
-                `/marketplace/preguntas/${preguntaId}/responder`,
-                { respuesta }
-            );
-            return response.data;
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
-            });
-        },
-    });
-}
-
-export function useEliminarPregunta() {
-    const queryClient = useQueryClient();
-    return useMutation<
-        { success: boolean; message: string },
-        unknown,
-        { preguntaId: string; articuloId: string }
-    >({
-        mutationFn: async ({ preguntaId }) => {
-            const response = await api.delete(
-                `/marketplace/preguntas/${preguntaId}`
-            );
-            return response.data;
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
-            });
-        },
-    });
-}
-
-export function useEliminarPreguntaMia() {
-    const queryClient = useQueryClient();
-    return useMutation<
-        { success: boolean; message: string },
-        unknown,
-        { preguntaId: string; articuloId: string }
-    >({
-        mutationFn: async ({ preguntaId }) => {
-            const response = await api.delete(
-                `/marketplace/preguntas/${preguntaId}/mia`
-            );
-            return response.data;
-        },
-        onSuccess: (_data, variables) => {
-            queryClient.invalidateQueries({
-                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
-            });
-            // El feed v1.2 trae las preguntas inline, también invalidar.
-            queryClient.invalidateQueries({
-                queryKey: ['marketplace', 'feed-infinito'],
-            });
-        },
-    });
-}
-
-/**
- * El comprador edita el texto de su propia pregunta. Solo permitido si
- * sigue pendiente (sin respuesta).
- */
-export function useEditarPreguntaPropia() {
-    const queryClient = useQueryClient();
-    return useMutation<
-        { success: boolean; message: string },
-        unknown,
-        { preguntaId: string; articuloId: string; pregunta: string }
-    >({
-        mutationFn: async ({ preguntaId, pregunta }) => {
+        mutationFn: async ({ comentarioId, texto }) => {
             const response = await api.put(
-                `/marketplace/preguntas/${preguntaId}/mia`,
-                { pregunta }
+                `/marketplace/comentarios/${comentarioId}`,
+                { texto }
             );
             return response.data;
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
-                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+                queryKey: queryKeys.marketplace.comentarios(variables.articuloId),
             });
-            queryClient.invalidateQueries({
-                queryKey: ['marketplace', 'feed-infinito'],
-            });
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'feed-infinito'] });
         },
     });
 }
 
-export function useDerivarPreguntaAChat() {
+/** Elimina un comentario (autor o dueño del artículo). */
+export function useEliminarComentario() {
     const queryClient = useQueryClient();
     return useMutation<
-        {
-            success: boolean;
-            data: {
-                compradorId: string;
-                compradorNombre: string;
-                compradorApellidos: string;
-                compradorAvatarUrl: string | null;
-                articuloId: string;
-            };
-        },
+        { success: boolean; message: string },
         unknown,
-        { preguntaId: string; articuloId: string }
+        { comentarioId: string; articuloId: string }
     >({
-        mutationFn: async ({ preguntaId }) => {
-            const response = await api.post(
-                `/marketplace/preguntas/${preguntaId}/derivar-a-chat`
-            );
+        mutationFn: async ({ comentarioId }) => {
+            const response = await api.delete(`/marketplace/comentarios/${comentarioId}`);
             return response.data;
         },
         onSuccess: (_data, variables) => {
             queryClient.invalidateQueries({
-                queryKey: queryKeys.marketplace.preguntas(variables.articuloId),
+                queryKey: queryKeys.marketplace.comentarios(variables.articuloId),
             });
+            queryClient.invalidateQueries({ queryKey: ['marketplace', 'feed-infinito'] });
         },
     });
 }

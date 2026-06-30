@@ -114,7 +114,12 @@ export function OverlayBuscadorContainer({
     return (
         <div
             data-testid={testId}
-            className="fixed inset-0 z-50"
+            // Desktop: `lg:z-40` deja el overlay POR DEBAJO del navbar
+            // (wrapper `fixed z-50` en MainLayout), así el scrim oscuro no
+            // tapa el header y el input del buscador se ve iluminado/enfocado
+            // mientras tecleas. Móvil conserva `z-50` (el input vive en el
+            // header inmersivo, que sí debe quedar bajo el scrim).
+            className="fixed inset-0 z-50 lg:z-40"
             onClick={onCerrar}
             role="dialog"
             aria-modal="true"

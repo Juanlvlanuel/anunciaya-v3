@@ -387,32 +387,31 @@ export function formatearErroresZod(error: z.ZodError): string[] {
 export { campoUUID };
 
 // =============================================================================
-// SCHEMAS DE PREGUNTAS Y RESPUESTAS (Sprint 9.2)
+// SCHEMAS DE COMENTARIOS (hilos de 1 nivel — reemplaza el Q&A Sprint 9.2)
 // =============================================================================
 
-export const crearPreguntaSchema = z.object({
-    pregunta: z
+export const crearComentarioSchema = z.object({
+    texto: z
         .string()
         .trim()
-        .min(10, 'La pregunta debe tener al menos 10 caracteres')
-        .max(200, 'La pregunta no puede exceder 200 caracteres'),
+        .min(2, 'El comentario debe tener al menos 2 caracteres')
+        .max(500, 'El comentario no puede exceder 500 caracteres'),
+    /** Si se envía, el comentario es una respuesta a ese comentario. */
+    parentId: z.string().uuid('parentId inválido').optional().nullable(),
 });
 
-export type CrearPreguntaInput = z.infer<typeof crearPreguntaSchema>;
+export type CrearComentarioInput = z.infer<typeof crearComentarioSchema>;
 
-/** Misma validación que crearPregunta — el comprador edita su pregunta pendiente. */
-export const editarPreguntaSchema = crearPreguntaSchema;
-export type EditarPreguntaInput = z.infer<typeof editarPreguntaSchema>;
-
-export const responderPreguntaSchema = z.object({
-    respuesta: z
+/** El autor edita su comentario — mismo límite que crear (sin parentId). */
+export const editarComentarioSchema = z.object({
+    texto: z
         .string()
         .trim()
-        .min(5, 'La respuesta debe tener al menos 5 caracteres')
-        .max(500, 'La respuesta no puede exceder 500 caracteres'),
+        .min(2, 'El comentario debe tener al menos 2 caracteres')
+        .max(500, 'El comentario no puede exceder 500 caracteres'),
 });
 
-export type ResponderPreguntaInput = z.infer<typeof responderPreguntaSchema>;
+export type EditarComentarioInput = z.infer<typeof editarComentarioSchema>;
 
 export default {
     crearArticuloSchema,
@@ -424,6 +423,6 @@ export default {
     uploadImagenSchema,
     formatearErroresZod,
     campoUUID,
-    crearPreguntaSchema,
-    responderPreguntaSchema,
+    crearComentarioSchema,
+    editarComentarioSchema,
 };

@@ -53,13 +53,10 @@ import {
     getPopularesBuscador,
     getBuscarArticulos,
     postReactivarArticulo,
-    getPreguntasArticulo,
-    postCrearPregunta,
-    putEditarPreguntaPropia,
-    postResponderPregunta,
-    postDerivarPreguntaAChat,
-    deletePreguntaVendedor,
-    deletePreguntaMia,
+    getComentariosArticulo,
+    postCrearComentario,
+    putEditarComentario,
+    deleteComentario,
 } from '../controllers/marketplace.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { verificarTokenOpcional } from '../middleware/authOpcional.middleware.js';
@@ -86,12 +83,12 @@ router.get('/feed', verificarTokenOpcional, getFeed);
 router.get('/feed/infinito', verificarTokenOpcional, getFeedInfinito);
 
 /**
- * GET /api/marketplace/articulos/:id/preguntas
+ * GET /api/marketplace/articulos/:id/comentarios
  * IMPORTANTE: declarado ANTES de /articulos/:id para que Express no confunda
  * la ruta con el detalle del artículo.
- * Si el caller es el dueño → pendientes + respondidas. Si no → solo respondidas.
+ * Público: devuelve todos los comentarios (árbol de 1 nivel) del artículo.
  */
-router.get('/articulos/:id/preguntas', verificarTokenOpcional, getPreguntasArticulo);
+router.get('/articulos/:id/comentarios', verificarTokenOpcional, getComentariosArticulo);
 
 /**
  * GET /api/marketplace/articulos/:id
@@ -247,74 +244,41 @@ router.post(
 );
 
 // =============================================================================
-// PREGUNTAS Y RESPUESTAS (Sprint 9.2)
+// COMENTARIOS (hilos de 1 nivel — reemplaza el Q&A Sprint 9.2)
 // =============================================================================
 
 /**
- * POST /api/marketplace/articulos/:id/preguntas
- * El comprador hace una pregunta pública sobre el artículo.
+ * POST /api/marketplace/articulos/:id/comentarios
+ * El usuario comenta el artículo. Body: { texto, parentId? }. Si `parentId`
+ * viene, es una respuesta a ese comentario.
  */
 router.post(
-    '/articulos/:id/preguntas',
+    '/articulos/:id/comentarios',
     verificarToken,
     requiereModoPersonal,
-    postCrearPregunta
+    postCrearComentario
 );
 
 /**
- * POST /api/marketplace/preguntas/:id/responder
- * El vendedor responde una pregunta pendiente.
- */
-router.post(
-    '/preguntas/:id/responder',
-    verificarToken,
-    requiereModoPersonal,
-    postResponderPregunta
-);
-
-/**
- * POST /api/marketplace/preguntas/:id/derivar-a-chat
- * El vendedor deriva la pregunta a chat privado (soft delete + datos del comprador).
- */
-router.post(
-    '/preguntas/:id/derivar-a-chat',
-    verificarToken,
-    requiereModoPersonal,
-    postDerivarPreguntaAChat
-);
-
-/**
- * PUT /api/marketplace/preguntas/:id/mia
- * El comprador edita el texto de su propia pregunta (solo si pendiente).
+ * PUT /api/marketplace/comentarios/:id
+ * El autor edita su comentario (sin límite de tiempo).
  */
 router.put(
-    '/preguntas/:id/mia',
+    '/comentarios/:id',
     verificarToken,
     requiereModoPersonal,
-    putEditarPreguntaPropia
+    putEditarComentario
 );
 
 /**
- * DELETE /api/marketplace/preguntas/:id/mia
- * IMPORTANTE: declarado ANTES de /preguntas/:id para evitar conflicto Express.
- * El comprador retira su pregunta, solo si aún no tiene respuesta.
+ * DELETE /api/marketplace/comentarios/:id
+ * Elimina un comentario. Permitido al autor o al dueño del artículo.
  */
 router.delete(
-    '/preguntas/:id/mia',
+    '/comentarios/:id',
     verificarToken,
     requiereModoPersonal,
-    deletePreguntaMia
-);
-
-/**
- * DELETE /api/marketplace/preguntas/:id
- * El vendedor elimina una pregunta de su artículo.
- */
-router.delete(
-    '/preguntas/:id',
-    verificarToken,
-    requiereModoPersonal,
-    deletePreguntaVendedor
+    deleteComentario
 );
 
 // =============================================================================
