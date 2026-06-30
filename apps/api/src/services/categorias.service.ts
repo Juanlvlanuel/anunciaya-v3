@@ -87,7 +87,11 @@ export const obtenerSubcategoriasPorCategoria = async (categoriaId: number, ciud
         orden: subcategoriasNegocio.orden,
       })
       .from(subcategoriasNegocio)
-      .where(and(eq(subcategoriasNegocio.categoriaId, categoriaId), subcategoriaVisibleEn(ciudadId)))
+      .where(and(
+        eq(subcategoriasNegocio.categoriaId, categoriaId),
+        eq(subcategoriasNegocio.activa, true),
+        subcategoriaVisibleEn(ciudadId),
+      ))
       .orderBy(subcategoriasNegocio.orden);
 
     return subcategorias;
