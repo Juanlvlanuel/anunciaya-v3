@@ -72,7 +72,7 @@ export async function crearCheckoutPublicidad(usuarioId: string, input: Checkout
     // 12 meses = +1 año exacto, no 360 días (que caía ~5 días antes).
     const duracionBase = await obtenerConfigNumero('publicidad_duracion_dias', 30);
     const duracion = meses * duracionBase;
-    const esCombo = carruseles.length === 3;
+    const esCombo = carruseles.length === 2; // combo = los 2 tamaños (Grande + Chico); fundadores no se vende
 
     // Crea el anuncio PENDIENTE (compra + piezas + ciudades) en una transacción.
     let compraId = '';

@@ -29,6 +29,10 @@
 > "Pago seguro con Stripe"** con el **wordmark oficial** (componente `LogoStripe`, color de marca #635BFF) en
 > el wizard y en `PaginaRegistroExito`. (4) **Wizard `/anunciate` repintado a tokens AY** (paleta slate + dark
 > gradient, sin acentos azules) y **limpieza de creatividades huérfanas reforzada** (ver "Creatividades (R2)").
+> (5) **Renovar / extender un anuncio** desde Mi Perfil (ver "Renovación" abajo): pago único que **extiende
+> la vigencia** del anuncio existente y permite ajustar imagen/ciudades/tamaños; cada renovación es una fila
+> de pago propia (folio + recibo) ligada por `renovacion_de`. Fix: `es_combo` se calculaba con `=== 3`
+> (combo viejo de 3); ahora `=== 2` en checkout y editar (el combo es de 2 tamaños).
 > **Sección del menú:** Crecimiento. **Plantilla de oro:** Negocios.
 > **Última actualización:** 29 Junio 2026.
 >
@@ -196,6 +200,28 @@ pieza + el **total** (en combo).
 > la incrementa** (siempre 0), por eso las "vistas" se **quitaron de la UI** (29-jun). Para activarlas habría
 > que contar la impresión al mostrar la pieza en `ColumnaDerecha` (endpoint nuevo + regla de conteo con
 > throttle) — pendiente, no urgente para la beta.
+
+### Renovación / extender un anuncio (29-jun)
+El anunciante renueva desde **Mi Perfil → Pagos → "Tu publicidad"** (botón "Renovar"). Reusa el wizard
+`/anunciate` en **modo renovación** (precargado con tamaños/imágenes/ciudades del anuncio): puede ajustar
+imagen, ciudades, tamaños y meses, y al pagar **extiende la vigencia** en vez de crear un anuncio nuevo.
+
+- **Migración** `2026-06-29-publicidad-renovacion.sql` — columna `publicidad_compras.renovacion_de` (FK a sí
+  misma) + índice parcial. Corrida en dev+prod.
+- **Modelo:** cada renovación es una **fila NUEVA** en `publicidad_compras` con `renovacion_de` = el anuncio
+  original (su propio **folio + recibo** → aparece en **Recibos** del Panel). Esa fila **no es un anuncio**:
+  el carrusel público, la lista del Panel, los KPIs (activos/por-vencer/clics) y Mi Perfil la **excluyen**
+  (`renovacion_de IS NULL`). **Sí** cuenta en el KPI de **ingresos** (es dinero cobrado).
+- **Vigencia:** al activarse el pago (webhook `renovacion_publicidad` → `activarRenovacionPublicidad`),
+  `expira_at = GREATEST(expira_at, now()) + meses` → si sigue vigente no pierde días; si venció, desde hoy.
+  Reactiva el anuncio si estaba `expirada`/`pausada`. Aplica al original los carruseles/imágenes/ciudades
+  elegidos (reconciliación, **conserva clics**; limpia de R2 las imágenes reemplazadas) y copia la nueva
+  vigencia a la fila de renovación para que su recibo muestre el "hasta" correcto.
+- **Precio:** se recalcula **vigente hoy** (mismo `calcularPrecioPublicidad`: respeta lanzamiento, combo,
+  tramos y periodos).
+- **Endpoints:** `GET /api/publicidad/mio/:compraId` (precarga del wizard) · `POST /api/publicidad/renovar/:compraId`
+  (crea el pago + Stripe). Service: `publicidad-renovacion.service.ts`. El botón en `SeccionMiPublicidad`
+  navega a `/anunciate` con `state.renovarId`.
 
 ### Creatividades (R2): medida, optimización + sin huérfanas
 El anunciante sube su propia imagen **por tamaño**, con la **medida recomendada a la vista** en el wizard

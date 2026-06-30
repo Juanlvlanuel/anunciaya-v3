@@ -150,6 +150,32 @@ export async function crearCheckoutPublicidad(input: CheckoutInput): Promise<str
   return data.data.checkoutUrl;
 }
 
+// =============================================================================
+// RENOVACIÓN (extender un anuncio existente desde Mi Perfil)
+// =============================================================================
+
+export interface AnuncioRenovable {
+  id: string;
+  carruseles: Carrusel[];
+  imagenes: Partial<Record<Carrusel, string>>;
+  ciudadIds: string[];
+  expiraAt: string | null;
+  estado: string;
+}
+
+/** Datos del anuncio del usuario para precargar el wizard en modo renovación. Requiere sesión. */
+export async function obtenerAnuncioRenovable(compraId: string): Promise<AnuncioRenovable | null> {
+  const res = await get<AnuncioRenovable>(`/publicidad/mio/${encodeURIComponent(compraId)}`);
+  return res.data ?? null;
+}
+
+/** Renueva/extiende un anuncio: crea el pago de renovación y devuelve la URL de Stripe. Requiere sesión. */
+export async function renovarPublicidad(compraId: string, input: CheckoutInput): Promise<string> {
+  const { data } = await api.post<{ success: boolean; message?: string; data?: { checkoutUrl: string } }>(`/publicidad/renovar/${encodeURIComponent(compraId)}`, input);
+  if (!data.data?.checkoutUrl) throw new Error(data.message || 'No se pudo iniciar la renovación.');
+  return data.data.checkoutUrl;
+}
+
 /** Cuenta el "ver grande" de una pieza (best-effort, sin auth). */
 export async function registrarClickPublicidad(piezaId: string): Promise<void> {
   try {

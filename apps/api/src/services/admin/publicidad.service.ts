@@ -221,6 +221,8 @@ export async function listarPublicidad(
     // Los 'pendiente' (checkout self-service iniciado, aún sin pagar) NO son anuncios gestionables: se
     // ocultan del Panel. Se activan al pagar (webhook) o los borra el cron si se abandonan.
     condBase.push(sql`${publicidadCompras.estado} <> 'pendiente'`);
+    // Las filas de renovación son registros de PAGO (extienden un anuncio), no anuncios → fuera de la lista.
+    condBase.push(sql`${publicidadCompras.renovacionDe} IS NULL`);
     if (filtros.busqueda) {
         const q = `%${filtros.busqueda}%`;
         condBase.push(sql`(${usuarios.nombre} ILIKE ${q} OR ${usuarios.apellidos} ILIKE ${q} OR ${negocios.nombre} ILIKE ${q})`);
@@ -461,15 +463,17 @@ export async function obtenerKpisPublicidad(panel: UsuarioPanel): Promise<KpisPu
     // Agregados sobre las compras (en el alcance del rol).
     const [agg] = await db
         .select({
-            activos: sql<number>`COUNT(*) FILTER (WHERE ${publicidadCompras.estado} = 'activa' AND ${publicidadCompras.expiraAt} > now())`,
-            porVencer: sql<number>`COUNT(*) FILTER (WHERE ${publicidadCompras.estado} = 'activa' AND ${publicidadCompras.expiraAt} > now() AND ${publicidadCompras.expiraAt} <= now() + INTERVAL '7 days')`,
+            // activos / por vencer: solo ANUNCIOS (no las filas de renovación, que extienden un anuncio).
+            activos: sql<number>`COUNT(*) FILTER (WHERE ${publicidadCompras.estado} = 'activa' AND ${publicidadCompras.expiraAt} > now() AND ${publicidadCompras.renovacionDe} IS NULL)`,
+            porVencer: sql<number>`COUNT(*) FILTER (WHERE ${publicidadCompras.estado} = 'activa' AND ${publicidadCompras.expiraAt} > now() AND ${publicidadCompras.expiraAt} <= now() + INTERVAL '7 days' AND ${publicidadCompras.renovacionDe} IS NULL)`,
+            // ingresos: SÍ incluye las renovaciones (son dinero cobrado de publicidad).
             ingresos: sql<string>`COALESCE(SUM(${publicidadCompras.monto}) FILTER (WHERE ${publicidadCompras.estado} <> 'pendiente' AND ${publicidadCompras.monto} IS NOT NULL), 0)`,
         })
         .from(publicidadCompras)
         .where(alcance ?? undefined);
 
     // Clics acumulados: suma sobre las piezas de las compras en el alcance (sin pendientes).
-    const condClics: SQL[] = [sql`${publicidadCompras.estado} <> 'pendiente'`];
+    const condClics: SQL[] = [sql`${publicidadCompras.estado} <> 'pendiente'`, sql`${publicidadCompras.renovacionDe} IS NULL`];
     if (alcance) condClics.push(alcance);
     const [clk] = await db
         .select({ clics: sql<number>`COALESCE(SUM(${publicidadPiezas.clicks}), 0)` })

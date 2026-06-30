@@ -14,6 +14,8 @@ import {
     opcionesPublicidadController,
     precioPublicidadController,
     checkoutPublicidadController,
+    anuncioRenovableController,
+    renovarPublicidadController,
     clickPiezaController,
     descartarImagenesPublicidadController,
 } from '../controllers/publicidadPublica.controller.js';
@@ -39,5 +41,10 @@ router.post('/imagenes-descartadas', verificarToken, descartarImagenesPublicidad
 
 // Wizard self-service: crea el anuncio pendiente y abre Stripe Checkout. Cualquier usuario logueado.
 router.post('/checkout', verificarToken, checkoutPublicidadController);
+
+// Renovar / extender un anuncio del propio usuario (Mi Perfil): crea la fila de renovación + Stripe.
+// Va DESPUÉS de las rutas fijas (no choca con '/precio', '/opciones', etc.).
+router.get('/mio/:compraId', verificarToken, anuncioRenovableController);    // precarga del wizard
+router.post('/renovar/:compraId', verificarToken, renovarPublicidadController);
 
 export default router;

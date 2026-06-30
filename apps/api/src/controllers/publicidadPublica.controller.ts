@@ -17,6 +17,7 @@ import {
     type CarruselPub,
 } from '../services/publicidad-precio.service.js';
 import { crearCheckoutPublicidad } from '../services/publicidad-checkout.service.js';
+import { crearCheckoutRenovacion, obtenerAnuncioRenovable } from '../services/publicidad-renovacion.service.js';
 
 const TIPOS_IMG = ['image/jpeg', 'image/png', 'image/webp'];
 
@@ -131,5 +132,62 @@ export async function checkoutPublicidadController(req: Request, res: Response):
     } catch (error) {
         console.error('Error en checkoutPublicidadController:', error);
         res.status(500).json({ success: false, message: 'Error al iniciar el pago' });
+    }
+}
+
+/**
+ * GET /api/publicidad/mio/:compraId (requiere auth) — datos de un anuncio del usuario para PRECARGAR
+ * el wizard de renovación (tamaños, imágenes, ciudades, vigencia). Valida propiedad/renovable.
+ */
+export async function anuncioRenovableController(req: Request, res: Response): Promise<void> {
+    try {
+        const usuarioId = (req.usuario as { usuarioId?: string } | undefined)?.usuarioId;
+        if (!usuarioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+        const resultado = await obtenerAnuncioRenovable(usuarioId, req.params.compraId);
+        if (!resultado.ok) {
+            res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, data: resultado.anuncio });
+    } catch (error) {
+        console.error('Error en anuncioRenovableController:', error);
+        res.status(500).json({ success: false, message: 'Error al cargar el anuncio' });
+    }
+}
+
+/**
+ * POST /api/publicidad/renovar/:compraId (requiere auth) — renueva/extiende un anuncio del usuario:
+ * crea la fila de renovación pendiente y abre Stripe. Al pagar, el webhook extiende la vigencia.
+ */
+export async function renovarPublicidadController(req: Request, res: Response): Promise<void> {
+    try {
+        const usuarioId = (req.usuario as { usuarioId?: string } | undefined)?.usuarioId;
+        if (!usuarioId) {
+            res.status(401).json({ success: false, message: 'No autenticado' });
+            return;
+        }
+        const compraId = req.params.compraId;
+        if (!compraId) {
+            res.status(400).json({ success: false, message: 'Falta el anuncio a renovar.' });
+            return;
+        }
+        const body = (req.body ?? {}) as Record<string, unknown>;
+        const resultado = await crearCheckoutRenovacion(usuarioId, compraId, {
+            carruseles: (Array.isArray(body.carruseles) ? body.carruseles : []) as CarruselPub[],
+            imagenes: (typeof body.imagenes === 'object' && body.imagenes !== null ? body.imagenes : {}) as Partial<Record<CarruselPub, string>>,
+            ciudadIds: Array.isArray(body.ciudadIds) ? (body.ciudadIds as string[]) : [],
+            meses: typeof body.meses === 'number' ? body.meses : undefined,
+        });
+        if (!resultado.ok) {
+            res.status(resultado.status).json({ success: false, message: resultado.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, data: { checkoutUrl: resultado.checkoutUrl } });
+    } catch (error) {
+        console.error('Error en renovarPublicidadController:', error);
+        res.status(500).json({ success: false, message: 'Error al iniciar la renovación' });
     }
 }

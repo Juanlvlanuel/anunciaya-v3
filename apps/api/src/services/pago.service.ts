@@ -773,6 +773,13 @@ async function manejarCheckoutCompletado(
         return;
     }
 
+    // Renovación de publicidad (pago único): extiende la vigencia de un anuncio existente. Carga perezosa.
+    if (metadata.tipo === 'renovacion_publicidad') {
+        const { activarRenovacionPublicidad } = await import('./publicidad-renovacion.service.js');
+        await activarRenovacionPublicidad(session);
+        return;
+    }
+
     // Solo continuar si es registro comercial normal
     if (metadata.tipo !== 'registro_comercial') {
         console.error('⚠️ Tipo de checkout no reconocido:', metadata.tipo);

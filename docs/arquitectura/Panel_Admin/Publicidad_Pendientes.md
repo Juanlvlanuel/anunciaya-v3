@@ -55,6 +55,11 @@
 - [x] **Wizard: medida por tamaño + paso de ciudades dinámico** ✅ — cada tamaño publica su **medida** (Grande 1080×1350 4:5 · Chico 1080×720 3:2, mismo ancho base) y el preview toma la forma real. El paso **"¿En qué ciudades?"** se **oculta y auto-selecciona** cuando hay **1 sola ciudad activa** (vía `useCiudades`, React Query); reaparece al habilitar más, con numeración de pasos dinámica.
 - [x] **CHECKs de `configuracion_sistema` ampliados** ✅ (2 migraciones, Juan dev+prod: `2026-06-22-configuracion-categoria-publicidad.sql` + `-tipo-publicidad.sql`) — `configuracion_categoria_check` acepta `publicidad`; `configuracion_tipo_check` acepta `tramos_ciudades`/`periodos_meses`. Sin ellos, guardar config de Publicidad por primera vez fallaba (error 23514). `schema.ts` al día.
 
+### Iteración 29-jun (precio de lanzamiento · clics por anuncio · sello Stripe · tokens · renovación) ✅
+- [x] **Precio de lanzamiento por tamaño**, **clics por anuncio** (lista+ficha; vistas fuera de la UI), **sello Stripe** (wordmark), **wizard repintado a tokens** y **limpieza de huérfanas reforzada** — ver `Publicidad.md` (Cambios 29-jun). Committeado (`11f6516`).
+- [x] **Renovar / extender un anuncio** desde Mi Perfil ✅ — migración `2026-06-29-publicidad-renovacion.sql` (`renovacion_de`, **corrida dev+prod**); `publicidad-renovacion.service.ts` (`crearCheckoutRenovacion` + `activarRenovacionPublicidad` + `obtenerAnuncioRenovable` + `reconciliarPiezasYCiudades`); webhook `renovacion_publicidad`; endpoints `GET /publicidad/mio/:id` + `POST /publicidad/renovar/:id`; filtros `renovacion_de IS NULL` (carrusel/Panel/KPIs/Mi Perfil), ingresos sí cuenta, Recibos sí lista; wizard `/anunciate` en **modo renovación** (precarga + extiende). **Nota de despliegue:** el botón "Renovar" vive en `SeccionMiPublicidad.tsx` y el filtro en `membresia.service.ts` (backend) — ambos comparten archivo con el feature **Mi Perfil** (sin commitear aún), así que el **punto de entrada sube con el commit de Mi Perfil**; el backend + el modo renovación del wizard se subieron aparte. `tsc` api/admin/web verde.
+- [x] **Fix `es_combo`** ✅ — se calculaba con `=== 3` (combo viejo de 3 carruseles); ahora `=== 2` en `crearCheckoutPublicidad` y `editarAnuncio`. Backfill en BD corrido por Juan (compras con 2 piezas → `es_combo=true`).
+
 ---
 
 ## Criterios de aceptación (Definición de Terminado)

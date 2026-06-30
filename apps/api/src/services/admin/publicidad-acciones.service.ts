@@ -177,7 +177,7 @@ export async function editarAnuncio(panel: UsuarioPanel, id: string, input: Edic
         if (enRegion !== ciudadIds.length) return { ok: false, status: 403, mensaje: 'Todas las ciudades deben estar en tu región.' };
     }
 
-    const esCombo = carruseles.length === 3;
+    const esCombo = carruseles.length === 2; // combo = los 2 tamaños (Grande + Chico); fundadores no se vende
 
     // 3) Reconciliar en una transacción: piezas (conservan clics las que siguen) + ciudades.
     await db.transaction(async (tx) => {

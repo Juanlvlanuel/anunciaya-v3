@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { ArrowLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
 import { useCiudades } from '../../../hooks/queries/useCiudades';
 import { LogoStripe } from '../../../components/ui/LogoStripe';
@@ -26,6 +26,8 @@ import {
   descartarImagenesPublicidad,
   descartarImagenesPublicidadBeacon,
   crearCheckoutPublicidad,
+  obtenerAnuncioRenovable,
+  renovarPublicidad,
   type Carrusel,
   type OpcionesPublicidad,
   type DesglosePrecio,
@@ -64,8 +66,19 @@ const FMT = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' 
 // poder limpiar de R2 las creatividades que quedaron huérfanas si el `pagehide` no alcanzó a completar.
 const STORAGE_PENDIENTES = 'anunciate:imagenesPendientes';
 
+const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
+const fmtFecha = (iso: string | null) => {
+  if (!iso) return '—';
+  const d = new Date(iso);
+  return Number.isNaN(d.getTime()) ? '—' : `${String(d.getDate()).padStart(2, '0')} ${MESES_LARGOS[d.getMonth()]} ${d.getFullYear()}`;
+};
+
 export default function PaginaAnunciate() {
   const navigate = useNavigate();
+  const location = useLocation();
+  // Modo renovación: se llega desde "Renovar" en Mi Perfil con el id del anuncio a extender.
+  const renovarId = (location.state as { renovarId?: string } | null)?.renovarId ?? null;
+  const [vigenciaActual, setVigenciaActual] = useState<string | null>(null);
 
   const [carruseles, setCarruseles] = useState<Carrusel[]>([]);
   const [imagenes, setImagenes] = useState<Partial<Record<Carrusel, string>>>({});
@@ -94,6 +107,21 @@ export default function PaginaAnunciate() {
   useEffect(() => {
     obtenerOpcionesPublicidad().then(setOpciones).catch(() => {});
   }, []);
+
+  // Modo renovación: precarga tamaños, imágenes y ciudades del anuncio a extender. Las imágenes
+  // precargadas ya están ligadas al anuncio (no entran a `subidasSesion`, no se descartan al salir).
+  useEffect(() => {
+    if (!renovarId) return;
+    obtenerAnuncioRenovable(renovarId)
+      .then((a) => {
+        if (!a) return;
+        setCarruseles(a.carruseles);
+        setImagenes(a.imagenes);
+        if (a.ciudadIds.length) setCiudadIds(a.ciudadIds);
+        setVigenciaActual(a.expiraAt);
+      })
+      .catch(() => {});
+  }, [renovarId]);
 
   // RED DE SEGURIDAD (refresh/cierre): al montar, limpia de R2 las creatividades que una visita anterior
   // dejó pendientes (si el `pagehide` no alcanzó a completar). El reference count lo hace idempotente.
@@ -214,7 +242,9 @@ export default function PaginaAnunciate() {
     if (!puedePagar) return;
     setPagando(true);
     try {
-      const url = await crearCheckoutPublicidad({ carruseles, imagenes, ciudadIds, meses });
+      const url = renovarId
+        ? await renovarPublicidad(renovarId, { carruseles, imagenes, ciudadIds, meses })
+        : await crearCheckoutPublicidad({ carruseles, imagenes, ciudadIds, meses });
       // Ya quedaron ligadas a la compra pendiente → no descartarlas al salir (pagehide/desmontaje).
       // Si el pago se abandona en Stripe, el cron de pendientes las limpia. Reference count = respaldo.
       subidasSesion.current.clear();
@@ -243,8 +273,8 @@ export default function PaginaAnunciate() {
           <ArrowLeft size={18} />
         </button>
         <div className="min-w-0">
-          <h1 className="text-[20px] font-extrabold tracking-tight text-slate-900">Anúnciate en AnunciaYA</h1>
-          <p className="text-[12.5px] font-medium text-slate-600">Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.</p>
+          <h1 className="text-[20px] font-extrabold tracking-tight text-slate-900">{renovarId ? 'Renovar tu anuncio' : 'Anúnciate en AnunciaYA'}</h1>
+          <p className="text-[12.5px] font-medium text-slate-600">{renovarId ? 'Extiende la vigencia de tu anuncio — puedes ajustar imagen, ciudades y tiempo.' : 'Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.'}</p>
         </div>
         <div className="ml-auto hidden items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 text-[12.5px] font-semibold text-slate-600 lg:flex">
           <ShieldCheck size={15} className="text-emerald-600" />
@@ -472,6 +502,11 @@ export default function PaginaAnunciate() {
                   <span className="text-[24px] font-extrabold leading-none text-slate-900">{precio ? FMT.format(precio.total) : '—'}</span>
                 </div>
                 <p className="mt-1 text-[11.5px] font-medium text-slate-600">{precio ? precio.meses * duracion : duracion} días de vigencia · pago único</p>
+                {renovarId && vigenciaActual && (
+                  <p className="mt-1 text-[11.5px] font-semibold text-slate-700">
+                    Vence el {fmtFecha(vigenciaActual)} · se le suman {precio?.meses ?? meses} {(precio?.meses ?? meses) === 1 ? 'mes' : 'meses'}.
+                  </p>
+                )}
               </div>
             )}
 
@@ -487,7 +522,7 @@ export default function PaginaAnunciate() {
               }`}
             >
               {pagando ? <Loader2 size={18} className="animate-spin" /> : <CreditCard size={18} />}
-              {pagando ? 'Redirigiendo…' : 'Pagar con tarjeta'}
+              {pagando ? 'Redirigiendo…' : renovarId ? 'Renovar y pagar' : 'Pagar con tarjeta'}
             </button>
             {!todasImagenes && carruseles.length > 0 && (
               <p className="mt-2 text-center text-[11.5px] font-medium text-amber-600">Sube la imagen de cada tamaño para continuar.</p>

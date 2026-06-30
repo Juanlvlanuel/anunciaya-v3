@@ -46,6 +46,7 @@ export async function listarPublicidadPublica(ciudadId: string): Promise<Publici
             and(
                 eq(publicidadCompras.estado, 'activa'),
                 sql`${publicidadCompras.expiraAt} > now()`,
+                sql`${publicidadCompras.renovacionDe} IS NULL`, // las filas de renovación NO son anuncios
                 sql`${publicidadPiezas.carrusel} IN ('anuncios', 'patrocinadores')`,
                 sql`EXISTS (SELECT 1 FROM publicidad_compra_ciudades pcc WHERE pcc.compra_id = ${publicidadCompras.id} AND pcc.ciudad_id = ${ciudadId})`,
             ),

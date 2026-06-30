@@ -941,11 +941,15 @@ export const publicidadCompras = pgTable("publicidad_compras", {
 	// Marca anti-repetición del correo "tu publicidad está por vencer" (cron diario, 3 días antes).
 	avisoVencimientoEnviado: boolean("aviso_vencimiento_enviado").default(false).notNull(),
 	registradoPor: uuid("registrado_por").references((): AnyPgColumn => usuarios.id, { onDelete: 'set null' }), // alta manual; NULL en self
+	// Si NO es NULL, esta fila es un PAGO de renovación del anuncio referenciado (extiende su vigencia):
+	// no se muestra como anuncio (carrusel/Panel la excluyen). El anuncio "real" tiene renovacion_de = NULL.
+	renovacionDe: uuid("renovacion_de").references((): AnyPgColumn => publicidadCompras.id, { onDelete: 'set null' }),
 	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow(),
 }, (table) => [
 	index("idx_publicidad_compras_usuario").using("btree", table.usuarioId.asc().nullsLast(), table.createdAt.desc().nullsFirst()),
 	index("idx_publicidad_compras_estado_expira").using("btree", table.estado.asc().nullsLast(), table.expiraAt.asc().nullsLast()),
+	index("idx_publicidad_compras_renovacion_de").using("btree", table.renovacionDe.asc().nullsLast()),
 	uniqueIndex("idx_publicidad_compras_folio").using("btree", table.folio.asc().nullsLast()),
 	check("publicidad_compras_estado_check", sql`(estado)::text = ANY ((ARRAY['pendiente'::character varying, 'activa'::character varying, 'pausada'::character varying, 'expirada'::character varying, 'cancelada'::character varying])::text[])`),
 	check("publicidad_compras_origen_check", sql`(origen)::text = ANY ((ARRAY['self'::character varying, 'manual'::character varying, 'cortesia'::character varying])::text[])`),
