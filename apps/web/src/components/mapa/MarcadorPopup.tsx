@@ -13,8 +13,8 @@
  * Ubicación: apps/web/src/components/mapa/MarcadorPopup.tsx
  */
 
-import { useState, type ReactNode } from 'react';
-import { Marker, Popup, type MarkerEvent } from './Mapa';
+import { useState, useEffect, type ReactNode } from 'react';
+import { Marker, Popup, useMap, type MarkerEvent } from './Mapa';
 
 export type ColorPin = 'rojo' | 'azul' | 'verde';
 
@@ -69,6 +69,18 @@ export function MarcadorPopup({
     children,
 }: MarcadorPopupProps) {
     const [abierto, setAbierto] = useState(false);
+    const { current: map } = useMap();
+
+    // Al abrir el popup, recentrar el mapa con un offset hacia abajo para que el
+    // popup (que abre hacia arriba) quede visible — equivalente al autoPan de
+    // Leaflet. Útil sobre todo en mapas chicos (modal de ubicación en móvil),
+    // donde si no, el popup se sale por arriba del contenedor.
+    useEffect(() => {
+        if (!abierto || !map) return;
+        const alto = map.getContainer().clientHeight;
+        map.easeTo({ center: [lng, lat], offset: [0, Math.round(alto * 0.2)], duration: 400 });
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [abierto]);
 
     return (
         <>

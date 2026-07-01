@@ -448,9 +448,16 @@ function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProp
 
                         {/* Marcador del usuario si existe */}
                         {userLat && userLng && (
-                            <MarcadorPopup lng={userLng} lat={userLat} color="azul" maxWidth="180px">
-                                <div className="text-center">
-                                    <strong className="text-base">Tu ubicación</strong>
+                            <MarcadorPopup lng={userLng} lat={userLat} color="azul" popupClassName="popup-usuario" maxWidth="240px">
+                                <div className="flex items-center gap-3 bg-white pl-4 pr-11 py-3.5">
+                                    <span className="relative flex h-4 w-4 shrink-0">
+                                        <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
+                                        <span className="relative inline-flex h-4 w-4 rounded-full bg-blue-500 ring-2 ring-white" />
+                                    </span>
+                                    <div className="text-left leading-snug">
+                                        <p className="text-base font-bold text-slate-800">Tu ubicación</p>
+                                        <p className="text-sm font-medium text-slate-500">Estás aquí</p>
+                                    </div>
                                 </div>
                             </MarcadorPopup>
                         )}
@@ -531,6 +538,8 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
     // Modal del mapa expandido
     const [modalMapaAbierto, setModalMapaAbierto] = useState(false);
+    // Ref del mapa del bottom-sheet móvil (para los controles de zoom custom).
+    const mapaMovilRef = useRef<MapRef | null>(null);
 
     // React Query — perfil, catálogo, reseñas, ofertas (con caché automático)
     const perfilQuery = useNegocioPerfil(sucursalId);
@@ -1947,7 +1956,51 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                         `}</style>
                         {/* Mapa */}
                         <div className="flex-1 min-h-0 relative overflow-visible">
+                            {/* Controles de zoom custom (centrar / + / −) */}
+                            <div className="absolute bottom-6 right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+                                <button
+                                    type="button"
+                                    onClick={() => {
+                                        const map = mapaMovilRef.current;
+                                        if (!map) return;
+                                        if (userLat && userLng) {
+                                            map.fitBounds(
+                                                [
+                                                    [Math.min(negocio.longitud, userLng), Math.min(negocio.latitud, userLat)],
+                                                    [Math.max(negocio.longitud, userLng), Math.max(negocio.latitud, userLat)],
+                                                ],
+                                                { padding: 60 },
+                                            );
+                                        } else {
+                                            map.flyTo({ center: [negocio.longitud, negocio.latitud], zoom: 16 });
+                                        }
+                                    }}
+                                    className="w-11 h-11 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                                    title="Centrar mapa"
+                                >
+                                    <Crosshair className="w-5 h-5 text-white" />
+                                </button>
+                                <div className="w-px h-auto bg-slate-700 my-1.5" />
+                                <button
+                                    type="button"
+                                    onClick={() => mapaMovilRef.current?.zoomIn()}
+                                    className="w-11 h-11 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                                    title="Acercar"
+                                >
+                                    <Plus className="w-5 h-5 text-white" />
+                                </button>
+                                <div className="w-px h-auto bg-slate-700 my-1.5" />
+                                <button
+                                    type="button"
+                                    onClick={() => mapaMovilRef.current?.zoomOut()}
+                                    className="w-11 h-11 flex items-center justify-center cursor-pointer active:bg-slate-700"
+                                    title="Alejar"
+                                >
+                                    <Minus className="w-5 h-5 text-white" />
+                                </button>
+                            </div>
                             <Mapa
+                                ref={mapaMovilRef}
                                 initialViewState={{ longitude: negocio.longitud, latitude: negocio.latitud, zoom: 16 }}
                                 attributionControl={false}
                                 style={{ width: '100%', height: '100%' }}
@@ -2031,8 +2084,17 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                                         </div>
                                 </MarcadorPopup>
                                 {userLat && userLng && (
-                                    <MarcadorPopup lng={userLng} lat={userLat} color="azul" maxWidth="180px">
-                                        <p className="font-semibold text-center">Tu ubicación</p>
+                                    <MarcadorPopup lng={userLng} lat={userLat} color="azul" popupClassName="popup-usuario" maxWidth="240px">
+                                        <div className="flex items-center gap-3 bg-white pl-4 pr-11 py-3.5">
+                                            <span className="relative flex h-4 w-4 shrink-0">
+                                                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-60" />
+                                                <span className="relative inline-flex h-4 w-4 rounded-full bg-blue-500 ring-2 ring-white" />
+                                            </span>
+                                            <div className="text-left leading-snug">
+                                                <p className="text-base font-bold text-slate-800">Tu ubicación</p>
+                                                <p className="text-sm font-medium text-slate-500">Estás aquí</p>
+                                            </div>
+                                        </div>
                                     </MarcadorPopup>
                                 )}
                             </Mapa>
@@ -2240,6 +2302,39 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                 .popup-negocio .maplibregl-popup-close-button:hover {
                     color: #fff !important;
                     background: rgba(255,255,255,0.3) !important;
+                }
+                .popup-usuario .maplibregl-popup-content {
+                    padding: 0;
+                    border-radius: 12px;
+                    overflow: hidden;
+                    border: 2px solid #bfdbfe;
+                    box-shadow: 0 6px 18px rgba(37,99,235,0.18);
+                }
+                .popup-usuario p { margin: 0 !important; }
+                .popup-usuario .maplibregl-popup-close-button {
+                    top: 8px !important;
+                    right: 8px !important;
+                    width: 30px !important;
+                    height: 30px !important;
+                    font-size: 20px !important;
+                    font-weight: 700 !important;
+                    color: rgba(15,23,42,0.5) !important;
+                    background: rgba(15,23,42,0.08) !important;
+                    border-radius: 50% !important;
+                    display: flex !important;
+                    align-items: center !important;
+                    justify-content: center !important;
+                    line-height: 0 !important;
+                    padding: 0 0 1px 0 !important;
+                    text-align: center !important;
+                    transition: all 0.15s !important;
+                    cursor: pointer !important;
+                    z-index: 9999 !important;
+                    position: absolute !important;
+                }
+                .popup-usuario .maplibregl-popup-close-button:hover {
+                    color: rgba(15,23,42,0.8) !important;
+                    background: rgba(15,23,42,0.15) !important;
                 }
             `}</style>
         </div>

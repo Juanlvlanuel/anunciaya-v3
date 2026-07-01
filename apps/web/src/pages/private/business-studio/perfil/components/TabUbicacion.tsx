@@ -11,9 +11,9 @@
 
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { Mapa, Marker, NavigationControl, type MapRef, type MarkerDragEvent, type MapLayerMouseEvent } from '@/components/mapa/Mapa';
+import { Mapa, Marker, type MapRef, type MarkerDragEvent, type MapLayerMouseEvent } from '@/components/mapa/Mapa';
 import { PinMapa } from '@/components/mapa/MarcadorPopup';
-import { Loader2, X, Search, Maximize2 } from 'lucide-react';
+import { Loader2, X, Search, Maximize2, Crosshair, Plus, Minus } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
@@ -22,6 +22,8 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Navigation = (p: IconoWrapperProps) => <Icon icon={ICONOS.distancia} {...p} />;
 import { ModalUbicacion } from '../../../../../components/layout/ModalUbicacion';
+import { ModalBottom } from '../../../../../components/ui/ModalBottom';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useGpsStore } from '@/stores/useGpsStore';
 import { buscarCiudades, buscarCiudadCercana, type CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
 import { notificar } from '@/utils/notificaciones';
@@ -87,6 +89,7 @@ export default function TabUbicacion({
   const [modalCiudadAbierto, setModalCiudadAbierto] = useState(false);
   const [forzarCentrado, setForzarCentrado] = useState(0);
   const [mapaFullscreen, setMapaFullscreen] = useState(false);
+  const { esMobile } = useBreakpoint();
 
   const latitudActual = datosUbicacion.latitud ?? 31.3122;
   const longitudActual = datosUbicacion.longitud ?? -113.5465;
@@ -158,6 +161,7 @@ export default function TabUbicacion({
     });
 
     setMostrarResultados(false);
+    setForzarCentrado(prev => prev + 1);
   }, [datosUbicacion, setDatosUbicacion]);
 
   // Handler: selección de ciudad desde ModalUbicacion
@@ -222,19 +226,76 @@ export default function TabUbicacion({
       latitud: lat,
       longitud: lng,
     });
+    // Recentrar suave DESPUÉS de soltar el pin (esto corre en onDragEnd) o al
+    // tocar el mapa. `easeTo` anima el paneo, así el pin se desliza al centro
+    // sin teletransporte ni parpadeo (antes un jumpTo instantáneo lo hacía
+    // parecer que el pin caía en otro lado).
+    mapCompactoRef.current?.easeTo({ center: [lng, lat], duration: 500 });
+    mapFullscreenRef.current?.easeTo({ center: [lng, lat], duration: 500 });
   }, [datosUbicacion, setDatosUbicacion]);
 
   const handleClicMapa = useCallback((e: MapLayerMouseEvent) => {
     handleMoverMarcador(e.lngLat.lat, e.lngLat.lng);
   }, [handleMoverMarcador]);
 
-  // Mantener ambos mapas centrados en la posición actual (sigue al marcador
-  // en cada movimiento y se fuerza al detectar GPS/ciudad). Reemplaza al
-  // antiguo sub-componente CentrarMapa que usaba useMap().
+  // Recentrar ante acciones explícitas (detectar GPS o seleccionar ciudad →
+  // forzarCentrado se incrementa). El recentrado por drag/click vive en
+  // handleMoverMarcador; este efecto NO depende de lat/lng para no dispararse
+  // en cada arrastre.
   useEffect(() => {
+    if (forzarCentrado === 0) return;
     mapCompactoRef.current?.jumpTo({ center: [longitudActual, latitudActual] });
     mapFullscreenRef.current?.jumpTo({ center: [longitudActual, latitudActual] });
-  }, [latitudActual, longitudActual, forzarCentrado]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [forzarCentrado]);
+
+  // Contenido del mapa a pantalla completa (reutilizado por el ModalBottom móvil
+  // y el modal centrado de desktop): controles de zoom dark + mapa.
+  const contenidoMapaFullscreen = (
+    <>
+      {/* Controles de zoom custom (centrar / + / −) — estilo dark */}
+      <div className="absolute bottom-6 right-3 z-1000 bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+        <button
+          type="button"
+          onClick={() => mapFullscreenRef.current?.flyTo({ center: [longitudActual, latitudActual], zoom: 16 })}
+          className="w-11 h-11 flex items-center justify-center cursor-pointer active:bg-slate-700"
+          title="Centrar mapa"
+        >
+          <Crosshair className="w-5 h-5 text-white" />
+        </button>
+        <div className="w-px h-auto bg-slate-700 my-1.5" />
+        <button
+          type="button"
+          onClick={() => mapFullscreenRef.current?.zoomIn()}
+          className="w-11 h-11 flex items-center justify-center cursor-pointer active:bg-slate-700"
+          title="Acercar"
+        >
+          <Plus className="w-5 h-5 text-white" />
+        </button>
+        <div className="w-px h-auto bg-slate-700 my-1.5" />
+        <button
+          type="button"
+          onClick={() => mapFullscreenRef.current?.zoomOut()}
+          className="w-11 h-11 flex items-center justify-center cursor-pointer active:bg-slate-700"
+          title="Alejar"
+        >
+          <Minus className="w-5 h-5 text-white" />
+        </button>
+      </div>
+      <Mapa
+        ref={mapFullscreenRef}
+        initialViewState={{ longitude: longitudActual, latitude: latitudActual, zoom: 16 }}
+        onClick={handleClicMapa}
+        style={{ height: '100%', width: '100%' }}
+      >
+        <MarcadorArrastrable
+          lat={latitudActual}
+          lng={longitudActual}
+          onMover={handleMoverMarcador}
+        />
+      </Mapa>
+    </>
+  );
 
   return (
     <>
@@ -408,7 +469,6 @@ export default function TabUbicacion({
             onClick={handleClicMapa}
             style={{ height: '100%', width: '100%', zIndex: 0 }}
           >
-            <NavigationControl showCompass={false} position="top-left" />
             <MarcadorArrastrable
               lat={latitudActual}
               lng={longitudActual}
@@ -416,15 +476,45 @@ export default function TabUbicacion({
             />
           </Mapa>
 
+          {/* Controles de zoom custom (centrar / + / −) — estilo dark */}
+          <div className="absolute bottom-3 right-3 z-[1000] bg-slate-900 rounded-xl shadow-lg border border-slate-700 flex flex-row overflow-hidden">
+            <button
+              type="button"
+              onClick={() => mapCompactoRef.current?.flyTo({ center: [longitudActual, latitudActual], zoom: 15 })}
+              className="w-10 h-10 flex items-center justify-center cursor-pointer active:bg-slate-700"
+              title="Centrar mapa"
+            >
+              <Crosshair className="w-4.5 h-4.5 text-white" />
+            </button>
+            <div className="w-px h-auto bg-slate-700 my-1.5" />
+            <button
+              type="button"
+              onClick={() => mapCompactoRef.current?.zoomIn()}
+              className="w-10 h-10 flex items-center justify-center cursor-pointer active:bg-slate-700"
+              title="Acercar"
+            >
+              <Plus className="w-4.5 h-4.5 text-white" />
+            </button>
+            <div className="w-px h-auto bg-slate-700 my-1.5" />
+            <button
+              type="button"
+              onClick={() => mapCompactoRef.current?.zoomOut()}
+              className="w-10 h-10 flex items-center justify-center cursor-pointer active:bg-slate-700"
+              title="Alejar"
+            >
+              <Minus className="w-4.5 h-4.5 text-white" />
+            </button>
+          </div>
+
           {/* Botón expandir — flotante sobre el mapa (esquina superior derecha) */}
           <button
             type="button"
             onClick={() => setMapaFullscreen(true)}
-            className="absolute top-2 right-2 z-[1000] w-9 h-9 rounded-lg bg-white/95 hover:bg-white border-2 border-slate-300 shadow-md flex items-center justify-center cursor-pointer transition-colors"
+            className="absolute top-2 right-2 z-[1000] w-9 h-9 rounded-xl bg-slate-900 hover:bg-slate-800 active:bg-slate-700 border border-slate-700 shadow-lg flex items-center justify-center cursor-pointer transition-colors"
             title="Ver mapa completo"
             data-testid="btn-expandir-mapa-ubicacion"
           >
-            <Maximize2 className="w-4 h-4 text-slate-700" />
+            <Maximize2 className="w-4 h-4 text-white" />
           </button>
         </div>
 
@@ -443,19 +533,22 @@ export default function TabUbicacion({
     {/* ============================================================ */}
     {/* POPUP FULLSCREEN DEL MAPA — portal a body para estar por encima de todo */}
     {/* ============================================================ */}
-    {mapaFullscreen && createPortal(
-      <div
-        className="fixed inset-0 z-[99999] bg-slate-900/80 flex items-center justify-center p-4 lg:p-8"
-        onClick={() => setMapaFullscreen(false)}
-        data-testid="mapa-fullscreen-overlay-ubicacion"
-      >
-        <div
-          className="relative w-full h-full max-w-6xl max-h-[95vh] rounded-2xl overflow-hidden shadow-2xl bg-white flex flex-col"
-          onClick={(e) => e.stopPropagation()}
+    {mapaFullscreen && (
+      esMobile ? (
+        /* MÓVIL: ModalBottom (bottom sheet) */
+        <ModalBottom
+          abierto={mapaFullscreen}
+          onCerrar={() => setMapaFullscreen(false)}
+          mostrarHeader={false}
+          headerOscuro
+          sinScrollInterno
+          alturaMaxima="xl"
+          className="h-[90vh]!"
+          zIndice="z-[9999]"
         >
-          {/* Header del popup */}
+          {/* Header */}
           <div
-            className="shrink-0 px-4 py-3 flex items-center gap-3"
+            className="shrink-0 px-4 pt-8 pb-3 flex items-center gap-3"
             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
           >
             <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
@@ -467,36 +560,55 @@ export default function TabUbicacion({
                 Arrastra el marcador o toca el mapa para ajustar la ubicación
               </p>
             </div>
-            <button
-              type="button"
-              onClick={() => setMapaFullscreen(false)}
-              className="shrink-0 w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors"
-              title="Cerrar"
-              data-testid="btn-cerrar-mapa-fullscreen-ubicacion"
-            >
-              <X className="w-5 h-5 text-white" />
-            </button>
           </div>
-
-          {/* Mapa a pantalla completa */}
+          {/* Mapa */}
           <div className="flex-1 min-h-0 relative">
-            <Mapa
-              ref={mapFullscreenRef}
-              initialViewState={{ longitude: longitudActual, latitude: latitudActual, zoom: 16 }}
-              onClick={handleClicMapa}
-              style={{ height: '100%', width: '100%' }}
-            >
-              <NavigationControl showCompass={false} position="top-left" />
-              <MarcadorArrastrable
-                lat={latitudActual}
-                lng={longitudActual}
-                onMover={handleMoverMarcador}
-              />
-            </Mapa>
+            {contenidoMapaFullscreen}
           </div>
-        </div>
-      </div>,
-      document.body
+        </ModalBottom>
+      ) : createPortal(
+        /* DESKTOP: modal centrado */
+        <div
+          className="fixed inset-0 z-[99999] bg-slate-900/80 flex items-center justify-center p-8"
+          onClick={() => setMapaFullscreen(false)}
+          data-testid="mapa-fullscreen-overlay-ubicacion"
+        >
+          <div
+            className="relative w-full h-full max-w-6xl max-h-[95vh] rounded-2xl overflow-hidden shadow-2xl bg-white flex flex-col"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header del popup */}
+            <div
+              className="shrink-0 px-4 py-3 flex items-center gap-3"
+              style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
+            >
+              <div className="w-9 h-9 rounded-lg bg-white/10 flex items-center justify-center shrink-0">
+                <MapPin className="w-5 h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h3 className="text-base font-bold text-white">Ajustar ubicación</h3>
+                <p className="text-xs text-white/70 font-medium truncate">
+                  Arrastra el marcador o toca el mapa para ajustar la ubicación
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setMapaFullscreen(false)}
+                className="shrink-0 w-9 h-9 rounded-lg bg-white/10 hover:bg-white/20 flex items-center justify-center cursor-pointer transition-colors"
+                title="Cerrar"
+                data-testid="btn-cerrar-mapa-fullscreen-ubicacion"
+              >
+                <X className="w-5 h-5 text-white" />
+              </button>
+            </div>
+            {/* Mapa a pantalla completa */}
+            <div className="flex-1 min-h-0 relative">
+              {contenidoMapaFullscreen}
+            </div>
+          </div>
+        </div>,
+        document.body
+      )
     )}
     </>
   );

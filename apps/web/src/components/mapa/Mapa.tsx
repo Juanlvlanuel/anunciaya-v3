@@ -42,17 +42,36 @@ const TASA_ZOOM_RUEDA = 1 / 200;
  * sobreescribe si alguna vista necesitara otro estilo.
  */
 export const Mapa: ForwardRefExoticComponent<MapProps & RefAttributes<MapRef>> = forwardRef(
-    function Mapa({ mapStyle, onLoad, ...props }, ref) {
+    function Mapa({ mapStyle, onLoad, attributionControl, ...props }, ref) {
         // Calibrar el zoom con rueda (igual que el Leaflet anterior) y reenviar
         // el onLoad que pase el caller, si lo hubiera.
         const handleLoad = useCallback<NonNullable<MapProps['onLoad']>>(
             (e) => {
-                e.target.scrollZoom.setWheelZoomRate(TASA_ZOOM_RUEDA);
+                const map = e.target;
+                map.scrollZoom.setWheelZoomRate(TASA_ZOOM_RUEDA);
+                // Forzar que la atribución arranque COLAPSADA (solo el ícono ⓘ):
+                // maplibre a veces la muestra expandida por defecto. Al quitar
+                // `maplibregl-compact-show` queda como solo-ícono; el texto se
+                // despliega al hacer clic en el ⓘ.
+                map.getContainer()
+                    .querySelectorAll('.maplibregl-ctrl-attrib.maplibregl-compact-show')
+                    .forEach((el) => el.classList.remove('maplibregl-compact-show'));
                 onLoad?.(e);
             },
             [onLoad],
         );
-        return <Map ref={ref} mapStyle={mapStyle ?? ESTILO_MAPA} onLoad={handleLoad} {...props} />;
+        return (
+            <Map
+                ref={ref}
+                mapStyle={mapStyle ?? ESTILO_MAPA}
+                onLoad={handleLoad}
+                // Atribución COMPACTA por defecto (solo el ícono "ⓘ", el texto se
+                // despliega al hacer clic). Un caller puede pasar `false` para
+                // ocultarla del todo. `??` respeta ese `false`.
+                attributionControl={attributionControl ?? { compact: true }}
+                {...props}
+            />
+        );
     },
 );
 

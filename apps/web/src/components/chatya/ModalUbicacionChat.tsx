@@ -124,11 +124,11 @@ export function ModalUbicacionChat({ abierto, onCerrar, onEnviar }: ModalUbicaci
   const posicionInicial = useRef<[number, number] | null>(null);
   const mapaRef = useRef<MapRef | null>(null);
 
-  // Recentrar el mapa cuando cambia la posición (GPS inicial, drag o "volver a GPS").
-  // Reemplaza al antiguo sub-componente CentrarMapa (que usaba useMapEvents).
-  useEffect(() => {
-    mapaRef.current?.jumpTo({ center: [posicion[1], posicion[0]] });
-  }, [posicion]);
+  // El centrado inicial en el GPS lo da `initialViewState` (el mapa solo se monta
+  // cuando estadoGPS === 'listo', con `posicion` ya en las coords del GPS). NO
+  // recentramos al cambiar `posicion` para que al arrastrar el pin el mapa se
+  // quede quieto y el marcador permanezca donde se soltó. El botón "volver a
+  // GPS" recentra de forma imperativa (ver `volverAGPS`).
 
   // ── Obtener GPS al abrir ──
   useEffect(() => {
@@ -183,12 +183,17 @@ export function ModalUbicacionChat({ abierto, onCerrar, onEnviar }: ModalUbicaci
   const handleDragEnd = useCallback((lat: number, lng: number) => {
     setPosicion([lat, lng]);
     obtenerDireccion(lat, lng);
+    // Recentrar suave al soltar el pin (easeTo anima el paneo, sin teletransporte).
+    mapaRef.current?.easeTo({ center: [lng, lat], duration: 500 });
   }, [obtenerDireccion]);
 
   const volverAGPS = useCallback(() => {
     if (!posicionInicial.current) return;
+    const [lat, lng] = posicionInicial.current;
     setPosicion(posicionInicial.current);
-    obtenerDireccion(posicionInicial.current[0], posicionInicial.current[1]);
+    obtenerDireccion(lat, lng);
+    // Recentrar el mapa explícitamente (el drag ya no recentra).
+    mapaRef.current?.jumpTo({ center: [lng, lat], zoom: 16 });
   }, [obtenerDireccion]);
 
   const handleEnviar = useCallback(async () => {
