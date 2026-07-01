@@ -238,7 +238,7 @@
 - Comisiones: alta (al firmar) + recurrente **monto fijo** por negocio activo, escalera de escalones, recálculo mensual. "Activo" = membresía al corriente. Atribución de por vida, pago se gana mes a mes.
 - Estados de membresía (4): al_corriente / en_gracia / suspendido / cancelado.
 
-**Demo de Business Studio:** demo maestro (cuenta comercial marcada, administrada por SuperAdmin con BS normal) + copia privada por sesión de vendedor (respeta el 1:1 negocio-dueño).
+**Demo de Business Studio ✅ (construido jun 2026, QA en dev OK):** demo maestro curado (`demo_tipo='maestro'`, sembrado con `apps/api/src/scripts/seedDemoMaestro.ts`: catálogo + ofertas + puntos + 90 días de actividad simulada) + **copia privada persistente por vendedor** (clonado completo por lote + botón "Reiniciar demo"). El vendedor abre "Demo BS" desde el Panel y entra a **BS embebido** (overlay/iframe) impersonando un **usuario-sombra** dueño de su copia (handoff token en Redis → `/auth/demo/canjear-handoff`), sin tocar su propio `negocio_id`. Respeta el 1:1 negocio-dueño; los demos se ocultan del directorio público (`es_demo`). Doc: `docs/arquitectura/Demo_Business_Studio.md`.
 
 **Vendedores v2 (diseñado, construcción diferida):** mapa de territorios — gerente dibuja zonas a mano, vendedor ve su cartera + prospectos, mini-CRM. PostGIS + MapLibre.
 

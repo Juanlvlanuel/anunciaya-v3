@@ -12,6 +12,7 @@ import { Sun, Moon } from 'lucide-react';
 import { iconoDeSeccion } from '../../config/iconosPanel';
 import { SelectorRegion } from './SelectorRegion';
 import { BandejaPendientes } from './BandejaPendientes';
+import { BotonDemoBS } from '../demo/BotonDemoBS';
 import type { RolPanel } from '../../data/menuPanel';
 import type { Tema } from '../../utils/tema';
 
@@ -59,6 +60,7 @@ export function EncabezadoEscritorio({
 
       {/* Herramientas */}
       <div className="flex items-center gap-3">
+        <BotonDemoBS />
         <SelectorRegion rol={rol} regionActivaId={regionActivaId} onCambiar={onCambiarRegion} />
         <span className="mx-1 h-[46px] w-0.5 shrink-0 rounded bg-linear-to-b from-transparent via-white/55 to-transparent" />
         <button

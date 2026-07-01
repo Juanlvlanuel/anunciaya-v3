@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useAuthStore, esModoDemo } from '../stores/useAuthStore';
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { notificar } from '../utils/notificaciones';
 import { esTokenExpirado } from '../utils/tokenUtils';
@@ -34,10 +34,14 @@ export function RutaPrivada({ children }: RutaPrivadaProps) {
   const cargando = esScanYA ? cargandoSY : cargandoAY;
   const hidratado = esScanYA ? hidratadoSY : hidratadoAY;
 
-  // Verificar tokens en storage
+  // Verificar tokens en el storage ACTIVO. El Demo de Business Studio corre embebido y guarda su
+  // sesión en sessionStorage (no localStorage); si leyéramos localStorage aquí, veríamos "sin token",
+  // concluiríamos "sesión expirada" y expulsaríamos el demo aunque sus tokens estén vivos.
+  const enDemo = esModoDemo();
+  const storageAuth = enDemo ? sessionStorage : localStorage;
   const prefijoStorage = esScanYA ? 'sy_' : 'ay_';
-  const tokenEnStorage = localStorage.getItem(`${prefijoStorage}access_token`);
-  const refreshTokenEnStorage = localStorage.getItem(`${prefijoStorage}refresh_token`);
+  const tokenEnStorage = storageAuth.getItem(`${prefijoStorage}access_token`);
+  const refreshTokenEnStorage = storageAuth.getItem(`${prefijoStorage}refresh_token`);
   const isAuthenticated = (!!usuario && !!accessToken) || !!tokenEnStorage;
 
 
@@ -50,6 +54,9 @@ export function RutaPrivada({ children }: RutaPrivadaProps) {
   useEffect(() => {
     const verificarYRedirigir = async () => {
       if (hidratado && !cargando) {
+        // Demo embebido: la sesión se autoriza por el usuario en memoria (handoff), no por el storage.
+        // Nunca expulsar ni redirigir dentro del iframe del demo (defensa en profundidad).
+        if (esModoDemo()) return;
         // Si no está autenticado O ambos tokens expiraron
         if (!isAuthenticated || tokensExpirados) {
           // Si los tokens expiraron, mostrar modal primero y hacer logout

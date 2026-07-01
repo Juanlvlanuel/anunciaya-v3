@@ -121,6 +121,7 @@ export async function obtenerSugerenciasOfertas(
                   AND s.activa = true
                   AND n.es_borrador = false
                   AND n.onboarding_completado = true
+                  AND n.es_demo = false
                   AND CURRENT_DATE >= DATE(o.fecha_inicio)
                   AND CURRENT_DATE <= DATE(o.fecha_fin)
                   AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
@@ -283,6 +284,7 @@ export async function buscarOfertas(
         sql`s.activa = true`,
         sql`n.es_borrador = false`,
         sql`n.onboarding_completado = true`,
+        sql`n.es_demo = false`,
         sql`CURRENT_DATE >= DATE(o.fecha_inicio)`,
         sql`CURRENT_DATE <= DATE(o.fecha_fin)`,
         sql`(o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)`,

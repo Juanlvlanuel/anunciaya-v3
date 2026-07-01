@@ -35,6 +35,7 @@ import configuracionRoutes from './configuracion.routes.js';
 import ciudadesRoutes from './ciudades.routes.js';
 import categoriasRoutes from './categorias.routes.js';
 import territoriosRoutes from './territorios.routes.js';
+import demoBusinessStudioRoutes from './demoBusinessStudio.routes.js';
 
 const router: Router = Router();
 
@@ -88,6 +89,11 @@ router.use('/vendedores', vendedoresRoutes);
 // ANTES del gate global de superadmin: la sección (mapa de zonas) la usan los 3 roles
 // (el vendedor solo ve su pedazo asignado; el gerente su región). Cada ruta trae su requierePanel.
 router.use('/territorios', territoriosRoutes);
+
+// ─── Demo de Business Studio (superadmin + gerente + vendedor) ────────────────────
+// ANTES del gate global de superadmin: el vendedor abre su copia del demo para mostrar BS a
+// prospectos; cada ruta trae su propio requierePanel con los 3 roles. Ver Demo_Business_Studio.md.
+router.use('/demo-bs', demoBusinessStudioRoutes);
 
 // ─── Recibos (superadmin + gerente + vendedor · alcance por rol) ─────────────────
 // ANTES del gate global de superadmin: los 3 roles consultan recibos (el vendedor solo los de sus

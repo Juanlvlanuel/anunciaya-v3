@@ -8,6 +8,25 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [30 Junio 2026] - Demo de Business Studio para vendedores 🎬
+
+Herramienta para que los **vendedores** muestren Business Studio a comerciantes prospecto sin arriesgar datos reales. **NO reconstruye BS**: reusa el BS de siempre apuntándolo a un negocio de demostración con vida. Construido y con QA en dev OK (probado por Juan: entrar, navegar módulos, crear producto/oferta, aislamiento entre cuentas, "Reiniciar demo"). `tsc` verde en api/web/admin. Doc: `docs/arquitectura/Demo_Business_Studio.md`. **Pendiente:** correr el seed + `VITE_WEB_URL` en prod.
+
+### Agregado
+
+- **Demo maestro** (`negocios.demo_tipo='maestro'`, `es_demo=true`, oculto del público): negocio curado con perfil, catálogo, ofertas, recompensas, puntos **y ~90 días de actividad simulada** (clientes, ventas, opiniones, canjes). Se siembra idempotente con `apps/api/src/scripts/seedDemoMaestro.ts`.
+- **Copia privada persistente por vendedor** (`demo_tipo='copia'`, `demo_vendedor_id`, unique parcial → 1 por vendedor): al abrir el demo se clona el maestro completo (**inserts por lote** para no exceder el timeout); botón **"Reiniciar demo"** que borra y regenera fresca. Service `apps/api/src/services/demoBusinessStudio.service.ts`.
+- **Puente Panel → BS embebido:** botón "Demo BS" en el shell del Panel (`apps/admin`, escritorio + móvil) → **overlay/iframe** a pantalla completa con barrita "Salir / Reiniciar". El vendedor entra impersonando un **usuario-sombra** dueño de su copia vía **handoff token** (Redis, 1 uso, TTL 2 min) → `POST /auth/demo/canjear-handoff`; nunca se toca el `negocio_id` real del vendedor. Endpoints `POST/GET /api/admin/demo-bs/{abrir,reiniciar,estado}`.
+- **Aislamiento de sesión del demo:** la app web corre embebida en el mismo origen; su sesión vive en **`sessionStorage`** (aislada por iframe, no comparte ni pisa la sesión real) y no conecta socket/notificaciones. Detección centralizada `esModoDemo()` en `useAuthStore`.
+
+### Cambiado
+
+- 4 columnas nuevas en `negocios` (`es_demo`, `demo_tipo`, `demo_vendedor_id`, `demo_maestro_id`) — migración `2026-06-30-demo-business-studio.sql` (dev+prod).
+- Las queries públicas ocultan los demos (`es_demo = false`), **con excepción del dueño** en las que también alimentan su perfil/preview (`obtenerPerfilSucursal`, `obtenerFeedOfertas`): `OR n.usuario_id = ${userId}`.
+- `RutaPrivada`, `api.ts` (401) y el sistema de inactividad respetan el modo demo para no expulsar la sesión embebida. Carpeta R2 `demo/` protegida en `imageRegistry`.
+
+---
+
 ## [30 Junio 2026] - Mapas: migración `apps/web` de Leaflet → MapLibre (react-map-gl) 🗺️
 
 `apps/web` quedó migrado de `react-leaflet` (tiles raster OpenStreetMap) a **MapLibre GL** vía **`react-map-gl@8`**, con los mismos tiles vectoriales **OpenFreeMap** (`liberty`, sin API key) que ya usaba el Panel. El stack de mapas del proyecto queda **unificado**. `tsc` + `vite build` verdes, ESLint 0 errores. Doc: `docs/arquitectura/Migracion_MapLibre.md`. **Pendiente QA visual a mano.**

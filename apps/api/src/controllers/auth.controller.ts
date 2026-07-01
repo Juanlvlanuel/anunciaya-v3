@@ -65,6 +65,7 @@ import {
   solicitarCambioCorreo,
   confirmarCambioCorreo,
   eliminarCuenta,
+  canjearHandoffDemo,
 } from '../services/auth.service.js';
 import { actualizarRegistroPendiente } from '../utils/tokenStore.js';
 
@@ -1107,6 +1108,34 @@ export async function cambiarModoController(
       success: false,
       message: 'Error al cambiar modo de cuenta',
     });
+  }
+}
+
+/**
+ * POST /api/auth/demo/canjear-handoff
+ * Canjea el handoff token del Demo de Business Studio por una sesión de impersonación (PÚBLICA:
+ * el token es la autorización). Devuelve { usuario, accessToken, refreshToken } como el login.
+ */
+export async function canjearHandoffDemoController(
+  req: Request,
+  res: Response
+): Promise<void> {
+  try {
+    const { handoffToken } = req.body ?? {};
+    if (!handoffToken || typeof handoffToken !== 'string') {
+      res.status(400).json({ success: false, message: 'Falta el enlace del demo' });
+      return;
+    }
+    const resultado = await canjearHandoffDemo(handoffToken);
+    res.status(resultado.code || 200).json({
+      success: resultado.success,
+      message: resultado.message,
+      data: resultado.data,
+      errorCode: resultado.errorCode,
+    });
+  } catch (error) {
+    console.error('❌ Error en canjearHandoffDemoController:', error);
+    res.status(500).json({ success: false, message: 'No se pudo abrir el demo' });
   }
 }
 

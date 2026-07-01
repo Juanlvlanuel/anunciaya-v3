@@ -402,7 +402,8 @@ export async function listarSucursalesCercanas(
               AND s.activa = true
               AND n.es_borrador = false
               AND n.onboarding_completado = true
-              
+              AND n.es_demo = false
+
               -- Filtro por distancia (PostGIS)
               ${latitud && longitud ? sql`
                 AND ST_DWithin(
@@ -750,6 +751,8 @@ export async function obtenerPerfilSucursal(
               AND n.activo = true
               AND n.es_borrador = false
               AND n.onboarding_completado = true
+              -- Los negocios demo se ocultan del público, pero su propio dueño (BS "Mi Perfil") sí los ve.
+              AND (n.es_demo = false OR ${userId ? sql`n.usuario_id = ${userId}` : sql`FALSE`})
 
             LIMIT 1
         `;

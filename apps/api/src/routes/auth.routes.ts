@@ -38,6 +38,7 @@ import {
   solicitarCambioCorreoController,
   confirmarCambioCorreoController,
   eliminarCuentaController,
+  canjearHandoffDemoController,
 } from '../controllers/auth.controller.js';
 import { verificarToken } from '../middleware/auth.js';
 import { limitadorVerificacionCorreo } from '../middleware/rateLimiter.js';
@@ -81,6 +82,10 @@ router.post('/google', googleAuth);
 
 // POST /api/auth/2fa/verificar - Verificar código 2FA (durante login)
 router.post('/2fa/verificar', verificar2faController);
+
+// POST /api/auth/demo/canjear-handoff - Canjea el handoff token del Demo de Business Studio por
+// una sesión de impersonación (el token efímero es la autorización; la generó el Panel). PÚBLICA.
+router.post('/demo/canjear-handoff', canjearHandoffDemoController);
 
 // =============================================================================
 // RUTAS PROTEGIDAS (requieren autenticación)

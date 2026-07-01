@@ -11,6 +11,7 @@
 
 import { BandejaPendientes } from './BandejaPendientes';
 import { SelectorRegion } from './SelectorRegion';
+import { BotonDemoBS } from '../demo/BotonDemoBS';
 import type { RolPanel } from '../../data/menuPanel';
 
 const LOGO_OSCURO = '/logo-anunciaya-azul.webp';
@@ -27,6 +28,7 @@ export function EncabezadoMovil({ rol, regionActivaId, onCambiarRegion }: Encabe
       <img src={LOGO_OSCURO} alt="AnunciaYA" className="h-[42px] w-auto" />
       <div className="flex-1" />
       <div className="flex items-center gap-4">
+        <BotonDemoBS />
         <BandejaPendientes rol={rol} variante="movil" />
         {/* Selector de region solo para superadmin; gerente/vendedor no cambian de region. */}
         {rol === 'superadmin' && (

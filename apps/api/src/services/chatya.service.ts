@@ -3819,6 +3819,7 @@ export async function buscarNegocios(
 
             WHERE n.activo = true
               AND n.onboarding_completado = true
+              AND n.es_demo = false
               AND s.activa = true
               AND s.ubicacion IS NOT NULL
               AND cd.nombre ILIKE ${ciudad}

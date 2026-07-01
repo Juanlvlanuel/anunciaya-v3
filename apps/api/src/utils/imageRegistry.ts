@@ -46,6 +46,7 @@ export interface ImageField {
 export const CARPETAS_PROTEGIDAS = new Set<string>([
     'brand',     // Logos y assets de la marca AnunciaYA (subidos por el equipo)
     'recibos',   // Recibos PDF de pago de membresía (documentos permanentes; no se referencian en BD)
+    'demo',      // Assets curados del Demo de Business Studio (compartidos por maestro y copias)
     // Agregar aquí según aparezcan: 'templates', 'static', 'email-assets', etc.
 ]);
 

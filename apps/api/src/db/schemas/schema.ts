@@ -236,6 +236,14 @@ export const negocios = pgTable("negocios", {
 	// (activo/suspendido/archivado) es la RAZÓN — la visibilidad efectiva la da `activo`.
 	metodoCobro: varchar("metodo_cobro", { length: 20 }).default('tarjeta').notNull(),
 	estadoAdmin: varchar("estado_admin", { length: 20 }).default('activo').notNull(),
+	// Demo de Business Studio (ver docs/arquitectura/Demo_Business_Studio.md). `es_demo` excluye
+	// al negocio del directorio público SIN apagar `activo` (BS necesita activo=true). `demo_tipo`
+	// distingue el maestro curado (uno) de las copias privadas (una por vendedor). El dueño de una
+	// copia es un usuario-sombra; el vendedor entra por impersonación, no por su propio negocio_id.
+	esDemo: boolean("es_demo").default(false).notNull(),
+	demoTipo: varchar("demo_tipo", { length: 10 }),
+	demoVendedorId: uuid("demo_vendedor_id").references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
+	demoMaestroId: uuid("demo_maestro_id").references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
 }, (table) => [
 	index("idx_negocios_activo").using("btree", table.activo.asc().nullsLast()),
 	index("idx_negocios_embajador").using("btree", table.embajadorId.asc().nullsLast()).where(sql`(embajador_id IS NOT NULL)`),
@@ -258,6 +266,10 @@ export const negocios = pgTable("negocios", {
 	check("negocios_metodo_cobro_check", sql`(metodo_cobro)::text = ANY ((ARRAY['tarjeta'::character varying, 'manual'::character varying])::text[])`),
 	check("negocios_estado_admin_check", sql`(estado_admin)::text = ANY ((ARRAY['activo'::character varying, 'suspendido'::character varying, 'archivado'::character varying])::text[])`),
 	index("idx_negocios_estado_admin").using("btree", table.estadoAdmin.asc().nullsLast()),
+	// Demo de Business Studio: excluir demos del público + garantizar 1 copia por vendedor.
+	check("negocios_demo_tipo_check", sql`demo_tipo IS NULL OR demo_tipo IN ('maestro', 'copia')`),
+	index("idx_negocios_es_demo").using("btree", table.esDemo.asc().nullsLast()).where(sql`(es_demo = true)`),
+	uniqueIndex("uniq_negocios_demo_vendedor").using("btree", table.demoVendedorId.asc().nullsLast()).where(sql`(demo_tipo = 'copia')`),
 ]);
 
 // Bitácora de acciones sensibles del Panel Admin (suspender, reactivar, reasignar,

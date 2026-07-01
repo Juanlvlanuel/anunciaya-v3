@@ -304,6 +304,9 @@ export async function obtenerFeedOfertas(
           AND s.activa = true
           AND n.es_borrador = false
           AND n.onboarding_completado = true
+          -- Los demos se ocultan del feed público, pero su dueño (perfil/preview en BS con ?sucursalId)
+          -- sí ve sus ofertas. Mismo patrón que obtenerPerfilSucursal (negocios.service.ts).
+          AND (n.es_demo = false OR ${userId ? sql`n.usuario_id = ${userId}` : sql`FALSE`})
           AND DATE(${fechaLocal || sql`CURRENT_DATE`}) >= DATE(o.fecha_inicio)
           AND DATE(${fechaLocal || sql`CURRENT_DATE`}) <= DATE(o.fecha_fin)
           AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
@@ -1351,6 +1354,7 @@ export async function obtenerSucursalesDeOferta(
         AND n.activo = true
         AND n.es_borrador = false
         AND n.onboarding_completado = true
+        AND n.es_demo = false
         AND CURRENT_DATE >= DATE(o.fecha_inicio)
         AND CURRENT_DATE <= DATE(o.fecha_fin)
         AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)
@@ -2740,6 +2744,7 @@ export async function obtenerOfertaDestacadaDelDia(
             AND s.activa = true
             AND n.es_borrador = false
             AND n.onboarding_completado = true
+            AND n.es_demo = false
             AND CURRENT_DATE >= DATE(o.fecha_inicio)
             AND CURRENT_DATE <= DATE(o.fecha_fin)
             AND (o.limite_usos IS NULL OR o.usos_actuales < o.limite_usos)

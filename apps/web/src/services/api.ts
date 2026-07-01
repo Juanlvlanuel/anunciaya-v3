@@ -71,6 +71,22 @@ const RUTAS_LOGIN = [
   '/scanya/login-empleado',
 ];
 
+/**
+ * ¿La app corre embebida en el Demo de Business Studio? (ver docs/arquitectura/Demo_Business_Studio.md)
+ * En ese caso un 401 NO debe expulsar la sesión (modal "Sesión expirada" + logout + redirect a '/'):
+ * el demo es una sesión efímera embebida en un iframe; expulsar rompería la demostración. Igual que
+ * el manejo de "visitante sin sesión" en el perfil público, se rechaza el error en silencio.
+ */
+function enModoDemo(): boolean {
+  try {
+    if (sessionStorage.getItem('ay_demo_activo') === '1') return true;
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/business-studio/demo-entrada')) return true;
+  } catch {
+    // sessionStorage no disponible
+  }
+  return false;
+}
+
 // =============================================================================
 // CREAR INSTANCIA DE AXIOS
 // =============================================================================
@@ -317,6 +333,9 @@ api.interceptors.response.use(
         if (esRefreshScanYA) {
           useScanYAStore.getState().logout('sesion_expirada');
           window.location.href = '/scanya/login';
+        } else if (enModoDemo()) {
+          // Demo embebido: no expulsar por un 401 espurio.
+          return Promise.reject(error);
         } else {
           await notificar.sesionExpirada();
           useAuthStore.getState().logout('sesion_expirada');
@@ -454,12 +473,15 @@ api.interceptors.response.use(
         if (esScanYA) {
           useScanYAStore.getState().logout('sesion_expirada');
           window.location.href = '/scanya/login';
+        } else if (enModoDemo()) {
+          // Demo embebido: no expulsar por un 401 espurio (refresh fallido).
+          return Promise.reject(error);
         } else {
           await notificar.sesionExpirada();
           useAuthStore.getState().logout('sesion_expirada');
           window.location.href = '/';
         }
-        
+
         return Promise.reject(error);
       }
     }

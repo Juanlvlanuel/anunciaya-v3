@@ -163,40 +163,67 @@ let timerLogout: ReturnType<typeof setTimeout> | null = null;
 let intervalContador: ReturnType<typeof setInterval> | null = null;
 
 // =============================================================================
-// HELPERS DE LOCALSTORAGE
+// HELPERS DE STORAGE
 // =============================================================================
 
 /**
- * Guarda un valor en localStorage de forma segura
+ * Modo demo de Business Studio (ver docs/arquitectura/Demo_Business_Studio.md).
+ *
+ * Cuando la app corre EMBEBIDA en el iframe del demo (arrancó en /business-studio/demo-entrada),
+ * la sesión debe vivir AISLADA: usamos sessionStorage (propio de cada iframe/pestaña, no compartido
+ * con las demás pestañas del mismo origen y se descarta al cerrar). Así el demo NO hereda ni PISA la
+ * sesión real del usuario, que vive en localStorage. La marca se persiste en sessionStorage porque la
+ * ruta cambia a /business-studio tras canjear el handoff.
+ */
+export function esModoDemo(): boolean {
+  try {
+    if (sessionStorage.getItem('ay_demo_activo') === '1') return true;
+    if (typeof window !== 'undefined' && window.location.pathname.includes('/business-studio/demo-entrada')) {
+      sessionStorage.setItem('ay_demo_activo', '1');
+      return true;
+    }
+  } catch {
+    // sessionStorage no disponible: caemos a localStorage.
+  }
+  return false;
+}
+
+/** Storage activo según el contexto: sessionStorage (demo aislado) o localStorage (sesión normal). */
+function storageActivo(): Storage {
+  return esModoDemo() ? sessionStorage : localStorage;
+}
+
+/**
+ * Guarda un valor en el storage activo de forma segura
  */
 function guardarEnStorage(clave: string, valor: string): void {
   try {
-    localStorage.setItem(clave, valor);
+    storageActivo().setItem(clave, valor);
   } catch (error) {
-    console.warn('Error guardando en localStorage:', error);
+    console.warn('Error guardando en storage:', error);
   }
 }
 
 /**
- * Obtiene un valor de localStorage de forma segura
+ * Obtiene un valor del storage activo de forma segura
  */
 function obtenerDeStorage(clave: string): string | null {
   try {
-    return localStorage.getItem(clave);
+    return storageActivo().getItem(clave);
   } catch (error) {
-    console.warn('Error leyendo localStorage:', error);
+    console.warn('Error leyendo storage:', error);
     return null;
   }
 }
 
 /**
- * Elimina un valor de localStorage de forma segura
+ * Elimina un valor del storage activo de forma segura
  */
 function eliminarDeStorage(clave: string): void {
   try {
-    localStorage.removeItem(clave);
+    storageActivo().removeItem(clave);
   } catch (error) {
-    console.warn('Error eliminando de localStorage:', error);
+    console.warn('Error eliminando de storage:', error);
   }
 }
 
@@ -310,21 +337,26 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
     get()._iniciarTimerInactividad();
 
-    // Conectar Socket.io
-    conectarSocket();
+    // En modo demo (iframe embebido) NO conectamos socket ni cargamos notificaciones/chat: esos leen
+    // la identidad real desde localStorage y no aplican a la sesión aislada del demo. Los datos de BS
+    // se cargan por API (React Query) con el token del demo, así que el demo se ve completo igual.
+    if (!esModoDemo()) {
+      // Conectar Socket.io
+      conectarSocket();
 
-    // Cargar notificaciones
-    const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
-    cargarNotificaciones(usuario.modoActivo);
+      // Cargar notificaciones
+      const { cargarNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
+      cargarNotificaciones(usuario.modoActivo);
 
-    const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
-    registrarListenerNotificaciones();
+      const { registrarListenerNotificaciones } = await import('./useNotificacionesStore');
+      registrarListenerNotificaciones();
 
-    // Cargar badge de ChatYA (mensajes no leídos) y borradores del usuario
-    const chatYAModule = await import('./useChatYAStore');
-    const { cargarNoLeidos: cargarNoLeidosChat, cargarBorradores } = chatYAModule.useChatYAStore.getState();
-    cargarNoLeidosChat(usuario.modoActivo as 'personal' | 'comercial');
-    cargarBorradores();
+      // Cargar badge de ChatYA (mensajes no leídos) y borradores del usuario
+      const chatYAModule = await import('./useChatYAStore');
+      const { cargarNoLeidos: cargarNoLeidosChat, cargarBorradores } = chatYAModule.useChatYAStore.getState();
+      cargarNoLeidosChat(usuario.modoActivo as 'personal' | 'comercial');
+      cargarBorradores();
+    }
 
     // ========================================================================
     // CARGAR TOTAL DE SUCURSALES EN BACKGROUND (modo comercial)
@@ -875,6 +907,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Solo si está autenticado
     if (!state.usuario || !state.accessToken) return;
 
+    // El Demo de Business Studio es una sesión efímera embebida: no expira por inactividad.
+    if (esModoDemo()) return;
+
     // Registrar timestamp de última actividad
     guardarEnStorage(STORAGE_KEY_ULTIMA_ACTIVIDAD, String(Date.now()));
 
@@ -953,6 +988,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   _verificarInactividadAlRegresar: () => {
     const state = get();
     if (!state.usuario || !state.accessToken) return;
+
+    // El Demo de Business Studio no expira por inactividad (sesión efímera embebida).
+    if (esModoDemo()) return;
 
     const ultimaActividadStr = obtenerDeStorage(STORAGE_KEY_ULTIMA_ACTIVIDAD);
     if (!ultimaActividadStr) return;

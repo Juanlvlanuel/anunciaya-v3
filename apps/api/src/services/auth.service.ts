@@ -22,6 +22,7 @@ import { db } from '../db/index.js';
 import { redis } from '../db/redis.js';
 import { usuarios, usuarioCodigosRespaldo, negocios, ciudades } from '../db/schemas/schema.js';
 import { obtenerDatosNegocio, DatosNegocio } from './negocios.service.js';
+import { consumirHandoffDemo } from './demoBusinessStudio.service.js';
 import { estaFueraDeCirculacion, clasificarCirculacion, mensajeBloqueoModoComercial } from '../utils/estadoNegocio.js';
 import {
   enviarCodigoVerificacion,
@@ -3219,8 +3220,59 @@ export async function cambiarModo(
 }
 
 /**
+ * Canjea un handoff token del Demo de Business Studio (ver Demo_Business_Studio.md).
+ *
+ * El vendedor abrió su copia desde el Panel; ese endpoint generó un handoff token (Redis, un solo
+ * uso) atado al usuario-sombra dueño de la copia. Esta función lo canjea: firma JWT de impersonación
+ * apuntando al usuario-sombra, en modo comercial (dueño: sucursalAsignada=null). Devuelve la misma
+ * forma que el login para que la app web haga `loginExitoso(usuario, accessToken, refreshToken)`.
+ *
+ * Es PÚBLICA (no requiere sesión previa): el handoff token es la prueba de autorización, ya validada
+ * por requierePanel al generarlo.
+ */
+export async function canjearHandoffDemo(
+  handoffToken: string,
+): Promise<RespuestaServicio<{ usuario: UsuarioPublico; accessToken: string; refreshToken: string }>> {
+  if (!handoffToken) {
+    return { success: false, message: 'Falta el enlace del demo', code: 400, errorCode: 'HANDOFF_FALTANTE' };
+  }
+  const datos = await consumirHandoffDemo(handoffToken);
+  if (!datos) {
+    return { success: false, message: 'El enlace del demo es inválido o expiró', code: 401, errorCode: 'HANDOFF_INVALIDO' };
+  }
+
+  const [usuario] = await db.select().from(usuarios).where(eq(usuarios.id, datos.usuarioSombraId)).limit(1);
+  if (!usuario) {
+    return { success: false, message: 'La cuenta del demo no existe', code: 404, errorCode: 'DEMO_SIN_CUENTA' };
+  }
+
+  // JWT de impersonación: el usuario-sombra ES el dueño de la copia (sucursalAsignada=null).
+  const payloadToken: PayloadToken = {
+    usuarioId: usuario.id,
+    correo: usuario.correo,
+    perfil: usuario.perfil,
+    membresia: usuario.membresia,
+    modoActivo: 'comercial',
+    sucursalAsignada: null,
+    negocioUsuarioId: null,
+  };
+  const tokens = generarTokens(payloadToken);
+  await guardarSesion(usuario.id, tokens.refreshToken, null, null);
+
+  const datosNegocio = await obtenerDatosNegocio(usuario.negocioId);
+  const usuarioPublico = await usuarioAPublico(usuario, true, datosNegocio, datos.sucursalPrincipalId, undefined, null);
+
+  return {
+    success: true,
+    message: 'Demo de Business Studio abierto',
+    code: 200,
+    data: { usuario: usuarioPublico, accessToken: tokens.accessToken, refreshToken: tokens.refreshToken },
+  };
+}
+
+/**
  * Obtiene información sobre el modo actual del usuario
- * 
+ *
  * @param usuarioId - ID del usuario autenticado
  * @returns Información del modo actual
  */
