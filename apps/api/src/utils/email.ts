@@ -103,6 +103,40 @@ function plantillaVerificacion(nombre: string, codigo: string): string {
 }
 
 /**
+ * Genera el HTML para el email de CAMBIO de correo (confirmar la dirección nueva).
+ * Se envía al correo NUEVO; el copy deja claro que es un cambio de correo, no un registro.
+ * @param nombre - Nombre del usuario para personalizar
+ * @param codigo - Código de 6 dígitos
+ */
+function plantillaCambioCorreo(nombre: string, codigo: string): string {
+  const contenido = `
+    <p style="margin: 0 0 20px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Recibimos una solicitud para cambiar el correo de tu cuenta de AnunciaYA a esta direcci&oacute;n. Usa el siguiente c&oacute;digo para confirmar tu nuevo correo:
+    </p>
+
+    <div style="background-color: #e2e8f0; border: 1px solid #94a3b8; border-radius: 8px; padding: 24px; text-align: center; margin-bottom: 20px;">
+      <div style="font-family: 'Courier New', monospace; font-size: 32px; font-weight: 700; letter-spacing: 8px; color: #0f172a;">
+        ${codigo}
+      </div>
+      <p style="margin: 12px 0 0; font-size: 12px; color: #334155; text-transform: uppercase; letter-spacing: 1px; font-weight: 600;">
+        Expira en 15 minutos
+      </p>
+    </div>
+
+    <div style="border-left: 4px solid #d97706; background-color: #fef3c7; padding: 14px 18px; margin-bottom: 20px; border-radius: 0 4px 4px 0;">
+      <p style="margin: 0; font-size: 14px; line-height: 1.5; color: #78350f;">
+        <strong style="color: #451a03;">Importante:</strong> si no solicitaste este cambio, ignora este mensaje. Tu correo actual seguir&aacute; siendo el mismo.
+      </p>
+    </div>
+
+    <p style="margin: 0; font-size: 13px; color: #64748b;">
+      Por seguridad, nunca compartas este c&oacute;digo con nadie.
+    </p>`;
+
+  return plantillaBase(nombre, contenido);
+}
+
+/**
  * Genera el HTML para el email de recuperación de contraseña
  * @param nombre - Nombre del usuario para personalizar
  * @param codigo - Código de 6 dígitos
@@ -321,6 +355,22 @@ export async function reenviarCodigoVerificacion(
     correo,
     `${codigo} - Nuevo código de verificación de AnunciaYA`,
     plantillaVerificacion(nombre, codigo)
+  );
+}
+
+/**
+ * Envía el código para CONFIRMAR un cambio de correo. Se manda al correo NUEVO;
+ * el copy es de "cambio de correo" (no de registro).
+ */
+export async function enviarCodigoCambioCorreo(
+  correo: string,
+  nombre: string,
+  codigo: string
+): Promise<ResultadoEmail> {
+  return enviarEmail(
+    correo,
+    `${codigo} - Confirma tu nuevo correo en AnunciaYA`,
+    plantillaCambioCorreo(nombre, codigo)
   );
 }
 

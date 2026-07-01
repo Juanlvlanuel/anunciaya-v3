@@ -27,6 +27,7 @@ import { estaFueraDeCirculacion, clasificarCirculacion, mensajeBloqueoModoComerc
 import {
   enviarCodigoVerificacion,
   reenviarCodigoVerificacion,
+  enviarCodigoCambioCorreo,
   enviarCodigoRecuperacion,
   enviarCodigoCrearContrasena,
 } from '../utils/email.js';
@@ -1806,7 +1807,7 @@ export async function solicitarCambioCorreo(
     const payload: DatosCambioCorreo = { nuevoCorreo, codigo, intentos: 0 };
     await redis.set(`${PREFIJO_CAMBIO_CORREO}${usuarioId}`, JSON.stringify(payload), 'EX', TTL_CAMBIO_CORREO_SEG);
 
-    await enviarCodigoVerificacion(nuevoCorreo, usuario.nombre, codigo);
+    await enviarCodigoCambioCorreo(nuevoCorreo, usuario.nombre, codigo);
 
     return { success: true, message: 'Te enviamos un código a tu nuevo correo.', code: 200 };
   } catch (error) {
