@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, Check, Clock, ExternalLink, Loader2, Upload, XCircle } from 'lucide-react';
+import { Banknote, Check, Clock, ExternalLink, Info, Loader2, Upload, XCircle } from 'lucide-react';
 import { queryKeys } from '@/config/queryKeys';
 import {
     crearSolicitudPagoManual,
@@ -102,7 +102,10 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
     const hayDatos = !!datos && (datos.banco || datos.clabe || datos.cuenta || datos.tarjeta || datos.titular);
 
     const precioMensual = datos?.precioMensual ?? 0;
-    const total = meses ? meses * precioMensual : 0;
+    const precioAnual = datos?.precioAnual ?? 0;
+    // 12 meses = plan anual con descuento (2 meses gratis) si está activo; 1/3/6 meses = lineal.
+    const usaPrecioAnual = meses === 12 && precioAnual > 0;
+    const total = meses ? (usaPrecioAnual ? precioAnual : meses * precioMensual) : 0;
     const puedeEnviar = !!meses && total > 0 && !!r2Url && !isUploading && !enviando;
 
     async function enviar() {
@@ -228,41 +231,46 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                     <Loader2 className="w-5 h-5 animate-spin" />
                 </div>
             ) : hayDatos ? (
-                <div className="rounded-lg bg-slate-100 border border-slate-300 p-3 text-sm space-y-1">
-                    {datos!.banco && (
-                        <div className="flex justify-between gap-3">
-                            <span className="text-slate-600 font-medium">Banco</span>
-                            <span className="font-semibold text-slate-800 text-right">{datos!.banco}</span>
-                        </div>
-                    )}
-                    {datos!.titular && (
-                        <div className="flex justify-between gap-3">
-                            <span className="text-slate-600 font-medium">Titular</span>
-                            <span className="font-semibold text-slate-800 text-right">{datos!.titular}</span>
-                        </div>
-                    )}
-                    {datos!.clabe && (
-                        <div className="flex justify-between gap-3">
-                            <span className="text-slate-600 font-medium">CLABE</span>
-                            <span className="font-semibold text-slate-800 text-right tabular-nums">{datos!.clabe}</span>
-                        </div>
-                    )}
-                    {datos!.cuenta && (
-                        <div className="flex justify-between gap-3">
-                            <span className="text-slate-600 font-medium">Cuenta</span>
-                            <span className="font-semibold text-slate-800 text-right tabular-nums">{datos!.cuenta}</span>
-                        </div>
-                    )}
-                    {datos!.tarjeta && (
-                        <div className="flex justify-between gap-3">
-                            <span className="text-slate-600 font-medium">Tarjeta (OXXO)</span>
-                            <span className="font-semibold text-slate-800 text-right tabular-nums">
-                                {datos!.tarjeta.replace(/(.{4})/g, '$1 ').trim()}
-                            </span>
-                        </div>
-                    )}
+                <div className="space-y-2">
+                    <div className="rounded-lg bg-slate-100 border border-slate-300 p-3 text-sm space-y-1">
+                        {datos!.banco && (
+                            <div className="flex justify-between gap-3">
+                                <span className="text-slate-600 font-medium">Banco</span>
+                                <span className="font-semibold text-slate-800 text-right">{datos!.banco}</span>
+                            </div>
+                        )}
+                        {datos!.titular && (
+                            <div className="flex justify-between gap-3">
+                                <span className="text-slate-600 font-medium">Titular</span>
+                                <span className="font-semibold text-slate-800 text-right">{datos!.titular}</span>
+                            </div>
+                        )}
+                        {datos!.clabe && (
+                            <div className="flex justify-between gap-3">
+                                <span className="text-slate-600 font-medium">CLABE</span>
+                                <span className="font-semibold text-slate-800 text-right tabular-nums">{datos!.clabe}</span>
+                            </div>
+                        )}
+                        {datos!.cuenta && (
+                            <div className="flex justify-between gap-3">
+                                <span className="text-slate-600 font-medium">Cuenta</span>
+                                <span className="font-semibold text-slate-800 text-right tabular-nums">{datos!.cuenta}</span>
+                            </div>
+                        )}
+                        {datos!.tarjeta && (
+                            <div className="flex justify-between gap-3">
+                                <span className="text-slate-600 font-medium">Tarjeta (OXXO)</span>
+                                <span className="font-semibold text-slate-800 text-right tabular-nums">
+                                    {datos!.tarjeta.replace(/(.{4})/g, '$1 ').trim()}
+                                </span>
+                            </div>
+                        )}
+                    </div>
                     {datos!.instrucciones && (
-                        <p className="text-slate-600 font-medium pt-1 border-t border-slate-200 mt-1">{datos!.instrucciones}</p>
+                        <div className="flex gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
+                            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" strokeWidth={2} />
+                            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{datos!.instrucciones}</p>
+                        </div>
                     )}
                 </div>
             ) : (
@@ -297,7 +305,9 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
             <div className="flex items-center justify-between rounded-lg bg-slate-100 border border-slate-300 px-3 py-3">
                 <span className="text-sm font-medium text-slate-600">
                     {meses
-                        ? `${meses} ${meses === 1 ? 'mes' : 'meses'} × ${formatearMonto(precioMensual)}`
+                        ? usaPrecioAnual
+                            ? '12 meses (plan anual · 2 meses gratis)'
+                            : `${meses} ${meses === 1 ? 'mes' : 'meses'} × ${formatearMonto(precioMensual)}`
                         : 'Total a depositar'}
                 </span>
                 <span data-testid="pago-manual-total" className="text-lg font-bold text-slate-900">

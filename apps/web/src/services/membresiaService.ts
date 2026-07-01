@@ -121,8 +121,10 @@ export interface DatosCobro {
     cuenta: string;
     tarjeta: string;
     instrucciones: string;
-    /** Precio mensual de la membresía (MXN). El total a pagar = meses × este precio. */
+    /** Precio mensual de la membresía (MXN). Base para 1/3/6 meses (meses × este precio). */
     precioMensual: number;
+    /** Precio anual (MXN) con descuento (plan anual, 10 meses con 2 gratis). 0 si el plan anual está desactivado. */
+    precioAnual: number;
 }
 
 // =============================================================================

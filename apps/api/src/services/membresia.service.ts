@@ -460,15 +460,17 @@ export async function obtenerDatosCobro(): Promise<DatosCobro> {
 }
 
 /**
- * Datos de cobro + el precio mensual de la membresía (MXN). El dueño paga meses COMPLETOS, así que
- * el front calcula el total = meses × precioMensual (no es un monto libre).
+ * Datos de cobro + el precio mensual y anual de la membresía (MXN). El dueño paga meses COMPLETOS:
+ * 1/3/6 meses = meses × precioMensual; 12 meses = precioAnual (plan anual, 10 meses con 2 gratis)
+ * cuando el plan anual está activo (precioAnual > 0); si no, cae a 12 × precioMensual.
  */
-export async function obtenerDatosCobroConPrecio(): Promise<DatosCobro & { precioMensual: number }> {
-    const [datos, precioMensual] = await Promise.all([
+export async function obtenerDatosCobroConPrecio(): Promise<DatosCobro & { precioMensual: number; precioAnual: number }> {
+    const [datos, precioMensual, precioAnual] = await Promise.all([
         obtenerDatosCobro(),
         obtenerConfigNumero('precio_membresia_mxn', 849),
+        obtenerConfigNumero('precio_membresia_anual_mxn', 0),
     ]);
-    return { ...datos, precioMensual };
+    return { ...datos, precioMensual, precioAnual };
 }
 
 /** Presigned URL para subir el comprobante del pago manual a R2 (carpeta 'comprobantes'). */
