@@ -25,7 +25,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
-import { Package, User, LogOut } from 'lucide-react';
+import { Package, User, LogOut, Download } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -33,6 +33,7 @@ import {
   type ModoDrawer,
 } from '../../config/menuDrawerTokens';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { notificar } from '../../utils/notificaciones';
 
@@ -43,10 +44,13 @@ const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />
 interface ItemDrawer {
   id: string;
   label: string;
-  ruta: string;
+  /** Ruta de navegación. Omitir cuando el ítem ejecuta una acción (`onClick`). */
+  ruta?: string;
   icon: React.ElementType;
   /** Color del tile 36×36 (paridad visual con el drawer móvil). */
   tile: string;
+  /** Acción alternativa a navegar (ej. instalar la PWA). */
+  onClick?: () => void;
 }
 
 // Gradients extraídos de los headers de cada página de destino — el tile
@@ -284,6 +288,13 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
   const cambiarModo = useAuthStore((s) => s.cambiarModo);
   const logout = useAuthStore((s) => s.logout);
 
+  // PWA: instalación de la app principal (paridad con el drawer móvil).
+  const puedeInstalarApp = usePWAInstallStore((s) => s.puedeInstalar);
+  const esIOSInstalar = usePWAInstallStore((s) => s.esIOS);
+  const appInstalada = usePWAInstallStore((s) => s.instalada);
+  const instalarApp = usePWAInstallStore((s) => s.instalar);
+  const abrirInstruccionesIOS = usePWAInstallStore((s) => s.abrirInstruccionesIOS);
+
   const navigate = useNavigate();
   const location = useLocation();
   const navegarASeccion = useNavegarASeccion();
@@ -412,6 +423,28 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
     logout();
   };
 
+  const handleInstalarApp = () => {
+    onClose();
+    if (esIOSInstalar) {
+      abrirInstruccionesIOS();
+    } else {
+      void instalarApp();
+    }
+  };
+
+  // Lista final: agrega "Instalar app" cuando la instalación está disponible
+  // (Android/Chrome con prompt nativo o iOS con instructivo) y no está instalada.
+  const itemsFinal: ItemDrawer[] = [...items];
+  if ((puedeInstalarApp || esIOSInstalar) && !appInstalada) {
+    itemsFinal.push({
+      id: 'pwa',
+      label: 'Instalar app',
+      icon: Download,
+      tile: 'linear-gradient(135deg, #0f172a, #2563eb)',
+      onClick: handleInstalarApp,
+    });
+  }
+
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
@@ -516,7 +549,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
 
           {/* Lista */}
           <div className="dd-list">
-            {items.map((it, i) => {
+            {itemsFinal.map((it, i) => {
               const IconoFila = it.icon;
               return (
                 <button
@@ -525,7 +558,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
                   data-testid={`drawer-desktop-item-${it.id}`}
                   className="dd-row"
                   style={{ animationDelay: `${i * 40 + 60}ms` }}
-                  onClick={() => handleNavegar(it.ruta)}
+                  onClick={it.onClick ? it.onClick : () => handleNavegar(it.ruta!)}
                 >
                   <span className="dd-rowbar" />
                   <span className="dd-tile" style={{ background: it.tile }} aria-hidden="true">

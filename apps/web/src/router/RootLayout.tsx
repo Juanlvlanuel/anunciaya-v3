@@ -11,6 +11,7 @@ import { useEffect, useLayoutEffect, useRef } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { ModalLogin, ModalInactividad } from '../components/auth';
 import { ModalRateLimit } from '../components/ui/Banner429';
+import { BannerInstalarApp } from '../components/pwa/BannerInstalarApp';
 import { useAuthStore, iniciarDeteccionActividad } from '../stores/useAuthStore';
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { useGpsStore } from '../stores/useGpsStore';
@@ -320,6 +321,9 @@ export function RootLayout() {
 
       {/* Modal de Inactividad (global) */}
       <ModalInactividad />
+
+      {/* Banner de instalación de la PWA (global, se auto-oculta) */}
+      <BannerInstalarApp />
     </>
   );
 }

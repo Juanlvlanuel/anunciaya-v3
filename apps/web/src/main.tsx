@@ -6,6 +6,7 @@ import './config/i18n';
 import App from './App';
 import './index.css';
 import { iniciarSincronizacionTokens } from './stores/useAuthStore'; // ← AGREGAR ESTA LÍNEA
+import { inicializarPWAInstall } from './stores/usePWAInstallStore';
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 
@@ -14,6 +15,9 @@ const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 const esPreviewIframe = new URLSearchParams(window.location.search).has('preview');
 if (!esPreviewIframe) {
   iniciarSincronizacionTokens();
+  // Capturar `beforeinstallprompt` cuanto antes para poder ofrecer la
+  // instalación de la PWA principal (banner + ítem del menú).
+  inicializarPWAInstall();
 }
 
 // ==========================================

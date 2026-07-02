@@ -25,7 +25,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
-import { Lock, LogOut, Ticket, User } from 'lucide-react';
+import { Lock, LogOut, Ticket, User, Download } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -35,6 +35,7 @@ import {
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useUiStore } from '../../stores/useUiStore';
+import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { notificar } from '../../utils/notificaciones';
@@ -387,6 +388,13 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   const abrirModalUbicacion = useUiStore((s) => s.abrirModalUbicacion);
   const cerrarTodo = useUiStore((s) => s.cerrarTodo);
 
+  // PWA: instalación de la app principal (banner + este ítem del menú).
+  const puedeInstalarApp = usePWAInstallStore((s) => s.puedeInstalar);
+  const esIOSInstalar = usePWAInstallStore((s) => s.esIOS);
+  const appInstalada = usePWAInstallStore((s) => s.instalada);
+  const instalarApp = usePWAInstallStore((s) => s.instalar);
+  const abrirInstruccionesIOS = usePWAInstallStore((s) => s.abrirInstruccionesIOS);
+
   const navigate = useNavigate();
   const location = useLocation();
   const navegarASeccion = useNavegarASeccion();
@@ -527,6 +535,16 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
     logout();
   };
 
+  const handleInstalarApp = () => {
+    onClose();
+    if (esIOSInstalar) {
+      // iOS/Safari no tiene prompt nativo → abrir instructivo (Compartir → Agregar).
+      abrirInstruccionesIOS();
+    } else {
+      void instalarApp();
+    }
+  };
+
   const handleCambiarModo = async (nuevo: ModoDrawer) => {
     if (cambiandoModo) return;
     if (nuevo === modo) return;
@@ -640,6 +658,18 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
       perfilItem,
     ];
   })();
+
+  // Ítem "Instalar app": solo si la instalación está disponible (Android/Chrome
+  // con prompt nativo, o iOS con instructivo) y la app no corre ya instalada.
+  if ((puedeInstalarApp || esIOSInstalar) && !appInstalada) {
+    items.push({
+      id: 'pwa',
+      label: 'Instalar app',
+      tile: 'linear-gradient(135deg, #0f172a, #2563eb)',
+      icon: Download,
+      onClick: handleInstalarApp,
+    });
+  }
 
   // ---------------------------------------------------------------------------
   // Render
