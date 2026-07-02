@@ -51,39 +51,39 @@ export function BannerInstalarApp() {
 
   return (
     <>
-      {/* Banner flotante — libra el BottomNav en móvil, esquina inferior en desktop */}
+      {/* Banner flotante — pastilla delgada centrada ARRIBA, colgando justo bajo el
+          header (móvil y desktop). Deja libre la esquina inferior derecha para el FAB
+          de WhatsApp. */}
       {bannerVisible && (
       <div
-        className="fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom,0px)+84px)] z-[900] lg:inset-x-auto lg:right-6 lg:bottom-6 lg:max-w-sm"
+        className="fixed left-1/2 -translate-x-1/2 top-[calc(env(safe-area-inset-top,0px)+52px)] z-[900] max-w-[calc(100%-1.25rem)]"
         role="dialog"
         aria-label="Instalar AnunciaYA"
         data-testid="banner-instalar-app"
       >
-        <div className="flex items-center gap-3 rounded-2xl border border-slate-200 bg-white p-3 shadow-xl">
+        <div className="flex items-center gap-2.5 rounded-full bg-white py-1.5 pl-2 pr-1.5 shadow-[0_10px_28px_-6px_rgba(15,23,42,0.38)] ring-1 ring-blue-600/15">
           <img
             src="/icons/anunciaya-192.png"
-            alt="AnunciaYA"
-            className="h-11 w-11 shrink-0 rounded-xl"
+            alt=""
+            className="h-8 w-8 shrink-0 rounded-full"
           />
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-slate-900">Instala AnunciaYA</p>
-            <p className="truncate text-xs text-slate-500">
-              Acceso directo desde tu pantalla de inicio.
-            </p>
+          <div className="min-w-0">
+            <p className="truncate text-[13px] font-semibold leading-tight text-slate-900">Instala AnunciaYA</p>
+            <p className="hidden truncate text-[11px] leading-tight text-slate-500 lg:block">Acceso directo desde tu inicio</p>
           </div>
           <button
             type="button"
             onClick={handleInstalar}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 lg:cursor-pointer"
+            className="ml-1 flex shrink-0 items-center gap-1 rounded-full bg-blue-600 px-3 py-1.5 text-[12px] font-semibold text-white transition-colors hover:bg-blue-700 lg:cursor-pointer"
             data-testid="banner-instalar-boton"
           >
-            <Download className="h-4 w-4" strokeWidth={2} />
+            <Download className="h-3.5 w-3.5" strokeWidth={2.25} />
             {esIOS ? 'Ver cómo' : 'Instalar'}
           </button>
           <button
             type="button"
             onClick={descartarBanner}
-            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 lg:cursor-pointer"
+            className="shrink-0 rounded-full p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 lg:cursor-pointer"
             aria-label="Descartar"
             data-testid="banner-instalar-cerrar"
           >

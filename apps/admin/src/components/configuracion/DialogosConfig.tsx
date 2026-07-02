@@ -189,6 +189,90 @@ export function DialogoEditarNumero({
 }
 
 // =============================================================================
+// EDITAR UN TEXTO (ej. WhatsApp de contacto)
+// =============================================================================
+
+export function DialogoEditarTexto({
+  fila,
+  Icono,
+  onCerrar,
+}: {
+  fila: ConfigFila;
+  Icono: ComponentType<LucideProps>;
+  onCerrar: () => void;
+}) {
+  const guardar = useActualizarConfiguracion();
+  const [valor, setValor] = useState(fila.valor);
+
+  const texto = valor.trim();
+  // Para un teléfono, exigimos al menos algunos dígitos (el front del inicio normaliza a solo dígitos).
+  const digitos = texto.replace(/\D/g, '');
+  const valido =
+    texto !== '' &&
+    (fila.max === null || texto.length <= fila.max) &&
+    digitos.length >= 8;
+  const cambiado = texto !== fila.valor;
+  const puedeGuardar = valido && cambiado && !guardar.isPending;
+
+  const enviar = () => {
+    if (!puedeGuardar) return;
+    guardar.mutate({ clave: fila.clave, valor: texto }, { onSuccess: onCerrar });
+  };
+
+  return (
+    <ModalAdaptativo
+      abierto
+      onCerrar={onCerrar}
+      titulo={fila.etiqueta}
+      iconoTitulo={<span className="grid h-8 w-8 place-items-center rounded-[9px] bg-marca-suave text-marca"><Icono size={16} /></span>}
+      ancho="sm"
+      discriminador="config-texto"
+    >
+      <div className="p-5" data-testid="dialogo-config-texto">
+        <p className="text-[13px] leading-relaxed text-texto-3">{fila.descripcion}</p>
+
+        {/* Valor actual (referencia) */}
+        <div className="mt-4 mb-4 flex items-center justify-between rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
+          <span className="text-[13px] text-texto-3">Valor actual</span>
+          <span className="text-[14px] font-semibold text-texto">{fila.valor}</span>
+        </div>
+
+        {/* Nuevo valor */}
+        <label className={LABEL}>Nuevo valor</label>
+        <input
+          type="tel"
+          autoFocus
+          data-testid="config-texto-input"
+          value={valor}
+          maxLength={fila.max ?? 40}
+          onChange={(e) => setValor(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && enviar()}
+          className="w-full rounded-[10px] border border-campo-borde bg-campo px-3.5 py-2.5 text-[16px] font-semibold text-texto outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
+        />
+
+        <p className="mt-1.5 text-[11.5px] text-texto-4">
+          Incluye la lada del país. Ejemplo: +52 638 125 9076.
+        </p>
+        {texto !== '' && !valido && (
+          <p className="mt-1 text-[12px] font-medium text-peligro">
+            Escribe un número válido (con lada, al menos 8 dígitos).
+          </p>
+        )}
+      </div>
+
+      <div className="flex items-center justify-end gap-2 border-t border-borde bg-superficie-2 px-5 py-3.5">
+        <button type="button" data-testid="config-texto-cancelar" onClick={onCerrar} disabled={guardar.isPending} className={BTN_CANCELAR}>
+          Cancelar
+        </button>
+        <button type="button" data-testid="config-texto-guardar" onClick={enviar} disabled={!puedeGuardar} className={BTN_GUARDAR}>
+          {guardar.isPending ? 'Guardando…' : 'Guardar'}
+        </button>
+      </div>
+    </ModalAdaptativo>
+  );
+}
+
+// =============================================================================
 // EDITAR LA ESCALERA (tramos)
 // =============================================================================
 

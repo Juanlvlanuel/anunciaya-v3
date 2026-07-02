@@ -33,9 +33,10 @@ export interface TramoEscalera {
 }
 
 /** Tipos de valor soportados en la UI de Configuración (subconjunto de configuracion_sistema.tipo).
- *  'json' = escalera de comisiones · 'tramos_ciudades' = multiplicador por #ciudades · 'periodos_meses' =
- *  meses pagables por adelantado + descuento, ambos de Publicidad. */
-export type TipoConfig = 'numero' | 'json' | 'tramos_ciudades' | 'periodos_meses';
+ *  'numero' = entero con rango · 'texto' = string libre (ej. teléfono de contacto) · 'json' = escalera de
+ *  comisiones · 'tramos_ciudades' = multiplicador por #ciudades · 'periodos_meses' = meses pagables por
+ *  adelantado + descuento, ambos de Publicidad. */
+export type TipoConfig = 'numero' | 'texto' | 'json' | 'tramos_ciudades' | 'periodos_meses';
 
 /** Meta de una clave editable (el "catálogo"). */
 interface ClaveCatalogo {
@@ -263,6 +264,18 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
         min: null,
         max: null,
         porDefecto: JSON.stringify(PERIODOS_DEFAULT),
+    },
+    // ─── General — datos de contacto y presencia que la app pública muestra ───────
+    {
+        clave: 'contacto_whatsapp_numero',
+        etiqueta: 'WhatsApp de contacto',
+        descripcion: 'Número al que abre el botón de WhatsApp del inicio. Incluye la lada del país (ej. +52 638 125 9076).',
+        tipo: 'texto',
+        categoria: 'general',
+        unidad: null,
+        min: null,
+        max: 20, // longitud máxima en caracteres (para 'texto', min/max acotan la longitud)
+        porDefecto: '+52 638 125 9076',
     },
 ];
 

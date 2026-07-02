@@ -33,7 +33,7 @@ export interface TramoPeriodo {
   descuento: number; // % de descuento por pagar ese periodo
 }
 
-export type TipoConfig = 'numero' | 'json' | 'tramos_ciudades' | 'periodos_meses';
+export type TipoConfig = 'numero' | 'texto' | 'json' | 'tramos_ciudades' | 'periodos_meses';
 
 /** Una fila editable de Configuración (catálogo + valor actual). El `valor` es crudo (string). */
 export interface ConfigFila {

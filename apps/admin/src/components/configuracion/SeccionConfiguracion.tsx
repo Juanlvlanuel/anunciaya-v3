@@ -16,13 +16,13 @@
  */
 
 import { useEffect, useRef, useState, type ComponentType } from 'react';
-import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, Megaphone, CalendarClock, Tag, Star, Award, type LucideProps } from 'lucide-react';
+import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, Megaphone, CalendarClock, Tag, Star, Award, MessageCircle, type LucideProps } from 'lucide-react';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
 import { parsearEscalera, parsearTramosCiudades, parsearPeriodos, type ConfigFila, type TramoEscalera, type TramoCiudades } from '../../services/configuracionService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
-import { DialogoEditarNumero, DialogoEditarEscalera } from './DialogosConfig';
+import { DialogoEditarNumero, DialogoEditarTexto, DialogoEditarEscalera } from './DialogosConfig';
 import { DialogoEditarTramosCiudades } from './DialogoTramosCiudades';
 import { DialogoEditarPeriodos } from './DialogoPeriodos';
 import { TarjetaPrecioMembresia } from './TarjetaPrecioMembresia';
@@ -53,6 +53,7 @@ const ICONO_CLAVE: Record<string, ComponentType<LucideProps>> = {
   periodo_gracia_cobro_dias: Clock,
   trial_duracion_dias: Gift,
   publicidad_periodos: CalendarClock,
+  contacto_whatsapp_numero: MessageCircle,
 };
 
 /** Azul de marca SOLO en los títulos de sección (encabezados). Las tarjetas individuales van en gris
@@ -84,6 +85,7 @@ const ICONO_CATEGORIA: Record<string, ComponentType<LucideProps>> = {
   pagos: Coins,
   trials: Gift,
   publicidad: Megaphone,
+  general: MessageCircle,
 };
 
 /** Chip de color con el ícono en blanco. `color` es una clase de fondo (bg-*). */
@@ -328,11 +330,12 @@ function TarjetaPrecioCarrusel({ c, onEditar }: { c: ConfigFila; onEditar: () =>
   );
 }
 
-type TabId = 'membresia' | 'publicidad';
+type TabId = 'membresia' | 'publicidad' | 'general';
 
 const TABS: { id: TabId; etiqueta: string }[] = [
   { id: 'membresia', etiqueta: 'Membresía' },
   { id: 'publicidad', etiqueta: 'Publicidad' },
+  { id: 'general', etiqueta: 'General' },
 ];
 
 export function SeccionConfiguracion() {
@@ -368,6 +371,7 @@ export function SeccionConfiguracion() {
   const pagos = porCategoria.get('pagos') ?? [];
   const trials = porCategoria.get('trials') ?? [];
   const publicidad = porCategoria.get('publicidad') ?? [];
+  const general = porCategoria.get('general') ?? [];
   // Los 3 precios de carrusel van en su propia fila de tarjetas compactas; el resto, en la rejilla normal.
   const preciosCarrusel = publicidad
     .filter((c) => CLAVES_PRECIO_CARRUSEL.includes(c.clave))
@@ -465,6 +469,21 @@ export function SeccionConfiguracion() {
               ))}
           </div>
         )}
+
+        {/* GENERAL: datos de contacto y presencia que la app pública muestra (WhatsApp, etc.). */}
+        {tab === 'general' && (
+          <div data-testid="config-vista-general">
+            {estadoDatos ??
+              (general.length === 0 ? (
+                <EstadoSeccion icono={MessageCircle} titulo="Sin ajustes generales" />
+              ) : (
+                <section>
+                  <EncabezadoGrupo Icono={MessageCircle} titulo="Contacto" color={AZUL} />
+                  <RejillaConfig filas={general} onEditar={setFilaEditando} />
+                </section>
+              ))}
+          </div>
+        )}
       </div>
 
       {filaEditando &&
@@ -474,6 +493,12 @@ export function SeccionConfiguracion() {
           <DialogoEditarTramosCiudades fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
         ) : filaEditando.tipo === 'periodos_meses' ? (
           <DialogoEditarPeriodos fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
+        ) : filaEditando.tipo === 'texto' ? (
+          <DialogoEditarTexto
+            fila={filaEditando}
+            Icono={ICONO_CLAVE[filaEditando.clave] ?? SlidersHorizontal}
+            onCerrar={() => setFilaEditando(null)}
+          />
         ) : (
           <DialogoEditarNumero
             fila={filaEditando}

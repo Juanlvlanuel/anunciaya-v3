@@ -45,6 +45,15 @@ export function validarNumero(min: number | null, max: number | null, crudo: str
     return { ok: true, valor: String(n) };
 }
 
+/** Valida un texto libre (ej. teléfono de contacto): no vacío, sin exceder la longitud máxima del catálogo
+ *  (max = # de caracteres para el tipo 'texto'). Recorta espacios de sobra. El front normaliza el uso. */
+export function validarTexto(max: number | null, crudo: string): Validacion {
+    const texto = String(crudo).trim();
+    if (texto === '') return { ok: false, mensaje: 'El valor es obligatorio.' };
+    if (max !== null && texto.length > max) return { ok: false, mensaje: `El valor no puede tener más de ${max} caracteres.` };
+    return { ok: true, valor: texto };
+}
+
 /**
  * Valida la escalera de comisiones. Debe cubrir de 0 negocios en adelante SIN huecos ni solapes, para que
  * el cálculo de comisiones (Vendedores) siempre encuentre el tramo de cualquier número de activos:
@@ -237,6 +246,7 @@ export async function actualizarConfig(
     // Validación según el tipo declarado en el catálogo.
     const v =
         cat.tipo === 'numero' ? validarNumero(cat.min, cat.max, valorCrudo)
+        : cat.tipo === 'texto' ? validarTexto(cat.max, valorCrudo)
         : cat.tipo === 'tramos_ciudades' ? validarTramosCiudades(valorCrudo)
         : cat.tipo === 'periodos_meses' ? validarPeriodos(valorCrudo)
         : validarEscalera(valorCrudo);

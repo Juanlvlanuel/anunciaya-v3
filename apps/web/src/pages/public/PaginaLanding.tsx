@@ -45,6 +45,7 @@ import Tooltip from '../../components/ui/Tooltip';
 import { notificar } from '../../utils/notificaciones';
 import { useRevealOnScroll } from '../../hooks/useRevealOnScroll';
 import { useConfigPublica } from '../../hooks/queries/useConfigPublica';
+import { FabWhatsApp } from '../../components/public/FabWhatsApp';
 
 // =============================================================================
 // HOOK: Pausar animación cuando no está visible
@@ -739,6 +740,7 @@ function FooterLanding() {
     const { t } = useTranslation('landing');
 
     return (
+        <>
         <footer className="hidden lg:block px-4 lg:px-7 2xl:px-8 lg:py-5 2xl:py-5 bg-black relative">
             {/* Volver arriba */}
             <button
@@ -759,10 +761,8 @@ function FooterLanding() {
                     © {new Date().getFullYear()} {t('footer.derechos')}
                 </p>
 
-                <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
-                    <a href="https://wa.me/526381128286" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
-                        <img src="/whatsapp.webp" alt="WhatsApp" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
-                    </a>
+                {/* pr extra: libra el FAB de WhatsApp (fijo abajo-derecha) para que no tape los iconos. */}
+                <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4 lg:pr-20">
                     <a href="https://www.facebook.com/profile.php?id=61578901306800" target="_blank" rel="noopener noreferrer" className="hover:scale-110 lg:cursor-pointer">
                         <img src="/facebook.webp" alt="Facebook" className="w-6 h-6 lg:w-6 lg:h-6 2xl:w-8 2xl:h-8" />
                     </a>
@@ -775,6 +775,27 @@ function FooterLanding() {
                 </div>
             </div>
         </footer>
+
+        {/* Footer MÓVIL — redes centradas + copyright (el de PC es hidden lg:block). */}
+        <footer className="lg:hidden bg-black px-5 pt-6 pb-8" data-testid="footer-movil-landing">
+            <div className="flex flex-col items-center gap-4">
+                <div className="flex items-center gap-6">
+                    <a href="https://www.facebook.com/profile.php?id=61578901306800" target="_blank" rel="noopener noreferrer" className="active:scale-95" aria-label="Facebook">
+                        <img src="/facebook.webp" alt="Facebook" className="w-7 h-7" />
+                    </a>
+                    <a href="https://www.instagram.com/anunciaya.mx/" target="_blank" rel="noopener noreferrer" className="active:scale-95" aria-label="Instagram">
+                        <img src="/instagram.webp" alt="Instagram" className="w-7 h-7" />
+                    </a>
+                    <a href="https://www.tiktok.com/@anunciaya.mx" target="_blank" rel="noopener noreferrer" className="active:scale-95" aria-label="TikTok">
+                        <img src="/tiktok.webp" alt="TikTok" className="w-7 h-7" />
+                    </a>
+                </div>
+                <p className="text-xs font-medium text-white/70 text-center">
+                    © {new Date().getFullYear()} {t('footer.derechos')}
+                </p>
+            </div>
+        </footer>
+        </>
     );
 }
 
@@ -881,6 +902,8 @@ export default function PaginaLanding() {
                 <SeccionPlanes />
                 <FooterLanding />
             </main>
+
+            <FabWhatsApp />
         </div>
     );
 }

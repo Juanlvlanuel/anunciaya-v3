@@ -71,6 +71,7 @@ export const ICONOS = {
     chat: 'ph:chat-circle-dots-fill',
     telefono: 'ph:phone-call-fill',
     email: 'material-symbols:mail-rounded',
+    whatsapp: 'mdi:whatsapp',
 
     // ── Premium / Destacado ───────────────────────────────────────────
     premium: 'ph:sparkle-fill',
