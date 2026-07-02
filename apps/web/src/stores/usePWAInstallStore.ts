@@ -138,6 +138,11 @@ export function inicializarPWAInstall(): void {
   inicializado = true;
 
   window.addEventListener('beforeinstallprompt', (e) => {
+    // ScanYA tiene su propio manifest y flujo de instalación (usePWAInstallScanYA).
+    // No interceptar el evento en sus rutas: si lo capturáramos aquí (con
+    // preventDefault), el hook de ScanYA se quedaría sin el prompt — el evento
+    // se dispara una sola vez — y su botón mostraría "instalación no disponible".
+    if (window.location.pathname.startsWith('/scanya')) return;
     // Evita que Chrome muestre su mini-infobar: la app ofrece su propia UI.
     e.preventDefault();
     usePWAInstallStore.setState({
@@ -148,6 +153,9 @@ export function inicializarPWAInstall(): void {
   });
 
   window.addEventListener('appinstalled', () => {
+    // `appinstalled` no dice qué PWA se instaló. Si ocurrió en ScanYA, no marcar
+    // la app principal como instalada.
+    if (window.location.pathname.startsWith('/scanya')) return;
     usePWAInstallStore.setState({
       deferredPrompt: null,
       puedeInstalar: false,
