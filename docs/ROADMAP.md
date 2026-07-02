@@ -148,11 +148,13 @@
 
 ## ⏭️ Sprint siguiente: QA/pulido pre-beta → lanzamiento beta privada
 
-> Actualizado (30 Jun 2026): **el Panel Admin está completo (14/14 módulos en prod)** y da
+> Actualizado (2 Jul 2026): **el Panel Admin está completo (14/14 módulos en prod)** y da
 > soporte a vendedores + cobros. El producto está funcionalmente completo de cara a la beta.
-> **Frente activo: QA/pulido** + el frente de **lanzamiento** — Stripe modo LIVE (verificar empresa
-> + replicar config de TEST), AWS SES fuera de sandbox, testing E2E, y la **beta privada de
-> Puerto Peñasco** (50 negocios) con vendedores ya operando. El siguiente frente concreto se define con Juan.
+> **Frente activo (go-live):** infraestructura ya migrada a producción (Stripe LIVE, dominios,
+> DMARC, secretos rotados, Upstash/R2 separados, Cloudinary eliminado, prod reseteado — ver §7.1 y
+> `docs/DESPLIEGUE_PRODUCCION.md`). Solo falta la aprobación de **AWS SES** (sandbox) y, al promover,
+> subir Supabase/Vercel Pro. Siguen el **testing E2E** y la **beta privada de Puerto Peñasco**
+> (50 negocios) con vendedores ya operando.
 
 ---
 
@@ -270,12 +272,13 @@
 - [ ] Sentry (error tracking)
 
 **Infraestructura:**
-- [x] Migración a producción ✅
-- [x] Stack $0/mes operativo ✅
-- [ ] **Stripe modo LIVE** — config de reintentos (4 intentos/2 semanas) + correos de recuperación HECHA en entorno de TEST. **Pendiente para producción:** (1) verificar la empresa en Stripe (RFC, identificación, cuenta bancaria), (2) replicar la misma config de reintentos y correos en la cuenta activa, (3) revisar que no queden links al dominio viejo `anunciaya.online` (ya migrado a `.mx`).
-- [x] Dominio personalizado + SSL ✅ (16 Jun 2026: `anunciaya.mx` apex con registro A + subdominio `admin.anunciaya.mx` con CNAME, ambos con SSL automático de Vercel; DNS gestionado en Namecheap, correo Migadu/SES intacto)
-- [ ] AWS SES salir de sandbox
-- [ ] Backups automáticos
+- [x] Migración a producción ✅ (go-live 1-2 jul: BD alineada, Upstash/R2 separados dev/prod, reconcile por ambiente, Cloudinary eliminado, secretos JWT rotados, builds Vercel independientes, prod reseteado y limpio)
+- [x] Infraestructura de pago operativa ✅ — Render **Starter** ($7, no duerme) + Upstash **Fixed** ($10) + R2 Paid ($0+uso). Hoy ~$17/mes; al promover subir Supabase Pro ($25) + Vercel Pro ($20) → ~$62/mes. Detalle en `docs/Contabilidad_Egresos_AnunciaYA.xlsx`
+- [x] **Stripe modo LIVE** ✅ (1 jul) — cuenta activada, keys live en Render+Vercel, webhook live, precios $864/$8640 en Live, Customer Portal, validado E2E con cobro real
+- [x] Dominio personalizado + SSL ✅ (16 Jun: `anunciaya.mx` apex + `admin.anunciaya.mx` CNAME, SSL Vercel; DNS en **Namecheap** con DMARC/SPF/DKIM; correo Migadu/SES)
+- [x] Páginas legales ✅ (2 jul) — Aviso de Privacidad (LFPDPPP) + Términos (LFPC) en web (/privacidad, /terminos) + enlazadas en Stripe
+- [ ] AWS SES salir de sandbox 🟡 (solicitud enviada 1-jul, esperando aprobación de AWS)
+- [ ] Backups automáticos (= Supabase Pro) — al salir a promover
 
 ---
 
@@ -310,7 +313,7 @@
 
 ---
 
-### 7.3 Lanzamiento Público (Mayo-Junio 2026)
+### 7.3 Lanzamiento Público (por definir tras la beta, ~verano 2026)
 
 **Pre-requisitos:**
 - [ ] Beta completada exitosamente
@@ -337,13 +340,14 @@
 | **Sección pública Servicios v1.1** | ✅ Completado (17 May 2026) |
 | **Business Studio 13/13 (incluido Vacantes)** | ✅ Completado (17 May 2026) |
 | **Home — Pregúntale a Peñasco / Coyo (Fase 1 + Fase 2)** | ✅ Completado (24 May - 1 Jun 2026) |
-| Panel Admin (6.7) | ~14 días |
-| Pre-lanzamiento (7.1) | ~5 días |
+| Panel Admin (6.7) | ✅ Completado (14/14 módulos en prod) |
+| Go-live / infraestructura (7.1) | ✅ Completado (1-2 jul; solo falta aprobación AWS SES) |
+| Pre-lanzamiento restante (7.1 testing) | ~5 días |
 | Beta (7.2) | ~21 días |
 | **TOTAL OPTIMISTA** | **~4-6 semanas** (solo Panel Admin + lanzamiento) |
 | **TOTAL REALISTA** | **~6-8 semanas** |
 
-**Fecha lanzamiento público proyectada:** Mayo-Junio 2026
+**Fecha lanzamiento público proyectada:** por definir tras la beta. Beta ~mediados julio 2026 (Juan graba videos 1-2 semanas antes de promover); lanzamiento público después de validar con los 50 negocios piloto.
 
 ---
 
