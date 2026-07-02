@@ -1,6 +1,6 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.5 — Actualizado 2026-06-05 — **MÓDULO COMPLETADO ✅**
+> **Versión:** v7.6 — Actualizado 2026-07-02 — **MÓDULO COMPLETADO ✅** (+ Directorio comercial por ciudad, §4.9.1)
 >
 > **Cambios v7.5 (5 Jun 2026):** candado de "negocio fuera de circulación" — si la conversación
 > involucra un negocio con `activo=false`, se bloquea el ENVÍO por **ambos lados** (`enviarMensaje`)
@@ -364,6 +364,36 @@ Contactos se guardan a nivel **sucursal**, no por negocio. Un usuario puede tene
 - ✅ Optimistic UI bidireccional con `ContactoDisplay` (temp id → real id, rollback en error)
 - ✅ El `tipo` del contacto refleja el modo activo del usuario al guardar, no el tipo de entidad
 - ✅ Detección negocio por `!!contacto.negocioId` (no por `tipo === 'comercial'`)
+
+### 4.9.1 Directorio comercial (auto-poblado por ciudad) — jul 2026
+
+En modo **COMERCIAL**, la vista "Contactos" de ChatYA se llama **"Directorio"** y
+muestra —en lugar de los contactos manuales de `chat_contactos`— los usuarios de
+la **ciudad de la sucursal activa**, para que un negocio pueda contactar a
+cualquier usuario de su ciudad sin agregarlo primero.
+
+- **Consulta en vivo, NO materializada:** no se crean filas. El directorio es un
+  `SELECT` de `usuarios` por `ciudad_id` de la sucursal; los usuarios nuevos
+  aparecen solos (ya están en la tabla), sin fan-out ni cron de reconciliación.
+- **Alcance = TODOS los usuarios de la ciudad (sin filtro de `perfil`).** En
+  AnunciaYA toda cuenta —incluidas las comerciales— tiene lado personal, así que
+  todos deben poder recibir mensaje. El chat se abre siempre contra el **lado
+  personal** del destinatario (`useIniciarChatDirectoPersona` →
+  `participante2Modo='personal'`), de modo que el mensaje llega a su cuenta
+  personal, no a la comercial.
+- **Filtros:** `ciudad_id` = la de la sucursal + `estado='activo'`; excluye al
+  propio usuario y a quien haya **bloqueado la sucursal**
+  (`chat_bloqueados.bloqueada_sucursal_id`). Sucursal sin ciudad → directorio vacío.
+- **Privacidad:** sin opt-out; el bloqueo existente es el remedio. La ciudad del
+  usuario está garantizada porque es obligatoria en el registro (ver
+  `Autenticacion.md` §Ciudad obligatoria en el registro).
+- **Paginado** (30/pág, `LIMIT+1` para `hayMas`) + **búsqueda server-side** por nombre.
+- **Backend:** `GET /api/chatya/directorio?limit&offset&q` →
+  `listarDirectorioComercialController` (solo modo comercial, saca `sucursalId` del
+  token) → `listarDirectorioComercial()` en `chatya.service.ts`.
+- **Frontend:** `useChatYAStore.directorio[]` + `cargarDirectorio(offset, busqueda)`;
+  en `ListaConversaciones` la vista `viendoContactos` renderiza `directorio` cuando
+  el modo es comercial (al tocar a alguien → `iniciarChatDirectoPersona`).
 
 ### 4.10 Bloqueo
 

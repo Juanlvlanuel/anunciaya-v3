@@ -294,6 +294,27 @@ export async function getContactos(tipo: 'personal' | 'comercial' = 'personal') 
   return get<Contacto[]>(`/chatya/contactos?tipo=${tipo}`);
 }
 
+/** Persona del directorio comercial (usuario personal de la ciudad de la sucursal). */
+export interface DirectorioPersona {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  avatarUrl: string | null;
+}
+
+/**
+ * Directorio comercial: usuarios personales de la ciudad de la sucursal activa.
+ * Solo modo comercial. Consulta en vivo (no materializada), paginada.
+ * GET /api/chatya/directorio?limit=&offset=&q=
+ */
+export async function getDirectorioComercial(limit = 30, offset = 0, q = '') {
+  const params = new URLSearchParams();
+  params.append('limit', String(limit));
+  params.append('offset', String(offset));
+  if (q.trim()) params.append('q', q.trim());
+  return get<{ items: DirectorioPersona[]; hayMas: boolean }>(`/chatya/directorio?${params}`);
+}
+
 /**
  * 15. Agregar un contacto.
  * POST /api/chatya/contactos

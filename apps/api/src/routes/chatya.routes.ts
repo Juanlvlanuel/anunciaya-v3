@@ -61,6 +61,7 @@ import {
   contarNoLeidosController,
   buscarPersonasController,
   buscarNegociosController,
+  listarDirectorioComercialController,
   misNotasController,
   uploadImagenChatController,
   uploadDocumentoChatController,
@@ -260,6 +261,9 @@ router.get('/buscar-personas', buscarPersonasController);
 
 /** GET /api/chatya/buscar-negocios?q=texto&ciudad=Ciudad de México&lat=19.43&lng=-99.13&limit=10 */
 router.get('/buscar-negocios', buscarNegociosController);
+
+/** GET /api/chatya/directorio?limit=30&offset=0&q=texto — directorio comercial (usuarios de la ciudad de la sucursal). Solo modo comercial. */
+router.get('/directorio', listarDirectorioComercialController);
 
 /** GET /api/chatya/og-preview?url=https://example.com */
 router.get('/og-preview', limitadorOgPreview, obtenerOgPreviewController);

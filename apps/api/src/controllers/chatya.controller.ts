@@ -40,6 +40,7 @@ import {
   contarTotalNoLeidos,
   buscarPersonas,
   buscarNegocios,
+  listarDirectorioComercial,
   generarUrlUploadImagenChat,
   generarUrlUploadDocumentoChat,
   generarUrlUploadAudioChat,
@@ -1073,6 +1074,38 @@ export async function buscarPersonasController(req: Request, res: Response) {
     return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
   } catch (error) {
     console.error('Error en buscarPersonasController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+/**
+ * GET /api/chatya/directorio?limit=30&offset=0&q=texto
+ * Directorio de la cuenta comercial: usuarios personales de la ciudad de la
+ * sucursal activa (auto-poblado, consulta en vivo). Solo modo comercial.
+ */
+export async function listarDirectorioComercialController(req: Request, res: Response) {
+  try {
+    const modo = obtenerModo(req);
+    if (modo !== 'comercial') {
+      return res.status(403).json({ success: false, message: 'El directorio solo está disponible en modo comercial' });
+    }
+    const sucursalId = obtenerSucursalId(req);
+    if (!sucursalId) {
+      return res.status(400).json({ success: false, message: 'No hay sucursal activa' });
+    }
+    const usuarioId = obtenerUsuarioId(req);
+    const limit = Math.min(parseInt(req.query.limit as string) || 30, 100);
+    const offset = parseInt(req.query.offset as string) || 0;
+    const busqueda = (req.query.q as string) || '';
+
+    const resultado = await listarDirectorioComercial(sucursalId, usuarioId, { limit, offset, busqueda });
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+    }
+    return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
+  } catch (error) {
+    console.error('Error en listarDirectorioComercialController:', error);
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }

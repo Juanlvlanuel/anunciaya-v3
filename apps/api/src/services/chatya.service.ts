@@ -3745,6 +3745,87 @@ export async function buscarPersonas(
 }
 
 // =============================================================================
+// 27.5 DIRECTORIO COMERCIAL (auto-poblado por ciudad de la sucursal)
+// =============================================================================
+
+/**
+ * Lista los usuarios de la ciudad de la sucursal activa, para el "directorio"
+ * que ve una cuenta comercial en ChatYA. En AnunciaYA toda cuenta (incluidas
+ * las comerciales) tiene un lado PERSONAL, así que se incluyen TODOS los
+ * usuarios de la ciudad — el chat se abre siempre contra su lado personal
+ * (useIniciarChatDirectoPersona usa participante2Modo='personal'), de modo que
+ * el mensaje les llega en su cuenta personal, no en la comercial.
+ *
+ * NO materializa contactos: es una consulta en vivo (los usuarios nuevos
+ * aparecen solos). Filtra: misma ciudad que la sucursal, activos, excluye al
+ * propio usuario y a quien haya bloqueado esta sucursal. Paginado.
+ * Si la sucursal no tiene ciudad configurada, el directorio sale vacío.
+ */
+export async function listarDirectorioComercial(
+    sucursalId: string,
+    usuarioActualId: string,
+    opciones: { limit?: number; offset?: number; busqueda?: string } = {}
+): Promise<RespuestaServicio<{ items: BuscarPersonasResponse[]; hayMas: boolean }>> {
+    try {
+        const limit = Math.min(Math.max(opciones.limit ?? 30, 1), 100);
+        const offset = Math.max(opciones.offset ?? 0, 0);
+        const busqueda = opciones.busqueda?.trim() ?? '';
+
+        // Ciudad de la sucursal activa. Sin ciudad → directorio vacío.
+        const sucRes = await db.execute(sql`
+            SELECT ciudad_id FROM negocio_sucursales WHERE id = ${sucursalId} LIMIT 1
+        `);
+        const ciudadId = (sucRes.rows[0] as { ciudad_id: string | null } | undefined)?.ciudad_id ?? null;
+        if (!ciudadId) {
+            return {
+                success: true,
+                message: 'La sucursal no tiene ciudad configurada',
+                data: { items: [], hayMas: false },
+            };
+        }
+
+        const filtroTexto = busqueda
+            ? sql`AND (u.nombre ILIKE ${'%' + busqueda + '%'} OR u.apellidos ILIKE ${'%' + busqueda + '%'})`
+            : sql``;
+
+        // limit + 1 para saber si hay más páginas sin un COUNT aparte.
+        const resultado = await db.execute(sql`
+            SELECT u.id, u.nombre, u.apellidos, u.avatar_url
+            FROM usuarios u
+            WHERE u.estado = 'activo'
+              AND u.ciudad_id = ${ciudadId}
+              AND u.id != ${usuarioActualId}
+              AND NOT EXISTS (
+                  SELECT 1 FROM chat_bloqueados cb
+                  WHERE cb.usuario_id = u.id AND cb.bloqueada_sucursal_id = ${sucursalId}
+              )
+              ${filtroTexto}
+            ORDER BY u.nombre ASC, u.apellidos ASC
+            LIMIT ${limit + 1} OFFSET ${offset}
+        `);
+
+        const rows = resultado.rows as unknown as Array<{
+            id: string;
+            nombre: string;
+            apellidos: string;
+            avatar_url: string | null;
+        }>;
+        const hayMas = rows.length > limit;
+        const items = rows.slice(0, limit).map((row) => ({
+            id: row.id,
+            nombre: row.nombre,
+            apellidos: row.apellidos,
+            avatarUrl: row.avatar_url,
+        }));
+
+        return { success: true, message: `${items.length} contactos`, data: { items, hayMas } };
+    } catch (error) {
+        console.error('Error en listarDirectorioComercial:', error);
+        return { success: false, message: 'Error al cargar el directorio', code: 500 };
+    }
+}
+
+// =============================================================================
 // 28. BUSCAR NEGOCIOS/SUCURSALES (para iniciar chat nuevo)
 // =============================================================================
 

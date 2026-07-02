@@ -81,6 +81,13 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   const agregarContactoStore = useChatYAStore((s) => s.agregarContacto);
   const eliminarContactoStore = useChatYAStore((s) => s.eliminarContacto);
 
+  // Directorio comercial (personas de la ciudad de la sucursal). Reemplaza la
+  // lista de contactos manuales cuando la cuenta está en modo comercial.
+  const directorio = useChatYAStore((s) => s.directorio);
+  const directorioHayMas = useChatYAStore((s) => s.directorioHayMas);
+  const cargandoDirectorio = useChatYAStore((s) => s.cargandoDirectorio);
+  const cargarDirectorio = useChatYAStore((s) => s.cargarDirectorio);
+
   // Hooks centralizados para iniciar chat desde resultados del buscador.
   // Internamente buscan conv existente antes de abrir chat temporal para
   // evitar duplicados visuales (misma persona/negocio como temporal + real).
@@ -112,6 +119,9 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
 
   /** true cuando hay ≥2 caracteres → activa modo búsqueda */
   const estaBuscando = busqueda.trim().length >= 2;
+
+  /** En modo comercial la vista "Contactos" es el directorio auto-poblado por ciudad. */
+  const esDirectorioComercial = viendoContactos && modoActivo === 'comercial';
 
   // ---------------------------------------------------------------------------
   // Effect: Cargar conversaciones al montar y cuando cambia el modo
@@ -321,6 +331,15 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
       .then((res) => useChatYAStore.setState({ contactos: res.data || [] }))
       .catch(() => { });
   }, [modoActivo, viendoContactos]);
+
+  // Cargar el directorio comercial al entrar a "Contactos" en modo comercial, y
+  // recargarlo (con debounce) al escribir en el buscador. La búsqueda del directorio
+  // es server-side (por ciudad de la sucursal), no local como la de contactos.
+  useEffect(() => {
+    if (!esDirectorioComercial) return;
+    const t = setTimeout(() => { void cargarDirectorio(0, busqueda.trim()); }, 300);
+    return () => clearTimeout(t);
+  }, [esDirectorioComercial, busqueda, cargarDirectorio]);
 
   // Recargar archivados automáticamente al cambiar de modo (si ya está en vista archivados)
   useEffect(() => {
@@ -587,10 +606,60 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
             className="w-full flex items-center gap-2 px-3 py-3 text-left hover:bg-white/8 border-b border-white/8 cursor-pointer"
           >
             <ArrowLeft className="w-5 h-5 text-white/60" />
-            <span className="text-sm font-bold text-white/70">Contactos</span>
+            <span className="text-sm font-bold text-white/70">{esDirectorioComercial ? 'Directorio' : 'Contactos'}</span>
           </button>
 
-          {contactosFiltrados.length === 0 ? (
+          {esDirectorioComercial ? (
+            <div className="flex-1 overflow-y-auto">
+              {cargandoDirectorio && directorio.length === 0 ? (
+                <div className="flex items-center justify-center py-10">
+                  <Loader2 className="w-6 h-6 text-white/40 animate-spin" />
+                </div>
+              ) : directorio.length === 0 ? (
+                <div className="flex flex-col items-center justify-center px-6 py-10">
+                  <Users className="w-10 h-10 text-white/30 mb-2" />
+                  <p className="text-[15px] font-semibold text-white/70 text-center">
+                    {busqueda.trim() ? `Sin resultados para "${busqueda}"` : 'Aún no hay usuarios en tu ciudad'}
+                  </p>
+                </div>
+              ) : (
+                <>
+                  {directorio.map((p) => {
+                    const nombre = `${p.nombre || ''} ${p.apellidos || ''}`.trim() || 'Sin nombre';
+                    const iniciales = `${(p.nombre || '').charAt(0)}${(p.apellidos || '').charAt(0)}`.toUpperCase() || '?';
+                    return (
+                      <div
+                        key={p.id}
+                        onClick={() => { void iniciarChatDirectoPersona({ usuarioId: p.id, nombre: p.nombre, apellidos: p.apellidos, avatarUrl: p.avatarUrl }); }}
+                        className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 border-b border-white/5 cursor-pointer select-none"
+                        data-testid={`directorio-persona-${p.id}`}
+                      >
+                        {p.avatarUrl ? (
+                          <img src={p.avatarUrl} alt={nombre} className="w-10 h-10 shrink-0 object-cover rounded-full" />
+                        ) : (
+                          <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700">
+                            <span className="text-sm font-bold text-white">{iniciales}</span>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[14px] font-semibold text-white/85 truncate">{nombre}</p>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {directorioHayMas && (
+                    <button
+                      onClick={() => { void cargarDirectorio(directorio.length, busqueda.trim()); }}
+                      disabled={cargandoDirectorio}
+                      className="w-full py-3 text-sm text-white/60 hover:bg-white/8 cursor-pointer disabled:opacity-50"
+                    >
+                      {cargandoDirectorio ? 'Cargando…' : 'Cargar más'}
+                    </button>
+                  )}
+                </>
+              )}
+            </div>
+          ) : contactosFiltrados.length === 0 ? (
             <div className="flex-1 flex flex-col items-center justify-center px-6">
               <Users className="w-10 h-10 text-white/30 mb-2" />
               <p className="text-[15px] font-semibold text-white/70 text-center">
@@ -893,7 +962,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
               className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer"
             >
               <Users className="w-4.5 h-4.5" />
-              <span className="2xl:text-[13px] text-[14px]  font-bold">Contactos</span>
+              <span className="2xl:text-[13px] text-[14px]  font-bold">{modoActivo === 'comercial' ? 'Directorio' : 'Contactos'}</span>
             </button>
 
             {/* Archivados */}

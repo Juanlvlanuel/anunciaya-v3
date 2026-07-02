@@ -26,6 +26,7 @@
 
 import { create } from 'zustand';
 import * as chatyaService from '../services/chatyaService';
+import type { DirectorioPersona } from '../services/chatyaService';
 import { useAuthStore } from './useAuthStore';
 import { obtenerMiIdChatYA, obtenerModoChatYA, obtenerSucursalChatYA } from '../hooks/useChatYASession';
 import { useScanYAStore } from './useScanYAStore';
@@ -175,6 +176,13 @@ interface ChatYAState {
   totalConversaciones: number;
   cargandoConversaciones: boolean;
 
+  // ─── Directorio comercial ──────────────────────────────────────────────
+  // Usuarios personales de la ciudad de la sucursal activa (auto-poblado,
+  // consulta en vivo; solo aplica en modo comercial).
+  directorio: DirectorioPersona[];
+  directorioHayMas: boolean;
+  cargandoDirectorio: boolean;
+
   // ─── Mensajes (de la conversación activa) ──────────────────────────────
   mensajes: Mensaje[];
   totalMensajes: number;
@@ -258,6 +266,8 @@ interface ChatYAState {
 
   // ─── ACCIONES: Conversaciones ─────────────────────────────────────────
   cargarConversaciones: (modo?: ModoChatYA, offset?: number, silencioso?: boolean) => Promise<void>;
+  /** Carga el directorio comercial (personas de la ciudad de la sucursal). offset=0 reinicia. */
+  cargarDirectorio: (offset?: number, busqueda?: string) => Promise<void>;
   /** Setea o limpia el filtro por publicación. Re-carga conversaciones. */
   setFiltroPublicacionId: (id: string | null) => void;
   crearConversacion: (datos: CrearConversacionInput) => Promise<Conversacion | null>;
@@ -368,6 +378,9 @@ const ESTADO_INICIAL = {
   conversacionesPorModo: { personal: null as Conversacion[] | null, comercial: null as Conversacion[] | null },
   totalConversaciones: 0,
   cargandoConversaciones: false,
+  directorio: [] as DirectorioPersona[],
+  directorioHayMas: false,
+  cargandoDirectorio: false,
   mensajes: [] as Mensaje[],
   totalMensajes: 0,
   cargandoMensajes: false,
@@ -685,6 +698,30 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
       set({ error: 'Error al cargar conversaciones' });
     } finally {
       set({ cargandoConversaciones: false });
+    }
+  },
+
+  cargarDirectorio: async (offset = 0, busqueda = '') => {
+    // Solo modo comercial con sucursal activa (el endpoint exige sucursal).
+    const usuario = useAuthStore.getState().usuario;
+    if (usuario?.modoActivo !== 'comercial') return;
+
+    const { directorio } = get();
+    if (offset === 0) set({ cargandoDirectorio: true });
+
+    try {
+      const respuesta = await chatyaService.getDirectorioComercial(30, offset, busqueda);
+      if (respuesta.success && respuesta.data) {
+        const { items, hayMas } = respuesta.data;
+        set({
+          directorio: offset === 0 ? items : [...directorio, ...items],
+          directorioHayMas: hayMas,
+        });
+      }
+    } catch (error) {
+      console.error('Error cargando directorio:', error);
+    } finally {
+      set({ cargandoDirectorio: false });
     }
   },
 
