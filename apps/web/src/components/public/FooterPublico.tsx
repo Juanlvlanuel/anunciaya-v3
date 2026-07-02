@@ -15,6 +15,7 @@
 
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 
 export function FooterPublico() {
     // El botón "Volver arriba" solo aparece cuando el `<main>` ancestro
@@ -69,9 +70,16 @@ export function FooterPublico() {
                     className="h-8 lg:h-8 2xl:h-10"
                 />
 
-                <p className="text-center text-sm font-medium text-white/80 lg:text-sm 2xl:text-sm">
-                    © {new Date().getFullYear()} AnunciaYA. Todos los derechos reservados.
-                </p>
+                <div className="flex flex-col items-center gap-1">
+                    <p className="text-center text-sm font-medium text-white/80 lg:text-sm 2xl:text-sm">
+                        © {new Date().getFullYear()} AnunciaYA. Todos los derechos reservados.
+                    </p>
+                    <div className="flex items-center gap-2 text-xs text-white/60">
+                        <Link to="/terminos" className="hover:text-white hover:underline lg:cursor-pointer">Términos</Link>
+                        <span>·</span>
+                        <Link to="/privacidad" className="hover:text-white hover:underline lg:cursor-pointer">Aviso de Privacidad</Link>
+                    </div>
+                </div>
 
                 <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
                     <a
@@ -172,6 +180,12 @@ export function FooterPublico() {
                 <p className="text-center text-xs font-medium text-white/80">
                     © {new Date().getFullYear()} AnunciaYA. Todos los derechos reservados.
                 </p>
+
+                <div className="flex items-center justify-center gap-2 text-xs text-white/60">
+                    <Link to="/terminos" className="hover:text-white">Términos</Link>
+                    <span>·</span>
+                    <Link to="/privacidad" className="hover:text-white">Aviso de Privacidad</Link>
+                </div>
             </div>
         </footer>
     );

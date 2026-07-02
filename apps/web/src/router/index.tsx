@@ -33,6 +33,8 @@ import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
 import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMarketplacePublico';
 import PaginaServicioPublico from '../pages/public/PaginaServicioPublico';
 import PaginaDemoEntrada from '../pages/public/PaginaDemoEntrada';
+import PaginaTerminos from '../pages/public/PaginaTerminos';
+import PaginaAvisoPrivacidad from '../pages/public/PaginaAvisoPrivacidad';
 
 // Páginas privadas
 import PaginaInicio from '../pages/private/PaginaInicio';
@@ -182,6 +184,15 @@ const router = createBrowserRouter([
       {
         path: '/registro-exito',
         element: <PaginaRegistroExito />,
+      },
+      // Páginas legales (públicas, enlazadas desde el registro y el footer)
+      {
+        path: '/terminos',
+        element: <PaginaTerminos />,
+      },
+      {
+        path: '/privacidad',
+        element: <PaginaAvisoPrivacidad />,
       },
       // Entrada al Demo de Business Studio (embebida en el Panel). Canjea el ?handoff y entra a BS.
       {
