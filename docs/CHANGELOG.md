@@ -17,6 +17,9 @@ Arranque del **go-live** de AnunciaYA — activación de la infraestructura real
 - **Stripe LIVE** — cuenta activada (persona física, Santander MXN, statement `ANUNCIAYA`, 2FA); keys live en Render+Vercel, webhook live (6 eventos), precios en Live (mensual $864 / anual $8,640), Customer Portal. Validado E2E con compra real de anuncio $99 (webhook → activo + recibo).
 - **Base de prod propia en Upstash Redis** (`anunciaya-redis-prod`, Fixed $10/mes, Oregon) — antes dev y prod compartían una sola base.
 - **Bucket de prod propio en Cloudflare R2** (`anunciaya-prod`) — antes dev y prod compartían `anunciaya-tickets`. CORS + Public URL; Render apuntando al bucket nuevo. Validado E2E (subida de imagen de chat).
+- **Páginas legales** — Aviso de Privacidad (LFPDPPP art. 16) + Términos y Condiciones (LFPC) en `/privacidad` y `/terminos`, enlazadas en el registro, el footer público y en Stripe (Public business info). Borradores en `docs/legal/`.
+- **DMARC** — registro TXT `_dmarc` en el DNS de anunciaya.mx (`p=none`, rua a admin@); con SPF + DKIM ya presentes, SES queda con la trifecta de autenticación (mejor entregabilidad).
+- **Pie de contacto en correos** — todos los correos transaccionales muestran "¿Dudas? contacto@anunciaya.mx" (leído de la config `email_soporte`, hidratado al arrancar).
 
 ### Cambiado
 
@@ -26,11 +29,14 @@ Arranque del **go-live** de AnunciaYA — activación de la infraestructura real
 - **Fix de conexión Redis** — saneamiento defensivo de `REDIS_URL` en `apps/api/src/db/redis.ts` (comillas/espacios/esquema faltante + `tls:{}` explícito para Upstash).
 - **Cuenta AWS pasada a estándar** (pago por uso) para que no se cierre al vencer el free tier; tarjeta + divisa MXN.
 - **Cloudinary eliminado** — legado 100% muerto (ya migrado a R2); quitadas las env vars huérfanas de `apps/web/.env`, `apps/api/.env`, Vercel y Render.
+- **Secretos de prod rotados** — `JWT_SECRET` y `JWT_REFRESH_SECRET` regenerados aleatorios (48 bytes) y distintos de dev (los de dev eran predecibles). `ADMIN_SECRET` se deja sin configurar (cierra el bypass legacy; el Panel entra por JWT).
+- **Builds de Vercel independientes** — Ignored Build Step (`git diff` por carpeta + `packages/shared`) en ambos proyectos, para que un push a una carpeta no rebuildee el otro proyecto.
+- **Prod reseteado para la beta** — borrados los datos de prueba (5 usuarios + 2 negocios + contenido) preservando el superadmin, `configuracion_sistema` y catálogos; buckets R2 (prod y dev) limpiados con el reconcile. SQL en `docs/migraciones/reset_datos_prueba_prod.sql`.
 
 ### Notas
 
 - **En espera:** AWS SES (aprobación para salir del sandbox → correos a usuarios reales).
-- **Pendiente:** páginas legales (Términos + Aviso de Privacidad), DMARC, revisar secretos; y al salir a promover subir Supabase Pro + Vercel Pro.
+- **Al salir a promover:** subir Supabase Pro + Vercel Pro. Cotejo del aviso con el Generador del INAI (opcional).
 
 ---
 
