@@ -1,0 +1,17 @@
+# AnunciaYA — comercio local hiperlocal
+User-agent: *
+Allow: /
+
+# Rutas de la app (privadas / requieren sesión): no aportan a la búsqueda
+Disallow: /business-studio
+Disallow: /scanya
+Disallow: /perfil
+Disallow: /guardados
+Disallow: /mis-cupones
+Disallow: /mis-publicaciones
+Disallow: /cardya
+Disallow: /business/onboarding
+Disallow: /crear-negocio
+Disallow: /negocio/configurar
+
+Sitemap: https://anunciaya.mx/sitemap.xml
