@@ -1,11 +1,11 @@
 // Service Worker de ScanYA PWA
 // Maneja cache de assets y funcionalidad offline
 
-const CACHE_NAME = 'scanya-v1';
+const CACHE_NAME = 'scanya-v2';
 const STATIC_ASSETS = [
   '/scanya/login',
-  '/icons/scanya-192.png',
-  '/icons/scanya-512.png',
+  '/icons/scanya-192.webp',
+  '/icons/scanya-512.webp',
 ];
 
 // URL del backend (Render)
@@ -17,13 +17,15 @@ const API_BASE = 'https://anunciaya-api.onrender.com';
 self.addEventListener('install', (event) => {
   console.log('[ScanYA SW] Instalando Service Worker...');
   
+  // Tolerante a fallos: si un asset da 404 NO debe tumbar la instalación del SW
+  // (un install fallido deja a la PWA sin SW y Chrome la marca como NO instalable).
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
       console.log('[ScanYA SW] Cacheando assets estáticos');
-      return cache.addAll(STATIC_ASSETS);
+      return Promise.allSettled(STATIC_ASSETS.map((asset) => cache.add(asset)));
     })
   );
-  
+
   // Activar inmediatamente sin esperar
   self.skipWaiting();
 });
@@ -149,8 +151,8 @@ self.addEventListener('push', (event) => {
   
   const options = {
     body: event.data?.text() || 'Tienes una nueva notificación',
-    icon: '/icons/scanya-192.png',
-    badge: '/icons/scanya-badge.png',
+    icon: '/icons/scanya-192.webp',
+    badge: '/icons/scanya-badge.webp',
     vibrate: [200, 100, 200],
     tag: 'scanya-notification',
     requireInteraction: false,
