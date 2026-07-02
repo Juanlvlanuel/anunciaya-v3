@@ -34,7 +34,7 @@
 - [ ] **AWS SES — salir de sandbox** — solicitud enviada 1-jul, esperando aprobación AWS (~24h). Dominio `anunciaya.mx` + DKIM ya verificados. Verificar con GetSendQuota (sandbox = 200/día → prod ~50,000).
 
 ## ⏳ PENDIENTE (accionable)
-- [ ] **Google OAuth** — agregar dominios de prod (anunciaya.mx / admin.anunciaya.mx) a Authorized JavaScript origins + redirect URIs en Google Cloud Console. Si falta, el login con Google falla en prod.
+- [x] **Google OAuth** ✅ (Juan) — login/registro con Google ya funciona en prod (dominios de prod en Authorized JavaScript origins; el flujo es popup auth-code → solo requiere *origins*, NO redirect URIs; consent screen publicada). Gratis (OAuth básico openid/email/profile).
 - [x] **Cloudflare R2** — SEPARADO dev/prod (1 jul). Bucket de prod propio `anunciaya-prod` (CORS con orígenes prod + Public URL). Render apunta a él (`R2_BUCKET_NAME=anunciaya-prod`, `R2_PUBLIC_URL=pub-84dd…r2.dev`); dev queda con `anunciaya-tickets`. Token de cuenta validado (acceso OK). R2 Paid $0/mo + uso (egress gratis). Pendientes no urgentes: (a) ajustar el reconcile para limpiar el bucket prod (hoy solo dev se auto-limpia, seguro); (b) reset de datos de prueba de prod antes del lanzamiento. Dominio propio del bucket = mejora futura opcional (el pub-…r2.dev basta para la beta; el logo de correos ya usa BRAND_ASSETS_URL de Vercel).
 - [x] **DMARC** (2 jul) — TXT `_dmarc` = `v=DMARC1; p=none; rua=mailto:admin@anunciaya.mx` en Namecheap (DNS de anunciaya.mx). Verificado propagado (autoritativo + Google DNS). `p=none` = solo monitorea. Nota: SPF solo cubre Migadu, pero DMARC pasa vía DKIM de SES (alineado). Opcional futuro: agregar `include:amazonses.com` al SPF y endurecer a `p=quarantine`.
 - [x] **Páginas legales** (2 jul) — Aviso de Privacidad (conforme LFPDPPP art. 16) + Términos y Condiciones (LFPC), aprobados por Juan. Borradores en `docs/legal/`. Páginas web `/privacidad` y `/terminos` (`apps/web/src/pages/public/`, LayoutPublico + card), enlazadas en el footer público y el checkbox de registro (que ya apuntaba ahí). Responsable: Juan Manuel Valenzuela Jabalera, domicilio Av. Sinaloa 27 Col. Centro CP 83550 Puerto Peñasco; canal ARCO/contacto admin@anunciaya.mx. Desplegadas en prod (Vercel, verificado HTTP 200) y **enlazadas en Stripe** (Live → Checkout → Políticas de la tienda: URLs de condiciones/privacidad guardadas en "Datos públicos" + toggle "Políticas legales" ON + "Mostrar aceptación de condiciones" ON). Pendiente OPCIONAL: cotejar el aviso con el Generador del INAI. No es asesoría legal formal — revisión de abogado ideal al crecer.
@@ -45,7 +45,7 @@
 ## 🔧 MENORES / OPCIONALES
 - [ ] Tarjeta OXXO física → completar en datos de depósito del Panel
 - [ ] Reembolsar los $99 del humo de publicidad (Stripe → Payments → Refund)
-- [ ] Vercel → confirmar dominios finales (web + admin ya funcionan)
+- [x] Vercel → dominios finales OK (`anunciaya.mx` + `admin.anunciaya.mx` con SSL, funcionando)
 
 ## 🚀 VALIDACIÓN FINAL (antes de abrir la beta)
 - [ ] Humo E2E en prod: registro→correo de verificación (requiere SES aprobado), login Google, alta de negocio, chat de producto, cobro de membresía real, ScanYA, subida de imagen
