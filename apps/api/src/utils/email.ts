@@ -17,12 +17,28 @@ import nodemailer from 'nodemailer';
 import { SESClient, SendEmailCommand } from '@aws-sdk/client-ses';
 import { env } from '../config/env.js';
 import { ZONA_EMPRESA } from './zonaHoraria.js';
+import { obtenerConfigTexto } from '../services/configuracion.service.js';
 
 // URL pública del logo de AnunciaYA (para incluir en emails).
 // Usar URL pública (no base64) porque Gmail bloquea data: URIs desde 2013.
 // Se construye desde BRAND_ASSETS_URL (dominio propio del bucket R2) en vez de
 // hardcodear pub-…r2.dev, que sufre rate-limit y rompe el logo en Gmail/Yahoo.
 const LOGO_URL = `${env.BRAND_ASSETS_URL}/brand/anunciaya-logo3.png`;
+
+// Email de contacto público que se muestra en el pie de todos los correos. Se lee
+// de la config (clave `email_soporte`) y se hidrata al arrancar el servidor con
+// `refrescarEmailSoporte()`. El default coincide con el valor de producción por si
+// aún no se hidrató.
+let emailSoporte = 'contacto@anunciaya.mx';
+
+/** Relee `email_soporte` de la config (para el pie de los correos). Llamar al arrancar. */
+export async function refrescarEmailSoporte(): Promise<void> {
+  try {
+    emailSoporte = await obtenerConfigTexto('email_soporte', 'contacto@anunciaya.mx');
+  } catch {
+    // Conserva el valor actual/por defecto si la config no está disponible.
+  }
+}
 
 // =============================================================================
 // CONFIGURACIÓN DE PROVEEDORES
@@ -465,6 +481,9 @@ function plantillaBase(nombre: string, contenido: string): string {
           </tr>
           <tr>
             <td style="padding: 24px 32px; background-color: #fafafa; border-top: 1px solid #e4e4e7;">
+              <p style="margin: 0 0 6px; font-size: 12px; color: #a1a1aa; text-align: center;">
+                &iquest;Dudas? Escr&iacute;benos a <a href="mailto:${emailSoporte}" style="color: #64748b; text-decoration: underline;">${emailSoporte}</a>
+              </p>
               <p style="margin: 0; font-size: 12px; color: #a1a1aa; text-align: center;">
                 &copy; ${new Date().getFullYear()} AnunciaYA - Tu Comunidad Local
               </p>

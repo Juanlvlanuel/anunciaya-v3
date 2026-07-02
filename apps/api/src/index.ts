@@ -16,6 +16,7 @@ import { inicializarCronSuscripcionesGracia } from './cron/suscripciones-gracia.
 import { inicializarCronVencimientosManuales } from './cron/suscripciones-vencimientos-manuales.cron.js';
 import { inicializarCronPublicidad } from './cron/publicidad.cron.js';
 import { inicializarCapturaLogs } from './utils/logBuffer.js';
+import { refrescarEmailSoporte } from './utils/email.js';
 
 const PORT = process.env.API_PORT || 4000;
 const HOST = process.env.API_HOST || '0.0.0.0';
@@ -26,6 +27,9 @@ const iniciarServidor = async () => {
     // Captura de logs en memoria para la "Ventana de logs recientes" del Panel
     // (módulo Mantenimiento). Envuelve console.* sin cambiar el log a stdout.
     inicializarCapturaLogs();
+
+    // Hidrata el email de contacto (config `email_soporte`) para el pie de los correos.
+    await refrescarEmailSoporte();
 
     // Crear servidor HTTP y montar Socket.io
     const server = createServer(app);
