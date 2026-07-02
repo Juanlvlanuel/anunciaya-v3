@@ -13,6 +13,7 @@ import { queryClient } from './config/queryClient';
 import { AppRouter } from './router';
 import { useAuthPanelStore } from './stores/useAuthPanelStore';
 import { Toaster } from './components/ui/Toaster';
+import { BannerInstalarPanel } from './components/pwa/BannerInstalarPanel';
 
 function App() {
   useEffect(() => {
@@ -23,6 +24,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <AppRouter />
       <Toaster />
+      <BannerInstalarPanel />
     </QueryClientProvider>
   );
 }

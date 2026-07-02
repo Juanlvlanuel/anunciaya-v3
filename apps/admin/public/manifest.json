@@ -12,8 +12,14 @@
   "dir": "ltr",
   "icons": [
     {
-      "src": "/favicon2.png",
-      "sizes": "330x329",
+      "src": "/icons/panel-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "any"
+    },
+    {
+      "src": "/icons/panel-512.png",
+      "sizes": "512x512",
       "type": "image/png",
       "purpose": "any"
     }

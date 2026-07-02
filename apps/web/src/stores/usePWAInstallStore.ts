@@ -63,9 +63,6 @@ interface PWAInstallState {
 // CONSTANTES / HELPERS
 // =============================================================================
 
-const STORAGE_BANNER = 'ay-pwa-banner-descartado';
-const DIAS_SILENCIO_BANNER = 7;
-
 function esStandaloneAhora(): boolean {
   if (typeof window === 'undefined') return false;
   const porMedia = window.matchMedia?.('(display-mode: standalone)').matches ?? false;
@@ -80,19 +77,6 @@ function detectarIOS(): boolean {
   // iPadOS 13+ se presenta como "Macintosh" pero tiene touch.
   const esIpadOS = ua.includes('Macintosh') && typeof document !== 'undefined' && 'ontouchend' in document;
   return esIphone || esIpadOS;
-}
-
-function bannerSilenciado(): boolean {
-  try {
-    const raw = localStorage.getItem(STORAGE_BANNER);
-    if (!raw) return false;
-    const ts = Number(raw);
-    if (!Number.isFinite(ts)) return false;
-    const ventana = DIAS_SILENCIO_BANNER * 24 * 60 * 60 * 1000;
-    return Date.now() - ts < ventana;
-  } catch {
-    return false;
-  }
 }
 
 // =============================================================================
@@ -127,11 +111,9 @@ export const usePWAInstallStore = create<PWAInstallState>((set, get) => ({
   },
 
   descartarBanner: () => {
-    try {
-      localStorage.setItem(STORAGE_BANNER, String(Date.now()));
-    } catch {
-      // Ignorar: si no hay localStorage, el banner simplemente reaparecerá.
-    }
+    // Solo se oculta en la sesión actual (en memoria). Al refrescar o reabrir
+    // el navegador el store se reinicia y el banner vuelve a salir mientras la
+    // app no esté instalada. Por eso NO se persiste nada.
     set({ bannerVisible: false });
   },
 
@@ -140,7 +122,7 @@ export const usePWAInstallStore = create<PWAInstallState>((set, get) => ({
 
   _recalcularBanner: () => {
     const { instalada, puedeInstalar, esIOS } = get();
-    const debe = !instalada && (puedeInstalar || esIOS) && !bannerSilenciado();
+    const debe = !instalada && (puedeInstalar || esIOS);
     set({ bannerVisible: debe });
   },
 }));
@@ -166,11 +148,6 @@ export function inicializarPWAInstall(): void {
   });
 
   window.addEventListener('appinstalled', () => {
-    try {
-      localStorage.removeItem(STORAGE_BANNER);
-    } catch {
-      // Ignorar.
-    }
     usePWAInstallStore.setState({
       deferredPrompt: null,
       puedeInstalar: false,

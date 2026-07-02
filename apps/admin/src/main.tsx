@@ -2,6 +2,7 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
 import { aplicarTemaInicial } from './utils/tema';
+import { inicializarPWAInstallPanel } from './stores/usePWAInstallPanelStore';
 import './index.css';
 
 // MapLibre emite "Expected value to be of type number, but found null" al parsear tiles del estilo
@@ -24,6 +25,23 @@ silenciarRuidoMapLibre('error');
 // Aplica el tema guardado (o la preferencia del sistema) antes del primer render
 // para evitar un parpadeo claro→oscuro.
 aplicarTemaInicial();
+
+// PWA: registrar el service worker para que el Panel sea instalable (standalone).
+if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker
+      .register('/sw-panel.js', { scope: '/' })
+      .then((registration) => {
+        console.log('[PWA Panel] Service Worker registrado:', registration.scope);
+      })
+      .catch((error) => {
+        console.error('[PWA Panel] Error registrando Service Worker:', error);
+      });
+  });
+}
+
+// Capturar `beforeinstallprompt` cuanto antes para poder ofrecer la instalación.
+inicializarPWAInstallPanel();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>
