@@ -1,8 +1,25 @@
 # 🧹 Mantenimiento R2 — Recolector de Basura de Archivos Huérfanos
 
-**Última actualización:** 21 Junio 2026
-**Estado:** ✅ Operacional
-**Patrón técnico:** recolector de basura con algoritmo mark-and-sweep + reference counting + reconciliación cross-ambiente
+**Última actualización:** 1 Julio 2026
+**Estado:** ✅ Operacional en cualquier ambiente (cada uno limpia su bucket contra su BD)
+**Patrón técnico:** recolector de basura con algoritmo mark-and-sweep + reference counting + reconciliación por ambiente (single-BD)
+
+---
+
+## ⚠️ CAMBIO IMPORTANTE (1 jul 2026) — buckets dev/prod ahora SEPARADOS
+
+La premisa original de esta herramienta era que **el bucket R2 es compartido** entre dev y prod (por eso la reconciliación cross-ambiente consulta ambas BDs). **Eso ya no es cierto:** al ir a producción se separaron los buckets:
+- **dev** → `anunciaya-tickets` (+ `pub-e2d7b5cee341434dbe2884e04b368108.r2.dev`)
+- **prod** → `anunciaya-prod` (+ `pub-84dd6c7046ba4194a7568168bdc950d6.r2.dev`)
+
+Cada ambiente apunta a su bucket vía `R2_BUCKET_NAME`/`R2_PUBLIC_URL`.
+
+**Reconcile rediseñado a single-BD (1 jul 2026):** ya que cada ambiente tiene su bucket, el reconcile de cada ambiente consulta **solo su propia BD** y limpia **su propio bucket**. Cambios aplicados:
+- `reconcileConnections.ts` → `obtenerConexionesReconcile()` devuelve solo la BD del ambiente actual (se eliminó la conexión secundaria cross-ambiente).
+- `mantenimiento-acciones.service.ts` → `puedeEjecutarLimpiezaR2()` retorna `true` (ya no bloquea; el guard cross-ambiente era por el bucket compartido). `LimpiezaBloqueadaError` queda como legacy (nunca se lanza).
+- **El reconcile ya se puede correr desde el Panel de PROD** (limpia `anunciaya-prod` contra la BD de prod) y desde local (limpia `anunciaya-tickets` contra la BD de dev).
+
+⚠️ **Efecto colateral en dev (transitorio):** las ~31 imágenes de datos de prueba de prod aún viven físicamente en el bucket **dev** (`anunciaya-tickets`) por el legado del bucket compartido. Con el reconcile single-BD, correrlo en **dev** las marcará como huérfanas (la BD dev no las referencia) y las borrará. Es aceptable — son datos de prueba desechables que de todos modos se van en el reset de prod. Ver [[project_migracion_produccion]].
 
 ---
 

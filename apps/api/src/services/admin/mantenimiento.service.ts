@@ -148,9 +148,9 @@ async function registrarEnLog(datos: {
  * se llama con una URL en uso, este check evita romper el artículo /
  * negocio / perfil que la sigue referenciando.
  *
- * NOTA: a diferencia de `listarUrlsEnUso`, este helper consulta SOLO la BD
- * principal — no multi-ambiente. Para un check puntual durante un DELETE
- * inmediato eso es suficiente; el reconcile periódico cubre cross-BD.
+ * NOTA: consulta SOLO la BD del ambiente actual (igual que `listarUrlsEnUso`
+ * tras la separación de buckets dev/prod). Para un check puntual durante un
+ * DELETE inmediato es suficiente.
  *
  * @param url - URL R2 completa a verificar
  * @returns true si la URL aparece en al menos una fila de IMAGE_REGISTRY
@@ -208,15 +208,14 @@ export async function urlEstaEnUso(url: string): Promise<boolean> {
 }
 
 /**
- * Recorre el IMAGE_REGISTRY consultando cada tabla/columna en TODAS las
- * conexiones de BD disponibles (local + producción cuando aplique) y arma el
- * set UNION de URLs referenciadas por cualquier registro de cualquier ambiente.
+ * Recorre el IMAGE_REGISTRY consultando cada tabla/columna en la BD del ambiente
+ * actual y arma el set de URLs referenciadas por algún registro.
  *
- * Esto es crítico para la seguridad del reconcile: si el bucket R2 es compartido
- * entre ambientes, solo marcando como huérfano lo que NINGUNA BD referencia
- * evitamos borrar archivos en uso en el otro ambiente.
+ * Tras la separación de buckets dev/prod (jul 2026) cada ambiente reconcilia su
+ * propio bucket contra su propia BD: los objetos de un bucket solo pueden estar
+ * referenciados por la BD de ese ambiente, así que basta con la conexión local.
  *
- * Ver `db/reconcileConnections.ts` para detalles del multi-BD.
+ * Ver `db/reconcileConnections.ts`.
  */
 export async function listarUrlsEnUso(): Promise<Set<string>> {
     const urls = new Set<string>();

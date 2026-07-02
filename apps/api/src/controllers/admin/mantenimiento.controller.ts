@@ -57,8 +57,8 @@ export async function getReporteReconcileController(req: Request, res: Response)
 
         const reporte = await generarReporteReconcile(opciones);
 
-        // `puedeEjecutar` le dice a la UI si el borrado está habilitado (solo con
-        // acceso cross-ambiente / local). En prod queda en false.
+        // `puedeEjecutar` le dice a la UI si el borrado está habilitado. Tras
+        // separar los buckets dev/prod es seguro en cualquier ambiente (true).
         res.status(200).json({
             success: true,
             data: { ...reporte, puedeEjecutar: puedeEjecutarLimpiezaR2() },

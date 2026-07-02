@@ -757,8 +757,7 @@ function BloqueR2() {
                 <div className="mt-3 flex items-start gap-2.5 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3">
                   <AlertTriangle size={16} className="mt-0.5 shrink-0" style={{ color: 'var(--panel-warn)' }} />
                   <span className="text-[12px] leading-relaxed text-texto-3">
-                    La limpieza está deshabilitada aquí. El bucket R2 es compartido dev/prod; el borrado seguro solo
-                    corre desde <strong>local</strong> (donde el backend ve ambas bases de datos).
+                    La limpieza no está disponible en este momento.
                   </span>
                 </div>
               ))}

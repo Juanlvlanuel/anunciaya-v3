@@ -102,7 +102,7 @@ export interface ReporteReconcile {
   huerfanas: Array<{ url: string; key: string; carpeta: string; size: number; lastModified: string }>;
   rotas: Array<{ url: string; ubicacion: string }>;
   ignoradasPorGracia: Array<{ url: string; key: string; edadMinutos: number }>;
-  /** Si el borrado está habilitado (solo con acceso cross-ambiente / local). false en prod. */
+  /** Si el borrado está habilitado. Tras separar los buckets dev/prod es seguro en cualquier ambiente. */
   puedeEjecutar?: boolean;
 }
 

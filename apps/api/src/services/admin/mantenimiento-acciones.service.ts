@@ -4,9 +4,9 @@
  * Acciones (escritura/ejecución) del módulo "Mantenimiento" (Panel Admin). Cada
  * acción audita en `admin_auditoria`. Complementa `salud.service.ts` (lectura).
  *
- *  - ejecutarLimpiezaR2Segura → borra huérfanos SOLO si el backend tiene acceso
- *    cross-ambiente (las 2 BDs). En prod (sin secundaria) lo bloquea: el bucket R2
- *    es compartido y borrar desde prod eliminaría archivos de desarrollo.
+ *  - ejecutarLimpiezaR2Segura → borra huérfanos del bucket del ambiente actual
+ *    contra su propia BD. Tras separar los buckets dev/prod (jul 2026) es seguro
+ *    en cualquier ambiente; el guard cross-ambiente quedó obsoleto.
  *  - ejecutarCronManual       → fuerza la corrida de un cron sin esperar su horario.
  *  - purgarCacheConfig        → limpia el caché en memoria de configuracion.service.
  *  - vaciarLogsBE             → vacía el buffer de logs en memoria.
@@ -16,7 +16,6 @@
 
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
-import { obtenerConexionesReconcile } from '../../db/reconcileConnections.js';
 import { resetearCacheConfig } from '../configuracion.service.js';
 import { vaciarLogs } from '../../utils/logBuffer.js';
 import {
@@ -34,25 +33,28 @@ import { limpiarConversacionesInactivas as correrChatya } from '../../cron/chaty
 import { ejecutarCronDiario as correrAlertas } from '../../cron/alertas.cron.js';
 
 // =============================================================================
-// RECOLECTOR R2 — ejecutar limpieza (con guard cross-ambiente)
+// RECOLECTOR R2 — ejecutar limpieza
 // =============================================================================
 
 /**
- * El borrado es seguro solo cuando el backend ve las 2 BDs (cross-ambiente), es
- * decir, en local con `DATABASE_URL_PRODUCTION`. En prod (Render) solo ve su BD y,
- * como el bucket R2 es compartido, borraría archivos que solo existen en dev.
+ * Tras la separación de buckets (dev=`anunciaya-tickets` / prod=`anunciaya-prod`),
+ * cada ambiente limpia SU bucket contra SU propia BD, así que el borrado es seguro
+ * en cualquier ambiente. Se conserva esta función (la UI la usa para saber si
+ * habilitar el botón) pero ya no bloquea: el guard cross-ambiente quedó obsoleto
+ * porque el bucket dejó de ser compartido.
  */
 export function puedeEjecutarLimpiezaR2(): boolean {
-    return obtenerConexionesReconcile().length > 1;
+    return true;
 }
 
-/** El borrado se intentó desde un entorno sin acceso cross-ambiente (p. ej. prod). */
+/**
+ * (Legacy) Se lanzaba cuando el bucket era compartido dev/prod y el borrado se
+ * intentaba sin acceso cross-ambiente. Tras separar los buckets ya no se lanza;
+ * se conserva por compatibilidad con el controller (que aún la importa/captura).
+ */
 export class LimpiezaBloqueadaError extends Error {
     constructor() {
-        super(
-            'La limpieza solo puede ejecutarse desde un entorno con acceso a ambas bases de datos (local). ' +
-                'El bucket R2 es compartido dev/prod: borrar desde producción eliminaría archivos de desarrollo.',
-        );
+        super('La limpieza de R2 no está disponible en este momento.');
         this.name = 'LimpiezaBloqueadaError';
     }
 }
