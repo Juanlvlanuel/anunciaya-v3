@@ -344,8 +344,8 @@
 | Go-live / infraestructura (7.1) | ✅ Completado (1-2 jul; solo falta aprobación AWS SES) |
 | Pre-lanzamiento restante (7.1 testing) | ~5 días |
 | Beta (7.2) | ~21 días |
-| **TOTAL OPTIMISTA** | **~4-6 semanas** (solo Panel Admin + lanzamiento) |
-| **TOTAL REALISTA** | **~6-8 semanas** |
+| **RESTANTE — optimista** | **~3 semanas** (testing ~5 días + beta ~3 sem, si todo fluye) — todo lo demás ✅ completado |
+| **RESTANTE — realista** | **~4-5 semanas** (una vez aprobado AWS SES) |
 
 **Fecha lanzamiento público proyectada:** por definir tras la beta. Beta ~mediados julio 2026 (Juan graba videos 1-2 semanas antes de promover); lanzamiento público después de validar con los 50 negocios piloto.
 
