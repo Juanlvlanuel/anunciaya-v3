@@ -543,6 +543,7 @@ export interface DatosRegistroPendiente {
   creadoEn: string;         // ISO timestamp
   // ========== NUEVO CAMPO ==========
   nombreNegocio: string | null;  // Solo para perfil comercial
+  ciudadId: string | null;       // Ciudad (ya resuelta a ciudad_id) elegida en el registro
 }
 
 /**
@@ -677,6 +678,7 @@ export async function actualizarRegistroPendiente(
     membresia: pendiente.membresia,
     codigo: pendiente.codigo,
     nombreNegocio: campos.nombreNegocio,
+    ciudadId: pendiente.ciudadId,
   });
 }
 

@@ -99,6 +99,7 @@ export interface RegistroInput {
   apellidos: string;
   correo: string;
   telefono: string;
+  ciudad: string;   // Nombre de la ciudad (el backend lo resuelve a ciudad_id). En comercial: donde opera el negocio.
   perfil: 'personal' | 'comercial';
   aceptaTerminos: boolean;
 

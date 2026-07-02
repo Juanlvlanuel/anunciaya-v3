@@ -28,6 +28,7 @@ import { db } from '../db/index.js';
 import { usuarios, negocios, negocioSucursales, embajadores, pagosMembresia } from '../db/schemas/schema.js';
 import { redis } from '../db/redis.js'; // ← CORREGIDO
 import { generarTokens, type PayloadToken } from '../utils/jwt.js';
+import { resolverCiudadId } from '../utils/ciudades.js';
 import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
 import { obtenerConfigNumero, obtenerConfigTexto } from './configuracion.service.js';
 import { crearNegocioConDueno } from './negocioManagement.service.js';
@@ -49,6 +50,7 @@ interface DatosCheckout {
         nombre: string;
         apellidos: string;
         telefono: string;
+        ciudad?: string;   // Nombre de la ciudad donde opera el negocio (se resuelve a ciudad_id)
     };
     // Campos opcionales para registro con Google
     esRegistroGoogle?: boolean;
@@ -169,6 +171,8 @@ export async function crearCheckoutSession(
             esRegistroGoogle: true,
             googleIdToken,
             verificadoAt: new Date().toISOString(),
+            // Ciudad donde opera el negocio (resuelta a ciudad_id para el webhook).
+            ciudadId: await resolverCiudadId(datosRegistro.ciudad ?? null),
         };
 
         // Guardar en Redis con TTL de 1 hora
@@ -634,6 +638,7 @@ interface DatosRegistroRedis {
     verificadoAt: string;
     esRegistroGoogle?: boolean;     // ← AGREGAR
     googleIdToken?: string;         // ← AGREGAR
+    ciudadId?: string | null;       // Ciudad (ya resuelta) elegida en el registro comercial
 }
 
 // =============================================================================
@@ -851,6 +856,7 @@ async function manejarCheckoutCompletado(
         stripeSubscriptionId: session.subscription as string,
         embajadorId: atribucion?.embajadorId ?? null, // Vendedor que lo trajo
         nombreNegocio,
+        ciudadId: datosRegistro.ciudadId ?? null, // Ciudad donde opera el negocio (elegida en el registro)
     });
 
     console.log('✅ Usuario + negocio + sucursal creados:', nuevoUsuario.id, nuevoNegocio.id);

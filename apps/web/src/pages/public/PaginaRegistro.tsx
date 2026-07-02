@@ -47,7 +47,7 @@ const REANUDAR_KEY = 'ay_registro_reanudar';
 interface DatosReanudar {
   correo: string;
   nombreNegocio: string;
-  datosRegistro: { nombre: string; apellidos: string; telefono: string };
+  datosRegistro: { nombre: string; apellidos: string; telefono: string; ciudad: string };
   intervalo: 'month' | 'year';
 }
 
@@ -89,6 +89,7 @@ interface EstadoRegistro {
     nombre: string;
     apellidos: string;
     telefono: string;
+    ciudad: string;
   } | null;
 }
 
@@ -255,6 +256,7 @@ export function PaginaRegistro() {
               nombre: datos.nombre,
               apellidos: datos.apellidos,
               telefono: datos.telefono,
+              ciudad: datos.ciudad,
             },
           }));
 
@@ -265,6 +267,7 @@ export function PaginaRegistro() {
               nombre: datos.nombre,
               apellidos: datos.apellidos,
               telefono: datos.telefono,
+              ciudad: datos.ciudad,
             },
             datos.intervalo ?? 'month',
             datos.googleIdToken
@@ -294,6 +297,7 @@ export function PaginaRegistro() {
             nombre: datos.nombre,
             apellidos: datos.apellidos,
             telefono: datos.telefono,
+            ciudad: datos.ciudad,
           },
         }));
 
@@ -308,6 +312,7 @@ export function PaginaRegistro() {
                 nombre: datos.nombre,
                 apellidos: datos.apellidos,
                 telefono: datos.telefono,
+                ciudad: datos.ciudad,
               },
               datos.intervalo ?? 'month',
               datos.googleIdToken
@@ -435,7 +440,9 @@ export function PaginaRegistro() {
         await redirigirAStripe(
           estado.correo,
           datos.nombreNegocio,
-          { nombre: datos.nombre, apellidos: datos.apellidos, telefono: datos.telefono },
+          // En reanudar la ciudad ya vive en Redis (registro_pendiente); solo se
+          // pasa para satisfacer el tipo, el checkout normal no la reescribe.
+          { nombre: datos.nombre, apellidos: datos.apellidos, telefono: datos.telefono, ciudad: estado.datosRegistro?.ciudad ?? '' },
           datos.intervalo,
         );
       } catch (error) {
@@ -529,7 +536,7 @@ export function PaginaRegistro() {
   async function redirigirAStripe(
     correo: string,
     nombreNegocio: string,
-    datosRegistro: { nombre: string; apellidos: string; telefono: string },
+    datosRegistro: { nombre: string; apellidos: string; telefono: string; ciudad: string },
     intervalo: 'month' | 'year' = 'month',
     googleIdToken?: string
   ) {

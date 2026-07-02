@@ -1784,6 +1784,8 @@ export async function crearNegocioConDueno(
             autenticadoPorGoogle: datos.autenticadoPorGoogle ?? false,
             tieneModoComercial: true,
             modoActivo: 'comercial',
+            // Dueño = ciudad donde opera su negocio (misma que la sucursal principal).
+            ciudadId: datos.ciudadId ?? null,
             referidoPor: datos.embajadorId ?? null,
             requiereCambioContrasena: datos.requiereCambioContrasena ?? false,
         })

@@ -1,7 +1,7 @@
 # 🔐 AnunciaYA v3.0 - Sistema de Autenticación
 
 **Última actualización:** 19 Junio 2026  
-**Versión:** 5.4 (Ciudad del usuario vía catálogo `ciudad_id`)
+**Versión:** 5.5 (Ciudad OBLIGATORIA en el registro → `ciudad_id`)
 
 ---
 
@@ -160,6 +160,14 @@ Este documento describe la **arquitectura conceptual** del sistema de autenticac
   selector/GPS, lo resuelve a `ciudad_id` por slug con `resolverCiudadId()` (`utils/ciudades.ts`,
   el mismo helper que usan las sucursales) y persiste **solo `ciudad_id`**. Si el texto no casa con
   ninguna ciudad del catálogo, `ciudad_id` queda NULL.
+- **Ciudad OBLIGATORIA en el registro (jul 2026):** `registroSchema` exige `ciudad` (texto) en
+  AMBOS perfiles; se resuelve a `ciudad_id` en `registrarUsuario` y si no casa con el catálogo el
+  registro se **rechaza** (400) — así nadie nace sin ciudad. Se propaga por los 4 flujos: personal
+  (correo → `registro_pendiente` → `verificarEmail`; Google → insert directo) y comercial (correo/
+  Google → `temp:registro` → webhook Stripe → `crearNegocioConDueno`, que setea `ciudad_id` en el
+  **usuario dueño Y la sucursal principal**). En comercial la ciudad del registro es la del **negocio**
+  ("Ciudad donde opera tu negocio"); el onboarding (Paso 2) la muestra pre-llenada y editable. UI:
+  campo obligatorio en `FormularioRegistro` que reutiliza `ModalUbicacion` (mismo selector del onboarding).
 - La ciudad del usuario alimenta el expediente del Panel Usuarios y se usa como ciudad del
   oferente/vendedor/prestador en Servicios/MarketPlace.
 

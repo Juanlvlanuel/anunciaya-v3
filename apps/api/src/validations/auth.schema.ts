@@ -107,6 +107,15 @@ export const registroSchema = z.object({
     .enum(['personal', 'comercial'])
     .default('personal'),
 
+  // Ciudad: obligatoria en AMBOS perfiles. El frontend envía el NOMBRE de la
+  // ciudad (texto); el backend lo resuelve a ciudad_id con resolverCiudadId,
+  // igual que el onboarding. En comercial es la ciudad donde OPERA el negocio.
+  ciudad: z
+    .string()
+    .trim()
+    .min(2, 'La ciudad es requerida')
+    .max(120, 'La ciudad no puede exceder 120 caracteres'),
+
   // Nombre del negocio (solo si perfil es comercial)
   nombreNegocio: z
     .string()

@@ -28,10 +28,13 @@ import { ICONOS } from '@/config/iconos';
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
+const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import type { RegistroInput, DatosGoogleNuevo } from '@/services/authService';
 import { useGoogleLogin } from '@react-oauth/google';
 import { notificar } from '@/utils/notificaciones';
 import { useConfigPublica } from '@/hooks/queries/useConfigPublica';
+import { ModalUbicacion } from '@/components/layout/ModalUbicacion';
+import type { CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
 
 // =============================================================================
 // TIPOS
@@ -88,6 +91,7 @@ interface EstadoFormulario {
   correo: string;
   telefono: string;
   lada: string;
+  ciudad: string;
   contrasena: string;
   confirmarContrasena: string;
   aceptaTerminos: boolean;
@@ -99,6 +103,7 @@ interface EstadoValidacion {
   apellidos: boolean | null;
   correo: boolean | null;
   telefono: boolean | null;
+  ciudad: boolean | null;
   contrasena: {
     longitud: boolean;
     mayuscula: boolean;
@@ -161,6 +166,7 @@ export function FormularioRegistro({
     correo: vi?.correo || datosGoogle?.email || correoInicial || '',
     telefono: vi?.telefono || '',
     lada: vi?.lada || '+52',
+    ciudad: '',
     contrasena: '',
     confirmarContrasena: '',
     aceptaTerminos: modoReanudar ? true : false,
@@ -206,6 +212,7 @@ export function FormularioRegistro({
     apellidos: null,
     correo: null,
     telefono: null,
+    ciudad: null,
     contrasena: {
       longitud: false,
       mayuscula: false,
@@ -216,6 +223,15 @@ export function FormularioRegistro({
   });
 
   const [camposTocados, setCamposTocados] = useState<Record<string, boolean>>({});
+
+  // Selector de ciudad (reutiliza ModalUbicacion, igual que el onboarding).
+  const [modalCiudadAbierto, setModalCiudadAbierto] = useState(false);
+  const handleSeleccionarCiudad = useCallback((ciudadSel: CiudadConNombreCompleto) => {
+    setFormulario((prev) => ({ ...prev, ciudad: ciudadSel.nombre }));
+    setValidacion((prev) => ({ ...prev, ciudad: true }));
+    setCamposTocados((prev) => ({ ...prev, ciudad: true }));
+    setModalCiudadAbierto(false);
+  }, []);
 
 
   // ---------------------------------------------------------------------------
@@ -382,6 +398,7 @@ export function FormularioRegistro({
         apellidos: formulario.apellidos.trim(),
         correo: formulario.correo.trim().toLowerCase(),
         telefono: `${formulario.lada}${formulario.telefono.replace(/\D/g, '')}`,
+        ciudad: formulario.ciudad.trim(),
         perfil: tipoCuenta,
         aceptaTerminos: formulario.aceptaTerminos,
       };
@@ -427,6 +444,7 @@ export function FormularioRegistro({
       validacion.apellidos === true &&
       validacion.correo === true &&
       validacion.telefono === true &&
+      validacion.ciudad === true &&
       formulario.aceptaTerminos;
 
     if (tipoCuenta === 'comercial' && validacion.nombreNegocio !== true) {
@@ -715,6 +733,42 @@ export function FormularioRegistro({
               </div>
             </div>
           </div>
+
+          {/* Ciudad — obligatoria en ambos perfiles. En comercial es la ciudad
+              donde OPERA el negocio. Reutiliza ModalUbicacion (mismo selector
+              del onboarding). */}
+          <div>
+            <label className="block text-sm lg:text-[11px] 2xl:text-sm font-bold text-slate-700 mb-1 lg:mb-0.5 2xl:mb-1.5">
+              {tipoCuenta === 'comercial' ? 'Ciudad donde opera tu negocio' : 'Tu ciudad'}
+            </label>
+            <button
+              type="button"
+              onClick={() => setModalCiudadAbierto(true)}
+              disabled={cargando}
+              className={`flex items-center gap-2 w-full h-11 lg:h-10 2xl:h-11 px-3 lg:px-2.5 2xl:px-3 bg-slate-100 rounded-lg border-2 text-left transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                validacion.ciudad === null
+                  ? 'border-slate-300'
+                  : validacion.ciudad
+                    ? 'border-emerald-500 bg-emerald-100'
+                    : 'border-red-500 bg-red-100'
+              }`}
+              style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+              data-testid="registro-ciudad"
+            >
+              <MapPin className="w-[18px] h-[18px] text-slate-500 shrink-0" />
+              <span className={`flex-1 min-w-0 truncate text-base lg:text-sm 2xl:text-base font-medium ${formulario.ciudad ? 'text-slate-800' : 'text-slate-500'}`}>
+                {formulario.ciudad || 'Selecciona tu ciudad'}
+              </span>
+              {validacion.ciudad === true && <Check className="w-4 h-4 text-emerald-600 shrink-0" />}
+            </button>
+          </div>
+
+          {modalCiudadAbierto && (
+            <ModalUbicacion
+              onClose={() => setModalCiudadAbierto(false)}
+              onSeleccionar={handleSeleccionarCiudad}
+            />
+          )}
 
           {/* Contraseñas (oculto si viene de Google o en modo reanudar: el correo ya está verificado) */}
           {!datosGoogle && !modoReanudar && (

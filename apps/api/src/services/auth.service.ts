@@ -313,6 +313,21 @@ export async function registrarUsuario(
       };
     }
 
+    // -------------------------------------------------------------------------
+    // Resolver la ciudad elegida en el registro (texto → ciudad_id). Es
+    // obligatoria en ambos perfiles. En comercial es la ciudad donde OPERA el
+    // negocio (se usa para la sucursal principal). Si no casa con el catálogo,
+    // se rechaza el registro para no crear usuarios sin ciudad válida.
+    // -------------------------------------------------------------------------
+    const ciudadIdRegistro = await resolverCiudadId(datos.ciudad);
+    if (!ciudadIdRegistro) {
+      return {
+        success: false,
+        message: 'La ciudad seleccionada no es válida',
+        code: 400,
+      };
+    }
+
     // =========================================================================
     // FLUJO GOOGLE: Si viene googleIdToken
     // =========================================================================
@@ -371,6 +386,7 @@ export async function registrarUsuario(
           membresia: 1,
           estado: 'activo',
           avatarUrl: datos.avatar || null,
+          ciudadId: ciudadIdRegistro,
         })
         .returning();
 
@@ -431,6 +447,7 @@ export async function registrarUsuario(
       membresia: 1,
       // ========== NUEVO CAMPO ==========
       nombreNegocio: datos.nombreNegocio ?? null,
+      ciudadId: ciudadIdRegistro,
     });
 
     if (!guardado) {
@@ -585,6 +602,7 @@ export async function verificarEmail(
         correoVerificado: true,
         correoVerificadoAt: new Date().toISOString(),
         estado: 'activo',
+        ciudadId: datosRegistro.ciudadId ?? null,
       })
       .returning();
 
