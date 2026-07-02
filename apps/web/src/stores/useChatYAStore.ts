@@ -2727,14 +2727,46 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
     }));
   }
 
+  // Describe el mensaje reaccionado para el preview de la lista. Para
+  // multimedia (imagen/audio/documento/cupón) el campo `contenido` es un JSON
+  // (URL, waveform, etc.), así que NUNCA se debe mostrar crudo — se traduce a
+  // una etiqueta legible con ícono, igual que el preview normal de la lista.
+  const describirMensajeReaccionado = (msg?: { tipo: string; contenido: string }): string => {
+    if (!msg) return '';
+    const recorte = (t: string) => `${t.slice(0, 30)}${t.length > 30 ? '...' : ''}`;
+    switch (msg.tipo) {
+      case 'imagen': {
+        try {
+          const d = JSON.parse(msg.contenido) as { caption?: string };
+          return d.caption ? `📷 ${recorte(d.caption)}` : '📷 Foto';
+        } catch { return '📷 Foto'; }
+      }
+      case 'audio': return '🎤 Audio';
+      case 'documento': {
+        try {
+          const d = JSON.parse(msg.contenido) as { nombre?: string };
+          return d.nombre ? `📎 ${recorte(d.nombre)}` : '📎 Documento';
+        } catch { return '📎 Documento'; }
+      }
+      case 'ubicacion': return '📍 Ubicación';
+      case 'contacto': return '👤 Contacto';
+      case 'cupon': {
+        try {
+          const d = JSON.parse(msg.contenido) as { titulo?: string };
+          return `🎁 ${d.titulo || 'Cupón'}`;
+        } catch { return '🎁 Cupón'; }
+      }
+      default:
+        return msg.contenido ? `"${recorte(msg.contenido)}"` : '';
+    }
+  };
+
   // Actualizar preview en la lista de conversaciones
   if (accion === 'agregada') {
     const miId = obtenerMiIdChatYA();
     // Buscar contenido del mensaje reaccionado (si los mensajes están cargados)
     const msgReaccionado = state.mensajes.find((m) => m.id === mensajeId);
-    const previewMsg = msgReaccionado?.contenido
-      ? `"${msgReaccionado.contenido.slice(0, 30)}${msgReaccionado.contenido.length > 30 ? '...' : ''}"`
-      : '';
+    const previewMsg = describirMensajeReaccionado(msgReaccionado);
 
     // Desempate por sucursal para inter-sucursal (mismo usuarioId, distinta sucursal).
     const miSucursalIdReac = obtenerSucursalChatYA();
@@ -2753,10 +2785,14 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
             texto: c.ultimoMensajeTexto,
             fecha: c.ultimoMensajeFecha,
             emisorId: c.ultimoMensajeEmisorId,
+            tipo: c.ultimoMensajeTipo,
           },
           ultimoMensajeTexto: textoPreview,
           ultimoMensajeFecha: new Date().toISOString(),
           ultimoMensajeEmisorId: usuarioId,
+          // La línea de reacción es texto plano: forzar tipo 'texto' para que la
+          // lista NO la renderice con el ícono/branch del multimedia original.
+          ultimoMensajeTipo: 'texto',
         };
       }),
     }));
@@ -2777,16 +2813,14 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
       const usuariosArr = reaccionRestante.usuarios as (string | { id: string; sucursalId?: string | null })[];
       // "Es mía" si existe un reactor con mi tupla (id + sucursalId).
       const esMia = usuariosArr.some((u) => coincideReactor(u, miId, miSucForRest));
-      const previewMsg = msgActualizado?.contenido
-        ? `"${msgActualizado.contenido.slice(0, 30)}${msgActualizado.contenido.length > 30 ? '...' : ''}"`
-        : '';
+      const previewMsg = describirMensajeReaccionado(msgActualizado);
       const textoReaccion = esMia
         ? `Reaccionaste con ${reaccionRestante.emoji} a ${previewMsg}`.trim()
         : `Reaccionó con ${reaccionRestante.emoji} a ${previewMsg}`.trim();
 
       useChatYAStore.setState((prev) => ({
         conversaciones: prev.conversaciones.map((c) =>
-          c.id !== conversacionId ? c : { ...c, ultimoMensajeTexto: textoReaccion },
+          c.id !== conversacionId ? c : { ...c, ultimoMensajeTexto: textoReaccion, ultimoMensajeTipo: 'texto' },
         ),
       }));
       return;
@@ -2803,6 +2837,7 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
             ultimoMensajeTexto: c._previewAnteReaccion.texto,
             ultimoMensajeFecha: c._previewAnteReaccion.fecha,
             ultimoMensajeEmisorId: c._previewAnteReaccion.emisorId,
+            ultimoMensajeTipo: c._previewAnteReaccion.tipo,
             _previewAnteReaccion: undefined,
           };
         }
@@ -2814,9 +2849,10 @@ escucharEvento<EventoReaccion>('chatya:reaccion', ({ conversacionId, mensajeId, 
             ...c,
             ultimoMensajeTexto: ultimo.tipo === 'texto' || ultimo.tipo === 'sistema'
               ? ultimo.contenido.substring(0, 100)
-              : `[${ultimo.tipo}]`,
+              : describirMensajeReaccionado(ultimo),
             ultimoMensajeFecha: ultimo.createdAt,
             ultimoMensajeEmisorId: ultimo.emisorId,
+            ultimoMensajeTipo: ultimo.tipo,
           };
         }
 
