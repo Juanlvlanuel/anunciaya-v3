@@ -8,6 +8,32 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [1 Julio 2026] - Migración a producción (go-live): infraestructura real 🚀
+
+Arranque del **go-live** de AnunciaYA — activación de la infraestructura real de cara a la beta de Puerto Peñasco. Doc canónico y checklist vivo: `docs/DESPLIEGUE_PRODUCCION.md`.
+
+### Agregado
+
+- **Stripe LIVE** — cuenta activada (persona física, Santander MXN, statement `ANUNCIAYA`, 2FA); keys live en Render+Vercel, webhook live (6 eventos), precios en Live (mensual $864 / anual $8,640), Customer Portal. Validado E2E con compra real de anuncio $99 (webhook → activo + recibo).
+- **Base de prod propia en Upstash Redis** (`anunciaya-redis-prod`, Fixed $10/mes, Oregon) — antes dev y prod compartían una sola base.
+- **Bucket de prod propio en Cloudflare R2** (`anunciaya-prod`) — antes dev y prod compartían `anunciaya-tickets`. CORS + Public URL; Render apuntando al bucket nuevo. Validado E2E (subida de imagen de chat).
+
+### Cambiado
+
+- **Render** subido a plan **Starter $7/mes** — el backend ya NO se duerme (crons in-process + Socket.io estables).
+- **Base de datos DEV↔PROD alineada** — 6 correcciones de drift (3 columnas NOT NULL, CHECK `contexto_tipo`, y 2 columnas de Alertas usadas por SQL crudo que causaban 500 en prod).
+- **Reconcile de R2 rediseñado a single-BD** — al separar los buckets, cada ambiente limpia SU bucket contra SU propia BD (el guard cross-ambiente quedó obsoleto). El reconcile ya corre desde el Panel de prod. (`reconcileConnections`, `mantenimiento-acciones.service`).
+- **Fix de conexión Redis** — saneamiento defensivo de `REDIS_URL` en `apps/api/src/db/redis.ts` (comillas/espacios/esquema faltante + `tls:{}` explícito para Upstash).
+- **Cuenta AWS pasada a estándar** (pago por uso) para que no se cierre al vencer el free tier; tarjeta + divisa MXN.
+- **Cloudinary eliminado** — legado 100% muerto (ya migrado a R2); quitadas las env vars huérfanas de `apps/web/.env`, `apps/api/.env`, Vercel y Render.
+
+### Notas
+
+- **En espera:** AWS SES (aprobación para salir del sandbox → correos a usuarios reales).
+- **Pendiente:** páginas legales (Términos + Aviso de Privacidad), DMARC, revisar secretos; y al salir a promover subir Supabase Pro + Vercel Pro.
+
+---
+
 ## [30 Junio 2026] - Demo de Business Studio para vendedores 🎬
 
 Herramienta para que los **vendedores** muestren Business Studio a comerciantes prospecto sin arriesgar datos reales. **NO reconstruye BS**: reusa el BS de siempre apuntándolo a un negocio de demostración con vida. Construido y con QA en dev OK (probado por Juan: entrar, navegar módulos, crear producto/oferta, aislamiento entre cuentas, "Reiniciar demo"). `tsc` verde en api/web/admin. Doc: `docs/arquitectura/Demo_Business_Studio.md`. **Pendiente:** correr el seed + `VITE_WEB_URL` en prod.

@@ -22,7 +22,7 @@ Las piezas únicas que la diferencian: **CardYA, ScanYA, ChatYA, geolocalizació
 
 **Solo developer:** Juan.
 
-**Estado:** En desarrollo activo. Lanzamiento beta proyectado: Mayo-Junio 2026.
+**Estado:** Migración a producción (go-live) en curso — infra real activándose. Lanzamiento beta: Puerto Peñasco, ~mediados julio 2026. Ver `docs/DESPLIEGUE_PRODUCCION.md`.
 
 > Filosofía completa y secciones definitivas: `docs/VISION_ESTRATEGICA_AnunciaYA.md`.
 

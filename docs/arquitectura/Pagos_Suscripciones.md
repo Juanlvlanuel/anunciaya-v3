@@ -343,22 +343,23 @@ Luego avisa al dueño (correo de "recibo cancelado", best-effort). Frontend: `Di
 | Si fallan todos los reintentos → **factura** | Dejar como vencida |
 | Si se abre una **disputa** | Dejar la suscripción como vencida (no cancela) |
 
-Pendiente replicar **todo en modo live** + verificar la empresa en Stripe (ver §11.1).
+✅ **Replicado y validado en modo Live (1 jul 2026).** Detalle en `docs/DESPLIEGUE_PRODUCCION.md`.
 
-### 11.1 Checklist — switch a Stripe Live (día del lanzamiento)
+### 11.1 Checklist — switch a Stripe Live ✅ COMPLETADO (1 jul 2026)
 
-Test y Live son entornos **separados** en Stripe: nada de lo configurado en Test se copia solo. El día que se
-active el cobro real hay que replicar en **modo Live** (y dejar el backend de Render apuntando a las claves Live):
+Test y Live son entornos **separados** en Stripe: nada de lo configurado en Test se copia solo. Se replicó todo en **modo Live** y el backend de Render quedó apuntando a las claves Live:
 
-- [ ] **Cuenta de Stripe activada/verificada** (datos de empresa/identidad) — sin esto no se cobra dinero real.
-- [ ] **Claves Live** (`STRIPE_SECRET_KEY` + publishable) en Render.
-- [ ] **Webhook Live**: crear el endpoint en el Dashboard (modo Live) → copiar su **`whsec`** a `STRIPE_WEBHOOK_SECRET` en Render; suscribir los mismos eventos que en Test.
-- [ ] **Price de la membresía en Live**: recrearlo y guardar el nuevo `price_id` desde el Panel (Configuración → precio); el de Test no existe en Live.
-- [ ] **Customer Portal en Live**: Settings → Billing → Customer portal → activar **"Allow customers to update their payment methods"** y **Guardar** (si no, `billingPortal.sessions.create` falla). La cancelación de suscripción mejor **desactivada** (se maneja desde el Panel).
-- [ ] **Reintentos / dunning** (tabla de §11) configurados igual en Live (4 intentos / 2 semanas; impago = "marcar como impagada", no cancelar).
-- [ ] **Datos de depósito** del pago manual capturados en el Panel **de producción** (Suscripciones → Datos de depósito): banco/CLABE/cuenta/tarjeta OXXO. *(Ya hecho.)*
-- [ ] **Cron en Render** activo (el plan free se duerme → pasar a pagado o cron externo) para gracia/vencimientos.
-- [ ] **Migraciones one-shot** aplicadas en la BD de PROD.
+- [x] **Cuenta de Stripe activada/verificada** (persona física, Santander MXN, statement `ANUNCIAYA`, SaaS, 2FA ON).
+- [x] **Claves Live** (`sk_live` + `pk_live`) en Render (+ `pk_live` en Vercel).
+- [x] **Webhook Live** `AnunciaYA API - Producción` → `/api/pagos/webhook` (6 eventos) → `whsec` en Render.
+- [x] **Price de la membresía en Live**: mensual **$864** (`price_1ToVoz…`) + anual **$8,640** (`price_1ToVpo…`); producto Live `prod_TcFY6kI9RIuCf1`; `STRIPE_PRICE_COMERCIAL` puesta en Render.
+- [x] **Customer Portal en Live**: métodos de pago + facturas ON; cancelaciones OFF (se cancela desde el Panel).
+- [x] **Reintentos / dunning** (tabla de §11) configurados igual en Live (4 intentos / 2 semanas; impago = "marcar como impagada").
+- [x] **Datos de depósito** del pago manual capturados en el Panel de producción.
+- [x] **Cron en Render** activo — Render en plan **Starter $7/mes** (NO se duerme); crons in-process corriendo.
+- [x] **Migraciones one-shot** aplicadas en la BD de PROD.
+
+**Humo real validado:** compra de anuncio $99 → webhook → anuncio activo + recibo (confirmado por UI, BD y logs).
 
 ---
 

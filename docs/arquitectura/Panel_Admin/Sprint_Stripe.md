@@ -36,8 +36,9 @@ todo cerrado). La migración de la Pieza 3 (`2026-06-19-comision-al-cobro.sql`) 
 > (`price_1TjjgMDbqVqWBiz7Mg5RWqvI`) como default del producto `prod_TcFY6kI9RIuCf1`, con el Price
 > viejo archivado. Existe `apps/api/scripts/crear-price-membresia.ts` (crea/reusa un Price sobre el
 > mismo producto, lo hace default, archiva el viejo; idempotente; detecta TEST/LIVE por la llave).
-> **Pendiente operativo:** poner `STRIPE_PRICE_COMERCIAL` en Render; y al lanzar en LIVE correr el
-> script con la llave live. *(La Pieza 1 muda esta env a config en BD — ver DS1/DS2.)*
+> **HECHO (1 jul 2026):** `STRIPE_PRICE_COMERCIAL` puesta en Render y precios recreados en **LIVE**
+> (mensual $864 `price_1ToVoz…`, anual $8,640 `price_1ToVpo…`, producto Live `prod_TcFY6kI9RIuCf1`).
+> *(La Pieza 1 muda esta env a config en BD — ver DS1/DS2.)*
 
 ---
 
