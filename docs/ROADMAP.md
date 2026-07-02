@@ -242,7 +242,7 @@
 
 **Demo de Business Studio ✅ (construido jun 2026, QA en dev OK):** demo maestro curado (`demo_tipo='maestro'`, sembrado con `apps/api/src/scripts/seedDemoMaestro.ts`: catálogo + ofertas + puntos + 90 días de actividad simulada) + **copia privada persistente por vendedor** (clonado completo por lote + botón "Reiniciar demo"). El vendedor abre "Demo BS" desde el Panel y entra a **BS embebido** (overlay/iframe) impersonando un **usuario-sombra** dueño de su copia (handoff token en Redis → `/auth/demo/canjear-handoff`), sin tocar su propio `negocio_id`. Respeta el 1:1 negocio-dueño; los demos se ocultan del directorio público (`es_demo`). Doc: `docs/arquitectura/Demo_Business_Studio.md`.
 
-**Vendedores v2 (diseñado, construcción diferida):** mapa de territorios — gerente dibuja zonas a mano, vendedor ve su cartera + prospectos, mini-CRM. PostGIS + MapLibre.
+**Vendedores v2 (parcial):** Territorios (zonas del gerente + marcas del vendedor) ya CONSTRUIDO ✅ (sin PostGIS — 2 tablas + MapLibre). Diferido: cartera/prospectos + mini-CRM y cobertura multi-región (Pieza F).
 
 **Orden de construcción (fases) — ✅ TODAS COMPLETAS (en prod):**
 - **Fase 0 — Cimientos ✅:** atribución · estado de membresía · webhook + cron gracia · configs (`obtenerConfig`) · enforcement `usuarios.estado` · rol + auth (`requierePanel`) + shell/login/2FA del Panel.
@@ -252,11 +252,11 @@
 - **Stripe ✅** validado A-Z (Ronda de Pagos 22-23 jun).
 
 **Deuda/pendientes técnicos detectados (inventario):**
-- `configuracionSistema` es decorativa (nadie la lee) → crear helper `obtenerConfig()`.
+- ~~`configuracionSistema` es decorativa (nadie la lee) → crear helper `obtenerConfig()`.~~ ✅ Hecho — helpers `obtenerConfigTexto/Numero/Booleano/Json` en `configuracion.service.ts`, en uso (precios de membresía, comisión escalera, publicidad, datos de cobro, `email_soporte` en el pie de correos).
 - ~~Camino B de atribución (efectivo) — otra ronda.~~ ✅ Hecho (10 Jun 2026 — alta manual sin Stripe con efectivo/transferencia/cortesía, modelo C de cuenta sin contraseña, cron de expiración de manuales, editar correo del dueño).
 - ~~Consolidación ciudad (texto hardcodeado) → catálogo `ciudades` (FK `ciudad_id`) en toda la app (patrón expand-migrate-contract).~~ ✅ Hecho (19 Jun 2026). Columnas texto migradas y DROPeadas en dev+prod en `negocio_sucursales` (Negocios/Ofertas/CardYA/ChatYA/BS/casi todo el Panel), `servicios_publicaciones` (Servicios + BS Vacantes), `articulos_marketplace` (MarketPlace) y `preguntas_comunidad` (Home/Coyo); `usuarios.ciudad` migrada y **DROPeada en dev y prod** (validado 20 jun — Perfil, expediente del Panel Usuarios, ciudad del oferente/vendedor/prestador). Lecturas vía `LEFT JOIN ciudades` (alias de salida `ciudad`, el frontend no cambió); escrituras vía `resolverCiudadId(texto)` (`apps/api/src/utils/ciudades.ts`). Frontend = "catálogo hidratable": `useCiudades` (en RootLayout) hidrata `ciudadesPopulares.ts` desde `GET /api/ciudades`; el array hardcodeado quedó solo de semilla/fallback. El Panel de Ciudades da de alta ciudades nuevas (mapa MapLibre) disponibles en toda la app sin redeploy. Decisión: los logs de búsqueda (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) se quedan como TEXTO analítico (NO se migran a FK). Migraciones: `docs/migraciones/2026-06-19-*-ciudad-*.sql` + `2026-06-06/16/18-*`.
 - Seguridad: cron de galería (permitir gerente + validar `imageId ∈ sucursal`), POST gemelos foto-perfil/logo sin guard.
-- **Infra del alta manual (no código):** SES fuera de sandbox + DKIM/DMARC + dominio propio R2 para el logo de los correos.
+- **Infra (no código):** ~~DKIM/DMARC~~ ✅ (DKIM ya estaba; DMARC agregado 2-jul en Namecheap) · ~~dominio propio R2 para el logo de correos~~ ✅ (el logo usa `BRAND_ASSETS_URL` = dominio de Vercel, evita el rate-limit de r2.dev). **Pendiente:** SES fuera de sandbox 🟡 (esperando aprobación de AWS).
 
 ---
 
