@@ -51,6 +51,7 @@ import CardOfertaLista from '@/components/ofertas/CardOfertaLista';
 import TituloDeBloque from '@/components/ofertas/TituloDeBloque';
 import BloqueCarruselAuto from '@/components/ofertas/BloqueCarruselAuto';
 import TickerOfertas from '@/components/ofertas/TickerOfertas';
+import { Spinner } from '@/components/ui/Spinner';
 
 import { useGpsStore } from '@/stores/useGpsStore';
 import { useSearchStore } from '@/stores/useSearchStore';
@@ -350,6 +351,11 @@ export default function PaginaOfertas() {
 
   const ciudadNombre = ciudad?.nombre ?? '';
 
+  // Carga inicial del feed principal — muestra un solo spinner (mismo patrón
+  // que Servicios y MarketPlace) en lugar de los skeletons de los carruseles,
+  // que al entrar por primera vez daban efecto de "esqueleto".
+  const cargaInicial = isPending && ofertas.length === 0;
+
   // ---------------------------------------------------------------------------
   // RENDER
   // ---------------------------------------------------------------------------
@@ -385,6 +391,13 @@ export default function PaginaOfertas() {
       {/* secciones). El header sticky de arriba mantiene `max-w-7xl`.      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
       <div className="px-4 lg:px-4 lg:max-w-[920px] lg:mx-auto pt-6 lg:pt-8 pb-16">
+        {cargaInicial ? (
+          // Un solo spinner centrado, idéntico a Servicios/MarketPlace.
+          <div className="flex items-center justify-center py-20">
+            <Spinner tamanio="lg" />
+          </div>
+        ) : (
+         <>
         {/* 1. PAR ARRIBA (2 cols desktop): "Hoy te recomendamos" (Hero    */}
         {/*    admin override) + "Destacado" (2do popular / 1er reciente). */}
         {/*    Comparten ancho para que el Hero no domine toda la pantalla.*/}
@@ -537,6 +550,8 @@ export default function PaginaOfertas() {
             onClickOferta={setOfertaSeleccionada}
             anchoUnderline="corto"
           />
+        )}
+         </>
         )}
       </div>
 

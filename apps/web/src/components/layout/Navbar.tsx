@@ -44,6 +44,7 @@ import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
+import { useEsCiudadUnica } from '../../hooks/queries/useCiudades';
 import SelectorSucursalesInline from './SelectorSucursalesInline';
 import { DrawerDesktop } from './DrawerDesktop';
 
@@ -319,6 +320,11 @@ export const Navbar = () => {
   const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);
   const setCiudad = useGpsStore((state) => state.setCiudad);
 
+  // Modo "ciudad única": si el catálogo activo tiene una sola ciudad, el
+  // selector de ubicación se muestra como indicador no-accionable y no se
+  // pide GPS (la ciudad la fija `useCiudades`).
+  const esCiudadUnica = useEsCiudadUnica();
+
   // Notificaciones Store
   const cantidadNoLeidas = useNotificacionesStore((state) => state.totalNoLeidas);
   const togglePanel = useNotificacionesStore((state) => state.togglePanel);
@@ -327,7 +333,7 @@ export const Navbar = () => {
   // EFFECT: Auto-detectar ubicación al cargar (solo si no hay ciudad)
   // ─────────────────────────────────────────────────────────────────────────────
   useEffect(() => {
-    if (ciudad) {
+    if (ciudad || esCiudadUnica) {
       return;
     }
 
@@ -359,7 +365,7 @@ export const Navbar = () => {
     };
 
     autoDetectar();
-  }, []);
+  }, [ciudad, esCiudadUnica]);
 
   // ─────────────────────────────────────────────────────────────────────────────
   // DATOS DERIVADOS
@@ -461,28 +467,52 @@ export const Navbar = () => {
             {/* ===== UBICACIÓN + BUSCADOR + NAVEGACIÓN (ocultos en Business Studio) ===== */}
             {!esBusinessStudio ? (
               <>
-                {/* ===== UBICACIÓN — pill glass igual a los tabs ===== */}
-                <button
-                  onClick={abrirModalUbicacion}
-                  className="
-                    flex items-center gap-1 lg:gap-1 2xl:gap-2
-                    px-3 lg:px-3 2xl:px-4
-                    py-1.5 lg:py-1.5 2xl:py-2
-                    text-white
-                    bg-white/10 hover:bg-white/20
-                    backdrop-blur-md
-                    rounded-full
-                    transition-colors
-                    cursor-pointer
-                    shrink-0
-                  "
-                >
-                  <MapPin className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-300" />
-                  <span className="text-xs lg:text-xs 2xl:text-sm font-medium max-w-[100px] lg:max-w-[100px] 2xl:max-w-[180px] truncate">
-                    {ubicacionTexto}
-                  </span>
-                  <ChevronDown className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-300" />
-                </button>
+                {/* ===== UBICACIÓN — pill glass igual a los tabs =====
+                    Ciudad única: indicador no-accionable (sin chevron ni
+                    hover) — la ciudad es fija, no hay a dónde cambiar. */}
+                {esCiudadUnica ? (
+                  <div
+                    title={ubicacionTexto}
+                    className="
+                      flex items-center gap-1 lg:gap-1 2xl:gap-2
+                      px-3 lg:px-3 2xl:px-4
+                      py-1.5 lg:py-1.5 2xl:py-2
+                      text-white
+                      bg-white/10
+                      backdrop-blur-md
+                      rounded-full
+                      cursor-default
+                      shrink-0
+                    "
+                  >
+                    <MapPin className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-300" />
+                    <span className="text-xs lg:text-xs 2xl:text-sm font-medium max-w-[100px] lg:max-w-[100px] 2xl:max-w-[180px] truncate">
+                      {ubicacionTexto}
+                    </span>
+                  </div>
+                ) : (
+                  <button
+                    onClick={abrirModalUbicacion}
+                    className="
+                      flex items-center gap-1 lg:gap-1 2xl:gap-2
+                      px-3 lg:px-3 2xl:px-4
+                      py-1.5 lg:py-1.5 2xl:py-2
+                      text-white
+                      bg-white/10 hover:bg-white/20
+                      backdrop-blur-md
+                      rounded-full
+                      transition-colors
+                      cursor-pointer
+                      shrink-0
+                    "
+                  >
+                    <MapPin className="w-3.5 h-3.5 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-300" />
+                    <span className="text-xs lg:text-xs 2xl:text-sm font-medium max-w-[100px] lg:max-w-[100px] 2xl:max-w-[180px] truncate">
+                      {ubicacionTexto}
+                    </span>
+                    <ChevronDown className="w-3 h-3 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-300" />
+                  </button>
+                )}
 
                 {/* ===== BUSCADOR — Lupa afuera + pill glass interior.
                     El pill (que envuelve solo placeholder/input) es glass

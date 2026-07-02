@@ -16,7 +16,7 @@ import { useAuthStore, iniciarDeteccionActividad } from '../stores/useAuthStore'
 import { useScanYAStore } from '../stores/useScanYAStore';
 import { useGpsStore } from '../stores/useGpsStore';
 import { useUiStore } from '../stores/useUiStore';
-import { buscarCiudadCercana } from '../data/ciudadesPopulares';
+import { buscarCiudadCercana, obtenerCatalogoCiudades } from '../data/ciudadesPopulares';
 import { useCiudades } from '../hooks/queries/useCiudades';
 import { useTituloDinamico } from '../hooks/useTituloDinamico';
 import { reportarUbicacion } from '../services/authService';
@@ -269,7 +269,12 @@ export function RootLayout() {
         return;
       }
 
-      // 2. Sin ciudad guardada → intentar auto-detectar por GPS.
+      // 2. Sin ciudad guardada. Si el catálogo ya está hidratado con UNA sola
+      //    ciudad activa, no pedimos GPS: `useCiudades` la fija en background
+      //    (resuelve al usuario que rechaza permisos de ubicación).
+      if (obtenerCatalogoCiudades().length === 1) return;
+
+      // Con 2+ ciudades → auto-detectar por GPS.
       try {
         const coordenadas = await obtenerUbicacion();
 

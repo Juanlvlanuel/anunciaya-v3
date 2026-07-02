@@ -51,6 +51,31 @@ function resincronizarCiudadSeleccionada(): void {
   }
 }
 
+/**
+ * Modo "ciudad única": si el catálogo activo trae EXACTAMENTE una ciudad, se fija
+ * SIEMPRE esa ciudad en el store — sin importar el GPS ni lo que hubiera guardado
+ * antes. Resuelve el arranque de la beta (Puerto Peñasco): el usuario que rechaza
+ * los permisos de ubicación igual queda anclado a la única ciudad, y el selector
+ * del Navbar se bloquea (ver `useEsCiudadUnica`). Devuelve `true` si aplicó, para
+ * que el caller omita la resincronización por coordenadas (no hay a dónde re-anclar).
+ */
+function forzarCiudadUnicaSiAplica(
+  ciudades: { nombre: string; estado: string; coordenadas: { lat: number; lng: number } }[],
+): boolean {
+  if (ciudades.length !== 1) return false;
+  const unica = ciudades[0];
+  const { ciudad, setCiudad } = useGpsStore.getState();
+  const norm = (s: string) => s.trim().toLowerCase();
+  const yaFijada =
+    !!ciudad &&
+    norm(ciudad.nombre) === norm(unica.nombre) &&
+    norm(ciudad.estado) === norm(unica.estado);
+  if (!yaFijada) {
+    setCiudad(unica.nombre, unica.estado, unica.coordenadas);
+  }
+  return true;
+}
+
 export function useCiudades() {
   const query = useQuery({
     queryKey: ['ciudades-publicas'],
@@ -62,9 +87,28 @@ export function useCiudades() {
   useEffect(() => {
     if (query.data && query.data.length) {
       setCatalogoCiudades(query.data);
-      resincronizarCiudadSeleccionada();
+      // Si solo hay 1 ciudad activa, se fija siempre y se omite la
+      // resincronización por coordenadas (no hay otra ciudad a la cual re-anclar).
+      if (!forzarCiudadUnicaSiAplica(query.data)) {
+        resincronizarCiudadSeleccionada();
+      }
     }
   }, [query.data]);
 
   return query;
+}
+
+/**
+ * `true` cuando el catálogo activo tiene una sola ciudad. Lee del MISMO cache de
+ * React Query que `useCiudades` (misma queryKey) → no dispara un fetch extra. El
+ * Navbar lo usa para bloquear el selector de ubicación y omitir la petición de GPS.
+ */
+export function useEsCiudadUnica(): boolean {
+  const { data } = useQuery({
+    queryKey: ['ciudades-publicas'],
+    queryFn: obtenerCiudadesPublicas,
+    staleTime: 1000 * 60 * 30,
+    gcTime: 1000 * 60 * 60,
+  });
+  return (data?.length ?? 0) === 1;
 }

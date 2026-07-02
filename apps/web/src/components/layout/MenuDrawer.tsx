@@ -38,6 +38,7 @@ import { useUiStore } from '../../stores/useUiStore';
 import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
 import { abrirScanYA } from '../../config/scanya';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
+import { useEsCiudadUnica } from '../../hooks/queries/useCiudades';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { notificar } from '../../utils/notificaciones';
 
@@ -386,6 +387,10 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
   const ciudadData = useGpsStore((s) => s.ciudad);
 
+  // Ciudad única → el tile de ubicación queda como indicador (muestra la
+  // ciudad, no abre el selector).
+  const esCiudadUnica = useEsCiudadUnica();
+
   const abrirModalUbicacion = useUiStore((s) => s.abrirModalUbicacion);
   const cerrarTodo = useUiStore((s) => s.cerrarTodo);
 
@@ -520,6 +525,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   };
 
   const handleAbrirUbicacion = () => {
+    // Ciudad única: la ubicación es fija → el tile no abre el selector.
+    if (esCiudadUnica) return;
     // Cerramos el drawer PRIMERO y abrimos el modal un instante después.
     // El drawer limpia su entrada de history con un history.back() diferido
     // (setTimeout 0); si el modal se montara en el mismo gesto, ese back
