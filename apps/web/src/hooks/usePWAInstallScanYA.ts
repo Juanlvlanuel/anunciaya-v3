@@ -14,6 +14,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
+import { esHostScanYA } from '../config/scanya';
 
 // =============================================================================
 // TIPOS
@@ -58,13 +59,27 @@ const STORAGE_KEY = 'scanya-pwa-estado';
 // =============================================================================
 
 function getEstadoGuardado(): EstadoInstalacion {
-  const valor = localStorage.getItem(STORAGE_KEY);
-  if (valor === 'intento' || valor === 'instalada') return valor;
+  try {
+    const valor = localStorage.getItem(STORAGE_KEY);
+    // 'instalada' NO se lee de localStorage: quedaba "pegado" tras desinstalar
+    // (falso "ya está instalada"). El estado instalado real se deriva en tiempo
+    // real de `display-mode: standalone`. Limpiamos el valor viejo si existe.
+    if (valor === 'instalada') {
+      localStorage.removeItem(STORAGE_KEY);
+      return 'nunca';
+    }
+    if (valor === 'intento') return valor;
+  } catch { /* localStorage no disponible */ }
   return 'nunca';
 }
 
 function setEstadoGuardado(estado: EstadoInstalacion): void {
-  localStorage.setItem(STORAGE_KEY, estado);
+  try {
+    // No persistir 'instalada' (ver getEstadoGuardado). Solo 'intento' es útil
+    // recordar entre recargas para el copy "recarga para reintentar".
+    if (estado === 'instalada') return;
+    localStorage.setItem(STORAGE_KEY, estado);
+  } catch { /* localStorage no disponible */ }
 }
 
 // =============================================================================
@@ -79,8 +94,10 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
   const [instalando, setInstalando] = useState(false);
   const [esStandalone, setEsStandalone] = useState(false);
 
-  // Verificar si estamos en ruta de ScanYA
-  const esRutaScanYA = location.pathname.startsWith('/scanya');
+  // Verificar si estamos en contexto ScanYA: por ruta (/scanya) o por subdominio
+  // (s.anunciaya.mx). En el subdominio SIEMPRE es ScanYA, así que el manifest de
+  // ScanYA se mantiene y nunca se restaura el de AnunciaYA.
+  const esRutaScanYA = location.pathname.startsWith('/scanya') || esHostScanYA();
 
   // ---------------------------------------------------------------------------
   // Efecto: Inyectar/quitar manifest según la ruta

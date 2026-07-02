@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom';
 import { ChevronRight } from 'lucide-react';
+import { abrirScanYA } from '../../config/scanya';
 
 /**
  * BotonInstalarScanYA
@@ -12,7 +13,8 @@ export function BotonInstalarScanYA() {
   const navigate = useNavigate();
 
   const handleClick = () => {
-    navigate('/scanya/login');
+    // En prod salta al subdominio de ScanYA (otro origen); en dev navega interno.
+    abrirScanYA(() => navigate('/scanya/login'));
   };
 
   return (

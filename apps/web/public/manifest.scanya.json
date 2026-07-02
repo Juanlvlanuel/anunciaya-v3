@@ -3,7 +3,7 @@
   "short_name": "ScanYA",
   "description": "Otorga puntos de lealtad a tus clientes",
   "start_url": "/scanya/login?source=pwa",
-  "scope": "/scanya",
+  "scope": "/scanya/",
   "display": "standalone",
   "orientation": "portrait",
   "categories": ["business", "productivity"],

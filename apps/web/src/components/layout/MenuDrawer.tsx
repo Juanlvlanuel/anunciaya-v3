@@ -36,6 +36,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useUiStore } from '../../stores/useUiStore';
 import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
+import { abrirScanYA } from '../../config/scanya';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { useBackNativo } from '../../hooks/useBackNativo';
 import { notificar } from '../../utils/notificaciones';
@@ -641,7 +642,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         iconoImagen: '/IconoScanYA.webp',
         alt: 'ScanYA',
         onClick: scanyaHabilitado
-          ? () => handleNavegar('/scanya')
+          // En prod salta al subdominio de ScanYA (otro origen); en dev navega interno.
+          ? () => abrirScanYA(() => handleNavegar('/scanya'))
           : () => {},
         bloqueado: !scanyaHabilitado,
         hintBloqueado: !onboardingCompletado ? 'Completa tu registro' : 'Activa CardYA',

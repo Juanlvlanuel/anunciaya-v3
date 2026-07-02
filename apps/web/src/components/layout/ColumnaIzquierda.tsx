@@ -29,6 +29,7 @@ import {
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
+import { abrirScanYA } from '../../config/scanya';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -460,7 +461,7 @@ export function ColumnaIzquierda() {
         {/* ScanYA - Habilitado solo con CardYA activa Y onboarding terminado (alineado al backend) */}
         {scanyaHabilitado ? (
           <button
-            onClick={() => navigate('/scanya')}
+            onClick={() => abrirScanYA(() => navigate('/scanya'))}
             className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
           >
             <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 float-icon shrink-0" style={{ animationDelay: '0.5s' }}>

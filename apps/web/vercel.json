@@ -1,4 +1,12 @@
 {
+  "redirects": [
+    {
+      "source": "/scanya/:path*",
+      "has": [{ "type": "host", "value": "^(www\\.)?anunciaya\\.mx$" }],
+      "destination": "https://s.anunciaya.mx/scanya/:path*",
+      "permanent": false
+    }
+  ],
   "rewrites": [
     {
       "source": "/p/:tipo/:id",

@@ -114,8 +114,23 @@
   <!-- Script crítico: Fondo para barra de navegación ANTES de React -->
   <script>
     (function () {
-      // Detectar si estamos en ScanYA
-      const esScanYA = window.location.pathname.startsWith('/scanya');
+      // Subdominio de ScanYA: la app corre en s.anunciaya.mx (mismo build).
+      // Se confina a ScanYA — cualquier ruta que no sea /scanya va al login.
+      const esSubdominioScanYA = window.location.hostname === 's.anunciaya.mx';
+      if (esSubdominioScanYA && !window.location.pathname.startsWith('/scanya')) {
+        window.location.replace('/scanya/login');
+        return;
+      }
+
+      // Detectar si estamos en ScanYA (por ruta o por subdominio)
+      const esScanYA = esSubdominioScanYA || window.location.pathname.startsWith('/scanya');
+
+      // En ScanYA usar su manifest desde el arranque para que el navegador
+      // ofrezca instalar ScanYA (y no AnunciaYA), aun antes de que React monte.
+      if (esScanYA) {
+        const manifestLink = document.getElementById('anunciaya-manifest');
+        if (manifestLink) manifestLink.href = '/manifest.scanya.json';
+      }
 
       // Configuración por sección
       const colorBarra = esScanYA ? '#001136' : '#000000';

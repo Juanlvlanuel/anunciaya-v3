@@ -13,6 +13,7 @@ const origenesPermitidos = [
   'http://192.168.1.125:3000',
   'https://192.168.1.125:3000',
   'https://192.168.1.232:3000',
+  'https://s.anunciaya.mx',     // ScanYA PWA — subdominio propio (mismo build que apps/web)
   sinBarraFinal(process.env.FRONTEND_URL),
   sinBarraFinal(process.env.PANEL_URL),  // Panel Admin en prod (misma env var que el enlace del correo)
 ].filter(Boolean) as string[];
