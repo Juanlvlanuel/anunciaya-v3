@@ -17,9 +17,14 @@
 import { useLocation } from 'react-router-dom';
 import { X, Download, Share, Plus } from 'lucide-react';
 import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
+import { useAuthStore } from '../../stores/useAuthStore';
 
 export function BannerInstalarApp() {
   const { pathname, search } = useLocation();
+
+  // Solo se ofrece la instalación ANTES de iniciar sesión (landing/públicas).
+  // Con sesión activa no debe aparecer en ninguna página.
+  const usuario = useAuthStore((s) => s.usuario);
 
   const bannerVisible = usePWAInstallStore((s) => s.bannerVisible);
   const esIOS = usePWAInstallStore((s) => s.esIOS);
@@ -33,7 +38,8 @@ export function BannerInstalarApp() {
   const esRutaScanYA = pathname.startsWith('/scanya');
   const esPreviewIframe = new URLSearchParams(search).has('preview');
 
-  if (esRutaScanYA || esPreviewIframe) return null;
+  // Con sesión iniciada no se muestra en ninguna página (solo antes de login).
+  if (usuario || esRutaScanYA || esPreviewIframe) return null;
 
   const handleInstalar = async () => {
     if (esIOS) {
@@ -68,7 +74,7 @@ export function BannerInstalarApp() {
           <button
             type="button"
             onClick={handleInstalar}
-            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            className="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 lg:cursor-pointer"
             data-testid="banner-instalar-boton"
           >
             <Download className="h-4 w-4" strokeWidth={2} />
@@ -77,7 +83,7 @@ export function BannerInstalarApp() {
           <button
             type="button"
             onClick={descartarBanner}
-            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600"
+            className="shrink-0 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 lg:cursor-pointer"
             aria-label="Descartar"
             data-testid="banner-instalar-cerrar"
           >

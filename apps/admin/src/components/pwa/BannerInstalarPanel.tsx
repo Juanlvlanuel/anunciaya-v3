@@ -17,6 +17,7 @@
 import { useState } from 'react';
 import { X, Download, Share, Plus } from 'lucide-react';
 import { usePWAInstallPanelStore } from '../../stores/usePWAInstallPanelStore';
+import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 
 export function BannerInstalarPanel() {
   const bannerVisible = usePWAInstallPanelStore((s) => s.bannerVisible);
@@ -24,7 +25,13 @@ export function BannerInstalarPanel() {
   const instalar = usePWAInstallPanelStore((s) => s.instalar);
   const descartarBanner = usePWAInstallPanelStore((s) => s.descartarBanner);
 
+  // Solo se ofrece la instalación antes de iniciar sesión (pantalla de login).
+  const usuario = useAuthPanelStore((s) => s.usuario);
+
   const [mostrarInstruccionesIOS, setMostrarInstruccionesIOS] = useState(false);
+
+  // Con sesión activa no debe aparecer en ninguna página del Panel.
+  if (usuario) return null;
 
   const handleInstalar = async () => {
     if (esIOS) {
@@ -58,7 +65,7 @@ export function BannerInstalarPanel() {
             <button
               type="button"
               onClick={handleInstalar}
-              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              className="flex shrink-0 items-center gap-1.5 rounded-xl bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700 lg:cursor-pointer"
               data-testid="banner-instalar-panel-boton"
             >
               <Download className="h-4 w-4" strokeWidth={2} />
@@ -67,7 +74,7 @@ export function BannerInstalarPanel() {
             <button
               type="button"
               onClick={descartarBanner}
-              className="shrink-0 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300"
+              className="shrink-0 rounded-lg p-1 text-slate-500 transition-colors hover:bg-slate-800 hover:text-slate-300 lg:cursor-pointer"
               aria-label="Descartar"
               data-testid="banner-instalar-panel-cerrar"
             >
