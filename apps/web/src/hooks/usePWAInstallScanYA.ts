@@ -103,63 +103,35 @@ export function usePWAInstallScanYA(): UsePWAInstallScanYAReturn {
   // Efecto: Inyectar/quitar manifest según la ruta
   // ---------------------------------------------------------------------------
   useEffect(() => {
+    // CRÍTICO: el navegador solo considera el PRIMER <link rel="manifest"> del
+    // documento. La versión anterior dejaba el manifest de AnunciaYA sin href
+    // (primero) y agregaba un segundo link para ScanYA → Chrome leía el primero
+    // vacío y reportaba "No manifest detected" → ScanYA NUNCA era instalable.
+    // Solución: usar UN SOLO link (el de AnunciaYA), cambiando su href, y borrar
+    // cualquier link duplicado que hubieran dejado versiones previas.
+    const anunciaManifest = document.getElementById(ANUNCIAYA_MANIFEST_ID) as HTMLLinkElement | null;
+    const duplicadoScanYA = document.getElementById(MANIFEST_ID);
+    if (duplicadoScanYA) duplicadoScanYA.remove();
+
+    const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
+
     if (esRutaScanYA) {
-      // --- Ocultar manifest de AnunciaYA ---
-      const anunciaManifest = document.getElementById(ANUNCIAYA_MANIFEST_ID) as HTMLLinkElement | null;
-      if (anunciaManifest) {
-        anunciaManifest.removeAttribute('href');
-        console.log('[PWA ScanYA] Manifest AnunciaYA ocultado');
-      }
-
-      // --- Inyectar manifest de ScanYA si no existe ---
-      let manifestLink = document.getElementById(MANIFEST_ID) as HTMLLinkElement | null;
-
-      if (!manifestLink) {
-        manifestLink = document.createElement('link');
-        manifestLink.id = MANIFEST_ID;
-        manifestLink.rel = 'manifest';
-        manifestLink.href = MANIFEST_URL;
-        document.head.appendChild(manifestLink);
-        console.log('[PWA ScanYA] Manifest ScanYA inyectado');
-      }
+      if (anunciaManifest) anunciaManifest.setAttribute('href', MANIFEST_URL);
 
       // Deshabilitar pinch-to-zoom para que se sienta como app nativa
-      const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
       if (viewport) {
         viewport.setAttribute('data-original-content', viewport.content);
         viewport.content = 'width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no';
-        console.log('[PWA ScanYA] Pinch-to-zoom deshabilitado');
       }
     } else {
-      // --- Quitar manifest de ScanYA ---
-      const manifestLink = document.getElementById(MANIFEST_ID);
-      if (manifestLink) {
-        manifestLink.remove();
-        console.log('[PWA ScanYA] Manifest ScanYA removido');
-      }
-
-      // --- Restaurar manifest de AnunciaYA ---
-      const anunciaManifest = document.getElementById(ANUNCIAYA_MANIFEST_ID) as HTMLLinkElement | null;
-      if (anunciaManifest && !anunciaManifest.href) {
-        anunciaManifest.href = '/manifest.json';
-        console.log('[PWA ScanYA] Manifest AnunciaYA restaurado');
-      }
+      if (anunciaManifest) anunciaManifest.setAttribute('href', '/manifest.json');
 
       // Restaurar viewport original (habilitar pinch-to-zoom)
-      const viewport = document.querySelector('meta[name="viewport"]') as HTMLMetaElement | null;
       if (viewport) {
         const originalContent = viewport.getAttribute('data-original-content');
-        if (originalContent) {
-          viewport.content = originalContent;
-          console.log('[PWA ScanYA] Viewport restaurado (pinch-to-zoom habilitado)');
-        }
+        if (originalContent) viewport.content = originalContent;
       }
     }
-
-    // Cleanup al desmontar
-    return () => {
-      // No removemos en cleanup porque otro componente ScanYA podría necesitarlo
-    };
   }, [esRutaScanYA]);
 
   // ---------------------------------------------------------------------------

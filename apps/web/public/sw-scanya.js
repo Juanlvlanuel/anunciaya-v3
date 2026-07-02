@@ -1,11 +1,11 @@
 // Service Worker de ScanYA PWA
 // Maneja cache de assets y funcionalidad offline
 
-const CACHE_NAME = 'scanya-v2';
+const CACHE_NAME = 'scanya-v3';
 const STATIC_ASSETS = [
   '/scanya/login',
-  '/icons/scanya-192.webp',
-  '/icons/scanya-512.webp',
+  '/icons/scanya-192.png',
+  '/icons/scanya-512.png',
 ];
 
 // URL del backend (Render)
