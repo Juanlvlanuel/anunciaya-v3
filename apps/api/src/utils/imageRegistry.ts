@@ -110,7 +110,7 @@ export const IMAGE_REGISTRY: ImageField[] = [
 
     // ─── Servicios ───
     // Tabla `servicios_publicaciones` (Sprint 1 Servicios, 15-May-2026). Campo
-    // `fotos` es JSONB array de URLs en R2 (max 6 fotos por publicación, 1 en
+    // `fotos` es JSONB array de URLs en R2 (max 12 fotos por publicación, 1 en
     // vacantes). Mismo patrón que marketplace.
     { tabla: 'servicios_publicaciones', columna: 'fotos', tipo: 'text-scan-urls', descripcion: 'Fotos de publicación de Servicios (JSONB array de URLs)' },
 

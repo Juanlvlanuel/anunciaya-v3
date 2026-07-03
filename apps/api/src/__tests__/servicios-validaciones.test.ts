@@ -188,9 +188,9 @@ describe('crearPublicacionSchema — límites de campos', () => {
         expect(result.success).toBe(false);
     });
 
-    it('rechaza más de 6 fotos', () => {
+    it('rechaza más de 12 fotos', () => {
         const fotos = Array.from(
-            { length: 7 },
+            { length: 13 },
             (_, i) => `https://example.com/foto${i}.jpg`,
         );
         const result = crearPublicacionSchema.safeParse({

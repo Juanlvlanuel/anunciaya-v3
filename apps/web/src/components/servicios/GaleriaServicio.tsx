@@ -11,7 +11,7 @@
  * Para `tipo='vacante-empresa'`: una sola imagen como hero (logo + identidad
  * de marca del negocio). Sin lightbox porque hay solo una.
  *
- * Para `tipo='servicio-persona'` o `'solicito'`: hasta 6 fotos con swipe
+ * Para `tipo='servicio-persona'` o `'solicito'`: hasta 12 fotos con swipe
  * nativo (móvil) o flechas (desktop). Click abre lightbox fullscreen con
  * `ModalImagenes`. Patrón replicado del módulo MarketPlace (scroll-snap
  * CSS puro + listener `scroll` pasivo).
@@ -228,7 +228,7 @@ export function GaleriaServicio({ publicacion }: GaleriaServicioProps) {
                             {indiceActivo + 1} / {fotos.length}
                         </div>
 
-                        {/* Dots de paginación (móvil) — solo si hay ≤6 fotos */}
+                        {/* Dots de paginación (móvil) — un punto por foto */}
                         <div className="pointer-events-none absolute bottom-3 left-1/2 -translate-x-1/2 flex items-center gap-1.5 lg:hidden">
                             {fotos.map((_, idx) => (
                                 <span

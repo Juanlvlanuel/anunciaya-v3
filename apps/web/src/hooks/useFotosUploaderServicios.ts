@@ -49,7 +49,7 @@ import {
 import { notificar } from '../utils/notificaciones';
 import { optimizarImagen } from '../utils/optimizarImagen';
 
-export const MAX_FOTOS_COMPOSER = 6;
+export const MAX_FOTOS_COMPOSER = 12;
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const TIPOS_PERMITIDOS: Record<

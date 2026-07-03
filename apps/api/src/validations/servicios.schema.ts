@@ -251,7 +251,7 @@ export type ConfirmacionesInput = z.infer<typeof campoConfirmaciones>;
 
 const campoFotos = z
     .array(z.string().url('Cada foto debe ser una URL válida'))
-    .max(6, 'No puedes incluir más de 6 fotos')
+    .max(12, 'No puedes incluir más de 12 fotos')
     .default([]);
 
 const campoFotoPortadaIndex = z

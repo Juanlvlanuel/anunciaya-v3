@@ -5,7 +5,7 @@
  * MarketPlace a R2 (presigned URL flow) + tracking de huérfanas.
  *
  * Réplica 1:1 de `useFotosUploaderServicios.ts` con las únicas diferencias:
- *   - MAX_FOTOS_COMPOSER_MP = 8 (Servicios usa 6, MP backend acepta hasta 8).
+ *   - MAX_FOTOS_COMPOSER_MP = 12 (mismo máximo que Servicios; MP backend acepta hasta 12).
  *   - Usa las mutations de MarketPlace en lugar de las de Servicios.
  *   - Las fotos van al bucket con prefijo `marketplace/` (lo decide el backend
  *     al firmar la presigned URL).
@@ -44,7 +44,7 @@ import {
 import { notificar } from '../utils/notificaciones';
 import { optimizarImagen } from '../utils/optimizarImagen';
 
-export const MAX_FOTOS_COMPOSER_MP = 8;
+export const MAX_FOTOS_COMPOSER_MP = 12;
 const MAX_BYTES = 5 * 1024 * 1024;
 
 const TIPOS_PERMITIDOS: Record<
