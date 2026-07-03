@@ -57,6 +57,15 @@ export const queryKeys = {
       ['ofertas', sucursalId] as const,
     clientesAsignados: (ofertaId: string) =>
       ['ofertas', 'clientesAsignados', ofertaId] as const,
+    // Buscador de destinatarios del cupón (cualquier usuario de AY, por ciudad
+    // de la sucursal activa). Se acota por sucursal para no cruzar caché entre
+    // sucursales del mismo negocio.
+    buscarUsuarios: (sucursalId: string, q: string) =>
+      ['ofertas', 'buscarUsuarios', sucursalId, q] as const,
+    // Directorio comercial (usuarios de la ciudad de la sucursal) para el
+    // selector de "Compartir oferta por ChatYA".
+    directorio: (sucursalId: string, q: string) =>
+      ['ofertas', 'directorio', sucursalId, q] as const,
   },
 
   // ─── Business Studio — Puntos ─────────────────────────────────────────────

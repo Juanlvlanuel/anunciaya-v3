@@ -34,6 +34,8 @@ import {
   postDuplicarOferta,
   postUploadImagenOferta,
   postAsignarOferta,
+  getBuscarUsuarios,
+  postCompartirOfertaChatya,
   postReenviarCupon,
   postRevocarCupon,
   postRevocarCuponMasivo,
@@ -125,6 +127,23 @@ router.get('/buscar/sugerencias', verificarToken, getSugerenciasOfertas);
  * Declarada ANTES de las rutas paramétricas para evitar colisión con `/:id`.
  */
 router.get('/buscar', verificarToken, getBuscarOfertas);
+
+/**
+ * GET /api/ofertas/buscar-usuarios?q=...&limit=...
+ * Busca usuarios de AnunciaYA (no solo clientes con billetera) para el selector
+ * de destinatarios de un cupón en Business Studio.
+ *
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ * IMPORTANTE: declarada ANTES de las rutas paramétricas para evitar colisión
+ * con `/:id`.
+ */
+router.get(
+  '/buscar-usuarios',
+  verificarToken,
+  verificarNegocio,
+  validarAccesoSucursal,
+  getBuscarUsuarios
+);
 
 /**
  * POST /api/ofertas/:id/vista
@@ -327,15 +346,32 @@ router.post(
 
 /**
  * POST /api/ofertas/:id/asignar
- * Asignar oferta privada a clientes selectos
+ * Asignar oferta privada a usuarios (clientes o no)
  *
- * Middlewares: verificarToken, verificarNegocio
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ * (validarAccesoSucursal confina al gerente a su sucursal y provee la sucursal
+ * emisora del cupón en ChatYA).
  */
 router.post(
   '/:id/asignar',
   verificarToken,
   verificarNegocio,
+  validarAccesoSucursal,
   postAsignarOferta
+);
+
+/**
+ * POST /api/ofertas/:id/compartir-chatya
+ * Compartir una oferta pública por ChatYA a usuarios del directorio comercial
+ *
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ */
+router.post(
+  '/:id/compartir-chatya',
+  verificarToken,
+  verificarNegocio,
+  validarAccesoSucursal,
+  postCompartirOfertaChatya
 );
 
 /**

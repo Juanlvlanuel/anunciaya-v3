@@ -154,7 +154,10 @@ export const crearOfertaSchema = z
     articuloId: campoUUID.optional().nullable(),
     activo: z.boolean().optional().default(true),
     visibilidad: campoVisibilidad,
-    usuariosIds: z.array(campoUUID).min(1).max(500).optional(),
+    // Tope alto de seguridad (anti-abuso), sin límite práctico para el comerciante.
+    // Los destinatarios ya NO están limitados a clientes con billetera: puede ser
+    // cualquier usuario de AnunciaYA (el service valida existencia/actividad).
+    usuariosIds: z.array(campoUUID).min(1).max(5000).optional(),
     motivoAsignacion: z.string().trim().max(200).optional(),
     duplicarImagen: z.boolean().optional(),
   })
@@ -204,20 +207,10 @@ export const crearOfertaSchema = z
       message: 'Para tipo otro, debes especificar el concepto',
       path: ['valor'],
     }
-  )
-  .refine(
-    (data) => {
-      // Si visibilidad es 'privado', debe tener usuariosIds
-      if (data.visibilidad === 'privado') {
-        return data.usuariosIds && data.usuariosIds.length > 0;
-      }
-      return true;
-    },
-    {
-      message: 'Las ofertas privadas deben tener al menos un usuario asignado',
-      path: ['usuariosIds'],
-    }
   );
+// NOTA: un cupón privado PUEDE crearse sin `usuariosIds` (0 destinatarios). El
+// envío es un segundo paso: al crear el cupón se abre el modal de destinatarios,
+// o se envía después desde la tabla con "Enviar a más" (POST /:id/asignar).
 
 export type CrearOfertaInput = z.infer<typeof crearOfertaSchema>;
 
@@ -382,7 +375,7 @@ export const asignarOfertaSchema = z.object({
   usuariosIds: z
     .array(campoUUID)
     .min(1, 'Debes seleccionar al menos un usuario')
-    .max(500, 'No puedes asignar a más de 500 usuarios a la vez'),
+    .max(5000, 'No puedes asignar a más de 5000 usuarios a la vez'),
   motivo: z
     .string()
     .trim()
@@ -391,6 +384,46 @@ export const asignarOfertaSchema = z.object({
 });
 
 export type AsignarOfertaInput = z.infer<typeof asignarOfertaSchema>;
+
+// =============================================================================
+// SCHEMA: BUSCAR USUARIOS PARA SELECTOR DE CUPÓN (Business Studio)
+// =============================================================================
+// Para: GET /api/ofertas/buscar-usuarios?q=...&limit=...
+//
+// Alimenta la sub-pestaña "Buscar usuario" del selector de destinatarios de un
+// cupón. Permite elegir a CUALQUIER usuario de AnunciaYA (no solo clientes con
+// billetera). El service filtra por la ciudad de la sucursal activa.
+
+export const buscarUsuariosQuerySchema = z.object({
+  // `q` opcional: sin término lista todos los usuarios de la ciudad (lo usa el
+  // modal de "Compartir oferta" con limit alto para poder "Seleccionar todos").
+  q: z
+    .string()
+    .trim()
+    .max(100, 'La búsqueda no puede exceder 100 caracteres')
+    .optional()
+    .default(''),
+  limit: z.coerce.number().int().min(1).max(500).optional().default(10),
+});
+
+export type BuscarUsuariosQueryInput = z.infer<typeof buscarUsuariosQuerySchema>;
+
+// =============================================================================
+// SCHEMA: COMPARTIR OFERTA POR CHATYA
+// =============================================================================
+// Para: POST /api/ofertas/:id/compartir-chatya
+//
+// Comparte una oferta PÚBLICA por ChatYA a usuarios del directorio comercial
+// (usuarios de la ciudad de la sucursal). No aplica a cupones (esos se asignan).
+
+export const compartirOfertaSchema = z.object({
+  usuariosIds: z
+    .array(campoUUID)
+    .min(1, 'Debes seleccionar al menos un usuario')
+    .max(500, 'No puedes compartir a más de 500 usuarios a la vez'),
+});
+
+export type CompartirOfertaInput = z.infer<typeof compartirOfertaSchema>;
 
 // =============================================================================
 // SCHEMA 6: VALIDAR CÓDIGO DE DESCUENTO
@@ -444,6 +477,8 @@ export default {
   duplicarOfertaSchema,
   filtrosFeedSchema,
   asignarOfertaSchema,
+  buscarUsuariosQuerySchema,
+  compartirOfertaSchema,
   validarCodigoSchema,
   buscarOfertasQuerySchema,
   formatearErroresZod,

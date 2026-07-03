@@ -71,6 +71,8 @@ export interface Oferta {
   totalClicks?: number;
   // Estado calculado (solo si viene del backend)
   estado?: EstadoOferta;
+  // Cupones: cuántos destinatarios tiene (para el botón Enviar/Reenviar)
+  totalAsignados?: number;
 }
 
 /**

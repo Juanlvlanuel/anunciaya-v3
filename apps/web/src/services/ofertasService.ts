@@ -262,7 +262,41 @@ export async function registrarShareOferta(ofertaId: string) {
  * POST /api/ofertas/:id/asignar
  */
 export async function asignarOferta(ofertaId: string, datos: { usuariosIds: string[]; motivo?: string }) {
-  return post(`/ofertas/${ofertaId}/asignar`, datos);
+  return post<{ asignados: number }>(`/ofertas/${ofertaId}/asignar`, datos);
+}
+
+/** Resultado del buscador de destinatarios del cupón (Business Studio). */
+export interface UsuarioBuscadoCupon {
+  id: string;
+  nombre: string;
+  apellidos: string;
+  avatarUrl: string | null;
+  /** true si ya es cliente del negocio (tiene billetera de puntos). */
+  esCliente: boolean;
+}
+
+/**
+ * Busca usuarios de AnunciaYA por nombre/apellidos para el selector de
+ * destinatarios de un cupón — incluye usuarios que aún NO son clientes.
+ * GET /api/ofertas/buscar-usuarios?q=...&limit=...
+ *
+ * El backend acota por la ciudad de la sucursal activa (?sucursalId lo agrega
+ * el interceptor Axios). Requiere al menos 2 caracteres en `q`.
+ */
+export async function buscarUsuariosParaCupon(q: string, limit = 10) {
+  const params = new URLSearchParams();
+  params.append('q', q);
+  params.append('limit', String(limit));
+  return get<UsuarioBuscadoCupon[]>(`/ofertas/buscar-usuarios?${params.toString()}`);
+}
+
+/**
+ * Comparte una oferta PÚBLICA por ChatYA a una lista de usuarios (del directorio
+ * comercial de la ciudad). A cada uno le llega la card de la oferta en ChatYA.
+ * POST /api/ofertas/:id/compartir-chatya
+ */
+export async function compartirOfertaPorChatYA(ofertaId: string, usuariosIds: string[]) {
+  return post<{ enviados: number }>(`/ofertas/${ofertaId}/compartir-chatya`, { usuariosIds });
 }
 
 /**
@@ -374,6 +408,8 @@ export default {
 
   // Código de descuento + ofertas exclusivas
   asignarOferta,
+  buscarUsuariosParaCupon,
+  compartirOfertaPorChatYA,
   obtenerMisExclusivas,
   obtenerOfertaPublica,
   reenviarCupon,

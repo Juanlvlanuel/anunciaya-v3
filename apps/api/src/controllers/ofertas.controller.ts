@@ -28,6 +28,8 @@ import {
   duplicarOfertaASucursales,
   generarUrlUploadImagenOferta,
   asignarOfertaAUsuarios,
+  buscarUsuariosParaSelector,
+  compartirOfertaPorChatYA,
   obtenerOfertasExclusivasUsuario,
   obtenerOfertaPublica,
   reenviarCupon,
@@ -48,6 +50,8 @@ import {
   duplicarOfertaSchema,
   filtrosFeedSchema,
   asignarOfertaSchema,
+  buscarUsuariosQuerySchema,
+  compartirOfertaSchema,
   buscarOfertasQuerySchema,
   formatearErroresZod,
 } from '../validations/ofertas.schema.js';
@@ -747,11 +751,16 @@ export async function postAsignarOferta(req: Request, res: Response) {
       return res.status(400).json({ success: false, message: 'No se pudo identificar el negocio' });
     }
 
+    // sucursalId lo inyecta el interceptor Axios y lo valida validarAccesoSucursal.
+    // Se usa como sucursal emisora del cupón en ChatYA.
+    const sucursalId = (req.query.sucursalId as string) ?? null;
+
     const resultado = await asignarOfertaAUsuarios(
       id,
       negocioId,
       validacion.data.usuariosIds,
-      validacion.data.motivo
+      validacion.data.motivo,
+      sucursalId
     );
 
     if (!resultado.success) {
@@ -762,6 +771,96 @@ export async function postAsignarOferta(req: Request, res: Response) {
   } catch (error) {
     console.error('Error en postAsignarOferta:', error);
     return res.status(500).json({ success: false, message: 'Error al asignar oferta' });
+  }
+}
+
+/**
+ * GET /api/ofertas/buscar-usuarios?q=...&limit=...
+ * Busca usuarios de AnunciaYA (no solo clientes) para el selector de
+ * destinatarios de un cupón en Business Studio.
+ *
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ */
+export async function getBuscarUsuarios(req: Request, res: Response) {
+  try {
+    const negocioId = req.negocioId;
+    if (!negocioId) {
+      return res.status(400).json({ success: false, message: 'No se pudo identificar el negocio' });
+    }
+
+    const validacion = buscarUsuariosQuerySchema.safeParse(req.query);
+    if (!validacion.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos',
+        errores: formatearErroresZod(validacion.error),
+      });
+    }
+
+    const sucursalId = (req.query.sucursalId as string) ?? null;
+    const excluirUsuarioId = req.usuario!.usuarioId;
+
+    const resultado = await buscarUsuariosParaSelector(
+      negocioId,
+      sucursalId,
+      excluirUsuarioId,
+      validacion.data.q,
+      validacion.data.limit
+    );
+
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en getBuscarUsuarios:', error);
+    return res.status(500).json({ success: false, message: 'Error al buscar usuarios' });
+  }
+}
+
+/**
+ * POST /api/ofertas/:id/compartir-chatya
+ * Comparte una oferta PÚBLICA por ChatYA a usuarios (directorio comercial).
+ *
+ * Middlewares: verificarToken, verificarNegocio, validarAccesoSucursal
+ */
+export async function postCompartirOfertaChatya(req: Request, res: Response) {
+  try {
+    const { id } = req.params;
+
+    const uuidRegex = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+    if (!uuidRegex.test(id)) {
+      return res.status(400).json({ success: false, message: 'El ID de la oferta no es válido' });
+    }
+
+    const validacion = compartirOfertaSchema.safeParse(req.body);
+    if (!validacion.success) {
+      return res.status(400).json({
+        success: false,
+        message: 'Datos inválidos',
+        errores: formatearErroresZod(validacion.error),
+      });
+    }
+
+    const negocioId = req.negocioId;
+    if (!negocioId) {
+      return res.status(400).json({ success: false, message: 'No se pudo identificar el negocio' });
+    }
+
+    const sucursalId = (req.query.sucursalId as string) ?? null;
+
+    const resultado = await compartirOfertaPorChatYA(
+      id,
+      negocioId,
+      sucursalId,
+      validacion.data.usuariosIds
+    );
+
+    if (!resultado.success) {
+      return res.status(resultado.code ?? 400).json(resultado);
+    }
+
+    return res.json(resultado);
+  } catch (error) {
+    console.error('Error en postCompartirOfertaChatya:', error);
+    return res.status(500).json({ success: false, message: 'Error al compartir oferta' });
   }
 }
 

@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { Search, Users, ChevronDown, Check, CheckCircle, XCircle, AlertTriangle } from 'lucide-react';
+import { Search, Users, ChevronDown, Check, CheckCircle, XCircle, AlertTriangle, X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
@@ -19,8 +19,9 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { Spinner } from '../../../../components/ui/Spinner';
 import { obtenerIniciales } from '../../../../utils/obtenerIniciales';
-import type { ClienteAsignado } from '../../../../services/ofertasService';
+import type { ClienteAsignado, UsuarioBuscadoCupon } from '../../../../services/ofertasService';
 import { usePuntosConfiguracion } from '../../../../hooks/queries/usePuntos';
+import { useBuscarUsuariosSelector } from '../../../../hooks/queries/useOfertas';
 
 // =============================================================================
 // TIPOS
@@ -174,6 +175,25 @@ export function TabClientes({
     const { data: configPuntos } = usePuntosConfiguracion();
     const nivelesActivos = configPuntos?.nivelesActivos ?? true;
 
+    // ── Sub-pestaña "Buscar usuario" (solo modo creación) ──
+    // Estos hooks se declaran ANTES del return de modoEdicion para mantener el
+    // orden estable de hooks. En modo edición quedan inertes (nunca se teclea).
+    const [subTab, setSubTab] = useState<'clientes' | 'buscar'>('clientes');
+    const [qUsuario, setQUsuario] = useState('');
+    const [qDebounced, setQDebounced] = useState('');
+    useEffect(() => {
+        const t = setTimeout(() => setQDebounced(qUsuario), 300);
+        return () => clearTimeout(t);
+    }, [qUsuario]);
+    const busquedaUsuarios = useBuscarUsuariosSelector(qDebounced);
+    // Info de usuarios elegidos desde el buscador (no están en `clientes`),
+    // para poder pintar sus chips de seleccionados.
+    const [infoBuscados, setInfoBuscados] = useState<Record<string, UsuarioBuscadoCupon>>({});
+    const seleccionarUsuarioBuscado = (u: UsuarioBuscadoCupon) => {
+        setInfoBuscados((prev) => ({ ...prev, [u.id]: u }));
+        onToggleCliente(u.id);
+    };
+
     // ── MODO EDICIÓN: lista readonly de clientes asignados ──
     if (modoEdicion) {
         return (
@@ -181,7 +201,7 @@ export function TabClientes({
                 <div className="flex items-center gap-2.5 lg:gap-2 2xl:gap-2.5 px-3.5 py-2.5 lg:px-3 lg:py-2 2xl:px-3.5 2xl:py-2.5 bg-slate-200 rounded-lg">
                     <Users className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600 shrink-0" />
                     <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-700 font-semibold">
-                        {clientesAsignados?.length ?? 0} cliente(s) asignados a este cupón
+                        Enviado a {clientesAsignados?.length ?? 0} usuario(s)
                     </p>
                 </div>
 
@@ -190,7 +210,7 @@ export function TabClientes({
                         <div className="p-6 text-center"><Spinner tamanio="sm" /></div>
                     ) : !clientesAsignados || clientesAsignados.length === 0 ? (
                         <p className="p-6 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium text-center">
-                            No hay clientes asignados
+                            Aún no lo has enviado a nadie
                         </p>
                     ) : (
                         clientesAsignados.map(cliente => {
@@ -259,8 +279,66 @@ export function TabClientes({
 
     const todosSeleccionados = clientesFiltrados.length > 0 && clientesFiltrados.every(c => clientesSeleccionados.includes(c.id));
 
+    const usuariosBuscados = busquedaUsuarios.data ?? [];
+
     return (
         <div className="p-4 lg:p-3 2xl:p-4 flex flex-col gap-3 lg:gap-2.5 2xl:gap-3 h-full">
+
+            {/* Sub-pestañas: Mis clientes / Buscar usuario */}
+            <div className="flex gap-1 p-1 bg-slate-100 rounded-lg border-2 border-slate-300 shrink-0">
+                <button
+                    type="button"
+                    data-testid="subtab-mis-clientes"
+                    onClick={() => setSubTab('clientes')}
+                    className={`flex-1 h-9 lg:h-8 2xl:h-9 rounded-md text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer transition-colors ${
+                        subTab === 'clientes' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    Mis clientes
+                </button>
+                <button
+                    type="button"
+                    data-testid="subtab-buscar-usuario"
+                    onClick={() => setSubTab('buscar')}
+                    className={`flex-1 h-9 lg:h-8 2xl:h-9 rounded-md text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer transition-colors ${
+                        subTab === 'buscar' ? 'bg-white text-slate-800 shadow-sm' : 'text-slate-500 hover:text-slate-700'
+                    }`}
+                >
+                    Buscar usuario
+                </button>
+            </div>
+
+            {/* Chips de seleccionados (clientes + usuarios buscados) */}
+            {clientesSeleccionados.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 max-h-24 overflow-y-auto shrink-0">
+                    {clientesSeleccionados.map((id) => {
+                        const enBilletera = clientes.find((c) => c.id === id);
+                        const buscado = infoBuscados[id];
+                        const nombre = enBilletera?.nombre
+                            ?? (buscado ? `${buscado.nombre} ${buscado.apellidos}`.trim() : 'Usuario');
+                        return (
+                            <span
+                                key={id}
+                                data-testid={`chip-seleccionado-${id}`}
+                                className="inline-flex items-center gap-1 pl-2.5 pr-1 py-1 rounded-full bg-blue-100 border-2 border-blue-300 text-blue-700 text-xs lg:text-[11px] 2xl:text-xs font-semibold max-w-[12rem]"
+                            >
+                                <span className="truncate">{nombre}</span>
+                                <button
+                                    type="button"
+                                    data-testid={`chip-quitar-${id}`}
+                                    onClick={() => onToggleCliente(id)}
+                                    className="w-4 h-4 rounded-full flex items-center justify-center hover:bg-blue-200 cursor-pointer shrink-0"
+                                >
+                                    <X className="w-3 h-3" />
+                                </button>
+                            </span>
+                        );
+                    })}
+                </div>
+            )}
+
+            {/* ── SUB-PESTAÑA: Mis clientes ── */}
+            {subTab === 'clientes' && (<>
 
             {/* Filtros: búsqueda + dropdowns */}
             <div className="flex flex-col gap-2 lg:gap-1.5 2xl:gap-2">
@@ -364,6 +442,83 @@ export function TabClientes({
                     ))
                 )}
             </div>
+
+            </>)}
+
+            {/* ── SUB-PESTAÑA: Buscar usuario (cualquier usuario de AnunciaYA) ── */}
+            {subTab === 'buscar' && (<>
+
+            <div className="relative shrink-0">
+                <Search className="absolute left-3 lg:left-2.5 2xl:left-3 top-1/2 -translate-y-1/2 w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-slate-600" />
+                <input
+                    id="input-buscar-usuario"
+                    name="busquedaUsuario"
+                    data-testid="input-buscar-usuario"
+                    type="text"
+                    value={qUsuario}
+                    onChange={(e) => setQUsuario(e.target.value)}
+                    placeholder="Buscar por nombre o apellido..."
+                    className="w-full h-11 lg:h-10 2xl:h-11 pl-9 lg:pl-8 2xl:pl-9 pr-3 bg-slate-100 border-2 border-slate-300 rounded-lg focus:outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                    style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+                />
+            </div>
+
+            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium shrink-0">
+                Envíale el cupón a cualquier usuario de AnunciaYA en tu ciudad, aunque aún no sea tu cliente.
+            </p>
+
+            {/* Resultados de la búsqueda */}
+            <div className="flex-1 min-h-0 overflow-y-auto bg-white rounded-lg border-2 border-slate-300">
+                {qDebounced.trim().length < 2 ? (
+                    <p className="p-6 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium text-center">
+                        Escribe al menos 2 letras para buscar usuarios.
+                    </p>
+                ) : busquedaUsuarios.isPending ? (
+                    <div className="p-6 text-center"><Spinner tamanio="sm" /></div>
+                ) : usuariosBuscados.length === 0 ? (
+                    <p className="p-6 text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium text-center">
+                        Sin resultados para “{qDebounced.trim()}”
+                    </p>
+                ) : (
+                    usuariosBuscados.map((u) => {
+                        const sel = clientesSeleccionados.includes(u.id);
+                        return (
+                            <button
+                                key={u.id}
+                                type="button"
+                                data-testid={`usuario-buscado-${u.id}`}
+                                onClick={() => seleccionarUsuarioBuscado(u)}
+                                className={`w-full flex items-center gap-2.5 lg:gap-1.5 2xl:gap-2.5 px-3 py-1.5 lg:px-1.5 lg:py-1 2xl:px-3 2xl:py-1.5 text-left cursor-pointer border-b border-slate-300 last:border-b-0 ${
+                                    sel ? 'bg-blue-50' : 'hover:bg-slate-50'
+                                }`}
+                            >
+                                <div className={`w-5 h-5 lg:w-3 lg:h-3 2xl:w-5 2xl:h-5 rounded-full flex items-center justify-center shrink-0 ${
+                                    sel ? 'bg-blue-500' : 'bg-slate-200'
+                                }`}>
+                                    {sel && <Check className="w-3 h-3 lg:w-2 lg:h-2 2xl:w-3 2xl:h-3 text-white" />}
+                                </div>
+                                <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-full bg-indigo-100 flex items-center justify-center shrink-0 overflow-hidden">
+                                    {u.avatarUrl ? (
+                                        <img src={u.avatarUrl} alt={u.nombre} className="w-full h-full object-cover" />
+                                    ) : (
+                                        <span className="text-xs font-bold text-indigo-700">{obtenerIniciales(`${u.nombre} ${u.apellidos}`)}</span>
+                                    )}
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-slate-800 truncate">{u.nombre} {u.apellidos}</p>
+                                </div>
+                                <span className={`text-xs lg:text-[10px] 2xl:text-xs font-bold uppercase px-2 py-0.5 lg:px-1.5 lg:py-0.5 2xl:px-2 rounded-full border-2 shrink-0 ${
+                                    u.esCliente ? 'bg-emerald-50 border-emerald-200 text-emerald-700' : 'bg-blue-50 border-blue-200 text-blue-600'
+                                }`}>
+                                    {u.esCliente ? 'Cliente' : 'Nuevo'}
+                                </span>
+                            </button>
+                        );
+                    })
+                )}
+            </div>
+
+            </>)}
 
             {botonesDesktop && <div className="hidden lg:block mt-1">{botonesDesktop}</div>}
         </div>

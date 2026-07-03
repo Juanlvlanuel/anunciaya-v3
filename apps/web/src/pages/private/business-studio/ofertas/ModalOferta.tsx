@@ -263,16 +263,22 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
         formulario.titulo.trim().length >= 3 &&
         formulario.fechaInicio !== '' &&
         formulario.fechaFin !== '' &&
-        (!mostrarValor || formulario.valor.trim() !== '') &&
-        (formulario.visibilidad !== 'privado' || esEdicion || clientesSeleccionados.length > 0);
+        (!mostrarValor || formulario.valor.trim() !== '');
 
-    // Tabs config
+    // Tabs config. Creación de cupón: solo Detalles + Ajustes (el envío es un
+    // segundo paso: al crear se abre el modal de destinatarios). Edición: se
+    // agrega "Enviar a" (lista readonly de a quién ya se le mandó).
     const tabs: Array<{ id: TabActivo; label: string; icono: React.ComponentType<{ className?: string }> }> = esExclusiva
-        ? [
-            { id: 'oferta', label: 'Detalles', icono: FileText },
-            { id: 'exclusiva', label: 'Ajustes', icono: Settings },
-            { id: 'clientes', label: `Enviar a${clientesSeleccionados.length > 0 ? ` (${clientesSeleccionados.length})` : ''}`, icono: Users },
-        ]
+        ? (esEdicion
+            ? [
+                { id: 'oferta', label: 'Detalles', icono: FileText },
+                { id: 'exclusiva', label: 'Ajustes', icono: Settings },
+                { id: 'clientes', label: 'Enviados', icono: Users },
+            ]
+            : [
+                { id: 'oferta', label: 'Detalles', icono: FileText },
+                { id: 'exclusiva', label: 'Ajustes', icono: Settings },
+            ])
         : [{ id: 'oferta', label: 'Detalles', icono: FileText }];
 
     return (
@@ -316,7 +322,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                             <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-2">
                                 {esEdicion && esCupon ? (
                                     <div className="flex items-center gap-1.5 lg:gap-1 2xl:gap-1.5">
-                                        {oferta?.estado !== 'agotada' && oferta?.estado !== 'vencida' && oferta?.estado !== 'inactiva' && (
+                                        {(oferta?.totalAsignados ?? 0) > 0 && oferta?.estado !== 'agotada' && oferta?.estado !== 'vencida' && oferta?.estado !== 'inactiva' && (
                                             <Tooltip text="Revocar cupón" position="bottom" autoHide={2500}>
                                                 <button
                                                     type="button"
@@ -421,7 +427,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                                 className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]"
                                             >
                                                 {guardando && <Spinner tamanio="sm" color="white" />}
-                                                {esEdicion ? 'Guardar' : esExclusiva ? 'Enviar cupón' : 'Crear oferta'}
+                                                {esEdicion ? 'Guardar' : esExclusiva ? 'Crear cupón' : 'Crear oferta'}
                                             </button>
                                         </div>
                                     ) : undefined}
@@ -448,33 +454,20 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                 )}
                             </div>)}
                             {tabActivo === 'clientes' && (
-                                <>
-                                    <TabClientes
-                                        clientes={clientesDisponibles}
-                                        cargando={cargandoClientes}
-                                        clientesSeleccionados={clientesSeleccionados}
-                                        onToggleCliente={toggleCliente}
-                                        onSeleccionarTodos={seleccionarTodos}
-                                        onLimpiarSeleccion={limpiarSeleccion}
-                                        modoEdicion={esEdicion && oferta?.visibilidad === 'privado'}
-                                        clientesAsignados={clientesAsignados}
-                                        cargandoAsignados={cargandoAsignados}
-                                        onClickCliente={(id) => setClienteDetalleId(id)}
-                                        botonesDesktop={!cuponSoloLectura ? (
-                                            <div className="flex gap-3">
-                                                <button type="button" onClick={onCerrar} disabled={guardando}
-                                                    className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer border-2 border-slate-400 text-slate-600 bg-transparent hover:bg-slate-50 hover:border-slate-500 active:bg-slate-100">
-                                                    Cancelar
-                                                </button>
-                                                <button type="submit" disabled={guardando || imagen.isUploading || !camposMinimosCompletos}
-                                                    className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl disabled:opacity-50 disabled:cursor-not-allowed px-3 py-1.5 2xl:px-4 2xl:py-2.5 text-xs 2xl:text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]">
-                                                    {guardando && <Spinner tamanio="sm" color="white" />}
-                                                    {esEdicion ? 'Guardar' : 'Enviar cupón'}
-                                                </button>
-                                            </div>
-                                        ) : undefined}
-                                    />
-                                </>
+                                // Solo en EDICIÓN de cupón: lista readonly de a quién se le mandó.
+                                // (En creación este tab ya no existe; el envío es un 2º modal.)
+                                <TabClientes
+                                    clientes={clientesDisponibles}
+                                    cargando={cargandoClientes}
+                                    clientesSeleccionados={clientesSeleccionados}
+                                    onToggleCliente={toggleCliente}
+                                    onSeleccionarTodos={seleccionarTodos}
+                                    onLimpiarSeleccion={limpiarSeleccion}
+                                    modoEdicion={true}
+                                    clientesAsignados={clientesAsignados}
+                                    cargandoAsignados={cargandoAsignados}
+                                    onClickCliente={(id) => setClienteDetalleId(id)}
+                                />
                             )}
                         </div>
 
@@ -527,7 +520,7 @@ export function ModalOferta({ abierto, onCerrar, oferta, onGuardar, onRecargar, 
                                         className="flex-1 inline-flex items-center justify-center gap-2 font-bold rounded-xl transition-all duration-150 disabled:opacity-50 disabled:cursor-not-allowed px-4 py-2.5 text-sm cursor-pointer bg-linear-to-r from-slate-700 to-slate-800 text-white shadow-lg shadow-slate-700/30 hover:from-slate-800 hover:to-slate-900 hover:shadow-slate-700/40 active:scale-[0.98]"
                                     >
                                         {guardando && <Spinner tamanio="sm" color="white" />}
-                                        {esEdicion ? 'Guardar' : esExclusiva ? 'Enviar cupón' : 'Crear oferta'}
+                                        {esEdicion ? 'Guardar' : esExclusiva ? 'Crear cupón' : 'Crear oferta'}
                                     </button>
                                 </>
                             )}

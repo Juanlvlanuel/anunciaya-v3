@@ -155,7 +155,7 @@ export function useCrearOferta() {
 
     onSuccess: (respuesta, datos) => {
       invalidarOfertasRelacionadas(qc, sucursalId);
-      notificar.exito(datos.visibilidad === 'privado' ? 'Cupón enviado exitosamente' : 'Oferta creada correctamente');
+      notificar.exito(datos.visibilidad === 'privado' ? 'Cupón creado' : 'Oferta creada correctamente');
     },
   });
 }
@@ -339,5 +339,94 @@ export function useClientesAsignados(ofertaId: string | null) {
     queryFn: () =>
       ofertasService.obtenerClientesAsignados(ofertaId!).then((r) => r.data ?? []),
     enabled: !!ofertaId,
+  });
+}
+
+// =============================================================================
+// QUERY: Buscador de destinatarios del cupón (cualquier usuario de AY)
+// =============================================================================
+
+/**
+ * Busca usuarios de AnunciaYA (no solo clientes con billetera) para la
+ * sub-pestaña "Buscar usuario" del selector de destinatarios del cupón.
+ * Se activa a partir de 2 caracteres; el backend acota por la ciudad de la
+ * sucursal activa. `keepPreviousData` evita el temblor visual al teclear.
+ */
+export function useBuscarUsuariosSelector(q: string) {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+  const termino = q.trim();
+  const habilitado = !!sucursalId && modoActivo === 'comercial' && termino.length >= 2;
+
+  return useQuery({
+    queryKey: queryKeys.ofertas.buscarUsuarios(sucursalId, termino),
+    queryFn: () =>
+      ofertasService.buscarUsuariosParaCupon(termino).then((r) => r.data ?? []),
+    enabled: habilitado,
+    placeholderData: keepPreviousData,
+    staleTime: 60 * 1000,
+  });
+}
+
+// =============================================================================
+// QUERY: Usuarios de la ciudad (para compartir oferta por ChatYA)
+// =============================================================================
+
+const USUARIOS_CIUDAD_LIMIT = 500;
+
+/**
+ * Todos los usuarios de la ciudad de la sucursal activa (hasta 500), con el flag
+ * `esCliente`, para el modal de "Compartir oferta por ChatYA". Una sola carga
+ * (no paginada) para que los botones "Todos" / "Clientes" puedan seleccionar de
+ * golpe. Reutiliza `GET /api/ofertas/buscar-usuarios` con `q` vacío.
+ */
+export function useUsuariosCiudad() {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+  const habilitado = !!sucursalId && modoActivo === 'comercial';
+
+  return useQuery({
+    queryKey: queryKeys.ofertas.directorio(sucursalId, ''),
+    queryFn: () =>
+      ofertasService.buscarUsuariosParaCupon('', USUARIOS_CIUDAD_LIMIT).then((r) => r.data ?? []),
+    enabled: habilitado,
+    staleTime: 60 * 1000,
+  });
+}
+
+// =============================================================================
+// MUTACIÓN: Compartir oferta pública por ChatYA
+// =============================================================================
+
+export function useCompartirOfertaChatya() {
+  return useMutation({
+    mutationFn: ({ ofertaId, usuariosIds }: { ofertaId: string; usuariosIds: string[] }) =>
+      ofertasService.compartirOfertaPorChatYA(ofertaId, usuariosIds),
+    onError: (err) => {
+      const mensaje = err instanceof Error ? err.message : 'Error al compartir la oferta';
+      notificar.error(mensaje);
+    },
+  });
+}
+
+// =============================================================================
+// MUTACIÓN: Enviar cupón a más usuarios (asignar cupón existente)
+// =============================================================================
+
+export function useAsignarCupon() {
+  const sucursalId = useAuthStore((s) => s.usuario?.sucursalActiva ?? '');
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ ofertaId, usuariosIds }: { ofertaId: string; usuariosIds: string[] }) =>
+      ofertasService.asignarOferta(ofertaId, { usuariosIds }),
+    onSuccess: (_res, { ofertaId }) => {
+      // Refrescar la lista de asignados del cupón + la lista de promociones
+      qc.invalidateQueries({ queryKey: queryKeys.ofertas.clientesAsignados(ofertaId) });
+      qc.invalidateQueries({ queryKey: queryKeys.ofertas.porSucursal(sucursalId) });
+    },
+    onError: (err) => {
+      const mensaje = err instanceof Error ? err.message : 'Error al enviar el cupón';
+      notificar.error(mensaje);
+    },
   });
 }

@@ -1,7 +1,7 @@
 # 🏷️ Promociones — Ofertas y Cupones
 
-**Última actualización:** 5 Junio 2026
-**Versión:** 3.2
+**Última actualización:** 2 Julio 2026
+**Versión:** 3.4
 **Estado:** ✅ Operacional (Ofertas públicas + Cupones privados + ChatYA + Tiempo real)
 
 > **DATOS DEL SERVIDOR (React Query):**
@@ -17,7 +17,8 @@ Este documento describe la **arquitectura del módulo de Promociones**:
 - ✅ Ofertas públicas (informativas, visibles para todos)
 - ✅ Cupones privados (código único por usuario, validación ScanYA)
 - ✅ CRUD desde Business Studio
-- ✅ Selector de clientes con filtros (nivel, actividad)
+- ✅ Selector de destinatarios unificado (`SelectorDestinatariosCiudad`): usuarios de la ciudad + tus clientes, botones Todos/Clientes (mismo selector en creación de cupón, "Enviar a más" y "Compartir oferta")
+- ✅ Compartir oferta **pública** por ChatYA a usuarios de la ciudad (directorio comercial)
 - ✅ Validación en ScanYA con código personal
 - ✅ Vista cliente "Mis Cupones" con revelación de código
 - ✅ Revocación masiva de cupones desde BS
@@ -191,7 +192,9 @@ El tipo `cupon` fue agregado al check constraint `chat_msg_tipo_check` de la tab
 | PUT | `/api/ofertas/:id` | Actualizar |
 | DELETE | `/api/ofertas/:id` | Eliminar (cascada: chat + notificaciones + R2) |
 | POST | `/api/ofertas/:id/duplicar` | Duplicar a sucursales (solo ofertas públicas) |
-| POST | `/api/ofertas/:id/asignar` | Asignar cupón a clientes |
+| GET | `/api/ofertas/buscar-usuarios?q=` | Buscar usuarios de AY para el selector de destinatarios (cualquier usuario, no solo clientes; acotado a la ciudad de la sucursal) |
+| POST | `/api/ofertas/:id/compartir-chatya` | Compartir una oferta **pública** por ChatYA a usuarios (directorio comercial). Body `{ usuariosIds }` |
+| POST | `/api/ofertas/:id/asignar` | Asignar cupón a usuarios (clientes o no) — valida destinatarios + entrega notificación y ChatYA |
 | POST | `/api/ofertas/:id/reenviar` | Reenviar notificación + ChatYA |
 | POST | `/api/ofertas/:id/revocar` | Revocar cupón (usuario individual) |
 | POST | `/api/ofertas/:id/revocar-todos` | Revocar cupón (todos los usuarios activos) |
@@ -244,13 +247,21 @@ El modal abre con `visibilidadInicial` pre-establecida según el toggle activo e
 
 **Oferta pública:** formulario simple sin tabs.
 
-**Cupón privado:** 3 tabs.
+**Cupón privado — creación:** 2 tabs (Detalles, Ajustes). El botón es **"Crear cupón"**.
 
 | Tab | Contenido |
 |-----|-----------|
 | **Detalles** | Imagen, tipo, valor, fechas, título, descripción |
 | **Ajustes** | Motivo, límite por persona, preview notificación, "¿Cómo funciona?" |
-| **Enviar a** | Búsqueda, dropdown nivel (Bronce/Plata/Oro), dropdown actividad (Activos/Inactivos), lista checkboxes |
+
+**Flujo crear → enviar (2 pasos):** al dar **"Crear cupón"** el cupón se guarda **sin destinatarios**
+(0 enviados, queda en la tabla como Activo) y **se cierra el modal**; acto seguido se abre
+`ModalDestinatariosCiudad` (el **mismo** modal de "Compartir oferta" / "Enviar a más") para elegir a
+quién mandarlo. Si se cierra sin enviar, el cupón queda "en reserva" y se envía después desde la
+tabla con **"Enviar a más"**. El backend ya permite crear un cupón privado sin `usuariosIds`.
+
+**Cupón privado — edición:** 3 tabs; el tercero, **"Enviados"**, es una lista **readonly** de a quién
+ya se le mandó ("Enviado a N usuario(s)"; no re-asigna — para eso está Enviar/Reenviar en la tabla).
 
 ### Componentes del modal
 
@@ -258,8 +269,36 @@ El modal abre con `visibilidadInicial` pre-establecida según el toggle activo e
 ModalOferta.tsx         — Contenedor: header + tabs + botones
 ├── TabOferta.tsx       — Formulario principal
 ├── TabExclusiva.tsx    — Ajustes privados + preview
-└── TabClientes.tsx     — Selector de clientes (creación) / Lista asignados (edición)
+├── SelectorDestinatariosCiudad.tsx — Selector de destinatarios en CREACIÓN (ciudad + clientes + Todos/Clientes)
+└── TabClientes.tsx     — Lista de asignados en EDICIÓN (readonly)
 ```
+
+### Destinatarios: clientes y no-clientes
+
+Un cupón puede enviarse a **cualquier usuario registrado de AnunciaYA**, no solo a clientes que ya
+tienen billetera de puntos del negocio. Todo el envío de destinatarios (al **crear cupón**, "Enviar a
+más" y "Compartir oferta") usa el mismo modal `ModalDestinatariosCiudad`, cuyo cuerpo es el componente
+único **`SelectorDestinatariosCiudad`**:
+
+- **Lista precargada** = usuarios de la ciudad (`useUsuariosCiudad` → `GET /api/ofertas/buscar-usuarios`
+  con `q` vacío, `limit` 500) **+ tus clientes** (`useClientesSelector`, aunque no tengan `ciudad_id`).
+  Dedup por id. El buscador filtra localmente.
+- **Botones rápidos**: **Todos** (marca a todos) y **Clientes** (marca a todos tus clientes). `esCliente`
+  se deriva de la lista real de clientes → badge **Cliente**. Los seleccionados suben al inicio (sin chips).
+- El backend acota a la **ciudad de la sucursal** (hiperlocal); si la sucursal no tiene ciudad no filtra.
+  Se abre a todo AY con `filtrarPorCiudad = false` en `buscarUsuariosParaSelector`.
+- La selección alimenta el mismo `usuariosIds` del submit. `oferta_usuarios.usuario_id` es FK a
+  `usuarios` (sin relación con billetera), así que no hace falta migración.
+
+> El endpoint `GET /api/ofertas/buscar-usuarios` sigue soportando `q` (búsqueda por nombre, ≥2 letras,
+> límite bajo) — se conserva por si se necesita buscar server-side, pero el selector ahora precarga la
+> lista completa (≤500) y filtra en cliente.
+
+**Seguridad / validación de destinatarios** (`filtrarDestinatariosValidos`, aplicado en `crearOferta`
+y `asignarOfertaAUsuarios`): descarta IDs inexistentes o inactivos, duplicados y el self-send del
+dueño (que crearía una conversación de ChatYA consigo mismo). El endpoint `POST /:id/asignar` lleva
+la cadena `verificarToken → verificarNegocio → validarAccesoSucursal` (confina al gerente a su
+sucursal y provee la sucursal emisora del cupón en ChatYA).
 
 ### Acciones en tabla — Ofertas públicas
 
@@ -267,19 +306,42 @@ ModalOferta.tsx         — Contenedor: header + tabs + botones
 |--------|-------|-----------|
 | Editar | Click en fila | Siempre |
 | Ocultar/Mostrar | Eye/EyeOff | Siempre |
+| Compartir por ChatYA | Share2 azul | Siempre (abre `ModalDestinatariosCiudad`) |
 | Eliminar | Trash2 rojo | Siempre |
 | Duplicar | Copy verde | Solo dueños |
+
+> **Compartir por ChatYA** (solo ofertas públicas): abre `ModalDestinatariosCiudad` con una lista
+> combinada = **usuarios de la ciudad** (`useUsuariosCiudad` → `GET /api/ofertas/buscar-usuarios`
+> con `q` vacío y `limit` 500) **+ tus clientes del negocio** (`useClientesSelector`, aunque no
+> tengan `ciudad_id`). `esCliente` se deriva de la **lista real de clientes** (no del filtro por
+> ciudad). Buscador local + dos botones de **selección rápida**: **"Clientes"** (marca a todos tus
+> clientes) y **"Todos"** (marca a todos los de la lista). El botón "Clientes" solo se deshabilita si
+> el negocio no tiene clientes registrados. Tope 500/envío. A cada seleccionado le llega la **card de la oferta** en ChatYA
+> (`tipo:'sistema'` subtipo `oferta_negocio`), creando la conversación comercial↔usuario si no
+> existe. Backend: `compartirOfertaPorChatYA` reutiliza `crearObtenerConversacion` con
+> `contextoTipo:'oferta'` (inserta la card + emite socket, con anti-duplicado); tope 500/envío. Los
+> cupones NO usan esto — se entregan con "Enviar a" / asignar.
 
 ### Acciones en tabla — Cupones privados
 
 | Acción | Icono | Orden | Disponible |
 |--------|-------|-------|-----------|
-| Revocar | Ban naranja | 1 | Solo cupones activos |
-| Reactivar | RefreshCw verde | 1 | Solo cupones inactivos |
-| Eliminar | Trash2 rojo | 2 | Siempre |
-| Reenviar | Send azul | 3 | Siempre |
+| Enviar / Reenviar | Send azul | 1 | Cupones vigentes con cupos (incluye "Usado"); oculto en vencidos, revocados y agotados por límite global. Tooltip dinámico "Enviar"/"Reenviar" según si ya tiene destinatarios |
+| Revocar | Ban naranja | 2 | Cupones activos **con destinatarios** (`totalAsignados > 0`) — sin envíos no hay nada que revocar |
+| Reactivar | RefreshCw verde | 2 | Solo cupones inactivos |
+| Eliminar | Trash2 rojo | 3 | Siempre |
 
 > **Nota:** Los cupones NO muestran Duplicar ni Ocultar/Mostrar. El control de activación se hace mediante Revocar/Reactivar.
+
+> **Enviar / Reenviar** (un solo botón, icono Send): abre `ModalDestinatariosCiudad` y llama
+> `POST /api/ofertas/:id/asignar` (`useAsignarCupon`). **No hay modal de confirmación intermedio.**
+> El tooltip/título cambia entre **"Enviar cupón"** (0 destinatarios, `totalAsignados = 0`) y
+> **"Reenviar cupón"** (ya tiene). En un **reenvío**, el modal **preselecciona** a **todos los que ya lo
+> recibieron** (activos **y** usados; los revocados no) vía `useClientesAsignados` + `ofertaIdReenvio`;
+> los seleccionados suben al inicio y el comerciante puede agregar/quitar. Al confirmar, el backend
+> **asigna a los nuevos** (código único) **y re-notifica** (notificación + ChatYA) a los ya asignados
+> **no revocados** (activos y usados) con su código actual — los **revocados** no reciben nada.
+> `totalAsignados` viene del `SELECT COUNT` en `obtenerOfertas`. El modal de edición sigue readonly.
 
 ### Filtros en PaginaOfertas
 
@@ -331,12 +393,14 @@ En lugar del selector con checkboxes, muestra una **lista readonly** de clientes
 2. Toggle: Oferta → Cupón (icono Ticket) — solo en creación
 3. Llena: Detalles (título, tipo, valor, fechas)
 4. Tab Ajustes: motivo, límite por persona
-5. Tab Enviar a: filtra por nivel/actividad → selecciona clientes
-6. Click "Enviar cupón"
+5. Click **"Crear cupón"** → se crea el cupón (visibilidad='privado', **0 destinatarios**) y se abre
+   el modal de destinatarios (`ModalDestinatariosCiudad`)
+6. En el modal: botones Todos/Clientes o marca uno por uno → **"Enviar cupón"**
+   (si se cierra sin enviar, el cupón queda en reserva; se envía luego con "Enviar a más")
    ↓
-7. Backend:
-   - Crea oferta con visibilidad='privado'
-   - Genera código único ANUN-XXXXXX por cada cliente
+7. Backend (`POST /:id/asignar`):
+   - Valida destinatarios (existentes, activos, sin duplicados, ≠ dueño)
+   - Genera código único ANUN-XXXXXX por cada destinatario
    - Inserta en oferta_usuarios
    - Envía notificación "¡Cupón exclusivo para ti!" a cada cliente
    - Envía mensaje tipo 'cupon' por ChatYA (burbuja especial)
@@ -609,11 +673,14 @@ Los mensajes de cupón usan `tipo: 'cupon'` en `chat_mensajes`. El contenido es 
 ### Envío automático
 
 El mensaje ChatYA se envía automáticamente al:
-- Crear cupón (asignación inicial)
+- Crear cupón (asignación inicial, `crearOferta`)
+- Asignar cupón a más usuarios (`POST /:id/asignar` → `asignarOfertaAUsuarios`)
 - Reenviar cupón
 - Reactivar cupón
 
-El participante emisor es el `usuario_id` del negocio (NO el `negocio_id`).
+El participante emisor es el `usuario_id` del negocio (NO el `negocio_id`). Si el destinatario
+bloqueó al negocio, el mensaje ChatYA falla en silencio (try/catch) pero el cupón y la notificación
+se entregan igual.
 
 ---
 
@@ -623,7 +690,7 @@ El participante emisor es el `usuario_id` del negocio (NO el `negocio_id`).
 
 | Tipo | Modo | Cuándo | Icono |
 |------|------|--------|-------|
-| `cupon_asignado` | personal | Al crear/reenviar/reactivar cupón | 🎟️ |
+| `cupon_asignado` | personal | Al crear/asignar/reenviar/reactivar cupón | 🎟️ |
 | `cupon_revocado` | personal | Al revocar cupón | ❌ |
 | `nueva_oferta` | personal | Al crear oferta pública | Tag azul |
 
@@ -738,8 +805,10 @@ Tracking de compras acumuladas por usuario por recompensa.
 | ModalOferta.tsx | Contenedor modal con tabs + reactivar |
 | TabOferta.tsx | Formulario: imagen, tipo, valor, fechas |
 | TabExclusiva.tsx | Ajustes: motivo, límite, preview (readonly en edición) |
-| TabClientes.tsx | Selector clientes (creación) / Lista asignados (edición) |
+| SelectorDestinatariosCiudad.tsx | Selector unificado y controlado (ciudad + clientes, botones Todos/Clientes, seleccionados arriba). Lo usan creación de cupón, "Enviar a más" y "Compartir oferta" |
+| TabClientes.tsx | Lista de asignados en edición de cupón (readonly) |
 | ModalDuplicarOferta.tsx | Modal duplicar a sucursales |
+| ModalDestinatariosCiudad.tsx | Selector reutilizable (usuarios de la ciudad + tus clientes) con botones "Clientes"/"Todos"; seleccionados suben al inicio, sin chips. Lo usan **Compartir oferta** y **Enviar cupón a más** vía prop `onConfirmar` |
 
 ### Vista Cliente (cupones/)
 
@@ -753,7 +822,7 @@ Tracking de compras acumuladas por usuario por recompensa.
 
 | Archivo | Propósito |
 |---------|-----------|
-| ofertasService.ts | CRUD BS + feed + asignar + reenviar + revocar masivo + reactivar + clientes asignados |
+| ofertasService.ts | CRUD BS + feed + asignar + buscar usuarios (`buscarUsuariosParaCupon`) + compartir por ChatYA (`compartirOfertaPorChatYA`) + reenviar + revocar masivo + reactivar + clientes asignados |
 | misCuponesService.ts | Mis cupones + revelar |
 
 ### Stores
@@ -809,6 +878,17 @@ suspendido/cancelado. Detalle: `docs/reportes/REPORTE_Tanda2_Negocio_Fuera_Circu
 - Intransferible: si comparte el código, no funciona para otro
 - Tracking individual: se sabe exactamente quién usó qué
 - Seguridad: no se pueden adivinar códigos (ANUN-XXXXXX aleatorio)
+
+### ¿Por qué cupones a usuarios que aún no son clientes?
+- Es una herramienta de **captación**: el comerciante puede atraer gente que todavía no le ha
+  comprado (en un piloto nuevo, casi nadie tiene billetera todavía).
+- El cupón le llega al destinatario por **notificación + card de ChatYA** (la conversación
+  comercial↔usuario se crea si no existe), abriendo un canal directo de contacto.
+- Se acota a la **ciudad de la sucursal** para respetar el carácter hiperlocal y evitar spam a
+  usuarios que nunca podrán canjear.
+- Antes esta restricción ("solo clientes con billetera") vivía **solo en el frontend** (el selector);
+  el backend siempre aceptó cualquier `usuario_id`. Ahora el selector expone el buscador y el backend
+  valida explícitamente los destinatarios (existente/activo/≠ dueño).
 
 ### ¿Por qué revocar vs eliminar?
 - **Eliminar** = desaparece todo (cupón, notificaciones, mensajes, imagen R2). Sin historial.

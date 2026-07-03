@@ -75,6 +75,8 @@ import {
     useActualizarOferta,
     useEliminarOferta,
     useDuplicarOferta,
+    useCompartirOfertaChatya,
+    useAsignarCupon,
 } from '../../../../hooks/queries/useOfertas';
 import { useZonaHoraria } from '../../../../hooks/useZonaHoraria';
 import { Input } from '../../../../components/ui/Input';
@@ -84,9 +86,9 @@ import Tooltip from '../../../../components/ui/Tooltip';
 import { CarouselKPI } from '../../../../components/ui/CarouselKPI';
 import { Boton } from '../../../../components/ui/Boton';
 import { notificar } from '../../../../utils/notificaciones';
-import { reenviarCupon } from '../../../../services/ofertasService';
 import { ModalOferta } from './ModalOferta';
 import { ModalDuplicarOferta } from './ModalDuplicarOferta';
+import { ModalDestinatariosCiudad, type OfertaHeader } from './ModalDestinatariosCiudad';
 import type { Oferta, TipoOferta, EstadoOferta, CrearOfertaInput, ActualizarOfertaInput } from '../../../../types/ofertas';
 
 // =============================================================================
@@ -292,8 +294,9 @@ function FilaMovilOferta({
     onEditar,
     onEliminar,
     onDuplicar,
-    onReenviar,
     onRevocar,
+    onCompartirChatya,
+    onEnviarCupon,
     onImagenClick,
     esDueno,
     esCupones,
@@ -303,8 +306,9 @@ function FilaMovilOferta({
     onEditar: (oferta: Oferta) => void;
     onEliminar: (id: string, titulo: string) => void;
     onDuplicar: (oferta: Oferta) => void;
-    onReenviar: (oferta: Oferta) => void;
     onRevocar: (oferta: Oferta) => void;
+    onCompartirChatya: (oferta: Oferta) => void;
+    onEnviarCupon: (oferta: Oferta) => void;
     onImagenClick?: (url: string) => void;
     esDueno: boolean;
     esCupones: boolean;
@@ -365,13 +369,16 @@ function FilaMovilOferta({
                     <div className="flex items-center gap-3 shrink-0">
                         {oferta.visibilidad === 'privado' && (
                             <>
-                                <button
-                                    onClick={(e) => { e.stopPropagation(); onReenviar(oferta); }}
-                                    className="cursor-pointer text-blue-600"
-                                >
-                                    <Send className="w-6 h-6" />
-                                </button>
-                                {oferta.activo && (
+                                {oferta.activo && estado !== 'vencida' && (oferta.limiteUsos === null || oferta.usosActuales < oferta.limiteUsos) && (
+                                    <button
+                                        onClick={(e) => { e.stopPropagation(); onEnviarCupon(oferta); }}
+                                        className="cursor-pointer text-blue-600"
+                                        data-testid={`btn-enviar-cupon-movil-${oferta.id}`}
+                                    >
+                                        <Send className="w-6 h-6" />
+                                    </button>
+                                )}
+                                {oferta.activo && (oferta.totalAsignados ?? 0) > 0 && (
                                     <button
                                         onClick={(e) => { e.stopPropagation(); onRevocar(oferta); }}
                                         className="cursor-pointer text-orange-600"
@@ -380,6 +387,15 @@ function FilaMovilOferta({
                                     </button>
                                 )}
                             </>
+                        )}
+                        {oferta.visibilidad !== 'privado' && (
+                            <button
+                                onClick={(e) => { e.stopPropagation(); onCompartirChatya(oferta); }}
+                                className="cursor-pointer text-blue-600"
+                                data-testid={`btn-compartir-movil-${oferta.id}`}
+                            >
+                                <Send className="w-6 h-6" />
+                            </button>
                         )}
                         {esDueno && oferta.visibilidad !== 'privado' && (
                             <button
@@ -454,6 +470,8 @@ export function PaginaOfertas() {
     const actualizarMutation = useActualizarOferta();
     const eliminarMutation = useEliminarOferta();
     const duplicarMutation = useDuplicarOferta();
+    const compartirMutation = useCompartirOfertaChatya();
+    const asignarCuponMutation = useAsignarCupon();
     const { compararConHoy } = useZonaHoraria();
 
     // Estados UI
@@ -461,6 +479,8 @@ export function PaginaOfertas() {
     const [modalDuplicarAbierto, setModalDuplicarAbierto] = useState(false);
     const [ofertaEditando, setOfertaEditando] = useState<Oferta | null>(null);
     const [ofertaDuplicando, setOfertaDuplicando] = useState<Oferta | null>(null);
+    const [ofertaCompartiendo, setOfertaCompartiendo] = useState<Oferta | null>(null);
+    const [cuponEnviando, setCuponEnviando] = useState<{ oferta: OfertaHeader; esReenvio: boolean } | null>(null);
     const [ofertasCargadas, setOfertasCargadas] = useState(OFERTAS_POR_PAGINA);
     const [modalImagenes, setModalImagenes] = useState<{ isOpen: boolean; images: string[]; initialIndex: number }>({ isOpen: false, images: [], initialIndex: 0 });
     const [visibilidadNueva, setVisibilidadNueva] = useState<'publico' | 'privado'>('publico');
@@ -723,19 +743,6 @@ export function PaginaOfertas() {
         }
     };
 
-    const handleReenviarCupon = async (oferta: Oferta) => {
-        if (oferta.visibilidad !== 'privado') return;
-        const confirmado = await notificar.confirmar(`¿Reenviar cupón "${oferta.titulo}" a todos los clientes asignados?`);
-        if (!confirmado) return;
-        try {
-            const res = await reenviarCupon(oferta.id);
-            if (res.success) notificar.exito(res.message || 'Cupón reenviado');
-            else notificar.error(res.message || 'Error al reenviar');
-        } catch {
-            notificar.error('Error al reenviar cupón');
-        }
-    };
-
     const handleRevocarCupon = async (oferta: Oferta) => {
         if (oferta.visibilidad !== 'privado') return;
         const confirmado = await notificar.confirmar(`¿Revocar cupón "${oferta.titulo}" para todos los clientes? Ya no podrán canjearlo.`);
@@ -785,6 +792,16 @@ export function PaginaOfertas() {
         } catch {
             // Error ya notificado por la mutación
         }
+    };
+
+    const handleCompartirChatya = (oferta: Oferta) => {
+        if (oferta.visibilidad === 'privado') return;
+        setOfertaCompartiendo(oferta);
+    };
+
+    const handleEnviarCupon = (oferta: Oferta) => {
+        if (oferta.visibilidad !== 'privado') return;
+        setCuponEnviando({ oferta, esReenvio: (oferta.totalAsignados ?? 0) > 0 });
     };
 
     const handleDuplicar = async (oferta: Oferta) => {
@@ -1298,7 +1315,7 @@ export function PaginaOfertas() {
                         <div
                             className={`grid ${esCupones
                                 ? 'grid-cols-[minmax(0,1fr)_110px_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
-                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_95px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_120px]'
+                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_135px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_155px]'
                             } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2 lg:py-2 2xl:py-2 h-12 items-center text-[11px] lg:text-[11px] 2xl:text-sm font-semibold text-white uppercase tracking-wider`}
                             style={{ background: 'linear-gradient(135deg, #1e293b, #334155)' }}
                         >
@@ -1361,7 +1378,7 @@ export function PaginaOfertas() {
                                             onClick={() => handleEditar(oferta)}
                                             className={`grid ${esCupones
                                                 ? 'grid-cols-[minmax(0,1fr)_110px_110px_120px_120px] 2xl:grid-cols-[minmax(0,1fr)_130px_130px_140px_150px]'
-                                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_95px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_120px]'
+                                                : 'grid-cols-[minmax(0,1fr)_85px_80px_70px_70px_70px_95px_135px] 2xl:grid-cols-[minmax(0,1fr)_100px_95px_85px_85px_85px_115px_155px]'
                                             } gap-2 lg:gap-3 2xl:gap-4 px-4 lg:px-3 2xl:px-5 py-2.5 lg:py-2 2xl:py-2 text-sm lg:text-xs 2xl:text-sm border-b border-slate-300 hover:bg-slate-200 cursor-pointer ${i % 2 === 0 ? 'bg-white' : 'bg-slate-100'} ${!oferta.activo ? 'opacity-60' : ''}`}
                                         >
                                             {/* Oferta: Imagen + Título + Valor */}
@@ -1449,8 +1466,9 @@ export function PaginaOfertas() {
                                                         </button>
                                                     </Tooltip>
                                                 )}
-                                                {/* Cupón: Revocar / Reactivar (no si está agotado/usado) */}
-                                                {oferta.visibilidad === 'privado' && oferta.activo && oferta.estado !== 'agotada' && oferta.estado !== 'vencida' && (
+                                                {/* Cupón: Revocar (solo si ya se envió — no hay nada que revocar
+                                                    en un cupón sin destinatarios; no si está agotado/usado) */}
+                                                {oferta.visibilidad === 'privado' && oferta.activo && (oferta.totalAsignados ?? 0) > 0 && oferta.estado !== 'agotada' && oferta.estado !== 'vencida' && (
                                                     <Tooltip text="Revocar cupón">
                                                         <button
                                                             data-testid={`btn-revocar-${oferta.id}`}
@@ -1481,12 +1499,27 @@ export function PaginaOfertas() {
                                                         <Trash2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
                                                     </button>
                                                 </Tooltip>
-                                                {/* Cupón: Reenviar (no si está agotado/usado) */}
-                                                {oferta.visibilidad === 'privado' && oferta.estado !== 'agotada' && oferta.estado !== 'vencida' && (
-                                                    <Tooltip text="Reenviar cupón">
+                                                {/* Cupón: Enviar / Reenviar (mismo botón, nombre dinámico).
+                                                    Vigente y con cupos: no revocado (activo), no vencido,
+                                                    sin límite global alcanzado. El estado 'agotada' de un
+                                                    cupón = "sus asignados ya lo usaron" → igual se puede
+                                                    reenviar / mandar a más gente. */}
+                                                {oferta.visibilidad === 'privado' && oferta.activo && estado !== 'vencida' && (oferta.limiteUsos === null || oferta.usosActuales < oferta.limiteUsos) && (
+                                                    <Tooltip text={(oferta.totalAsignados ?? 0) > 0 ? 'Reenviar cupón' : 'Enviar cupón'}>
                                                         <button
-                                                            data-testid={`btn-reenviar-${oferta.id}`}
-                                                            onClick={(e) => { e.stopPropagation(); handleReenviarCupon(oferta); }}
+                                                            data-testid={`btn-enviar-cupon-${oferta.id}`}
+                                                            onClick={(e) => { e.stopPropagation(); handleEnviarCupon(oferta); }}
+                                                            className="p-1.5 rounded-lg cursor-pointer text-blue-600 hover:bg-blue-100"
+                                                        >
+                                                            <Send className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
+                                                        </button>
+                                                    </Tooltip>
+                                                )}
+                                                {oferta.visibilidad !== 'privado' && (
+                                                    <Tooltip text="Compartir por ChatYA">
+                                                        <button
+                                                            data-testid={`btn-compartir-${oferta.id}`}
+                                                            onClick={(e) => { e.stopPropagation(); handleCompartirChatya(oferta); }}
                                                             className="p-1.5 rounded-lg cursor-pointer text-blue-600 hover:bg-blue-100"
                                                         >
                                                             <Send className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" />
@@ -1579,8 +1612,9 @@ export function PaginaOfertas() {
                                             onEditar={handleEditar}
                                             onEliminar={handleEliminar}
                                             onDuplicar={handleDuplicar}
-                                            onReenviar={handleReenviarCupon}
                                             onRevocar={handleRevocarCupon}
+                                            onCompartirChatya={handleCompartirChatya}
+                                            onEnviarCupon={handleEnviarCupon}
                                             onImagenClick={abrirImagenUnica}
                                             esDueno={esDueno}
                                             esCupones={esCupones}
@@ -1638,12 +1672,30 @@ export function PaginaOfertas() {
                         try {
                             if (ofertaEditando) {
                                 await actualizarMutation.mutateAsync({ id: ofertaEditando.id, datos: datos as ActualizarOfertaInput });
+                                setModalAbierto(false);
+                                setOfertaEditando(null);
+                                setDatosPrelleno(null);
                             } else {
-                                await crearMutation.mutateAsync(datos as CrearOfertaInput);
+                                const datosCrear = datos as CrearOfertaInput;
+                                const res = await crearMutation.mutateAsync(datosCrear);
+                                setModalAbierto(false);
+                                setOfertaEditando(null);
+                                setDatosPrelleno(null);
+                                // Cupón nuevo → abrir el modal de destinatarios con el cupón recién creado.
+                                // (Se crea sin destinatarios; el envío es este 2º paso.)
+                                if (datosCrear.visibilidad === 'privado' && res?.data?.id) {
+                                    setCuponEnviando({
+                                        oferta: {
+                                            id: res.data.id,
+                                            titulo: datosCrear.titulo,
+                                            tipo: datosCrear.tipo,
+                                            valor: typeof datosCrear.valor === 'number' ? String(datosCrear.valor) : (datosCrear.valor ?? null),
+                                            imagen: datosCrear.imagen ?? null,
+                                        },
+                                        esReenvio: false,
+                                    });
+                                }
                             }
-                            setModalAbierto(false);
-                            setOfertaEditando(null);
-                            setDatosPrelleno(null);
                         } catch {
                             // Error ya notificado por la mutación
                         }
@@ -1666,6 +1718,33 @@ export function PaginaOfertas() {
                             setModalDuplicarAbierto(false);
                             setOfertaDuplicando(null);
                         }}
+                    />
+                )}
+
+                {ofertaCompartiendo && (
+                    <ModalDestinatariosCiudad
+                        oferta={ofertaCompartiendo}
+                        accionLabel="Compartir por ChatYA"
+                        botonLabel="Enviar por ChatYA"
+                        onConfirmar={async (usuariosIds) => {
+                            const res = await compartirMutation.mutateAsync({ ofertaId: ofertaCompartiendo.id, usuariosIds });
+                            notificar.exito(`Oferta compartida a ${res.data?.enviados ?? usuariosIds.length} usuario(s)`);
+                        }}
+                        onCerrar={() => setOfertaCompartiendo(null)}
+                    />
+                )}
+
+                {cuponEnviando && (
+                    <ModalDestinatariosCiudad
+                        oferta={cuponEnviando.oferta}
+                        accionLabel={cuponEnviando.esReenvio ? 'Reenviar cupón por ChatYA' : 'Enviar cupón por ChatYA'}
+                        botonLabel={cuponEnviando.esReenvio ? 'Reenviar cupón' : 'Enviar cupón'}
+                        ofertaIdReenvio={cuponEnviando.oferta.id}
+                        onConfirmar={async (usuariosIds) => {
+                            const res = await asignarCuponMutation.mutateAsync({ ofertaId: cuponEnviando.oferta.id, usuariosIds });
+                            notificar.exito(`Cupón enviado a ${res.data?.asignados ?? usuariosIds.length} usuario(s)`);
+                        }}
+                        onCerrar={() => setCuponEnviando(null)}
                     />
                 )}
 

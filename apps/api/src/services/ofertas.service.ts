@@ -15,7 +15,7 @@
  * CREADO: Fase 5.4.2 - Sistema Completo de Ofertas
  */
 
-import { sql, eq, and, count, ne } from 'drizzle-orm';
+import { sql, eq, and, count, ne, ilike, or, inArray } from 'drizzle-orm';
 import { db } from '../db';
 import { ofertas, ofertaUsos, ofertaUsuarios, chatMensajes } from '../db/schemas/schema';
 import { env } from '../config/env.js';
@@ -27,7 +27,7 @@ import type {
   FiltrosFeedOfertas,
   RegistrarUsoOfertaInput,
 } from '../types/ofertas.types';
-import { negocios, puntosBilletera, notificaciones } from '../db/schemas/schema';
+import { negocios, puntosBilletera, notificaciones, usuarios } from '../db/schemas/schema';
 import { emitirAUsuario } from '../socket.js';
 import { crearNotificacion } from './notificaciones.service.js';
 import { crearObtenerConversacion, enviarMensaje } from './chatya.service.js';
@@ -580,59 +580,69 @@ export async function crearOferta(
 
       // Si es oferta privada, asignar a usuarios con código único
       if (datos.visibilidad === 'privado' && datos.usuariosIds?.length) {
-        const asignaciones = datos.usuariosIds.map((uid) => ({
-          ofertaId: nuevaOferta.id,
-          usuarioId: uid,
-          motivo: datos.motivoAsignacion || null,
-          codigoPersonal: generarCodigoAleatorio(),
-        }));
-        await tx.insert(ofertaUsuarios).values(asignaciones);
-
-        // Notificar a usuarios asignados
+        // Datos del negocio (incluye al dueño = emisor de ChatYA)
         const [negocioInfo] = await tx
           .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl, usuarioId: negocios.usuarioId })
           .from(negocios)
           .where(eq(negocios.id, negocioId))
           .limit(1);
 
-        // Construir info del tipo de cupón
-        const valorNum = nuevaOferta.valor ? parseFloat(nuevaOferta.valor) : 0;
-        const tipoInfo = nuevaOferta.tipo === 'porcentaje' ? `${valorNum}% de descuento`
-          : nuevaOferta.tipo === 'monto_fijo' ? `$${valorNum} de descuento`
-          : nuevaOferta.tipo === '2x1' ? '2x1'
-          : nuevaOferta.tipo === '3x2' ? '3x2'
-          : nuevaOferta.tipo === 'envio_gratis' ? 'Envío gratis'
-          : nuevaOferta.valor && isNaN(Number(nuevaOferta.valor)) ? nuevaOferta.valor
-          : 'Cupón exclusivo';
+        // Validar destinatarios: existentes, activos, únicos y distintos del dueño.
+        // Ya NO se exige que sean clientes con billetera — puede ser cualquier
+        // usuario de AnunciaYA (esa restricción vivía solo en el selector del front).
+        const destinatarios = await filtrarDestinatariosValidos(
+          datos.usuariosIds,
+          negocioInfo?.usuarioId ?? null
+        );
 
-        for (const uid of datos.usuariosIds) {
-          // Notificación panel
-          crearNotificacion({
+        if (destinatarios.length > 0) {
+          const asignaciones = destinatarios.map((uid) => ({
+            ofertaId: nuevaOferta.id,
             usuarioId: uid,
-            modo: 'personal',
-            tipo: 'cupon_asignado',
-            titulo: tipoInfo,
-            mensaje: `${nuevaOferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
-            negocioId,
-            sucursalId,
-            referenciaId: nuevaOferta.id,
-            referenciaTipo: 'cupon',
-            icono: '🎟️',
-            actorImagenUrl: negocioInfo?.logoUrl ?? nuevaOferta.imagen ?? undefined,
-            actorNombre: negocioInfo?.nombre ?? undefined,
-          }).catch((err) => console.error('Error notificación cupón asignado:', err));
+            motivo: datos.motivoAsignacion || null,
+            codigoPersonal: generarCodigoAleatorio(),
+          }));
+          await tx.insert(ofertaUsuarios).values(asignaciones);
 
-          // Mensaje ChatYA con burbuja especial
-          const asignacion = asignaciones.find(a => a.usuarioId === uid);
-          enviarCuponPorChatYA(
-            negocioInfo?.usuarioId ?? negocioId, sucursalId, uid,
-            { id: nuevaOferta.id, titulo: nuevaOferta.titulo, imagen: nuevaOferta.imagen, tipo: nuevaOferta.tipo, valor: nuevaOferta.valor, fechaFin: nuevaOferta.fechaFin },
-            asignacion?.codigoPersonal ? String(asignacion.codigoPersonal) : '',
-            negocioInfo?.nombre ?? 'un negocio'
-          ).catch((err) => console.error('Error ChatYA cupón:', err));
+          // Construir info del tipo de cupón
+          const valorNum = nuevaOferta.valor ? parseFloat(nuevaOferta.valor) : 0;
+          const tipoInfo = nuevaOferta.tipo === 'porcentaje' ? `${valorNum}% de descuento`
+            : nuevaOferta.tipo === 'monto_fijo' ? `$${valorNum} de descuento`
+            : nuevaOferta.tipo === '2x1' ? '2x1'
+            : nuevaOferta.tipo === '3x2' ? '3x2'
+            : nuevaOferta.tipo === 'envio_gratis' ? 'Envío gratis'
+            : nuevaOferta.valor && isNaN(Number(nuevaOferta.valor)) ? nuevaOferta.valor
+            : 'Cupón exclusivo';
 
-          // Notificar al frontend en tiempo real
-          emitirAUsuario(uid, 'cupon:actualizado', { ofertaId: nuevaOferta.id, estado: 'activo' });
+          for (const uid of destinatarios) {
+            // Notificación panel
+            crearNotificacion({
+              usuarioId: uid,
+              modo: 'personal',
+              tipo: 'cupon_asignado',
+              titulo: tipoInfo,
+              mensaje: `${nuevaOferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
+              negocioId,
+              sucursalId,
+              referenciaId: nuevaOferta.id,
+              referenciaTipo: 'cupon',
+              icono: '🎟️',
+              actorImagenUrl: negocioInfo?.logoUrl ?? nuevaOferta.imagen ?? undefined,
+              actorNombre: negocioInfo?.nombre ?? undefined,
+            }).catch((err) => console.error('Error notificación cupón asignado:', err));
+
+            // Mensaje ChatYA con burbuja especial
+            const asignacion = asignaciones.find(a => a.usuarioId === uid);
+            enviarCuponPorChatYA(
+              negocioInfo?.usuarioId ?? negocioId, sucursalId, uid,
+              { id: nuevaOferta.id, titulo: nuevaOferta.titulo, imagen: nuevaOferta.imagen, tipo: nuevaOferta.tipo, valor: nuevaOferta.valor, fechaFin: nuevaOferta.fechaFin },
+              asignacion?.codigoPersonal ? String(asignacion.codigoPersonal) : '',
+              negocioInfo?.nombre ?? 'un negocio'
+            ).catch((err) => console.error('Error ChatYA cupón:', err));
+
+            // Notificar al frontend en tiempo real
+            emitirAUsuario(uid, 'cupon:actualizado', { ofertaId: nuevaOferta.id, estado: 'activo' });
+          }
         }
       }
 
@@ -722,7 +732,10 @@ export async function obtenerOfertas(negocioId: string, sucursalId: string) {
           ) THEN 'agotada'
           WHEN CURRENT_TIMESTAMP > o.fecha_fin THEN 'vencida'
           ELSE 'activa'
-        END as estado
+        END as estado,
+
+        -- Cuántos destinatarios tiene el cupón (para el botón dinámico Enviar/Reenviar)
+        (SELECT COUNT(*)::int FROM oferta_usuarios ou WHERE ou.oferta_id = o.id) as total_asignados
 
       FROM ofertas o
       LEFT JOIN metricas_entidad me ON me.entity_type = 'oferta' AND me.entity_id = o.id
@@ -1653,6 +1666,191 @@ function generarCodigoAleatorio(): string {
 }
 
 // =============================================================================
+// HELPER: FILTRAR DESTINATARIOS VÁLIDOS (cerrar brecha de asignación)
+// =============================================================================
+
+/**
+ * Dado un arreglo de IDs de usuario para asignar un cupón, devuelve solo los
+ * que son destinatarios legítimos: existentes, con estado 'activo', únicos y
+ * distinto del emisor (evita que el negocio se mande un cupón a sí mismo, lo
+ * que crearía una conversación de ChatYA consigo mismo).
+ *
+ * Los destinatarios YA no están limitados a clientes con billetera: pueden ser
+ * usuarios que aún no compraron en el negocio. Esta validación reemplaza la
+ * "restricción de facto" que antes vivía solo en el selector del frontend.
+ */
+async function filtrarDestinatariosValidos(
+  usuariosIds: string[],
+  excluirUsuarioId: string | null
+): Promise<string[]> {
+  const unicos = [...new Set(usuariosIds)].filter((id) => id !== excluirUsuarioId);
+  if (unicos.length === 0) return [];
+
+  // Lectura pura de `usuarios` (no participa en la tx de escritura del cupón).
+  const filas = await db
+    .select({ id: usuarios.id })
+    .from(usuarios)
+    .where(and(inArray(usuarios.id, unicos), eq(usuarios.estado, 'activo')));
+
+  const validos = new Set(filas.map((f) => f.id));
+  // Preservar el orden original de la selección
+  return unicos.filter((id) => validos.has(id));
+}
+
+// =============================================================================
+// BUSCAR USUARIOS PARA SELECTOR DE CUPÓN (Business Studio)
+// =============================================================================
+
+/**
+ * Busca usuarios de AnunciaYA por nombre/apellidos para el selector "Buscar
+ * usuario" del cupón. A diferencia de `obtenerClientes` (que solo lista clientes
+ * con billetera de puntos), aquí aparece CUALQUIER usuario activo — para poder
+ * mandar cupones a gente que aún no es cliente del negocio.
+ *
+ * Filtra por la ciudad de la sucursal activa (la app es hiperlocal: un cupón de
+ * un negocio de una ciudad no le sirve a un usuario de otra). Si la sucursal no
+ * tiene ciudad configurada, o `filtrarPorCiudad` es false, no se filtra por
+ * ciudad. Marca `esCliente` para que la UI muestre un badge Cliente/Nuevo.
+ */
+export async function buscarUsuariosParaSelector(
+  negocioId: string,
+  sucursalId: string | null,
+  excluirUsuarioId: string,
+  texto: string,
+  limit: number = 10,
+  filtrarPorCiudad: boolean = true
+) {
+  try {
+    const termino = `%${texto.trim()}%`;
+
+    // Resolver la ciudad de la sucursal (para el filtro hiperlocal)
+    let ciudadId: string | null = null;
+    if (filtrarPorCiudad && sucursalId) {
+      const rc = await db.execute(
+        sql`SELECT ciudad_id FROM negocio_sucursales WHERE id = ${sucursalId} LIMIT 1`
+      );
+      ciudadId = (rc.rows[0] as { ciudad_id: string | null } | undefined)?.ciudad_id ?? null;
+    }
+
+    const condiciones = [
+      eq(usuarios.estado, 'activo'),
+      ne(usuarios.id, excluirUsuarioId),
+      or(ilike(usuarios.nombre, termino), ilike(usuarios.apellidos, termino)),
+    ];
+    // Si la sucursal tiene ciudad, acotar a usuarios de esa ciudad.
+    // Para abrir la búsqueda a todo AnunciaYA: llamar con filtrarPorCiudad=false.
+    if (ciudadId) condiciones.push(eq(usuarios.ciudadId, ciudadId));
+
+    const filas = await db
+      .select({
+        id: usuarios.id,
+        nombre: usuarios.nombre,
+        apellidos: usuarios.apellidos,
+        avatarUrl: usuarios.avatarUrl,
+        esCliente: sql<boolean>`EXISTS (
+          SELECT 1 FROM ${puntosBilletera}
+          WHERE ${puntosBilletera.usuarioId} = ${usuarios.id}
+            AND ${puntosBilletera.negocioId} = ${negocioId}
+        )`,
+      })
+      .from(usuarios)
+      .where(and(...condiciones))
+      .orderBy(usuarios.nombre, usuarios.apellidos)
+      .limit(limit);
+
+    return { success: true, message: `${filas.length} usuarios encontrados`, data: filas };
+  } catch (error) {
+    console.error('Error en buscarUsuariosParaSelector:', error);
+    return { success: false, message: 'Error al buscar usuarios', data: [] };
+  }
+}
+
+// =============================================================================
+// COMPARTIR OFERTA PÚBLICA POR CHATYA
+// =============================================================================
+
+/**
+ * Comparte una oferta PÚBLICA por ChatYA a una lista de usuarios (típicamente
+ * del directorio comercial de la ciudad). A cada destinatario le llega la card
+ * de la oferta (`tipo:'sistema'` subtipo `oferta_negocio`), creando la
+ * conversación comercial↔usuario si no existe.
+ *
+ * Reutiliza `crearObtenerConversacion` con `contextoTipo:'oferta'`, que ya
+ * inserta la card vía `insertarMensajeContextoNegocio` (con anti-duplicado) y
+ * emite el socket `chatya:mensaje-nuevo` en tiempo real. NO aplica a cupones
+ * (esos se entregan con `asignarOfertaAUsuarios`).
+ */
+export async function compartirOfertaPorChatYA(
+  ofertaId: string,
+  negocioId: string,
+  sucursalId: string | null,
+  usuariosIds: string[]
+) {
+  try {
+    // Verificar que la oferta existe, es del negocio y es pública
+    const [oferta] = await db
+      .select({ id: ofertas.id, visibilidad: ofertas.visibilidad, sucursalId: ofertas.sucursalId })
+      .from(ofertas)
+      .where(and(eq(ofertas.id, ofertaId), eq(ofertas.negocioId, negocioId)))
+      .limit(1);
+
+    if (!oferta) {
+      return { success: false, message: 'Oferta no encontrada', code: 404 };
+    }
+    if (oferta.visibilidad === 'privado') {
+      return {
+        success: false,
+        message: 'Los cupones se envían con "Enviar a", no con Compartir',
+        code: 400,
+      };
+    }
+
+    // Dueño del negocio = emisor comercial de ChatYA
+    const [negocioInfo] = await db
+      .select({ usuarioId: negocios.usuarioId })
+      .from(negocios)
+      .where(eq(negocios.id, negocioId))
+      .limit(1);
+    const duenoId = negocioInfo?.usuarioId ?? null;
+
+    // Validar destinatarios (existentes, activos, únicos, ≠ dueño)
+    const destinatarios = await filtrarDestinatariosValidos(usuariosIds, duenoId);
+    if (destinatarios.length === 0) {
+      return { success: true, message: 'Oferta compartida a 0 usuario(s)', enviados: 0 };
+    }
+
+    const sucFinal = sucursalId ?? oferta.sucursalId ?? undefined;
+
+    let enviados = 0;
+    for (const uid of destinatarios) {
+      try {
+        const res = await crearObtenerConversacion(
+          {
+            participante2Id: uid,
+            participante2Modo: 'personal',
+            participante1Modo: 'comercial',
+            participante1SucursalId: sucFinal,
+            contextoTipo: 'oferta',
+            contextoReferenciaId: ofertaId,
+          },
+          duenoId ?? negocioId
+        );
+        // Si el usuario bloqueó al negocio, crearObtenerConversacion falla (403)
+        // y se omite sin romper el resto del lote.
+        if (res.success) enviados++;
+      } catch (err) {
+        console.error('Error compartiendo oferta por ChatYA a', uid, err);
+      }
+    }
+
+    return { success: true, message: `Oferta compartida a ${enviados} usuario(s)`, enviados };
+  } catch (error) {
+    console.error('Error en compartirOfertaPorChatYA:', error);
+    throw error;
+  }
+}
+
+// =============================================================================
 // VALIDAR OFERTA POR CÓDIGO (para ScanYA)
 // =============================================================================
 
@@ -1849,7 +2047,8 @@ export async function asignarOfertaAUsuarios(
   ofertaId: string,
   negocioId: string,
   usuariosIds: string[],
-  motivo?: string
+  motivo?: string,
+  sucursalIdParam?: string | null
 ) {
   try {
     // Verificar que la oferta existe y pertenece al negocio
@@ -1863,47 +2062,95 @@ export async function asignarOfertaAUsuarios(
       return { success: false, error: 'Oferta no encontrada' };
     }
 
-    // Insertar asignaciones con código personal único
-    for (const uid of usuariosIds) {
-      try {
-        await db.insert(ofertaUsuarios).values({
-          ofertaId,
-          usuarioId: uid,
-          motivo: motivo || null,
-          codigoPersonal: generarCodigoAleatorio(),
-        });
-      } catch {
-        // Ignorar duplicados (ON CONFLICT)
-      }
-    }
-
-    // Notificar a usuarios asignados
+    // Datos del negocio (incluye al dueño = emisor de ChatYA)
     const [negocioInfo] = await db
-      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl })
+      .select({ nombre: negocios.nombre, logoUrl: negocios.logoUrl, usuarioId: negocios.usuarioId })
       .from(negocios)
       .where(eq(negocios.id, negocioId))
       .limit(1);
 
-    for (const uid of usuariosIds) {
+    // Validar destinatarios: existentes, activos, únicos y distintos del dueño.
+    const destinatarios = await filtrarDestinatariosValidos(
+      usuariosIds,
+      negocioInfo?.usuarioId ?? null
+    );
+
+    if (destinatarios.length === 0) {
+      return { success: true, message: 'Oferta asignada a 0 usuario(s)', asignados: 0 };
+    }
+
+    const sucursalId = sucursalIdParam ?? oferta.sucursalId ?? null;
+
+    // Asignar a los NUEVOS (ON CONFLICT DO NOTHING ignora a los ya asignados).
+    await db
+      .insert(ofertaUsuarios)
+      .values(
+        destinatarios.map((uid) => ({
+          ofertaId,
+          usuarioId: uid,
+          motivo: motivo || null,
+          codigoPersonal: generarCodigoAleatorio(),
+        }))
+      )
+      .onConflictDoNothing();
+
+    // "Enviar" y "Reenviar" en una sola acción: a TODOS los destinatarios cuyo
+    // cupón NO esté revocado (nuevos recién asignados + existentes —activos o ya
+    // usados— que se re-notifican con su código actual). Los revocados NO reciben.
+    const destinos = await db
+      .select({ usuarioId: ofertaUsuarios.usuarioId, codigoPersonal: ofertaUsuarios.codigoPersonal })
+      .from(ofertaUsuarios)
+      .where(and(
+        eq(ofertaUsuarios.ofertaId, ofertaId),
+        inArray(ofertaUsuarios.usuarioId, destinatarios),
+        ne(ofertaUsuarios.estado, 'revocado'),
+      ));
+
+    // Info del tipo de cupón (mismo formato que crearOferta)
+    const valorNum = oferta.valor ? parseFloat(oferta.valor) : 0;
+    const tipoInfo = oferta.tipo === 'porcentaje' ? `${valorNum}% de descuento`
+      : oferta.tipo === 'monto_fijo' ? `$${valorNum} de descuento`
+      : oferta.tipo === '2x1' ? '2x1'
+      : oferta.tipo === '3x2' ? '3x2'
+      : oferta.tipo === 'envio_gratis' ? 'Envío gratis'
+      : oferta.valor && isNaN(Number(oferta.valor)) ? oferta.valor
+      : 'Cupón exclusivo';
+
+    for (const fila of destinos) {
+      const uid = fila.usuarioId;
+
+      // Notificación panel
       crearNotificacion({
         usuarioId: uid,
         modo: 'personal',
-        tipo: 'nueva_oferta',
-        titulo: '¡Recibiste un Cupón Exclusivo!',
+        tipo: 'cupon_asignado',
+        titulo: tipoInfo,
         mensaje: `${oferta.titulo}\n${negocioInfo?.nombre ?? 'un negocio'}`,
         negocioId,
-        sucursalId: oferta.sucursalId ?? undefined,
+        sucursalId: sucursalId ?? undefined,
         referenciaId: ofertaId,
-        referenciaTipo: 'oferta',
+        referenciaTipo: 'cupon',
         icono: '🎟️',
         actorImagenUrl: negocioInfo?.logoUrl ?? oferta.imagen ?? undefined,
         actorNombre: negocioInfo?.nombre ?? undefined,
-      }).catch((err) => console.error('Error notificación oferta exclusiva:', err));
+      }).catch((err) => console.error('Error notificación cupón asignado:', err));
+
+      // Mensaje ChatYA con burbuja especial
+      enviarCuponPorChatYA(
+        negocioInfo?.usuarioId ?? negocioId, sucursalId, uid,
+        { id: oferta.id, titulo: oferta.titulo, imagen: oferta.imagen, tipo: oferta.tipo, valor: oferta.valor, fechaFin: oferta.fechaFin },
+        fila.codigoPersonal ? String(fila.codigoPersonal) : '',
+        negocioInfo?.nombre ?? 'un negocio'
+      ).catch((err) => console.error('Error ChatYA cupón:', err));
+
+      // Notificar al frontend en tiempo real
+      emitirAUsuario(uid, 'cupon:actualizado', { ofertaId, estado: 'activo' });
     }
 
     return {
       success: true,
-      message: `Oferta asignada a ${usuariosIds.length} usuario(s)`,
+      message: `Cupón enviado a ${destinos.length} usuario(s)`,
+      asignados: destinos.length,
     };
   } catch (error) {
     console.error('Error al asignar oferta a usuarios:', error);
