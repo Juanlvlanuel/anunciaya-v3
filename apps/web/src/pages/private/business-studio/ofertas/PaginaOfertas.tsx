@@ -874,7 +874,7 @@ export function PaginaOfertas() {
                                 Promociones
                             </h1>
                             <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium whitespace-nowrap">
-                                Tus ofertas y cupones
+                                {esCupones ? 'Tus cupones' : 'Tus ofertas'}
                             </p>
                         </div>
 

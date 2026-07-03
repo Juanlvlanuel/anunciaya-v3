@@ -73,6 +73,7 @@ const ESTILOS = `
 type TabConfig = {
   key: string;
   label: string;
+  subtitulo: string;
   icono: React.ReactNode;
   renderizar: () => React.ReactElement;
 };
@@ -132,6 +133,7 @@ export default function PaginaPerfil() {
       allTabs.push({
         key: 'informacion',
         label: 'Negocio',
+        subtitulo: 'Datos de tu negocio',
         icono: <Building2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
         renderizar: () => (
           <TabInformacion
@@ -146,6 +148,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'contacto',
       label: vistaComoGerente ? 'Sucursal' : 'Contacto',
+      subtitulo: vistaComoGerente ? 'Datos de la sucursal' : 'Cómo te contactan tus clientes',
       icono: <Phone className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabContacto {...hookPerfil} />,
     });
@@ -154,6 +157,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'ubicacion',
       label: 'Ubicación',
+      subtitulo: 'Dónde te encuentran',
       icono: <MapPin className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => (
         <TabUbicacion
@@ -167,6 +171,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'horarios',
       label: 'Horarios',
+      subtitulo: 'Tus horarios de atención',
       icono: <Clock className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabHorarios {...hookPerfil} />,
     });
@@ -175,6 +180,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'imagenes',
       label: 'Imágenes',
+      subtitulo: 'Fotos de tu negocio',
       icono: <ImageIcon className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabImagenes {...hookPerfil} />,
     });
@@ -183,6 +189,7 @@ export default function PaginaPerfil() {
     allTabs.push({
       key: 'operacion',
       label: 'Operación',
+      subtitulo: 'Pagos y opciones de entrega',
       icono: <Settings2 className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 shrink-0" />,
       renderizar: () => <TabOperacion {...hookPerfil} />,
     });
@@ -227,9 +234,6 @@ export default function PaginaPerfil() {
     );
   }
 
-  const mostrarKpiSucursal = datosInformacion.totalSucursales > 1;
-  const esPrincipal = datosInformacion.esPrincipal;
-
   // =============================================================================
   // RENDER
   // =============================================================================
@@ -273,10 +277,7 @@ export default function PaginaPerfil() {
                 Mi Perfil
               </h1>
               <p className="text-base lg:text-sm 2xl:text-base text-slate-600 font-medium lg:mt-0.5 -mt-0.5">
-                {mostrarKpiSucursal
-                  ? `Editando: ${esPrincipal ? 'Matriz' : datosInformacion.nombreSucursal || 'Sucursal'}`
-                  : 'Administra tu Información'
-                }
+                {tabs[tabActivo]?.subtitulo ?? 'Administra tu Información'}
               </p>
             </div>
           </div>

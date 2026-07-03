@@ -617,7 +617,7 @@ export function PaginaCatalogo() {
                                 Catálogo
                             </h1>
                             <p className="text-base lg:text-sm 2xl:text-base text-slate-600 -mt-1 lg:mt-0.5 font-medium whitespace-nowrap">
-                                Tus productos y servicios
+                                {esServicios ? 'Tus servicios' : 'Tus productos'}
                             </p>
                         </div>
 
