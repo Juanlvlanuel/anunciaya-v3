@@ -310,13 +310,18 @@ function SeccionCategoriasNegocios() {
                   >
                     <ChevronRight size={16} className={`transition-transform ${abierta ? 'rotate-90' : ''}`} />
                   </button>
-                  <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-                    <span className="truncate text-[14.5px] font-semibold text-texto">{cat.nombre}</span>
-                    <span className="shrink-0 rounded-full bg-superficie-2 px-2 py-0.5 text-[11.5px] font-semibold text-texto-3">{cat.subcategorias.length} subcat.</span>
-                    {!cat.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
-                    {/* Móvil: disponibilidad + negocios inline */}
-                    <span className="lg:hidden"><Disponibilidad ciudades={cat.ciudades} /></span>
-                    {cat.totalNegocios > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-texto-3 lg:hidden"><Store size={12} /> {cat.totalNegocios}</span>}
+                  <div className="flex min-w-0 flex-1 flex-col gap-1">
+                    {/* Línea 1: nombre + nº de subcategorías SIEMPRE juntos (el nombre trunca si hace falta). */}
+                    <div className="flex min-w-0 items-center gap-2.5">
+                      <span className="min-w-0 truncate text-[14.5px] font-semibold text-texto">{cat.nombre}</span>
+                      <span className="shrink-0 rounded-full bg-superficie-2 px-2 py-0.5 text-[11.5px] font-semibold text-texto-3">{cat.subcategorias.length} subcat.</span>
+                      {!cat.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
+                    </div>
+                    {/* Línea 2 (solo móvil): disponibilidad + negocios. En desktop van en sus columnas. */}
+                    <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 lg:hidden">
+                      <Disponibilidad ciudades={cat.ciudades} />
+                      {cat.totalNegocios > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-texto-3"><Store size={12} /> {cat.totalNegocios}</span>}
+                    </div>
                   </div>
                   <span className="hidden w-44 lg:inline-flex"><Disponibilidad ciudades={cat.ciudades} /></span>
                   <span className="hidden w-20 text-center text-[14px] font-semibold tabular-nums text-texto-2 lg:block">{cat.totalNegocios || '—'}</span>
@@ -342,11 +347,17 @@ function SeccionCategoriasNegocios() {
                     {subs.map((sub) => (
                       <div key={sub.id} className={`flex items-center gap-4 px-4 py-2 pl-14 transition ${!sub.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}>
                         <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-borde-fuerte" />
-                        <div className="flex min-w-0 flex-1 flex-wrap items-center gap-x-2.5 gap-y-1">
-                          <span className="truncate text-[13.5px] font-medium text-texto-2">{sub.nombre}</span>
-                          {!sub.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
-                          <span className="lg:hidden"><Disponibilidad ciudades={sub.ciudades} /></span>
-                          {sub.totalNegocios > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-texto-3 lg:hidden"><Store size={12} /> {sub.totalNegocios}</span>}
+                        <div className="flex min-w-0 flex-1 flex-col gap-1">
+                          {/* Línea 1: nombre (trunca si hace falta) + estado. */}
+                          <div className="flex min-w-0 items-center gap-2.5">
+                            <span className="min-w-0 truncate text-[13.5px] font-medium text-texto-2">{sub.nombre}</span>
+                            {!sub.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
+                          </div>
+                          {/* Línea 2 (solo móvil): disponibilidad + negocios. */}
+                          <div className="flex flex-wrap items-center gap-x-2.5 gap-y-1 lg:hidden">
+                            <Disponibilidad ciudades={sub.ciudades} />
+                            {sub.totalNegocios > 0 && <span className="inline-flex items-center gap-1 text-[12px] text-texto-3"><Store size={12} /> {sub.totalNegocios}</span>}
+                          </div>
                         </div>
                         <span className="hidden w-44 lg:inline-flex"><Disponibilidad ciudades={sub.ciudades} /></span>
                         <span className="hidden w-20 text-center text-[13.5px] font-semibold tabular-nums text-texto-3 lg:block">{sub.totalNegocios || '—'}</span>

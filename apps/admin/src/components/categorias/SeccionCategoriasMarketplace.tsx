@@ -12,6 +12,7 @@
 import { useMemo, useState } from 'react';
 import { Plus, Pencil, Power, Search, X, MapPin, Layers, Tag } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
+import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import {
   useCatalogoMarketplace,
@@ -259,49 +260,49 @@ export function SeccionCategoriasMarketplace() {
         )}
       </div>
 
-      {/* Modal crear/editar */}
-      {dlg && (
-        <div
-          className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4"
-          onClick={() => setDlg(null)}
-        >
-          <div
-            className="w-full max-w-sm rounded-2xl border border-borde bg-superficie p-5 shadow-xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <h3 className="mb-3 text-[16px] font-bold text-texto">
-              {dlg.modo === 'editar' ? 'Editar categoría' : 'Nueva categoría'}
-            </h3>
-            <input
-              autoFocus
-              data-testid="categoria-mp-input-nombre"
-              value={nombre}
-              onChange={(e) => setNombre(e.target.value.slice(0, 50))}
-              onKeyDown={(e) => e.key === 'Enter' && guardar()}
-              placeholder="Nombre de la categoría"
-              className="w-full rounded-lg border border-campo-borde bg-campo px-3 py-2 text-[14px] text-texto outline-none focus:border-marca focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
-            />
-            <div className="mt-4 flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => setDlg(null)}
-                className="rounded-full border border-borde bg-superficie px-4 py-2 text-[13px] font-semibold text-texto-2 hover:bg-marca-suave"
-              >
-                Cancelar
-              </button>
-              <button
-                type="button"
-                data-testid="categoria-mp-guardar"
-                onClick={guardar}
-                disabled={guardando || nombre.trim().length < 2}
-                className="rounded-full bg-marca px-4 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition hover:brightness-110 disabled:opacity-50"
-              >
-                {guardando ? 'Guardando…' : 'Guardar'}
-              </button>
-            </div>
+      {/* Modal crear/editar — modal adaptativo del Panel (centrado en desktop,
+          bottom-sheet en móvil), igual que los diálogos de Negocios. */}
+      <ModalAdaptativo
+        abierto={!!dlg}
+        onCerrar={() => setDlg(null)}
+        ancho="sm"
+        titulo={dlg?.modo === 'editar' ? 'Editar categoría' : 'Nueva categoría'}
+        iconoTitulo={<Tag size={18} className="text-marca" />}
+        discriminador="categoria-mp-editar"
+      >
+        <div className="p-5">
+          <label className="mb-1.5 block text-[12.5px] font-semibold text-texto-2">Nombre</label>
+          <input
+            autoFocus
+            data-testid="categoria-mp-input-nombre"
+            value={nombre}
+            onChange={(e) => setNombre(e.target.value.slice(0, 50))}
+            onKeyDown={(e) => e.key === 'Enter' && guardar()}
+            placeholder="Ej. Vehículos"
+            maxLength={50}
+            className="w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
+          />
+          <div className="mt-5 flex justify-end gap-2">
+            <button
+              type="button"
+              onClick={() => setDlg(null)}
+              disabled={guardando}
+              className="rounded-[10px] border border-borde-fuerte bg-superficie px-3.5 py-2 text-[13px] font-semibold text-texto transition hover:bg-marca-suave disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              data-testid="categoria-mp-guardar"
+              onClick={guardar}
+              disabled={guardando || nombre.trim().length < 2}
+              className="inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste transition disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {guardando ? 'Guardando…' : dlg?.modo === 'editar' ? 'Guardar' : 'Crear'}
+            </button>
           </div>
         </div>
-      )}
+      </ModalAdaptativo>
     </div>
   );
 }
