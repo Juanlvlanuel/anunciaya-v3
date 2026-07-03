@@ -16,8 +16,15 @@
 import { useEffect, useState } from 'react';
 import { ChevronDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { useConfigPublica } from '../../hooks/queries/useConfigPublica';
 
 export function FooterPublico() {
+    // WhatsApp de contacto de AnunciaYA (dinámico desde el Panel). En las páginas
+    // públicas compartidas NO usamos el FAB flotante para no confundirlo con el
+    // WhatsApp del negocio: el contacto de AnunciaYA vive aquí, en el footer.
+    const { whatsappNumero } = useConfigPublica();
+    const waHref = `https://wa.me/${whatsappNumero.replace(/\D/g, '')}`;
+
     // El botón "Volver arriba" solo aparece cuando el `<main>` ancestro
     // (que es donde vive el scroll de las páginas públicas) ha scrolleado
     // más de 100px. Si la página no tiene scroll suficiente, scrollTop es 0
@@ -83,7 +90,7 @@ export function FooterPublico() {
 
                 <div className="flex items-center gap-2 lg:gap-3 2xl:gap-4">
                     <a
-                        href="https://wa.me/526381128286"
+                        href={waHref}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="transition-transform hover:scale-110 lg:cursor-pointer"
@@ -143,7 +150,7 @@ export function FooterPublico() {
                     />
                     <div className="flex items-center gap-2">
                         <a
-                            href="https://wa.me/526381128286"
+                            href={waHref}
                             target="_blank"
                             rel="noopener noreferrer"
                             className="transition-transform hover:scale-110"
