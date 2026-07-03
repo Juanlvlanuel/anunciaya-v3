@@ -103,6 +103,13 @@ const drawerDesktopCss = `
   .dd-tab:hover:not(.active) { background: #CBD5E1; color: #1E293B; }
   .dd-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .dd-tab[disabled] { cursor: not-allowed; opacity: 0.5; }
+  /* Sin cuenta comercial: se oculta el tab Comercial y el tab Personal
+     (único) queda a la MITAD, alineado a la derecha, con el indicador en esa
+     mitad. */
+  .dd-tab.dd-tab-oculto { display: none; }
+  .dd-tabs.dd-tabs-sin-comercial { justify-content: flex-end; }
+  .dd-tabs.dd-tabs-sin-comercial .dd-tab { flex: 0 0 50%; }
+  .dd-indicator.dd-indicator-derecha { transform: translateX(100%) !important; }
 
   .dd-card {
     position: relative; z-index: 1; overflow: hidden;
@@ -461,7 +468,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
       onClick={(e) => e.stopPropagation()}
     >
       {/* Tabs */}
-      <div role="tablist" aria-label="Modo de cuenta" className="dd-tabs">
+      <div role="tablist" aria-label="Modo de cuenta" className={'dd-tabs' + (!tieneModoComercial ? ' dd-tabs-sin-comercial' : '')}>
         <button
           ref={tabPersonalRef}
           role="tab"
@@ -485,7 +492,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
           role="tab"
           aria-selected={modo === 'comercial'}
           data-testid="drawer-desktop-tab-comercial"
-          className={'dd-tab ' + (modo === 'comercial' ? 'active' : '')}
+          className={'dd-tab ' + (modo === 'comercial' ? 'active' : '') + (!tieneModoComercial ? ' dd-tab-oculto' : '')}
           onClick={() => handleCambiarModo('comercial')}
           onKeyDown={onTabKeyDown}
           disabled={cambiandoModo || !tieneModoComercial}
@@ -505,7 +512,7 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
       {/* Card */}
       <div className="dd-card" style={{ background: paleta.paper }}>
         <span
-          className="dd-indicator"
+          className={'dd-indicator' + (!tieneModoComercial ? ' dd-indicator-derecha' : '')}
           style={{ transform: `translateX(${indicadorX})`, background: paleta.accentBg }}
         />
 

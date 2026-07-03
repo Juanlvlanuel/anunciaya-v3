@@ -153,6 +153,13 @@ const menuDrawerCss = `
   .md4-tab:active { transform: scale(0.98); }
   .md4-tab:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
   .md4-tab[disabled] { cursor: not-allowed; opacity: 0.5; }
+  /* Sin cuenta comercial: se oculta el tab Comercial y el tab Personal
+     (único) queda a la MITAD, alineado a la derecha, con el indicador en esa
+     mitad. Aplica en móvil y en desktop. */
+  .md4-tab.md4-tab-oculto { display: none; }
+  .md4-tabs.md4-tabs-sin-comercial { justify-content: flex-end; }
+  .md4-tabs.md4-tabs-sin-comercial .md4-tab { flex: 0 0 50%; }
+  .md4-indicator.md4-indicator-derecha { transform: translateX(100%) !important; }
 
   .md4-card {
     position: relative; flex: 1; min-height: 0;
@@ -723,7 +730,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         </button>
 
         {/* Tabs */}
-        <div role="tablist" aria-label="Modo de cuenta" className="md4-tabs">
+        <div role="tablist" aria-label="Modo de cuenta" className={'md4-tabs' + (!tieneModoComercial ? ' md4-tabs-sin-comercial' : '')}>
           <button
             ref={tabPersonalRef}
             role="tab"
@@ -747,7 +754,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
             role="tab"
             aria-selected={modo === 'comercial'}
             data-testid="menu-drawer-tab-comercial"
-            className={'md4-tab ' + (modo === 'comercial' ? 'active' : '')}
+            className={'md4-tab ' + (modo === 'comercial' ? 'active' : '') + (!tieneModoComercial ? ' md4-tab-oculto' : '')}
             onClick={() => handleCambiarModo('comercial')}
             onKeyDown={onTabKeyDown}
             disabled={cambiandoModo || !tieneModoComercial}
@@ -767,7 +774,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         {/* Card */}
         <div className="md4-card" style={{ background: paleta.paper }}>
           <span
-            className="md4-indicator"
+            className={'md4-indicator' + (!tieneModoComercial ? ' md4-indicator-derecha' : '')}
             style={{ transform: `translateX(${indicadorX})`, background: paleta.accentBg }}
           />
 

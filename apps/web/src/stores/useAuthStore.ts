@@ -497,33 +497,39 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       const { cambiarModo: cambiarModoNotificaciones } = (await import('./useNotificacionesStore')).default.getState();
       cambiarModoNotificaciones(nuevoModo);
 
-      // Recargar ChatYA con la identidad efectiva correcta (token nuevo).
-      // Las cargas reemplazan la lista atómicamente (sin ventana vacía).
-      try {
-        const { useChatYAStore } = await import('./useChatYAStore');
-        const chatStore = useChatYAStore.getState();
-        if (chatStore.conversacionActivaId) {
-          chatStore.volverALista();
+      // Recargar ChatYA con la identidad efectiva correcta (token nuevo) en
+      // SEGUNDO PLANO: NO bloquea el cambio de modo del drawer. Antes eran 4
+      // requests en serie antes de soltar y se sentía "pegado". El swap de
+      // cache (arriba) ya actualizó lo visible; estas cargas refrescan la lista
+      // atómicamente (sin ventana vacía) cuando lleguen.
+      void (async () => {
+        try {
+          const { useChatYAStore } = await import('./useChatYAStore');
+          const chatStore = useChatYAStore.getState();
+          if (chatStore.conversacionActivaId) {
+            chatStore.volverALista();
+          }
+          // misNotasId depende de la identidad (cada usuario tiene su propio
+          // Mis Notas). Al cambiar de comercial↔personal, la identidad efectiva
+          // cambia (especialmente para gerentes: dueño↔gerente). Sin este reset,
+          // seguiría apuntando al Mis Notas del modo anterior.
+          await Promise.all([
+            chatStore.cargarMisNotas(),
+            chatStore.cargarConversaciones(nuevoModo, 0, true),
+            chatStore.cargarNoLeidos(nuevoModo),
+            chatStore.cargarNoLeidosArchivados(nuevoModo),
+          ]);
+        } catch (err) {
+          console.error('Error recargando ChatYA al cambiar modo:', err);
         }
-        // misNotasId depende de la identidad (cada usuario tiene su propio
-        // Mis Notas). Al cambiar de comercial↔personal, la identidad efectiva
-        // cambia (especialmente para gerentes: dueño↔gerente). Sin este reset,
-        // seguiría apuntando al Mis Notas del modo anterior.
-        await Promise.all([
-          chatStore.cargarMisNotas(),
-          chatStore.cargarConversaciones(nuevoModo, 0, true),
-          chatStore.cargarNoLeidos(nuevoModo),
-          chatStore.cargarNoLeidosArchivados(nuevoModo),
-        ]);
-      } catch (err) {
-        console.error('Error recargando ChatYA al cambiar modo:', err);
-      }
+      })();
 
-      // Traer los datos COMPLETOS del usuario en el modo nuevo. El PATCH /auth/modo solo devuelve
-      // tokens + ids (modoActivo, negocioId, sucursalActiva); NO trae nombreNegocio/logo/sucursal.
-      // Sin esto, al pasar a Comercial el MenuDrawer y las vistas comerciales quedan sin el nombre
-      // del negocio hasta refrescar. /auth/yo (con el token nuevo) es la fuente de verdad.
-      await get().recargarDatosUsuario();
+      // Traer los datos COMPLETOS del usuario (nombreNegocio/logo/sucursal) en
+      // SEGUNDO PLANO para no bloquear el drawer. El PATCH /auth/modo ya dejó
+      // en el store modoActivo + ids, así que el indicador, la paleta y los
+      // ítems del menú cambian al instante; /auth/yo (con el token nuevo) solo
+      // refresca el nombre/logo del negocio, que aparecen un momento después.
+      void get().recargarDatosUsuario();
     } catch (error) {
       // Revertir swap visual de ChatYA en caso de error de red/backend
       try {
