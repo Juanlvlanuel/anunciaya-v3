@@ -45,6 +45,7 @@ import {
     borrarBusquedasRecientes,
     agregarBusquedaReciente,
 } from '../../utils/busquedasRecientes';
+import { etiquetaPrecioArticulo } from '../../utils/marketplace';
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
@@ -221,19 +222,30 @@ export function OverlayBuscadorMarketplace() {
                                             </div>
                                             <div className="flex min-w-0 flex-1 flex-col">
                                                 <span className="flex items-center gap-2 min-w-0">
+                                                    {articulo.modo === 'busco' && (
+                                                        <span className="shrink-0 rounded-md bg-amber-100 px-1.5 py-0.5 text-[11px] font-bold text-amber-700">
+                                                            Se busca
+                                                        </span>
+                                                    )}
                                                     <span className="truncate text-base font-semibold text-slate-900">
                                                         {articulo.titulo}
                                                     </span>
                                                     <span className="shrink-0 text-sm font-bold text-teal-700">
-                                                        · {`$${articulo.precio.toLocaleString('es-MX')}`}
+                                                        · {etiquetaPrecioArticulo(articulo)}
                                                     </span>
                                                 </span>
                                                 <span className="truncate text-sm font-medium text-slate-600">
                                                     {articulo.vendedorNombre}
                                                 </span>
                                                 <span className="truncate text-xs font-medium text-slate-600">
-                                                    <span className="capitalize">{articulo.condicion.replace('_', ' ')}</span>
-                                                    {' · '}
+                                                    {articulo.condicion && (
+                                                        <>
+                                                            <span className="capitalize">
+                                                                {articulo.condicion.replace('_', ' ')}
+                                                            </span>
+                                                            {' · '}
+                                                        </>
+                                                    )}
                                                     {articulo.ciudad}
                                                 </span>
                                             </div>

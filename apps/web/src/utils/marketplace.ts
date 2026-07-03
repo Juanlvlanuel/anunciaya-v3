@@ -209,10 +209,41 @@ export function obtenerFotoPortada(
  *
  * Ejemplo: "2800.00" → "$2,800"
  */
-export function formatearPrecio(precio: string | number): string {
+export function formatearPrecio(precio: string | number | null | undefined): string {
+    // En modo 'busco' el precio es null (una búsqueda no lleva precio). Los
+    // consumidores de venta nunca pasan null; el fallback cubre el doble sentido.
+    if (precio === null || precio === undefined) return 'A tratar';
     const num = typeof precio === 'string' ? parseFloat(precio) : precio;
     if (isNaN(num)) return '$0';
     return `$${Math.round(num).toLocaleString('es-MX')}`;
+}
+
+/**
+ * Formatea el presupuesto de una BÚSQUEDA (modo='busco'): "$min–$max" o
+ * "A tratar" si no se especificó. Enteros MXN (igual que `formatearPrecio`).
+ */
+export function formatearPresupuesto(
+    presupuesto: { min: number; max: number } | null | undefined,
+): string {
+    if (!presupuesto) return 'A tratar';
+    const min = `$${Math.round(presupuesto.min).toLocaleString('es-MX')}`;
+    const max = `$${Math.round(presupuesto.max).toLocaleString('es-MX')}`;
+    return presupuesto.min === presupuesto.max ? min : `${min}–${max}`;
+}
+
+/**
+ * Etiqueta de precio a mostrar en una card según el modo del artículo:
+ *   - 'vendo' → precio formateado ("$2,800").
+ *   - 'busco' → presupuesto ("$500–$1,500") o "A tratar".
+ */
+export function etiquetaPrecioArticulo(a: {
+    modo?: 'vendo' | 'busco';
+    precio: string | number | null | undefined;
+    presupuesto?: { min: number; max: number } | null;
+}): string {
+    return a.modo === 'busco'
+        ? formatearPresupuesto(a.presupuesto ?? null)
+        : formatearPrecio(a.precio);
 }
 
 // =============================================================================

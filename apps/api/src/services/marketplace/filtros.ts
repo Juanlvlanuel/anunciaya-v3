@@ -249,16 +249,22 @@ export function detectarBusqueda(texto: string): boolean {
  * Orden de prioridad:
  *   1. Palabras prohibidas → rechazo duro.
  *   2. Servicios disfrazados → sugerencia.
- *   3. Búsquedas → sugerencia.
+ *   3. Búsquedas → sugerencia (SOLO en modo='vendo').
  *   4. Texto limpio → válido sin observaciones.
+ *
+ * @param modo - 'vendo' (default) | 'busco'. En 'busco' la detección de
+ *   lenguaje de búsqueda se DESACTIVA (publicar una demanda es justo lo que el
+ *   usuario quiere). En 'vendo', si detecta "busco/necesito…", sugiere cambiar
+ *   al modo Busco en lugar de mandar al Home (reconciliación doble sentido).
  */
 export function validarTextoPublicacion(
     titulo: string,
-    descripcion: string
+    descripcion: string,
+    modo: 'vendo' | 'busco' = 'vendo'
 ): ResultadoValidacion {
     const textoCompleto = `${titulo} ${descripcion}`;
 
-    // 1. Rechazo duro
+    // 1. Rechazo duro (aplica a ambos modos)
     const prohibida = detectarPalabraProhibida(textoCompleto);
     if (prohibida) {
         return {
@@ -270,7 +276,7 @@ export function validarTextoPublicacion(
         };
     }
 
-    // 2. Sugerencia: servicio
+    // 2. Sugerencia: servicio (aplica a ambos modos — los servicios van a Servicios)
     if (detectarServicio(textoCompleto)) {
         return {
             valido: false,
@@ -281,14 +287,15 @@ export function validarTextoPublicacion(
         };
     }
 
-    // 3. Sugerencia: búsqueda
-    if (detectarBusqueda(textoCompleto)) {
+    // 3. Sugerencia: búsqueda — SOLO en modo venta. En modo 'busco' publicar
+    //    una demanda es lo esperado, así que no se marca.
+    if (modo === 'vendo' && detectarBusqueda(textoCompleto)) {
         return {
             valido: false,
             severidad: 'sugerencia',
             categoria: 'busqueda',
             mensaje:
-                '¿Estás buscando algo en lugar de vender? Las búsquedas se publican en Pregúntale a tu ciudad en el Home, donde más personas pueden ayudarte.',
+                '¿Querías buscar en lugar de vender? Cambia al modo Busco y publica tu solicitud aquí mismo en MarketPlace.',
         };
     }
 

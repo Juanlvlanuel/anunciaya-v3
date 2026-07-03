@@ -44,9 +44,16 @@ import type {
 interface ArticuloRow {
     id: string;
     usuarioId: string;
+    /** Doble sentido: 'vendo' (venta) | 'busco' (demanda). */
+    modo: string;
     titulo: string;
     descripcion: string;
-    precio: string;
+    /** NULL en modo='busco' (una búsqueda no lleva precio). */
+    precio: string | null;
+    /** Presupuesto deseado — solo modo='busco'. NULL si "a tratar" o venta. */
+    presupuesto: { min: number; max: number } | null;
+    /** Pin al top del feed de búsquedas — solo modo='busco'. */
+    urgente: boolean;
     // `condicion` y `aceptaOfertas` son opcionales desde 2026-05-13. NULL =
     // "no aplica / no especificado" (el card y el detalle no muestran nada).
     condicion: string | null;
@@ -170,9 +177,12 @@ export async function eliminarFotoMarketplaceSiHuerfana(
 interface RawArticuloDb {
     id: string;
     usuario_id: string;
+    modo: string;
     titulo: string;
     descripcion: string;
-    precio: string;
+    precio: string | null;
+    presupuesto: { min: number; max: number } | null;
+    urgente: boolean;
     condicion: string | null;
     acepta_ofertas: boolean | null;
     unidad_venta: string | null;
@@ -196,9 +206,12 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
     return {
         id: row.id,
         usuarioId: row.usuario_id,
+        modo: row.modo,
         titulo: row.titulo,
         descripcion: row.descripcion,
         precio: row.precio,
+        presupuesto: row.presupuesto,
+        urgente: row.urgente,
         condicion: row.condicion,
         aceptaOfertas: row.acepta_ofertas,
         unidadVenta: row.unidad_venta,
@@ -305,11 +318,31 @@ export async function crearArticulo(
 ) {
     try {
         // ─── Capa 1: Moderación autónoma ──────────────────────────────────
-        const validacion = validarTextoPublicacion(datos.titulo, datos.descripcion);
+        const validacion = validarTextoPublicacion(
+            datos.titulo,
+            datos.descripcion,
+            datos.modo
+        );
         const resultadoModeracion = aplicarModeracion(validacion, datos.confirmadoPorUsuario);
         if (resultadoModeracion) return resultadoModeracion;
 
         const aprox = aleatorizarCoordenada(datos.latitud, datos.longitud);
+
+        // Doble sentido: en 'busco' (demanda) no hay precio/condición/ofertas/
+        // unidad; el rango deseado va en `presupuesto` y puede marcarse urgente.
+        // En 'vendo' (venta) es al revés. El schema Zod ya garantizó la
+        // coherencia; aquí forzamos NULL en los campos que no aplican para no
+        // depender solo del cliente.
+        const esBusco = datos.modo === 'busco';
+        const precioInsert = esBusco ? null : (datos.precio ?? null);
+        const condicionInsert = esBusco ? null : (datos.condicion ?? null);
+        const aceptaOfertasInsert = esBusco ? null : (datos.aceptaOfertas ?? null);
+        const unidadVentaInsert = esBusco ? null : (datos.unidadVenta ?? null);
+        const presupuestoJson =
+            esBusco && datos.presupuesto
+                ? JSON.stringify(datos.presupuesto)
+                : null;
+        const urgenteInsert = esBusco ? datos.urgente : false;
 
         // Las confirmaciones del checklist legal (Paso 3 del wizard) se
         // persisten como evidencia inmutable. El `aceptadasAt` lo agrega
@@ -334,7 +367,8 @@ export async function crearArticulo(
 
         const resultado = await db.execute(sql`
             INSERT INTO articulos_marketplace (
-                usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,
+                usuario_id, modo, titulo, descripcion, precio, presupuesto, urgente,
+                condicion, acepta_ofertas,
                 unidad_venta,
                 confirmaciones,
                 fotos, foto_portada_index,
@@ -343,23 +377,27 @@ export async function crearArticulo(
                 expira_at
             ) VALUES (
                 ${usuarioId},
+                ${datos.modo},
                 ${datos.titulo},
                 ${datos.descripcion},
-                ${datos.precio},
-                ${datos.condicion ?? null},
-                ${datos.aceptaOfertas ?? null},
-                ${datos.unidadVenta ?? null},
+                ${precioInsert},
+                ${presupuestoJson}::jsonb,
+                ${urgenteInsert},
+                ${condicionInsert},
+                ${aceptaOfertasInsert},
+                ${unidadVentaInsert},
                 ${confirmacionesJson}::jsonb,
                 ${JSON.stringify(datos.fotos)}::jsonb,
                 ${datos.fotoPortadaIndex},
                 ST_SetSRID(ST_MakePoint(${datos.longitud}, ${datos.latitud}), 4326)::geography,
                 ST_SetSRID(ST_MakePoint(${aprox.lng}, ${aprox.lat}), 4326)::geography,
                 ${ciudadId},
-                ${datos.zonaAproximada},
+                ${datos.zonaAproximada ?? ''},
                 ${expiraAtSql}
             )
             RETURNING
-                id, usuario_id, titulo, descripcion, precio, condicion, acepta_ofertas,
+                id, usuario_id, modo, titulo, descripcion, precio, presupuesto, urgente,
+                condicion, acepta_ofertas,
                 unidad_venta,
                 fotos, foto_portada_index,
                 ST_Y(ubicacion_aproximada::geometry) AS lat,
@@ -468,7 +506,8 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
     try {
         const resultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
@@ -570,12 +609,14 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
 export async function obtenerFeed(
     ciudad: string,
     lat: number,
-    lng: number
+    lng: number,
+    modo: 'vendo' | 'busco' = 'vendo'
 ) {
     try {
         const recientesResultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
@@ -598,14 +639,17 @@ export async function obtenerFeed(
             ) cq ON cq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
+              AND a.modo = ${modo}
               AND c.nombre = ${ciudad}
-            ORDER BY a.created_at DESC
+            -- En búsquedas, urgentes primero (calca el feed de Solicitudes).
+            ORDER BY (a.modo = 'busco' AND a.urgente) DESC, a.created_at DESC
             LIMIT 20
         `);
 
         const cercanosResultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
@@ -628,6 +672,7 @@ export async function obtenerFeed(
             ) cq ON cq.articulo_id = a.id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
+              AND a.modo = ${modo}
               AND c.nombre = ${ciudad}
             ORDER BY a.ubicacion_aproximada <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
             LIMIT 20
@@ -712,6 +757,10 @@ interface OpcionesFeedInfinito {
     /** Filtros opcionales de precio. */
     precioMin?: number;
     precioMax?: number;
+    /** Modo del feed: 'vendo' (default) | 'busco'. */
+    modo?: 'vendo' | 'busco';
+    /** Solo búsquedas urgentes — aplica cuando modo='busco'. */
+    soloUrgente?: boolean;
     /**
      * ID del usuario logueado (opcional). Si se provee, cada artículo trae
      * `guardado` indicando si este usuario tiene el artículo en su lista
@@ -734,11 +783,16 @@ interface OpcionesFeedInfinito {
 export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
     try {
         const orden = opciones.orden ?? 'recientes';
+        const modo = opciones.modo ?? 'vendo';
         const pagina = Math.max(1, opciones.pagina ?? 1);
         const limite = Math.min(20, Math.max(1, opciones.limite ?? 10));
         const offset = (pagina - 1) * limite;
 
-        // Filtros adicionales (precio).
+        // Filtro por modo (vendo/busco): el feed de ventas nunca mezcla
+        // demandas y viceversa.
+        const filtroModo = sql`AND a.modo = ${modo}`;
+
+        // Filtros adicionales (precio) — solo tienen sentido en ventas.
         const filtroPrecioMin =
             opciones.precioMin !== undefined && opciones.precioMin > 0
                 ? sql`AND a.precio >= ${opciones.precioMin}`
@@ -748,13 +802,21 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 ? sql`AND a.precio <= ${opciones.precioMax}`
                 : sql``;
 
-        // ORDER BY según el modo.
+        // Solo urgentes (feed de búsquedas).
+        const filtroUrgente =
+            modo === 'busco' && opciones.soloUrgente === true
+                ? sql`AND a.urgente = true`
+                : sql``;
+
+        // ORDER BY según el orden pedido. En búsquedas, los urgentes van
+        // primero (calca el feed de Solicitudes de Servicios).
+        const prefijoUrgente = modo === 'busco' ? sql`a.urgente DESC, ` : sql``;
         const orderBy =
             orden === 'vistos'
-                ? sql`ORDER BY a.total_vistas DESC, a.created_at DESC`
+                ? sql`ORDER BY ${prefijoUrgente}a.total_vistas DESC, a.created_at DESC`
                 : orden === 'cerca'
-                    ? sql`ORDER BY a.ubicacion_aproximada <-> ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography`
-                    : sql`ORDER BY a.created_at DESC`;
+                    ? sql`ORDER BY ${prefijoUrgente}a.ubicacion_aproximada <-> ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography`
+                    : sql`ORDER BY ${prefijoUrgente}a.created_at DESC`;
 
         // Pedimos `limite + 1` para saber si hay siguiente página sin un
         // segundo COUNT(*).
@@ -772,6 +834,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography
                 ) AS distancia_metros,
+                a.modo, a.presupuesto, a.urgente,
                 u.id AS vendedor_id,
                 u.nombre AS vendedor_nombre,
                 u.apellidos AS vendedor_apellidos,
@@ -820,6 +883,8 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND c.nombre = ${opciones.ciudad}
+              ${filtroModo}
+              ${filtroUrgente}
               ${filtroPrecioMin}
               ${filtroPrecioMax}
             ${orderBy}
@@ -939,7 +1004,8 @@ export async function obtenerMisArticulos(
 
         const resultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,
@@ -1002,7 +1068,7 @@ export async function actualizarArticulo(
     try {
         // 1) Verificar dueño y estado editable
         const verificacion = await db.execute(sql`
-            SELECT usuario_id, estado, fotos
+            SELECT usuario_id, modo, estado, fotos
             FROM articulos_marketplace
             WHERE id = ${articuloId}
               AND deleted_at IS NULL
@@ -1015,6 +1081,7 @@ export async function actualizarArticulo(
 
         const actual = verificacion.rows[0] as {
             usuario_id: string;
+            modo: string;
             estado: string;
             fotos: string[];
         };
@@ -1053,7 +1120,11 @@ export async function actualizarArticulo(
                 tituloFinal = datos.titulo ?? r.titulo;
                 descFinal = datos.descripcion ?? r.descripcion;
             }
-            const validacion = validarTextoPublicacion(tituloFinal, descFinal);
+            const validacion = validarTextoPublicacion(
+                tituloFinal,
+                descFinal,
+                actual.modo === 'busco' ? 'busco' : 'vendo'
+            );
             const resultadoModeracion = aplicarModeracion(validacion, datos.confirmadoPorUsuario);
             if (resultadoModeracion) return resultadoModeracion;
         }
@@ -1069,6 +1140,12 @@ export async function actualizarArticulo(
         if (datos.condicion !== undefined) sets.push(sql`condicion = ${datos.condicion}`);
         if (datos.aceptaOfertas !== undefined) sets.push(sql`acepta_ofertas = ${datos.aceptaOfertas}`);
         if (datos.unidadVenta !== undefined) sets.push(sql`unidad_venta = ${datos.unidadVenta}`);
+        // Presupuesto/urgente solo tienen sentido en modo='busco'. El editor de
+        // búsquedas los envía; el de ventas nunca los toca.
+        if (datos.presupuesto !== undefined) {
+            sets.push(sql`presupuesto = ${JSON.stringify(datos.presupuesto)}::jsonb`);
+        }
+        if (datos.urgente !== undefined) sets.push(sql`urgente = ${datos.urgente}`);
         if (datos.fotos !== undefined) sets.push(sql`fotos = ${JSON.stringify(datos.fotos)}::jsonb`);
         if (datos.fotoPortadaIndex !== undefined) sets.push(sql`foto_portada_index = ${datos.fotoPortadaIndex}`);
         if (datos.ciudad !== undefined) {
@@ -1472,7 +1549,8 @@ export async function obtenerArticulosDeVendedor(
 
         const resultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
                 ST_Y(a.ubicacion_aproximada::geometry) AS lat,

@@ -47,6 +47,11 @@ export interface FiltrosBusqueda {
     /** Texto a buscar — opcional (se puede listar sin texto, solo con filtros) */
     q?: string;
     ciudad: string;
+    /**
+     * Modo a buscar: 'vendo' (default) | 'busco'. Si no se pasa, se busca en
+     * ventas (comportamiento histórico; también lo que Coyo-comprador espera).
+     */
+    modo?: 'vendo' | 'busco';
     /** Coordenadas del usuario para `cercanos` y filtro de distancia */
     lat?: number;
     lng?: number;
@@ -118,9 +123,15 @@ export function sanitizarTerminoParaLog(termino: string): string | null {
  */
 export interface SugerenciaArticuloRow {
     id: string;
+    /** 'vendo' (venta) | 'busco' (demanda). Buscador global trae ambos. */
+    modo: 'vendo' | 'busco';
     titulo: string;
-    precio: number;
-    condicion: string;
+    /** NULL en modo='busco' (una búsqueda no lleva precio). */
+    precio: number | null;
+    /** Presupuesto {min,max} — solo modo='busco', opcional. */
+    presupuesto: { min: number; max: number } | null;
+    /** NULL cuando no aplica (búsquedas o ventas sin condición). */
+    condicion: string | null;
     fotoPortada: string | null;
     ciudad: string;
     /** Nombre del usuario que publicó (solo personas — MP no admite negocios). */
@@ -161,8 +172,10 @@ export async function obtenerSugerencias(
         const resultado = await db.execute(sql`
             SELECT
                 a.id,
+                a.modo,
                 a.titulo,
                 a.precio,
+                a.presupuesto,
                 a.condicion,
                 a.fotos,
                 a.foto_portada_index,
@@ -174,6 +187,8 @@ export async function obtenerSugerencias(
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
+              -- Buscador GLOBAL: trae ventas y búsquedas juntas (sin filtrar por
+              -- modo). El precio/presupuesto se resuelve por fila en el mapeo.
               AND c.nombre = ${ciudad}
               AND (
                   to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion))
@@ -191,9 +206,11 @@ export async function obtenerSugerencias(
 
         type Raw = {
             id: string;
+            modo: 'vendo' | 'busco';
             titulo: string;
-            precio: string | number;
-            condicion: string;
+            precio: string | number | null;
+            presupuesto: { min: number; max: number } | null;
+            condicion: string | null;
             fotos: string[] | null;
             foto_portada_index: number | null;
             ciudad: string;
@@ -201,7 +218,7 @@ export async function obtenerSugerencias(
             vendedor_apellidos: string | null;
         };
 
-        const items = (resultado.rows as Raw[]).map((r) => {
+        const items: SugerenciaArticuloRow[] = (resultado.rows as Raw[]).map((r) => {
             const fotos = Array.isArray(r.fotos) ? r.fotos : [];
             const idx = r.foto_portada_index ?? 0;
             const fotoPortada = fotos.length > 0 ? fotos[idx] ?? fotos[0] ?? null : null;
@@ -209,10 +226,18 @@ export async function obtenerSugerencias(
                 .filter(Boolean)
                 .join(' ')
                 .trim();
+            const precioNum =
+                r.precio === null
+                    ? null
+                    : typeof r.precio === 'string'
+                      ? Number(r.precio)
+                      : r.precio;
             return {
                 id: r.id,
+                modo: r.modo,
                 titulo: r.titulo,
-                precio: typeof r.precio === 'string' ? Number(r.precio) : r.precio,
+                precio: precioNum,
+                presupuesto: r.presupuesto,
                 condicion: r.condicion,
                 fotoPortada,
                 ciudad: r.ciudad,
@@ -307,6 +332,13 @@ export async function buscarArticulos(
         sql`a.deleted_at IS NULL`,
         sql`c.nombre = ${filtros.ciudad}`,
     ];
+
+    // Modo: si se pasa, filtra (lo usa Coyo para acotar a ventas); si NO se
+    // pasa, la búsqueda es GLOBAL (ventas + búsquedas juntas), como pide el
+    // buscador de la UI.
+    if (filtros.modo !== undefined) {
+        conds.push(sql`a.modo = ${filtros.modo}`);
+    }
 
     if (queryNorm.length >= 2) {
         // Accent-insensitive + prefix matching — ver §obtenerSugerencias
@@ -413,7 +445,8 @@ export async function buscarArticulos(
     // ─── Query de datos ──────────────────────────────────────────────────
     const datosResultado = await db.execute(sql`
         SELECT
-            a.id, a.usuario_id, a.titulo, a.descripcion, a.precio,
+            a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+            a.presupuesto, a.urgente,
             a.condicion, a.acepta_ofertas,
             a.fotos, a.foto_portada_index,
             ST_Y(a.ubicacion_aproximada::geometry) AS lat,
@@ -443,9 +476,12 @@ export async function buscarArticulos(
     interface RawFila {
         id: string;
         usuario_id: string;
+        modo: string;
         titulo: string;
         descripcion: string;
-        precio: string;
+        precio: string | null;
+        presupuesto: { min: number; max: number } | null;
+        urgente: boolean;
         condicion: string;
         acepta_ofertas: boolean;
         fotos: string[];
@@ -467,9 +503,12 @@ export async function buscarArticulos(
     const data = (datosResultado.rows as unknown as RawFila[]).map((row) => ({
         id: row.id,
         usuarioId: row.usuario_id,
+        modo: row.modo,
         titulo: row.titulo,
         descripcion: row.descripcion,
         precio: row.precio,
+        presupuesto: row.presupuesto,
+        urgente: row.urgente,
         condicion: row.condicion,
         aceptaOfertas: row.acepta_ofertas,
         fotos: row.fotos,

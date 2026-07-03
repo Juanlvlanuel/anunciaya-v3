@@ -45,7 +45,9 @@ import {
     MoreHorizontal,
     Package,
     Plus,
+    Search,
     Send,
+    Tag,
     Tags,
     X,
 } from 'lucide-react';
@@ -82,6 +84,7 @@ import useBreakpoint from '../../../hooks/useBreakpoint';
 import type {
     ArticuloMarketplaceDetalle,
     CondicionArticulo,
+    ModoArticulo,
 } from '../../../types/marketplace';
 
 // =============================================================================
@@ -140,6 +143,7 @@ export function ComposerMarketplace({
         hidratarDesdeArticulo,
         errores,
         valido,
+        mensajeBoton,
     } = useComposerMarketplace({ storageNamespace });
 
     // ─── GPS auto-siembra ────────────────────────────────────────────
@@ -309,7 +313,9 @@ export function ComposerMarketplace({
                             <div className="text-[17px] font-bold text-slate-900 truncate leading-tight">
                                 {esEdicion
                                     ? 'Editar publicación'
-                                    : 'Vender un artículo'}
+                                    : draft.modo === 'busco'
+                                        ? 'Buscar un artículo'
+                                        : 'Vender un artículo'}
                             </div>
                             {!esEdicion && (nombreUsuario || ciudadGps) && (
                                 <div className="flex items-center gap-2 mt-1 text-[13px] lg:text-[14px] font-semibold text-slate-600 min-w-0">
@@ -334,6 +340,54 @@ export function ComposerMarketplace({
                         </div>
                     </div>
                     <div className="flex-1" />
+                    {/* Toggle Vendo / Busco (doble sentido) — solo en creación.
+                        Mismo estilo que el Ofrezco/Solicito de Servicios: pills
+                        planos, el activo con borde de color + ícono. */}
+                    {!esEdicion && (
+                        <div className="inline-flex items-center gap-1.5 shrink-0">
+                            {(
+                                [
+                                    { id: 'vendo' as const, label: 'Vendo', Icono: Tag },
+                                    { id: 'busco' as const, label: 'Busco', Icono: Search },
+                                ] as const
+                            ).map(({ id, label, Icono }) => {
+                                const activo = draft.modo === id;
+                                const esBusco = id === 'busco';
+                                return (
+                                    <button
+                                        key={id}
+                                        type="button"
+                                        data-testid={`composer-mp-modo-${id}`}
+                                        onClick={() => {
+                                            actualizar({ modo: id });
+                                            setSeccionAbierta(null);
+                                        }}
+                                        className={
+                                            'inline-flex items-center gap-2 h-9 px-4 rounded-full text-[14px] font-semibold lg:cursor-pointer ' +
+                                            (activo
+                                                ? esBusco
+                                                    ? 'bg-amber-50 border-2 border-amber-400 text-amber-800'
+                                                    : 'bg-teal-50 border-2 border-teal-400 text-teal-800'
+                                                : 'border-2 border-transparent text-slate-500 hover:text-slate-800')
+                                        }
+                                    >
+                                        <Icono
+                                            className={
+                                                'w-4 h-4 ' +
+                                                (activo
+                                                    ? esBusco
+                                                        ? 'text-amber-600'
+                                                        : 'text-teal-600'
+                                                    : 'text-slate-400')
+                                            }
+                                            strokeWidth={2.25}
+                                        />
+                                        {label}
+                                    </button>
+                                );
+                            })}
+                        </div>
+                    )}
                     <button
                         type="button"
                         aria-label="Cerrar composer"
@@ -364,6 +418,7 @@ export function ComposerMarketplace({
                                     onAbrirCamara={fotosUploader.abrirCamara}
                                     subiendo={fotosUploader.subiendo}
                                     error={errores.fotos}
+                                    obligatorias={draft.modo === 'vendo'}
                                 />
                                 <input {...fotosUploader.inputGaleriaProps} />
                                 <input {...fotosUploader.inputCamaraProps} />
@@ -375,26 +430,58 @@ export function ComposerMarketplace({
                                 <CampoTitulo
                                     valor={draft.titulo}
                                     autoFocus={!esEdicion}
+                                    placeholder={
+                                        draft.modo === 'busco'
+                                            ? 'Ej: Busco cama matrimonial en buen estado'
+                                            : 'Ej: Bicicleta de montaña rodada 26'
+                                    }
                                     onCambio={(v) =>
                                         actualizar({ titulo: v.slice(0, 80) })
                                     }
                                     error={errores.titulo}
                                 />
 
-                                {/* Precio */}
-                                <CampoPrecio
-                                    valor={draft.precio}
-                                    onCambio={(v) =>
-                                        actualizar({
-                                            precio: v.replace(/[^\d]/g, ''),
-                                        })
-                                    }
-                                    error={errores.precio}
-                                />
+                                {/* Precio (vendo) o Presupuesto + urgente (busco) */}
+                                {draft.modo === 'vendo' ? (
+                                    <CampoPrecio
+                                        valor={draft.precio}
+                                        onCambio={(v) =>
+                                            actualizar({
+                                                precio: v.replace(/[^\d]/g, ''),
+                                            })
+                                        }
+                                        error={errores.precio}
+                                    />
+                                ) : (
+                                    <CampoPresupuesto
+                                        min={draft.presupuestoMin}
+                                        max={draft.presupuestoMax}
+                                        urgente={draft.urgente}
+                                        onCambioMin={(v) =>
+                                            actualizar({
+                                                presupuestoMin: v.replace(/[^\d]/g, ''),
+                                            })
+                                        }
+                                        onCambioMax={(v) =>
+                                            actualizar({
+                                                presupuestoMax: v.replace(/[^\d]/g, ''),
+                                            })
+                                        }
+                                        onCambioUrgente={(v) =>
+                                            actualizar({ urgente: v })
+                                        }
+                                        error={errores.presupuesto}
+                                    />
+                                )}
 
                                 {/* Descripción */}
                                 <CampoDescripcion
                                     valor={draft.descripcion}
+                                    placeholder={
+                                        draft.modo === 'busco'
+                                            ? 'Cuenta qué buscas: características, para qué lo necesitas, condición aceptable…'
+                                            : 'Cuenta los detalles del artículo: marca, antigüedad, motivo de venta…'
+                                    }
                                     onCambio={(v) =>
                                         actualizar({
                                             descripcion: v.slice(0, 1000),
@@ -406,13 +493,14 @@ export function ComposerMarketplace({
                                 {/* Hint moderación inline */}
                                 <ComposerHintModeracion
                                     texto={`${draft.titulo} ${draft.descripcion}`}
+                                    modo={draft.modo}
                                     onIrServicios={() => {
                                         onColapsar();
                                         navigate('/servicios?crear=ofrezco');
                                     }}
-                                    onIrHome={() => {
-                                        onColapsar();
-                                        navigate('/inicio');
+                                    onCambiarABusco={() => {
+                                        actualizar({ modo: 'busco' });
+                                        setSeccionAbierta(null);
                                     }}
                                 />
                             </div>
@@ -543,52 +631,68 @@ export function ComposerMarketplace({
                         </div>
 
                         {/* ── Reglas legales + acciones ────────────── */}
-                        <div className="mt-4 flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-4 pt-3 border-t-2 border-slate-200">
-                            <div className="flex-1 min-w-0">
-                                <CheckboxLegal
-                                    aceptado={
-                                        draft.confirmaciones.licito &&
-                                        draft.confirmaciones.enPoder &&
-                                        draft.confirmaciones.honesto &&
-                                        draft.confirmaciones.seguro
-                                    }
-                                    onCambio={setConfirmacionesUnificadas}
-                                    error={errores.confirmaciones}
-                                    omitirEnEdicion={esEdicion}
-                                />
+                        <div className="mt-4 pt-3 border-t-2 border-slate-200">
+                            <div className="flex flex-col lg:flex-row lg:items-start gap-3 lg:gap-4">
+                                <div className="flex-1 min-w-0">
+                                    <CheckboxLegal
+                                        aceptado={
+                                            draft.confirmaciones.licito &&
+                                            draft.confirmaciones.enPoder &&
+                                            draft.confirmaciones.honesto &&
+                                            draft.confirmaciones.seguro
+                                        }
+                                        onCambio={setConfirmacionesUnificadas}
+                                        error={errores.confirmaciones}
+                                        omitirEnEdicion={esEdicion}
+                                        modo={draft.modo}
+                                    />
+                                </div>
+                                <div className="flex items-center gap-2 shrink-0">
+                                    <button
+                                        type="button"
+                                        data-testid="composer-mp-btn-cancelar"
+                                        onClick={onColapsar}
+                                        disabled={enviando}
+                                        className="px-5 h-12 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-semibold text-[15px] hover:bg-slate-100 hover:border-slate-400 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                                    >
+                                        Cancelar
+                                    </button>
+                                    <button
+                                        type="button"
+                                        data-testid="composer-mp-btn-publicar"
+                                        // Clickeable aunque falte algo: al pulsar,
+                                        // `publicar()` abre el campo faltante y
+                                        // mostramos qué falta abajo. Solo se
+                                        // bloquea mientras se está enviando.
+                                        onClick={() => publicar(false)}
+                                        disabled={enviando}
+                                        className={
+                                            'inline-flex items-center justify-center gap-2 px-6 h-12 rounded-xl font-bold text-[15px] lg:cursor-pointer ' +
+                                            (valido && !enviando
+                                                ? 'bg-linear-to-b from-teal-500 to-teal-700 text-white shadow-sm hover:brightness-110'
+                                                : 'bg-slate-200 text-slate-500')
+                                        }
+                                    >
+                                        <Send className="w-4 h-4" strokeWidth={2.25} />
+                                        {enviando
+                                            ? esEdicion
+                                                ? 'Guardando…'
+                                                : 'Publicando…'
+                                            : esEdicion
+                                              ? 'Guardar cambios'
+                                              : 'Publicar'}
+                                    </button>
+                                </div>
                             </div>
-                            <div className="flex items-center gap-2 shrink-0">
-                                <button
-                                    type="button"
-                                    data-testid="composer-mp-btn-cancelar"
-                                    onClick={onColapsar}
-                                    disabled={enviando}
-                                    className="px-5 h-12 rounded-xl border-2 border-slate-300 bg-white text-slate-700 font-semibold text-[15px] hover:bg-slate-100 hover:border-slate-400 lg:cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed"
+                            {/* Feedback de qué falta cuando el botón está "apagado". */}
+                            {!valido && !enviando && mensajeBoton && (
+                                <p
+                                    data-testid="composer-mp-falta"
+                                    className="mt-2 text-[13px] font-semibold text-amber-700 lg:text-right"
                                 >
-                                    Cancelar
-                                </button>
-                                <button
-                                    type="button"
-                                    data-testid="composer-mp-btn-publicar"
-                                    onClick={() => publicar(false)}
-                                    disabled={!valido || enviando}
-                                    className={
-                                        'inline-flex items-center justify-center gap-2 px-6 h-12 rounded-xl font-bold text-[15px] lg:cursor-pointer ' +
-                                        (valido && !enviando
-                                            ? 'bg-linear-to-b from-teal-500 to-teal-700 text-white shadow-sm hover:brightness-110'
-                                            : 'bg-slate-200 text-slate-500 cursor-not-allowed')
-                                    }
-                                >
-                                    <Send className="w-4 h-4" strokeWidth={2.25} />
-                                    {enviando
-                                        ? esEdicion
-                                            ? 'Guardando…'
-                                            : 'Publicando…'
-                                        : esEdicion
-                                          ? 'Guardar cambios'
-                                          : 'Publicar'}
-                                </button>
-                            </div>
+                                    Falta: {mensajeBoton}
+                                </p>
+                            )}
                         </div>
                     </div>
                 )}
@@ -617,11 +721,13 @@ export function ComposerMarketplace({
 function CampoTitulo({
     valor,
     autoFocus,
+    placeholder,
     onCambio,
     error,
 }: {
     valor: string;
     autoFocus: boolean;
+    placeholder?: string;
     onCambio: (v: string) => void;
     error?: string;
 }) {
@@ -633,7 +739,7 @@ function CampoTitulo({
                 value={valor}
                 autoFocus={autoFocus}
                 onChange={(e) => onCambio(e.target.value)}
-                placeholder="Ej: Bicicleta de montaña rodada 26"
+                placeholder={placeholder ?? 'Ej: Bicicleta de montaña rodada 26'}
                 className="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 placeholder:font-normal font-semibold outline-none focus:border-teal-500"
             />
             {error && (
@@ -683,12 +789,103 @@ function CampoPrecio({
     );
 }
 
+function CampoPresupuesto({
+    min,
+    max,
+    urgente,
+    onCambioMin,
+    onCambioMax,
+    onCambioUrgente,
+    error,
+}: {
+    min: string;
+    max: string;
+    urgente: boolean;
+    onCambioMin: (v: string) => void;
+    onCambioMax: (v: string) => void;
+    onCambioUrgente: (v: boolean) => void;
+    error?: string;
+}) {
+    return (
+        <div>
+            <label className="block text-[13px] font-semibold text-slate-700 mb-1">
+                Presupuesto (MXN) · opcional
+            </label>
+            <div className="flex items-center gap-2">
+                <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-[15px]">
+                        $
+                    </span>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        data-testid="composer-mp-presupuesto-min"
+                        value={min}
+                        onChange={(e) => onCambioMin(e.target.value)}
+                        placeholder="Mín"
+                        className="w-full rounded-xl border-2 border-slate-300 bg-white pl-8 pr-3 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 placeholder:font-normal font-semibold outline-none focus:border-teal-500 tabular-nums"
+                    />
+                </div>
+                <span aria-hidden className="text-slate-400 font-bold">
+                    –
+                </span>
+                <div className="relative flex-1">
+                    <span className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 font-bold text-[15px]">
+                        $
+                    </span>
+                    <input
+                        type="text"
+                        inputMode="numeric"
+                        pattern="[0-9]*"
+                        data-testid="composer-mp-presupuesto-max"
+                        value={max}
+                        onChange={(e) => onCambioMax(e.target.value)}
+                        placeholder="Máx"
+                        className="w-full rounded-xl border-2 border-slate-300 bg-white pl-8 pr-3 py-2 text-[16px] text-slate-900 placeholder:text-slate-400 placeholder:font-normal font-semibold outline-none focus:border-teal-500 tabular-nums"
+                    />
+                </div>
+            </div>
+            <label className="mt-2 inline-flex items-center gap-2 lg:cursor-pointer">
+                <input
+                    type="checkbox"
+                    data-testid="composer-mp-urgente"
+                    checked={urgente}
+                    onChange={(e) => onCambioUrgente(e.target.checked)}
+                    className="sr-only"
+                />
+                <span
+                    aria-hidden
+                    className={
+                        'w-5 h-5 shrink-0 rounded-md border-2 flex items-center justify-center ' +
+                        (urgente
+                            ? 'bg-amber-500 border-amber-500 text-white'
+                            : 'bg-white border-slate-300')
+                    }
+                >
+                    {urgente && <Check className="w-3 h-3" strokeWidth={3} />}
+                </span>
+                <span className="text-[14px] font-medium text-slate-700">
+                    Marcar como urgente
+                </span>
+            </label>
+            {error && (
+                <p className="mt-1 text-[13px] text-red-600 font-semibold">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
+
 function CampoDescripcion({
     valor,
+    placeholder,
     onCambio,
     error,
 }: {
     valor: string;
+    placeholder?: string;
     onCambio: (v: string) => void;
     error?: string;
 }) {
@@ -699,7 +896,10 @@ function CampoDescripcion({
                 value={valor}
                 onChange={(e) => onCambio(e.target.value)}
                 rows={3}
-                placeholder="Cuenta los detalles del artículo: marca, antigüedad, motivo de venta…"
+                placeholder={
+                    placeholder ??
+                    'Cuenta los detalles del artículo: marca, antigüedad, motivo de venta…'
+                }
                 className="w-full rounded-xl border-2 border-slate-300 bg-white px-4 py-3 text-[15px] text-slate-900 placeholder:text-slate-400 placeholder:font-normal font-medium outline-none resize-none focus:border-teal-500"
             />
             <div className="mt-1 flex items-center justify-between text-[12px]">
@@ -734,25 +934,33 @@ function FilaIconos({
     seccionAbierta: SeccionAbierta;
     onAlternar: (s: SeccionAbierta) => void;
 }) {
+    // En modo 'busco' solo aplica la Zona (dónde buscas). Condición, Ofertas
+    // y Unidad son propios de una venta.
+    const iconosVenta: IconoConfig[] =
+        draft.modo === 'busco'
+            ? []
+            : [
+                  {
+                      id: 'condicion',
+                      Icono: Tags,
+                      label: 'Condición',
+                      activo: draft.condicion !== null,
+                  },
+                  {
+                      id: 'ofertas',
+                      Icono: MoreHorizontal,
+                      label: 'Ofertas',
+                      activo: draft.aceptaOfertas !== null,
+                  },
+                  {
+                      id: 'unidad',
+                      Icono: Package,
+                      label: 'Unidad',
+                      activo: draft.unidadVenta.trim().length > 0,
+                  },
+              ];
     const iconos: IconoConfig[] = [
-        {
-            id: 'condicion',
-            Icono: Tags,
-            label: 'Condición',
-            activo: draft.condicion !== null,
-        },
-        {
-            id: 'ofertas',
-            Icono: MoreHorizontal,
-            label: 'Ofertas',
-            activo: draft.aceptaOfertas !== null,
-        },
-        {
-            id: 'unidad',
-            Icono: Package,
-            label: 'Unidad',
-            activo: draft.unidadVenta.trim().length > 0,
-        },
+        ...iconosVenta,
         {
             id: 'zona',
             Icono: MapPin,
@@ -819,6 +1027,7 @@ function ZonaFotos({
     onAbrirCamara,
     subiendo,
     error,
+    obligatorias,
 }: {
     fotos: string[];
     /** Fotos en curso de subida — se renderizan al final del carrusel
@@ -829,6 +1038,8 @@ function ZonaFotos({
     onAbrirCamara: () => void;
     subiendo: boolean;
     error?: string;
+    /** En modo 'busco' las fotos son opcionales; en 'vendo' obligatorias. */
+    obligatorias: boolean;
 }) {
     const { esEscritorio } = useBreakpoint();
     const [menuAbierto, setMenuAbierto] = useState(false);
@@ -894,8 +1105,15 @@ function ZonaFotos({
                     <span className="text-[14px] font-semibold text-slate-700">
                         Fotos
                     </span>
-                    <span className="inline-flex items-center h-6 px-2 rounded-full bg-rose-100 text-rose-700 text-[12px] font-semibold">
-                        obligatoria
+                    <span
+                        className={
+                            'inline-flex items-center h-6 px-2 rounded-full text-[12px] font-semibold ' +
+                            (obligatorias
+                                ? 'bg-rose-100 text-rose-700'
+                                : 'bg-slate-100 text-slate-500')
+                        }
+                    >
+                        {obligatorias ? 'obligatoria' : 'opcional'}
                     </span>
                 </div>
                 <span className="text-[13px] font-semibold text-slate-500 tabular-nums">
@@ -1317,11 +1535,13 @@ function CheckboxLegal({
     onCambio,
     error,
     omitirEnEdicion,
+    modo,
 }: {
     aceptado: boolean;
     onCambio: (v: boolean) => void;
     error?: string;
     omitirEnEdicion: boolean;
+    modo: ModoArticulo;
 }) {
     const [verDetalles, setVerDetalles] = useState(false);
     if (omitirEnEdicion) {
@@ -1375,26 +1595,41 @@ function CheckboxLegal({
                     />
                 </button>
             </label>
-            {verDetalles && (
-                <ul className="mt-2 ml-7 space-y-1 text-[13px] text-slate-600 font-medium leading-snug list-disc list-inside">
-                    <li>
-                        El artículo es <strong>lícito</strong>: no infringe leyes,
-                        ni es producto robado, ilegal o restringido.
-                    </li>
-                    <li>
-                        Lo tengo <strong>en mi poder</strong> y disponible para
-                        entregar.
-                    </li>
-                    <li>
-                        La información es <strong>honesta</strong>: fotos, precio
-                        y descripción reflejan la realidad.
-                    </li>
-                    <li>
-                        Acepto coordinar entregas <strong>seguras</strong> en
-                        lugares públicos.
-                    </li>
-                </ul>
-            )}
+            {verDetalles &&
+                (modo === 'busco' ? (
+                    <ul className="mt-2 ml-7 space-y-1 text-[13px] text-slate-600 font-medium leading-snug list-disc list-inside">
+                        <li>
+                            Mi búsqueda es <strong>lícita</strong>: no pido nada
+                            ilegal, robado ni restringido.
+                        </li>
+                        <li>
+                            Es una <strong>búsqueda real</strong>.
+                        </li>
+                        <li>
+                            Coordinaré la compra en un{' '}
+                            <strong>lugar seguro</strong>.
+                        </li>
+                    </ul>
+                ) : (
+                    <ul className="mt-2 ml-7 space-y-1 text-[13px] text-slate-600 font-medium leading-snug list-disc list-inside">
+                        <li>
+                            El artículo es <strong>lícito</strong>: no infringe
+                            leyes, ni es producto robado, ilegal o restringido.
+                        </li>
+                        <li>
+                            Lo tengo <strong>en mi poder</strong> y disponible
+                            para entregar.
+                        </li>
+                        <li>
+                            La información es <strong>honesta</strong>: fotos,
+                            precio y descripción reflejan la realidad.
+                        </li>
+                        <li>
+                            Acepto coordinar entregas <strong>seguras</strong> en
+                            lugares públicos.
+                        </li>
+                    </ul>
+                ))}
             {error && (
                 <p className="mt-1 text-[13px] text-red-600 font-semibold">
                     {error}
@@ -1438,11 +1673,15 @@ function tituloPorSeccion(s: SeccionAbierta): string {
 function articuloAlDraft(
     a: ArticuloMarketplaceDetalle,
 ): Partial<ComposerMarketplaceDraft> {
-    const precioNum = parseEnteroPositivo(a.precio);
+    const precioNum = a.precio !== null ? parseEnteroPositivo(a.precio) : null;
     return {
+        modo: a.modo,
         titulo: a.titulo,
         descripcion: a.descripcion,
         precio: precioNum !== null ? String(precioNum) : '',
+        presupuestoMin: a.presupuesto ? String(a.presupuesto.min) : '',
+        presupuestoMax: a.presupuesto ? String(a.presupuesto.max) : '',
+        urgente: a.urgente,
         fotos: a.fotos,
         fotoPortadaIndex: a.fotoPortadaIndex,
         condicion: a.condicion,

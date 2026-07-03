@@ -21,7 +21,7 @@
  */
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import type { CondicionArticulo } from '../types/marketplace';
+import type { CondicionArticulo, ModoArticulo } from '../types/marketplace';
 
 // =============================================================================
 // CONSTANTES
@@ -38,7 +38,6 @@ const TITULO_MIN = 10;
 const TITULO_MAX = 80;
 const DESC_MAX = 1000;
 const PRECIO_MAX = 999999;
-const ZONA_MIN = 3;
 const ZONA_MAX = 150;
 const UNIDAD_MAX = 30;
 
@@ -47,17 +46,27 @@ const UNIDAD_MAX = 30;
 // =============================================================================
 
 export interface ComposerMarketplaceDraft {
+    /** Doble sentido: 'vendo' (venta) | 'busco' (demanda de compra). */
+    modo: ModoArticulo;
+
     // Visible arriba
     titulo: string;
     descripcion: string;
-    /** String para permitir input vacío; se convierte a number al publicar. */
+    /** String para permitir input vacío; se convierte a number al publicar.
+     *  Solo aplica a modo='vendo'. */
     precio: string;
+
+    // Presupuesto deseado — solo modo='busco'. Strings para permitir vacío.
+    presupuestoMin: string;
+    presupuestoMax: string;
+    /** Pin al top del feed de búsquedas — solo modo='busco'. */
+    urgente: boolean;
 
     // Fotos (URLs públicas R2 ya subidas, vía presigned URL).
     fotos: string[];
     fotoPortadaIndex: number;
 
-    // Detalles (acordeón colapsable en la UI).
+    // Detalles (acordeón colapsable en la UI). Solo aplican a modo='vendo'.
     condicion: CondicionArticulo | null;
     aceptaOfertas: boolean | null;
     unidadVenta: string;
@@ -79,9 +88,13 @@ export interface ComposerMarketplaceDraft {
 }
 
 const DRAFT_INICIAL: ComposerMarketplaceDraft = {
+    modo: 'vendo',
     titulo: '',
     descripcion: '',
     precio: '',
+    presupuestoMin: '',
+    presupuestoMax: '',
+    urgente: false,
     fotos: [],
     fotoPortadaIndex: 0,
     condicion: null,
@@ -151,6 +164,9 @@ export function draftEstaIntacto(d: ComposerMarketplaceDraft): boolean {
         d.titulo === '' &&
         d.descripcion === '' &&
         d.precio === '' &&
+        d.presupuestoMin === '' &&
+        d.presupuestoMax === '' &&
+        !d.urgente &&
         d.fotos.length === 0 &&
         d.condicion === null &&
         d.aceptaOfertas === null &&
@@ -171,6 +187,7 @@ export type CampoErrorComposerMP =
     | 'titulo'
     | 'descripcion'
     | 'precio'
+    | 'presupuesto'
     | 'fotos'
     | 'condicion'
     | 'unidadVenta'
@@ -190,6 +207,7 @@ export function validarComposerMP(
     d: ComposerMarketplaceDraft,
 ): ResultadoValidacionMP {
     const errores: ErroresComposerMP = {};
+    const esBusco = d.modo === 'busco';
 
     // ── OBLIGATORIOS ────────────────────────────────────────────────
     const titLen = d.titulo.trim().length;
@@ -202,29 +220,36 @@ export function validarComposerMP(
         errores.titulo = `El título no debe pasar de ${TITULO_MAX} caracteres.`;
     }
 
-    const precio = parseEnteroPositivo(d.precio);
-    if (precio === null) {
-        errores.precio = 'Escribe el precio.';
-    } else if (precio > PRECIO_MAX) {
-        errores.precio = `El precio máximo es $${PRECIO_MAX.toLocaleString('es-MX')}.`;
-    }
+    if (!esBusco) {
+        // ── VENDO: precio obligatorio + al menos 1 foto ──
+        const precio = parseEnteroPositivo(d.precio);
+        if (precio === null) {
+            errores.precio = 'Escribe el precio.';
+        } else if (precio > PRECIO_MAX) {
+            errores.precio = `El precio máximo es $${PRECIO_MAX.toLocaleString('es-MX')}.`;
+        }
 
-    if (d.fotos.length < 1) {
-        errores.fotos = 'Agrega al menos 1 foto.';
+        if (d.fotos.length < 1) {
+            errores.fotos = 'Agrega al menos 1 foto.';
+        }
+    } else {
+        // ── BUSCO: presupuesto opcional; si se llena, ambos y min ≤ max ──
+        const min = parseEnteroPositivo(d.presupuestoMin);
+        const max = parseEnteroPositivo(d.presupuestoMax);
+        const algunoLleno = d.presupuestoMin.trim() !== '' || d.presupuestoMax.trim() !== '';
+        if (algunoLleno) {
+            if (min === null || max === null) {
+                errores.presupuesto = 'Completa ambos montos o déjalos vacíos.';
+            } else if (min > PRECIO_MAX || max > PRECIO_MAX) {
+                errores.presupuesto = `El presupuesto máximo es $${PRECIO_MAX.toLocaleString('es-MX')}.`;
+            } else if (max < min) {
+                errores.presupuesto = 'El máximo debe ser mayor o igual al mínimo.';
+            }
+        }
     }
 
     if (d.latitud === null || d.longitud === null || !d.ciudad) {
         errores.ubicacion = 'Activa tu ubicación para continuar.';
-    }
-
-    const zonaLen = d.zonaAproximada.trim().length;
-    if (zonaLen < ZONA_MIN) {
-        errores.zonaAproximada =
-            zonaLen === 0
-                ? 'Escribe una zona (ej. Centro, Las Conchas).'
-                : `Faltan ${ZONA_MIN - zonaLen} caracteres en la zona.`;
-    } else if (zonaLen > ZONA_MAX) {
-        errores.zonaAproximada = `La zona no debe pasar de ${ZONA_MAX} caracteres.`;
     }
 
     const todasOk =
@@ -246,10 +271,16 @@ export function validarComposerMP(
         errores.unidadVenta = `La unidad no debe pasar de ${UNIDAD_MAX} caracteres.`;
     }
 
+    // Zona: opcional en ambos modos (Vendo y Busco). Solo validamos el máximo.
+    if (d.zonaAproximada.trim().length > ZONA_MAX) {
+        errores.zonaAproximada = `La zona no debe pasar de ${ZONA_MAX} caracteres.`;
+    }
+
     const orden: CampoErrorComposerMP[] = [
         'titulo',
         'descripcion',
         'precio',
+        'presupuesto',
         'fotos',
         'condicion',
         'unidadVenta',

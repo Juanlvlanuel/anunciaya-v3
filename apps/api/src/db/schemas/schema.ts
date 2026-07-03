@@ -2087,10 +2087,24 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
 
+	// Modo (doble sentido, calcado de servicios_publicaciones.modo). Discrimina
+	// entre publicar un objeto EN VENTA ('vendo') vs una DEMANDA de compra
+	// ('busco'). Default 'vendo' = comportamiento histórico. Ver
+	// docs/arquitectura/Marketplace_Busco.md.
+	modo: varchar({ length: 20 }).default('vendo').notNull(),
+
 	// Contenido
 	titulo: varchar({ length: 80 }).notNull(),
 	descripcion: text().notNull(),
-	precio: numeric({ precision: 10, scale: 2 }).notNull(),
+	// Precio: obligatorio SOLO en modo='vendo' (CHECK abajo). En 'busco' es NULL
+	// y el rango deseado va en `presupuesto`.
+	precio: numeric({ precision: 10, scale: 2 }),
+	// Presupuesto deseado del comprador — SOLO modo='busco', opcional:
+	// { min: number, max: number }. Calca servicios_publicaciones.presupuesto.
+	presupuesto: jsonb(),
+	// Urgente — SOLO modo='busco': pin al top del feed de búsquedas (calca
+	// servicios_publicaciones.urgente para solicitos).
+	urgente: boolean().default(false).notNull(),
 	// Condición y aceptaOfertas son opcionales: no aplican a productos
 	// consumibles/comestibles, hechos a mano nuevos, etc. (mig. 2026-05-13).
 	condicion: varchar({ length: 20 }),
@@ -2144,11 +2158,20 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	index("idx_marketplace_usuario").using("btree", table.usuarioId.asc().nullsLast()),
 	index("idx_marketplace_created").using("btree", table.createdAt.desc().nullsFirst()),
 	index("idx_marketplace_expira").using("btree", table.expiraAt.asc().nullsLast()),
+	index("idx_marketplace_modo").using("btree", table.modo.asc().nullsLast()),
 	// Índices GIST (ubicacion_aproximada) y GIN (FTS) viven solo en SQL —
 	// Drizzle no soporta declarar GIST/GIN sobre columnas custom geography ni
 	// sobre to_tsvector(). La migración SQL los crea y la BD los mantiene.
 	check("articulos_marketplace_condicion_check", sql`condicion IS NULL OR (condicion)::text = ANY ((ARRAY['nuevo'::character varying, 'seminuevo'::character varying, 'usado'::character varying, 'para_reparar'::character varying])::text[])`),
 	check("articulos_marketplace_estado_check", sql`(estado)::text = ANY ((ARRAY['activa'::character varying, 'pausada'::character varying, 'vendida'::character varying, 'eliminada'::character varying])::text[])`),
+	// Doble sentido Vendo/Busco (2026-07-02):
+	check("articulos_marketplace_modo_check", sql`(modo)::text = ANY ((ARRAY['vendo'::character varying, 'busco'::character varying])::text[])`),
+	// Precio obligatorio solo en venta; en búsqueda va NULL.
+	check("articulos_marketplace_precio_modo_check", sql`modo = 'busco' OR (modo = 'vendo' AND precio IS NOT NULL)`),
+	// Al menos 1 foto solo en venta; la búsqueda puede no llevar fotos.
+	check("articulos_marketplace_fotos_modo_check", sql`modo = 'busco' OR jsonb_array_length(fotos) >= 1`),
+	// Presupuesto solo aplica a búsquedas.
+	check("articulos_marketplace_presupuesto_modo_check", sql`presupuesto IS NULL OR modo = 'busco'`),
 ]);
 
 

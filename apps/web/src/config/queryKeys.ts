@@ -196,7 +196,7 @@ export const queryKeys = {
   // siguientes.
   marketplace: {
     all: () => ['marketplace'] as const,
-    feed: (filtros: { ciudad: string; lat: number; lng: number }) =>
+    feed: (filtros: { ciudad: string; lat: number; lng: number; modo?: 'vendo' | 'busco' }) =>
       ['marketplace', 'feed', filtros] as const,
     feedInfinito: (filtros: {
       ciudad: string;
@@ -205,6 +205,8 @@ export const queryKeys = {
       orden: 'recientes' | 'vistos' | 'cerca';
       precioMin?: number;
       precioMax?: number;
+      modo?: 'vendo' | 'busco';
+      soloUrgente?: boolean;
     }) => ['marketplace', 'feed-infinito', filtros] as const,
     articulo: (articuloId: string) =>
       ['marketplace', 'articulo', articuloId] as const,

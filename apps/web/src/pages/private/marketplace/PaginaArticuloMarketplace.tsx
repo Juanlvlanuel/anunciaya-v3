@@ -63,8 +63,8 @@ import {
 import { useGuardados } from '../../../hooks/useGuardados';
 import { useSaveBubble } from '../../../hooks/useSaveBubble';
 import {
-    formatearPrecio,
     formatearTiempoRelativo,
+    etiquetaPrecioArticulo,
 } from '../../../utils/marketplace';
 import { GaleriaArticulo } from '../../../components/marketplace/GaleriaArticulo';
 import { CardVendedor } from '../../../components/marketplace/CardVendedor';
@@ -611,7 +611,22 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 {articulo.titulo}
             </h1>
 
-            {/* Precio gigante (Mercado Libre style) */}
+            {/* Rótulo "Se busca" + urgente — solo en modo demanda (busco). */}
+            {articulo.modo === 'busco' && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-lg bg-amber-100 px-2.5 py-1 text-sm font-bold text-amber-700">
+                        Se busca
+                    </span>
+                    {articulo.urgente && (
+                        <span className="inline-flex items-center rounded-lg bg-red-100 px-2.5 py-1 text-sm font-bold text-red-600">
+                            Urgente
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Precio gigante (Mercado Libre style). En 'busco' muestra el
+                presupuesto ("$500–$1,500") o "A tratar". */}
             <div
                 data-testid="precio"
                 className={
@@ -620,8 +635,8 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                         : 'text-4xl font-extrabold leading-none tracking-tight text-slate-900 lg:text-5xl'
                 }
             >
-                {formatearPrecio(articulo.precio)}
-                {articulo.unidadVenta && (
+                {etiquetaPrecioArticulo(articulo)}
+                {articulo.modo !== 'busco' && articulo.unidadVenta && (
                     <span
                         className={
                             compacto
@@ -634,17 +649,18 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 )}
             </div>
 
-            {/* Chips: condición (semántico) + acepta ofertas. Ambos son
-                opcionales desde 2026-05-13 — el contenedor solo renderiza
-                los chips relevantes. */}
-            <div className="flex flex-wrap items-center gap-1.5">
-                <ChipCondicion condicion={articulo.condicion} />
-                {articulo.aceptaOfertas && (
-                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">
-                        Acepta ofertas
-                    </span>
-                )}
-            </div>
+            {/* Chips: condición + acepta ofertas. Solo aplican a ventas (en
+                'busco' no hay condición ni ofertas). */}
+            {articulo.modo !== 'busco' && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <ChipCondicion condicion={articulo.condicion} />
+                    {articulo.aceptaOfertas && (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">
+                            Acepta ofertas
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Tiempo + vistas (sutil) */}
             <div className={`flex items-center gap-2 font-medium text-slate-600 ${compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'}`}>

@@ -61,7 +61,12 @@ Cada uno de esos puntos es donde AnunciaYA gana, gracias a las piezas únicas qu
 
 - **Exclusivo para objetos físicos** entre usuarios.
 - **NO se permiten servicios** publicados aquí (van en Servicios).
-- Mantener limpio y enfocado en compra-venta de cosas tangibles.
+- Mantener limpio y enfocado en el intercambio de cosas tangibles.
+- **Doble sentido (Vendo ↔ Busco):** MarketPlace cubre las dos caras del intercambio de objetos, igual que Servicios cubre Ofrezco ↔ Solicito:
+  - **Vendo** → publica quien tiene un objeto para vender (precio, condición, fotos obligatorias). Es el comportamiento histórico.
+  - **Busco** → publica quien necesita comprar/conseguir un objeto ("busco una cama matrimonial", "necesito un refri"). Presupuesto opcional, fotos opcionales, sin condición. Permite que un vendedor descubra demanda real y que Coyo conecte ambos lados.
+  - La línea con Servicios se mantiene: **objetos** van a MarketPlace (Vendo/Busco); **servicios** van a Servicios (Ofrezco/Solicito). La moderación y Coyo enrutan según corresponda.
+  - Detalle técnico: `docs/arquitectura/Marketplace_Busco.md`.
 
 ### 3.2 Servicios
 

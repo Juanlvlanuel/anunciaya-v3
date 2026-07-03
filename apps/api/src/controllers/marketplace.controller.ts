@@ -96,8 +96,8 @@ export async function getFeed(req: Request, res: Response) {
             });
         }
 
-        const { ciudad, lat, lng } = validacion.data;
-        const resultado = await obtenerFeed(ciudad, lat, lng);
+        const { ciudad, lat, lng, modo } = validacion.data;
+        const resultado = await obtenerFeed(ciudad, lat, lng, modo);
         return res.json(resultado);
     } catch (error) {
         console.error('Error en getFeed:', error);

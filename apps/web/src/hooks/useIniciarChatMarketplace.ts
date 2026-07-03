@@ -84,7 +84,8 @@ export function useIniciarChatMarketplace() {
             subtipo: 'articulo_marketplace' as const,
             titulo,
             imagen: fotoUrl,
-            precio,
+            // En modo 'busco' el precio es null; el preview del chat no lo muestra.
+            precio: precio ?? undefined,
             condicion: condicion ?? undefined,
         };
 

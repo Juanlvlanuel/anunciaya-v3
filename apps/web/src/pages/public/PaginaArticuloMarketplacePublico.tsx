@@ -62,7 +62,7 @@ import { Spinner } from '../../components/ui/Spinner';
 import { HeaderPublico } from '../../components/public/HeaderPublico';
 import { FooterPublico } from '../../components/public/FooterPublico';
 import {
-    formatearPrecio,
+    etiquetaPrecioArticulo,
     formatearTiempoRelativo,
     obtenerFotoPortada,
 } from '../../utils/marketplace';
@@ -98,7 +98,7 @@ export function PaginaArticuloMarketplacePublico() {
 
     useOpenGraph({
         title: articulo
-            ? `${formatearPrecio(articulo.precio)} · ${articulo.titulo}`
+            ? `${etiquetaPrecioArticulo(articulo)} · ${articulo.titulo}`
             : 'MarketPlace de AnunciaYA',
         description: articulo
             ? articulo.descripcion.slice(0, 155)
@@ -429,7 +429,21 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 {articulo.titulo}
             </h1>
 
-            {/* Precio gigante */}
+            {/* Rótulo "Se busca" + urgente — solo en modo demanda (busco). */}
+            {articulo.modo === 'busco' && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <span className="inline-flex items-center rounded-lg bg-amber-100 px-2.5 py-1 text-sm font-bold text-amber-700">
+                        Se busca
+                    </span>
+                    {articulo.urgente && (
+                        <span className="inline-flex items-center rounded-lg bg-red-100 px-2.5 py-1 text-sm font-bold text-red-600">
+                            Urgente
+                        </span>
+                    )}
+                </div>
+            )}
+
+            {/* Precio gigante. En 'busco' muestra el presupuesto o "A tratar". */}
             <div
                 data-testid="precio"
                 className={
@@ -438,8 +452,8 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                         : 'text-4xl font-extrabold leading-none tracking-tight text-slate-900 lg:text-5xl'
                 }
             >
-                {formatearPrecio(articulo.precio)}
-                {articulo.unidadVenta && (
+                {etiquetaPrecioArticulo(articulo)}
+                {articulo.modo !== 'busco' && articulo.unidadVenta && (
                     <span
                         className={
                             compacto
@@ -452,16 +466,17 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 )}
             </div>
 
-            {/* Chips: condición (semántico) + acepta ofertas. Ambos son
-                opcionales desde 2026-05-13. */}
-            <div className="flex flex-wrap items-center gap-1.5">
-                <ChipCondicion condicion={articulo.condicion} />
-                {articulo.aceptaOfertas && (
-                    <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">
-                        Acepta ofertas
-                    </span>
-                )}
-            </div>
+            {/* Chips: condición + acepta ofertas. Solo aplican a ventas. */}
+            {articulo.modo !== 'busco' && (
+                <div className="flex flex-wrap items-center gap-1.5">
+                    <ChipCondicion condicion={articulo.condicion} />
+                    {articulo.aceptaOfertas && (
+                        <span className="inline-flex items-center gap-1.5 rounded-lg bg-emerald-100 px-2.5 py-1 text-sm font-semibold text-emerald-700">
+                            Acepta ofertas
+                        </span>
+                    )}
+                </div>
+            )}
 
             {/* Tiempo + vistas (sutil) */}
             <div className={`flex items-center gap-2 font-medium text-slate-600 ${compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'}`}>

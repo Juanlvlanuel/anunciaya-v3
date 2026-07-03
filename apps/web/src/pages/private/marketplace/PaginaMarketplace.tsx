@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
-import { ShoppingCart, Plus, AlertCircle, ChevronLeft, Search, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
+import { ShoppingCart, Plus, AlertCircle, ChevronLeft, Search, Tag, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
@@ -90,6 +90,11 @@ export function PaginaMarketplace() {
 
     // ─── React Query ───────────────────────────────────────────────────────────
 
+    // Doble sentido: 'vendo' (ventas) | 'busco' (demandas). Feed por defecto =
+    // ventas. Declarado arriba porque alimenta tanto el feed legacy (KPI) como
+    // el feed infinito.
+    const [modoFeed, setModoFeed] = useState<'vendo' | 'busco'>('vendo');
+
     // Feed v1.1 (legacy) — mantenido para el caso de fallback y la sección
     // antigua "Cercanos" mientras dura la migración. El feed nuevo (v1.2,
     // estilo Facebook) usa `useFeedInfinitoMarketplace` abajo.
@@ -97,6 +102,7 @@ export function PaginaMarketplace() {
         ciudad,
         lat: latitud,
         lng: longitud,
+        modo: modoFeed,
     });
 
     const recientes = data?.recientes ?? [];
@@ -117,6 +123,7 @@ export function PaginaMarketplace() {
         lat: latitud,
         lng: longitud,
         orden,
+        modo: modoFeed,
         limite: 10,
     });
 
@@ -141,8 +148,11 @@ export function PaginaMarketplace() {
     // cuando el orden activo es "recientes" (decisión: el reel desaparece al
     // filtrar). Si ya tenemos cargados <12, usamos los que haya.
     const articulosReel = useMemo(
-        () => (orden === 'recientes' ? articulosFeed.slice(0, 12) : []),
-        [orden, articulosFeed]
+        () =>
+            modoFeed === 'vendo' && orden === 'recientes'
+                ? articulosFeed.slice(0, 12)
+                : [],
+        [modoFeed, orden, articulosFeed]
     );
 
     // El feed grande muestra TODOS los artículos, incluso los que están en el
@@ -413,7 +423,7 @@ export function PaginaMarketplace() {
                                                         {ciudad}
                                                     </span>
                                                     {data && (
-                                                        <> · {totalArticulos} artículos</>
+                                                        <> · {totalArticulos} publicaciones</>
                                                     )}
                                                 </>
                                             ) : (
@@ -437,6 +447,7 @@ export function PaginaMarketplace() {
                                     móvil). Scroll horizontal sin scrollbar. */}
                                 <div className="px-3 pb-3">
                                     <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                                        <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
                                         <ChipsFiltrosFeed
                                             valor={orden}
                                             onCambio={setOrden}
@@ -494,6 +505,7 @@ export function PaginaMarketplace() {
                                         Justificados a la derecha junto al KPI (decisión de Juan
                                         para que las 3 secciones públicas se vean coherentes). */}
                                     <div className="flex shrink-0 items-center gap-4">
+                                        <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
                                         <div className="min-w-0">
                                             <ChipsFiltrosFeed
                                                 valor={orden}
@@ -511,7 +523,7 @@ export function PaginaMarketplace() {
                                                     {totalArticulos}
                                                 </span>
                                                 <span className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-teal-400/80 uppercase tracking-wider mt-1">
-                                                    Artículos
+                                                    Publicaciones
                                                 </span>
                                             </div>
                                         )}
@@ -935,5 +947,49 @@ export function PaginaMarketplace() {
 // `SeccionCercanos` se eliminaron. El feed ahora se renderiza con el reel
 // superior (`<ReelMarketplace>`) + columna centrada de cards estilo Facebook
 // (`<CardArticuloFeed>`) con scroll infinito.
+
+// =============================================================================
+// TOGGLE MODO FEED (En venta / Se busca) — doble sentido MarketPlace
+// =============================================================================
+
+function ToggleModoFeedMP({
+    valor,
+    onCambio,
+}: {
+    valor: 'vendo' | 'busco';
+    onCambio: (m: 'vendo' | 'busco') => void;
+}) {
+    // Mismo estilo que los ChipsFiltrosFeed (variante dark): pills
+    // rounded-full con borde, activo teal, inactivo oscuro translúcido.
+    const opciones = [
+        { id: 'vendo' as const, etiqueta: 'En venta', Icono: Tag },
+        { id: 'busco' as const, etiqueta: 'Se busca', Icono: Search },
+    ];
+    return (
+        <div className="flex shrink-0 gap-2">
+            {opciones.map(({ id, etiqueta, Icono }) => {
+                const activo = valor === id;
+                return (
+                    <button
+                        key={id}
+                        type="button"
+                        data-testid={`mp-feed-modo-${id}`}
+                        onClick={() => onCambio(id)}
+                        aria-pressed={activo}
+                        className={
+                            'flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold lg:cursor-pointer ' +
+                            (activo
+                                ? 'border-teal-400 bg-teal-500 text-white shadow-md shadow-teal-500/20'
+                                : 'border-white/15 bg-white/5 text-slate-200 lg:hover:border-teal-400/60 lg:hover:bg-white/10 lg:hover:text-white')
+                        }
+                    >
+                        <Icono className="h-4 w-4" strokeWidth={2.5} />
+                        <span>{etiqueta}</span>
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
 
 export default PaginaMarketplace;

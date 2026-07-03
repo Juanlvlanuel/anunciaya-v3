@@ -26,20 +26,25 @@ import {
     pareceServicio,
     pareceBusqueda,
 } from '../../../utils/deteccionServicio';
+import type { ModoArticulo } from '../../../types/marketplace';
 
 interface ComposerHintModeracionProps {
     /** Concatenación de título + descripción del draft actual. */
     texto: string;
+    /** Modo actual del composer. En 'busco' no se sugiere "búsqueda". */
+    modo: ModoArticulo;
     onIrServicios: () => void;
-    onIrHome: () => void;
+    /** En modo 'vendo', si el texto parece búsqueda, ofrece cambiar a Busco. */
+    onCambiarABusco: () => void;
 }
 
 type Sugerencia = 'servicio' | 'busqueda' | null;
 
 export function ComposerHintModeracion({
     texto,
+    modo,
     onIrServicios,
-    onIrHome,
+    onCambiarABusco,
 }: ComposerHintModeracionProps) {
     const [debounced, setDebounced] = useState(texto);
     const [descartado, setDescartado] = useState(false);
@@ -52,10 +57,11 @@ export function ComposerHintModeracion({
 
     // Prioridad: servicio > búsqueda. Un texto puede matchear ambos
     // (ej. "busco quien me ofrezca clases"); priorizamos la categoría
-    // más útil para el usuario.
+    // más útil para el usuario. En modo 'busco' NO se sugiere "búsqueda"
+    // (publicar una demanda es justo lo que el usuario quiere).
     const sugerencia: Sugerencia = pareceServicio(debounced)
         ? 'servicio'
-        : pareceBusqueda(debounced)
+        : modo === 'vendo' && pareceBusqueda(debounced)
           ? 'busqueda'
           : null;
 
@@ -78,15 +84,12 @@ export function ComposerHintModeracion({
         </>
     ) : (
         <>
-            ¿Estás buscando algo en lugar de vender? Publícalo en{' '}
-            <span className="font-bold">Pregúntale a Peñasco</span> (Home) —
-            más personas pueden ayudarte.
+            ¿Querías buscar en lugar de vender? Cambia al modo{' '}
+            <span className="font-bold">Busco</span> y publícalo aquí mismo.
         </>
     );
-    const labelBoton = esServicio
-        ? 'Llévame a Servicios'
-        : 'Llévame al Home';
-    const onIr = esServicio ? onIrServicios : onIrHome;
+    const labelBoton = esServicio ? 'Llévame a Servicios' : 'Cambiar a Busco';
+    const onIr = esServicio ? onIrServicios : onCambiarABusco;
 
     return (
         <div
@@ -103,7 +106,7 @@ export function ComposerHintModeracion({
                     data-testid={
                         esServicio
                             ? 'composer-mp-hint-ir-servicios'
-                            : 'composer-mp-hint-ir-home'
+                            : 'composer-mp-hint-cambiar-busco'
                     }
                     onClick={onIr}
                     className="mt-1.5 inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-amber-600 text-white text-[12px] font-bold lg:cursor-pointer hover:bg-amber-700"

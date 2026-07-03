@@ -246,6 +246,9 @@ export async function buscarEnTodaLaApp(
                 limit: LIMIT_POR_AREA,
                 offset: 0,
                 modoFlexible: true,
+                // Coyo (comprador) muestra artículos EN VENTA. Sin este filtro,
+                // el buscador ahora es global y traería también demandas 'busco'.
+                modo: 'vendo',
             }),
             buscarServicios({
                 q,

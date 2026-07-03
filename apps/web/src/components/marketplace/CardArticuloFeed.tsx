@@ -48,7 +48,7 @@ import { useAuthStore } from '../../stores/useAuthStore';
 import {
     formatearDistancia,
     formatearTiempoRelativo,
-    formatearPrecio,
+    etiquetaPrecioArticulo,
 } from '../../utils/marketplace';
 import { ModalImagenes } from '../ui/ModalImagenes';
 import Tooltip from '../ui/Tooltip';
@@ -593,24 +593,39 @@ export function CardArticuloFeed({
                     diferenciado del negro del título pero sin caer en verde
                     "oferta/descuento" payaso. */}
                 <div className="mt-1.5 flex flex-wrap items-baseline gap-2">
+                    {articulo.modo === 'busco' && (
+                        <span className="self-center rounded-md bg-amber-100 px-2 py-0.5 text-sm font-bold text-amber-700">
+                            Se busca
+                        </span>
+                    )}
                     <span className="text-2xl font-extrabold text-teal-700">
-                        {formatearPrecio(articulo.precio)}
+                        {etiquetaPrecioArticulo(articulo)}
                     </span>
-                    {articulo.unidadVenta && (
-                        <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
-                            {articulo.unidadVenta}
-                        </span>
-                    )}
-                    {articulo.aceptaOfertas && (
-                        <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
-                            Acepta ofertas
-                        </span>
-                    )}
-                    {condicionLabel && (
-                        <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
-                            {condicionLabel}
-                        </span>
-                    )}
+                    {articulo.modo === 'busco'
+                        ? articulo.urgente && (
+                              <span className="self-center rounded-md bg-red-100 px-2 py-0.5 text-sm font-bold text-red-600">
+                                  Urgente
+                              </span>
+                          )
+                        : (
+                              <>
+                                  {articulo.unidadVenta && (
+                                      <span className="text-lg font-semibold text-teal-700/80 lg:text-xl">
+                                          {articulo.unidadVenta}
+                                      </span>
+                                  )}
+                                  {articulo.aceptaOfertas && (
+                                      <span className="rounded-md bg-emerald-100 px-2 py-0.5 text-sm font-semibold text-emerald-700">
+                                          Acepta ofertas
+                                      </span>
+                                  )}
+                                  {condicionLabel && (
+                                      <span className="rounded-md bg-slate-200 px-2 py-0.5 text-sm font-medium text-slate-700">
+                                          {condicionLabel}
+                                      </span>
+                                  )}
+                              </>
+                          )}
                 </div>
                 {articulo.descripcion && !modoModal && (
                     <p

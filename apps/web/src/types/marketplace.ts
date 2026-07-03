@@ -20,6 +20,19 @@ export type CondicionArticulo = 'nuevo' | 'seminuevo' | 'usado' | 'para_reparar'
 export type EstadoArticulo = 'activa' | 'pausada' | 'vendida' | 'eliminada';
 
 /**
+ * Modo de la publicación (doble sentido, calcado de Servicios Ofrezco/Solicito):
+ * - 'vendo' → objeto en venta (comportamiento histórico).
+ * - 'busco' → demanda de compra ("busco una cama"). Ver Marketplace_Busco.md.
+ */
+export type ModoArticulo = 'vendo' | 'busco';
+
+/** Rango de presupuesto del comprador — solo en modo='busco'. */
+export interface PresupuestoArticulo {
+    min: number;
+    max: number;
+}
+
+/**
  * Artículo del MarketPlace (espejo de `articulos_marketplace` en BD).
  *
  * Notas de privacidad:
@@ -36,10 +49,19 @@ export type EstadoArticulo = 'activa' | 'pausada' | 'vendida' | 'eliminada';
 export interface ArticuloMarketplace {
     id: string;
     usuarioId: string;
+    /** Doble sentido: 'vendo' (venta) | 'busco' (demanda de compra). */
+    modo: ModoArticulo;
     titulo: string;
     descripcion: string;
-    /** NUMERIC(10,2) viene como string del backend */
-    precio: string;
+    /** NUMERIC(10,2) viene como string del backend. NULL en modo='busco'. */
+    precio: string | null;
+    /**
+     * Presupuesto deseado — solo modo='busco', opcional. NULL cuando el
+     * comprador lo dejó "a tratar" o en modo='vendo'.
+     */
+    presupuesto: PresupuestoArticulo | null;
+    /** Pin al top del feed de búsquedas — solo modo='busco'. */
+    urgente: boolean;
     /**
      * Condición opcional desde 2026-05-13. NULL = no aplica (productos
      * consumibles, hechos a mano nuevos, etc.). Cuando es NULL, ni el card

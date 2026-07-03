@@ -32,6 +32,7 @@ import type {
     ComentarioMarketplace,
     OrdenFeedInfinito,
     RespuestaFeedInfinito,
+    ModoArticulo,
 } from '../../types/marketplace';
 
 // =============================================================================
@@ -42,6 +43,8 @@ interface UseMarketplaceFeedParams {
     ciudad: string | null | undefined;
     lat: number | null | undefined;
     lng: number | null | undefined;
+    /** Modo del feed: 'vendo' (default) | 'busco'. Alimenta el KPI del header. */
+    modo?: ModoArticulo;
 }
 
 /**
@@ -64,7 +67,7 @@ interface UseMarketplaceFeedParams {
  *   temblor visual cuando cambia la ciudad o el GPS se actualiza.
  */
 export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
-    const { ciudad, lat, lng } = params;
+    const { ciudad, lat, lng, modo = 'vendo' } = params;
     const habilitado = !!ciudad && lat !== null && lat !== undefined && lng !== null && lng !== undefined;
 
     return useQuery({
@@ -72,11 +75,12 @@ export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
             ciudad: ciudad ?? '',
             lat: lat ?? 0,
             lng: lng ?? 0,
+            modo,
         }),
         queryFn: async (): Promise<FeedMarketplace> => {
             const response = await api.get<{ success: boolean; data: FeedMarketplace }>(
                 '/marketplace/feed',
-                { params: { ciudad, lat, lng } }
+                { params: { ciudad, lat, lng, modo } }
             );
             return response.data.success
                 ? response.data.data
@@ -99,6 +103,10 @@ interface UseFeedInfinitoParams {
     orden?: OrdenFeedInfinito;
     precioMin?: number;
     precioMax?: number;
+    /** Modo del feed: 'vendo' (default) | 'busco'. */
+    modo?: ModoArticulo;
+    /** Solo búsquedas urgentes — aplica cuando modo='busco'. */
+    soloUrgente?: boolean;
     /** Items por página. Default 10. */
     limite?: number;
 }
@@ -126,6 +134,8 @@ export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
         orden = 'recientes',
         precioMin,
         precioMax,
+        modo = 'vendo',
+        soloUrgente,
         limite = 10,
     } = params;
 
@@ -144,6 +154,8 @@ export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
             orden,
             precioMin,
             precioMax,
+            modo,
+            soloUrgente,
         }),
         queryFn: async ({ pageParam }): Promise<RespuestaFeedInfinito> => {
             const response = await api.get<{
@@ -157,6 +169,8 @@ export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
                     orden,
                     pagina: pageParam,
                     limite,
+                    modo,
+                    ...(soloUrgente !== undefined && { soloUrgente }),
                     ...(precioMin !== undefined && { precioMin }),
                     ...(precioMax !== undefined && { precioMax }),
                 },
@@ -271,9 +285,16 @@ export async function heartbeatArticulo(articuloId: string): Promise<void> {
  * moderación (servicio o búsqueda).
  */
 export interface CrearArticuloPayload {
+    /** Doble sentido: 'vendo' (default backend) | 'busco'. */
+    modo?: ModoArticulo;
     titulo: string;
     descripcion: string;
-    precio: number;
+    /** Obligatorio en modo='vendo'; ausente en modo='busco'. */
+    precio?: number;
+    /** Presupuesto {min,max} — solo modo='busco', opcional. */
+    presupuesto?: { min: number; max: number };
+    /** Pin al top del feed de búsquedas — solo modo='busco'. */
+    urgente?: boolean;
     /**
      * Opcional desde 2026-05-13. NULL/undefined = no aplica (productos
      * consumibles, hechos a mano nuevos, etc.).
@@ -295,14 +316,23 @@ export interface CrearArticuloPayload {
      * al publicar. El `aceptadasAt` lo agrega el backend al insertar
      * (timestamp confiable, no manipulable por el cliente).
      */
-    confirmaciones?: {
-        licito: boolean;
-        enPoder: boolean;
-        honesto: boolean;
-        seguro: boolean;
-        /** Identifica la versión del texto del checklist. Formato: `v<n>-YYYY-MM-DD`. */
-        version: string;
-    };
+    confirmaciones?:
+        | {
+              // Checklist de venta (modo='vendo').
+              licito: boolean;
+              enPoder: boolean;
+              honesto: boolean;
+              seguro: boolean;
+              /** Versión del texto del checklist. Formato: `v<n>-YYYY-MM-DD`. */
+              version: string;
+          }
+        | {
+              // Checklist de búsqueda (modo='busco'): sin "en mi poder".
+              licito: boolean;
+              real: boolean;
+              seguro: boolean;
+              version: string;
+          };
     fotos: string[];
     fotoPortadaIndex: number;
     latitud: number;
@@ -567,9 +597,15 @@ export function useVendedorPublicaciones(
  */
 export interface SugerenciaArticulo {
     id: string;
+    /** 'vendo' (venta) | 'busco' (demanda). Buscador global trae ambos. */
+    modo: ModoArticulo;
     titulo: string;
-    precio: number;
-    condicion: string;
+    /** NULL en modo='busco'. */
+    precio: number | null;
+    /** Presupuesto {min,max} — solo modo='busco', opcional. */
+    presupuesto: { min: number; max: number } | null;
+    /** NULL cuando no aplica. */
+    condicion: string | null;
     fotoPortada: string | null;
     ciudad: string;
     /** Nombre del usuario que publicó (solo personas — MP no admite negocios). */

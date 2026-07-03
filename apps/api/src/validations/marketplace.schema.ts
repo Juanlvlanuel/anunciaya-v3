@@ -78,10 +78,55 @@ const campoConfirmaciones = z.object({
 
 export type ConfirmacionesInput = z.infer<typeof campoConfirmaciones>;
 
+// Fotos: el mínimo depende del modo (vendo exige >=1, busco permite 0). El
+// mínimo se aplica en el `superRefine` de crearArticuloSchema, no aquí, para
+// poder reutilizar el mismo campo en ambos modos y en actualizar.
 const campoFotos = z
     .array(z.string().url('Cada foto debe ser una URL válida'))
-    .min(1, 'Debes incluir al menos 1 foto')
     .max(12, 'No puedes incluir más de 12 fotos');
+
+/** Modo de la publicación (doble sentido, calcado de Servicios). */
+const campoModo = z.enum(['vendo', 'busco'], {
+    message: 'El modo debe ser vendo o busco',
+});
+
+/**
+ * Presupuesto deseado del comprador — solo modo='busco', opcional.
+ * Calca `presupuesto` de servicios_publicaciones (Solicito).
+ */
+const campoPresupuesto = z
+    .object({
+        min: z
+            .number({ message: 'El presupuesto mínimo debe ser un número' })
+            .int('El presupuesto debe ser entero')
+            .positive('El presupuesto debe ser mayor a cero')
+            .max(999999, 'El presupuesto máximo permitido es $999,999'),
+        max: z
+            .number({ message: 'El presupuesto máximo debe ser un número' })
+            .int('El presupuesto debe ser entero')
+            .positive('El presupuesto debe ser mayor a cero')
+            .max(999999, 'El presupuesto máximo permitido es $999,999'),
+    })
+    .refine((p) => p.max >= p.min, {
+        message: 'El presupuesto máximo debe ser mayor o igual al mínimo',
+        path: ['max'],
+    });
+
+/**
+ * Confirmaciones del checklist legal en modo='busco'. Difiere de la venta:
+ * no existe "en mi poder" (no tienes el objeto). Ver Marketplace_Busco.md §6.
+ * - `licito`: Mi búsqueda es lícita (no pido nada ilegal ni robado).
+ * - `real`:   Es una búsqueda real.
+ * - `seguro`: Coordinaré la compra en un lugar seguro.
+ */
+const campoConfirmacionesBusco = z.object({
+    licito: z.boolean(),
+    real: z.boolean(),
+    seguro: z.boolean(),
+    version: z.string().trim().min(1).max(50),
+});
+
+export type ConfirmacionesBuscoInput = z.infer<typeof campoConfirmacionesBusco>;
 
 const campoFotoPortadaIndex = z
     .number()
@@ -105,10 +150,11 @@ const campoCiudad = z
     .min(2, 'La ciudad es obligatoria')
     .max(100, 'La ciudad no puede exceder 100 caracteres');
 
+// Zona aproximada: OPCIONAL en ambos modos (Vendo y Busco). Solo se valida
+// el máximo; una cadena vacía es válida (el service la persiste como '').
 const campoZonaAproximada = z
     .string()
     .trim()
-    .min(3, 'La zona aproximada es obligatoria')
     .max(150, 'La zona aproximada no puede exceder 150 caracteres');
 
 const campoUUID = z
@@ -125,39 +171,48 @@ const campoUUID = z
 
 export const crearArticuloSchema = z
     .object({
+        /**
+         * Doble sentido: 'vendo' (venta, default histórico) | 'busco'
+         * (demanda de compra). Ramifica qué campos son requeridos abajo.
+         */
+        modo: campoModo.optional().default('vendo'),
         titulo: campoTitulo,
         descripcion: campoDescripcion,
-        precio: campoPrecio,
+        /** Requerido solo en modo='vendo' (ver superRefine). */
+        precio: campoPrecio.optional(),
+        /** Presupuesto opcional — solo modo='busco'. */
+        presupuesto: campoPresupuesto.optional(),
+        /** Pin al top del feed de búsquedas — solo modo='busco'. */
+        urgente: z.boolean().optional().default(false),
         /**
-         * Condición opcional desde 2026-05-13. No aplica a productos
-         * consumibles, hechos a mano nuevos, etc. Si se omite o se manda
-         * null, el detalle y el card no muestran ninguna etiqueta de
-         * condición.
+         * Condición opcional desde 2026-05-13. Solo aplica a modo='vendo'.
+         * En modo='busco' se ignora (se persiste NULL).
          */
         condicion: campoCondicion.nullish(),
         /**
-         * "Acepta ofertas" opcional desde 2026-05-13. NULL = no especificado
-         * (no se muestra nada en el card). true/false = decisión explícita
-         * del vendedor.
+         * "Acepta ofertas" opcional desde 2026-05-13. Solo modo='vendo'.
          */
         aceptaOfertas: z.boolean().nullish(),
         /**
-         * Unidad de venta opcional (c/u, por kg, por docena, etc.). El card
-         * y el detalle muestran "$15 c/u" cuando existe, "$15" cuando no.
+         * Unidad de venta opcional (c/u, por kg, etc.). Solo modo='vendo'.
          */
         unidadVenta: campoUnidadVenta.nullish(),
         /**
-         * Confirmaciones del checklist legal (opcional para retrocompat con
-         * clientes legacy que no las envíen, pero el wizard nuevo siempre
-         * las manda). Se persisten como evidencia.
+         * Confirmaciones del checklist legal. En modo='vendo' usa el checklist
+         * de venta (licito/enPoder/honesto/seguro); en modo='busco' el de
+         * búsqueda (licito/real/seguro). Se validan por modo en el superRefine
+         * y se persisten como evidencia.
          */
-        confirmaciones: campoConfirmaciones.optional(),
-        fotos: campoFotos,
+        confirmaciones: z
+            .union([campoConfirmaciones, campoConfirmacionesBusco])
+            .optional(),
+        fotos: campoFotos.optional().default([]),
         fotoPortadaIndex: campoFotoPortadaIndex.optional().default(0),
         latitud: campoLatitud,
         longitud: campoLongitud,
         ciudad: campoCiudad,
-        zonaAproximada: campoZonaAproximada,
+        /** Opcional en ambos modos (Vendo y Busco). */
+        zonaAproximada: campoZonaAproximada.optional(),
         /**
          * Moderación: si el wizard detectó una sugerencia (servicio o
          * búsqueda) y el usuario eligió "Continuar de todos modos", reenvía
@@ -165,9 +220,58 @@ export const crearArticuloSchema = z
          */
         confirmadoPorUsuario: z.boolean().optional(),
     })
-    .refine((data) => data.fotoPortadaIndex < data.fotos.length, {
-        message: 'fotoPortadaIndex debe ser menor que la cantidad de fotos',
-        path: ['fotoPortadaIndex'],
+    // La portada debe apuntar a una foto existente (o no haber fotos).
+    .refine(
+        (data) => data.fotos.length === 0 || data.fotoPortadaIndex < data.fotos.length,
+        {
+            message: 'fotoPortadaIndex debe ser menor que la cantidad de fotos',
+            path: ['fotoPortadaIndex'],
+        }
+    )
+    // Reglas cruzadas por modo (calca el superRefine de Servicios).
+    .superRefine((data, ctx) => {
+        if (data.modo === 'vendo') {
+            if (data.precio === undefined) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'El precio es obligatorio para vender',
+                    path: ['precio'],
+                });
+            }
+            if (data.fotos.length < 1) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Debes incluir al menos 1 foto para vender',
+                    path: ['fotos'],
+                });
+            }
+            if (data.presupuesto !== undefined) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'El presupuesto solo aplica a búsquedas',
+                    path: ['presupuesto'],
+                });
+            }
+        } else {
+            // modo === 'busco'
+            if (data.precio !== undefined) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'Una búsqueda no lleva precio (usa presupuesto)',
+                    path: ['precio'],
+                });
+            }
+            if (
+                data.condicion !== undefined &&
+                data.condicion !== null
+            ) {
+                ctx.addIssue({
+                    code: z.ZodIssueCode.custom,
+                    message: 'La condición no aplica a una búsqueda',
+                    path: ['condicion'],
+                });
+            }
+        }
     });
 
 export type CrearArticuloInput = z.infer<typeof crearArticuloSchema>;
@@ -186,6 +290,10 @@ export const actualizarArticuloSchema = z
         titulo: campoTitulo.optional(),
         descripcion: campoDescripcion.optional(),
         precio: campoPrecio.optional(),
+        /** Editar el presupuesto de una búsqueda (modo='busco'). */
+        presupuesto: campoPresupuesto.optional(),
+        /** Editar el flag urgente de una búsqueda (modo='busco'). */
+        urgente: z.boolean().optional(),
         // Permitimos `null` para que el editor pueda LIMPIAR el valor
         // (ej. cambiar un artículo que tenía condición a no tener).
         condicion: campoCondicion.nullish(),
@@ -215,6 +323,7 @@ export const actualizarArticuloSchema = z
         (data) =>
             data.fotoPortadaIndex === undefined ||
             data.fotos === undefined ||
+            data.fotos.length === 0 ||
             data.fotoPortadaIndex < data.fotos.length,
         {
             message: 'fotoPortadaIndex debe ser menor que la cantidad de fotos',
@@ -263,6 +372,8 @@ export const feedQuerySchema = z.object({
     lng: z.coerce.number().refine((v) => v >= -180 && v <= 180, {
         message: 'lng debe estar entre -180 y 180',
     }),
+    /** 'vendo' (default histórico) | 'busco' (feed de demandas). */
+    modo: campoModo.optional().default('vendo'),
 });
 
 export type FeedQueryInput = z.infer<typeof feedQuerySchema>;
@@ -287,6 +398,16 @@ export const feedInfinitoQuerySchema = z.object({
     limite: z.coerce.number().int().min(1).max(20).optional().default(10),
     precioMin: z.coerce.number().min(0).optional(),
     precioMax: z.coerce.number().min(0).optional(),
+    /** 'vendo' (default histórico) | 'busco' (feed de demandas). */
+    modo: campoModo.optional().default('vendo'),
+    /**
+     * Solo búsquedas urgentes — aplica cuando modo='busco'. Llega como string
+     * del query; NO usar z.coerce.boolean (convierte "false" → true).
+     */
+    soloUrgente: z
+        .enum(['true', 'false'])
+        .optional()
+        .transform((v) => (v === undefined ? undefined : v === 'true')),
 });
 
 export type FeedInfinitoQueryInput = z.infer<typeof feedInfinitoQuerySchema>;
@@ -320,6 +441,11 @@ export const popularesQuerySchema = z.object({
 export const buscarQuerySchema = z.object({
     q: z.string().trim().max(100).optional(),
     ciudad: campoCiudad,
+    /**
+     * 'vendo' | 'busco'. Si se omite, la búsqueda es GLOBAL (ventas +
+     * búsquedas juntas) — comportamiento del buscador de la UI.
+     */
+    modo: campoModo.optional(),
     lat: z.coerce.number().min(-90).max(90).optional(),
     lng: z.coerce.number().min(-180).max(180).optional(),
     precioMin: z.coerce.number().int().min(0).max(999999).optional(),
