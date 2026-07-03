@@ -355,6 +355,8 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
         const resultadoBusqueda = await buscarEnTodaLaApp({
             q: interpretacion.data.terminos,
             ciudad: nombreCiudad,
+            intencion: interpretacion.data.intencion,
+            esEmpleo: interpretacion.data.esEmpleo,
         });
 
         const totalResultados =
@@ -374,6 +376,8 @@ export async function procesarPreguntaConCoyo(preguntaId: string): Promise<void>
         const redaccion = await redactarRespuestaCoyo(
             pregunta.texto,
             resultadoBusqueda.resultados,
+            interpretacion.data.intencion,
+            interpretacion.data.esEmpleo,
         );
 
         // ─── 6. Caso degenerado: IA caída + 0 resultados ─────────────

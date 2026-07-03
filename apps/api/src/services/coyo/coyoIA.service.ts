@@ -28,6 +28,8 @@ import { env } from '../../config/env.js';
 import {
     obtenerCatalogoCategorias,
     formatearCatalogoParaPrompt,
+    obtenerCatalogoMarketplace,
+    formatearCatalogoMarketplaceParaPrompt,
 } from './categoriasCatalogo.service.js';
 
 // =============================================================================
@@ -233,6 +235,17 @@ export type RespuestaIA<T> =
 export type TipoPregunta = 'busqueda_local' | 'vaga' | 'no_local' | 'inapropiada';
 
 /**
+ * Dirección de la búsqueda (solo relevante cuando `tipo='busqueda_local'`):
+ *  - `busca_oferta` (DEFAULT): el vecino quiere ENCONTRAR / COMPRAR / CONTRATAR
+ *    algo que otro ofrece ("¿dónde venden X?", "¿quién arregla Y?", "ocupo Z").
+ *    → Negocios + Ofertas + MarketPlace en venta + Servicios ofrecidos.
+ *  - `busca_demanda`: el vecino OFRECE / VENDE algo y busca QUIÉN LO NECESITA /
+ *    COMPRA ("¿quién compra X?", "vendo Z", "¿alguien que ocupe [mi servicio]?").
+ *    → MarketPlace en modo 'busco' + Servicios 'solicito' (sin Negocios ni Ofertas).
+ */
+export type IntencionPregunta = 'busca_oferta' | 'busca_demanda';
+
+/**
  * Output de `interpretarPregunta`.
  */
 export interface PreguntaInterpretada {
@@ -268,6 +281,19 @@ export interface PreguntaInterpretada {
      * cuando `tipo === 'vaga'`; vacío en los otros casos.
      */
     mensajeReformular: string;
+    /**
+     * Dirección de la búsqueda. Solo importa cuando `tipo === 'busqueda_local'`.
+     * Si Gemini la omite o manda un valor inválido, se normaliza a
+     * `'busca_oferta'` (el caso mayoritario y seguro). Ver {@link IntencionPregunta}.
+     */
+    intencion: IntencionPregunta;
+    /**
+     * `true` SOLO cuando el vecino busca TRABAJO/EMPLEO para sí mismo ("hay
+     * empleo?", "buscan personal?", "vacante de X"). Se responde con las
+     * VACANTES (`tipo='vacante-empresa'`), NO con negocios ni servicios — es un
+     * carril aparte en `buscadorUnificado` que ignora la `intencion`. Default false.
+     */
+    esEmpleo: boolean;
 }
 
 // =============================================================================
@@ -299,6 +325,7 @@ El sistema mostrará el texto fijo de redirección Y OCULTARÁ la pregunta del f
 
 REGLAS para terminos (solo cuando tipo es busqueda_local):
 - 1 a 3 PALABRAS CLAVE ESENCIALES — la CATEGORÍA o el SUSTANTIVO PRINCIPAL.
+- REGLA DE ORO — CONSERVA LA PALABRA DEL VECINO: si el vecino nombra algo CONCRETO (un producto, comida u objeto: "pan", "tacos", "cama", "bicicleta", "refrigerador"), SIEMPRE incluye esa palabra en los términos. Puedes AGREGAR la categoría del catálogo o un sinónimo como token EXTRA, pero NUNCA reemplaces la palabra del vecino solo por la categoría: los artículos de MarketPlace y las solicitudes usan la palabra LITERAL (ej. el artículo "Vendo Pan dulce" matchea "pan" pero NO "panadería"). Ej: "quiero comer pan" → "pan panadería" (no solo "panadería").
 - NO uses palabras DEMASIADO GENÉRICAS como término: "servicios", "servicio", "hogar", "casa", "ayuda", "algo", "bueno", "barato", "cosa", "cosas", "lugar", "lugares".
 - Para palabras prestadas del INGLÉS (laptop, software, smartphone, hotdog, etc.) usa SIEMPRE el SINGULAR — el buscador en español no procesa plurales anglo.
 - Para palabras en español puedes usar singular o plural indistintamente.
@@ -324,6 +351,7 @@ Cuando el vecino busca algo ESPECÍFICO (con sustantivo concreto), prefiere la p
 - "necesito una farmacia" → terminos: "Farmacias" (subcategoría exacta)
 - "donde hay una panadería" → terminos: "Panaderías" (subcategoría exacta)
 - "donde compro pan dulce" → terminos: "Repostería pan" (subcategoría + palabra)
+- "quiero comer pan" → terminos: "pan panadería" (conserva "pan" para los artículos que lo dicen + el giro para los negocios)
 
 ESTRATEGIA DE SINÓNIMOS (para palabras anglo o muy genéricas): Cuando la pregunta usa un término GENÉRICO en INGLÉS donde los productos suelen publicarse con marcas, INCLUYE 1-2 sinónimos comunes:
 - "smartphones" / "celulares" → terminos: "smartphone celular" (matchea iPhone, Samsung, etc.)
@@ -332,6 +360,12 @@ ESTRATEGIA DE SINÓNIMOS (para palabras anglo o muy genéricas): Cuando la pregu
 Ejemplos donde NO agregar sinónimos (palabra ya específica):
 - "tacos" → terminos: "tacos"
 - "pizza" → terminos: "pizza"
+
+ESTRATEGIA DE OFICIOS (español, MUY IMPORTANTE): los oficios tienen forma de PERSONA (plomero, electricista, albañil, carpintero, jardinero, mecánico, pintor, cerrajero) y forma de GIRO (plomería, carpintería, jardinería, cerrajería). El buscador NO une "plomero" con "plomería" (son raíces distintas para el motor), y las publicaciones usan CUALQUIERA de las dos indistintamente: una solicitud dice "busco plomero" y un oferente dice "ofrezco plomería". Por eso, para un oficio, INCLUYE SIEMPRE LAS DOS FORMAS (persona Y giro) sin importar cuál escribió el vecino:
+- "un plomero" / "ofrezco plomería" / "servicios de plomería" → terminos: "plomero plomería"
+- "necesito un carpintero" / "hago carpintería" → terminos: "carpintero carpintería"
+- "electricista" (no tiene giro claramente distinto) → terminos: "electricista"
+NUNCA pongas solo UNA forma cuando el oficio tiene ambas — perderías las publicaciones que usan la otra. Aplica igual en busca_oferta y busca_demanda.
 
 LIMITA a 4 tokens MÁXIMO total. Tu juicio decide cuál estrategia aplicar según la pregunta.
 
@@ -348,43 +382,76 @@ PREGUNTAS DE OPINIÓN QUE ESCONDEN BÚSQUEDA: en español mexicano es común pre
 - "¿está chido el clima?" → no_local (clima es abstracto, no buscable)
 - "¿qué piensas de los políticos?" → no_local (opinión abstracta)
 
+INTENCIÓN — DIRECCIÓN DE LA BÚSQUEDA (campo "intencion"; decide SIEMPRE, pero solo se usa cuando tipo es busqueda_local):
+¿El vecino es el que BUSCA algo, o el que OFRECE algo?
+- "busca_oferta" (POR DEFECTO — el caso normal): el vecino quiere ENCONTRAR, COMPRAR o CONTRATAR algo que alguien más ofrece. Ej: "¿dónde venden X?", "¿quién arregla Y?", "necesito/ocupo un plomero", "tengo hambre", "busco una lavadora".
+- "busca_demanda": el vecino OFRECE o VENDE algo y busca QUIÉN LO NECESITA o LO COMPRA. Ej: "¿quién compra X?", "vendo mi X", "ofrezco clases de inglés", "doy servicio de plomería", "¿alguien que ocupe un plomero?" (cuando el vecino ES el plomero buscando clientes).
+
+OJO con "ocupar" (en México = necesitar) — el pivote es QUIÉN necesita:
+- "ocupo un plomero" / "necesito un plomero" → el vecino necesita el servicio → busca_oferta.
+- "¿alguien que ocupe un plomero?" / "¿quién necesita un plomero?" → el vecino se ofrece como plomero y busca clientes → busca_demanda.
+
+El pivote general: ¿el vecino TIENE/OFRECE algo (busca_demanda) o lo QUIERE/NECESITA (busca_oferta)? Ante cualquier duda, usa "busca_oferta". Cuando tipo NO es busqueda_local, pon igualmente "busca_oferta".
+
+DOMINIO EMPLEO (campo "esEmpleo"): pon esEmpleo=true SOLO cuando el vecino busca TRABAJO/EMPLEO para sí mismo. Estas preguntas se responden con las VACANTES que publican las empresas (NO con negocios ni servicios). Señales: "hay empleo?", "hay chamba?", "buscan personal?", "están contratando?", "vacantes disponibles?", "solicitan meseros?", "busco trabajo de X", "hay trabajo de X?".
+- Sigue siendo tipo="busqueda_local".
+- Si el vecino NO menciona un puesto específico (solo "empleo"/"trabajo"/"chamba"), deja terminos VACÍO ("") — se traerán todas las vacantes recientes.
+- Si SÍ menciona un puesto ("solicitan meseros?", "vacante de diseñador"), pon SOLO el puesto en terminos ("mesero", "diseñador").
+- esEmpleo=false para TODO lo demás. OJO: "necesito un plomero" / "ocupo un albañil" NO son empleo — el vecino quiere CONTRATAR un servicio, no emplearse (esEmpleo=false).
+
 REGLAS para mensajeReformular (solo cuando tipo es vaga):
 - 1-2 frases cálidas, mexicanas naturales, sin exagerar.
 - TUTEA siempre. NO uses "pueblo" ni "catálogo" — habla de "la ciudad" o "tu ciudad".
 - DEBE incluir OPCIONES CONCRETAS para que el vecino sepa qué decir. Sugiere 3-5 dominios razonables relacionados con la pregunta.
 - Si la pregunta es agresiva u ofensiva, NO te enganches — responde neutral y breve invitando a reformular bien.
 
-EJEMPLOS de cada tipo:
+EJEMPLOS de cada tipo (fíjate en el campo "intencion"):
 
-busqueda_local:
-- "¿Quién arregla una fuga de agua urgente?" → {"tipo": "busqueda_local", "terminos": "plomería", "mensajeReformular": ""}
-- "¿Dónde venden tacos al pastor?" → {"tipo": "busqueda_local", "terminos": "tacos", "mensajeReformular": ""}
-- "¿Dónde hay laptops?" → {"tipo": "busqueda_local", "terminos": "laptop", "mensajeReformular": ""}
-- "venden smartphones?" → {"tipo": "busqueda_local", "terminos": "smartphone celular", "mensajeReformular": ""}
-- "no tengo ganas de cocinar" → {"tipo": "busqueda_local", "terminos": "restaurantes", "mensajeReformular": ""}
-- "el coche no arranca" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": ""}
-- "está chido pedir tacos a domicilio?" → {"tipo": "busqueda_local", "terminos": "tacos domicilio", "mensajeReformular": ""}
-- "vale la pena ir al mecánico aquí?" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": ""}
+busqueda_local · busca_oferta (el vecino busca / compra / contrata):
+- "¿Quién arregla una fuga de agua urgente?" → {"tipo": "busqueda_local", "terminos": "plomería", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "¿Dónde venden tacos al pastor?" → {"tipo": "busqueda_local", "terminos": "tacos", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "¿Dónde hay laptops?" → {"tipo": "busqueda_local", "terminos": "laptop", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "venden smartphones?" → {"tipo": "busqueda_local", "terminos": "smartphone celular", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "no tengo ganas de cocinar" → {"tipo": "busqueda_local", "terminos": "restaurantes", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "el coche no arranca" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "ocupo un plomero" → {"tipo": "busqueda_local", "terminos": "plomero plomería", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "está chido pedir tacos a domicilio?" → {"tipo": "busqueda_local", "terminos": "tacos domicilio", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "vale la pena ir al mecánico aquí?" → {"tipo": "busqueda_local", "terminos": "mecánico", "mensajeReformular": "", "intencion": "busca_oferta"}
+
+busqueda_local · busca_demanda (el vecino OFRECE / VENDE y busca quién lo necesita / compra):
+- "¿quién compra una cama matrimonial?" → {"tipo": "busqueda_local", "terminos": "cama matrimonial", "mensajeReformular": "", "intencion": "busca_demanda"}
+- "vendo mi bici de montaña" → {"tipo": "busqueda_local", "terminos": "bicicleta montaña", "mensajeReformular": "", "intencion": "busca_demanda"}
+- "ofrezco clases de inglés" → {"tipo": "busqueda_local", "terminos": "clases inglés", "mensajeReformular": "", "intencion": "busca_demanda"}
+- "¿alguien que ocupe un plomero?" → {"tipo": "busqueda_local", "terminos": "plomero plomería", "mensajeReformular": "", "intencion": "busca_demanda"}
+- "doy servicio de jardinería ¿a quién le interesa?" → {"tipo": "busqueda_local", "terminos": "jardinero jardinería", "mensajeReformular": "", "intencion": "busca_demanda"}
+- "ofrezco servicios de plomería" → {"tipo": "busqueda_local", "terminos": "plomero plomería", "mensajeReformular": "", "intencion": "busca_demanda"}
+
+busqueda_local · empleo (esEmpleo=true — el vecino busca trabajo; se responde con VACANTES):
+- "hay algún empleo?" → {"tipo": "busqueda_local", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta", "esEmpleo": true}
+- "buscan personal?" → {"tipo": "busqueda_local", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta", "esEmpleo": true}
+- "están contratando?" → {"tipo": "busqueda_local", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta", "esEmpleo": true}
+- "solicitan meseros?" → {"tipo": "busqueda_local", "terminos": "mesero", "mensajeReformular": "", "intencion": "busca_oferta", "esEmpleo": true}
+- "hay vacante de diseñador?" → {"tipo": "busqueda_local", "terminos": "diseñador", "mensajeReformular": "", "intencion": "busca_oferta", "esEmpleo": true}
 
 vaga:
-- "¿Quien me ayuda con la casa?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Hola! Para echarte la mano dime de qué se trata: ¿necesitas plomero, electricista, jardinería, limpieza o ayuda con mudanza? Con un poquito más de detalle te ayudo mejor."}
-- "¿Tienen algo bueno?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Híjole, hay mucho en tu ciudad! Cuéntame qué tipo de cosa te interesa: ¿negocios, productos en venta, ofertas del día, servicios? Con un poquito más de pista te oriento."}
-- "no encuentro nada barato" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "Pues mira, ¿qué andas buscando barato? Dime si es comida, ropa, electrónica, herramientas o algún servicio en particular, y te echo un ojo."}
+- "¿Quien me ayuda con la casa?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Hola! Para echarte la mano dime de qué se trata: ¿necesitas plomero, electricista, jardinería, limpieza o ayuda con mudanza? Con un poquito más de detalle te ayudo mejor.", "intencion": "busca_oferta"}
+- "¿Tienen algo bueno?" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "¡Híjole, hay mucho en tu ciudad! Cuéntame qué tipo de cosa te interesa: ¿negocios, productos en venta, ofertas del día, servicios? Con un poquito más de pista te oriento.", "intencion": "busca_oferta"}
+- "no encuentro nada barato" → {"tipo": "vaga", "terminos": "", "mensajeReformular": "Pues mira, ¿qué andas buscando barato? Dime si es comida, ropa, electrónica, herramientas o algún servicio en particular, y te echo un ojo.", "intencion": "busca_oferta"}
 
 no_local:
-- "¿Cuánto es 5 por 8?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "Escríbeme un poema sobre el mar" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
-- "qué piensas de la política?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": ""}
+- "¿Cuánto es 5 por 8?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "Escríbeme un poema sobre el mar" → {"tipo": "no_local", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "qué piensas de la política?" → {"tipo": "no_local", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
 
 inapropiada:
-- "donde venden marihuana?" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
-- "necesito un sicario" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
-- "donde compro armas?" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
-- "ustedes son una mierda" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
-- "necesito prostitutas" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": ""}
+- "donde venden marihuana?" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "necesito un sicario" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "donde compro armas?" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "ustedes son una mierda" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
+- "necesito prostitutas" → {"tipo": "inapropiada", "terminos": "", "mensajeReformular": "", "intencion": "busca_oferta"}
 
 RESPONDE SOLO con JSON válido, SIN texto extra, SIN bloques markdown, SIN explicaciones. El JSON debe tener exactamente esta forma:
-{"tipo": "busqueda_local"|"vaga"|"no_local", "terminos": "...", "mensajeReformular": "..."}`;
+{"tipo": "busqueda_local"|"vaga"|"no_local"|"inapropiada", "terminos": "...", "mensajeReformular": "...", "intencion": "busca_oferta"|"busca_demanda", "esEmpleo": true|false}`;
 
 /**
  * Clasifica la pregunta del vecino y extrae términos buscables.
@@ -406,11 +473,23 @@ export async function interpretarPregunta(
     // carga o el catálogo está vacío, formatearCatalogoParaPrompt devuelve
     // cadena vacía y el prompt funciona sin esa sección (Gemini cae a sus
     // reglas internas). Ver `categoriasCatalogo.service.ts`.
-    const catalogo = await obtenerCatalogoCategorias();
+    const [catalogo, catalogoMP] = await Promise.all([
+        obtenerCatalogoCategorias(),
+        obtenerCatalogoMarketplace(),
+    ]);
     const catalogoTexto = formatearCatalogoParaPrompt(catalogo);
-    const promptCompleto = catalogoTexto
-        ? `${PROMPT_INTERPRETAR}\n\nCATÁLOGO DE CATEGORÍAS DE ANUNCIAYA (estas son las categorías REALES de los negocios en este momento — úsalas como referencia para extraer la CATEGORÍA PRINCIPAL como uno de los \`terminos\` cuando el vecino busque un dominio amplio):\n\n${catalogoTexto}\n\nIMPORTANTE: cuando incluyas una CATEGORÍA o SUBCATEGORÍA del catálogo, úsala EXACTAMENTE COMO APARECE (con la inicial en mayúscula). Esto permite que el buscador matchee correctamente.`
-        : PROMPT_INTERPRETAR;
+    const catalogoMPTexto = formatearCatalogoMarketplaceParaPrompt(catalogoMP);
+
+    let promptCompleto = PROMPT_INTERPRETAR;
+    if (catalogoTexto) {
+        promptCompleto += `\n\nCATÁLOGO DE CATEGORÍAS DE NEGOCIOS (giros REALES de los negocios locales — úsalas como CATEGORÍA PRINCIPAL en \`terminos\` cuando el vecino busque un dominio amplio de negocio, servicio o comida):\n\n${catalogoTexto}`;
+    }
+    if (catalogoMPTexto) {
+        promptCompleto += `\n\nCATÁLOGO DE CATEGORÍAS DE MARKETPLACE (categorías de PRODUCTOS que los vecinos compran y venden entre sí — úsalas en \`terminos\` cuando la pregunta sea COMPRAR o VENDER una cosa/producto físico, sea busca_oferta o busca_demanda):\n\n${catalogoMPTexto}`;
+    }
+    if (catalogoTexto || catalogoMPTexto) {
+        promptCompleto += `\n\nIMPORTANTE: cuando incluyas una CATEGORÍA o SUBCATEGORÍA de cualquiera de los dos catálogos, úsala EXACTAMENTE COMO APARECE (con la inicial en mayúscula). Así el buscador la matchea correctamente.`;
+    }
 
     const respuesta = await llamarGeminiConReintento(
         cliente,
@@ -428,7 +507,10 @@ export async function interpretarPregunta(
         const limpio = limpiarJsonDeGemini(textoRespuesta);
         const parseado: unknown = JSON.parse(limpio);
         if (esPreguntaInterpretada(parseado)) {
-            return { disponible: true, data: parseado };
+            const raw = parseado as { intencion?: unknown; esEmpleo?: unknown };
+            const intencion = normalizarIntencion(raw.intencion);
+            const esEmpleo = normalizarEmpleo(raw.esEmpleo);
+            return { disponible: true, data: { ...parseado, intencion, esEmpleo } };
         }
         console.warn(
             'Coyo IA — interpretarPregunta: JSON con shape inválido',
@@ -470,15 +552,28 @@ export type ResultadosParaRedactar = unknown;
 export async function redactarRespuestaCoyo(
     pregunta: string,
     resultados: ResultadosParaRedactar,
+    intencion: IntencionPregunta = 'busca_oferta',
+    esEmpleo = false,
 ): Promise<RespuestaIA<string>> {
     const cliente = obtenerCliente();
     if (cliente === null) return { disponible: false, razon: 'sin_api_key' };
 
     const datosJson = JSON.stringify(resultados, null, 2);
+
+    // El tono cambia según quién es el vecino: quien busca empleo (esEmpleo),
+    // comprador (busca_oferta) o oferente/vendedor (busca_demanda).
+    const contextoIntencion = esEmpleo
+        ? `CONTEXTO CLAVE — el vecino busca EMPLEO / TRABAJO. Los resultados (en el grupo "servicios") son VACANTES publicadas por empresas de la ciudad. Preséntalas como oportunidades de trabajo: "encontré estas vacantes", "hay una vacante de X". Menciona el puesto. NUNCA hables de "comprar" ni "contratar" — el vecino quiere emplearse.`
+        : intencion === 'busca_demanda'
+            ? `CONTEXTO CLAVE — el vecino NO está comprando: está OFRECIENDO o VENDIENDO algo y busca QUIÉN LO NECESITA o LO COMPRA. Los resultados son publicaciones de OTROS vecinos que andan BUSCANDO justo eso (demanda). Preséntalos como OPORTUNIDADES: "mira, encontré vecinos que andan buscando eso", "estos podrían estar interesados en lo tuyo". NUNCA le digas que compre o contrate — es ÉL quien ofrece.`
+            : `CONTEXTO — el vecino busca ENCONTRAR, COMPRAR o CONTRATAR algo. Los resultados son opciones que le sirven. Preséntaselos como recomendaciones para lo que busca.`;
+
     const prompt = `${PERSONALIDAD_COYO}
 
 Pregunta del vecino:
 ${pregunta}
+
+${contextoIntencion}
 
 Resultados reales encontrados en tu ciudad (JSON):
 ${datosJson}
@@ -532,7 +627,9 @@ function limpiarJsonDeGemini(raw: string): string {
  * `PreguntaInterpretada` antes de castearlo. Defensivo contra Gemini
  * devolviendo un JSON con otro shape.
  */
-function esPreguntaInterpretada(v: unknown): v is PreguntaInterpretada {
+function esPreguntaInterpretada(
+    v: unknown,
+): v is Omit<PreguntaInterpretada, 'intencion' | 'esEmpleo'> {
     if (typeof v !== 'object' || v === null) return false;
     const obj = v as Record<string, unknown>;
     return (
@@ -544,4 +641,18 @@ function esPreguntaInterpretada(v: unknown): v is PreguntaInterpretada {
         typeof obj.terminos === 'string' &&
         typeof obj.mensajeReformular === 'string'
     );
+}
+
+/**
+ * Normaliza el campo `intencion` que devuelve Gemini: cualquier valor que no
+ * sea exactamente `'busca_demanda'` cae a `'busca_oferta'` (default seguro —
+ * es el caso mayoritario y no cambia el comportamiento histórico de Coyo).
+ */
+function normalizarIntencion(v: unknown): IntencionPregunta {
+    return v === 'busca_demanda' ? 'busca_demanda' : 'busca_oferta';
+}
+
+/** Normaliza `esEmpleo`: solo `true` cuando Gemini lo dice explícitamente. */
+function normalizarEmpleo(v: unknown): boolean {
+    return v === true;
 }

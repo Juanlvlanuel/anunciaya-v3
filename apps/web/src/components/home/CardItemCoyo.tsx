@@ -25,6 +25,15 @@ const TIPO_LABEL: Record<ItemCoyo['tipo'], string> = {
 };
 
 /**
+ * Etiqueta del badge. MarketPlace distingue venta vs demanda ('busco') — una
+ * publicación 'busco' NO es una venta, así que el badge dice "Se busca".
+ */
+function etiquetaTipo(item: ItemCoyo): string {
+    if (item.tipo === 'marketplace' && item.mpModo === 'busco') return 'Se busca';
+    return TIPO_LABEL[item.tipo];
+}
+
+/**
  * Chips ricos por tipo. Solo se muestra el chip si el dato vino no-nulo y,
  * para ratings, solo si hay reseñas reales (totalResenas > 0) — un negocio
  * sin reseñas tiene rating=0 por default y mostrar "0.0" lo hacía ver mal
@@ -139,8 +148,17 @@ function CardItemCoyoBase({ item }: CardItemCoyoProps) {
                     className="absolute top-2 left-2 inline-flex items-center text-sm lg:text-[11px] 2xl:text-sm font-bold text-white rounded-md px-2 py-0.5 shadow-sm"
                     style={{ background: 'rgba(15,23,42,0.82)' }}
                 >
-                    {TIPO_LABEL[item.tipo]}
+                    {etiquetaTipo(item)}
                 </span>
+                {item.logo && (
+                    <img
+                        src={item.logo}
+                        alt=""
+                        aria-hidden="true"
+                        className="absolute bottom-2 left-2 h-9 w-9 rounded-full border-2 border-white bg-white object-cover shadow-sm"
+                        onError={(e) => { e.currentTarget.style.display = 'none'; }}
+                    />
+                )}
             </div>
             <div className="flex-1 min-h-0 p-3 flex flex-col gap-1">
                 <p className="text-sm font-bold text-slate-800 leading-snug line-clamp-2 lg:group-hover/card:text-blue-700">

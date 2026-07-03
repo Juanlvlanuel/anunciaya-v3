@@ -74,6 +74,8 @@ export interface ItemCoyo {
     titulo: string;
     subtitulo: string | null;
     imagen: string | null;
+    /** Logo/marca a superponer sobre la portada (hoy solo vacantes; null en otros). */
+    logo: string | null;
 
     // Ricos opcionales — null cuando no aplican al tipo
     rating: number | null;
@@ -82,6 +84,8 @@ export interface ItemCoyo {
     estaAbierto: boolean | null;
     condicion: string | null;
     aceptaOfertas: boolean | null;
+    /** MarketPlace: 'vendo' (venta) | 'busco' (demanda) | null en otros tipos. Decide el badge. */
+    mpModo: 'vendo' | 'busco' | null;
     negocioRating: number | null;
     diasParaVencer: number | null;
 }

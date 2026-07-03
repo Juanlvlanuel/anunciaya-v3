@@ -283,7 +283,7 @@ cubriendo el texto principal correctamente.
 
 | Buscador | Modo normal (usuarios) | Modo flexible (Coyo) |
 |---|---|---|
-| Marketplace | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`) | FTS + ILIKE(`titulo`) |
+| Marketplace | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`) | FTS + ILIKE(`titulo`, `categoria.nombre`) |
 | Servicios | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`) + EXISTS(`skills`, `requisitos`) | FTS + ILIKE(`titulo`) |
 | Ofertas | FTS(`titulo+descripcion`) + ILIKE(`titulo`, `descripcion`, `negocio.nombre`) + EXISTS(`subcategorias`, `categorias`) | FTS + ILIKE(`titulo`, `negocio.nombre`) + EXISTS(`subcategorias`, `categorias`) |
 | Negocios | ILIKE(`negocio.nombre`, `sucursal.nombre`, `direccion`, `ciudad`) + EXISTS(`subcategorias`, `categorias`) | igual (todos los campos son cortos y curados) |
@@ -316,9 +316,101 @@ inglés (laptop, software, smartphone, hotdog, etc.).
 Gemini que devuelva el **SINGULAR** para palabras inglesas. Esto cubre
 prácticamente todos los casos en producción.
 
+**Oficios español — forma persona vs giro (Fase 2).** El stemmer tampoco une la
+forma de **persona** con la de **giro** del mismo oficio: `plomero → 'plomer'`
+pero `plomería → 'plom'` (raíces distintas → no matchean). Los vecinos escriben
+su **demanda** con la forma de persona (*"busco plomero"*), mientras el catálogo
+usa el giro (*"Plomería"*). Sin mitigación, *"¿alguien que ocupe un plomero?"* →
+Gemini extraía `"plomería"` → 0 matches contra la solicitud "Busco plomero".
+**Mitigación:** la *Estrategia de Oficios* del prompt obliga a incluir SIEMPRE
+las DOS formas —persona y giro— sin importar cuál escribió el vecino (*"plomero
+plomería"*, tanto si pregunta *"busco plomero"* como si dice *"ofrezco
+plomería"*), así el OR del modo flexible matchea ambas. Aplica a plomero/plomería,
+carpintero/carpintería, jardinero/jardinería, cerrajero/cerrajería, etc.
+
+**Regla de Oro — conservar la palabra del vecino (general).** El mismo principio
+aplica a PRODUCTOS y comidas, no solo oficios: si el vecino nombra algo concreto
+(*"pan"*), el prompt obliga a conservar esa palabra y agregar el giro como token
+extra (*"pan panadería"*), NUNCA a reemplazarla solo por la categoría. Motivo: el
+artículo de MarketPlace *"Vendo Pan dulce"* matchea `pan` pero **no** `panadería`
+ni `Comida` — extraer solo el giro perdía la publicación de MP (`marketplace: 0`).
+
 **Documento maestro del patrón FTS:** `docs/estandares/PATRON_BUSCADOR_FTS.md`
 — incluye la receta del wrapper `public.immutable_unaccent` (portable a
 Supabase) y las 7 trampas conocidas.
+
+---
+
+## Intención de la pregunta y categorías de MarketPlace (Fase 2)
+
+Coyo distingue la **dirección** de la búsqueda y conecta las **categorías propias
+de MarketPlace**, no solo las de Negocios.
+
+### Intención: comprador vs oferente
+
+`interpretarPregunta` clasifica además un campo **`intencion`** (tipo
+`IntencionPregunta` en `coyoIA.service.ts`):
+
+| `intencion` | Quién es el vecino | Ejemplos | A qué buscadores va |
+|---|---|---|---|
+| **`busca_oferta`** (default) | Busca / compra / contrata | *"¿dónde venden X?"*, *"ocupo un plomero"*, *"tengo hambre"* | Negocios + Ofertas + MP `vendo` + Servicios `ofrezco` |
+| **`busca_demanda`** | Ofrece / vende y busca quién lo necesita | *"¿quién compra X?"*, *"vendo mi bici"*, *"¿alguien que ocupe un plomero?"* | SOLO MP `busco` + Servicios `solicito` |
+
+El pivote lingüístico: ¿el vecino **tiene/ofrece** algo o lo **quiere/necesita**?
+Cuidado con "ocupar" (en México = necesitar): *"ocupo un plomero"* (lo necesita) →
+`busca_oferta`; *"¿alguien que ocupe un plomero?"* (se ofrece como plomero) →
+`busca_demanda`. Ante la duda, `busca_oferta` — es el default seguro y lo fuerza
+`normalizarIntencion()` si Gemini omite el campo o manda un valor inválido.
+
+- **Ruteo** (`buscadorUnificado.ts`): en `busca_demanda`, Negocios y Ofertas se
+  devuelven como grupos vacíos SIN gastar query (son oferta comercial: no le
+  sirven a un vendedor). MP recibe `modo: 'busco'` y Servicios `modo: 'solicito'`.
+  En `busca_oferta` (lo histórico), MP recibe `modo: 'vendo'` y Servicios
+  `modo: 'ofrezco'` (antes Servicios traía ambos modos — ahora se acota al comprador).
+- **Tono** (`redactarRespuestaCoyo(pregunta, resultados, intencion)`): en
+  `busca_demanda` presenta la demanda como oportunidad (*"encontré vecinos que
+  andan buscando eso"*) en vez de *"te recomiendo comprar"*.
+- **Presentación de la card** (`ItemUnificado.mpModo` + `CardItemCoyo.tsx`): una
+  publicación 'busco' lleva `mpModo: 'busco'` → la card muestra el badge
+  **"Se busca"** (no "Venta") y como subtítulo el **presupuesto** (`$min – $max`,
+  o nada si no lo puso) en vez de precio+condición. Evita el *"$0 · null"* que
+  salía al tratar una demanda como si fuera venta.
+
+### Carril empleo (vacantes)
+
+Buscar **trabajo** es un tercer carril, aparte de comprador/oferente. El modelo de
+Servicios guarda las **vacantes** con `tipo='vacante-empresa'` y —contraintuitivo—
+`modo='solicito'` (la empresa "solicita" un trabajador). Por eso el ruteo por
+`intencion` no las alcanzaba (`busca_oferta` filtra `modo='ofrezco'`).
+
+- `interpretarPregunta` marca **`esEmpleo: true`** cuando el vecino busca trabajo
+  para sí mismo (*"hay empleo?"*, *"buscan personal?"*, *"vacante de diseñador"*).
+  Sin puesto mencionado → `terminos` vacío (todas las vacantes); con puesto → va el
+  puesto. *"necesito un plomero"* NO es empleo (es contratar un servicio).
+- `buscadorUnificado`: cuando `esEmpleo`, IGNORA `intencion` y trae SOLO las vacantes
+  (`buscarServicios({ tipo: 'vacante-empresa' })`, **sin** filtro de modo). Negocios,
+  Ofertas y MarketPlace quedan vacíos (un empleo no vive ahí).
+- La card muestra el **negocio** que publica la vacante (*"Vacante · Taqueria Peñasco"*),
+  usa su **portada** como imagen grande y superpone el **logo** como avatar
+  (`ItemUnificado.logo` → `CardItemCoyo`), porque las vacantes no traen fotos propias
+  (`fotos: []`). `buscarServicios` resuelve portada, logo y nombre con un LEFT JOIN vía
+  `sucursal_id`. El tono de `redactarRespuestaCoyo` presenta oportunidades de trabajo
+  (no "compra/contrata").
+
+### Categorías de MarketPlace en el prompt y el buscador
+
+Igual que Coyo ya conoce las categorías de **Negocios**, ahora también conoce las
+de **MarketPlace** (`categorias_marketplace`, 1 nivel, sin subcategorías):
+
+- `categoriasCatalogo.service.ts` expone `obtenerCatalogoMarketplace()` (cache 1h,
+  misma degradación graceful). El prompt de `interpretarPregunta` recibe DOS
+  secciones: categorías de **Negocios** (giros) + categorías de **MarketPlace**
+  (productos). Gemini usa las de MP cuando la pregunta es comprar/vender una cosa.
+- `buscarArticulos` (SOLO en modo flexible / Coyo) matchea los tokens también
+  contra el **nombre de la categoría** del artículo (`LEFT JOIN
+  categorias_marketplace cat`), así *"Vehículos"* trae TODA la categoría aunque el
+  título no diga "auto". El nombre de categoría es corto y curado → seguro para el
+  ILIKE flexible (misma regla que las subcategorías de Negocios).
 
 ---
 
@@ -339,10 +431,11 @@ futuro se migra a otra LLM (Claude, GPT, etc.), solo se toca este archivo.
 
 ```typescript
 interpretarPregunta(texto: string): Promise<RespuestaIA<PreguntaInterpretada>>
-  // → { tipo: TipoPregunta, terminos: string, mensajeReformular: string }
+  // → { tipo: TipoPregunta, terminos: string, mensajeReformular: string, intencion: IntencionPregunta }
+  //   intencion: 'busca_oferta' (compra/contrata) | 'busca_demanda' (ofrece/vende). Ver §Intención (Fase 2).
 
-redactarRespuestaCoyo(pregunta: string, resultados: unknown): Promise<RespuestaIA<string>>
-  // → texto cálido (1-2 frases) presentando los resultados.
+redactarRespuestaCoyo(pregunta: string, resultados: unknown, intencion?: IntencionPregunta): Promise<RespuestaIA<string>>
+  // → texto cálido (1-2 frases). El tono cambia según la intención (comprador vs oferente).
 
 RespuestaIA<T> =
   | { disponible: true; data: T }

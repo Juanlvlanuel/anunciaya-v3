@@ -384,7 +384,14 @@ export async function buscarArticulos(
             sql`to_tsvector('spanish', unaccent(a.titulo || ' ' || a.descripcion)) @@ ${ftsExpr}`,
             ilikeOr(sql`unaccent(a.titulo)`),
         ];
-        if (!usarFlexible) {
+        if (usarFlexible) {
+            // Modo flexible (Coyo): matchear también contra el NOMBRE de la
+            // categoría (corto y curado, bajo riesgo de substring espurio), para
+            // que un término de categoría (ej. "Vehículos") traiga TODOS los
+            // artículos de esa categoría aunque el título no la mencione. El FTS
+            // de título+descripción sigue cubriendo el texto libre.
+            clausulasBusqueda.push(ilikeOr(sql`unaccent(cat.nombre)`));
+        } else {
             clausulasBusqueda.push(ilikeOr(sql`unaccent(a.descripcion)`));
         }
 
@@ -457,6 +464,7 @@ export async function buscarArticulos(
             ${distanciaSelect}
         FROM articulos_marketplace a
         LEFT JOIN ciudades c ON c.id = a.ciudad_id
+        LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
         WHERE ${where}
         ${orderBy}
         LIMIT ${limit}
@@ -468,6 +476,7 @@ export async function buscarArticulos(
         SELECT COUNT(*)::int AS total
         FROM articulos_marketplace a
         LEFT JOIN ciudades c ON c.id = a.ciudad_id
+        LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
         WHERE ${where}
     `);
     const total = (totalResultado.rows[0] as { total: number }).total;

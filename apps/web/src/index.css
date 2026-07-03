@@ -1431,11 +1431,14 @@ header[style*="rgba(0, 0, 0, 0.3)"] {
 }
 
 /* Scrollbar fina para la lista de "Mis preguntas" del rail */
-.mp-scroll { scrollbar-width: thin; }
-.mp-scroll::-webkit-scrollbar { width: 6px; }
-.mp-scroll::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.28); border-radius: 3px; }
-.mp-scroll::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.45); }
+.mp-scroll { scrollbar-width: thin; scrollbar-color: rgba(100, 116, 139, 0.30) transparent; }
+/* height afina la barra HORIZONTAL (width solo afecta a las verticales). */
+.mp-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+.mp-scroll::-webkit-scrollbar-thumb { background: rgba(100, 116, 139, 0.30); border-radius: 9999px; }
+.mp-scroll::-webkit-scrollbar-thumb:hover { background: rgba(100, 116, 139, 0.50); }
 .mp-scroll::-webkit-scrollbar-track { background: transparent; }
+/* Sin las flechas del scrollbar global (se veían anticuadas en el rail). */
+.mp-scroll::-webkit-scrollbar-button { display: none; width: 0; height: 0; }
 
 @media (prefers-reduced-motion: reduce) {
   .coyo-float, .send-ico, .coyo-dots span, .coyo-ping, .finger-bob, .feed-highlight {

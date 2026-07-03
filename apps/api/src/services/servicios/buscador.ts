@@ -397,9 +397,16 @@ export async function buscarServicios(
             sp.estado,
             sp.total_vistas, sp.total_mensajes, sp.total_guardados,
             sp.expira_at, sp.created_at, sp.updated_at,
+            sp.sucursal_id,
+            neg.nombre AS negocio_nombre,
+            neg.logo_url AS negocio_logo,
+            ns.foto_perfil AS sucursal_foto,
+            ns.portada_url AS sucursal_portada,
             ${distanciaSelect}
         FROM servicios_publicaciones sp
         LEFT JOIN ciudades c ON c.id = sp.ciudad_id
+        LEFT JOIN negocio_sucursales ns ON ns.id = sp.sucursal_id
+        LEFT JOIN negocios neg ON neg.id = ns.negocio_id
         WHERE ${where}
         ${orderBy}
         LIMIT ${limit}
@@ -449,6 +456,11 @@ export async function buscarServicios(
         created_at: string;
         updated_at: string;
         distancia_metros: number | null;
+        sucursal_id: string | null;
+        negocio_nombre: string | null;
+        negocio_logo: string | null;
+        sucursal_foto: string | null;
+        sucursal_portada: string | null;
     }
     const data = (datosResultado.rows as unknown as RawFila[]).map((row) => ({
         id: row.id,
@@ -483,6 +495,12 @@ export async function buscarServicios(
         updatedAt: row.updated_at,
         distanciaMetros:
             row.distancia_metros !== null ? Math.round(row.distancia_metros) : null,
+        sucursalId: row.sucursal_id,
+        negocioNombre: row.negocio_nombre,
+        negocioLogo: row.negocio_logo,
+        // Imagen de PORTADA heredada del negocio (las vacantes no traen fotos
+        // propias): portada (foto grande) primero; perfil/logo solo de respaldo.
+        imagenNegocio: row.sucursal_portada ?? row.sucursal_foto ?? row.negocio_logo ?? null,
     }));
 
     // ─── Loguear término en BD (fire-and-forget, usuario_id = NULL) ─────

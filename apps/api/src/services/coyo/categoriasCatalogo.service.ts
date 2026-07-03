@@ -42,6 +42,10 @@ let cache: CategoriaCatalogo[] | null = null;
 let cacheExpiresAt = 0;
 const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
 
+// Cache separado para las categorías de MarketPlace (tabla propia de 1 nivel).
+let cacheMP: string[] | null = null;
+let cacheMPExpiresAt = 0;
+
 /**
  * Reset manual del cache (útil para tests o para forzar recarga después
  * de cambios en BD). No expuesto en runtime — solo para tests.
@@ -49,6 +53,8 @@ const CACHE_TTL_MS = 60 * 60 * 1000; // 1 hora
 export function resetearCacheCatalogo(): void {
     cache = null;
     cacheExpiresAt = 0;
+    cacheMP = null;
+    cacheMPExpiresAt = 0;
 }
 
 // =============================================================================
@@ -123,4 +129,55 @@ export function formatearCatalogoParaPrompt(
     return catalogo
         .map((c) => `- ${c.nombre}: ${c.subcategorias.join(', ')}`)
         .join('\n');
+}
+
+// =============================================================================
+// CATÁLOGO DE MARKETPLACE (categorías propias de 1 nivel)
+// =============================================================================
+
+/**
+ * Nombres de las categorías ACTIVAS de MarketPlace (`categorias_marketplace`,
+ * 1 nivel, sin subcategorías). Mismo cache de 1h + degradación que el catálogo
+ * de negocios. Se inyecta al prompt para que Gemini extraiga la categoría MP
+ * cuando el vecino busca un PRODUCTO/COSA (compra o venta).
+ */
+export async function obtenerCatalogoMarketplace(): Promise<string[]> {
+    const now = Date.now();
+    if (cacheMP && cacheMPExpiresAt > now) {
+        return cacheMP;
+    }
+
+    try {
+        const result = await db.execute(sql`
+            SELECT nombre
+            FROM categorias_marketplace
+            WHERE activa = true
+            ORDER BY orden, nombre
+        `);
+
+        const nombres = (result.rows as Array<{ nombre: string }>).map(
+            (r) => r.nombre,
+        );
+
+        cacheMP = nombres;
+        cacheMPExpiresAt = now + CACHE_TTL_MS;
+        return nombres;
+    } catch (error) {
+        console.error(
+            'Coyo: error cargando catálogo de MarketPlace. Usando cache previo si existe.',
+            error,
+        );
+        return cacheMP ?? [];
+    }
+}
+
+/**
+ * Formatea las categorías de MarketPlace como lista en línea para el prompt.
+ * Devuelve cadena vacía si no hay ninguna (Gemini trabaja sin esa sección).
+ *
+ * Formato: "Vehículos, Electrónica, Hogar, Muebles, Ropa y calzado, …"
+ */
+export function formatearCatalogoMarketplaceParaPrompt(cats: string[]): string {
+    if (cats.length === 0) return '';
+    return cats.join(', ');
 }

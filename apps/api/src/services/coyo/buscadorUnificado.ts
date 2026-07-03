@@ -34,6 +34,7 @@ import { listarSucursalesCercanas } from '../negocios.service.js';
 import { buscarArticulos } from '../marketplace/buscador.js';
 import { buscarServicios } from '../servicios/buscador.js';
 import { buscarOfertas } from '../ofertas/buscador.js';
+import type { IntencionPregunta } from './coyoIA.service.js';
 
 // =============================================================================
 // CONSTANTES
@@ -71,6 +72,9 @@ export interface ItemUnificado {
     titulo: string;
     subtitulo: string | null;
     imagen: string | null;
+    /** Logo/marca a superponer sobre la portada en la card (hoy solo vacantes de
+     *  empresa; `null` en los demás tipos). La `imagen` es la portada, el `logo` va aparte. */
+    logo: string | null;
 
     // ─── Ricos NEGOCIO ──────────────────────────────────────────────────
     /** Calificación promedio 0-5 (precalculada en negocio_sucursales). */
@@ -88,6 +92,10 @@ export interface ItemUnificado {
     condicion: string | null;
     /** ¿El vendedor acepta ofertas (negociable)? */
     aceptaOfertas: boolean | null;
+    /** Modo de la publicación de MarketPlace: 'vendo' (venta) | 'busco' (demanda).
+     *  `null` para tipos que no son marketplace. El frontend decide con esto el
+     *  badge de la card ("Venta" vs "Se busca"). */
+    mpModo: 'vendo' | 'busco' | null;
 
     // ─── Ricos OFERTA ───────────────────────────────────────────────────
     /** Rating del negocio que publica la oferta (heredado, 0-5). */
@@ -115,6 +123,20 @@ export interface BuscarUnificadoInput {
     lng?: number;
     /** UUID del usuario logueado (lo usa Negocios para liked/followed). */
     usuarioId?: string | null;
+    /**
+     * Dirección de la búsqueda (de `interpretarPregunta`). Default 'busca_oferta'.
+     *  - `busca_oferta`: Negocios + Ofertas + MP en venta ('vendo') + Servicios
+     *    ofrecidos ('ofrezco'). El vecino busca/compra/contrata.
+     *  - `busca_demanda`: SOLO MP en modo 'busco' + Servicios 'solicito'. El vecino
+     *    ofrece/vende y busca quién lo necesita — Negocios y Ofertas no aplican.
+     */
+    intencion?: IntencionPregunta;
+    /**
+     * Carril EMPLEO: cuando `true`, IGNORA `intencion` y trae SOLO las vacantes
+     * (`tipo='vacante-empresa'`) — el vecino busca trabajo. Negocios/Ofertas/MP
+     * quedan vacíos. Default false. Ver {@link import('./coyoIA.service.js').PreguntaInterpretada}.
+     */
+    esEmpleo?: boolean;
 }
 
 export interface ResultadoBusquedaUnificada {
@@ -166,8 +188,13 @@ interface RawNegocio {
 interface RawMarketplace {
     id: string;
     titulo: string;
-    precio: string;
-    condicion: string;
+    /** 'vendo' (venta) | 'busco' (demanda). */
+    modo: string;
+    /** NULL en modo='busco' (una búsqueda no lleva precio). */
+    precio: string | null;
+    /** Rango de presupuesto — solo modo='busco', opcional. */
+    presupuesto: { min: number; max: number } | null;
+    condicion: string | null;
     fotos: string[];
     fotoPortadaIndex: number;
     // Ricos (ya en el mapper de buscarArticulos)
@@ -182,6 +209,11 @@ interface RawServicio {
     modalidad: string;
     fotos: string[];
     fotoPortadaIndex: number;
+    // Datos del negocio (para vacantes ligadas a una sucursal, que no traen fotos
+    // propias): el buscador de servicios los resuelve vía `sucursal_id`.
+    negocioNombre: string | null;
+    imagenNegocio: string | null;
+    negocioLogo: string | null;
 }
 
 interface RawOferta {
@@ -206,38 +238,81 @@ interface RawOferta {
 export async function buscarEnTodaLaApp(
     input: BuscarUnificadoInput,
 ): Promise<ResultadoBusquedaUnificada> {
-    const { q, ciudad, lat, lng, usuarioId = null } = input;
+    const { q, ciudad, lat, lng, usuarioId = null, intencion = 'busca_oferta', esEmpleo = false } = input;
 
-    // `modoFlexible: true` en las 4 llamadas — los 4 buscadores tratan la
-    // query multi-palabra como OR (cualquier palabra matchea) en vez del
-    // AND implícito por defecto. Sin esto, una pregunta como "plomería
-    // fontanero fuga" exigiría que todas las palabras estén en el mismo
-    // registro y devolvería 0 hits aunque haya plomeros publicados.
-    // Solo Coyo activa este modo; los usuarios normales siguen con AND.
-    const [resNegocios, resOfertas, resMarketplace, resServicios] =
-        await Promise.allSettled([
-            listarSucursalesCercanas(usuarioId, {
-                latitud: lat,
-                longitud: lng,
-                busqueda: q,
-                limite: LIMIT_POR_AREA,
-                offset: 0,
-                modoFlexible: true,
-                // Filtro ESTRICTO por ciudad — sin esto, Negocios devolvía
-                // sucursales de otras ciudades cuando el texto matcheaba
-                // (ej. pregunta desde Peñasco que traía un negocio de
-                // Caborca). Las otras 3 áreas ya filtran estricto por ciudad;
-                // este `ciudad` nivela a Negocios con ellas. Solo Coyo lo
-                // activa (vía el flag modoFlexible).
-                ciudad,
-            }),
-            buscarOfertas({
+    const grupoVacio = (): GrupoBusqueda => ({ items: [], total: 0 });
+
+    // Carril EMPLEO: el vecino busca trabajo → SOLO vacantes (`tipo='vacante-empresa'`,
+    // SIN filtro de modo, porque las vacantes se guardan con `modo='solicito'`).
+    // Negocios, Ofertas y MarketPlace no aplican (un empleo no vive ahí). Si `q`
+    // viene vacío (pregunta genérica "hay empleo?"), buscarServicios lista todas
+    // las vacantes recientes; si trae un puesto ("diseñador"), filtra por él.
+    if (esEmpleo) {
+        const [resVacantes] = await Promise.allSettled([
+            buscarServicios({
                 q,
                 ciudad,
+                lat,
+                lng,
                 limit: LIMIT_POR_AREA,
                 offset: 0,
                 modoFlexible: true,
+                tipo: 'vacante-empresa',
             }),
+        ]);
+        return {
+            success: true,
+            query: q,
+            ciudad,
+            resultados: {
+                negocios: grupoVacio(),
+                ofertas: grupoVacio(),
+                marketplace: grupoVacio(),
+                servicios: procesarServicios(resVacantes),
+            },
+        };
+    }
+
+    // Dirección de la búsqueda. En `busca_demanda` el vecino OFRECE/VENDE y busca
+    // quién lo necesita: solo aplican MP en modo 'busco' + Servicios 'solicito'.
+    // Negocios y Ofertas son oferta comercial (no le sirven a un vendedor) → se
+    // devuelven como grupos vacíos SIN gastar la query.
+    const demanda = intencion === 'busca_demanda';
+    const vacioNegocios = Promise.resolve({ success: true, data: [] as unknown[] });
+    const vacioOfertas = Promise.resolve({
+        success: true,
+        data: [] as unknown[],
+        paginacion: { total: 0 },
+    });
+
+    // `modoFlexible: true` en todas las llamadas — los buscadores tratan la query
+    // multi-palabra como OR (cualquier palabra matchea) en vez del AND implícito.
+    // Sin esto, "plomería fontanero fuga" exigiría todas las palabras juntas.
+    // Solo Coyo activa este modo; los usuarios normales siguen con AND.
+    const [resNegocios, resOfertas, resMarketplace, resServicios] =
+        await Promise.allSettled([
+            demanda
+                ? vacioNegocios
+                : listarSucursalesCercanas(usuarioId, {
+                      latitud: lat,
+                      longitud: lng,
+                      busqueda: q,
+                      limite: LIMIT_POR_AREA,
+                      offset: 0,
+                      modoFlexible: true,
+                      // Filtro ESTRICTO por ciudad — nivela Negocios con las otras
+                      // 3 áreas (que ya filtran estricto). Solo Coyo lo activa.
+                      ciudad,
+                  }),
+            demanda
+                ? vacioOfertas
+                : buscarOfertas({
+                      q,
+                      ciudad,
+                      limit: LIMIT_POR_AREA,
+                      offset: 0,
+                      modoFlexible: true,
+                  }),
             buscarArticulos({
                 q,
                 ciudad,
@@ -246,9 +321,8 @@ export async function buscarEnTodaLaApp(
                 limit: LIMIT_POR_AREA,
                 offset: 0,
                 modoFlexible: true,
-                // Coyo (comprador) muestra artículos EN VENTA. Sin este filtro,
-                // el buscador ahora es global y traería también demandas 'busco'.
-                modo: 'vendo',
+                // Comprador → artículos EN VENTA ('vendo'); oferente → DEMANDA ('busco').
+                modo: demanda ? 'busco' : 'vendo',
             }),
             buscarServicios({
                 q,
@@ -258,6 +332,8 @@ export async function buscarEnTodaLaApp(
                 limit: LIMIT_POR_AREA,
                 offset: 0,
                 modoFlexible: true,
+                // Comprador → servicios OFRECIDOS; oferente → SOLICITUDES (clasificados).
+                modo: demanda ? 'solicito' : 'ofrezco',
             }),
         ]);
 
@@ -300,6 +376,23 @@ function calcularDiasParaVencer(fechaFin: string | null | undefined): number | n
     if (!Number.isFinite(fin)) return null;
     const ms = fin - Date.now();
     return Math.max(0, Math.ceil(ms / (1000 * 60 * 60 * 24)));
+}
+
+/**
+ * Subtítulo de una publicación 'busco' (demanda): su presupuesto formateado
+ * "$min – $max" (MXN), o `null` si el vecino no lo puso (la card queda sin
+ * subtítulo; el badge "Se busca" + el título ya comunican que es demanda).
+ * Nunca "$0 · null" — una demanda no lleva precio ni condición.
+ */
+function formatearPresupuesto(p: { min: number; max: number } | null): string | null {
+    if (!p) return null;
+    const min = Number(p.min);
+    const max = Number(p.max);
+    const fmt = (n: number) => `$${n.toLocaleString('es-MX')}`;
+    if (Number.isFinite(min) && Number.isFinite(max)) return `${fmt(min)} – ${fmt(max)}`;
+    if (Number.isFinite(min)) return `Desde ${fmt(min)}`;
+    if (Number.isFinite(max)) return `Hasta ${fmt(max)}`;
+    return null;
 }
 
 /**
@@ -360,12 +453,14 @@ function procesarNegocios(
         // mantenemos el comportamiento previo (solo ciudad).
         subtitulo: construirSubtituloNegocio(n),
         imagen: n.logoUrl ?? n.fotoPerfil ?? null,
+        logo: null,
         // Ricos propios
         rating: aNumeroOpcional(n.calificacionPromedio),
         totalResenas: n.totalCalificaciones ?? null,
         verificado: n.verificado ?? null,
         estaAbierto: n.estaAbierto ?? null,
         // No aplican
+        mpModo: null,
         condicion: null,
         aceptaOfertas: null,
         negocioRating: null,
@@ -392,10 +487,12 @@ function procesarOfertas(
         titulo: o.titulo,
         subtitulo: o.negocioNombre ?? null,
         imagen: o.imagen ?? null,
+        logo: null,
         // Ricos propios
         negocioRating: aNumeroOpcional(o.calificacionPromedio),
         diasParaVencer: calcularDiasParaVencer(o.fechaFin),
         // No aplican
+        mpModo: null,
         rating: null,
         totalResenas: null,
         verificado: null,
@@ -422,19 +519,30 @@ function procesarMarketplace(
         const fotos = Array.isArray(a.fotos) ? a.fotos : [];
         const idx = a.fotoPortadaIndex ?? 0;
         const imagen = fotos.length > 0 ? (fotos[idx] ?? fotos[0] ?? null) : null;
-        const precioNum = Number(a.precio);
-        const subtitulo = Number.isFinite(precioNum)
-            ? `$${precioNum.toLocaleString('es-MX')} · ${a.condicion}`
-            : a.condicion ?? null;
+        const esBusco = a.modo === 'busco';
+        // 'busco' (demanda): NO lleva precio ni condición → muestra el presupuesto
+        // si el vecino lo puso. 'vendo': precio + condición como siempre.
+        let subtitulo: string | null;
+        if (esBusco) {
+            subtitulo = formatearPresupuesto(a.presupuesto);
+        } else {
+            const precioNum = Number(a.precio);
+            subtitulo =
+                a.precio !== null && Number.isFinite(precioNum)
+                    ? `$${precioNum.toLocaleString('es-MX')}${a.condicion ? ` · ${a.condicion}` : ''}`
+                    : a.condicion ?? null;
+        }
         return {
             id: a.id,
             tipo: 'marketplace' as const,
             titulo: a.titulo,
             subtitulo,
             imagen,
-            // Ricos propios
-            condicion: a.condicion ?? null,
-            aceptaOfertas: a.aceptaOfertas ?? null,
+            logo: null,
+            mpModo: esBusco ? ('busco' as const) : ('vendo' as const),
+            // Ricos propios (condición / negociable solo aplican a 'vendo').
+            condicion: esBusco ? null : a.condicion ?? null,
+            aceptaOfertas: esBusco ? null : a.aceptaOfertas ?? null,
             // No aplican
             rating: null,
             totalResenas: null,
@@ -462,19 +570,31 @@ function procesarServicios(
     const items: ItemUnificado[] = filas.map((s) => {
         const fotos = Array.isArray(s.fotos) ? s.fotos : [];
         const idx = s.fotoPortadaIndex ?? 0;
-        const imagen = fotos.length > 0 ? (fotos[idx] ?? fotos[0] ?? null) : null;
-        // Subtítulo combina modo + modalidad de forma legible.
-        const subtitulo = `${s.modo === 'ofrezco' ? 'Ofrezco' : 'Solicito'} · ${s.modalidad}`;
+        const fotoPropia = fotos.length > 0 ? (fotos[idx] ?? fotos[0] ?? null) : null;
+        // Las vacantes rara vez traen foto propia → heredan la imagen del negocio
+        // que las publica (perfil/portada/logo), igual que en el feed de Servicios.
+        const imagen = fotoPropia ?? s.imagenNegocio ?? null;
+        // Subtítulo: la vacante muestra el NEGOCIO que la publica (dato clave para
+        // quien busca empleo); el resto combina modo (Ofrezco/Solicito) + modalidad.
+        const subtitulo =
+            s.tipo === 'vacante-empresa'
+                ? s.negocioNombre
+                    ? `Vacante · ${s.negocioNombre}`
+                    : `Vacante · ${s.modalidad}`
+                : `${s.modo === 'ofrezco' ? 'Ofrezco' : 'Solicito'} · ${s.modalidad}`;
         return {
             id: s.id,
             tipo: 'servicio' as const,
             titulo: s.titulo,
             subtitulo,
             imagen,
+            // Logo del negocio (solo vacantes de empresa) para superponer en la card.
+            logo: s.tipo === 'vacante-empresa' ? s.negocioLogo : null,
             // Servicios no expone ricos en este pase — el rating del prestador
             // requiere AVG/COUNT al vuelo sobre `servicios_resenas` y el
             // horario es un string libre frágil de parsear. Pendiente para
             // cuando haya precompute o helper estable.
+            mpModo: null,
             rating: null,
             totalResenas: null,
             verificado: null,
