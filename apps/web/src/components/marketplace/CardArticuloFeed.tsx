@@ -627,6 +627,13 @@ export function CardArticuloFeed({
                               </>
                           )}
                 </div>
+                {articulo.categoriaNombre && (
+                    <div className="mt-1.5">
+                        <span className="inline-flex items-center rounded-md bg-slate-100 px-2 py-0.5 text-sm font-medium text-slate-500">
+                            {articulo.categoriaNombre}
+                        </span>
+                    </div>
+                )}
                 {articulo.descripcion && !modoModal && (
                     <p
                         className={`mt-1.5 text-base font-medium leading-relaxed text-slate-600 ${

@@ -2,15 +2,18 @@
  * MenuFiltro.tsx
  * ===============
  * Dropdown calcado del diseño (botón + menú con check en el seleccionado). Lo
- * usan los filtros de vendedor, ciudad y el "Ordenar". Cierra al hacer clic fuera
- * (useClickFuera del Panel). Tokens del Panel.
+ * usan los filtros de vendedor, ciudad y el "Ordenar". El menú se abre en un
+ * PORTAL con posición fija (calculada desde el botón), así escapa cualquier
+ * overflow del contenedor (p. ej. barras de filtros deslizables/carrusel).
+ * Cierra al hacer clic fuera, scroll de la página, resize o Escape; NO al
+ * scrollear dentro del propio menú. Tokens del Panel.
  *
  * Ubicación: apps/admin/src/components/negocios/MenuFiltro.tsx
  */
 
-import { useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { ChevronDown, Check } from 'lucide-react';
-import { useClickFuera } from '../../hooks/useClickFuera';
 
 export interface OpcionMenu {
   valor: string;
@@ -57,7 +60,49 @@ export function MenuFiltro({
   tam = 'normal',
 }: MenuFiltroProps) {
   const [abierto, setAbierto] = useState(false);
-  const ref = useClickFuera<HTMLDivElement>(() => setAbierto(false), abierto);
+  const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+  const refWrap = useRef<HTMLDivElement>(null);
+  const refMenu = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!abierto) return;
+    const cerrarFuera = (e: Event) => {
+      const t = e.target as Node;
+      if (!refWrap.current?.contains(t) && !refMenu.current?.contains(t)) {
+        setAbierto(false);
+      }
+    };
+    // Cerrar al scrollear la página (el menú fixed quedaría desalineado), pero
+    // NO al scrollear dentro del propio menú.
+    const cerrarScroll = (e: Event) => {
+      const t = e.target as Node | null;
+      if (t && refMenu.current?.contains(t)) return;
+      setAbierto(false);
+    };
+    const cerrarResize = () => setAbierto(false);
+    const cerrarEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setAbierto(false);
+    };
+    document.addEventListener('pointerdown', cerrarFuera);
+    window.addEventListener('scroll', cerrarScroll, true);
+    window.addEventListener('resize', cerrarResize);
+    document.addEventListener('keydown', cerrarEsc);
+    return () => {
+      document.removeEventListener('pointerdown', cerrarFuera);
+      window.removeEventListener('scroll', cerrarScroll, true);
+      window.removeEventListener('resize', cerrarResize);
+      document.removeEventListener('keydown', cerrarEsc);
+    };
+  }, [abierto]);
+
+  const alternar = () => {
+    const rect = refWrap.current?.getBoundingClientRect();
+    if (rect) {
+      const left = alineacion === 'derecha' ? rect.right - anchoMenu : rect.left;
+      setPos({ top: rect.bottom + 6, left });
+    }
+    setAbierto((v) => !v);
+  };
 
   const claseBoton = soloIcono
     ? `inline-flex shrink-0 items-center justify-center rounded-full border bg-superficie-2 transition hover:bg-marca-suave ${
@@ -70,12 +115,12 @@ export function MenuFiltro({
       }`;
 
   return (
-    <div className="relative inline-flex" ref={ref}>
+    <div className="relative inline-flex" ref={refWrap}>
       <button
         type="button"
         data-testid={testid}
         data-open={abierto}
-        onClick={() => setAbierto((v) => !v)}
+        onClick={alternar}
         className={claseBoton}
       >
         {soloIcono ? (
@@ -92,39 +137,44 @@ export function MenuFiltro({
         )}
       </button>
 
-      {abierto && (
-        <div
-          className={`animar-entrada absolute top-[calc(100%+6px)] z-30 max-h-[min(62vh,360px)] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel ${
-            alineacion === 'derecha' ? 'right-0' : 'left-0'
-          }`}
-          style={{ minWidth: anchoMenu }}
-        >
-          {opciones.map((o, i) => {
-            // Separador visual antes de la primera opción "real" si la anterior
-            // es una opción base (all/none): se controla con el campo separadorAntes.
-            const separador = o.valor !== '' && o.valor !== '__none' && opciones[i - 1] &&
-              (opciones[i - 1].valor === '' || opciones[i - 1].valor === '__none');
-            return (
-              <div key={o.valor || `base-${i}`}>
-                {separador && <div className="mx-1 my-1 h-px bg-borde" />}
-                <button
-                  type="button"
-                  data-sel={valor === o.valor}
-                  onClick={() => {
-                    onCambiar(o.valor);
-                    setAbierto(false);
-                  }}
-                  className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px] text-texto transition hover:bg-marca-suave"
-                >
-                  {o.adorno}
-                  <span className="flex-1 truncate">{o.etiqueta}</span>
-                  <Check size={15} className={`shrink-0 text-marca ${valor === o.valor ? 'opacity-100' : 'opacity-0'}`} />
-                </button>
-              </div>
-            );
-          })}
-        </div>
-      )}
+      {abierto &&
+        pos &&
+        createPortal(
+          <div
+            ref={refMenu}
+            className="animar-entrada fixed z-[70] max-h-[min(62vh,360px)] max-w-[calc(100vw-1.5rem)] overflow-y-auto overscroll-contain rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel"
+            style={{ top: pos.top, left: Math.max(8, pos.left), minWidth: anchoMenu }}
+          >
+            {opciones.map((o, i) => {
+              // Separador visual antes de la primera opción "real" si la anterior
+              // es una opción base (all/none).
+              const separador =
+                o.valor !== '' &&
+                o.valor !== '__none' &&
+                opciones[i - 1] &&
+                (opciones[i - 1].valor === '' || opciones[i - 1].valor === '__none');
+              return (
+                <div key={o.valor || `base-${i}`}>
+                  {separador && <div className="mx-1 my-1 h-px bg-borde" />}
+                  <button
+                    type="button"
+                    data-sel={valor === o.valor}
+                    onClick={() => {
+                      onCambiar(o.valor);
+                      setAbierto(false);
+                    }}
+                    className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px] text-texto transition hover:bg-marca-suave"
+                  >
+                    {o.adorno}
+                    <span className="flex-1 truncate">{o.etiqueta}</span>
+                    <Check size={15} className={`shrink-0 text-marca ${valor === o.valor ? 'opacity-100' : 'opacity-0'}`} />
+                  </button>
+                </div>
+              );
+            })}
+          </div>,
+          document.body,
+        )}
     </div>
   );
 }

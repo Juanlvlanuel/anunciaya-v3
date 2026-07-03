@@ -10,7 +10,7 @@
  */
 
 import { useMemo, useState } from 'react';
-import { Plus, Pencil, Power, Tags, Search, X, MapPin } from 'lucide-react';
+import { Plus, Pencil, Power, Search, X, MapPin, Layers, Tag } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import {
@@ -56,7 +56,17 @@ export function SeccionCategoriasMarketplace() {
   const activa = useCambiarActivaCategoriaMP();
   const guardando = crear.isPending || editar.isPending;
 
-  const activas = useMemo(() => catalogo.filter((c) => c.activa).length, [catalogo]);
+  // KPIs de publicaciones (en la ciudad seleccionada, o todas). Se derivan del
+  // catálogo, que ya viene filtrado por ciudad desde el backend.
+  const kpisPub = useMemo(() => {
+    let venta = 0;
+    let busca = 0;
+    for (const c of catalogo) {
+      venta += c.totalVendo;
+      busca += c.totalBusco;
+    }
+    return { venta, busca, total: venta + busca };
+  }, [catalogo]);
 
   const vista = useMemo(() => {
     const q = busqueda.trim().toLowerCase();
@@ -89,47 +99,77 @@ export function SeccionCategoriasMarketplace() {
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
       {/* KPIs */}
       {!isLoading && !isError && (
-        <div className="mb-4 flex shrink-0 gap-2.5 lg:grid lg:grid-cols-2 lg:gap-3">
-          <div className="flex flex-1 items-center gap-2.5 rounded-[12px] border border-borde bg-superficie px-3 py-2.5 shadow-tarjeta-panel lg:gap-3.5 lg:rounded-[14px] lg:px-4 lg:py-3.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca lg:h-11 lg:w-11">
-              <Tags className="h-[18px] w-[18px] lg:h-5 lg:w-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-[19px] font-bold leading-none tabular-nums text-texto lg:text-[26px]">{catalogo.length}</div>
-              <div className="mt-0.5 truncate text-[11px] font-medium text-texto-3 lg:text-[12.5px]">Categorías</div>
+        <div className="mb-4 -mx-4 flex shrink-0 snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
+          {(
+            [
+              { icono: Layers, valor: kpisPub.total, etiqueta: 'Publicaciones' },
+              { icono: Tag, valor: kpisPub.venta, etiqueta: 'En venta' },
+              { icono: Search, valor: kpisPub.busca, etiqueta: 'Buscando' },
+            ] as const
+          ).map(({ icono: Icono, valor, etiqueta }) => (
+            <div
+              key={etiqueta}
+              className="flex w-[44vw] max-w-[180px] shrink-0 snap-start items-center gap-2.5 rounded-[12px] border border-borde bg-superficie px-3 py-2.5 shadow-tarjeta-panel lg:w-auto lg:max-w-none lg:gap-3.5 lg:rounded-[14px] lg:px-4 lg:py-3.5"
+            >
+              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca lg:h-11 lg:w-11">
+                <Icono className="h-[18px] w-[18px] lg:h-5 lg:w-5" />
+              </span>
+              <div className="min-w-0">
+                <div className="text-[19px] font-bold leading-none tabular-nums text-texto lg:text-[26px]">{valor}</div>
+                <div className="mt-0.5 truncate text-[11px] font-medium text-texto-3 lg:text-[12.5px]">{etiqueta}</div>
+              </div>
             </div>
-          </div>
-          <div className="flex flex-1 items-center gap-2.5 rounded-[12px] border border-borde bg-superficie px-3 py-2.5 shadow-tarjeta-panel lg:gap-3.5 lg:rounded-[14px] lg:px-4 lg:py-3.5">
-            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca lg:h-11 lg:w-11">
-              <Power className="h-[18px] w-[18px] lg:h-5 lg:w-5" />
-            </span>
-            <div className="min-w-0">
-              <div className="text-[19px] font-bold leading-none tabular-nums text-texto lg:text-[26px]">{activas}</div>
-              <div className="mt-0.5 truncate text-[11px] font-medium text-texto-3 lg:text-[12.5px]">Activas</div>
-            </div>
-          </div>
+          ))}
         </div>
       )}
 
       {/* Barra: buscador + filtros + nueva */}
       <div className="mb-3 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
-        <div className="relative min-w-0 flex-1 lg:w-[340px] lg:flex-none">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-4" />
-          <input
-            data-testid="categorias-mp-buscar"
-            type="text"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar categoría…"
-            className="w-full rounded-full border border-campo-borde bg-campo py-2 pl-10 pr-8 text-[13.5px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
-          />
-          {busqueda && (
-            <button type="button" aria-label="Limpiar" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-texto-4 transition hover:bg-marca-suave hover:text-marca">
-              <X size={14} />
-            </button>
-          )}
+        {/* Fila 1 (móvil): buscador + botón "+" al lado. En desktop, lg:contents
+            desarma el wrapper (buscador se une a la fila, el "+" móvil se oculta). */}
+        <div className="flex items-center gap-2 lg:contents">
+          <div className="relative min-w-0 flex-1 lg:w-[340px] lg:flex-none">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-4" />
+            <input
+              data-testid="categorias-mp-buscar"
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar categoría…"
+              className="w-full rounded-full border border-campo-borde bg-campo py-2 pl-10 pr-8 text-[13.5px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
+            />
+            {busqueda && (
+              <button type="button" aria-label="Limpiar" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-texto-4 transition hover:bg-marca-suave hover:text-marca">
+                <X size={14} />
+              </button>
+            )}
+          </div>
+          <button
+            type="button"
+            onClick={abrirCrear}
+            aria-label="Nueva categoría"
+            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste shadow-sm transition active:scale-95 lg:hidden"
+          >
+            <Plus size={18} />
+          </button>
         </div>
-        <div className="flex items-center gap-1.5">
+
+        {/* Fila 2 (móvil): ciudad (primero) + chips de estado, deslizables como
+            carrusel. En desktop, inline. */}
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:overflow-visible lg:px-0">
+          {/* Ciudad — primero (izquierda). */}
+          <div className="shrink-0">
+            <MenuFiltro
+              testid="categorias-mp-ciudad"
+              icono={<MapPin size={14} />}
+              etiquetaBoton={etiquetaCiudad}
+              opciones={opcionesCiudad}
+              valor={ciudadSel}
+              onCambiar={setCiudadSel}
+              alineacion="izquierda"
+              tam="chip"
+            />
+          </div>
           {ESTADOS.map((e) => {
             const act = filtroEstado === e.id;
             return (
@@ -146,17 +186,7 @@ export function SeccionCategoriasMarketplace() {
             );
           })}
         </div>
-        {/* Filtro por ciudad (analítica de demanda por plaza). */}
-        <MenuFiltro
-          testid="categorias-mp-ciudad"
-          icono={<MapPin size={14} />}
-          etiquetaBoton={etiquetaCiudad}
-          opciones={opcionesCiudad}
-          valor={ciudadSel}
-          onCambiar={setCiudadSel}
-          alineacion="izquierda"
-          tam="chip"
-        />
+
         {isFetching && !isLoading && <span className="hidden text-[12px] text-texto-4 lg:inline">actualizando…</span>}
         <button
           type="button"
@@ -165,14 +195,6 @@ export function SeccionCategoriasMarketplace() {
           className="ml-auto hidden items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition hover:brightness-110 lg:inline-flex"
         >
           <Plus size={16} /> Nueva categoría
-        </button>
-        <button
-          type="button"
-          onClick={abrirCrear}
-          aria-label="Nueva categoría"
-          className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste shadow-sm transition active:scale-95 lg:hidden"
-        >
-          <Plus size={18} />
         </button>
       </div>
 

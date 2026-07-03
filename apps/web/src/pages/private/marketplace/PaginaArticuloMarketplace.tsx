@@ -662,6 +662,15 @@ function BloqueInfo({ articulo, compacto = false }: BloqueInfoProps) {
                 </div>
             )}
 
+            {/* Categoría (informativa, ambos modos) */}
+            {articulo.categoriaNombre && (
+                <div>
+                    <span className="inline-flex items-center rounded-md bg-slate-100 px-2.5 py-1 text-sm font-medium text-slate-600">
+                        {articulo.categoriaNombre}
+                    </span>
+                </div>
+            )}
+
             {/* Tiempo + vistas (sutil) */}
             <div className={`flex items-center gap-2 font-medium text-slate-600 ${compacto ? 'text-sm lg:text-xs 2xl:text-sm' : 'text-sm'}`}>
                 <span>{formatearTiempoRelativo(articulo.createdAt)}</span>
