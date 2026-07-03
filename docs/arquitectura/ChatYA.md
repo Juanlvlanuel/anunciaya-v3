@@ -367,10 +367,20 @@ Contactos se guardan a nivel **sucursal**, no por negocio. Un usuario puede tene
 
 ### 4.9.1 Directorio comercial (auto-poblado por ciudad) — jul 2026
 
-En modo **COMERCIAL**, la vista "Contactos" de ChatYA se llama **"Directorio"** y
-muestra —en lugar de los contactos manuales de `chat_contactos`— los usuarios de
-la **ciudad de la sucursal activa**, para que un negocio pueda contactar a
-cualquier usuario de su ciudad sin agregarlo primero.
+En modo **COMERCIAL**, la vista "Contactos" tiene **dos sub-tabs** (segmented
+control): **"Mis contactos"** — la lista curada manual (`chat_contactos`, tipo
+comercial) que el dueño arma a mano para tener a su gente a la mano — y
+**"Directorio"** — todos los usuarios de la **ciudad de la sucursal activa**, para
+contactar a cualquiera sin agregarlo primero. Abre por defecto en **"Mis
+contactos"**. En modo PERSONAL no hay sub-tabs: la vista es la lista curada de
+siempre.
+
+> **Historia (jul 2026):** al implementar el Directorio, la lista curada quedó
+> temporalmente tapada en comercial — "Agregar contacto" escribía en
+> `chat_contactos` pero no había vista que lo mostrara (write-only huérfano). Se
+> resolvió dándole hogar con los sub-tabs, en lugar de descontinuar "Agregar
+> contacto". El Directorio (descubrimiento masivo) y "Mis contactos" (curaduría)
+> resuelven necesidades distintas y conviven.
 
 - **Consulta en vivo, NO materializada:** no se crean filas. El directorio es un
   `SELECT` de `usuarios` por `ciudad_id` de la sucursal; los usuarios nuevos
@@ -390,10 +400,54 @@ cualquier usuario de su ciudad sin agregarlo primero.
 - **Paginado** (30/pág, `LIMIT+1` para `hayMas`) + **búsqueda server-side** por nombre.
 - **Backend:** `GET /api/chatya/directorio?limit&offset&q` →
   `listarDirectorioComercialController` (solo modo comercial, saca `sucursalId` del
-  token) → `listarDirectorioComercial()` en `chatya.service.ts`.
-- **Frontend:** `useChatYAStore.directorio[]` + `cargarDirectorio(offset, busqueda)`;
-  en `ListaConversaciones` la vista `viendoContactos` renderiza `directorio` cuando
-  el modo es comercial (al tocar a alguien → `iniciarChatDirectoPersona`).
+  token) → `listarDirectorioComercial()` en `chatya.service.ts`. Devuelve
+  `{ items, hayMas, total }`; `total` es un `COUNT` de la ciudad calculado solo en
+  la 1ª página (offset 0) — alimenta el **badge** del sub-tab "Directorio".
+- **Badges:** cada sub-tab muestra su conteo. "Mis contactos" = nº de
+  `chat_contactos` del modo comercial (derivado del estado, sin búsqueda);
+  "Directorio" = `directorioTotal` (el `total` del backend, estable: no cambia al
+  buscar). El total del Directorio se pre-carga al entrar a "Contactos".
+- **Frontend:** `useChatYAStore.directorio[]` + `cargarDirectorio(offset, busqueda)`
+  y `contactos[]` (lista curada). En `ListaConversaciones`, dentro de
+  `viendoContactos`, el estado `subVistaComercial` (`'contactos' | 'directorio'`)
+  alterna las dos sub-vistas mediante un segmented control (solo en comercial). El
+  Directorio se consulta solo al entrar a su sub-tab. Cada persona del Directorio
+  tiene botón **guardar/quitar** (`UserPlus`/`UserMinus` →
+  `agregarContacto`/`eliminarContacto` sobre `chat_contactos`); los ya guardados
+  aparecen en "Mis contactos" y se muestran con `UserMinus`. Tocar a alguien →
+  `iniciarChatDirectoPersona`.
+
+#### Mis sucursales (sección fija dentro de "Mis contactos")
+
+Dentro del sub-tab **"Mis contactos"** (comercial), arriba de la lista curada, hay
+una sección **acordeón "Mis sucursales (N)"** (colapsada por defecto) que lista las
+**otras sucursales del propio negocio** (excepto la activa). Es el hogar dedicado
+del chat **inter-sucursal** (§16).
+
+- **Automática y fija:** se llena sola; sus items **no** tienen botón
+  agregar/quitar (no son `chat_contactos`, no se curan).
+- **Solo aparece con ≥2 sucursales** activas (si solo hay Matriz, el endpoint
+  devuelve vacío y la sección no se muestra).
+- **Backend:** `GET /api/chatya/mis-sucursales` → `listarMisSucursalesController`
+  (solo comercial, saca la sucursal activa del token) → `listarMisSucursales()` en
+  `chatya.service.ts`. Parte de la sucursal activa para resolver el negocio
+  (funciona igual para dueño y gerente) y devuelve `BuscarNegociosResponse[]` para
+  reutilizar el flujo de chat del buscador (`handleClickNegocio` →
+  `useIniciarChatNegocio`) sin tocarlo.
+- **Buscador en comercial sin negocios:** con "Mis sucursales" cubriendo el
+  inter-sucursal, el buscador de la lista de chats **oculta la sección "Negocios"**
+  en modo comercial (y ni siquiera consulta `buscarNegocios`). Contactar a un
+  negocio ajeno se hace desde el **modo personal** (actúas como su cliente).
+- **Presencia en el header (inter-sucursal):** en un chat inter-sucursal ambos
+  lados son el mismo usuario (el dueño) y la presencia se indexa por `usuarioId`
+  (`estadosUsuarios[otroId]`) — mostraría al propio dueño ("En línea" falso). Por
+  eso `VentanaChat` **omite el indicador de estado** cuando `otro.id === miId`
+  (`esInterSucursal`) y en su lugar coloca el **nombre de la sucursal** en el
+  renglón inferior del header (el sufijo inline deja de mostrarse). No hay presencia
+  por sucursal en la infra actual, así que ocultarla es lo correcto. El mismo flag
+  `esInterSucursal` rige `PanelInfoContacto` (oculta el estado) y **oculta el botón
+  "Agregar/Quitar contacto"** en header, panel y menú contextual — no se cura tu
+  propia sucursal como contacto (ya vive fija en "Mis sucursales").
 
 ### 4.10 Bloqueo
 

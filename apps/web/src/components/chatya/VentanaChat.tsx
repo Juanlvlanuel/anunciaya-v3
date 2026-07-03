@@ -589,6 +589,10 @@ function VentanaChatInner() {
       ? `${otro.nombre.charAt(0)}${otro.apellidos?.charAt(0) || ''}`.toUpperCase()
       : '?';
   const esNegocio = !esMisNotas && !!otro?.negocioNombre;
+  // Chat inter-sucursal: ambos lados son el MISMO usuario (el dueño), solo difieren
+  // por sucursal. La presencia (indexada por usuarioId) reflejaría al propio dueño,
+  // así que se omite; en su lugar el subtítulo muestra el nombre de la sucursal.
+  const esInterSucursal = !esMisNotas && !!otro?.id && otro.id === miId;
   // miId y modoActivo ya derivados de useChatYASession arriba
   // Bloqueo discriminado: persona ↔ persona y persona ↔ sucursal son entradas
   // independientes en BD. El helper detecta el tipo y consulta la correcta.
@@ -1329,7 +1333,7 @@ function VentanaChatInner() {
                 className={`flex-1 min-w-0 text-left ${!esMisNotas ? 'cursor-pointer' : ''}`}
               >
                 {(() => {
-                  const mostrarSucursalHeader = !!sucursalSufijo && !contactoExistente?.alias?.trim() && !esMisNotas && !esBloqueado;
+                  const mostrarSucursalHeader = !!sucursalSufijo && !contactoExistente?.alias?.trim() && !esMisNotas && !esBloqueado && !esInterSucursal;
                   return (
                     <div className="flex items-center gap-2 min-w-0">
                       <p className="text-base font-bold text-white lg:text-gray-800 truncate leading-tight min-w-0">{nombreMostrar}</p>
@@ -1355,6 +1359,11 @@ function VentanaChatInner() {
                   ) : estaEscribiendo ? (
                     <p className="text-[13px] font-medium flex items-center gap-1 truncate">
                       <span className="text-blue-500 font-semibold">Escribiendo...</span>
+                    </p>
+                  ) : esInterSucursal ? (
+                    // Inter-sucursal: sin presencia (reflejaría al propio dueño). Mostramos el nombre de la sucursal en el renglón de abajo.
+                    <p className="text-[13px] font-medium text-white/60 lg:text-gray-600 truncate">
+                      {sucursalSufijo}
                     </p>
                   ) : (
                     <p className="text-[13px] font-medium flex items-center gap-1 truncate">
@@ -1421,8 +1430,8 @@ function VentanaChatInner() {
                       <Search className="w-5 h-5" />
                     </button>
                   )}
-                  {/* Agregar/quitar contacto — solo desktop (en móvil está en menú contextual) */}
-                  {!esMobile && (
+                  {/* Agregar/quitar contacto — solo desktop; oculto en inter-sucursal (no se cura tu propia sucursal) */}
+                  {!esMobile && !esInterSucursal && (
                     <Tooltip text={contactoExistente ? 'Quitar de contactos' : 'Agregar a contactos'}>
                       <button
                         onClick={handleToggleContacto}

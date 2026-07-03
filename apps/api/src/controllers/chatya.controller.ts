@@ -41,6 +41,7 @@ import {
   buscarPersonas,
   buscarNegocios,
   listarDirectorioComercial,
+  listarMisSucursales,
   generarUrlUploadImagenChat,
   generarUrlUploadDocumentoChat,
   generarUrlUploadAudioChat,
@@ -1106,6 +1107,35 @@ export async function listarDirectorioComercialController(req: Request, res: Res
     return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
   } catch (error) {
     console.error('Error en listarDirectorioComercialController:', error);
+    return res.status(500).json({ success: false, message: 'Error interno del servidor' });
+  }
+}
+
+/**
+ * GET /api/chatya/mis-sucursales
+ * Otras sucursales del negocio del usuario (modo comercial), excluyendo la
+ * sucursal activa. Alimenta la sección fija "Mis sucursales" dentro de "Mis
+ * contactos". Solo modo comercial.
+ */
+export async function listarMisSucursalesController(req: Request, res: Response) {
+  try {
+    const modo = obtenerModo(req);
+    if (modo !== 'comercial') {
+      return res.status(403).json({ success: false, message: 'Solo disponible en modo comercial' });
+    }
+    const sucursalId = obtenerSucursalId(req);
+    if (!sucursalId) {
+      return res.status(400).json({ success: false, message: 'No hay sucursal activa' });
+    }
+
+    const resultado = await listarMisSucursales(sucursalId);
+
+    if (!resultado.success) {
+      return res.status(resultado.code || 500).json({ success: false, message: resultado.message });
+    }
+    return res.status(200).json({ success: true, message: resultado.message, data: resultado.data });
+  } catch (error) {
+    console.error('Error en listarMisSucursalesController:', error);
     return res.status(500).json({ success: false, message: 'Error interno del servidor' });
   }
 }

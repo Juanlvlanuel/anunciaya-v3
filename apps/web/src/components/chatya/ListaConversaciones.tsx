@@ -18,7 +18,7 @@
  */
 
 import { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { Search, X, MessageSquarePlus, Store, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2, Briefcase } from 'lucide-react';
+import { Search, X, MessageSquarePlus, Store, Archive, ArrowLeft, Users, UserPlus, UserMinus, Loader2, Briefcase, ChevronDown } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
 
@@ -85,6 +85,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   // lista de contactos manuales cuando la cuenta está en modo comercial.
   const directorio = useChatYAStore((s) => s.directorio);
   const directorioHayMas = useChatYAStore((s) => s.directorioHayMas);
+  const directorioTotal = useChatYAStore((s) => s.directorioTotal);
   const cargandoDirectorio = useChatYAStore((s) => s.cargandoDirectorio);
   const cargarDirectorio = useChatYAStore((s) => s.cargarDirectorio);
 
@@ -110,6 +111,11 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   const [buscandoBackend, setBuscandoBackend] = useState(false);
   const [viendoArchivados, setViendoArchivados] = useState(false);
   const [viendoContactos, setViendoContactos] = useState(false);
+  /** Sub-vista dentro de "Contactos" en modo comercial: lista curada ('contactos') o directorio de la ciudad ('directorio'). En personal siempre es la lista curada. */
+  const [subVistaComercial, setSubVistaComercial] = useState<'contactos' | 'directorio'>('contactos');
+  /** Otras sucursales del negocio (modo comercial) para la sección fija "Mis sucursales". */
+  const [misSucursales, setMisSucursales] = useState<NegocioBusqueda[]>([]);
+  const [sucursalesExpandido, setSucursalesExpandido] = useState(false);
   const [menuContextual, setMenuContextual] = useState<{ conversacion: Conversacion; x: number; y: number } | null>(null);
   const [menuContacto, setMenuContacto] = useState<{ contacto: Contacto; x: number; y: number } | null>(null);
   const longPressRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -120,8 +126,8 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   /** true cuando hay ≥2 caracteres → activa modo búsqueda */
   const estaBuscando = busqueda.trim().length >= 2;
 
-  /** En modo comercial la vista "Contactos" es el directorio auto-poblado por ciudad. */
-  const esDirectorioComercial = viendoContactos && modoActivo === 'comercial';
+  /** En modo comercial la vista "Contactos" tiene dos sub-vistas: "Mis contactos" (lista curada) y "Directorio" (todos los usuarios de la ciudad). Este flag es true solo cuando se está viendo el Directorio. */
+  const esDirectorioComercial = viendoContactos && modoActivo === 'comercial' && subVistaComercial === 'directorio';
 
   // ---------------------------------------------------------------------------
   // Effect: Cargar conversaciones al montar y cuando cambia el modo
@@ -171,7 +177,9 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
         // Lanzar ambas búsquedas en paralelo
         const [resPersonas, resNegocios] = await Promise.all([
           chatyaService.buscarPersonas(busqueda.trim()),
-          ciudadNombre
+          // En comercial el buscador no muestra negocios (el inter-sucursal vive en
+          // "Mis sucursales"; los negocios ajenos son ruido para una cuenta comercial).
+          ciudadNombre && modoActivo !== 'comercial'
             ? chatyaService.buscarNegocios(busqueda.trim(), ciudadNombre, latitud, longitud)
             : Promise.resolve({ success: true, data: [] as NegocioBusqueda[] }),
         ]);
@@ -189,7 +197,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
     return () => {
       if (debounceRef.current) clearTimeout(debounceRef.current);
     };
-  }, [busqueda, estaBuscando, ciudad, latitud, longitud, viendoArchivados, viendoContactos]);
+  }, [busqueda, estaBuscando, ciudad, latitud, longitud, viendoArchivados, viendoContactos, modoActivo]);
 
   // ---------------------------------------------------------------------------
   // Filtrar conversaciones existentes (instantáneo, sin debounce)
@@ -270,6 +278,12 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
     });
   }, [contactos, busqueda, estaBuscando]);
 
+  /** Total de contactos guardados del modo actual (para el badge de "Mis contactos"). Sin filtro de búsqueda. */
+  const totalMisContactos = useMemo(
+    () => contactos.filter((c) => c.tipo === modoActivo).length,
+    [contactos, modoActivo],
+  );
+
   // ---------------------------------------------------------------------------
   // Helper: ¿Un usuario/negocio ya es contacto?
   // ---------------------------------------------------------------------------
@@ -312,15 +326,30 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
   }, []);
 
   const verContactos = useCallback(async () => {
+    setSubVistaComercial('contactos'); // siempre abre en "Mis contactos"
     setViendoContactos(true);
     // Refresco silencioso (datos ya precargados al cambiar modo)
     chatyaService.getContactos(modoActivo)
       .then((res) => useChatYAStore.setState({ contactos: res.data || [] }))
       .catch(() => { });
-  }, [modoActivo]);
+    // En comercial, pre-cargar el directorio (para el badge del sub-tab) y las
+    // sucursales propias (sección fija "Mis sucursales").
+    if (modoActivo === 'comercial') {
+      void cargarDirectorio(0, '');
+      chatyaService.getMisSucursales()
+        .then((res) => { if (res.success && res.data) setMisSucursales(res.data); })
+        .catch(() => { });
+    }
+  }, [modoActivo, cargarDirectorio]);
 
   const salirContactos = useCallback(() => {
     setViendoContactos(false);
+    setBusqueda('');
+  }, []);
+
+  /** Alterna entre "Mis contactos" (búsqueda local) y "Directorio" (búsqueda server-side). Limpia el texto al cambiar para no arrastrar un filtro entre sub-vistas con lógicas de búsqueda distintas. */
+  const cambiarSubVista = useCallback((v: 'contactos' | 'directorio') => {
+    setSubVistaComercial(v);
     setBusqueda('');
   }, []);
 
@@ -600,14 +629,86 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
 
         {/* ─── VISTA CONTACTOS (siempre montada, oculta con CSS) ─── */}
         <div className={viendoContactos ? 'flex flex-col h-full' : 'hidden'}>
-          {/* Header contactos */}
-          <button
-            onClick={salirContactos}
-            className="w-full flex items-center gap-2 px-3 py-3 text-left hover:bg-white/8 border-b border-white/8 cursor-pointer"
-          >
-            <ArrowLeft className="w-5 h-5 text-white/60" />
-            <span className="text-sm font-bold text-white/70">{esDirectorioComercial ? 'Directorio' : 'Contactos'}</span>
-          </button>
+          {/* Header contactos: flecha atrás + (en comercial) sub-tabs "Mis contactos | Directorio" */}
+          <div className="flex items-center gap-2 px-3 py-2.5 border-b border-white/8">
+            <button
+              onClick={salirContactos}
+              aria-label="Volver a chats"
+              className="shrink-0 p-1 -ml-1 rounded-lg hover:bg-white/8 cursor-pointer"
+            >
+              <ArrowLeft className="w-5 h-5 text-white/60" />
+            </button>
+            {modoActivo === 'comercial' ? (
+              <div className="flex gap-1.5">
+                {(['contactos', 'directorio'] as const).map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => cambiarSubVista(v)}
+                    data-testid={`chatya-subtab-${v}`}
+                    className={`flex items-center gap-1.5 px-3.5 py-1 rounded-full text-[13px] font-bold cursor-pointer ${subVistaComercial === v
+                      ? 'bg-white text-[#0B358F]'
+                      : 'bg-white/12 text-white/55 hover:bg-white/20 hover:text-white/80'
+                      }`}
+                  >
+                    <span>{v === 'contactos' ? 'Mis contactos' : 'Directorio'}</span>
+                    <span
+                      data-testid={`chatya-subtab-${v}-count`}
+                      className={`min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-extrabold flex items-center justify-center ${subVistaComercial === v
+                        ? 'bg-[#0B358F]/12 text-[#0B358F]'
+                        : 'bg-white/20 text-white/70'
+                        }`}
+                    >
+                      {v === 'contactos' ? totalMisContactos : directorioTotal}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            ) : (
+              <span className="text-sm font-bold text-white/70">Contactos</span>
+            )}
+          </div>
+
+          {/* Sección fija "Mis sucursales" — solo en la sub-vista "Mis contactos" (comercial) y si hay otras sucursales. Contactos automáticos y fijos: sin agregar/quitar. */}
+          {!esDirectorioComercial && modoActivo === 'comercial' && misSucursales.length > 0 && (
+            <div className="border-b border-white/8 shrink-0">
+              <button
+                onClick={() => setSucursalesExpandido((v) => !v)}
+                data-testid="chatya-mis-sucursales-toggle"
+                className="w-full flex items-center justify-between px-3 py-2.5 hover:bg-white/8 cursor-pointer"
+              >
+                <span className="flex items-center gap-2 text-[13px] font-bold text-white/70">
+                  <Store className="w-4 h-4 text-white/50" />
+                  Mis sucursales
+                  <span className="min-w-[18px] h-[18px] px-1 rounded-full text-[10px] font-extrabold flex items-center justify-center bg-white/15 text-white/70">
+                    {misSucursales.length}
+                  </span>
+                </span>
+                <ChevronDown className={`w-4 h-4 text-white/50 transition-transform ${sucursalesExpandido ? 'rotate-180' : ''}`} />
+              </button>
+              {sucursalesExpandido && misSucursales.map((suc) => {
+                const nombre = suc.sucursalNombre || suc.negocioNombre;
+                return (
+                  <div
+                    key={suc.sucursalId}
+                    onClick={() => handleClickNegocio(suc)}
+                    data-testid={`mi-sucursal-${suc.sucursalId}`}
+                    className="flex items-center gap-2.5 pl-6 pr-3 py-2.5 hover:bg-white/8 border-t border-white/5 cursor-pointer select-none"
+                  >
+                    {suc.fotoPerfil ? (
+                      <img src={suc.fotoPerfil} alt={nombre} className="w-9 h-9 shrink-0 object-cover rounded-full" />
+                    ) : (
+                      <div className="w-9 h-9 shrink-0 flex items-center justify-center rounded-full bg-white/10">
+                        <Store className="w-4.5 h-4.5 text-white/40" />
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-[14px] font-semibold text-white/85 truncate">{nombre}</p>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
 
           {esDirectorioComercial ? (
             <div className="flex-1 overflow-y-auto">
@@ -627,23 +728,54 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                   {directorio.map((p) => {
                     const nombre = `${p.nombre || ''} ${p.apellidos || ''}`.trim() || 'Sin nombre';
                     const iniciales = `${(p.nombre || '').charAt(0)}${(p.apellidos || '').charAt(0)}`.toUpperCase() || '?';
+                    const contactoExistente = esContacto(p.id);
                     return (
                       <div
                         key={p.id}
-                        onClick={() => { void iniciarChatDirectoPersona({ usuarioId: p.id, nombre: p.nombre, apellidos: p.apellidos, avatarUrl: p.avatarUrl }); }}
-                        className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 border-b border-white/5 cursor-pointer select-none"
+                        className="flex items-center gap-2.5 px-3 py-2.5 hover:bg-white/8 border-b border-white/5"
                         data-testid={`directorio-persona-${p.id}`}
                       >
-                        {p.avatarUrl ? (
-                          <img src={p.avatarUrl} alt={nombre} className="w-10 h-10 shrink-0 object-cover rounded-full" />
-                        ) : (
-                          <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700">
-                            <span className="text-sm font-bold text-white">{iniciales}</span>
+                        <button
+                          onClick={() => { void iniciarChatDirectoPersona({ usuarioId: p.id, nombre: p.nombre, apellidos: p.apellidos, avatarUrl: p.avatarUrl }); }}
+                          className="flex items-center gap-2.5 flex-1 min-w-0 text-left cursor-pointer select-none"
+                        >
+                          {p.avatarUrl ? (
+                            <img src={p.avatarUrl} alt={nombre} className="w-10 h-10 shrink-0 object-cover rounded-full" />
+                          ) : (
+                            <div className="w-10 h-10 shrink-0 flex items-center justify-center rounded-full bg-linear-to-br from-blue-500 to-blue-700">
+                              <span className="text-sm font-bold text-white">{iniciales}</span>
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[14px] font-semibold text-white/85 truncate">{nombre}</p>
                           </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <p className="text-[14px] font-semibold text-white/85 truncate">{nombre}</p>
-                        </div>
+                        </button>
+
+                        {/* Guardar / quitar de "Mis contactos" — reutiliza chat_contactos (tipo comercial) */}
+                        <Tooltip text={contactoExistente ? 'Quitar de Mis contactos' : 'Agregar a Mis contactos'} position="bottom">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (contactoExistente) {
+                                void handleEliminarContacto(contactoExistente);
+                              } else {
+                                void handleAgregarContacto(p.id, undefined, undefined, {
+                                  nombre: p.nombre,
+                                  apellidos: p.apellidos,
+                                  avatarUrl: p.avatarUrl,
+                                });
+                              }
+                            }}
+                            data-testid={`directorio-guardar-${p.id}`}
+                            className={`w-8 h-8 flex items-center justify-center rounded-full shrink-0 cursor-pointer ${contactoExistente ? 'hover:bg-red-500/20' : 'hover:bg-white/15'}`}
+                          >
+                            {contactoExistente ? (
+                              <UserMinus className="w-4.5 h-4.5 text-red-400/70" />
+                            ) : (
+                              <UserPlus className="w-4.5 h-4.5 text-white/45" />
+                            )}
+                          </button>
+                        </Tooltip>
                       </div>
                     );
                   })}
@@ -666,7 +798,9 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
                 {estaBuscando ? `Sin resultados para "${busqueda}"` : 'No tienes contactos guardados'}
               </p>
               <p className="text-[13px] text-white/45 text-center mt-1">
-                Busca personas o negocios para agregarlos
+                {modoActivo === 'comercial'
+                  ? 'Agrégalos desde el Directorio o la búsqueda'
+                  : 'Busca personas o negocios para agregarlos'}
               </p>
             </div>
           ) : (
@@ -758,8 +892,8 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
             </div>
           )}
 
-          {/* Sección 2: Negocios (del backend) */}
-          {(negociosResultados.length > 0 || buscandoBackend) && (
+          {/* Sección 2: Negocios (del backend) — oculta en comercial (ver "Mis sucursales") */}
+          {modoActivo !== 'comercial' && (negociosResultados.length > 0 || buscandoBackend) && (
             <div>
               <p className="px-3 py-1.5 text-[11px] font-bold text-white/45 uppercase tracking-wider bg-white/6 border-b border-white/8">
                 Negocios {!buscandoBackend && `(${negociosResultados.length})`}
@@ -962,7 +1096,7 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
               className="flex items-center gap-2 text-white/60 hover:text-white/70 cursor-pointer"
             >
               <Users className="w-4.5 h-4.5" />
-              <span className="2xl:text-[13px] text-[14px]  font-bold">{modoActivo === 'comercial' ? 'Directorio' : 'Contactos'}</span>
+              <span className="2xl:text-[13px] text-[14px]  font-bold">Contactos</span>
             </button>
 
             {/* Archivados */}

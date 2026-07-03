@@ -312,7 +312,7 @@ export async function getDirectorioComercial(limit = 30, offset = 0, q = '') {
   params.append('limit', String(limit));
   params.append('offset', String(offset));
   if (q.trim()) params.append('q', q.trim());
-  return get<{ items: DirectorioPersona[]; hayMas: boolean }>(`/chatya/directorio?${params}`);
+  return get<{ items: DirectorioPersona[]; hayMas: boolean; total?: number }>(`/chatya/directorio?${params}`);
 }
 
 /**
@@ -570,6 +570,16 @@ export async function buscarNegocios(
   params.append('limit', limit.toString());
 
   return get<NegocioBusqueda[]>(`/chatya/buscar-negocios?${params}`);
+}
+
+/**
+ * Otras sucursales del negocio del usuario (modo comercial), excepto la activa.
+ * Mismo formato que `buscarNegocios` para reutilizar el flujo de chat. Alimenta
+ * la sección fija "Mis sucursales" dentro de "Mis contactos".
+ * GET /api/chatya/mis-sucursales
+ */
+export async function getMisSucursales() {
+  return get<NegocioBusqueda[]>(`/chatya/mis-sucursales`);
 }
 
 // =============================================================================

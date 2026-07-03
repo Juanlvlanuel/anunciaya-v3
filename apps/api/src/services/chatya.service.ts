@@ -3765,7 +3765,7 @@ export async function listarDirectorioComercial(
     sucursalId: string,
     usuarioActualId: string,
     opciones: { limit?: number; offset?: number; busqueda?: string } = {}
-): Promise<RespuestaServicio<{ items: BuscarPersonasResponse[]; hayMas: boolean }>> {
+): Promise<RespuestaServicio<{ items: BuscarPersonasResponse[]; hayMas: boolean; total?: number }>> {
     try {
         const limit = Math.min(Math.max(opciones.limit ?? 30, 1), 100);
         const offset = Math.max(opciones.offset ?? 0, 0);
@@ -3780,7 +3780,7 @@ export async function listarDirectorioComercial(
             return {
                 success: true,
                 message: 'La sucursal no tiene ciudad configurada',
-                data: { items: [], hayMas: false },
+                data: { items: [], hayMas: false, total: 0 },
             };
         }
 
@@ -3818,7 +3818,26 @@ export async function listarDirectorioComercial(
             avatarUrl: row.avatar_url,
         }));
 
-        return { success: true, message: `${items.length} contactos`, data: { items, hayMas } };
+        // Total real de la ciudad (para el badge del sub-tab "Directorio"). Solo en
+        // la 1ª página: en "cargar más" (offset>0) no cambia y evitamos un COUNT extra.
+        let total: number | undefined;
+        if (offset === 0) {
+            const countRes = await db.execute(sql`
+                SELECT COUNT(*)::int AS total
+                FROM usuarios u
+                WHERE u.estado = 'activo'
+                  AND u.ciudad_id = ${ciudadId}
+                  AND u.id != ${usuarioActualId}
+                  AND NOT EXISTS (
+                      SELECT 1 FROM chat_bloqueados cb
+                      WHERE cb.usuario_id = u.id AND cb.bloqueada_sucursal_id = ${sucursalId}
+                  )
+                  ${filtroTexto}
+            `);
+            total = (countRes.rows[0] as { total: number } | undefined)?.total ?? 0;
+        }
+
+        return { success: true, message: `${items.length} contactos`, data: { items, hayMas, total } };
     } catch (error) {
         console.error('Error en listarDirectorioComercial:', error);
         return { success: false, message: 'Error al cargar el directorio', code: 500 };
@@ -3837,6 +3856,64 @@ export async function listarDirectorioComercial(
  * Si el negocio solo tiene 1 sucursal, sucursalNombre = null.
  * Si tiene múltiples, muestra el nombre de cada sucursal.
  */
+/**
+ * Lista las OTRAS sucursales del negocio del usuario en sesión (modo comercial),
+ * excluyendo la sucursal activa (no se chatea consigo mismo). Devuelve el mismo
+ * formato que `buscarNegocios` (BuscarNegociosResponse) para reutilizar tal cual
+ * el flujo de chat del buscador. Alimenta la sección fija "Mis sucursales" dentro
+ * de "Mis contactos" en ChatYA comercial. Parte de la sucursal activa para resolver
+ * el negocio (funciona igual para dueño y gerente).
+ */
+export async function listarMisSucursales(
+    sucursalActivaId: string
+): Promise<RespuestaServicio<BuscarNegociosResponse[]>> {
+    try {
+        const resultado = await db.execute(sql`
+            SELECT
+                n.id AS negocio_id,
+                n.nombre AS negocio_nombre,
+                n.usuario_id,
+                s.id AS sucursal_id,
+                s.nombre AS sucursal_nombre,
+                s.es_principal AS sucursal_es_principal,
+                s.foto_perfil
+            FROM negocio_sucursales activa
+            JOIN negocios n ON n.id = activa.negocio_id
+            JOIN negocio_sucursales s ON s.negocio_id = n.id
+            WHERE activa.id = ${sucursalActivaId}
+              AND s.id != ${sucursalActivaId}
+              AND s.activa = true
+            ORDER BY s.es_principal DESC, s.nombre ASC
+        `);
+
+        const items = (resultado.rows as unknown as Array<{
+            negocio_id: string;
+            negocio_nombre: string;
+            usuario_id: string;
+            sucursal_id: string;
+            sucursal_nombre: string;
+            sucursal_es_principal: boolean;
+            foto_perfil: string | null;
+        }>).map((row) => ({
+            negocioNombre: row.negocio_nombre,
+            // Matriz suele tener el mismo nombre que el negocio → etiquetar "Matriz".
+            sucursalNombre: row.sucursal_es_principal ? 'Matriz' : row.sucursal_nombre,
+            fotoPerfil: row.foto_perfil,
+            calificacionPromedio: 0,
+            categoria: null,
+            distanciaKm: null,
+            usuarioId: row.usuario_id,
+            sucursalId: row.sucursal_id,
+            negocioId: row.negocio_id,
+        }));
+
+        return { success: true, message: `${items.length} sucursales`, data: items };
+    } catch (error) {
+        console.error('Error en listarMisSucursales:', error);
+        return { success: false, message: 'Error al cargar tus sucursales', code: 500 };
+    }
+}
+
 export async function buscarNegocios(
     texto: string,
     ciudad: string,

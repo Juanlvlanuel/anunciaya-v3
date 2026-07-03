@@ -62,6 +62,7 @@ import {
   buscarPersonasController,
   buscarNegociosController,
   listarDirectorioComercialController,
+  listarMisSucursalesController,
   misNotasController,
   uploadImagenChatController,
   uploadDocumentoChatController,
@@ -264,6 +265,9 @@ router.get('/buscar-negocios', buscarNegociosController);
 
 /** GET /api/chatya/directorio?limit=30&offset=0&q=texto — directorio comercial (usuarios de la ciudad de la sucursal). Solo modo comercial. */
 router.get('/directorio', listarDirectorioComercialController);
+
+/** GET /api/chatya/mis-sucursales — otras sucursales del negocio (excepto la activa), para la sección "Mis sucursales". Solo modo comercial. */
+router.get('/mis-sucursales', listarMisSucursalesController);
 
 /** GET /api/chatya/og-preview?url=https://example.com */
 router.get('/og-preview', limitadorOgPreview, obtenerOgPreviewController);

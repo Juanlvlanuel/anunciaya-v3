@@ -61,6 +61,8 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
     const { miId, modo: modoActivo } = useChatYASession();
 
     const otroId = conversacion.otroParticipante?.id;
+    // Inter-sucursal (o self-chat): el "otro" es el mismo usuario → no se cura como contacto.
+    const esInterSucursal = !!otroId && otroId === miId;
     // Discriminado: persona ↔ persona vs persona ↔ sucursal. El bloqueo aplica
     // a ambos casos pero contra entradas distintas en BD.
     const esChatConNegocio = esConversacionConNegocio(conversacion, miId);
@@ -223,13 +225,13 @@ export function MenuContextualChat({ conversacion, onCerrar, posicion, onBuscar 
             destructivo: false,
             colorIcono: 'text-cyan-400 lg:text-cyan-500',
         },
-        {
+        ...(!esInterSucursal ? [{
             icono: contactoExistente ? UserMinus : UserPlus,
             texto: contactoExistente ? 'Quitar contacto' : 'Agregar contacto',
             onClick: handleToggleContacto,
             destructivo: false,
             colorIcono: 'text-emerald-400 lg:text-emerald-500',
-        },
+        }] : []),
         // Bloquear — disponible en ambos tipos de chat (persona o negocio).
         // Si es chat con negocio bloquea/desbloquea la sucursal específica;
         // si es persona ↔ persona, bloquea/desbloquea a la persona.

@@ -195,6 +195,9 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const esNegocio = !!otro?.negocioNombre;
   const esModoComercial = modoActivo === 'comercial';
   const estadoOtro = otro?.id ? estadosUsuarios[otro.id] : null;
+  // Inter-sucursal (o self-chat): el "otro" es el mismo usuario (el dueño) → la
+  // presencia reflejaría al propio dueño. Se omite el estado y el botón de contacto.
+  const esInterSucursal = !!otro?.id && otro.id === miId;
 
   // Estado de bloqueo: discriminado entre persona ↔ persona y persona ↔ sucursal.
   // Se actualiza reactivamente cuando cambia `bloqueados` en el store, por lo
@@ -467,7 +470,8 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
             )}
           </div>
 
-          {/* Botón contacto — círculo encimado en esquina inferior-derecha del avatar */}
+          {/* Botón contacto — círculo encimado (oculto en inter-sucursal: no se cura tu propia sucursal) */}
+          {!esInterSucursal && (
           <div className="absolute bottom-0 right-0">
             {esMobile ? (
               <button
@@ -495,6 +499,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
               </Tooltip>
             )}
           </div>
+          )}
         </div>
 
         <div className="flex flex-col items-center text-center w-full">
@@ -544,7 +549,8 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
             </div>
           </div>
 
-          {/* ── BLOQUE 2: Estado de conexión ── */}
+          {/* ── BLOQUE 2: Estado de conexión (oculto en inter-sucursal) ── */}
+          {!esInterSucursal && (
           <div className="mt-2.5">
             {estadoOtro?.estado === 'conectado' ? (
                 <span className="flex items-center gap-1.5 text-sm text-green-600 font-semibold">
@@ -564,6 +570,7 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
                 <span className="text-sm text-white/30 lg:text-slate-600">...</span>
               )}
           </div>
+          )}
 
           {/* ── BLOQUE 3: Contexto — texto descriptivo con divisor sutil arriba ── */}
           {conversacion.contextoTipo && conversacion.contextoTipo !== 'directo' && conversacion.contextoTipo !== 'notas' && (() => {

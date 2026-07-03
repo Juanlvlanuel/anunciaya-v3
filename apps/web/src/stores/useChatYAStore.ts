@@ -181,6 +181,8 @@ interface ChatYAState {
   // consulta en vivo; solo aplica en modo comercial).
   directorio: DirectorioPersona[];
   directorioHayMas: boolean;
+  /** Total real de usuarios en la ciudad de la sucursal (para el badge del sub-tab "Directorio"). */
+  directorioTotal: number;
   cargandoDirectorio: boolean;
 
   // ─── Mensajes (de la conversación activa) ──────────────────────────────
@@ -380,6 +382,7 @@ const ESTADO_INICIAL = {
   cargandoConversaciones: false,
   directorio: [] as DirectorioPersona[],
   directorioHayMas: false,
+  directorioTotal: 0,
   cargandoDirectorio: false,
   mensajes: [] as Mensaje[],
   totalMensajes: 0,
@@ -712,10 +715,15 @@ export const useChatYAStore = create<ChatYAState>((set, get) => ({
     try {
       const respuesta = await chatyaService.getDirectorioComercial(30, offset, busqueda);
       if (respuesta.success && respuesta.data) {
-        const { items, hayMas } = respuesta.data;
+        const { items, hayMas, total } = respuesta.data;
         set({
           directorio: offset === 0 ? items : [...directorio, ...items],
           directorioHayMas: hayMas,
+          // Solo actualizamos el total con la carga base (sin búsqueda) para que el
+          // badge muestre el total de la ciudad, estable, y no el de un filtro.
+          ...(offset === 0 && busqueda.trim() === '' && typeof total === 'number'
+            ? { directorioTotal: total }
+            : {}),
         });
       }
     } catch (error) {
