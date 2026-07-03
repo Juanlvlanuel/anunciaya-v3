@@ -24,7 +24,6 @@ import type { OrdenFeedInfinito } from '../../types/marketplace';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
-const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 
 interface ChipsFiltrosFeedProps {
     valor: OrdenFeedInfinito;
@@ -52,11 +51,9 @@ const OPCIONES: OpcionChip[] = [
         etiqueta: 'Más vistos',
         icono: <Eye className="h-4 w-4" strokeWidth={2.5} />,
     },
-    {
-        valor: 'cerca',
-        etiqueta: 'Cerca de ti',
-        icono: <MapPin className="h-4 w-4" strokeWidth={2.5} />,
-    },
+    // "Cerca de ti" se retiró (2026-07-02): su espacio lo ocupa el filtro de
+    // categoría en el header del feed. El orden 'cerca' sigue soportado en el
+    // backend por si se reintroduce.
 ];
 
 export function ChipsFiltrosFeed({

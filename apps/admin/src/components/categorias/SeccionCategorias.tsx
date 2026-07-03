@@ -28,6 +28,7 @@ import {
 } from '../../hooks/queries/useCategoriasAdmin';
 import type { CategoriaAdmin, SubcategoriaAdmin, CiudadRef } from '../../services/categoriasService';
 import { DialogoCategoria, DialogoSubcategoria, DialogoDisponibilidad } from './DialogosCategorias';
+import { SeccionCategoriasMarketplace } from './SeccionCategoriasMarketplace';
 
 type DlgCategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin | null } | null;
 type DlgSubcategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin; subcategoria: SubcategoriaAdmin | null } | null;
@@ -84,7 +85,7 @@ function BotonIcono({ onClick, children, testid }: { onClick: () => void; childr
   );
 }
 
-export function SeccionCategorias() {
+function SeccionCategoriasNegocios() {
   const { data: catalogo = [], isLoading, isError, isFetching } = useCatalogo();
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set());
   const [busqueda, setBusqueda] = useState('');
@@ -376,6 +377,47 @@ export function SeccionCategorias() {
         onCerrar={() => setDlgDisp(null)}
         onGuardar={guardarDisp}
       />
+    </div>
+  );
+}
+
+// =============================================================================
+// Wrapper con toggle Negocios / MarketPlace (UI unificada; cada ámbito su tabla)
+// =============================================================================
+
+export function SeccionCategorias() {
+  const [ambito, setAmbito] = useState<'negocio' | 'marketplace'>('negocio');
+  return (
+    <div className="flex h-full min-h-0 flex-col">
+      <div className="flex shrink-0 items-center gap-1.5 px-4 pt-4 lg:px-5">
+        {(
+          [
+            { id: 'negocio', label: 'Negocios', Icono: Store },
+            { id: 'marketplace', label: 'MarketPlace', Icono: Tags },
+          ] as const
+        ).map(({ id, label, Icono }) => {
+          const act = ambito === id;
+          return (
+            <button
+              key={id}
+              type="button"
+              data-testid={`categorias-ambito-${id}`}
+              onClick={() => setAmbito(id)}
+              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition ${
+                act
+                  ? 'border-marca/40 bg-marca-suave text-marca'
+                  : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
+              }`}
+            >
+              <Icono size={15} />
+              {label}
+            </button>
+          );
+        })}
+      </div>
+      <div className="min-h-0 flex-1">
+        {ambito === 'negocio' ? <SeccionCategoriasNegocios /> : <SeccionCategoriasMarketplace />}
+      </div>
     </div>
   );
 }

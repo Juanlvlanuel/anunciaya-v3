@@ -53,6 +53,7 @@ import {
 } from 'lucide-react';
 import { ModalBottom } from '../../ui/ModalBottom';
 import { ModalImagenes } from '../../ui/ModalImagenes';
+import { CustomSelect } from '../../ui/CustomSelect';
 import { ModalSugerenciaModeracion } from '../ModalSugerenciaModeracion';
 import {
     useComposerMarketplace,
@@ -68,6 +69,7 @@ import {
     useArticuloMarketplace,
     useCrearArticulo,
     useActualizarArticulo,
+    useCategoriasMarketplace,
     type CrearArticuloPayload,
     type RespuestaModeracion,
 } from '../../../hooks/queries/useMarketplace';
@@ -83,6 +85,7 @@ import { Spinner } from '../../ui/Spinner';
 import useBreakpoint from '../../../hooks/useBreakpoint';
 import type {
     ArticuloMarketplaceDetalle,
+    CategoriaMarketplace,
     CondicionArticulo,
     ModoArticulo,
 } from '../../../types/marketplace';
@@ -190,6 +193,15 @@ export function ComposerMarketplace({
         categoria: 'servicio' | 'busqueda';
         mensaje: string;
     } | null>(null);
+
+    // ─── Categorías (selector obligatorio) ───────────────────────────
+    const { data: categorias = [] } = useCategoriasMarketplace();
+
+    // Cambio de modo (Vendo/Busco) — cierra el acordeón de detalles al cambiar.
+    const cambiarModo = (m: ModoArticulo) => {
+        actualizar({ modo: m });
+        setSeccionAbierta(null);
+    };
 
     // ─── Mutations ───────────────────────────────────────────────────
     const crearMutation = useCrearArticulo();
@@ -340,52 +352,11 @@ export function ComposerMarketplace({
                         </div>
                     </div>
                     <div className="flex-1" />
-                    {/* Toggle Vendo / Busco (doble sentido) — solo en creación.
-                        Mismo estilo que el Ofrezco/Solicito de Servicios: pills
-                        planos, el activo con borde de color + ícono. */}
+                    {/* Toggle Vendo / Busco — en el header SOLO en desktop; en
+                        móvil va arriba del body (abajo) para no apretar el título. */}
                     {!esEdicion && (
-                        <div className="inline-flex items-center gap-1.5 shrink-0">
-                            {(
-                                [
-                                    { id: 'vendo' as const, label: 'Vendo', Icono: Tag },
-                                    { id: 'busco' as const, label: 'Busco', Icono: Search },
-                                ] as const
-                            ).map(({ id, label, Icono }) => {
-                                const activo = draft.modo === id;
-                                const esBusco = id === 'busco';
-                                return (
-                                    <button
-                                        key={id}
-                                        type="button"
-                                        data-testid={`composer-mp-modo-${id}`}
-                                        onClick={() => {
-                                            actualizar({ modo: id });
-                                            setSeccionAbierta(null);
-                                        }}
-                                        className={
-                                            'inline-flex items-center gap-2 h-9 px-4 rounded-full text-[14px] font-semibold lg:cursor-pointer ' +
-                                            (activo
-                                                ? esBusco
-                                                    ? 'bg-amber-50 border-2 border-amber-400 text-amber-800'
-                                                    : 'bg-teal-50 border-2 border-teal-400 text-teal-800'
-                                                : 'border-2 border-transparent text-slate-500 hover:text-slate-800')
-                                        }
-                                    >
-                                        <Icono
-                                            className={
-                                                'w-4 h-4 ' +
-                                                (activo
-                                                    ? esBusco
-                                                        ? 'text-amber-600'
-                                                        : 'text-teal-600'
-                                                    : 'text-slate-400')
-                                            }
-                                            strokeWidth={2.25}
-                                        />
-                                        {label}
-                                    </button>
-                                );
-                            })}
+                        <div className="hidden lg:block shrink-0">
+                            <ToggleVendoBusco modo={draft.modo} onCambio={cambiarModo} />
                         </div>
                     )}
                     <button
@@ -405,6 +376,14 @@ export function ComposerMarketplace({
                     </div>
                 ) : (
                     <div className="px-3 lg:px-5 py-3 lg:py-5">
+                        {/* Toggle Vendo / Busco — SOLO móvil (en desktop vive en
+                            el header). Evita apretar el título en pantallas chicas. */}
+                        {!esEdicion && (
+                            <div className="lg:hidden mb-3">
+                                <ToggleVendoBusco modo={draft.modo} onCambio={cambiarModo} />
+                            </div>
+                        )}
+
                         {/* Layout PC: 2 columnas (Fotos a la izquierda + Campos
                             a la derecha). Móvil: stack vertical normal. */}
                         <div className="lg:grid lg:grid-cols-[220px_1fr] lg:gap-5">
@@ -439,6 +418,16 @@ export function ComposerMarketplace({
                                         actualizar({ titulo: v.slice(0, 80) })
                                     }
                                     error={errores.titulo}
+                                />
+
+                                {/* Categoría (obligatoria, ambos modos) */}
+                                <CampoCategoria
+                                    categorias={categorias}
+                                    valor={draft.categoriaId}
+                                    onCambio={(id) =>
+                                        actualizar({ categoriaId: id })
+                                    }
+                                    error={errores.categoria}
                                 />
 
                                 {/* Precio (vendo) o Presupuesto + urgente (busco) */}
@@ -717,6 +706,93 @@ export function ComposerMarketplace({
 // =============================================================================
 // SUBCOMPONENTES
 // =============================================================================
+
+function ToggleVendoBusco({
+    modo,
+    onCambio,
+}: {
+    modo: ModoArticulo;
+    onCambio: (m: ModoArticulo) => void;
+}) {
+    return (
+        <div className="inline-flex items-center gap-1.5">
+            {(
+                [
+                    { id: 'vendo' as const, label: 'Vendo', Icono: Tag },
+                    { id: 'busco' as const, label: 'Busco', Icono: Search },
+                ] as const
+            ).map(({ id, label, Icono }) => {
+                const activo = modo === id;
+                const esBusco = id === 'busco';
+                return (
+                    <button
+                        key={id}
+                        type="button"
+                        data-testid={`composer-mp-modo-${id}`}
+                        onClick={() => onCambio(id)}
+                        className={
+                            'inline-flex items-center gap-2 h-9 px-4 rounded-full text-[14px] font-semibold lg:cursor-pointer ' +
+                            (activo
+                                ? esBusco
+                                    ? 'bg-amber-50 border-2 border-amber-400 text-amber-800'
+                                    : 'bg-teal-50 border-2 border-teal-400 text-teal-800'
+                                : 'border-2 border-transparent text-slate-500 hover:text-slate-800')
+                        }
+                    >
+                        <Icono
+                            className={
+                                'w-4 h-4 ' +
+                                (activo
+                                    ? esBusco
+                                        ? 'text-amber-600'
+                                        : 'text-teal-600'
+                                    : 'text-slate-400')
+                            }
+                            strokeWidth={2.25}
+                        />
+                        {label}
+                    </button>
+                );
+            })}
+        </div>
+    );
+}
+
+function CampoCategoria({
+    categorias,
+    valor,
+    onCambio,
+    error,
+}: {
+    categorias: CategoriaMarketplace[];
+    valor: number | null;
+    onCambio: (id: number) => void;
+    error?: string;
+}) {
+    return (
+        <div>
+            <label className="block text-[13px] font-semibold text-slate-700 mb-1">
+                Categoría
+            </label>
+            <CustomSelect<string>
+                testId="composer-mp-categoria"
+                placeholder="Elige una categoría…"
+                value={valor !== null ? String(valor) : null}
+                options={categorias.map((c) => ({
+                    value: String(c.id),
+                    label: c.nombre,
+                }))}
+                onChange={(v) => onCambio(Number(v))}
+                claseControl="px-3 py-2"
+            />
+            {error && (
+                <p className="mt-1 text-[13px] text-red-600 font-semibold">
+                    {error}
+                </p>
+            )}
+        </div>
+    );
+}
 
 function CampoTitulo({
     valor,
@@ -1676,6 +1752,7 @@ function articuloAlDraft(
     const precioNum = a.precio !== null ? parseEnteroPositivo(a.precio) : null;
     return {
         modo: a.modo,
+        categoriaId: a.categoriaId,
         titulo: a.titulo,
         descripcion: a.descripcion,
         precio: precioNum !== null ? String(precioNum) : '',

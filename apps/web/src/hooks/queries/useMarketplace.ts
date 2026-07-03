@@ -33,6 +33,7 @@ import type {
     OrdenFeedInfinito,
     RespuestaFeedInfinito,
     ModoArticulo,
+    CategoriaMarketplace,
 } from '../../types/marketplace';
 
 // =============================================================================
@@ -45,6 +46,8 @@ interface UseMarketplaceFeedParams {
     lng: number | null | undefined;
     /** Modo del feed: 'vendo' (default) | 'busco'. Alimenta el KPI del header. */
     modo?: ModoArticulo;
+    /** Filtro por categoría (opcional). */
+    categoriaId?: number;
 }
 
 /**
@@ -67,7 +70,7 @@ interface UseMarketplaceFeedParams {
  *   temblor visual cuando cambia la ciudad o el GPS se actualiza.
  */
 export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
-    const { ciudad, lat, lng, modo = 'vendo' } = params;
+    const { ciudad, lat, lng, modo = 'vendo', categoriaId } = params;
     const habilitado = !!ciudad && lat !== null && lat !== undefined && lng !== null && lng !== undefined;
 
     return useQuery({
@@ -76,11 +79,20 @@ export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
             lat: lat ?? 0,
             lng: lng ?? 0,
             modo,
+            categoriaId,
         }),
         queryFn: async (): Promise<FeedMarketplace> => {
             const response = await api.get<{ success: boolean; data: FeedMarketplace }>(
                 '/marketplace/feed',
-                { params: { ciudad, lat, lng, modo } }
+                {
+                    params: {
+                        ciudad,
+                        lat,
+                        lng,
+                        modo,
+                        ...(categoriaId !== undefined && { categoriaId }),
+                    },
+                }
             );
             return response.data.success
                 ? response.data.data
@@ -89,6 +101,27 @@ export function useMarketplaceFeed(params: UseMarketplaceFeedParams) {
         enabled: habilitado,
         staleTime: 2 * 60 * 1000,
         placeholderData: keepPreviousData,
+    });
+}
+
+// =============================================================================
+// CATEGORÍAS (MarketPlace)
+// =============================================================================
+
+/**
+ * Lista pública de categorías activas de MarketPlace (para el selector del
+ * composer y el filtro del feed). Cambian poco → staleTime alto.
+ */
+export function useCategoriasMarketplace() {
+    return useQuery({
+        queryKey: queryKeys.marketplace.categorias(),
+        queryFn: async (): Promise<CategoriaMarketplace[]> => {
+            const response = await api.get<{ success: boolean; data?: CategoriaMarketplace[] }>(
+                '/marketplace/categorias'
+            );
+            return response.data.success ? response.data.data ?? [] : [];
+        },
+        staleTime: 30 * 60 * 1000,
     });
 }
 
@@ -107,6 +140,8 @@ interface UseFeedInfinitoParams {
     modo?: ModoArticulo;
     /** Solo búsquedas urgentes — aplica cuando modo='busco'. */
     soloUrgente?: boolean;
+    /** Filtro por categoría (opcional). */
+    categoriaId?: number;
     /** Items por página. Default 10. */
     limite?: number;
 }
@@ -136,6 +171,7 @@ export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
         precioMax,
         modo = 'vendo',
         soloUrgente,
+        categoriaId,
         limite = 10,
     } = params;
 
@@ -156,6 +192,7 @@ export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
             precioMax,
             modo,
             soloUrgente,
+            categoriaId,
         }),
         queryFn: async ({ pageParam }): Promise<RespuestaFeedInfinito> => {
             const response = await api.get<{
@@ -171,6 +208,7 @@ export function useFeedInfinitoMarketplace(params: UseFeedInfinitoParams) {
                     limite,
                     modo,
                     ...(soloUrgente !== undefined && { soloUrgente }),
+                    ...(categoriaId !== undefined && { categoriaId }),
                     ...(precioMin !== undefined && { precioMin }),
                     ...(precioMax !== undefined && { precioMax }),
                 },
@@ -287,6 +325,8 @@ export async function heartbeatArticulo(articuloId: string): Promise<void> {
 export interface CrearArticuloPayload {
     /** Doble sentido: 'vendo' (default backend) | 'busco'. */
     modo?: ModoArticulo;
+    /** Categoría obligatoria (ambos modos). */
+    categoriaId: number;
     titulo: string;
     descripcion: string;
     /** Obligatorio en modo='vendo'; ausente en modo='busco'. */

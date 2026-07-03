@@ -27,7 +27,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
-import { ShoppingCart, Plus, AlertCircle, ChevronLeft, Search, Tag, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
+import { ShoppingCart, Plus, AlertCircle, ChevronLeft, ChevronDown, Search, Tag, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 
@@ -40,7 +40,7 @@ import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useSearchStore } from '../../../stores/useSearchStore';
 import { useUiStore } from '../../../stores/useUiStore';
-import { useMarketplaceFeed, useFeedInfinitoMarketplace } from '../../../hooks/queries/useMarketplace';
+import { useMarketplaceFeed, useFeedInfinitoMarketplace, useCategoriasMarketplace } from '../../../hooks/queries/useMarketplace';
 import { CardArticuloFeed } from '../../../components/marketplace/CardArticuloFeed';
 import { ReelMarketplace } from '../../../components/marketplace/ReelMarketplace';
 import { ChipsFiltrosFeed } from '../../../components/marketplace/ChipsFiltrosFeed';
@@ -48,7 +48,7 @@ import { ModalArticuloDetalle } from '../../../components/marketplace/ModalArtic
 import { ComposerSection } from '../../../components/marketplace/composer/ComposerSection';
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
-import type { OrdenFeedInfinito } from '../../../types/marketplace';
+import type { OrdenFeedInfinito, CategoriaMarketplace } from '../../../types/marketplace';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
@@ -94,6 +94,9 @@ export function PaginaMarketplace() {
     // ventas. Declarado arriba porque alimenta tanto el feed legacy (KPI) como
     // el feed infinito.
     const [modoFeed, setModoFeed] = useState<'vendo' | 'busco'>('vendo');
+    // Filtro por categoría (null = todas). Reemplaza el chip "Cerca de ti".
+    const [categoriaFeed, setCategoriaFeed] = useState<number | null>(null);
+    const { data: categoriasMP = [] } = useCategoriasMarketplace();
 
     // Feed v1.1 (legacy) — mantenido para el caso de fallback y la sección
     // antigua "Cercanos" mientras dura la migración. El feed nuevo (v1.2,
@@ -103,6 +106,7 @@ export function PaginaMarketplace() {
         lat: latitud,
         lng: longitud,
         modo: modoFeed,
+        categoriaId: categoriaFeed ?? undefined,
     });
 
     const recientes = data?.recientes ?? [];
@@ -124,6 +128,7 @@ export function PaginaMarketplace() {
         lng: longitud,
         orden,
         modo: modoFeed,
+        categoriaId: categoriaFeed ?? undefined,
         limite: 10,
     });
 
@@ -448,11 +453,13 @@ export function PaginaMarketplace() {
                                 <div className="px-3 pb-3">
                                     <div className="flex items-center gap-2 overflow-x-auto -mx-3 px-3 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                                         <ToggleModoFeedMP valor={modoFeed} onCambio={setModoFeed} />
-                                        <ChipsFiltrosFeed
-                                            valor={orden}
-                                            onCambio={setOrden}
-                                            gpsDisponible={!sinGps}
-                                            variant="dark"
+                                        {/* Chips de orden (Recientes/Más vistos) ocultos en
+                                            móvil por espacio; el orden queda en "recientes".
+                                            En desktop siguen visibles. */}
+                                        <DropdownCategoriaFeed
+                                            categorias={categoriasMP}
+                                            valor={categoriaFeed}
+                                            onCambio={setCategoriaFeed}
                                         />
                                     </div>
                                 </div>
@@ -514,6 +521,11 @@ export function PaginaMarketplace() {
                                                 variant="dark"
                                             />
                                         </div>
+                                        <DropdownCategoriaFeed
+                                            categorias={categoriasMP}
+                                            valor={categoriaFeed}
+                                            onCambio={setCategoriaFeed}
+                                        />
                                         {data && (
                                             <div className="flex flex-col items-end shrink-0">
                                                 <span
@@ -988,6 +1000,140 @@ function ToggleModoFeedMP({
                     </button>
                 );
             })}
+        </div>
+    );
+}
+
+// =============================================================================
+// DROPDOWN DE CATEGORÍA (filtro del feed) — ocupa el hueco de "Cerca de ti"
+// =============================================================================
+
+function DropdownCategoriaFeed({
+    categorias,
+    valor,
+    onCambio,
+}: {
+    categorias: CategoriaMarketplace[];
+    valor: number | null;
+    onCambio: (id: number | null) => void;
+}) {
+    const [abierto, setAbierto] = useState(false);
+    const [pos, setPos] = useState<{ top: number; left: number } | null>(null);
+    const btnRef = useRef<HTMLButtonElement>(null);
+    const panelRef = useRef<HTMLDivElement>(null);
+
+    // El panel se renderiza en un PORTAL con posición fija: si viviera dentro
+    // del header (que tiene overflow), quedaría recortado ("atrapado").
+    useEffect(() => {
+        if (!abierto) return;
+        // `pointerdown` unifica mouse y touch: al tocar/clicar FUERA del botón y
+        // del panel, se cierra. Al deslizar DENTRO del panel (su propia barra),
+        // el pointerdown cae dentro del panel → no cierra. No escuchamos
+        // `scroll` (en móvil, deslizar dentro del panel disparaba scroll y lo
+        // cerraba de forma indebida).
+        const cerrar = (e: Event) => {
+            const t = e.target as Node;
+            if (
+                !btnRef.current?.contains(t) &&
+                !panelRef.current?.contains(t)
+            ) {
+                setAbierto(false);
+            }
+        };
+        const cerrarResize = () => setAbierto(false);
+        document.addEventListener('pointerdown', cerrar);
+        window.addEventListener('resize', cerrarResize);
+        return () => {
+            document.removeEventListener('pointerdown', cerrar);
+            window.removeEventListener('resize', cerrarResize);
+        };
+    }, [abierto]);
+
+    const alternar = () => {
+        const rect = btnRef.current?.getBoundingClientRect();
+        if (rect) {
+            // Alinea a la derecha del botón para no salirse por la izquierda.
+            setPos({ top: rect.bottom + 4, left: rect.right - 208 });
+        }
+        setAbierto((o) => !o);
+    };
+
+    const seleccionada = categorias.find((c) => c.id === valor) ?? null;
+
+    return (
+        <div className="shrink-0">
+            <button
+                ref={btnRef}
+                type="button"
+                data-testid="mp-feed-categoria"
+                onClick={alternar}
+                aria-expanded={abierto}
+                className={
+                    'flex shrink-0 items-center gap-1.5 rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold lg:cursor-pointer ' +
+                    (valor !== null
+                        ? 'border-teal-400 bg-teal-500 text-white shadow-md shadow-teal-500/20'
+                        : 'border-white/15 bg-white/5 text-slate-200 lg:hover:border-teal-400/60 lg:hover:bg-white/10 lg:hover:text-white')
+                }
+            >
+                <Tag className="h-4 w-4" strokeWidth={2.5} />
+                <span className="whitespace-nowrap">
+                    {seleccionada ? seleccionada.nombre : 'Categoría'}
+                </span>
+                <ChevronDown
+                    className={'h-4 w-4 transition-transform ' + (abierto ? 'rotate-180' : '')}
+                    strokeWidth={2.5}
+                />
+            </button>
+            {abierto &&
+                pos &&
+                createPortal(
+                    <div
+                        ref={panelRef}
+                        style={{
+                            position: 'fixed',
+                            top: pos.top,
+                            left: Math.max(8, pos.left),
+                            zIndex: 60,
+                        }}
+                        className="max-h-72 w-52 overflow-y-auto rounded-xl border-2 border-slate-200 bg-white p-1 shadow-xl"
+                    >
+                        <button
+                            type="button"
+                            onClick={() => {
+                                onCambio(null);
+                                setAbierto(false);
+                            }}
+                            className={
+                                'block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold lg:cursor-pointer ' +
+                                (valor === null
+                                    ? 'bg-teal-50 text-teal-700'
+                                    : 'text-slate-700 hover:bg-slate-100')
+                            }
+                        >
+                            Todas
+                        </button>
+                        {categorias.map((c) => (
+                            <button
+                                key={c.id}
+                                type="button"
+                                data-testid={`mp-feed-categoria-${c.id}`}
+                                onClick={() => {
+                                    onCambio(c.id);
+                                    setAbierto(false);
+                                }}
+                                className={
+                                    'block w-full rounded-lg px-3 py-2 text-left text-sm font-semibold lg:cursor-pointer ' +
+                                    (valor === c.id
+                                        ? 'bg-teal-50 text-teal-700'
+                                        : 'text-slate-700 hover:bg-slate-100')
+                                }
+                            >
+                                {c.nombre}
+                            </button>
+                        ))}
+                    </div>,
+                    document.body
+                )}
         </div>
     );
 }

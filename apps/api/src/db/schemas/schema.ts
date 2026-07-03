@@ -2083,6 +2083,22 @@ export const chatBloqueados = pgTable("chat_bloqueados", {
  *   no la modifica; solo el endpoint futuro de "Reactivar" (Sprint 7) la
  *   puede extender.
  */
+/**
+ * Categorías de MarketPlace (1 nivel, globales). Tabla PROPIA — no reusa las de
+ * negocios (modelo distinto: simple, sin subcategorías ni disponibilidad por
+ * ciudad). Gestionable desde el Panel Admin. Ver
+ * docs/arquitectura/Marketplace_Categorias.md.
+ */
+export const categoriasMarketplace = pgTable("categorias_marketplace", {
+	id: serial().primaryKey().notNull(),
+	nombre: varchar({ length: 50 }).notNull(),
+	orden: smallint().default(0).notNull(),
+	activa: boolean().default(true).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("categorias_marketplace_nombre_key").on(table.nombre),
+]);
+
 export const articulosMarketplace = pgTable("articulos_marketplace", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	usuarioId: uuid("usuario_id").notNull().references(() => usuarios.id, { onDelete: 'cascade' }),
@@ -2092,6 +2108,11 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	// ('busco'). Default 'vendo' = comportamiento histórico. Ver
 	// docs/arquitectura/Marketplace_Busco.md.
 	modo: varchar({ length: 20 }).default('vendo').notNull(),
+
+	// Categoría (1 nivel, obligatoria al publicar vía app; nullable en BD para
+	// tolerar backfill/borrado). FK a categorias_marketplace. Ver
+	// docs/arquitectura/Marketplace_Categorias.md.
+	categoriaId: integer("categoria_id").references((): AnyPgColumn => categoriasMarketplace.id, { onDelete: 'set null' }),
 
 	// Contenido
 	titulo: varchar({ length: 80 }).notNull(),
@@ -2159,6 +2180,7 @@ export const articulosMarketplace = pgTable("articulos_marketplace", {
 	index("idx_marketplace_created").using("btree", table.createdAt.desc().nullsFirst()),
 	index("idx_marketplace_expira").using("btree", table.expiraAt.asc().nullsLast()),
 	index("idx_marketplace_modo").using("btree", table.modo.asc().nullsLast()),
+	index("idx_marketplace_categoria").using("btree", table.categoriaId.asc().nullsLast()),
 	// Índices GIST (ubicacion_aproximada) y GIN (FTS) viven solo en SQL —
 	// Drizzle no soporta declarar GIST/GIN sobre columnas custom geography ni
 	// sobre to_tsvector(). La migración SQL los crea y la BD los mantiene.

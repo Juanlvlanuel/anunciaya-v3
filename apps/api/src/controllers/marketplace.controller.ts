@@ -35,6 +35,7 @@ import {
     obtenerPopulares,
     buscarArticulos,
 } from '../services/marketplace/buscador.js';
+import { obtenerCategoriasMarketplace } from '../services/marketplace/categorias.js';
 import { reactivarArticulo } from '../services/marketplace/expiracion.js';
 import {
     crearArticuloSchema,
@@ -85,6 +86,24 @@ function exigirUsuarioId(req: Request, res: Response): string | null {
  * GET /api/marketplace/feed?ciudad=...&lat=...&lng=...
  * Devuelve `{ recientes, cercanos }` de la ciudad y coordenadas dadas.
  */
+/**
+ * GET /api/marketplace/categorias
+ *
+ * Lista pública de categorías activas (para el composer y el filtro del feed).
+ */
+export async function getCategoriasMarketplace(_req: Request, res: Response) {
+    try {
+        const data = await obtenerCategoriasMarketplace();
+        return res.json({ success: true, data });
+    } catch (error) {
+        console.error('Error en getCategoriasMarketplace:', error);
+        return res.status(500).json({
+            success: false,
+            message: 'Error al obtener las categorías',
+        });
+    }
+}
+
 export async function getFeed(req: Request, res: Response) {
     try {
         const validacion = feedQuerySchema.safeParse(req.query);
@@ -96,8 +115,8 @@ export async function getFeed(req: Request, res: Response) {
             });
         }
 
-        const { ciudad, lat, lng, modo } = validacion.data;
-        const resultado = await obtenerFeed(ciudad, lat, lng, modo);
+        const { ciudad, lat, lng, modo, categoriaId } = validacion.data;
+        const resultado = await obtenerFeed(ciudad, lat, lng, modo, categoriaId);
         return res.json(resultado);
     } catch (error) {
         console.error('Error en getFeed:', error);

@@ -48,6 +48,8 @@ const UNIDAD_MAX = 30;
 export interface ComposerMarketplaceDraft {
     /** Doble sentido: 'vendo' (venta) | 'busco' (demanda de compra). */
     modo: ModoArticulo;
+    /** Categoría obligatoria (ambos modos). null = sin elegir. */
+    categoriaId: number | null;
 
     // Visible arriba
     titulo: string;
@@ -89,6 +91,7 @@ export interface ComposerMarketplaceDraft {
 
 const DRAFT_INICIAL: ComposerMarketplaceDraft = {
     modo: 'vendo',
+    categoriaId: null,
     titulo: '',
     descripcion: '',
     precio: '',
@@ -161,6 +164,7 @@ function limpiarDraftMarketplace(ns: string) {
 /** Determina si un draft está vacío (sin cambios significativos del usuario). */
 export function draftEstaIntacto(d: ComposerMarketplaceDraft): boolean {
     return (
+        d.categoriaId === null &&
         d.titulo === '' &&
         d.descripcion === '' &&
         d.precio === '' &&
@@ -184,6 +188,7 @@ export function draftEstaIntacto(d: ComposerMarketplaceDraft): boolean {
 // =============================================================================
 
 export type CampoErrorComposerMP =
+    | 'categoria'
     | 'titulo'
     | 'descripcion'
     | 'precio'
@@ -210,6 +215,10 @@ export function validarComposerMP(
     const esBusco = d.modo === 'busco';
 
     // ── OBLIGATORIOS ────────────────────────────────────────────────
+    if (d.categoriaId === null) {
+        errores.categoria = 'Elige una categoría.';
+    }
+
     const titLen = d.titulo.trim().length;
     if (titLen < TITULO_MIN) {
         errores.titulo =
@@ -277,6 +286,7 @@ export function validarComposerMP(
     }
 
     const orden: CampoErrorComposerMP[] = [
+        'categoria',
         'titulo',
         'descripcion',
         'precio',

@@ -53,6 +53,8 @@ export function construirPayloadCrearMP(
     // Campos comunes a ambos modos.
     const base = {
         modo: d.modo,
+        // Validado no-null por el composer antes de publicar.
+        categoriaId: d.categoriaId as number,
         titulo: d.titulo.trim(),
         descripcion: descripcionTrim,
         fotos: d.fotos,
@@ -116,6 +118,7 @@ export function construirPayloadEditarMP(
     d: ComposerMarketplaceDraft,
 ): ActualizarArticuloPayload {
     const base = {
+        ...(d.categoriaId !== null && { categoriaId: d.categoriaId }),
         titulo: d.titulo.trim(),
         descripcion: d.descripcion.trim(),
         fotos: d.fotos,

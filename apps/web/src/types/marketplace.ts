@@ -32,6 +32,13 @@ export interface PresupuestoArticulo {
     max: number;
 }
 
+/** Categoría de MarketPlace (1 nivel, global). Ver Marketplace_Categorias.md. */
+export interface CategoriaMarketplace {
+    id: number;
+    nombre: string;
+    orden: number;
+}
+
 /**
  * Artículo del MarketPlace (espejo de `articulos_marketplace` en BD).
  *
@@ -51,6 +58,9 @@ export interface ArticuloMarketplace {
     usuarioId: string;
     /** Doble sentido: 'vendo' (venta) | 'busco' (demanda de compra). */
     modo: ModoArticulo;
+    /** Categoría (1 nivel). NULL solo en artículos legacy sin categoría. */
+    categoriaId: number | null;
+    categoriaNombre: string | null;
     titulo: string;
     descripcion: string;
     /** NUMERIC(10,2) viene como string del backend. NULL en modo='busco'. */

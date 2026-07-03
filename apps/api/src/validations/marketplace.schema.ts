@@ -90,6 +90,12 @@ const campoModo = z.enum(['vendo', 'busco'], {
     message: 'El modo debe ser vendo o busco',
 });
 
+/** ID de categoría de MarketPlace (serial en BD). */
+const campoCategoriaId = z
+    .number({ message: 'La categoría es obligatoria' })
+    .int('La categoría debe ser un entero')
+    .positive('La categoría debe ser válida');
+
 /**
  * Presupuesto deseado del comprador — solo modo='busco', opcional.
  * Calca `presupuesto` de servicios_publicaciones (Solicito).
@@ -176,6 +182,8 @@ export const crearArticuloSchema = z
          * (demanda de compra). Ramifica qué campos son requeridos abajo.
          */
         modo: campoModo.optional().default('vendo'),
+        /** Categoría obligatoria (ambos modos). */
+        categoriaId: campoCategoriaId,
         titulo: campoTitulo,
         descripcion: campoDescripcion,
         /** Requerido solo en modo='vendo' (ver superRefine). */
@@ -289,6 +297,8 @@ export const actualizarArticuloSchema = z
     .object({
         titulo: campoTitulo.optional(),
         descripcion: campoDescripcion.optional(),
+        /** Cambiar la categoría de la publicación. */
+        categoriaId: campoCategoriaId.optional(),
         precio: campoPrecio.optional(),
         /** Editar el presupuesto de una búsqueda (modo='busco'). */
         presupuesto: campoPresupuesto.optional(),
@@ -374,6 +384,8 @@ export const feedQuerySchema = z.object({
     }),
     /** 'vendo' (default histórico) | 'busco' (feed de demandas). */
     modo: campoModo.optional().default('vendo'),
+    /** Filtro por categoría (opcional) — usado por el KPI del header. */
+    categoriaId: z.coerce.number().int().positive().optional(),
 });
 
 export type FeedQueryInput = z.infer<typeof feedQuerySchema>;
@@ -408,6 +420,8 @@ export const feedInfinitoQuerySchema = z.object({
         .enum(['true', 'false'])
         .optional()
         .transform((v) => (v === undefined ? undefined : v === 'true')),
+    /** Filtro por categoría (opcional). */
+    categoriaId: z.coerce.number().int().positive().optional(),
 });
 
 export type FeedInfinitoQueryInput = z.infer<typeof feedInfinitoQuerySchema>;

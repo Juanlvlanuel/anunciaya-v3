@@ -16,6 +16,7 @@ import { validarTextoPublicacion } from '../services/marketplace/filtros.js';
 // Payload base de una VENTA válida (modo 'vendo' por default).
 function ventaValida() {
     return {
+        categoriaId: 4,
         titulo: 'Bicicleta rodada 26',
         descripcion: 'Bicicleta de montaña en buen estado, poco uso.',
         precio: 2800,
@@ -32,6 +33,7 @@ function ventaValida() {
 function busquedaValida() {
     return {
         modo: 'busco' as const,
+        categoriaId: 4,
         titulo: 'Busco cama matrimonial',
         descripcion: 'Necesito una cama matrimonial en buen estado.',
         latitud: 31.3,
@@ -73,6 +75,13 @@ describe('crearArticuloSchema — modo vendo', () => {
         void zonaAproximada;
         const r = crearArticuloSchema.safeParse(sinZona);
         expect(r.success).toBe(true);
+    });
+
+    it('rechaza publicar sin categoría (obligatoria)', () => {
+        const { categoriaId, ...sinCategoria } = ventaValida();
+        void categoriaId;
+        const r = crearArticuloSchema.safeParse(sinCategoria);
+        expect(r.success).toBe(false);
     });
 });
 

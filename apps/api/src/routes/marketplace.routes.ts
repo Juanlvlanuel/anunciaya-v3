@@ -35,6 +35,7 @@
 
 import { Router } from 'express';
 import {
+    getCategoriasMarketplace,
     getFeed,
     getFeedInfinito,
     getArticulo,
@@ -72,6 +73,7 @@ const router: Router = Router();
  * GET /api/marketplace/feed?ciudad=...&lat=...&lng=...
  * Feed inicial: { recientes, cercanos } por ciudad y GPS del usuario.
  */
+router.get('/categorias', getCategoriasMarketplace);
 router.get('/feed', verificarTokenOpcional, getFeed);
 
 /**

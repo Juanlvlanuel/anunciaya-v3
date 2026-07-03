@@ -342,9 +342,11 @@ export function ComposerServicios({
                         )}
                     </div>
                 </div>
-                {/* Toggle Ofrezco/Solicito — visible solo en PC. */}
+                <div className="flex-1" />
+                {/* Toggle Ofrezco/Solicito — visible solo en PC, empujado a la
+                    derecha (mismo layout que Vendo/Busco de MarketPlace). */}
                 {!esEdicion && (
-                    <div className="hidden lg:block ml-2">
+                    <div className="hidden lg:block">
                         <TogglePill
                             modo={draft.modo}
                             onCambio={(m) => actualizar({ modo: m })}
@@ -352,7 +354,6 @@ export function ComposerServicios({
                         />
                     </div>
                 )}
-                <div className="flex-1" />
                 <button
                     type="button"
                     aria-label="Cerrar composer"

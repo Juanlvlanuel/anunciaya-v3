@@ -34,6 +34,7 @@ import regionesRoutes from './regiones.routes.js';
 import configuracionRoutes from './configuracion.routes.js';
 import ciudadesRoutes from './ciudades.routes.js';
 import categoriasRoutes from './categorias.routes.js';
+import categoriasMarketplaceRoutes from './categorias-marketplace.routes.js';
 import territoriosRoutes from './territorios.routes.js';
 import demoBusinessStudioRoutes from './demoBusinessStudio.routes.js';
 
@@ -133,6 +134,10 @@ router.use('/ciudades', ciudadesRoutes);
 // Categorías: catálogo de negocios (categorías/subcategorías) + disponibilidad por
 // ciudad (solo superadmin, ya cubierto por el gate).
 router.use('/categorias', categoriasRoutes);
+
+// Categorías de MarketPlace: catálogo simple (1 nivel), gestionado desde el
+// mismo módulo del Panel con toggle Negocios/MarketPlace.
+router.use('/categorias-marketplace', categoriasMarketplaceRoutes);
 
 // A futuro, agregar aquí:
 // router.use('/reportes-globales', reportesGlobalesRoutes);

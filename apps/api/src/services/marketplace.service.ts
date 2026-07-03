@@ -46,6 +46,9 @@ interface ArticuloRow {
     usuarioId: string;
     /** Doble sentido: 'vendo' (venta) | 'busco' (demanda). */
     modo: string;
+    /** Categoría (1 nivel). NULL solo en artículos sin categoría (legacy). */
+    categoriaId: number | null;
+    categoriaNombre: string | null;
     titulo: string;
     descripcion: string;
     /** NULL en modo='busco' (una búsqueda no lleva precio). */
@@ -178,6 +181,8 @@ interface RawArticuloDb {
     id: string;
     usuario_id: string;
     modo: string;
+    categoria_id: number | null;
+    categoria_nombre: string | null;
     titulo: string;
     descripcion: string;
     precio: string | null;
@@ -207,6 +212,8 @@ function mapearArticulo(row: RawArticuloDb): ArticuloRow {
         id: row.id,
         usuarioId: row.usuario_id,
         modo: row.modo,
+        categoriaId: row.categoria_id,
+        categoriaNombre: row.categoria_nombre,
         titulo: row.titulo,
         descripcion: row.descripcion,
         precio: row.precio,
@@ -367,7 +374,7 @@ export async function crearArticulo(
 
         const resultado = await db.execute(sql`
             INSERT INTO articulos_marketplace (
-                usuario_id, modo, titulo, descripcion, precio, presupuesto, urgente,
+                usuario_id, modo, categoria_id, titulo, descripcion, precio, presupuesto, urgente,
                 condicion, acepta_ofertas,
                 unidad_venta,
                 confirmaciones,
@@ -378,6 +385,7 @@ export async function crearArticulo(
             ) VALUES (
                 ${usuarioId},
                 ${datos.modo},
+                ${datos.categoriaId},
                 ${datos.titulo},
                 ${datos.descripcion},
                 ${precioInsert},
@@ -396,15 +404,15 @@ export async function crearArticulo(
                 ${expiraAtSql}
             )
             RETURNING
-                id, usuario_id, modo, titulo, descripcion, precio, presupuesto, urgente,
+                id, usuario_id, modo, categoria_id, titulo, descripcion, precio, presupuesto, urgente,
                 condicion, acepta_ofertas,
                 unidad_venta,
                 fotos, foto_portada_index,
                 ST_Y(ubicacion_aproximada::geometry) AS lat,
                 ST_X(ubicacion_aproximada::geometry) AS lng,
-                -- ciudad: leída del catálogo vía la FK (la columna texto se retiró en el
-                -- contract). Subconsulta escalar porque un RETURNING no admite JOIN.
+                -- ciudad y categoría vía subconsulta escalar (RETURNING no admite JOIN).
                 (SELECT nombre FROM ciudades WHERE id = articulos_marketplace.ciudad_id) AS ciudad,
+                (SELECT nombre FROM categorias_marketplace WHERE id = articulos_marketplace.categoria_id) AS categoria_nombre,
                 zona_aproximada, estado,
                 total_vistas, total_mensajes, total_guardados,
                 expira_at, created_at, updated_at, vendida_at
@@ -506,7 +514,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
     try {
         const resultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.categoria_id, cat.nombre AS categoria_nombre, a.titulo, a.descripcion, a.precio,
                 a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
@@ -539,6 +547,7 @@ export async function obtenerArticuloPorId(articuloId: string, usuarioActualId?:
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
             LEFT JOIN ciudades cu ON cu.id = u.ciudad_id
             WHERE a.id = ${articuloId}
               AND a.deleted_at IS NULL
@@ -610,12 +619,16 @@ export async function obtenerFeed(
     ciudad: string,
     lat: number,
     lng: number,
-    modo: 'vendo' | 'busco' = 'vendo'
+    modo: 'vendo' | 'busco' = 'vendo',
+    categoriaId?: number
 ) {
     try {
+        const filtroCategoria = categoriaId
+            ? sql`AND a.categoria_id = ${categoriaId}`
+            : sql``;
         const recientesResultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.categoria_id, cat.nombre AS categoria_nombre, a.titulo, a.descripcion, a.precio,
                 a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
@@ -631,6 +644,7 @@ export async function obtenerFeed(
                 COALESCE(cq.total, 0) AS total_comentarios
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
                 FROM marketplace_comentarios
@@ -640,6 +654,7 @@ export async function obtenerFeed(
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND a.modo = ${modo}
+              ${filtroCategoria}
               AND c.nombre = ${ciudad}
             -- En búsquedas, urgentes primero (calca el feed de Solicitudes).
             ORDER BY (a.modo = 'busco' AND a.urgente) DESC, a.created_at DESC
@@ -648,7 +663,7 @@ export async function obtenerFeed(
 
         const cercanosResultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.categoria_id, cat.nombre AS categoria_nombre, a.titulo, a.descripcion, a.precio,
                 a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
@@ -664,6 +679,7 @@ export async function obtenerFeed(
                 COALESCE(cq.total, 0) AS total_comentarios
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
                 FROM marketplace_comentarios
@@ -673,6 +689,7 @@ export async function obtenerFeed(
             WHERE a.estado = 'activa'
               AND a.deleted_at IS NULL
               AND a.modo = ${modo}
+              ${filtroCategoria}
               AND c.nombre = ${ciudad}
             ORDER BY a.ubicacion_aproximada <-> ST_SetSRID(ST_MakePoint(${lng}, ${lat}), 4326)::geography
             LIMIT 20
@@ -761,6 +778,8 @@ interface OpcionesFeedInfinito {
     modo?: 'vendo' | 'busco';
     /** Solo búsquedas urgentes — aplica cuando modo='busco'. */
     soloUrgente?: boolean;
+    /** Filtro por categoría (opcional). */
+    categoriaId?: number;
     /**
      * ID del usuario logueado (opcional). Si se provee, cada artículo trae
      * `guardado` indicando si este usuario tiene el artículo en su lista
@@ -808,6 +827,11 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                 ? sql`AND a.urgente = true`
                 : sql``;
 
+        // Filtro por categoría (opcional).
+        const filtroCategoria = opciones.categoriaId
+            ? sql`AND a.categoria_id = ${opciones.categoriaId}`
+            : sql``;
+
         // ORDER BY según el orden pedido. En búsquedas, los urgentes van
         // primero (calca el feed de Solicitudes de Servicios).
         const prefijoUrgente = modo === 'busco' ? sql`a.urgente DESC, ` : sql``;
@@ -834,7 +858,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
                     a.ubicacion_aproximada,
                     ST_SetSRID(ST_MakePoint(${opciones.lng}, ${opciones.lat}), 4326)::geography
                 ) AS distancia_metros,
-                a.modo, a.presupuesto, a.urgente,
+                a.modo, a.categoria_id, cat.nombre AS categoria_nombre, a.presupuesto, a.urgente,
                 u.id AS vendedor_id,
                 u.nombre AS vendedor_nombre,
                 u.apellidos AS vendedor_apellidos,
@@ -874,6 +898,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
             FROM articulos_marketplace a
             INNER JOIN usuarios u ON u.id = a.usuario_id
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
             LEFT JOIN (
                 SELECT articulo_id, COUNT(*)::int AS total
                 FROM marketplace_comentarios
@@ -885,6 +910,7 @@ export async function obtenerFeedInfinito(opciones: OpcionesFeedInfinito) {
               AND c.nombre = ${opciones.ciudad}
               ${filtroModo}
               ${filtroUrgente}
+              ${filtroCategoria}
               ${filtroPrecioMin}
               ${filtroPrecioMax}
             ${orderBy}
@@ -1004,7 +1030,7 @@ export async function obtenerMisArticulos(
 
         const resultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.categoria_id, cat.nombre AS categoria_nombre, a.titulo, a.descripcion, a.precio,
                 a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
@@ -1015,6 +1041,7 @@ export async function obtenerMisArticulos(
                 a.expira_at, a.created_at, a.updated_at, a.vendida_at
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
             WHERE a.usuario_id = ${usuarioId}
               AND a.deleted_at IS NULL
               ${filtroEstado}
@@ -1134,6 +1161,7 @@ export async function actualizarArticulo(
 
         if (datos.titulo !== undefined) sets.push(sql`titulo = ${datos.titulo}`);
         if (datos.descripcion !== undefined) sets.push(sql`descripcion = ${datos.descripcion}`);
+        if (datos.categoriaId !== undefined) sets.push(sql`categoria_id = ${datos.categoriaId}`);
         if (datos.precio !== undefined) sets.push(sql`precio = ${datos.precio}`);
         // condicion/aceptaOfertas aceptan null (editor que limpia el valor) y
         // valores explícitos. `undefined` significa "no tocar este campo".
@@ -1549,7 +1577,7 @@ export async function obtenerArticulosDeVendedor(
 
         const resultado = await db.execute(sql`
             SELECT
-                a.id, a.usuario_id, a.modo, a.titulo, a.descripcion, a.precio,
+                a.id, a.usuario_id, a.modo, a.categoria_id, cat.nombre AS categoria_nombre, a.titulo, a.descripcion, a.precio,
                 a.presupuesto, a.urgente,
                 a.condicion, a.acepta_ofertas, a.unidad_venta,
                 a.fotos, a.foto_portada_index,
@@ -1561,6 +1589,7 @@ export async function obtenerArticulosDeVendedor(
                 ${guardadoExpr}
             FROM articulos_marketplace a
             LEFT JOIN ciudades c ON c.id = a.ciudad_id
+            LEFT JOIN categorias_marketplace cat ON cat.id = a.categoria_id
             WHERE a.usuario_id = ${vendedorId}
               AND a.estado = ${estado}
               AND a.deleted_at IS NULL
