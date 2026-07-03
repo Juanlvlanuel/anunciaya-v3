@@ -26,11 +26,14 @@ import {
     X,
     Check,
     ShoppingCart,
+    Clock,
+    History,
     type LucideIcon,
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
+import { BotonIrArriba } from '@/components/ui/BotonIrArriba';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -599,28 +602,33 @@ export function PaginaGuardados() {
                                     })}
                                 </div>
 
-                                {/* Ordenamiento desktop */}
+                                {/* Ordenamiento desktop — mismo estilo que los tabs
+                                    del header (ícono + texto, full rounded, border-2). */}
                                 {!loading && totalGuardados > 0 && (
                                     <div className="hidden lg:flex items-center gap-1.5 ml-auto pr-6 2xl:pr-8">
                                         <button
                                             onClick={() => setOrdenamiento('recientes')}
-                                            className={`px-3 2xl:px-4 py-1.5 2xl:py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                                            className={[
+                                                'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
                                                 ordenamiento === 'recientes'
-                                                    ? 'bg-rose-500 text-white'
-                                                    : 'text-white/50 hover:text-white/80'
-                                            }`}
+                                                    ? 'bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/20'
+                                                    : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-rose-400/60',
+                                            ].join(' ')}
                                         >
-                                            Recientes
+                                            <Clock className="w-4 h-4" strokeWidth={2.5} />
+                                            <span>Recientes</span>
                                         </button>
                                         <button
                                             onClick={() => setOrdenamiento('antiguos')}
-                                            className={`px-3 2xl:px-4 py-1.5 2xl:py-2 rounded-lg text-sm lg:text-[11px] 2xl:text-sm font-semibold cursor-pointer ${
+                                            className={[
+                                                'shrink-0 flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold transition-all cursor-pointer border-2 whitespace-nowrap',
                                                 ordenamiento === 'antiguos'
-                                                    ? 'bg-rose-500 text-white'
-                                                    : 'text-white/50 hover:text-white/80'
-                                            }`}
+                                                    ? 'bg-rose-500 text-white border-rose-400 shadow-md shadow-rose-500/20'
+                                                    : 'bg-white/5 text-slate-200 border-white/15 hover:bg-white/10 hover:text-white hover:border-rose-400/60',
+                                            ].join(' ')}
                                         >
-                                            Antiguos
+                                            <History className="w-4 h-4" strokeWidth={2.5} />
+                                            <span>Antiguos</span>
                                         </button>
                                     </div>
                                 )}
@@ -766,6 +774,13 @@ export function PaginaGuardados() {
                     animation: fade-in 0.2s ease-out;
                 }
             `}</style>
+
+            {/* Flecha "ir arriba" — grids en el flujo de página (scroll de
+                página, móvil + PC). Mismo eje que CardYA. */}
+            <BotonIrArriba
+                testId="guardados-ir-arriba"
+                right="right-4 lg:right-[270px] 2xl:right-[330px]"
+            />
         </div>
     );
 }

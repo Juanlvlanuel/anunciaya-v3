@@ -23,6 +23,7 @@ const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p}
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { Spinner } from '../../../components/ui/Spinner';
+import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import type { CuponCliente } from '../../../services/misCuponesService';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useMisCuponesLista, useMisCuponesSocket } from '../../../hooks/queries/useMisCupones';
@@ -359,6 +360,13 @@ export default function PaginaMisCupones() {
                 abierto={modalAbierto}
                 onCerrar={() => { setModalAbierto(false); setCuponSeleccionado(null); }}
                 cupon={cuponSeleccionado}
+            />
+
+            {/* Flecha "ir arriba" — grid de cupones en el flujo de página
+                (scroll de página, móvil + PC). Mismo eje que CardYA. */}
+            <BotonIrArriba
+                testId="cupones-ir-arriba"
+                right="right-4 lg:right-[270px] 2xl:right-[330px]"
             />
         </>
     );

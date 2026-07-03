@@ -51,6 +51,7 @@ import DropdownNegocio from './componentes/DropdownNegocio';
 import DropdownFiltroEstado from './componentes/DropdownFiltroEstado';
 import ModalDetalleRecompensa from './componentes/ModalDetalleRecompensa';
 import { ModalImagenes } from '../../../components/ui/ModalImagenes';
+import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 
 // Tipos
 import type {
@@ -105,6 +106,11 @@ export function PaginaCardYA() {
     const headerRef = useRef<HTMLDivElement>(null);
     const [headerHeight, setHeaderHeight] = useState(0);
     const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
+
+    // Refs al body scrolleable de las tablas (desktop) — la flecha "ir arriba"
+    // en Vouchers/Historial opera sobre este scroll interno, no el de la página.
+    const voucherScrollRef = useRef<HTMLDivElement>(null);
+    const comprasScrollRef = useRef<HTMLDivElement>(null);
 
     // Wrapper de setTabActiva que resetea scroll al top
     const setTabActiva = (tab: TabCardYA) => {
@@ -450,6 +456,7 @@ export function PaginaCardYA() {
                 </div>
             ) : (
                 <TablaHistorialCompras
+                    scrollRef={comprasScrollRef}
                     transacciones={transaccionesUnificadas}
                     onClickTransaccion={(tx) => {
                         if (tx.tipo === 'canje') {
@@ -471,7 +478,7 @@ export function PaginaCardYA() {
 
     const seccionVouchers = (
         <div>
-            <TablaHistorialVouchers vouchers={vouchersHistorial} onClickVoucher={setVoucherSeleccionado} onClickImagen={abrirImagenUnica} stickyTop={headerHeight} negocioFiltro={negocioFiltro} filtroEstado={filtroEstado} />
+            <TablaHistorialVouchers scrollRef={voucherScrollRef} vouchers={vouchersHistorial} onClickVoucher={setVoucherSeleccionado} onClickImagen={abrirImagenUnica} stickyTop={headerHeight} negocioFiltro={negocioFiltro} filtroEstado={filtroEstado} />
         </div>
     );
 
@@ -715,6 +722,65 @@ export function PaginaCardYA() {
                 {tabActiva === 'vouchers' && seccionVouchers}
                 {tabActiva === 'historial' && seccionHistorial}
             </div>
+
+            {/* ── Flechas "ir arriba" por tab ──────────────────────────────
+                · Billeteras / Recompensas: grid en el flujo de página → scroll
+                  de página, móvil + PC.
+                · Vouchers / Historial: en PC la tabla tiene scroll interno
+                  propio → 2 flechas: una móvil (scroll de página, lista de
+                  cards) y una de escritorio anclada a la esquina de la tabla,
+                  operando sobre su scroll interno. */}
+            {tabActiva === 'billeteras' && (
+                <BotonIrArriba
+                    testId="cardya-billeteras-ir-arriba"
+                    right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                />
+            )}
+
+            {tabActiva === 'recompensas' && (
+                <BotonIrArriba
+                    testId="cardya-ir-arriba"
+                    right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                />
+            )}
+
+            {tabActiva === 'vouchers' && (
+                <>
+                    {/* Móvil: scroll de página (lista de cards) */}
+                    <BotonIrArriba
+                        testId="cardya-vouchers-ir-arriba"
+                        soloMovil
+                        right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                    />
+                    {/* PC: opera sobre el scroll interno de la tabla, pero en
+                        la misma ubicación que la flecha de Recompensas. */}
+                    <BotonIrArriba
+                        testId="cardya-vouchers-ir-arriba-pc"
+                        soloEscritorio
+                        scrollRef={voucherScrollRef}
+                        right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                    />
+                </>
+            )}
+
+            {tabActiva === 'historial' && (
+                <>
+                    {/* Móvil: scroll de página (lista de cards) */}
+                    <BotonIrArriba
+                        testId="cardya-historial-ir-arriba"
+                        soloMovil
+                        right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                    />
+                    {/* PC: opera sobre el scroll interno de la tabla, pero en
+                        la misma ubicación que la flecha de Recompensas. */}
+                    <BotonIrArriba
+                        testId="cardya-historial-ir-arriba-pc"
+                        soloEscritorio
+                        scrollRef={comprasScrollRef}
+                        right="right-4 lg:right-[255px] 2xl:right-[330px]"
+                    />
+                </>
+            )}
 
             {/* =========================================================================
                 MODALES

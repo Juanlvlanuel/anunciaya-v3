@@ -113,6 +113,9 @@ interface ComposerMarketplaceProps {
     modo: 'crear' | 'editar';
     /** Sólo aplica si modo='editar'. */
     articuloId: string | null;
+    /** Preselecciona Vendo/Busco al abrir en creación (desde el FAB según el
+     *  tab activo del feed). null = usa el modo del borrador. */
+    intencionInicial?: 'vendo' | 'busco' | null;
     /** Colapsar el composer (vuelve a la pill). */
     onColapsar: () => void;
 }
@@ -120,6 +123,7 @@ interface ComposerMarketplaceProps {
 export function ComposerMarketplace({
     modo,
     articuloId,
+    intencionInicial = null,
     onColapsar,
 }: ComposerMarketplaceProps) {
     const navigate = useNavigate();
@@ -202,6 +206,16 @@ export function ComposerMarketplace({
         actualizar({ modo: m });
         setSeccionAbierta(null);
     };
+
+    // Preselección de intención (Vendo/Busco) al abrir en creación desde el FAB
+    // según el tab activo del feed. Se aplica una sola vez por montaje; en
+    // edición no aplica (el modo se hidrata del artículo).
+    const intencionAplicadaRef = useRef(false);
+    useEffect(() => {
+        if (esEdicion || !intencionInicial || intencionAplicadaRef.current) return;
+        intencionAplicadaRef.current = true;
+        actualizar({ modo: intencionInicial });
+    }, [esEdicion, intencionInicial, actualizar]);
 
     // ─── Mutations ───────────────────────────────────────────────────
     const crearMutation = useCrearArticulo();

@@ -8,7 +8,7 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/TablaHistorialVouchers.tsx
  */
 
-import { useState } from 'react';
+import { useState, type RefObject } from 'react';
 import {
   Ticket,
   CheckCircle,
@@ -130,6 +130,7 @@ export default function TablaHistorialVouchers({
   negocioFiltro: negocioFiltroExterno,
   onClickImagen,
   filtroEstado = 'todos',
+  scrollRef,
 }: {
   vouchers: Voucher[];
   onClickVoucher?: (voucher: Voucher) => void;
@@ -137,6 +138,8 @@ export default function TablaHistorialVouchers({
   stickyTop?: number;
   negocioFiltro?: string;
   filtroEstado?: string;
+  /** Ref al body scrolleable (desktop) — para la flecha "ir arriba". */
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }) {
   const filtroActivo = filtroEstado as EstadoVoucher | 'todos';
 
@@ -413,7 +416,7 @@ export default function TablaHistorialVouchers({
               </table>
             </div>
             {/* Body con scroll */}
-            <div className="flex-1 overflow-y-auto">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto">
               <table className="w-full" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
                   <col style={{ width: '22%' }} />

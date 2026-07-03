@@ -54,10 +54,11 @@ type IconLike =
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
 import { Spinner } from '../../../components/ui/Spinner';
 import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
+import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
+import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { CardArticuloMio } from '../../../components/marketplace/CardArticuloMio';
 import { MisPublicacionesServiciosSection } from '../../../components/servicios/MisPublicacionesServiciosSection';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
-import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useUiStore } from '../../../stores/useUiStore';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
@@ -146,9 +147,9 @@ export function PaginaMisPublicaciones() {
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
 
-    // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
-    // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece. Mismo
-    // patrón que el FAB del feed de MarketPlace.
+    // El FAB "Publicar" flotante es SOLO móvil (en PC vive dentro del header).
+    // En móvil va abajo a la derecha y sube/baja con el BottomNav (la flecha
+    // "ir arriba" va abajo a la izquierda). Mismo patrón que MarketPlace.
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
 
     // ─── Estado UI ───────────────────────────────────────────────────────────
@@ -336,6 +337,16 @@ export function PaginaMisPublicaciones() {
             notificar.error('No pudimos eliminar la publicación. Intenta de nuevo.');
         }
     };
+
+    // Colores de los tabs de estado (filtros) unificados con el tipo activo —
+    // teal para MarketPlace, sky para Servicios, igual que el FAB y los toggles.
+    const tabActivoClase = tipoActivo === 'marketplace'
+        ? 'border-teal-400 bg-teal-500 shadow-teal-500/20'
+        : 'border-sky-400 bg-sky-500 shadow-sky-500/20';
+    const tabHoverClase = tipoActivo === 'marketplace'
+        ? 'hover:border-teal-400/60'
+        : 'hover:border-sky-400/60';
+    const tabBadgeClase = tipoActivo === 'marketplace' ? 'text-teal-600' : 'text-sky-600';
 
     return (
         <div className="min-h-full bg-transparent">
@@ -565,7 +576,7 @@ export function PaginaMisPublicaciones() {
                                             derecho del bloque centro. */}
                                         <div
                                             data-testid="tabs-mis-publicaciones-desktop"
-                                            className="flex shrink-0 items-center gap-1.5 self-end"
+                                            className="flex shrink-0 items-center gap-1.5"
                                         >
                                             {TABS_POR_TIPO[tipoActivo].map((tab) => {
                                                 const Icono = tab.Icono;
@@ -586,8 +597,8 @@ export function PaginaMisPublicaciones() {
                                                         className={[
                                                             'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all',
                                                             activo
-                                                                ? 'border-cyan-400 bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
-                                                                : 'border-white/15 bg-white/5 text-slate-200 hover:border-cyan-400/60 hover:bg-white/10 hover:text-white',
+                                                                ? `text-white shadow-md ${tabActivoClase}`
+                                                                : `border-white/15 bg-white/5 text-slate-200 ${tabHoverClase} hover:bg-white/10 hover:text-white`,
                                                         ].join(' ')}
                                                     >
                                                         <Icono className="h-4 w-4" strokeWidth={2.5} />
@@ -597,7 +608,7 @@ export function PaginaMisPublicaciones() {
                                                                 className={[
                                                                     'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold',
                                                                     activo
-                                                                        ? 'bg-white text-cyan-600'
+                                                                        ? `bg-white ${tabBadgeClase}`
                                                                         : 'bg-white/20 text-white',
                                                                 ].join(' ')}
                                                             >
@@ -609,6 +620,49 @@ export function PaginaMisPublicaciones() {
                                             })}
                                         </div>
                                     </div>
+
+                                    {/* Derecha: FAB Publicar (solo desktop) — réplica
+                                        exacta del FAB flotante (círculo + Plus animado +
+                                        label), con color según el tipo activo (teal
+                                        MarketPlace / sky Servicios). */}
+                                    <button
+                                        data-testid="btn-publicar-header-desktop"
+                                        onClick={
+                                            tipoActivo === 'marketplace'
+                                                ? irAPublicar
+                                                : () => navigate('/servicios?crear=ofrezco')
+                                        }
+                                        aria-label={
+                                            tipoActivo === 'marketplace'
+                                                ? 'Publicar artículo'
+                                                : 'Publicar servicio'
+                                        }
+                                        className="flex shrink-0 cursor-pointer flex-col items-center gap-1 self-center"
+                                    >
+                                        <span
+                                            className={
+                                                'flex h-14 w-14 items-center justify-center rounded-full text-white shadow-lg ring-2 transition-transform hover:scale-105 ' +
+                                                (tipoActivo === 'marketplace'
+                                                    ? 'bg-linear-to-br from-teal-500 to-teal-700 shadow-teal-500/30 ring-teal-300/30'
+                                                    : 'bg-linear-to-br from-sky-500 to-sky-700 shadow-sky-500/30 ring-sky-300/30')
+                                            }
+                                        >
+                                            <Plus
+                                                className="h-6 w-6"
+                                                strokeWidth={2.75}
+                                                style={{ animation: 'fab-publicar-mp-pulse 2.4s ease-in-out infinite' }}
+                                            />
+                                        </span>
+                                        <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm">
+                                            Publicar
+                                        </span>
+                                        <style>{`
+                                            @keyframes fab-publicar-mp-pulse {
+                                                0%, 100% { transform: rotate(0deg) scale(1); }
+                                                50% { transform: rotate(90deg) scale(1.15); }
+                                            }
+                                        `}</style>
+                                    </button>
 
                                 </div>
                             </div>
@@ -687,8 +741,8 @@ export function PaginaMisPublicaciones() {
                                                 className={[
                                                     'flex shrink-0 cursor-pointer items-center gap-1.5 whitespace-nowrap rounded-full border-2 px-3.5 py-1.5 text-sm font-semibold transition-all',
                                                     activo
-                                                        ? 'border-cyan-400 bg-cyan-500 text-white shadow-md shadow-cyan-500/20'
-                                                        : 'border-white/15 bg-white/5 text-slate-200 hover:border-cyan-400/60 hover:bg-white/10 hover:text-white',
+                                                        ? `text-white shadow-md ${tabActivoClase}`
+                                                        : `border-white/15 bg-white/5 text-slate-200 ${tabHoverClase} hover:bg-white/10 hover:text-white`,
                                                 ].join(' ')}
                                             >
                                                 <Icono className="h-4 w-4" strokeWidth={2.5} />
@@ -698,7 +752,7 @@ export function PaginaMisPublicaciones() {
                                                         className={[
                                                             'flex h-5 min-w-5 items-center justify-center rounded-full px-1 text-[10px] font-bold',
                                                             activo
-                                                                ? 'bg-white text-cyan-600'
+                                                                ? `bg-white ${tabBadgeClase}`
                                                                 : 'bg-white/20 text-white',
                                                         ].join(' ')}
                                                     >
@@ -829,7 +883,7 @@ export function PaginaMisPublicaciones() {
                 style={{
                     transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
-                className={`fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 lg:bottom-6 lg:right-[330px] 2xl:right-[394px] ${
+                className={`lg:hidden fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 ${
                     bottomNavVisible ? 'bottom-20' : 'bottom-4'
                 }`}
             >
@@ -851,7 +905,7 @@ export function PaginaMisPublicaciones() {
                     Móvil: chip blanco translúcido con sombra para legibilidad
                     sobre fondos variables. Desktop: texto plano sobre el
                     gradient azul del MainLayout. */}
-                <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:bg-transparent lg:px-0 lg:py-0 lg:text-base lg:shadow-none lg:backdrop-blur-none">
+                <span className="rounded-full bg-white/95 px-2.5 py-0.5 text-sm font-bold text-slate-700 shadow-md backdrop-blur-sm lg:text-base">
                     Publicar
                 </span>
                 <style>{`
@@ -941,6 +995,14 @@ export function PaginaMisPublicaciones() {
                     </div>
                 </div>
             </ModalAdaptativo>
+
+            {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
+                empalmarse con el FAB Publicar (abajo-derecha en móvil); en PC
+                vuelve al canal derecho (el Publicar vive en el header). */}
+            <BotonIrArriba
+                testId="mis-publicaciones-ir-arriba"
+                right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]"
+            />
         </div>
     );
 }

@@ -143,7 +143,7 @@ export default function DropdownNegocio({ negocios, valor, onChange, compacto = 
         ref={btnRef}
         data-testid="dropdown-negocio"
         onClick={toggleDropdown}
-        className={`flex items-center gap-1.5 w-36 2xl:w-40 h-8 2xl:h-9 pl-2.5 pr-2 rounded-lg text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${seleccionado
+        className={`flex items-center gap-1.5 w-36 2xl:w-40 h-8 2xl:h-9 pl-2.5 pr-2 rounded-full text-base lg:text-sm 2xl:text-base font-semibold border-2 cursor-pointer ${seleccionado
           ? 'bg-amber-100 border-amber-300 text-amber-700'
           : 'bg-white border-slate-300 text-slate-600 hover:border-slate-400'
         }`}

@@ -57,6 +57,7 @@ import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { CardNegocio } from '../../../components/negocios/CardNegocio';
 import type { NegocioResumen } from '../../../types/negocios';
 
@@ -1359,6 +1360,28 @@ export function PaginaNegocios() {
           </div>
 
         </div>
+
+        {/* Flecha "ir arriba".
+            · Modo lista: en móvil va a la IZQUIERDA (`left-4`) para no empalmarse
+              con el FAB de cambiar vista Mapa/Lista (esquina inferior derecha);
+              en PC vuelve al canal derecho (el toggle vive en el header).
+            · Modo mapa (desktop): anclada al borde derecho de la lista de
+              cards y operando sobre su scroll interno (`cardsScrollRef`). */}
+        {tabActiva === 'lista' && (
+          <BotonIrArriba
+            testId="negocios-ir-arriba"
+            right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[368px]"
+          />
+        )}
+        {tabActiva === 'mapa' && (
+          <BotonIrArriba
+            testId="negocios-ir-arriba-mapa"
+            scrollRef={cardsScrollRef as RefObject<HTMLElement | null>}
+            anclarDerechaRef={cardsScrollRef as RefObject<HTMLElement | null>}
+            anclaOffsetX={21}     /* ← horizontal: MÁS número = más a la IZQUIERDA (hacia las cards) */
+            apilarEscritorio={0}  /* ← vertical: MÁS número = más ARRIBA (en rem sobre el fondo) */
+          />
+        )}
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* DROPDOWNS GLOBALES (posición fixed)                              */}

@@ -17,9 +17,8 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { createPortal } from 'react-dom';
 import { useSearchParams } from 'react-router-dom';
-import { Users, History, RefreshCcw, Inbox, Sparkles, ArrowUp, X } from 'lucide-react';
+import { Users, History, RefreshCcw, Inbox, Sparkles, X } from 'lucide-react';
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useMainScrollStore } from '../../stores/useMainScrollStore';
@@ -30,9 +29,8 @@ import {
     usePregunta,
 } from '../../hooks/queries/usePreguntasComunidad';
 import { useCoyoEstadoVisual } from '../../hooks/useCoyoEstadoVisual';
-import { useScrollDirection } from '../../hooks/useScrollDirection';
-import { useHideOnScroll } from '../../hooks/useHideOnScroll';
 import { usePullToRefresh } from '../../hooks/usePullToRefresh';
+import { BotonIrArriba } from '../../components/ui/BotonIrArriba';
 import { CoyoInput } from '../../components/home/AreaPreguntaCoyo';
 import { CardPreguntaEditorial } from '../../components/home/CardPreguntaEditorial';
 import { EscenaCoyo } from '../../components/home/escena-coyo/EscenaCoyo';
@@ -367,45 +365,6 @@ function IndicadorHuellitas({
                 ))}
             </div>
         </div>
-    );
-}
-
-// =============================================================================
-// BOTÓN "IR ARRIBA" (móvil) — FAB flotante para volver al inicio del feed
-// =============================================================================
-
-// Aparece al bajar (>300px) y hace smooth-scroll del contenedor <main> al top.
-// Mismo patrón que el FAB de PaginaNegocios: `right-4 z-30`, sube a `5rem`
-// cuando el BottomNav está visible para no quedar tapado. Solo móvil.
-function BotonIrArriba() {
-    const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
-    const { scrollY } = useScrollDirection({ scrollRef: mainScrollRef ?? undefined });
-    const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
-    const mostrar = scrollY > 300;
-
-    const irArriba = () => {
-        const el = mainScrollRef?.current;
-        if (el) el.scrollTo({ top: 0, behavior: 'smooth' });
-        else window.scrollTo({ top: 0, behavior: 'smooth' });
-    };
-
-    return createPortal(
-        <button
-            type="button"
-            onClick={irArriba}
-            aria-label="Ir arriba"
-            data-testid="home-ir-arriba"
-            style={{
-                bottom: bottomNavVisible ? '5rem' : '1rem',
-                transition: 'bottom 300ms cubic-bezier(0.4,0,0.2,1), opacity 200ms ease-out',
-            }}
-            className={`lg:hidden fixed right-4 z-30 flex h-12 w-12 items-center justify-center rounded-full bg-linear-to-br from-slate-800 to-slate-950 text-white shadow-lg active:scale-95 ${
-                mostrar ? 'opacity-100' : 'pointer-events-none opacity-0'
-            }`}
-        >
-            <ArrowUp className="h-6 w-6" strokeWidth={2.5} />
-        </button>,
-        document.body,
     );
 }
 
@@ -808,7 +767,7 @@ export function PaginaInicio() {
                     {sentinelFeed}
                 </div>
 
-                <BotonIrArriba />
+                <BotonIrArriba testId="home-ir-arriba" />
             </div>
         );
     }
@@ -851,6 +810,8 @@ export function PaginaInicio() {
                     </div>
                 </div>
             </div>
+
+            <BotonIrArriba testId="home-ir-arriba" />
         </div>
     );
 }

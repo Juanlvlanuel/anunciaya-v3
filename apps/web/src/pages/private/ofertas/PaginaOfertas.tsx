@@ -52,6 +52,7 @@ import TituloDeBloque from '@/components/ofertas/TituloDeBloque';
 import BloqueCarruselAuto from '@/components/ofertas/BloqueCarruselAuto';
 import TickerOfertas from '@/components/ofertas/TickerOfertas';
 import { Spinner } from '@/components/ui/Spinner';
+import { BotonIrArriba } from '@/components/ui/BotonIrArriba';
 
 import { useGpsStore } from '@/stores/useGpsStore';
 import { useSearchStore } from '@/stores/useSearchStore';
@@ -569,6 +570,14 @@ export default function PaginaOfertas() {
           />
         </div>
       )}
+
+      {/* Flecha "ir arriba" — Ofertas no tiene FAB de Publicar (las publican
+          los negocios desde Business Studio). Se alinea al mismo eje que la
+          flecha de Servicios/MarketPlace. */}
+      <BotonIrArriba
+        testId="ofertas-ir-arriba"
+        right="right-4 lg:right-[330px] 2xl:right-[394px]"
+      />
     </div>
   );
 }

@@ -50,6 +50,7 @@ import {
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
+import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
@@ -125,10 +126,27 @@ export function PaginaServicios() {
     // y para el sentinel del feed infinito (auto-load solo en móvil).
     const { esEscritorio, esMobile } = useBreakpoint();
 
-    // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
-    // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece. Mismo
-    // patrón que el FAB del MarketPlace.
+    // FAB "Publicar": en ESCRITORIO arriba (bajo el header, medido en
+    // `topPublicar`); en MÓVIL abajo a la derecha (la flecha "ir arriba" va
+    // abajo a la izquierda). El BottomNav hace subir/bajar el FAB móvil.
+    // Medimos el header sticky (cambia de alto con tabs/buscador). Mismo patrón
+    // que MarketPlace.
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
+    const headerRef = useRef<HTMLDivElement>(null);
+    const [topPublicar, setTopPublicar] = useState(96);
+    useEffect(() => {
+        const el = headerRef.current;
+        if (!el) return;
+        const medir = () => setTopPublicar(el.getBoundingClientRect().bottom + 8);
+        medir();
+        const observador = new ResizeObserver(medir);
+        observador.observe(el);
+        window.addEventListener('resize', medir);
+        return () => {
+            observador.disconnect();
+            window.removeEventListener('resize', medir);
+        };
+    }, []);
 
     // ─── Estado local ─────────────────────────────────────────────────────
     // `tabActiva` → tab activa del segmented control. Reemplaza al sistema
@@ -472,6 +490,7 @@ export function PaginaServicios() {
     return (
         <div className="min-h-full bg-transparent">
             <ServiciosHeader
+                stickyRef={headerRef}
                 onBack={handleVolver}
                 ciudad={ciudad}
                 totalPublicaciones={totalTabActiva}
@@ -783,9 +802,9 @@ export function PaginaServicios() {
                 (Ofrezco / Solicito) en su Paso 1 cuando no se especifica. En
                 tabs Servicios/Solicitudes ya se preselecciona el modo. Tab
                 Vacantes no tiene FAB (se publica desde BS).
-                Posición dinámica: baja a `bottom-4` cuando el BottomNav se
-                oculta, sube a `bottom-20` cuando reaparece. Mismo patrón
-                visual que el FAB del MarketPlace. */}
+                ESCRITORIO: anclado arriba bajo el header (`topPublicar`).
+                MÓVIL: abajo a la derecha (sube a bottom-20 con el BottomNav,
+                baja a bottom-4 al ocultarse). Mismo patrón que MarketPlace. */}
             {fabHandler && (
                 <button
                     type="button"
@@ -793,10 +812,11 @@ export function PaginaServicios() {
                     onClick={fabHandler}
                     aria-label="Publicar"
                     style={{
-                        transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+                        ...(esEscritorio ? { top: `${topPublicar}px` } : {}),
+                        transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1), bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                     }}
-                    className={`fixed right-4 z-30 lg:right-[330px] 2xl:right-[394px] lg:bottom-6 flex cursor-pointer flex-col items-center gap-1 ${
-                        bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                    className={`fixed right-4 z-30 lg:right-[330px] 2xl:right-[394px] flex cursor-pointer flex-col items-center gap-1 ${
+                        esEscritorio ? '' : bottomNavVisible ? 'bottom-20' : 'bottom-4'
                     }`}
                 >
                     <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-sky-500 to-sky-700 text-white shadow-lg shadow-sky-500/30 ring-2 ring-sky-300/30 transition-transform hover:scale-105">
@@ -820,6 +840,14 @@ export function PaginaServicios() {
                     `}</style>
                 </button>
             )}
+
+            {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
+                empalmarse con el FAB Publicar (abajo-derecha); en PC vuelve al
+                canal derecho, alineada al eje del Publicar que vive arriba. */}
+            <BotonIrArriba
+                testId="servicios-ir-arriba"
+                right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]"
+            />
         </div>
     );
 }
@@ -1080,8 +1108,8 @@ function FeedVacio({
                 )}
             </div>
 
-            {/* Indicador animado apuntando al FAB — solo móvil cuando el feed
-                está vacío. Mismo patrón que MarketPlace. */}
+            {/* Indicador animado apuntando al FAB (abajo-derecha en móvil) —
+                solo móvil cuando el feed está vacío. Mismo patrón que MarketPlace. */}
             <div
                 data-testid="empty-state-arrow-fab-servicios"
                 className="pointer-events-none fixed bottom-36 right-3 z-20 flex flex-col items-end gap-1 lg:hidden"

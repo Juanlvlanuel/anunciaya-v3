@@ -49,6 +49,8 @@ import { ComposerSection } from '../../../components/marketplace/composer/Compos
 import { Spinner } from '../../../components/ui/Spinner';
 import { notificar } from '../../../utils/notificaciones';
 import type { OrdenFeedInfinito, CategoriaMarketplace } from '../../../types/marketplace';
+import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
+import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
 import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
@@ -71,9 +73,28 @@ export function PaginaMarketplace() {
     const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
     const esModoPersonal = modoActivo !== 'comercial';
 
-    // BottomNav auto-hide tracker — el FAB Publicar baja a `bottom-4` cuando
-    // el BottomNav se oculta y vuelve a `bottom-20` cuando reaparece.
+    // FAB "Publicar": en ESCRITORIO se ancla arriba (bajo el header, medido en
+    // `topPublicar`) para dejar libre la esquina inferior; en MÓVIL vive abajo a
+    // la derecha (la flecha "ir arriba" va abajo a la izquierda). El BottomNav
+    // hace que el FAB móvil suba/baje. Medimos el borde inferior del header
+    // sticky (cambia de alto con el buscador móvil).
+    const { esEscritorio } = useBreakpoint();
     const { shouldShow: bottomNavVisible } = useHideOnScroll({ direction: 'down' });
+    const headerRef = useRef<HTMLDivElement>(null);
+    const [topPublicar, setTopPublicar] = useState(96);
+    useEffect(() => {
+        const el = headerRef.current;
+        if (!el) return;
+        const medir = () => setTopPublicar(el.getBoundingClientRect().bottom + 8);
+        medir();
+        const observador = new ResizeObserver(medir);
+        observador.observe(el);
+        window.addEventListener('resize', medir);
+        return () => {
+            observador.disconnect();
+            window.removeEventListener('resize', medir);
+        };
+    }, []);
 
     // Notificaciones — botón Bell en el header móvil (entre buscar y menú).
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
@@ -210,12 +231,12 @@ export function PaginaMarketplace() {
     }, [buscadorAbierto]);
 
     const handlePublicar = () => {
-        // Composer inline: scroll arriba + expandir vía query param. El
-        // orquestador <ComposerSection> detecta `?crear` y se expande
-        // sobre el feed (mismo patrón que Servicios). El FAB se oculta
-        // en modo comercial — los negocios no publican artículos P2P.
+        // Composer inline: scroll arriba + expandir vía query param, pasando el
+        // modo del feed activo (`vendo`/`busco`) para preseleccionar el toggle
+        // Vendo/Busco del composer. El orquestador <ComposerSection> lo detecta.
+        // El FAB se oculta en modo comercial — los negocios no publican P2P.
         window.scrollTo({ top: 0, behavior: 'smooth' });
-        navigate('/marketplace?crear=1', { replace: true });
+        navigate(`/marketplace?crear=${modoFeed}`, { replace: true });
     };
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
@@ -309,7 +330,7 @@ export function PaginaMarketplace() {
             {/* ════════════════════════════════════════════════════════════════
                 HEADER DARK STICKY — Identidad teal del MarketPlace
             ════════════════════════════════════════════════════════════════ */}
-            <div className="sticky top-0 z-20">
+            <div ref={headerRef} className="sticky top-0 z-20">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
@@ -819,7 +840,8 @@ export function PaginaMarketplace() {
                         </div>
                     )}
 
-                {/* Indicador animado apuntando al FAB — solo móvil cuando feed vacío */}
+                {/* Indicador animado apuntando al FAB (abajo-derecha en móvil)
+                    — solo móvil cuando el feed está vacío. */}
                 {!isLoading &&
                     !isError &&
                     data &&
@@ -851,10 +873,10 @@ export function PaginaMarketplace() {
 
             {/* ════════════════════════════════════════════════════════════════
                 FAB "+ Publicar" — visible solo en modo personal (los negocios
-                no publican artículos P2P en MarketPlace). En móvil baja a
-                bottom-4 cuando el BottomNav se oculta, sube a bottom-20 cuando
-                reaparece. En desktop queda fijo en bottom-6. Color teal de la
-                marca MP, icono con animación rotate-pulse cada 2.4s.
+                no publican artículos P2P en MarketPlace). ESCRITORIO: anclado
+                arriba bajo el header (`topPublicar`). MÓVIL: abajo a la derecha
+                (sube a bottom-20 con el BottomNav, baja a bottom-4 al ocultarse).
+                Color teal de la marca MP, icono con animación rotate-pulse 2.4s.
             ════════════════════════════════════════════════════════════════ */}
             {esModoPersonal && (
             <button
@@ -862,10 +884,11 @@ export function PaginaMarketplace() {
                 onClick={handlePublicar}
                 aria-label="Publicar artículo"
                 style={{
-                    transition: 'bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
+                    ...(esEscritorio ? { top: `${topPublicar}px` } : {}),
+                    transition: 'top 300ms cubic-bezier(0.4, 0, 0.2, 1), bottom 300ms cubic-bezier(0.4, 0, 0.2, 1), transform 150ms ease-out',
                 }}
-                className={`fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 lg:bottom-6 lg:right-[330px] 2xl:right-[394px] ${
-                    bottomNavVisible ? 'bottom-20' : 'bottom-4'
+                className={`fixed right-4 z-30 flex cursor-pointer flex-col items-center gap-1 lg:right-[330px] 2xl:right-[394px] ${
+                    esEscritorio ? '' : bottomNavVisible ? 'bottom-20' : 'bottom-4'
                 }`}
             >
                 <span className="flex h-14 w-14 items-center justify-center rounded-full bg-linear-to-br from-teal-500 to-teal-700 text-white shadow-lg shadow-teal-500/30 ring-2 ring-teal-300/30 transition-transform hover:scale-105">
@@ -890,6 +913,14 @@ export function PaginaMarketplace() {
                 `}</style>
             </button>
             )}
+
+            {/* Flecha "ir arriba" — en móvil va a la IZQUIERDA (`left-4`) para no
+                empalmarse con el FAB Publicar (abajo-derecha); en PC vuelve al
+                canal derecho, alineada al eje del Publicar que vive arriba. */}
+            <BotonIrArriba
+                testId="marketplace-ir-arriba"
+                right="left-4 lg:left-auto lg:right-[330px] 2xl:right-[394px]"
+            />
 
             {/* Overlay del buscador: ahora se monta GLOBALMENTE en `MainLayout`
                 cuando la sección activa es `/marketplace/*`. Antes vivía aquí

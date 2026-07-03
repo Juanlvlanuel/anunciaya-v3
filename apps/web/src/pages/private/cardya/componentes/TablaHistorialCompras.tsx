@@ -10,7 +10,7 @@
  * UBICACIÓN: apps/web/src/pages/private/cardya/componentes/TablaHistorialCompras.tsx
  */
 
-import { useState, Fragment } from 'react';
+import { useState, Fragment, type RefObject } from 'react';
 import { Store, Inbox, ArrowUpDown, ChevronUp, ChevronDown, Ticket } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../../../config/iconos';
@@ -99,12 +99,15 @@ export default function TablaHistorialCompras({
   stickyTop: _stickyTop = 0,
   negocioFiltro = 'todos',
   filtroEstado = 'todos',
+  scrollRef,
 }: {
   transacciones: Transaccion[];
   onClickTransaccion?: (tx: Transaccion) => void;
   stickyTop?: number;
   negocioFiltro?: string;
   filtroEstado?: string;
+  /** Ref al body scrolleable (desktop) — para la flecha "ir arriba". */
+  scrollRef?: RefObject<HTMLDivElement | null>;
 }) {
   const filtroActivo = filtroEstado as FiltroTipo;
 
@@ -416,7 +419,7 @@ export default function TablaHistorialCompras({
               </table>
             </div>
             {/* Body con scroll */}
-            <div className="flex-1 overflow-y-auto">
+            <div ref={scrollRef} className="flex-1 overflow-y-auto">
               <table className="w-full" style={{ tableLayout: 'fixed' }}>
                 <colgroup>
                   <col style={{ width: '13%' }} />

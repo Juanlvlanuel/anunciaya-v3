@@ -7,13 +7,14 @@
  *   - Estado por defecto → `<ComposerColapsado>` MP (pill).
  *   - Click en la pill → `<ComposerMarketplace>` expandido inline.
  *   - Query params al cargar:
- *       ?crear=1       → expande en modo creación
- *       ?editar=<id>   → expande en modo edición con ese artículo
+ *       ?crear=vendo|busco → expande en creación, preseleccionando el toggle
+ *                            Vendo/Busco según el tab activo del feed.
+ *       ?crear=1 / ?crear  → expande en creación sin forzar modo.
+ *       ?editar=<id>       → expande en modo edición con ese artículo
  *     Tras procesarlos, limpia los query params del URL con replaceState.
  *
  * Diferencias con el orquestador de Servicios:
- *   - Sin `modoServiciosDefault` (en MP no hay Ofrezco/Solicito).
- *   - `?crear` no requiere valor (basta su presencia).
+ *   - MP usa Vendo/Busco (Servicios usa Ofrezco/Solicito), ambos vía `?crear`.
  *
  * El composer NO es overlay global — vive en el feed. Triggers externos
  * (Mis Publicaciones, FAB Publicar, botón Editar) redirigen aquí con
@@ -52,6 +53,10 @@ export function ComposerSection({ onExpandirChange }: ComposerSectionProps) {
      *  obliga a la pill a re-leer el borrador de localStorage. */
     const [refreshKey, setRefreshKey] = useState(0);
 
+    /** Intención (Vendo/Busco) a preseleccionar al abrir en creación desde el
+     *  FAB según el tab activo del feed. null = usa el modo del borrador. */
+    const [intencionInicial, setIntencionInicial] = useState<'vendo' | 'busco' | null>(null);
+
     // ─── Leer query params al montar / cambiar URL ────────────────────
     useEffect(() => {
         const sp = new URLSearchParams(location.search);
@@ -64,6 +69,7 @@ export function ComposerSection({ onExpandirChange }: ComposerSectionProps) {
             limpiarQueryParams(sp);
         } else if (crear !== null) {
             setExpandido(true);
+            setIntencionInicial(crear === 'busco' ? 'busco' : crear === 'vendo' ? 'vendo' : null);
             limpiarQueryParams(sp);
         }
     }, [location.search]);
@@ -78,6 +84,8 @@ export function ComposerSection({ onExpandirChange }: ComposerSectionProps) {
     }
 
     function expandirCrear() {
+        // Abrir por la pill → sin forzar modo (usa el del borrador).
+        setIntencionInicial(null);
         setExpandido(true);
     }
 
@@ -92,6 +100,7 @@ export function ComposerSection({ onExpandirChange }: ComposerSectionProps) {
             <ComposerMarketplace
                 modo={modoEdicion ? 'editar' : 'crear'}
                 articuloId={modoEdicion?.articuloId ?? null}
+                intencionInicial={intencionInicial}
                 onColapsar={colapsar}
             />
         );

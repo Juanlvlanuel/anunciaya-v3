@@ -21,7 +21,7 @@
  * Ubicación: apps/web/src/components/servicios/ServiciosHeader.tsx
  */
 
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, type Ref } from 'react';
 import { createPortal } from 'react-dom';
 import { ChevronLeft, ChevronRight, Search, Wrench, X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
@@ -39,6 +39,9 @@ interface ServiciosHeaderProps {
     onBack?: () => void;
     /** Variante del header. Default = 'feed'. */
     variante?: 'feed' | 'pagina';
+    /** Ref al contenedor sticky del header (para medir su altura desde la
+     *  página, ej. anclar el FAB Publicar justo debajo). */
+    stickyRef?: Ref<HTMLDivElement>;
 
     // ─── Props para variante='feed' (todos opcionales con default seguros) ────
     /** Ciudad actual (para subtítulo móvil del feed). */
@@ -68,6 +71,7 @@ interface ServiciosHeaderProps {
 export function ServiciosHeader({
     onBack,
     variante = 'feed',
+    stickyRef,
     ciudad = null,
     totalPublicaciones = null,
     tabActiva,
@@ -116,7 +120,7 @@ export function ServiciosHeader({
     const esFeed = variante === 'feed';
     return (
         <>
-        <div className="sticky top-0 z-20">
+        <div ref={stickyRef} className="sticky top-0 z-20">
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                 <div
                     className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
