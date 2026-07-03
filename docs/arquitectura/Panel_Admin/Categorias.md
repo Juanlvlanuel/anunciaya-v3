@@ -6,7 +6,8 @@
 > [`Categorias_Pendientes.md`](Categorias_Pendientes.md).
 >
 > **Estado:** ✅ desplegado y operativo en PROD (commit `65e388f`, 30 jun) — migraciones corridas
-> en dev+prod, harness verde. Solo falta la verificación visual E2E a mano. **Última actualización:** 30 Junio 2026.
+> en dev+prod, harness verde. **Analítica por ciudad** (conteo de negocios reales por giro, filtrable
+> por ciudad) añadida el 2 jul. **Última actualización:** 2 Julio 2026.
 
 ---
 
@@ -31,8 +32,18 @@ Una **lista jerárquica**: categorías expandibles → subcategorías. Por fila 
 - **Activar/Desactivar**. **"Quitar" = desactivar**, nunca borrar: conserva la integridad
   con los negocios ya clasificados (igual que Ciudades/Regiones).
 
-Cada fila muestra chips: nº de subcategorías, **Todas / N ciudades**, y nº de negocios que
-usan el giro (para ver el impacto antes de desactivar).
+Cada fila muestra chips: nº de subcategorías, **Todas / N ciudades**, y nº de **negocios reales**
+que usan el giro (para ver el impacto antes de desactivar).
+
+**Analítica por ciudad.** Junto a los filtros hay un **selector de ciudad**. Al elegir una plaza, la
+columna **Negocios** de cada categoría/subcategoría y el KPI **"Negocios clasificados"** se recalculan
+**solo para esa ciudad** — sirve para ver qué giros tienen demanda dónde. El conteo cuenta **negocios
+reales distintos** (publicados y activos, con sucursal activa en la ciudad), **no** sucursales ni
+asignaciones: un negocio con 2 subcategorías o 2 sucursales cuenta **una sola vez**. Sin ciudad = todas.
+⚠️ Por eso este número es **menor** que el "N negocios" del **feed público**, que lista **una tarjeta por
+sucursal** (un negocio con 2 sucursales aparece 2 veces). El módulo comparte la UI con **MarketPlace** vía
+un toggle **Negocios / MarketPlace** (cada ámbito su tabla y su analítica; ver
+[`Marketplace_Categorias.md`](../Marketplace_Categorias.md)).
 
 ### Cómo se conecta con la app
 El catálogo es **global por defecto**. La capa de disponibilidad es **aditiva**: si una
@@ -90,14 +101,14 @@ exige además que su categoría sea visible en C.
 ### Backend (`apps/api`)
 | Archivo | Rol |
 |---|---|
-| `services/admin/categorias.service.ts` | Lectura: `listarCatalogoAdmin()` (catálogo anidado + ciudades + conteo de negocios). |
+| `services/admin/categorias.service.ts` | Lectura: `listarCatalogoAdmin(ciudadId?)` — catálogo anidado + ciudades + **conteo de negocios reales DISTINCT** por subcategoría, categoría y total. `ciudadId` restringe el conteo a negocios con **sucursal activa** en esa ciudad (dedup en memoria vía `Set`). Devuelve `{ categorias, totalNegocios }`. Criterio "negocio real": `activo`, `es_borrador≠true`, `estado_admin='activo'`, `es_demo=false`, sucursal `activa`. |
 | `services/admin/categorias-acciones.service.ts` | Acciones: crear/editar/activar/reordenar/asignar-ciudades de categoría y subcategoría; auditoría; regla "subcategoría ⊆ categoría"; coherencia descendente al acotar una categoría. |
 | `controllers/admin/categorias.controller.ts` · `routes/admin/categorias.routes.ts` | Endpoints (montados bajo el gate de superadmin en `routes/admin/index.ts`). |
 | `validations/admin/categorias.schema.ts` | Zod de los bodies. |
 | `services/categorias.service.ts` (público) | `GET /api/categorias` y `/:id/subcategorias` ahora aceptan `?ciudadId=` (opcional, retrocompatible). |
 | `services/negocioManagement.service.ts` → `autohabilitarCatalogoPorCiudad(negocioId)` | **Auto-poblado por demanda**: 2 INSERT idempotentes (ON CONFLICT DO NOTHING) que habilitan las ciudades de las sucursales del negocio en las cat/sub **acotadas** que el negocio usa. Best-effort. Invocada por `finalizarOnboarding` y por `actualizarInfoGeneral` (Business Studio). |
 
-**Endpoints admin** (solo super): `GET /admin/categorias` · `POST /admin/categorias` ·
+**Endpoints admin** (solo super): `GET /admin/categorias` (acepta `?ciudadId=` para la analítica) · `POST /admin/categorias` ·
 `POST /admin/categorias/reordenar` · `PATCH /admin/categorias/:id` · `…/:id/activa` ·
 `…/:id/ciudades` · `POST /admin/categorias/subcategorias` · `…/subcategorias/reordenar` ·
 `PATCH /admin/categorias/subcategorias/:id` · `…/:id/activa` · `…/:id/ciudades`.
@@ -105,8 +116,8 @@ exige además que su categoría sea visible en C.
 ### Frontend del Panel (`apps/admin`)
 | Archivo | Rol |
 |---|---|
-| `services/categoriasService.ts` · `hooks/queries/useCategoriasAdmin.ts` | React Query (catálogo + mutaciones). Keys en `config/queryKeys.ts` (`categorias`). |
-| `components/categorias/SeccionCategorias.tsx` | Lista jerárquica + acciones por fila. |
+| `services/categoriasService.ts` · `hooks/queries/useCategoriasAdmin.ts` | React Query (catálogo + mutaciones). `useCatalogo(ciudadId?)` pasa la ciudad y usa `keepPreviousData`. Keys en `config/queryKeys.ts` (`categorias.catalogo(ciudadId)`). |
+| `components/categorias/SeccionCategorias.tsx` | Toggle **Negocios/MarketPlace** + lista jerárquica + acciones por fila. Barra con **selector de ciudad** (`MenuFiltro`) y KPI "Negocios clasificados" por ciudad. La vista MarketPlace vive en `SeccionCategoriasMarketplace.tsx`. |
 | `components/categorias/DialogosCategorias.tsx` | Diálogos: categoría, subcategoría, disponibilidad por ciudad (multi-select + toggle global). |
 | `data/menuPanel.ts` · `config/iconosPanel.tsx` (`Tags`) · `pages/PaginaPanel.tsx` | Registro del módulo en el menú (grupo Crecimiento, solo super) y el shell. |
 | `components/auditoria/accionesAuditoria.tsx` | Humanización de las ~12 acciones nuevas (categoria_*/subcategoria_*). |

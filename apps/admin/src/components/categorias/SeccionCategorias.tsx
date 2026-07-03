@@ -29,6 +29,8 @@ import {
 import type { CategoriaAdmin, SubcategoriaAdmin, CiudadRef } from '../../services/categoriasService';
 import { DialogoCategoria, DialogoSubcategoria, DialogoDisponibilidad } from './DialogosCategorias';
 import { SeccionCategoriasMarketplace } from './SeccionCategoriasMarketplace';
+import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { useCiudadesLista } from '../../hooks/queries/useCiudadesAdmin';
 
 type DlgCategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin | null } | null;
 type DlgSubcategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin; subcategoria: SubcategoriaAdmin | null } | null;
@@ -86,7 +88,21 @@ function BotonIcono({ onClick, children, testid }: { onClick: () => void; childr
 }
 
 function SeccionCategoriasNegocios() {
-  const { data: catalogo = [], isLoading, isError, isFetching } = useCatalogo();
+  // Filtro por ciudad (analítica de negocios por plaza): '' = todas.
+  const [ciudadSel, setCiudadSel] = useState('');
+  const { data, isLoading, isError, isFetching } = useCatalogo(ciudadSel || undefined);
+  const catalogo = data?.categorias ?? [];
+  const totalNegocios = data?.totalNegocios ?? 0;
+  const { data: ciudades = [] } = useCiudadesLista({ activa: 'activas' });
+  const opcionesCiudad = useMemo<OpcionMenu[]>(
+    () => [
+      { valor: '', etiqueta: 'Todas las ciudades' },
+      ...ciudades.map((c) => ({ valor: c.id, etiqueta: c.nombre })),
+    ],
+    [ciudades],
+  );
+  const etiquetaCiudad =
+    opcionesCiudad.find((o) => o.valor === ciudadSel)?.etiqueta ?? 'Todas las ciudades';
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set());
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todas' | 'activas' | 'inactivas'>('todas');
@@ -103,14 +119,12 @@ function SeccionCategoriasNegocios() {
   const activaSub = useCambiarActivaSubcategoria();
   const ciudadesSub = useAsignarCiudadesSubcategoria();
 
-  // KPIs
+  // KPIs. "Negocios clasificados" viene del backend (DISTINCT por ciudad); aquí solo
+  // se derivan los conteos del catálogo (globales: el catálogo no cambia por ciudad).
   const kpis = useMemo(() => {
-    let subs = 0, negocios = 0;
-    for (const c of catalogo) {
-      subs += c.subcategorias.length;
-      negocios += c.totalNegocios;
-    }
-    return { categorias: catalogo.length, subs, negocios };
+    let subs = 0;
+    for (const c of catalogo) subs += c.subcategorias.length;
+    return { categorias: catalogo.length, subs };
   }, [catalogo]);
 
   // Vista filtrada (búsqueda + estado). Con búsqueda, abre las categorías con match en sus subs.
@@ -179,7 +193,7 @@ function SeccionCategoriasNegocios() {
         <div className="mb-4 -mx-4 flex shrink-0 snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
           <Kpi icono={Tags} valor={kpis.categorias} etiqueta="Categorías" testid="kpi-categorias" />
           <Kpi icono={FolderTree} valor={kpis.subs} etiqueta="Subcategorías" testid="kpi-subcategorias" />
-          <Kpi icono={Store} valor={kpis.negocios} etiqueta="Negocios clasificados" testid="kpi-negocios" />
+          <Kpi icono={Store} valor={totalNegocios} etiqueta="Negocios clasificados" testid="kpi-negocios" />
         </div>
       )}
 
@@ -213,7 +227,22 @@ function SeccionCategoriasNegocios() {
           </button>
         </div>
 
-        <div className="flex items-center gap-1.5">
+        {/* Fila 2 (móvil): ciudad (primero) + chips de estado, deslizables como
+            carrusel. En desktop, inline. */}
+        <div className="flex items-center gap-1.5 overflow-x-auto -mx-1 px-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:overflow-visible lg:px-0">
+          {/* Ciudad — primero (izquierda). */}
+          <div className="shrink-0">
+            <MenuFiltro
+              testid="categorias-neg-ciudad"
+              icono={<MapPin size={14} />}
+              etiquetaBoton={etiquetaCiudad}
+              opciones={opcionesCiudad}
+              valor={ciudadSel}
+              onCambiar={setCiudadSel}
+              alineacion="izquierda"
+              tam="chip"
+            />
+          </div>
           {ESTADOS.map((e) => {
             const act = filtroEstado === e.id;
             return (

@@ -44,14 +44,19 @@ function parseId(raw: string): number | null {
     return Number.isInteger(n) && n > 0 ? n : null;
 }
 
+const RE_UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
 // =============================================================================
 // LECTURA
 // =============================================================================
 
 /** GET /api/admin/categorias — catálogo completo (categorías → subcategorías + ciudades). */
-export async function listarCatalogoController(_req: Request, res: Response): Promise<void> {
+export async function listarCatalogoController(req: Request, res: Response): Promise<void> {
     try {
-        const data = await listarCatalogoAdmin();
+        // Filtro opcional por ciudad (analítica de negocios por plaza). UUID inválido → todas.
+        const raw = req.query.ciudadId;
+        const ciudadId = typeof raw === 'string' && RE_UUID.test(raw) ? raw : undefined;
+        const data = await listarCatalogoAdmin(ciudadId);
         res.status(200).json({ success: true, message: 'Catálogo obtenido', data });
     } catch (error) {
         console.error('Error en listarCatalogoController:', error);

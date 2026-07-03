@@ -38,14 +38,25 @@ export interface CategoriaAdmin {
   totalNegocios: number;
 }
 
+export interface CatalogoAdminResp {
+  categorias: CategoriaAdmin[];
+  /** Negocios reales activos DISTINTOS con ≥1 subcategoría (en la ciudad filtrada, o todas). */
+  totalNegocios: number;
+}
+
 // =============================================================================
 // LECTURA
 // =============================================================================
 
-/** Catálogo completo (categorías → subcategorías + ciudades). */
-export async function listarCatalogo(): Promise<CategoriaAdmin[]> {
-  const { data } = await api.get<RespuestaAPI<CategoriaAdmin[]>>('/admin/categorias');
-  return data.data ?? [];
+/**
+ * Catálogo completo (categorías → subcategorías + ciudades) + total de negocios
+ * clasificados. @param ciudadId - Filtra los conteos de negocios por ciudad. Sin él, cuenta todas.
+ */
+export async function listarCatalogo(ciudadId?: string): Promise<CatalogoAdminResp> {
+  const { data } = await api.get<RespuestaAPI<CatalogoAdminResp>>('/admin/categorias', {
+    params: ciudadId ? { ciudadId } : undefined,
+  });
+  return data.data ?? { categorias: [], totalNegocios: 0 };
 }
 
 // =============================================================================

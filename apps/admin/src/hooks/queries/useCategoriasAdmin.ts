@@ -10,7 +10,7 @@
  * Ubicación: apps/admin/src/hooks/queries/useCategoriasAdmin.ts
  */
 
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useMutation, useQueryClient, keepPreviousData } from '@tanstack/react-query';
 import { queryKeys } from '../../config/queryKeys';
 import * as categoriasService from '../../services/categoriasService';
 import { toast } from '../../stores/useToastPanel';
@@ -21,12 +21,14 @@ function mensajeError(error: unknown, porDefecto: string): string {
   return e?.response?.data?.message ?? porDefecto;
 }
 
-/** Catálogo completo (categorías + subcategorías + ciudades). */
-export function useCatalogo() {
+/** Catálogo completo (categorías + subcategorías + ciudades) + total de negocios
+ *  clasificados. @param ciudadId filtra los conteos de negocios por ciudad. */
+export function useCatalogo(ciudadId?: string) {
   return useQuery({
-    queryKey: queryKeys.categorias.catalogo(),
-    queryFn: () => categoriasService.listarCatalogo(),
+    queryKey: queryKeys.categorias.catalogo(ciudadId),
+    queryFn: () => categoriasService.listarCatalogo(ciudadId),
     staleTime: 1000 * 60,
+    placeholderData: keepPreviousData,
   });
 }
 
