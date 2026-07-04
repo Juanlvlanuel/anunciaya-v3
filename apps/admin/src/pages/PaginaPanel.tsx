@@ -38,6 +38,7 @@ import { SeccionVendedores } from '../components/vendedores/SeccionVendedores';
 import { SeccionConfiguracion } from '../components/configuracion/SeccionConfiguracion';
 import { SeccionCiudades } from '../components/ciudades/SeccionCiudades';
 import { SeccionCategorias } from '../components/categorias/SeccionCategorias';
+import { SeccionAyuda } from '../components/ayuda/SeccionAyuda';
 import { SeccionTerritorios } from '../components/territorios/SeccionTerritorios';
 import { SeccionAuditoria } from '../components/auditoria/SeccionAuditoria';
 import { SeccionPublicidad } from '../components/publicidad/SeccionPublicidad';
@@ -224,6 +225,8 @@ function PaginaPanel() {
     <SeccionCiudades />
   ) : seccionActivaId === 'categorias' ? (
     <SeccionCategorias />
+  ) : seccionActivaId === 'tutoriales' ? (
+    <SeccionAyuda />
   ) : seccionActivaId === 'auditoria' ? (
     <SeccionAuditoria rol={rol} />
   ) : seccionActivaId === 'publicidad' ? (

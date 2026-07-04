@@ -123,6 +123,13 @@ export const queryKeys = {
       ['resenas', 'kpis', sucursalId] as const,
   },
 
+  // ─── Centro de Ayuda (Tutoriales) ─────────────────────────────────────────
+  ayuda: {
+    all: () => ['ayuda'] as const,
+    centro: (app: string, audiencia: string) =>
+      ['ayuda', 'centro', app, audiencia] as const,
+  },
+
   // ─── Business Studio — Alertas (módulo completo) ──────────────────────────
   alertas: {
     all: () => ['alertas'] as const,

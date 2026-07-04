@@ -14,12 +14,13 @@
 > **Leyenda — Estado:** ✅ en producción · 🟡 parcial · ⬜ sin empezar
 > **Leyenda — Fase del carril:** 0 Definir · 1 VER · 2 ACTUAR · 3 Cerrar · ✔ Cerrado
 >
-> **Última actualización:** 29 Junio 2026.
+> **Última actualización:** 3 Julio 2026.
 
 ---
 
 ## Estado de hoy
 
+- **Módulo nuevo: Ayuda y Tutoriales (3 jul, módulo 15).** Back-office del **Centro de Ayuda** desde el Panel (grupo **Soporte** → "Ayuda y Tutoriales", solo super): CRUD de **categorías** y **tutoriales** con **subida de video + poster a R2** (presigned URL directo navegador→R2), **duración auto-detectada**, slug autogenerado, toggles publicado/compartible; lista con métricas (vistas · 👍/👎). El feature completo vive en `../Centro_Ayuda.md`: Centro `/ayuda` (usuario/comerciante/ScanYA) + landing pública `/p/tutorial/:slug` con OG + accesos en los 4 menús + métricas ("¿Te sirvió?" + vistas). Backend `services/admin/ayuda.service` + `controllers/admin/ayuda.controller` + `routes/admin/ayuda.routes` (tras el gate superadmin); `video_url`/`poster_url` en `IMAGE_REGISTRY`. 3 tablas nuevas. `tsc` verde api/admin/web. **Pendiente:** correr `2026-07-03-ayuda-feedback-vistas.sql`, **CORS R2 del origen del Panel**, cargar la Tanda 1 de videos.
 - **Módulo nuevo: Categorías (29 jun, módulo 14).** CRUD del **catálogo de giros** (categorías +
   subcategorías) desde el Panel —sin SQL— + **disponibilidad por ciudad** (2 tablas N:M nuevas
   `categoria_ciudades`/`subcategoria_ciudades`). Solo SuperAdmin, calcado de Ciudades (estructura de
@@ -225,6 +226,8 @@
 | 9 | **Configuración** | 🟡 | v1 ✔ (VER+ACTUAR+cierre) · backlog: `sembrar_comision_escalera` en prod (opcional, usa default) + claves futuras | `Configuracion.md` · `Configuracion_Pendientes.md` |
 | 11 | **Auditoría** *(módulo 11 "Sistema")* | ✅ | ✔ Cerrado (UI de la bitácora) | `Auditoria.md` · `Auditoria_Pendientes.md` |
 | 11 | **Mantenimiento** *(módulo 11 "Sistema")* | ✅ | ✔ Cerrado (Salud · Crons · Logs · Recolector R2 + 5 acciones) | `Mantenimiento.md` · `Mantenimiento_Pendientes.md` |
+| | **· Soporte ·** | | | |
+| 15 | **Ayuda y Tutoriales** | ✅ | Construido (CRUD categorías/artículos + subida video/poster R2; back-office del Centro de Ayuda) · pendiente: migración feedback/vistas + CORS R2 del Panel + cargar videos | [`../Centro_Ayuda.md`](../Centro_Ayuda.md) |
 
 ---
 

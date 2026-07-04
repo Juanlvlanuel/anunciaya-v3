@@ -2531,3 +2531,62 @@ export const preguntasInteresados = pgTable("preguntas_interesados", {
 		name: "fk_preguntas_interesados_usuario"
 	}).onDelete("cascade"),
 ]);
+
+// =============================================================================
+// CENTRO DE AYUDA ("Ayuda y Tutoriales") — videos tutoriales por app/audiencia.
+// Categorías + artículos (pregunta + pasos + video en R2) + feedback "¿Te sirvió?".
+// Doc: docs/arquitectura/Centro_Ayuda.md · migración: docs/migraciones/2026-07-03-centro-ayuda.sql
+// =============================================================================
+
+// `ayuda_categorias` = agrupador del Centro. app + audiencia definen a quién se le
+// muestra (anunciaya/cliente, anunciaya/comerciante, scanya/comerciante).
+export const ayudaCategorias = pgTable("ayuda_categorias", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	nombre: varchar({ length: 80 }).notNull(),
+	icono: varchar({ length: 60 }),
+	app: varchar({ length: 20 }).$type<'anunciaya' | 'scanya'>().notNull(),
+	audiencia: varchar({ length: 20 }).$type<'cliente' | 'comerciante'>().notNull(),
+	orden: integer().default(0).notNull(),
+	activo: boolean().default(true).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_ayuda_categorias_app_audiencia").using("btree", table.app.asc().nullsLast(), table.audiencia.asc().nullsLast()),
+]);
+
+// `ayuda_articulos` = una pregunta/tarea (pasos + video). Hereda app/audiencia de su
+// categoría. `slug` = URL pública /ayuda/<slug>; `compartible_publico` la expone;
+// `publicado` = borrador vs visible.
+export const ayudaArticulos = pgTable("ayuda_articulos", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	categoriaId: uuid("categoria_id").notNull().references((): AnyPgColumn => ayudaCategorias.id, { onDelete: 'cascade' }),
+	slug: varchar({ length: 120 }).notNull().unique(),
+	pregunta: varchar({ length: 160 }).notNull(),
+	respuesta: text(),
+	videoUrl: text("video_url"),
+	posterUrl: text("poster_url"),
+	duracionSeg: integer("duracion_seg"),
+	orden: integer().default(0).notNull(),
+	publicado: boolean().default(false).notNull(),
+	compartiblePublico: boolean("compartible_publico").default(true).notNull(),
+	vistas: integer().default(0).notNull(),
+	utilSi: integer("util_si").default(0).notNull(),
+	utilNo: integer("util_no").default(0).notNull(),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	updatedAt: timestamp("updated_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	index("idx_ayuda_articulos_categoria").using("btree", table.categoriaId.asc().nullsLast(), table.orden.asc().nullsLast()),
+]);
+
+// `ayuda_feedback` = botón "¿Te sirvió?" (binario 👍/👎). 1 voto por usuario por artículo.
+export const ayudaFeedback = pgTable("ayuda_feedback", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	articuloId: uuid("articulo_id").notNull().references((): AnyPgColumn => ayudaArticulos.id, { onDelete: 'cascade' }),
+	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
+	util: boolean().notNull(),
+	comentario: varchar({ length: 500 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("ayuda_feedback_articulo_id_usuario_id_key").on(table.articuloId, table.usuarioId),
+	index("idx_ayuda_feedback_articulo").using("btree", table.articuloId.asc().nullsLast()),
+]);

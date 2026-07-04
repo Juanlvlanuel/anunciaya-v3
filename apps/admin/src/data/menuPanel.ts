@@ -100,6 +100,13 @@ export const GRUPOS_MENU: GrupoMenu[] = [
       { id: 'mantenimiento', etiqueta: 'Mantenimiento', icono: 'mantenimiento', roles: ['superadmin'] },
     ],
   },
+  {
+    id: 'soporte',
+    etiqueta: 'Soporte',
+    items: [
+      { id: 'tutoriales', etiqueta: 'Ayuda y Tutoriales', icono: 'tutoriales', roles: ['superadmin'] },
+    ],
+  },
 ];
 
 /** Etiquetas cortas para la barra inferior móvil. */

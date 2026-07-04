@@ -25,7 +25,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
-import { Lock, LogOut, Ticket, User, Download } from 'lucide-react';
+import { Lock, LogOut, Ticket, User, Download, HelpCircle } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -618,6 +618,14 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
       onClick: () => handleNavegar('/perfil'),
     };
 
+    const ayudaItem: ItemMenuDrawer = {
+      id: 'ayuda',
+      label: 'Ayuda y Tutoriales',
+      tile: 'linear-gradient(135deg, #0284c7, #0369a1)',
+      icon: HelpCircle,
+      onClick: () => handleNavegar('/ayuda'),
+    };
+
     if (modo === 'personal') {
       return [
         ubicacionItem,
@@ -643,6 +651,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           onClick: () => handleNavegar('/mis-publicaciones'),
         },
         guardadosItem,
+        ayudaItem,
         perfilItem,
       ];
     }
@@ -671,6 +680,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         onClick: () => handleNavegar('/business-studio'),
       },
       guardadosItem,
+      ayudaItem,
       perfilItem,
     ];
   })();

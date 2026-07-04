@@ -25,7 +25,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
-import { Package, User, LogOut, Download } from 'lucide-react';
+import { Package, User, LogOut, Download, HelpCircle } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -377,11 +377,13 @@ export function DrawerDesktop({ onClose }: DrawerDesktopProps) {
       return [
         { id: 'pub', label: 'Mis Publicaciones', ruta: '/mis-publicaciones', icon: Package, tile: TILE.publicaciones },
         { id: 'sav', label: 'Mis Guardados', ruta: '/guardados', icon: Bookmark, tile: TILE.guardados },
+        { id: 'ayuda', label: 'Ayuda y Tutoriales', ruta: '/ayuda', icon: HelpCircle, tile: 'linear-gradient(135deg, #0284c7, #0369a1)' },
         { id: 'prf', label: 'Mi Perfil', ruta: '/perfil', icon: User, tile: TILE.perfil },
       ];
     }
     return [
       { id: 'sav', label: 'Mis Guardados', ruta: '/guardados', icon: Bookmark, tile: TILE.guardados },
+      { id: 'ayuda', label: 'Ayuda y Tutoriales', ruta: '/ayuda', icon: HelpCircle, tile: 'linear-gradient(135deg, #0284c7, #0369a1)' },
       { id: 'prf', label: 'Mi Perfil', ruta: '/perfil', icon: User, tile: TILE.perfil },
     ];
   }, [modo]);

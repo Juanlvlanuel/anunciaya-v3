@@ -125,6 +125,11 @@ export const IMAGE_REGISTRY: ImageField[] = [
     // ─── Publicidad ───
     // Creatividad que el anunciante sube (carpeta R2 'publicidad'). Una por pieza/carrusel.
     { tabla: 'publicidad_piezas', columna: 'imagen_url', tipo: 'url', descripcion: 'Imagen del anuncio (carruseles de la columna derecha)' },
+
+    // ─── Centro de Ayuda (Tutoriales) ───
+    // Carpeta R2 'ayuda_articulos': poster (imagen) y video del tutorial.
+    { tabla: 'ayuda_articulos', columna: 'poster_url', tipo: 'url', descripcion: 'Poster/miniatura del tutorial' },
+    { tabla: 'ayuda_articulos', columna: 'video_url', tipo: 'url', descripcion: 'Video del tutorial' },
 ];
 
 /**

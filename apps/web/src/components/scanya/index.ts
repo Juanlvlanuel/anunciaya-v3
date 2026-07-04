@@ -26,4 +26,5 @@ export { default as ModalRecordatorios } from './ModalRecordatorios';
 export { BotonInstalarScanYA } from './BotonInstalarScanYA';
 export { ModalResenas } from './ModalResenas';
 export { ModalAvisoTurnoAutoCerrado } from './ModalAvisoTurnoAutoCerrado';
+export { ModalCentroAyudaScanYA } from './ModalCentroAyudaScanYA';
 

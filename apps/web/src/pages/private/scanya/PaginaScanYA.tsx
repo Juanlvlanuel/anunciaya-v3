@@ -36,6 +36,7 @@ import {
   ModalRecordatorios,
   ModalResenas,
   ModalAvisoTurnoAutoCerrado,
+  ModalCentroAyudaScanYA,
 } from '@/components/scanya';
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
@@ -79,7 +80,7 @@ export default function PaginaScanYA() {
   const [cargandoTurno, setCargandoTurno] = useState(false);
 
   // Estado unificado para controlar qué modal está abierto (evita conflictos y temblores)
-  type ModalActivo = 'ninguno' | 'cerrar' | 'venta' | 'historial' | 'vouchers' | 'canjear' | 'recordatorios' | 'resenas';
+  type ModalActivo = 'ninguno' | 'cerrar' | 'venta' | 'historial' | 'vouchers' | 'canjear' | 'recordatorios' | 'resenas' | 'ayuda';
   const [modalActivo, setModalActivo] = useState<ModalActivo>('ninguno');
   const [voucherACanjear, setVoucherACanjear] = useState<{ voucherId: string; clienteId: string; clienteNombre: string; recompensaNombre: string; } | null>(null);
 
@@ -613,7 +614,7 @@ export default function PaginaScanYA() {
 
       {/* Todo el contenido con z-index para estar encima del fondo */}
       <div className={`relative z-10 h-full flex flex-col transition-all duration-300 ${(['venta', 'historial', 'vouchers', 'canjear', 'recordatorios', 'resenas'].includes(modalActivo)) ? 'lg:mr-[350px] 2xl:mr-[450px]' : ''}`}>        {/* Header */}
-        <HeaderScanYA onCambioSucursal={() => cargarDatos(true)} />
+        <HeaderScanYA onCambioSucursal={() => cargarDatos(true)} onAbrirAyuda={() => setModalActivo('ayuda')} />
 
         {/* Barra Info Negocio (solo móvil, sin contenedor) */}
         <InfoNegocioBar />
@@ -800,6 +801,12 @@ export default function PaginaScanYA() {
               resenasPendientes: Math.max(0, prev.resenasPendientes - 1),
             }));
           }}
+        />
+
+        {/* Centro de Ayuda (drawer que reutiliza el Centro forzado a ScanYA) */}
+        <ModalCentroAyudaScanYA
+          abierto={modalActivo === 'ayuda'}
+          onClose={() => setModalActivo('ninguno')}
         />
 
 

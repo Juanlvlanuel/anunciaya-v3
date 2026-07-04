@@ -13,7 +13,7 @@
 
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { LogOut, Store, ChevronDown } from 'lucide-react';
+import { LogOut, Store, ChevronDown, HelpCircle } from 'lucide-react';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { obtenerSucursalesNegocio } from '@/services/negociosService';
@@ -29,13 +29,15 @@ interface HeaderScanYAProps {
   className?: string;
   /** Callback opcional invocado tras un cambio de sucursal exitoso (para que el dashboard recargue datos) */
   onCambioSucursal?: () => void;
+  /** Abre el Centro de Ayuda (drawer). Si no se pasa, el botón "?" no se muestra. */
+  onAbrirAyuda?: () => void;
 }
 
 // =============================================================================
 // COMPONENTE PRINCIPAL
 // =============================================================================
 
-export default function HeaderScanYA({ className = '', onCambioSucursal }: HeaderScanYAProps) {
+export default function HeaderScanYA({ className = '', onCambioSucursal, onAbrirAyuda }: HeaderScanYAProps) {
   const navigate = useNavigate();
   const { usuario, logout } = useScanYAStore();
   const online = useOnlineStatus();
@@ -152,6 +154,20 @@ export default function HeaderScanYA({ className = '', onCambioSucursal }: Heade
           <div className="flex items-center gap-3">
             {!online && <IndicadorOffline />}
 
+            {/* Botón Ayuda */}
+            {onAbrirAyuda && (
+              <button
+                type="button"
+                onClick={onAbrirAyuda}
+                className="flex items-center justify-center w-10 h-10 rounded-full text-white transition-all duration-200 cursor-pointer shrink-0 hover:bg-white/15"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(59, 130, 246, 0.4)' }}
+                aria-label="Centro de Ayuda"
+                data-testid="scanya-btn-ayuda"
+              >
+                <HelpCircle className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
+              </button>
+            )}
+
             {/* Botón circular para cambiar sucursal (solo dueño multi-sucursal) */}
             {puedeCambiarSucursal && (
               <button
@@ -178,7 +194,9 @@ export default function HeaderScanYA({ className = '', onCambioSucursal }: Heade
               </button>
             )}
 
-            <AvatarEmpleadoScanYA />
+            {/* Avatar del empleado — solo empleados (suben su foto desde aquí) */}
+            {usuario.tipo === 'empleado' && <AvatarEmpleadoScanYA />}
+
           {/* Botón Logout */}
           <button
             onClick={handleLogout}
@@ -304,8 +322,22 @@ export default function HeaderScanYA({ className = '', onCambioSucursal }: Heade
 
           {/* Columna Derecha: Avatar + Indicador Offline + Botón Logout */}
           <div className="flex items-center gap-3">
-            {/* Avatar del empleado */}
-            <AvatarEmpleadoScanYA />
+            {/* Botón Ayuda */}
+            {onAbrirAyuda && (
+              <button
+                type="button"
+                onClick={onAbrirAyuda}
+                className="flex items-center justify-center w-10 h-10 rounded-full text-white transition-all duration-200 cursor-pointer shrink-0 hover:bg-white/15"
+                style={{ background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(59, 130, 246, 0.4)' }}
+                aria-label="Centro de Ayuda"
+                data-testid="scanya-btn-ayuda-desktop"
+              >
+                <HelpCircle className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
+              </button>
+            )}
+
+            {/* Avatar del empleado — solo empleados (suben su foto desde aquí) */}
+            {usuario.tipo === 'empleado' && <AvatarEmpleadoScanYA />}
 
             {/* Indicador offline (solo cuando no hay conexión) */}
             {!online && <IndicadorOffline />}

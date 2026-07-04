@@ -18,7 +18,7 @@
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-type EntityType = 'negocio' | 'oferta' | 'articulo' | 'servicio';
+type EntityType = 'negocio' | 'oferta' | 'articulo' | 'servicio' | 'tutorial';
 
 interface EntityConfig {
   endpoint: string;
@@ -63,6 +63,14 @@ const ENTITY_CONFIG: Record<EntityType, EntityConfig> = {
     imageField: 'imagen',
     fallbackTitle: 'Servicio en AnunciaYA',
     fallbackDescription: 'Servicio disponible cerca de ti',
+  },
+  tutorial: {
+    // Landing pública del Centro de Ayuda — GET /api/ayuda/publico/:slug.
+    endpoint: '/ayuda/publico',
+    titleField: 'pregunta',
+    imageField: 'posterUrl',
+    fallbackTitle: 'Tutorial en AnunciaYA',
+    fallbackDescription: 'Aprende a sacarle todo el provecho a AnunciaYA.',
   },
 };
 

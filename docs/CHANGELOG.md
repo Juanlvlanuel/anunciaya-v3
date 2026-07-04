@@ -8,6 +8,26 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [3 Julio 2026] - Centro de Ayuda (videos tutoriales) 🎬
+
+Feature nuevo **Ayuda y Tutoriales**: un Help Center (categorías + buscador) donde cada respuesta es una ficha con **pasos en texto + video tutorial embebido**. Un solo componente sirve a las 3 audiencias (usuario, comerciante en Business Studio, comerciante en ScanYA) filtrando el contenido por audiencia. Doc canónico: `docs/arquitectura/Centro_Ayuda.md`. `tsc` verde en api/web/admin.
+
+### Agregado
+
+- **Centro de Ayuda `/ayuda`** (apps/web) — pestañas de audiencia (Para usar la app · Para mi negocio · ScanYA) + buscador + sidebar de categorías; escritorio 2-columnas / móvil lista→detalle. `<video>` nativo con **auto-fullscreen al girar el móvil**; pasos en Markdown (render propio, sin dependencia nueva).
+- **Landing pública compartible** `/p/tutorial/:slug` — sin login (video + pasos + CTA), con **Open Graph server-side** vía `apps/web/api/og.ts` (tipo `tutorial`; el rewrite `/p/:tipo/:id` de `vercel.json` ya la cubre) para el preview de WhatsApp. Botón Compartir reusa `DropdownCompartir`.
+- **Métricas** — "¿Te sirvió?" (👍/👎) + contador de vistas como **contadores agregados** (`util_si`/`util_no`/`vistas` en `ayuda_articulos`, sin identidad → funciona también desde ScanYA con su propio token); anti-doble-voto por `localStorage`.
+- **Accesos** — ítem "Ayuda y Tutoriales" en MenuDrawer (móvil) + DrawerDesktop (popover del avatar) + Business Studio, y botón "?" en el header de ScanYA (drawer que reutiliza el Centro forzado a la audiencia ScanYA).
+- **CRUD en el Panel Admin** — grupo **Soporte → "Ayuda y Tutoriales"** (solo superadmin): crear/editar/borrar categorías y tutoriales, con **subida de video y poster a R2** (presigned URL, archivo directo navegador→R2), **duración auto-detectada**, slug autogenerado, toggles publicado/compartible. `video_url`/`poster_url` en `IMAGE_REGISTRY`.
+- **3 tablas nuevas** (`ayuda_categorias`, `ayuda_articulos`, `ayuda_feedback`) — migraciones `docs/migraciones/2026-07-03-centro-ayuda.sql` + `2026-07-03-ayuda-feedback-vistas.sql` (+ seeds DEV).
+
+### Notas
+
+- **Endpoint del Centro** (`GET /api/ayuda`) usa `verificarTokenOpcional` — no expone datos del usuario (solo filtra por app/audiencia), para que también cargue desde ScanYA.
+- **Pendientes operativos:** correr `2026-07-03-ayuda-feedback-vistas.sql` en dev+prod; agregar el origen del Panel a la **CORS del bucket R2** (subida directa navegador→R2); reiniciar backend (middleware); cargar/grabar la Tanda 1 de 14 videos (checklist en `Centro_Ayuda.md`).
+
+---
+
 ## [1 Julio 2026] - Migración a producción (go-live): infraestructura real 🚀
 
 Arranque del **go-live** de AnunciaYA — activación de la infraestructura real de cara a la beta de Puerto Peñasco. Doc canónico y checklist vivo: `docs/DESPLIEGUE_PRODUCCION.md`.

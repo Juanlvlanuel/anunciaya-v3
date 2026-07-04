@@ -191,6 +191,10 @@ export const queryKeys = {
     all: () => ['categorias'] as const,
     catalogo: (ciudadId?: string) => ['categorias', 'catalogo', ciudadId ?? 'todas'] as const,
   },
+  ayuda: {
+    all: () => ['ayuda'] as const,
+    contenido: () => ['ayuda', 'contenido'] as const,
+  },
   categoriasMarketplace: {
     all: () => ['categorias-marketplace'] as const,
     catalogo: (ciudadId?: string) => ['categorias-marketplace', 'catalogo', ciudadId ?? 'todas'] as const,

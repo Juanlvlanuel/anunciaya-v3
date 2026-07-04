@@ -32,6 +32,7 @@ import PaginaArticuloPublico from '../pages/public/PaginaArticuloPublico';
 import PaginaOfertaPublico from '../pages/public/PaginaOfertaPublico';
 import PaginaArticuloMarketplacePublico from '../pages/public/PaginaArticuloMarketplacePublico';
 import PaginaServicioPublico from '../pages/public/PaginaServicioPublico';
+import PaginaTutorialPublico from '../pages/public/PaginaTutorialPublico';
 import PaginaDemoEntrada from '../pages/public/PaginaDemoEntrada';
 import PaginaTerminos from '../pages/public/PaginaTerminos';
 import PaginaAvisoPrivacidad from '../pages/public/PaginaAvisoPrivacidad';
@@ -50,6 +51,7 @@ import { PaginaNegocios, PaginaPerfilNegocio } from '../pages/private/negocios';
 // ⭐ NUEVO: CardYA (Fase X)
 import PaginaCardYA from '../pages/private/cardya/PaginaCardYA';
 import PaginaMisCupones from '../pages/private/cupones/PaginaMisCupones';
+import PaginaCentroAyuda from '../pages/private/ayuda/PaginaCentroAyuda';
 
 // ⭐ NUEVO: Onboarding de negocio (Fase 5)
 import PaginaOnboarding from '../pages/private/business/onboarding/PaginaOnboarding';
@@ -222,6 +224,10 @@ const router = createBrowserRouter([
       {
         path: '/p/servicio/:publicacionId',
         element: <PaginaServicioPublico />,
+      },
+      {
+        path: '/p/tutorial/:slug',
+        element: <PaginaTutorialPublico />,
       },
 
       // -----------------------------------------------------------------------
@@ -406,6 +412,10 @@ const router = createBrowserRouter([
           {
             path: '/guardados',
             element: <PaginaGuardados />,
+          },
+          {
+            path: '/ayuda',
+            element: <PaginaCentroAyuda />,
           },
           // TEMPORAL — galería de íconos. BORRAR cuando se complete la iteración.
           {

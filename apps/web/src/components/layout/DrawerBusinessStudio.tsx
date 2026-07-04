@@ -17,6 +17,7 @@ import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
     X,
     LayoutDashboard,
+    HelpCircle,
     User,
     ShoppingBag,
     Tag,
@@ -184,6 +185,21 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                             </button>
                         );
                     })}
+
+                    {/* Ayuda y Tutoriales — fuera del flujo de secciones BS: navega
+                        normal (push) para que el back regrese a Business Studio. */}
+                    <button
+                        onClick={() => { navigate('/ayuda'); onCerrar(); }}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 ${location.pathname === '/ayuda'
+                                ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-500'
+                                : 'text-gray-700 hover:bg-gray-50'
+                            }`}
+                    >
+                        <HelpCircle className={`w-5 h-5 ${location.pathname === '/ayuda' ? 'text-blue-500' : 'text-gray-400'}`} />
+                        <span className={`font-medium whitespace-nowrap ${location.pathname === '/ayuda' ? 'text-blue-600' : ''}`}>
+                            Ayuda
+                        </span>
+                    </button>
                 </div>
             </div>
         </>,

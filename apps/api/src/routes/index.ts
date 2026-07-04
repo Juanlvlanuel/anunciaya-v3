@@ -47,6 +47,7 @@ import configuracionPublicaRoutes from './configuracionPublica.routes';
 import ciudadesPublicaRoutes from './ciudadesPublica.routes';
 import publicidadPublicaRoutes from './publicidadPublica.routes';
 import adminRoutes from './admin/index.js';
+import ayudaRoutes from './ayuda.routes';
 
 const router: Router = Router();
 
@@ -76,6 +77,9 @@ router.use('/ciudades', ciudadesPublicaRoutes);
 
 // Publicidad pública (sin auth): anuncios vigentes por ciudad para la columna derecha (desktop).
 router.use('/publicidad', publicidadPublicaRoutes);
+
+// Centro de Ayuda (privado): categorías + videos tutoriales por app/audiencia.
+router.use('/ayuda', ayudaRoutes);
 
 // Rutas de onboarding
 router.use('/onboarding', onboardingRoutes);

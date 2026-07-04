@@ -23,6 +23,7 @@ import {
   ScrollText,
   Map,
   Tags,
+  GraduationCap,
   type LucideIcon,
 } from 'lucide-react';
 
@@ -39,6 +40,7 @@ export const ICONOS_SECCION: Record<string, LucideIcon> = {
   publicidad: Megaphone,
   ciudades: MapPin,
   categorias: Tags,
+  tutoriales: GraduationCap,
   configuracion: SlidersHorizontal,
   equipo: ShieldCheck,
   auditoria: ScrollText,

@@ -1,7 +1,7 @@
 # 🛡️ Panel Admin — Arquitectura
 
 **Última actualización:** 30 Junio 2026
-**Estado:** ✅ **Panel completo — los 14 módulos construidos y en producción.** Shell + Login + 2FA + filtro global de región construidos. Cada módulo tiene su documento propio (ver §Los módulos). El foco pasó a QA/pulido pre-beta (Puerto Peñasco, May-Jun 2026).
+**Estado:** ✅ **Panel completo — los 15 módulos construidos y en producción** (el 15º es **Ayuda y Tutoriales**, back-office del Centro de Ayuda, 3 jul). Shell + Login + 2FA + filtro global de región construidos. Cada módulo tiene su documento propio (ver §Los módulos). El foco pasó a QA/pulido pre-beta (Puerto Peñasco, May-Jun 2026).
 **Progreso:** Diseño 100% · Backend 100% · Frontend 100% · **Módulos 14/14 en prod.** Estado vivo por módulo en [`Tablero_Modulos.md`](Tablero_Modulos.md).
 
 > **Nota de lectura:** las secciones de *diseño* más abajo (Motor de venta, Comisiones, Vendedores v2, Schema, Orden de construcción, Cimientos) son el registro histórico del diseño (3-19 Jun) y conservan su redacción original con marcadores ✅ donde ya se construyó. La verdad viva de cada módulo está en su documento propio y en `Tablero_Modulos.md`.
@@ -102,7 +102,7 @@ Reglas del modelo:
 
 ---
 
-## Matriz de permisos (14 módulos × 3 niveles)
+## Matriz de permisos (15 módulos × 3 niveles)
 
 Leyenda: **Total** = plataforma completa · **Su región** = limitado a su región · **Lo suyo** = solo lo propio · **—** = sin acceso
 
@@ -146,6 +146,7 @@ Regla de fondo: lo que es **estructura o dinero** (ciudades, categorías, config
 12. **Configuración** — 📄 **[`Configuracion.md`](Configuracion.md)**. El **tablero económico**: las palancas que tocan la caja (escalera de comisiones, trial, gracia, precio de membresía + plan anual, precios de publicidad), editables sin código, con auditoría y reset de caché. Solo SuperAdmin. **✅ en prod** (v1).
 13. **Equipo y accesos** — 📄 **[`Equipo_y_accesos.md`](Equipo_y_accesos.md)**. El "RR.HH./IT" del Panel: alta de vendedor/gerente, editar datos, reasignar región, cambiar ciudades del vendedor, revocar/reactivar, typeahead + promoción. **Permiso partido:** crear/mover/revocar gerentes = solo super; alta/edición de vendedores = super + gerente (su región). **✅ en prod.**
 14. **Sistema** — dos medios, ambos **✅ en prod**: **Auditoría** (📄 **[`Auditoria.md`](Auditoria.md)**) = bitácora de quién hizo qué (lista + ficha + alcance por rol + sistema de presentación que humaniza ~50 acciones sin jerga ni UUIDs); y **Mantenimiento** (📄 **[`Mantenimiento.md`](Mantenimiento.md)**) = centro técnico en 4 pestañas (Salud BD/Redis/R2/Stripe · Crons con ejecutar+preview · Logs del BE · Recolector R2 blindado por cross-ambiente) + 5 acciones auditadas. En el menú son dos entradas separadas.
+15. **Ayuda y Tutoriales** — 📄 **[`../Centro_Ayuda.md`](../Centro_Ayuda.md)**. Back-office del **Centro de Ayuda**: CRUD de categorías y tutoriales (video + poster subidos a R2 vía **presigned URL**, duración auto-detectada, slug, publicado/compartible) + lista con métricas (vistas · 👍/👎). Grupo **Soporte**, solo SuperAdmin. El feature de cara al usuario (Centro `/ayuda` para usuario/comerciante/ScanYA + landing pública `/p/tutorial/:slug` con OG + accesos + métricas) vive en `../Centro_Ayuda.md`. **✅ construido** (3 jul); pendiente operativo: migración feedback/vistas + CORS R2 del Panel + cargar videos.
 
 ---
 

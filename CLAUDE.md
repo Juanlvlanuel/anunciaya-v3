@@ -81,9 +81,9 @@ anunciaya/
 
 **4 Públicas:** Negocios ✅, MarketPlace ✅, Ofertas ✅, Servicios ✅
 **Home:** Pregúntale a Peñasco ✅ (feed conversacional + Coyo + filtro hiperlocal por ciudad, ver `docs/VISION_ESTRATEGICA_AnunciaYA.md` §4)
-**3 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅
+**4 Secundarias:** CardYA ✅, ChatYA ✅ (componente flotante, sin ruta dedicada), Perfil ✅, Centro de Ayuda ✅ (Ayuda y Tutoriales; ruta `/ayuda` + landing pública `/p/tutorial/:slug`, ver `docs/arquitectura/Centro_Ayuda.md`)
 **3 Comerciales:** Business Studio ✅, ScanYA ✅, Onboarding ✅
-**Administración del Sistema:** Panel Admin ✅ completo (`apps/admin`, en prod): los 13 módulos cerrados — Resumen, Métricas, Negocios, Usuarios, Suscripciones·bitácora, Recibos, Vendedores y comisiones, Territorios (cerrado 27 jun), Publicidad, Ciudades, Equipo y accesos, Configuración, y "Sistema" (Auditoría + Mantenimiento R2). Stripe validado E2E al 100% (ronda A–Z cerrada 23 jun, ver `docs/arquitectura/Panel_Admin/Ronda_Pruebas_Pagos.md`). El Panel está funcionalmente completo. **Mi Perfil** (Modo Personal) en `apps/web` quedó **completo con sus 3 tabs** (`docs/arquitectura/Mi_Perfil.md`): **Datos Personales** (avatar, nombre, apellidos, teléfono con lada editable, fecha de nacimiento, género, ciudad; correo solo-lectura), **Seguridad** (cambiar contraseña con validación en vivo + verificación en dos pasos/2FA) y **Membresía y Pagos** (vista de membresía + recibos, recuperar tarjeta morosa vía Customer Portal, pago manual con comprobante, cambio bidireccional de método de cobro; **solo visible** si el usuario tiene negocio comercial o publicidad vigente). Pagos cerró con QA E2E el 28 jun; **Datos Personales + Seguridad construidos el 29 jun** (pendiente QA E2E a mano). Estado vivo y por módulo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
+**Administración del Sistema:** Panel Admin ✅ completo (`apps/admin`, en prod): los 15 módulos cerrados — Resumen, Métricas, Negocios, Usuarios, Suscripciones·bitácora, Recibos, Vendedores y comisiones, Territorios (cerrado 27 jun), Publicidad, Ciudades, Categorías, Equipo y accesos, Configuración, "Sistema" (Auditoría + Mantenimiento R2), y **Ayuda y Tutoriales** (back-office del Centro de Ayuda, grupo Soporte, 3 jul). Stripe validado E2E al 100% (ronda A–Z cerrada 23 jun, ver `docs/arquitectura/Panel_Admin/Ronda_Pruebas_Pagos.md`). El Panel está funcionalmente completo. **Mi Perfil** (Modo Personal) en `apps/web` quedó **completo con sus 3 tabs** (`docs/arquitectura/Mi_Perfil.md`): **Datos Personales** (avatar, nombre, apellidos, teléfono con lada editable, fecha de nacimiento, género, ciudad; correo solo-lectura), **Seguridad** (cambiar contraseña con validación en vivo + verificación en dos pasos/2FA) y **Membresía y Pagos** (vista de membresía + recibos, recuperar tarjeta morosa vía Customer Portal, pago manual con comprobante, cambio bidireccional de método de cobro; **solo visible** si el usuario tiene negocio comercial o publicidad vigente). Pagos cerró con QA E2E el 28 jun; **Datos Personales + Seguridad construidos el 29 jun** (pendiente QA E2E a mano). Estado vivo y por módulo en `docs/arquitectura/Panel_Admin/Tablero_Modulos.md`.
 
 > ✅ = construido y en uso. Las **4 públicas**, el **Home** (Pregúntale a Peñasco) y las **comerciales** están implementadas y funcionando (verificado en código, 23 jun 2026).
 
@@ -299,6 +299,7 @@ docs/
 │   ├── Clientes_Transacciones.md
 │   ├── Guardados.md
 │   ├── MenuDrawer.md           ← drawer de perfil del usuario (desktop + móvil) + adaptaciones del handoff
+│   ├── Centro_Ayuda.md         ← Centro de Ayuda (videos tutoriales): 3 audiencias + checklist de 58 videos + accesos
 │   ├── Panel_Admin/            ← Panel Admin del sistema (carpeta)
 │   │   ├── Panel_Admin.md      ← infraestructura/diseño general del Panel
 │   │   └── Negocios.md         ← módulo Negocios (roles por jerarquía, alcance, alta manual)
