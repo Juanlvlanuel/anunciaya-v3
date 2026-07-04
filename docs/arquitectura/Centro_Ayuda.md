@@ -287,6 +287,8 @@ Página ligera **sin login** que muestra un solo video + sus pasos + CTA "Abrir 
 
 ## 9. Plan de grabación — Tanda 1 (lanzamiento beta)
 
+> **Manual de producción y guiones:** cómo grabar (voz, dispositivo, CapCut, especs), el formato de guion, el **mapa video → pantalla real** y los **guiones ya escritos** viven en `Centro_Ayuda_Produccion.md`. Los guiones se producen en un chat dedicado que lee ese doc.
+
 Los 14 esenciales, en orden de grabación sugerido:
 
 | Orden | ID | Video | Audiencia |
