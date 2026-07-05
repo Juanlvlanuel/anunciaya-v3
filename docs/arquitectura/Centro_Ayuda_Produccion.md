@@ -172,28 +172,41 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 
 > Se van agregando aquí conforme se escriben. El **Video 1** queda como **plantilla de oro** del formato y tono.
 
-### 🎬 U-01 — "Qué es AnunciaYA y cómo preguntarle a Peñasco" · 👤 · ~50-60 seg
+### 🎬 U-01 — "Qué es AnunciaYA y cómo preguntarle a Coyo" · 👤 · celular 9:16 · ~65-85 seg
 
-> `[Pantalla: app abierta en /inicio, se ve a Coyo]`
-> **"¡Hola! Bienvenido a AnunciaYA, la app de tu comunidad aquí en Puerto Peñasco. Con ella encuentras negocios, ofertas y servicios cerca de ti. Te enseño lo primero que tienes que saber."**
+> **Nota:** guion **genérico** (sirve para cualquier ciudad, no solo Puerto Peñasco). Los nombres entre comillas se verificaron contra la app real: el label del campo es **"Pregúntale a Coyo"**, el placeholder **"Escribe lo que buscas…"** y la burbuja de Coyo **"¿Qué andas buscando hoy?"**.
+
+> `[Pantalla: app abierta en /inicio. Se ve a Coyo con el saludo "¡Hola, [nombre]!" y su burbuja "¿Qué andas buscando hoy?"]`
+> **"¡Hola! Bienvenido a AnunciaYA, la app donde encontraras todo lo que necesitas cerca de ti, desde —negocios, ofertas y ademas también puedes comprar o vender en MarketPlace u ofrecer tus servicios a los vecinos. pero espera deja te presento a Coyo."**
 >
-> `[Pantalla: tocas el campo "Pregúntale a Peñasco" y empiezas a escribir]`
-> **"¿Necesitas algo y no sabes dónde conseguirlo? Solo escríbelo aquí, donde dice 'Pregúntale a Peñasco'. Por ejemplo: '¿dónde venden tacos cerca?'."**
+> `[Pantalla: tocas el campo "Pregúntale a Coyo" (placeholder "Escribe lo que buscas…") y empiezas a escribir]`
+> **"por que cuando Necesitas algo y no sabes dónde conseguirlo, Aquí, donde dice 'Pregúntale a Coyo', solo escríbelo. Por ejemplo: '¿dónde venden tacos cerca?'."**
 >
-> `[Pantalla: envías la pregunta y aparece la respuesta de Coyo]`
-> **"Coyo, nuestro asistente, te responde al momento con los negocios, ofertas o servicios que te sirven. Así de fácil."**
+> `[Pantalla: tocas enviar. Tu pregunta cae en el feed con la mascota animada, el texto "Coyo está pensando" y los tres puntitos]`
+> **"Le das enviar… y aquí Coyo se pone a pensar. Dale unos segundos: está buscando entre todos los negocios, ofertas, publicaciones de MarketPlace y servicios de tu ciudad para encontrarte justo lo que pediste."**
 >
-> `[Pantalla: bajas al feed y tocas el interruptor "Comunidad · Mis preguntas"]`
-> **"Aquí abajo ves lo que pregunta la comunidad. Puedes cambiar entre 'Comunidad' y 'Mis preguntas' para seguir las tuyas."**
+> `[Pantalla: el bloque cambia a "Coyo encontró esto" con las tarjetas de resultados en fila]`
+> **"Y listo: Coyo te responde con algunas recomendaciones. Tócalas para ver el detalle."**
 >
-> `[Pantalla: señalas las secciones de arriba — Negocios, Ofertas, Servicios]`
-> **"Y arriba tienes todas las secciones para explorar. Échale un ojo… ¡y bienvenido a AnunciaYA!"**
+> `[Pantalla: tu pregunta sigue publicada en el feed, debajo de la respuesta de Coyo]`
+> **"Y ojo con esto: encuentre o no encuentre Coyo recomendaciones, tu pregunta se queda publicada aquí, en el feed de tu ciudad. Así cualquier vecino que sepa te puede echar la mano y responderte."**
+>
+> `[Pantalla: en una pregunta de otro vecino tocas "Comentar" y escribes en el campo "Responde a tu vecino…"]`
+> **"Y tú también puedes ayudar a otro vecino: entra a cualquier pregunta de la comunidad, toca 'Comentar' y deja tu recomendación."**
+>
+> `[Pantalla: en la barra tocas el interruptor "Comunidad · Mis preguntas"]`
+> **"Con este botón cambias entre 'Comunidad', para ver lo que pregunta la gente, y 'Mis preguntas', para seguir las tuyas."**
+>
+> `[Pantalla: muestras las secciones de la app]`
+> **"Y tienes todas las secciones para explorar: Negocios, MarketPlace, Ofertas y Servicios. Échale un ojo… ¡y bienvenido a AnunciaYA!"**
 
 **Pasos en texto (para el campo `respuesta` del Panel):**
 1. Abre AnunciaYA en tu ciudad.
-2. En **"Pregúntale a Peñasco"**, escribe lo que buscas.
-3. **Coyo** te responde con negocios, ofertas y servicios cerca.
-4. Cambia entre **Comunidad** y **Mis preguntas** para seguir las tuyas.
+2. En **"Pregúntale a Coyo"**, escribe lo que buscas.
+3. Dale enviar y espera un momento: **Coyo está pensando**.
+4. **Coyo** te responde con negocios, ofertas y servicios cerca; tócalos para ver el detalle.
+5. Encuentre o no Coyo, **tu pregunta queda en el feed de tu ciudad** y cualquier vecino puede responderte. Entra a otras preguntas y toca **"Comentar"** para ayudar tú también.
+6. Cambia entre **Comunidad** y **Mis preguntas** para seguir las tuyas.
 
 ---
 
