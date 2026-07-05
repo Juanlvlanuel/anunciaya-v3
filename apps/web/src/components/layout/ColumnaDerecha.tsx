@@ -17,7 +17,7 @@
 import { useState, useEffect, type ReactElement, type CSSProperties } from 'react';
 import { createPortal } from 'react-dom';
 import { Megaphone, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import { usePublicidad } from '../../hooks/queries/usePublicidad';
 import { usePortalTarget } from '../../hooks/usePortalTarget';
 import { registrarClickPublicidad, type AnuncioPublico } from '../../services/publicidadService';
@@ -56,7 +56,7 @@ export function ColumnaDerecha() {
   const grandes = data?.patrocinadores ?? []; // tamaño GRANDE (banner)
   const chicos = data?.anuncios ?? [];         // tamaño CHICO (tarjeta)
   const fundadores = data?.fundadores ?? [];
-  const navigate = useNavigate();
+  const navegar = useNavegarASeccion();
   const [ampliada, setAmpliada] = useState<string | null>(null);
 
   const abrir = (item: AnuncioPublico) => {
@@ -77,7 +77,7 @@ export function ColumnaDerecha() {
         <button
           type="button"
           data-testid="columna-anunciate"
-          onClick={() => navigate('/anunciate')}
+          onClick={() => navegar('/anunciate')}
           className="flex w-full cursor-pointer items-center justify-center gap-1.5 rounded-xl bg-slate-900 py-2.5 text-[12.5px] font-bold text-white shadow-sm transition hover:bg-slate-800"
         >
           <Megaphone className="h-3.5 w-3.5" /> Anúnciate aquí

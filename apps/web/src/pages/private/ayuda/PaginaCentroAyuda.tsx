@@ -5,6 +5,7 @@ import { useAuthStore } from '@/stores/useAuthStore';
 import { useCentroAyuda } from '@/hooks/queries/useAyuda';
 import { TabsAudiencia, type TabAudiencia } from '@/components/ayuda/TabsAudiencia';
 import { VistaArticulo } from '@/components/ayuda/VistaArticulo';
+import { useVolverAtras } from '@/hooks/useVolverAtras';
 import type { AppAyuda, AudienciaAyuda, AyudaArticulo, AyudaCategoria } from '@/types/ayuda';
 
 const TABS: { key: TabAudiencia; label: string; app: AppAyuda; audiencia: AudienciaAyuda }[] = [
@@ -22,6 +23,9 @@ interface PaginaCentroAyudaProps {
 
 export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCentroAyudaProps = {}) {
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+  // Flecha ← del encabezado (solo en la página /ayuda, no embebida). Usa el
+  // historial real; si se entró por URL directa, cae al fallback /inicio.
+  const volver = useVolverAtras('/inicio');
   const [tab, setTab] = useState<TabAudiencia>(
     soloAudiencia ?? (modoActivo === 'comercial' ? 'negocio' : 'app'),
   );
@@ -81,6 +85,15 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
       {/* Encabezado — se oculta al embeber (el drawer provee su propio título) */}
       {!embebido && (
         <div className="mb-4 flex items-center gap-2.5">
+          <button
+            type="button"
+            onClick={volver}
+            aria-label="Volver"
+            data-testid="btn-volver-ayuda"
+            className="grid h-9 w-9 shrink-0 place-items-center rounded-full border border-slate-300 bg-white text-slate-600 lg:cursor-pointer lg:hover:bg-slate-200"
+          >
+            <ChevronLeft className="h-5 w-5" strokeWidth={2.2} />
+          </button>
           <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-blue-600 text-white shadow-sm">
             <HelpCircle className="h-5 w-5" strokeWidth={2.4} />
           </div>

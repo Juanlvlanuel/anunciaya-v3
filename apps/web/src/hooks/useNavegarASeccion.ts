@@ -72,6 +72,8 @@ const RUTAS_TOP_LEVEL = new Set<string>([
     '/cardya',
     '/mis-cupones',
     '/business-studio',
+    '/ayuda',
+    '/anunciate',
 ]);
 
 /** True si la ruta corresponde a una sección top-level (no subruta). */

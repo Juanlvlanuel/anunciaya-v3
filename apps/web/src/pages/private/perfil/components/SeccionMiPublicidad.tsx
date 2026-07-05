@@ -14,7 +14,8 @@
 import { useState } from 'react';
 import { createPortal } from 'react-dom';
 import { ExternalLink, FileText, MapPin, Megaphone, Plus, RotateCw, X } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
+import { useBackNativo } from '@/hooks/useBackNativo';
 import { usePortalTarget } from '@/hooks/usePortalTarget';
 import type { PublicidadCompra } from '@/services/membresiaService';
 
@@ -85,13 +86,22 @@ function Dato({ label, valor }: { label: string; valor: string }) {
 }
 
 export default function SeccionMiPublicidad({ publicidad }: { publicidad: PublicidadCompra[] }) {
-    const navigate = useNavigate();
+    const navegar = useNavegarASeccion();
     // Creatividad ampliada (lightbox) al hacer clic en el preview de un pago.
     const [imagenAmpliada, setImagenAmpliada] = useState<string | null>(null);
     // Portal a document.body (o contenedor de preview) para que el lightbox escape del stacking context
     // del contenido — si no, queda debajo de las columnas (z-30) y el navbar (z-50).
     const portalTarget = usePortalTarget();
     const esContenidoPreview = portalTarget !== document.body;
+
+    // El visor ampliado de la creatividad (lightbox fullscreen) debe cerrarse con
+    // el back nativo del celular / flecha del navegador, igual que su X y el
+    // click en el backdrop. Sin esto, en móvil el back saca de la página.
+    useBackNativo({
+        abierto: imagenAmpliada !== null,
+        onCerrar: () => setImagenAmpliada(null),
+        discriminador: '_pubLightbox',
+    });
 
     return (
         <div data-testid="seccion-mi-publicidad">
@@ -102,7 +112,7 @@ export default function SeccionMiPublicidad({ publicidad }: { publicidad: Public
                 </div>
                 <button
                     data-testid="btn-anunciar-mas"
-                    onClick={() => navigate('/anunciate')}
+                    onClick={() => navegar('/anunciate')}
                     style={{ background: GRADIENTE_MARCA }}
                     className="shrink-0 inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-2 text-sm font-semibold cursor-pointer text-white shadow-md"
                 >
@@ -191,7 +201,7 @@ export default function SeccionMiPublicidad({ publicidad }: { publicidad: Public
                             {p.estado !== 'cancelada' && (
                                 <div className="flex justify-end px-4 pb-3 pt-2.5">
                                     <button
-                                        onClick={() => navigate('/anunciate', { state: { renovarId: p.id } })}
+                                        onClick={() => navegar('/anunciate', { state: { renovarId: p.id } })}
                                         data-testid={`pub-renovar-${p.id}`}
                                         className="shrink-0 inline-flex items-center gap-1.5 rounded-lg border border-slate-300 px-3 py-1.5 text-sm font-semibold text-slate-700 cursor-pointer lg:hover:bg-slate-200"
                                     >

@@ -15,9 +15,10 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { ArrowLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
 import { useCiudades } from '../../../hooks/queries/useCiudades';
+import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { LogoStripe } from '../../../components/ui/LogoStripe';
 import { notificar } from '../../../utils/notificaciones';
 import {
@@ -80,7 +81,7 @@ const TXT_TITULO_SECCION = 'text-base lg:text-sm 2xl:text-base'; // títulos de 
 const TXT_BADGE = 'text-xs lg:text-[11px] 2xl:text-xs';          // chips informativos (Lanzamiento, −%)
 
 export default function PaginaAnunciate() {
-  const navigate = useNavigate();
+  const volver = useVolverAtras('/inicio');
   const location = useLocation();
   // Modo renovación: se llega desde "Renovar" en Mi Perfil con el id del anuncio a extender.
   const renovarId = (location.state as { renovarId?: string } | null)?.renovarId ?? null;
@@ -275,7 +276,7 @@ export default function PaginaAnunciate() {
       <div className="mb-5 flex items-center gap-3">
         <button
           type="button"
-          onClick={() => navigate(-1)}
+          onClick={volver}
           aria-label="Volver"
           className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-200"
         >

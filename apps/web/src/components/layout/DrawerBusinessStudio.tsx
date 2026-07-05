@@ -12,7 +12,7 @@
  */
 
 import { createPortal } from 'react-dom';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
     X,
@@ -91,7 +91,6 @@ const opcionesMenu = [
 
 export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudioProps) {
     const location = useLocation();
-    const navigate = useNavigate();
     // Navegación entre módulos hermanos de BS: replace para que el back
     // nativo regrese a /inicio en lugar de saltar entre módulos.
     const navegarASeccion = useNavegarASeccion();
@@ -186,10 +185,11 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                         );
                     })}
 
-                    {/* Ayuda y Tutoriales — fuera del flujo de secciones BS: navega
-                        normal (push) para que el back regrese a Business Studio. */}
+                    {/* Ayuda y Tutoriales — sección top-level (hermana de /inicio):
+                        handleNavegar → navegarASeccion aplica replace para que el back
+                        regrese a /inicio, consistente con Guardados/Mi Perfil del menú. */}
                     <button
-                        onClick={() => { navigate('/ayuda'); onCerrar(); }}
+                        onClick={() => handleNavegar('/ayuda')}
                         className={`w-full flex items-center gap-3 px-4 py-2.5 ${location.pathname === '/ayuda'
                                 ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-500'
                                 : 'text-gray-700 hover:bg-gray-50'

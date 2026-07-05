@@ -18,6 +18,7 @@ import { useLocation } from 'react-router-dom';
 import { X, Download, Share, Plus } from 'lucide-react';
 import { usePWAInstallStore } from '../../stores/usePWAInstallStore';
 import { useAuthStore } from '../../stores/useAuthStore';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 export function BannerInstalarApp() {
   const { pathname, search } = useLocation();
@@ -33,6 +34,16 @@ export function BannerInstalarApp() {
   const instruccionesIOSVisible = usePWAInstallStore((s) => s.instruccionesIOSVisible);
   const abrirInstruccionesIOS = usePWAInstallStore((s) => s.abrirInstruccionesIOS);
   const cerrarInstruccionesIOS = usePWAInstallStore((s) => s.cerrarInstruccionesIOS);
+
+  // El instructivo iOS es un overlay full-screen descartable → el back nativo
+  // (y la flecha del navegador) deben cerrarlo, igual que su X y el backdrop.
+  // El hook se llama antes de las guardas de abajo para no romper las reglas de
+  // hooks; queda inerte (abierto:false) cuando el banner no aplica.
+  useBackNativo({
+    abierto: instruccionesIOSVisible,
+    onCerrar: cerrarInstruccionesIOS,
+    discriminador: '_instalarIOS',
+  });
 
   // Guardas: ScanYA tiene su propio flujo, y el iframe de preview no aplica.
   const esRutaScanYA = pathname.startsWith('/scanya');

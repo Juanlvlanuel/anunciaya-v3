@@ -30,6 +30,7 @@ import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useChatYASession, obtenerMiIdChatYA } from '../../hooks/useChatYASession';
 import { useIniciarChatDirectoPersona } from '../../hooks/useIniciarChatDirectoPersona';
 import { useIniciarChatNegocio } from '../../hooks/useIniciarChatNegocio';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { ConversacionItem } from './ConversacionItem';
 import { MenuContextualChat } from './MenuContextualChat';
@@ -346,6 +347,23 @@ export function ListaConversaciones({ seleccionadas, modoSeleccion, onLongPressS
     setViendoContactos(false);
     setBusqueda('');
   }, []);
+
+  // Back nativo del celular / flecha del navegador → salir de "Contactos"
+  // (incluida su sub-vista "Directorio") de vuelta a la lista de chats activos,
+  // sin importar en qué sub-tab esté (el usuario lo pidió así: 1 back sale de
+  // Contactos completo, no navega entre sub-tabs). La entrada se apila SOBRE la
+  // del overlay del chat: useBackNativo hereda el state previo (que trae la
+  // marca `chatyaOverlay`), así que el sistema de capas manual del ChatOverlay
+  // la respeta — el back consume primero ESTA entrada (cierra Contactos) y deja
+  // el overlay del chat abierto. Discriminador propio para no chocar con las
+  // capas del overlay (chat, visor, panelInfo). Al abrir un chat desde aquí,
+  // `setViendoContactos(false)` cierra esta capa antes de que el chat empuje la
+  // suya. Ver docs/estandares/Sistema_Navegacion_Back.md (sección ChatYA).
+  useBackNativo({
+    abierto: viendoContactos,
+    onCerrar: salirContactos,
+    discriminador: '_chatyaContactos',
+  });
 
   /** Alterna entre "Mis contactos" (búsqueda local) y "Directorio" (búsqueda server-side). Limpia el texto al cambiar para no arrastrar un filtro entre sub-vistas con lógicas de búsqueda distintas. */
   const cambiarSubVista = useCallback((v: 'contactos' | 'directorio') => {
