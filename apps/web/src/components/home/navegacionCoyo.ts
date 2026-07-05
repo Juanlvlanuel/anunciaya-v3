@@ -17,6 +17,11 @@ import type { ItemCoyo } from '../../types/preguntasComunidad';
  *   - oferta      → /ofertas?oferta=:ofertaId       (deep link; la sección abre el modal)
  *   - marketplace → /marketplace/articulo/:articuloId
  *   - servicio    → /servicios/:publicacionId
+ *
+ * ⚠️ El tipo `oferta` NO usa esta ruta desde el carrusel de Coyo: CardItemCoyo
+ * la abre como modal SOBRE el Home (evento `coyo:abrir-oferta` → ModalOfertaCoyo)
+ * para que el back regrese a /inicio en vez de dejar al usuario en la lista de
+ * /ofertas. Este case se conserva para deep-links / compartir de ofertas.
  */
 export function rutaDetalleItemCoyo(item: ItemCoyo): string {
     switch (item.tipo) {

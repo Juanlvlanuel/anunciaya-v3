@@ -22,6 +22,8 @@ La app tiene una **jerarquía conceptual fija** que el back debe respetar SIEMPR
   ├─ /mis-publicaciones
   ├─ /cardya
   ├─ /mis-cupones
+  ├─ /ayuda            (Centro de Ayuda — sección top-level)
+  ├─ /anunciate        (compra de publicidad — sección top-level)
   └─ /business-studio
        ├─ /business-studio/dashboard
        ├─ /business-studio/clientes
@@ -74,6 +76,8 @@ function MiPagina() {
 - `PaginaNegocios`, `PaginaPerfilNegocio` (fallback `/inicio` y `/negocios`)
 - `PaginaCardYA`, `PaginaMisCupones`, `PaginaGuardados` (fallback `/inicio`)
 - `HeaderOfertas` (fallback `/inicio`)
+- `PaginaCentroAyuda` (fallback `/inicio`) — flecha ← del encabezado, solo en la página `/ayuda` (oculta en modo embebido del drawer y en ScanYA)
+- `PaginaAnunciate` (fallback `/inicio`) — antes usaba `navigate(-1)` sin fallback
 
 ---
 
@@ -125,6 +129,11 @@ const debeReemplazar =
 - `CarouselCupones.tsx` — botón "Mis Cupones"
 - `PaginaGuardados.tsx` — CTAs empty state ("Ver Ofertas", "Ver Negocios")
 - `ModalDetalleCliente.tsx` — botón "Ver historial completo"
+- `ColumnaDerecha.tsx` — CTA "Anúnciate aquí" → `/anunciate`
+- `SeccionMiPublicidad.tsx` — "Anunciar más" y "Renovar" → `/anunciate`
+- `DrawerBusinessStudio.tsx` / `DrawerDesktop.tsx` — "Ayuda y Tutoriales" → `/ayuda` (vía `handleNavegar`)
+
+> ⚠️ **`/ayuda` y `/anunciate` DEBEN estar en `RUTAS_TOP_LEVEL`** (se agregaron el 04-jul-2026). Sin ellas el hook las trataba como subrutas (push siempre) y el back no regresaba a `/inicio` desde una sección hermana — era la causa raíz de varios de los "backs rotos" tras agregar Coyo/Centro de Ayuda/publicidad.
 
 **Para `<Link>` y `<NavLink>` declarativos** (no se puede usar el hook):
 
@@ -176,6 +185,9 @@ function MiModal({ abierto, onCerrar }) {
 - `ModalBottom.tsx` (wrapper base de bottom-sheets móviles) — implementación propia con discriminador `'_modalBottom'` (precede al hook, mismo patrón).
 - `OverlayBuscadorContainer.tsx` — wrapper de los 4 OverlayBuscador (Negocios, MP, Ofertas, Servicios). Cada buscador pasa su discriminador (`_buscadorNegocios`, `_buscadorMarketplace`, etc.) cuando lo monta.
 - `ModalSugerenciaModeracion.tsx` — discriminador `_modalSugerenciaModeracion`.
+- `BannerInstalarApp.tsx` (instructivo iOS de instalación PWA) — discriminador `'_instalarIOS'`. Overlay descartable pre-login; el hook se llama ANTES de las guardas de render (`return null`) para no romper las reglas de hooks, y queda inerte (`abierto:false`) cuando el banner no aplica.
+- `ListaConversaciones.tsx` (vista Contactos/Directorio de ChatYA) — discriminador `'_chatyaContactos'`. Ver "Excepción" en la sección ChatOverlay abajo.
+- `SeccionMiPublicidad.tsx` (visor ampliado de la creatividad del anuncio en Mi Perfil → Membresía y Pagos → Tu publicidad) — discriminador `'_pubLightbox'`.
 - `MenuDrawer.tsx` (drawer móvil del perfil) — discriminador `_menuDrawer`. Mantiene su CSS custom (`md4-drawer`), solo agrega el hook.
 - `PanelNotificaciones.tsx` (panel móvil — `PanelMovil`) — discriminador `_panelNotificaciones`.
 - `ChatOverlay.tsx` — implementación propia con 4 capas (`chatyaOverlay`, `chatya`, `panelInfo`, `visorImagenes`). Ver detalle abajo en "ChatOverlay".
@@ -316,6 +328,13 @@ ChatYA NO usa `useBackNativo` directamente. Tiene su propio sistema de `pushStat
 | 4. Panel info contacto | `{panelInfo: true}` | `setPanelInfoAbierto(false)` |
 
 Adicional en `PanelInfoContacto.tsx`: sub-vista perfil chat con state `{_vistaPerfilChat: id}`.
+
+**Excepción — capa "Contactos / Directorio" con `useBackNativo`** (04-jul-2026): la vista de Contactos (y su sub-vista Directorio del directorio comercial, en modo comercial) NO usa el sistema manual de las 4 capas; usa `useBackNativo({ abierto: viendoContactos, onCerrar: salirContactos, discriminador: '_chatyaContactos' })` dentro de `ListaConversaciones.tsx`. Es la única sub-capa de ChatYA con el hook genérico, por 2 razones:
+
+1. El back debe salir de Contactos **completo** hacia la lista de chats sin importar el sub-tab (1 back = fuera de Contactos, NO navega Directorio → Mis contactos → chats). Una sola entrada de history lo resuelve limpio.
+2. El `history.back()` diferido con `setTimeout(0)` + guard de `useBackNativo` **evita un race destructivo** que sí tendría el patrón manual: al abrir un chat desde Contactos (`setViendoContactos(false)` + `abrirConversacion` juntos), un `history.back()` manual llegaría DESPUÉS del `pushState` del chat y lo cerraría por error. El guard del hook detecta que el state ya cambió y NO ejecuta el back.
+
+La entrada hereda la marca `chatyaOverlay` (el hook hace `pushState({ ...prev, _chatyaContactos })`), así que el listener manual del overlay la respeta y no cierra el chat. **Trade-off aceptado:** abrir un chat desde Contactos y luego dar varios back deja 1 "back muerto" (misma clase que la "aceptación con un back extra" documentada arriba). **Requiere QA en móvil real** (Android Chrome) por el timing del history. Si en el futuro se necesita anidar algo SOBRE Contactos, reevaluar.
 
 **Por qué tiene su propio sistema (y no migra a `useBackNativo`):**
 
@@ -895,6 +914,7 @@ No hace falta listar cada módulo nuevo — basta con que la ruta empiece con `/
 - ✅ F6. **Click en card de oferta/artículo dentro del chat** (subtipos `oferta_negocio` y `articulo_negocio`) — despacha evento `chatya:abrir-detalle-oferta` o `chatya:abrir-detalle-articulo`. `ChatOverlay` hace fetch del detalle y monta el modal correspondiente SOBRE el chat (z-75 vs z-50). El chat sigue activo, no se cambia de ruta. Al cerrar el modal con X/backdrop/back nativo, el chat queda en la misma conversación. Marketplace mantiene navegación al detalle público (caso F1).
 - ✅ F7. **Reuso de conversación persona ↔ negocio** — abrir ChatYA desde 2 ofertas/artículos de **distintas sucursales** del mismo negocio reusa la misma conversación. Backend `crearObtenerConversacion` ignora `participante2SucursalId` cuando es chat persona↔comercial (manteniendo el filtro estricto en chats inter-sucursal `comercial↔comercial`). Documentado en `ChatYA.md` §4.13.1.
 - ✅ F8. **Sonido de notificación NO se reproduce en mensajes `tipo='sistema'`** — los 3 subtipos activos (cards de `articulo_marketplace`, `oferta_negocio`, `articulo_negocio`) se emiten por Socket.io a ambos participantes al crear conversación. `useChatYAStore` filtra con `mensaje.tipo === 'sistema'` antes de llamar `reproducirSonidoNotificacion`. Consistente con que tampoco generan badge. (`contacto_perfil` se retiró el 09 May 2026; el render se mantiene como fallback para chats legacy en BD.)
+- ✅ F9. **Click en recomendación de Coyo (Home)** — las tarjetas del carrusel "Coyo encontró esto" (`CardItemCoyo`) llevan al DETALLE del item y el back nativo debe regresar a `/inicio`. Los tipos con página propia (`negocio` → `/negocios/:id`, `marketplace` → `/marketplace/articulo/:id`, `servicio` → `/servicios/:id`) navegan con push: el back vuelve a `/inicio` por el buffer fantasma. El tipo `oferta` NO tiene página de detalle — si navegara a `/ofertas?oferta=:id`, el back cerraría el modal pero dejaría al usuario VARADO en la lista de `/ofertas`. En su lugar, `CardItemCoyo` despacha `coyo:abrir-oferta` (detail = ofertaId) y `ModalOfertaCoyo` (montado en `PaginaInicio`) hace fetch del detalle y monta `ModalOfertaDetalle` SOBRE el Home. El back nativo (vía `useBackNativo` del `Modal`, discriminador `_modalOfertaDetalle`) cierra el modal y deja al usuario en `/inicio` — consistente con los otros 3 destinos. Mismo patrón de eventos que ChatYA (F6).
 
 ### Multi-pestaña + login
 - ✅ 2 pestañas en `/` → login en una → ambas autenticadas (la otra redirige a `/inicio` al refresh).

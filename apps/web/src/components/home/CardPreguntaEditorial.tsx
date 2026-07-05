@@ -218,7 +218,7 @@ function RespuestaCoyo({ pregunta }: { pregunta: PreguntaComunidad }) {
                 <p className="text-base lg:text-sm 2xl:text-base font-medium text-slate-600 leading-relaxed mb-2.5">{respuestaCoyo}</p>
             )}
             {items.length > 0 && (
-                <div className="-mx-1 px-1 flex gap-2.5 overflow-x-auto pb-1.5 mp-scroll">
+                <div className="-mx-1 px-1 flex gap-2.5 overflow-x-auto pb-2 coyo-scroll">
                     {items.map((it) => (
                         <CardItemCoyo key={`${it.tipo}-${it.id}`} item={it} />
                     ))}

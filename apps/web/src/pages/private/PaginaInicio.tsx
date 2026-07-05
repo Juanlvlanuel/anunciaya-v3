@@ -33,6 +33,7 @@ import { usePullToRefresh } from '../../hooks/usePullToRefresh';
 import { BotonIrArriba } from '../../components/ui/BotonIrArriba';
 import { CoyoInput } from '../../components/home/AreaPreguntaCoyo';
 import { CardPreguntaEditorial } from '../../components/home/CardPreguntaEditorial';
+import { ModalOfertaCoyo } from '../../components/home/ModalOfertaCoyo';
 import { EscenaCoyo } from '../../components/home/escena-coyo/EscenaCoyo';
 import { FeedVacio } from '../../components/home/EstadosVacios';
 import { notificar } from '../../utils/notificaciones';
@@ -768,6 +769,7 @@ export function PaginaInicio() {
                 </div>
 
                 <BotonIrArriba testId="home-ir-arriba" />
+                <ModalOfertaCoyo />
             </div>
         );
     }
@@ -812,6 +814,7 @@ export function PaginaInicio() {
             </div>
 
             <BotonIrArriba testId="home-ir-arriba" />
+            <ModalOfertaCoyo />
         </div>
     );
 }

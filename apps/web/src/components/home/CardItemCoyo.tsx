@@ -134,10 +134,22 @@ interface CardItemCoyoProps {
 function CardItemCoyoBase({ item }: CardItemCoyoProps) {
     const navigate = useNavigate();
 
+    // Oferta: se abre como modal SOBRE el Home (evento que escucha
+    // ModalOfertaCoyo) en lugar de navegar a /ofertas, para que el back cierre
+    // el modal y regrese a /inicio — consistente con los otros destinos, que
+    // muestran el detalle y vuelven al Home. Ver ModalOfertaCoyo.tsx.
+    const handleClick = () => {
+        if (item.tipo === 'oferta') {
+            window.dispatchEvent(new CustomEvent('coyo:abrir-oferta', { detail: item.id }));
+            return;
+        }
+        navigate(rutaDetalleItemCoyo(item));
+    };
+
     return (
         <button
             type="button"
-            onClick={() => navigate(rutaDetalleItemCoyo(item))}
+            onClick={handleClick}
             data-testid={`coyo-tarjeta-${item.tipo}-${item.id}`}
             aria-label={`Ver ${item.titulo}`}
             className="group/card shrink-0 w-48 lg:w-52 h-60 flex flex-col text-left bg-white rounded-xl overflow-hidden ring-1 ring-slate-300 shadow-sm lg:hover:shadow-md lg:hover:ring-blue-300 lg:cursor-pointer active:scale-[0.99] transition-all duration-200"
