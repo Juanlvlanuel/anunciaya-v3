@@ -32,6 +32,18 @@ if (!esPreviewIframe) {
 // Registrar Service Worker de ScanYA PWA
 // ==========================================
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // Cuando un Service Worker NUEVO toma el control (tras publicar cambios),
+  // recargar UNA sola vez para mostrar la versión nueva. Solo si ya había un SW
+  // controlando la página (así no se recarga en la primera instalación).
+  if (navigator.serviceWorker.controller) {
+    let recargando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargando) return;
+      recargando = true;
+      window.location.reload();
+    });
+  }
+
   window.addEventListener('load', () => {
     // Service Worker de AnunciaYA (PWA principal - scope raíz).
     // En el subdominio de ScanYA NO se registra: ahí la PWA es ScanYA.
@@ -40,6 +52,13 @@ if ('serviceWorker' in navigator && location.protocol === 'https:') {
         .register('/sw-anunciaya.js', { scope: '/' })
         .then((registration) => {
           console.log('[PWA AnunciaYA] Service Worker registrado:', registration.scope);
+          // Buscar versión nueva del SW: cada 30 min y cada vez que la PWA
+          // vuelve al primer plano (así la última versión se aplica pronto).
+          const buscarActualizacion = () => registration.update().catch(() => {});
+          setInterval(buscarActualizacion, 30 * 60 * 1000);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') buscarActualizacion();
+          });
         })
         .catch((error) => {
           console.error('[PWA AnunciaYA] Error registrando Service Worker:', error);
