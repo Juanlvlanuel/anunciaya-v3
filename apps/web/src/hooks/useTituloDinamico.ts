@@ -23,7 +23,7 @@ export function useTituloDinamico() {
     if (esScanYA) {
       document.title = 'ScanYA';
     } else {
-      document.title = 'AnunciaYA - Tus compras ahora valen más';
+      document.title = 'AnunciaYA - Todo lo que necesitas, cerca de ti';
     }
   }, [location.pathname]);
 }
