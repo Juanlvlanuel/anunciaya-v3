@@ -25,7 +25,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
-import { Lock, LogOut, Ticket, User, Download, HelpCircle } from 'lucide-react';
+import { Lock, LogOut, Ticket, User, Download, HelpCircle, Megaphone } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -226,6 +226,11 @@ const menuDrawerCss = `
   }
 
   .md4-list { padding: 6px 8px 12px; }
+  .md4-sep {
+    height: 1px;
+    background: var(--rule);
+    margin: 10px 16px 6px;
+  }
   .md4-row {
     all: unset; box-sizing: border-box; width: 100%;
     position: relative;
@@ -378,6 +383,7 @@ const TILE = {
   cardya: 'linear-gradient(135deg, #f59e0b, #d97706)',          // amber
   cupones: 'linear-gradient(135deg, #10b981, #059669)',         // emerald
   publicaciones: 'linear-gradient(135deg, #22d3ee, #0891b2)',   // cyan
+  anunciate: 'linear-gradient(135deg, #06b6d4, #0891b2)',       // cyan (identidad de /anunciate)
   guardados: 'linear-gradient(135deg, #f43f5e, #e11d48)',       // rose
   perfil: 'linear-gradient(135deg, #1d4ed8, #3b82f6)',          // blue
   scanya: 'linear-gradient(135deg, #001E70, #034AE3)',          // deep blue
@@ -593,41 +599,49 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // ---------------------------------------------------------------------------
   // Items por modo
   // ---------------------------------------------------------------------------
-  const items: ItemMenuDrawer[] = (() => {
-    const ubicacionItem: ItemMenuDrawer = {
-      id: 'loc',
-      label: ciudadData?.nombre || 'Tu Ubicación',
-      tile: TILE.ubicacion,
-      icon: MapPin,
-      onClick: handleAbrirUbicacion,
-    };
+  const ubicacionItem: ItemMenuDrawer = {
+    id: 'loc',
+    label: ciudadData?.nombre || 'Tu Ubicación',
+    tile: TILE.ubicacion,
+    icon: MapPin,
+    onClick: handleAbrirUbicacion,
+  };
 
-    const guardadosItem: ItemMenuDrawer = {
-      id: 'sav',
-      label: 'Mis Guardados',
-      tile: TILE.guardados,
-      icon: Bookmark,
-      onClick: () => handleNavegar('/guardados'),
-    };
+  const guardadosItem: ItemMenuDrawer = {
+    id: 'sav',
+    label: 'Mis Guardados',
+    tile: TILE.guardados,
+    icon: Bookmark,
+    onClick: () => handleNavegar('/guardados'),
+  };
 
-    const perfilItem: ItemMenuDrawer = {
-      id: 'prf',
-      label: 'Mi Perfil',
-      tile: TILE.perfil,
-      icon: User,
-      onClick: () => handleNavegar('/perfil'),
-    };
+  const perfilItem: ItemMenuDrawer = {
+    id: 'prf',
+    label: 'Mi Perfil',
+    tile: TILE.perfil,
+    icon: User,
+    onClick: () => handleNavegar('/perfil'),
+  };
 
-    const ayudaItem: ItemMenuDrawer = {
-      id: 'ayuda',
-      label: 'Ayuda y Tutoriales',
-      tile: 'linear-gradient(135deg, #0284c7, #0369a1)',
-      icon: HelpCircle,
-      onClick: () => handleNavegar('/ayuda'),
-    };
+  const ayudaItem: ItemMenuDrawer = {
+    id: 'ayuda',
+    label: 'Ayuda y Tutoriales',
+    tile: 'linear-gradient(135deg, #0284c7, #0369a1)',
+    icon: HelpCircle,
+    onClick: () => handleNavegar('/ayuda'),
+  };
 
-    if (modo === 'personal') {
-      return [
+  const anunciateItem: ItemMenuDrawer = {
+    id: 'anunciate',
+    label: 'Anúnciate',
+    tile: TILE.anunciate,
+    icon: Megaphone,
+    onClick: () => handleNavegar('/anunciate'),
+  };
+
+  // Grupo PRINCIPAL: la ubicación + las secciones más usadas del modo + guardados.
+  const itemsPrincipales: ItemMenuDrawer[] = modo === 'personal'
+    ? [
         ubicacionItem,
         {
           id: 'card',
@@ -651,44 +665,40 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           onClick: () => handleNavegar('/mis-publicaciones'),
         },
         guardadosItem,
-        ayudaItem,
-        perfilItem,
+      ]
+    : [
+        ubicacionItem,
+        {
+          id: 'scn',
+          label: 'ScanYA',
+          tile: TILE.scanya,
+          iconoImagen: '/IconoScanYA.webp',
+          alt: 'ScanYA',
+          onClick: scanyaHabilitado
+            // En prod salta al subdominio de ScanYA (otro origen); en dev navega interno.
+            ? () => abrirScanYA(() => handleNavegar('/scanya'))
+            : () => {},
+          bloqueado: !scanyaHabilitado,
+          hintBloqueado: !onboardingCompletado ? 'Completa tu registro' : 'Activa CardYA',
+        },
+        {
+          id: 'biz',
+          label: 'Business Studio',
+          tile: TILE.businessStudio,
+          iconoImagen: '/IconoBS.webp',
+          alt: 'Business Studio',
+          onClick: () => handleNavegar('/business-studio'),
+        },
+        guardadosItem,
       ];
-    }
 
-    return [
-      ubicacionItem,
-      {
-        id: 'scn',
-        label: 'ScanYA',
-        tile: TILE.scanya,
-        iconoImagen: '/IconoScanYA.webp',
-        alt: 'ScanYA',
-        onClick: scanyaHabilitado
-          // En prod salta al subdominio de ScanYA (otro origen); en dev navega interno.
-          ? () => abrirScanYA(() => handleNavegar('/scanya'))
-          : () => {},
-        bloqueado: !scanyaHabilitado,
-        hintBloqueado: !onboardingCompletado ? 'Completa tu registro' : 'Activa CardYA',
-      },
-      {
-        id: 'biz',
-        label: 'Business Studio',
-        tile: TILE.businessStudio,
-        iconoImagen: '/IconoBS.webp',
-        alt: 'Business Studio',
-        onClick: () => handleNavegar('/business-studio'),
-      },
-      guardadosItem,
-      ayudaItem,
-      perfilItem,
-    ];
-  })();
+  // Grupo SECUNDARIO (separado, más abajo): accesos secundarios y de cuenta.
+  const itemsSecundarios: ItemMenuDrawer[] = [anunciateItem, ayudaItem, perfilItem];
 
   // Ítem "Instalar app": solo si la instalación está disponible (Android/Chrome
-  // con prompt nativo, o iOS con instructivo) y la app no corre ya instalada.
+  // con prompt nativo, o iOS con instructivo) y la app no corre ya instalada. Va al grupo secundario.
   if ((puedeInstalarApp || esIOSInstalar) && !appInstalada) {
-    items.push({
+    itemsSecundarios.push({
       id: 'pwa',
       label: 'Instalar app',
       tile: 'linear-gradient(135deg, #0f172a, #2563eb)',
@@ -696,6 +706,56 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
       onClick: handleInstalarApp,
     });
   }
+
+  // Renderiza una fila del menú (reutilizada por ambos grupos). El índice `i`
+  // controla el stagger de entrada; se pasa continuo entre grupos.
+  const renderFila = (it: ItemMenuDrawer, i: number) => {
+    const tileClasses = ['md4-tile'];
+    if (it.iconoImagen) tileClasses.push('is-image');
+    if (it.bloqueado) tileClasses.push('is-locked');
+    const tileStyle: React.CSSProperties = { background: it.bloqueado ? undefined : it.tile };
+    const IconoFila = it.icon;
+    return (
+      <button
+        type="button"
+        key={it.id}
+        role="menuitem"
+        data-testid={`menu-drawer-item-${it.id}`}
+        className="md4-row"
+        style={{ animationDelay: `${i * 35 + 80}ms` }}
+        onClick={it.bloqueado ? undefined : it.onClick}
+        disabled={it.bloqueado}
+        aria-disabled={it.bloqueado}
+      >
+        <span className="md4-rowbar" />
+        <span className={tileClasses.join(' ')} style={tileStyle} aria-hidden="true">
+          {it.iconoImagen ? (
+            <img src={it.iconoImagen} alt={it.alt || it.label} />
+          ) : IconoFila ? (
+            <IconoFila width={17} height={17} strokeWidth={1.85} />
+          ) : null}
+          {it.bloqueado && (
+            <span className="md4-tile-lock-badge" aria-hidden="true">
+              <Lock width={8} height={8} strokeWidth={2.5} />
+            </span>
+          )}
+        </span>
+        <span className="md4-lbl">
+          {it.label}
+          {it.bloqueado && it.hintBloqueado && (
+            <span className="md4-lbl-hint">{it.hintBloqueado}</span>
+          )}
+        </span>
+        {it.bloqueado ? (
+          <Lock width={14} height={14} strokeWidth={2.25} className="md4-chev" />
+        ) : (
+          <span className="md4-chev">
+            <Icon icon="lucide:chevron-right" width={16} height={16} />
+          </span>
+        )}
+      </button>
+    );
+  };
 
   // ---------------------------------------------------------------------------
   // Render
@@ -826,60 +886,11 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
               </div>
             </div>
 
-            {/* Lista */}
+            {/* Lista — grupo principal + separador + grupo secundario */}
             <div className="md4-list">
-              {items.map((it, i) => {
-                const tileClasses = ['md4-tile'];
-                if (it.iconoImagen) tileClasses.push('is-image');
-                if (it.bloqueado) tileClasses.push('is-locked');
-
-                const tileStyle: React.CSSProperties = {
-                  background: it.bloqueado ? undefined : it.tile,
-                };
-
-                const IconoFila = it.icon;
-
-                return (
-                  <button
-                    type="button"
-                    key={it.id}
-                    role="menuitem"
-                    data-testid={`menu-drawer-item-${it.id}`}
-                    className="md4-row"
-                    style={{ animationDelay: `${i * 35 + 80}ms` }}
-                    onClick={it.bloqueado ? undefined : it.onClick}
-                    disabled={it.bloqueado}
-                    aria-disabled={it.bloqueado}
-                  >
-                    <span className="md4-rowbar" />
-                    <span className={tileClasses.join(' ')} style={tileStyle} aria-hidden="true">
-                      {it.iconoImagen ? (
-                        <img src={it.iconoImagen} alt={it.alt || it.label} />
-                      ) : IconoFila ? (
-                        <IconoFila width={17} height={17} strokeWidth={1.85} />
-                      ) : null}
-                      {it.bloqueado && (
-                        <span className="md4-tile-lock-badge" aria-hidden="true">
-                          <Lock width={8} height={8} strokeWidth={2.5} />
-                        </span>
-                      )}
-                    </span>
-                    <span className="md4-lbl">
-                      {it.label}
-                      {it.bloqueado && it.hintBloqueado && (
-                        <span className="md4-lbl-hint">{it.hintBloqueado}</span>
-                      )}
-                    </span>
-                    {it.bloqueado ? (
-                      <Lock width={14} height={14} strokeWidth={2.25} className="md4-chev" />
-                    ) : (
-                      <span className="md4-chev">
-                        <Icon icon="lucide:chevron-right" width={16} height={16} />
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
+              {itemsPrincipales.map((it, i) => renderFila(it, i))}
+              <div className="md4-sep" aria-hidden="true" />
+              {itemsSecundarios.map((it, i) => renderFila(it, itemsPrincipales.length + i))}
             </div>
           </div>
 

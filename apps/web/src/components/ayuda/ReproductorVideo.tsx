@@ -6,6 +6,8 @@ interface ReproductorVideoProps {
   poster: string | null;
   titulo: string;
   duracionSeg?: number | null;
+  /** Reporta si el video es vertical (alto > ancho) al cargar su metadata. */
+  onOrientacion?: (esVertical: boolean) => void;
 }
 
 /** iOS expone `webkitEnterFullscreen` solo en el elemento <video>. */
@@ -20,9 +22,16 @@ function formatearDuracion(seg?: number | null): string | null {
   return `${m}:${String(s).padStart(2, '0')}`;
 }
 
-export function ReproductorVideo({ src, poster, titulo, duracionSeg }: ReproductorVideoProps) {
+export function ReproductorVideo({ src, poster, titulo, duracionSeg, onOrientacion }: ReproductorVideoProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const dur = formatearDuracion(duracionSeg);
+
+  // Al cargar metadata, reporta la orientación real para que el contenedor
+  // decida el layout (vertical → video + pasos en 2 columnas; horizontal → apilado).
+  const alCargarMetadata = () => {
+    const v = videoRef.current;
+    if (v && v.videoWidth && v.videoHeight) onOrientacion?.(v.videoHeight > v.videoWidth);
+  };
 
   // Móvil: al girar el teléfono a horizontal, el video entra a pantalla
   // completa; al volver a vertical, sale.
@@ -73,6 +82,7 @@ export function ReproductorVideo({ src, poster, titulo, duracionSeg }: Reproduct
           playsInline
           poster={poster ?? undefined}
           aria-label={titulo}
+          onLoadedMetadata={alCargarMetadata}
         >
           <source src={src} />
         </video>

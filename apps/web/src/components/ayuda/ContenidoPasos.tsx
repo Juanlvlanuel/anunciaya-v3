@@ -29,7 +29,7 @@ export function ContenidoPasos({ texto }: ContenidoPasosProps) {
   let paso = 0;
 
   return (
-    <div data-testid="ayuda-pasos" className="mt-4">
+    <div data-testid="ayuda-pasos">
       {lineas.map((linea, i) => {
         const num = linea.match(/^(\d+)[.)]\s+(.*)$/);
         const vin = linea.match(/^[-*]\s+(.*)$/);
@@ -41,7 +41,7 @@ export function ContenidoPasos({ texto }: ContenidoPasosProps) {
               key={i}
               className="flex gap-3 border-t border-slate-200 py-2 text-sm font-medium text-slate-700 first:border-t-0"
             >
-              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-blue-100 text-xs font-bold text-blue-700">
+              <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded-md bg-sky-100 text-xs font-bold text-sky-700">
                 {paso}
               </span>
               <span className="pt-px">{renderInline(contenido)}</span>

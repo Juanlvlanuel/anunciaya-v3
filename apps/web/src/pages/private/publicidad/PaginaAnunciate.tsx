@@ -16,10 +16,16 @@
 
 import { useEffect, useState, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
-import { ArrowLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
+import { ChevronLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, ShieldCheck, Megaphone, Star, Award, X, Ratio } from 'lucide-react';
+import { Icon, type IconProps } from '@iconify/react';
 import { useCiudades } from '../../../hooks/queries/useCiudades';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { LogoStripe } from '../../../components/ui/LogoStripe';
+import { ICONOS } from '../../../config/iconos';
+import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
+import { useUiStore } from '../../../stores/useUiStore';
+import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+import { ModalAdaptativo } from '../../../components/ui/ModalAdaptativo';
 import { notificar } from '../../../utils/notificaciones';
 import {
   obtenerOpcionesPublicidad,
@@ -34,6 +40,10 @@ import {
   type OpcionesPublicidad,
   type DesglosePrecio,
 } from '../../../services/publicidadService';
+
+// Ícono de notificaciones migrado a Iconify (mismo patrón que Mis Cupones).
+type IconoWrapperProps = Omit<IconProps, 'icon'>;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 
 // La pauta se elige por TAMAÑO: Grande (banner) arriba · Chico (tarjeta) abajo.
 // 'fundadores' ya no se vende (es regalo a los primeros negocios de cada ciudad).
@@ -83,6 +93,9 @@ const TXT_BADGE = 'text-xs lg:text-[11px] 2xl:text-xs';          // chips inform
 export default function PaginaAnunciate() {
   const volver = useVolverAtras('/inicio');
   const location = useLocation();
+  const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+  const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
+  const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
   // Modo renovación: se llega desde "Renovar" en Mi Perfil con el id del anuncio a extender.
   const renovarId = (location.state as { renovarId?: string } | null)?.renovarId ?? null;
   const [vigenciaActual, setVigenciaActual] = useState<string | null>(null);
@@ -96,6 +109,7 @@ export default function PaginaAnunciate() {
   const [precio, setPrecio] = useState<DesglosePrecio | null>(null);
   const [meses, setMeses] = useState(1);
   const [pagando, setPagando] = useState(false);
+  const [modalCiudadesAbierto, setModalCiudadesAbierto] = useState(false);
   // Creatividades subidas en esta visita: al salir sin pagar, el backend borra de R2 las que no quedaron
   // ligadas a un anuncio (reference count). Las pagadas quedan protegidas.
   const subidasSesion = useRef<Set<string>>(new Set());
@@ -245,6 +259,19 @@ export default function PaginaAnunciate() {
   const toggleCiudad = (id: string) =>
     setCiudadIds((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : prev.length >= limite ? prev : [...prev, id]));
 
+  // Cierra el modal de ciudades y limpia la búsqueda.
+  const cerrarModalCiudades = () => { setModalCiudadesAbierto(false); setBusqueda(''); };
+  // Al elegir en el modal: con límite 1 reemplaza y cierra (selección única);
+  // con límite mayor, agrega/quita y el modal sigue abierto para elegir varias.
+  const seleccionarCiudadModal = (id: string) => {
+    if (limite === 1) {
+      setCiudadIds([id]);
+      cerrarModalCiudades();
+    } else {
+      toggleCiudad(id);
+    }
+  };
+
   const todasImagenes = carruseles.length > 0 && carruseles.every((c) => imagenes[c]);
   const puedePagar = todasImagenes && ciudadIds.length > 0 && ciudadIds.length <= limite && !subiendo && !pagando && !!precio;
 
@@ -270,39 +297,141 @@ export default function PaginaAnunciate() {
   const descuentoMonto = precio && precio.esCombo ? conFactor - precio.mensual : 0;
   const ahorroPeriodo = precio ? precio.mensual * precio.meses * (precio.descuentoPeriodo / 100) : 0;
 
+  // Identidad del header (acento indigo). El modo renovación ajusta título/subtítulo/label.
+  const tituloHeader = renovarId ? <>Renovar <span className="text-cyan-400">anuncio</span></> : 'Anúnciate';
+  const subtituloHeader = renovarId
+    ? <>Extiende <span className="font-bold text-white">tu vigencia</span></>
+    : <>Aparece en <span className="font-bold text-white">tu comunidad</span></>;
+  const labelHeader = renovarId ? 'Renovación' : 'Espacio publicitario';
+
   return (
-    <div className="mx-auto max-w-6xl px-4 py-5 lg:px-6 lg:py-7">
-      {/* Encabezado de la sección (el header de la app lo pone el MainLayout) */}
-      <div className="mb-5 flex items-center gap-3">
-        <button
-          type="button"
-          onClick={volver}
-          aria-label="Volver"
-          className="grid h-9 w-9 shrink-0 cursor-pointer place-items-center rounded-full border border-slate-300 bg-white text-slate-600 hover:bg-slate-200"
-        >
-          <ArrowLeft size={18} />
-        </button>
-        <div className="min-w-0">
-          <h1 className="text-2xl lg:text-xl 2xl:text-2xl font-extrabold tracking-tight text-slate-900">{renovarId ? 'Renovar tu anuncio' : 'Anúnciate en AnunciaYA'}</h1>
-          <p className="text-sm lg:text-xs 2xl:text-sm font-medium text-slate-600">{renovarId ? 'Extiende la vigencia de tu anuncio — puedes ajustar imagen, ciudades y tiempo.' : 'Aparece en los carruseles de tu comunidad — pago único, sin renovación automática.'}</p>
-        </div>
-        <div className={`ml-auto hidden items-center gap-2 rounded-full border border-slate-300 bg-white px-3.5 py-1.5 font-semibold text-slate-600 lg:flex ${TXT_CUERPO}`}>
-          <ShieldCheck size={16} className="text-emerald-600" />
-          <span className="flex items-center gap-1">Pago seguro con <LogoStripe alto={15} /></span>
+    <div className="min-h-full bg-transparent">
+      {/* ── Header con identidad — calca Mis Cupones/CardYA (acento cyan). Sticky en móvil
+             (igual que las demás páginas); en desktop vuelve a relative para no solaparse con
+             el resumen sticky (aside) del checkout. ── */}
+      <div className="sticky top-0 z-20 lg:relative">
+        <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
+          <div className="relative overflow-hidden rounded-none lg:rounded-b-3xl" style={{ background: '#000000' }}>
+            {/* Glow sutil indigo */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(6,182,212,0.09) 0%, transparent 50%)' }} />
+            {/* Grid pattern sutil */}
+            <div
+              className="absolute inset-0 pointer-events-none"
+              style={{
+                opacity: 0.08,
+                backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+              }}
+            />
+
+            <div className="relative z-10">
+              {/* ══ MOBILE HEADER (< lg) ══ */}
+              <div className="lg:hidden">
+                <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
+                  <div className="flex items-center gap-1.5 shrink-0">
+                    <button
+                      type="button"
+                      data-testid="btn-volver-anunciate"
+                      onClick={volver}
+                      aria-label="Volver"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                      <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                    </button>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
+                      <Megaphone className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                    </div>
+                    <span className="text-2xl font-extrabold text-white tracking-tight">{tituloHeader}</span>
+                  </div>
+                  <div className="flex items-center gap-0 -mr-1 shrink-0">
+                    <button
+                      type="button"
+                      data-testid="btn-notificaciones-anunciate"
+                      onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                      aria-label="Notificaciones"
+                      className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                      <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
+                      {cantidadNoLeidas > 0 && (
+                        <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                          {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      data-testid="btn-menu-anunciate"
+                      onClick={abrirMenuDrawer}
+                      aria-label="Menú"
+                      className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                      <IconoMenuMorph />
+                    </button>
+                  </div>
+                </div>
+                {/* Subtítulo móvil */}
+                <div className="flex items-center justify-center gap-2.5 pb-3">
+                  <div className="h-0.5 w-14 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.7))' }} />
+                  <span className="text-base font-light text-white/70 tracking-wide">{subtituloHeader}</span>
+                  <div className="h-0.5 w-14 rounded-full" style={{ background: 'linear-gradient(90deg, rgba(6,182,212,0.7), transparent)' }} />
+                </div>
+              </div>
+
+              {/* ══ DESKTOP HEADER (>= lg) ══ */}
+              <div className="hidden lg:block">
+                <div className="flex items-center justify-between gap-6 px-6 2xl:px-8 py-4 2xl:py-5">
+                  {/* Izquierda: flecha + logo + título */}
+                  <div className="flex items-center gap-3 shrink-0">
+                    <button
+                      type="button"
+                      data-testid="btn-volver-anunciate-desktop"
+                      onClick={volver}
+                      aria-label="Volver"
+                      className="w-9 h-9 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                      <ChevronLeft className="w-5 h-5" strokeWidth={2.5} />
+                    </button>
+                    <div className="w-11 h-11 2xl:w-12 2xl:h-12 rounded-lg flex items-center justify-center" style={{ background: 'linear-gradient(135deg, #06b6d4, #0891b2)' }}>
+                      <Megaphone className="w-6 h-6 2xl:w-6.5 2xl:h-6.5 text-white" strokeWidth={2.5} />
+                    </div>
+                    <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">{tituloHeader}</span>
+                  </div>
+
+                  {/* Centro: subtítulo + label */}
+                  <div className="flex-1 text-center min-w-0">
+                    <p className="text-3xl 2xl:text-[34px] font-light text-white/70 leading-tight truncate">{subtituloHeader}</p>
+                    <div className="flex items-center justify-center gap-3 mt-1.5">
+                      <div className="h-0.5 w-20 2xl:w-24 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(6,182,212,0.7))' }} />
+                      <span className="text-sm 2xl:text-base font-semibold text-cyan-400/70 uppercase tracking-[3px]">{labelHeader}</span>
+                      <div className="h-0.5 w-20 2xl:w-24 rounded-full" style={{ background: 'linear-gradient(90deg, rgba(6,182,212,0.7), transparent)' }} />
+                    </div>
+                  </div>
+
+                  {/* Derecha: sello de confianza (sin KPIs) */}
+                  <div className="shrink-0 flex items-center gap-2 rounded-full border border-white/15 bg-white/5 px-3.5 py-1.5">
+                    <ShieldCheck size={16} className="text-emerald-400" />
+                    <span className="flex items-center gap-1 text-sm 2xl:text-[15px] font-semibold text-white/70">Pago seguro con <LogoStripe alto={15} color="#fff" /></span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
+      {/* Cuerpo del checkout */}
+      <div className="px-4 py-5 lg:px-6 lg:py-7 2xl:px-8 lg:max-w-7xl lg:mx-auto">
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Pasos (2/3) */}
         <div className="flex flex-col gap-6 lg:col-span-2">
           {/* 1 · Tamaños + imágenes — en fila */}
           <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-4 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-sm lg:text-xs 2xl:text-sm font-bold text-white">1</span>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-cyan-600 text-sm lg:text-xs 2xl:text-sm font-bold text-white">1</span>
               <h2 className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>{renovarId ? 'Tu espacio' : 'Elige dónde aparecer'}</h2>
             </div>
             {renovarId && <p className={`-mt-2 mb-4 font-medium text-slate-600 ${TXT_CUERPO}`}>El tamaño se mantiene al renovar; puedes cambiar la imagen.</p>}
-            <div className="grid gap-3 lg:grid-cols-2 lg:items-start">
+            <div className="grid gap-3 lg:grid-cols-2 lg:items-stretch">
               {tamanosVisibles.map((c) => {
                 const activo = carruseles.includes(c);
                 const url = imagenes[c];
@@ -310,13 +439,17 @@ export default function PaginaAnunciate() {
                 return (
                   <div
                     key={c}
-                    className={`flex flex-col overflow-hidden rounded-xl border-2 ${activo ? 'border-slate-800 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
+                    className={`flex h-full flex-col overflow-hidden rounded-xl border-2 ${activo ? 'border-cyan-500 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
                   >
-                    {/* Cabecera: selecciona el tamaño (en renovación queda fija, no togglea) */}
-                    <button type="button" data-testid={`anunciate-carrusel-${c}`} onClick={renovarId ? undefined : () => toggleCarrusel(c)} className={`flex items-start gap-2.5 p-3.5 text-left ${renovarId ? 'cursor-default' : 'cursor-pointer'}`}>
-                      <span className={`mt-0.5 grid h-5 w-5 shrink-0 place-items-center rounded-md border-2 ${activo ? 'border-slate-800 bg-slate-800 text-white' : 'border-slate-300'}`}>
-                        {activo && <Check size={14} />}
-                      </span>
+                    {/* Cabecera: interruptor on/off del tamaño (en renovación queda fijo, no togglea) */}
+                    <button
+                      type="button"
+                      role="switch"
+                      aria-checked={activo}
+                      data-testid={`anunciate-carrusel-${c}`}
+                      onClick={renovarId ? undefined : () => toggleCarrusel(c)}
+                      className={`flex items-start gap-3 p-3.5 text-left ${renovarId ? 'cursor-default' : 'cursor-pointer'}`}
+                    >
                       <span className="min-w-0 flex-1">
                         <span className="flex items-center gap-1.5">
                           <Icono size={16} className={ACENTO[c]} />
@@ -336,26 +469,34 @@ export default function PaginaAnunciate() {
                           <span className="mt-1.5 block text-base lg:text-sm 2xl:text-base font-extrabold text-slate-900">{FMT.format(precioBase(c))}</span>
                         )}
                       </span>
+                      {/* Interruptor iOS — cyan (identidad de la sección) al estar activo */}
+                      <span className={`relative mt-0.5 inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors duration-200 ${activo ? 'bg-cyan-500' : 'bg-slate-300'}`}>
+                        <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform duration-200 ${activo ? 'translate-x-[22px]' : 'translate-x-0.5'}`} />
+                      </span>
                     </button>
 
-                    {/* Uploader (cuando activo) — con la forma real del espacio para diseñar a la medida */}
+                    {/* Uploader (cuando activo) — con la forma real del espacio para diseñar a la medida.
+                        El bloque es flexible (flex-1): el uploader se centra en el espacio sobrante y el
+                        texto queda pegado abajo, para que ambas cards igualen su altura. */}
                     {activo && (
-                      <div className="px-3 pb-3">
-                        <label className={`group relative block cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-slate-300 lg:hover:border-slate-400 ${PREVIEW_BOX[c]}`}>
-                          {url ? (
-                            <>
-                              <img src={url} alt={LABEL[c]} className="h-full w-full object-cover" />
-                              <span className={`absolute inset-0 grid place-items-center bg-black/0 font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white ${TXT_CUERPO}`}>Cambiar</span>
-                            </>
-                          ) : (
-                            <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-500">
-                              {subiendo === c ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
-                              <span className={`font-medium ${TXT_CUERPO}`}>Sube tu imagen</span>
-                            </span>
-                          )}
-                          <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(c, f); }} />
-                        </label>
-                        <p className={`mt-1.5 text-center leading-snug text-slate-600 ${TXT_CUERPO}`}>Se recorta para llenar el espacio · centra lo importante</p>
+                      <div className="flex flex-1 flex-col px-3 pb-3">
+                        <div className="flex flex-1 flex-col justify-center">
+                          <label className={`group relative block cursor-pointer overflow-hidden rounded-lg border-2 border-dashed border-slate-300 lg:hover:border-slate-400 ${PREVIEW_BOX[c]}`}>
+                            {url ? (
+                              <>
+                                <img src={url} alt={LABEL[c]} className="h-full w-full object-cover" />
+                                <span className={`absolute inset-0 grid place-items-center bg-black/0 font-semibold text-transparent transition group-hover:bg-black/40 group-hover:text-white ${TXT_CUERPO}`}>Cambiar</span>
+                              </>
+                            ) : (
+                              <span className="flex h-full w-full flex-col items-center justify-center gap-1 text-slate-500">
+                                {subiendo === c ? <Loader2 size={18} className="animate-spin" /> : <Upload size={18} />}
+                                <span className={`font-medium ${TXT_CUERPO}`}>Sube tu imagen</span>
+                              </span>
+                            )}
+                            <input type="file" accept="image/png,image/jpeg,image/webp" className="hidden" data-testid={`anunciate-imagen-${c}`} onChange={(e) => { const f = e.target.files?.[0]; e.target.value = ''; onArchivo(c, f); }} />
+                          </label>
+                        </div>
+                        <p className={`mt-3 text-center leading-snug text-slate-600 ${TXT_CUERPO}`}>Se recorta para llenar el espacio · centra lo importante</p>
                       </div>
                     )}
                   </div>
@@ -364,61 +505,41 @@ export default function PaginaAnunciate() {
             </div>
           </section>
 
+          {/* Pasos 2 y 3 lado a lado en desktop (una fila, 2 columnas); apilados en móvil */}
+          <div className="grid gap-6 lg:grid-cols-2 lg:items-start">
           {/* 2 · Ciudades — solo si hay más de una habilitada; con una sola se auto-selecciona y se oculta */}
           {multiCiudad ? (
           <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-sm lg:text-xs 2xl:text-sm font-bold text-white">2</span>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-cyan-600 text-sm lg:text-xs 2xl:text-sm font-bold text-white">2</span>
               <h2 className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>¿En qué ciudades?</h2>
               <span className={`ml-auto font-semibold text-slate-600 ${TXT_CUERPO}`}>{ciudadIds.length}/{limite}</span>
             </div>
             <p className={`mb-3 font-medium text-slate-600 ${TXT_CUERPO}`}>Mientras en más ciudades aparezcas, mayor el alcance (y el precio).</p>
 
+            {/* Disparador: aspecto de input; al hacer clic abre el modal de ciudades */}
+            <button
+              type="button"
+              data-testid="anunciate-abrir-ciudades"
+              onClick={() => setModalCiudadesAbierto(true)}
+              className="relative flex w-full cursor-pointer items-center rounded-lg border-2 border-slate-300 bg-slate-100 py-2.5 pl-9 pr-3 text-left text-base lg:text-sm 2xl:text-base font-medium text-slate-500 lg:hover:border-slate-400"
+            >
+              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
+              {ciudadIds.length === 0 ? 'Buscar ciudad…' : 'Agregar o cambiar ciudad…'}
+            </button>
+
+            {/* Badge(s) de la(s) ciudad(es) elegida(s) */}
             {ciudadIds.length > 0 && (
-              <div className="mb-3 flex flex-wrap gap-1.5">
+              <div className="mt-3 flex flex-wrap gap-1.5">
                 {ciudadIds.map((id) => (
-                  <span key={id} className={`inline-flex items-center gap-1 rounded-full bg-slate-200 py-1 pl-2.5 pr-1.5 font-semibold text-slate-700 ${TXT_CUERPO}`}>
+                  <span key={id} className={`inline-flex items-center gap-1 rounded-full border border-cyan-200 bg-cyan-50 py-1 pl-2 pr-1.5 font-semibold text-cyan-700 ${TXT_CUERPO}`}>
+                    <MapPin size={12} className="shrink-0" />
                     {nombreCiudad(id)}
-                    <button type="button" onClick={() => toggleCiudad(id)} aria-label="Quitar" className="grid h-4 w-4 cursor-pointer place-items-center rounded-full hover:bg-slate-300"><X size={12} /></button>
+                    <button type="button" onClick={() => toggleCiudad(id)} aria-label="Quitar" className="grid h-4 w-4 cursor-pointer place-items-center rounded-full hover:bg-cyan-100"><X size={12} /></button>
                   </span>
                 ))}
               </div>
             )}
-
-            <div className="relative">
-              <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-slate-500" />
-              <input
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder="Buscar ciudad…"
-                data-testid="anunciate-buscar-ciudad"
-                className="w-full rounded-lg border-2 border-slate-300 bg-slate-100 py-2.5 pl-9 pr-3 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 outline-none focus:border-slate-800 focus:bg-white [color-scheme:light]"
-              />
-            </div>
-
-            {/* Lista de ciudades en grid de 2 columnas (usa el ancho, menos scroll) */}
-            <div className="mt-3 grid max-h-72 grid-cols-1 gap-1 overflow-y-auto lg:grid-cols-2">
-              {ciudadesFiltradas.map((c) => {
-                const sel = ciudadIds.includes(c.id);
-                return (
-                  <button
-                    type="button"
-                    key={c.id}
-                    data-testid={`anunciate-ciudad-${c.id}`}
-                    onClick={() => toggleCiudad(c.id)}
-                    className={`flex cursor-pointer items-center justify-between gap-2 rounded-lg border-2 px-3 py-2 text-left font-medium ${TXT_CUERPO} ${sel ? 'border-slate-800 bg-slate-100 text-slate-900' : 'border-slate-300 text-slate-600 lg:hover:border-slate-400 lg:hover:bg-slate-100'}`}
-                  >
-                    <span className="flex min-w-0 items-center gap-1.5">
-                      <MapPin size={14} className="shrink-0" />
-                      <span className="truncate">{c.nombre}</span>
-                      <span className="truncate text-slate-500">· {c.estado}</span>
-                    </span>
-                    {sel && <Check size={15} className="shrink-0" />}
-                  </button>
-                );
-              })}
-              {ciudadesFiltradas.length === 0 && <div className={`col-span-full px-3 py-4 text-center font-medium text-slate-600 ${TXT_CUERPO}`}>Sin resultados.</div>}
-            </div>
           </section>
           ) : ciudadUnica ? (
             <div data-testid="anunciate-ciudad-unica" className="flex items-start gap-2.5 rounded-2xl border border-slate-300 bg-slate-100 px-5 py-4">
@@ -433,11 +554,11 @@ export default function PaginaAnunciate() {
           {/* 3 · Tiempo (meses por adelantado) — pasa a ser el paso 2 cuando hay una sola ciudad */}
           <section className="rounded-2xl border border-slate-300 bg-white p-6 shadow-sm">
             <div className="mb-1 flex items-center gap-2.5">
-              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-slate-800 text-sm lg:text-xs 2xl:text-sm font-bold text-white">{numPasoTiempo}</span>
+              <span className="grid h-7 w-7 shrink-0 place-items-center rounded-full bg-cyan-600 text-sm lg:text-xs 2xl:text-sm font-bold text-white">{numPasoTiempo}</span>
               <h2 className={`${TXT_TITULO_SECCION} font-bold text-slate-900`}>¿Por cuánto tiempo?</h2>
             </div>
             <p className={`mb-3 font-medium text-slate-600 ${TXT_CUERPO}`}>Paga varios meses por adelantado y ahorra.</p>
-            <div className="grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+            <div className="grid grid-cols-1 gap-2.5">
               {(opciones?.periodos ?? [{ meses: 1, descuento: 0 }]).map((p) => {
                 const activo = meses === p.meses;
                 const totalPeriodo = precio ? precio.mensual * p.meses * (1 - p.descuento / 100) : null;
@@ -447,23 +568,28 @@ export default function PaginaAnunciate() {
                     key={p.meses}
                     data-testid={`anunciate-periodo-${p.meses}`}
                     onClick={() => setMeses(p.meses)}
-                    className={`relative flex cursor-pointer flex-col items-start gap-0.5 rounded-xl border-2 p-3 text-left ${activo ? 'border-slate-800 bg-slate-100 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
+                    className={`flex cursor-pointer items-center justify-between gap-3 rounded-xl border-2 px-3.5 py-2.5 text-left ${activo ? 'border-slate-800 bg-slate-100 shadow-sm' : 'border-slate-300 lg:hover:border-slate-400'}`}
                   >
-                    {p.descuento > 0 && (
-                      <span className={`absolute right-2 top-2 rounded-full bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-700 ${TXT_BADGE}`}>−{p.descuento}%</span>
-                    )}
-                    <span className="text-lg lg:text-base 2xl:text-lg font-extrabold leading-none text-slate-900">{p.meses}</span>
-                    <span className={`font-medium text-slate-600 ${TXT_CUERPO}`}>{p.meses === 1 ? 'mes' : 'meses'}</span>
-                    {totalPeriodo !== null ? (
-                      <span className={`mt-1 font-bold text-slate-800 ${TXT_CUERPO}`}>{FMT.format(totalPeriodo)}</span>
-                    ) : (
-                      <span className={`mt-1 font-medium text-slate-600 ${TXT_CUERPO}`}>{p.descuento > 0 ? `Ahorra ${p.descuento}%` : 'Precio base'}</span>
-                    )}
+                    <span className="flex items-baseline gap-1.5">
+                      <span className="text-lg lg:text-base 2xl:text-lg font-extrabold leading-none text-slate-900">{p.meses}</span>
+                      <span className={`font-medium text-slate-600 ${TXT_CUERPO}`}>{p.meses === 1 ? 'mes' : 'meses'}</span>
+                    </span>
+                    <span className="flex items-center gap-2">
+                      {totalPeriodo !== null ? (
+                        <span className={`font-bold text-slate-800 ${TXT_CUERPO}`}>{FMT.format(totalPeriodo)}</span>
+                      ) : (
+                        <span className={`font-medium text-slate-600 ${TXT_CUERPO}`}>{p.descuento > 0 ? `Ahorra ${p.descuento}%` : 'Precio base'}</span>
+                      )}
+                      {p.descuento > 0 && (
+                        <span className={`shrink-0 rounded-full bg-emerald-100 px-1.5 py-0.5 font-bold text-emerald-700 ${TXT_BADGE}`}>−{p.descuento}%</span>
+                      )}
+                    </span>
                   </button>
                 );
               })}
             </div>
           </section>
+          </div>
         </div>
 
         {/* Resumen (1/3) — sticky */}
@@ -545,6 +671,122 @@ export default function PaginaAnunciate() {
           </div>
         </aside>
       </div>
+      </div>
+
+      {/* Modal selector de ciudad — mismo estilo que ModalUbicacion (header gradiente),
+          con acento cyan de la sección; sin GPS (elige dónde anunciar, no dónde estás). */}
+      <ModalAdaptativo
+        abierto={modalCiudadesAbierto}
+        onCerrar={cerrarModalCiudades}
+        ancho="sm"
+        mostrarHeader={false}
+        paddingContenido="none"
+        sinScrollInterno
+        alturaMaxima="lg"
+        colorHandle="rgba(255,255,255,0.4)"
+        headerOscuro
+      >
+        <div className="flex flex-col max-h-[80vh] lg:max-h-[75vh]">
+          {/* ── Header dark gradiente (cyan) ── */}
+          <div
+            className="relative overflow-hidden px-4 lg:px-3 2xl:px-4 pt-8 pb-4 lg:py-3 2xl:py-4 shrink-0 lg:rounded-t-2xl"
+            style={{ background: 'linear-gradient(135deg, #0891b2, #06b6d4)', boxShadow: '0 4px 16px rgba(8,145,178,0.4)' }}
+          >
+            <div className="absolute -top-6 -right-6 w-20 h-20 rounded-full bg-white/5" />
+            <div className="absolute -bottom-4 -left-4 w-14 h-14 rounded-full bg-white/5" />
+
+            <div className="relative flex items-center gap-3 lg:gap-2.5 2xl:gap-3">
+              <div className="w-11 h-11 lg:w-9 lg:h-9 2xl:w-11 2xl:h-11 rounded-full border-2 border-white/30 bg-white/15 flex items-center justify-center shrink-0">
+                <MapPin className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
+              </div>
+              <div className="flex-1 min-w-0 -space-y-0.5 lg:-space-y-1 2xl:-space-y-0.5">
+                <h3 className="text-xl lg:text-lg 2xl:text-xl font-bold text-white">¿En qué ciudad?</h3>
+                <span className="text-sm lg:text-xs 2xl:text-sm text-white/70 font-medium">Elige dónde aparecerá tu anuncio</span>
+              </div>
+            </div>
+          </div>
+
+          {/* ── Contenido ── */}
+          <div className="flex-1 overflow-y-auto p-4 lg:p-3 2xl:p-4">
+            {/* Campo de búsqueda */}
+            <div className="relative mb-4 lg:mb-3 2xl:mb-4">
+              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-slate-600" />
+              <input
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+                placeholder="Buscar ciudad..."
+                data-testid="anunciate-buscar-ciudad"
+                className="w-full pl-10 lg:pl-9 2xl:pl-10 pr-9 py-3 lg:py-2.5 2xl:py-3 border-2 border-slate-300 bg-slate-100 rounded-xl focus:outline-none focus:ring-2 focus:ring-cyan-500 focus:border-cyan-400 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
+              />
+              {busqueda && (
+                <button
+                  type="button"
+                  onClick={() => setBusqueda('')}
+                  aria-label="Limpiar"
+                  className="absolute right-2.5 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-300 hover:bg-slate-400 flex items-center justify-center lg:cursor-pointer"
+                >
+                  <X className="w-3.5 h-3.5 text-white" />
+                </button>
+              )}
+            </div>
+
+            {/* Título de la lista */}
+            <div className="flex items-center gap-2 mb-3 lg:mb-2 2xl:mb-3 pb-2 lg:pb-1.5 2xl:pb-2 border-b-2 border-slate-300">
+              <MapPin className="w-4 h-4 text-slate-600 shrink-0" />
+              <span className="text-base lg:text-sm 2xl:text-base font-bold text-slate-800">
+                {busqueda ? 'Resultados' : 'Ciudades disponibles'}
+              </span>
+              <span className="ml-auto text-sm lg:text-xs 2xl:text-sm font-semibold text-slate-500">{ciudadIds.length}/{limite}</span>
+            </div>
+
+            {/* Lista de ciudades */}
+            <div className="lg:max-h-48 2xl:max-h-64 overflow-y-auto">
+              {ciudadesFiltradas.length > 0 ? (
+                <ul className="space-y-1">
+                  {ciudadesFiltradas.map((c) => {
+                    const sel = ciudadIds.includes(c.id);
+                    return (
+                      <li key={c.id}>
+                        <button
+                          type="button"
+                          data-testid={`anunciate-ciudad-${c.id}`}
+                          onClick={() => seleccionarCiudadModal(c.id)}
+                          className={`w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 p-3 lg:p-2 2xl:p-3 rounded-lg text-left lg:cursor-pointer ${sel ? 'bg-cyan-50 ring-1 ring-cyan-200' : 'hover:bg-slate-200'}`}
+                        >
+                          <div className={`w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 rounded-full shrink-0 ${sel ? 'bg-cyan-500' : 'bg-slate-400'}`} />
+                          <div className="min-w-0 flex-1">
+                            <p className={`font-semibold text-base lg:text-sm 2xl:text-base ${sel ? 'text-cyan-800' : 'text-slate-800'}`}>{c.nombre}</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm text-slate-600 font-medium">{c.estado}</p>
+                          </div>
+                          {sel && <Check className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-cyan-600 shrink-0" />}
+                        </button>
+                      </li>
+                    );
+                  })}
+                </ul>
+              ) : (
+                <p className="text-center text-slate-600 font-medium py-4 lg:py-3 2xl:py-4 text-base lg:text-sm 2xl:text-base">
+                  No se encontraron ciudades
+                </p>
+              )}
+            </div>
+
+            {/* Botón "Listo" solo en selección múltiple (límite > 1) */}
+            {limite > 1 && (
+              <button
+                type="button"
+                onClick={cerrarModalCiudades}
+                data-testid="anunciate-ciudades-listo"
+                className="mt-4 lg:mt-3 2xl:mt-4 w-full rounded-xl py-3 lg:py-2.5 2xl:py-3 text-base lg:text-sm 2xl:text-base font-bold text-white lg:cursor-pointer active:scale-[0.98]"
+                style={{ background: 'linear-gradient(135deg, #0891b2, #06b6d4)', boxShadow: '0 4px 16px rgba(8,145,178,0.35)' }}
+              >
+                Listo · {ciudadIds.length}/{limite}
+              </button>
+            )}
+          </div>
+        </div>
+      </ModalAdaptativo>
     </div>
   );
 }

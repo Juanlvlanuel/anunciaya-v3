@@ -16,6 +16,13 @@ interface VistaArticuloProps {
 
 export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArticuloProps) {
   const [voto, setVoto] = useState<'si' | 'no' | null>(null);
+  // Orientación del video: vertical → video y pasos en 2 columnas (desktop).
+  const [videoVertical, setVideoVertical] = useState(false);
+
+  // Al cambiar de artículo, reinicia la orientación hasta que el nuevo video la reporte.
+  useEffect(() => {
+    setVideoVertical(false);
+  }, [articulo.id]);
 
   // Registrar una vista, una sola vez por sesión y artículo.
   useEffect(() => {
@@ -77,14 +84,23 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
         )}
       </div>
 
-      <ReproductorVideo
-        src={articulo.videoUrl}
-        poster={articulo.posterUrl}
-        titulo={articulo.pregunta}
-        duracionSeg={articulo.duracionSeg}
-      />
-
-      <ContenidoPasos texto={articulo.respuesta} />
+      {/* Video + pasos. Si el video es vertical, en desktop van en 2 columnas
+          (video estrecho a la izquierda, pasos a la derecha) para no dejar el
+          video larguísimo con los pasos hasta el fondo. Horizontal → apilado. */}
+      <div className={videoVertical ? 'lg:flex lg:items-start lg:gap-6' : ''}>
+        <div className={videoVertical ? 'lg:w-[200px] lg:shrink-0 2xl:w-[240px]' : ''}>
+          <ReproductorVideo
+            src={articulo.videoUrl}
+            poster={articulo.posterUrl}
+            titulo={articulo.pregunta}
+            duracionSeg={articulo.duracionSeg}
+            onOrientacion={setVideoVertical}
+          />
+        </div>
+        <div className={videoVertical ? 'mt-4 min-w-0 lg:mt-0 lg:flex-1' : 'mt-4'}>
+          <ContenidoPasos texto={articulo.respuesta} />
+        </div>
+      </div>
 
       {/* Feedback */}
       <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-slate-200 pt-3.5 text-sm font-semibold text-slate-600">

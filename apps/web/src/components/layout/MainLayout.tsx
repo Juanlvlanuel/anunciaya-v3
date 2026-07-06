@@ -83,6 +83,7 @@ export function MainLayout() {
   const esMisPublicaciones = location.pathname.startsWith('/mis-publicaciones');
   const esServicios = location.pathname.startsWith('/servicios');
   const esAnunciate = location.pathname === '/anunciate';
+  const esAyuda = location.pathname === '/ayuda';
   const esPerfil = location.pathname === '/perfil';
 
   // Swipe horizontal entre módulos BS (solo móvil)
@@ -111,7 +112,7 @@ export function MainLayout() {
   // Registrar ref de scroll en el store global
   // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
   // ---------------------------------------------------------------------------
-  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones || esServicios || esPerfil;
+  const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones || esServicios || esPerfil || esAnunciate || esAyuda;
   useEffect(() => {
     if (esDesktop) {
       setMainScrollRef(mainRef);
@@ -329,9 +330,7 @@ export function MainLayout() {
               <main
                 ref={mainRef}
                 className={`fixed left-0 right-0 overflow-y-auto transition-all z-20 lg:pl-56 ${esPerfilNegocio ? '2xl:pl-80' : '2xl:pl-[287px]'
-                  } ${esAnunciate
-                    ? 'pr-0'
-                    : esBusinessStudio
+                  } ${esBusinessStudio
                     ? previewNegocioAbierto
                       ? 'lg:pr-[400px] 2xl:pr-[480px]'
                       : 'pr-0'
@@ -364,8 +363,8 @@ export function MainLayout() {
                 </aside>
               )}
 
-              {/* Columna Derecha - Posición dinámica según scroll (oculta en /anunciate) */}
-              {!esBusinessStudio && !esAnunciate && (
+              {/* Columna Derecha - Posición dinámica según scroll */}
+              {!esBusinessStudio && (
                 <aside
                   className="fixed lg:w-64 2xl:w-80 bg-white shadow-lg overflow-y-auto z-30 transition-all"
                   style={{

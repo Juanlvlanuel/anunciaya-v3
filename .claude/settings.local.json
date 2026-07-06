@@ -574,7 +574,8 @@
       "Bash(node -e \"const p=require\\('./apps/web/package.json'\\); const all={...p.dependencies,...p.devDependencies}; console.log\\('leaflet?', all['leaflet']||all['react-leaflet']||all['@types/leaflet']||'NO ✅'\\); console.log\\('maplibre-gl:', all['maplibre-gl']\\); console.log\\('react-map-gl:', all['react-map-gl']\\); console.log\\('@types/geojson:', all['@types/geojson']\\);\")",
       "Bash(node -e \"console.log\\('web react-router-dom:', require\\('./apps/web/node_modules/react-router-dom/package.json'\\).version\\)\")",
       "Bash(grep -nE \"mapaFullscreen && latitud !== null|mapa-fullscreen-overlay|btn-listo-mapa-fullscreen|document.body|</>\\\\s*$\" src/pages/private/business-studio/sucursales/ModalCrearSucursal.tsx)",
-      "Bash(grep -vE \"^$\")"
+      "Bash(grep -vE \"^$\")",
+      "Bash(npx eslint *)"
     ]
   },
   "disableAllHooks": true
