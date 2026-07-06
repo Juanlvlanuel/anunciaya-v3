@@ -12,7 +12,11 @@
 //  - Todo lo demás (API en Render, R2, fuentes, imágenes, /scanya/…): PASS-THROUGH.
 //  - skipWaiting + clients.claim: el SW nuevo toma control de inmediato.
 
-const CACHE = 'anunciaya-app-v2';
+// BUILD_ID lo reemplaza Vite en cada build (plugin `estamparBuildIdEnSW` en
+// vite.config.ts). Al cambiar en cada deploy, el navegador ve un SW "nuevo" y
+// dispara la auto-actualización de la PWA con cualquier cambio publicado.
+const BUILD_ID = 'dev';
+const CACHE = `anunciaya-app-${BUILD_ID}`;
 
 self.addEventListener('install', () => {
   // Activar la versión nueva sin esperar a que se cierren las pestañas.

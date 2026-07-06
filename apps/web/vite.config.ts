@@ -1,9 +1,35 @@
-import { defineConfig } from 'vite';
+import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
 import path from 'path';
+import fs from 'fs';
+
+// Estampa un ID de build en el service worker de AnunciaYA para que su contenido
+// cambie en cada deploy. Así el navegador detecta un SW "nuevo" y la PWA se
+// auto-actualiza con CUALQUIER cambio publicado (no solo al tocar el propio SW).
+function estamparBuildIdEnSW(): Plugin {
+  return {
+    name: 'estampar-build-id-sw',
+    apply: 'build',
+    closeBundle() {
+      const buildId = Date.now().toString(36);
+      const swPath = path.resolve(__dirname, 'dist/sw-anunciaya.js');
+      try {
+        const original = fs.readFileSync(swPath, 'utf8');
+        const marcado = original.replace(
+          /const BUILD_ID = '[^']*';/,
+          `const BUILD_ID = '${buildId}';`,
+        );
+        fs.writeFileSync(swPath, marcado);
+        console.log(`[sw] BUILD_ID estampado: ${buildId}`);
+      } catch {
+        /* si dist/sw-anunciaya.js no existe, no hacer nada */
+      }
+    },
+  };
+}
 
 export default defineConfig({
-  plugins: [react()],
+  plugins: [react(), estamparBuildIdEnSW()],
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
