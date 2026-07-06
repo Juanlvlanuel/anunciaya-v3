@@ -104,7 +104,7 @@ const menuDrawerCss = `
     z-index: 40;
     animation: md4-slide 380ms cubic-bezier(.2,.7,.35,1) both;
     display: flex; flex-direction: column;
-    padding-top: 56px;
+    padding-top: max(env(safe-area-inset-top, 0px), 10px);
     box-sizing: border-box;
     cursor: default;
   }
@@ -113,20 +113,19 @@ const menuDrawerCss = `
     to   { transform: translateX(0); }
   }
 
+  /* X de cerrar: vive DENTRO de la card (esquina superior derecha, sobre el
+     área del avatar). Sutil sobre el paper; se adapta al modo con var(--ink). */
   .md4-close {
     all: unset; box-sizing: border-box;
-    position: absolute; top: 16px; right: 16px;
-    width: 34px; height: 34px; border-radius: 50%;
+    position: absolute; top: 12px; right: 12px;
+    width: 30px; height: 30px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    background: rgba(255,255,255,0.85);
-    color: #1F2937; cursor: pointer;
-    box-shadow: 0 2px 8px rgba(0,0,0,0.18);
-    backdrop-filter: blur(8px);
-    -webkit-backdrop-filter: blur(8px);
-    transition: transform .18s ease, background .18s ease;
-    z-index: 50;
+    background: rgba(15,23,42,0.06);
+    color: var(--muted); cursor: pointer;
+    transition: transform .18s ease, background .18s ease, color .18s ease;
+    z-index: 12;
   }
-  .md4-close:hover { transform: scale(1.05); background: #fff; }
+  .md4-close:hover { transform: scale(1.05); background: rgba(15,23,42,0.11); color: var(--ink); }
   .md4-close:active { transform: scale(0.92); }
   .md4-close:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
 
@@ -317,18 +316,19 @@ const menuDrawerCss = `
   }
   .md4-out {
     all: unset; cursor: pointer; box-sizing: border-box;
-    width: 100%; padding: 14px;
-    display: flex; align-items: center; justify-content: center; gap: 10px;
-    font-family: inherit; font-size: 14.5px; font-weight: 700; letter-spacing: -0.005em;
-    color: #C53D3D;
-    border: 1.4px solid rgba(197,61,61,0.4);
-    border-radius: 14px;
-    background: rgba(197,61,61,0.02);
-    transition: background-color 200ms ease, border-color 200ms ease, transform .12s ease;
+    width: 100%; padding: 11px;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    font-family: inherit; font-size: 14px; font-weight: 700; letter-spacing: -0.005em;
+    color: #fff;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #ef4444, #dc2626);
+    box-shadow: 0 4px 12px rgba(220,38,38,0.28);
+    transition: filter 200ms ease, box-shadow 200ms ease, transform .12s ease;
   }
-  .md4-out:hover { background: rgba(197,61,61,0.08); border-color: rgba(197,61,61,0.6); }
-  .md4-out:active { transform: scale(0.985); }
-  .md4-out:focus-visible { outline: 2px solid #C53D3D; outline-offset: 2px; }
+  .md4-out:hover { filter: brightness(1.06); box-shadow: 0 6px 16px rgba(220,38,38,0.36); }
+  .md4-out:active { transform: scale(0.97); }
+  .md4-out:focus-visible { outline: 2px solid #dc2626; outline-offset: 2px; }
 
   @media (prefers-reduced-motion: reduce) {
     .md4-scrim,
@@ -788,17 +788,6 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         }}
         onClick={(e) => e.stopPropagation()}
       >
-        {/* X close */}
-        <button
-          type="button"
-          className="md4-close"
-          onClick={onClose}
-          aria-label="Cerrar menú"
-          data-testid="menu-drawer-close"
-        >
-          <Icon icon="lucide:x" width={16} height={16} style={{ strokeWidth: 2 }} />
-        </button>
-
         {/* Tabs */}
         <div role="tablist" aria-label="Modo de cuenta" className={'md4-tabs' + (!tieneModoComercial ? ' md4-tabs-sin-comercial' : '')}>
           <button
@@ -843,6 +832,16 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
 
         {/* Card */}
         <div className="md4-card" style={{ background: paleta.paper }}>
+          {/* X cerrar — dentro de la card, esquina superior derecha (sobre el avatar) */}
+          <button
+            type="button"
+            className="md4-close"
+            onClick={onClose}
+            aria-label="Cerrar menú"
+            data-testid="menu-drawer-close"
+          >
+            <Icon icon="lucide:x" width={16} height={16} style={{ strokeWidth: 2 }} />
+          </button>
           <span
             className={'md4-indicator' + (!tieneModoComercial ? ' md4-indicator-derecha' : '')}
             style={{ transform: `translateX(${indicadorX})`, background: paleta.accentBg }}
