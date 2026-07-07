@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { ChevronLeft, ThumbsUp, ThumbsDown } from 'lucide-react';
+import { ChevronLeft, ThumbsUp, ThumbsDown, Play } from 'lucide-react';
 import type { AyudaArticulo } from '@/types/ayuda';
 import { notificar } from '@/utils/notificaciones';
 import { DropdownCompartir } from '@/components/compartir';
@@ -44,10 +44,12 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
   const urlPublica = `${window.location.origin}/p/tutorial/${articulo.slug}`;
 
   const votar = (v: 'si' | 'no') => {
-    if (voto) return; // ya votó este tutorial
+    if (voto === v) return; // ya está en ese voto
+    const previo = voto; // 'si' | 'no' | null
     setVoto(v);
     localStorage.setItem(`ayuda_voto_${articulo.id}`, v);
-    enviarFeedbackTutorial(articulo.id, v === 'si').catch(() => {});
+    // votoPrevio: true si era 'si', false si era 'no', null si no había ninguno.
+    enviarFeedbackTutorial(articulo.id, v === 'si', previo === null ? null : previo === 'si').catch(() => {});
     notificar.exito('¡Gracias por tu opinión!');
   };
 
@@ -59,9 +61,11 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
         <button
           onClick={onVolver}
           data-testid="ayuda-volver-lista"
-          className="mb-3 flex items-center gap-1.5 text-sm font-semibold text-slate-600 lg:hidden"
+          className="mb-3 inline-flex items-center gap-1.5 rounded-full bg-sky-50 py-1 pl-1 pr-3 text-sm font-bold text-sky-700 lg:hidden"
         >
-          <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+          <span className="grid h-6 w-6 place-items-center rounded-full bg-sky-500 text-white">
+            <ChevronLeft className="h-4 w-4" strokeWidth={2.5} />
+          </span>
           {categoriaNombre}
         </button>
       )}
@@ -69,8 +73,21 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
       {/* Header: título a la izquierda, compartir arriba a la derecha */}
       <div className="mb-3.5 flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="mb-1 hidden text-xs font-semibold text-slate-500 lg:block">{categoriaNombre}</p>
-          <h2 className="text-lg font-extrabold tracking-tight text-slate-900 2xl:text-xl">
+          {/* Etiqueta "video tutorial" — solo móvil (identidad sky) */}
+          <p className="mb-1.5 flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wide text-sky-600 lg:hidden">
+            <span className="grid h-4 w-4 place-items-center rounded-full bg-sky-500 text-white">
+              <Play className="ml-px h-2 w-2" fill="currentColor" strokeWidth={0} />
+            </span>
+            Tutorial en video
+          </p>
+          {/* Etiqueta desktop: categoría + tipo (en PC no hay chip volver) */}
+          <p className="mb-1.5 hidden items-center gap-2 text-xs font-bold uppercase tracking-wide text-sky-600 lg:flex">
+            <span className="grid h-5 w-5 place-items-center rounded-full bg-sky-500 text-white">
+              <Play className="ml-px h-2.5 w-2.5" fill="currentColor" strokeWidth={0} />
+            </span>
+            {categoriaNombre} · Tutorial
+          </p>
+          <h2 className="text-xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-xl 2xl:text-2xl">
             {articulo.pregunta}
           </h2>
         </div>
@@ -99,45 +116,43 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
           />
         </div>
         <div className={videoVertical ? 'mt-4 min-w-0 lg:mt-0 lg:flex-1' : 'mt-4'}>
-          <ContenidoPasos texto={articulo.respuesta} />
-        </div>
-      </div>
+          {/* Card contenedor de los pasos + "¿Te sirvió?" (solo móvil; en
+              desktop ya están dentro del card de la sección). */}
+          <div className="rounded-2xl border border-slate-300 bg-white p-4 shadow-sm lg:rounded-none lg:border-0 lg:bg-transparent lg:p-0 lg:shadow-none">
+            <ContenidoPasos texto={articulo.respuesta} />
 
-      {/* Feedback */}
-      <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-slate-200 pt-3.5 text-sm font-semibold text-slate-600">
-        <span>{yaVoto ? '¡Gracias por tu opinión!' : '¿Te sirvió?'}</span>
-        <button
-          onClick={() => votar('si')}
-          disabled={yaVoto}
-          data-testid="ayuda-voto-si"
-          aria-pressed={voto === 'si'}
-          className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1 text-sm font-semibold ${
-            voto === 'si'
-              ? 'border-emerald-500 bg-emerald-100 text-emerald-700'
-              : yaVoto
-                ? 'border-slate-300 bg-white text-slate-400'
-                : 'border-slate-300 bg-white text-slate-700 lg:cursor-pointer lg:hover:border-emerald-400'
-          }`}
-        >
-          <ThumbsUp className="h-4 w-4" strokeWidth={2.2} />
-          Sí
-        </button>
-        <button
-          onClick={() => votar('no')}
-          disabled={yaVoto}
-          data-testid="ayuda-voto-no"
-          aria-pressed={voto === 'no'}
-          className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1 text-sm font-semibold ${
-            voto === 'no'
-              ? 'border-red-400 bg-red-100 text-red-700'
-              : yaVoto
-                ? 'border-slate-300 bg-white text-slate-400'
-                : 'border-slate-300 bg-white text-slate-700 lg:cursor-pointer lg:hover:border-red-300'
-          }`}
-        >
-          <ThumbsDown className="h-4 w-4" strokeWidth={2.2} />
-          No
-        </button>
+            {/* Feedback */}
+            <div className="mt-4 flex flex-wrap items-center gap-2.5 border-t border-slate-200 pt-3.5 text-sm font-semibold text-slate-600">
+              <span>{yaVoto ? '¡Gracias por tu opinión!' : '¿Te sirvió?'}</span>
+              <button
+                onClick={() => votar('si')}
+                data-testid="ayuda-voto-si"
+                aria-pressed={voto === 'si'}
+                className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1 text-sm font-semibold lg:cursor-pointer ${
+                  voto === 'si'
+                    ? 'border-emerald-500 bg-emerald-100 text-emerald-700'
+                    : 'border-slate-300 bg-white text-slate-700 lg:hover:border-emerald-400'
+                }`}
+              >
+                <ThumbsUp className="h-4 w-4" strokeWidth={2.2} />
+                Sí
+              </button>
+              <button
+                onClick={() => votar('no')}
+                data-testid="ayuda-voto-no"
+                aria-pressed={voto === 'no'}
+                className={`inline-flex items-center gap-1.5 rounded-lg border-2 px-2.5 py-1 text-sm font-semibold lg:cursor-pointer ${
+                  voto === 'no'
+                    ? 'border-red-400 bg-red-100 text-red-700'
+                    : 'border-slate-300 bg-white text-slate-700 lg:hover:border-red-300'
+                }`}
+              >
+                <ThumbsDown className="h-4 w-4" strokeWidth={2.2} />
+                No
+              </button>
+            </div>
+          </div>
+        </div>
       </div>
     </div>
   );

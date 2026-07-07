@@ -211,16 +211,30 @@ export async function incrementarVista(articuloId: string): Promise<RespuestaSer
 export async function registrarFeedback(
     articuloId: string,
     util: boolean,
+    votoPrevio?: boolean | null,
 ): Promise<RespuestaServicio<null>> {
     try {
-        await db
-            .update(ayudaArticulos)
-            .set(
-                util
-                    ? { utilSi: sql`${ayudaArticulos.utilSi} + 1` }
-                    : { utilNo: sql`${ayudaArticulos.utilNo} + 1` },
-            )
-            .where(eq(ayudaArticulos.id, articuloId));
+        // Mismo voto que antes → nada que hacer (idempotente).
+        if (votoPrevio === util) {
+            return { success: true, message: 'Feedback sin cambios' };
+        }
+        // Suma el voto nuevo y, si había uno distinto, resta el anterior (sin
+        // bajar de 0). Así el usuario puede cambiar de opinión sin inflar los
+        // contadores agregados.
+        const cambios = util
+            ? {
+                  utilSi: sql`${ayudaArticulos.utilSi} + 1`,
+                  ...(votoPrevio === false
+                      ? { utilNo: sql`GREATEST(${ayudaArticulos.utilNo} - 1, 0)` }
+                      : {}),
+              }
+            : {
+                  utilNo: sql`${ayudaArticulos.utilNo} + 1`,
+                  ...(votoPrevio === true
+                      ? { utilSi: sql`GREATEST(${ayudaArticulos.utilSi} - 1, 0)` }
+                      : {}),
+              };
+        await db.update(ayudaArticulos).set(cambios).where(eq(ayudaArticulos.id, articuloId));
         return { success: true, message: 'Feedback registrado' };
     } catch (error) {
         console.error('Error en registrarFeedback:', error);

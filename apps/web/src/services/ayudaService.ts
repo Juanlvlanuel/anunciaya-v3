@@ -15,7 +15,12 @@ export async function registrarVistaTutorial(articuloId: string) {
   return post<null>(`/ayuda/${articuloId}/vista`);
 }
 
-/** Registra el voto "¿Te sirvió?" (👍 = true / 👎 = false). */
-export async function enviarFeedbackTutorial(articuloId: string, util: boolean) {
-  return post<null>(`/ayuda/${articuloId}/feedback`, { util });
+/** Registra el voto "¿Te sirvió?" (👍 = true / 👎 = false). `votoPrevio` permite
+ *  cambiar de opinión sin inflar los contadores (true/false = voto anterior, null = ninguno). */
+export async function enviarFeedbackTutorial(
+  articuloId: string,
+  util: boolean,
+  votoPrevio?: boolean | null,
+) {
+  return post<null>(`/ayuda/${articuloId}/feedback`, { util, votoPrevio: votoPrevio ?? null });
 }

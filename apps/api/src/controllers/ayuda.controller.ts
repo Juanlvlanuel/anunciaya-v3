@@ -110,7 +110,11 @@ export async function postFeedbackTutorial(req: Request, res: Response): Promise
             res.status(400).json({ success: false, message: "El campo 'util' debe ser booleano" });
             return;
         }
-        const resultado = await registrarFeedback(articuloId, util);
+        // votoPrevio (opcional): el voto anterior del usuario para poder cambiar
+        // de opinión sin inflar los contadores. boolean o null/ausente.
+        const votoPrevioRaw = (req.body ?? {}).votoPrevio;
+        const votoPrevio = typeof votoPrevioRaw === 'boolean' ? votoPrevioRaw : null;
+        const resultado = await registrarFeedback(articuloId, util, votoPrevio);
         res.status(resultado.code ?? 200).json(resultado);
     } catch (error) {
         console.error('Error en postFeedbackTutorial:', error);

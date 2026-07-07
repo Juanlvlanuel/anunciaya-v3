@@ -17,8 +17,8 @@ type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 
 const TABS: { key: TabAudiencia; label: string; app: AppAyuda; audiencia: AudienciaAyuda }[] = [
-  { key: 'app', label: 'Para usar la app', app: 'anunciaya', audiencia: 'cliente' },
-  { key: 'negocio', label: 'Para mi negocio', app: 'anunciaya', audiencia: 'comerciante' },
+  { key: 'app', label: 'AnunciaYA', app: 'anunciaya', audiencia: 'cliente' },
+  { key: 'negocio', label: 'Business Studio', app: 'anunciaya', audiencia: 'comerciante' },
   { key: 'scanya', label: 'ScanYA', app: 'scanya', audiencia: 'comerciante' },
 ];
 
@@ -31,6 +31,11 @@ interface PaginaCentroAyudaProps {
 
 export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCentroAyudaProps = {}) {
   const modoActivo = useAuthStore((s) => s.usuario?.modoActivo);
+  // Un usuario con cuenta SOLO personal no ve las audiencias comerciales
+  // ("Para mi negocio", "ScanYA"); solo "Para usar la app". Con cuenta comercial
+  // ve las tres (esté en modo personal o comercial).
+  const tieneModoComercial = useAuthStore((s) => !!s.usuario?.tieneModoComercial);
+  const tabsVisibles = tieneModoComercial ? TABS : TABS.filter((t) => t.key === 'app');
   // Flecha ← del encabezado (solo en la página /ayuda, no embebida). Usa el
   // historial real; si se entró por URL directa, cae al fallback /inicio.
   const volver = useVolverAtras('/inicio');
@@ -211,7 +216,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
     return (
       <div data-testid="pagina-centro-ayuda" className="p-4">
         <div className="mb-5 flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {!soloAudiencia && <TabsAudiencia activa={tab} onChange={cambiarTab} opciones={TABS} />}
+          {!soloAudiencia && tabsVisibles.length > 1 && <TabsAudiencia activa={tab} onChange={cambiarTab} opciones={tabsVisibles} />}
           {buscador}
         </div>
         {contenido}
@@ -288,7 +293,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                 <div className="flex items-center justify-center gap-2.5 pb-3">
                   <div className="h-0.5 w-14 rounded-full" style={{ background: 'linear-gradient(90deg, transparent, rgba(14,165,233,0.7))' }} />
                   <span className="text-base font-light tracking-wide text-white/70">
-                    Aprende a <span className="font-bold text-white">sacarle provecho</span>
+                    Todo lo que <span className="font-bold text-white">necesitas saber</span>
                   </span>
                   <div className="h-0.5 w-14 rounded-full" style={{ background: 'linear-gradient(90deg, rgba(14,165,233,0.7), transparent)' }} />
                 </div>
@@ -319,7 +324,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                   {/* Centro: subtítulo + label */}
                   <div className="min-w-0 flex-1 text-center">
                     <p className="truncate text-3xl font-light leading-tight text-white/70 2xl:text-[34px]">
-                      Aprende a <span className="font-bold text-white">sacarle provecho</span>
+                      Todo lo que <span className="font-bold text-white">necesitas saber</span>
                     </p>
                     <div className="mt-1.5 flex items-center justify-center gap-3">
                       <div className="h-0.5 w-20 rounded-full 2xl:w-24" style={{ background: 'linear-gradient(90deg, transparent, rgba(14,165,233,0.7))' }} />
@@ -336,10 +341,11 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                 </div>
               </div>
 
-              {/* ── Tabs de audiencia (chips sobre negro) ── */}
-              {!soloAudiencia && (
+              {/* ── Tabs de audiencia (chips sobre negro) — solo si hay más de una ── */}
+              {!soloAudiencia && tabsVisibles.length > 1 && (
                 <div className="flex items-center gap-2 overflow-x-auto px-3 pb-3 lg:px-6 lg:pb-3 2xl:px-8 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                  {TABS.map((t) => {
+                  <span className="shrink-0 text-sm font-semibold text-white/50">Cómo usar:</span>
+                  {tabsVisibles.map((t) => {
                     const on = tab === t.key;
                     return (
                       <button
@@ -484,7 +490,7 @@ function ListaFichas({
           </div>
         </div>
       ) : (
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid grid-cols-1 gap-3 lg:grid-cols-2">
           {articulos.map((a) => {
             const dur = fmtDuracion(a.duracionSeg);
             return (
