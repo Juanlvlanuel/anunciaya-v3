@@ -581,10 +581,10 @@ function LightboxVideo({ articulo, onCerrar }: { articulo: ArticuloAdmin; onCerr
       </button>
       <video
         src={articulo.videoUrl ?? undefined}
-        poster={articulo.posterUrl ?? undefined}
         controls
         autoPlay
         playsInline
+        preload="auto"
         onClick={(e) => e.stopPropagation()}
         className="max-h-[86vh] max-w-[92vw] rounded-[12px] bg-black shadow-2xl"
       />
