@@ -509,6 +509,7 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
 
     const bloqueadoPorIntentos = !!u.bloqueadoHasta && new Date(u.bloqueadoHasta).getTime() > Date.now();
     const tieneContrasena = !!u.tieneContrasena;
+    const autenticadoPorGoogle = !!u.autenticadoPorGoogle;
 
     const diagnostico: DiagnosticoAcceso = {
         correoVerificado: !!u.correoVerificado,
@@ -517,8 +518,9 @@ export async function obtenerExpediente(usuarioId: string, rolSolicitante?: stri
         bloqueadoHasta: u.bloqueadoHasta ?? null,
         intentosFallidos: u.intentosFallidos ?? 0,
         requiereCambioContrasena: u.requiereCambioContrasena,
-        // Lo que el login REALMENTE exige: estado activo + contraseña creada + no bloqueado por intentos.
-        puedeIniciarSesion: u.estado === 'activo' && tieneContrasena && !bloqueadoPorIntentos,
+        // Lo que el login REALMENTE exige: estado activo + (contraseña creada O cuenta Google) + no bloqueado.
+        // Una cuenta Google pura no tiene contraseña local pero SÍ inicia sesión con Google (ver auth.service login).
+        puedeIniciarSesion: u.estado === 'activo' && (tieneContrasena || autenticadoPorGoogle) && !bloqueadoPorIntentos,
     };
 
     const sombreros: SombrerosUsuario = {

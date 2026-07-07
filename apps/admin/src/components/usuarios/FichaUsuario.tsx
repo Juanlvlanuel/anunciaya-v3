@@ -187,7 +187,8 @@ export function FichaUsuario({ previo, onCerrar }: FichaUsuarioProps) {
   // Razones por las que NO puede iniciar sesión (derivadas del diagnóstico).
   const razones: string[] = [];
   if (u.estado !== 'activo') razones.push(`Cuenta ${metaEstadoUsuario(u.estado).etiqueta.toLowerCase()}`);
-  if (!d.tieneContrasena) razones.push('Aún no ha creado su contraseña');
+  // Cuenta Google pura: entra con Google aunque no tenga contraseña local; no es una razón de bloqueo.
+  if (!d.tieneContrasena && !u.autenticadoPorGoogle) razones.push('Aún no ha creado su contraseña');
   if (d.bloqueadoPorIntentos) razones.push(`Bloqueada por intentos fallidos${d.bloqueadoHasta ? ` hasta ${fecha(d.bloqueadoHasta)}` : ''}`);
 
   const sinSombrerosEspeciales = !s.esDueno && !s.esEmpleado && !s.esEmbajador && !s.rolEquipo;
