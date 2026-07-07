@@ -8,6 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
+import { SelectorBuscable } from '../ui/SelectorBuscable';
 import { useCrearCategoria, useEditarCategoria } from '../../hooks/queries/useAyudaAdmin';
 import {
   SECCIONES,
@@ -77,34 +78,36 @@ export function DialogoCategoria({ abierto, onCerrar, categoria }: Props) {
       ancho="lg"
       discriminador="dialogo-categoria-ayuda"
     >
-      <div className="space-y-4 p-5" data-testid="dialogo-categoria-ayuda">
+      <div className="space-y-5 p-5" data-testid="dialogo-categoria-ayuda">
+        {/* Nombre */}
         <div>
           <label className={LABEL}>Nombre</label>
           <input className={CAMPO} value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="Ej. CardYA" />
         </div>
+
+        {/* Sección */}
         <div>
           <label className={LABEL}>Sección</label>
-          <select
-            className={CAMPO}
+          <SelectorBuscable
             value={seccion}
-            onChange={(e) => setSeccion(e.target.value as SeccionAyuda)}
-            data-testid="categoria-seccion"
-          >
-            {SECCIONES.map((s) => (
-              <option key={s.valor} value={s.valor}>
-                {s.label}
-              </option>
-            ))}
-          </select>
+            onChange={(id) => setSeccion(id as SeccionAyuda)}
+            opciones={SECCIONES.map((s) => ({ id: s.valor, etiqueta: s.label }))}
+            conBuscador={false}
+            testid="categoria-seccion"
+          />
           <p className="mt-1.5 text-[11.5px] leading-snug text-texto-4">
             <b className="font-semibold text-texto-3">AnunciaYA</b> se muestra a usuarios personales y comerciales.{' '}
             <b className="font-semibold text-texto-3">Business Studio</b> y{' '}
             <b className="font-semibold text-texto-3">ScanYA</b>, solo a comerciales.
           </p>
         </div>
+
+        {/* Icono + Orden */}
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={LABEL}>Icono (opcional)</label>
+            <label className={LABEL}>
+              Icono <span className="font-normal text-texto-4">· opcional</span>
+            </label>
             <input className={CAMPO} value={icono} onChange={(e) => setIcono(e.target.value)} placeholder="ph:gift-fill" />
           </div>
           <div>
@@ -112,12 +115,35 @@ export function DialogoCategoria({ abierto, onCerrar, categoria }: Props) {
             <input className={CAMPO} type="number" value={orden} onChange={(e) => setOrden(e.target.value)} />
           </div>
         </div>
-        <label className="flex items-center gap-2 text-[13px] font-medium text-texto">
-          <input type="checkbox" checked={activo} onChange={(e) => setActivo(e.target.checked)} />
-          Activa (visible en el Centro de Ayuda)
-        </label>
 
-        <div className="flex justify-end gap-2 pt-2">
+        {/* Activa — toggle */}
+        <button
+          type="button"
+          role="switch"
+          aria-checked={activo}
+          onClick={() => setActivo((v) => !v)}
+          data-testid="categoria-activa"
+          className="flex w-full items-center justify-between gap-3 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-3 text-left transition hover:border-borde-fuerte"
+        >
+          <span className="min-w-0">
+            <span className="block text-[13px] font-semibold text-texto">Activa</span>
+            <span className="block text-[11.5px] text-texto-4">Visible en el Centro de Ayuda</span>
+          </span>
+          <span
+            className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors ${
+              activo ? 'bg-marca' : 'bg-[var(--panel-border)]'
+            }`}
+          >
+            <span
+              className={`inline-block h-5 w-5 transform rounded-full bg-white shadow-sm transition-transform ${
+                activo ? 'translate-x-[22px]' : 'translate-x-0.5'
+              }`}
+            />
+          </span>
+        </button>
+
+        {/* Acciones */}
+        <div className="flex justify-end gap-2 pt-1">
           <button type="button" className={BTN_SEC} onClick={onCerrar}>
             Cancelar
           </button>

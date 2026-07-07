@@ -75,15 +75,15 @@ const MQ_LG = '(min-width: 1024px)';
 const MQ_2XL = '(min-width: 1536px)';
 
 /**
- * Nº de columnas del mosaico de categorías: 1 (móvil) · 2 (laptop) · 3 (escritorio).
+ * Nº de columnas del mosaico de categorías: 1 (móvil) · 3 (laptop) · 4 (escritorio).
  * Se reparte en columnas flex independientes (no CSS grid) para que expandir una
  * categoría solo desplace a las de su MISMA columna, sin afectar a las vecinas.
  */
 function useNumColumnas(): number {
   const calc = () => {
-    if (typeof window === 'undefined') return 3;
-    if (window.matchMedia(MQ_2XL).matches) return 3;
-    if (window.matchMedia(MQ_LG).matches) return 2;
+    if (typeof window === 'undefined') return 4;
+    if (window.matchMedia(MQ_2XL).matches) return 4;
+    if (window.matchMedia(MQ_LG).matches) return 3;
     return 1;
   };
   const [n, setN] = useState<number>(calc);
@@ -172,114 +172,109 @@ export function SeccionAyuda() {
 
   return (
     <div className="h-full overflow-y-auto p-5" data-testid="seccion-ayuda">
-      <div className="lg:flex lg:items-start lg:gap-5">
-        {/* ═══ IZQUIERDA (1/3): encabezado + KPIs + producción + filtros ═══ */}
-        <aside className="mb-4 space-y-4 lg:mb-0 lg:w-1/3 lg:shrink-0">
-          <div>
-            <h1 className="text-[18px] font-bold text-texto">Ayuda y Tutoriales</h1>
-            <p className="mt-0.5 text-[13px] text-texto-3">Categorías y videos tutoriales del Centro de Ayuda.</p>
-            <button
-              type="button"
-              className={`${BTN_NUEVO} mt-3 w-full justify-center`}
-              onClick={() => setDlgCat({ categoria: null })}
-              data-testid="ayuda-nueva-categoria"
+      {/* ═══ Barra de controles — 1 sola fila (botón + KPIs + producción + buscador + filtros) ═══ */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
+        <button
+          type="button"
+          className={`${BTN_NUEVO} shrink-0`}
+          onClick={() => setDlgCat({ categoria: null })}
+          data-testid="ayuda-nueva-categoria"
+        >
+          <Plus className="h-4 w-4" /> Nueva categoría
+        </button>
+
+        {!isLoading && cats.length > 0 && (
+          <>
+            {/* KPIs compactos (número + etiqueta, divididos) */}
+            <div className="flex shrink-0 items-stretch divide-x divide-borde rounded-[10px] border border-borde bg-superficie py-1">
+              <KpiInline etiqueta="Tutoriales" valor={kpis.total} />
+              <KpiInline etiqueta="Con video" valor={kpis.conVideo} color="var(--panel-ok)" />
+              <KpiInline etiqueta="Sin video" valor={kpis.sinVideo} color="var(--panel-warn)" />
+              <KpiInline etiqueta="Publicados" valor={kpis.publicados} color="var(--panel-brand)" />
+            </div>
+
+            {/* Producción de video (compacta) */}
+            <div
+              className="flex shrink-0 items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3 py-2"
+              title={`${kpis.conVideo} de ${kpis.total} grabados`}
             >
-              <Plus className="h-4 w-4" /> Nueva categoría
-            </button>
-          </div>
+              <span className="text-[11.5px] text-texto-3">Grabados</span>
+              <span className="block h-1.5 w-16 overflow-hidden rounded-full" style={{ background: 'var(--panel-border)' }}>
+                <span className="block h-full rounded-full bg-ok" style={{ width: `${kpis.pct}%` }} />
+              </span>
+              <span className="text-[11.5px] font-semibold tabular-nums text-texto-2">{kpis.pct}%</span>
+            </div>
 
-          {!isLoading && cats.length > 0 && (
-            <>
-              <div className="grid grid-cols-2 gap-3">
-                <TarjetaKpi etiqueta="Tutoriales" valor={kpis.total} />
-                <TarjetaKpi etiqueta="Con video" valor={kpis.conVideo} color="var(--panel-ok)" />
-                <TarjetaKpi etiqueta="Sin video" valor={kpis.sinVideo} color="var(--panel-warn)" />
-                <TarjetaKpi etiqueta="Publicados" valor={kpis.publicados} color="var(--panel-brand)" />
-              </div>
+            {/* Buscador */}
+            <div className="relative w-full min-w-[160px] flex-1 lg:w-[220px] lg:flex-none 2xl:w-[260px]">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-4" />
+              <input
+                data-testid="ayuda-buscar"
+                className="w-full rounded-[10px] border border-campo-borde bg-campo py-2 pl-9 pr-3 text-[13px] text-texto outline-none placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
+                placeholder="Buscar tutorial…"
+                value={busqueda}
+                onChange={(e) => setBusqueda(e.target.value)}
+              />
+            </div>
 
-              <div className="rounded-[12px] border border-borde bg-superficie px-4 py-3">
-                <div className="mb-2 flex items-center justify-between text-[12.5px]">
-                  <span className="text-texto-2">Producción de video</span>
-                  <span className="text-texto-3">
-                    {kpis.conVideo} de {kpis.total} grabados · {kpis.pct}%
-                  </span>
-                </div>
-                <div className="h-1.5 overflow-hidden rounded-full" style={{ background: 'var(--panel-border)' }}>
-                  <div className="h-full rounded-full bg-ok" style={{ width: `${kpis.pct}%` }} />
-                </div>
-              </div>
-
-              <div className="relative">
-                <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-4" />
-                <input
-                  data-testid="ayuda-buscar"
-                  className="w-full rounded-[10px] border border-campo-borde bg-campo py-2 pl-9 pr-3 text-[13px] text-texto outline-none placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
-                  placeholder="Buscar tutorial…"
-                  value={busqueda}
-                  onChange={(e) => setBusqueda(e.target.value)}
-                />
-              </div>
-
-              <div className="flex items-center gap-2 overflow-x-auto pb-0.5 lg:flex-wrap lg:overflow-visible lg:pb-0 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-                {SECCIONES.map((s) => (
-                  <ChipFiltro
-                    key={s.valor}
-                    testid={`filtro-seccion-${s.valor}`}
-                    activo={filtroSeccion === s.valor}
-                    onClick={() => setFiltroSeccion((p) => (p === s.valor ? '' : s.valor))}
-                  >
-                    {s.label}
-                  </ChipFiltro>
-                ))}
+            {/* Filtros */}
+            <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+              {SECCIONES.map((s) => (
                 <ChipFiltro
-                  testid="filtro-sin-video"
-                  activo={soloSinVideo}
-                  onClick={() => setSoloSinVideo((v) => !v)}
+                  key={s.valor}
+                  testid={`filtro-seccion-${s.valor}`}
+                  activo={filtroSeccion === s.valor}
+                  onClick={() => setFiltroSeccion((p) => (p === s.valor ? '' : s.valor))}
                 >
-                  <VideoOff className="h-3.5 w-3.5" /> Sin video
+                  {s.label}
                 </ChipFiltro>
-              </div>
-            </>
-          )}
-        </aside>
+              ))}
+              <ChipFiltro
+                testid="filtro-sin-video"
+                activo={soloSinVideo}
+                onClick={() => setSoloSinVideo((v) => !v)}
+              >
+                <VideoOff className="h-3.5 w-3.5" /> Sin video
+              </ChipFiltro>
+            </div>
+          </>
+        )}
+      </div>
 
-        {/* ═══ DERECHA (2/3): categorías ═══ */}
-        <div className="lg:min-w-0 lg:flex-1">
-          {isLoading ? (
-            <div className="flex items-center justify-center py-12 text-texto-3">Cargando…</div>
-          ) : cats.length === 0 ? (
-            <div className="rounded-[12px] border border-borde bg-superficie p-8 text-center text-[13px] text-texto-3">
-              Aún no hay categorías. Crea la primera con “Nueva categoría”.
-            </div>
-          ) : catsFiltradas.length === 0 ? (
-            <div className="rounded-[12px] border border-borde bg-superficie p-8 text-center text-[13px] text-texto-3">
-              Ningún tutorial coincide con los filtros.
-            </div>
-          ) : (
-            <div className="flex items-start gap-3">
-              {columnas.map((col, ci) => (
-                <div key={ci} className="flex min-w-0 flex-1 flex-col gap-3">
-                  {col.map(({ categoria, articulos }) => (
-                    <TarjetaCategoria
-                      key={categoria.id}
-                      categoria={categoria}
-                      articulos={articulos}
-                      abierta={expandidaId === categoria.id || hayFiltroArticulo}
-                      onAlternar={() => alternarExpansion(categoria.id)}
-                      onEditar={() => setDlgCat({ categoria })}
-                      onBorrar={() => setConfirmar({ tipo: 'categoria', id: categoria.id, nombre: categoria.nombre })}
-                      onNuevoArticulo={() => setDlgArt({ articulo: null, categoriaId: categoria.id })}
-                      onEditarArticulo={(art) => setDlgArt({ articulo: art })}
-                      onBorrarArticulo={(art) => setConfirmar({ tipo: 'articulo', id: art.id, nombre: art.pregunta })}
-                      onReproducirArticulo={(art) => setVideoLightbox(art)}
-                    />
-                  ))}
-                </div>
+      {/* ═══ Categorías — hasta 4 columnas, a todo el ancho ═══ */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12 text-texto-3">Cargando…</div>
+      ) : cats.length === 0 ? (
+        <div className="rounded-[12px] border border-borde bg-superficie p-8 text-center text-[13px] text-texto-3">
+          Aún no hay categorías. Crea la primera con “Nueva categoría”.
+        </div>
+      ) : catsFiltradas.length === 0 ? (
+        <div className="rounded-[12px] border border-borde bg-superficie p-8 text-center text-[13px] text-texto-3">
+          Ningún tutorial coincide con los filtros.
+        </div>
+      ) : (
+        <div className="flex items-start gap-3">
+          {columnas.map((col, ci) => (
+            <div key={ci} className="flex min-w-0 flex-1 flex-col gap-3">
+              {col.map(({ categoria, articulos }) => (
+                <TarjetaCategoria
+                  key={categoria.id}
+                  categoria={categoria}
+                  articulos={articulos}
+                  abierta={expandidaId === categoria.id || hayFiltroArticulo}
+                  onAlternar={() => alternarExpansion(categoria.id)}
+                  onEditar={() => setDlgCat({ categoria })}
+                  onBorrar={() => setConfirmar({ tipo: 'categoria', id: categoria.id, nombre: categoria.nombre })}
+                  onNuevoArticulo={() => setDlgArt({ articulo: null, categoriaId: categoria.id })}
+                  onEditarArticulo={(art) => setDlgArt({ articulo: art })}
+                  onBorrarArticulo={(art) => setConfirmar({ tipo: 'articulo', id: art.id, nombre: art.pregunta })}
+                  onReproducirArticulo={(art) => setVideoLightbox(art)}
+                />
               ))}
             </div>
-          )}
+          ))}
         </div>
-      </div>
+      )}
 
       {videoLightbox && (
         <LightboxVideo articulo={videoLightbox} onCerrar={() => setVideoLightbox(null)} />
@@ -311,13 +306,18 @@ export function SeccionAyuda() {
   );
 }
 
-function TarjetaKpi({ etiqueta, valor, color }: { etiqueta: string; valor: number; color?: string }) {
+function KpiInline({ etiqueta, valor, color }: { etiqueta: string; valor: number; color?: string }) {
   return (
-    <div className="rounded-[12px] border border-borde bg-superficie px-3.5 py-3 shadow-tarjeta-panel">
-      <p className="text-[12px] text-texto-3">{etiqueta}</p>
-      <p className="mt-0.5 text-[24px] font-bold tabular-nums text-texto" style={color ? { color } : undefined}>
+    <div className="flex flex-col items-center justify-center px-3">
+      <span
+        className="text-[16px] font-bold leading-none tabular-nums text-texto"
+        style={color ? { color } : undefined}
+      >
         {valor}
-      </p>
+      </span>
+      <span className="mt-1 text-[10px] font-medium uppercase leading-none tracking-wide text-texto-3">
+        {etiqueta}
+      </span>
     </div>
   );
 }

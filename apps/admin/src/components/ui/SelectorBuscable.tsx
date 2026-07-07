@@ -29,6 +29,8 @@ interface SelectorBuscableProps {
   testid?: string;
   /** Clase Tailwind de tamaño de texto (trigger + buscador + opciones). Default 'text-[13px]'. */
   textoClase?: string;
+  /** Muestra el campo de búsqueda dentro del popover. Default true; ponlo en false para listas cortas. */
+  conBuscador?: boolean;
 }
 
 export function SelectorBuscable({
@@ -40,6 +42,7 @@ export function SelectorBuscable({
   disabled = false,
   testid,
   textoClase = 'text-[13px]',
+  conBuscador = true,
 }: SelectorBuscableProps) {
   const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
@@ -64,10 +67,10 @@ export function SelectorBuscable({
   useEffect(() => {
     if (!abierto) return;
     setBusqueda('');
-    if (!esEscritorio) return;
+    if (!esEscritorio || !conBuscador) return;
     const t = setTimeout(() => refBuscar.current?.focus(), 30);
     return () => clearTimeout(t);
-  }, [abierto, esEscritorio]);
+  }, [abierto, esEscritorio, conBuscador]);
 
   // Cerrar al hacer clic fuera, Escape, o scroll/resize de la PÁGINA (no el de la lista interna).
   useEffect(() => {
@@ -163,28 +166,30 @@ export function SelectorBuscable({
             className="animar-entrada fixed z-[60] flex flex-col overflow-hidden rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel"
             style={estiloDrop}
           >
-            <div className="relative mb-1 shrink-0">
-              <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-texto-4" />
-              <input
-                ref={refBuscar}
-                type="text"
-                value={busqueda}
-                onChange={(e) => setBusqueda(e.target.value)}
-                placeholder={buscarPlaceholder}
-                data-testid={testid ? `${testid}-buscar` : undefined}
-                className={`w-full rounded-[8px] border border-campo-borde bg-campo py-2 pl-8 pr-7 ${textoClase} text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie`}
-              />
-              {busqueda && (
-                <button
-                  type="button"
-                  aria-label="Limpiar búsqueda"
-                  onClick={() => { setBusqueda(''); refBuscar.current?.focus(); }}
-                  className="absolute right-1.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-[6px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
-                >
-                  <X size={13} />
-                </button>
-              )}
-            </div>
+            {conBuscador && (
+              <div className="relative mb-1 shrink-0">
+                <Search size={15} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-texto-4" />
+                <input
+                  ref={refBuscar}
+                  type="text"
+                  value={busqueda}
+                  onChange={(e) => setBusqueda(e.target.value)}
+                  placeholder={buscarPlaceholder}
+                  data-testid={testid ? `${testid}-buscar` : undefined}
+                  className={`w-full rounded-[8px] border border-campo-borde bg-campo py-2 pl-8 pr-7 ${textoClase} text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie`}
+                />
+                {busqueda && (
+                  <button
+                    type="button"
+                    aria-label="Limpiar búsqueda"
+                    onClick={() => { setBusqueda(''); refBuscar.current?.focus(); }}
+                    className="absolute right-1.5 top-1/2 grid h-6 w-6 -translate-y-1/2 place-items-center rounded-[6px] text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+                  >
+                    <X size={13} />
+                  </button>
+                )}
+              </div>
+            )}
 
             <div className="min-h-0 flex-1 overflow-y-auto">
               {filtradas.length === 0 ? (
