@@ -10,6 +10,7 @@ export interface AyudaArticulo {
   videoUrl: string | null;
   posterUrl: string | null;
   duracionSeg: number | null;
+  videoVertical: boolean | null;
   orden: number;
   compartiblePublico: boolean;
   vistas: number;

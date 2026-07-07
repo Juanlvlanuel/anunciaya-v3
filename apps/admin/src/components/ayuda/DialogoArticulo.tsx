@@ -33,19 +33,25 @@ function slugify(s: string): string {
     .slice(0, 100);
 }
 
-/** Lee la duración (segundos) de un archivo de video localmente, sin subirlo. */
-function leerDuracionVideo(file: File): Promise<number | null> {
+/** Lee la metadata (duración + orientación) de un archivo de video localmente,
+ *  sin subirlo. `vertical` = alto > ancho. */
+function leerMetadataVideo(
+  file: File,
+): Promise<{ duracion: number | null; vertical: boolean | null }> {
   return new Promise((resolve) => {
     const video = document.createElement('video');
     video.preload = 'metadata';
     video.onloadedmetadata = () => {
       URL.revokeObjectURL(video.src);
       const d = video.duration;
-      resolve(Number.isFinite(d) && d > 0 ? Math.round(d) : null);
+      const duracion = Number.isFinite(d) && d > 0 ? Math.round(d) : null;
+      const vertical =
+        video.videoWidth && video.videoHeight ? video.videoHeight > video.videoWidth : null;
+      resolve({ duracion, vertical });
     };
     video.onerror = () => {
       URL.revokeObjectURL(video.src);
-      resolve(null);
+      resolve({ duracion: null, vertical: null });
     };
     video.src = URL.createObjectURL(file);
   });
@@ -72,6 +78,7 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
   const [videoUrl, setVideoUrl] = useState<string | null>(null);
   const [posterUrl, setPosterUrl] = useState<string | null>(null);
   const [duracion, setDuracion] = useState('');
+  const [videoVertical, setVideoVertical] = useState<boolean | null>(null);
   const [orden, setOrden] = useState('0');
   const [publicado, setPublicado] = useState(false);
   const [compartible, setCompartible] = useState(true);
@@ -88,6 +95,7 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
     setVideoUrl(articulo?.videoUrl ?? null);
     setPosterUrl(articulo?.posterUrl ?? null);
     setDuracion(articulo?.duracionSeg != null ? String(articulo.duracionSeg) : '');
+    setVideoVertical(articulo?.videoVertical ?? null);
     setOrden(String(articulo?.orden ?? 0));
     setPublicado(articulo?.publicado ?? false);
     setCompartible(articulo?.compartiblePublico ?? true);
@@ -103,9 +111,10 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
 
   const onVideo = async (file?: File) => {
     if (!file) return;
-    // La duración se detecta del archivo localmente (no depende de la subida).
-    void leerDuracionVideo(file).then((seg) => {
-      if (seg != null) setDuracion(String(seg));
+    // Duración y orientación se detectan del archivo localmente (no dependen de la subida).
+    void leerMetadataVideo(file).then(({ duracion, vertical }) => {
+      if (duracion != null) setDuracion(String(duracion));
+      if (vertical != null) setVideoVertical(vertical);
     });
     setSubiendoVideo(true);
     try {
@@ -141,6 +150,7 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
       videoUrl,
       posterUrl,
       duracionSeg: duracion.trim() ? Number(duracion) : null,
+      videoVertical,
       orden: Number(orden) || 0,
       publicado,
       compartiblePublico: compartible,

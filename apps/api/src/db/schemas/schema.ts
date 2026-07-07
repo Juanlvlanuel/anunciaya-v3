@@ -2566,6 +2566,9 @@ export const ayudaArticulos = pgTable("ayuda_articulos", {
 	videoUrl: text("video_url"),
 	posterUrl: text("poster_url"),
 	duracionSeg: integer("duracion_seg"),
+	// Orientación real del video (true = vertical/retrato · false = horizontal).
+	// Se detecta al subir el video en el Panel; null en tutoriales anteriores.
+	videoVertical: boolean("video_vertical"),
 	orden: integer().default(0).notNull(),
 	publicado: boolean().default(false).notNull(),
 	compartiblePublico: boolean("compartible_publico").default(true).notNull(),

@@ -3,7 +3,10 @@ import { Play } from 'lucide-react';
 
 interface ReproductorVideoProps {
   src: string | null;
-  poster: string | null;
+  /** Póster opcional. En la galería NO se pasa (para que el video con autoplay
+   *  no muestre la portada cargando); en la landing pública sí, por si el
+   *  navegador bloquea el autoplay al abrirse sin gesto del usuario. */
+  poster?: string | null;
   titulo: string;
   duracionSeg?: number | null;
   /** Reporta si el video es vertical (alto > ancho) al cargar su metadata. */
@@ -53,6 +56,17 @@ export function ReproductorVideo({ src, poster, titulo, duracionSeg, onOrientaci
     };
     mq.addEventListener('change', alRotar);
     return () => mq.removeEventListener('change', alRotar);
+  }, [src]);
+
+  // Autoplay SOLO en la instancia visible. La página monta el detalle en dos
+  // contenedores (desktop y móvil) y oculta uno con CSS; con el atributo autoPlay,
+  // el video oculto también sonaría (audio duplicado). `offsetParent === null`
+  // ⇒ el contenedor está en display:none, así que ahí NO se reproduce.
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v || !src) return;
+    if (v.offsetParent === null) return;
+    v.play().catch(() => {});
   }, [src]);
 
   if (!src) {

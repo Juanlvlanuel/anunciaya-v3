@@ -16,13 +16,15 @@ interface VistaArticuloProps {
 
 export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArticuloProps) {
   const [voto, setVoto] = useState<'si' | 'no' | null>(null);
-  // Orientación del video: vertical → video y pasos en 2 columnas (desktop).
-  const [videoVertical, setVideoVertical] = useState(false);
+  // Orientación del video. Se prefiere el dato guardado en la BD (detectado al
+  // subir el video en el Panel) → abre directo en el layout correcto, sin flash.
+  // Si no existe (tutoriales anteriores), se asume vertical y el propio video
+  // corrige al cargar su metadata (`onOrientacion` en ReproductorVideo).
+  const [videoVertical, setVideoVertical] = useState(articulo.videoVertical ?? true);
 
-  // Al cambiar de artículo, reinicia la orientación hasta que el nuevo video la reporte.
   useEffect(() => {
-    setVideoVertical(false);
-  }, [articulo.id]);
+    setVideoVertical(articulo.videoVertical ?? true);
+  }, [articulo.id, articulo.videoVertical]);
 
   // Registrar una vista, una sola vez por sesión y artículo.
   useEffect(() => {
@@ -91,7 +93,6 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
         <div className={videoVertical ? 'lg:w-[200px] lg:shrink-0 2xl:w-[240px]' : ''}>
           <ReproductorVideo
             src={articulo.videoUrl}
-            poster={articulo.posterUrl}
             titulo={articulo.pregunta}
             duracionSeg={articulo.duracionSeg}
             onOrientacion={setVideoVertical}

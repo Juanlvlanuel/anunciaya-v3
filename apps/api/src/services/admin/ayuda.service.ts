@@ -33,6 +33,7 @@ export interface ArticuloAdminInput {
     videoUrl?: string | null;
     posterUrl?: string | null;
     duracionSeg?: number | null;
+    videoVertical?: boolean | null;
     orden?: number;
     publicado?: boolean;
     compartiblePublico?: boolean;
@@ -123,6 +124,7 @@ export async function crearArticulo(input: ArticuloAdminInput) {
             videoUrl: input.videoUrl ?? null,
             posterUrl: input.posterUrl ?? null,
             duracionSeg: input.duracionSeg ?? null,
+            videoVertical: input.videoVertical ?? null,
             orden: input.orden ?? 0,
             publicado: input.publicado ?? false,
             compartiblePublico: input.compartiblePublico ?? true,
@@ -143,6 +145,7 @@ export async function editarArticulo(id: string, input: Partial<ArticuloAdminInp
             ...(input.videoUrl !== undefined ? { videoUrl: input.videoUrl } : {}),
             ...(input.posterUrl !== undefined ? { posterUrl: input.posterUrl } : {}),
             ...(input.duracionSeg !== undefined ? { duracionSeg: input.duracionSeg } : {}),
+            ...(input.videoVertical !== undefined ? { videoVertical: input.videoVertical } : {}),
             ...(input.orden !== undefined ? { orden: input.orden } : {}),
             ...(input.publicado !== undefined ? { publicado: input.publicado } : {}),
             ...(input.compartiblePublico !== undefined ? { compartiblePublico: input.compartiblePublico } : {}),

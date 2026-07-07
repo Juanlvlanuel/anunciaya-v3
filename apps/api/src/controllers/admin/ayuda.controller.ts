@@ -116,6 +116,7 @@ export async function crearArticuloController(req: Request, res: Response): Prom
             videoUrl: b.videoUrl ?? null,
             posterUrl: b.posterUrl ?? null,
             duracionSeg: b.duracionSeg ?? null,
+            videoVertical: b.videoVertical ?? null,
             orden: b.orden,
             publicado: b.publicado,
             compartiblePublico: b.compartiblePublico,

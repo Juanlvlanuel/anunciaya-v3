@@ -28,6 +28,7 @@ interface ArticuloAyuda {
     videoUrl: string | null;
     posterUrl: string | null;
     duracionSeg: number | null;
+    videoVertical: boolean | null;
     orden: number;
     compartiblePublico: boolean;
     vistas: number;
@@ -96,6 +97,7 @@ export async function obtenerCentroAyuda(
                 videoUrl: ayudaArticulos.videoUrl,
                 posterUrl: ayudaArticulos.posterUrl,
                 duracionSeg: ayudaArticulos.duracionSeg,
+                videoVertical: ayudaArticulos.videoVertical,
                 orden: ayudaArticulos.orden,
                 compartiblePublico: ayudaArticulos.compartiblePublico,
                 vistas: ayudaArticulos.vistas,
@@ -141,6 +143,7 @@ interface TutorialPublico {
     videoUrl: string | null;
     posterUrl: string | null;
     duracionSeg: number | null;
+    videoVertical: boolean | null;
     categoriaNombre: string;
 }
 
@@ -161,6 +164,7 @@ export async function obtenerTutorialPublico(
                 videoUrl: ayudaArticulos.videoUrl,
                 posterUrl: ayudaArticulos.posterUrl,
                 duracionSeg: ayudaArticulos.duracionSeg,
+                videoVertical: ayudaArticulos.videoVertical,
                 categoriaNombre: ayudaCategorias.nombre,
             })
             .from(ayudaArticulos)

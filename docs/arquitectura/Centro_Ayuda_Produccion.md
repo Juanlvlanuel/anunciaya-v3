@@ -210,7 +210,38 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 
 ---
 
-*(Los guiones U-06, U-10, U-19, … se agregan debajo conforme se escriben en el chat de producción.)*
+### 🎬 U-06 — "Encuentra negocios cerca y contáctalos" · 👤 · celular 9:16 · ~60-80 seg
+
+> **Nota:** guion **genérico** (sirve para cualquier ciudad). El header muestra el nombre de la ciudad de forma dinámica ("En [tu ciudad] · N negocios"), así que en la narración no se fija ninguna ciudad. Nombres verificados contra la app real.
+
+> `[Pantalla: desde el inicio, entras a la sección Negocios. Carga el listado; el header dice "Negocios Locales" y "En [tu ciudad] · N negocios"]`
+> **"¿Buscas una tienda, un taller o un restaurante cerca de ti? En la sección Negocios los tienes todos, los de tu ciudad, en un solo lugar."**
+>
+> `[Pantalla: tocas el chip "Cerca de ti"; aparece el chip secundario "● 5 km ▾" y mueves el slider del radio]`
+> **"Toca 'Cerca de ti' para ver solo lo que tienes alrededor. Y si quieres, ajusta cuántos kilómetros a la redonda buscar."**
+>
+> `[Pantalla: tocas el chip "Categoría" y eliges un giro; luego marcas "A domicilio" o "CardYA"]`
+> **"Filtra por categoría —comida, salud, belleza, lo que sea— o marca 'A domicilio' y 'CardYA' para afinar todavía más."**
+>
+> `[Pantalla: tocas el botón redondo flotante de la derecha para cambiar a Mapa; tocas un pin y sale el globo del negocio]`
+> **"Cámbialo a mapa para verlos a tu alrededor. Toca cualquiera y, de un vistazo, ves si está abierto, a qué distancia queda y su calificación."**
+>
+> `[Pantalla: tocas "Ver Perfil" y entra a la ficha. Señalas el pill de horario y bajas por Ofertas, Catálogo y opiniones]`
+> **"Entra a su perfil y ahí está todo: si está abierto ahorita, sus ofertas, su catálogo y lo que opinan otros clientes."**
+>
+> `[Pantalla: en la fila de contacto tocas ChatYA; luego señalas WhatsApp, el teléfono y la ubicación]`
+> **"Y para contactarlo es directo: escríbele por ChatYA o WhatsApp, márcale por teléfono, o toca la ubicación para que te lleve. ¡Así de fácil encuentras lo que necesitas cerca!"**
+
+**Pasos en texto (para el campo `respuesta` del Panel):**
+1. Abre la sección **Negocios** en tu ciudad.
+2. Activa **"Cerca de ti"** y ajusta los kilómetros; filtra por **Categoría**, **A domicilio** o **CardYA**.
+3. Cambia entre **Lista** y **Mapa**; toca un negocio para ver si está **abierto**, su distancia y su calificación.
+4. Entra a **Ver Perfil** para ver horario, **ofertas**, **catálogo** y **opiniones**.
+5. Contáctalo por **ChatYA**, **WhatsApp**, **llamada** o toca **Ubicación** para llegar.
+
+---
+
+*(Los guiones U-10, U-19, … se agregan debajo conforme se escriben en el chat de producción.)*
 
 ---
 
@@ -219,7 +250,7 @@ Antes de escribir cada guion, **abre estos archivos** (en `apps/web/src`) y desc
 | Orden | ID | Video | Guion | Grabado | Editado | Subido al Panel | Publicado |
 |---|---|---|:--:|:--:|:--:|:--:|:--:|
 | 1 | U-01 | Qué es AnunciaYA / Coyo | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
-| 2 | U-06 | Encuentra negocios | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
+| 2 | U-06 | Encuentra negocios | ✅ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 3 | U-10 | MarketPlace | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 4 | U-19 | CardYA / puntos | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |
 | 5 | U-21 | Contactar + cupones (ChatYA) | ⬜ | ⬜ | ⬜ | ⬜ | ⬜ |

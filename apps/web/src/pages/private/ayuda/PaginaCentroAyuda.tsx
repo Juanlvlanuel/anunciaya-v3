@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Search, HelpCircle, ChevronRight, ChevronLeft, Play, BookOpen } from 'lucide-react';
+import { Search, HelpCircle, ChevronRight, ChevronLeft, Play, BookOpen, X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 import { useAuthStore } from '@/stores/useAuthStore';
@@ -103,8 +103,22 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
           setArticuloSelId(null);
         }}
         placeholder="¿Con qué te ayudamos?"
-        className="w-full rounded-full border-2 border-slate-300 bg-white py-2.5 pl-11 pr-4 text-base font-medium text-slate-800 placeholder:text-slate-500 outline-none focus:border-sky-400 lg:text-sm 2xl:text-base"
+        className="w-full rounded-full border-2 border-slate-300 bg-white py-2.5 pl-11 pr-11 text-base font-medium text-slate-800 placeholder:text-slate-500 outline-none focus:border-sky-400 lg:text-sm 2xl:text-base"
       />
+      {busqueda && (
+        <button
+          type="button"
+          data-testid="ayuda-buscador-limpiar"
+          onClick={() => {
+            setBusqueda('');
+            setArticuloSelId(null);
+          }}
+          aria-label="Limpiar búsqueda"
+          className="absolute right-3 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-full bg-slate-200 text-slate-500 lg:cursor-pointer lg:hover:bg-slate-300 lg:hover:text-slate-700"
+        >
+          <X className="h-3.5 w-3.5" strokeWidth={2.5} />
+        </button>
+      )}
     </div>
   );
 
@@ -424,13 +438,13 @@ function fmtDuracion(seg: number | null): string | null {
  */
 function MiniaturaTutorial({ posterUrl, dur }: { posterUrl: string | null; dur: string | null }) {
   return (
-    <div className="relative aspect-video w-36 shrink-0 overflow-hidden rounded-lg bg-slate-800 2xl:w-48">
+    <div className="relative aspect-video w-full overflow-hidden rounded-lg bg-slate-800">
       {posterUrl && (
         <img src={posterUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
       )}
       <span className="absolute inset-0 flex items-center justify-center">
-        <span className="flex h-9 w-9 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition group-hover:bg-sky-500 2xl:h-10 2xl:w-10">
-          <Play className="ml-0.5 h-4 w-4 text-white 2xl:h-5 2xl:w-5" fill="currentColor" strokeWidth={0} />
+        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition group-hover:bg-sky-500">
+          <Play className="ml-0.5 h-5 w-5 text-white" fill="currentColor" strokeWidth={0} />
         </span>
       </span>
       {dur && (
@@ -451,33 +465,44 @@ function ListaFichas({
   articulos: AyudaArticulo[];
   onAbrir: (a: AyudaArticulo) => void;
 }) {
-  if (articulos.length === 0) {
-    return (
-      <p className="py-6 text-center text-sm font-semibold text-slate-500">
-        No hay tutoriales aquí todavía.
-      </p>
-    );
-  }
   return (
     <div>
-      <h2 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500">{titulo}</h2>
-      <div className="space-y-2.5">
-        {articulos.map((a) => {
-          const dur = fmtDuracion(a.duracionSeg);
-          return (
-            <button
-              key={a.id}
-              onClick={() => onAbrir(a)}
-              data-testid={`ayuda-ficha-${a.id}`}
-              className="group flex w-full items-center gap-3 rounded-xl border border-slate-300 bg-white p-2.5 text-left shadow-sm lg:cursor-pointer lg:hover:border-sky-400 lg:hover:shadow"
-            >
-              <MiniaturaTutorial posterUrl={a.posterUrl} dur={dur} />
-              <span className="flex-1 text-sm font-semibold text-slate-800">{a.pregunta}</span>
-              <ChevronRight className="h-4 w-4 shrink-0 text-slate-400 transition group-hover:text-sky-500" strokeWidth={2.4} />
-            </button>
-          );
-        })}
-      </div>
+      <h2 className="mb-4 flex items-center gap-2.5 text-lg font-extrabold tracking-tight text-slate-900 2xl:text-xl">
+        <span className="h-5 w-1.5 shrink-0 rounded-full bg-sky-500 2xl:h-6" />
+        {titulo}
+      </h2>
+      {articulos.length === 0 ? (
+        <div className="flex min-h-[220px] flex-col items-center justify-center gap-3 py-8 text-center 2xl:min-h-[280px]">
+          <div className="flex h-16 w-16 items-center justify-center rounded-full bg-sky-50 text-sky-400 ring-8 ring-sky-50/60">
+            <Search className="h-7 w-7" strokeWidth={2.2} />
+          </div>
+          <div>
+            <p className="text-base font-bold text-slate-700">Sin resultados</p>
+            <p className="mx-auto mt-1 max-w-[16rem] text-sm font-medium text-slate-500">
+              No encontramos tutoriales que coincidan con tu búsqueda.
+            </p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid grid-cols-2 gap-3">
+          {articulos.map((a) => {
+            const dur = fmtDuracion(a.duracionSeg);
+            return (
+              <button
+                key={a.id}
+                onClick={() => onAbrir(a)}
+                data-testid={`ayuda-ficha-${a.id}`}
+                className="group flex flex-col gap-2 rounded-xl border border-slate-300 bg-white p-2.5 text-left shadow-sm lg:cursor-pointer lg:hover:border-sky-400 lg:hover:shadow"
+              >
+                <MiniaturaTutorial posterUrl={a.posterUrl} dur={dur} />
+                <span className="line-clamp-2 px-0.5 pb-0.5 text-base font-semibold leading-snug text-slate-800">
+                  {a.pregunta}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </div>
   );
 }

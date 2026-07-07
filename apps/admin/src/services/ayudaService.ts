@@ -21,6 +21,7 @@ export interface ArticuloAdmin {
   videoUrl: string | null;
   posterUrl: string | null;
   duracionSeg: number | null;
+  videoVertical: boolean | null;
   orden: number;
   publicado: boolean;
   compartiblePublico: boolean;
@@ -57,6 +58,7 @@ export interface ArticuloInput {
   videoUrl?: string | null;
   posterUrl?: string | null;
   duracionSeg?: number | null;
+  videoVertical?: boolean | null;
   orden?: number;
   publicado?: boolean;
   compartiblePublico?: boolean;
