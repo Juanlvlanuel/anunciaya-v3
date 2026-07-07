@@ -12,6 +12,48 @@ import { api, type RespuestaAPI } from './api';
 export type AppAyuda = 'anunciaya' | 'scanya';
 export type AudienciaAyuda = 'cliente' | 'comerciante';
 
+/**
+ * Sección del Centro de Ayuda: las 3 ramificaciones que ve el usuario final
+ * (AnunciaYA · Business Studio · ScanYA). Es una vista simplificada de la pareja
+ * (app, audiencia) con la que persiste el backend — se mapea 1:1:
+ *   AnunciaYA       → anunciaya  + cliente      (visible para Personal y Comercial)
+ *   Business Studio → anunciaya  + comerciante  (solo Comercial)
+ *   ScanYA          → scanya     + comerciante  (solo Comercial)
+ * Así el Panel maneja UN solo concepto en vez de dos ejes cruzados.
+ */
+export type SeccionAyuda = 'anunciaya' | 'business_studio' | 'scanya';
+
+export const SECCIONES: { valor: SeccionAyuda; label: string }[] = [
+  { valor: 'anunciaya', label: 'AnunciaYA' },
+  { valor: 'business_studio', label: 'Business Studio' },
+  { valor: 'scanya', label: 'ScanYA' },
+];
+
+export const SECCION_LABEL: Record<SeccionAyuda, string> = {
+  anunciaya: 'AnunciaYA',
+  business_studio: 'Business Studio',
+  scanya: 'ScanYA',
+};
+
+/** Deriva la sección a partir de la pareja (app, audiencia) guardada. */
+export function seccionDeCategoria(app: AppAyuda, audiencia: AudienciaAyuda): SeccionAyuda {
+  if (app === 'scanya') return 'scanya';
+  if (audiencia === 'comerciante') return 'business_studio';
+  return 'anunciaya';
+}
+
+/** Traduce la sección a la pareja (app, audiencia) que espera el backend. */
+export function appAudDeSeccion(seccion: SeccionAyuda): { app: AppAyuda; audiencia: AudienciaAyuda } {
+  switch (seccion) {
+    case 'scanya':
+      return { app: 'scanya', audiencia: 'comerciante' };
+    case 'business_studio':
+      return { app: 'anunciaya', audiencia: 'comerciante' };
+    default:
+      return { app: 'anunciaya', audiencia: 'cliente' };
+  }
+}
+
 export interface ArticuloAdmin {
   id: string;
   categoriaId: string;
