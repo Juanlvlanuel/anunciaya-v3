@@ -147,7 +147,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
   ) : (
     <>
       {/* ===== Escritorio: 2 columnas ===== */}
-      <div className="hidden gap-5 lg:grid lg:grid-cols-[210px_1fr]">
+      <div className="hidden gap-5 lg:grid lg:grid-cols-[240px_1fr] 2xl:grid-cols-[280px_1fr] 2xl:gap-6">
         <aside className="self-start space-y-0.5 rounded-xl border border-slate-300 bg-white p-2 shadow-sm">
           {categorias.map((c) => (
             <BotonCategoria
@@ -230,7 +230,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
     <div data-testid="pagina-centro-ayuda" className="min-h-full">
       {/* ── Header con identidad — calca Mis Cupones/CardYA (acento sky). Sticky arriba. ── */}
       <div className="sticky top-0 z-20">
-        <div className="lg:mx-auto lg:max-w-6xl lg:px-6 2xl:px-8">
+        <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
           <div className="relative overflow-hidden rounded-none lg:rounded-b-3xl" style={{ background: '#000000' }}>
             {/* Glow sutil sky */}
             <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(14,165,233,0.09) 0%, transparent 50%)' }} />
@@ -372,7 +372,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
       </div>
 
       {/* ── Cuerpo ── */}
-      <div className="p-4 lg:mx-auto lg:max-w-6xl lg:p-6 2xl:p-8">
+      <div className="p-4 lg:mx-auto lg:max-w-7xl lg:p-6 2xl:p-8">
         <div className="mb-5">{buscador}</div>
         {contenido}
       </div>
@@ -404,7 +404,7 @@ function BotonCategoria({
     <button
       onClick={onClick}
       data-testid={`ayuda-categoria-${categoria.id}`}
-      className={`group relative flex w-full items-center gap-2.5 rounded-lg py-2.5 pl-3 pr-2 text-left text-sm font-semibold transition-colors lg:cursor-pointer ${
+      className={`group relative flex w-full items-center gap-2.5 rounded-lg py-2.5 pl-3 pr-2 text-left text-sm font-semibold transition-colors lg:cursor-pointer 2xl:gap-3 2xl:py-3 2xl:text-[15px] ${
         activa ? 'bg-sky-50 text-sky-700' : 'text-slate-600 lg:hover:bg-slate-100 lg:hover:text-slate-900'
       }`}
     >
@@ -416,7 +416,7 @@ function BotonCategoria({
       />
       <IconoCategoria
         icono={categoria.icono}
-        className={`h-[18px] w-[18px] shrink-0 ${activa ? 'text-sky-600' : 'text-slate-400 group-hover:text-slate-500'}`}
+        className={`h-[18px] w-[18px] shrink-0 2xl:h-5 2xl:w-5 ${activa ? 'text-sky-600' : 'text-slate-400 group-hover:text-slate-500'}`}
       />
       <span className="flex-1 truncate">{categoria.nombre}</span>
       <span
@@ -449,8 +449,8 @@ function MiniaturaTutorial({ posterUrl, dur }: { posterUrl: string | null; dur: 
         <img src={posterUrl} alt="" loading="lazy" className="h-full w-full object-cover" />
       )}
       <span className="absolute inset-0 flex items-center justify-center">
-        <span className="flex h-10 w-10 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition group-hover:bg-sky-500">
-          <Play className="ml-0.5 h-5 w-5 text-white" fill="currentColor" strokeWidth={0} />
+        <span className="flex h-11 w-11 items-center justify-center rounded-full bg-black/45 backdrop-blur-sm transition group-hover:bg-sky-500 2xl:h-14 2xl:w-14">
+          <Play className="ml-0.5 h-5 w-5 text-white 2xl:h-7 2xl:w-7" fill="currentColor" strokeWidth={0} />
         </span>
       </span>
       {dur && (
@@ -501,7 +501,7 @@ function ListaFichas({
                 className="group flex flex-col gap-2 rounded-xl border border-slate-300 bg-white p-2.5 text-left shadow-sm lg:cursor-pointer lg:hover:border-sky-400 lg:hover:shadow"
               >
                 <MiniaturaTutorial posterUrl={a.posterUrl} dur={dur} />
-                <span className="line-clamp-2 px-0.5 pb-0.5 text-base font-semibold leading-snug text-slate-800">
+                <span className="line-clamp-2 px-0.5 pb-0.5 text-base font-semibold leading-snug text-slate-800 2xl:text-lg">
                   {a.pregunta}
                 </span>
               </button>

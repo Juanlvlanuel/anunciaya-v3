@@ -87,7 +87,7 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
             </span>
             {categoriaNombre} · Tutorial
           </p>
-          <h2 className="text-xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-xl 2xl:text-2xl">
+          <h2 className="text-2xl font-extrabold leading-tight tracking-tight text-slate-900 lg:text-2xl 2xl:text-3xl">
             {articulo.pregunta}
           </h2>
         </div>
@@ -106,8 +106,8 @@ export function VistaArticulo({ articulo, categoriaNombre, onVolver }: VistaArti
       {/* Video + pasos. Si el video es vertical, en desktop van en 2 columnas
           (video estrecho a la izquierda, pasos a la derecha) para no dejar el
           video larguísimo con los pasos hasta el fondo. Horizontal → apilado. */}
-      <div className={videoVertical ? 'lg:flex lg:items-start lg:gap-6' : ''}>
-        <div className={videoVertical ? 'lg:w-[200px] lg:shrink-0 2xl:w-[240px]' : ''}>
+      <div className={videoVertical ? 'lg:flex lg:items-start lg:gap-6 2xl:gap-8' : ''}>
+        <div className={videoVertical ? 'lg:w-[240px] lg:shrink-0 2xl:w-[300px]' : ''}>
           <ReproductorVideo
             src={articulo.videoUrl}
             titulo={articulo.pregunta}
