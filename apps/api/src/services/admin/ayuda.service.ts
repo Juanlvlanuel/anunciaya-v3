@@ -8,9 +8,10 @@
  * Ubicación: apps/api/src/services/admin/ayuda.service.ts
  */
 
-import { asc, eq, sql } from 'drizzle-orm';
+import { and, asc, eq, ne, or, sql } from 'drizzle-orm';
 import { db } from '../../db/index.js';
 import { ayudaCategorias, ayudaArticulos } from '../../db/schemas/schema.js';
+import { eliminarArchivo, esUrlR2, extraerKeyDeUrl } from '../r2.service.js';
 
 // =============================================================================
 // TIPOS
@@ -67,6 +68,40 @@ async function slugEnUso(slug: string, excluirId?: string): Promise<boolean> {
         .limit(1);
     if (filas.length === 0) return false;
     return excluirId ? filas[0].id !== excluirId : true;
+}
+
+/**
+ * Borra un archivo de R2 (video/poster de tutorial) SOLO si ningún artículo lo
+ * referencia ya (ni en video_url ni en poster_url). `excluirId` omite un artículo
+ * del conteo (el que se acaba de editar, que ya guardó la URL nueva). Best-effort:
+ * si el borrado en R2 falla, se registra pero no rompe la operación.
+ */
+async function borrarArchivoSiHuerfano(url: string | null | undefined, excluirId?: string): Promise<void> {
+    if (!url || !esUrlR2(url)) return;
+    const enUso = await db
+        .select({ id: ayudaArticulos.id })
+        .from(ayudaArticulos)
+        .where(
+            and(
+                or(eq(ayudaArticulos.videoUrl, url), eq(ayudaArticulos.posterUrl, url)),
+                excluirId ? ne(ayudaArticulos.id, excluirId) : undefined,
+            ),
+        )
+        .limit(1);
+    if (enUso.length > 0) return; // lo usa otro tutorial → no tocar
+    await eliminarArchivo(url).catch((err) => console.warn('No se pudo borrar archivo de ayuda en R2:', err));
+}
+
+/**
+ * Borra un archivo recién subido a R2 (carpeta `ayuda_articulos`) que NO llegó a
+ * guardarse en ningún tutorial — p. ej. cuando el usuario sube video/poster y
+ * cancela el modal. Valida la carpeta y que sea huérfano por seguridad.
+ */
+export async function borrarArchivoSubido(url: string): Promise<void> {
+    if (!esUrlR2(url)) return;
+    const key = extraerKeyDeUrl(url);
+    if (!key || !key.startsWith('ayuda_articulos/')) return; // solo esa carpeta
+    await borrarArchivoSiHuerfano(url);
 }
 
 // =============================================================================
@@ -135,6 +170,12 @@ export async function crearArticulo(input: ArticuloAdminInput) {
 
 export async function editarArticulo(id: string, input: Partial<ArticuloAdminInput>) {
     if (input.slug !== undefined && (await slugEnUso(input.slug, id))) throw new Error('SLUG_EXISTE');
+    // Capturar las URLs actuales para limpiar R2 si el video/poster se reemplaza.
+    const [previo] = await db
+        .select({ videoUrl: ayudaArticulos.videoUrl, posterUrl: ayudaArticulos.posterUrl })
+        .from(ayudaArticulos)
+        .where(eq(ayudaArticulos.id, id))
+        .limit(1);
     await db
         .update(ayudaArticulos)
         .set({
@@ -152,12 +193,31 @@ export async function editarArticulo(id: string, input: Partial<ArticuloAdminInp
             updatedAt: sql`now()`,
         })
         .where(eq(ayudaArticulos.id, id));
+
+    // Limpiar de R2 el video/poster anterior si se reemplazó (queda huérfano).
+    if (previo) {
+        if (input.videoUrl !== undefined && input.videoUrl !== previo.videoUrl) {
+            await borrarArchivoSiHuerfano(previo.videoUrl, id);
+        }
+        if (input.posterUrl !== undefined && input.posterUrl !== previo.posterUrl) {
+            await borrarArchivoSiHuerfano(previo.posterUrl, id);
+        }
+    }
 }
 
 /**
- * Borra el artículo. Las URLs de R2 (video/poster) quedan referenciadas en
- * IMAGE_REGISTRY, así que el recolector de huérfanos las limpia luego.
+ * Borra el artículo y limpia de R2 su video y poster (si ya no los usa nadie).
+ * El recolector de huérfanos sigue siendo la red de seguridad para lo que falle.
  */
 export async function borrarArticulo(id: string) {
+    const [previo] = await db
+        .select({ videoUrl: ayudaArticulos.videoUrl, posterUrl: ayudaArticulos.posterUrl })
+        .from(ayudaArticulos)
+        .where(eq(ayudaArticulos.id, id))
+        .limit(1);
     await db.delete(ayudaArticulos).where(eq(ayudaArticulos.id, id));
+    if (previo) {
+        await borrarArchivoSiHuerfano(previo.videoUrl);
+        await borrarArchivoSiHuerfano(previo.posterUrl);
+    }
 }

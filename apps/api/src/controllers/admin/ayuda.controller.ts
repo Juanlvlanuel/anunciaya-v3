@@ -16,6 +16,7 @@ import {
     crearArticulo,
     editarArticulo,
     borrarArticulo,
+    borrarArchivoSubido,
     type CategoriaAdminInput,
     type ArticuloAdminInput,
 } from '../../services/admin/ayuda.service.js';
@@ -188,5 +189,22 @@ export async function uploadArchivoAyudaController(req: Request, res: Response):
     } catch (error) {
         console.error('Error en uploadArchivoAyudaController:', error);
         fallo(res, 500, 'Error al preparar la subida');
+    }
+}
+
+/**
+ * Borra un archivo recién subido a R2 que NO se guardó en ningún tutorial
+ * (el usuario canceló el modal tras subir video/poster). Solo borra si es
+ * huérfano y de la carpeta `ayuda_articulos`.
+ */
+export async function borrarArchivoAyudaController(req: Request, res: Response): Promise<void> {
+    try {
+        const { url } = req.body as { url?: string };
+        if (!url || typeof url !== 'string') return fallo(res, 400, 'Se requiere la URL del archivo');
+        await borrarArchivoSubido(url);
+        res.status(200).json({ success: true, message: 'Archivo limpiado' });
+    } catch (error) {
+        console.error('Error en borrarArchivoAyudaController:', error);
+        fallo(res, 500, 'Error al limpiar el archivo');
     }
 }

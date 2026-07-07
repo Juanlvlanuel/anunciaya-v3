@@ -16,6 +16,7 @@ import {
     editarArticuloController,
     borrarArticuloController,
     uploadArchivoAyudaController,
+    borrarArchivoAyudaController,
 } from '../../controllers/admin/ayuda.controller.js';
 
 const router: Router = Router();
@@ -25,6 +26,8 @@ router.get('/', listarAyudaController);
 
 // Subida a R2 (presigned URL) de video o poster.
 router.post('/upload', uploadArchivoAyudaController);
+// Limpieza de un archivo subido pero no guardado (cancelar el modal).
+router.delete('/upload', borrarArchivoAyudaController);
 
 // Categorías.
 router.post('/categorias', crearCategoriaController);

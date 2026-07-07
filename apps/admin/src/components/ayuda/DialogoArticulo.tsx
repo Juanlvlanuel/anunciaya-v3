@@ -12,7 +12,14 @@ import { Loader2, Check, Video, Image as ImageIcon, Trash2 } from 'lucide-react'
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { SelectorBuscable } from '../ui/SelectorBuscable';
 import { useCrearArticulo, useEditarArticulo } from '../../hooks/queries/useAyudaAdmin';
-import { subirVideoAyuda, subirPosterAyuda, seccionDeCategoria, SECCION_LABEL } from '../../services/ayudaService';
+import {
+  subirVideoAyuda,
+  subirPosterAyuda,
+  borrarArchivoAyuda,
+  optimizarImagen,
+  seccionDeCategoria,
+  SECCION_LABEL,
+} from '../../services/ayudaService';
 import type { ArticuloAdmin, CategoriaAdmin } from '../../services/ayudaService';
 import { toast } from '../../stores/useToastPanel';
 
@@ -85,6 +92,9 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
   const [compartible, setCompartible] = useState(true);
   const [subiendoVideo, setSubiendoVideo] = useState(false);
   const [subiendoPoster, setSubiendoPoster] = useState(false);
+  // URLs de R2 subidas en ESTA sesión del modal (para limpiar huérfanos al
+  // cancelar, o los reemplazos intermedios al guardar).
+  const [subidas, setSubidas] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     if (!abierto) return;
@@ -100,6 +110,7 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
     setOrden(String(articulo?.orden ?? 0));
     setPublicado(articulo?.publicado ?? false);
     setCompartible(articulo?.compartiblePublico ?? true);
+    setSubidas(new Set());
   }, [abierto, articulo, categoriaIdInicial, categorias]);
 
   // Autogenera el slug desde la pregunta mientras no se haya editado a mano.
@@ -112,6 +123,14 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
 
   const onVideo = async (file?: File) => {
     if (!file) return;
+    // Aviso si el video pesa de más: la app no lo transcodifica, conviene
+    // exportarlo a 720p H.264 antes de subir.
+    const MB = 1024 * 1024;
+    if (file.size > 40 * MB) {
+      toast.advertencia(
+        `El video pesa ${Math.round(file.size / MB)} MB. Para que cargue rápido, expórtalo a 720p H.264 (ideal por debajo de 25 MB).`,
+      );
+    }
     // Duración y orientación se detectan del archivo localmente (no dependen de la subida).
     void leerMetadataVideo(file).then(({ duracion, vertical }) => {
       if (duracion != null) setDuracion(String(duracion));
@@ -119,7 +138,9 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
     });
     setSubiendoVideo(true);
     try {
-      setVideoUrl(await subirVideoAyuda(file));
+      const url = await subirVideoAyuda(file);
+      setVideoUrl(url);
+      setSubidas((prev) => new Set(prev).add(url));
       toast.exito('Video subido');
     } catch {
       toast.error('No se pudo subir el video');
@@ -132,7 +153,10 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
     if (!file) return;
     setSubiendoPoster(true);
     try {
-      setPosterUrl(await subirPosterAyuda(file));
+      const optimizado = await optimizarImagen(file);
+      const url = await subirPosterAyuda(optimizado);
+      setPosterUrl(url);
+      setSubidas((prev) => new Set(prev).add(url));
       toast.exito('Poster subido');
     } catch {
       toast.error('No se pudo subir el poster');
@@ -156,14 +180,29 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
       publicado,
       compartiblePublico: compartible,
     };
-    if (esEdicion) editar.mutate({ id: articulo!.id, input }, { onSuccess: onCerrar });
-    else crear.mutate(input, { onSuccess: onCerrar });
+    const finales = new Set([videoUrl, posterUrl].filter((u): u is string => !!u));
+    const onSuccess = () => {
+      // Limpiar de R2 lo que se subió en esta sesión y no quedó guardado
+      // (p. ej. un video que subiste y luego reemplazaste antes de guardar).
+      subidas.forEach((u) => {
+        if (!finales.has(u)) borrarArchivoAyuda(u).catch(() => {});
+      });
+      onCerrar();
+    };
+    if (esEdicion) editar.mutate({ id: articulo!.id, input }, { onSuccess });
+    else crear.mutate(input, { onSuccess });
+  };
+
+  // Cerrar cancelando: borra de R2 lo que se subió en esta sesión y no se guardó.
+  const cerrarConLimpieza = () => {
+    subidas.forEach((u) => borrarArchivoAyuda(u).catch(() => {}));
+    onCerrar();
   };
 
   return (
     <ModalAdaptativo
       abierto={abierto}
-      onCerrar={onCerrar}
+      onCerrar={cerrarConLimpieza}
       titulo={esEdicion ? 'Editar tutorial' : 'Nuevo tutorial'}
       ancho="2xl"
       alturaMaxima="xl"
@@ -281,7 +320,7 @@ export function DialogoArticulo({ abierto, onCerrar, categorias, articulo, categ
 
         {/* Acciones */}
         <div className="mt-5 flex justify-end gap-2 border-t border-borde pt-4">
-          <button type="button" className={BTN_SEC} onClick={onCerrar}>
+          <button type="button" className={BTN_SEC} onClick={cerrarConLimpieza}>
             Cancelar
           </button>
           <button

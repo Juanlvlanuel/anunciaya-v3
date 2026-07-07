@@ -170,3 +170,36 @@ export function subirVideoAyuda(file: File): Promise<string> {
 export function subirPosterAyuda(file: File): Promise<string> {
   return subirArchivo(file, 'poster');
 }
+
+/** Borra de R2 un archivo ya subido pero que no llegó a guardarse (cancelar el modal). */
+export async function borrarArchivoAyuda(url: string): Promise<void> {
+  await api.delete('/admin/ayuda/upload', { data: { url } });
+}
+
+/**
+ * Optimiza una imagen en el navegador antes de subirla: la redimensiona a un
+ * ancho máximo y la re-encode a WebP (menos peso, sin pérdida visible). Si algo
+ * falla o no reduce el tamaño, devuelve el archivo original.
+ */
+export async function optimizarImagen(file: File, maxAncho = 1280, calidad = 0.82): Promise<File> {
+  if (!file.type.startsWith('image/')) return file;
+  try {
+    const bitmap = await createImageBitmap(file);
+    const escala = Math.min(1, maxAncho / bitmap.width);
+    const ancho = Math.round(bitmap.width * escala);
+    const alto = Math.round(bitmap.height * escala);
+    const canvas = document.createElement('canvas');
+    canvas.width = ancho;
+    canvas.height = alto;
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return file;
+    ctx.drawImage(bitmap, 0, 0, ancho, alto);
+    bitmap.close();
+    const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, 'image/webp', calidad));
+    if (!blob || blob.size >= file.size) return file; // si no mejora, mantener el original
+    const nombre = file.name.replace(/\.[^.]+$/, '') + '.webp';
+    return new File([blob], nombre, { type: 'image/webp' });
+  } catch {
+    return file;
+  }
+}
