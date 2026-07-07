@@ -17,6 +17,7 @@ interface TutorialPublico {
   videoUrl: string | null;
   posterUrl: string | null;
   duracionSeg: number | null;
+  videoVertical: boolean | null;
   categoriaNombre: string;
 }
 
