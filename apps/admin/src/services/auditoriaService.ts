@@ -41,6 +41,10 @@ export interface ListaAuditoria {
   total: number;
   pagina: number;
   porPagina: number;
+  /** Conteo por ventana de tiempo para el badge del dropdown de periodo ('' = todo). */
+  porPeriodo: Array<{ periodo: string; total: number }>;
+  /** Conteo por persona (actor) para el badge del dropdown de persona. */
+  porActor: Array<{ actorId: string | null; total: number }>;
 }
 
 export interface AuditoriaDetalle {
@@ -85,7 +89,7 @@ export interface ParametrosAuditoria {
 
 export async function listarAuditoria(params: ParametrosAuditoria): Promise<ListaAuditoria> {
   const { data } = await api.get<RespuestaAPI<ListaAuditoria>>('/admin/auditoria', { params });
-  return data.data ?? { items: [], total: 0, pagina: params.pagina, porPagina: params.porPagina };
+  return data.data ?? { items: [], total: 0, pagina: params.pagina, porPagina: params.porPagina, porPeriodo: [], porActor: [] };
 }
 
 export async function obtenerDetalleAuditoria(id: string): Promise<AuditoriaDetalle | null> {
@@ -96,6 +100,12 @@ export async function obtenerDetalleAuditoria(id: string): Promise<AuditoriaDeta
 export async function listarActores(): Promise<ActorAuditoria[]> {
   const { data } = await api.get<RespuestaAPI<ActorAuditoria[]>>('/admin/auditoria/actores');
   return data.data ?? [];
+}
+
+/** Total de acciones de la bitácora dentro del alcance (badge del menú lateral). */
+export async function contarAuditoria(): Promise<number> {
+  const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/auditoria/conteo');
+  return data.data?.total ?? 0;
 }
 
 /** Borra un registro de la bitácora. Solo superadmin (el backend lo blinda). */

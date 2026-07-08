@@ -14,6 +14,7 @@ import {
     listarAuditoria,
     obtenerDetalleAuditoria,
     listarActoresAuditoria,
+    contarAuditoria,
     panelConFiltroRegion,
     ORDENES_AUDITORIA,
     type OrdenAuditoria,
@@ -87,6 +88,25 @@ export async function listarActoresAuditoriaController(req: Request, res: Respon
         res.status(500).json({
             success: false,
             message: 'Error al obtener los actores',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+// =============================================================================
+// GET /api/admin/auditoria/conteo   (total para el badge del menú · super + gerente)
+// =============================================================================
+
+export async function contarAuditoriaController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const total = await contarAuditoria(panel);
+        res.status(200).json({ success: true, message: 'Conteo de auditoría obtenido', data: { total } });
+    } catch (error) {
+        console.error('Error en contarAuditoriaController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al contar la auditoría',
             error: error instanceof Error ? error.message : String(error),
         });
     }

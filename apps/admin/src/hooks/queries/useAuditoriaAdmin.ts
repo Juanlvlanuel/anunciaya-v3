@@ -39,6 +39,16 @@ export function useActoresAuditoria() {
   });
 }
 
+/** Total de acciones de la bitácora (badge del menú). `enabled` lo gatea por acceso. */
+export function useConteoAuditoria(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.auditoria.conteo(),
+    queryFn: () => auditoriaService.contarAuditoria(),
+    staleTime: 1000 * 60,
+    enabled,
+  });
+}
+
 /**
  * Detalle de un registro. Acepta un `placeholder` (los datos que ya trae la fila) para
  * que el modal se vea AL INSTANTE y rellene el resto (snapshots) al llegar la respuesta.

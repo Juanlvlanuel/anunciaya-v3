@@ -29,6 +29,7 @@ import {
 import type { CategoriaAdmin, SubcategoriaAdmin, CiudadRef } from '../../services/categoriasService';
 import { DialogoCategoria, DialogoSubcategoria, DialogoDisponibilidad } from './DialogosCategorias';
 import { SeccionCategoriasMarketplace } from './SeccionCategoriasMarketplace';
+import { useCatalogoMarketplace } from '../../hooks/queries/useCategoriasMPAdmin';
 import { TabsSegmento } from '../ui/TabsSegmento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { useCiudadesLista } from '../../hooks/queries/useCiudadesAdmin';
@@ -428,13 +429,19 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
 export function SeccionCategorias() {
   const [ambito, setAmbito] = useState<'negocio' | 'marketplace'>('negocio');
   const crearRef = useRef<(() => void) | null>(null);
+  // Total de CATEGORÍAS (no subcategorías) de cada ámbito para el badge del toggle. Globales
+  // (sin ciudad); React Query deduplica con la lista que ya carga cada sección hija.
+  const { data: catNegocios } = useCatalogo();
+  const { data: catMarket } = useCatalogoMarketplace();
+  const totalNegocios = catNegocios?.categorias.length ?? 0;
+  const totalMarket = catMarket?.length ?? 0;
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-1.5 px-4 pt-4 lg:px-5">
         <TabsSegmento<'negocio' | 'marketplace'>
           tabs={[
-            { id: 'negocio', label: 'Negocios', icono: <Store size={14} /> },
-            { id: 'marketplace', label: 'MarketPlace', icono: <Tags size={14} /> },
+            { id: 'negocio', label: 'Negocios', icono: <Store size={14} />, badge: totalNegocios },
+            { id: 'marketplace', label: 'MarketPlace', icono: <Tags size={14} />, badge: totalMarket },
           ]}
           valor={ambito}
           onCambiar={setAmbito}

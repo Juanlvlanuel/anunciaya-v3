@@ -127,14 +127,25 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
     setOrden('fecha_recientes');
   };
 
-  const opcionesActor: OpcionMenu[] = useMemo(
-    () => [{ valor: '', etiqueta: 'Todas las personas' }, ...(actores ?? []).map((a) => ({ valor: a.id, etiqueta: a.nombre ?? '—' }))],
-    [actores],
-  );
+  const opcionesActor: OpcionMenu[] = useMemo(() => {
+    // '' (Todas) = suma (cada acción tiene un actor, así que particionan); cada persona = sus acciones.
+    const conteo = (id: string) =>
+      id === '' ? (data?.porActor?.reduce((s, a) => s + a.total, 0) ?? 0) : (data?.porActor?.find((a) => a.actorId === id)?.total ?? 0);
+    return [
+      { valor: '', etiqueta: 'Todas las personas', conteo: conteo('') },
+      ...(actores ?? []).map((a) => ({ valor: a.id, etiqueta: a.nombre ?? '—', conteo: conteo(a.id) })),
+    ];
+  }, [actores, data]);
 
   const etiquetaAccionSel = accion ? etiquetaAccion(accion) : 'Todas las acciones';
   const etiquetaActor = opcionesActor.find((o) => o.valor === actorId)?.etiqueta ?? 'Todas las personas';
   const etiquetaPeriodo = OPCIONES_PERIODO.find((o) => o.valor === periodo)?.etiqueta ?? 'Todo el tiempo';
+  // Opciones del dropdown de periodo con su conteo (badge). Ventanas acumulativas: cada una = acciones
+  // en esa ventana (respeta acción/persona; no particionan: hoy ≤ 7d ≤ 30d ≤ año ≤ todo).
+  const opcionesPeriodo = useMemo<OpcionMenu[]>(
+    () => OPCIONES_PERIODO.map((o) => ({ ...o, conteo: data?.porPeriodo?.find((p) => p.periodo === o.valor)?.total ?? 0 })),
+    [data],
+  );
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Fecha (recientes)';
 
   const ficha = seleccionado ? <FichaAuditoria previo={seleccionado} onCerrar={() => setSeleccionado(null)} /> : null;
@@ -226,7 +237,7 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
             testid="auditoria-filtro-periodo"
             icono={<Calendar size={18} />}
             etiquetaBoton={etiquetaPeriodo}
-            opciones={OPCIONES_PERIODO}
+            opciones={opcionesPeriodo}
             valor={periodo}
             onCambiar={setPeriodo}
             alineacion="derecha"
@@ -319,7 +330,7 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
             testid="auditoria-filtro-periodo"
             icono={<Calendar size={16} />}
             etiquetaBoton={etiquetaPeriodo}
-            opciones={OPCIONES_PERIODO}
+            opciones={opcionesPeriodo}
             valor={periodo}
             onCambiar={setPeriodo}
             tam="chip"

@@ -199,7 +199,7 @@ function ListaVendedores() {
     [busquedaDeb, estado, orden, pagina],
   );
 
-  const { data, isLoading, isError, isFetching } = useVendedoresLista(filtros);
+  const { data, isLoading, isError } = useVendedoresLista(filtros);
 
   // Master-detail: al abrir un vendedor, su detalle reemplaza la lista (full-width).
   if (vendedorAbierto) {
@@ -212,7 +212,6 @@ function ListaVendedores() {
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
-  const hayFiltro = !!(busquedaDeb || estado);
 
   const hayFiltrosActivos = !!(busqueda.trim() || estado) || orden !== 'cartera_desc';
   const limpiarFiltros = () => {
@@ -366,11 +365,6 @@ function ListaVendedores() {
       <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
         {chipsEstado}
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-[13px] text-texto-3" data-testid="vendedores-total">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'vendedor' : 'vendedores'}
-            {hayFiltro ? ' · filtrado' : ''}
-            {isFetching && !isLoading ? ' · actualizando…' : ''}
-          </span>
           {ordenar}
         </div>
       </div>

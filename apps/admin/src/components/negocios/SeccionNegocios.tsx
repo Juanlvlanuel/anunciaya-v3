@@ -414,7 +414,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
           type="button"
           data-testid="negocios-registrar"
           onClick={() => setMostrarAlta(true)}
-          className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+          className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
         >
           <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar negocio
         </button>

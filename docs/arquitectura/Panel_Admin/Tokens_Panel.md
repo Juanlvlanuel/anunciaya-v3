@@ -15,9 +15,11 @@
 > tema). Si cambias un token, se cambia **ahí** y se actualiza esta tabla (misma regla de oro que
 > los demás docs: el código manda, el doc lo refleja).
 >
-> **Última actualización:** 26 Junio 2026 (§5 patrón "Mapa interactivo a pantalla" estrenado en
-> Ciudades y ampliado en Territorios: mapa fijo al viewport + hoja peek + controles flotantes + FAB
-> `+`/`×` + cards inline con botones-ícono circulares; eventos `touch*` para arrastre de vértices).
+> **Última actualización:** 7 Julio 2026 (ronda de **consistencia visual** — ver §5: `TabsSegmento`
+> unificado para los tabs de sección; badges de conteo en tabs, chips, dropdowns (`MenuFiltro` con
+> punto+conteo) y en el **menú lateral**; barra de controles en **una sola línea**; **botón de creación
+> primario único**; KPIs compactos en barra; conteos **"faceted"** en backend; botón "contador con
+> círculo" reusado en Auditoría).
 
 ---
 
@@ -117,6 +119,15 @@ cada tema. Tomado de `index.css`.
 - **Secundario:** `border border-borde-fuerte bg-superficie text-texto hover:bg-marca-suave`.
 - **Peligro:** variante destructiva con `peligro`.
 - **Deshabilitado:** `disabled:opacity-50 disabled:cursor-not-allowed` (en paginación se usa `opacity-45`).
+- **Creación (primario con ícono) — patrón ÚNICO.** Todo botón que **da de alta** una entidad ("Nueva
+  categoría", "Registrar", "Registrar negocio", "Crear región", "Dar de alta") comparte el MISMO estilo y
+  tamaño para leerse como el mismo control en todas las secciones:
+  `group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px]`
+  `font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03]`
+  `hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95`. Ícono a la izquierda
+  **16px** con rotación en hover (`<Plus size={16} className="… group-hover:rotate-90" />`; en alta de
+  **persona** se usa `UserPlus 16` sin rotación). Va **al final** de la barra de controles (`ml-auto`).
+  Referencia canónica: "Nueva categoría" en Categorías.
 
 **Inputs**
 ```
@@ -223,6 +234,75 @@ lienzo principal es un mapa **MapLibre** (tiles OpenFreeMap). Detalle frágil co
   para que no tapen el pin. En táctil, el arrastre de vértices usa eventos **`touch*`** (MapLibre no
   emite `mouse*` en táctil).
 
+**Sub-navegación por pestañas — `TabsSegmento` (ronda de consistencia, jul 2026).** Los tabs de sección
+DENTRO de una página usan un **segmented control** unificado (`components/ui/TabsSegmento.tsx`): botones
+AGRUPADOS en un solo contenedor píldora `inline-flex rounded-full border border-borde bg-superficie-2
+p-0.5`; el activo `bg-marca text-marca-contraste`, los inactivos `text-texto-2 hover:text-texto`
+(`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold`). Cada tab acepta `icono?` (14px), `badge?`
+(conteo) y `badgeAlerta?` (tiñe el badge de marca cuando >0 aunque el tab esté inactivo, p. ej. "Por
+verificar"). Genérico `<T extends string>`. Sustituye los tabs con subrayado y los chips-tab sueltos; se
+usa en Mapa·Ciudades·Regiones (Ciudades), Negocios·MarketPlace (Categorías), Métricas, Suscripciones,
+Configuración, Mantenimiento y el filtro de audiencia de Ayuda. (**Equipo y accesos** no lo usa — no
+tiene sub-secciones.)
+
+**Badge de conteo dentro de un tab o toggle.** Un tab puede mostrar a su derecha el total de lo que
+agrupa (Ciudades = nº ciudades, Regiones = nº regiones, Categorías Negocios/MarketPlace = nº categorías,
+toggles de Ayuda = nº tutoriales con o sin video). Badge oval `txt-badge min-w-[18px] rounded-full px-1.5
+text-[11px] font-semibold tabular-nums`: **sobre el tab activo** fondo blanco translúcido
+(`rgba(255,255,255,0.22)`, texto blanco); **inactivo** gris (`color-mix(in srgb, var(--panel-text) 8%,
+transparent)` + `text-3`). El conteo del tab "Todas" es el total **global**, no el del filtro activo.
+
+**Barra de controles de una sección (una sola línea).** El encabezado de una lista alinea en UNA fila:
+**buscador** + **chips de filtro** a la izquierda; **dropdowns de filtro** + **Ordenar** + **botón de
+creación** empujados a la derecha con `ml-auto` (el botón de alta **al final del todo**). Contenedor
+`flex flex-wrap items-center gap-x-3 gap-y-2` — el `flex-wrap` deja que baje en pantallas angostas sin
+romperse. Se **eliminaron** los textos de conteo tipo "N miembros/negocios · filtrado · actualizando":
+los reemplazan los badges de los chips/dropdowns y del menú lateral.
+
+**Chips de filtro (estado) con punto de color + conteo.** Los chips que filtran por estado
+(Todas/Activas/Inactivas, por rol…) llevan un **punto** de color a la izquierda (`h-[7px] w-[7px]`: `ok`
+activas, `text-4` inactivas, `marca` "todas") y un **badge** oval de conteo a la derecha. Base
+`inline-flex items-center gap-1.5 rounded-full border border-borde bg-superficie px-3 py-1.5
+text-[12.5px] font-semibold text-texto-2`; el **activo** tiñe fondo con `color-mix(in srgb, <color> 12%,
+transparent)` y borde con 34%. El badge interno es `.txt-badge`; el chip en sí **no** (sube a 14px en
+móvil como el resto). El conteo es dinámico y respeta los demás filtros.
+
+**Opciones de dropdown con punto + conteo (`MenuFiltro`).** `OpcionMenu` acepta `color?` (punto) y
+`conteo?` (badge), con el MISMO lenguaje visual de los chips sueltos pero **dentro** del dropdown (igual
+en móvil y PC). El badge de la opción **seleccionada** se tiñe con su color semántico (o
+`var(--panel-brand)` por defecto); las demás en gris. Se usa en los filtros de
+estado/tamaño/origen/periodo/persona/ciudad de Publicidad, Suscripciones, Usuarios, Negocios, Ciudades,
+Categorías y Auditoría.
+
+**Conteos por faceta ("faceted counts") — regla de backend.** Cada badge de un filtro cuenta
+**excluyendo su propio filtro** pero **respetando los demás** (abrir "Periodo" muestra cuántos hay en
+cada ventana con los filtros de acción/persona ya aplicados). Se parten las condiciones por grupo + un
+helper `armar(...conds)` que devuelve `and(...)` o `undefined`; cada faceta arma su `WHERE` sin su propia
+condición. Las **ventanas de periodo** son acumulativas (hoy ≤ 7d ≤ 30d ≤ año ≤ todo) vía
+`count(*) FILTER (WHERE …)`. Un **vaciado/borrado con filtros activos** debe reconstruir el MISMO `WHERE`
+que la lista (nunca borrar ignorando los filtros).
+
+**KPIs compactos en barra (etiqueta arriba / cifra abajo).** Aparte del KPI "cifra dominante" en tarjeta
+(Resumen/Métricas), las secciones densas muestran sus KPIs como **tira sin tarjeta** en la barra
+superior: grupo `flex items-stretch divide-x divide-borde`, cada ítem centrado con **etiqueta uppercase**
+arriba (`txt-badge uppercase tracking-wide text-texto-4 lg:text-[11px]`) y **valor bold** abajo
+(`text-[17px] font-bold lg:text-[22px] tabular-nums`, acento por color opcional). Estrenado en Categorías
+y Ayuda; el valor puede reaccionar al **toggle de sección activo** (KPIs de Ayuda por audiencia).
+
+**Botón "contador con círculo" (de Resumen, reusado en Auditoría).** Para destacar un total con una
+acción al lado (Auditoría: "N acciones" + bote de basura de vaciar): pill `inline-flex items-center gap-2
+rounded-full border border-marca/30 bg-marca-suave py-1 pl-1 pr-3 text-[12.5px] font-semibold text-marca`
+con círculo interno `grid h-6 min-w-[24px] place-items-center rounded-full bg-marca px-1 text-[12px]
+font-bold tabular-nums text-marca-contraste`. Es el mismo badge del header de la cola de pendientes del
+Resumen; los botones de solo-ícono al lado usan el `Tooltip` del Panel (§6).
+
+**Badges de conteo del menú lateral.** Cada ítem del menú puede mostrar un contador a la derecha
+(Negocios, Usuarios, Equipo, Suscripciones, Recibos, Vendedores, Publicidad, Ciudades, **Auditoría**).
+Los arma `PaginaPanel.tsx` desde hooks `useConteoX(puedeVer(id))` (gateados por acceso, conteos ligeros
+con su propia queryKey) y los pinta `BarraLateral.tsx` leyendo `contadores?.[it.id]`. Para **agregar uno**:
+endpoint `/conteo` ligero que respeta el alcance del rol → service → hook `useConteoX` → registrar
+`c.<id>` en el `useMemo` de `contadores` de `PaginaPanel`.
+
 ---
 
 ## 6. Componentes base reutilizables (no reinventar)
@@ -234,7 +314,8 @@ Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/`
 | `ModalAdaptativo` | `components/ui/ModalAdaptativo.tsx` | Centrado en `lg:`+ / bottom-sheet con drag en móvil. Prop `centrado` para diálogos sobre una ficha. Animación de entrada propia (telón + modal/sheet). |
 | `DialogoConfirmar` | `components/ui/DialogoConfirmar.tsx` | Confirmación genérica con motivo **opcional u obligatorio**. |
 | `Toaster` + `useToastPanel` | `components/ui/Toaster.tsx` · `stores/useToastPanel.ts` | Toast pill (arriba, centrado) con `toast.exito/error/advertencia/info`. Mismo espíritu que `notificar.*` de la app, con tokens del Panel. |
-| `MenuFiltro` | `components/negocios/MenuFiltro.tsx` | Dropdown botón + menú con check (filtros). |
+| `TabsSegmento` | `components/ui/TabsSegmento.tsx` | Segmented control para los **tabs de sección** (píldora agrupada). Soporta `icono`, `badge` de conteo y `badgeAlerta`. Ver §5. |
+| `MenuFiltro` | `components/negocios/MenuFiltro.tsx` | Dropdown botón + menú con check (filtros). `OpcionMenu` acepta `color` (punto) y `conteo` (badge) — ver §5. |
 | `avatares` | `components/negocios/avatares.tsx` | Avatar con color por hash del nombre. |
 | `EstadoSeccion` | `components/ui/EstadoSeccion.tsx` | Estado de una lista: **cargando / error / vacío**. Ícono del módulo en cuadro sutil (`superficie-2` + borde) + título (semibold) + descripción + **acción opcional**. En vacío, distinguir *con-filtros* (título "Sin resultados" + botón "Limpiar filtros") de *vacío real* ("Aún no hay…", sin botón). Reemplazó los `EstadoMensaje` duplicados de Negocios/Usuarios/Suscripciones. |
 | `Tooltip` | `components/ui/Tooltip.tsx` | Tooltip con **portal a `body`** (no lo recortan `overflow`/`transform` del padre), fondo **invertido** (`bg-texto`/`text-superficie`) que se adapta a claro/oscuro. **Solo en escritorio** (en móvil es no-op: sin hover). Props `text`, `position` (`top`/`bottom`/`left`/`right`), `className`. Úsalo en botones de **solo-ícono** en vez del `title` nativo; el `title` nativo se reserva para mostrar **texto largo completo** en spans truncados (una URL, un path), porque el Tooltip usa `nowrap`. |

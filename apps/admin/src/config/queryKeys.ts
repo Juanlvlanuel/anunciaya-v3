@@ -155,6 +155,7 @@ export const queryKeys = {
   },
   auditoria: {
     all: () => ['auditoria'] as const,
+    conteo: () => ['auditoria', 'conteo'] as const,
     lista: (filtros: FiltrosAuditoriaKey) => ['auditoria', 'lista', filtros] as const,
     detalle: (id: string) => ['auditoria', 'detalle', id] as const,
     actores: () => ['auditoria', 'actores'] as const,

@@ -227,6 +227,7 @@ export function SeccionCiudades() {
     <div className="inline-flex shrink-0 rounded-full border border-borde bg-superficie-2 p-0.5">
       {([['mapa', 'Mapa', MapIcon], ['ciudades', 'Ciudades', MapPin], ['regiones', 'Regiones', Layers]] as const).map(([id, label, Icono]) => {
         const activoTab = tab === id;
+        const conteoTab = id === 'ciudades' ? total : id === 'regiones' ? (regiones?.length ?? 0) : 0;
         return (
           <button
             key={id}
@@ -239,15 +240,15 @@ export function SeccionCiudades() {
           >
             <Icono size={14} />
             {label}
-            {id === 'ciudades' && total > 0 && (
+            {conteoTab > 0 && (
               <span
-                data-testid="ciudades-tab-conteo"
+                data-testid={`ciudades-tab-conteo-${id}`}
                 className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
                 style={activoTab
                   ? { background: 'rgba(255,255,255,0.22)', color: '#fff' }
                   : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
               >
-                {total}
+                {conteoTab}
               </span>
             )}
           </button>
@@ -402,14 +403,9 @@ export function SeccionCiudades() {
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         {pestanas}
         {tab === 'regiones' && (
-          <div className="flex items-center gap-3">
-            <span className="text-[13px] text-texto-3" data-testid="regiones-total">
-              <b className="font-semibold text-texto">{listaRegiones.length}</b> {listaRegiones.length === 1 ? 'región' : 'regiones'}
-            </span>
-            <button type="button" data-testid="crear-region" onClick={() => setDialogoRegion({ modo: 'crear', region: null })} className="group inline-flex items-center gap-1.5 rounded-full bg-marca px-3 py-1.5 text-[12.5px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95">
-              <Plus size={14} className="transition-transform duration-300 group-hover:rotate-90" /> Crear región
-            </button>
-          </div>
+          <button type="button" data-testid="crear-region" onClick={() => setDialogoRegion({ modo: 'crear', region: null })} className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95">
+            <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Crear región
+          </button>
         )}
         {tab === 'mapa' && <span className="hidden text-[12.5px] text-texto-4 lg:inline">Clic en un punto para seleccionar · zoom para ver nombres</span>}
       </div>

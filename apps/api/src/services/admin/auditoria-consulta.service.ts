@@ -80,6 +80,10 @@ export interface ListaAuditoria {
     total: number;
     pagina: number;
     porPagina: number;
+    /** Conteo por ventana de tiempo para el badge del dropdown de periodo (acumulativas; '' = todo). */
+    porPeriodo: Array<{ periodo: string; total: number }>;
+    /** Conteo por persona (actor) para el badge del dropdown de persona. Cada actor → sus acciones. */
+    porActor: Array<{ actorId: string | null; total: number }>;
 }
 
 /** Detalle de solo lectura de un registro. */
@@ -263,24 +267,58 @@ export async function listarAuditoria(
 
     // Rol sin nada que ver (config incompleta / fuera de alcance): bitácora vacía.
     if (alcance === 'vacio') {
-        return { items: [], total: 0, pagina: filtros.pagina, porPagina: filtros.porPagina };
+        return { items: [], total: 0, pagina: filtros.pagina, porPagina: filtros.porPagina, porPeriodo: [], porActor: [] };
     }
 
-    const cond: SQL[] = [];
-    if (alcance) cond.push(alcance);
-    if (filtros.actorId) cond.push(eq(adminAuditoria.actorId, filtros.actorId));
-    if (filtros.accion) cond.push(eq(adminAuditoria.accion, filtros.accion));
-    if (filtros.entidadTipo) cond.push(eq(adminAuditoria.entidadTipo, filtros.entidadTipo));
-    if (filtros.entidadId) cond.push(eq(adminAuditoria.entidadId, filtros.entidadId));
-    if (filtros.desde) cond.push(gte(adminAuditoria.createdAt, filtros.desde));
-    if (filtros.hasta) cond.push(lte(adminAuditoria.createdAt, filtros.hasta));
-    const where = cond.length ? and(...cond) : undefined;
+    // Condiciones por GRUPO, para que cada faceta (periodo / persona) excluya SOLO su propio filtro.
+    const condBase: SQL[] = [];
+    if (alcance) condBase.push(alcance);
+    if (filtros.accion) condBase.push(eq(adminAuditoria.accion, filtros.accion));
+    if (filtros.entidadTipo) condBase.push(eq(adminAuditoria.entidadTipo, filtros.entidadTipo));
+    if (filtros.entidadId) condBase.push(eq(adminAuditoria.entidadId, filtros.entidadId));
+    const condActor: SQL[] = filtros.actorId ? [eq(adminAuditoria.actorId, filtros.actorId)] : [];
+    const condFecha: SQL[] = [];
+    if (filtros.desde) condFecha.push(gte(adminAuditoria.createdAt, filtros.desde));
+    if (filtros.hasta) condFecha.push(lte(adminAuditoria.createdAt, filtros.hasta));
+    const armar = (...arrs: SQL[][]) => { const c = arrs.flat(); return c.length ? and(...c) : undefined; };
+    const wherePeriodo = armar(condBase, condActor);         // porPeriodo: excluye el filtro de fecha
+    const whereActor = armar(condBase, condFecha);           // porActor: excluye el filtro de persona
+    const where = armar(condBase, condActor, condFecha);     // tabla + total (todos los filtros)
 
     // Total (para el paginado).
     const [{ total }] = await db
         .select({ total: count() })
         .from(adminAuditoria)
         .where(where);
+
+    // Conteos por periodo (ventanas ACUMULATIVAS: hoy ≤ 7d ≤ 30d ≤ año ≤ todo). Excluye el filtro de
+    // fecha, respeta acción/persona/alcance. Fronteras por hora del servidor (mismo criterio que el resto
+    // del Panel; puede diferir por unas horas del corte local del navegador).
+    const [filaPeriodo] = await db
+        .select({
+            todo: count(),
+            hoy: sql<number>`count(*) FILTER (WHERE ${adminAuditoria.createdAt} >= date_trunc('day', now()))`,
+            d7: sql<number>`count(*) FILTER (WHERE ${adminAuditoria.createdAt} >= date_trunc('day', now()) - interval '6 days')`,
+            d30: sql<number>`count(*) FILTER (WHERE ${adminAuditoria.createdAt} >= date_trunc('day', now()) - interval '29 days')`,
+            anio: sql<number>`count(*) FILTER (WHERE ${adminAuditoria.createdAt} >= date_trunc('day', now()) - interval '1 year')`,
+        })
+        .from(adminAuditoria)
+        .where(wherePeriodo);
+    const porPeriodo = [
+        { periodo: '', total: Number(filaPeriodo?.todo ?? 0) },
+        { periodo: 'hoy', total: Number(filaPeriodo?.hoy ?? 0) },
+        { periodo: '7d', total: Number(filaPeriodo?.d7 ?? 0) },
+        { periodo: '30d', total: Number(filaPeriodo?.d30 ?? 0) },
+        { periodo: 'anio', total: Number(filaPeriodo?.anio ?? 0) },
+    ];
+
+    // Conteos por persona (actor) — group by; excluye el propio filtro de persona, respeta acción/periodo.
+    const filasActor = await db
+        .select({ actorId: adminAuditoria.actorId, n: count() })
+        .from(adminAuditoria)
+        .where(whereActor)
+        .groupBy(adminAuditoria.actorId);
+    const porActor = filasActor.map((f) => ({ actorId: f.actorId, total: Number(f.n) }));
 
     // Página. Joins de presentación: actor (usuario) + nombre del negocio (cuando la
     // entidad es un negocio — el caso más frecuente y con nombre claro). Los demás
@@ -333,7 +371,7 @@ export async function listarAuditoria(
         motivo: f.motivo ?? null,
     })));
 
-    return { items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina };
+    return { items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina, porPeriodo, porActor };
 }
 
 // =============================================================================
@@ -438,4 +476,19 @@ export async function listarActoresAuditoria(panel: UsuarioPanel): Promise<Actor
         nombre: f.nombre ? `${f.nombre} ${f.apellidos ?? ''}`.trim() : null,
         rol: f.rol ?? null,
     }));
+}
+
+// =============================================================================
+// 4. CONTEO TOTAL (badge del menú lateral)
+// =============================================================================
+
+/** Total de acciones de la bitácora dentro del alcance del rol (para el badge del menú). */
+export async function contarAuditoria(panel: UsuarioPanel): Promise<number> {
+    const alcance = await condicionAlcance(panel);
+    if (alcance === 'vacio') return 0;
+    const [fila] = await db
+        .select({ total: count() })
+        .from(adminAuditoria)
+        .where(alcance ?? undefined);
+    return Number(fila?.total ?? 0);
 }

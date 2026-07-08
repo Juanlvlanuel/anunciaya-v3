@@ -44,9 +44,10 @@ import { DialogoArticulo } from './DialogoArticulo';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
 import { Tooltip } from '../ui/Tooltip';
 import { MenuAcciones } from '../ciudades/MenuAcciones';
+import { TabsSegmento } from '../ui/TabsSegmento';
 
 const BTN_NUEVO =
-  'group inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-marca px-4 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95';
+  'group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95';
 
 // Botones-ícono circulares de color (patrón calcado de Territorios): acción por color.
 const BTN_CIRC = 'grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:opacity-80';
@@ -116,12 +117,13 @@ export function SeccionAyuda() {
   const alternarExpansion = (id: string) =>
     setExpandidaId((prev) => (prev === id ? null : id));
 
-  // KPIs globales del módulo (no dependen de los filtros: son el panorama).
+  // KPIs de la vista: reflejan el toggle de sección activo (Todas = todo el módulo).
   const kpis = useMemo(() => {
     let total = 0;
     let conVideo = 0;
     let publicados = 0;
     for (const c of cats) {
+      if (filtroSeccion && seccionDeCategoria(c.app, c.audiencia) !== filtroSeccion) continue;
       for (const a of c.articulos) {
         total++;
         if (a.videoUrl) conVideo++;
@@ -131,6 +133,19 @@ export function SeccionAyuda() {
     const sinVideo = total - conVideo;
     const pct = total ? Math.round((conVideo / total) * 100) : 0;
     return { total, conVideo, sinVideo, publicados, pct };
+  }, [cats, filtroSeccion]);
+
+  // Conteo de tutoriales por sección (con o sin video) para el badge de cada toggle.
+  // Global (no depende del filtro activo): cada badge muestra cuántos hay en su sección.
+  const { conteoPorSeccion, totalTutoriales } = useMemo(() => {
+    const acc: Partial<Record<SeccionAyuda, number>> = {};
+    let total = 0;
+    for (const c of cats) {
+      const sec = seccionDeCategoria(c.app, c.audiencia);
+      acc[sec] = (acc[sec] ?? 0) + c.articulos.length;
+      total += c.articulos.length;
+    }
+    return { conteoPorSeccion: acc, totalTutoriales: total };
   }, [cats]);
 
   const q = normaliza(busqueda.trim());
@@ -172,41 +187,34 @@ export function SeccionAyuda() {
 
   return (
     <div className="h-full overflow-y-auto p-5" data-testid="seccion-ayuda">
-      {/* ═══ Barra de controles — 1 sola fila (botón + KPIs + producción + buscador + filtros) ═══ */}
-      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
-        <button
-          type="button"
-          className={`${BTN_NUEVO} shrink-0`}
-          onClick={() => setDlgCat({ categoria: null })}
-          data-testid="ayuda-nueva-categoria"
-        >
-          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" /> Nueva categoría
-        </button>
+      {/* ═══ Fila 1: toggle de audiencia (izq) + KPIs (der, al patrón del Panel) ═══ */}
+      {!isLoading && cats.length > 0 && (
+        <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3">
+          <TabsSegmento<FiltroSeccion>
+            tabs={[
+              { id: '', label: 'Todas', badge: totalTutoriales },
+              ...SECCIONES.map((s) => ({ id: s.valor, label: s.label, badge: conteoPorSeccion[s.valor] ?? 0 })),
+            ]}
+            valor={filtroSeccion}
+            onCambiar={setFiltroSeccion}
+            testidPrefijo="ayuda-seccion"
+            className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+          />
+          <div className="flex shrink-0 items-stretch divide-x divide-borde lg:ml-auto">
+            <KpiInline etiqueta="Tutoriales" valor={kpis.total} />
+            <KpiInline etiqueta="Con video" valor={kpis.conVideo} color="var(--panel-ok)" />
+            <KpiInline etiqueta="Sin video" valor={kpis.sinVideo} color="var(--panel-warn)" />
+            <KpiInline etiqueta="Publicados" valor={kpis.publicados} color="var(--panel-brand)" />
+            <KpiInline etiqueta="Grabados" valor={`${kpis.pct}%`} />
+          </div>
+        </div>
+      )}
 
+      {/* ═══ Fila 2: buscador + filtro "Sin video" (izq) + "Nueva categoría" (der) ═══ */}
+      <div className="mb-4 flex flex-wrap items-center gap-x-3 gap-y-2">
         {!isLoading && cats.length > 0 && (
           <>
-            {/* KPIs compactos (número + etiqueta, divididos) */}
-            <div className="flex h-9 shrink-0 items-stretch divide-x divide-borde rounded-[10px] border border-borde bg-superficie">
-              <KpiInline etiqueta="Tutoriales" valor={kpis.total} />
-              <KpiInline etiqueta="Con video" valor={kpis.conVideo} color="var(--panel-ok)" />
-              <KpiInline etiqueta="Sin video" valor={kpis.sinVideo} color="var(--panel-warn)" />
-              <KpiInline etiqueta="Publicados" valor={kpis.publicados} color="var(--panel-brand)" />
-            </div>
-
-            {/* Producción de video (compacta) */}
-            <div
-              className="flex h-9 shrink-0 items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3"
-              title={`${kpis.conVideo} de ${kpis.total} grabados`}
-            >
-              <span className="text-[11.5px] text-texto-3">Grabados</span>
-              <span className="block h-1.5 w-16 overflow-hidden rounded-full" style={{ background: 'var(--panel-border)' }}>
-                <span className="block h-full rounded-full bg-ok" style={{ width: `${kpis.pct}%` }} />
-              </span>
-              <span className="text-[11.5px] font-semibold tabular-nums text-texto-2">{kpis.pct}%</span>
-            </div>
-
-            {/* Buscador */}
-            <div className="relative w-full min-w-[160px] flex-1 lg:w-[220px] lg:flex-none 2xl:w-[260px]">
+            <div className="relative min-w-[160px] flex-1 lg:w-[280px] lg:flex-none 2xl:w-[320px]">
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-4" />
               <input
                 data-testid="ayuda-buscar"
@@ -216,29 +224,23 @@ export function SeccionAyuda() {
                 onChange={(e) => setBusqueda(e.target.value)}
               />
             </div>
-
-            {/* Filtros */}
-            <div className="flex shrink-0 items-center gap-2 overflow-x-auto pb-0.5 [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-              {SECCIONES.map((s) => (
-                <ChipFiltro
-                  key={s.valor}
-                  testid={`filtro-seccion-${s.valor}`}
-                  activo={filtroSeccion === s.valor}
-                  onClick={() => setFiltroSeccion((p) => (p === s.valor ? '' : s.valor))}
-                >
-                  {s.label}
-                </ChipFiltro>
-              ))}
-              <ChipFiltro
-                testid="filtro-sin-video"
-                activo={soloSinVideo}
-                onClick={() => setSoloSinVideo((v) => !v)}
-              >
-                <VideoOff className="h-3.5 w-3.5" /> Sin video
-              </ChipFiltro>
-            </div>
+            <ChipFiltro
+              testid="filtro-sin-video"
+              activo={soloSinVideo}
+              onClick={() => setSoloSinVideo((v) => !v)}
+            >
+              <VideoOff className="h-3.5 w-3.5" /> Sin video
+            </ChipFiltro>
           </>
         )}
+        <button
+          type="button"
+          className={`${BTN_NUEVO} ml-auto`}
+          onClick={() => setDlgCat({ categoria: null })}
+          data-testid="ayuda-nueva-categoria"
+        >
+          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" /> Nueva categoría
+        </button>
       </div>
 
       {/* ═══ Categorías — hasta 4 columnas, a todo el ancho ═══ */}
@@ -306,18 +308,12 @@ export function SeccionAyuda() {
   );
 }
 
-function KpiInline({ etiqueta, valor, color }: { etiqueta: string; valor: number; color?: string }) {
+// KPI al patrón del Panel: etiqueta uppercase arriba + valor bold abajo, centrado (sin card).
+function KpiInline({ etiqueta, valor, color }: { etiqueta: string; valor: string | number; color?: string }) {
   return (
-    <div className="flex flex-col items-center justify-center px-3">
-      <span
-        className="text-[16px] font-bold leading-none tabular-nums text-texto"
-        style={color ? { color } : undefined}
-      >
-        {valor}
-      </span>
-      <span className="mt-1 text-[10px] font-medium uppercase leading-none tracking-wide text-texto-3">
-        {etiqueta}
-      </span>
+    <div className="flex shrink-0 flex-col items-center justify-center px-4 text-center leading-tight">
+      <span className="txt-badge whitespace-nowrap font-semibold uppercase tracking-wide text-texto-4 lg:text-[11px]">{etiqueta}</span>
+      <span className="whitespace-nowrap text-[17px] font-bold tabular-nums lg:text-[22px]" style={color ? { color } : undefined}>{valor}</span>
     </div>
   );
 }

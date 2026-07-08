@@ -22,6 +22,7 @@ import { useConteoRecibos } from '../hooks/queries/useRecibosAdmin';
 import { useConteoVendedores } from '../hooks/queries/useVendedoresAdmin';
 import { useConteoPublicidad } from '../hooks/queries/usePublicidadAdmin';
 import { useConteoCiudades } from '../hooks/queries/useCiudadesAdmin';
+import { useConteoAuditoria } from '../hooks/queries/useAuditoriaAdmin';
 import { usePrecargarConfiguracion } from '../hooks/queries/useConfiguracionAdmin';
 import { useContadorPanel } from '../stores/useContadorPanel';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
@@ -121,6 +122,8 @@ function PaginaPanel() {
   // Publicidad = anuncios activos vigentes del alcance. Ciudades = total del catálogo (solo super). Conteos ligeros, gateados por acceso.
   const { data: totalPublicidad } = useConteoPublicidad(puedeVer('publicidad'));
   const { data: totalCiudades } = useConteoCiudades(puedeVer('ciudades'));
+  // Auditoría = total de acciones de la bitácora dentro del alcance (super = todo · gerente = su equipo).
+  const { data: totalAuditoria } = useConteoAuditoria(puedeVer('auditoria'));
   // Filtrado (de la sección activa) si lo hay; si no, el conteo general (visible desde el inicio).
   const totalUsuarios = totalUsuariosFiltrado ?? totalUsuariosGeneral;
   const totalEquipo = totalEquipoFiltrado ?? totalEquipoGeneral;
@@ -134,8 +137,9 @@ function PaginaPanel() {
     if (totalVendedores != null) c.comisiones = totalVendedores;
     if (totalPublicidad != null) c.publicidad = totalPublicidad;
     if (totalCiudades != null) c.ciudades = totalCiudades;
+    if (totalAuditoria != null) c.auditoria = totalAuditoria;
     return Object.keys(c).length ? c : undefined;
-  }, [totalNegocios, totalUsuarios, totalEquipo, totalSuscActivas, totalRecibos, totalVendedores, totalPublicidad, totalCiudades]);
+  }, [totalNegocios, totalUsuarios, totalEquipo, totalSuscActivas, totalRecibos, totalVendedores, totalPublicidad, totalCiudades, totalAuditoria]);
 
   // Si la sección recordada (de una recarga) no aplica a este rol, se cae a la primera del menú;
   // "seguridad" (Mi cuenta) siempre es válida. (rolMenu/items se declaran arriba, junto a los conteos.)

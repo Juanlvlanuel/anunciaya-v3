@@ -110,7 +110,7 @@ export function SeccionEquipo() {
     [busquedaDeb, rol, orden, pagina],
   );
 
-  const { data, isLoading, isError, isFetching } = useEquipoLista(filtros);
+  const { data, isLoading, isError } = useEquipoLista(filtros);
 
   // Publica el total YA FILTRADO para el badge del menú; al salir, se limpia.
   const setContadorEquipo = useContadorPanel((s) => s.setEquipo);
@@ -125,7 +125,6 @@ export function SeccionEquipo() {
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
-  const hayFiltro = !!(busquedaDeb || rol);
 
   const hayFiltrosActivos = !!(busqueda.trim() || rol) || orden !== 'rol';
   const limpiarFiltros = () => {
@@ -213,7 +212,7 @@ export function SeccionEquipo() {
         type="button"
         data-testid="equipo-alta"
         onClick={() => setMenuAlta((v) => !v)}
-        className="inline-flex items-center gap-1.5 rounded-full bg-marca px-4 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:opacity-90"
+        className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
       >
         <UserPlus size={16} />
         <span className="hidden lg:inline">Dar de alta</span>
@@ -248,7 +247,7 @@ export function SeccionEquipo() {
       type="button"
       data-testid="equipo-alta"
       onClick={() => setAltaTipo('vendedor')}
-      className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-4 py-2.5 text-[13px] font-semibold text-marca-contraste transition hover:opacity-90"
+      className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
     >
       <UserPlus size={16} />
       <span className="hidden lg:inline">Dar de alta vendedor</span>
@@ -338,22 +337,13 @@ export function SeccionEquipo() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* Buscador + alta */}
-      <div className="mb-3 flex shrink-0 items-center gap-2">
-        <div className="w-full max-w-[380px]">{buscador}</div>
-        {botonAlta}
-      </div>
-
-      {/* Subhead: chips por rol (izq) + total y ordenar (der) */}
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
-        {chipsRol ?? <span />}
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="text-[13px] text-texto-3" data-testid="equipo-total">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'miembro' : 'miembros'}
-            {hayFiltro ? ' · filtrado' : ''}
-            {isFetching && !isLoading ? ' · actualizando…' : ''}
-          </span>
+      {/* Controles en una sola línea: buscador · chips (izq) · ordenar · Dar de alta (der, al final) */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center gap-x-3 gap-y-2">
+        <div className="w-full min-w-[180px] max-w-[300px] flex-1 lg:w-[240px] lg:flex-none 2xl:w-[300px]">{buscador}</div>
+        {chipsRol}
+        <div className="ml-auto flex shrink-0 items-center gap-2">
           {ordenar}
+          {botonAlta}
         </div>
       </div>
 

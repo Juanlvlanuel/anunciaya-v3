@@ -25,6 +25,7 @@ import { requierePanel } from '../../middleware/panel.middleware.js';
 import {
     listarAuditoriaController,
     listarActoresAuditoriaController,
+    contarAuditoriaController,
     obtenerDetalleAuditoriaController,
     eliminarAuditoriaController,
     vaciarAuditoriaController,
@@ -34,8 +35,9 @@ const router: Router = Router();
 
 router.get('/', requierePanel(['superadmin', 'gerente']), listarAuditoriaController);
 
-// Antes de /:id para que "actores" no caiga en el comodín del id.
+// Antes de /:id para que "actores"/"conteo" no caigan en el comodín del id.
 router.get('/actores', requierePanel(['superadmin', 'gerente']), listarActoresAuditoriaController);
+router.get('/conteo', requierePanel(['superadmin', 'gerente']), contarAuditoriaController);
 
 router.get('/:id', requierePanel(['superadmin', 'gerente']), obtenerDetalleAuditoriaController);
 
