@@ -217,6 +217,18 @@ export function emitirAUsuario(usuarioId: string, evento: string, datos: unknown
 }
 
 /**
+ * ¿El usuario tiene al menos un socket conectado ahora mismo?
+ * Se apoya en el room `usuario:<id>` al que cada socket se une al autenticarse.
+ * Usado por ChatYA para decidir si mandar un push (solo si NO está conectado:
+ * si está, ya ve el mensaje en vivo y el push sería redundante).
+ */
+export function estaUsuarioConectado(usuarioId: string): boolean {
+  if (!io) return false;
+  const room = io.sockets.adapter.rooms.get(`usuario:${usuarioId}`);
+  return Boolean(room && room.size > 0);
+}
+
+/**
  * Retorna la instancia de Socket.io (para uso avanzado como rooms en ChatYA).
  */
 export function obtenerIO(): SocketServer | null {

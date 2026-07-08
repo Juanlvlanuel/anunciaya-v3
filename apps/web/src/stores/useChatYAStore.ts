@@ -2995,6 +2995,30 @@ useScanYAStore.subscribe((state, prev) => {
   }
 });
 
+// ── Badge del ícono de la app (PWA) sincronizado con los no leídos ──
+// Mantiene el badge al día en PRIMER PLANO: sube al recibir y BAJA al leer.
+// (El Service Worker solo lo actualiza cuando llega un push en 2º plano.)
+// setAppBadge/clearAppBadge solo existen en PWA instalada; si no, no-op.
+function sincronizarBadgeApp(total: number): void {
+  if (typeof navigator === 'undefined') return;
+  const nav = navigator as Navigator & {
+    setAppBadge?: (n?: number) => Promise<void>;
+    clearAppBadge?: () => Promise<void>;
+  };
+  if (!nav.setAppBadge) return;
+  try {
+    if (total > 0) void nav.setAppBadge(total);
+    else void nav.clearAppBadge?.();
+  } catch {
+    /* navegador sin soporte o sin permiso */
+  }
+}
+useChatYAStore.subscribe((state, prev) => {
+  if (state.totalNoLeidos !== prev.totalNoLeidos) {
+    sincronizarBadgeApp(state.totalNoLeidos);
+  }
+});
+
 /** chatya:recargar-conversaciones — Forzar recarga (ej: al revocar cupón) */
 escucharEvento('chatya:recargar-conversaciones', () => {
   const state = useChatYAStore.getState();

@@ -15,10 +15,11 @@
  */
 
 import { useState } from 'react';
-import { AlertTriangle, Check, Copy, Eye, EyeOff, KeyRound, Loader2, LogOut, Mail, Shield, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
+import { AlertTriangle, Bell, Check, Copy, Eye, EyeOff, KeyRound, Loader2, LogOut, Mail, Shield, ShieldCheck, Smartphone, Trash2 } from 'lucide-react';
 import { useGoogleLogin } from '@react-oauth/google';
 import { Icon } from '@iconify/react';
 import { useAuthStore } from '@/stores/useAuthStore';
+import { usePushNotificaciones } from '@/hooks/usePushNotificaciones';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
 import { InputCorreoValidado, type ResultadoValidacionCorreo } from '@/components/ui/InputCorreoValidado';
 import { activar2FA, cambiarContrasena, confirmarCambioCorreo, desactivar2FA, eliminarCuenta, establecerContrasena, generar2FA, logoutTodos, solicitarCambioCorreo, vincularGoogle } from '@/services/authService';
@@ -64,6 +65,9 @@ export default function TabSeguridad() {
     const usuario = useAuthStore((s) => s.usuario);
     const recargarDatosUsuario = useAuthStore((s) => s.recargarDatosUsuario);
     const logout = useAuthStore((s) => s.logout);
+
+    // ── Notificaciones push (este dispositivo) ──
+    const push = usePushNotificaciones();
 
     // ── Contraseña ──
     const [actual, setActual] = useState('');
@@ -630,8 +634,53 @@ export default function TabSeguridad() {
             </section>
             </div>
 
-            {/* ── Columna derecha: 2FA · Sesiones · Eliminar cuenta ── */}
+            {/* ── Columna derecha: Notificaciones · 2FA · Sesiones · Eliminar cuenta ── */}
             <div className="space-y-3">
+            {/* ════════════ NOTIFICACIONES ════════════ */}
+            <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
+                <div className="flex items-start justify-between gap-3">
+                    <div className="flex items-center gap-2 min-w-0">
+                        <Bell className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600 shrink-0" strokeWidth={2} />
+                        <h2 className="text-sm font-bold text-slate-800 min-w-0">Notificaciones en este dispositivo</h2>
+                    </div>
+                    {/* Toggle switch (deshabilitado si no hay soporte o el permiso está bloqueado) */}
+                    <button
+                        type="button"
+                        role="switch"
+                        aria-checked={push.activo}
+                        data-testid="toggle-push"
+                        onClick={push.alternar}
+                        disabled={push.cargando || !push.soportado || push.permisoBloqueado}
+                        className={`relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${push.activo ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                    >
+                        {push.cargando ? (
+                            <Loader2 className="w-4 h-4 mx-auto animate-spin text-white" />
+                        ) : (
+                            <span className={`inline-block h-5 w-5 transform rounded-full bg-white shadow transition-transform ${push.activo ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                        )}
+                    </button>
+                </div>
+
+                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-2">
+                    Recibe un aviso cuando te escriben por ChatYA, aunque tengas la app cerrada.
+                </p>
+
+                {/* Avisos de estado según soporte / permiso */}
+                {!push.soportado && (
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-2">
+                        Este navegador no admite notificaciones. En iPhone, primero instala la app en tu pantalla de inicio.
+                    </p>
+                )}
+                {push.soportado && push.permisoBloqueado && (
+                    <div className="flex items-start gap-2.5 rounded-lg bg-amber-50 border border-amber-200 px-3 py-2.5 mt-2">
+                        <AlertTriangle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-amber-600 shrink-0 mt-0.5" strokeWidth={2} />
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                            Bloqueaste las notificaciones para AnunciaYA. Actívalas desde los ajustes del navegador para este sitio.
+                        </p>
+                    </div>
+                )}
+            </section>
+
             {/* ════════════ 2FA ════════════ */}
             <section className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5">
                 <div className="flex items-start justify-between gap-3">

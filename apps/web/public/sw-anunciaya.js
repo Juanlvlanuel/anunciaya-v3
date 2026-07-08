@@ -95,3 +95,75 @@ self.addEventListener('fetch', (event) => {
 
   // Resto (manifest, íconos, fuentes, imágenes públicas, …): no interceptar.
 });
+
+// ============================================================================
+// WEB PUSH — notificaciones de ChatYA con la PWA en segundo plano
+// ============================================================================
+// El backend (push.service.ts) manda un JSON: { titulo, cuerpo, url, tag, badge }.
+// Aquí se pinta la notificación del sistema (el SO decide sonido/vibración) y
+// se actualiza el badge del ícono de la app (Android / PWA instalada).
+self.addEventListener('push', (event) => {
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { cuerpo: event.data ? event.data.text() : '' };
+  }
+
+  const titulo = payload.titulo || 'AnunciaYA';
+  const opciones = {
+    body: payload.cuerpo || 'Tienes un mensaje nuevo',
+    icon: '/icons/anunciaya-192.png',
+    badge: '/icons/anunciaya-192.png',
+    tag: payload.tag || undefined,
+    // renotify: si llega otro mensaje del mismo chat (mismo tag), vuelve a avisar.
+    renotify: Boolean(payload.tag),
+    data: { url: payload.url || '/inicio' },
+    vibrate: [150, 75, 150],
+  };
+
+  event.waitUntil(
+    (async () => {
+      await self.registration.showNotification(titulo, opciones);
+      // Badge numérico sobre el ícono de la app (no leídos totales).
+      if (typeof payload.badge === 'number' && 'setAppBadge' in navigator) {
+        try {
+          if (payload.badge > 0) await navigator.setAppBadge(payload.badge);
+          else await navigator.clearAppBadge();
+        } catch {
+          /* navegador sin soporte o sin permiso: ignorar */
+        }
+      }
+    })(),
+  );
+});
+
+// Al tocar la notificación: enfocar la app si ya está abierta, o abrirla.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = (event.notification.data && event.notification.data.url) || '/inicio';
+  event.waitUntil(
+    (async () => {
+      const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const cliente of clientes) {
+        if ('focus' in cliente) {
+          await cliente.focus();
+          // La app puede escuchar esto para abrir ChatYA en la conversación.
+          cliente.postMessage({ type: 'PUSH_CLICK', url });
+          return;
+        }
+      }
+      if (self.clients.openWindow) await self.clients.openWindow(url);
+    })(),
+  );
+});
+
+// La app pide actualizar/limpiar el badge del ícono (ej. al leer los mensajes).
+self.addEventListener('message', (event) => {
+  const data = event.data || {};
+  if (data.type === 'SET_BADGE' && 'setAppBadge' in navigator) {
+    const n = typeof data.count === 'number' ? data.count : 0;
+    if (n > 0) navigator.setAppBadge(n).catch(() => {});
+    else navigator.clearAppBadge().catch(() => {});
+  }
+});

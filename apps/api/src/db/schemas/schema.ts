@@ -2593,3 +2593,29 @@ export const ayudaFeedback = pgTable("ayuda_feedback", {
 	unique("ayuda_feedback_articulo_id_usuario_id_key").on(table.articuloId, table.usuarioId),
 	index("idx_ayuda_feedback_articulo").using("btree", table.articuloId.asc().nullsLast()),
 ]);
+
+// ============================================================================
+// Web Push — suscripciones de notificaciones push (PWA en segundo plano)
+// Una fila por dispositivo/navegador suscrito (un usuario puede tener varias:
+// celular, laptop, etc.). El `endpoint` lo emite el navegador y es único.
+// Se limpia sola: al enviar, si el push service responde 404/410 (suscripción
+// expirada o revocada), push.service.ts borra la fila.
+// ============================================================================
+export const pushSuscripciones = pgTable("push_suscripciones", {
+	id: uuid().defaultRandom().primaryKey().notNull(),
+	usuarioId: uuid("usuario_id").notNull().references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
+	// endpoint del push service del navegador (FCM/Mozilla/WNS). Largo variable.
+	endpoint: text().notNull(),
+	// Claves de cifrado de la suscripción (Web Push): clave pública del cliente
+	// y secreto de autenticación. Sin ellas no se puede cifrar el payload.
+	p256dh: text().notNull(),
+	auth: text().notNull(),
+	// User-Agent del dispositivo que se suscribió (para que el usuario reconozca
+	// sus dispositivos en la lista, a futuro).
+	userAgent: varchar("user_agent", { length: 300 }),
+	createdAt: timestamp("created_at", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+	ultimaActividad: timestamp("ultima_actividad", { withTimezone: true, mode: 'string' }).defaultNow().notNull(),
+}, (table) => [
+	unique("push_suscripciones_endpoint_key").on(table.endpoint),
+	index("idx_push_suscripciones_usuario").using("btree", table.usuarioId.asc().nullsLast()),
+]);

@@ -111,6 +111,17 @@ const esquemaEnv = z.object({
   // Se declara aquí solo para documentarlo y validar su formato; sentry.ts lo lee
   // directo de process.env para no depender del orden de imports.
   SENTRY_DSN: z.string().url('SENTRY_DSN debe ser una URL válida').optional(),
+
+  // -------- Web Push (VAPID) — notificaciones push de ChatYA en la PWA --------
+  // Par de claves VAPID para Web Push. OPCIONALES: si faltan, el envío de push
+  // queda inerte (push.service.ts lo verifica y hace no-op) y el server arranca
+  // igual. Se generan UNA sola vez con `pnpm --filter api generar-vapid` y se
+  // ponen en Render (backend). La pública además va al frontend como
+  // VITE_VAPID_PUBLIC_KEY (misma clave, ambos lados deben coincidir).
+  VAPID_PUBLIC_KEY: z.string().optional(),
+  VAPID_PRIVATE_KEY: z.string().optional(),
+  // Sujeto VAPID: un `mailto:` o URL de contacto (lo exige la spec al enviar).
+  VAPID_SUBJECT: z.string().default('mailto:soporte@anunciaya.mx'),
 });
 
 // ====================================

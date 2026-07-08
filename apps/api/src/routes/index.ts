@@ -37,6 +37,7 @@ import clientesRoutes from './clientes.routes';
 import cardyaRoutes from './cardya.routes';
 import notificacionesRoutes from './notificaciones.routes';
 import chatyaRoutes from './chatya.routes';
+import pushRoutes from './push.routes';
 import reportesRoutes from './reportes.routes';
 import marketplaceRoutes from './marketplace.routes';
 import serviciosRoutes from './servicios.routes';
@@ -140,6 +141,9 @@ router.use('/notificaciones', notificacionesRoutes);
 
 // Rutas de ChatYA (Chat 1:1)
 router.use('/chatya', chatyaRoutes);
+
+// Rutas de Web Push (suscripción a notificaciones push de la PWA)
+router.use('/push', pushRoutes);
 
 // Rutas de Business Studio - Reportes
 router.use('/business/reportes', reportesRoutes);

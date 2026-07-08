@@ -24,7 +24,8 @@ import {
     serviciosPublicaciones,
 } from '../db/schemas/schema.js';
 import { eq, and, or, desc, sql, ne, count, isNull } from 'drizzle-orm';
-import { emitirAUsuario } from '../socket.js';
+import { emitirAUsuario, estaUsuarioConectado } from '../socket.js';
+import { enviarPushAUsuario } from './push.service.js';
 import { clasificarCirculacion, mensajeNegocioNoDisponible, type EstadoCirculacion } from '../utils/estadoNegocio.js';
 import type {
     ModoChatYA,
@@ -1983,6 +1984,83 @@ export async function listarMensajes(
 }
 
 // =============================================================================
+// HELPER: Push al receptor de un mensaje nuevo (si no está conectado)
+// =============================================================================
+
+/** Preview corto del mensaje según su tipo, para el cuerpo de la notificación. */
+function previewParaPush(tipo: string, contenido: string): string {
+    switch (tipo) {
+        case 'texto':
+            return contenido.length > 140 ? `${contenido.slice(0, 140)}…` : contenido;
+        case 'imagen':
+            return '📷 Foto';
+        case 'audio':
+            return '🎤 Mensaje de voz';
+        case 'ubicacion':
+            return '📍 Ubicación';
+        default:
+            return 'Nuevo mensaje';
+    }
+}
+
+/**
+ * Envía una notificación push al RECEPTOR de un mensaje, SOLO si NO está
+ * conectado por socket (si lo está, ya lo ve en vivo y el push sobra).
+ *
+ * "Best effort": cualquier fallo se traga — nunca debe romper el envío del
+ * mensaje. Se invoca fire-and-forget desde `enviarMensaje`.
+ */
+async function dispararPushMensajeNuevo(params: {
+    receptorId: string;
+    receptorModo: ModoChatYA;
+    receptorSucursalId: string | null;
+    emisorId: string;
+    emisorModo: ModoChatYA;
+    emisorSucursalId: string | null;
+    conversacionId: string;
+    tipo: string;
+    contenido: string;
+}): Promise<void> {
+    try {
+        if (estaUsuarioConectado(params.receptorId)) return;
+
+        // Título = quién escribe. Comercial → nombre del negocio; personal → persona.
+        let titulo = 'Nuevo mensaje';
+        if (params.emisorModo === 'comercial' && params.emisorSucursalId) {
+            const [neg] = await db
+                .select({ nombre: negocios.nombre })
+                .from(negocioSucursales)
+                .innerJoin(negocios, eq(negocios.id, negocioSucursales.negocioId))
+                .where(eq(negocioSucursales.id, params.emisorSucursalId))
+                .limit(1);
+            if (neg?.nombre) titulo = neg.nombre;
+        } else {
+            const [u] = await db
+                .select({ nombre: usuarios.nombre, apellidos: usuarios.apellidos })
+                .from(usuarios)
+                .where(eq(usuarios.id, params.emisorId))
+                .limit(1);
+            if (u?.nombre) titulo = u.apellidos ? `${u.nombre} ${u.apellidos}` : u.nombre;
+        }
+
+        // Badge = total de no leídos del receptor en su modo (para el ícono).
+        let badge: number | undefined;
+        const res = await contarTotalNoLeidos(params.receptorId, params.receptorModo, params.receptorSucursalId);
+        if (res.success && res.data) badge = res.data.total;
+
+        await enviarPushAUsuario(params.receptorId, {
+            titulo,
+            cuerpo: previewParaPush(params.tipo, params.contenido),
+            url: '/inicio',
+            tag: params.conversacionId,
+            badge,
+        });
+    } catch (error) {
+        console.error('[push] Error disparando push de mensaje:', error);
+    }
+}
+
+// =============================================================================
 // 9. ENVIAR MENSAJE
 // =============================================================================
 
@@ -2163,6 +2241,20 @@ export async function enviarMensaje(
             emitirAUsuario(input.emisorId, 'chatya:mensaje-nuevo', {
                 conversacionId: input.conversacionId,
                 mensaje: mensajeResponse,
+            });
+
+            // Push al receptor si tiene la app cerrada/minimizada (best effort,
+            // fire-and-forget: no bloquea ni rompe la respuesta del mensaje).
+            void dispararPushMensajeNuevo({
+                receptorId: otroId,
+                receptorModo: otroModo,
+                receptorSucursalId: otroSucursalId,
+                emisorId: input.emisorId,
+                emisorModo: emisorModoFinal,
+                emisorSucursalId: emisorSucursalIdFinal,
+                conversacionId: input.conversacionId,
+                tipo: input.tipo,
+                contenido: input.contenido,
             });
         }
 
