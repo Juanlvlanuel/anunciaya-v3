@@ -44,6 +44,8 @@ export interface NegocioMembresia {
     fechaVencimiento: string | null;
     fechaLimiteGracia: string | null;
     fechaPrimerPago: string | null;
+    /** Alta del negocio (created_at). Alimenta "Cliente desde" — existe siempre, incl. en trial. */
+    fechaAlta: string | null;
     /** ¿El dueño puede abrir el Customer Portal de Stripe? (tiene stripe_customer_id). */
     puedeAbrirPortal: boolean;
 }

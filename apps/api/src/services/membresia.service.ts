@@ -116,6 +116,8 @@ export interface MiMembresia {
         fechaVencimiento: string | null;
         fechaLimiteGracia: string | null;
         fechaPrimerPago: string | null;
+        // Alta del negocio (created_at). Alimenta "Cliente desde" — existe siempre, incl. en trial.
+        fechaAlta: string | null;
         // ¿El dueño puede abrir el Customer Portal de Stripe? (tiene stripe_customer_id).
         // El front lo usa para decidir si muestra el botón "Actualizar tarjeta…".
         puedeAbrirPortal: boolean;
@@ -224,6 +226,7 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
             fechaVencimiento: negocios.fechaVencimiento,
             fechaLimiteGracia: negocios.fechaLimiteGracia,
             fechaPrimerPago: negocios.fechaPrimerPago,
+            fechaAlta: negocios.createdAt,   // "Cliente desde": alta del negocio (existe siempre, incl. en trial)
             stripeCustomerId: usuarios.stripeCustomerId,
         })
         .from(negocios)
@@ -335,6 +338,7 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
             fechaVencimiento: neg.fechaVencimiento,
             fechaLimiteGracia: neg.fechaLimiteGracia,
             fechaPrimerPago: neg.fechaPrimerPago,
+            fechaAlta: neg.fechaAlta,
             puedeAbrirPortal: !!neg.stripeCustomerId,
         },
         recibos: filas.map((f) => ({

@@ -487,7 +487,7 @@ export default function PaginaPerfilPersonal() {
                                         )}
                                         <Dato
                                             label="Cliente desde"
-                                            valor={formatearFecha(data.negocio.fechaPrimerPago)}
+                                            valor={formatearFecha(data.negocio.fechaAlta)}
                                         />
                                     </div>
 
@@ -509,9 +509,9 @@ export default function PaginaPerfilPersonal() {
                                         const secundarias: Accion[] = [];
                                         if (esTarjeta) {
                                             if (neg.puedeAbrirPortal && !urgente) {
-                                                secundarias.push({ key: 'portal', label: 'Administrar tarjeta', Icono: CreditCard, onClick: abrirPortal, cargando: abriendoPortal });
+                                                secundarias.push({ key: 'portal', label: 'Actualizar tarjeta', Icono: CreditCard, onClick: abrirPortal, cargando: abriendoPortal });
                                             }
-                                            secundarias.push({ key: 'amanual', label: 'Cancelar cobro automático', Icono: Ban, onClick: () => setConfirmarManual(true) });
+                                            secundarias.push({ key: 'amanual', label: 'Desactivar cobro automático', Icono: Ban, onClick: () => setConfirmarManual(true) });
                                         } else {
                                             secundarias.push({ key: 'atarjeta', label: 'Activar tarjeta', Icono: CreditCard, onClick: () => setConfirmarTarjeta(true), cargando: procesandoCobro });
                                         }
@@ -694,7 +694,7 @@ export default function PaginaPerfilPersonal() {
             <ModalAdaptativo
                 abierto={confirmarManual}
                 onCerrar={() => !procesandoCobro && setConfirmarManual(false)}
-                titulo="Cancelar cobro automático"
+                titulo="Desactivar cobro automático"
                 iconoTitulo={<Ban className="w-5 h-5 text-slate-600" strokeWidth={2} />}
                 ancho="md"
             >
