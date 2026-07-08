@@ -207,13 +207,16 @@ export function VistaLogin({
             style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}
           >
             <Lock className="w-4 h-4 shrink-0 text-slate-500 mr-2.5" />
+            {/* autoComplete="new-password": evita que el gestor del navegador autocomplete la
+                contraseña cuando el correo se prellena. "Recordar correo" solo persiste el correo
+                (STORAGE_KEY_EMAIL); la contraseña nunca se guarda ni se recuerda. */}
             <input
               type={mostrarPassword ? 'text' : 'password'}
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder={t('login.contrasenaPlaceholder')}
               className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
-              autoComplete="current-password"
+              autoComplete="new-password"
             />
             <button
               type="button"
