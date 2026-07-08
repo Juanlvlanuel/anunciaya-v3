@@ -1,6 +1,7 @@
 # Demo de Business Studio para vendedores
 
-> **Estado:** Construido y **funcionando E2E en DEV** (30 jun 2026). El vendedor abre "Demo BS" desde el
+> **Estado:** ✅ **ACTIVADO EN PROD (8 jul 2026)** — seed del maestro + `VITE_WEB_URL` + demos ocultos del
+> Panel/ChatYA. Construido y validado E2E en DEV (30 jun) y en PROD (8 jul). El vendedor abre "Demo BS" desde el
 > Panel → overlay embebido → BS con datos, todos los módulos cargan, sesión aislada, sin expulsiones.
 > **Bugs corregidos en QA:** constraints del seed (ofertas.tipo, código voucher), trigger de
 > metricas_entidad (upsert en seed y clonado), rendimiento del clonado (inserts por lote, evita timeout),
@@ -10,19 +11,16 @@
 > **QA en DEV 100% ✅** (validado por Juan): entrar · navegar módulos con datos · crear producto/oferta ·
 > ofertas en el preview · aislamiento entre cuentas (cada quien su copia) · "Reiniciar demo" borra y
 > vuelve limpio.
-> **Pendiente (cierre):** en PROD correr seed (`pnpm exec tsx src/scripts/seedDemoMaestro.ts`) +
-> configurar `VITE_WEB_URL` (Vercel del Panel) · **commit** de todo (incluir schema.ts; migración ya en
-> prod). Antes del commit: revisar el árbol y stagear solo lo del demo [[feedback_verificar_alcance_commit]].
-> **Progreso:** Fases 1–8 completas en DEV ✅.
-> Migración `2026-06-30-demo-business-studio.sql` ya corrida en DEV+PROD. `schema.ts` editado pero
-> **sin commitear aún** junto al resto (regla: no subir schema antes que su migración en prod).
->
-> **Pasos que faltan (de Juan):**
-> 1. Correr el seed del maestro: `cd apps/api && pnpm exec tsx src/scripts/seedDemoMaestro.ts` (en DEV;
->    y en PROD cuando se valide). Idempotente.
-> 2. Configurar `VITE_WEB_URL` en `apps/admin` → la URL de la app web (DEV: `http://localhost:3000`;
->    PROD: el dominio real de la app, en las env vars de Vercel del proyecto del Panel).
-> 3. QA E2E: abrir demo desde el Panel, recorrer los 13 módulos de BS, reiniciar, 2º vendedor.
+> **✅ CIERRE EN PROD (8 jul 2026):** seed del maestro corrido en prod ("Mariscos El Capitán (DEMO)") +
+> `VITE_WEB_URL=https://anunciaya.mx` en el Vercel del Panel + commit hecho. **Gotcha (documentado):** el
+> proyecto del Panel tiene *Ignored Build Step*, así que un **Redeploy del mismo commit se auto-cancela**
+> y `VITE_WEB_URL` no se horneaba (el iframe caía a `localhost` → handoff 401); se forzó el build con un
+> commit que **toca `apps/admin`**. Verificado en prod: el botón "Demo BS" abre la copia con datos.
+> Migración `2026-06-30-demo-business-studio.sql` ya en DEV+PROD.
+> **Demos ocultos de las vistas/KPIs del Panel Admin y del directorio de ChatYA** (antes inflaban
+> contadores) — criterio y alcance en `docs/reportes/Exclusion_Demo_Panel_Admin.md` y
+> [[reference_exclusion_demo_vistas]]. Verificado en prod: Negocios activos = 1, Usuarios de ~17 a 3.
+> **Fases 1–8 completas.**
 >
 > **Ajustes de diseño durante la construcción (vs. plan original):**
 > - **Clientes sintéticos COMPARTIDOS** (no clonados por copia): los crea el seed (`@demo.anunciaya.local`);

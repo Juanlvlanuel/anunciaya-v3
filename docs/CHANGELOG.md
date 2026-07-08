@@ -8,6 +8,24 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [8 Julio 2026] - Demo de Business Studio activado en prod + demos ocultos del Panel/ChatYA 🎭
+
+Se **activó el Demo de Business Studio en producción** (los vendedores ya pueden mostrarlo a prospectos) y se **ocultaron los negocios/usuarios/actividad demo** de las vistas y KPIs del Panel Admin y del directorio de ChatYA, que antes inflaban los contadores. `tsc` verde en api/admin.
+
+### Activado en producción
+- **Seed del maestro** en prod (`seedDemoMaestro.ts` → negocio "Mariscos El Capitán (DEMO)") + **`VITE_WEB_URL=https://anunciaya.mx`** en el Vercel del Panel (para el iframe del demo).
+- **Gotcha (documentado):** el proyecto del Panel tiene *Ignored Build Step*, así que un **Redeploy del mismo commit se auto-cancela** y `VITE_WEB_URL` no se horneaba (el iframe caía a `localhost` → handoff 401). Fix: un commit que **toque `apps/admin`** fuerza el build real que incrusta la variable.
+
+### Corregido — demos fuera de las métricas
+- **Panel Admin** (`services/admin/`): los negocios demo (`es_demo`), usuarios sintéticos (`@demo.anunciaya.local`) y su actividad simulada dejan de contar en Negocios, Usuarios, Resumen, Métricas y Suscripciones. La exclusión se inyectó en el **único helper de alcance** de cada service (no se repite el WHERE).
+- **ChatYA** (`chatya.service.ts`): el directorio comercial y `buscarPersonas` ocultan los usuarios demo **y** la cuenta del superadmin (no son "vecinos de la ciudad").
+- Criterio: negocios `es_demo=false`; usuarios `COALESCE(correo,'') NOT ILIKE '%@demo.anunciaya.local'`; actividad excluida por vía del negocio demo. **Sin migración** (la columna `es_demo` ya existía). El feature del demo (abrir/reiniciar/BS embebido) queda intacto — vive en `demoBusinessStudio.service.ts`, disjunto de las lecturas del Panel. Doc: `docs/reportes/Exclusion_Demo_Panel_Admin.md`.
+
+### Verificado en prod
+- Negocios activos = 1 (solo el real), Usuarios bajó de ~17 a 3, Suscripciones sin ruido del demo; el botón "Demo BS" sigue apareciendo y abre la copia.
+
+---
+
 ## [8 Julio 2026] - Sentry: error tracking en producción (api / web / admin) 🔭
 
 Se integró **Sentry** para capturar automáticamente los errores de **producción** (frontend y backend) con stack traces legibles y alertas por correo. **Solo se activa en producción**; en desarrollo queda inerte. Validado **end-to-end** en las 4 superficies (backend, web, ScanYA, admin) con errores reales. `tsc` verde en api/web/admin. Doc canónico: `docs/DESPLIEGUE_PRODUCCION.md` (sección "Observabilidad — Sentry").
