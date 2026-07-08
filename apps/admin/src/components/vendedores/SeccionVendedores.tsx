@@ -55,6 +55,17 @@ const TABS_ESTADO = [
   { id: 'suspendido', label: 'Suspendidos' },
 ] as const;
 
+/** Color del estado del vendedor (para el punto y el resaltado del chip de filtro). */
+function colorEstadoVendedor(id: string): string {
+  return id === 'activo'
+    ? 'var(--panel-ok)'
+    : id === 'suspendido'
+      ? 'var(--panel-danger)'
+      : id === 'inactivo'
+        ? 'var(--panel-text-4)'
+        : 'var(--panel-brand)';
+}
+
 const OPCIONES_ORDEN: { valor: OrdenVendedores; etiqueta: string }[] = [
   { valor: 'nombre_az', etiqueta: 'Nombre (A–Z)' },
   { valor: 'nombre_za', etiqueta: 'Nombre (Z–A)' },
@@ -243,24 +254,23 @@ function ListaVendedores() {
     <div className="flex flex-wrap items-center gap-2">
       {TABS_ESTADO.map((t) => {
         const activo = estado === t.id;
+        const color = colorEstadoVendedor(t.id);
         return (
           <button
             key={t.id || 'todos'}
             type="button"
             data-testid={`vendedores-filtro-estado-${t.id || 'todos'}`}
             onClick={() => setEstado(t.id)}
-            className={`inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition hover:bg-marca-suave ${
-              activo ? 'border-marca bg-marca-suave text-marca' : 'border-borde bg-superficie text-texto-2'
-            }`}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+            style={activo ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
           >
+            <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
             {t.label}
             <span
-              className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
-              style={
-                activo
-                  ? { background: 'color-mix(in srgb, var(--panel-brand) 22%, transparent)', color: 'var(--panel-brand)' }
-                  : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }
-              }
+              className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+              style={activo
+                ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color }
+                : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
             >
               {conteoDe(t.id)}
             </span>
@@ -299,25 +309,35 @@ function ListaVendedores() {
   if (!esEscritorio) {
     return (
       <div className="flex h-full min-h-0 flex-col px-5 pt-4 pb-1.5">
-        <div className="mb-2.5 shrink-0">{buscador}</div>
-        <div className="mb-2 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
+        {/* Móvil: filtros (chips con punto de color) arriba, buscador debajo. */}
+        <div className="mb-2.5 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {TABS_ESTADO.map((t) => {
             const activo = estado === t.id;
+            const color = colorEstadoVendedor(t.id);
             return (
               <button
                 key={t.id || 'todos'}
                 type="button"
                 data-testid={`vendedores-filtro-estado-${t.id || 'todos'}`}
                 onClick={() => setEstado(t.id)}
-                className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${
-                  activo ? 'border-marca bg-marca-suave text-marca' : 'border-borde bg-superficie text-texto-2'
-                }`}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition"
+                style={activo ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
               >
-                {t.label} <span className="text-[11px] opacity-70">{conteoDe(t.id)}</span>
+                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
+                {t.label}
+                <span
+                  className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+                  style={activo
+                    ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color }
+                    : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+                >
+                  {conteoDe(t.id)}
+                </span>
               </button>
             );
           })}
         </div>
+        <div className="mb-2.5 shrink-0">{buscador}</div>
 
         <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
           {estadoLista ?? (

@@ -80,14 +80,14 @@ export function useEliminarAuditoria() {
   });
 }
 
-/** Vacía TODA la bitácora (solo superadmin). Refresca la lista al terminar. Irreversible. */
+/** Vacía la bitácora RESPETANDO los filtros activos (solo superadmin). Refresca al terminar. Irreversible. */
 export function useVaciarAuditoria() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => auditoriaService.vaciarAuditoria(),
-    onSuccess: () => {
+    mutationFn: (filtros?: Parameters<typeof auditoriaService.vaciarAuditoria>[0]) => auditoriaService.vaciarAuditoria(filtros),
+    onSuccess: (r) => {
       qc.invalidateQueries({ queryKey: queryKeys.auditoria.all() });
-      toast.exito('Bitácora vaciada');
+      toast.exito(`Bitácora depurada (${r.borradas})`);
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo vaciar la bitácora')),
   });

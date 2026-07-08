@@ -25,6 +25,15 @@ export function useCatalogoMarketplace(ciudadId?: string) {
   });
 }
 
+/** Publicaciones por ciudad (badge del dropdown). Independiente del filtro de ciudad. */
+export function useMarketplacePorCiudad() {
+  return useQuery({
+    queryKey: queryKeys.categoriasMarketplace.porCiudad(),
+    queryFn: () => categoriasService.contarPorCiudad(),
+    staleTime: 1000 * 60,
+  });
+}
+
 function useInvalidar() {
   const qc = useQueryClient();
   return () => qc.invalidateQueries({ queryKey: queryKeys.categoriasMarketplace.all() });

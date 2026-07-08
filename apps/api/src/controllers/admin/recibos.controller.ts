@@ -62,6 +62,22 @@ export async function listarRecibosController(req: Request, res: Response): Prom
 }
 
 // =============================================================================
+// GET /api/admin/recibos/conteo   (total de recibos del alcance — badge del menú)
+// =============================================================================
+
+export async function contarRecibosController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        // Reusa la lista (los conteos ignoran filtros de origen y, sin búsqueda/fechas, dan el total del alcance).
+        const data = await listarRecibos(panel, { pagina: 1, porPagina: 1 });
+        res.status(200).json({ success: true, message: 'Conteo de recibos', data: { total: data.conteos.total } });
+    } catch (error) {
+        console.error('Error en contarRecibosController:', error);
+        res.status(500).json({ success: false, message: 'Error al contar los recibos' });
+    }
+}
+
+// =============================================================================
 // GET /api/admin/recibos/:id/pdf   (genera/regenera el PDF y devuelve su URL)
 // =============================================================================
 

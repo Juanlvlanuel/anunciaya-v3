@@ -20,6 +20,7 @@ import { SlidersHorizontal, Layers, Clock, Gift, Coins, Pencil, Megaphone, Calen
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
+import { TabsSegmento } from '../ui/TabsSegmento';
 import { parsearEscalera, parsearTramosCiudades, parsearPeriodos, type ConfigFila, type TramoEscalera, type TramoCiudades } from '../../services/configuracionService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { DialogoEditarNumero, DialogoEditarTexto, DialogoEditarEscalera } from './DialogosConfig';
@@ -394,25 +395,14 @@ export function SeccionConfiguracion() {
   return (
     <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
-        {/* Pestañas (mismo patrón que Métricas: subrayado bajo la activa). */}
-        <div className="flex gap-5 border-b border-borde">
-          {TABS.map((t) => {
-            const activo = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                data-testid={`config-tab-${t.id}`}
-                data-active={activo}
-                onClick={() => setTab(t.id)}
-                className={`relative px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'}`}
-              >
-                {t.etiqueta}
-                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
-              </button>
-            );
-          })}
-        </div>
+        {/* Pestañas: segmented control (mismo estilo que Ciudades). */}
+        <TabsSegmento
+          tabs={TABS.map((t) => ({ id: t.id, label: t.etiqueta }))}
+          valor={tab}
+          onCambiar={setTab}
+          testidPrefijo="config-tab"
+          className="max-w-full self-start overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        />
 
         {/* MEMBRESÍA: precio (Stripe) + pagos y comisiones + prueba y gracia. */}
         {tab === 'membresia' && (

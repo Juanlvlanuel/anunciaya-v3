@@ -260,6 +260,83 @@ input:-webkit-autofill:focus {
   box-shadow: 0 8px 28px -8px rgba(15, 23, 42, 0.28), 0 2px 8px -3px rgba(15, 23, 42, 0.12);
 }
 
+/* Controles de zoom + "centrar" (grupo top-right de MapLibre) en estilo DARK, en todos los tamaños.
+   Los íconos de zoom son imágenes oscuras → se invierten a claro; el botón "centrar" usa currentColor.
+   index.css carga después del CSS base de MapLibre, así que estas reglas ganan. */
+.maplibregl-ctrl-group {
+  background: #0f172a;
+  border: 1px solid #1e293b;
+  box-shadow: 0 6px 18px -6px rgba(2, 6, 23, 0.6);
+}
+.maplibregl-ctrl-group button {
+  background: transparent;
+  color: #e2e8f0;
+}
+.maplibregl-ctrl-group button + button {
+  border-top: 1px solid #1e293b;
+}
+.maplibregl-ctrl-group button:not(:disabled):hover {
+  background: #1e293b;
+}
+.maplibregl-ctrl-group button .maplibregl-ctrl-icon {
+  filter: invert(1) brightness(1.7);
+}
+
+/* Escritorio: los grupos (zoom + centrar) se FUSIONAN en UNA sola píldora dark vertical, top-right. */
+@media (min-width: 1024px) {
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group {
+    display: flex;
+    flex-direction: column;
+    border-radius: 0;
+    border-bottom: 0;
+    overflow: hidden;
+  }
+  /* Botones un poco más grandes que el default (~29px), en un punto intermedio. */
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group button {
+    width: 34px;
+    height: 34px;
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group .maplibregl-ctrl-icon {
+    transform: scale(1.1);
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group button svg {
+    width: 21px;
+    height: 21px;
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group:first-of-type {
+    border-top-left-radius: 12px;
+    border-top-right-radius: 12px;
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group:last-of-type {
+    border-bottom-left-radius: 12px;
+    border-bottom-right-radius: 12px;
+    border-bottom: 1px solid #1e293b;
+  }
+  /* Divisores de 1px CON margen lateral (inset): líneas cortas centradas, no de borde a borde.
+     Un border no admite inset, así que se dibujan con un pseudo-elemento. */
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group button {
+    position: relative;
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group button + button {
+    border-top: none;
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group + .maplibregl-ctrl-group {
+    margin-top: 0;
+    border-top: none;
+  }
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group button + button::before,
+  .maplibregl-ctrl-top-right .maplibregl-ctrl-group + .maplibregl-ctrl-group button::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 5px;
+    right: 5px;
+    height: 1px;
+    background: #475569;
+    pointer-events: none;
+  }
+}
+
 /* Controles de zoom (NavigationControl) — en MÓVIL más grandes y SEPARADOS para el dedo: por
    defecto MapLibre los hace ~29px y pegados (con un solo borde divisorio), fáciles de confundir
    al tocar en pantalla táctil. Los volvemos botones independientes de 44px (área táctil cómoda). */
@@ -275,9 +352,9 @@ input:-webkit-autofill:focus {
     width: 42px;
     height: 42px;
     border-radius: 10px !important;
-    background: #fff;
-    border: 1px solid #e2e8f0;
-    box-shadow: 0 2px 6px -2px rgba(15, 23, 42, 0.22);
+    background: #0f172a;
+    border: 1px solid #1e293b;
+    box-shadow: 0 2px 6px -2px rgba(2, 6, 23, 0.6);
   }
   .maplibregl-ctrl-group button + button {
     margin-top: 8px;

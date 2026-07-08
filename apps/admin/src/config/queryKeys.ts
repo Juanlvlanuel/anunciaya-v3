@@ -142,6 +142,7 @@ export const queryKeys = {
   },
   suscripciones: {
     all: () => ['suscripciones'] as const,
+    conteoActivas: () => ['suscripciones', 'conteo-activas'] as const,
     lista: (filtros: FiltrosSuscripcionesKey) => ['suscripciones', 'lista', filtros] as const,
     detalle: (id: string) => ['suscripciones', 'detalle', id] as const,
     solicitudes: () => ['suscripciones', 'solicitudes'] as const,
@@ -149,6 +150,7 @@ export const queryKeys = {
   },
   recibos: {
     all: () => ['recibos'] as const,
+    conteo: () => ['recibos', 'conteo'] as const,
     lista: (filtros: FiltrosRecibosKey) => ['recibos', 'lista', filtros] as const,
   },
   auditoria: {
@@ -184,6 +186,7 @@ export const queryKeys = {
   },
   ciudades: {
     all: () => ['ciudades'] as const,
+    conteo: () => ['ciudades', 'conteo'] as const,
     lista: (filtros: FiltrosCiudadesKey) => ['ciudades', 'lista', filtros] as const,
     regiones: () => ['ciudades', 'regiones'] as const,
   },
@@ -198,6 +201,7 @@ export const queryKeys = {
   categoriasMarketplace: {
     all: () => ['categorias-marketplace'] as const,
     catalogo: (ciudadId?: string) => ['categorias-marketplace', 'catalogo', ciudadId ?? 'todas'] as const,
+    porCiudad: () => ['categorias-marketplace', 'por-ciudad'] as const,
   },
   territorios: {
     all: () => ['territorios'] as const,

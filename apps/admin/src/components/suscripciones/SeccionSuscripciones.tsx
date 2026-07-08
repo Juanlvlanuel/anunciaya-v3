@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin, ScrollText, FileCheck2, Landmark, CircleDot, type LucideIcon } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -23,6 +23,7 @@ import { useBitacora, usePrefetchEvento, useSolicitudesPendientes } from '../../
 import type { OrdenEvento, EventoFila, ConteosEventos } from '../../services/suscripcionesService';
 import { metaTipoEvento, BadgeTipoEvento, TIPOS_EVENTO_FILTRO } from './estadoEvento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { TabsSegmento } from '../ui/TabsSegmento';
 import { AvatarNegocio } from '../negocios/avatares';
 import { FichaEvento } from './FichaEvento';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
@@ -54,7 +55,7 @@ const OPCIONES_PERIODO: OpcionMenu[] = [
   { valor: 'anio', etiqueta: 'Último año' },
 ];
 
-const CONTEOS_CERO: ConteosEventos = { total: 0, porTipo: [], ingresos: 0, fallidos: 0 };
+const CONTEOS_CERO: ConteosEventos = { total: 0, porTipo: [], porOrigen: [], porPeriodo: [], ingresos: 0, fallidos: 0 };
 const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 /** Monto sin centavos para los KPIs compactos (móvil): el dato estrella nunca se trunca. */
@@ -86,7 +87,7 @@ function desdeDelPeriodo(periodo: string): string | undefined {
 }
 
 /** Cuerpo de la pestaña "Bitácora" (el libro mayor financiero). Es la vista original del módulo. */
-function PestanaBitacora() {
+function PestanaBitacora({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: TabSuscripciones) => void }) {
   const esEscritorio = useEsEscritorio();
 
   const [busqueda, setBusqueda] = useState('');
@@ -140,7 +141,7 @@ function PestanaBitacora() {
     [busquedaDeb, tipo, origen, periodo, orden, pagina],
   );
 
-  const { data, isLoading, isError, isFetching } = useBitacora(filtros);
+  const { data, isLoading, isError } = useBitacora(filtros);
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
@@ -148,10 +149,9 @@ function PestanaBitacora() {
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
-  const hayFiltro = !!(busquedaDeb || tipo || origen || periodo);
 
   // ── Filtros activos para distinguir "vacío con filtros" de "vacío real" ──────
-  // Igual que `hayFiltro` pero incluye el orden (cualquier filtro local fuera de su default).
+  // Incluye el orden (cualquier filtro local fuera de su default).
   const hayFiltrosActivos = !!(busqueda || tipo || origen || periodo) || orden !== 'fecha_recientes';
   const limpiarFiltros = () => {
     setBusqueda('');
@@ -161,12 +161,48 @@ function PestanaBitacora() {
     setOrden('fecha_recientes');
   };
 
-  const conteoDe = (id: string): number =>
-    id === '' ? conteos.total : (conteos.porTipo.find((c) => c.tipo === id)?.total ?? 0);
-
   const etiquetaOrigen = OPCIONES_ORIGEN.find((o) => o.valor === origen)?.etiqueta ?? 'Todos los orígenes';
   const etiquetaPeriodo = OPCIONES_PERIODO.find((o) => o.valor === periodo)?.etiqueta ?? 'Todo el tiempo';
+  const etiquetaTipo = tipo === '' ? 'Todos los tipos' : (TABS_TIPO.find((t) => t.id === tipo)?.label ?? 'Tipo');
+
+  // Opciones del dropdown de origen con el conteo por origen inyectado (badge dentro del menú).
+  // "Todos los orígenes" = suma (cada evento tiene un solo origen, así que particionan).
+  const opcionesOrigen = useMemo<OpcionMenu[]>(
+    () =>
+      OPCIONES_ORIGEN.map((o) => ({
+        ...o,
+        conteo:
+          o.valor === ''
+            ? (conteos.porOrigen?.reduce((s, r) => s + r.total, 0) ?? 0)
+            : (conteos.porOrigen?.find((r) => r.origen === o.valor)?.total ?? 0),
+      })),
+    [conteos],
+  );
+
+  // Opciones del dropdown de periodo con su conteo (badge dentro del menú). Ventanas ACUMULATIVAS:
+  // cada badge = movimientos en esa ventana (no particionan; hoy ≤ 7d ≤ 30d ≤ año ≤ todo).
+  const opcionesPeriodo = useMemo<OpcionMenu[]>(
+    () =>
+      OPCIONES_PERIODO.map((o) => ({
+        ...o,
+        conteo: conteos.porPeriodo?.find((p) => p.periodo === o.valor)?.total ?? 0,
+      })),
+    [conteos],
+  );
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Fecha (recientes)';
+
+  // Opciones del dropdown de TIPO (antes chips): punto de color por tipo + badge de conteo.
+  // "Todos los tipos" = total; cada tipo = su conteo (conteos.porTipo).
+  const opcionesTipo = useMemo<OpcionMenu[]>(
+    () =>
+      TABS_TIPO.map((t) => ({
+        valor: t.id,
+        etiqueta: t.id === '' ? 'Todos los tipos' : t.label,
+        color: t.id ? metaTipoEvento(t.id).color : 'var(--panel-brand)',
+        conteo: t.id === '' ? conteos.total : (conteos.porTipo?.find((c) => c.tipo === t.id)?.total ?? 0),
+      })),
+    [conteos],
+  );
 
   const buscador = (
     <div className="relative w-full">
@@ -210,16 +246,27 @@ function PestanaBitacora() {
   if (!esEscritorio) {
     return (
       <div className="flex h-full min-h-0 flex-col px-5 pt-4 pb-1.5">
+        <div className="mb-2.5"><TabsNavSuscripciones tab={tab} setTab={setTab} /></div>
         <div className="mb-2.5">{kpis}</div>
 
         {/* Buscador + filtros (icono) */}
         <div className="mb-2.5 flex shrink-0 items-center gap-2">
           <div className="flex-1">{buscador}</div>
           <MenuFiltro
+            testid="suscripciones-filtro-tipo"
+            icono={<CircleDot size={18} />}
+            etiquetaBoton={etiquetaTipo}
+            opciones={opcionesTipo}
+            valor={tipo}
+            onCambiar={setTipo}
+            alineacion="derecha"
+            soloIcono
+          />
+          <MenuFiltro
             testid="suscripciones-filtro-periodo"
             icono={<Calendar size={18} />}
             etiquetaBoton={etiquetaPeriodo}
-            opciones={OPCIONES_PERIODO}
+            opciones={opcionesPeriodo}
             valor={periodo}
             onCambiar={setPeriodo}
             alineacion="derecha"
@@ -229,33 +276,12 @@ function PestanaBitacora() {
             testid="suscripciones-filtro-origen"
             icono={<Layers size={18} />}
             etiquetaBoton={etiquetaOrigen}
-            opciones={OPCIONES_ORIGEN}
+            opciones={opcionesOrigen}
             valor={origen}
             onCambiar={setOrigen}
             alineacion="derecha"
             soloIcono
           />
-        </div>
-
-        {/* Chips de tipo (carrusel) */}
-        <div className="mb-2 flex shrink-0 gap-2 overflow-x-auto pb-1 [-ms-overflow-style:none] [scrollbar-width:none]">
-          {TABS_TIPO.map((t) => {
-            const activo = tipo === t.id;
-            const color = t.id ? metaTipoEvento(t.id).color : 'var(--panel-brand)';
-            return (
-              <button
-                key={t.id || 'todos'}
-                type="button"
-                data-testid={`suscripciones-filtro-tipo-${t.id || 'todos'}`}
-                onClick={() => setTipo(t.id)}
-                className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition"
-                style={activo ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
-              >
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
-                {t.label} <span className="text-[11px] opacity-70">{conteoDe(t.id)}</span>
-              </button>
-            );
-          })}
         </div>
 
         {/* Lista de cards */}
@@ -300,9 +326,9 @@ function PestanaBitacora() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* Buscador (izq) + KPIs discretos (der) — mismo renglón */}
-      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <div className="min-w-[220px] max-w-[360px] flex-1">{buscador}</div>
+      {/* Navegación (chips, izq) · buscador (centro, equidistante) · KPIs discretos (der) — mismo renglón */}
+      <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-4 gap-y-3">
+        <TabsNavSuscripciones tab={tab} setTab={setTab} />
         <div className="flex shrink-0 items-stretch divide-x divide-borde">
           <KpiInline etiqueta="Ingresos" valor={FMT_MONTO.format(conteos.ingresos)} acento="ok" testid="suscripciones-kpi-ingresos" />
           <KpiInline etiqueta="Cobros fallidos" valor={String(conteos.fallidos)} acento={conteos.fallidos > 0 ? 'danger' : undefined} testid="suscripciones-kpi-fallidos" />
@@ -310,45 +336,25 @@ function PestanaBitacora() {
         </div>
       </div>
 
-      {/* Subhead: chips de tipo (izq) + total y ordenar (der) */}
-      <div className="mb-2 flex shrink-0 items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2">
-          {TABS_TIPO.map((t) => {
-            const activo = tipo === t.id;
-            const color = t.id ? metaTipoEvento(t.id).color : 'var(--panel-brand)';
-            return (
-              <button
-                key={t.id || 'todos'}
-                type="button"
-                data-testid={`suscripciones-filtro-tipo-${t.id || 'todos'}`}
-                onClick={() => setTipo(t.id)}
-                className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
-                style={activo ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
-              >
-                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
-                {t.label}
-                <span
-                  className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
-                  style={activo ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color } : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
-                >
-                  {conteoDe(t.id)}
-                </span>
-              </button>
-            );
-          })}
-        </div>
+      {/* Fila 2: buscador (izq) + filtros en dropdown (der) */}
+      <div className="mb-2 flex shrink-0 flex-wrap items-center gap-3">
+        <div className="w-[300px] 2xl:w-[360px]">{buscador}</div>
 
-        <div className="flex shrink-0 items-center gap-3">
-          <span className="text-[13px] text-texto-3" data-testid="suscripciones-total">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'movimiento' : 'movimientos'}
-            {hayFiltro ? ' · filtrado' : ''}
-            {isFetching && !isLoading ? ' · actualizando…' : ''}
-          </span>
+        <div className="flex shrink-0 flex-wrap items-center gap-3 lg:ml-auto">
+          <MenuFiltro
+            testid="suscripciones-filtro-tipo"
+            icono={<CircleDot size={16} />}
+            etiquetaBoton={etiquetaTipo}
+            opciones={opcionesTipo}
+            valor={tipo}
+            onCambiar={setTipo}
+            tam="chip"
+          />
           <MenuFiltro
             testid="suscripciones-filtro-origen"
             icono={<Layers size={16} />}
             etiquetaBoton={etiquetaOrigen}
-            opciones={OPCIONES_ORIGEN}
+            opciones={opcionesOrigen}
             valor={origen}
             onCambiar={setOrigen}
             tam="chip"
@@ -357,7 +363,7 @@ function PestanaBitacora() {
             testid="suscripciones-filtro-periodo"
             icono={<Calendar size={16} />}
             etiquetaBoton={etiquetaPeriodo}
-            opciones={OPCIONES_PERIODO}
+            opciones={opcionesPeriodo}
             valor={periodo}
             onCambiar={setPeriodo}
             tam="chip"
@@ -445,9 +451,9 @@ function KpiTira({ etiqueta, valor, acento, testid }: { etiqueta: string; valor:
 function KpiInline({ etiqueta, valor, acento, testid }: { etiqueta: string; valor: string; acento?: 'ok' | 'danger'; testid?: string }) {
   const color = acento === 'ok' ? 'var(--panel-ok)' : acento === 'danger' ? 'var(--panel-danger)' : 'var(--panel-text)';
   return (
-    <div data-testid={testid} className="flex min-w-0 flex-col justify-center px-5 leading-tight first:pl-0 last:pr-0">
-      <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
-      <span className="truncate text-[22px] font-bold leading-tight" style={{ color }}>{valor}</span>
+    <div data-testid={testid} className="flex min-w-0 flex-col items-center justify-center px-5 text-center leading-tight">
+      <span className="max-w-full truncate text-[11px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
+      <span className="max-w-full truncate text-[22px] font-bold leading-tight" style={{ color }}>{valor}</span>
     </div>
   );
 }
@@ -568,11 +574,35 @@ function Paginacion({
 
 type TabSuscripciones = 'bitacora' | 'por-verificar' | 'datos-cobro';
 
-const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string }[] = [
-  { id: 'bitacora', etiqueta: 'Bitácora' },
-  { id: 'por-verificar', etiqueta: 'Por verificar' },
-  { id: 'datos-cobro', etiqueta: 'Datos de depósito' },
+const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string; Icono: LucideIcon }[] = [
+  { id: 'bitacora', etiqueta: 'Bitácora', Icono: ScrollText },
+  { id: 'por-verificar', etiqueta: 'Por verificar', Icono: FileCheck2 },
+  { id: 'datos-cobro', etiqueta: 'Datos de depósito', Icono: Landmark },
 ];
+
+/** Chips de navegación entre pestañas (Bitácora / Por verificar / Datos de depósito).
+ *  Se renderiza junto al buscador en Bitácora y arriba en las otras dos pestañas, así la
+ *  navegación siempre está visible. El badge de "Por verificar" usa el mismo hook que la cola. */
+function TabsNavSuscripciones({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: TabSuscripciones) => void }) {
+  const { data: solicitudes } = useSolicitudesPendientes();
+  const pendientes = solicitudes?.length ?? 0;
+  return (
+    <TabsSegmento
+      tabs={TABS_SUSCRIPCIONES.map((t) => ({
+        id: t.id,
+        label: t.etiqueta,
+        icono: <t.Icono size={14} />,
+        // "Por verificar" siempre muestra su badge (incluso 0); con alerta marca si hay pendientes.
+        badge: t.id === 'por-verificar' ? pendientes : undefined,
+        badgeAlerta: t.id === 'por-verificar',
+      }))}
+      valor={tab}
+      onCambiar={setTab}
+      testidPrefijo="suscripciones-tab"
+      className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    />
+  );
+}
 
 /**
  * Sección Suscripciones del Panel con 3 pestañas:
@@ -602,49 +632,22 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
     }
   }, [filtroSusc, consumirFiltroSuscripciones]);
 
-  const { data: solicitudes } = useSolicitudesPendientes();
-  const pendientes = solicitudes?.length ?? 0;
-
   return (
     <div className="flex h-full min-h-0 flex-col">
-      {/* Pestañas */}
-      <div className="shrink-0 px-4 pt-3 lg:px-5">
-        <div className="flex gap-5 overflow-x-auto border-b border-borde [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {TABS_SUSCRIPCIONES.map((t) => {
-            const activo = tab === t.id;
-            const badge = t.id === 'por-verificar' && pendientes > 0 ? pendientes : null;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                data-testid={`suscripciones-tab-${t.id}`}
-                data-active={activo}
-                onClick={() => setTab(t.id)}
-                className={`relative inline-flex items-center gap-1.5 whitespace-nowrap px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${
-                  activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'
-                }`}
-              >
-                {t.etiqueta}
-                {badge != null && (
-                  <span className="txt-badge inline-flex min-w-[18px] items-center justify-center rounded-full bg-marca px-1.5 text-[11px] font-semibold text-marca-contraste">
-                    {badge}
-                  </span>
-                )}
-                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* Vista activa */}
+      {/* Vista activa. Los chips de navegación (TabsNavSuscripciones) viven junto al
+          buscador en Bitácora y arriba en las otras dos pestañas. */}
       {tab === 'bitacora' ? (
         <div className="min-h-0 flex-1">
-          <PestanaBitacora />
+          <PestanaBitacora tab={tab} setTab={setTab} />
         </div>
       ) : (
-        <div className="min-h-0 flex-1 overflow-y-auto p-4 lg:p-5">
-          {tab === 'por-verificar' ? <PestanaPorVerificar /> : <PestanaDatosCobro />}
+        <div className="flex min-h-0 flex-1 flex-col p-4 lg:p-5">
+          <div className="mb-3 shrink-0">
+            <TabsNavSuscripciones tab={tab} setTab={setTab} />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {tab === 'por-verificar' ? <PestanaPorVerificar /> : <PestanaDatosCobro />}
+          </div>
         </div>
       )}
     </div>

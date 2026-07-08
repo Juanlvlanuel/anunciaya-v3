@@ -66,3 +66,23 @@ export async function listarCatalogo(
         totalBusco: r.total_busco,
     }));
 }
+
+/**
+ * Publicaciones activas DISTINTAS por ciudad, para el badge del dropdown (independiente del filtro
+ * de ciudad seleccionado). Cada artículo tiene una ciudad, así que las plazas particionan y la
+ * entrada '' (todas) es la suma. Solo publicaciones activas y no borradas.
+ */
+export async function contarPublicacionesPorCiudad(): Promise<Array<{ ciudadId: string; total: number }>> {
+    const resultado = await db.execute(sql`
+        SELECT a.ciudad_id AS ciudad_id, COUNT(*)::int AS total
+        FROM articulos_marketplace a
+        WHERE a.estado = 'activa' AND a.deleted_at IS NULL AND a.ciudad_id IS NOT NULL
+        GROUP BY a.ciudad_id
+    `);
+    const filas = resultado.rows as Array<{ ciudad_id: string; total: number }>;
+    const total = filas.reduce((s, r) => s + r.total, 0);
+    return [
+        { ciudadId: '', total },
+        ...filas.map((r) => ({ ciudadId: r.ciudad_id, total: r.total })),
+    ];
+}

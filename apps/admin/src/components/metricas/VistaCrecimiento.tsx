@@ -8,31 +8,47 @@
  * Ubicación: apps/admin/src/components/metricas/VistaCrecimiento.tsx
  */
 
-import { Store, TrendingUp, TrendingDown, CircleDollarSign, BarChart3 } from 'lucide-react';
-import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend } from 'recharts';
+import { BarChart3, Store, CircleDollarSign } from 'lucide-react';
+import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { RolPanel } from '../../data/menuPanel';
-import type { PeriodoSel, TopVendedor } from '../../services/metricasService';
+import type { TopVendedor } from '../../services/metricasService';
 import { useMetricasCrecimiento } from '../../hooks/queries/useMetricas';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { AvatarNegocio } from '../negocios/avatares';
 import {
-  TarjetaKpi, GraficaCard, TooltipMetricas, CursorBarra, GAP_BARRAS, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto,
+  TooltipMetricas, CursorBarra, GAP_BARRAS, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto,
+  BarraMetricas, KpiInline, FilaKpisInline, FMT_NUM, FMT_MONEDA, type NavMetricas,
 } from './piezas';
 
 const FMT_COMPACTO = new Intl.NumberFormat('es-MX', { notation: 'compact', maximumFractionDigits: 1 });
 
-export function VistaCrecimiento({ periodo, rol }: { periodo: PeriodoSel; rol: RolPanel }) {
-  const { data, isLoading, isError } = useMetricasCrecimiento(periodo);
+export function VistaCrecimiento({ nav, rol }: { nav: NavMetricas; rol: RolPanel }) {
+  const { data, isLoading, isError } = useMetricasCrecimiento(nav.periodo);
   const esVendedor = rol === 'vendedor';
+  const kpis = data?.kpis;
+
+  // Barra superior (tabs + selector) SIEMPRE visible; los KPIs aparecen cuando ya cargaron los datos.
+  const barra = (
+    <BarraMetricas {...nav}>
+      {kpis && (
+        <FilaKpisInline>
+          <KpiInline testid="metricas-kpi-negociosActivos" etiqueta={esVendedor ? 'Mi cartera' : 'Negocios activos'} etiquetaCorta={esVendedor ? undefined : 'Neg. Activos'} valor={FMT_NUM.format(kpis.negociosActivos.valor)} />
+          <KpiInline testid="metricas-kpi-altas" etiqueta="Altas" valor={FMT_NUM.format(kpis.altas.valor)} />
+          <KpiInline testid="metricas-kpi-churn" etiqueta="Bajas" valor={FMT_NUM.format(kpis.churn.valor)} />
+          <KpiInline testid="metricas-kpi-ingresos" etiqueta="Ingresos" valor={FMT_MONEDA.format(kpis.ingresos.valor)} acento="ok" />
+        </FilaKpisInline>
+      )}
+    </BarraMetricas>
+  );
 
   if (isLoading) {
-    return <EstadoSeccion variante="cargando" icono={BarChart3} titulo="Cargando crecimiento…" />;
+    return <div className="flex flex-col gap-5 lg:gap-6">{barra}<EstadoSeccion variante="cargando" icono={BarChart3} titulo="Cargando crecimiento…" /></div>;
   }
   if (isError || !data) {
-    return <EstadoSeccion variante="error" icono={BarChart3} titulo="No se pudieron cargar las métricas." descripcion="Revisa tu conexión e inténtalo de nuevo." />;
+    return <div className="flex flex-col gap-5 lg:gap-6">{barra}<EstadoSeccion variante="error" icono={BarChart3} titulo="No se pudieron cargar las métricas." descripcion="Revisa tu conexión e inténtalo de nuevo." /></div>;
   }
 
-  const { kpis, series, topVendedores } = data;
+  const { series, topVendedores } = data;
   // Barras DIVERGENTES: altas hacia arriba, bajas hacia abajo (negativo) → una sola columna por
   // periodo (mismo grosor que la de Ingresos) y lectura directa del crecimiento neto.
   const datosCrecimiento = series.crecimiento.map((p) => ({ mes: p.mes, altas: p.altas, bajas: -p.bajas }));
@@ -40,41 +56,65 @@ export function VistaCrecimiento({ periodo, rol }: { periodo: PeriodoSel; rol: R
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4 2xl:gap-4">
-        <TarjetaKpi testid="metricas-kpi-negociosActivos" icono={Store} etiqueta={esVendedor ? 'Mi cartera' : 'Negocios activos'} kpi={kpis.negociosActivos} />
-        <TarjetaKpi testid="metricas-kpi-altas" icono={TrendingUp} etiqueta="Altas" kpi={kpis.altas} sentido="positivo" />
-        <TarjetaKpi testid="metricas-kpi-churn" icono={TrendingDown} etiqueta="Bajas" kpi={kpis.churn} sentido="negativo" />
-        <TarjetaKpi testid="metricas-kpi-ingresos" icono={CircleDollarSign} etiqueta="Ingresos" kpi={kpis.ingresos} tipo="moneda" acento="ok" sentido="positivo" />
-      </div>
+      {barra}
 
-      {/* Series */}
+      {/* Series — 2 gráficas peer con header (icono + línea divisoria) calcado del de "Negocios en riesgo". */}
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:gap-5">
-        <GraficaCard testid="metricas-grafica-crecimiento" titulo="Altas vs. bajas" subtitulo="Negocios nuevos y cancelados cada mes">
-          <BarChart data={datosCrecimiento} stackOffset="sign" barCategoryGap={GAP_BARRAS} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
-            <CartesianGrid vertical={false} stroke={COLOR.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="mes" tickFormatter={etiquetaPunto} {...ejeX} />
-            <YAxis allowDecimals={false} {...EJE_PROPS} tickFormatter={(v: number) => String(Math.abs(v))} />
-            <Tooltip content={<TooltipMetricas tipo="numero" />} cursor={<CursorBarra />} />
-            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12.5 }} />
-            <Bar dataKey="altas" name="Altas" fill={COLOR.marca} stackId="g" radius={[3, 3, 0, 0]} />
-            <Bar dataKey="bajas" name="Bajas" fill={COLOR.danger} stackId="g" radius={[0, 0, 3, 3]} />
-          </BarChart>
-        </GraficaCard>
+        <section data-testid="metricas-grafica-crecimiento" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+          <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
+              <Store size={17} />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[14px] font-semibold text-texto">Altas vs. bajas</span>
+              <span className="text-[12px] text-texto-3">Negocios nuevos y cancelados cada mes</span>
+            </span>
+          </header>
+          <div className="mt-auto p-4">
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={datosCrecimiento} stackOffset="sign" barCategoryGap={GAP_BARRAS} margin={{ top: 4, right: 4, bottom: 0, left: -16 }}>
+                  <CartesianGrid vertical={false} stroke={COLOR.grid} strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" tickFormatter={etiquetaPunto} {...ejeX} />
+                  <YAxis allowDecimals={false} {...EJE_PROPS} tickFormatter={(v: number) => String(Math.abs(v))} />
+                  <Tooltip content={<TooltipMetricas tipo="numero" />} cursor={<CursorBarra />} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12.5 }} />
+                  <Bar dataKey="altas" name="Altas" fill={COLOR.marca} stackId="g" radius={[3, 3, 0, 0]} />
+                  <Bar dataKey="bajas" name="Bajas" fill={COLOR.danger} stackId="g" radius={[0, 0, 3, 3]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
 
-        <GraficaCard testid="metricas-grafica-ingresos" titulo="Ingresos" subtitulo="Cuánto cobraste, por forma de pago">
-          <BarChart data={series.ingresos} barCategoryGap={GAP_BARRAS} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
-            <CartesianGrid vertical={false} stroke={COLOR.grid} strokeDasharray="3 3" />
-            <XAxis dataKey="mes" tickFormatter={etiquetaPunto} {...ejeX} />
-            <YAxis width={50} tickFormatter={(v: number) => `$${FMT_COMPACTO.format(v)}`} {...EJE_PROPS} />
-            <Tooltip content={<TooltipMetricas tipo="moneda" />} cursor={<CursorBarra />} />
-            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12.5 }} />
-            <Bar dataKey="tarjeta" stackId="i" name="Tarjeta" fill={COLOR.marca} />
-            <Bar dataKey="efectivo" stackId="i" name="Efectivo" fill={COLOR.ok} />
-            <Bar dataKey="transferencia" stackId="i" name="Transferencia" fill={COLOR.marca2} />
-            <Bar dataKey="otro" stackId="i" name="Otro" fill={COLOR.gris} radius={[3, 3, 0, 0]} />
-          </BarChart>
-        </GraficaCard>
+        <section data-testid="metricas-grafica-ingresos" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+          <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
+            <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
+              <CircleDollarSign size={17} />
+            </span>
+            <span className="flex min-w-0 flex-1 flex-col">
+              <span className="text-[14px] font-semibold text-texto">Ingresos</span>
+              <span className="text-[12px] text-texto-3">Cuánto cobraste, por forma de pago</span>
+            </span>
+          </header>
+          <div className="mt-auto p-4">
+            <div style={{ width: '100%', height: 260 }}>
+              <ResponsiveContainer>
+                <BarChart data={series.ingresos} barCategoryGap={GAP_BARRAS} margin={{ top: 4, right: 4, bottom: 0, left: -8 }}>
+                  <CartesianGrid vertical={false} stroke={COLOR.grid} strokeDasharray="3 3" />
+                  <XAxis dataKey="mes" tickFormatter={etiquetaPunto} {...ejeX} />
+                  <YAxis width={50} tickFormatter={(v: number) => `$${FMT_COMPACTO.format(v)}`} {...EJE_PROPS} />
+                  <Tooltip content={<TooltipMetricas tipo="moneda" />} cursor={<CursorBarra />} />
+                  <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 12.5 }} />
+                  <Bar dataKey="tarjeta" stackId="i" name="Tarjeta" fill={COLOR.marca} />
+                  <Bar dataKey="efectivo" stackId="i" name="Efectivo" fill={COLOR.ok} />
+                  <Bar dataKey="transferencia" stackId="i" name="Transferencia" fill={COLOR.marca2} />
+                  <Bar dataKey="otro" stackId="i" name="Otro" fill={COLOR.gris} radius={[3, 3, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        </section>
       </div>
 
       {/* Top vendedores (super/gerente) */}

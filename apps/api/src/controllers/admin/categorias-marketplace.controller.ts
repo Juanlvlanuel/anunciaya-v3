@@ -8,7 +8,7 @@
  */
 
 import type { Request, Response } from 'express';
-import { listarCatalogo } from '../../services/admin/categorias-marketplace.service.js';
+import { listarCatalogo, contarPublicacionesPorCiudad } from '../../services/admin/categorias-marketplace.service.js';
 import {
     crearCategoria,
     editarCategoria,
@@ -48,6 +48,17 @@ export async function listarCategoriasMPController(
     } catch (error) {
         console.error('Error en listarCategoriasMPController:', error);
         res.status(500).json({ success: false, message: 'Error al obtener el catálogo' });
+    }
+}
+
+// ─ CONTEO POR CIUDAD (badge del dropdown) ─
+export async function contarPublicacionesPorCiudadMPController(_req: Request, res: Response): Promise<void> {
+    try {
+        const data = await contarPublicacionesPorCiudad();
+        res.status(200).json({ success: true, message: 'Conteo por ciudad', data });
+    } catch (error) {
+        console.error('Error en contarPublicacionesPorCiudadMPController:', error);
+        res.status(500).json({ success: false, message: 'Error al contar por ciudad' });
     }
 }
 

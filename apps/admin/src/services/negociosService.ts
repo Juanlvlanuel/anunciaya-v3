@@ -36,6 +36,8 @@ export const CIUDAD_SIN = '__none';
 export interface ConteosEstado {
   total: number;
   porEstado: Array<{ estado: string; total: number }>;
+  porVendedor: Array<{ vendedorId: string | null; total: number }>;
+  porCiudad: Array<{ ciudad: string | null; total: number }>;
 }
 
 /** Estado administrativo (Panel): visibilidad efectiva la da `activo`. */
@@ -163,7 +165,7 @@ export async function listarNegocios(params: ParametrosLista): Promise<ListaNego
       total: 0,
       pagina: params.pagina,
       porPagina: params.porPagina,
-      conteos: { total: 0, porEstado: [] },
+      conteos: { total: 0, porEstado: [], porVendedor: [], porCiudad: [] },
     }
   );
 }

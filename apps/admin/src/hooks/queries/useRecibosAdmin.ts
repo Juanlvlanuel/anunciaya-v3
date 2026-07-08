@@ -29,6 +29,15 @@ export function useRecibos(filtros: ParametrosRecibos) {
   });
 }
 
+/** Total de recibos del alcance (badge del menú). `enabled` lo gatea por acceso. */
+export function useConteoRecibos(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.recibos.conteo(),
+    queryFn: () => recibosService.contarRecibos(),
+    enabled,
+  });
+}
+
 /** Genera/regenera el PDF del recibo y lo abre en una pestaña nueva. */
 export function useDescargarRecibo() {
   return useMutation({

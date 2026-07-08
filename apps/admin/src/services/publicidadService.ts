@@ -22,12 +22,16 @@ import { optimizarImagen } from '../utils/optimizarImagen';
 
 export type EstadoPublicidad = 'activa' | 'pausada' | 'expirada' | 'cancelada';
 export type Carrusel = 'anuncios' | 'patrocinadores' | 'fundadores';
+/** Filtro de tamaño del dropdown: Grande (patrocinadores) · Chico (anuncios) · Combo. Excluyentes. */
+export type FiltroTamano = 'patrocinadores' | 'anuncios' | 'combo';
 export type OrigenPublicidad = 'self' | 'manual' | 'cortesia';
 export type OrdenPublicidad = 'recientes' | 'antiguos' | 'vencimiento' | 'estado';
 
-export interface ConteosEstado {
+export interface ConteosPublicidad {
   total: number;
   porEstado: Array<{ estado: string; total: number }>;
+  porTamano: Array<{ tamano: string; total: number }>;
+  porOrigen: Array<{ origen: string; total: number }>;
 }
 
 export interface PublicidadFila {
@@ -53,7 +57,7 @@ export interface ListaPublicidad {
   total: number;
   pagina: number;
   porPagina: number;
-  conteos: ConteosEstado;
+  conteos: ConteosPublicidad;
 }
 
 export interface PiezaDetalle {
@@ -102,7 +106,7 @@ export interface PublicidadDetalle {
 export interface ParametrosPublicidad {
   busqueda?: string;
   estado?: EstadoPublicidad;
-  carrusel?: Carrusel;
+  carrusel?: FiltroTamano;
   origen?: OrigenPublicidad;
   orden?: OrdenPublicidad;
   pagina: number;
@@ -115,7 +119,7 @@ export interface ParametrosPublicidad {
 
 export async function listarPublicidad(params: ParametrosPublicidad): Promise<ListaPublicidad> {
   const { data } = await api.get<RespuestaAPI<ListaPublicidad>>('/admin/publicidad', { params });
-  return data.data ?? { items: [], total: 0, pagina: params.pagina, porPagina: params.porPagina, conteos: { total: 0, porEstado: [] } };
+  return data.data ?? { items: [], total: 0, pagina: params.pagina, porPagina: params.porPagina, conteos: { total: 0, porEstado: [], porTamano: [], porOrigen: [] } };
 }
 
 export async function obtenerDetallePublicidad(id: string): Promise<PublicidadDetalle | null> {

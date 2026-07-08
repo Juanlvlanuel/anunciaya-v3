@@ -67,6 +67,8 @@ export interface FiltrosEventos {
 export interface ConteosEventos {
     total: number;
     porTipo: Array<{ tipo: string; total: number }>;
+    porOrigen: Array<{ origen: string; total: number }>;  // 'stripe' (automático) · 'manual' (registrado)
+    porPeriodo: Array<{ periodo: string; total: number }>; // '' (todo) · 'hoy' · '7d' · '30d' · 'anio' — ventanas acumulativas
     /** KPIs sobre el alcance + filtros activos (SIN el filtro de tipo). */
     ingresos: number;      // SUM(monto) de cobro_exitoso + pago_manual
     fallidos: number;      // COUNT de cobro_fallido
@@ -177,30 +179,35 @@ export async function listarEventos(
     filtros: FiltrosEventos,
 ): Promise<ListaEventos> {
     const alcance = await condicionAlcance(panel);
-    const conteosVacios: ConteosEventos = { total: 0, porTipo: [], ingresos: 0, fallidos: 0 };
+    const conteosVacios: ConteosEventos = { total: 0, porTipo: [], porOrigen: [], porPeriodo: [], ingresos: 0, fallidos: 0 };
 
     // Rol sin nada que ver (config incompleta / fuera de alcance): bitácora vacía.
     if (alcance === 'vacio') {
         return { items: [], total: 0, pagina: filtros.pagina, porPagina: filtros.porPagina, conteos: conteosVacios };
     }
 
-    // BASE = alcance + búsqueda + origen + negocio + rango de fechas (SIN tipo). Sobre
-    // esta base se calculan conteos por tipo y KPIs, para que cuadren con lo filtrado.
-    const base: SQL[] = [];
-    if (alcance) base.push(alcance);
+    // COMÚN = alcance + búsqueda + negocio (SIN tipo, origen NI fecha). Sobre esta base + los OTROS
+    // filtros se calculan las facetas, para que cada dropdown/chip cuente EXCLUYENDO su propio filtro.
+    const comun: SQL[] = [];
+    if (alcance) comun.push(alcance);
     const condBusqueda = condicionBusqueda(filtros.busqueda);
-    if (condBusqueda) base.push(condBusqueda);
-    if (filtros.origen) base.push(eq(eventosPago.origen, filtros.origen));
-    if (filtros.negocioId) base.push(eq(eventosPago.negocioId, filtros.negocioId));
-    if (filtros.desde) base.push(gte(eventosPago.fechaEvento, filtros.desde));
-    if (filtros.hasta) base.push(lte(eventosPago.fechaEvento, filtros.hasta));
+    if (condBusqueda) comun.push(condBusqueda);
+    if (filtros.negocioId) comun.push(eq(eventosPago.negocioId, filtros.negocioId));
 
-    // LISTA = base + tipo (lo que realmente se muestra/pagina).
-    const condLista = [...base];
-    if (filtros.tipo) condLista.push(eq(eventosPago.tipo, filtros.tipo));
+    const condTipo = filtros.tipo ? eq(eventosPago.tipo, filtros.tipo) : null;
+    const condOrigen = filtros.origen ? eq(eventosPago.origen, filtros.origen) : null;
+    const condFecha: SQL[] = [];
+    if (filtros.desde) condFecha.push(gte(eventosPago.fechaEvento, filtros.desde));
+    if (filtros.hasta) condFecha.push(lte(eventosPago.fechaEvento, filtros.hasta));
+    const armar = (...extra: (SQL | null)[]) => {
+        const conds = [...comun, ...extra.filter((x): x is SQL => x != null)];
+        return conds.length ? and(...conds) : undefined;
+    };
 
-    const whereBase = base.length ? and(...base) : undefined;
-    const whereLista = condLista.length ? and(...condLista) : undefined;
+    const whereBase = armar(condOrigen, ...condFecha);            // porTipo + KPIs (excluye tipo)
+    const whereOrigen = armar(condTipo, ...condFecha);            // porOrigen (excluye origen)
+    const wherePeriodo = armar(condTipo, condOrigen);             // porPeriodo (excluye el filtro de fecha)
+    const whereLista = armar(condOrigen, condTipo, ...condFecha); // tabla + total (con todos los filtros)
 
     // Total (con tipo, para el paginado).
     const [{ total }] = await db
@@ -232,9 +239,38 @@ export async function listarEventos(
         .from(eventosPago)
         .where(whereBase);
 
+    // Conteos por origen (SIN el filtro de origen en el WHERE).
+    const filasOrigen = await db
+        .select({ origen: eventosPago.origen, n: count() })
+        .from(eventosPago)
+        .where(whereOrigen)
+        .groupBy(eventosPago.origen);
+
+    // Conteos por periodo (ventanas ACUMULATIVAS anidadas, mismas fronteras que desdeDelPeriodo del
+    // front: inicio del día · -6d · -29d · -1año). Excluye el propio filtro de fecha. Basado en la
+    // hora del servidor (date_trunc/now); puede diferir por unas horas del corte local del navegador.
+    const [filaPeriodo] = await db
+        .select({
+            todo: count(),
+            hoy: sql<number>`count(*) FILTER (WHERE ${eventosPago.fechaEvento} >= date_trunc('day', now()))`,
+            d7: sql<number>`count(*) FILTER (WHERE ${eventosPago.fechaEvento} >= date_trunc('day', now()) - interval '6 days')`,
+            d30: sql<number>`count(*) FILTER (WHERE ${eventosPago.fechaEvento} >= date_trunc('day', now()) - interval '29 days')`,
+            anio: sql<number>`count(*) FILTER (WHERE ${eventosPago.fechaEvento} >= date_trunc('day', now()) - interval '1 year')`,
+        })
+        .from(eventosPago)
+        .where(wherePeriodo);
+
     const conteos: ConteosEventos = {
         total: totalConteo,
         porTipo,
+        porOrigen: filasOrigen.map((f) => ({ origen: f.origen, total: Number(f.n) })),
+        porPeriodo: [
+            { periodo: '', total: Number(filaPeriodo?.todo ?? 0) },
+            { periodo: 'hoy', total: Number(filaPeriodo?.hoy ?? 0) },
+            { periodo: '7d', total: Number(filaPeriodo?.d7 ?? 0) },
+            { periodo: '30d', total: Number(filaPeriodo?.d30 ?? 0) },
+            { periodo: 'anio', total: Number(filaPeriodo?.anio ?? 0) },
+        ],
         ingresos: Number(kpis?.ingresos ?? 0),
         fallidos: Number(kpis?.fallidos ?? 0),
     };

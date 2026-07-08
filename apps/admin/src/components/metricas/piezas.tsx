@@ -11,9 +11,11 @@
  */
 
 import type { ReactNode, ReactElement } from 'react';
-import { ArrowUpRight, ArrowDownRight, Minus, type LucideIcon } from 'lucide-react';
+import { ArrowUpRight, ArrowDownRight, Minus, TrendingUp, Smartphone, Users, type LucideIcon } from 'lucide-react';
 import { ResponsiveContainer } from 'recharts';
-import type { KpiMetrica } from '../../services/metricasService';
+import type { KpiMetrica, PeriodoSel } from '../../services/metricasService';
+import { SelectorPeriodo } from './SelectorPeriodo';
+import { TabsSegmento } from '../ui/TabsSegmento';
 
 // =============================================================================
 // FORMATOS
@@ -167,6 +169,79 @@ export function TarjetaKpi({
       </span>
       <span className="min-w-0 flex-1 text-[14px] font-semibold text-texto lg:mt-3 lg:flex-none lg:truncate">{etiqueta}</span>
       <Icono size={18} className="ml-auto shrink-0 text-texto-4 lg:absolute lg:right-4 lg:top-4 lg:ml-0 2xl:right-5 2xl:top-5" />
+    </div>
+  );
+}
+
+// =============================================================================
+// BARRA SUPERIOR DE MÉTRICAS (tabs con icono + KPIs compactos + selector) · KPI INLINE
+// =============================================================================
+
+export type TabIdMetricas = 'crecimiento' | 'adopcion' | 'usuarios';
+export interface TabMetricas { id: TabIdMetricas; etiqueta: string; Icono: LucideIcon }
+export const TABS_METRICAS: TabMetricas[] = [
+  { id: 'crecimiento', etiqueta: 'Crecimiento', Icono: TrendingUp },
+  { id: 'adopcion', etiqueta: 'Uso de la app', Icono: Smartphone },
+  { id: 'usuarios', etiqueta: 'Usuarios', Icono: Users },
+];
+
+export interface NavMetricas {
+  tabs: TabMetricas[];
+  tab: TabIdMetricas;
+  setTab: (t: TabIdMetricas) => void;
+  periodo: PeriodoSel;
+  setPeriodo: (p: PeriodoSel) => void;
+}
+
+/** KPI compacto inline (sin card, sin variación): cifra + etiqueta. Estilo uniforme del
+ *  Panel (mismo patrón que Suscripciones/Recibos). Se agrupa dentro de <FilaKpisInline>. */
+export function KpiInline({ etiqueta, etiquetaCorta, valor, acento, testid }: {
+  etiqueta: string;
+  /** Etiqueta abreviada para móvil (si no se define, usa `etiqueta`). */
+  etiquetaCorta?: string;
+  valor: string;
+  acento?: 'ok' | 'danger';
+  testid?: string;
+}) {
+  const color = acento === 'ok' ? 'var(--panel-ok)' : acento === 'danger' ? 'var(--panel-danger)' : 'var(--panel-text)';
+  return (
+    <div data-testid={testid} className="flex shrink-0 flex-col items-center justify-center px-5 text-center leading-tight">
+      <span className="txt-badge whitespace-nowrap font-semibold uppercase tracking-wide text-texto-4 lg:text-[11px]">
+        <span className="lg:hidden">{etiquetaCorta ?? etiqueta}</span>
+        <span className="hidden lg:inline">{etiqueta}</span>
+      </span>
+      <span className="whitespace-nowrap text-[17px] font-bold leading-tight lg:text-[22px]" style={{ color }}>{valor}</span>
+    </div>
+  );
+}
+
+/** Contenedor de KPIs compactos: divididos por líneas verticales, sin card (igual que Suscripciones). */
+export function FilaKpisInline({ children }: { children: ReactNode }) {
+  return <div className="flex shrink-0 items-stretch divide-x divide-borde">{children}</div>;
+}
+
+/** Barra superior de Métricas: tabs (chips con icono, izq) + KPIs y selector de periodo (der),
+ *  en un solo renglón. Los KPIs (children) los pone cada vista con sus propios datos. */
+export function BarraMetricas({ tabs, tab, setTab, periodo, setPeriodo, children }: NavMetricas & { children?: ReactNode }) {
+  return (
+    <div className="flex flex-col gap-3 lg:flex-row lg:flex-wrap lg:items-center lg:gap-x-4 lg:gap-y-3">
+      {/* Tabs: segmented control (mismo estilo que Ciudades) */}
+      <TabsSegmento
+        tabs={tabs.map((t) => ({ id: t.id, label: t.etiqueta, icono: <t.Icono size={14} /> }))}
+        valor={tab}
+        onCambiar={setTab}
+        testidPrefijo="metricas-tab"
+        className="max-w-full self-start overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:self-auto lg:shrink-0"
+      />
+      {/* KPIs (móvil: carrusel a lo ancho · escritorio: a la derecha) + selector (móvil: centrado). */}
+      <div className="flex flex-col gap-3 lg:ml-auto lg:flex-row lg:flex-wrap lg:items-center lg:justify-end lg:gap-x-4">
+        <div className="w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:w-auto">
+          {children}
+        </div>
+        <div className="flex justify-center lg:block">
+          <SelectorPeriodo valor={periodo} onCambiar={setPeriodo} />
+        </div>
+      </div>
     </div>
   );
 }

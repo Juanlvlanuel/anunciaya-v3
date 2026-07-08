@@ -11,6 +11,7 @@
 import { Router } from 'express';
 import {
     listarCategoriasMPController,
+    contarPublicacionesPorCiudadMPController,
     crearCategoriaMPController,
     editarCategoriaMPController,
     cambiarActivaCategoriaMPController,
@@ -21,6 +22,7 @@ const router: Router = Router();
 
 // Lectura
 router.get('/', listarCategoriasMPController);
+router.get('/por-ciudad', contarPublicacionesPorCiudadMPController);
 
 // Rutas específicas ANTES de las paramétricas (para que '/reordenar' no lo
 // capture '/:id').

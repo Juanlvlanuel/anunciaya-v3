@@ -31,6 +31,8 @@ interface SelectorBuscableProps {
   textoClase?: string;
   /** Muestra el campo de búsqueda dentro del popover. Default true; ponlo en false para listas cortas. */
   conBuscador?: boolean;
+  /** Trigger tipo píldora (rounded-full) en vez de rounded-[10px]. Default false. */
+  redondo?: boolean;
 }
 
 export function SelectorBuscable({
@@ -43,6 +45,7 @@ export function SelectorBuscable({
   testid,
   textoClase = 'text-[13px]',
   conBuscador = true,
+  redondo = false,
 }: SelectorBuscableProps) {
   const esEscritorio = useEsEscritorio();
   const [abierto, setAbierto] = useState(false);
@@ -151,7 +154,7 @@ export function SelectorBuscable({
         data-testid={testid}
         disabled={disabled}
         onClick={() => setAbierto((v) => !v)}
-        className={`flex w-full items-center justify-between gap-2 rounded-[10px] border bg-campo px-3 py-2.5 ${textoClase} outline-none transition ${
+        className={`flex w-full items-center justify-between gap-2 ${redondo ? 'rounded-full' : 'rounded-[10px]'} border bg-campo px-3 py-2 ${textoClase} outline-none transition ${
           abierto ? 'border-marca bg-superficie [box-shadow:0_0_0_3px_var(--panel-ring)]' : 'border-campo-borde hover:border-borde-fuerte'
         } disabled:cursor-not-allowed disabled:opacity-50`}
       >

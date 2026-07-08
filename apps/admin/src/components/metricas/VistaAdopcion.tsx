@@ -8,14 +8,13 @@
  * Ubicación: apps/admin/src/components/metricas/VistaAdopcion.tsx
  */
 
-import { Smartphone, Users, UserCheck, UserX, AlertTriangle, ChevronRight } from 'lucide-react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip } from 'recharts';
-import type { PeriodoSel } from '../../services/metricasService';
+import { Smartphone, AlertTriangle, ChevronRight, UserCheck } from 'lucide-react';
+import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMetricasAdopcion } from '../../hooks/queries/useMetricas';
 import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 import { AvatarNegocio } from '../negocios/avatares';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
-import { TarjetaKpi, TarjetaProgreso, GraficaCard, TooltipMetricas, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto, FMT_NUM } from './piezas';
+import { TooltipMetricas, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto, FMT_NUM, BarraMetricas, KpiInline, FilaKpisInline, type NavMetricas } from './piezas';
 
 function textoDias(dias: number | null): string {
   if (dias === null) return 'Nunca ha usado la app';
@@ -24,42 +23,68 @@ function textoDias(dias: number | null): string {
   return `Hace ${dias} días`;
 }
 
-export function VistaAdopcion({ periodo }: { periodo: PeriodoSel }) {
-  const { data, isLoading, isError } = useMetricasAdopcion(periodo);
+export function VistaAdopcion({ nav }: { nav: NavMetricas }) {
+  const { data, isLoading, isError } = useMetricasAdopcion(nav.periodo);
   const navegar = useNavegacionPanel((s) => s.navegar);
 
+  // Barra superior (tabs + selector) SIEMPRE visible; los KPIs aparecen al cargar los datos.
+  const barra = (
+    <BarraMetricas {...nav}>
+      {data && (
+        <FilaKpisInline>
+          <KpiInline testid="metricas-adopcion-usan" etiqueta="Usan la app" valor={`${FMT_NUM.format(data.negocios.activosEnApp.valor)}/${FMT_NUM.format(data.negocios.totalQuePagan)}`} />
+          <KpiInline testid="metricas-adopcion-clientes-total" etiqueta="Clientes" valor={FMT_NUM.format(data.clientes.total)} />
+          <KpiInline testid="metricas-adopcion-clientes-activos" etiqueta="Activos" valor={FMT_NUM.format(data.clientes.activos.valor)} acento="ok" />
+          <KpiInline testid="metricas-adopcion-clientes-inactivos" etiqueta="Inactivos" valor={FMT_NUM.format(data.clientes.inactivos)} />
+        </FilaKpisInline>
+      )}
+    </BarraMetricas>
+  );
+
   if (isLoading) {
-    return <EstadoSeccion variante="cargando" icono={Smartphone} titulo="Cargando adopción…" />;
+    return <div className="flex flex-col gap-5 lg:gap-6">{barra}<EstadoSeccion variante="cargando" icono={Smartphone} titulo="Cargando adopción…" /></div>;
   }
   if (isError || !data) {
-    return <EstadoSeccion variante="error" icono={Smartphone} titulo="No se pudieron cargar las métricas." descripcion="Revisa tu conexión e inténtalo de nuevo." />;
+    return <div className="flex flex-col gap-5 lg:gap-6">{barra}<EstadoSeccion variante="error" icono={Smartphone} titulo="No se pudieron cargar las métricas." descripcion="Revisa tu conexión e inténtalo de nuevo." /></div>;
   }
 
-  const { negocios, clientes, serieClientesActivos, enRiesgo } = data;
+  const { serieClientesActivos, enRiesgo } = data;
 
   return (
     <div className="flex flex-col gap-5 lg:gap-6">
-      {/* KPIs */}
-      <div className="grid grid-cols-1 gap-3 lg:grid-cols-4 2xl:gap-4">
-        <TarjetaProgreso testid="metricas-adopcion-usan" icono={Smartphone} etiqueta="Usan la app" valor={negocios.activosEnApp.valor} total={negocios.totalQuePagan} />
-        <TarjetaKpi testid="metricas-adopcion-clientes-total" icono={Users} etiqueta="Clientes" kpi={{ valor: clientes.total, anterior: null }} />
-        <TarjetaKpi testid="metricas-adopcion-clientes-activos" icono={UserCheck} etiqueta="Activos" kpi={clientes.activos} acento="ok" sentido="positivo" />
-        <TarjetaKpi testid="metricas-adopcion-clientes-inactivos" icono={UserX} etiqueta="Inactivos" kpi={{ valor: clientes.inactivos, anterior: null }} />
-      </div>
+      {barra}
 
-      {/* Engagement de clientes */}
-      <GraficaCard testid="metricas-grafica-clientes" titulo="Clientes activos" subtitulo="Cuántos clientes compraron cada mes" alto={240}>
-        <LineChart data={serieClientesActivos} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
-          <CartesianGrid vertical={false} stroke={COLOR.grid} strokeDasharray="3 3" />
-          <XAxis dataKey="mes" tickFormatter={etiquetaPunto} {...ejeXDe(serieClientesActivos)} />
-          <YAxis allowDecimals={false} {...EJE_PROPS} />
-          <Tooltip content={<TooltipMetricas tipo="numero" />} />
-          <Line type="monotone" dataKey="activos" name="Clientes activos" stroke={COLOR.marca} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
-        </LineChart>
-      </GraficaCard>
+      {/* PC: 2 columnas de igual alto — Negocios en riesgo (izq) + gráfica (der). Móvil: apilado (gráfica arriba). */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:gap-5">
+      {/* Clientes activos (PC: derecha). Header calcado del de "Negocios en riesgo"; el chart
+          se ancla al fondo (mt-auto) para igualar el alto del otro card SIN agrandar la gráfica. */}
+      <section data-testid="metricas-grafica-clientes" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel lg:order-2">
+        <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
+          <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
+            <UserCheck size={17} />
+          </span>
+          <span className="flex min-w-0 flex-1 flex-col">
+            <span className="text-[14px] font-semibold text-texto">Clientes activos</span>
+            <span className="text-[12px] text-texto-3">Cuántos clientes compraron cada mes</span>
+          </span>
+        </header>
+        <div className="mt-auto p-4">
+          <div style={{ width: '100%', height: 260 }}>
+            <ResponsiveContainer>
+              <LineChart data={serieClientesActivos} margin={{ top: 4, right: 8, bottom: 0, left: -16 }}>
+                <CartesianGrid vertical={false} stroke={COLOR.grid} strokeDasharray="3 3" />
+                <XAxis dataKey="mes" tickFormatter={etiquetaPunto} {...ejeXDe(serieClientesActivos)} />
+                <YAxis allowDecimals={false} {...EJE_PROPS} />
+                <Tooltip content={<TooltipMetricas tipo="numero" />} />
+                <Line type="monotone" dataKey="activos" name="Clientes activos" stroke={COLOR.marca} strokeWidth={2} dot={false} activeDot={{ r: 4 }} />
+              </LineChart>
+            </ResponsiveContainer>
+          </div>
+        </div>
+      </section>
 
-      {/* Negocios en riesgo */}
-      <section data-testid="metricas-en-riesgo" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+      {/* Negocios en riesgo (PC: izquierda) */}
+      <section data-testid="metricas-en-riesgo" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel lg:order-1">
         <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
           <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
             <AlertTriangle size={17} />
@@ -78,7 +103,7 @@ export function VistaAdopcion({ periodo }: { periodo: PeriodoSel }) {
         {enRiesgo.total === 0 ? (
           <div className="px-4 py-7 text-center text-[13px] text-texto-3">Todos los negocios que pagan están usando la app. 🎉</div>
         ) : (
-          <ul className="flex max-h-[520px] flex-col overflow-y-auto p-1.5">
+          <ul className="flex max-h-[600px] flex-col overflow-y-auto p-1.5">
             {enRiesgo.items.map((n) => (
               <li key={n.negocioId}>
                 <button
@@ -102,6 +127,7 @@ export function VistaAdopcion({ periodo }: { periodo: PeriodoSel }) {
           </ul>
         )}
       </section>
+      </div>
     </div>
   );
 }

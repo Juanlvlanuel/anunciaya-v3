@@ -198,11 +198,10 @@ export function VistaVendedorTerritorio() {
                         data-testid={`filtro-${t}`}
                         onClick={() => seleccionarFiltro(t)}
                         aria-pressed={activo}
-                        className={`flex shrink-0 items-center gap-1 rounded-full border px-2.5 py-1 text-[11.5px] transition ${
-                            activo ? 'border-marca bg-marca-suave font-medium text-texto' : 'border-borde text-texto-3 hover:bg-superficie-2'
-                        }`}
+                        className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+                        style={activo ? { background: `color-mix(in srgb, ${COLOR_TIPO[t]} 12%, transparent)`, borderColor: `color-mix(in srgb, ${COLOR_TIPO[t]} 34%, transparent)`, color: COLOR_TIPO[t] } : undefined}
                     >
-                        <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
+                        <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ backgroundColor: COLOR_TIPO[t] }} />
                         {ETIQUETA_TIPO[t]}
                     </button>
                 );
@@ -469,7 +468,7 @@ export function VistaVendedorTerritorio() {
                 )}
                 {miniFormMarca}
             </div>
-            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-72 lg:pr-3 lg:pt-3">
+            <aside className="flex w-full shrink-0 flex-col gap-2 lg:w-[420px] lg:pr-3 lg:pt-3">
                 {contenidoPanel(false)}
             </aside>
             {dialogoBorrar}

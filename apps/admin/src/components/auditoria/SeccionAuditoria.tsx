@@ -22,6 +22,7 @@ import { useAuditoria, useActoresAuditoria, usePrefetchAuditoria, useEliminarAud
 import type { OrdenAuditoria, AuditoriaFila } from '../../services/auditoriaService';
 import { etiquetaAccion, BadgeModulo, OPCIONES_ACCION, etiquetaEntidad } from './accionesAuditoria';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
+import { Tooltip } from '../ui/Tooltip';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { FichaAuditoria } from './FichaAuditoria';
 import { DialogoConfirmar } from '../ui/DialogoConfirmar';
@@ -157,13 +158,15 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
         <DialogoConfirmar
           abierto
           onCerrar={() => setVaciarOpen(false)}
-          titulo="Vaciar la bitácora"
+          titulo={hayFiltro ? 'Borrar los registros filtrados' : 'Vaciar la bitácora'}
           variante="danger"
-          mensaje={`Se eliminarán los ${total} registros de auditoría de forma permanente. Esta acción no se puede deshacer.`}
-          textoConfirmar="Vaciar todo"
+          mensaje={hayFiltro
+            ? `Se eliminarán permanentemente los ${total} registros que coinciden con los filtros activos (acción / persona / periodo). Los demás se conservan. Esta acción no se puede deshacer.`
+            : `Se eliminarán permanentemente TODOS los ${total} registros de la bitácora. Esta acción no se puede deshacer.`}
+          textoConfirmar={hayFiltro ? 'Borrar filtrados' : 'Vaciar todo'}
           discriminador="dialogo-vaciar-auditoria"
           cargando={vaciar.isPending}
-          onConfirmar={() => vaciar.mutate(undefined, { onSuccess: () => setVaciarOpen(false) })}
+          onConfirmar={() => vaciar.mutate({ accion: filtros.accion, actorId: filtros.actorId, desde: filtros.desde }, { onSuccess: () => setVaciarOpen(false) })}
         />
       )}
     </>
@@ -262,10 +265,34 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
       {/* Total (izq) + filtros (der) */}
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        <span className="text-[13px] text-texto-3" data-testid="auditoria-total">
-          <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'acción' : 'acciones'}
-          {hayFiltro ? ' · filtrado' : ''}
-          {isFetching && !isLoading ? ' · actualizando…' : ''}
+        <span className="inline-flex items-center gap-2" data-testid="auditoria-total">
+          {/* Estilo del badge "tareas pendientes" de Resumen: número en círculo marca + etiqueta en pill. */}
+          <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-marca/30 bg-marca-suave py-1 pl-1 pr-3 text-[12.5px] font-semibold text-marca">
+            <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-marca px-1 text-[12px] font-bold tabular-nums text-marca-contraste">
+              {total}
+            </span>
+            {total === 1 ? 'acción' : 'acciones'}
+          </span>
+          {(hayFiltro || (isFetching && !isLoading)) && (
+            <span className="text-[12px] text-texto-4">
+              {hayFiltro ? 'filtrado' : ''}
+              {hayFiltro && isFetching && !isLoading ? ' · ' : ''}
+              {isFetching && !isLoading ? 'actualizando…' : ''}
+            </span>
+          )}
+          {esSuper && total > 0 && (
+            <Tooltip text={hayFiltro ? 'Borrar los registros filtrados' : 'Vaciar la bitácora'}>
+              <button
+                type="button"
+                data-testid="auditoria-vaciar"
+                onClick={() => setVaciarOpen(true)}
+                aria-label="Vaciar la bitácora"
+                className="grid h-8 w-8 shrink-0 place-items-center rounded-full border border-borde text-texto-3 transition hover:border-peligro hover:bg-peligro-suave hover:text-peligro"
+              >
+                <Trash2 size={15} />
+              </button>
+            </Tooltip>
+          )}
         </span>
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           <MenuFiltro
@@ -307,16 +334,6 @@ export function SeccionAuditoria({ rol }: { rol: RolPanel }) {
             anchoMenu={210}
             tam="chip"
           />
-          {esSuper && total > 0 && (
-            <button
-              type="button"
-              data-testid="auditoria-vaciar"
-              onClick={() => setVaciarOpen(true)}
-              className="inline-flex items-center gap-1.5 rounded-full border border-borde px-3 py-1.5 text-[12.5px] font-semibold text-texto-3 transition hover:border-peligro hover:bg-peligro-suave hover:text-peligro"
-            >
-              <Trash2 size={14} /> Vaciar
-            </button>
-          )}
         </div>
       </div>
 

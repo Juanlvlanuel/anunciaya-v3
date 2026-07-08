@@ -17,7 +17,11 @@ import { useEsEscritorio } from '../hooks/useEsEscritorio';
 import { useConteoNegocios } from '../hooks/queries/useNegociosAdmin';
 import { useConteoUsuarios } from '../hooks/queries/useUsuariosAdmin';
 import { useConteoEquipo } from '../hooks/queries/useEquipoAdmin';
-import { useSolicitudesPendientes } from '../hooks/queries/useSuscripcionesAdmin';
+import { useConteoSuscripcionesActivas } from '../hooks/queries/useSuscripcionesAdmin';
+import { useConteoRecibos } from '../hooks/queries/useRecibosAdmin';
+import { useConteoVendedores } from '../hooks/queries/useVendedoresAdmin';
+import { useConteoPublicidad } from '../hooks/queries/usePublicidadAdmin';
+import { useConteoCiudades } from '../hooks/queries/useCiudadesAdmin';
 import { usePrecargarConfiguracion } from '../hooks/queries/useConfiguracionAdmin';
 import { useContadorPanel } from '../stores/useContadorPanel';
 import { obtenerTema, alternarTema, type Tema } from '../utils/tema';
@@ -108,21 +112,30 @@ function PaginaPanel() {
   const totalUsuariosFiltrado = useContadorPanel((s) => s.usuarios);
   const { data: totalEquipoGeneral } = useConteoEquipo(puedeVer('equipo'));
   const totalEquipoFiltrado = useContadorPanel((s) => s.equipo);
-  // Suscripciones = nº de pagos manuales "Por verificar" (cola accionable). Mismo hook que la
-  // pestaña, así el badge del menú y el de la pestaña siempre cuadran. Gateado por acceso.
-  const { data: solicitudesPendientes } = useSolicitudesPendientes(puedeVer('suscripciones'));
+  // Suscripciones = nº de suscripciones activas (negocios al corriente/en gracia). Recibos = total
+  // de recibos del alcance. Ambos conteos ligeros, gateados por acceso.
+  const { data: totalSuscActivas } = useConteoSuscripcionesActivas(puedeVer('suscripciones'));
+  const { data: totalRecibos } = useConteoRecibos(puedeVer('recibos'));
+  // Vendedores = total de la red (super/gerente); el vendedor solo se ve a sí mismo → sin badge para él.
+  const { data: totalVendedores } = useConteoVendedores(puedeVer('comisiones') && rolMenu !== 'vendedor');
+  // Publicidad = anuncios activos vigentes del alcance. Ciudades = total del catálogo (solo super). Conteos ligeros, gateados por acceso.
+  const { data: totalPublicidad } = useConteoPublicidad(puedeVer('publicidad'));
+  const { data: totalCiudades } = useConteoCiudades(puedeVer('ciudades'));
   // Filtrado (de la sección activa) si lo hay; si no, el conteo general (visible desde el inicio).
   const totalUsuarios = totalUsuariosFiltrado ?? totalUsuariosGeneral;
   const totalEquipo = totalEquipoFiltrado ?? totalEquipoGeneral;
-  const totalPorVerificar = solicitudesPendientes?.length ?? 0;
   const contadores = useMemo(() => {
     const c: Record<string, number> = {};
     if (totalNegocios != null) c.negocios = totalNegocios;
     if (totalUsuarios != null) c.usuarios = totalUsuarios;
     if (totalEquipo != null) c.equipo = totalEquipo;
-    if (totalPorVerificar > 0) c.suscripciones = totalPorVerificar;
+    if (totalSuscActivas != null) c.suscripciones = totalSuscActivas;
+    if (totalRecibos != null) c.recibos = totalRecibos;
+    if (totalVendedores != null) c.comisiones = totalVendedores;
+    if (totalPublicidad != null) c.publicidad = totalPublicidad;
+    if (totalCiudades != null) c.ciudades = totalCiudades;
     return Object.keys(c).length ? c : undefined;
-  }, [totalNegocios, totalUsuarios, totalEquipo, totalPorVerificar]);
+  }, [totalNegocios, totalUsuarios, totalEquipo, totalSuscActivas, totalRecibos, totalVendedores, totalPublicidad, totalCiudades]);
 
   // Si la sección recordada (de una recarga) no aplica a este rol, se cae a la primera del menú;
   // "seguridad" (Mi cuenta) siempre es válida. (rolMenu/items se declaran arriba, junto a los conteos.)

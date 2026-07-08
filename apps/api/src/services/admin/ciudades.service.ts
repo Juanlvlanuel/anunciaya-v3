@@ -110,6 +110,12 @@ export async function listarCiudadesCatalogo(filtros: FiltrosCiudades = {}): Pro
         .orderBy(asc(ciudades.estado), asc(ciudades.nombre));
 }
 
+/** Total de ciudades del catálogo (contador del menú). Sin filtros: todo el catálogo. */
+export async function contarCiudadesCatalogo(): Promise<number> {
+    const [fila] = await db.select({ n: count() }).from(ciudades);
+    return fila?.n ?? 0;
+}
+
 /**
  * Todas las regiones (activas e inactivas) con cuántas ciudades agrupan. El
  * leftJoin + groupBy deja en 0 las regiones vacías. Ordenadas por nombre.

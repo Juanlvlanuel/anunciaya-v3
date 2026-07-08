@@ -145,10 +145,26 @@ export async function eliminarAuditoriaController(req: Request, res: Response): 
 // DELETE /api/admin/auditoria   (vaciar toda la bitácora · SOLO superadmin)
 // =============================================================================
 
-export async function vaciarAuditoriaController(_req: Request, res: Response): Promise<void> {
+export async function vaciarAuditoriaController(req: Request, res: Response): Promise<void> {
     try {
-        const resultado = await vaciarAuditoria();
-        res.status(200).json({ success: true, message: `Bitácora vaciada (${resultado.borradas})`, data: resultado });
+        // Vacía RESPETANDO los filtros activos (mismos que la lista) + el alcance del panel. Sin filtros → todo.
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const actorIdRaw = typeof req.query.actorId === 'string' ? req.query.actorId.trim() : '';
+        const accionRaw = typeof req.query.accion === 'string' ? req.query.accion.trim() : '';
+        const entidadTipoRaw = typeof req.query.entidadTipo === 'string' ? req.query.entidadTipo.trim() : '';
+        const entidadIdRaw = typeof req.query.entidadId === 'string' ? req.query.entidadId.trim() : '';
+        const desdeRaw = typeof req.query.desde === 'string' ? req.query.desde.trim() : '';
+        const hastaRaw = typeof req.query.hasta === 'string' ? req.query.hasta.trim() : '';
+
+        const resultado = await vaciarAuditoria(panel, {
+            actorId: actorIdRaw || undefined,
+            accion: accionRaw || undefined,
+            entidadTipo: entidadTipoRaw || undefined,
+            entidadId: entidadIdRaw || undefined,
+            desde: desdeRaw || undefined,
+            hasta: hastaRaw || undefined,
+        });
+        res.status(200).json({ success: true, message: `Bitácora depurada (${resultado.borradas})`, data: resultado });
     } catch (error) {
         console.error('Error en vaciarAuditoriaController:', error);
         res.status(500).json({

@@ -195,6 +195,7 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
 
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
+  const conteos = data?.conteos ?? { total: 0, membresia: 0, publicidad: 0 };
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
 
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -210,48 +211,61 @@ export function SeccionRecibos({ rol: _rol }: { rol: RolPanel }) {
   const cols = '90px minmax(200px,2.4fr) 1.15fr 1.1fr 0.9fr 1.2fr 96px';
 
   return (
-    <div className="flex h-full min-h-0 flex-col p-4 lg:p-6">
+    <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
       <div className="flex min-h-0 w-full flex-1 flex-col">
-        {/* Tabs por origen del recibo (mismo patrón que Métricas: subrayado bajo la activa). */}
-        <div className="mb-4 flex gap-5 border-b border-borde">
-          {TABS_ORIGEN.map((t) => {
-            const activo = origen === t.id;
-            return (
+        {/* PC: buscador (izq, ancho medio) + filtro por origen en chips (der), separados — 1 renglón.
+            Móvil: apilado con los chips arriba y el buscador debajo. */}
+        <div className="mb-4 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
+          <div className="relative order-2 min-w-0 lg:order-1 lg:w-[440px]">
+            <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-3" />
+            <input
+              data-testid="recibos-buscar"
+              type="text"
+              value={busqueda}
+              onChange={(e) => setBusqueda(e.target.value)}
+              placeholder="Buscar por folio o negocio…"
+              className="w-full rounded-full border border-borde bg-superficie-2 py-2.5 pl-10 pr-9 text-[13.5px] font-medium text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
+            />
+            {busqueda && (
               <button
-                key={t.id || 'todos'}
                 type="button"
-                data-testid={`recibos-tab-${t.id || 'todos'}`}
-                onClick={() => { setOrigen(t.id); setPagina(1); }}
-                className={`relative px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'}`}
+                aria-label="Limpiar búsqueda"
+                onClick={() => setBusqueda('')}
+                className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-texto-3 transition hover:bg-marca-suave hover:text-marca"
               >
-                {t.etiqueta}
-                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
+                <X size={15} />
               </button>
-            );
-          })}
-        </div>
-
-        {/* Buscador (mismo estilo que Negocios) */}
-        <div className="relative mb-4 w-full shrink-0">
-          <Search size={16} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-3" />
-          <input
-            data-testid="recibos-buscar"
-            type="text"
-            value={busqueda}
-            onChange={(e) => setBusqueda(e.target.value)}
-            placeholder="Buscar por folio o negocio…"
-            className="w-full rounded-full border border-borde bg-superficie-2 py-2.5 pl-10 pr-9 text-[13.5px] font-medium text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
-          />
-          {busqueda && (
-            <button
-              type="button"
-              aria-label="Limpiar búsqueda"
-              onClick={() => setBusqueda('')}
-              className="absolute right-2 top-1/2 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-lg text-texto-3 transition hover:bg-marca-suave hover:text-marca"
-            >
-              <X size={15} />
-            </button>
-          )}
+            )}
+          </div>
+          <div className="order-1 flex items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:order-2 lg:shrink-0">
+            {TABS_ORIGEN.map((t) => {
+              const activo = origen === t.id;
+              // Color del punto: ámbar para publicidad, azul de marca para el resto (coincide con el badge de la tabla).
+              const color = t.id === 'publicidad' ? '#f59e0b' : 'var(--panel-brand)';
+              const n = t.id === '' ? conteos.total : t.id === 'membresia' ? conteos.membresia : conteos.publicidad;
+              return (
+                <button
+                  key={t.id || 'todos'}
+                  type="button"
+                  data-testid={`recibos-tab-${t.id || 'todos'}`}
+                  onClick={() => { setOrigen(t.id); setPagina(1); }}
+                  className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition"
+                  style={activo ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
+                >
+                  <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
+                  {t.etiqueta}
+                  <span
+                    className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+                    style={activo
+                      ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color }
+                      : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+                  >
+                    {n}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {isLoading ? (

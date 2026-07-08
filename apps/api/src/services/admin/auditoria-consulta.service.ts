@@ -118,7 +118,7 @@ export interface ActorAuditoria {
  * vendedores de su región, deducidos por embajador_ciudades → ciudad → región).
  * El vendedor está FUERA (las rutas no le dan acceso) → 'vacio'.
  */
-async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | null | 'vacio'> {
+export async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | null | 'vacio'> {
     if (panel.rolEquipo === 'superadmin') return null;
 
     if (panel.rolEquipo === 'gerente') {

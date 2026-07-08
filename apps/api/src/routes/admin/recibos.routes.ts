@@ -19,6 +19,7 @@ import { Router } from 'express';
 import { requierePanel } from '../../middleware/panel.middleware.js';
 import {
     listarRecibosController,
+    contarRecibosController,
     descargarReciboController,
     reenviarReciboController,
 } from '../../controllers/admin/recibos.controller.js';
@@ -26,6 +27,7 @@ import {
 const router: Router = Router();
 
 router.get('/', requierePanel(['superadmin', 'gerente', 'vendedor']), listarRecibosController);
+router.get('/conteo', requierePanel(['superadmin', 'gerente', 'vendedor']), contarRecibosController);
 router.get('/:id/pdf', requierePanel(['superadmin', 'gerente', 'vendedor']), descargarReciboController);
 router.post('/:id/reenviar', requierePanel(['superadmin', 'gerente', 'vendedor']), reenviarReciboController);
 

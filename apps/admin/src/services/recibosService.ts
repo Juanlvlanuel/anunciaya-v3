@@ -35,9 +35,16 @@ export interface ReciboFila {
   anulado: boolean;
 }
 
+export interface ConteosRecibos {
+  total: number;
+  membresia: number;
+  publicidad: number;
+}
+
 export interface ListaRecibos {
   items: ReciboFila[];
   total: number;
+  conteos: ConteosRecibos;
   pagina: number;
   porPagina: number;
 }
@@ -55,7 +62,13 @@ export interface ParametrosRecibos {
 
 export async function listarRecibos(params: ParametrosRecibos): Promise<ListaRecibos> {
   const { data } = await api.get<RespuestaAPI<ListaRecibos>>('/admin/recibos', { params });
-  return data.data ?? { items: [], total: 0, pagina: params.pagina, porPagina: params.porPagina };
+  return data.data ?? { items: [], total: 0, conteos: { total: 0, membresia: 0, publicidad: 0 }, pagina: params.pagina, porPagina: params.porPagina };
+}
+
+/** Total de recibos del alcance (badge del menú). */
+export async function contarRecibos(): Promise<number> {
+  const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/recibos/conteo');
+  return data.data?.total ?? 0;
 }
 
 /** Genera/regenera el PDF del recibo y devuelve su URL en R2. */

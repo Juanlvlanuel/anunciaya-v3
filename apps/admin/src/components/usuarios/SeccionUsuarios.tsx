@@ -21,7 +21,7 @@ import { useContadorPanel } from '../../stores/useContadorPanel';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { useUsuariosLista, usePrefetchUsuario, useUsuariosPorCiudad } from '../../hooks/queries/useUsuariosAdmin';
 import { CIUDAD_SIN } from '../../services/usuariosService';
-import type { OrdenUsuarios, UsuarioFila, ConteosEstado, CiudadConteo } from '../../services/usuariosService';
+import type { OrdenUsuarios, UsuarioFila, ConteosEstado } from '../../services/usuariosService';
 import { metaEstadoUsuario, BadgeEstadoUsuario } from './estadoUsuario';
 import { AvatarUsuario } from './avataresUsuario';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
@@ -55,7 +55,7 @@ const OPCIONES_ORDEN: { valor: OrdenUsuarios; etiqueta: string }[] = [
   { valor: 'estado', etiqueta: 'Estado' },
 ];
 
-const CONTEOS_CERO: ConteosEstado = { total: 0, porEstado: [] };
+const CONTEOS_CERO: ConteosEstado = { total: 0, porEstado: [], porTipo: [] };
 const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
 function fechaCorta(iso: string | null): string {
@@ -117,7 +117,7 @@ export function SeccionUsuarios() {
     [busquedaDeb, estado, tipo, ciudad, orden, pagina],
   );
 
-  const { data, isLoading, isError, isFetching } = useUsuariosLista(filtros);
+  const { data, isLoading, isError } = useUsuariosLista(filtros);
   const { data: porCiudad } = useUsuariosPorCiudad();
 
   // Publica el total YA FILTRADO para el badge del menú; al salir, se limpia para que el badge
@@ -134,7 +134,6 @@ export function SeccionUsuarios() {
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
-  const hayFiltro = !!(busquedaDeb || estado || tipo || ciudad);
 
   // ── Estado de filtros (para EstadoSeccion) ───────────────────────────────────
   // hayFiltrosActivos: true si el usuario escribió en la búsqueda o movió algún filtro
@@ -158,10 +157,10 @@ export function SeccionUsuarios() {
   // El dropdown de roles se acopla a la visibilidad: un gerente no ve gerentes (ni superadmin),
   // así que el filtro "Gerente" no le aplica y se le oculta. El superadmin ve todas las opciones.
   const rolPanel = useAuthPanelStore((s) => s.usuario?.rolEquipo);
-  const opcionesTipo = useMemo(
-    () => (rolPanel === 'gerente' ? OPCIONES_TIPO.filter((o) => o.valor !== 'gerente') : OPCIONES_TIPO),
-    [rolPanel],
-  );
+  const opcionesTipo = useMemo<OpcionMenu[]>(() => {
+    const base = rolPanel === 'gerente' ? OPCIONES_TIPO.filter((o) => o.valor !== 'gerente') : OPCIONES_TIPO;
+    return base.map((o) => ({ ...o, conteo: conteos.porTipo?.find((t) => t.tipo === o.valor)?.total ?? 0 }));
+  }, [rolPanel, conteos]);
 
   const etiquetaTipo = OPCIONES_TIPO.find((o) => o.valor === tipo)?.etiqueta ?? 'Todos';
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Nombre (A–Z)';
@@ -172,12 +171,14 @@ export function SeccionUsuarios() {
     const grupos = porCiudad ?? [];
     const sinCiudad = grupos.find((g) => g.ciudadId === null);
     const conCiudad = grupos.filter((g) => g.ciudadId !== null);
+    const totalCiudades = grupos.reduce((s, g) => s + g.total, 0);
     return [
-      { valor: '', etiqueta: 'Todas las ciudades' },
-      ...(sinCiudad ? [{ valor: CIUDAD_SIN, etiqueta: `Sin ciudad · ${sinCiudad.total}` }] : []),
+      { valor: '', etiqueta: 'Todas las ciudades', conteo: totalCiudades },
+      ...(sinCiudad ? [{ valor: CIUDAD_SIN, etiqueta: 'Sin ciudad', conteo: sinCiudad.total }] : []),
       ...conCiudad.map((g) => ({
         valor: g.ciudadId as string,
-        etiqueta: `${g.ciudad} · ${g.total}`,
+        etiqueta: g.ciudad,
+        conteo: g.total,
         adorno: <MapPin size={16} className="text-texto-3" />,
       })),
     ];
@@ -382,11 +383,6 @@ export function SeccionUsuarios() {
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-[13px] text-texto-3" data-testid="usuarios-total">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'usuario' : 'usuarios'}
-            {hayFiltro ? ' · filtrado' : ''}
-            {isFetching && !isLoading ? ' · actualizando…' : ''}
-          </span>
           {filtroCiudad}
           {filtroTipo}
           <MenuFiltro
@@ -401,9 +397,6 @@ export function SeccionUsuarios() {
           />
         </div>
       </div>
-
-      {/* Métrica: usuarios por ciudad (clic en un chip filtra la lista) */}
-      <ResumenCiudades grupos={porCiudad} ciudadActiva={ciudad} onSelect={setCiudad} />
 
       {/* Tabla */}
       <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
@@ -457,53 +450,6 @@ export function SeccionUsuarios() {
 // =============================================================================
 // SUB-COMPONENTES
 // =============================================================================
-
-/**
- * Métrica "usuarios por ciudad" (solo escritorio): tira densa de chips con el conteo
- * de cada ciudad. Clic en un chip filtra la lista por esa ciudad (o lo limpia si ya
- * estaba activo). Los grupos vienen ya ordenados del backend (total desc, "Sin ciudad"
- * al final). Sobrio por tokens del Panel: sin círculos pastel, total en peso semibold.
- */
-function ResumenCiudades({
-  grupos,
-  ciudadActiva,
-  onSelect,
-}: {
-  grupos: CiudadConteo[] | undefined;
-  ciudadActiva: string;
-  onSelect: (valor: string) => void;
-}) {
-  if (!grupos || grupos.length === 0) return null;
-
-  return (
-    <div className="mb-2 flex shrink-0 items-center gap-2.5">
-      <span className="shrink-0 text-[11px] font-semibold uppercase tracking-wide text-texto-4">Por ciudad</span>
-      <div className="flex min-w-0 flex-1 items-center gap-1.5 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none]">
-        {grupos.map((g) => {
-          const valor = g.ciudadId ?? CIUDAD_SIN;
-          const activo = ciudadActiva === valor;
-          return (
-            <button
-              key={valor}
-              type="button"
-              data-testid={`usuarios-ciudad-chip-${valor}`}
-              onClick={() => onSelect(activo ? '' : valor)}
-              className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[12px] transition ${
-                activo
-                  ? 'border-marca/40 bg-marca-suave text-marca'
-                  : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
-              }`}
-            >
-              {g.ciudadId && <MapPin size={12} className="shrink-0 opacity-70" />}
-              <span className="max-w-[150px] truncate">{g.ciudad}</span>
-              <span className="font-semibold">{g.total}</span>
-            </button>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
 
 function FilaUsuario({
   n,

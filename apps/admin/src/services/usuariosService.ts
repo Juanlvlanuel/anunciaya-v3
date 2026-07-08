@@ -34,6 +34,7 @@ export type OrdenUsuarios =
 export interface ConteosEstado {
   total: number;
   porEstado: Array<{ estado: string; total: number }>;
+  porTipo: Array<{ tipo: string; total: number }>;
 }
 
 export interface UsuarioFila {
@@ -150,7 +151,7 @@ export async function listarUsuarios(params: ParametrosLista): Promise<ListaUsua
       total: 0,
       pagina: params.pagina,
       porPagina: params.porPagina,
-      conteos: { total: 0, porEstado: [] },
+      conteos: { total: 0, porEstado: [], porTipo: [] },
     }
   );
 }

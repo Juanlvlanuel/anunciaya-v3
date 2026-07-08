@@ -11,6 +11,7 @@ import type { Request, Response } from 'express';
 import {
     listarCiudadesCatalogo,
     listarRegionesConConteo,
+    contarCiudadesCatalogo,
     type FiltroActiva,
 } from '../../services/admin/ciudades.service.js';
 import {
@@ -75,6 +76,21 @@ export async function listarRegionesCatalogoController(_req: Request, res: Respo
         res.status(500).json({
             success: false,
             message: 'Error al obtener las regiones',
+            error: error instanceof Error ? error.message : String(error),
+        });
+    }
+}
+
+/** GET /api/admin/ciudades/conteo — total de ciudades del catálogo (badge del menú). */
+export async function contarCiudadesCatalogoController(_req: Request, res: Response): Promise<void> {
+    try {
+        const total = await contarCiudadesCatalogo();
+        res.status(200).json({ success: true, message: 'Conteo de ciudades', data: { total } });
+    } catch (error) {
+        console.error('Error en contarCiudadesCatalogoController:', error);
+        res.status(500).json({
+            success: false,
+            message: 'Error al contar las ciudades',
             error: error instanceof Error ? error.message : String(error),
         });
     }

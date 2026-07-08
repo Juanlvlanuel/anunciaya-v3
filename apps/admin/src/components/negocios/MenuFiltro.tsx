@@ -20,6 +20,10 @@ export interface OpcionMenu {
   etiqueta: string;
   /** Ícono/avatar opcional a la izquierda de la etiqueta (ej. avatar de vendedor). */
   adorno?: ReactNode;
+  /** Punto de color a la izquierda (estilo chip). CSS color value (ej. 'var(--panel-ok)'). */
+  color?: string;
+  /** Conteo como badge a la derecha (estilo chip). Se tiñe con `color` en la opción seleccionada. */
+  conteo?: number;
 }
 
 interface MenuFiltroProps {
@@ -165,8 +169,19 @@ export function MenuFiltro({
                     }}
                     className="flex w-full items-center gap-2.5 rounded-[8px] px-2.5 py-2 text-left text-[13px] text-texto transition hover:bg-marca-suave"
                   >
+                    {o.color && <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: o.color }} />}
                     {o.adorno}
                     <span className="flex-1 truncate">{o.etiqueta}</span>
+                    {o.conteo != null && (
+                      <span
+                        className="txt-badge min-w-[18px] shrink-0 rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+                        style={valor === o.valor
+                          ? { background: `color-mix(in srgb, ${o.color ?? 'var(--panel-brand)'} 22%, transparent)`, color: o.color ?? 'var(--panel-brand)' }
+                          : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+                      >
+                        {o.conteo}
+                      </span>
+                    )}
                     <Check size={15} className={`shrink-0 text-marca ${valor === o.valor ? 'opacity-100' : 'opacity-0'}`} />
                   </button>
                 </div>

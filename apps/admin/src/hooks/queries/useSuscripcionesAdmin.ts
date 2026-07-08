@@ -30,6 +30,15 @@ export function useBitacora(filtros: ParametrosBitacora) {
   });
 }
 
+/** Nº de suscripciones activas del alcance (badge del menú). `enabled` lo gatea por acceso. */
+export function useConteoSuscripcionesActivas(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.suscripciones.conteoActivas(),
+    queryFn: () => suscripcionesService.contarSuscripcionesActivas(),
+    enabled,
+  });
+}
+
 /**
  * Detalle de un evento. Acepta un `placeholder` (los datos que ya trae la fila) para
  * que el modal se vea AL INSTANTE y rellene el resto (metadata, ids) al llegar la respuesta.

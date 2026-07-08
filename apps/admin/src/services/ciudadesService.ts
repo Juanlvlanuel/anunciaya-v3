@@ -69,6 +69,12 @@ export async function listarRegiones(): Promise<RegionConConteo[]> {
   return data.data ?? [];
 }
 
+/** Total de ciudades del catálogo (badge del menú). */
+export async function contarCiudades(): Promise<number> {
+  const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/ciudades/conteo');
+  return data.data?.total ?? 0;
+}
+
 // =============================================================================
 // ACCIONES (Fase 2)
 // =============================================================================

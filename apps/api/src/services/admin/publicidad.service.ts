@@ -43,6 +43,11 @@ export type EstadoPublicidad = (typeof ESTADOS_PUBLICIDAD)[number];
 export const CARRUSELES = ['anuncios', 'patrocinadores', 'fundadores'] as const;
 export type Carrusel = (typeof CARRUSELES)[number];
 
+// Filtro de "tamaño" del dropdown: Grande (solo) · Chico (solo) · Combo (paquete de ambos).
+// Son EXCLUYENTES a propósito: una compra cae en exactamente uno, así los badges de conteo suman.
+export const FILTROS_TAMANO = ['patrocinadores', 'anuncios', 'combo'] as const;
+export type FiltroTamano = (typeof FILTROS_TAMANO)[number];
+
 export const ORIGENES_PUBLICIDAD = ['self', 'manual', 'cortesia'] as const;
 export type OrigenPublicidad = (typeof ORIGENES_PUBLICIDAD)[number];
 
@@ -52,18 +57,20 @@ export type OrdenPublicidad = (typeof ORDENES_PUBLICIDAD)[number];
 export interface FiltrosPublicidad {
     busqueda?: string;          // nombre del anunciante o de su negocio (ILIKE)
     estado?: EstadoPublicidad;
-    carrusel?: Carrusel;        // anuncios que incluyan ese carrusel
+    carrusel?: FiltroTamano;    // tamaño: Grande (patrocinadores) · Chico (anuncios) · Combo
     origen?: OrigenPublicidad;  // self | manual | cortesia
     orden?: OrdenPublicidad;
     pagina: number;             // 1-based
     porPagina: number;
 }
 
-/** Conteos por estado para los chips (mismo criterio que Negocios: un ARRAY a
- *  propósito, para que el middleware snake→camel no transforme las keys de estado). */
-export interface ConteosEstado {
+/** Conteos por categoría para los badges de los filtros (arrays a propósito, para que el middleware
+ *  snake→camel no transforme las keys). `total` = total del alcance (mismo criterio que porEstado). */
+export interface ConteosPublicidad {
     total: number;
     porEstado: Array<{ estado: string; total: number }>;
+    porTamano: Array<{ tamano: string; total: number }>;  // 'patrocinadores' (Grande) · 'anuncios' (Chico) · 'combo'
+    porOrigen: Array<{ origen: string; total: number }>;   // 'self' (En línea) · 'manual' · 'cortesia'
 }
 
 /** Una fila de la tabla. */
@@ -90,7 +97,7 @@ export interface ListaPublicidad {
     total: number;
     pagina: number;
     porPagina: number;
-    conteos: ConteosEstado;
+    conteos: ConteosPublicidad;
 }
 
 export interface PiezaDetalle {
@@ -204,6 +211,15 @@ function diasRestantes(expiraAt: string | null, ahora: number): number | null {
 // 1. LISTA PAGINADA
 // =============================================================================
 
+/** Condición SQL del filtro de tamaño (Grande/Chico/Combo, excluyentes). `undefined` → sin filtro. */
+function condicionTamano(t: FiltroTamano | undefined): SQL | null {
+    if (t === 'combo') return sql`${publicidadCompras.esCombo}`;
+    if (t === 'patrocinadores' || t === 'anuncios') {
+        return sql`(NOT ${publicidadCompras.esCombo} AND EXISTS (SELECT 1 FROM publicidad_piezas pp WHERE pp.compra_id = ${publicidadCompras.id} AND pp.carrusel = ${t}))`;
+    }
+    return null;
+}
+
 export async function listarPublicidad(
     panel: UsuarioPanel,
     filtros: FiltrosPublicidad,
@@ -211,47 +227,74 @@ export async function listarPublicidad(
     const { pagina, porPagina } = filtros;
     const alcance = condicionAlcance(panel);
     if (alcance === 'vacio') {
-        return { items: [], total: 0, pagina, porPagina, conteos: { total: 0, porEstado: [] } };
+        return { items: [], total: 0, pagina, porPagina, conteos: { total: 0, porEstado: [], porTamano: [], porOrigen: [] } };
     }
 
-    // WHERE base (alcance + búsqueda + carrusel + origen) — SIN el filtro de estado,
-    // para que los chips de estado cuadren con lo que se ve.
-    const condBase: SQL[] = [];
-    if (alcance) condBase.push(alcance);
+    // Condiciones COMUNES (alcance + gestionables + búsqueda) — SIN ningún filtro de categoría.
+    const comun: SQL[] = [];
+    if (alcance) comun.push(alcance);
     // Los 'pendiente' (checkout self-service iniciado, aún sin pagar) NO son anuncios gestionables: se
     // ocultan del Panel. Se activan al pagar (webhook) o los borra el cron si se abandonan.
-    condBase.push(sql`${publicidadCompras.estado} <> 'pendiente'`);
+    comun.push(sql`${publicidadCompras.estado} <> 'pendiente'`);
     // Las filas de renovación son registros de PAGO (extienden un anuncio), no anuncios → fuera de la lista.
-    condBase.push(sql`${publicidadCompras.renovacionDe} IS NULL`);
+    comun.push(sql`${publicidadCompras.renovacionDe} IS NULL`);
     if (filtros.busqueda) {
         const q = `%${filtros.busqueda}%`;
-        condBase.push(sql`(${usuarios.nombre} ILIKE ${q} OR ${usuarios.apellidos} ILIKE ${q} OR ${negocios.nombre} ILIKE ${q})`);
+        comun.push(sql`(${usuarios.nombre} ILIKE ${q} OR ${usuarios.apellidos} ILIKE ${q} OR ${negocios.nombre} ILIKE ${q})`);
     }
-    if (filtros.carrusel) {
-        condBase.push(sql`EXISTS (SELECT 1 FROM publicidad_piezas pp WHERE pp.compra_id = ${publicidadCompras.id} AND pp.carrusel = ${filtros.carrusel})`);
-    }
-    if (filtros.origen) {
-        condBase.push(eq(publicidadCompras.origen, filtros.origen));
-    }
-    const whereBase = condBase.length ? and(...condBase) : undefined;
 
-    // Conteos por estado (sobre el WHERE base, agrupado).
+    // Cada filtro de categoría por separado. Los badges de cada dropdown se cuentan EXCLUYENDO su
+    // propio filtro y respetando los otros (facetas), para que los conteos cuadren con lo que se ve.
+    const cEstado = filtros.estado ? eq(publicidadCompras.estado, filtros.estado) : null;
+    const cTamano = condicionTamano(filtros.carrusel);
+    const cOrigen = filtros.origen ? eq(publicidadCompras.origen, filtros.origen) : null;
+    const armar = (...extra: (SQL | null)[]) => and(...comun, ...extra.filter((x): x is SQL => x != null));
+
+    const whereEstado = armar(cTamano, cOrigen);         // conteos por estado (excluye estado)
+    const whereTamano = armar(cEstado, cOrigen);         // conteos por tamaño (excluye tamaño)
+    const whereOrigen = armar(cEstado, cTamano);         // conteos por origen (excluye origen)
+    const whereFinal = armar(cEstado, cTamano, cOrigen); // tabla + total
+
+    // Conteos por estado (agrupado).
     const filasConteo = await db
         .select({ estado: publicidadCompras.estado, total: count() })
         .from(publicidadCompras)
         .leftJoin(usuarios, eq(usuarios.id, publicidadCompras.usuarioId))
         .leftJoin(negocios, eq(negocios.id, publicidadCompras.negocioId))
-        .where(whereBase)
+        .where(whereEstado)
         .groupBy(publicidadCompras.estado);
-    const conteos: ConteosEstado = {
+
+    // Conteos por tamaño (Grande/Chico/Combo, excluyentes) en una sola fila con FILTER.
+    const [filaTam] = await db
+        .select({
+            grande: sql<number>`count(*) FILTER (WHERE NOT ${publicidadCompras.esCombo} AND EXISTS (SELECT 1 FROM publicidad_piezas pp WHERE pp.compra_id = ${publicidadCompras.id} AND pp.carrusel = 'patrocinadores'))`,
+            chico: sql<number>`count(*) FILTER (WHERE NOT ${publicidadCompras.esCombo} AND EXISTS (SELECT 1 FROM publicidad_piezas pp WHERE pp.compra_id = ${publicidadCompras.id} AND pp.carrusel = 'anuncios'))`,
+            combo: sql<number>`count(*) FILTER (WHERE ${publicidadCompras.esCombo})`,
+        })
+        .from(publicidadCompras)
+        .leftJoin(usuarios, eq(usuarios.id, publicidadCompras.usuarioId))
+        .leftJoin(negocios, eq(negocios.id, publicidadCompras.negocioId))
+        .where(whereTamano);
+
+    // Conteos por origen (agrupado).
+    const filasOrigen = await db
+        .select({ origen: publicidadCompras.origen, total: count() })
+        .from(publicidadCompras)
+        .leftJoin(usuarios, eq(usuarios.id, publicidadCompras.usuarioId))
+        .leftJoin(negocios, eq(negocios.id, publicidadCompras.negocioId))
+        .where(whereOrigen)
+        .groupBy(publicidadCompras.origen);
+
+    const conteos: ConteosPublicidad = {
         total: filasConteo.reduce((s, f) => s + Number(f.total), 0),
         porEstado: filasConteo.map((f) => ({ estado: f.estado, total: Number(f.total) })),
+        porTamano: [
+            { tamano: 'patrocinadores', total: Number(filaTam?.grande ?? 0) },
+            { tamano: 'anuncios', total: Number(filaTam?.chico ?? 0) },
+            { tamano: 'combo', total: Number(filaTam?.combo ?? 0) },
+        ],
+        porOrigen: filasOrigen.map((f) => ({ origen: f.origen, total: Number(f.total) })),
     };
-
-    // WHERE final (con el filtro de estado).
-    const condFinal = [...condBase];
-    if (filtros.estado) condFinal.push(eq(publicidadCompras.estado, filtros.estado));
-    const whereFinal = condFinal.length ? and(...condFinal) : undefined;
 
     const [tot] = await db
         .select({ total: count() })
@@ -435,8 +478,13 @@ export async function obtenerDetallePublicidad(
 export async function contarPublicidad(panel: UsuarioPanel): Promise<number> {
     const alcance = condicionAlcance(panel);
     if (alcance === 'vacio') return 0;
-    // Mismo criterio que el listado: los 'pendiente' (sin pagar) no cuentan.
-    const cond: SQL[] = [sql`${publicidadCompras.estado} <> 'pendiente'`];
+    // Solo anuncios ACTIVOS vigentes (mismo criterio que el KPI "Activos"): estado 'activa',
+    // aún no expirados y sin contar las filas de renovación (registros de PAGO, no anuncios).
+    const cond: SQL[] = [
+        sql`${publicidadCompras.estado} = 'activa'`,
+        sql`${publicidadCompras.expiraAt} > now()`,
+        sql`${publicidadCompras.renovacionDe} IS NULL`,
+    ];
     if (alcance) cond.push(alcance);
     const [fila] = await db
         .select({ total: count() })

@@ -30,11 +30,13 @@ export function usePublicidad(filtros: ParametrosPublicidad) {
   });
 }
 
-/** Total del alcance (contador del menú). */
-export function useConteoPublicidad() {
+/** Anuncios activos vigentes del alcance (badge del menú). `enabled` lo gatea por acceso. */
+export function useConteoPublicidad(enabled = true) {
   return useQuery({
     queryKey: queryKeys.publicidad.conteo(),
     queryFn: () => publicidadService.contarPublicidad(),
+    staleTime: 1000 * 60,
+    enabled,
   });
 }
 

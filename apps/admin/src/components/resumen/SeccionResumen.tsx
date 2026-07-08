@@ -16,7 +16,7 @@
  */
 
 import { useRef, useEffect, type ReactNode } from 'react';
-import { Store, Users, CircleDollarSign, CreditCard, Wallet, Clock, ChevronRight, CheckCircle2, type LucideIcon } from 'lucide-react';
+import { Store, Users, CircleDollarSign, CreditCard, Wallet, Clock, ChevronRight, CheckCircle2, Sun, CloudSun, Moon, type LucideIcon } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useResumen } from '../../hooks/queries/useResumen';
 import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
@@ -31,6 +31,8 @@ const FMT_NUM = new Intl.NumberFormat('es-MX');
 type Acento = 'ok' | 'danger';
 interface MetaKpi {
   etiqueta: string;
+  /** Etiqueta abreviada para móvil (si no se define, usa `etiqueta`). */
+  etiquetaCorta?: string;
   formato: 'numero' | 'moneda';
   icono: LucideIcon;
   destino: string;
@@ -40,13 +42,13 @@ interface MetaKpi {
 
 /** La clave del KPI (la pone el backend) decide etiqueta, formato, ícono, acento y deep-link. */
 const META_KPI: Record<string, MetaKpi> = {
-  negociosActivos: { etiqueta: 'Negocios activos', formato: 'numero', icono: Store, destino: 'negocios' },
+  negociosActivos: { etiqueta: 'Negocios activos', etiquetaCorta: 'Neg. Activos', formato: 'numero', icono: Store, destino: 'negocios' },
   usuarios: { etiqueta: 'Usuarios', formato: 'numero', icono: Users, destino: 'usuarios' },
-  ingresosMes: { etiqueta: 'Ingresos del mes', formato: 'moneda', icono: CircleDollarSign, destino: 'suscripciones', acento: 'ok' },
-  cobrosFallidos: { etiqueta: 'Cobros fallidos', formato: 'numero', icono: CreditCard, destino: 'suscripciones', filtro: { suscripciones: { tipo: 'cobro_fallido' } } },
-  carteraActiva: { etiqueta: 'Mi cartera activa', formato: 'numero', icono: Store, destino: 'negocios' },
-  comisionesPendientes: { etiqueta: 'Comisiones pendientes', formato: 'moneda', icono: CircleDollarSign, destino: 'comisiones', acento: 'ok' },
-  efectivoPorEntregar: { etiqueta: 'Efectivo por entregar', formato: 'moneda', icono: Wallet, destino: 'comisiones' },
+  ingresosMes: { etiqueta: 'Ingresos del mes', etiquetaCorta: 'Ing. del Mes', formato: 'moneda', icono: CircleDollarSign, destino: 'suscripciones', acento: 'ok' },
+  cobrosFallidos: { etiqueta: 'Cobros fallidos', etiquetaCorta: 'Cob. Fallidos', formato: 'numero', icono: CreditCard, destino: 'suscripciones', filtro: { suscripciones: { tipo: 'cobro_fallido' } } },
+  carteraActiva: { etiqueta: 'Mi cartera activa', etiquetaCorta: 'Cartera Act.', formato: 'numero', icono: Store, destino: 'negocios' },
+  comisionesPendientes: { etiqueta: 'Comisiones pendientes', etiquetaCorta: 'Comis. Pend.', formato: 'moneda', icono: CircleDollarSign, destino: 'comisiones', acento: 'ok' },
+  efectivoPorEntregar: { etiqueta: 'Efectivo por entregar', etiquetaCorta: 'Efec. Entregar', formato: 'moneda', icono: Wallet, destino: 'comisiones' },
 };
 
 function colorAcento(acento?: Acento): string {
@@ -63,6 +65,14 @@ function saludoPorHora(): string {
   if (h < 12) return 'Buenos días';
   if (h < 19) return 'Buenas tardes';
   return 'Buenas noches';
+}
+
+/** Ícono a juego con el saludo (mañana → sol · tarde → sol entre nubes · noche → luna). */
+function iconoPorHora(): LucideIcon {
+  const h = new Date().getHours();
+  if (h < 12) return Sun;
+  if (h < 19) return CloudSun;
+  return Moon;
 }
 
 /** Texto secundario bajo cada KPI (contexto, no un dato extra). */
@@ -131,7 +141,6 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
 
   const { kpis, pendientes } = data;
   const esVendedor = rol === 'vendedor';
-  const colsLg = kpis.length === 3 ? 'lg:grid-cols-3' : 'lg:grid-cols-4';
   // "Ver todos" solo si hay más pendientes de los que se muestran en el tablero.
   const hayMasEfectivo = !esVendedor && pendientes.efectivo.totalVendedores > pendientes.efectivo.items.length;
   const hayMasGracia = pendientes.gracia.total > pendientes.gracia.items.length;
@@ -140,64 +149,79 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
   const periodoMes = capitalizar(new Date().toLocaleDateString('es-MX', { month: 'long', year: 'numeric' }));
   const primerNombre = nombreUsuario.trim().split(' ')[0];
   const saludo = primerNombre ? `${saludoPorHora()}, ${primerNombre}` : saludoPorHora();
+  const IconoSaludo = iconoPorHora();
   const fechaHoy = capitalizar(
     new Date().toLocaleDateString('es-MX', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' }),
   );
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
+      <style>{`@keyframes ay-saludo-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}`}</style>
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 lg:gap-7">
-        {/* ── Encabezado: saludo + fecha de hoy ────────────────────────────── */}
-        <div className="flex flex-col gap-0.5">
-          <h2 className="text-[18px] font-semibold tracking-[-0.2px] text-texto">{saludo}</h2>
-          <p className="text-[13px] text-texto-3">{fechaHoy}</p>
-        </div>
+        {/* ── Barra superior: saludo (izq) + KPIs compactos clicables (der), 1 renglón ── */}
+        <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
+          <div className="flex items-center gap-3">
+            <span
+              className="grid h-11 w-11 shrink-0 place-items-center rounded-[12px] bg-marca-suave text-marca"
+              style={{ animation: 'ay-saludo-float 3.4s ease-in-out infinite' }}
+              aria-hidden="true"
+            >
+              <IconoSaludo size={22} />
+            </span>
+            <div className="flex flex-col gap-0.5">
+              <h2 className="text-[19px] font-semibold tracking-[-0.2px] text-texto lg:text-[21px]">{saludo}</h2>
+              <p className="text-[13px] text-texto-3">{fechaHoy}</p>
+            </div>
+          </div>
 
-        {/* ── KPIs ─────────────────────────────────────────────────────────── */}
-        {/* Móvil: 1 columna (tarjetas horizontales apiladas una sobre otra). Escritorio: 3/4 columnas. */}
-        <div className={`grid grid-cols-1 gap-3 ${colsLg} 2xl:gap-4`}>
-          {kpis.map((k) => {
-            const meta = META_KPI[k.clave];
-            if (!meta) return null;
-            const acento: Acento | undefined =
-              k.clave === 'cobrosFallidos' ? (k.valor > 0 ? 'danger' : undefined) : meta.acento;
-            const valor = meta.formato === 'moneda' ? FMT_MONEDA.format(k.valor) : FMT_NUM.format(k.valor);
-            const contexto = contextoKpi(k.clave, rol, periodoMes);
-            const Icono = meta.icono;
-            return (
-              <button
-                key={k.clave}
-                type="button"
-                data-testid={`resumen-kpi-${k.clave}`}
-                onClick={() => navegar(meta.destino, meta.filtro)}
-                className="group relative flex items-center gap-4 rounded-[14px] border border-borde bg-superficie p-4 text-left shadow-tarjeta-panel transition hover:border-borde-fuerte hover:bg-superficie-2 lg:flex-col lg:items-stretch lg:gap-0 2xl:p-5"
-              >
-                {/* Variante "cifra dominante". Móvil: tarjeta horizontal a todo el ancho (cifra a la
-                    izquierda · texto al lado · ícono al extremo). Escritorio (lg:flex-col): cifra arriba
-                    con el ícono en la esquina superior derecha y el texto debajo. */}
-                <span
-                  className="shrink-0 text-[28px] font-bold leading-none tabular-nums lg:truncate lg:pr-6 lg:text-[32px] 2xl:text-[36px]"
-                  style={{ color: colorAcento(acento) }}
+          {/* KPIs compactos y divididos (estilo Métricas). Siguen clicables (deep-link); el texto
+              de contexto pasa a tooltip. Móvil: carrusel horizontal (w-full + scroll). Escritorio: a la derecha. */}
+          <div className="flex w-full items-stretch divide-x divide-borde overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:w-auto lg:shrink-0">
+            {kpis.map((k) => {
+              const meta = META_KPI[k.clave];
+              if (!meta) return null;
+              const acento: Acento | undefined =
+                k.clave === 'cobrosFallidos' ? (k.valor > 0 ? 'danger' : undefined) : meta.acento;
+              const valor = meta.formato === 'moneda' ? FMT_MONEDA.format(k.valor) : FMT_NUM.format(k.valor);
+              const contexto = contextoKpi(k.clave, rol, periodoMes);
+              return (
+                <button
+                  key={k.clave}
+                  type="button"
+                  data-testid={`resumen-kpi-${k.clave}`}
+                  onClick={() => navegar(meta.destino, meta.filtro)}
+                  title={contexto ? `${meta.etiqueta} · ${contexto}` : meta.etiqueta}
+                  className="group flex shrink-0 flex-col items-center justify-center px-5 py-1 text-center leading-tight transition hover:bg-marca-suave/50"
                 >
-                  {valor}
-                </span>
-                <span className="flex min-w-0 flex-col lg:mt-3">
-                  <span className="text-[14px] font-semibold text-texto lg:truncate">{meta.etiqueta}</span>
-                  {contexto && <span className="mt-0.5 text-[13px] text-texto-3 lg:truncate">{contexto}</span>}
-                </span>
-                <Icono size={18} className="ml-auto shrink-0 text-texto-4 transition group-hover:text-marca lg:absolute lg:right-4 lg:top-4 lg:ml-0 2xl:right-5 2xl:top-5" />
-              </button>
-            );
-          })}
+                  <span className="txt-badge whitespace-nowrap font-semibold uppercase tracking-wide text-texto-4 transition group-hover:text-marca lg:text-[11px]">
+                    <span className="lg:hidden">{meta.etiquetaCorta ?? meta.etiqueta}</span>
+                    <span className="hidden lg:inline">{meta.etiqueta}</span>
+                  </span>
+                  <span className="mt-1 whitespace-nowrap text-[17px] font-bold leading-tight lg:text-[22px]" style={{ color: colorAcento(acento) }}>
+                    {valor}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
         </div>
 
         {/* ── Cola de pendientes ───────────────────────────────────────────── */}
         <div className="flex flex-col gap-3">
-          <div className="flex items-center justify-between">
-            <h3 className="text-[14px] font-semibold text-texto-2">Pendientes por resolver</h3>
-            <span className="font-mono text-[12px] text-texto-4">
-              {pendientes.contador} {pendientes.contador === 1 ? 'tarea' : 'tareas'}
-            </span>
+          <div className="flex items-center justify-between gap-3">
+            <h3 className="text-[15px] font-semibold text-texto">Pendientes por resolver</h3>
+            {pendientes.contador > 0 ? (
+              <span className="inline-flex shrink-0 items-center gap-2 rounded-full border border-marca/30 bg-marca-suave py-1 pl-1 pr-3 text-[12.5px] font-semibold text-marca">
+                <span className="grid h-6 min-w-[24px] place-items-center rounded-full bg-marca px-1 text-[12px] font-bold tabular-nums text-marca-contraste">
+                  {pendientes.contador}
+                </span>
+                {pendientes.contador === 1 ? 'tarea pendiente' : 'tareas pendientes'}
+              </span>
+            ) : (
+              <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-ok">
+                <CheckCircle2 size={15} /> Todo al día
+              </span>
+            )}
           </div>
 
           <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
@@ -359,9 +383,9 @@ function BloquePendiente({
   return (
     <section
       data-testid={testid}
-      className="flex min-h-[148px] flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel"
+      className="flex h-[300px] flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel"
     >
-      <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
+      <header className="flex shrink-0 items-center gap-2.5 border-b border-borde px-4 py-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
           <Icono size={17} />
         </span>
@@ -382,13 +406,15 @@ function BloquePendiente({
           <p className="text-[13px] text-texto-3">{vacioTexto}</p>
         </div>
       ) : (
-        <div className="flex flex-1 flex-col p-1.5">
-          {children}
+        <div className="flex min-h-0 flex-1 flex-col p-1.5">
+          <div className="min-h-0 flex-1 overflow-y-auto [scrollbar-width:thin]">
+            {children}
+          </div>
           {hayMas && (
             <button
               type="button"
               onClick={onAbrirTodo}
-              className="mt-auto flex items-center justify-center gap-1 rounded-[9px] px-2.5 py-2 text-[12.5px] font-semibold text-marca transition hover:bg-marca-suave"
+              className="mt-1 flex shrink-0 items-center justify-center gap-1 rounded-[9px] px-2.5 py-2 text-[12.5px] font-semibold text-marca transition hover:bg-marca-suave"
             >
               Ver todos <ChevronRight size={14} />
             </button>

@@ -77,6 +77,9 @@ export interface FiltrosUsuarios {
 export interface ConteosEstado {
     total: number;
     porEstado: Array<{ estado: string; total: number }>;
+    // Rol efectivo (mismo predicado que el filtro): '' (todo) · usuario · comerciante · gerente_sucursal
+    // · vendedor · gerente. Los roles NO son exclusivos entre sí → 'total' del '' es el real, no la suma.
+    porTipo: Array<{ tipo: string; total: number }>;
 }
 
 /** Una fila de la tabla. */
@@ -293,20 +296,22 @@ export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsu
     const condTipo = condicionTipo(filtros.tipo);
     const condCiudad = condicionCiudad(filtros.ciudadId);
 
-    // BASE = visibilidad + búsqueda + tipo + ciudad (SIN estado). Sobre esta base se calculan los
-    // conteos por estado, para que cada chip cuadre con lo demás filtrado (y NO cuente cuentas que no se ven).
-    const base: SQL[] = [];
-    if (condVisibilidad) base.push(condVisibilidad);
-    if (condBusqueda) base.push(condBusqueda);
-    if (condTipo) base.push(condTipo);
-    if (condCiudad) base.push(condCiudad);
+    // COMÚN = visibilidad + búsqueda + ciudad (SIN tipo NI estado). Sobre esta base + el filtro
+    // contrario se calculan las facetas (por estado y por tipo): cada una cuenta EXCLUYENDO su propio
+    // filtro (y NO cuenta cuentas que no se ven).
+    const condEstado = filtros.estado ? eq(usuarios.estado, filtros.estado) : undefined;
+    const comun: SQL[] = [];
+    if (condVisibilidad) comun.push(condVisibilidad);
+    if (condBusqueda) comun.push(condBusqueda);
+    if (condCiudad) comun.push(condCiudad);
+    const armar = (...extra: (SQL | undefined)[]) => {
+        const conds = [...comun, ...extra.filter((x): x is SQL => x != null)];
+        return conds.length ? and(...conds) : undefined;
+    };
 
-    // LISTA = base + estado (lo que realmente se muestra/pagina).
-    const condLista = [...base];
-    if (filtros.estado) condLista.push(eq(usuarios.estado, filtros.estado));
-
-    const whereBase = base.length ? and(...base) : undefined;
-    const whereLista = condLista.length ? and(...condLista) : undefined;
+    const whereBase = armar(condTipo);              // porEstado (excluye estado)
+    const whereTipo = armar(condEstado);            // porTipo (excluye tipo)
+    const whereLista = armar(condTipo, condEstado); // tabla + total
 
     // Total (con estado, para el paginado).
     const [{ total }] = await db.select({ total: count() }).from(usuarios).where(whereLista);
@@ -324,7 +329,33 @@ export async function listarUsuarios(filtros: FiltrosUsuarios): Promise<ListaUsu
         totalConteo += t;
         return { estado: f.estado, total: t };
     });
-    const conteos: ConteosEstado = { total: totalConteo, porEstado };
+
+    // Conteos por tipo/rol efectivo (reusa los predicados del filtro con FILTER). Roles NO exclusivos
+    // → 'todo' = total real, no la suma. Excluye el propio filtro de tipo.
+    const [filaTipo] = await db
+        .select({
+            todo: count(),
+            usuario: sql<number>`count(*) FILTER (WHERE ${condicionTipo('usuario')!})`,
+            comerciante: sql<number>`count(*) FILTER (WHERE ${condicionTipo('comerciante')!})`,
+            gerenteSucursal: sql<number>`count(*) FILTER (WHERE ${condicionTipo('gerente_sucursal')!})`,
+            vendedor: sql<number>`count(*) FILTER (WHERE ${condicionTipo('vendedor')!})`,
+            gerente: sql<number>`count(*) FILTER (WHERE ${condicionTipo('gerente')!})`,
+        })
+        .from(usuarios)
+        .where(whereTipo);
+
+    const conteos: ConteosEstado = {
+        total: totalConteo,
+        porEstado,
+        porTipo: [
+            { tipo: '', total: Number(filaTipo?.todo ?? 0) },
+            { tipo: 'usuario', total: Number(filaTipo?.usuario ?? 0) },
+            { tipo: 'comerciante', total: Number(filaTipo?.comerciante ?? 0) },
+            { tipo: 'gerente_sucursal', total: Number(filaTipo?.gerenteSucursal ?? 0) },
+            { tipo: 'vendedor', total: Number(filaTipo?.vendedor ?? 0) },
+            { tipo: 'gerente', total: Number(filaTipo?.gerente ?? 0) },
+        ],
+    };
 
     // Página.
     const offset = (filtros.pagina - 1) * filtros.porPagina;

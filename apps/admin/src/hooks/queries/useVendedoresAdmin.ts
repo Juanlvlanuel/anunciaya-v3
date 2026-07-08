@@ -30,12 +30,13 @@ export function useVendedoresLista(filtros: ParametrosVendedores) {
   });
 }
 
-/** Total de vendedores del alcance (badge del menú). Carga al abrir el Panel. */
-export function useConteoVendedores() {
+/** Total de vendedores del alcance (badge del menú). `enabled` lo gatea por rol. */
+export function useConteoVendedores(enabled = true) {
   return useQuery({
     queryKey: queryKeys.vendedores.conteo(),
     queryFn: () => vendedoresService.contarVendedores(),
     staleTime: 1000 * 60,
+    enabled,
   });
 }
 

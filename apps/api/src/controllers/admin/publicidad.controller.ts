@@ -17,11 +17,11 @@ import {
     obtenerKpisPublicidad,
     panelConFiltroRegion,
     ESTADOS_PUBLICIDAD,
-    CARRUSELES,
+    FILTROS_TAMANO,
     ORIGENES_PUBLICIDAD,
     ORDENES_PUBLICIDAD,
     type EstadoPublicidad,
-    type Carrusel,
+    type FiltroTamano,
     type OrigenPublicidad,
     type OrdenPublicidad,
 } from '../../services/admin/publicidad.service.js';
@@ -63,8 +63,8 @@ export async function listarPublicidadController(req: Request, res: Response): P
         const estado = ESTADOS_PUBLICIDAD.includes(estadoRaw as EstadoPublicidad)
             ? (estadoRaw as EstadoPublicidad)
             : undefined;
-        const carrusel = CARRUSELES.includes(carruselRaw as Carrusel)
-            ? (carruselRaw as Carrusel)
+        const carrusel = FILTROS_TAMANO.includes(carruselRaw as FiltroTamano)
+            ? (carruselRaw as FiltroTamano)
             : undefined;
         const origen = ORIGENES_PUBLICIDAD.includes(origenRaw as OrigenPublicidad)
             ? (origenRaw as OrigenPublicidad)

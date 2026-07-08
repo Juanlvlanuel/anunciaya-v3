@@ -52,7 +52,7 @@ const OPCIONES_ORDEN: { valor: OrdenNegocios; etiqueta: string }[] = [
   { valor: 'estado', etiqueta: 'Estado de pago' },
 ];
 
-const CONTEOS_CERO: ConteosEstado = { total: 0, porEstado: [] };
+const CONTEOS_CERO: ConteosEstado = { total: 0, porEstado: [], porVendedor: [], porCiudad: [] };
 const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
 function fechaCorta(iso: string | null): string {
@@ -172,7 +172,7 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
     [busquedaDeb, estadoPago, vendedorId, ciudad, orden, pagina],
   );
 
-  const { data, isLoading, isError, isFetching } = useNegociosLista(filtros);
+  const { data, isLoading, isError } = useNegociosLista(filtros);
   const { data: vendedores } = useVendedoresFiltro(mostrarVendedor);
   const { data: ciudades } = useCiudadesFiltro();
 
@@ -182,7 +182,6 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
   const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
   const desde = total === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
   const hasta = Math.min(pagina * POR_PAGINA, total);
-  const hayFiltro = !!(busquedaDeb || estadoPago || vendedorId || ciudad);
 
   // Deep-link desde Métricas: cuando el negocio a resaltar ya está en la lista cargada, hace scroll
   // hasta su fila y la "alumbra" ~2s. Depende de `items` (corre cuando la búsqueda lo trae a la vista).
@@ -223,11 +222,12 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
 
   // ── Opciones de los dropdowns ───────────────────────────────────────────────
   const opcionesVendedor: OpcionMenu[] = [
-    { valor: '', etiqueta: 'Todos los vendedores' },
-    { valor: SIN, etiqueta: 'Sin asignar' },
+    { valor: '', etiqueta: 'Todos los vendedores', conteo: conteos.porVendedor?.reduce((s, v) => s + v.total, 0) ?? 0 },
+    { valor: SIN, etiqueta: 'Sin asignar', conteo: conteos.porVendedor?.find((v) => v.vendedorId === null)?.total ?? 0 },
     ...(vendedores ?? []).map((v) => ({
       valor: v.id,
       etiqueta: v.nombre,
+      conteo: conteos.porVendedor?.find((x) => x.vendedorId === v.id)?.total ?? 0,
       adorno: <AvatarVendedor nombre={v.nombre} tam={22} />,
     })),
   ];
@@ -237,14 +237,15 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
         : vendedores?.find((v) => v.id === vendedorId)?.nombre ?? 'Vendedor';
 
   const opcionesCiudad: OpcionMenu[] = [
-    { valor: '', etiqueta: 'Todas las ciudades' },
+    { valor: '', etiqueta: 'Todas las ciudades', conteo: conteos.porCiudad?.reduce((s, c) => s + c.total, 0) ?? 0 },
     // "Sin ciudad" SOLO para superadmin: un gerente ve solo negocios con matriz en su
     // región (siempre con ciudad) y un vendedor su cartera; los negocios sin ciudad
     // (matriz huérfana) solo los ve el superadmin.
-    ...(rol === 'superadmin' ? [{ valor: SIN, etiqueta: 'Sin ciudad' }] : []),
+    ...(rol === 'superadmin' ? [{ valor: SIN, etiqueta: 'Sin ciudad', conteo: conteos.porCiudad?.find((c) => c.ciudad === null)?.total ?? 0 }] : []),
     ...(ciudades ?? []).map((c) => ({
       valor: c,
       etiqueta: c,
+      conteo: conteos.porCiudad?.find((x) => x.ciudad === c)?.total ?? 0,
       adorno: <MapPin size={16} className="text-texto-3" />,
     })),
   ];
@@ -461,11 +462,6 @@ export function SeccionNegocios({ rol }: { rol: RolPanel }) {
         </div>
 
         <div className="flex shrink-0 items-center gap-3">
-          <span className="text-[13px] text-texto-3" data-testid="negocios-total">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'negocio' : 'negocios'}
-            {hayFiltro ? ' · filtrado' : ''}
-            {isFetching && !isLoading ? ' · actualizando…' : ''}
-          </span>
           {mostrarVendedor && (
             <MenuFiltro
               testid="negocios-filtro-vendedor"

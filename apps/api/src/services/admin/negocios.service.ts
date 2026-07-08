@@ -77,6 +77,8 @@ export interface FiltrosNegocios {
 export interface ConteosEstado {
     total: number;
     porEstado: Array<{ estado: string; total: number }>;
+    porVendedor: Array<{ vendedorId: string | null; total: number }>;  // null = sin asignar
+    porCiudad: Array<{ ciudad: string | null; total: number }>;         // null = sin ciudad (matriz sin ciudad)
 }
 
 /** Una fila de la tabla. */
@@ -385,30 +387,34 @@ export async function listarNegocios(
     filtros: FiltrosNegocios,
 ): Promise<ListaNegocios> {
     const alcance = await condicionAlcance(panel);
-    const conteosVacios: ConteosEstado = { total: 0, porEstado: [] };
+    const conteosVacios: ConteosEstado = { total: 0, porEstado: [], porVendedor: [], porCiudad: [] };
 
     // Rol sin nada que ver (config incompleta): tabla vacía, sin tocar la BD.
     if (alcance === 'vacio') {
         return { items: [], total: 0, pagina: filtros.pagina, porPagina: filtros.porPagina, conteos: conteosVacios };
     }
 
+    // COMÚN = alcance + búsqueda (SIN estado, vendedor NI ciudad). Sobre esta base + los OTROS filtros
+    // se calculan las facetas: cada dropdown/chip cuenta EXCLUYENDO su propio filtro (y sin lo que no se ve).
     const condCiudad = condicionCiudad(filtros.ciudad);
+    const condVendedor =
+        filtros.vendedorId === VENDEDOR_SIN ? isNull(negocios.embajadorId)
+        : filtros.vendedorId ? eq(negocios.embajadorId, filtros.vendedorId)
+        : undefined;
+    const condEstado = filtros.estadoPago ? sql`${ESTADO_EFECTIVO} = ${filtros.estadoPago}` : undefined;
 
-    // BASE = alcance + búsqueda + vendedor + ciudad (SIN estado). Sobre esta base
-    // se calculan los conteos por estado, para que cada chip cuadre con lo filtrado.
-    const base: SQL[] = [];
-    if (alcance) base.push(alcance);
-    if (filtros.busqueda) base.push(ilike(negocios.nombre, `%${filtros.busqueda}%`));
-    if (filtros.vendedorId === VENDEDOR_SIN) base.push(isNull(negocios.embajadorId));
-    else if (filtros.vendedorId) base.push(eq(negocios.embajadorId, filtros.vendedorId));
-    if (condCiudad) base.push(condCiudad);
+    const comun: SQL[] = [];
+    if (alcance) comun.push(alcance);
+    if (filtros.busqueda) comun.push(ilike(negocios.nombre, `%${filtros.busqueda}%`));
+    const armar = (...extra: (SQL | undefined)[]) => {
+        const conds = [...comun, ...extra.filter((x): x is SQL => x != null)];
+        return conds.length ? and(...conds) : undefined;
+    };
 
-    // LISTA = base + estado EFECTIVO (lo que realmente se muestra/pagina).
-    const condLista = [...base];
-    if (filtros.estadoPago) condLista.push(sql`${ESTADO_EFECTIVO} = ${filtros.estadoPago}`);
-
-    const whereBase = base.length ? and(...base) : undefined;
-    const whereLista = condLista.length ? and(...condLista) : undefined;
+    const whereBase = armar(condVendedor, condCiudad);             // porEstado (excluye estado)
+    const whereVendedor = armar(condEstado, condCiudad);           // porVendedor (excluye vendedor)
+    const whereCiudad = armar(condEstado, condVendedor);           // porCiudad (excluye ciudad)
+    const whereLista = armar(condVendedor, condCiudad, condEstado); // tabla + total
 
     // Total (con estado, para el paginado). Se incluye el join a la sucursal
     // principal porque el filtro de ciudad vive ahí (1:1, no duplica filas).
@@ -432,7 +438,31 @@ export async function listarNegocios(
         totalConteo += t;
         return { estado: f.estado, total: t };
     });
-    const conteos: ConteosEstado = { total: totalConteo, porEstado };
+
+    // Conteos por vendedor (embajador) — group by; null = "sin asignar". Excluye el propio filtro.
+    const filasVendedor = await db
+        .select({ vendedorId: negocios.embajadorId, n: count() })
+        .from(negocios)
+        .where(whereVendedor)
+        .groupBy(negocios.embajadorId);
+
+    // Conteos por ciudad de la sucursal principal — group by nombre; null = "sin ciudad". Excluye el
+    // propio filtro. (El filtro de ciudad matchea CUALQUIER sucursal; aquí se agrupa por la principal,
+    // que es lo que muestra la tabla — difiere solo en negocios multi-sucursal.)
+    const filasCiudad = await db
+        .select({ ciudad: ciudades.nombre, n: count() })
+        .from(negocios)
+        .leftJoin(negocioSucursales, joinPrincipal)
+        .leftJoin(ciudades, eq(ciudades.id, negocioSucursales.ciudadId))
+        .where(whereCiudad)
+        .groupBy(ciudades.nombre);
+
+    const conteos: ConteosEstado = {
+        total: totalConteo,
+        porEstado,
+        porVendedor: filasVendedor.map((f) => ({ vendedorId: f.vendedorId, total: Number(f.n) })),
+        porCiudad: filasCiudad.map((f) => ({ ciudad: f.ciudad, total: Number(f.n) })),
+    };
 
     // Página. Joins de presentación: sucursal principal → ciudad; embajador →
     // usuario del vendedor → nombre.

@@ -30,6 +30,14 @@ export async function listarCatalogo(ciudadId?: string): Promise<CategoriaMarket
   return data.data ?? [];
 }
 
+/** Publicaciones activas por ciudad para el badge del dropdown (independiente del filtro). '' = todas. */
+export async function contarPorCiudad(): Promise<Array<{ ciudadId: string; total: number }>> {
+  const { data } = await api.get<RespuestaAPI<Array<{ ciudadId: string; total: number }>>>(
+    '/admin/categorias-marketplace/por-ciudad',
+  );
+  return data.data ?? [];
+}
+
 export async function crearCategoria(datos: { nombre: string }): Promise<{ id: number }> {
   const { data } = await api.post<RespuestaAPI<{ id: number }>>(
     '/admin/categorias-marketplace',

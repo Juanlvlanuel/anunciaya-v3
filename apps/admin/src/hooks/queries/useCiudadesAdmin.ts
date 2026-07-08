@@ -42,6 +42,16 @@ export function useRegionesCatalogo() {
   });
 }
 
+/** Total de ciudades del catálogo (badge del menú). `enabled` lo gatea por acceso. */
+export function useConteoCiudades(enabled = true) {
+  return useQuery({
+    queryKey: queryKeys.ciudades.conteo(),
+    queryFn: () => ciudadesService.contarCiudades(),
+    staleTime: 1000 * 60,
+    enabled,
+  });
+}
+
 // =============================================================================
 // MUTACIONES (Fase 2) — invalidan toda la familia ['ciudades'] (lista + regiones)
 // =============================================================================

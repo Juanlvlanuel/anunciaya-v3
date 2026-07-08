@@ -103,7 +103,11 @@ export async function eliminarAuditoria(id: string): Promise<void> {
   await api.delete<RespuestaAPI<null>>(`/admin/auditoria/${id}`);
 }
 
-/** Vacía TODA la bitácora. Solo superadmin (el backend lo blinda). */
-export async function vaciarAuditoria(): Promise<void> {
-  await api.delete<RespuestaAPI<null>>('/admin/auditoria');
+/** Vacía la bitácora RESPETANDO los filtros activos (acción / persona / periodo). Sin filtros → borra
+ *  todo. Solo superadmin (el backend lo blinda). Devuelve cuántas borró. */
+export async function vaciarAuditoria(
+  filtros?: Pick<ParametrosAuditoria, 'actorId' | 'accion' | 'entidadTipo' | 'entidadId' | 'desde' | 'hasta'>,
+): Promise<{ borradas: number }> {
+  const { data } = await api.delete<RespuestaAPI<{ borradas: number }>>('/admin/auditoria', { params: filtros });
+  return data.data ?? { borradas: 0 };
 }

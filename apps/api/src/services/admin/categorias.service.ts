@@ -70,6 +70,11 @@ export interface CatalogoAdminResp {
     /** Negocios reales activos DISTINTOS con ≥1 subcategoría asignada (en la ciudad
      *  filtrada, si se pidió). Es el KPI "Negocios clasificados". */
     totalNegocios: number;
+    /** Categorías disponibles por ciudad (badge del dropdown). '' = total de categorías; una plaza solo
+     *  aparece si tiene categorías RESTRINGIDAS (global + específicas). Las demás usan `catGlobal`. */
+    porCiudad: Array<{ ciudadId: string; total: number }>;
+    /** Categorías GLOBALES (en toda plaza): default del badge para ciudades sin restricciones. */
+    catGlobal: number;
 }
 
 // =============================================================================
@@ -216,5 +221,21 @@ export async function listarCatalogoAdmin(ciudadId?: string): Promise<CatalogoAd
         };
     });
 
-    return { categorias, totalNegocios: negGlobal.size };
+    // Categorías disponibles por ciudad (badge del dropdown): una categoría GLOBAL (sin ciudades
+    // asignadas) está en TODA plaza; una restringida, solo en las suyas. `catGlobal` = default para las
+    // plazas sin restricciones; porCiudad[''] = total de categorías; cada plaza = globales + específicas.
+    const catConCiudad = new Set(catCiu.map((r) => r.categoriaId));
+    const catGlobal = cats.filter((c) => !catConCiudad.has(c.id)).length;
+    const catEspecificasPorCiudad = new Map<string, Set<number>>();
+    for (const r of catCiu) {
+        let s = catEspecificasPorCiudad.get(r.ciudadId);
+        if (!s) { s = new Set(); catEspecificasPorCiudad.set(r.ciudadId, s); }
+        s.add(r.categoriaId);
+    }
+    const porCiudad = [
+        { ciudadId: '', total: cats.length },
+        ...[...catEspecificasPorCiudad.entries()].map(([ciudadId, set]) => ({ ciudadId, total: catGlobal + set.size })),
+    ];
+
+    return { categorias, totalNegocios: negGlobal.size, porCiudad, catGlobal };
 }

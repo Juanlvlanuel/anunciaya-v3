@@ -9,13 +9,14 @@
  * Ubicación: apps/admin/src/components/categorias/SeccionCategoriasMarketplace.tsx
  */
 
-import { useMemo, useState } from 'react';
-import { Plus, Pencil, Power, Search, X, MapPin, Layers, Tag } from 'lucide-react';
+import { useEffect, useMemo, useState, type MutableRefObject } from 'react';
+import { Plus, Pencil, Power, Search, X, MapPin, Tag } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import {
   useCatalogoMarketplace,
+  useMarketplacePorCiudad,
   useCrearCategoriaMP,
   useEditarCategoriaMP,
   useCambiarActivaCategoriaMP,
@@ -31,20 +32,31 @@ const ESTADOS = [
   { id: 'inactivas', label: 'Inactivas' },
 ] as const;
 
-export function SeccionCategoriasMarketplace() {
+// KPI compacto (patrón del Panel): etiqueta uppercase arriba + valor bold abajo, centrado.
+function Kpi({ valor, etiqueta, testid }: { valor: number; etiqueta: string; testid?: string }) {
+  return (
+    <div data-testid={testid} className="flex min-w-[84px] shrink-0 snap-start flex-col items-center px-3.5 text-center leading-tight lg:px-4">
+      <span className="txt-badge whitespace-nowrap font-semibold uppercase tracking-wide text-texto-4 lg:text-[11px]">{etiqueta}</span>
+      <span className="mt-1 whitespace-nowrap text-[17px] font-bold tabular-nums text-texto lg:text-[22px]">{valor}</span>
+    </div>
+  );
+}
+
+export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRefObject<(() => void) | null> }) {
   // Filtro por ciudad (analítica): '' = todas.
   const [ciudadSel, setCiudadSel] = useState('');
   const { data: catalogo = [], isLoading, isError, isFetching } = useCatalogoMarketplace(
     ciudadSel || undefined,
   );
   const { data: ciudades = [] } = useCiudadesLista({ activa: 'activas' });
-  const opcionesCiudad = useMemo<OpcionMenu[]>(
-    () => [
-      { valor: '', etiqueta: 'Todas las ciudades' },
-      ...ciudades.map((c) => ({ valor: c.id, etiqueta: c.nombre })),
-    ],
-    [ciudades],
-  );
+  const { data: porCiudad } = useMarketplacePorCiudad();
+  const opcionesCiudad = useMemo<OpcionMenu[]>(() => {
+    const conteo = (id: string) => porCiudad?.find((p) => p.ciudadId === id)?.total ?? 0;
+    return [
+      { valor: '', etiqueta: 'Todas las ciudades', conteo: conteo('') },
+      ...ciudades.map((c) => ({ valor: c.id, etiqueta: c.nombre, conteo: conteo(c.id) })),
+    ];
+  }, [ciudades, porCiudad]);
   const etiquetaCiudad =
     opcionesCiudad.find((o) => o.valor === ciudadSel)?.etiqueta ?? 'Todas las ciudades';
   const [busqueda, setBusqueda] = useState('');
@@ -82,6 +94,11 @@ export function SeccionCategoriasMarketplace() {
     setNombre('');
     setDlg({ modo: 'crear', categoria: null });
   };
+  // El botón "+ Nueva categoría" vive en la barra de tabs (wrapper); aquí se registra su acción.
+  useEffect(() => {
+    crearRef.current = abrirCrear;
+    return () => { crearRef.current = null; };
+  }, [crearRef]);
   const abrirEditar = (c: CategoriaMarketplaceAdmin) => {
     setNombre(c.nombre);
     setDlg({ modo: 'editar', categoria: c });
@@ -98,33 +115,7 @@ export function SeccionCategoriasMarketplace() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* KPIs */}
-      {!isLoading && !isError && (
-        <div className="mb-4 -mx-4 flex shrink-0 snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          {(
-            [
-              { icono: Layers, valor: kpisPub.total, etiqueta: 'Publicaciones' },
-              { icono: Tag, valor: kpisPub.venta, etiqueta: 'En venta' },
-              { icono: Search, valor: kpisPub.busca, etiqueta: 'Buscando' },
-            ] as const
-          ).map(({ icono: Icono, valor, etiqueta }) => (
-            <div
-              key={etiqueta}
-              className="flex w-[44vw] max-w-[180px] shrink-0 snap-start items-center gap-2.5 rounded-[12px] border border-borde bg-superficie px-3 py-2.5 shadow-tarjeta-panel lg:w-auto lg:max-w-none lg:gap-3.5 lg:rounded-[14px] lg:px-4 lg:py-3.5"
-            >
-              <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca lg:h-11 lg:w-11">
-                <Icono className="h-[18px] w-[18px] lg:h-5 lg:w-5" />
-              </span>
-              <div className="min-w-0">
-                <div className="text-[19px] font-bold leading-none tabular-nums text-texto lg:text-[26px]">{valor}</div>
-                <div className="mt-0.5 truncate text-[11px] font-medium text-texto-3 lg:text-[12.5px]">{etiqueta}</div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {/* Barra: buscador + filtros + nueva */}
+      {/* Barra: buscador + filtros + KPIs (el botón "Nueva" vive en la barra de tabs) */}
       <div className="mb-3 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
         {/* Fila 1 (móvil): buscador + botón "+" al lado. En desktop, lg:contents
             desarma el wrapper (buscador se une a la fila, el "+" móvil se oculta). */}
@@ -145,14 +136,6 @@ export function SeccionCategoriasMarketplace() {
               </button>
             )}
           </div>
-          <button
-            type="button"
-            onClick={abrirCrear}
-            aria-label="Nueva categoría"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste shadow-sm transition active:scale-95 lg:hidden"
-          >
-            <Plus size={18} />
-          </button>
         </div>
 
         {/* Fila 2 (móvil): ciudad (primero) + chips de estado, deslizables como
@@ -173,92 +156,117 @@ export function SeccionCategoriasMarketplace() {
           </div>
           {ESTADOS.map((e) => {
             const act = filtroEstado === e.id;
+            const color = e.id === 'activas' ? 'var(--panel-ok)' : e.id === 'inactivas' ? 'var(--panel-text-4)' : 'var(--panel-brand)';
+            const n = e.id === 'activas' ? catalogo.filter((c) => c.activa).length
+              : e.id === 'inactivas' ? catalogo.filter((c) => !c.activa).length
+                : catalogo.length;
             return (
               <button
                 key={e.id}
                 type="button"
+                data-testid={`categorias-mp-filtro-${e.id}`}
                 onClick={() => setFiltroEstado(e.id)}
-                className={`inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition ${
-                  act ? 'border-marca/40 bg-marca-suave text-marca' : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
-                }`}
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+                style={act ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
               >
+                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
                 {e.label}
+                <span
+                  className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+                  style={act ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color } : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+                >
+                  {n}
+                </span>
               </button>
             );
           })}
         </div>
 
         {isFetching && !isLoading && <span className="hidden text-[12px] text-texto-4 lg:inline">actualizando…</span>}
-        <button
-          type="button"
-          data-testid="categoria-mp-nueva"
-          onClick={abrirCrear}
-          className="ml-auto hidden items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition hover:brightness-110 lg:inline-flex"
-        >
-          <Plus size={16} /> Nueva categoría
-        </button>
-      </div>
-
-      {/* Lista */}
-      <div className="min-h-0 flex-1 overflow-y-auto">
-        {isLoading ? (
-          <p className="py-8 text-center text-[13px] text-texto-3">Cargando…</p>
-        ) : isError ? (
-          <p className="py-8 text-center text-[13px] text-texto-2">No se pudo cargar el catálogo.</p>
-        ) : vista.length === 0 ? (
-          <p className="py-8 text-center text-[13px] text-texto-3">Sin categorías.</p>
-        ) : (
-          <ul className="divide-y divide-borde overflow-hidden rounded-[12px] border border-borde bg-superficie">
-            {vista.map((c) => (
-              <li
-                key={c.id}
-                data-testid={`categoria-mp-${c.id}`}
-                className={`flex items-center gap-3 px-3.5 py-2.5 ${c.activa ? '' : 'opacity-60'}`}
-              >
-                <span className="min-w-0 flex-1 truncate text-[14px] font-semibold text-texto">{c.nombre}</span>
-                {!c.activa && (
-                  <span className="rounded-full bg-borde/60 px-2 py-0.5 text-[11px] font-semibold text-texto-3">Inactiva</span>
-                )}
-                {/* Conteo de publicaciones activas: oferta (Vendo) vs demanda (Busco). */}
-                <span className="flex shrink-0 items-center gap-1.5">
-                  <span
-                    title="Publicaciones en venta"
-                    className="rounded-full bg-marca-suave px-2.5 py-1 text-[13px] font-semibold text-marca tabular-nums"
-                  >
-                    {c.totalVendo} venta
-                  </span>
-                  <span
-                    title="Publicaciones buscando (demanda)"
-                    className="rounded-full bg-amber-100 px-2.5 py-1 text-[13px] font-semibold text-amber-700 tabular-nums"
-                  >
-                    {c.totalBusco} busca
-                  </span>
-                </span>
-                <Tooltip text="Editar">
-                  <button
-                    type="button"
-                    data-testid={`categoria-mp-editar-${c.id}`}
-                    onClick={() => abrirEditar(c)}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-transparent text-texto-3 transition hover:border-borde hover:bg-marca-suave hover:text-marca"
-                  >
-                    <Pencil size={16} />
-                  </button>
-                </Tooltip>
-                <Tooltip text={c.activa ? 'Desactivar' : 'Activar'}>
-                  <button
-                    type="button"
-                    data-testid={`categoria-mp-activa-${c.id}`}
-                    onClick={() => activa.mutate({ id: c.id, activa: !c.activa })}
-                    className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-transparent text-texto-3 transition hover:border-borde hover:bg-marca-suave hover:text-marca"
-                  >
-                    <Power size={16} />
-                  </button>
-                </Tooltip>
-              </li>
-            ))}
-          </ul>
+        {!isLoading && !isError && (
+          <div className="-mx-1 flex shrink-0 items-stretch overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:ml-auto lg:overflow-visible lg:px-0">
+            <Kpi valor={kpisPub.total} etiqueta="Publicaciones" testid="kpi-mp-total" />
+            <span className="w-px shrink-0 self-stretch bg-borde" />
+            <Kpi valor={kpisPub.venta} etiqueta="En venta" testid="kpi-mp-venta" />
+            <span className="w-px shrink-0 self-stretch bg-borde" />
+            <Kpi valor={kpisPub.busca} etiqueta="Buscando" testid="kpi-mp-busca" />
+          </div>
         )}
       </div>
+
+      {/* Tabla — mismo patrón que Categorías·Negocios: card con borde+sombra,
+          header de columnas fijo (escritorio) y cuerpo con scroll interno debajo. */}
+      {isLoading ? (
+        <div className="grid flex-1 place-items-center text-[13px] text-texto-3">Cargando…</div>
+      ) : isError ? (
+        <div className="grid flex-1 place-items-center text-[13px] text-texto-2">No se pudo cargar el catálogo.</div>
+      ) : vista.length === 0 ? (
+        <div className="grid flex-1 place-items-center text-[13px] text-texto-3">Sin categorías.</div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+          {/* Encabezado de columnas (escritorio) */}
+          <div className="hidden shrink-0 items-center gap-4 border-b border-borde bg-superficie-2/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4 lg:flex">
+            <span className="flex-1">Categoría</span>
+            <span className="w-24 text-center">En venta</span>
+            <span className="w-24 text-center">Buscando</span>
+            <span className="w-24 text-center">Acciones</span>
+          </div>
+
+          {/* Cuerpo con scroll interno (debajo del header) */}
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            {vista.map((c) => (
+              <div
+                key={c.id}
+                data-testid={`categoria-mp-${c.id}`}
+                className={`flex items-center gap-4 border-b border-borde px-4 py-3 transition ${!c.activa ? 'bg-[var(--panel-warn-weak)] hover:bg-[var(--panel-warn-weak)]' : 'hover:bg-marca-suave/40'}`}
+              >
+                <div className="flex min-w-0 flex-1 flex-col gap-1">
+                  {/* Línea 1: nombre + estado (el nombre trunca si hace falta). */}
+                  <div className="flex min-w-0 items-center gap-2.5">
+                    <span className="min-w-0 truncate text-[14.5px] font-semibold text-texto">{c.nombre}</span>
+                    {!c.activa && <span className="shrink-0 rounded-full border border-borde px-2 py-0.5 text-[11px] font-semibold text-texto-4">Inactiva</span>}
+                  </div>
+                  {/* Línea 2 (solo móvil): venta + busca. En escritorio van en sus columnas. */}
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1 lg:hidden">
+                    <span title="Publicaciones en venta" className="rounded-full bg-marca-suave px-2.5 py-1 text-[12px] font-semibold text-marca tabular-nums">{c.totalVendo} venta</span>
+                    <span title="Publicaciones buscando (demanda)" className="rounded-full bg-amber-100 px-2.5 py-1 text-[12px] font-semibold text-amber-700 tabular-nums">{c.totalBusco} busca</span>
+                  </div>
+                </div>
+                {/* Escritorio: columnas En venta / Buscando (oferta vs demanda por color). */}
+                <span className="hidden w-24 justify-center lg:flex">
+                  <span title="Publicaciones en venta" className="rounded-full bg-marca-suave px-2.5 py-1 text-[13px] font-semibold text-marca tabular-nums">{c.totalVendo}</span>
+                </span>
+                <span className="hidden w-24 justify-center lg:flex">
+                  <span title="Publicaciones buscando (demanda)" className="rounded-full bg-amber-100 px-2.5 py-1 text-[13px] font-semibold text-amber-700 tabular-nums">{c.totalBusco}</span>
+                </span>
+                {/* Acciones */}
+                <div className="flex w-auto shrink-0 items-center justify-end gap-1 lg:w-24 lg:justify-center">
+                  <Tooltip text="Editar">
+                    <button
+                      type="button"
+                      data-testid={`categoria-mp-editar-${c.id}`}
+                      onClick={() => abrirEditar(c)}
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-transparent text-texto-3 transition hover:border-borde hover:bg-marca-suave hover:text-marca"
+                    >
+                      <Pencil size={16} />
+                    </button>
+                  </Tooltip>
+                  <Tooltip text={c.activa ? 'Desactivar' : 'Activar'}>
+                    <button
+                      type="button"
+                      data-testid={`categoria-mp-activa-${c.id}`}
+                      onClick={() => activa.mutate({ id: c.id, activa: !c.activa })}
+                      className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-transparent text-texto-3 transition hover:border-borde hover:bg-marca-suave hover:text-marca"
+                    >
+                      <Power size={16} className={c.activa ? 'text-verde' : 'text-texto-4'} />
+                    </button>
+                  </Tooltip>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Modal crear/editar — modal adaptativo del Panel (centrado en desktop,
           bottom-sheet en móvil), igual que los diálogos de Negocios. */}

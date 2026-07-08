@@ -46,7 +46,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { MenuAcciones } from '../ciudades/MenuAcciones';
 
 const BTN_NUEVO =
-  'inline-flex shrink-0 items-center gap-1.5 rounded-[10px] bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste hover:brightness-105';
+  'group inline-flex h-9 shrink-0 items-center gap-2 rounded-full bg-marca px-4 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95';
 
 // Botones-ícono circulares de color (patrón calcado de Territorios): acción por color.
 const BTN_CIRC = 'grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:opacity-80';
@@ -180,13 +180,13 @@ export function SeccionAyuda() {
           onClick={() => setDlgCat({ categoria: null })}
           data-testid="ayuda-nueva-categoria"
         >
-          <Plus className="h-4 w-4" /> Nueva categoría
+          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" /> Nueva categoría
         </button>
 
         {!isLoading && cats.length > 0 && (
           <>
             {/* KPIs compactos (número + etiqueta, divididos) */}
-            <div className="flex shrink-0 items-stretch divide-x divide-borde rounded-[10px] border border-borde bg-superficie py-1">
+            <div className="flex h-9 shrink-0 items-stretch divide-x divide-borde rounded-[10px] border border-borde bg-superficie">
               <KpiInline etiqueta="Tutoriales" valor={kpis.total} />
               <KpiInline etiqueta="Con video" valor={kpis.conVideo} color="var(--panel-ok)" />
               <KpiInline etiqueta="Sin video" valor={kpis.sinVideo} color="var(--panel-warn)" />
@@ -195,7 +195,7 @@ export function SeccionAyuda() {
 
             {/* Producción de video (compacta) */}
             <div
-              className="flex shrink-0 items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3 py-2"
+              className="flex h-9 shrink-0 items-center gap-2 rounded-[10px] border border-borde bg-superficie px-3"
               title={`${kpis.conVideo} de ${kpis.total} grabados`}
             >
               <span className="text-[11.5px] text-texto-3">Grabados</span>
@@ -210,7 +210,7 @@ export function SeccionAyuda() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-4" />
               <input
                 data-testid="ayuda-buscar"
-                className="w-full rounded-[10px] border border-campo-borde bg-campo py-2 pl-9 pr-3 text-[13px] text-texto outline-none placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
+                className="h-9 w-full rounded-full border border-campo-borde bg-campo pl-9 pr-3 text-[13px] text-texto outline-none placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
                 placeholder="Buscar tutorial…"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -338,7 +338,7 @@ function ChipFiltro({
       type="button"
       onClick={onClick}
       data-testid={testid}
-      className={`inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3 py-1 text-[12.5px] font-medium transition ${
+      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition ${
         activo
           ? 'border-marca bg-marca-suave text-marca'
           : 'border-borde bg-superficie text-texto-2 hover:bg-superficie-2'

@@ -42,6 +42,11 @@ export interface CatalogoAdminResp {
   categorias: CategoriaAdmin[];
   /** Negocios reales activos DISTINTOS con ≥1 subcategoría (en la ciudad filtrada, o todas). */
   totalNegocios: number;
+  /** Categorías disponibles por ciudad (badge del dropdown). '' = total de categorías; una plaza solo
+   *  aparece si tiene categorías RESTRINGIDAS (global + específicas). Las demás usan `catGlobal`. */
+  porCiudad: Array<{ ciudadId: string; total: number }>;
+  /** Categorías GLOBALES (en toda plaza): default del badge para ciudades sin restricciones. */
+  catGlobal: number;
 }
 
 // =============================================================================
@@ -56,7 +61,7 @@ export async function listarCatalogo(ciudadId?: string): Promise<CatalogoAdminRe
   const { data } = await api.get<RespuestaAPI<CatalogoAdminResp>>('/admin/categorias', {
     params: ciudadId ? { ciudadId } : undefined,
   });
-  return data.data ?? { categorias: [], totalNegocios: 0 };
+  return data.data ?? { categorias: [], totalNegocios: 0, porCiudad: [], catGlobal: 0 };
 }
 
 // =============================================================================

@@ -28,6 +28,7 @@ import { Router } from 'express';
 import {
     listarCiudadesCatalogoController,
     listarRegionesCatalogoController,
+    contarCiudadesCatalogoController,
     crearCiudadController,
     crearCiudadesMultipleController,
     editarCiudadController,
@@ -43,6 +44,7 @@ const router: Router = Router();
 // ── Lectura ──────────────────────────────────────────────────────────────────
 router.get('/', listarCiudadesCatalogoController);
 router.get('/regiones', listarRegionesCatalogoController);
+router.get('/conteo', contarCiudadesCatalogoController);
 
 // ── Acciones · rutas específicas (antes de las paramétricas) ─────────────────
 router.post('/multiple', crearCiudadesMultipleController);

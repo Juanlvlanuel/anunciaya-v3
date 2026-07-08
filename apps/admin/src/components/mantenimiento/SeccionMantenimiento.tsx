@@ -17,8 +17,8 @@
  */
 
 import { useState, useMemo, type ReactNode } from 'react';
+import { TabsSegmento } from '../ui/TabsSegmento';
 import {
-  Wrench,
   Activity,
   Database,
   Server,
@@ -136,38 +136,14 @@ export function SeccionMantenimiento() {
   return (
     <div className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7" data-testid="seccion-mantenimiento">
       <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
-        {/* ── Encabezado ───────────────────────────────────────────────────── */}
-        <div className="flex items-center gap-3 lg:items-start">
-          <span className="grid h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-marca-suave text-marca">
-            <Wrench size={19} />
-          </span>
-          <div className="flex flex-col gap-0.5">
-            <h2 className="text-[18px] font-semibold tracking-[-0.2px] text-texto">Mantenimiento</h2>
-            <p className="hidden text-[12.5px] text-texto-3 lg:block">Salud del sistema, tareas programadas, logs y limpieza de archivos.</p>
-          </div>
-        </div>
-
-        {/* Pestañas */}
-        <div className="flex gap-5 overflow-x-auto border-b border-borde [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          {TABS_MANTENIMIENTO.map((t) => {
-            const activo = tab === t.id;
-            return (
-              <button
-                key={t.id}
-                type="button"
-                data-testid={`mant-tab-${t.id}`}
-                data-active={activo}
-                onClick={() => setTab(t.id)}
-                className={`relative whitespace-nowrap px-0.5 pb-2.5 pt-1 text-[13.5px] font-semibold transition ${
-                  activo ? 'text-texto' : 'text-texto-3 hover:text-texto-2'
-                }`}
-              >
-                {t.etiqueta}
-                {activo && <span className="absolute inset-x-0 -bottom-px h-0.5 rounded-full bg-marca" />}
-              </button>
-            );
-          })}
-        </div>
+        {/* Pestañas: segmented control (mismo estilo que Ciudades). */}
+        <TabsSegmento
+          tabs={TABS_MANTENIMIENTO.map((t) => ({ id: t.id, label: t.etiqueta }))}
+          valor={tab}
+          onCambiar={setTab}
+          testidPrefijo="mant-tab"
+          className="max-w-full self-start overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        />
 
         {/* Vista activa (lazy: solo la pestaña abierta monta su hook) */}
         {tab === 'salud' && <BloqueSalud />}

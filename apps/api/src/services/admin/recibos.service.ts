@@ -60,9 +60,16 @@ export interface ReciboFila {
     anulado: boolean;
 }
 
+export interface ConteosRecibos {
+    total: number;
+    membresia: number;
+    publicidad: number;
+}
+
 export interface ListaRecibos {
     items: ReciboFila[];
     total: number;
+    conteos: ConteosRecibos;
     pagina: number;
     porPagina: number;
 }
@@ -136,8 +143,7 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         AND (${like}::text IS NULL OR CAST(pm.folio AS TEXT) ILIKE ${like} OR EXISTS (SELECT 1 FROM negocios n WHERE n.id = pm.negocio_id AND n.nombre ILIKE ${like}))
         AND (${negocioId}::uuid IS NULL OR pm.negocio_id = ${negocioId}::uuid)
         AND (${desde}::timestamptz IS NULL OR pm.fecha_pago >= ${desde}::timestamptz)
-        AND (${hasta}::timestamptz IS NULL OR pm.fecha_pago <= ${hasta}::timestamptz)
-        AND (${origen}::text IS NULL OR ${origen}::text = 'membresia')`;
+        AND (${hasta}::timestamptz IS NULL OR pm.fecha_pago <= ${hasta}::timestamptz)`;
 
     // El filtro por negocioId solo aplica a membresía (publicidad no es por negocio); con negocioId,
     // se excluye publicidad.
@@ -147,8 +153,7 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         AND ${alcPub}
         AND (${like}::text IS NULL OR CAST(pc.folio AS TEXT) ILIKE ${like} OR EXISTS (SELECT 1 FROM usuarios u2 WHERE u2.id = pc.usuario_id AND TRIM(CONCAT(u2.nombre,' ',COALESCE(u2.apellidos,''))) ILIKE ${like}) OR EXISTS (SELECT 1 FROM negocios n2 WHERE n2.id = pc.negocio_id AND n2.nombre ILIKE ${like}))
         AND (${desde}::timestamptz IS NULL OR pc.created_at >= ${desde}::timestamptz)
-        AND (${hasta}::timestamptz IS NULL OR pc.created_at <= ${hasta}::timestamptz)
-        AND (${origen}::text IS NULL OR ${origen}::text = 'publicidad')`;
+        AND (${hasta}::timestamptz IS NULL OR pc.created_at <= ${hasta}::timestamptz)`;
 
     const baseUnion = sql`
         SELECT 'membresia'::text AS origen, pm.id::text AS id, pm.folio,
@@ -175,11 +180,21 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         LEFT JOIN negocios n3 ON n3.id = pc.negocio_id
         WHERE ${filtroPub}`;
 
-    const [{ total }] = (await db.execute(sql`SELECT count(*)::int AS total FROM (${baseUnion}) AS r`)).rows as Array<{ total: number }>;
+    // El filtro por origen se aplica en la consulta EXTERNA: así los conteos por origen (abajo) lo
+    // IGNORAN y cada chip muestra su total (respetando búsqueda/fechas/alcance).
+    const filtroOrigen = sql`(${origen}::text IS NULL OR r.origen = ${origen}::text)`;
+
+    const [{ total }] = (await db.execute(sql`SELECT count(*)::int AS total FROM (${baseUnion}) AS r WHERE ${filtroOrigen}`)).rows as Array<{ total: number }>;
+
+    // Conteo por origen (badges de los chips): NO aplica el filtro de origen.
+    const filasConteo = (await db.execute(sql`SELECT r.origen AS origen, count(*)::int AS n FROM (${baseUnion}) AS r GROUP BY r.origen`)).rows as Array<{ origen: OrigenRecibo; n: number }>;
+    const nMem = filasConteo.find((x) => x.origen === 'membresia')?.n ?? 0;
+    const nPub = filasConteo.find((x) => x.origen === 'publicidad')?.n ?? 0;
 
     const offset = (filtros.pagina - 1) * filtros.porPagina;
     const filas = (await db.execute(sql`
         SELECT * FROM (${baseUnion}) AS r
+        WHERE ${filtroOrigen}
         ORDER BY ${ordenSql(filtros.orden)}
         LIMIT ${filtros.porPagina} OFFSET ${offset}
     `)).rows as unknown as FilaUnion[];
@@ -201,7 +216,13 @@ export async function listarRecibos(panel: UsuarioPanel, filtros: FiltrosRecibos
         anulado: f.anulado,
     }));
 
-    return { items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina };
+    return {
+        items,
+        total: Number(total),
+        conteos: { total: nMem + nPub, membresia: nMem, publicidad: nPub },
+        pagina: filtros.pagina,
+        porPagina: filtros.porPagina,
+    };
 }
 
 // =============================================================================

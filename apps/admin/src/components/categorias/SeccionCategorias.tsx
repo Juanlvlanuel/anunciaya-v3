@@ -11,8 +11,8 @@
  * Ubicación: apps/admin/src/components/categorias/SeccionCategorias.tsx
  */
 
-import { useMemo, useState } from 'react';
-import { Plus, ChevronRight, Pencil, MapPin, Globe2, Power, Tags, Search, X, FolderTree, Store } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
+import { Plus, ChevronRight, Pencil, MapPin, Globe2, Power, Tags, Search, X, Store } from 'lucide-react';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { Tooltip } from '../ui/Tooltip';
 import {
@@ -29,6 +29,7 @@ import {
 import type { CategoriaAdmin, SubcategoriaAdmin, CiudadRef } from '../../services/categoriasService';
 import { DialogoCategoria, DialogoSubcategoria, DialogoDisponibilidad } from './DialogosCategorias';
 import { SeccionCategoriasMarketplace } from './SeccionCategoriasMarketplace';
+import { TabsSegmento } from '../ui/TabsSegmento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { useCiudadesLista } from '../../hooks/queries/useCiudadesAdmin';
 
@@ -43,20 +44,16 @@ type DlgDisponibilidad =
 // Tarjeta KPI de cabecera (cifra dominante + ícono de acento, estilo Tokens_Panel)
 // =============================================================================
 
-function Kpi({ icono: Icono, valor, etiqueta, testid }: { icono: typeof Tags; valor: number; etiqueta: string; testid?: string }) {
-  // Móvil: tarjeta compacta para carrusel horizontal. Escritorio: tamaño completo.
+// KPI al patrón del Panel (Suscripciones/Publicidad): sin card ni ícono — etiqueta uppercase arriba +
+// valor bold abajo, centrado. Móvil: carrusel (min-w). Escritorio: columnas iguales con divisores.
+function Kpi({ valor, etiqueta, etiquetaCorta, testid }: { valor: number; etiqueta: string; etiquetaCorta?: string; testid?: string }) {
   return (
-    <div
-      data-testid={testid}
-      className="flex w-[44vw] max-w-[180px] shrink-0 snap-start items-center gap-2.5 rounded-[12px] border border-borde bg-superficie px-3 py-2.5 shadow-tarjeta-panel lg:w-auto lg:max-w-none lg:gap-3.5 lg:rounded-[14px] lg:px-4 lg:py-3.5"
-    >
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[9px] bg-marca-suave text-marca lg:h-11 lg:w-11 lg:rounded-[11px]">
-        <Icono className="h-[18px] w-[18px] lg:h-5 lg:w-5" />
+    <div data-testid={testid} className="flex min-w-[84px] shrink-0 snap-start flex-col items-center px-3.5 text-center leading-tight lg:px-4">
+      <span className="txt-badge whitespace-nowrap font-semibold uppercase tracking-wide text-texto-4 lg:text-[11px]">
+        <span className="lg:hidden">{etiquetaCorta ?? etiqueta}</span>
+        <span className="hidden lg:inline">{etiqueta}</span>
       </span>
-      <div className="min-w-0">
-        <div className="text-[19px] font-bold leading-none tabular-nums text-texto lg:text-[26px]">{valor}</div>
-        <div className="mt-0.5 truncate text-[11px] font-medium text-texto-3 lg:mt-1 lg:text-[12.5px]">{etiqueta}</div>
-      </div>
+      <span className="mt-1 whitespace-nowrap text-[17px] font-bold tabular-nums text-texto lg:text-[22px]">{valor}</span>
     </div>
   );
 }
@@ -87,20 +84,21 @@ function BotonIcono({ onClick, children, testid }: { onClick: () => void; childr
   );
 }
 
-function SeccionCategoriasNegocios() {
+function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<(() => void) | null> }) {
   // Filtro por ciudad (analítica de negocios por plaza): '' = todas.
   const [ciudadSel, setCiudadSel] = useState('');
   const { data, isLoading, isError, isFetching } = useCatalogo(ciudadSel || undefined);
   const catalogo = data?.categorias ?? [];
   const totalNegocios = data?.totalNegocios ?? 0;
   const { data: ciudades = [] } = useCiudadesLista({ activa: 'activas' });
-  const opcionesCiudad = useMemo<OpcionMenu[]>(
-    () => [
-      { valor: '', etiqueta: 'Todas las ciudades' },
-      ...ciudades.map((c) => ({ valor: c.id, etiqueta: c.nombre })),
-    ],
-    [ciudades],
-  );
+  const opcionesCiudad = useMemo<OpcionMenu[]>(() => {
+    // '' → total de categorías; plaza con categorías restringidas → su total; plaza sin restricciones → catGlobal.
+    const conteo = (id: string) => data?.porCiudad?.find((p) => p.ciudadId === id)?.total ?? data?.catGlobal ?? 0;
+    return [
+      { valor: '', etiqueta: 'Todas las ciudades', conteo: conteo('') },
+      ...ciudades.map((c) => ({ valor: c.id, etiqueta: c.nombre, conteo: conteo(c.id) })),
+    ];
+  }, [ciudades, data]);
   const etiquetaCiudad =
     opcionesCiudad.find((o) => o.valor === ciudadSel)?.etiqueta ?? 'Todas las ciudades';
   const [expandidas, setExpandidas] = useState<Set<number>>(new Set());
@@ -118,6 +116,12 @@ function SeccionCategoriasNegocios() {
   const editarSub = useEditarSubcategoria();
   const activaSub = useCambiarActivaSubcategoria();
   const ciudadesSub = useAsignarCiudadesSubcategoria();
+
+  // El botón "+ Nueva categoría" vive en la barra de tabs (wrapper); aquí se registra su acción.
+  useEffect(() => {
+    crearRef.current = () => setDlgCategoria({ modo: 'crear', categoria: null });
+    return () => { crearRef.current = null; };
+  }, [crearRef]);
 
   // KPIs. "Negocios clasificados" viene del backend (DISTINCT por ciudad); aquí solo
   // se derivan los conteos del catálogo (globales: el catálogo no cambia por ciudad).
@@ -188,16 +192,7 @@ function SeccionCategoriasNegocios() {
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
-      {/* KPIs de cabecera */}
-      {!isLoading && !isError && (
-        <div className="mb-4 -mx-4 flex shrink-0 snap-x snap-mandatory gap-2.5 overflow-x-auto px-4 pb-1 [-ms-overflow-style:none] [scrollbar-width:none] lg:mx-0 lg:grid lg:grid-cols-3 lg:gap-3 lg:overflow-visible lg:px-0 lg:pb-0 [&::-webkit-scrollbar]:hidden">
-          <Kpi icono={Tags} valor={kpis.categorias} etiqueta="Categorías" testid="kpi-categorias" />
-          <Kpi icono={FolderTree} valor={kpis.subs} etiqueta="Subcategorías" testid="kpi-subcategorias" />
-          <Kpi icono={Store} valor={totalNegocios} etiqueta="Negocios clasificados" testid="kpi-negocios" />
-        </div>
-      )}
-
-      {/* Barra de utilidad: buscador + filtros + acción */}
+      {/* Barra de utilidad: buscador + filtros + KPIs (el botón "Nueva" vive en la barra de tabs) */}
       <div className="mb-3 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
         <div className="flex items-center gap-2 lg:contents">
           <div className="relative min-w-0 flex-1 lg:w-[340px] lg:flex-none">
@@ -216,15 +211,6 @@ function SeccionCategoriasNegocios() {
               </button>
             )}
           </div>
-          <button
-            type="button"
-            data-testid="categoria-nueva-movil"
-            onClick={() => setDlgCategoria({ modo: 'crear', categoria: null })}
-            aria-label="Nueva categoría"
-            className="grid h-10 w-10 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste shadow-sm transition active:scale-95 lg:hidden"
-          >
-            <Plus size={18} />
-          </button>
         </div>
 
         {/* Fila 2 (móvil): ciudad (primero) + chips de estado, deslizables como
@@ -245,17 +231,27 @@ function SeccionCategoriasNegocios() {
           </div>
           {ESTADOS.map((e) => {
             const act = filtroEstado === e.id;
+            const color = e.id === 'activas' ? 'var(--panel-ok)' : e.id === 'inactivas' ? 'var(--panel-text-4)' : 'var(--panel-brand)';
+            const n = e.id === 'activas' ? catalogo.filter((c) => c.activa).length
+              : e.id === 'inactivas' ? catalogo.filter((c) => !c.activa).length
+                : catalogo.length;
             return (
               <button
                 key={e.id}
                 type="button"
                 data-testid={`categorias-filtro-${e.id}`}
                 onClick={() => setFiltroEstado(e.id)}
-                className={`inline-flex shrink-0 items-center rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition ${
-                  act ? 'border-marca/40 bg-marca-suave text-marca' : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
-                }`}
+                className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+                style={act ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
               >
+                <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
                 {e.label}
+                <span
+                  className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+                  style={act ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color } : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+                >
+                  {n}
+                </span>
               </button>
             );
           })}
@@ -268,14 +264,15 @@ function SeccionCategoriasNegocios() {
         )}
         {isFetching && !isLoading && <span className="hidden text-[12px] text-texto-4 lg:inline">actualizando…</span>}
 
-        <button
-          type="button"
-          data-testid="categoria-nueva"
-          onClick={() => setDlgCategoria({ modo: 'crear', categoria: null })}
-          className="group hidden shrink-0 items-center gap-1.5 rounded-full bg-marca px-4 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:ml-auto lg:inline-flex"
-        >
-          <Plus size={15} className="transition-transform duration-300 group-hover:rotate-90" /> Nueva categoría
-        </button>
+        {!isLoading && !isError && (
+          <div className="-mx-1 flex shrink-0 items-stretch overflow-x-auto px-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:mx-0 lg:ml-auto lg:overflow-visible lg:px-0">
+            <Kpi valor={kpis.categorias} etiqueta="Categorías" testid="kpi-categorias" />
+            <span className="w-px shrink-0 self-stretch bg-borde" />
+            <Kpi valor={kpis.subs} etiqueta="Subcategorías" testid="kpi-subcategorias" />
+            <span className="w-px shrink-0 self-stretch bg-borde" />
+            <Kpi valor={totalNegocios} etiqueta="Negocios clasificados" etiquetaCorta="Negocios" testid="kpi-negocios" />
+          </div>
+        )}
       </div>
 
       {isLoading ? (
@@ -288,8 +285,11 @@ function SeccionCategoriasNegocios() {
         <EstadoSeccion icono={Search} titulo="Sin resultados" descripcion="Ninguna categoría coincide con tu búsqueda o filtros." accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }} />
       ) : (
         <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
-          {/* Encabezado de columnas (escritorio) */}
+          {/* Encabezado de columnas (escritorio). El primer span vacío (w-8) compensa
+              la columna del botón de expandir/bullet, para que cada rótulo caiga
+              exactamente sobre su columna de datos (igual estructura que las filas). */}
           <div className="hidden shrink-0 items-center gap-4 border-b border-borde bg-superficie-2/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4 lg:flex">
+            <span className="w-8 shrink-0" aria-hidden="true" />
             <span className="flex-1">Categoría</span>
             <span className="w-44">Disponibilidad</span>
             <span className="w-20 text-center">Negocios</span>
@@ -427,36 +427,31 @@ function SeccionCategoriasNegocios() {
 
 export function SeccionCategorias() {
   const [ambito, setAmbito] = useState<'negocio' | 'marketplace'>('negocio');
+  const crearRef = useRef<(() => void) | null>(null);
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div className="flex shrink-0 items-center gap-1.5 px-4 pt-4 lg:px-5">
-        {(
-          [
-            { id: 'negocio', label: 'Negocios', Icono: Store },
-            { id: 'marketplace', label: 'MarketPlace', Icono: Tags },
-          ] as const
-        ).map(({ id, label, Icono }) => {
-          const act = ambito === id;
-          return (
-            <button
-              key={id}
-              type="button"
-              data-testid={`categorias-ambito-${id}`}
-              onClick={() => setAmbito(id)}
-              className={`inline-flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-[13px] font-semibold transition ${
-                act
-                  ? 'border-marca/40 bg-marca-suave text-marca'
-                  : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
-              }`}
-            >
-              <Icono size={15} />
-              {label}
-            </button>
-          );
-        })}
+        <TabsSegmento<'negocio' | 'marketplace'>
+          tabs={[
+            { id: 'negocio', label: 'Negocios', icono: <Store size={14} /> },
+            { id: 'marketplace', label: 'MarketPlace', icono: <Tags size={14} /> },
+          ]}
+          valor={ambito}
+          onCambiar={setAmbito}
+          testidPrefijo="categorias-ambito"
+        />
+        <button
+          type="button"
+          data-testid="categoria-nueva"
+          onClick={() => crearRef.current?.()}
+          className="group ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+        >
+          <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" />
+          <span className="hidden lg:inline">Nueva categoría</span>
+        </button>
       </div>
       <div className="min-h-0 flex-1">
-        {ambito === 'negocio' ? <SeccionCategoriasNegocios /> : <SeccionCategoriasMarketplace />}
+        {ambito === 'negocio' ? <SeccionCategoriasNegocios crearRef={crearRef} /> : <SeccionCategoriasMarketplace crearRef={crearRef} />}
       </div>
     </div>
   );

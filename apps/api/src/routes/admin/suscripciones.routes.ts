@@ -18,6 +18,7 @@ import { Router } from 'express';
 import { requierePanel } from '../../middleware/panel.middleware.js';
 import {
     listarEventosController,
+    contarSuscripcionesActivasController,
     obtenerDetalleEventoController,
     eliminarEventoController,
 } from '../../controllers/admin/suscripciones.controller.js';
@@ -32,6 +33,8 @@ import {
 const router: Router = Router();
 
 router.get('/', requierePanel(['superadmin', 'gerente']), listarEventosController);
+// Conteo de suscripciones activas (badge del menú). Ruta específica ANTES de '/:id'.
+router.get('/conteo-activas', requierePanel(['superadmin', 'gerente']), contarSuscripcionesActivasController);
 
 // ─── Cola "Por verificar" (pago manual con comprobante) ──────────────────────
 // Rutas específicas ANTES de '/:id' para que no las capture el comodín.

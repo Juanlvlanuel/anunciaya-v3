@@ -27,6 +27,8 @@ export type OrdenEvento = 'fecha_recientes' | 'fecha_antiguos' | 'monto_mayor' |
 export interface ConteosEventos {
   total: number;
   porTipo: Array<{ tipo: string; total: number }>;
+  porOrigen: Array<{ origen: string; total: number }>;
+  porPeriodo: Array<{ periodo: string; total: number }>;
   /** SUM(monto) de cobro_exitoso + pago_manual, en el alcance + filtros activos. */
   ingresos: number;
   /** COUNT de cobro_fallido. */
@@ -100,9 +102,15 @@ export async function listarEventos(params: ParametrosBitacora): Promise<ListaEv
       total: 0,
       pagina: params.pagina,
       porPagina: params.porPagina,
-      conteos: { total: 0, porTipo: [], ingresos: 0, fallidos: 0 },
+      conteos: { total: 0, porTipo: [], porOrigen: [], porPeriodo: [], ingresos: 0, fallidos: 0 },
     }
   );
+}
+
+/** Nº de suscripciones activas del alcance (badge del menú): negocios al corriente/en gracia. */
+export async function contarSuscripcionesActivas(): Promise<number> {
+  const { data } = await api.get<RespuestaAPI<{ total: number }>>('/admin/suscripciones/conteo-activas');
+  return data.data?.total ?? 0;
 }
 
 export async function obtenerDetalleEvento(id: string): Promise<EventoDetalle | null> {

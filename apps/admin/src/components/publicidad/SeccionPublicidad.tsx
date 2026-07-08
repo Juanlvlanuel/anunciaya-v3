@@ -14,12 +14,12 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { ChevronLeft, ChevronRight, ArrowUpDown, Megaphone, LayoutGrid, CircleDot, Tag, MapPin, Plus, DollarSign, MousePointerClick, AlarmClock, type LucideIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ArrowUpDown, Megaphone, LayoutGrid, CircleDot, Tag, MapPin, Plus, MousePointerClick } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { usePublicidad, usePrefetchPublicidad, useKpisPublicidad } from '../../hooks/queries/usePublicidadAdmin';
-import type { OrdenPublicidad, PublicidadFila, EstadoPublicidad, Carrusel, OrigenPublicidad } from '../../services/publicidadService';
+import type { OrdenPublicidad, PublicidadFila, EstadoPublicidad, FiltroTamano, OrigenPublicidad } from '../../services/publicidadService';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { AvatarUsuario } from '../usuarios/avataresUsuario';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
@@ -33,20 +33,23 @@ const FMT_MONEDA = new Intl.NumberFormat('es-MX', { style: 'currency', currency:
 const FMT_NUM = new Intl.NumberFormat('es-MX');
 
 // 'pendiente' (checkout sin pagar) se oculta del Panel (backend lo excluye del listado), así que no
-// es una opción de filtro. El chip "Pendiente de pago" se conserva en presentacionPublicidad por si
-// algún día se decide mostrarlos.
+// es una opción de filtro. Las opciones del dropdown de estado llevan punto de color + badge de
+// conteo (estilo chip dentro del menú); el `conteo` se inyecta en runtime desde data.conteos.
 const OPCIONES_ESTADO: OpcionMenu[] = [
-  { valor: '', etiqueta: 'Todos los estados' },
-  { valor: 'activa', etiqueta: 'Activa' },
-  { valor: 'pausada', etiqueta: 'Pausada' },
-  { valor: 'expirada', etiqueta: 'Expirada' },
-  { valor: 'cancelada', etiqueta: 'Cancelada' },
+  { valor: '', etiqueta: 'Todos los estados', color: 'var(--panel-brand)' },
+  { valor: 'activa', etiqueta: 'Activa', color: 'var(--panel-ok)' },
+  { valor: 'pausada', etiqueta: 'Pausada', color: 'var(--panel-warn)' },
+  { valor: 'expirada', etiqueta: 'Expirada', color: 'var(--panel-text-4)' },
+  { valor: 'cancelada', etiqueta: 'Cancelada', color: 'var(--panel-danger)' },
 ];
 
+// Tamaños EXCLUYENTES: Grande (solo) · Chico (solo) · Combo (paquete). Sin punto de color — no hay
+// color semántico para "tamaño" (Regla 13); llevan solo el badge de conteo dentro del menú.
 const OPCIONES_CARRUSEL: OpcionMenu[] = [
   { valor: '', etiqueta: 'Todos los tamaños' },
   { valor: 'patrocinadores', etiqueta: 'Grande' },
   { valor: 'anuncios', etiqueta: 'Chico' },
+  { valor: 'combo', etiqueta: 'Combo' },
 ];
 
 const OPCIONES_ORIGEN: OpcionMenu[] = [
@@ -89,7 +92,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
   const filtros = useMemo(
     () => ({
       estado: (estado || undefined) as EstadoPublicidad | undefined,
-      carrusel: (carrusel || undefined) as Carrusel | undefined,
+      carrusel: (carrusel || undefined) as FiltroTamano | undefined,
       origen: (origen || undefined) as OrigenPublicidad | undefined,
       orden,
       pagina,
@@ -121,16 +124,58 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
   const etiquetaOrigen = OPCIONES_ORIGEN.find((o) => o.valor === origen)?.etiqueta ?? 'Todos los orígenes';
   const etiquetaOrden = OPCIONES_ORDEN.find((o) => o.valor === orden)?.etiqueta ?? 'Recientes';
 
+  // Opciones del dropdown de estado con el conteo por estado inyectado (badge dentro del menú).
+  // conteos.porEstado se calcula en el backend sobre el mismo WHERE base que la tabla (sin el filtro de estado).
+  const opcionesEstado = useMemo<OpcionMenu[]>(
+    () =>
+      OPCIONES_ESTADO.map((o) => ({
+        ...o,
+        conteo: o.valor === '' ? (data?.conteos.total ?? 0) : (data?.conteos.porEstado?.find((e) => e.estado === o.valor)?.total ?? 0),
+      })),
+    [data],
+  );
+
+  // Opciones del dropdown de tamaño con el conteo por tamaño inyectado (badge dentro del menú).
+  // "Todos los tamaños" = suma de Grande+Chico+Combo (son excluyentes).
+  const opcionesCarrusel = useMemo<OpcionMenu[]>(
+    () =>
+      OPCIONES_CARRUSEL.map((o) => ({
+        ...o,
+        conteo:
+          o.valor === ''
+            ? (data?.conteos.porTamano?.reduce((s, t) => s + t.total, 0) ?? 0)
+            : (data?.conteos.porTamano?.find((t) => t.tamano === o.valor)?.total ?? 0),
+      })),
+    [data],
+  );
+
+  // Opciones del dropdown de origen con el conteo por origen inyectado. "Todos los orígenes" = total.
+  const opcionesOrigen = useMemo<OpcionMenu[]>(
+    () =>
+      OPCIONES_ORIGEN.map((o) => ({
+        ...o,
+        conteo:
+          o.valor === ''
+            ? (data?.conteos.porOrigen?.reduce((s, r) => s + r.total, 0) ?? 0)
+            : (data?.conteos.porOrigen?.find((r) => r.origen === o.valor)?.total ?? 0),
+      })),
+    [data],
+  );
+
   const ficha = seleccionado ? <FichaPublicidad previo={seleccionado} rol={rol} onCerrar={() => setSeleccionado(null)} /> : null;
   const dialogoAlta = altaAbierta ? <DialogoAltaManual rol={rol} onCerrar={() => setAltaAbierta(false)} /> : null;
 
-  // Móvil: banda de tarjetas (2×2). Escritorio: KPIs compactos inline en la misma fila que los filtros.
+  // Móvil: KPIs en "tira" (etiqueta arriba + valor abajo, centrado) en carrusel horizontal — mismo
+  // estilo que Suscripciones. Escritorio: KPIs compactos inline en la misma fila que los filtros.
   const bandaKpis = (
-    <div className="mb-3 grid shrink-0 grid-cols-2 gap-2.5">
-      <TarjetaKpi testid="kpi-pub-activos" icono={Megaphone} etiqueta="Activos" valor={FMT_NUM.format(kpis?.activos ?? 0)} />
-      <TarjetaKpi testid="kpi-pub-ingresos" icono={DollarSign} etiqueta="Ingresos" valor={FMT_MONEDA.format(kpis?.ingresos ?? 0)} acento="ok" />
-      <TarjetaKpi testid="kpi-pub-clics" icono={MousePointerClick} etiqueta="Clics" valor={FMT_NUM.format(kpis?.clics ?? 0)} />
-      <TarjetaKpi testid="kpi-pub-porvencer" icono={AlarmClock} etiqueta="Por vencer" valor={FMT_NUM.format(kpis?.porVencer ?? 0)} acento={(kpis?.porVencer ?? 0) > 0 ? 'warn' : undefined} />
+    <div className="mb-3 -mx-5 flex shrink-0 snap-x items-stretch overflow-x-auto px-5 py-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      <KpiTira testid="kpi-pub-activos" etiqueta="Activos" valor={FMT_NUM.format(kpis?.activos ?? 0)} />
+      <span className="w-px shrink-0 self-stretch bg-borde" />
+      <KpiTira testid="kpi-pub-ingresos" etiqueta="Ingresos" valor={FMT_MONEDA.format(kpis?.ingresos ?? 0)} acento="ok" />
+      <span className="w-px shrink-0 self-stretch bg-borde" />
+      <KpiTira testid="kpi-pub-clics" etiqueta="Clics" valor={FMT_NUM.format(kpis?.clics ?? 0)} />
+      <span className="w-px shrink-0 self-stretch bg-borde" />
+      <KpiTira testid="kpi-pub-porvencer" etiqueta="Por vencer" valor={FMT_NUM.format(kpis?.porVencer ?? 0)} acento={(kpis?.porVencer ?? 0) > 0 ? 'warn' : undefined} />
     </div>
   );
 
@@ -176,7 +221,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
               testid="publicidad-filtro-estado"
               icono={<CircleDot size={18} />}
               etiquetaBoton={etiquetaEstado}
-              opciones={OPCIONES_ESTADO}
+              opciones={opcionesEstado}
               valor={estado}
               onCambiar={setEstado}
               alineacion="izquierda"
@@ -187,7 +232,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             testid="publicidad-filtro-carrusel"
             icono={<LayoutGrid size={18} />}
             etiquetaBoton={etiquetaCarrusel}
-            opciones={OPCIONES_CARRUSEL}
+            opciones={opcionesCarrusel}
             valor={carrusel}
             onCambiar={setCarrusel}
             alineacion="derecha"
@@ -197,7 +242,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             testid="publicidad-filtro-origen"
             icono={<Tag size={18} />}
             etiquetaBoton={etiquetaOrigen}
-            opciones={OPCIONES_ORIGEN}
+            opciones={opcionesOrigen}
             valor={origen}
             onCambiar={setOrigen}
             alineacion="derecha"
@@ -208,9 +253,9 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             data-testid="publicidad-registrar"
             onClick={() => setAltaAbierta(true)}
             aria-label="Registrar anuncio"
-            className="grid h-9 w-9 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste"
+            className="grid h-11 w-11 shrink-0 place-items-center rounded-full bg-marca text-marca-contraste"
           >
-            <Plus size={18} />
+            <Plus size={20} />
           </button>
         </div>
 
@@ -243,7 +288,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             testid="publicidad-filtro-estado"
             icono={<CircleDot size={16} />}
             etiquetaBoton={etiquetaEstado}
-            opciones={OPCIONES_ESTADO}
+            opciones={opcionesEstado}
             valor={estado}
             onCambiar={setEstado}
             anchoMenu={210}
@@ -253,7 +298,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             testid="publicidad-filtro-carrusel"
             icono={<LayoutGrid size={16} />}
             etiquetaBoton={etiquetaCarrusel}
-            opciones={OPCIONES_CARRUSEL}
+            opciones={opcionesCarrusel}
             valor={carrusel}
             onCambiar={setCarrusel}
             anchoMenu={230}
@@ -263,7 +308,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             testid="publicidad-filtro-origen"
             icono={<Tag size={16} />}
             etiquetaBoton={etiquetaOrigen}
-            opciones={OPCIONES_ORIGEN}
+            opciones={opcionesOrigen}
             valor={origen}
             onCambiar={setOrigen}
             anchoMenu={210}
@@ -283,9 +328,9 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             type="button"
             data-testid="publicidad-registrar"
             onClick={() => setAltaAbierta(true)}
-            className="inline-flex items-center gap-1.5 rounded-full bg-marca px-3.5 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition hover:opacity-90"
+            className="group inline-flex shrink-0 items-center gap-2 rounded-full bg-marca px-3.5 py-2.5 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
           >
-            <Plus size={15} /> Registrar
+            <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Registrar
           </button>
         </div>
       </div>
@@ -323,42 +368,25 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
 // SUB-COMPONENTES
 // =============================================================================
 
-function TarjetaKpi({
-  icono: Icono,
-  etiqueta,
-  valor,
-  acento,
-  testid,
-}: {
-  icono: LucideIcon;
-  etiqueta: string;
-  valor: string;
-  acento?: 'ok' | 'warn';
-  testid: string;
-}) {
-  const claseValor = acento === 'warn' ? 'text-amber-600' : acento === 'ok' ? '' : 'text-texto';
-  const styleValor = acento === 'ok' ? { color: 'var(--panel-ok)' } : undefined;
+/** KPI en "tira" (móvil, carrusel): etiqueta uppercase arriba + valor abajo, centrado (estilo Suscripciones). */
+function KpiTira({ etiqueta, valor, acento, testid }: { etiqueta: string; valor: string; acento?: 'ok' | 'warn'; testid: string }) {
+  const color = acento === 'warn' ? 'var(--panel-warn)' : acento === 'ok' ? 'var(--panel-ok)' : 'var(--panel-text)';
   return (
-    <div data-testid={testid} className="flex items-center gap-3 rounded-[12px] border border-borde bg-superficie p-3 lg:p-3.5">
-      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
-        <Icono size={17} />
-      </span>
-      <span className="flex min-w-0 flex-col">
-        <span className="truncate text-[11px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
-        <span className={`truncate text-[19px] font-bold leading-tight lg:text-[21px] ${claseValor}`} style={styleValor}>{valor}</span>
-      </span>
+    <div data-testid={testid} className="flex min-w-[90px] shrink-0 snap-start flex-col items-center px-3 text-center leading-tight">
+      <span className="txt-badge whitespace-nowrap font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
+      <span className="mt-1 whitespace-nowrap text-[17px] font-bold" style={{ color }}>{valor}</span>
     </div>
   );
 }
 
-/** KPI compacto en línea (etiqueta arriba, valor abajo) — para la fila de filtros en escritorio. */
+/** KPI compacto en línea (etiqueta arriba, valor abajo, centrado) — mismo patrón que Suscripciones. */
 function KpiInline({ etiqueta, valor, acento, testid }: { etiqueta: string; valor: string; acento?: 'ok' | 'warn'; testid: string }) {
   const claseValor = acento === 'warn' ? 'text-amber-600' : acento === 'ok' ? '' : 'text-texto';
   const styleValor = acento === 'ok' ? { color: 'var(--panel-ok)' } : undefined;
   return (
-    <div data-testid={testid} className="flex flex-col justify-center px-4 leading-tight first:pl-0">
-      <span className="text-[10.5px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
-      <span className={`text-[19px] font-bold leading-tight ${claseValor}`} style={styleValor}>{valor}</span>
+    <div data-testid={testid} className="flex min-w-0 flex-col items-center justify-center px-5 text-center leading-tight">
+      <span className="max-w-full truncate text-[11px] font-semibold uppercase tracking-wide text-texto-4">{etiqueta}</span>
+      <span className={`max-w-full truncate text-[22px] font-bold leading-tight ${claseValor}`} style={styleValor}>{valor}</span>
     </div>
   );
 }

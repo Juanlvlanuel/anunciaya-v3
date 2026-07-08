@@ -82,12 +82,14 @@ export function SeccionCiudades() {
     return () => clearTimeout(t);
   }, [busqueda]);
 
+  // El filtro de actividad se aplica en el CLIENTE (catálogo chico, sin paginar) para poder mostrar
+  // el conteo por chip (todas/activas/inactivas) respetando la búsqueda + región activas.
   const filtros = useMemo(
-    () => ({ busqueda: busquedaDeb || undefined, regionId: region || undefined, activa }),
-    [busquedaDeb, region, activa],
+    () => ({ busqueda: busquedaDeb || undefined, regionId: region || undefined }),
+    [busquedaDeb, region],
   );
 
-  const { data: ciudades, isLoading, isError, isFetching } = useCiudadesLista(filtros);
+  const { data: ciudades, isLoading, isError } = useCiudadesLista(filtros);
   const { data: regiones } = useRegionesCatalogo();
   // Catálogo completo (sin filtros) para el cruce del mapa: qué ciudades ya están.
   const { data: todasCatalogo } = useCiudadesLista({});
@@ -100,8 +102,13 @@ export function SeccionCiudades() {
   const asignarRegionUna = useAsignarRegionCiudad();
   const editarCiudadM = useEditarCiudad();
 
-  const items = ciudades ?? [];
+  const todasLasCiudades = ciudades ?? [];
+  const items = activa === 'todas' ? todasLasCiudades : todasLasCiudades.filter((c) => (activa === 'activas' ? c.activa : !c.activa));
   const total = items.length;
+  const conteoActividad = (id: FiltroActiva): number =>
+    id === 'activas' ? todasLasCiudades.filter((c) => c.activa).length
+      : id === 'inactivas' ? todasLasCiudades.filter((c) => !c.activa).length
+        : todasLasCiudades.length;
   const hayFiltrosActivos = !!(busqueda.trim() || region) || activa !== 'todas';
 
   const limpiarFiltros = () => {
@@ -205,7 +212,7 @@ export function SeccionCiudades() {
     return [
       { valor: '', etiqueta: 'Todas las regiones' },
       { valor: REGION_SIN, etiqueta: 'Sin región' },
-      ...lista.map((r) => ({ valor: r.id, etiqueta: `${r.nombre} · ${r.totalCiudades}`, adorno: <MapIcon size={16} className="text-texto-3" /> })),
+      ...lista.map((r) => ({ valor: r.id, etiqueta: r.nombre, conteo: r.totalCiudades, adorno: <MapIcon size={16} className="text-texto-3" /> })),
     ];
   }, [regiones]);
 
@@ -218,20 +225,34 @@ export function SeccionCiudades() {
   // ── Controles compartidos ───────────────────────────────────────────────────
   const pestanas = (
     <div className="inline-flex shrink-0 rounded-full border border-borde bg-superficie-2 p-0.5">
-      {([['mapa', 'Mapa', MapIcon], ['ciudades', 'Ciudades', MapPin], ['regiones', 'Regiones', Layers]] as const).map(([id, label, Icono]) => (
-        <button
-          key={id}
-          type="button"
-          data-testid={`ciudades-tab-${id}`}
-          onClick={() => setTab(id)}
-          className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition ${
-            tab === id ? 'bg-marca text-marca-contraste' : 'text-texto-2 hover:text-texto'
-          }`}
-        >
-          <Icono size={14} />
-          {label}
-        </button>
-      ))}
+      {([['mapa', 'Mapa', MapIcon], ['ciudades', 'Ciudades', MapPin], ['regiones', 'Regiones', Layers]] as const).map(([id, label, Icono]) => {
+        const activoTab = tab === id;
+        return (
+          <button
+            key={id}
+            type="button"
+            data-testid={`ciudades-tab-${id}`}
+            onClick={() => setTab(id)}
+            className={`inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold transition ${
+              activoTab ? 'bg-marca text-marca-contraste' : 'text-texto-2 hover:text-texto'
+            }`}
+          >
+            <Icono size={14} />
+            {label}
+            {id === 'ciudades' && total > 0 && (
+              <span
+                data-testid="ciudades-tab-conteo"
+                className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+                style={activoTab
+                  ? { background: 'rgba(255,255,255,0.22)', color: '#fff' }
+                  : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+              >
+                {total}
+              </span>
+            )}
+          </button>
+        );
+      })}
     </div>
   );
 
@@ -258,17 +279,24 @@ export function SeccionCiudades() {
     <div className="flex shrink-0 gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none]">
       {TABS_ACTIVA.map((t) => {
         const act = activa === t.id;
+        const color = t.id === 'activas' ? 'var(--panel-ok)' : t.id === 'inactivas' ? 'var(--panel-text-4)' : 'var(--panel-brand)';
         return (
           <button
             key={t.id}
             type="button"
             data-testid={`ciudades-filtro-activa-${t.id}`}
             onClick={() => setActiva(t.id)}
-            className={`inline-flex shrink-0 items-center rounded-full border px-3 py-1.5 text-[12.5px] font-semibold transition ${
-              act ? 'border-marca/40 bg-marca-suave text-marca' : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
-            }`}
+            className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+            style={act ? { background: `color-mix(in srgb, ${color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${color} 34%, transparent)`, color } : undefined}
           >
+            <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: color }} />
             {t.label}
+            <span
+              className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"
+              style={act ? { background: `color-mix(in srgb, ${color} 22%, transparent)`, color } : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }}
+            >
+              {conteoActividad(t.id)}
+            </span>
           </button>
         );
       })}
@@ -373,13 +401,6 @@ export function SeccionCiudades() {
       {/* Cabecera: pestañas + contadores/acciones */}
       <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
         {pestanas}
-        {tab === 'ciudades' && (
-          <span className="text-[13px] text-texto-3" data-testid="ciudades-total">
-            <b className="font-semibold text-texto">{total}</b> {total === 1 ? 'ciudad' : 'ciudades'}
-            {hayFiltrosActivos ? ' · filtrado' : ''}
-            {isFetching && !isLoading ? ' · actualizando…' : ''}
-          </span>
-        )}
         {tab === 'regiones' && (
           <div className="flex items-center gap-3">
             <span className="text-[13px] text-texto-3" data-testid="regiones-total">
@@ -398,11 +419,11 @@ export function SeccionCiudades() {
       ) : tab === 'ciudades' ? (
         <>
           <div className="mb-2.5 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
-            <div className="w-full lg:max-w-[380px]">{buscador}</div>
-            <div className="flex items-center justify-between gap-2 lg:ml-auto">
+            <div className="order-1 flex items-center justify-between gap-2 lg:order-2 lg:ml-auto">
               {chipsActividad}
               {filtroRegion}
             </div>
+            <div className="order-2 w-full lg:order-1 lg:max-w-[380px]">{buscador}</div>
           </div>
           {contenidoCiudades}
         </>

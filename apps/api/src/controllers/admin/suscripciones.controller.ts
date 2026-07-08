@@ -21,6 +21,7 @@ import {
     type OrdenEvento,
 } from '../../services/admin/suscripciones.service.js';
 import { eliminarEventoPago } from '../../services/admin/suscripciones-acciones.service.js';
+import { contarNegociosActivos } from '../../services/admin/negocios.service.js';
 
 const POR_PAGINA_DEFAULT = 20;
 const POR_PAGINA_MAX = 100;
@@ -31,6 +32,22 @@ function enteroPositivo(valor: unknown, porDefecto: number, maximo?: number): nu
     if (!Number.isFinite(n) || n < 1) return porDefecto;
     const entero = Math.floor(n);
     return maximo ? Math.min(entero, maximo) : entero;
+}
+
+// =============================================================================
+// GET /api/admin/suscripciones/conteo-activas   (nº de suscripciones activas — badge del menú)
+// "Activa" = negocio con estado activo Y membresía al corriente/en gracia (contarNegociosActivos).
+// =============================================================================
+
+export async function contarSuscripcionesActivasController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = panelConFiltroRegion(req.usuarioPanel!, req.query.regionId);
+        const total = await contarNegociosActivos(panel);
+        res.status(200).json({ success: true, message: 'Conteo de suscripciones activas', data: { total } });
+    } catch (error) {
+        console.error('Error en contarSuscripcionesActivasController:', error);
+        res.status(500).json({ success: false, message: 'Error al contar las suscripciones activas' });
+    }
 }
 
 // =============================================================================
