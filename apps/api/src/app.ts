@@ -60,6 +60,13 @@ app.use(transformResponseMiddleware);
 // Rutas de la API
 app.use('/api', routes);
 
+// ⚠️ TEMPORAL — se quita tras validar. Fuerza un error 500 para comprobar que
+// Sentry captura los errores del backend en producción. Abrir en el navegador:
+// https://anunciaya-api.onrender.com/api/_debug-sentry
+app.get('/api/_debug-sentry', () => {
+  throw new Error('Prueba Sentry backend AnunciaYA');
+});
+
 // Ruta no encontrada (404)
 app.use(rutaNoEncontrada);
 
