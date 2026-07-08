@@ -371,7 +371,7 @@ export const pagosManualesSolicitudes = pgTable("pagos_manuales_solicitudes", {
 export const eventosPago = pgTable("eventos_pago", {
 	id: uuid().defaultRandom().primaryKey().notNull(),
 	negocioId: uuid("negocio_id").notNull().references((): AnyPgColumn => negocios.id, { onDelete: 'cascade' }),
-	tipo: varchar({ length: 30 }).notNull(),            // cobro_exitoso | cobro_fallido | cancelacion | pago_manual
+	tipo: varchar({ length: 30 }).notNull(),            // cobro_exitoso | cobro_fallido | cancelacion | pago_manual | alta_trial
 	origen: varchar({ length: 10 }).notNull(),          // stripe | manual
 	monto: numeric({ precision: 10, scale: 2 }),        // NULL si no aplica (fallido/cancelación/cortesía)
 	moneda: varchar({ length: 3 }).default('MXN').notNull(),
@@ -386,7 +386,7 @@ export const eventosPago = pgTable("eventos_pago", {
 	index("idx_eventos_pago_negocio").using("btree", table.negocioId.asc().nullsLast(), table.fechaEvento.desc().nullsFirst()),
 	index("idx_eventos_pago_tipo").using("btree", table.tipo.asc().nullsLast()),
 	uniqueIndex("idx_eventos_pago_stripe_event").using("btree", table.stripeEventId.asc().nullsLast()),
-	check("eventos_pago_tipo_check", sql`(tipo)::text = ANY ((ARRAY['cobro_exitoso'::character varying, 'cobro_fallido'::character varying, 'cancelacion'::character varying, 'pago_manual'::character varying])::text[])`),
+	check("eventos_pago_tipo_check", sql`(tipo)::text = ANY ((ARRAY['cobro_exitoso'::character varying, 'cobro_fallido'::character varying, 'cancelacion'::character varying, 'pago_manual'::character varying, 'alta_trial'::character varying])::text[])`),
 	check("eventos_pago_origen_check", sql`(origen)::text = ANY ((ARRAY['stripe'::character varying, 'manual'::character varying])::text[])`),
 	check("eventos_pago_monto_check", sql`(monto IS NULL) OR (monto >= (0)::numeric)`),
 ]);

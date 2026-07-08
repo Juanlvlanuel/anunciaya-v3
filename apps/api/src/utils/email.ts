@@ -990,6 +990,76 @@ export async function enviarEmailBienvenida(
   );
 }
 
+/**
+ * Datos del trial para el correo de bienvenida del auto-registro (sin cobro hoy).
+ * `finTrialIso` = fecha del primer cobro (fin del trial); `montoCentavos`+`intervalo`
+ * = lo que se cobrará al terminar la prueba. Cualquiera puede venir nulo (si no se
+ * pudo leer la suscripción de Stripe) → la plantilla cae a un texto genérico seguro.
+ */
+export interface DatosBienvenidaTrial {
+  finTrialIso: string | null;
+  montoCentavos: number | null;
+  intervalo: 'month' | 'year' | null;
+}
+
+/** Plantilla (HTML) de la bienvenida del auto-registro CON trial: cálida arriba,
+ *  clara abajo (no se cobró nada + fecha del primer cobro + cómo cancelar). */
+export function plantillaBienvenidaTrial(
+  nombre: string,
+  nombreNegocio: string,
+  datos: DatosBienvenidaTrial
+): string {
+  const fechaFmt = datos.finTrialIso
+    ? new Intl.DateTimeFormat('es-MX', { day: 'numeric', month: 'long', year: 'numeric' }).format(new Date(datos.finTrialIso))
+    : '';
+  const montoFmt = datos.montoCentavos && datos.montoCentavos > 0
+    ? `${new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN', maximumFractionDigits: 0 }).format(datos.montoCentavos / 100)} ${datos.intervalo === 'year' ? 'al año' : 'al mes'}`
+    : '';
+
+  // Línea del primer cobro: si tenemos fecha y monto, la mostramos exacta; si no, texto genérico seguro.
+  const lineaCobro = (fechaFmt && montoFmt)
+    ? `Tu primer cobro de <strong>${escape(montoFmt)}</strong> ser&aacute; el <strong>${escape(fechaFmt)}</strong>.`
+    : (fechaFmt
+        ? `Tu primer cobro ser&aacute; el <strong>${escape(fechaFmt)}</strong>.`
+        : `Te avisaremos por correo antes de tu primer cobro.`);
+
+  const contenido = `
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      &iexcl;Tu negocio <strong>&quot;${escape(nombreNegocio)}&quot;</strong> ya est&aacute; dado de alta en AnunciaYA! Activamos tu <strong>prueba gratis</strong> para que explores todo sin compromiso.
+    </p>
+    <div style="background: #F0F7FF; border: 1px solid #DBEAFE; border-radius: 10px; padding: 16px 18px; margin: 0 0 18px;">
+      <p style="margin: 0 0 8px; font-size: 15px; font-weight: 600; color: #034AE3;">
+        Hoy no se te cobr&oacute; nada
+      </p>
+      <p style="margin: 0; font-size: 14px; line-height: 1.6; color: #334155;">
+        ${lineaCobro} Si decides no continuar, puedes cancelar antes de esa fecha desde <strong>Mi Perfil &rarr; Membres&iacute;a y Pagos</strong>, sin ning&uacute;n cargo.
+      </p>
+    </div>
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Mientras tanto, completa los datos de tu negocio (ubicaci&oacute;n, horarios y fotos) para que aparezca en el directorio y empiecen a llegarte clientes.
+    </p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${env.FRONTEND_URL}/business/onboarding" target="_blank" rel="noopener" style="display: inline-block; background-color: #034AE3; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 8px;">
+        Completar mi negocio
+      </a>
+    </div>`;
+
+  return plantillaBase(nombre, contenido);
+}
+
+export async function enviarEmailBienvenidaTrial(
+  correo: string,
+  nombre: string,
+  nombreNegocio: string,
+  datos: DatosBienvenidaTrial
+): Promise<ResultadoEmail> {
+  return enviarEmail(
+    correo,
+    'Tu prueba gratis en AnunciaYA ya empezó',
+    plantillaBienvenidaTrial(nombre, nombreNegocio, datos)
+  );
+}
+
 // =============================================================================
 // VERIFICAR CONEXIÓN
 // =============================================================================

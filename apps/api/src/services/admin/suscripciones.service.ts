@@ -38,7 +38,7 @@ export { panelConFiltroRegion } from './negocios.service.js';
 // =============================================================================
 
 /** Tipos de evento del libro mayor. */
-export const TIPOS_EVENTO = ['cobro_exitoso', 'cobro_fallido', 'cancelacion', 'pago_manual'] as const;
+export const TIPOS_EVENTO = ['cobro_exitoso', 'cobro_fallido', 'cancelacion', 'pago_manual', 'alta_trial'] as const;
 export type TipoEvento = (typeof TIPOS_EVENTO)[number];
 
 /** Origen del evento. */

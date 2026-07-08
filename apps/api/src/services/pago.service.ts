@@ -926,6 +926,31 @@ async function manejarCheckoutCompletado(
         } catch (errCobro) {
             console.error('❌ Error registrando el cobro día-1 en el checkout:', errCobro);
         }
+    } else {
+        // Alta CON TRIAL (sin cobro hoy): registra el alta en la bitácora financiera y
+        // envía el correo de bienvenida-trial (no se cobró nada + fecha del 1er cobro + cómo
+        // cancelar). Ambos son defensivos: nunca deben romper el webhook ni forzar un reintento.
+        await registrarEventoPago({
+            negocioId: nuevoNegocio.id,
+            tipo: 'alta_trial',
+            origen: 'stripe',
+            monto: null,                                    // el trial es $0
+            stripeEventId: `alta_trial:${session.id}`,      // candado idempotente por checkout
+        });
+
+        try {
+            const price = subCreada?.items?.data?.[0]?.price ?? null;
+            const intervalo = price?.recurring?.interval;
+            const { enviarEmailBienvenidaTrial } = await import('../utils/email.js');
+            await enviarEmailBienvenidaTrial(nuevoUsuario.correo, nuevoUsuario.nombre, nombreNegocio, {
+                finTrialIso: subCreada ? finPeriodoDeSuscripcion(subCreada) : null,
+                montoCentavos: price?.unit_amount ?? null,
+                intervalo: intervalo === 'year' ? 'year' : (intervalo === 'month' ? 'month' : null),
+            });
+            console.log(`📧 Correo de bienvenida-trial enviado: ${nuevoUsuario.correo}`);
+        } catch (errMail) {
+            console.error('❌ Error enviando correo de bienvenida-trial (no crítico):', errMail);
+        }
     }
 
     // -------------------------------------------------------------------------

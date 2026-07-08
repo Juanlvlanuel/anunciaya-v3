@@ -8,7 +8,7 @@
  * Ubicación: apps/admin/src/components/suscripciones/estadoEvento.tsx
  */
 
-import { CheckCircle2, XCircle, Ban, Receipt, type LucideIcon } from 'lucide-react';
+import { CheckCircle2, XCircle, Ban, Receipt, Sparkles, type LucideIcon } from 'lucide-react';
 
 export interface MetaTipoEvento {
   etiqueta: string;
@@ -22,6 +22,7 @@ export const TIPO_EVENTO_META: Record<string, MetaTipoEvento> = {
   cobro_fallido: { etiqueta: 'Cobro fallido', color: 'var(--panel-danger)', icono: XCircle },
   pago_manual: { etiqueta: 'Pago manual', color: 'var(--panel-brand)', icono: Receipt },
   cancelacion: { etiqueta: 'Cancelación', color: 'var(--panel-text-4)', icono: Ban },
+  alta_trial: { etiqueta: 'Inicio de prueba', color: 'var(--panel-warn)', icono: Sparkles },
 };
 
 /** Tipos para el filtro (incluye "Todos" como opción vacía en el componente). */
@@ -30,6 +31,7 @@ export const TIPOS_EVENTO_FILTRO = [
   { valor: 'cobro_fallido', etiqueta: 'Cobro fallido' },
   { valor: 'pago_manual', etiqueta: 'Pago manual' },
   { valor: 'cancelacion', etiqueta: 'Cancelación' },
+  { valor: 'alta_trial', etiqueta: 'Inicio de prueba' },
 ] as const;
 
 export function metaTipoEvento(valor: string): MetaTipoEvento {

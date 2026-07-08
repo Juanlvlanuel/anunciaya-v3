@@ -14,7 +14,7 @@
 import { db } from '../../db/index.js';
 import { eventosPago } from '../../db/schemas/schema.js';
 
-export type TipoEventoPago = 'cobro_exitoso' | 'cobro_fallido' | 'cancelacion' | 'pago_manual';
+export type TipoEventoPago = 'cobro_exitoso' | 'cobro_fallido' | 'cancelacion' | 'pago_manual' | 'alta_trial';
 
 export interface DatosEventoPago {
     negocioId: string;
