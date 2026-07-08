@@ -520,6 +520,7 @@ export function PaginaLoginScanYA() {
                   type="password"
                   id="input-password-scanya"
                   name="input-password-scanya"
+                  autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   placeholder="Tu contraseña"
