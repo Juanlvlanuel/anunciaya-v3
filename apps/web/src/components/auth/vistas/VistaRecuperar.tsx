@@ -63,6 +63,9 @@ export function VistaRecuperar({
   const [mostrarPassword, setMostrarPassword] = useState(false);
   const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [cargando, setCargando] = useState(false);
+  // true cuando la persona YA tiene un código (p. ej. el que un admin generó desde el Panel):
+  // salta al paso 2 SIN re-enviar (para no invalidar ese código) y ajusta el copy del paso 2.
+  const [codigoManual, setCodigoManual] = useState(false);
 
   // Validaciones
   const emailValido = EMAIL_REGEX.test(email);
@@ -145,6 +148,8 @@ export function VistaRecuperar({
       const response = await authService.olvideContrasena(email);
       if (response.success) {
         notificar.exito(t('recuperar.codigoEnviado'));
+        // Ya se envió por correo → pasa al modo normal (badge "Código enviado a" + "Reenviar").
+        setCodigoManual(false);
       } else {
         notificar.error(response.message || t(modoDefinir ? 'recuperar.errorDefinir' : 'recuperar.error'));
       }
@@ -154,6 +159,14 @@ export function VistaRecuperar({
       setCargando(false);
     }
   }, [email, cargando, modoDefinir, t]);
+
+  // "Ya tengo un código": salta al paso 2 SIN llamar al backend (no re-envía → no pisa el código
+  // que un admin generó desde el Panel). Solo exige un correo válido.
+  const handleUsarCodigoExistente = useCallback(() => {
+    if (!formularioPaso1Valido || cargando) return;
+    setCodigoManual(true);
+    setPaso(2);
+  }, [formularioPaso1Valido, cargando]);
 
   const handleCambioCodigo = useCallback((valor: string) => {
     const valorLimpio = valor.replace(/[^0-9]/g, '');
@@ -239,6 +252,17 @@ export function VistaRecuperar({
           >
             {cargando ? t('recuperar.enviando') : t('recuperar.botonEnviar')}
           </button>
+
+          {/* Alternativa: ya tengo un código (p. ej. el que un admin generó desde el Panel).
+              Salta al paso 2 sin re-enviar, para no invalidar ese código. */}
+          <button
+            type="button"
+            onClick={handleUsarCodigoExistente}
+            disabled={!formularioPaso1Valido || cargando}
+            className="mt-3 block w-full text-center text-base font-semibold text-blue-600 hover:underline disabled:text-slate-400 disabled:no-underline disabled:cursor-not-allowed lg:cursor-pointer"
+          >
+            {t('recuperar.tengoCodigoLink')}
+          </button>
         </form>
       )}
 
@@ -248,7 +272,7 @@ export function VistaRecuperar({
           {/* Email badge */}
           <div className="bg-slate-100 border-2 border-slate-300 rounded-lg px-3 py-2 mb-4 text-center">
             <span className="text-base font-medium text-slate-600">
-              {t('recuperar.codigoEnviadoA')}{' '}
+              {t(codigoManual ? 'recuperar.codigoAccesoDe' : 'recuperar.codigoEnviadoA')}{' '}
             </span>
             <span className="text-base font-semibold text-slate-800">{email}</span>
           </div>
@@ -266,7 +290,7 @@ export function VistaRecuperar({
                 className="flex items-center gap-1.5 text-base font-semibold text-blue-600 hover:underline lg:cursor-pointer"
               >
                 <RefreshCw size={14} />
-                {t('recuperar.reenviar')}
+                {t(codigoManual ? 'recuperar.enviarPorCorreo' : 'recuperar.reenviar')}
               </button>
             </div>
             <div className={claseWrapper(codigo, codigoValido)} style={{ boxShadow: 'inset 0 2px 4px rgba(0,0,0,0.05)' }}>
@@ -296,6 +320,7 @@ export function VistaRecuperar({
                 onChange={(e) => setNuevaPassword(e.target.value)}
                 placeholder={t('recuperar.nuevaContrasenaPlaceholder')}
                 className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                autoComplete="new-password"
               />
               <button
                 type="button"
@@ -330,6 +355,7 @@ export function VistaRecuperar({
                 onChange={(e) => setConfirmarPassword(e.target.value)}
                 placeholder={t('recuperar.confirmarPlaceholder')}
                 className="flex-1 bg-transparent outline-none text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500"
+                autoComplete="new-password"
               />
               <button
                 type="button"

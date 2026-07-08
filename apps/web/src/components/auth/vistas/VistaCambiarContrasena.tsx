@@ -83,6 +83,7 @@ export function VistaCambiarContrasena({ tokenTemporal, onCambiarVista }: Props)
 						autoFocus
 						className="w-full h-11 lg:h-10 2xl:h-11 px-3 pr-10 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 border-2 border-slate-300 rounded-lg bg-white"
 						placeholder="Crea tu contraseña definitiva"
+						autoComplete="new-password"
 						data-testid="input-nueva-contrasena"
 					/>
 					<button
@@ -130,6 +131,7 @@ export function VistaCambiarContrasena({ tokenTemporal, onCambiarVista }: Props)
 							: 'border-slate-300'
 					}`}
 					placeholder="Repite tu nueva contraseña"
+					autoComplete="new-password"
 					data-testid="input-confirmar-contrasena"
 				/>
 				{confirmarContrasena.length > 0 && !coincidenContrasenas && (
