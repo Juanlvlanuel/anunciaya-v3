@@ -8,6 +8,26 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [8 Julio 2026] - Sentry: error tracking en producción (api / web / admin) 🔭
+
+Se integró **Sentry** para capturar automáticamente los errores de **producción** (frontend y backend) con stack traces legibles y alertas por correo. **Solo se activa en producción**; en desarrollo queda inerte. Validado **end-to-end** en las 4 superficies (backend, web, ScanYA, admin) con errores reales. `tsc` verde en api/web/admin. Doc canónico: `docs/DESPLIEGUE_PRODUCCION.md` (sección "Observabilidad — Sentry").
+
+### Agregado
+
+- **Backend** (`apps/api/src/sentry.ts`) — `Sentry.init()` como efecto al importar (primera línea de `index.ts`, antes de Express) + `Sentry.setupExpressErrorHandler` tras las rutas. Solo si `NODE_ENV=production` + `SENTRY_DSN`. `SENTRY_DSN` documentado en el schema Zod de `config/env.ts` (opcional).
+- **Web + ScanYA** (`apps/web/src/config/sentry.ts`) y **Admin** (`apps/admin/src/config/sentry.ts`) — init con guardia `import.meta.env.PROD` + `VITE_SENTRY_DSN`. En web, tag `superficie` (`anunciaya` vs `scanya`) para distinguir dentro del mismo proyecto los errores del subdominio de ScanYA (mismo build).
+- **Source maps** — `@sentry/vite-plugin` en los `vite.config.ts` sube los source maps a Sentry en el build de Vercel (solo con `SENTRY_AUTH_TOKEN` + `SENTRY_ORG`) e inyecta el `release` (commit); borra los `.map` del output tras subirlos (no se sirven públicamente).
+- **Privacidad** — `sendDefaultPii: false` + `beforeSend` que redacta a cualquier profundidad claves sensibles (JWT, contraseñas, `authorization`, cookies, datos de tarjeta/CVV).
+
+### Notas
+
+- **3 proyectos en Sentry** (org `anunciaya`): `anunciaya-api` (Node), `anunciaya-web` (React, cubre web + ScanYA), `anunciaya-admin` (React). Plan **gratis** (5k errores/mes). Solo errores (`tracesSampleRate: 0`, sin APM ni Session Replay).
+- **Variables:** `SENTRY_DSN` en Render; `VITE_SENTRY_DSN` + `SENTRY_AUTH_TOKEN` + `SENTRY_ORG` en Vercel (proyectos web y admin, scope Production). En dev, ninguna → inerte.
+- **Dónde se ven los errores:** en el panel de Sentry (sentry.io), NO en el Panel Admin; alertas por correo a `admin@anunciaya.mx`.
+- El aviso del backend *"express is not instrumented"* (ESM) es **benigno**: la captura funciona igual (`mechanism: auto.middleware.express`); solo afecta el tracing de performance, desactivado a propósito.
+
+---
+
 ## [8 Julio 2026] - Go-live + humo E2E: bienvenida-trial y pulido de membresía ✅
 
 Cerró el **último bloqueador externo del go-live**: AWS SES salió del sandbox (50k correos/día; la causa del atraso era la tarjeta sin verificar en billing, no AWS). Se confirmó el **payout de Stripe** al banco. Durante el humo E2E en prod se detectaron y corrigieron varias mejoras. `tsc` verde en api/web/admin.
