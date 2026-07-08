@@ -1,7 +1,7 @@
 # Despliegue a Producción — AnunciaYA
 
 > Checklist vivo del paso a producción (go-live). Beta: Puerto Peñasco.
-> Última actualización: **1 jul 2026**.
+> Última actualización: **8 jul 2026**.
 >
 > **Método clave:** verificar el estado real con las credenciales del `.env` (BD, SES, Stripe se pueden sondear en solo lectura) en vez de asumir. Los logs del backend en prod (Panel → Mantenimiento → Logs, o Render → Logs) son el mejor detector de bugs latentes.
 >
@@ -27,11 +27,16 @@
   - Customer Portal Live: Métodos de pago + Facturas ON; **Cancelaciones OFF** (se cancela por el botón propio de la app, no por el portal)
   - Datos de depósito (pago manual) configurados en PROD
   - **Humo real validado end-to-end:** compra de anuncio $99 → webhook → anuncio activo + recibo (confirmado por UI, BD y logs)
+  - **Payout confirmado (8-jul):** la transferencia del humo llegó físicamente al banco — **91.39 MXN** ($99 − ~$7.61 comisión Stripe MX) a Santander …2861, estado "Pagado". Cerró el ciclo completo cobro→webhook→recibo→payout. La retención de 7 días es solo de la 1ª transferencia (cuenta nueva); las siguientes serán según el calendario "cobrar diariamente".
 - [x] **Render (backend)** — plan **Starter $7/mes** (no duerme), env limpias, log `[PRODUCTION]`, métricas Memory/CPU sanas (~20-40% RAM en reposo)
 - [x] **Config de publicidad** completa en PROD (precios + combo/duración/aviso sembrados)
 
-## 🟡 EN ESPERA
-- [ ] **AWS SES — salir de sandbox** — solicitud enviada 1-jul (caso 178293532700740, región us-east-2). Dominio `anunciaya.mx` + DKIM ya verificados. **Follow-up enviado 6-jul** (5 días sin respuesta; el estado quedó en "Acción del cliente completada" y el feriado del 4-jul ralentizó a AWS) reafirmando el use-case y pidiendo aprobación. Verificar con `aws ses get-send-quota --region us-east-2` (sandbox = `Max24HourSend` 200 → prod ~50,000) o sin CLI en **SES → Panel de cuenta** (muestra Sandbox/Producción + cuota diaria). NO usar "Resolver caso" (lo cierra); solo "Responder". **CAUSA RAÍZ del atraso (confirmada 6-jul):** correo "AWS Account Alert" del 1-jul dice *"We received an error while confirming the payment method"* — AWS no pudo confirmar la tarjeta …3923 (autorización de $1.00 USD rechazada), por eso la cuenta lleva 5 días sin verificarse, y sin verificación NO procesa la salida de sandbox de SES ni deja abrir CloudShell. SOLUCIÓN: (1) reconfirmar/re-guardar la tarjeta en console.aws.amazon.com/billing/home#/paymentmethods para que AWS reintente el cargo de $1; (2) llamar a Santander (…3923) para que autoricen el cargo de $1 USD de AWS + habiliten compras por internet/USD (rechazo de montos bajos internacionales es común en MX); (3) si no pasa, agregar otra tarjeta. Verificado el cargo de $1 → cuenta se activa en horas → SES se destraba solo. **RESUELTO 6-jul:** se re-guardó la tarjeta desde Preferencias de pago → botón "Verificar" → AWS reintentó y la …3923 quedó VERIFICADA (desapareció el "Sin verificar" y el banner "Método de pago no válido"). La divisa ya estaba en MXN (tarjeta mexicana = compatible con MXN; el aviso de "usar tarjeta internacional para USD" es genérico y no aplica). Falta que termine la activación de cuenta (CloudShell abrirá sin error) y que AWS procese la salida de sandbox de SES ahora que la cuenta está verificada.
+## ✅ CERRADO (8 jul 2026)
+
+- [x] **AWS SES — salir de sandbox** ✅ **APROBADO 8-jul** (caso 178293532700740, región us-east-2). Correo de AWS: *"Your new sending quota is 50,000 messages per day. Your maximum send rate is now 14 messages per second. We have also moved your account out of the Amazon SES sandbox."* Efecto inmediato en us-east-2. Dominio `anunciaya.mx` + DKIM ya verificados. **Este era el último bloqueador del go-live.**
+  - **CAUSA RAÍZ del atraso (1→8 jul):** NO era AWS lento — la cuenta estaba atorada en verificación porque la tarjeta …3923 falló la autorización de verificación (correo "AWS Account Alert" del 1-jul: *"We received an error while confirming the payment method"*; banner "Método de pago no válido" + tarjeta "Sin verificar" en billing). Sin cuenta verificada, AWS no procesa production-access de SES ni deja abrir CloudShell.
+  - **Solución (6-jul):** re-guardar la tarjeta en billing → botón "Verificar" → AWS reintentó y la …3923 quedó VERIFICADA (desapareció "Sin verificar" y el banner). Divisa ya en MXN (tarjeta mexicana = compatible; el aviso de "usar tarjeta internacional para USD" es genérico). Cadena: tarjeta verificada 6-jul → cuenta activada → SES aprobado 8-jul. El follow-up del 6-jul ayudó a empujar el caso.
+  - **Lección:** si SES/CloudShell/cualquier servicio se "atora" en una cuenta nueva o recién convertida a estándar, revisar primero **billing → payment methods** por un método "Sin verificar" o correos "Account Alert" — la verificación de cuenta bloquea todo aguas abajo.
 
 ## ⏳ PENDIENTE (accionable)
 - [x] **Google OAuth** ✅ (Juan) — login/registro con Google ya funciona en prod (dominios de prod en Authorized JavaScript origins; el flujo es popup auth-code → solo requiere *origins*, NO redirect URIs; consent screen publicada). Gratis (OAuth básico openid/email/profile).
