@@ -1,8 +1,8 @@
 # 🗺️ AnunciaYA v3.0 - Roadmap
 
-> **Última actualización:** 3 Julio 2026 (+ Centro de Ayuda / videos tutoriales — módulo 15 del Panel; go-live en curso, ver `docs/DESPLIEGUE_PRODUCCION.md`)
-> **Progreso global:** **El producto está funcionalmente completo de cara a la beta.** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2) + **Panel Admin 15/15 módulos en prod** (incl. Ayuda y Tutoriales) + **Mi Perfil (Modo Personal) completo** + **Stripe validado A-Z**. **Frente activo: go-live (infraestructura real) + preparación del lanzamiento beta** (Puerto Peñasco, ~mediados julio 2026).
-> **Fase actual:** Migración a producción (arrancó 30-jun). CERRADO: BD DEV↔PROD alineada, **Stripe LIVE** (validado E2E), **Render Starter** (no duerme), **Upstash** y **Cloudflare R2** separados dev/prod, **Cloudinary eliminado**, cuenta AWS estándar, Google OAuth con dominios prod. EN ESPERA: **AWS SES** (aprobación para salir del sandbox). PENDIENTE: páginas legales (Términos + Aviso de Privacidad), DMARC, revisar secretos, y al promover subir Supabase Pro + Vercel Pro. Doc canónico: `docs/DESPLIEGUE_PRODUCCION.md`.
+> **Última actualización:** 8 Julio 2026 (go-live: **AWS SES fuera del sandbox** + **humo E2E cerrado en prod** + payout Stripe al banco; ver `docs/DESPLIEGUE_PRODUCCION.md`)
+> **Progreso global:** **El producto está funcionalmente completo y VALIDADO end-to-end en producción.** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2) + **Panel Admin 15/15 módulos en prod** (incl. Ayuda y Tutoriales) + **Mi Perfil (Modo Personal) completo** + **Stripe validado A-Z**. **Frente activo: preparación del lanzamiento beta** (Puerto Peñasco, ~mediados julio 2026) — grabar videos + al promover subir Supabase/Vercel Pro.
+> **Fase actual:** Go-live **esencialmente cerrado** (arrancó 30-jun). ✅ CERRADO: BD DEV↔PROD alineada, **Stripe LIVE** (validado E2E, payout al banco confirmado 8-jul), **Render Starter** (no duerme), **Upstash** y **Cloudflare R2** separados dev/prod (+ CORS con `s.anunciaya.mx` para ScanYA), **Cloudinary eliminado**, cuenta AWS estándar, Google OAuth con dominios prod, **AWS SES fuera del sandbox** (aprobado 8-jul, 50k/día), **páginas legales** (Términos + Aviso de Privacidad), **DMARC**, **secretos rotados**, y **humo E2E completo en prod** (registro→correo, login Google, alta+checkout trial, R2, ChatYA, ScanYA venta+puntos+CardYA). Residual (no bloquea): al promover subir Supabase Pro + Vercel Pro; vigilar logs. Doc canónico: `docs/DESPLIEGUE_PRODUCCION.md`.
 > **Visión que sustenta este roadmap:** `docs/VISION_ESTRATEGICA_AnunciaYA.md` (4 secciones públicas) + `docs/arquitectura/Panel_Admin/Panel_Admin.md` (Panel completo) + `docs/arquitectura/Panel_Admin/Tablero_Modulos.md` (estado vivo por módulo).
 
 ---
@@ -24,7 +24,7 @@
 | **Secciones Públicas** (6.x) | ✅ 100% (4/4) | ✅ Ofertas v1.4 (1 May 2026) · ✅ MarketPlace v1.6 (15 May 2026, probado E2E completo) · ✅ Servicios v1.1 (17 May 2026, Sprint 7 + Sprint 8 cerrados, 65 tests Vitest) · ✅ Home / Coyo Fase 1 + Cerebro IA + Fase 2 Comunidad + Polish UX (1 Jun 2026, ver `docs/arquitectura/Home_Coyo.md`) |
 | **Home — Pregúntale a Peñasco / Coyo** | ✅ Fase 1 + Cerebro IA + Comunidad + Polish UX | Feed conversacional + hero "Coyo te habla" + asistente Gemini 2.5-flash + **respuestas de la comunidad** + **"yo también quiero saber"** + **control del autor** (cerrar/editar/marcar resuelta/borrar) + **notificaciones cross-rol** (autor, interesados, dueños de items recomendados) + **expiración pasiva 14 días** + **tarjetas clicables** + **Coyo mini animado en card** + **botón Reintentar** ante fallos de IA. Detalle: `docs/arquitectura/Home_Coyo.md`. |
 | **Panel Admin** (6.7) | ✅ **100% (15/15 módulos en prod)** | Diseño completo en `docs/arquitectura/Panel_Admin/Panel_Admin.md` (3 niveles: SuperAdmin → Gerente Regional → Vendedor; motor de venta tarjeta/efectivo; comisiones monto-fijo + escalera; mapa de territorios v2). **Fase 0 (cimientos) ✅ COMPLETA (dev + producción):** atribución vendedor↔negocio, estado de membresía (5 columnas + ciclo 4 estados + cron de gracia), webhook de renovaciones, configs conectadas (helper `obtenerConfig`, trial/gracia 14d), rol de equipo + auth del Panel (`requierePanel`), enforcement de `usuarios.estado`; superadmin sembrado en prod. **Frontend del Panel ✅ (prod):** app `apps/admin` con login + shell responsive (escritorio/móvil) + `GET /api/admin/yo` + **cabos del shell cerrados** (recuperar contraseña, refresh token automático, **2FA del Panel TOTP en la puerta — opcional para los 3 roles**). **Sección Negocios ✅ (prod):** Entrega 1 (VER: tabla + ficha, solo lectura, alcance por rol, componentes base `ModalAdaptativo`+`useBackNativo`) + Entrega 2 **Parada 1** (acciones sin Stripe: suspender, reactivar, reasignar vendedor + migración `estado_admin`/`metodo_cobro`/`admin_auditoria` + auditoría + guard del webhook) + **Parada 2** (marcar pagado + cancelar con Stripe; cancelar solo SuperAdmin, marcar pagado también Gerente de su región desde 10 Jun), **migración ciudad↔región** (tabla `ciudades` + `embajador_ciudades` + `ciudad_id`; región deducida), alcance por matriz, **filtro global de región del superadmin** + nombre de región real en el header, y **sucursales** en tabla/ficha (modal de detalle, escritorio + móvil). **Alta manual sin Stripe (Camino B) ✅ (prod, 10 Jun):** `POST /alta-manual` + botón "Registrar negocio" (los 3 roles) que crea usuario+negocio+sucursal en transacción con el helper compartido `crearNegocioConDueno` (`metodo_cobro='manual'`, concepto efectivo/transferencia/cortesía); cuenta del dueño nace SIN contraseña (modelo C, 409 `CUENTA_SIN_CONTRASENA` + flujo "Crea tu contraseña" en `apps/web`); correo verificado=false hasta crear contraseña; validación de correo en vivo (`GET /existe-correo`); cron de expiración de manuales (`al_corriente`→`en_gracia` + notificación `membresia_en_gracia`); editar correo del dueño (`PATCH /:id/correo-dueno`); historial de pagos (`GET /:id/pagos`); catálogo de ciudades. **Despliegue ✅ (prod, 16 Jun):** `apps/admin` en su propio proyecto Vercel bajo `admin.anunciaya.mx` (CNAME) + app pública en `anunciaya.mx` (apex, registro A), ambos con SSL automático; CORS de `apps/api` apuntando a los dominios nuevos vía `FRONTEND_URL`/`PANEL_URL`. **Login con Google ✅ (prod, 16 Jun):** cliente OAuth nuevo publicado (En producción) con `anunciaya.mx` autorizado; credenciales actualizadas en Render y Vercel. **Secciones internas ✅ (prod):** **Usuarios** (mesa de ayuda + moderación), **Suscripciones** (bitácora financiera V1, solo lectura), **Equipo y accesos** (alta/edición/acceso de cuentas internas — vendedores/gerentes, reasignar región, revocar/reactivar; permiso partido super/gerente; doc `Equipo_y_accesos.md`), **Vendedores y comisiones** (módulo completo **A·B·C·E·D**: cartera master-detail + devengo recurrente por escalera + comisión de alta $400 al primer pago + liquidación con foto-comprobante + cortes de efectivo con neteo; doc `Vendedores_y_comisiones.md`) y **Configuración v1** (tablero económico: escalera de comisiones + trial + gracia, solo SuperAdmin; doc `Configuracion.md`). **Sprint de Stripe · Pieza 1 ✅ (18 Jun):** precio de membresía **editable desde el Panel** (botón que crea el Price en Stripe sin redeploy, ID en config) + **plan anual** + **cobro inmediato** con trial 0 + **comprobante en cobros de tarjeta** (recibo PDF con folio correlativo); de ahí nació el **módulo Recibos** (ver/buscar/descargar/reenviar comprobantes; doc `Recibos.md`). Validado E2E en Stripe TEST. **Piezas 2 y 3 ✅ (19 Jun):** cobro "día 1" para ventas por vendedor (sub sin trial + empuje +44d; alta manual con cortesía) y **comisión recurrente "al cobro"** (anti-doble-pago del prepago: anual = 10× una vez; foto mensual retirada). Validado E2E en la Ronda de Pagos A-Z (22-23 jun); migraciones en prod. **Ciudades ✅** (mapa MapLibre + alta/agrupar). **Territorios ✅** (módulo 13, "Red de ventas": zonas del gerente + "Mi territorio" del vendedor con marcas; + ronda de pulido UX 26 jun). **Categorías ✅** (módulo 14, catálogo de giros + disponibilidad por ciudad, 30 jun). **Ayuda y Tutoriales ✅** (módulo 15, 3 jul — back-office del **Centro de Ayuda**: CRUD categorías/tutoriales + subida video/poster a R2; el feature `/ayuda` para usuario/comerciante/ScanYA + landing pública `/p/tutorial/:slug` con OG + accesos + métricas vive en `docs/arquitectura/Centro_Ayuda.md`). **Panel 15/15 construido y en prod; foco: QA/pulido pre-beta.** |
-| **Lanzamiento Beta** (7.x) | ⏳ 85% | Go-live en curso (ver `docs/DESPLIEGUE_PRODUCCION.md`): **Stripe LIVE ✅** (validado E2E), **Render Starter ✅**, **Upstash/R2 separados ✅**, **Cloudinary eliminado ✅**, dominio ✅. 🟡 **AWS SES** esperando salir del sandbox. ⏳ páginas legales + DMARC + Supabase/Vercel Pro al promover. Beta 50 negocios: Juan graba videos ~1-2 semanas antes de promover (~mediados julio) |
+| **Lanzamiento Beta** (7.x) | ⏳ 95% | Go-live **cerrado** (ver `docs/DESPLIEGUE_PRODUCCION.md`): **Stripe LIVE ✅** (validado E2E + payout al banco), **Render Starter ✅**, **Upstash/R2 separados ✅** (+ CORS ScanYA), **Cloudinary eliminado ✅**, dominio ✅, **AWS SES fuera del sandbox ✅** (8-jul), **legales + DMARC + secretos ✅**, **humo E2E completo en prod ✅** (8-jul). Residual (no bloquea): subir Supabase/Vercel Pro al promover. Beta 50 negocios: Juan graba videos ~1-2 semanas antes de promover (~mediados julio) |
 
 ---
 
@@ -148,13 +148,13 @@
 
 ## ⏭️ Sprint siguiente: QA/pulido pre-beta → lanzamiento beta privada
 
-> Actualizado (2 Jul 2026): **el Panel Admin está completo (14/14 módulos en prod)** y da
-> soporte a vendedores + cobros. El producto está funcionalmente completo de cara a la beta.
-> **Frente activo (go-live):** infraestructura ya migrada a producción (Stripe LIVE, dominios,
-> DMARC, secretos rotados, Upstash/R2 separados, Cloudinary eliminado, prod reseteado — ver §7.1 y
-> `docs/DESPLIEGUE_PRODUCCION.md`). Solo falta la aprobación de **AWS SES** (sandbox) y, al promover,
-> subir Supabase/Vercel Pro. Siguen el **testing E2E** y la **beta privada de Puerto Peñasco**
-> (50 negocios) con vendedores ya operando.
+> Actualizado (8 Jul 2026): **el Panel Admin está completo (15/15 módulos en prod)** y da
+> soporte a vendedores + cobros. El producto está funcionalmente completo y **validado E2E en prod**.
+> **Go-live cerrado:** infraestructura migrada a producción (Stripe LIVE + payout, dominios,
+> DMARC, secretos rotados, Upstash/R2 separados + CORS ScanYA, Cloudinary eliminado, prod reseteado,
+> **AWS SES fuera del sandbox**, legales, y **humo E2E completo** — ver §7.1 y
+> `docs/DESPLIEGUE_PRODUCCION.md`). Al promover: subir Supabase/Vercel Pro. Siguiente frente: **grabar
+> videos** + **beta privada de Puerto Peñasco** (50 negocios) con vendedores ya operando.
 
 ---
 
@@ -222,9 +222,9 @@
 
 ---
 
-### Panel Admin (Fase 6.7) — ✅ COMPLETO (14/14 módulos en prod)
+### Panel Admin (Fase 6.7) — ✅ COMPLETO (15/15 módulos en prod)
 
-**Estado:** los 14 módulos construidos y en producción (30 Jun 2026). Foco: QA/pulido pre-beta.
+**Estado:** los 15 módulos construidos y en producción (último: Ayuda y Tutoriales, 3 Jul 2026). Foco: QA/pulido pre-beta.
 **Diseño:** 100% → `docs/arquitectura/Panel_Admin/Panel_Admin.md` · Estado vivo → `Tablero_Modulos.md`
 
 **Estructura (3 niveles, jerarquía piramidal):**
@@ -233,7 +233,7 @@
 - **Vendedor** → su cartera, registrar negocios, sus comisiones
 - Acceso: mismo login + rol decide el destino. Panel = web aparte en `admin.anunciaya.mx` (responsive: super/gerente escritorio, vendedor móvil).
 
-**14 módulos (todos ✅ en prod):** Resumen · Métricas · Negocios · Usuarios · Suscripciones · **Recibos** · Vendedores y comisiones · **Territorios** · Publicidad (por ciudad, 2ª fuente de ingresos) · Ciudades (habilitar sin código) · **Categorías** (giros + disponibilidad por ciudad) · Configuración · Equipo y accesos · Sistema (Auditoría + Mantenimiento).
+**15 módulos (todos ✅ en prod):** Resumen · Métricas · Negocios · Usuarios · Suscripciones · **Recibos** · Vendedores y comisiones · **Territorios** · Publicidad (por ciudad, 2ª fuente de ingresos) · Ciudades (habilitar sin código) · **Categorías** (giros + disponibilidad por ciudad) · Configuración · Equipo y accesos · Sistema (Auditoría + Mantenimiento) · **Ayuda y Tutoriales** (back-office del Centro de Ayuda).
 
 **Motor de venta y comisiones:**
 - Atribución por 2 caminos: link con `?ref=` (tarjeta) ✅ o registro del vendedor (efectivo/transferencia/cortesía) ✅ — el alta manual del Panel (`/alta-manual`) auto-atribuye al vendedor que registra (o toma el vendedor del body con candado de región si es gerente/superadmin).
@@ -256,7 +256,7 @@
 - ~~Camino B de atribución (efectivo) — otra ronda.~~ ✅ Hecho (10 Jun 2026 — alta manual sin Stripe con efectivo/transferencia/cortesía, modelo C de cuenta sin contraseña, cron de expiración de manuales, editar correo del dueño).
 - ~~Consolidación ciudad (texto hardcodeado) → catálogo `ciudades` (FK `ciudad_id`) en toda la app (patrón expand-migrate-contract).~~ ✅ Hecho (19 Jun 2026). Columnas texto migradas y DROPeadas en dev+prod en `negocio_sucursales` (Negocios/Ofertas/CardYA/ChatYA/BS/casi todo el Panel), `servicios_publicaciones` (Servicios + BS Vacantes), `articulos_marketplace` (MarketPlace) y `preguntas_comunidad` (Home/Coyo); `usuarios.ciudad` migrada y **DROPeada en dev y prod** (validado 20 jun — Perfil, expediente del Panel Usuarios, ciudad del oferente/vendedor/prestador). Lecturas vía `LEFT JOIN ciudades` (alias de salida `ciudad`, el frontend no cambió); escrituras vía `resolverCiudadId(texto)` (`apps/api/src/utils/ciudades.ts`). Frontend = "catálogo hidratable": `useCiudades` (en RootLayout) hidrata `ciudadesPopulares.ts` desde `GET /api/ciudades`; el array hardcodeado quedó solo de semilla/fallback. El Panel de Ciudades da de alta ciudades nuevas (mapa MapLibre) disponibles en toda la app sin redeploy. Decisión: los logs de búsqueda (`marketplace_busquedas_log`, `servicios_busquedas_log`, `ofertas_busquedas_log`) se quedan como TEXTO analítico (NO se migran a FK). Migraciones: `docs/migraciones/2026-06-19-*-ciudad-*.sql` + `2026-06-06/16/18-*`.
 - Seguridad: cron de galería (permitir gerente + validar `imageId ∈ sucursal`), POST gemelos foto-perfil/logo sin guard.
-- **Infra (no código):** ~~DKIM/DMARC~~ ✅ (DKIM ya estaba; DMARC agregado 2-jul en Namecheap) · ~~dominio propio R2 para el logo de correos~~ ✅ (el logo usa `BRAND_ASSETS_URL` = dominio de Vercel, evita el rate-limit de r2.dev). **Pendiente:** SES fuera de sandbox 🟡 (esperando aprobación de AWS).
+- **Infra (no código):** ~~DKIM/DMARC~~ ✅ (DKIM ya estaba; DMARC agregado 2-jul en Namecheap) · ~~dominio propio R2 para el logo de correos~~ ✅ (el logo usa `BRAND_ASSETS_URL` = dominio de Vercel, evita el rate-limit de r2.dev) · ~~SES fuera de sandbox~~ ✅ (aprobado 8-jul, 50k/día) · ~~CORS del bucket prod para ScanYA~~ ✅ (`s.anunciaya.mx` agregado 8-jul; subida de tickets/avatares navegador→R2).
 
 ---
 
@@ -265,7 +265,7 @@
 ### 7.1 Pre-Lanzamiento (~5 días)
 
 **Testing:**
-- [ ] Testing E2E flujos completos
+- [x] **Testing E2E flujos completos** ✅ (8 jul, en prod: registro→correo de verificación, login Google + vinculación, alta de negocio + checkout Live con trial, R2 subida de imágenes, ChatYA cliente↔negocio en tiempo real, ScanYA venta+puntos+notificación+CardYA). Residual: cobro recurrente real al fin del trial (con el 1er negocio real)
 - [ ] Performance y optimización
 - [ ] SEO y metadatos
 - [ ] Analytics (Google/Mixpanel)
@@ -277,7 +277,7 @@
 - [x] **Stripe modo LIVE** ✅ (1 jul) — cuenta activada, keys live en Render+Vercel, webhook live, precios $864/$8640 en Live, Customer Portal, validado E2E con cobro real
 - [x] Dominio personalizado + SSL ✅ (16 Jun: `anunciaya.mx` apex + `admin.anunciaya.mx` CNAME, SSL Vercel; DNS en **Namecheap** con DMARC/SPF/DKIM; correo Migadu/SES)
 - [x] Páginas legales ✅ (2 jul) — Aviso de Privacidad (LFPDPPP) + Términos (LFPC) en web (/privacidad, /terminos) + enlazadas en Stripe
-- [ ] AWS SES salir de sandbox 🟡 (solicitud enviada 1-jul, esperando aprobación de AWS)
+- [x] **AWS SES salir de sandbox** ✅ (aprobado 8-jul, 50k correos/día; el atraso 1→8 jul fue la tarjeta sin verificar en billing, no AWS — ver `DESPLIEGUE_PRODUCCION.md`)
 - [ ] Backups automáticos (= Supabase Pro) — al salir a promover
 
 ---
@@ -340,12 +340,11 @@
 | **Sección pública Servicios v1.1** | ✅ Completado (17 May 2026) |
 | **Business Studio 13/13 (incluido Vacantes)** | ✅ Completado (17 May 2026) |
 | **Home — Pregúntale a Peñasco / Coyo (Fase 1 + Fase 2)** | ✅ Completado (24 May - 1 Jun 2026) |
-| Panel Admin (6.7) | ✅ Completado (14/14 módulos en prod) |
-| Go-live / infraestructura (7.1) | ✅ Completado (1-2 jul; solo falta aprobación AWS SES) |
-| Pre-lanzamiento restante (7.1 testing) | ~5 días |
+| Panel Admin (6.7) | ✅ Completado (15/15 módulos en prod) |
+| Go-live / infraestructura (7.1) | ✅ Completado (1-8 jul; SES fuera del sandbox + humo E2E cerrado) |
+| Testing E2E en prod (7.1) | ✅ Completado (8 jul) |
 | Beta (7.2) | ~21 días |
-| **RESTANTE — optimista** | **~3 semanas** (testing ~5 días + beta ~3 sem, si todo fluye) — todo lo demás ✅ completado |
-| **RESTANTE — realista** | **~4-5 semanas** (una vez aprobado AWS SES) |
+| **RESTANTE** | **grabar videos (~1-2 sem) + beta ~3 sem.** Todo el go-live y la validación E2E ✅ completados; ya no hay bloqueos de infra ni de terceros |
 
 **Fecha lanzamiento público proyectada:** por definir tras la beta. Beta ~mediados julio 2026 (Juan graba videos 1-2 semanas antes de promover); lanzamiento público después de validar con los 50 negocios piloto.
 
@@ -380,7 +379,7 @@ Los detalles técnicos de cada sprint se definen **durante el desarrollo**, no p
 ## 📅 Próxima Revisión
 
 **Fecha:** Al definir el frente de lanzamiento beta con Juan.
-**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2) + **Panel Admin 14/14 en prod** + **Mi Perfil (Modo Personal) completo** + **Stripe validado A-Z**. El producto está funcionalmente completo de cara a la beta. **Frente activo: QA/pulido + preparación del lanzamiento** (Stripe LIVE, SES fuera de sandbox, testing E2E). Después: beta privada en Puerto Peñasco (50 negocios) con vendedores ya operando.
+**Alcance:** Stack v1 cerrado (BS 13/13 + 4 secciones públicas + Home/Coyo Fase 2) + **Panel Admin 15/15 en prod** + **Mi Perfil (Modo Personal) completo** + **Stripe validado A-Z**. El producto está funcionalmente completo y **validado E2E en prod** (8-jul: go-live cerrado, SES fuera del sandbox, humo E2E completo). **Frente activo: grabar videos + preparación del lanzamiento**. Después: beta privada en Puerto Peñasco (50 negocios) con vendedores ya operando.
 
 ---
 
