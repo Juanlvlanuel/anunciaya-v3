@@ -19,11 +19,17 @@
  *     contacto desde PaginaPerfilVendedor.
  *   - Servicios: contacto desde PaginaPerfilPrestador.
  *
+ * La sesión se resuelve con `useChatYASession` (adaptador unificado), NO
+ * con `useAuthStore` directo: así funciona igual en AnunciaYA (personal o
+ * comercial) y en ScanYA, cuya sesión vive en `useScanYAStore`. Este era
+ * el origen del bug "Inicia sesión para enviar un mensaje" al contactar a
+ * un cliente desde ScanYA (el guard leía un `useAuthStore` vacío).
+ *
  * Qué hace la función retornada (al recibir datos básicos del otro usuario):
- *   1. Valida que haya usuario autenticado y que no esté abriendo chat
- *      consigo mismo.
- *   2. Carga conversaciones (si no están en memoria) y BUSCA una
- *      existente con esa persona en modo personal (filtra por AUSENCIA
+ *   1. Valida que haya sesión activa (AnunciaYA o ScanYA) y que no esté
+ *      abriendo chat consigo mismo.
+ *   2. Carga conversaciones (si no están en memoria) en el modo de la
+ *      sesión y BUSCA una existente con esa persona (filtra por AUSENCIA
  *      de `negocioNombre` en otroParticipante — descarta el chat
  *      comercial del mismo usuario si existe). Si la encuentra, la
  *      abre directo — NO crea chat temporal duplicado.
@@ -40,7 +46,7 @@
 
 import { useChatYAStore } from '../stores/useChatYAStore';
 import { useUiStore } from '../stores/useUiStore';
-import { useAuthStore } from '../stores/useAuthStore';
+import { useChatYASession } from './useChatYASession';
 import { notificar } from '../utils/notificaciones';
 
 interface IniciarChatDirectoPersonaInput {
@@ -55,7 +61,7 @@ interface IniciarChatDirectoPersonaInput {
 }
 
 export function useIniciarChatDirectoPersona() {
-    const usuarioActual = useAuthStore((s) => s.usuario);
+    const sesion = useChatYASession();
     const abrirChatTemporal = useChatYAStore((s) => s.abrirChatTemporal);
     const abrirConversacion = useChatYAStore((s) => s.abrirConversacion);
     const conversaciones = useChatYAStore((s) => s.conversaciones);
@@ -67,26 +73,28 @@ export function useIniciarChatDirectoPersona() {
     ): Promise<void> {
         const { usuarioId, nombre, apellidos = '', avatarUrl } = input;
 
-        if (!usuarioActual) {
+        if (!sesion.autenticado) {
             notificar.advertencia('Inicia sesión para enviar un mensaje');
             return;
         }
 
         // Defensa: no permitir chat consigo mismo. La mayoría de callers
         // ya filtra este caso antes de mostrar el botón.
-        if (usuarioActual.id === usuarioId) {
+        if (sesion.miId === usuarioId) {
             notificar.info('No puedes enviarte un mensaje a ti mismo');
             return;
         }
 
         // ── Buscar conversación existente con esta persona ────────────────
-        // Chat directo es persona ↔ persona en modo personal: filtramos por
-        // AUSENCIA de `negocioNombre` en otroParticipante (un usuario puede
-        // tener ambos perfiles — personal y comercial — y NO queremos
-        // abrir el chat comercial cuando el caller pidió contacto persona).
+        // El destino siempre es una persona: filtramos por AUSENCIA de
+        // `negocioNombre` en otroParticipante (un usuario puede tener ambos
+        // perfiles — personal y comercial — y NO queremos abrir el chat
+        // comercial cuando el caller pidió contacto persona). Cargamos en el
+        // modo de la sesión (`sesion.modo`): 'personal' en AnunciaYA personal,
+        // 'comercial' en Business Studio y en ScanYA (negocio → cliente).
         let convs = conversaciones;
         if (convs.length === 0) {
-            await cargarConversaciones('personal');
+            await cargarConversaciones(sesion.modo);
             convs = useChatYAStore.getState().conversaciones;
         }
         const convExistente = convs.find(
