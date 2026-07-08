@@ -21,6 +21,8 @@ Cerró el **último bloqueador externo del go-live**: AWS SES salió del sandbox
 
 - **"Cliente desde" en blanco durante el trial** (Mi Perfil → Membresía y Pagos) — tomaba `fecha_primer_pago` (null hasta el primer cobro); ahora usa `created_at` del negocio (existe siempre).
 - **Textos de botones de membresía** más claros: "Administrar tarjeta" → **"Actualizar tarjeta"**; "Cancelar cobro automático" → **"Desactivar cobro automático"** (menos alarmante: no cancela la membresía, solo pasa a pago manual conservando vigencia); "Activar tarjeta" → **"Activar cobro automático"** (par coherente con Desactivar). Títulos de modales alineados.
+- **ScanYA — pantalla en blanco en la 1ª carga** (`sw-scanya.js` + `main.tsx`): el SW de ScanYA era *cache-first* incluso para el HTML de `/scanya/login`, así que tras un deploy servía HTML viejo apuntando a bundles con hashes inexistentes → el server devolvía `index.html` (text/html) para un módulo JS → error de MIME → pantalla en blanco (y al refrescar ya funcionaba). Ahora `sw-scanya.js` es **network-first para navegación** (como `sw-anunciaya.js`) + `CACHE_NAME` v3→v4. Además `main.tsx` **solo registra los Service Workers en producción** (`import.meta.env.PROD`) y desregistra cualquier SW previo en dev (un SW en dev intercepta los módulos de Vite y causa el mismo error).
+- **ScanYA — "Error al subir foto de ticket"** (config, no código): la subida es navegador→R2 por presigned URL (PUT), y ScanYA vive en `s.anunciaya.mx` (origen aparte). Faltaba ese origen en la **CORS del bucket `anunciaya-prod`** → el PUT se bloqueaba. Se agregó `https://s.anunciaya.mx` a AllowedOrigins.
 
 ### Notas
 

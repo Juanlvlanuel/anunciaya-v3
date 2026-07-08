@@ -40,7 +40,7 @@
 
 ## ✅ CERRADO (infraestructura · 1-2 jul)
 - [x] **Google OAuth** ✅ (Juan) — login/registro con Google ya funciona en prod (dominios de prod en Authorized JavaScript origins; el flujo es popup auth-code → solo requiere *origins*, NO redirect URIs; consent screen publicada). Gratis (OAuth básico openid/email/profile).
-- [x] **Cloudflare R2** — SEPARADO dev/prod (1 jul). Bucket de prod propio `anunciaya-prod` (CORS con orígenes prod + Public URL). Render apunta a él (`R2_BUCKET_NAME=anunciaya-prod`, `R2_PUBLIC_URL=pub-84dd…r2.dev`); dev queda con `anunciaya-tickets`. Token de cuenta validado (acceso OK). R2 Paid $0/mo + uso (egress gratis). Reconcile rediseñado a single-BD (cada ambiente limpia su propio bucket; corre en el Panel de prod, 1-jul). Reset de datos de prueba de prod hecho (2-jul + limpieza de los negocios de prueba del humo, 8-jul). Dominio propio del bucket = mejora futura opcional (el pub-…r2.dev basta para la beta; el logo de correos ya usa BRAND_ASSETS_URL de Vercel). Pendiente de humo: subida de imágenes navegador→R2 en prod (ver Validación final).
+- [x] **Cloudflare R2** — SEPARADO dev/prod (1 jul). Bucket de prod propio `anunciaya-prod` (CORS con orígenes prod + Public URL). Render apunta a él (`R2_BUCKET_NAME=anunciaya-prod`, `R2_PUBLIC_URL=pub-84dd…r2.dev`); dev queda con `anunciaya-tickets`. Token de cuenta validado (acceso OK). R2 Paid $0/mo + uso (egress gratis). Reconcile rediseñado a single-BD (cada ambiente limpia su propio bucket; corre en el Panel de prod, 1-jul). Reset de datos de prueba de prod hecho (2-jul + limpieza de los negocios de prueba del humo, 8-jul). Dominio propio del bucket = mejora futura opcional (el pub-…r2.dev basta para la beta; el logo de correos ya usa BRAND_ASSETS_URL de Vercel). **CORS del bucket (8-jul):** AllowedOrigins = `anunciaya.mx` + `www` + `admin.anunciaya.mx` + **`s.anunciaya.mx`** (este último AGREGADO el 8-jul: ScanYA sube tickets/avatares directo navegador→R2 desde su subdominio, y sin su origen en la CORS el PUT se bloqueaba → "Error al subir foto"). Methods GET/PUT/POST/DELETE/HEAD, Headers `*`. Subida navegador→R2 validada en prod desde `anunciaya.mx` (onboarding) y `s.anunciaya.mx` (ticket ScanYA).
 - [x] **DMARC** (2 jul) — TXT `_dmarc` = `v=DMARC1; p=none; rua=mailto:admin@anunciaya.mx` en Namecheap (DNS de anunciaya.mx). Verificado propagado (autoritativo + Google DNS). `p=none` = solo monitorea. Nota: SPF solo cubre Migadu, pero DMARC pasa vía DKIM de SES (alineado). Opcional futuro: agregar `include:amazonses.com` al SPF y endurecer a `p=quarantine`.
 - [x] **Páginas legales** (2 jul) — Aviso de Privacidad (conforme LFPDPPP art. 16) + Términos y Condiciones (LFPC), aprobados por Juan. Borradores en `docs/legal/`. Páginas web `/privacidad` y `/terminos` (`apps/web/src/pages/public/`, LayoutPublico + card), enlazadas en el footer público y el checkbox de registro (que ya apuntaba ahí). Responsable: Juan Manuel Valenzuela Jabalera, domicilio Av. Sinaloa 27 Col. Centro CP 83550 Puerto Peñasco; canal ARCO/contacto admin@anunciaya.mx. Desplegadas en prod (Vercel, verificado HTTP 200) y **enlazadas en Stripe** (Live → Checkout → Políticas de la tienda: URLs de condiciones/privacidad guardadas en "Datos públicos" + toggle "Políticas legales" ON + "Mostrar aceptación de condiciones" ON). Pendiente OPCIONAL: cotejar el aviso con el Generador del INAI. No es asesoría legal formal — revisión de abogado ideal al crecer.
 - [x] **Limpiar Cloudinary** (1 jul) — legado 100% muerto (sin referencias en código; ya migrado a R2). Quitadas las vars huérfanas: `apps/web/.env` (VITE_CLOUDINARY_*), `apps/api/.env` (CLOUDINARY_*), Vercel web (VITE_CLOUDINARY_CLOUD_NAME/UPLOAD_PRESET) y confirmado Render sin CLOUDINARY_*. Nota: el frontend NO tiene vars de R2 a propósito — usa presigned URLs firmadas por el backend (las llaves R2 viven solo en Render). Opcional pendiente: eliminar/rotar la cuenta Cloudinary si sigue activa (el API secret estaba en el .env).
@@ -62,14 +62,16 @@ Validado ✅:
 - [x] **Payout de Stripe al banco** (91.39 MXN del humo de publicidad)
 - [x] **Cambio tarjeta↔manual** (Desactivar/Activar cobro automático) + suscripción cancelada en Stripe al desactivar
 
+- [x] **R2 — subida de imágenes** (logo + portada + galería en el onboarding → bucket `anunciaya-prod`, sin CORS ni imágenes rotas; onboarding completo → negocio publicado)
+- [x] **ChatYA** — cliente (perfil personal) contacta al negocio → mensaje en tiempo real (Socket.io), "En línea", doble palomita, no-leídos, hilo en ambos lados
+- [x] **ScanYA** — abre sin colgarse (tras fix del SW), turno abierto, **subida de foto de ticket a R2** OK (tras agregar `s.anunciaya.mx` a la CORS del bucket)
+
 Pendiente ⏳:
-- [ ] **R2 — subida de imágenes** (logo/fotos en el onboarding, paso 5)
-- [ ] **ChatYA** (chat de producto)
-- [ ] **ScanYA** (escaneo/canje)
+- [ ] **ScanYA — cerrar el flujo:** Confirmar Venta (registrar transacción + otorgar puntos al cliente) — la subida del ticket ya funciona
 - [ ] **Cobro recurrente real al fin del trial** (se validará solo con el 1er negocio real; el flujo de suscripción ya quedó probado con el trial + el cobro único del humo de publicidad)
 - [ ] Seguir revisando logs de PROD por bugs latentes
 
-> Nota: durante este humo se detectaron y corrigieron mejoras (correo de bienvenida-trial, evento `alta_trial` en la bitácora, "Cliente desde" en trial, textos de botones de membresía) — ver CHANGELOG 8-jul.
+> Notas: durante este humo se detectaron y corrigieron: correo de bienvenida-trial, evento `alta_trial` en la bitácora, "Cliente desde" en trial, textos de botones de membresía, **fix del SW de ScanYA** (network-first en navegación + no registrar SW en dev → arregla la pantalla en blanco en la 1ª carga), y **CORS de R2** (agregar `s.anunciaya.mx`) — ver CHANGELOG 8-jul.
 
 ---
 
