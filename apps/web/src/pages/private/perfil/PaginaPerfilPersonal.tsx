@@ -513,7 +513,7 @@ export default function PaginaPerfilPersonal() {
                                             }
                                             secundarias.push({ key: 'amanual', label: 'Desactivar cobro automático', Icono: Ban, onClick: () => setConfirmarManual(true) });
                                         } else {
-                                            secundarias.push({ key: 'atarjeta', label: 'Activar tarjeta', Icono: CreditCard, onClick: () => setConfirmarTarjeta(true), cargando: procesandoCobro });
+                                            secundarias.push({ key: 'atarjeta', label: 'Activar cobro automático', Icono: CreditCard, onClick: () => setConfirmarTarjeta(true), cargando: procesandoCobro });
                                         }
 
                                         return (
@@ -766,7 +766,7 @@ export default function PaginaPerfilPersonal() {
                     <ModalAdaptativo
                         abierto={confirmarTarjeta}
                         onCerrar={() => !procesandoCobro && setConfirmarTarjeta(false)}
-                        titulo="Activar pago con tarjeta"
+                        titulo="Activar cobro automático"
                         iconoTitulo={<CreditCard className="w-5 h-5 text-slate-600" strokeWidth={2} />}
                         ancho="md"
                     >
