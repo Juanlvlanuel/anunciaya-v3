@@ -2051,7 +2051,8 @@ async function dispararPushMensajeNuevo(params: {
         await enviarPushAUsuario(params.receptorId, {
             titulo,
             cuerpo: previewParaPush(params.tipo, params.contenido),
-            url: '/inicio',
+            // Al tocar la notificación se abre esta conversación (la app lee ?chat=).
+            url: `/inicio?chat=${params.conversacionId}`,
             tag: params.conversacionId,
             badge,
         });

@@ -114,7 +114,9 @@ self.addEventListener('push', (event) => {
   const opciones = {
     body: payload.cuerpo || 'Tienes un mensaje nuevo',
     icon: '/icons/anunciaya-192.png',
-    badge: '/icons/anunciaya-192.png',
+    // badge = ícono MONOCROMO (silueta blanca + transparencia) para la barra de
+    // estado de Android; el logo a color iría como una mancha blanca sólida.
+    badge: '/icons/anunciaya-badge.png',
     tag: payload.tag || undefined,
     // renotify: si llega otro mensaje del mismo chat (mismo tag), vuelve a avisar.
     renotify: Boolean(payload.tag),

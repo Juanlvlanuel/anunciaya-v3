@@ -45,6 +45,7 @@ import { OverlayBuscadorServicios } from '../servicios/OverlayBuscadorServicios'
 import { detectarSeccion } from '../../stores/useSearchStore';
 import { BannerRateLimit } from '../ui/Banner429';
 import { useSwipeNavegacionBS } from '../../hooks/useSwipeNavegacionBS';
+import { usePushAppShell } from '../../hooks/usePushAppShell';
 
 // =============================================================================
 // CONSTANTES
@@ -88,6 +89,9 @@ export function MainLayout() {
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
+
+  // Web Push: abrir la conversación al tocar la notificación + aviso suave tras login
+  usePushAppShell();
 
   // ---------------------------------------------------------------------------
   // Stores
