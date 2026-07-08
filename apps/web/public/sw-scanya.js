@@ -1,7 +1,7 @@
 // Service Worker de ScanYA PWA
 // Maneja cache de assets y funcionalidad offline
 
-const CACHE_NAME = 'scanya-v3';
+const CACHE_NAME = 'scanya-v4';
 const STATIC_ASSETS = [
   '/scanya/login',
   '/icons/scanya-192.png',
@@ -111,7 +111,36 @@ self.addEventListener('fetch', (event) => {
   }
   
   // ==========================================
-  // ESTRATEGIA 2: Assets Estáticos - Cache First
+  // ESTRATEGIA 2: Navegación (documento HTML) - Network First
+  // ==========================================
+  // El HTML de ScanYA (p. ej. /scanya/login) referencia los bundles con hash de
+  // CADA build. Si se sirviera cacheado tras un deploy, apuntaría a /assets/[hash
+  // viejo].js que ya no existen → el server devuelve index.html (text/html) para
+  // ese módulo JS → error de MIME → PANTALLA EN BLANCO la primera vez (y al
+  // refrescar la caché ya se actualizó en background). Network-first evita servir
+  // HTML viejo: siempre trae el documento fresco; sin conexión, cae a la caché.
+  const esNavegacion =
+    event.request.mode === 'navigate' ||
+    (event.request.headers.get('accept') || '').includes('text/html');
+  if (esNavegacion) {
+    event.respondWith(
+      fetch(event.request)
+        .then((response) => {
+          if (response.status === 200) {
+            const clone = response.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, clone));
+          }
+          return response;
+        })
+        .catch(() =>
+          caches.match(event.request).then((c) => c || caches.match('/scanya/login'))
+        )
+    );
+    return;
+  }
+
+  // ==========================================
+  // ESTRATEGIA 3: Assets Estáticos (íconos, etc.) - Cache First
   // ==========================================
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
