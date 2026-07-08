@@ -11,6 +11,7 @@
 import { sql } from 'drizzle-orm';
 import { db } from '../db/index.js';
 import { crearAlerta, existeAlertaReciente, estaAlertaActiva, obtenerUmbrales } from './alertas.service.js';
+import { obtenerZonaHorariaSucursal, zonaHorariaSQL } from '../utils/zonaHoraria.js';
 
 // ============================================================================
 // HELPER: Obtener sucursales activas del negocio
@@ -159,11 +160,17 @@ async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Pr
 	if (!await estaAlertaActiva(negocioId, 'fuera_horario')) return;
 	if (await existeAlertaReciente(negocioId, 'fuera_horario', tx.sucursalId)) return;
 
+	// El horario del negocio está en hora local; el servidor (Render) corre en UTC.
+	// Sin AT TIME ZONE, NOW()/LOCALTIME comparan contra UTC y disparan la alerta
+	// falsamente (ej. 11:21 local en Sonora = 18:21 UTC > cierre 17:30).
+	const zonaHoraria = await obtenerZonaHorariaSucursal(negocioId, tx.sucursalId);
+	const tz = zonaHorariaSQL(zonaHoraria);
+
 	const resultado = await db.execute(sql`
 		SELECT hora_apertura, hora_cierre, abierto
 		FROM negocio_horarios
 		WHERE sucursal_id = ${tx.sucursalId}
-			AND dia_semana = EXTRACT(DOW FROM NOW())::int
+			AND dia_semana = EXTRACT(DOW FROM (NOW() AT TIME ZONE ${tz}))::int
 		LIMIT 1
 	`);
 
@@ -188,8 +195,8 @@ async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Pr
 
 	const resultado2 = await db.execute(sql`
 		SELECT CASE
-			WHEN LOCALTIME < ${horario.hora_apertura}::time
-				OR LOCALTIME > ${horario.hora_cierre}::time
+			WHEN (NOW() AT TIME ZONE ${tz})::time < ${horario.hora_apertura}::time
+				OR (NOW() AT TIME ZONE ${tz})::time > ${horario.hora_cierre}::time
 			THEN true ELSE false
 		END AS fuera_horario
 	`);
