@@ -157,7 +157,7 @@ export function SeccionResumen({ rol }: { rol: RolPanel }) {
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
       <style>{`@keyframes ay-saludo-float{0%,100%{transform:translateY(0)}50%{transform:translateY(-3px)}}`}</style>
-      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-6 lg:gap-7">
+      <div className="flex w-full flex-col gap-6 lg:gap-7">
         {/* ── Barra superior: saludo (izq) + KPIs compactos clicables (der), 1 renglón ── */}
         <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-4">
           <div className="flex items-center gap-3">
@@ -394,7 +394,7 @@ function BloquePendiente({
           {resumen && <span className="truncate text-[12px] text-texto-3">{resumen}</span>}
         </span>
         {!vacio && (
-          <span className="txt-badge grid min-w-[22px] shrink-0 place-items-center rounded-full bg-marca-suave px-1.5 text-[11px] font-semibold text-marca">
+          <span className="txt-badge grid h-6 min-w-[24px] shrink-0 place-items-center rounded-full bg-marca-suave px-1.5 text-[12.5px] font-semibold text-marca">
             {contador}
           </span>
         )}
@@ -447,7 +447,7 @@ function FilaPendiente({
       type="button"
       data-testid={testid}
       onClick={onClick}
-      className="group flex items-center gap-3 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-marca-suave"
+      className="group flex w-full items-center gap-3 rounded-[10px] px-2.5 py-2 text-left transition hover:bg-marca-suave"
     >
       <span className="grid h-8 w-8 shrink-0 place-items-center rounded-[9px] border border-borde bg-superficie-2 text-texto-3 transition group-hover:border-borde-fuerte group-hover:text-marca">
         <Icono size={15} />

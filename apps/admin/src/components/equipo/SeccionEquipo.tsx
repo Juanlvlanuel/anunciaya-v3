@@ -212,11 +212,11 @@ export function SeccionEquipo() {
         type="button"
         data-testid="equipo-alta"
         onClick={() => setMenuAlta((v) => !v)}
-        className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+        className="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-marca text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:h-auto lg:w-auto lg:gap-1.5 lg:px-3.5 lg:py-2"
       >
         <UserPlus size={16} />
         <span className="hidden lg:inline">Dar de alta</span>
-        <ChevronDown size={14} className={`transition-transform ${menuAlta ? 'rotate-180' : ''}`} />
+        <ChevronDown size={14} className={`hidden transition-transform lg:inline ${menuAlta ? 'rotate-180' : ''}`} />
       </button>
       {menuAlta && (
         <>
@@ -247,7 +247,7 @@ export function SeccionEquipo() {
       type="button"
       data-testid="equipo-alta"
       onClick={() => setAltaTipo('vendedor')}
-      className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+      className="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-marca text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:h-auto lg:w-auto lg:gap-1.5 lg:px-3.5 lg:py-2"
     >
       <UserPlus size={16} />
       <span className="hidden lg:inline">Dar de alta vendedor</span>

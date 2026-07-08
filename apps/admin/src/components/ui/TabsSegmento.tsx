@@ -22,6 +22,9 @@ export interface TabSegmento<T extends string = string> {
   label: string;
   /** Ícono opcional a la izquierda (ej. `<MapPin size={14} />`). */
   icono?: ReactNode;
+  /** Etiqueta corta opcional para móvil (<1024px); en `lg:`+ se muestra `label`. Útil cuando el
+   *  texto completo no cabe en la píldora en móvil (ej. "Datos de depósito" → "Depósito"). */
+  labelCorto?: string;
   /** Conteo opcional a la derecha (badge). Se oculta si es `undefined`. */
   badge?: number;
   /** Si el badge representa una ALERTA (ej. "Por verificar"): se tiñe de marca cuando badge>0
@@ -55,7 +58,14 @@ export function TabsSegmento<T extends string>({ tabs, valor, onCambiar, testidP
             }`}
           >
             {t.icono}
-            {t.label}
+            {t.labelCorto ? (
+              <>
+                <span className="lg:hidden">{t.labelCorto}</span>
+                <span className="hidden lg:inline">{t.label}</span>
+              </>
+            ) : (
+              t.label
+            )}
             {t.badge != null && (
               <span
                 className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold tabular-nums"

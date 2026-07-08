@@ -110,7 +110,7 @@ function TablaEscalera({ valor }: { valor: string }) {
   const tramos = parsearEscalera(valor);
   if (tramos.length === 0) return <p className="text-[13px] text-texto-4">Escalera sin definir.</p>;
   return (
-    <div className="flex flex-col gap-2">
+    <div className="flex max-h-[400px] flex-col gap-2 overflow-y-auto pr-1">
       {tramos.map((t, i) => (
         <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2">
           <span className="text-[13px] text-texto-2">{rangoTramo(t)} activos</span>
@@ -195,8 +195,8 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
 
   if (esTabla) {
     return (
-      <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+      <div className="rounded-[12px] border border-borde bg-superficie px-3.5 py-3 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
+        <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-3">
           <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
             <CajaIcono Icono={Icono} tam={32} color={ACENTO_CLAVE[c.clave] ?? 'bg-slate-400'} />
             <div className="min-w-0 flex-1">
@@ -219,8 +219,8 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
   }
 
   return (
-    <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">
+    <div className="rounded-[12px] border border-borde bg-superficie px-3.5 py-3 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
+      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-3">
         {/* Identidad (texto a todo el ancho en móvil) */}
         <div className="flex items-start gap-3 lg:min-w-0 lg:flex-1">
           <CajaIcono Icono={Icono} tam={32} />
@@ -258,14 +258,6 @@ function EncabezadoGrupo({ Icono, titulo, color }: { Icono: ComponentType<Lucide
       <h3 className="text-[14px] font-semibold text-texto">{titulo}</h3>
     </div>
   );
-}
-
-/** Reordena para que las tarjetas "tabla" (más altas) queden al final del grupo y se emparejen entre sí
- *  en la rejilla, en vez de dejar un hueco junto a una tarjeta simple. `sort` es estable → preserva el
- *  orden de catálogo dentro de cada bloque (simples primero, tablas después). */
-function tablasAlFinal(filas: ConfigFila[]): ConfigFila[] {
-  const esTabla = (t: ConfigFila['tipo']) => t === 'json' || t === 'tramos_ciudades' || t === 'periodos_meses';
-  return [...filas].sort((a, b) => Number(esTabla(a.tipo)) - Number(esTabla(b.tipo)));
 }
 
 /** Rejilla de tarjetas: dos columnas en escritorio (incluidas las tablas — escalera/tramos/periodos),
@@ -311,7 +303,7 @@ function TarjetaPrecioCarrusel({ c, onEditar }: { c: ConfigFila; onEditar: () =>
   const meta = META_CARRUSEL[c.clave];
   const Icono = meta?.Icono ?? Megaphone;
   return (
-    <div className="flex flex-col rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
+    <div className="flex flex-col rounded-[12px] border border-borde bg-superficie px-3.5 py-3 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="flex items-center gap-2">
           <CajaIcono Icono={Icono} tam={28} color={meta?.acento ?? 'bg-slate-400'} />
@@ -333,10 +325,10 @@ function TarjetaPrecioCarrusel({ c, onEditar }: { c: ConfigFila; onEditar: () =>
 
 type TabId = 'membresia' | 'publicidad' | 'general';
 
-const TABS: { id: TabId; etiqueta: string }[] = [
-  { id: 'membresia', etiqueta: 'Membresía' },
-  { id: 'publicidad', etiqueta: 'Publicidad' },
-  { id: 'general', etiqueta: 'General' },
+const TABS: { id: TabId; etiqueta: string; Icono: ComponentType<LucideProps> }[] = [
+  { id: 'membresia', etiqueta: 'Membresía', Icono: Tag },
+  { id: 'publicidad', etiqueta: 'Publicidad', Icono: Megaphone },
+  { id: 'general', etiqueta: 'General', Icono: SlidersHorizontal },
 ];
 
 export function SeccionConfiguracion() {
@@ -378,6 +370,11 @@ export function SeccionConfiguracion() {
     .filter((c) => CLAVES_PRECIO_CARRUSEL.includes(c.clave))
     .sort((a, b) => CLAVES_PRECIO_CARRUSEL.indexOf(a.clave) - CLAVES_PRECIO_CARRUSEL.indexOf(b.clave));
   const reglasPublicidad = publicidad.filter((c) => !CLAVES_PRECIO_CARRUSEL.includes(c.clave));
+  // Divide las reglas en dos columnas: ajustes simples ("Reglas y límites") y las tablas de escalado
+  // (multiplicador por ciudades + pago por adelantado → "Multiplicadores y descuentos").
+  const esTablaConfig = (t: ConfigFila['tipo']) => t === 'json' || t === 'tramos_ciudades' || t === 'periodos_meses';
+  const reglasSimples = reglasPublicidad.filter((c) => !esTablaConfig(c.tipo));
+  const reglasTablas = reglasPublicidad.filter((c) => esTablaConfig(c.tipo));
 
   // Estado de los grupos que dependen de la API. El Precio usa su propio hook (precargado) → se muestra
   // siempre, aunque la lista aún esté cargando.
@@ -394,10 +391,10 @@ export function SeccionConfiguracion() {
 
   return (
     <div ref={scrollRef} className="h-full min-h-0 overflow-y-auto p-4 lg:p-6">
-      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
+      <div className="flex w-full flex-col gap-5 lg:gap-6">
         {/* Pestañas: segmented control (mismo estilo que Ciudades). */}
         <TabsSegmento
-          tabs={TABS.map((t) => ({ id: t.id, label: t.etiqueta }))}
+          tabs={TABS.map((t) => ({ id: t.id, label: t.etiqueta, icono: <t.Icono size={14} /> }))}
           valor={tab}
           onCambiar={setTab}
           testidPrefijo="config-tab"
@@ -406,28 +403,29 @@ export function SeccionConfiguracion() {
 
         {/* MEMBRESÍA: precio (Stripe) + pagos y comisiones + prueba y gracia. */}
         {tab === 'membresia' && (
-          <div className="flex flex-col gap-7" data-testid="config-vista-membresia">
-            <section>
-              <EncabezadoGrupo Icono={Tag} titulo="Precio de la membresía" color={ACENTO_GRUPO.precio} />
-              <TarjetaPrecioMembresia />
-            </section>
-
-            {estadoDatos ?? (
-              <div className="grid grid-cols-1 items-start gap-x-6 gap-y-7 lg:grid-cols-2">
-                {pagos.length > 0 && (
-                  <section>
-                    <EncabezadoGrupo Icono={ICONO_CATEGORIA.pagos ?? SlidersHorizontal} titulo={ETIQUETA_CATEGORIA.pagos} color={ACENTO_GRUPO.pagos} />
-                    <PilaConfig filas={pagos} onEditar={setFilaEditando} />
-                  </section>
-                )}
-                {trials.length > 0 && (
-                  <section>
-                    <EncabezadoGrupo Icono={ICONO_CATEGORIA.trials ?? SlidersHorizontal} titulo={ETIQUETA_CATEGORIA.trials} color={ACENTO_GRUPO.trials} />
-                    <PilaConfig filas={trials} onEditar={setFilaEditando} />
-                  </section>
-                )}
-              </div>
-            )}
+          <div data-testid="config-vista-membresia">
+            <div className="grid grid-cols-1 items-start gap-x-6 gap-y-7 lg:grid-cols-3">
+              <section>
+                <EncabezadoGrupo Icono={Tag} titulo="Precio de la membresía" color={ACENTO_GRUPO.precio} />
+                <TarjetaPrecioMembresia />
+              </section>
+              {estadoDatos ?? (
+                <>
+                  {pagos.length > 0 && (
+                    <section>
+                      <EncabezadoGrupo Icono={ICONO_CATEGORIA.pagos ?? SlidersHorizontal} titulo={ETIQUETA_CATEGORIA.pagos} color={ACENTO_GRUPO.pagos} />
+                      <PilaConfig filas={pagos} onEditar={setFilaEditando} />
+                    </section>
+                  )}
+                  {trials.length > 0 && (
+                    <section>
+                      <EncabezadoGrupo Icono={ICONO_CATEGORIA.trials ?? SlidersHorizontal} titulo={ETIQUETA_CATEGORIA.trials} color={ACENTO_GRUPO.trials} />
+                      <PilaConfig filas={trials} onEditar={setFilaEditando} />
+                    </section>
+                  )}
+                </>
+              )}
+            </div>
           </div>
         )}
 
@@ -438,21 +436,27 @@ export function SeccionConfiguracion() {
               (publicidad.length === 0 ? (
                 <EstadoSeccion icono={Megaphone} titulo="Sin ajustes de publicidad" />
               ) : (
-                <div className="flex flex-col gap-7">
+                <div className="grid grid-cols-1 items-start gap-x-5 gap-y-7 lg:grid-cols-3">
                   {preciosCarrusel.length > 0 && (
                     <section>
                       <EncabezadoGrupo Icono={Tag} titulo="Precios por tamaño" color={ACENTO_GRUPO.carruseles} />
-                      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+                      <div className="flex flex-col gap-2.5">
                         {preciosCarrusel.map((c) => (
                           <TarjetaPrecioCarrusel key={c.clave} c={c} onEditar={() => setFilaEditando(c)} />
                         ))}
                       </div>
                     </section>
                   )}
-                  {reglasPublicidad.length > 0 && (
+                  {reglasSimples.length > 0 && (
                     <section>
                       <EncabezadoGrupo Icono={SlidersHorizontal} titulo="Reglas y límites" color={ACENTO_GRUPO.reglas} />
-                      <RejillaConfig filas={tablasAlFinal(reglasPublicidad)} onEditar={setFilaEditando} />
+                      <PilaConfig filas={reglasSimples} onEditar={setFilaEditando} />
+                    </section>
+                  )}
+                  {reglasTablas.length > 0 && (
+                    <section>
+                      <EncabezadoGrupo Icono={Coins} titulo="Multiplicadores y descuentos" color={ACENTO_GRUPO.reglas} />
+                      <PilaConfig filas={reglasTablas} onEditar={setFilaEditando} />
                     </section>
                   )}
                 </div>

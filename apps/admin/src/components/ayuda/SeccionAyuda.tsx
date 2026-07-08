@@ -25,6 +25,10 @@ import {
   AlertTriangle,
   GraduationCap,
   X,
+  Layers,
+  Smartphone,
+  Store,
+  ScanLine,
 } from 'lucide-react';
 import {
   useAyudaLista,
@@ -47,7 +51,7 @@ import { MenuAcciones } from '../ciudades/MenuAcciones';
 import { TabsSegmento } from '../ui/TabsSegmento';
 
 const BTN_NUEVO =
-  'group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95';
+  'group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-marca text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:h-auto lg:w-auto lg:gap-1.5 lg:px-3.5 lg:py-2';
 
 // Botones-ícono circulares de color (patrón calcado de Territorios): acción por color.
 const BTN_CIRC = 'grid h-8 w-8 shrink-0 place-items-center rounded-full transition hover:opacity-80';
@@ -55,6 +59,13 @@ const BTN_EDIT_CIRC = `${BTN_CIRC} bg-marca-suave text-marca`;
 const BTN_DEL_CIRC = `${BTN_CIRC} bg-peligro-suave text-peligro`;
 
 type FiltroSeccion = '' | SeccionAyuda;
+
+// Ícono + etiqueta corta (móvil) por audiencia, para el toggle de secciones.
+const META_SECCION: Record<SeccionAyuda, { icono: ReactNode; corto?: string }> = {
+  anunciaya: { icono: <Smartphone size={14} /> },
+  business_studio: { icono: <Store size={14} />, corto: 'Studio' },
+  scanya: { icono: <ScanLine size={14} /> },
+};
 
 /** Minúsculas y sin acentos, para búsqueda tolerante a tildes. */
 function normaliza(s: string): string {
@@ -192,15 +203,21 @@ export function SeccionAyuda() {
         <div className="mb-3 flex flex-wrap items-center gap-x-4 gap-y-3">
           <TabsSegmento<FiltroSeccion>
             tabs={[
-              { id: '', label: 'Todas', badge: totalTutoriales },
-              ...SECCIONES.map((s) => ({ id: s.valor, label: s.label, badge: conteoPorSeccion[s.valor] ?? 0 })),
+              { id: '', label: 'Todas', badge: totalTutoriales, icono: <Layers size={14} /> },
+              ...SECCIONES.map((s) => ({
+                id: s.valor,
+                label: s.label,
+                labelCorto: META_SECCION[s.valor].corto,
+                badge: conteoPorSeccion[s.valor] ?? 0,
+                icono: META_SECCION[s.valor].icono,
+              })),
             ]}
             valor={filtroSeccion}
             onCambiar={setFiltroSeccion}
             testidPrefijo="ayuda-seccion"
             className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
           />
-          <div className="flex shrink-0 items-stretch divide-x divide-borde lg:ml-auto">
+          <div className="flex w-full items-stretch divide-x divide-borde overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden lg:ml-auto lg:w-auto lg:shrink-0 lg:overflow-visible">
             <KpiInline etiqueta="Tutoriales" valor={kpis.total} />
             <KpiInline etiqueta="Con video" valor={kpis.conVideo} color="var(--panel-ok)" />
             <KpiInline etiqueta="Sin video" valor={kpis.sinVideo} color="var(--panel-warn)" />
@@ -218,7 +235,7 @@ export function SeccionAyuda() {
               <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-texto-4" />
               <input
                 data-testid="ayuda-buscar"
-                className="h-9 w-full rounded-full border border-campo-borde bg-campo pl-9 pr-3 text-[13px] text-texto outline-none placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
+                className="w-full rounded-full border border-campo-borde bg-campo py-2.5 pl-10 pr-3 text-[13.5px] text-texto outline-none placeholder:text-texto-4 focus:border-marca focus:bg-superficie"
                 placeholder="Buscar tutorial…"
                 value={busqueda}
                 onChange={(e) => setBusqueda(e.target.value)}
@@ -229,7 +246,8 @@ export function SeccionAyuda() {
               activo={soloSinVideo}
               onClick={() => setSoloSinVideo((v) => !v)}
             >
-              <VideoOff className="h-3.5 w-3.5" /> Sin video
+              <VideoOff className="h-3.5 w-3.5 shrink-0" />
+              <span className="hidden lg:inline">Sin video</span>
             </ChipFiltro>
           </>
         )}
@@ -239,7 +257,8 @@ export function SeccionAyuda() {
           onClick={() => setDlgCat({ categoria: null })}
           data-testid="ayuda-nueva-categoria"
         >
-          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" /> Nueva categoría
+          <Plus className="h-4 w-4 transition-transform duration-300 group-hover:rotate-90" />
+          <span className="hidden lg:inline">Nueva categoría</span>
         </button>
       </div>
 
@@ -334,7 +353,7 @@ function ChipFiltro({
       type="button"
       onClick={onClick}
       data-testid={testid}
-      className={`inline-flex h-9 shrink-0 items-center gap-1.5 rounded-full border px-3.5 text-[13px] font-medium transition ${
+      className={`inline-flex h-11 w-11 shrink-0 items-center justify-center gap-1.5 rounded-full border text-[13px] font-medium transition lg:h-9 lg:w-auto lg:px-3.5 ${
         activo
           ? 'border-marca bg-marca-suave text-marca'
           : 'border-borde bg-superficie text-texto-2 hover:bg-superficie-2'

@@ -239,8 +239,9 @@ DENTRO de una página usan un **segmented control** unificado (`components/ui/Ta
 AGRUPADOS en un solo contenedor píldora `inline-flex rounded-full border border-borde bg-superficie-2
 p-0.5`; el activo `bg-marca text-marca-contraste`, los inactivos `text-texto-2 hover:text-texto`
 (`rounded-full px-3.5 py-1.5 text-[12.5px] font-semibold`). Cada tab acepta `icono?` (14px), `badge?`
-(conteo) y `badgeAlerta?` (tiñe el badge de marca cuando >0 aunque el tab esté inactivo, p. ej. "Por
-verificar"). Genérico `<T extends string>`. Sustituye los tabs con subrayado y los chips-tab sueltos; se
+(conteo), `badgeAlerta?` (tiñe el badge de marca cuando >0 aunque el tab esté inactivo, p. ej. "Por
+verificar") y `labelCorto?` (texto alterno SOLO en móvil <1024px cuando el completo no cabe en la
+píldora, ej. "Datos de depósito" → "Depósito"; en `lg:`+ vuelve el `label`). Genérico `<T extends string>`. Sustituye los tabs con subrayado y los chips-tab sueltos; se
 usa en Mapa·Ciudades·Regiones (Ciudades), Negocios·MarketPlace (Categorías), Métricas, Suscripciones,
 Configuración, Mantenimiento y el filtro de audiencia de Ayuda. (**Equipo y accesos** no lo usa — no
 tiene sub-secciones.)
@@ -314,7 +315,7 @@ Ya existen y se reusan en cada módulo. Viven en `apps/admin/src/components/ui/`
 | `ModalAdaptativo` | `components/ui/ModalAdaptativo.tsx` | Centrado en `lg:`+ / bottom-sheet con drag en móvil. Prop `centrado` para diálogos sobre una ficha. Animación de entrada propia (telón + modal/sheet). |
 | `DialogoConfirmar` | `components/ui/DialogoConfirmar.tsx` | Confirmación genérica con motivo **opcional u obligatorio**. |
 | `Toaster` + `useToastPanel` | `components/ui/Toaster.tsx` · `stores/useToastPanel.ts` | Toast pill (arriba, centrado) con `toast.exito/error/advertencia/info`. Mismo espíritu que `notificar.*` de la app, con tokens del Panel. |
-| `TabsSegmento` | `components/ui/TabsSegmento.tsx` | Segmented control para los **tabs de sección** (píldora agrupada). Soporta `icono`, `badge` de conteo y `badgeAlerta`. Ver §5. |
+| `TabsSegmento` | `components/ui/TabsSegmento.tsx` | Segmented control para los **tabs de sección** (píldora agrupada). Soporta `icono`, `badge` de conteo, `badgeAlerta` y `labelCorto` (texto abreviado solo en móvil). Ver §5. |
 | `MenuFiltro` | `components/negocios/MenuFiltro.tsx` | Dropdown botón + menú con check (filtros). `OpcionMenu` acepta `color` (punto) y `conteo` (badge) — ver §5. |
 | `avatares` | `components/negocios/avatares.tsx` | Avatar con color por hash del nombre. |
 | `EstadoSeccion` | `components/ui/EstadoSeccion.tsx` | Estado de una lista: **cargando / error / vacío**. Ícono del módulo en cuadro sutil (`superficie-2` + borde) + título (semibold) + descripción + **acción opcional**. En vacío, distinguir *con-filtros* (título "Sin resultados" + botón "Limpiar filtros") de *vacío real* ("Aún no hay…", sin botón). Reemplazó los `EstadoMensaje` duplicados de Negocios/Usuarios/Suscripciones. |

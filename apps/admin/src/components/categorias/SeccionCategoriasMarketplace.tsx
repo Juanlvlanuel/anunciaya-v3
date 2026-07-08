@@ -9,7 +9,7 @@
  * Ubicación: apps/admin/src/components/categorias/SeccionCategoriasMarketplace.tsx
  */
 
-import { useEffect, useMemo, useState, type MutableRefObject } from 'react';
+import { useEffect, useMemo, useRef, useState, type MutableRefObject } from 'react';
 import { Plus, Pencil, Power, Search, X, MapPin, Tag } from 'lucide-react';
 import { Tooltip } from '../ui/Tooltip';
 import { ModalAdaptativo } from '../ui/ModalAdaptativo';
@@ -22,6 +22,8 @@ import {
   useCambiarActivaCategoriaMP,
 } from '../../hooks/queries/useCategoriasMPAdmin';
 import { useCiudadesLista } from '../../hooks/queries/useCiudadesAdmin';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
+import { useScrollPanel } from '../../stores/useScrollPanel';
 import type { CategoriaMarketplaceAdmin } from '../../services/categoriasMarketplaceService';
 
 type Dlg = { modo: 'crear' | 'editar'; categoria: CategoriaMarketplaceAdmin | null } | null;
@@ -61,6 +63,15 @@ export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRe
     opcionesCiudad.find((o) => o.valor === ciudadSel)?.etiqueta ?? 'Todas las ciudades';
   const [busqueda, setBusqueda] = useState('');
   const [filtroEstado, setFiltroEstado] = useState<'todas' | 'activas' | 'inactivas'>('todas');
+
+  // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
+  const esEscritorio = useEsEscritorio();
+  const listaRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : listaRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl]);
   const [dlg, setDlg] = useState<Dlg>(null);
   const [nombre, setNombre] = useState('');
 
@@ -128,7 +139,7 @@ export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRe
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar categoría…"
-              className="w-full rounded-full border border-campo-borde bg-campo py-2 pl-10 pr-8 text-[13.5px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
+              className="w-full rounded-full border border-campo-borde bg-campo py-2.5 pl-10 pr-8 text-[13.5px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
             />
             {busqueda && (
               <button type="button" aria-label="Limpiar" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-texto-4 transition hover:bg-marca-suave hover:text-marca">
@@ -136,6 +147,16 @@ export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRe
               </button>
             )}
           </div>
+          {/* Botón + solo en móvil (en escritorio vive en la barra de tabs). */}
+          <button
+            type="button"
+            data-testid="categoria-mp-nueva-movil"
+            onClick={() => crearRef.current?.()}
+            aria-label="Nueva categoría"
+            className="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-marca text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:hidden"
+          >
+            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
+          </button>
         </div>
 
         {/* Fila 2 (móvil): ciudad (primero) + chips de estado, deslizables como
@@ -203,7 +224,7 @@ export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRe
       ) : vista.length === 0 ? (
         <div className="grid flex-1 place-items-center text-[13px] text-texto-3">Sin categorías.</div>
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-superficie lg:rounded-[14px] lg:border lg:border-borde lg:shadow-tarjeta-panel">
           {/* Encabezado de columnas (escritorio) */}
           <div className="hidden shrink-0 items-center gap-4 border-b border-borde bg-superficie-2/60 px-4 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4 lg:flex">
             <span className="flex-1">Categoría</span>
@@ -213,7 +234,7 @@ export function SeccionCategoriasMarketplace({ crearRef }: { crearRef: MutableRe
           </div>
 
           {/* Cuerpo con scroll interno (debajo del header) */}
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
             {vista.map((c) => (
               <div
                 key={c.id}

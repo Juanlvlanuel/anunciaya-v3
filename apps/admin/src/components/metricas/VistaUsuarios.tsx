@@ -8,11 +8,11 @@
  * Ubicación: apps/admin/src/components/metricas/VistaUsuarios.tsx
  */
 
-import { Users, UserPlus } from 'lucide-react';
+import { Users, UserPlus, PieChart, MapPin } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer } from 'recharts';
 import { useMetricasUsuarios } from '../../hooks/queries/useMetricas';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
-import { Ranking, TooltipMetricas, CursorBarra, GAP_BARRAS, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto, FMT_NUM, BarraMetricas, KpiInline, FilaKpisInline, type NavMetricas } from './piezas';
+import { Ranking, CabeceraCard, TooltipMetricas, CursorBarra, GAP_BARRAS, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto, FMT_NUM, BarraMetricas, KpiInline, FilaKpisInline, type NavMetricas } from './piezas';
 
 export function VistaUsuarios({ nav }: { nav: NavMetricas }) {
   const { data, isLoading, isError } = useMetricasUsuarios(nav.periodo);
@@ -44,8 +44,8 @@ export function VistaUsuarios({ nav }: { nav: NavMetricas }) {
     <div className="flex flex-col gap-5 lg:gap-6">
       {barra}
 
-      {/* Gráfico (mitad izquierda) + Tipo de cuenta y Usuarios por ciudad apilados (mitad derecha) */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:gap-5">
+      {/* 3 columnas: gráfica de registros · tipo de cuenta · usuarios por ciudad. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 2xl:gap-5">
         {/* Usuarios nuevos — header calcado del de "Negocios en riesgo"; el chart se ancla al fondo
             (mt-auto) para igualar el alto de la columna derecha SIN agrandar la gráfica. */}
         <section data-testid="metricas-grafica-registros" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
@@ -72,16 +72,16 @@ export function VistaUsuarios({ nav }: { nav: NavMetricas }) {
             </div>
           </div>
         </section>
-        <div className="flex flex-col gap-4 2xl:gap-5">
-          <DistribucionTipo personal={distribucion.personal} comercial={distribucion.comercial} />
-          <Ranking
-            testid="metricas-top-ciudades"
-            titulo="Usuarios por ciudad"
-            items={topCiudades.map((c) => ({ etiqueta: c.ciudad, valor: c.total }))}
-            vacioTexto="Aún no hay usuarios con ciudad registrada."
-            unidad="usuarios"
-          />
-        </div>
+        <DistribucionTipo personal={distribucion.personal} comercial={distribucion.comercial} />
+        <Ranking
+          testid="metricas-top-ciudades"
+          icono={MapPin}
+          titulo="Usuarios por ciudad"
+          subtitulo="Dónde están registrados"
+          items={topCiudades.map((c) => ({ etiqueta: c.ciudad, valor: c.total }))}
+          vacioTexto="Aún no hay usuarios con ciudad registrada."
+          unidad="usuarios"
+        />
       </div>
     </div>
   );
@@ -92,15 +92,17 @@ function DistribucionTipo({ personal, comercial }: { personal: number; comercial
   const pctPersonal = total > 0 ? (personal / total) * 100 : 0;
   const pctComercial = total > 0 ? (comercial / total) * 100 : 0;
   return (
-    <section data-testid="metricas-distribucion-tipo" className="flex flex-col gap-3.5 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel 2xl:p-5">
-      <h3 className="text-[14px] font-semibold text-texto">Tipo de cuenta</h3>
-      <div className="flex h-2.5 overflow-hidden rounded-full bg-superficie-2">
-        <div className="h-full" style={{ width: `${pctPersonal}%`, background: COLOR.marca }} />
-        <div className="h-full" style={{ width: `${pctComercial}%`, background: COLOR.marca2 }} />
-      </div>
-      <div className="flex flex-col gap-2">
-        <Leyenda color={COLOR.marca} etiqueta="Personal" valor={personal} pct={pctPersonal} />
-        <Leyenda color={COLOR.marca2} etiqueta="Comercial" valor={comercial} pct={pctComercial} />
+    <section data-testid="metricas-distribucion-tipo" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+      <CabeceraCard Icono={PieChart} titulo="Tipo de cuenta" subtitulo="Personal vs. comercial" />
+      <div className="flex flex-col gap-3.5 p-4 2xl:p-5">
+        <div className="flex h-2.5 overflow-hidden rounded-full bg-superficie-2">
+          <div className="h-full" style={{ width: `${pctPersonal}%`, background: COLOR.marca }} />
+          <div className="h-full" style={{ width: `${pctComercial}%`, background: COLOR.marca2 }} />
+        </div>
+        <div className="flex flex-col gap-2">
+          <Leyenda color={COLOR.marca} etiqueta="Personal" valor={personal} pct={pctPersonal} />
+          <Leyenda color={COLOR.marca2} etiqueta="Comercial" valor={comercial} pct={pctComercial} />
+        </div>
       </div>
     </section>
   );

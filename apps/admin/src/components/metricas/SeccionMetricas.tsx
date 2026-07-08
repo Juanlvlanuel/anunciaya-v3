@@ -43,7 +43,7 @@ export function SeccionMetricas({ rol }: { rol: RolPanel }) {
 
   return (
     <div ref={scrollRef} className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7">
-      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
+      <div className="flex w-full flex-col gap-5 lg:gap-6">
         {/* Pestaña activa (lazy: solo la activa monta su hook). Cada vista dibuja su barra superior. */}
         {tab === 'crecimiento' && <VistaCrecimiento nav={nav} rol={rol} />}
         {tab === 'adopcion' && <VistaAdopcion nav={nav} />}

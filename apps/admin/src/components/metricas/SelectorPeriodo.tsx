@@ -69,7 +69,7 @@ export function SelectorPeriodo({ valor, onCambiar }: { valor: PeriodoSel; onCam
           {/* Overlay de cierre (por debajo del menú y del portal del calendario). */}
           <div className="fixed inset-0 z-20" onClick={() => setAbierto(false)} aria-hidden />
 
-          <div className="animar-entrada absolute right-0 top-[calc(100%+6px)] z-30 w-[286px] rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel">
+          <div className="animar-entrada absolute left-1/2 -translate-x-1/2 lg:left-auto lg:right-0 lg:translate-x-0 top-[calc(100%+6px)] z-30 w-[286px] rounded-[12px] border border-borde-fuerte bg-superficie p-1.5 shadow-pop-panel">
             {/* Presets */}
             {PRESETS.map((p) => {
               const activo = valor.tipo === 'preset' && valor.meses === p.meses;

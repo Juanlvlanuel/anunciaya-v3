@@ -16,8 +16,10 @@
  * Ubicación: apps/admin/src/components/mantenimiento/SeccionMantenimiento.tsx
  */
 
-import { useState, useMemo, type ReactNode } from 'react';
+import { useEffect, useState, useMemo, useRef, type ReactNode } from 'react';
 import { TabsSegmento } from '../ui/TabsSegmento';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
+import { useScrollPanel } from '../../stores/useScrollPanel';
 import {
   Activity,
   Database,
@@ -123,22 +125,31 @@ function formatearBytes(bytes: number): string {
 
 type TabMantenimiento = 'salud' | 'crons' | 'logs' | 'r2';
 
-const TABS_MANTENIMIENTO: { id: TabMantenimiento; etiqueta: string }[] = [
-  { id: 'salud', etiqueta: 'Salud' },
-  { id: 'crons', etiqueta: 'Tareas programadas' },
-  { id: 'logs', etiqueta: 'Logs' },
-  { id: 'r2', etiqueta: 'Recolector R2' },
+const TABS_MANTENIMIENTO: { id: TabMantenimiento; etiqueta: string; etiquetaCorta?: string; Icono: LucideIcon }[] = [
+  { id: 'salud', etiqueta: 'Salud', Icono: Activity },
+  { id: 'crons', etiqueta: 'Tareas programadas', etiquetaCorta: 'Tareas', Icono: Clock },
+  { id: 'logs', etiqueta: 'Logs', Icono: Terminal },
+  { id: 'r2', etiqueta: 'Recolector R2', etiquetaCorta: 'R2', Icono: Trash2 },
 ];
 
 export function SeccionMantenimiento() {
   const [tab, setTab] = useState<TabMantenimiento>('salud');
 
+  // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
+  const esEscritorio = useEsEscritorio();
+  const listaRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : listaRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl]);
+
   return (
-    <div className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7" data-testid="seccion-mantenimiento">
-      <div className="mx-auto flex w-full max-w-[1180px] flex-col gap-5 lg:gap-6">
+    <div ref={listaRef} className="h-full overflow-y-auto p-5 lg:p-6 2xl:p-7" data-testid="seccion-mantenimiento">
+      <div className="flex w-full flex-col gap-5 lg:gap-6">
         {/* Pestañas: segmented control (mismo estilo que Ciudades). */}
         <TabsSegmento
-          tabs={TABS_MANTENIMIENTO.map((t) => ({ id: t.id, label: t.etiqueta }))}
+          tabs={TABS_MANTENIMIENTO.map((t) => ({ id: t.id, label: t.etiqueta, labelCorto: t.etiquetaCorta, icono: <t.Icono size={14} /> }))}
           valor={tab}
           onCambiar={setTab}
           testidPrefijo="mant-tab"
@@ -177,7 +188,7 @@ function Tarjeta({
   return (
     <section
       data-testid={testid}
-      className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel"
+      className="flex flex-col overflow-hidden bg-superficie lg:rounded-[14px] lg:border lg:border-borde lg:shadow-tarjeta-panel"
     >
       <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
         <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
@@ -431,11 +442,11 @@ function FilaCron({
 // 3 · LOGS RECIENTES
 // =============================================================================
 
-const NIVELES: Array<{ valor: NivelLog | 'todos'; etiqueta: string }> = [
-  { valor: 'todos', etiqueta: 'Todos' },
-  { valor: 'info', etiqueta: 'Info' },
-  { valor: 'warn', etiqueta: 'Avisos' },
-  { valor: 'error', etiqueta: 'Errores' },
+const NIVELES: Array<{ valor: NivelLog | 'todos'; etiqueta: string; color: string }> = [
+  { valor: 'todos', etiqueta: 'Todos', color: 'var(--panel-brand)' },
+  { valor: 'info', etiqueta: 'Info', color: 'var(--panel-text-4)' },
+  { valor: 'warn', etiqueta: 'Avisos', color: 'var(--panel-warn)' },
+  { valor: 'error', etiqueta: 'Errores', color: 'var(--panel-danger)' },
 ];
 
 function colorNivel(nivel: NivelLog): string {
@@ -514,24 +525,27 @@ function BloqueLogs() {
       }
     >
       {/* Filtros de nivel */}
-      <div className="flex items-center gap-1.5 border-b border-borde px-4 py-2.5">
-        {NIVELES.map((n) => (
-          <button
-            key={n.valor}
-            type="button"
-            data-testid={`logs-nivel-${n.valor}`}
-            onClick={() => setNivel(n.valor)}
-            className={`rounded-[8px] px-2.5 py-1 text-[12px] font-semibold transition ${
-              nivel === n.valor ? 'bg-marca-suave text-marca' : 'text-texto-3 hover:bg-superficie-2'
-            }`}
-          >
-            {n.etiqueta}
-          </button>
-        ))}
+      <div className="flex items-center gap-2 overflow-x-auto border-b border-borde px-4 py-2.5 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+        {NIVELES.map((n) => {
+          const activo = nivel === n.valor;
+          return (
+            <button
+              key={n.valor}
+              type="button"
+              data-testid={`logs-nivel-${n.valor}`}
+              onClick={() => setNivel(n.valor)}
+              className="inline-flex shrink-0 items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+              style={activo ? { background: `color-mix(in srgb, ${n.color} 12%, transparent)`, borderColor: `color-mix(in srgb, ${n.color} 34%, transparent)`, color: n.color } : undefined}
+            >
+              <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: n.color }} />
+              {n.etiqueta}
+            </button>
+          );
+        })}
       </div>
 
-      {/* Altura fija (500px) para que la consola no salte al cambiar de filtro. */}
-      <div className="h-[500px]">
+      {/* Altura fija (550px) para que la consola no salte al cambiar de filtro. */}
+      <div className="h-[550px]">
         {isLoading ? (
           <EstadoSeccion variante="cargando" icono={Terminal} titulo="Cargando logs…" />
         ) : isError ? (
@@ -752,7 +766,7 @@ function BloqueR2() {
           ) : !log.data || log.data.length === 0 ? (
             <p className="py-4 text-center text-[12.5px] text-texto-4">Sin ejecuciones registradas.</p>
           ) : (
-            <ul className="overflow-hidden rounded-[10px] border border-borde divide-y divide-borde">
+            <ul className="max-h-[260px] overflow-y-auto rounded-[10px] border border-borde divide-y divide-borde">
               {log.data.slice(0, 10).map((e) => (
                 <li key={e.id} className="flex items-center gap-3 px-3 py-2">
                   <span

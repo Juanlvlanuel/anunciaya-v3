@@ -282,7 +282,7 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
       <div className="mb-3 flex shrink-0 flex-wrap items-center justify-between gap-x-6 gap-y-3">
-        {kpisInline}
+        {/* Filtros a la izquierda */}
         <div className="flex shrink-0 flex-wrap items-center gap-3">
           <MenuFiltro
             testid="publicidad-filtro-estado"
@@ -324,6 +324,10 @@ export function SeccionPublicidad({ rol }: { rol: RolPanel }) {
             anchoMenu={200}
             tam="chip"
           />
+        </div>
+        {/* KPIs + Registrar a la derecha */}
+        <div className="flex shrink-0 flex-wrap items-center gap-x-5 gap-y-3">
+          {kpisInline}
           <button
             type="button"
             data-testid="publicidad-registrar"

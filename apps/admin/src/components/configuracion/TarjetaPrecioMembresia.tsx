@@ -163,7 +163,7 @@ export function TarjetaPrecioMembresia() {
 
   return (
     <>
-      <div className="grid grid-cols-1 gap-2.5 lg:grid-cols-2">
+      <div className="flex flex-col gap-2.5">
         {/* Precio mensual — fila con su botón Cambiar (apila en móvil) */}
         <div className="rounded-[12px] border border-borde bg-superficie px-4 py-4 shadow-tarjeta-panel" data-testid="config-precio-membresia">
           <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:gap-4">

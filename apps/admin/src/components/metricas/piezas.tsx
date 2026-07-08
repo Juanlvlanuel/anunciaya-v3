@@ -285,14 +285,34 @@ export function TarjetaProgreso({
 // BARRA DE RANKING (top vendedores / ciudades — divs, más sobrio que un chart)
 // =============================================================================
 
+/** Cabecera de tarjeta: ícono en caja marca + título + subtítulo + borde inferior. Mismo patrón que
+ *  el header de las gráficas de Métricas; se reusa en los rankings y en la distribución. */
+export function CabeceraCard({ Icono, titulo, subtitulo }: { Icono: LucideIcon; titulo: string; subtitulo?: string }) {
+  return (
+    <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
+      <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
+        <Icono size={17} />
+      </span>
+      <span className="flex min-w-0 flex-1 flex-col">
+        <span className="text-[14px] font-semibold text-texto">{titulo}</span>
+        {subtitulo && <span className="text-[12px] text-texto-3">{subtitulo}</span>}
+      </span>
+    </header>
+  );
+}
+
 export function Ranking({
   titulo,
+  subtitulo,
+  icono: Icono,
   items,
   vacioTexto,
   unidad,
   testid,
 }: {
   titulo: string;
+  subtitulo?: string;
+  icono: LucideIcon;
   items: { etiqueta: string; valor: number }[];
   vacioTexto: string;
   /** Sufijo del valor (ej. "negocios", "usuarios"). Opcional. */
@@ -301,32 +321,34 @@ export function Ranking({
 }) {
   const max = items.reduce((m, i) => Math.max(m, i.valor), 0) || 1;
   return (
-    <section data-testid={testid} className="flex flex-col gap-3 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel 2xl:p-5">
-      <h3 className="text-[14px] font-semibold text-texto">{titulo}</h3>
-      {items.length === 0 ? (
-        <p className="py-4 text-center text-[12.5px] text-texto-4">{vacioTexto}</p>
-      ) : (
-        <ul className="flex flex-col gap-1.5">
-          {items.map((it, i) => (
-            <li
-              key={it.etiqueta}
-              className="relative flex items-center gap-3 overflow-hidden rounded-[10px] border border-borde px-2.5 py-2"
-            >
-              {/* Barra de fondo proporcional (no una línea suelta) */}
-              <div className="absolute inset-y-0 left-0 bg-marca-suave" style={{ width: `${(it.valor / max) * 100}%` }} aria-hidden />
-              {/* Posición */}
-              <span className="relative grid h-6 w-6 shrink-0 place-items-center rounded-full bg-superficie text-[11px] font-bold text-texto-3 shadow-tarjeta-panel">
-                {i + 1}
-              </span>
-              <span className="relative min-w-0 flex-1 truncate text-[13px] font-medium text-texto">{it.etiqueta}</span>
-              <span className="relative shrink-0 text-[14px] font-bold tabular-nums text-texto">
-                {FMT_NUM.format(it.valor)}
-                {unidad && <span className="ml-1 text-[12.5px] font-medium text-texto-3">{unidad}</span>}
-              </span>
-            </li>
-          ))}
-        </ul>
-      )}
+    <section data-testid={testid} className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+      <CabeceraCard Icono={Icono} titulo={titulo} subtitulo={subtitulo} />
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 2xl:p-5">
+        {items.length === 0 ? (
+          <p className="py-4 text-center text-[12.5px] text-texto-4">{vacioTexto}</p>
+        ) : (
+          <ul className="flex flex-col gap-1.5">
+            {items.map((it, i) => (
+              <li
+                key={it.etiqueta}
+                className="relative flex items-center gap-3 overflow-hidden rounded-[10px] border border-borde px-2.5 py-2"
+              >
+                {/* Barra de fondo proporcional (no una línea suelta) */}
+                <div className="absolute inset-y-0 left-0 bg-marca-suave" style={{ width: `${(it.valor / max) * 100}%` }} aria-hidden />
+                {/* Posición */}
+                <span className="relative grid h-6 w-6 shrink-0 place-items-center rounded-full bg-superficie text-[11px] font-bold text-texto-3 shadow-tarjeta-panel">
+                  {i + 1}
+                </span>
+                <span className="relative min-w-0 flex-1 truncate text-[13px] font-medium text-texto">{it.etiqueta}</span>
+                <span className="relative shrink-0 text-[14px] font-bold tabular-nums text-texto">
+                  {FMT_NUM.format(it.valor)}
+                  {unidad && <span className="ml-1 text-[12.5px] font-medium text-texto-3">{unidad}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+        )}
+      </div>
     </section>
   );
 }

@@ -39,7 +39,6 @@ export function DialogoRegion({ abierto, modo, region, cargando, onCerrar, onGua
     <ModalAdaptativo
       abierto={abierto}
       onCerrar={onCerrar}
-      centrado
       ancho="sm"
       titulo={esEditar ? 'Editar región' : 'Crear región'}
       iconoTitulo={<Layers size={18} className="text-marca" />}

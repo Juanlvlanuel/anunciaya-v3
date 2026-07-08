@@ -33,6 +33,8 @@ import { useCatalogoMarketplace } from '../../hooks/queries/useCategoriasMPAdmin
 import { TabsSegmento } from '../ui/TabsSegmento';
 import { MenuFiltro, type OpcionMenu } from '../negocios/MenuFiltro';
 import { useCiudadesLista } from '../../hooks/queries/useCiudadesAdmin';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
+import { useScrollPanel } from '../../stores/useScrollPanel';
 
 type DlgCategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin | null } | null;
 type DlgSubcategoria = { modo: 'crear' | 'editar'; categoria: CategoriaAdmin; subcategoria: SubcategoriaAdmin | null } | null;
@@ -124,6 +126,15 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
     return () => { crearRef.current = null; };
   }, [crearRef]);
 
+  // Registra el contenedor scrolleable (vista móvil) para el auto-ocultado de la barra inferior.
+  const esEscritorio = useEsEscritorio();
+  const listaRef = useRef<HTMLDivElement>(null);
+  const setScrollEl = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    setScrollEl(esEscritorio ? null : listaRef.current);
+    return () => setScrollEl(null);
+  }, [esEscritorio, setScrollEl]);
+
   // KPIs. "Negocios clasificados" viene del backend (DISTINCT por ciudad); aquí solo
   // se derivan los conteos del catálogo (globales: el catálogo no cambia por ciudad).
   const kpis = useMemo(() => {
@@ -204,7 +215,7 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
               value={busqueda}
               onChange={(e) => setBusqueda(e.target.value)}
               placeholder="Buscar categoría o subcategoría…"
-              className="w-full rounded-full border border-campo-borde bg-campo py-2 pl-10 pr-8 text-[13.5px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
+              className="w-full rounded-full border border-campo-borde bg-campo py-2.5 pl-10 pr-8 text-[13.5px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-ring)]"
             />
             {busqueda && (
               <button type="button" aria-label="Limpiar" onClick={() => setBusqueda('')} className="absolute right-2.5 top-1/2 grid h-5 w-5 -translate-y-1/2 place-items-center rounded-full text-texto-4 transition hover:bg-marca-suave hover:text-marca">
@@ -212,6 +223,16 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
               </button>
             )}
           </div>
+          {/* Botón + solo en móvil (en escritorio vive en la barra de tabs). */}
+          <button
+            type="button"
+            data-testid="categoria-nueva-movil"
+            onClick={() => crearRef.current?.()}
+            aria-label="Nueva categoría"
+            className="group inline-flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-marca text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:hidden"
+          >
+            <Plus size={18} className="transition-transform duration-300 group-hover:rotate-90" />
+          </button>
         </div>
 
         {/* Fila 2 (móvil): ciudad (primero) + chips de estado, deslizables como
@@ -285,7 +306,7 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
       ) : vista.length === 0 ? (
         <EstadoSeccion icono={Search} titulo="Sin resultados" descripcion="Ninguna categoría coincide con tu búsqueda o filtros." accion={{ etiqueta: 'Limpiar filtros', onClick: limpiarFiltros }} />
       ) : (
-        <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+        <div className="flex min-h-0 flex-1 flex-col overflow-hidden bg-superficie lg:rounded-[14px] lg:border lg:border-borde lg:shadow-tarjeta-panel">
           {/* Encabezado de columnas (escritorio). El primer span vacío (w-8) compensa
               la columna del botón de expandir/bullet, para que cada rótulo caiga
               exactamente sobre su columna de datos (igual estructura que las filas). */}
@@ -297,7 +318,7 @@ function SeccionCategoriasNegocios({ crearRef }: { crearRef: MutableRefObject<((
             <span className="w-32 text-center">Acciones</span>
           </div>
 
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={listaRef} className="min-h-0 flex-1 overflow-y-auto">
             {vista.map(({ cat, subs, abierta }) => (
               <div key={cat.id}>
                 {/* Fila categoría */}
@@ -447,14 +468,14 @@ export function SeccionCategorias() {
           onCambiar={setAmbito}
           testidPrefijo="categorias-ambito"
         />
+        {/* En escritorio el botón vive aquí (barra de tabs); en móvil se muestra junto al buscador. */}
         <button
           type="button"
           data-testid="categoria-nueva"
           onClick={() => crearRef.current?.()}
-          className="group ml-auto inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95"
+          className="group ml-auto hidden shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:inline-flex"
         >
-          <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" />
-          <span className="hidden lg:inline">Nueva categoría</span>
+          <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Nueva categoría
         </button>
       </div>
       <div className="min-h-0 flex-1">

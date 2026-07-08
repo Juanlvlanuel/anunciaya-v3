@@ -272,16 +272,6 @@ function PestanaBitacora({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: T
             alineacion="derecha"
             soloIcono
           />
-          <MenuFiltro
-            testid="suscripciones-filtro-origen"
-            icono={<Layers size={18} />}
-            etiquetaBoton={etiquetaOrigen}
-            opciones={opcionesOrigen}
-            valor={origen}
-            onCambiar={setOrigen}
-            alineacion="derecha"
-            soloIcono
-          />
         </div>
 
         {/* Lista de cards */}
@@ -574,10 +564,10 @@ function Paginacion({
 
 type TabSuscripciones = 'bitacora' | 'por-verificar' | 'datos-cobro';
 
-const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string; Icono: LucideIcon }[] = [
+const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string; etiquetaCorta?: string; Icono: LucideIcon }[] = [
   { id: 'bitacora', etiqueta: 'Bitácora', Icono: ScrollText },
-  { id: 'por-verificar', etiqueta: 'Por verificar', Icono: FileCheck2 },
-  { id: 'datos-cobro', etiqueta: 'Datos de depósito', Icono: Landmark },
+  { id: 'por-verificar', etiqueta: 'Por verificar', etiquetaCorta: 'Verificar', Icono: FileCheck2 },
+  { id: 'datos-cobro', etiqueta: 'Datos de depósito', etiquetaCorta: 'Depósito', Icono: Landmark },
 ];
 
 /** Chips de navegación entre pestañas (Bitácora / Por verificar / Datos de depósito).
@@ -591,6 +581,7 @@ function TabsNavSuscripciones({ tab, setTab }: { tab: TabSuscripciones; setTab: 
       tabs={TABS_SUSCRIPCIONES.map((t) => ({
         id: t.id,
         label: t.etiqueta,
+        labelCorto: t.etiquetaCorta,
         icono: <t.Icono size={14} />,
         // "Por verificar" siempre muestra su badge (incluso 0); con alerta marca si hay pendientes.
         badge: t.id === 'por-verificar' ? pendientes : undefined,

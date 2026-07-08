@@ -72,7 +72,8 @@ export function PestanaDatosCobro() {
           <div className="flex min-w-0 flex-col gap-0.5">
             <h3 className="text-[15px] font-semibold text-texto">Cuenta para depósitos</h3>
             <p className="text-[12.5px] leading-relaxed text-texto-3">
-              Estos datos los ve el comerciante en su perfil para pagar la membresía por transferencia.
+              <span className="lg:hidden">Los ve el comerciante para pagar por transferencia.</span>
+              <span className="hidden lg:inline">Estos datos los ve el comerciante en su perfil para pagar la membresía por transferencia.</span>
               {soloLectura && (
                 <span className="ml-1 inline-flex items-center gap-1 font-medium text-texto-4">
                   <Lock size={12} /> Solo el superadmin puede editarlos.
@@ -101,7 +102,7 @@ export function PestanaDatosCobro() {
               disabled={soloLectura}
               rows={3}
               placeholder="Ej. Envía tu comprobante e indica el concepto…"
-              className="w-full rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)] disabled:cursor-not-allowed disabled:opacity-70"
+              className="w-full min-h-[150px] rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)] disabled:cursor-not-allowed disabled:opacity-70 lg:min-h-0"
             />
           </div>
         </div>

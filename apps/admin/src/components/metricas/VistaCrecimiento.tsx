@@ -8,7 +8,7 @@
  * Ubicación: apps/admin/src/components/metricas/VistaCrecimiento.tsx
  */
 
-import { BarChart3, Store, CircleDollarSign } from 'lucide-react';
+import { BarChart3, Store, CircleDollarSign, Award } from 'lucide-react';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
 import type { RolPanel } from '../../data/menuPanel';
 import type { TopVendedor } from '../../services/metricasService';
@@ -17,7 +17,7 @@ import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { AvatarNegocio } from '../negocios/avatares';
 import {
   TooltipMetricas, CursorBarra, GAP_BARRAS, COLOR, EJE_PROPS, ejeXDe, etiquetaPunto,
-  BarraMetricas, KpiInline, FilaKpisInline, FMT_NUM, FMT_MONEDA, type NavMetricas,
+  BarraMetricas, KpiInline, FilaKpisInline, FMT_NUM, FMT_MONEDA, CabeceraCard, type NavMetricas,
 } from './piezas';
 
 const FMT_COMPACTO = new Intl.NumberFormat('es-MX', { notation: 'compact', maximumFractionDigits: 1 });
@@ -58,8 +58,8 @@ export function VistaCrecimiento({ nav, rol }: { nav: NavMetricas; rol: RolPanel
     <div className="flex flex-col gap-5 lg:gap-6">
       {barra}
 
-      {/* Series — 2 gráficas peer con header (icono + línea divisoria) calcado del de "Negocios en riesgo". */}
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-2 2xl:gap-5">
+      {/* Series (2 gráficas) + ranking de vendedores → 3 columnas, aprovechando todo el ancho. */}
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3 2xl:gap-5">
         <section data-testid="metricas-grafica-crecimiento" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
           <header className="flex items-center gap-2.5 border-b border-borde px-4 py-3">
             <span className="grid h-9 w-9 shrink-0 place-items-center rounded-[10px] bg-marca-suave text-marca">
@@ -115,10 +115,10 @@ export function VistaCrecimiento({ nav, rol }: { nav: NavMetricas; rol: RolPanel
             </div>
           </div>
         </section>
-      </div>
 
-      {/* Top vendedores (super/gerente) */}
-      {topVendedores && <RankingVendedores items={topVendedores} />}
+        {/* Top vendedores (super/gerente) — 3ª columna */}
+        {topVendedores && <RankingVendedores items={topVendedores} />}
+      </div>
     </div>
   );
 }
@@ -130,8 +130,9 @@ export function VistaCrecimiento({ nav, rol }: { nav: NavMetricas; rol: RolPanel
 function RankingVendedores({ items }: { items: TopVendedor[] }) {
   const max = items.reduce((m, v) => Math.max(m, v.activos), 0) || 1;
   return (
-    <section data-testid="metricas-top-vendedores" className="flex flex-col gap-3 rounded-[14px] border border-borde bg-superficie p-4 shadow-tarjeta-panel 2xl:p-5">
-      <h3 className="text-[14px] font-semibold text-texto">Vendedores con más negocios activos</h3>
+    <section data-testid="metricas-top-vendedores" className="flex flex-col overflow-hidden rounded-[14px] border border-borde bg-superficie shadow-tarjeta-panel">
+      <CabeceraCard Icono={Award} titulo="Vendedores con más negocios activos" subtitulo="Ranking por negocios activos" />
+      <div className="flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-4 2xl:p-5">
       {items.length === 0 ? (
         <p className="py-4 text-center text-[12.5px] text-texto-4">Aún no hay vendedores con negocios activos.</p>
       ) : (
@@ -156,6 +157,7 @@ function RankingVendedores({ items }: { items: TopVendedor[] }) {
           ))}
         </ul>
       )}
+      </div>
     </section>
   );
 }

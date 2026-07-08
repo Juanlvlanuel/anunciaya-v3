@@ -221,6 +221,8 @@ export function SeccionCiudades() {
     if (region === REGION_SIN) return 'Sin región';
     return (regiones ?? []).find((r) => r.id === region)?.nombre ?? 'Región';
   }, [region, regiones]);
+  // Versión abreviada para móvil (solo "Todas las regiones" → "Regiones"; el resto ya es corto).
+  const etiquetaRegionCorta = !region ? 'Regiones' : etiquetaRegion;
 
   // ── Controles compartidos ───────────────────────────────────────────────────
   const pestanas = (
@@ -277,7 +279,7 @@ export function SeccionCiudades() {
   );
 
   const chipsActividad = (
-    <div className="flex shrink-0 gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none]">
+    <>
       {TABS_ACTIVA.map((t) => {
         const act = activa === t.id;
         const color = t.id === 'activas' ? 'var(--panel-ok)' : t.id === 'inactivas' ? 'var(--panel-text-4)' : 'var(--panel-brand)';
@@ -301,11 +303,25 @@ export function SeccionCiudades() {
           </button>
         );
       })}
-    </div>
+    </>
   );
 
   const filtroRegion = (
-    <MenuFiltro testid="ciudades-filtro-region" icono={<MapIcon size={16} />} etiquetaBoton={etiquetaRegion} opciones={opcionesRegion} valor={region} onCambiar={setRegion} anchoMenu={220} tam="chip" />
+    <MenuFiltro
+      testid="ciudades-filtro-region"
+      icono={<MapIcon size={16} />}
+      etiquetaBoton={
+        <span className="whitespace-nowrap">
+          <span className="lg:hidden">{etiquetaRegionCorta}</span>
+          <span className="hidden lg:inline">{etiquetaRegion}</span>
+        </span>
+      }
+      opciones={opcionesRegion}
+      valor={region}
+      onCambiar={setRegion}
+      anchoMenu={220}
+      tam="chip"
+    />
   );
 
   // ── Tab Ciudades (lista) ─────────────────────────────────────────────────────
@@ -400,10 +416,10 @@ export function SeccionCiudades() {
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
       {/* Cabecera: pestañas + contadores/acciones */}
-      <div className="mb-3 flex shrink-0 items-center justify-between gap-3">
+      <div className="mb-3 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center lg:justify-between lg:gap-3">
         {pestanas}
         {tab === 'regiones' && (
-          <button type="button" data-testid="crear-region" onClick={() => setDialogoRegion({ modo: 'crear', region: null })} className="group inline-flex shrink-0 items-center gap-1.5 rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95">
+          <button type="button" data-testid="crear-region" onClick={() => setDialogoRegion({ modo: 'crear', region: null })} className="group inline-flex shrink-0 items-center gap-1.5 self-center rounded-full bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste shadow-sm transition-all duration-200 hover:scale-[1.03] hover:shadow-md hover:shadow-marca/30 hover:brightness-[1.07] active:scale-95 lg:self-auto">
             <Plus size={16} className="transition-transform duration-300 group-hover:rotate-90" /> Crear región
           </button>
         )}
@@ -415,9 +431,9 @@ export function SeccionCiudades() {
       ) : tab === 'ciudades' ? (
         <>
           <div className="mb-2.5 flex shrink-0 flex-col gap-2 lg:flex-row lg:items-center">
-            <div className="order-1 flex items-center justify-between gap-2 lg:order-2 lg:ml-auto">
+            <div className="order-1 flex items-center gap-2 overflow-x-auto pb-0.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:order-2 lg:ml-auto lg:overflow-visible lg:pb-0">
               {chipsActividad}
-              {filtroRegion}
+              <div className="shrink-0">{filtroRegion}</div>
             </div>
             <div className="order-2 w-full lg:order-1 lg:max-w-[380px]">{buscador}</div>
           </div>
