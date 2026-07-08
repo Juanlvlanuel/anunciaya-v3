@@ -805,15 +805,20 @@ export async function enviarAvisoVencimientoPublicidad(
   dias: number
 ): Promise<ResultadoEmail> {
   const cuando = dias <= 0 ? 'hoy' : dias === 1 ? 'mañana' : `en ${dias} días`;
-  const saludo = nombre ? `Hola ${escape(nombre)},` : 'Hola,';
-  const html = `
-    <div style="font-family: system-ui, sans-serif; max-width: 520px; margin: 0 auto; color: #1e293b;">
-      <h2 style="color: #2563eb;">Tu publicidad está por vencer</h2>
-      <p style="font-size: 14px; line-height: 1.6;">${saludo}</p>
-      <p style="font-size: 14px; line-height: 1.6;">Tu anuncio en AnunciaYA vence <strong>${cuando}</strong>. Si quieres seguir apareciendo en los carruseles de tu comunidad, vuelve a anunciarte desde la app.</p>
-      <p style="font-size: 13px; color: #64748b;">Gracias por anunciarte con nosotros.</p>
-    </div>`;
-  return enviarEmail(correo, 'Tu publicidad está por vencer — AnunciaYA', html);
+
+  const contenido = `
+    <p style="margin: 0 0 16px; font-size: 15px; line-height: 1.6; color: #334155;">
+      Tu anuncio en AnunciaYA <strong>vence ${cuando}</strong>. Para seguir apareciendo en los carruseles de tu comunidad, vuelve a anunciarte desde la app antes de que expire.
+    </p>
+    <div style="text-align: center; margin: 24px 0;">
+      <a href="${env.FRONTEND_URL}" target="_blank" rel="noopener" style="display: inline-block; background-color: #034AE3; color: #ffffff; text-decoration: none; font-size: 15px; font-weight: 600; padding: 12px 28px; border-radius: 8px;">
+        Volver a anunciarme
+      </a>
+    </div>
+    <p style="margin: 0; font-size: 13px; line-height: 1.6; color: #64748b;">
+      Gracias por anunciarte con nosotros.
+    </p>`;
+  return enviarEmail(correo, 'Tu publicidad está por vencer — AnunciaYA', plantillaBase(nombre, contenido));
 }
 
 /**
