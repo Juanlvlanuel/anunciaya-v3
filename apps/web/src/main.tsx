@@ -8,6 +8,10 @@ import './index.css';
 import { iniciarSincronizacionTokens } from './stores/useAuthStore'; // ← AGREGAR ESTA LÍNEA
 import { inicializarPWAInstall } from './stores/usePWAInstallStore';
 import { esHostScanYA } from './config/scanya';
+import { inicializarSentryWeb } from './config/sentry';
+
+// Error tracking (solo en producción; inerte en dev). Lo antes posible.
+inicializarSentryWeb();
 
 const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID;
 

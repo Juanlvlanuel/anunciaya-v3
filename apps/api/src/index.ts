@@ -1,3 +1,7 @@
+// Inicializa Sentry ANTES que cualquier otra cosa (Express, rutas, conexiones).
+// Es un efecto al importar; en desarrollo queda inerte. Ver ./sentry.
+import './sentry';
+
 import dotenv from 'dotenv';
 
 // Cargar variables de entorno

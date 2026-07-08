@@ -1,4 +1,5 @@
 import express, { type Express } from 'express';
+import * as Sentry from '@sentry/node';
 
 // Middleware
 import {
@@ -61,6 +62,12 @@ app.use('/api', routes);
 
 // Ruta no encontrada (404)
 app.use(rutaNoEncontrada);
+
+// Captura de errores en Sentry (reporta al panel y hace next(error) para que el
+// manejador propio responda). Solo en producción con DSN; en dev es no-op.
+if (process.env.NODE_ENV === 'production' && process.env.SENTRY_DSN) {
+  Sentry.setupExpressErrorHandler(app);
+}
 
 // Manejador global de errores
 app.use(manejadorErrores);

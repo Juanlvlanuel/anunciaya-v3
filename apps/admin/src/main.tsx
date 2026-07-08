@@ -3,7 +3,11 @@ import ReactDOM from 'react-dom/client';
 import App from './App';
 import { aplicarTemaInicial } from './utils/tema';
 import { inicializarPWAInstallPanel } from './stores/usePWAInstallPanelStore';
+import { inicializarSentryPanel } from './config/sentry';
 import './index.css';
+
+// Error tracking (solo en producción; inerte en dev). Lo antes posible.
+inicializarSentryPanel();
 
 // MapLibre emite "Expected value to be of type number, but found null" al parsear tiles del estilo
 // base de OpenFreeMap (features de calles/edificios sin una propiedad numérica que una capa del

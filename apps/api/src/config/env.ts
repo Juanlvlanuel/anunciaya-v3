@@ -104,6 +104,13 @@ const esquemaEnv = z.object({
   // (fallback o respuesta de error). Las búsquedas estructuradas siguen
   // funcionando sin esta clave.
   GEMINI_API_KEY: z.string().min(1, 'GEMINI_API_KEY no puede estar vacía').optional(),
+
+  // -------- Sentry (error tracking) --------
+  // DSN del proyecto de Sentry para el backend. OPCIONAL: si falta, o si
+  // NODE_ENV no es 'production', Sentry queda inerte (ver apps/api/src/sentry.ts).
+  // Se declara aquí solo para documentarlo y validar su formato; sentry.ts lo lee
+  // directo de process.env para no depender del orden de imports.
+  SENTRY_DSN: z.string().url('SENTRY_DSN debe ser una URL válida').optional(),
 });
 
 // ====================================

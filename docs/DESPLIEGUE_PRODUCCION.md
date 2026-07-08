@@ -74,4 +74,35 @@ Validado ✅:
 
 ---
 
+## 🔭 Observabilidad — Sentry (error tracking)
+
+Captura automática de errores de **producción** (frontend y backend) con stack traces legibles en el panel de Sentry (sentry.io). **Solo se activa en producción**; en desarrollo Sentry queda 100% inerte. Plan **gratis**, solo errores (sin performance/APM ni Session Replay).
+
+**Dónde se ven los errores:** en el **panel de Sentry (sentry.io)**, NO dentro del Panel Admin. Se recomienda configurar una **alerta por correo** (a `admin@anunciaya.mx`) para enterarse sin entrar. Es distinto y complementario a Mantenimiento → Logs (esos son un buffer en memoria en vivo, se pierden al reiniciar; Sentry persiste, agrupa y da contexto).
+
+**3 proyectos en Sentry** (plataforma / DSN):
+- `anunciaya-api` (Node) → `SENTRY_DSN`
+- `anunciaya-web` (React) → `VITE_SENTRY_DSN`
+- `anunciaya-admin` (React) → `VITE_SENTRY_DSN`
+
+**Variables de entorno (pendiente de poner al crear los proyectos):**
+
+| Plataforma | Variable | Valor |
+|---|---|---|
+| Render (backend) | `SENTRY_DSN` | DSN de `anunciaya-api` |
+| Vercel · proyecto web | `VITE_SENTRY_DSN` | DSN de `anunciaya-web` |
+| Vercel · proyecto web | `SENTRY_AUTH_TOKEN` | token de org (subir source maps) |
+| Vercel · proyecto web | `SENTRY_ORG` | slug de la organización en Sentry |
+| Vercel · proyecto admin | `VITE_SENTRY_DSN` | DSN de `anunciaya-admin` |
+| Vercel · proyecto admin | `SENTRY_AUTH_TOKEN` | token de org (subir source maps) |
+| Vercel · proyecto admin | `SENTRY_ORG` | slug de la organización en Sentry |
+
+En **DEV no se pone ninguna** → Sentry inerte. Sin `SENTRY_AUTH_TOKEN`+`SENTRY_ORG` el build simplemente NO sube source maps (no falla).
+
+**Privacidad:** `sendDefaultPii: false` + `beforeSend` que redacta headers/campos sensibles (JWT, contraseñas, `authorization`, cookies, datos de tarjeta). Los source maps se suben a Sentry y se **borran del output** tras subirlos (no se sirven públicamente).
+
+**Código:** `apps/api/src/sentry.ts` (init + error handler Express), `apps/web/src/config/sentry.ts` (web + ScanYA, tag `superficie`), `apps/admin/src/config/sentry.ts`. El plugin `@sentry/vite-plugin` en los `vite.config.ts` sube los source maps.
+
+---
+
 **Escalar Render:** subir a Standard ($25, 2 GB) cuando en Metrics la RAM viva >80% o haya reinicios por OOM. También vigilar límites de Supabase (pooler) y Upstash al crecer.

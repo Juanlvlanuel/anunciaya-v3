@@ -1,7 +1,27 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
+import { sentryVitePlugin } from '@sentry/vite-plugin';
 import path from 'path';
 import fs from 'fs';
+
+// Sube source maps a Sentry en el build de producción (Vercel) para que los
+// stack traces muestren el código original, no el minificado. Solo se activa si
+// están las variables SENTRY_AUTH_TOKEN + SENTRY_ORG (en dev/local no corre).
+// El plugin inyecta el `release` (commit de Vercel) y borra los .map del output
+// tras subirlos, así no se sirven públicamente.
+const subirSourceMapsSentry = process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG
+  ? [
+      sentryVitePlugin({
+        org: process.env.SENTRY_ORG,
+        project: 'anunciaya-web',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        telemetry: false,
+        sourcemaps: {
+          filesToDeleteAfterUpload: ['./dist/**/*.map'],
+        },
+      }),
+    ]
+  : [];
 
 // Estampa un ID de build en el service worker de AnunciaYA para que su contenido
 // cambie en cada deploy. Así el navegador detecta un SW "nuevo" y la PWA se
@@ -29,7 +49,12 @@ function estamparBuildIdEnSW(): Plugin {
 }
 
 export default defineConfig({
-  plugins: [react(), estamparBuildIdEnSW()],
+  plugins: [react(), estamparBuildIdEnSW(), ...subirSourceMapsSentry],
+  // Genera source maps solo cuando se van a subir a Sentry (el plugin los borra
+  // del output tras subirlos). En dev/local no se generan.
+  build: {
+    sourcemap: Boolean(process.env.SENTRY_AUTH_TOKEN && process.env.SENTRY_ORG),
+  },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
