@@ -19,6 +19,9 @@ import { useEstadoDemo, useAbrirDemo, useReiniciarDemo } from '../../hooks/queri
 import { toast } from '../../stores/useToastPanel';
 
 const env = import.meta.env as Record<string, string | undefined>;
+// URL de la app web (donde vive Business Studio) para embeber el demo en el iframe.
+// EN PRODUCCIÓN debe estar `VITE_WEB_URL` en el Vercel del Panel (= https://anunciaya.mx);
+// sin ella cae al fallback localhost y el handoff del demo apunta al dev local (401).
 const WEB_URL = env.VITE_WEB_URL || 'http://localhost:3000';
 
 function urlDemo(handoffToken: string): string {
