@@ -174,32 +174,46 @@ export async function resolverEmbajadorId(usuarioId: string | null): Promise<str
 }
 
 /**
- * Devuelve la condición de alcance (WHERE) para el rol, o `'vacio'` si el rol no
- * puede ver nada por configuración incompleta (gerente sin región, vendedor sin
- * embajador). El superadmin no tiene condición (ve todo) → devuelve null.
+ * Excluye del Panel a los negocios DEMO de Business Studio (el maestro curado + las copias por
+ * vendedor). Reusa la MISMA marca `es_demo` que ya los oculta del directorio público (ver
+ * Demo_Business_Studio.md §10.2 y negocios.service.ts público). Aquí los saca también de las
+ * vistas y KPIs internos del Panel: un admin gestiona negocios REALES, no los de demostración.
+ * Se combina SIEMPRE dentro de `condicionAlcance`, así TODA lectura del módulo la hereda sin
+ * repetir el WHERE. NO afecta al flujo del demo (abrir/reiniciar/BS embebido), que vive en
+ * `demoBusinessStudio.service.ts` y usa impersonación, no estas lecturas.
  */
-async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | null | 'vacio'> {
-    if (panel.rolEquipo === 'superadmin') return null;
+const EXCLUIR_DEMOS: SQL = eq(negocios.esDemo, false);
+
+/**
+ * Devuelve la condición de alcance (WHERE) para el rol, o `'vacio'` si el rol no puede ver nada
+ * por configuración incompleta (gerente sin región, vendedor sin embajador). SIEMPRE devuelve una
+ * condición SQL (nunca null): incluso el superadmin, que no tiene filtro de ROL, arrastra
+ * `EXCLUIR_DEMOS`. Así "super ve todo" = "todo MENOS los demos".
+ */
+async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | 'vacio'> {
+    // superadmin → sin filtro de ROL, pero SIEMPRE sin demos.
+    if (panel.rolEquipo === 'superadmin') return EXCLUIR_DEMOS;
 
     if (panel.rolEquipo === 'gerente') {
         if (!panel.regionId) return 'vacio';
         // VISIBILIDAD = MANDO: el negocio tiene su sucursal MATRIZ (es_principal) en una
         // ciudad de mi región (EXISTS correlacionado, NO duplica filas). Deduce la región
         // desde la ciudad; ya no lee `negocios.region_id` (se eliminó en el Paso 10).
-        // ⚠️ DEBE COINCIDIR con el MANDO de `cargarNegocioConAlcance` en
-        // negocios-acciones.service.ts (mismo predicado matriz → ciudad → región). Si tocas
-        // uno, toca el otro.
-        return sql`EXISTS (
+        // ⚠️ El predicado matriz → ciudad → región DEBE COINCIDIR con el MANDO de
+        // `cargarNegocioConAlcance` en negocios-acciones.service.ts. Si tocas uno, toca el otro.
+        // (La exclusión de demos es adicional y SOLO de lectura — las acciones no la necesitan
+        // porque el demo no se gestiona desde la ficha del Panel.)
+        return and(EXCLUIR_DEMOS, sql`EXISTS (
             SELECT 1 FROM negocio_sucursales ns
             JOIN ciudades c ON c.id = ns.ciudad_id
             WHERE ns.negocio_id = ${negocios.id} AND ns.es_principal = true AND c.region_id = ${panel.regionId}
-        )`;
+        )`)!;
     }
 
-    // vendedor → su cartera
+    // vendedor → su cartera (sin demos; de todos modos las copias tienen embajador_id null).
     const embajadorId = await resolverEmbajadorId(panel.usuarioId);
     if (!embajadorId) return 'vacio';
-    return eq(negocios.embajadorId, embajadorId);
+    return and(EXCLUIR_DEMOS, eq(negocios.embajadorId, embajadorId))!;
 }
 
 /**

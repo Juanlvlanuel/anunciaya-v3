@@ -179,16 +179,29 @@ function nombreCompleto(nombre: string | null, apellidos: string | null): string
     return `${nombre ?? ''} ${apellidos ?? ''}`.trim();
 }
 
+/**
+ * Excluye del Panel a los usuarios DEMO de Business Studio: el dueño-sombra del maestro
+ * (demo-maestro@…), los dueños-sombra de cada copia (demo-vendedor-<uuid>@…) y los clientes
+ * sintéticos (demo-cliente-N@…). No tienen bandera propia, pero TODOS usan el dominio
+ * `@demo.anunciaya.local` por construcción (seedDemoMaestro.ts + crearCopiaDemo). Criterio robusto:
+ * el correo. COALESCE por si algún correo llegara null (así no se excluiría por error). ILIKE =
+ * case-insensitive; no usa índice, irrelevante al volumen de la beta. Se combina SIEMPRE dentro de
+ * `condicionVisibilidad`, así toda lectura de usuarios (lista + conteos, contador del menú,
+ * por-ciudad, expediente y las series de Métricas·Usuarios) la hereda sin repetir el WHERE. */
+const EXCLUIR_USUARIOS_DEMO: SQL = sql`COALESCE(${usuarios.correo}, '') NOT ILIKE '%@demo.anunciaya.local'`;
+
 /** Condición de visibilidad de la lista según QUIÉN consulta:
- *  - superadmin SIN lente de región → ve a TODOS (undefined).
+ *  - superadmin SIN lente de región → ve a TODOS (solo con `EXCLUIR_USUARIOS_DEMO`).
  *  - superadmin CON lente (?regionId) → ve esa región completa: dueños/gerentes de sucursal de negocios
  *    de la región, vendedores de la región, el GERENTE REGIONAL de la región, y los clientes (sin
  *    región) todos. No oculta nada por jerarquía: es el super "viendo como" esa región.
  *  - gerente → NUNCA superadmin ni gerentes (ni a sí mismo); clientes todos; dueños/gerentes de sucursal
  *    y vendedores SOLO de SU región (la de su token). Gerente sin región: solo clientes.
  *  Las deducciones de región son las mismas del resto del Panel (negocio → sucursal MATRIZ → ciudad;
- *  vendedor → embajador_ciudades; gerente regional → usuarios.region_id). */
-export function condicionVisibilidad(rolSolicitante?: string, regionSolicitante?: string | null): SQL | undefined {
+ *  vendedor → embajador_ciudades; gerente regional → usuarios.region_id).
+ *  SIEMPRE devuelve un SQL (nunca undefined): la visibilidad por rol se combina con la exclusión de
+ *  demos. "Super ve todo" = "todo MENOS los usuarios @demo.anunciaya.local". */
+export function condicionVisibilidad(rolSolicitante?: string, regionSolicitante?: string | null): SQL {
     // Cliente "puro": sin rol de equipo y sin negocio → no tiene región, siempre visible.
     const clientePuro = and(isNull(usuarios.rolEquipo), isNull(usuarios.negocioId));
     // Dueño o gerente de sucursal cuyo negocio (sucursal MATRIZ) está en la región dada.
@@ -206,21 +219,21 @@ export function condicionVisibilidad(rolSolicitante?: string, regionSolicitante?
     ))`;
 
     if (rolSolicitante === 'gerente') {
-        if (!regionSolicitante) return clientePuro;
-        return or(clientePuro, negocioEnRegion(regionSolicitante), vendedorEnRegion(regionSolicitante));
+        if (!regionSolicitante) return and(EXCLUIR_USUARIOS_DEMO, clientePuro)!;
+        return and(EXCLUIR_USUARIOS_DEMO, or(clientePuro, negocioEnRegion(regionSolicitante), vendedorEnRegion(regionSolicitante)))!;
     }
 
     if (rolSolicitante === 'superadmin' && regionSolicitante) {
         // Lente de región del super: la región completa, incluido SU gerente regional.
-        return or(
+        return and(EXCLUIR_USUARIOS_DEMO, or(
             clientePuro,
             negocioEnRegion(regionSolicitante),
             vendedorEnRegion(regionSolicitante),
             and(eq(usuarios.rolEquipo, 'gerente'), eq(usuarios.regionId, regionSolicitante)),
-        );
+        ))!;
     }
 
-    return undefined; // superadmin sin lente: toda la plataforma
+    return EXCLUIR_USUARIOS_DEMO; // superadmin sin lente: toda la plataforma MENOS demos
 }
 
 /** Predicado del filtro "rol" (no exclusivos entre sí; cada uno es un EXISTS lógico). */

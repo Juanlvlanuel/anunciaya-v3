@@ -122,22 +122,33 @@ export interface EventoDetalle {
 // =============================================================================
 
 /**
- * Condición de alcance (WHERE) para el rol, o `'vacio'` si no puede ver nada
- * (gerente sin región). El superadmin no tiene condición (ve todo) → null.
- * El vendedor está FUERA de Suscripciones en V1 → 'vacio' (defensivo; además las
- * rutas no le dan acceso).
+ * Excluye de la bitácora / KPIs financieros los eventos de pago de negocios DEMO. Hoy el efecto es
+ * $0 (el demo no genera `eventos_pago`), pero blinda el KPI "ingresos del mes"/"cobros fallidos" del
+ * Resumen y la bitácora por si el super probara un cobro sobre el maestro. Correlacionado sobre el
+ * negocio del evento; mismo patrón `es_demo = false` que el resto del Panel.
  */
-async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | null | 'vacio'> {
-    if (panel.rolEquipo === 'superadmin') return null;
+const SIN_DEMOS_EVENTO: SQL = sql`EXISTS (SELECT 1 FROM negocios n WHERE n.id = ${eventosPago.negocioId} AND n.es_demo = false)`;
+
+/**
+ * Condición de alcance (WHERE) para el rol, o `'vacio'` si no puede ver nada (gerente sin región).
+ * SIEMPRE devuelve un SQL (nunca null): el superadmin no tiene filtro de ROL, pero arrastra la
+ * exclusión de demos. El vendedor está FUERA de Suscripciones en V1 → 'vacio' (defensivo; además
+ * las rutas no le dan acceso).
+ */
+async function condicionAlcance(panel: UsuarioPanel): Promise<SQL | 'vacio'> {
+    // superadmin → sin filtro de ROL, pero SIEMPRE sin demos.
+    if (panel.rolEquipo === 'superadmin') return SIN_DEMOS_EVENTO;
 
     if (panel.rolEquipo === 'gerente') {
         if (!panel.regionId) return 'vacio';
-        // MISMO predicado que Negocios (matriz → ciudad → región), correlacionado sobre
-        // el negocio del evento. EXISTS (no duplica filas).
+        // MISMO predicado que Negocios (matriz → ciudad → región), correlacionado sobre el negocio
+        // del evento, + exclusión de demos. EXISTS (no duplica filas).
         return sql`EXISTS (
             SELECT 1 FROM negocio_sucursales ns
             JOIN ciudades c ON c.id = ns.ciudad_id
-            WHERE ns.negocio_id = ${eventosPago.negocioId} AND ns.es_principal = true AND c.region_id = ${panel.regionId}
+            JOIN negocios n ON n.id = ns.negocio_id
+            WHERE ns.negocio_id = ${eventosPago.negocioId} AND ns.es_principal = true
+              AND c.region_id = ${panel.regionId} AND n.es_demo = false
         )`;
     }
 

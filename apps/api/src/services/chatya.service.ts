@@ -3721,6 +3721,9 @@ export async function buscarPersonas(
                   WHERE (cb.usuario_id = ${usuarioId} AND cb.bloqueado_id = u.id)
                      OR (cb.usuario_id = u.id AND cb.bloqueado_id = ${usuarioId})
               )
+              -- Excluir usuarios DEMO (dominio @demo.anunciaya.local) y la cuenta del superadmin
+              AND COALESCE(u.correo, '') NOT ILIKE '%@demo.anunciaya.local'
+              AND COALESCE(u.rol_equipo, '') != 'superadmin'
             ORDER BY u.nombre ASC, u.apellidos ASC
             LIMIT ${limit}
         `);
@@ -3788,6 +3791,18 @@ export async function listarDirectorioComercial(
             ? sql`AND (u.nombre ILIKE ${'%' + busqueda + '%'} OR u.apellidos ILIKE ${'%' + busqueda + '%'})`
             : sql``;
 
+        // Excluir de los contactos/resultados a quien NO es un contacto real de la ciudad:
+        //   1) usuarios DEMO de Business Studio (dueños-sombra del maestro/copias + clientes sintéticos):
+        //      todos usan el dominio @demo.anunciaya.local (seedDemoMaestro.ts + crearCopiaDemo).
+        //   2) la cuenta del SUPERADMIN (equipo interno de AnunciaYA, no un vecino de la ciudad).
+        // COALESCE en ambos: rol_equipo es NULL para los usuarios normales (no debe excluirlos), y el
+        // correo por si llegara null. Criterio de demo alineado con el Panel Admin
+        // (docs/reportes/Exclusion_Demo_Panel_Admin.md).
+        const excluirNoContactables = sql`
+            AND COALESCE(u.correo, '') NOT ILIKE '%@demo.anunciaya.local'
+            AND COALESCE(u.rol_equipo, '') != 'superadmin'
+        `;
+
         // limit + 1 para saber si hay más páginas sin un COUNT aparte.
         const resultado = await db.execute(sql`
             SELECT u.id, u.nombre, u.apellidos, u.avatar_url
@@ -3799,6 +3814,7 @@ export async function listarDirectorioComercial(
                   SELECT 1 FROM chat_bloqueados cb
                   WHERE cb.usuario_id = u.id AND cb.bloqueada_sucursal_id = ${sucursalId}
               )
+              ${excluirNoContactables}
               ${filtroTexto}
             ORDER BY u.nombre ASC, u.apellidos ASC
             LIMIT ${limit + 1} OFFSET ${offset}
@@ -3832,6 +3848,7 @@ export async function listarDirectorioComercial(
                       SELECT 1 FROM chat_bloqueados cb
                       WHERE cb.usuario_id = u.id AND cb.bloqueada_sucursal_id = ${sucursalId}
                   )
+                  ${excluirNoContactables}
                   ${filtroTexto}
             `);
             total = (countRes.rows[0] as { total: number } | undefined)?.total ?? 0;

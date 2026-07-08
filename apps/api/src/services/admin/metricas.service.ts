@@ -203,21 +203,33 @@ async function resolverContexto(panel: UsuarioPanel): Promise<Contexto> {
     return embajadorId ? { tipo: 'vendedor', embajadorId } : { tipo: 'vacio' };
 }
 
-/** Predicado de alcance correlacionado sobre una columna `negocio_id` cualquiera (null = sin restricción). */
-function predicadoNegocio(ctx: Contexto, colNegocioId: SQL): SQL | null {
+/**
+ * Predicado de alcance correlacionado sobre una columna `negocio_id` cualquiera. SIEMPRE excluye
+ * los negocios DEMO (maestro + copias): así toda métrica que cuelgue de un negocio (altas, churn,
+ * ingresos, negocios-en-app, clientes, transacciones, en riesgo, top vendedores) ignora la
+ * actividad simulada del demo — incluidos los clientes sintéticos, cuya billetera/ventas solo
+ * cuelgan de negocios `es_demo`. Antes devolvía null para el superadmin ("sin restricción"); ahora
+ * devuelve, como mínimo, la exclusión de demos. Nunca es null (los `if (alcance)` de los callers
+ * siguen válidos: la condición ahora siempre aplica).
+ */
+function predicadoNegocio(ctx: Contexto, colNegocioId: SQL): SQL {
     if (ctx.tipo === 'region') {
         return sql`EXISTS (
             SELECT 1 FROM negocio_sucursales ns
             JOIN ciudades c ON c.id = ns.ciudad_id
-            WHERE ns.negocio_id = ${colNegocioId} AND ns.es_principal = true AND c.region_id = ${ctx.regionId}
+            JOIN negocios n ON n.id = ns.negocio_id
+            WHERE ns.negocio_id = ${colNegocioId} AND ns.es_principal = true
+              AND c.region_id = ${ctx.regionId} AND n.es_demo = false
         )`;
     }
     if (ctx.tipo === 'vendedor') {
         return sql`EXISTS (
-            SELECT 1 FROM negocios n WHERE n.id = ${colNegocioId} AND n.embajador_id = ${ctx.embajadorId}
+            SELECT 1 FROM negocios n WHERE n.id = ${colNegocioId} AND n.embajador_id = ${ctx.embajadorId} AND n.es_demo = false
         )`;
     }
-    return null;
+    // 'todo' (superadmin, o la lente de región llega ya como 'region'): sin filtro de rol, pero SIN
+    // demos. (El caso 'vacio' nunca llega aquí — los callers hacen early-return antes.)
+    return sql`EXISTS (SELECT 1 FROM negocios n WHERE n.id = ${colNegocioId} AND n.es_demo = false)`;
 }
 
 // =============================================================================
