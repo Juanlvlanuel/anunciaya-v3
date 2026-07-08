@@ -8,6 +8,26 @@ y este proyecto adhiere a [Versionamiento Semántico](https://semver.org/lang/es
 
 ---
 
+## [8 Julio 2026] - Go-live + humo E2E: bienvenida-trial y pulido de membresía ✅
+
+Cerró el **último bloqueador externo del go-live**: AWS SES salió del sandbox (50k correos/día; la causa del atraso era la tarjeta sin verificar en billing, no AWS). Se confirmó el **payout de Stripe** al banco. Durante el humo E2E en prod se detectaron y corrigieron varias mejoras. `tsc` verde en api/web/admin.
+
+### Agregado
+
+- **Correo de bienvenida-trial** (`apps/api/src/utils/email.ts`) — al dar de alta un negocio con periodo de prueba (sin cobro), el webhook envía un correo cálido e informativo: "hoy no se te cobró nada", fecha y monto del primer cobro, y cómo cancelar antes del fin del trial. Botón "Completar mi negocio" → `/business/onboarding` (mismo destino que la pantalla de éxito). Solo se dispara en altas con trial; defensivo (no rompe el webhook).
+- **Evento `alta_trial` en la bitácora financiera** (`eventos_pago`) — las altas en prueba (monto $0) ahora aparecen en Panel → Suscripciones con badge **"Inicio de prueba"** (ámbar). Idempotente por checkout; no cuenta como ingreso. Migración `docs/migraciones/2026-07-08-eventos-pago-alta-trial.sql` (recrea el CHECK de `tipo`).
+
+### Corregido
+
+- **"Cliente desde" en blanco durante el trial** (Mi Perfil → Membresía y Pagos) — tomaba `fecha_primer_pago` (null hasta el primer cobro); ahora usa `created_at` del negocio (existe siempre).
+- **Textos de botones de membresía** más claros: "Administrar tarjeta" → **"Actualizar tarjeta"**; "Cancelar cobro automático" → **"Desactivar cobro automático"** (menos alarmante: no cancela la membresía, solo pasa a pago manual conservando vigencia); "Activar tarjeta" → **"Activar cobro automático"** (par coherente con Desactivar). Títulos de modales alineados.
+
+### Notas
+
+- **Pendientes operativos:** correr `2026-07-08-eventos-pago-alta-trial.sql` en dev+prod (ya aplicada). Humo E2E pendiente de cerrar: R2 (subida de imágenes), ChatYA, ScanYA — ver `docs/DESPLIEGUE_PRODUCCION.md`.
+
+---
+
 ## [3 Julio 2026] - Centro de Ayuda (videos tutoriales) 🎬
 
 Feature nuevo **Ayuda y Tutoriales**: un Help Center (categorías + buscador) donde cada respuesta es una ficha con **pasos en texto + video tutorial embebido**. Un solo componente sirve a las 3 audiencias (usuario, comerciante en Business Studio, comerciante en ScanYA) filtrando el contenido por audiencia. Doc canónico: `docs/arquitectura/Centro_Ayuda.md`. `tsc` verde en api/web/admin.

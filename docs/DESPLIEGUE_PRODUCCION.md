@@ -38,9 +38,9 @@
   - **Solución (6-jul):** re-guardar la tarjeta en billing → botón "Verificar" → AWS reintentó y la …3923 quedó VERIFICADA (desapareció "Sin verificar" y el banner). Divisa ya en MXN (tarjeta mexicana = compatible; el aviso de "usar tarjeta internacional para USD" es genérico). Cadena: tarjeta verificada 6-jul → cuenta activada → SES aprobado 8-jul. El follow-up del 6-jul ayudó a empujar el caso.
   - **Lección:** si SES/CloudShell/cualquier servicio se "atora" en una cuenta nueva o recién convertida a estándar, revisar primero **billing → payment methods** por un método "Sin verificar" o correos "Account Alert" — la verificación de cuenta bloquea todo aguas abajo.
 
-## ⏳ PENDIENTE (accionable)
+## ✅ CERRADO (infraestructura · 1-2 jul)
 - [x] **Google OAuth** ✅ (Juan) — login/registro con Google ya funciona en prod (dominios de prod en Authorized JavaScript origins; el flujo es popup auth-code → solo requiere *origins*, NO redirect URIs; consent screen publicada). Gratis (OAuth básico openid/email/profile).
-- [x] **Cloudflare R2** — SEPARADO dev/prod (1 jul). Bucket de prod propio `anunciaya-prod` (CORS con orígenes prod + Public URL). Render apunta a él (`R2_BUCKET_NAME=anunciaya-prod`, `R2_PUBLIC_URL=pub-84dd…r2.dev`); dev queda con `anunciaya-tickets`. Token de cuenta validado (acceso OK). R2 Paid $0/mo + uso (egress gratis). Pendientes no urgentes: (a) ajustar el reconcile para limpiar el bucket prod (hoy solo dev se auto-limpia, seguro); (b) reset de datos de prueba de prod antes del lanzamiento. Dominio propio del bucket = mejora futura opcional (el pub-…r2.dev basta para la beta; el logo de correos ya usa BRAND_ASSETS_URL de Vercel).
+- [x] **Cloudflare R2** — SEPARADO dev/prod (1 jul). Bucket de prod propio `anunciaya-prod` (CORS con orígenes prod + Public URL). Render apunta a él (`R2_BUCKET_NAME=anunciaya-prod`, `R2_PUBLIC_URL=pub-84dd…r2.dev`); dev queda con `anunciaya-tickets`. Token de cuenta validado (acceso OK). R2 Paid $0/mo + uso (egress gratis). Reconcile rediseñado a single-BD (cada ambiente limpia su propio bucket; corre en el Panel de prod, 1-jul). Reset de datos de prueba de prod hecho (2-jul + limpieza de los negocios de prueba del humo, 8-jul). Dominio propio del bucket = mejora futura opcional (el pub-…r2.dev basta para la beta; el logo de correos ya usa BRAND_ASSETS_URL de Vercel). Pendiente de humo: subida de imágenes navegador→R2 en prod (ver Validación final).
 - [x] **DMARC** (2 jul) — TXT `_dmarc` = `v=DMARC1; p=none; rua=mailto:admin@anunciaya.mx` en Namecheap (DNS de anunciaya.mx). Verificado propagado (autoritativo + Google DNS). `p=none` = solo monitorea. Nota: SPF solo cubre Migadu, pero DMARC pasa vía DKIM de SES (alineado). Opcional futuro: agregar `include:amazonses.com` al SPF y endurecer a `p=quarantine`.
 - [x] **Páginas legales** (2 jul) — Aviso de Privacidad (conforme LFPDPPP art. 16) + Términos y Condiciones (LFPC), aprobados por Juan. Borradores en `docs/legal/`. Páginas web `/privacidad` y `/terminos` (`apps/web/src/pages/public/`, LayoutPublico + card), enlazadas en el footer público y el checkbox de registro (que ya apuntaba ahí). Responsable: Juan Manuel Valenzuela Jabalera, domicilio Av. Sinaloa 27 Col. Centro CP 83550 Puerto Peñasco; canal ARCO/contacto admin@anunciaya.mx. Desplegadas en prod (Vercel, verificado HTTP 200) y **enlazadas en Stripe** (Live → Checkout → Políticas de la tienda: URLs de condiciones/privacidad guardadas en "Datos públicos" + toggle "Políticas legales" ON + "Mostrar aceptación de condiciones" ON). Pendiente OPCIONAL: cotejar el aviso con el Generador del INAI. No es asesoría legal formal — revisión de abogado ideal al crecer.
 - [x] **Limpiar Cloudinary** (1 jul) — legado 100% muerto (sin referencias en código; ya migrado a R2). Quitadas las vars huérfanas: `apps/web/.env` (VITE_CLOUDINARY_*), `apps/api/.env` (CLOUDINARY_*), Vercel web (VITE_CLOUDINARY_CLOUD_NAME/UPLOAD_PRESET) y confirmado Render sin CLOUDINARY_*. Nota: el frontend NO tiene vars de R2 a propósito — usa presigned URLs firmadas por el backend (las llaves R2 viven solo en Render). Opcional pendiente: eliminar/rotar la cuenta Cloudinary si sigue activa (el API secret estaba en el .env).
@@ -52,9 +52,24 @@
 - [ ] Reembolsar los $99 del humo de publicidad (Stripe → Payments → Refund)
 - [x] Vercel → dominios finales OK (`anunciaya.mx` + `admin.anunciaya.mx` con SSL, funcionando)
 
-## 🚀 VALIDACIÓN FINAL (antes de abrir la beta)
-- [ ] Humo E2E en prod: registro→correo de verificación (requiere SES aprobado), login Google, alta de negocio, chat de producto, cobro de membresía real, ScanYA, subida de imagen
+## 🚀 VALIDACIÓN FINAL (antes de abrir la beta) — humo E2E en prod (8-jul, PARCIAL)
+Validado ✅:
+- [x] **Registro → correo de verificación** (SES prod, a un Gmail externo; código de 6 dígitos, plantilla rica con footer `contacto@anunciaya.mx`)
+- [x] **Login Google + vinculación de cuenta** (mismo correo → agrega Google como método, NO duplica usuario)
+- [x] **Alta de negocio desde el landing** → Checkout **Live** de suscripción con **trial 14 días** (sin cobro); negocio nace `al_corriente`, "Próximo cobro" = fin del trial
+- [x] **Correo de bienvenida-trial** (no se cobró / fecha del 1er cobro / cómo cancelar) + botón → `/business/onboarding`
+- [x] **Bitácora "Inicio de prueba"** (evento `alta_trial`) en Panel → Suscripciones
+- [x] **Payout de Stripe al banco** (91.39 MXN del humo de publicidad)
+- [x] **Cambio tarjeta↔manual** (Desactivar/Activar cobro automático) + suscripción cancelada en Stripe al desactivar
+
+Pendiente ⏳:
+- [ ] **R2 — subida de imágenes** (logo/fotos en el onboarding, paso 5)
+- [ ] **ChatYA** (chat de producto)
+- [ ] **ScanYA** (escaneo/canje)
+- [ ] **Cobro recurrente real al fin del trial** (se validará solo con el 1er negocio real; el flujo de suscripción ya quedó probado con el trial + el cobro único del humo de publicidad)
 - [ ] Seguir revisando logs de PROD por bugs latentes
+
+> Nota: durante este humo se detectaron y corrigieron mejoras (correo de bienvenida-trial, evento `alta_trial` en la bitácora, "Cliente desde" en trial, textos de botones de membresía) — ver CHANGELOG 8-jul.
 
 ---
 
