@@ -64,10 +64,9 @@ Validado ✅:
 
 - [x] **R2 — subida de imágenes** (logo + portada + galería en el onboarding → bucket `anunciaya-prod`, sin CORS ni imágenes rotas; onboarding completo → negocio publicado)
 - [x] **ChatYA** — cliente (perfil personal) contacta al negocio → mensaje en tiempo real (Socket.io), "En línea", doble palomita, no-leídos, hilo en ambos lados
-- [x] **ScanYA** — abre sin colgarse (tras fix del SW), turno abierto, **subida de foto de ticket a R2** OK (tras agregar `s.anunciaya.mx` a la CORS del bucket)
+- [x] **ScanYA** — abre sin colgarse (tras fix del SW), turno abierto, **subida de foto de ticket a R2** OK (tras agregar `s.anunciaya.mx` a la CORS del bucket), y **venta E2E**: Confirmar Venta $680 → +680 pts otorgados → **notificación al cliente en ChatYA** ("Compra Registrada") → reflejado en **CardYA** (wallet del negocio, nivel Plata, historial con concepto/monto/atendido por). Circuito CardYA+ScanYA+ChatYA validado en prod.
 
-Pendiente ⏳:
-- [ ] **ScanYA — cerrar el flujo:** Confirmar Venta (registrar transacción + otorgar puntos al cliente) — la subida del ticket ya funciona
+**🏁 Humo E2E CERRADO (8-jul).** Pendiente residual (no bloquea la beta):
 - [ ] **Cobro recurrente real al fin del trial** (se validará solo con el 1er negocio real; el flujo de suscripción ya quedó probado con el trial + el cobro único del humo de publicidad)
 - [ ] Seguir revisando logs de PROD por bugs latentes
 
