@@ -223,6 +223,8 @@ export function FormularioCrearNegocio({
                 Acepto los{' '}
                 <a
                   href="/terminos"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-blue-600 font-semibold hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >
@@ -231,6 +233,8 @@ export function FormularioCrearNegocio({
                 y{' '}
                 <a
                   href="/privacidad"
+                  target="_blank"
+                  rel="noopener noreferrer"
                   className="text-blue-600 font-semibold hover:underline"
                   onClick={(e) => e.stopPropagation()}
                 >

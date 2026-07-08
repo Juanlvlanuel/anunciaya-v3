@@ -892,6 +892,8 @@ export function FormularioRegistro({
               Acepto los{' '}
               <a
                 href="/terminos"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-slate-800 font-bold hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
@@ -900,6 +902,8 @@ export function FormularioRegistro({
               y{' '}
               <a
                 href="/privacidad"
+                target="_blank"
+                rel="noopener noreferrer"
                 className="text-slate-800 font-bold hover:underline"
                 onClick={(e) => e.stopPropagation()}
               >
