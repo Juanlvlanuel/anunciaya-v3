@@ -65,7 +65,7 @@ export function BotonNotificacionesScanYA() {
 
       {abierto && (
         <div
-          className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-24px)] rounded-xl border border-white/15 shadow-2xl p-3.5 z-[60]"
+          className="fixed left-1/2 -translate-x-1/2 top-[84px] lg:absolute lg:left-auto lg:right-0 lg:top-auto lg:translate-x-0 lg:mt-2 w-80 max-w-[calc(100vw-24px)] rounded-xl border border-white/15 shadow-2xl p-3.5 z-[60]"
           style={{ background: 'linear-gradient(180deg, #0A1120 0%, #0B1526 100%)' }}
           data-testid="scanya-popover-notificaciones"
         >
