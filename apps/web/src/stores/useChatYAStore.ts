@@ -2052,8 +2052,12 @@ function mostrarNotificacionLocal(
         icon: '/icons/anunciaya-192.png',
         badge: '/icons/anunciaya-badge.png',
         tag: conversacionId,
+        // renotify: sin esto, un 2º mensaje del mismo chat reemplaza la
+        // notificación EN SILENCIO (ni toast ni sonido). Con renotify, cada
+        // mensaje nuevo vuelve a alertar aunque comparta tag.
+        renotify: true,
         data: { url: `/inicio?chat=${conversacionId}` },
-      }))
+      } as NotificationOptions))
       .catch(() => { /* silencioso */ });
   } catch {
     /* silencioso */
