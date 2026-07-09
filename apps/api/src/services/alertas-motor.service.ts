@@ -51,13 +51,23 @@ export async function detectarAlertasSeguridad(
 	negocioId: string,
 	transaccion: DatosTransaccion
 ): Promise<void> {
-	await Promise.allSettled([
+	const nombres = ['monto_inusual', 'cliente_frecuente', 'fuera_horario', 'montos_redondos', 'empleado_destacado'];
+	const resultados = await Promise.allSettled([
 		detectarMontoInusual(negocioId, transaccion),
 		detectarClienteFrecuente(negocioId, transaccion),
 		detectarFueraHorario(negocioId, transaccion),
 		detectarMontosRedondos(negocioId, transaccion),
 		detectarEmpleadoDestacado(negocioId, transaccion),
 	]);
+	// allSettled NO propaga errores: una detección que falla se traga en silencio
+	// (así una alerta rota no tumba a las demás). Pero SÍ hay que loguear los
+	// fallos, o un bug queda invisible (ej. una tabla mal nombrada que revienta
+	// solo en ventas de empleado). Ver historial: `negocio_empleados` inexistente.
+	resultados.forEach((r, i) => {
+		if (r.status === 'rejected') {
+			console.error(`[alertas-motor] Falló detección '${nombres[i]}':`, r.reason);
+		}
+	});
 }
 
 // Helper: obtener nombre completo de usuario por ID
@@ -68,16 +78,17 @@ async function obtenerNombreUsuario(usuarioId: string): Promise<string> {
 	return row.apellidos ? `${row.nombre} ${row.apellidos}` : row.nombre;
 }
 
-// Helper: obtener nombre completo de empleado por ID
+// Helper: obtener nombre del empleado por ID.
+// La tabla se llama `empleados` (NO `negocio_empleados`) y guarda el nombre
+// completo en la columna `nombre`. Antes consultaba `negocio_empleados` +
+// JOIN usuarios → lanzaba "relation does not exist" y, al estar dentro de
+// Promise.allSettled, el error se tragaba y la alerta nunca se creaba.
 async function obtenerNombreEmpleado(empleadoId: string): Promise<string> {
 	const r = await db.execute(sql`
-		SELECT u.nombre, u.apellidos FROM negocio_empleados ne
-		JOIN usuarios u ON u.id = ne.usuario_id
-		WHERE ne.id = ${empleadoId}
+		SELECT nombre FROM empleados WHERE id = ${empleadoId}
 	`);
-	const row = (r as unknown as { rows: { nombre: string; apellidos: string | null }[] }).rows[0];
-	if (!row) return 'Desconocido';
-	return row.apellidos ? `${row.nombre} ${row.apellidos}` : row.nombre;
+	const row = (r as unknown as { rows: { nombre: string }[] }).rows[0];
+	return row?.nombre ?? 'Desconocido';
 }
 
 /**
