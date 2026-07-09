@@ -15,6 +15,7 @@
  * UBICACIÓN: apps/web/src/services/pushService.ts
  */
 
+import * as Sentry from '@sentry/react';
 import { api, type RespuestaAPI } from './api';
 
 const VAPID_PUBLIC_KEY: string = import.meta.env.VITE_VAPID_PUBLIC_KEY ?? '';
@@ -121,6 +122,9 @@ export async function activarPush(): Promise<ResultadoPush> {
         return { ok: true };
     } catch (error) {
         console.error('[push] Error al activar:', error);
+        // El try/catch se traga el error; reportarlo a Sentry explícitamente para
+        // que quede registrado (Sentry no captura los console.error por sí solo).
+        Sentry.captureException(error, { tags: { area: 'push', accion: 'activar' } });
         return { ok: false, motivo: 'error' };
     }
 }
@@ -130,19 +134,24 @@ export async function activarPush(): Promise<ResultadoPush> {
  * el navegador y la borra del backend.
  */
 export async function desactivarPush(): Promise<ResultadoPush> {
-    const reg = await obtenerRegistration();
-    if (!reg) return { ok: false, motivo: 'sin-sw' };
-
+    if (!pushSoportado()) return { ok: false, motivo: 'no-soportado' };
     try {
-        const sub = await reg.pushManager.getSubscription();
-        if (sub) {
-            const endpoint = sub.endpoint;
-            await sub.unsubscribe();
-            await api.post<RespuestaAPI>('/push/desuscribir', { endpoint });
+        // getRegistrations() (TODOS), no obtenerRegistration()/`ready`: en ScanYA
+        // el scope `/scanya/` hacía que no se encontrara el SW → desactivar fallaba
+        // con "sin-sw". Iteramos todos y desuscribimos donde exista la suscripción.
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) {
+                const endpoint = sub.endpoint;
+                await sub.unsubscribe();
+                await api.post<RespuestaAPI>('/push/desuscribir', { endpoint });
+            }
         }
         return { ok: true };
     } catch (error) {
         console.error('[push] Error al desactivar:', error);
+        Sentry.captureException(error, { tags: { area: 'push', accion: 'desactivar' } });
         return { ok: false, motivo: 'error' };
     }
 }
