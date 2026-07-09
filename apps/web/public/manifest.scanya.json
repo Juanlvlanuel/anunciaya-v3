@@ -9,6 +9,8 @@
   "categories": ["business", "productivity"],
   "lang": "es-MX",
   "dir": "ltr",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "icons": [
     {
       "src": "/icons/scanya-192.png",
