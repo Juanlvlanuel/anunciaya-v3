@@ -119,7 +119,7 @@ export default function PaginaPerfilPersonal() {
 
     const queryClient = useQueryClient();
     const { data, isPending, isError, refetch } = useMiMembresia();
-    const [searchParams] = useSearchParams();
+    const [searchParams, setSearchParams] = useSearchParams();
     // Permite aterrizar directo en una pestaña vía ?tab= (p. ej. al volver de Stripe tras pagar/renovar
     // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad").
     const [tabActivo, setTabActivo] = useState<TabPerfil>(() => (searchParams.get('tab') === 'pagos' ? 'membresia' : 'datos'));
@@ -129,20 +129,33 @@ export default function PaginaPerfilPersonal() {
     const [detalleHistorialId, setDetalleHistorialId] = useState<string | null>(null);
 
     // Resaltado del historial: al llegar desde una notificación de pago (?movId=), se resalta ese
-    // movimiento unos segundos y se hace scroll hacia él. Se limpia solo (no ensucia la vista).
+    // movimiento y se hace scroll hacia él. El param se limpia enseguida para que re-abrir la MISMA
+    // notificación (estando ya en la página) vuelva a dispararlo.
     const [movResaltado, setMovResaltado] = useState<string | null>(null);
     useEffect(() => {
         const movId = searchParams.get('movId');
         if (!movId || isPending) return;
         setMovResaltado(movId);
-        const tScroll = setTimeout(() => {
+        setTimeout(() => {
             document
                 .querySelector(`[data-testid="recibo-${movId}"], [data-testid="rechazo-${movId}"]`)
                 ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }, 150);
-        const tLimpiar = setTimeout(() => setMovResaltado(null), 3500);
-        return () => { clearTimeout(tScroll); clearTimeout(tLimpiar); };
-    }, [searchParams, isPending]);
+        setSearchParams(
+            (prev) => {
+                const p = new URLSearchParams(prev);
+                p.delete('movId');
+                return p;
+            },
+            { replace: true },
+        );
+    }, [searchParams, isPending, setSearchParams]);
+    // Auto-apaga el resaltado tras unos segundos (efecto aparte: así limpiar el param no lo cancela).
+    useEffect(() => {
+        if (!movResaltado) return;
+        const t = setTimeout(() => setMovResaltado(null), 3500);
+        return () => clearTimeout(t);
+    }, [movResaltado]);
     const [abriendoPortal, setAbriendoPortal] = useState(false);
     const [confirmarManual, setConfirmarManual] = useState(false);
     const [confirmarTarjeta, setConfirmarTarjeta] = useState(false);

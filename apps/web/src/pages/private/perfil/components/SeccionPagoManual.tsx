@@ -74,7 +74,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
         setRechazoVistoId(ultimoRechazo.id);
     };
 
-    const { imageUrl, r2Url, isUploading, uploadImage, reset } = useR2Upload({
+    const { imageUrl, r2Url, isUploading, uploadImage, reset, setImageUrl, setR2Url } = useR2Upload({
         generarUrl: generarUrlComprobante,
     });
 
@@ -121,6 +121,14 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
             if (res.success) {
                 enviadoRef.current = true; // ya quedó ligado a la solicitud → el cleanup no debe borrarlo
                 notificar.exito('Comprobante enviado. Un administrador lo revisará pronto.');
+                // Limpia el formulario SIN borrar la imagen de R2 (ya es el comprobante de la solicitud):
+                // así, cuando la solicitud se resuelva (rechazada/aprobada), este bloque vuelve al estado
+                // colapsado limpio y no reaparece el formulario con el comprobante "pegado".
+                setImageUrl(null);
+                setR2Url(null);
+                setAbierto(false);
+                setMeses(null);
+                setReferencia('');
                 queryClient.invalidateQueries({ queryKey: queryKeys.membresia.mi() });
             } else {
                 notificar.error(res.message || 'No se pudo enviar la solicitud');
