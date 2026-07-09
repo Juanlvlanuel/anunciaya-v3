@@ -31,6 +31,7 @@ import { useAuthStore } from './useAuthStore';
 import { obtenerMiIdChatYA, obtenerModoChatYA, obtenerSucursalChatYA } from '../hooks/useChatYASession';
 import { useScanYAStore } from './useScanYAStore';
 import { escucharEvento, emitirEvento } from '../services/socketService';
+import { estaSuscrito } from '../services/pushService';
 import { notificar } from '../utils/notificaciones';
 import { diagInicio, diagMarca } from '../utils/diagnosticoChatYA';
 import type {
@@ -2047,17 +2048,24 @@ function mostrarNotificacionLocal(
       || 'Nuevo mensaje';
     const cuerpo = previewMensajeLocal(mensaje.tipo, mensaje.contenido);
     navigator.serviceWorker.ready
-      .then((reg) => reg.showNotification(titulo, {
-        body: cuerpo,
-        icon: '/icons/anunciaya-192.png',
-        badge: '/icons/anunciaya-badge.png',
-        tag: conversacionId,
-        // renotify: sin esto, un 2º mensaje del mismo chat reemplaza la
-        // notificación EN SILENCIO (ni toast ni sonido). Con renotify, cada
-        // mensaje nuevo vuelve a alertar aunque comparta tag.
-        renotify: true,
-        data: { url: `/inicio?chat=${conversacionId}` },
-      } as NotificationOptions))
+      .then(async (reg) => {
+        // Respetar el interruptor: si el usuario desactivó las notificaciones (no
+        // hay suscripción push), NO mostrar la notificación local aunque el permiso
+        // del navegador siga concedido. Unifica el toggle con el push del servidor
+        // (antes, la local seguía avisando 1 mensaje más tras apagar el toggle).
+        if (!(await estaSuscrito())) return;
+        return reg.showNotification(titulo, {
+          body: cuerpo,
+          icon: '/icons/anunciaya-192.png',
+          badge: '/icons/anunciaya-badge.png',
+          tag: conversacionId,
+          // renotify: sin esto, un 2º mensaje del mismo chat reemplaza la
+          // notificación EN SILENCIO (ni toast ni sonido). Con renotify, cada
+          // mensaje nuevo vuelve a alertar aunque comparta tag.
+          renotify: true,
+          data: { url: `/inicio?chat=${conversacionId}` },
+        } as NotificationOptions);
+      })
       .catch(() => { /* silencioso */ });
   } catch {
     /* silencioso */
