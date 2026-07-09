@@ -1,18 +1,17 @@
 /**
  * BannerActivarPush.tsx
  * =====================
- * Aviso discreto que invita a activar las notificaciones push cuando NO hay
- * suscripción activa en este dispositivo. Se monta una vez en MainLayout.
+ * Aviso discreto (arriba, tipo "pill") que invita a activar las notificaciones
+ * push cuando NO hay suscripción activa en este dispositivo. Se monta una vez
+ * en MainLayout.
  *
  * Comportamiento (definido con Juan):
  *  - Aparece 1 VEZ POR SESIÓN (flag en sessionStorage → se limpia al cerrar la
  *    PWA/pestaña, así reaparece en la próxima apertura si sigue desactivado).
  *  - Solo si: push soportado + NO suscrito + el permiso NO está bloqueado.
- *  - Trae botón "Activar" que suscribe ahí mismo (no hay que ir a Seguridad) y
- *    una X para descartar.
- *  - Se oculta si ChatYA está abierto (el usuario ya está en sus mensajes).
- *  - Delay inicial para no parpadear en quien SÍ está suscrito (da tiempo a que
- *    `usePushNotificaciones` resuelva el estado real).
+ *  - Botón "Activar" que suscribe ahí mismo; la ✕ lo descarta.
+ *  - Se oculta si ChatYA está abierto.
+ *  - Delay + animación de entrada para no parpadear en quien SÍ está suscrito.
  *
  * UBICACIÓN: apps/web/src/components/layout/BannerActivarPush.tsx
  */
@@ -30,6 +29,8 @@ export function BannerActivarPush() {
     const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
     // Arranca oculto; se destapa tras el delay (si no se vio ya en esta sesión).
     const [oculto, setOculto] = useState(true);
+    // Controla la animación de entrada (slide + fade desde arriba).
+    const [entrada, setEntrada] = useState(false);
 
     useEffect(() => {
         if (sessionStorage.getItem(FLAG_SESION) === '1') return;
@@ -37,56 +38,48 @@ export function BannerActivarPush() {
         return () => clearTimeout(t);
     }, []);
 
-    // En cuanto el banner se vuelve elegible para mostrarse, marcar la sesión
-    // como vista para que no reaparezca en recargas de esta misma sesión.
-    useEffect(() => {
-        if (!oculto && soportado && !activo && !permisoBloqueado) {
-            sessionStorage.setItem(FLAG_SESION, '1');
-        }
-    }, [oculto, soportado, activo, permisoBloqueado]);
+    const mostrar = !oculto && soportado && !activo && !permisoBloqueado && !chatYAAbierto;
 
-    if (oculto || !soportado || activo || permisoBloqueado || chatYAAbierto) return null;
+    // En cuanto es elegible: marcar la sesión (no reaparece en recargas) y
+    // disparar la animación de entrada en el siguiente frame.
+    useEffect(() => {
+        if (!mostrar) return;
+        sessionStorage.setItem(FLAG_SESION, '1');
+        const r = requestAnimationFrame(() => setEntrada(true));
+        return () => cancelAnimationFrame(r);
+    }, [mostrar]);
+
+    if (!mostrar) return null;
 
     return (
         <div
             data-testid="banner-activar-push"
-            className="fixed z-[70] left-3 right-3 bottom-24 lg:left-auto lg:right-6 lg:bottom-6 lg:w-[360px] rounded-xl bg-white border border-slate-300 shadow-lg p-3.5 flex items-start gap-3"
+            className={`fixed z-[70] top-[72px] lg:top-[84px] left-3 right-3 lg:left-1/2 lg:right-auto lg:-translate-x-1/2 flex justify-center transition-all duration-300 ease-out ${
+                entrada ? 'opacity-100 translate-y-0' : 'opacity-0 -translate-y-2'
+            }`}
         >
-            <div className="shrink-0 mt-0.5">
-                <Bell className="w-5 h-5 text-blue-600" strokeWidth={2} />
+            <div className="flex items-center gap-2.5 rounded-full bg-white border border-slate-200 shadow-lg pl-3.5 pr-1.5 py-1.5 max-w-full">
+                <Bell className="w-4 h-4 text-blue-600 shrink-0" strokeWidth={2.5} />
+                <span className="text-sm font-semibold text-slate-800 truncate">Activa las notificaciones</span>
+                <button
+                    data-testid="btn-activar-push"
+                    onClick={alternar}
+                    disabled={cargando}
+                    style={{ background: GRADIENTE_MARCA }}
+                    className="shrink-0 inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                    {cargando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+                    Activar
+                </button>
+                <button
+                    data-testid="btn-descartar-push"
+                    aria-label="Cerrar"
+                    onClick={() => setOculto(true)}
+                    className="shrink-0 p-1.5 rounded-full text-slate-400 lg:hover:bg-slate-100 lg:hover:text-slate-600 cursor-pointer"
+                >
+                    <X className="w-4 h-4" strokeWidth={2.5} />
+                </button>
             </div>
-            <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-slate-800">Activa las notificaciones</p>
-                <p className="text-sm lg:text-[12px] 2xl:text-sm font-medium text-slate-500 mt-0.5">
-                    Entérate al instante cuando te escriban por ChatYA, aunque tengas la app cerrada.
-                </p>
-                <div className="flex items-center gap-2 mt-2.5">
-                    <button
-                        data-testid="btn-activar-push"
-                        onClick={alternar}
-                        disabled={cargando}
-                        style={{ background: GRADIENTE_MARCA }}
-                        className="inline-flex items-center justify-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
-                    >
-                        {cargando && <Loader2 className="w-4 h-4 animate-spin" />}
-                        Activar
-                    </button>
-                    <button
-                        data-testid="btn-descartar-push"
-                        onClick={() => setOculto(true)}
-                        className="rounded-lg px-3 py-1.5 text-sm font-semibold text-slate-500 lg:hover:bg-slate-100 cursor-pointer"
-                    >
-                        Ahora no
-                    </button>
-                </div>
-            </div>
-            <button
-                aria-label="Cerrar"
-                onClick={() => setOculto(true)}
-                className="shrink-0 -mt-0.5 -mr-0.5 p-1 rounded-lg text-slate-400 lg:hover:bg-slate-100 lg:hover:text-slate-600 cursor-pointer"
-            >
-                <X className="w-4 h-4" strokeWidth={2.5} />
-            </button>
         </div>
     );
 }
