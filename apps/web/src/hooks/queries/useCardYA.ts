@@ -269,12 +269,33 @@ export function useCardYASocket() {
   const qc = useQueryClient();
 
   useEffect(() => {
-    const detener = escucharEvento<{ recompensaId: string; nuevoStock: number }>(
+    // 1) Stock de recompensas en vivo: al agotarse/reponerse una recompensa, refresca el catálogo.
+    const detenerStock = escucharEvento<{ recompensaId: string; nuevoStock: number }>(
       'recompensa:stock-actualizado',
       () => {
         qc.invalidateQueries({ queryKey: ['cardya', 'recompensas'] });
       }
     );
-    return detener;
+
+    // 2) Notificación in-app nueva (compra registrada en ScanYA, canje, sello…): refresca CardYA AL
+    //    INSTANTE. El backend emite `notificacion:nueva` al registrar la compra (misma señal que pinta
+    //    la campana); sin esto, las vistas de CardYA esperaban a que venciera el staleTime (2 min) para
+    //    reflejar el movimiento, y como en la app no hay "recargar página", se sentía desincronizado
+    //    (te llega la notificación pero el Historial/Billetera no cambian).
+    //    Se invalida TODO el árbol ['cardya'] (billeteras/puntos + KPIs, recompensas, vouchers, historial
+    //    de compras y de canjes) porque una compra puede tocar varios a la vez. Solo notificaciones del
+    //    lado PERSONAL — CardYA es del cliente; las comerciales (stock_bajo, etc.) no afectan estas vistas.
+    const detenerNotif = escucharEvento<{ modo?: string }>(
+      'notificacion:nueva',
+      (notif) => {
+        if (notif?.modo && notif.modo !== 'personal') return;
+        qc.invalidateQueries({ queryKey: queryKeys.cardya.all() });
+      }
+    );
+
+    return () => {
+      detenerStock();
+      detenerNotif();
+    };
   }, [qc]);
 }
