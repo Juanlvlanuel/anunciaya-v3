@@ -28,18 +28,33 @@ interface DialogoAprobarSolicitudProps {
 
 export function DialogoAprobarSolicitud({ solicitud, cargando = false, onCerrar, onConfirmar }: DialogoAprobarSolicitudProps) {
   const montoDeclarado = Number(solicitud.monto);
+  const mesesDeclarados = solicitud.mesesDeclarados || 1;
+  // Precio por mes derivado de lo declarado (monto ÷ meses). En el flujo del dueño el monto
+  // siempre es "meses × precio mensual", así que esto recupera el precio unitario para recalcular
+  // el total cuando el admin ajusta los meses.
+  const precioUnitario =
+    Number.isFinite(montoDeclarado) && mesesDeclarados > 0 ? montoDeclarado / mesesDeclarados : 0;
+
   const [monto, setMonto] = useState<string>(Number.isFinite(montoDeclarado) ? String(montoDeclarado) : '');
-  const [meses, setMeses] = useState<number>(solicitud.mesesDeclarados || 1);
+  const [meses, setMeses] = useState<number>(mesesDeclarados);
+
+  // Al cambiar los meses (chip o input) el monto se recalcula solo = meses × precio unitario, pero
+  // el campo de monto sigue siendo editable: si el depósito no cuadra, el admin lo corrige a mano y
+  // ese valor manda (hasta que vuelva a tocar los meses).
+  function cambiarMeses(nuevo: number) {
+    setMeses(nuevo);
+    if (precioUnitario > 0 && Number.isInteger(nuevo) && nuevo >= 1) {
+      setMonto(String(Math.round(nuevo * precioUnitario * 100) / 100));
+    }
+  }
 
   const montoNum = Number(monto);
   const montoInvalido = !Number.isFinite(montoNum) || montoNum <= 0;
   const mesesInvalido = !Number.isInteger(meses) || meses < 1 || meses > 24;
   const invalido = montoInvalido || mesesInvalido;
 
-  // El "Monto cobrado" YA es el total del periodo (lo que el dueño depositó por N meses),
-  // NO un precio mensual — por eso NO se multiplica por los meses. Los meses solo definen la
-  // vigencia. Todo lo que se registra al aprobar (recibo, vigencia, comisión) se deriva de estos
-  // dos valores del modal: son la fuente de verdad, por encima de lo declarado por el dueño.
+  // "Total a registrar" = el monto tal cual (ya es el total del periodo): NO se vuelve a multiplicar
+  // por los meses. Monto + meses del modal son la fuente de verdad de todo lo que se asienta al aprobar.
   const totalRegistrar = !montoInvalido ? FMT_MONTO.format(montoNum) : '—';
   const vigenciaTexto = !mesesInvalido
     ? `${meses} ${meses === 1 ? 'mes' : 'meses'} de vigencia`
@@ -90,7 +105,7 @@ export function DialogoAprobarSolicitud({ solicitud, cargando = false, onCerrar,
                   key={m}
                   type="button"
                   data-testid={`aprobar-meses-${m}`}
-                  onClick={() => setMeses(m)}
+                  onClick={() => cambiarMeses(m)}
                   className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition ${
                     activo
                       ? 'border-marca bg-marca-suave text-marca'
@@ -108,7 +123,7 @@ export function DialogoAprobarSolicitud({ solicitud, cargando = false, onCerrar,
               min={1}
               max={24}
               value={meses}
-              onChange={(e) => setMeses(Number(e.target.value))}
+              onChange={(e) => cambiarMeses(Number(e.target.value))}
               aria-label="Meses personalizados"
               className="w-[88px] rounded-[10px] border border-campo-borde bg-campo px-3 py-2 text-[13.5px] text-texto outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
             />
