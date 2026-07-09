@@ -124,8 +124,9 @@ export default function PaginaPerfilPersonal() {
     // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad").
     const [tabActivo, setTabActivo] = useState<TabPerfil>(() => (searchParams.get('tab') === 'pagos' ? 'membresia' : 'datos'));
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
-    // Acordeón del historial: id del rechazo cuyo motivo está desplegado (uno a la vez, mantiene la lista limpia).
-    const [rechazoDetalleId, setRechazoDetalleId] = useState<string | null>(null);
+    // Acordeón del historial: id del movimiento (rechazo o pago anulado) cuyo motivo está desplegado;
+    // uno a la vez, mantiene la lista limpia.
+    const [detalleHistorialId, setDetalleHistorialId] = useState<string | null>(null);
     const [abriendoPortal, setAbriendoPortal] = useState(false);
     const [confirmarManual, setConfirmarManual] = useState(false);
     const [confirmarTarjeta, setConfirmarTarjeta] = useState(false);
@@ -592,100 +593,126 @@ export default function PaginaPerfilPersonal() {
                                             <ul className="divide-y divide-slate-200 max-h-[38rem] overflow-y-auto">
                                                 {items.map((it) =>
                                                     it.kind === 'recibo' ? (
-                                                        <li
-                                                            key={`r-${it.recibo.id}`}
-                                                            data-testid={`recibo-${it.recibo.id}`}
-                                                            className="flex items-center gap-3 px-4 py-3"
-                                                        >
-                                                            <div className="min-w-0 flex-1">
-                                                                <div className="flex items-center gap-2">
-                                                                    <span className="text-sm font-semibold text-slate-800">
-                                                                        {formatearFolio(it.recibo.folio)}
-                                                                    </span>
-                                                                    {it.recibo.anulado ? (
-                                                                        <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
-                                                                            Anulado
-                                                                        </span>
-                                                                    ) : (
-                                                                        <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
-                                                                            <CheckCircle className="w-3 h-3" strokeWidth={2.5} /> Pagado
-                                                                        </span>
-                                                                    )}
-                                                                </div>
-                                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                                                                    {CONCEPTO_TEXTO[it.recibo.concepto] ?? it.recibo.concepto} ·{' '}
-                                                                    {formatearFecha(it.recibo.fechaPago)}
-                                                                </p>
-                                                            </div>
-                                                            <span className="text-sm font-semibold text-slate-700 shrink-0">
-                                                                {formatearMonto(it.recibo.monto)}
-                                                            </span>
-                                                            <Tooltip text="Descargar recibo" position="top">
-                                                                <button
-                                                                    data-testid={`recibo-descargar-${it.recibo.id}`}
-                                                                    onClick={() => descargarRecibo(it.recibo)}
-                                                                    disabled={descargandoId === it.recibo.id}
-                                                                    aria-label="Descargar recibo"
-                                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
+                                                        (() => {
+                                                            const mostrarDetalle = it.recibo.anulado && !!it.recibo.motivoAnulacion;
+                                                            const expandido = detalleHistorialId === it.recibo.id;
+                                                            return (
+                                                                <li
+                                                                    key={`r-${it.recibo.id}`}
+                                                                    data-testid={`recibo-${it.recibo.id}`}
+                                                                    className="px-4 py-3"
                                                                 >
-                                                                    {descargandoId === it.recibo.id ? (
-                                                                        <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />
-                                                                    ) : (
-                                                                        <Download className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                                                                    )}
-                                                                </button>
-                                                            </Tooltip>
-                                                        </li>
-                                                    ) : (
-                                                        <li
-                                                            key={`x-${it.rechazo.id}`}
-                                                            data-testid={`rechazo-${it.rechazo.id}`}
-                                                            className="flex items-start gap-3 px-4 py-3"
-                                                        >
-                                                            <div className="min-w-0 flex-1">
-                                                                <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
-                                                                    <XCircle className="w-3 h-3" strokeWidth={2.5} /> Rechazado
-                                                                </span>
-                                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1">
-                                                                    Transferencia · {formatearFecha(it.rechazo.fecha)}
-                                                                </p>
-                                                                {it.rechazo.motivo && (() => {
-                                                                    const expandido = rechazoDetalleId === it.rechazo.id;
-                                                                    return (
-                                                                        <>
-                                                                            <button
-                                                                                data-testid={`rechazo-detalles-${it.rechazo.id}`}
-                                                                                onClick={() => setRechazoDetalleId(expandido ? null : it.rechazo.id)}
-                                                                                aria-expanded={expandido}
-                                                                                className="inline-flex items-center gap-1 mt-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 lg:hover:text-red-800 cursor-pointer"
-                                                                            >
-                                                                                {expandido ? 'Ocultar detalles' : 'Ver detalles'}
-                                                                                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandido ? 'rotate-180' : ''}`} strokeWidth={2.5} />
-                                                                            </button>
-                                                                            {expandido && (
-                                                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-1 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5">
-                                                                                    Motivo: {it.rechazo.motivo}
-                                                                                </p>
+                                                                    <div className="flex items-center gap-3">
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <div className="flex items-center gap-2">
+                                                                                <span className="text-sm font-semibold text-slate-800">
+                                                                                    {formatearFolio(it.recibo.folio)}
+                                                                                </span>
+                                                                                {it.recibo.anulado ? (
+                                                                                    <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                                                                                        Anulado
+                                                                                    </span>
+                                                                                ) : (
+                                                                                    <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
+                                                                                        <CheckCircle className="w-3 h-3" strokeWidth={2.5} /> Pagado
+                                                                                    </span>
+                                                                                )}
+                                                                            </div>
+                                                                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
+                                                                                {CONCEPTO_TEXTO[it.recibo.concepto] ?? it.recibo.concepto} ·{' '}
+                                                                                {formatearFecha(it.recibo.fechaPago)}
+                                                                            </p>
+                                                                            {mostrarDetalle && (
+                                                                                <button
+                                                                                    data-testid={`recibo-detalles-${it.recibo.id}`}
+                                                                                    onClick={() => setDetalleHistorialId(expandido ? null : it.recibo.id)}
+                                                                                    aria-expanded={expandido}
+                                                                                    className="inline-flex items-center gap-1 mt-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 lg:hover:text-red-800 cursor-pointer"
+                                                                                >
+                                                                                    {expandido ? 'Ocultar detalles' : 'Ver detalles'}
+                                                                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandido ? 'rotate-180' : ''}`} strokeWidth={2.5} />
+                                                                                </button>
                                                                             )}
-                                                                        </>
-                                                                    );
-                                                                })()}
-                                                            </div>
-                                                            <span className="text-sm font-semibold text-slate-500 line-through shrink-0">
-                                                                {formatearMonto(it.rechazo.monto)}
-                                                            </span>
-                                                            <Tooltip text="Ver comprobante" position="top">
-                                                                <a
-                                                                    href={it.rechazo.comprobanteUrl}
-                                                                    target="_blank"
-                                                                    rel="noopener noreferrer"
-                                                                    aria-label="Ver comprobante"
-                                                                    className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer shrink-0"
+                                                                        </div>
+                                                                        <span className="text-sm font-semibold text-slate-700 shrink-0">
+                                                                            {formatearMonto(it.recibo.monto)}
+                                                                        </span>
+                                                                        <Tooltip text="Descargar recibo" position="top">
+                                                                            <button
+                                                                                data-testid={`recibo-descargar-${it.recibo.id}`}
+                                                                                onClick={() => descargarRecibo(it.recibo)}
+                                                                                disabled={descargandoId === it.recibo.id}
+                                                                                aria-label="Descargar recibo"
+                                                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
+                                                                            >
+                                                                                {descargandoId === it.recibo.id ? (
+                                                                                    <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />
+                                                                                ) : (
+                                                                                    <Download className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                                                                                )}
+                                                                            </button>
+                                                                        </Tooltip>
+                                                                    </div>
+                                                                    {mostrarDetalle && expandido && (
+                                                                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-2 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5">
+                                                                            Motivo: {it.recibo.motivoAnulacion}
+                                                                        </p>
+                                                                    )}
+                                                                </li>
+                                                            );
+                                                        })()
+                                                    ) : (
+                                                        (() => {
+                                                            const expandido = detalleHistorialId === it.rechazo.id;
+                                                            return (
+                                                                <li
+                                                                    key={`x-${it.rechazo.id}`}
+                                                                    data-testid={`rechazo-${it.rechazo.id}`}
+                                                                    className="px-4 py-3"
                                                                 >
-                                                                    <ExternalLink className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                                                                </a>
-                                                            </Tooltip>
-                                                        </li>
+                                                                    <div className="flex items-start gap-3">
+                                                                        <div className="min-w-0 flex-1">
+                                                                            <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
+                                                                                <XCircle className="w-3 h-3" strokeWidth={2.5} /> Rechazado
+                                                                            </span>
+                                                                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1">
+                                                                                Transferencia · {formatearFecha(it.rechazo.fecha)}
+                                                                            </p>
+                                                                            {it.rechazo.motivo && (
+                                                                                <button
+                                                                                    data-testid={`rechazo-detalles-${it.rechazo.id}`}
+                                                                                    onClick={() => setDetalleHistorialId(expandido ? null : it.rechazo.id)}
+                                                                                    aria-expanded={expandido}
+                                                                                    className="inline-flex items-center gap-1 mt-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 lg:hover:text-red-800 cursor-pointer"
+                                                                                >
+                                                                                    {expandido ? 'Ocultar detalles' : 'Ver detalles'}
+                                                                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandido ? 'rotate-180' : ''}`} strokeWidth={2.5} />
+                                                                                </button>
+                                                                            )}
+                                                                        </div>
+                                                                        <span className="text-sm font-semibold text-slate-500 line-through shrink-0">
+                                                                            {formatearMonto(it.rechazo.monto)}
+                                                                        </span>
+                                                                        <Tooltip text="Ver comprobante" position="top">
+                                                                            <a
+                                                                                href={it.rechazo.comprobanteUrl}
+                                                                                target="_blank"
+                                                                                rel="noopener noreferrer"
+                                                                                aria-label="Ver comprobante"
+                                                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer shrink-0"
+                                                                            >
+                                                                                <ExternalLink className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                                                                            </a>
+                                                                        </Tooltip>
+                                                                    </div>
+                                                                    {it.rechazo.motivo && expandido && (
+                                                                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-2 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5">
+                                                                            Motivo: {it.rechazo.motivo}
+                                                                        </p>
+                                                                    )}
+                                                                </li>
+                                                            );
+                                                        })()
                                                     ),
                                                 )}
                                             </ul>

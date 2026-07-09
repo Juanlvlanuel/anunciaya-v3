@@ -30,6 +30,7 @@ export interface ReciboMembresia {
     fechaPago: string | null;
     periodoHasta: string | null;
     anulado: boolean;
+    motivoAnulacion: string | null;
 }
 
 export interface NegocioMembresia {

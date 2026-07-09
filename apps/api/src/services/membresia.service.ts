@@ -37,6 +37,7 @@ export interface ReciboMembresia {
     fechaPago: string | null;
     periodoHasta: string | null;
     anulado: boolean;
+    motivoAnulacion: string | null;
 }
 
 export interface SolicitudPendiente {
@@ -287,6 +288,7 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
             fechaPago: pagosMembresia.fechaPago,
             periodoHasta: pagosMembresia.periodoHasta,
             anulado: pagosMembresia.anulado,
+            motivoAnulacion: pagosMembresia.motivoAnulacion,
         })
         .from(pagosMembresia)
         .where(eq(pagosMembresia.negocioId, neg.id))
@@ -349,6 +351,7 @@ export async function obtenerMiMembresia(usuarioId: string): Promise<MiMembresia
             fechaPago: f.fechaPago ?? null,
             periodoHasta: f.periodoHasta ?? null,
             anulado: f.anulado,
+            motivoAnulacion: f.motivoAnulacion ?? null,
         })),
     };
 }
