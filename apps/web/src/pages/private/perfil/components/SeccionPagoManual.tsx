@@ -14,7 +14,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, Check, Clock, ExternalLink, Info, Loader2, Upload, XCircle } from 'lucide-react';
+import { Banknote, Check, Clock, ExternalLink, Info, Loader2, Upload, X, XCircle } from 'lucide-react';
 import { queryKeys } from '@/config/queryKeys';
 import {
     crearSolicitudPagoManual,
@@ -188,21 +188,25 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                 {mostrarAvisoRechazo && (
                     <div
                         data-testid="pago-manual-rechazado-aviso"
-                        className="flex items-start gap-2 text-sm font-medium text-red-700"
+                        className="rounded-xl bg-red-100 border border-red-300 p-4 lg:p-5 flex items-start gap-2.5"
                     >
+                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-200 shrink-0">
+                            <XCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-700" strokeWidth={2.5} />
+                        </span>
+                        <div className="flex-1 min-w-0">
+                            <p className="text-sm font-bold text-red-900 leading-tight">Tu último comprobante fue rechazado</p>
+                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 mt-0.5">
+                                Revisa el motivo en el historial y vuelve a enviarlo.
+                            </p>
+                        </div>
                         <button
                             data-testid="cerrar-aviso-rechazo"
                             onClick={cerrarAvisoRechazo}
                             aria-label="Cerrar aviso"
-                            className="shrink-0 mt-0.5 text-red-600 lg:hover:text-red-800 cursor-pointer"
+                            className="shrink-0 text-red-600 lg:hover:text-red-800 cursor-pointer"
                         >
-                            <XCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
                         </button>
-                        <p className="flex-1">
-                            Tu último comprobante fue rechazado.
-                            <br />
-                            Revisa el motivo en el historial y vuelve a enviarlo.
-                        </p>
                     </div>
                 )}
                 <button

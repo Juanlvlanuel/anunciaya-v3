@@ -18,7 +18,7 @@ import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
-import { ArrowRightLeft, Ban, Banknote, CalendarCheck, CheckCircle, ChevronLeft, CreditCard, Download, ExternalLink, FileText, IdCard, Landmark, Loader2, Shield, User, XCircle, type LucideIcon } from 'lucide-react';
+import { ArrowRightLeft, Ban, Banknote, CalendarCheck, CheckCircle, ChevronDown, ChevronLeft, CreditCard, Download, ExternalLink, FileText, IdCard, Landmark, Loader2, Shield, User, XCircle, type LucideIcon } from 'lucide-react';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -124,6 +124,8 @@ export default function PaginaPerfilPersonal() {
     // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad").
     const [tabActivo, setTabActivo] = useState<TabPerfil>(() => (searchParams.get('tab') === 'pagos' ? 'membresia' : 'datos'));
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
+    // Acordeón del historial: id del rechazo cuyo motivo está desplegado (uno a la vez, mantiene la lista limpia).
+    const [rechazoDetalleId, setRechazoDetalleId] = useState<string | null>(null);
     const [abriendoPortal, setAbriendoPortal] = useState(false);
     const [confirmarManual, setConfirmarManual] = useState(false);
     const [confirmarTarjeta, setConfirmarTarjeta] = useState(false);
@@ -469,7 +471,7 @@ export default function PaginaPerfilPersonal() {
                                     <div className="px-5 py-3 border-t border-slate-200 divide-y divide-slate-200">
                                         <Dato
                                             label="Método de cobro"
-                                            valor={data.negocio.metodoCobro === 'tarjeta' ? 'Tarjeta' : 'Manual'}
+                                            valor={data.negocio.metodoCobro === 'tarjeta' ? 'Tarjeta (automático)' : 'Efectivo, transferencia o depósito'}
                                         />
                                         {data.negocio.estadoMembresia === 'en_gracia' ? (
                                             <Dato
@@ -479,7 +481,7 @@ export default function PaginaPerfilPersonal() {
                                             />
                                         ) : (
                                             <Dato
-                                                label="Próximo cobro"
+                                                label={data.negocio.metodoCobro === 'tarjeta' ? 'Próximo cobro' : 'Vigencia hasta'}
                                                 valor={formatearFecha(
                                                     data.negocio.fechaProximoCobro ?? data.negocio.fechaVencimiento,
                                                 )}
@@ -647,9 +649,27 @@ export default function PaginaPerfilPersonal() {
                                                                 <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1">
                                                                     Transferencia · {formatearFecha(it.rechazo.fecha)}
                                                                 </p>
-                                                                {it.rechazo.motivo && (
-                                                                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-0.5">Motivo: {it.rechazo.motivo}</p>
-                                                                )}
+                                                                {it.rechazo.motivo && (() => {
+                                                                    const expandido = rechazoDetalleId === it.rechazo.id;
+                                                                    return (
+                                                                        <>
+                                                                            <button
+                                                                                data-testid={`rechazo-detalles-${it.rechazo.id}`}
+                                                                                onClick={() => setRechazoDetalleId(expandido ? null : it.rechazo.id)}
+                                                                                aria-expanded={expandido}
+                                                                                className="inline-flex items-center gap-1 mt-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 lg:hover:text-red-800 cursor-pointer"
+                                                                            >
+                                                                                {expandido ? 'Ocultar detalles' : 'Ver detalles'}
+                                                                                <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandido ? 'rotate-180' : ''}`} strokeWidth={2.5} />
+                                                                            </button>
+                                                                            {expandido && (
+                                                                                <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-1 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5">
+                                                                                    Motivo: {it.rechazo.motivo}
+                                                                                </p>
+                                                                            )}
+                                                                        </>
+                                                                    );
+                                                                })()}
                                                             </div>
                                                             <span className="text-sm font-semibold text-slate-500 line-through shrink-0">
                                                                 {formatearMonto(it.rechazo.monto)}
