@@ -36,8 +36,14 @@ export function DialogoAprobarSolicitud({ solicitud, cargando = false, onCerrar,
   const mesesInvalido = !Number.isInteger(meses) || meses < 1 || meses > 24;
   const invalido = montoInvalido || mesesInvalido;
 
-  const totalVigencia =
-    !montoInvalido && !mesesInvalido ? FMT_MONTO.format(montoNum * meses) : '—';
+  // El "Monto cobrado" YA es el total del periodo (lo que el dueño depositó por N meses),
+  // NO un precio mensual — por eso NO se multiplica por los meses. Los meses solo definen la
+  // vigencia. Todo lo que se registra al aprobar (recibo, vigencia, comisión) se deriva de estos
+  // dos valores del modal: son la fuente de verdad, por encima de lo declarado por el dueño.
+  const totalRegistrar = !montoInvalido ? FMT_MONTO.format(montoNum) : '—';
+  const vigenciaTexto = !mesesInvalido
+    ? `${meses} ${meses === 1 ? 'mes' : 'meses'} de vigencia`
+    : 'Ajusta los meses';
 
   return (
     <ModalAdaptativo
@@ -112,10 +118,13 @@ export function DialogoAprobarSolicitud({ solicitud, cargando = false, onCerrar,
           </span>
         </div>
 
-        {/* Total */}
+        {/* Total a registrar — el monto real que se asienta (no se multiplica) + la vigencia que cubre */}
         <div className="mt-4 flex items-center justify-between rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2.5">
-          <span className="text-[12.5px] font-medium text-texto-3">Total del periodo</span>
-          <span className="text-[14px] font-bold text-texto" data-testid="aprobar-total">{totalVigencia}</span>
+          <div>
+            <span className="block text-[12.5px] font-medium text-texto-3">Total a registrar</span>
+            <span className="mt-0.5 block text-[11.5px] text-texto-4">{vigenciaTexto}</span>
+          </div>
+          <span className="text-[15px] font-bold text-texto" data-testid="aprobar-total">{totalRegistrar}</span>
         </div>
 
         <div className="mt-5 flex justify-end gap-2">
