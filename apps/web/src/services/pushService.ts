@@ -67,10 +67,20 @@ async function obtenerRegistration(): Promise<ServiceWorkerRegistration | null> 
 
 /** ¿Hay una suscripción push activa en este dispositivo? */
 export async function estaSuscrito(): Promise<boolean> {
-    const reg = await obtenerRegistration();
-    if (!reg) return false;
-    const sub = await reg.pushManager.getSubscription();
-    return sub !== null;
+    if (!pushSoportado()) return false;
+    try {
+        // getRegistration() (NO serviceWorker.ready): devuelve el registration
+        // sin esperar a que el SW esté "activo/controlando". Al abrir la app
+        // desde una notificación, `ready` puede tardar más que el timeout y hacía
+        // creer que NO había suscripción → el banner reaparecía pese a estar
+        // suscrito. getSubscription() funciona en cualquier estado del SW.
+        const reg = await navigator.serviceWorker.getRegistration();
+        if (!reg) return false;
+        const sub = await reg.pushManager.getSubscription();
+        return sub !== null;
+    } catch {
+        return false;
+    }
 }
 
 export interface ResultadoPush {
