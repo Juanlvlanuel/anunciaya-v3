@@ -1,18 +1,14 @@
 /**
  * usePushAppShell.ts
  * ==================
- * Integración de Web Push a nivel de app-shell. Se monta UNA vez en MainLayout.
- * Dos responsabilidades:
+ * Navegación de Web Push a nivel de app-shell. Se monta UNA vez en MainLayout.
+ * Abre la conversación exacta al tocar la notificación push:
+ *   - Si la app estaba cerrada, el SW la abre en `/inicio?chat=<id>`; aquí
+ *     leemos ese query param al montar y abrimos ChatYA en esa conversación.
+ *   - Si la app estaba abierta, el SW manda `postMessage({type:'PUSH_CLICK'})`;
+ *     lo escuchamos y abrimos la conversación sin recargar.
  *
- *  1. NAVEGACIÓN AL TOCAR LA NOTIFICACIÓN — abre la conversación exacta:
- *     - Si la app estaba cerrada, el SW la abre en `/inicio?chat=<id>`; aquí
- *       leemos ese query param al montar y abrimos ChatYA en esa conversación.
- *     - Si la app estaba abierta, el SW manda `postMessage({type:'PUSH_CLICK'})`;
- *       lo escuchamos y abrimos la conversación sin recargar.
- *
- *  2. AVISO SUAVE TRAS LOGIN — una sola vez por dispositivo, si el push está
- *     soportado, el permiso sigue sin decidirse y no hay suscripción activa,
- *     sugiere activar las notificaciones en Mi Perfil → Seguridad.
+ * El aviso para activar notificaciones vive aparte, en <BannerActivarPush />.
  *
  * UBICACIÓN: apps/web/src/hooks/usePushAppShell.ts
  */
@@ -20,11 +16,6 @@
 import { useEffect } from 'react';
 import { useChatYAStore } from '../stores/useChatYAStore';
 import { useUiStore } from '../stores/useUiStore';
-import { useAuthStore } from '../stores/useAuthStore';
-import { estaSuscrito, permisoActual, pushSoportado } from '../services/pushService';
-import { notificar } from '../utils/notificaciones';
-
-const FLAG_AVISO = 'ay_push_aviso_visto';
 
 /** Abre ChatYA en la conversación indicada (desde una notificación push). */
 function abrirConversacionDesdePush(conversacionId: string): void {
@@ -43,9 +34,7 @@ function chatIdDeUrl(url: string): string | null {
 }
 
 export function usePushAppShell(): void {
-    const usuario = useAuthStore((s) => s.usuario);
-
-    // ── 1a. Al montar: ¿la app se abrió desde una notificación (?chat=)? ──
+    // ── Al montar: ¿la app se abrió desde una notificación (?chat=)? ──
     useEffect(() => {
         const params = new URLSearchParams(window.location.search);
         const chatId = params.get('chat');
@@ -57,7 +46,7 @@ export function usePushAppShell(): void {
         window.history.replaceState({}, '', nuevaUrl);
     }, []);
 
-    // ── 1b. App abierta: escuchar el clic de notificación reenviado por el SW ──
+    // ── App abierta: escuchar el clic de notificación reenviado por el SW ──
     useEffect(() => {
         if (!('serviceWorker' in navigator)) return;
         const handler = (event: MessageEvent) => {
@@ -70,26 +59,6 @@ export function usePushAppShell(): void {
         navigator.serviceWorker.addEventListener('message', handler);
         return () => navigator.serviceWorker.removeEventListener('message', handler);
     }, []);
-
-    // ── 2. Aviso suave tras login (una sola vez por dispositivo) ──
-    useEffect(() => {
-        if (!usuario) return;
-        if (!pushSoportado()) return;
-        // Solo si el usuario aún no decidió (ni activó ni bloqueó) y no lo vimos antes.
-        if (permisoActual() !== 'default') return;
-        if (localStorage.getItem(FLAG_AVISO) === '1') return;
-
-        let cancelado = false;
-        // Pequeño delay para no competir con la carga inicial de la pantalla.
-        const t = setTimeout(async () => {
-            if (cancelado) return;
-            if (await estaSuscrito()) return;
-            localStorage.setItem(FLAG_AVISO, '1');
-            notificar.info('Activa las notificaciones en Mi Perfil → Seguridad para enterarte de tus mensajes de ChatYA.');
-        }, 4000);
-
-        return () => { cancelado = true; clearTimeout(t); };
-    }, [usuario]);
 }
 
 export default usePushAppShell;

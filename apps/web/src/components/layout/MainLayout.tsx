@@ -33,6 +33,7 @@ import { BottomNav } from './BottomNav';
 import { MenuDrawer } from './MenuDrawer';
 import { ModalUbicacion } from './ModalUbicacion';
 import { ChatOverlay } from './ChatOverlay';
+import { BannerActivarPush } from './BannerActivarPush';
 import { ColumnaIzquierda } from './ColumnaIzquierda';
 import { ColumnaDerecha } from './ColumnaDerecha';
 import { PanelNotificaciones } from './PanelNotificaciones';
@@ -424,6 +425,7 @@ export function MainLayout() {
           <ChatOverlay />
           <PanelNotificaciones />
           <ModalPagoPublicidad />
+          <BannerActivarPush />
 
           {/* ===== OVERLAYS DE BUSCADOR POR SECCIÓN (global en sub-rutas) =====
               Cada overlay se monta en el layout raíz para que funcione en
