@@ -27,7 +27,7 @@ export function ToggleNotificacionesScanYA() {
     : !listo
       ? 'Comprobando…'
       : activo
-        ? 'Activadas en este dispositivo'
+        ? 'Activadas · te avisamos al instante'
         : 'Desactivadas';
 
   const puedeAlternar = listo && !cargando && !permisoBloqueado;
@@ -39,7 +39,7 @@ export function ToggleNotificacionesScanYA() {
     >
       <Bell className="w-5 h-5 text-blue-300 shrink-0" strokeWidth={2} />
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white">Notificaciones</p>
+        <p className="text-sm font-semibold text-white">Notificaciones de ChatYA</p>
         <p className="text-xs text-white/60 truncate">{subtitulo}</p>
       </div>
       <button
