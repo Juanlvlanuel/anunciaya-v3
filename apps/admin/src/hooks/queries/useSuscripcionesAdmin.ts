@@ -93,6 +93,11 @@ export function useSolicitudesPendientes(habilitado = true) {
     queryKey: queryKeys.suscripciones.solicitudes(),
     queryFn: suscripcionesService.listarSolicitudes,
     enabled: habilitado,
+    // Sin Socket.io en el Panel: polling ligero para que la cola "Por verificar" y su chip N
+    // aparezcan casi al instante cuando entra un comprobante nuevo, sin refrescar. Solo con la
+    // pestaña visible (no gasta en segundo plano) y solo corre con la sección Suscripciones abierta.
+    refetchInterval: () => (document.visibilityState === 'visible' ? 1000 * 20 : false),
+    refetchOnWindowFocus: true,
   });
 }
 
