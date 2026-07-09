@@ -6,7 +6,7 @@
  * - PC: Drawer lateral derecho
  *
  * Métodos de canje:
- * 1. QR: Escanear QR del cliente (token JWT temporal 5 min)
+ * 1. QR: Escanear el QR único del voucher (CardYA lo genera al canjear puntos; no rota)
  * 2. Código: Ingresar código manual de 6 dígitos
  *
  * Ubicación: apps/web/src/components/scanya/ModalCanjearVoucher.tsx
@@ -211,17 +211,22 @@ export function ModalCanjearVoucher({
     try {
       setCanjeando(true);
       setError(null);
-      const parts = qrData.split('.');
-      if (parts.length !== 3) throw new Error('QR inválido');
-      const base64Url = parts[1];
-      const base64 = base64Url.replace(/-/g, '+').replace(/_/g, '/');
-      const payload = JSON.parse(atob(base64));
-      if (!payload.voucherId || !payload.usuarioId || !payload.exp) throw new Error('QR inválido - Datos faltantes');
-      if (payload.exp < Date.now()) throw new Error('El QR ha expirado. Genera uno nuevo en CardYA.');
-      if (payload.usuarioId !== clienteId) throw new Error('Este voucher pertenece a otro cliente');
-      if (payload.voucherId !== voucherId) throw new Error('Este QR no corresponde al voucher seleccionado');
+      if (!voucherId || !clienteId) throw new Error('Selecciona primero el voucher');
 
-      const respuesta = await scanyaService.canjearVoucher({ voucherId: payload.voucherId, usuarioId: payload.usuarioId });
+      // El QR de CardYA es un JSON plano y único por voucher: { codigo, recompensaId, usuarioId }.
+      // No rota ni caduca por sí solo; aquí solo lo leemos e identificamos al cliente.
+      // La validación fuerte (voucher pendiente, del negocio, no vencido) la hace el
+      // backend en /validar-voucher, igual que en el canje por código manual.
+      let datosQR: { codigo?: string; recompensaId?: string; usuarioId?: string };
+      try {
+        datosQR = JSON.parse(qrData);
+      } catch {
+        throw new Error('QR inválido');
+      }
+      if (!datosQR.codigo || !datosQR.usuarioId) throw new Error('QR inválido');
+      if (datosQR.usuarioId !== clienteId) throw new Error('Este QR pertenece a otro cliente');
+
+      const respuesta = await scanyaService.canjearVoucher({ voucherId, usuarioId: clienteId, codigo: datosQR.codigo });
       if (respuesta.success) {
         setExito(true);
         notificar.exito('¡Voucher Canjeado!', 'Entrega la recompensa al cliente');

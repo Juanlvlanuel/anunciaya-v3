@@ -1,7 +1,7 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
 **Última actualización:** 9 de julio de 2026  
-**Versión:** 1.7 (Notificaciones push del servidor + campana en el header + splash negro + auto-actualización de la PWA)  
+**Versión:** 1.8 (Fix canje por QR de recompensas: el lector de ScanYA ahora lee el QR único/estático que genera CardYA)  
 **Estado:** ✅ 100% Operativo (16/16 fases) + Multi-sucursal completo (frontend cerrado)
 
 ---
@@ -488,6 +488,22 @@ WHERE tipo = 'voucher_pendiente'
 
 ---
 
+## 🎟️ Formato del QR de vouchers (único y estático)
+
+El QR que el cliente muestra para canjear una recompensa es **único por voucher y estático**: CardYA lo genera **una sola vez**, al momento de canjear los puntos (`cardya.service.ts` → `canjearRecompensa`), y lo guarda en la columna `vouchers_canje.qr_data`. **No rota ni caduca por sí solo** — el voucher tiene su propia fecha de expiración (`expira_at`), pero el contenido del QR no cambia.
+
+**Contenido del QR** — un JSON plano (no un JWT):
+
+```json
+{ "codigo": "ABC123", "recompensaId": "<uuid>", "usuarioId": "<uuid>" }
+```
+
+**Lectura en ScanYA** (`ModalCanjearVoucher.tsx` → `procesarQR`): parsea ese JSON, confirma que el QR sea del cliente en pantalla (`usuarioId === clienteId`) y canjea enviando el `codigo` al backend — el mismo camino que el canje por código manual. La validación de seguridad real (voucher pendiente, del negocio del cajero, no vencido, cuenta activa) la hace **siempre** el backend en `validarVoucher`; la lectura client-side es solo para identificar.
+
+> **Nota histórica:** el lector de ScanYA originalmente esperaba un "token JWT temporal de 5 min" (QR rotativo), un diseño que nunca se implementó en el backend. Esa incompatibilidad hacía que **todo** escaneo fallara con "QR inválido" (un JSON plano no tiene las 3 partes de un JWT). Se corrigió alineando el lector al formato único/estático real. Si en el futuro se quiere QR rotativo por seguridad, es un frente aparte: requiere un endpoint que regenere el token on-demand cuando el cliente abre el voucher + validación de firma en el backend (un QR estático guardado en BD estaría siempre vencido bajo ese esquema).
+
+---
+
 ## 🌐 Multi-sucursal frontend (v1.5)
 
 ### Modelo conceptual
@@ -755,14 +771,14 @@ Response: {
 **Validar Voucher:**
 ```typescript
 POST /api/scanya/validar-voucher
+// El backend acepta dos formas de identificar el voucher:
+//   - Por código (prioridad): busca el voucher por su `codigo`.
+//   - Por QR puro: `voucherId` + `usuarioId`, sin código.
+// El frontend hoy usa SIEMPRE el código en ambos métodos (QR y manual):
 Body: {
-  // Método 1: QR
-  voucherId: string,
-  usuarioId: string
-  
-  // Método 2: Código manual
-  codigo: string,
-  ultimos4Digitos: string
+  voucherId: string,   // voucher seleccionado en pantalla
+  usuarioId: string,   // cliente identificado (debe ser el dueño del voucher)
+  codigo: string       // 6 caracteres — tecleado (manual) o leído del QR
 }
 Response: {
   success: true,
