@@ -299,6 +299,12 @@ function obtenerRutaDestino(n: Notificacion): string | null {
         const resenaParam = referenciaId ? `?resenaId=${referenciaId}` : '';
         return `/business-studio/opiniones${resenaParam}`;
       }
+      case 'alerta': {
+        // Alertas de seguridad (ej. "cliente frecuente"): abrir el módulo
+        // Alertas y su modal de detalle vía ?alertaId= (ver PaginaAlertas).
+        const alertaParam = referenciaId ? `?alertaId=${referenciaId}` : '';
+        return `/business-studio/alertas${alertaParam}`;
+      }
       default:
         break;
     }

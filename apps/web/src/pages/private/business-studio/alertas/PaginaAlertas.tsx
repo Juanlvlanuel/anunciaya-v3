@@ -24,6 +24,7 @@
  */
 
 import { useState, useEffect, useCallback, useRef } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import {
 	Shield,
 	Heart,
@@ -200,6 +201,9 @@ export default function PaginaAlertas() {
 	// de la declaración de busquedaLocal porque la necesita en su closure).
 	const sucursalActiva = useAuthStore((s) => s.usuario?.sucursalActiva);
 
+	// Deep-link desde notificaciones: ?alertaId= abre el modal de esa alerta.
+	const [searchParams, setSearchParams] = useSearchParams();
+
 	// ─── Queries — datos del servidor ─────────────────────────────────────────
 	const listaQuery = useAlertasLista(filtros);
 	const kpisQuery = useAlertasKPIs();
@@ -231,6 +235,7 @@ export default function PaginaAlertas() {
 
 	const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
 	const [modalConfigAbierto, setModalConfigAbierto] = useState(false);
+	const [alertaIdPendiente, setAlertaIdPendiente] = useState(() => searchParams.get('alertaId') || '');
 	const [busquedaLocal, setBusquedaLocal] = useState('');
 	const [isMobile, setIsMobile] = useState(() => window.innerWidth < 1024);
 	const sentinelaRef = useRef<HTMLDivElement | null>(null);
@@ -305,6 +310,25 @@ export default function PaginaAlertas() {
 			marcarLeida(alerta.id);
 		}
 	}, [seleccionarAlerta, marcarLeida]);
+
+	// ─── Deep-link: abrir el modal de una alerta específica desde ?alertaId= ───
+	// (ej. clic en la notificación "cliente frecuente" del panel de campana).
+	// Detecta el parámetro aunque ya estemos en la página; busca la alerta en la
+	// lista cargada, abre su modal y limpia el parámetro de la URL.
+	useEffect(() => {
+		const id = searchParams.get('alertaId');
+		if (id) setAlertaIdPendiente(id);
+	}, [searchParams]);
+
+	useEffect(() => {
+		if (!alertaIdPendiente || alertas.length === 0) return;
+		const alerta = alertas.find((a) => a.id === alertaIdPendiente);
+		if (alerta) {
+			handleClickAlerta(alerta);
+			setSearchParams((prev) => { prev.delete('alertaId'); return prev; }, { replace: true });
+			setAlertaIdPendiente('');
+		}
+	}, [alertaIdPendiente, alertas, handleClickAlerta, setSearchParams]);
 
 	const handleMarcarTodasLeidas = useCallback(async () => {
 		await marcarTodasLeidas();

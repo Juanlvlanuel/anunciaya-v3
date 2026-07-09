@@ -51,6 +51,9 @@ export type ReferenciaTipo =
   | 'resena'
   | 'marketplace'
   | 'servicio'
+  // Alerta de seguridad (BS) — apunta a `alertas_seguridad.id`. La notif
+  // "cliente frecuente"/"fuera de horario" abre su modal en /business-studio/alertas.
+  | 'alerta'
   // ── Sprint 1.D — apunta a `preguntas_comunidad.id` ────────────────────
   | 'pregunta_comunidad';
 

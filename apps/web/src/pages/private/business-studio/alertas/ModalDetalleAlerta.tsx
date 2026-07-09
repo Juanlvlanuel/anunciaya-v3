@@ -112,6 +112,17 @@ export function ModalDetalleAlerta({ alerta, onCerrar, onMarcarResuelta, onElimi
 	const colores = GRADIENTES_SEVERIDAD[alerta.severidad];
 	const IconoCat = ICONO_CATEGORIA[alerta.categoria];
 	const enlace = ENLACE_ALERTA[alerta.tipo];
+	// Si la alerta corresponde a UNA transacción específica (monto inusual, fuera
+	// de horario, etc.), enlazar directo a esa venta — abre su modal en
+	// Transacciones vía ?transaccionId= — y usar el singular "Ver transacción".
+	// El resto (sin transaccionId) conserva el enlace genérico plural.
+	const enlaceATransacciones = enlace?.ruta === '/business-studio/transacciones';
+	const rutaEnlace = enlaceATransacciones && alerta.transaccionId
+		? `${enlace!.ruta}?transaccionId=${alerta.transaccionId}`
+		: enlace?.ruta;
+	const labelEnlace = enlaceATransacciones && alerta.transaccionId
+		? 'Ver transacción'
+		: enlace?.label;
 
 	const handleMarcarResuelta = async () => {
 		await onMarcarResuelta(alerta.id);
@@ -256,12 +267,12 @@ export function ModalDetalleAlerta({ alerta, onCerrar, onMarcarResuelta, onElimi
 					{enlace && (
 						<div className="px-4 lg:px-3 2xl:px-4 py-2">
 							<button
-								onClick={() => { onCerrar(); navigate(enlace.ruta); }}
+								onClick={() => { onCerrar(); navigate(rutaEnlace!); }}
 								className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-200 border-2 border-slate-300 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 hover:bg-slate-300 cursor-pointer"
 								data-testid="btn-ver-contexto-alerta"
 							>
 								<ExternalLink className="w-4 h-4" />
-								{enlace.label}
+								{labelEnlace}
 							</button>
 						</div>
 					)}
