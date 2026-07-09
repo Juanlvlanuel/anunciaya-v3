@@ -12,11 +12,15 @@
 
 import { Router, type Router as RouterType } from 'express';
 import { suscribirController, desuscribirController } from '../controllers/push.controller.js';
-import { verificarToken } from '../middleware/auth.js';
+import { verificarTokenChatYA } from '../middleware/auth.js';
 
 const router: RouterType = Router();
 
-router.use(verificarToken);
+// verificarTokenChatYA (no verificarToken): acepta tokens de AnunciaYA Y de
+// ScanYA, y resuelve el usuarioId al del receptor real de ChatYA (para ScanYA,
+// el negocioUsuarioId del dueño). Así la suscripción push queda asociada al
+// mismo id al que el servidor envía el push.
+router.use(verificarTokenChatYA);
 
 router.post('/suscribir', suscribirController);
 router.post('/desuscribir', desuscribirController);

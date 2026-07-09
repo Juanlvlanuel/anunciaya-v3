@@ -2,66 +2,45 @@
  * BannerActivarNotifScanYA.tsx
  * ============================
  * Aviso para activar las notificaciones DENTRO de ScanYA. Necesario porque
- * ScanYA vive en su propio dominio (s.anunciaya.mx) y el permiso de
- * notificaciones es POR DOMINIO: el opt-in de AnunciaYA no aplica aquí.
+ * ScanYA vive en su propio dominio (s.anunciaya.mx) y tanto el permiso como la
+ * suscripción push son POR DOMINIO: el opt-in de AnunciaYA no aplica aquí.
  *
- * Con el permiso concedido, cuando ScanYA queda minimizada y llega un mensaje
- * de ChatYA, `mostrarNotificacionLocal` (useChatYAStore) muestra la notificación
- * del sistema vía el Service Worker de ScanYA.
+ * Usa `usePushNotificaciones` (igual que el banner de AnunciaYA): el botón
+ * "Activar" pide permiso Y crea la suscripción push. Con eso:
+ *   - Permiso → con ScanYA minimizada en PC, `mostrarNotificacionLocal` avisa.
+ *   - Suscripción → el servidor avisa aunque ScanYA esté congelada/cerrada
+ *     (móvil). La ruta /push usa verificarTokenChatYA → la suscripción queda
+ *     con el negocioUsuarioId (el receptor real de ChatYA en ScanYA).
  *
- * Solo pide el PERMISO (no suscribe a push). El push con ScanYA cerrada del
- * todo es un pendiente aparte (requiere suscripción propia + backend).
- *
- * Aparece 1 vez por sesión si el navegador soporta notificaciones y el permiso
- * sigue sin decidirse. Estilo glass oscuro, acorde al tema de ScanYA.
+ * Aparece 1 vez por sesión si el navegador soporta push, NO hay suscripción y
+ * el permiso no está bloqueado. Estilo glass oscuro, acorde al tema de ScanYA.
  *
  * UBICACIÓN: apps/web/src/components/scanya/BannerActivarNotifScanYA.tsx
  */
 
 import { useEffect, useState } from 'react';
 import { Bell, Loader2, X } from 'lucide-react';
-import { pushSoportado, permisoActual } from '@/services/pushService';
-import { notificar } from '@/utils/notificaciones';
+import { usePushNotificaciones } from '@/hooks/usePushNotificaciones';
 
 const FLAG_SESION = 'sy_notif_aviso_sesion';
 
 export function BannerActivarNotifScanYA() {
+  const { soportado, activo, permisoBloqueado, cargando, alternar } = usePushNotificaciones();
   const [oculto, setOculto] = useState(true);
-  const [permiso, setPermiso] = useState<NotificationPermission>('default');
-  const [procesando, setProcesando] = useState(false);
 
   useEffect(() => {
-    if (!pushSoportado()) return;
-    setPermiso(permisoActual());
     if (sessionStorage.getItem(FLAG_SESION) === '1') return;
     const t = setTimeout(() => setOculto(false), 1500);
     return () => clearTimeout(t);
   }, []);
 
-  const mostrar = !oculto && pushSoportado() && permiso === 'default';
+  const mostrar = !oculto && soportado && !activo && !permisoBloqueado;
 
   useEffect(() => {
     if (mostrar) sessionStorage.setItem(FLAG_SESION, '1');
   }, [mostrar]);
 
   if (!mostrar) return null;
-
-  const activar = async () => {
-    if (procesando) return;
-    setProcesando(true);
-    try {
-      const resultado = await Notification.requestPermission();
-      setPermiso(resultado);
-      setOculto(true);
-      if (resultado === 'granted') {
-        notificar.exito('Notificaciones activadas en esta computadora');
-      } else {
-        notificar.advertencia('No se activaron las notificaciones');
-      }
-    } finally {
-      setProcesando(false);
-    }
-  };
 
   return (
     <div
@@ -75,11 +54,11 @@ export function BannerActivarNotifScanYA() {
       </div>
       <button
         data-testid="btn-activar-notif-scanya"
-        onClick={activar}
-        disabled={procesando}
+        onClick={alternar}
+        disabled={cargando}
         className="shrink-0 inline-flex items-center gap-1.5 rounded-lg bg-[#2563EB] hover:bg-[#1d4ed8] px-3.5 py-1.5 text-sm font-semibold text-white cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed"
       >
-        {procesando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+        {cargando && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
         Activar
       </button>
       <button

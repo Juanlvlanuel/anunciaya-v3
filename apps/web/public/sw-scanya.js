@@ -1,7 +1,7 @@
 // Service Worker de ScanYA PWA
 // Maneja cache de assets y funcionalidad offline
 
-const CACHE_NAME = 'scanya-v4';
+const CACHE_NAME = 'scanya-v5';
 const STATIC_ASSETS = [
   '/scanya/login',
   '/icons/scanya-192.png',
@@ -173,22 +173,44 @@ self.addEventListener('fetch', (event) => {
 });
 
 // ==========================================
-// PUSH NOTIFICATIONS (Futuro)
+// PUSH NOTIFICATIONS — mensajes de ChatYA con ScanYA cerrada/congelada
 // ==========================================
+// El backend (push.service.ts) manda un JSON { titulo, cuerpo, url, tag, badge }.
+// En móvil el sistema congela la app en 2º plano, así que este push es la única
+// vía para avisar; despierta al SW sin depender de que ScanYA esté corriendo.
 self.addEventListener('push', (event) => {
-  console.log('[ScanYA SW] Push recibido:', event.data?.text());
-  
+  let payload = {};
+  try {
+    payload = event.data ? event.data.json() : {};
+  } catch {
+    payload = { cuerpo: event.data ? event.data.text() : '' };
+  }
+
+  const titulo = payload.titulo || 'ScanYA';
   const options = {
-    body: event.data?.text() || 'Tienes una nueva notificación',
-    icon: '/icons/scanya-192.webp',
-    badge: '/icons/scanya-badge.webp',
-    vibrate: [200, 100, 200],
-    tag: 'scanya-notification',
-    requireInteraction: false,
+    body: payload.cuerpo || 'Tienes un mensaje nuevo',
+    icon: '/icons/anunciaya-192.png',
+    badge: '/icons/anunciaya-badge.png',
+    tag: payload.tag || undefined,
+    renotify: Boolean(payload.tag),
+    // ScanYA abre siempre su propia pantalla (ChatYA es flotante ahí), no la
+    // url de AnunciaYA (/inicio?chat=...) que trae el payload.
+    data: { url: '/scanya' },
+    vibrate: [150, 75, 150],
   };
-  
+
   event.waitUntil(
-    self.registration.showNotification('ScanYA', options)
+    (async () => {
+      await self.registration.showNotification(titulo, options);
+      if (typeof payload.badge === 'number' && 'setAppBadge' in navigator) {
+        try {
+          if (payload.badge > 0) await navigator.setAppBadge(payload.badge);
+          else await navigator.clearAppBadge();
+        } catch {
+          /* navegador sin soporte o sin permiso */
+        }
+      }
+    })()
   );
 });
 
