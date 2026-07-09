@@ -39,6 +39,8 @@ interface DatosTransaccion {
 	sucursalId: string;
 	clienteId: string;
 	empleadoId?: string;
+	/** Quién registró la venta. La alerta de fuera de horario EXCLUYE al dueño. */
+	registradoPorTipo?: 'dueno' | 'gerente' | 'empleado';
 	montoCompra: number;
 }
 
@@ -158,7 +160,12 @@ async function detectarClienteFrecuente(negocioId: string, tx: DatosTransaccion)
  */
 async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Promise<void> {
 	if (!await estaAlertaActiva(negocioId, 'fuera_horario')) return;
-	if (await existeAlertaReciente(negocioId, 'fuera_horario', tx.sucursalId)) return;
+	// Excluir ventas registradas por el DUEÑO: no es actividad sospechosa, la
+	// alerta solo aplica a gerentes y empleados.
+	if (tx.registradoPorTipo === 'dueno') return;
+	// Una alerta por CADA venta fuera de horario → dedup por transacción (tx.id),
+	// no por sucursal (antes solo se generaba 1 por sucursal cada 24 h).
+	if (await existeAlertaReciente(negocioId, 'fuera_horario', tx.id)) return;
 
 	// El horario del negocio está en hora local; el servidor (Render) corre en UTC.
 	// Sin AT TIME ZONE, NOW()/LOCALTIME comparan contra UTC y disparan la alerta
@@ -187,7 +194,7 @@ async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Pr
 			tipo: 'fuera_horario',
 			titulo: 'Transacción en día cerrado',
 			descripcion: `Se registró una transacción en un día marcado como cerrado${empleadoNombre ? ` por ${empleadoNombre}` : ''}`,
-			data: { contextoId: tx.sucursalId, cliente: clienteNombre, ...(empleadoNombre ? { empleado: empleadoNombre } : {}) },
+			data: { contextoId: tx.id, cliente: clienteNombre, ...(empleadoNombre ? { empleado: empleadoNombre } : {}) },
 			accionesSugeridas: ['Verificar quién realizó la transacción', 'Actualizar horarios si es necesario'],
 		});
 		return;
@@ -211,7 +218,7 @@ async function detectarFueraHorario(negocioId: string, tx: DatosTransaccion): Pr
 			tipo: 'fuera_horario',
 			titulo: 'Transacción fuera de horario',
 			descripcion: `Transacción registrada fuera del horario (${horario.hora_apertura} - ${horario.hora_cierre})${empleadoNombre ? ` por ${empleadoNombre}` : ''}`,
-			data: { contextoId: tx.sucursalId, horaApertura: horario.hora_apertura, horaCierre: horario.hora_cierre, cliente: clienteNombre, ...(empleadoNombre ? { empleado: empleadoNombre } : {}) },
+			data: { contextoId: tx.id, horaApertura: horario.hora_apertura, horaCierre: horario.hora_cierre, cliente: clienteNombre, ...(empleadoNombre ? { empleado: empleadoNombre } : {}) },
 			accionesSugeridas: ['Verificar con el empleado', 'Revisar si el horario necesita actualizarse'],
 		});
 	}

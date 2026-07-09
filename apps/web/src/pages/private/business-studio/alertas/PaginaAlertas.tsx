@@ -102,7 +102,11 @@ function formatearFecha(fecha: string | null): string {
 	if (!fecha) return '—';
 	const ahora = new Date();
 	const f = new Date(fecha);
-	const diffDias = Math.floor((ahora.getTime() - f.getTime()) / 86400000);
+	// Días de CALENDARIO (no períodos de 24h): una alerta de ayer 11:00 vista hoy
+	// a las 09:00 es "Ayer" aunque hayan pasado <24h. Comparamos medianoche local.
+	const inicioHoy = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate()).getTime();
+	const inicioFecha = new Date(f.getFullYear(), f.getMonth(), f.getDate()).getTime();
+	const diffDias = Math.round((inicioHoy - inicioFecha) / 86400000);
 
 	if (diffDias === 0) return 'Hoy';
 	if (diffDias === 1) return 'Ayer';

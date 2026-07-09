@@ -2525,6 +2525,7 @@ export async function otorgarPuntos(
                 sucursalId: payload.sucursalId,
                 clienteId: datos.clienteId,
                 empleadoId: empleadoId ?? undefined,
+                registradoPorTipo: payload.tipo,
                 montoCompra: montoFinal,
             }).catch((err) => console.error('Error detección alertas:', err));
         }).catch(() => {});
