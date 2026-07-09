@@ -37,6 +37,7 @@ import {
   ModalResenas,
   ModalAvisoTurnoAutoCerrado,
   ModalCentroAyudaScanYA,
+  BannerActivarNotifScanYA,
 } from '@/components/scanya';
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
@@ -618,6 +619,9 @@ export default function PaginaScanYA() {
 
         {/* Barra Info Negocio (solo móvil, sin contenedor) */}
         <InfoNegocioBar />
+
+        {/* Aviso para activar notificaciones (permiso por dominio propio de ScanYA) */}
+        <BannerActivarNotifScanYA />
 
         {/* Contenido Principal */}
         <main className="flex-1 overflow-y-auto px-4 lg:px-6 2xl:px-8 py-3 lg:py-5 2xl:py-6 2xl:mt-30 lg:flex lg:items-center lg:justify-center 2xl:block">
