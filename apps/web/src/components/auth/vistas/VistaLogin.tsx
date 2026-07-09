@@ -77,6 +77,16 @@ export function VistaLogin({
   const passwordValido = password.length > 0;
   const formularioValido = emailValido && passwordValido;
 
+  // Sincroniza el correo recordado en tiempo real, sin depender del login: con "Recordar correo"
+  // marcado y un correo válido se guarda; al desmarcar se olvida. Así queda (o no) al cerrar y volver.
+  useEffect(() => {
+    if (recordarCorreo && emailValido) {
+      localStorage.setItem(STORAGE_KEY_EMAIL, email);
+    } else if (!recordarCorreo) {
+      localStorage.removeItem(STORAGE_KEY_EMAIL);
+    }
+  }, [email, recordarCorreo, emailValido]);
+
   // Submit
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -235,13 +245,7 @@ export function VistaLogin({
             <input
               type="checkbox"
               checked={recordarCorreo}
-              onChange={(e) => {
-                const marcado = e.target.checked;
-                setRecordarCorreo(marcado);
-                // Al desmarcar, olvidar el correo guardado de inmediato (aunque no se inicie sesión):
-                // así al cerrar el modal / reabrir la app ya no aparece prellenado.
-                if (!marcado) localStorage.removeItem(STORAGE_KEY_EMAIL);
-              }}
+              onChange={(e) => setRecordarCorreo(e.target.checked)}
               className="w-4 h-4 text-slate-700 border-slate-300 rounded focus:ring-slate-400"
             />
             <span className="text-base font-medium text-slate-600">{t('login.recordarCorreo')}</span>

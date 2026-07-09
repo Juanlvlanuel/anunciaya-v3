@@ -104,6 +104,16 @@ export function PaginaLoginScanYA() {
     }
   }, []); // Solo al montar el componente
 
+  // Sincroniza el correo recordado en tiempo real, sin depender del login: con "Recordar Correo"
+  // marcado y un correo válido se guarda; al desmarcar se olvida. Así queda (o no) al cerrar y volver.
+  useEffect(() => {
+    if (recordar && emailValido) {
+      setEmailRecordado(email.trim());
+    } else if (!recordar) {
+      setEmailRecordado(null);
+    }
+  }, [email, recordar, emailValido, setEmailRecordado]);
+
   // ---------------------------------------------------------------------------
   // Efecto: Ocultar scrollbar del HTML
   // ---------------------------------------------------------------------------
@@ -541,12 +551,7 @@ export function PaginaLoginScanYA() {
                   <input
                     type="checkbox"
                     checked={recordar}
-                    onChange={(e) => {
-                      const marcado = e.target.checked;
-                      setRecordar(marcado);
-                      // Al desmarcar, olvidar el correo recordado de inmediato (aunque no se inicie sesión).
-                      if (!marcado) setEmailRecordado(null);
-                    }}
+                    onChange={(e) => setRecordar(e.target.checked)}
                     disabled={cargando}
                     className="w-4 h-4 rounded border-[#3B82F6] bg-transparent text-[#2563EB] focus:ring-[#3B82F6] focus:ring-offset-0"
                     style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}
