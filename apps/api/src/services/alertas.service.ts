@@ -403,6 +403,13 @@ export async function crearAlerta(input: CrearAlertaInput): Promise<AlertaComple
 		notificarAlertaAlta(alerta).catch(console.error);
 	}
 
+	// Avisar por socket (dueño + gerentes en modo comercial) para que la lista y
+	// los KPIs de Alertas se refresquen EN VIVO. Sin esto, la alerta recién creada
+	// no aparecía hasta recargar la página o cambiar un filtro (que fuerza refetch).
+	broadcastAlertaActualizada(input.negocioId, alerta.id).catch((err) =>
+		console.error('Error emitiendo alerta:actualizada al crear:', err),
+	);
+
 	return alerta;
 }
 
