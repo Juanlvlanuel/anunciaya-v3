@@ -25,7 +25,7 @@ const FLAG_SESION = 'ay_push_aviso_sesion';
 const GRADIENTE_MARCA = 'linear-gradient(135deg, #1e293b, #334155)';
 
 export function BannerActivarPush() {
-    const { soportado, activo, permisoBloqueado, cargando, alternar } = usePushNotificaciones();
+    const { soportado, activo, permisoBloqueado, cargando, listo, alternar } = usePushNotificaciones();
     const chatYAAbierto = useUiStore((s) => s.chatYAAbierto);
     // Arranca oculto; se destapa tras el delay (si no se vio ya en esta sesión).
     const [oculto, setOculto] = useState(true);
@@ -38,7 +38,9 @@ export function BannerActivarPush() {
         return () => clearTimeout(t);
     }, []);
 
-    const mostrar = !oculto && soportado && !activo && !permisoBloqueado && !chatYAAbierto;
+    // `listo`: no evaluar hasta saber con certeza si hay suscripción (evita que el
+    // banner reaparezca durante el chequeo asíncrono tras un re-login).
+    const mostrar = listo && !oculto && soportado && !activo && !permisoBloqueado && !chatYAAbierto;
 
     // En cuanto es elegible: marcar la sesión (no reaparece en recargas) y
     // disparar la animación de entrada en el siguiente frame.

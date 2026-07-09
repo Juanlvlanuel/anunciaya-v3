@@ -25,7 +25,7 @@ import { usePushNotificaciones } from '@/hooks/usePushNotificaciones';
 const FLAG_SESION = 'sy_notif_aviso_sesion';
 
 export function BannerActivarNotifScanYA() {
-  const { soportado, activo, permisoBloqueado, cargando, alternar } = usePushNotificaciones();
+  const { soportado, activo, permisoBloqueado, cargando, listo, alternar } = usePushNotificaciones();
   const [oculto, setOculto] = useState(true);
 
   useEffect(() => {
@@ -34,7 +34,9 @@ export function BannerActivarNotifScanYA() {
     return () => clearTimeout(t);
   }, []);
 
-  const mostrar = !oculto && soportado && !activo && !permisoBloqueado;
+  // `listo`: no evaluar hasta saber con certeza si hay suscripción (evita que el
+  // banner reaparezca durante el chequeo asíncrono tras un re-login).
+  const mostrar = listo && !oculto && soportado && !activo && !permisoBloqueado;
 
   useEffect(() => {
     if (mostrar) sessionStorage.setItem(FLAG_SESION, '1');

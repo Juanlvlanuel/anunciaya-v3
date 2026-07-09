@@ -23,6 +23,9 @@ export interface EstadoPush {
     permisoBloqueado: boolean;
     /** Operación en curso (activar/desactivar). */
     cargando: boolean;
+    /** true cuando ya se resolvió el estado inicial (¿suscrito?). Los banners
+     *  deben esperar a esto para no aparecer durante el chequeo asíncrono. */
+    listo: boolean;
     /** Activa o desactiva según el estado actual. */
     alternar: () => Promise<void>;
 }
@@ -32,13 +35,16 @@ export function usePushNotificaciones(): EstadoPush {
     const [activo, setActivo] = useState(false);
     const [permisoBloqueado, setPermisoBloqueado] = useState(false);
     const [cargando, setCargando] = useState(false);
+    // Arranca en false: hasta que estaSuscrito() resuelva, NO sabemos si hay
+    // suscripción, y no debemos mostrar el banner (evita el flash/reaparición).
+    const [listo, setListo] = useState(false);
 
     // Estado inicial: ¿ya está suscrito este dispositivo? ¿el permiso está bloqueado?
     useEffect(() => {
-        if (!soportado) return;
+        if (!soportado) { setListo(true); return; }
         setPermisoBloqueado(permisoActual() === 'denied');
         let vivo = true;
-        estaSuscrito().then((s) => { if (vivo) setActivo(s); });
+        estaSuscrito().then((s) => { if (vivo) { setActivo(s); setListo(true); } });
         return () => { vivo = false; };
     }, [soportado]);
 
@@ -85,7 +91,7 @@ export function usePushNotificaciones(): EstadoPush {
         }
     }, [activo, cargando, soportado]);
 
-    return { soportado, activo, permisoBloqueado, cargando, alternar };
+    return { soportado, activo, permisoBloqueado, cargando, listo, alternar };
 }
 
 export default usePushNotificaciones;
