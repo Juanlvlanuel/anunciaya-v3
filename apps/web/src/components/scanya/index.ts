@@ -27,5 +27,5 @@ export { BotonInstalarScanYA } from './BotonInstalarScanYA';
 export { ModalResenas } from './ModalResenas';
 export { ModalAvisoTurnoAutoCerrado } from './ModalAvisoTurnoAutoCerrado';
 export { ModalCentroAyudaScanYA } from './ModalCentroAyudaScanYA';
-export { ToggleNotificacionesScanYA } from './ToggleNotificacionesScanYA';
+export { BotonNotificacionesScanYA } from './BotonNotificacionesScanYA';
 

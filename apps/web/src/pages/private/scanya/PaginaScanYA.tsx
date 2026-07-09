@@ -37,7 +37,6 @@ import {
   ModalResenas,
   ModalAvisoTurnoAutoCerrado,
   ModalCentroAyudaScanYA,
-  ToggleNotificacionesScanYA,
 } from '@/components/scanya';
 import type { RecordatorioScanYA } from '@/types/scanya';
 import type { TurnoScanYA, RespuestaTurnoActual } from '@/types/scanya';
@@ -707,9 +706,6 @@ export default function PaginaScanYA() {
                     contadores={{ ...contadores, mensajesSinLeer: totalNoLeidos }}
                     onNavigate={handleNavigate}
                   />
-
-                  {/* Interruptor de notificaciones (estado real + diagnóstico) */}
-                  <ToggleNotificacionesScanYA />
                 </div>
               </div>
             </>

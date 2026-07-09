@@ -20,6 +20,7 @@ import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import IndicadorOffline from './IndicadorOffline';
 import AvatarEmpleadoScanYA from './AvatarEmpleadoScanYA';
 import ModalCambiarSucursalScanYA from './ModalCambiarSucursalScanYA';
+import { BotonNotificacionesScanYA } from './BotonNotificacionesScanYA';
 
 // =============================================================================
 // INTERFACES
@@ -167,6 +168,9 @@ export default function HeaderScanYA({ className = '', onCambioSucursal, onAbrir
                 <HelpCircle className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
               </button>
             )}
+
+            {/* Campana de notificaciones (config en el header) */}
+            <BotonNotificacionesScanYA />
 
             {/* Botón circular para cambiar sucursal (solo dueño multi-sucursal) */}
             {puedeCambiarSucursal && (
@@ -335,6 +339,9 @@ export default function HeaderScanYA({ className = '', onCambioSucursal, onAbrir
                 <HelpCircle className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
               </button>
             )}
+
+            {/* Campana de notificaciones (config en el header) */}
+            <BotonNotificacionesScanYA />
 
             {/* Avatar del empleado — solo empleados (suben su foto desde aquí) */}
             {usuario.tipo === 'empleado' && <AvatarEmpleadoScanYA />}
