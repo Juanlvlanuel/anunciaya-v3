@@ -541,7 +541,12 @@ export function PaginaLoginScanYA() {
                   <input
                     type="checkbox"
                     checked={recordar}
-                    onChange={(e) => setRecordar(e.target.checked)}
+                    onChange={(e) => {
+                      const marcado = e.target.checked;
+                      setRecordar(marcado);
+                      // Al desmarcar, olvidar el correo recordado de inmediato (aunque no se inicie sesión).
+                      if (!marcado) setEmailRecordado(null);
+                    }}
                     disabled={cargando}
                     className="w-4 h-4 rounded border-[#3B82F6] bg-transparent text-[#2563EB] focus:ring-[#3B82F6] focus:ring-offset-0"
                     style={{ backgroundColor: 'rgba(0, 0, 0, 0.3)' }}

@@ -235,7 +235,13 @@ export function VistaLogin({
             <input
               type="checkbox"
               checked={recordarCorreo}
-              onChange={(e) => setRecordarCorreo(e.target.checked)}
+              onChange={(e) => {
+                const marcado = e.target.checked;
+                setRecordarCorreo(marcado);
+                // Al desmarcar, olvidar el correo guardado de inmediato (aunque no se inicie sesión):
+                // así al cerrar el modal / reabrir la app ya no aparece prellenado.
+                if (!marcado) localStorage.removeItem(STORAGE_KEY_EMAIL);
+              }}
               className="w-4 h-4 text-slate-700 border-slate-300 rounded focus:ring-slate-400"
             />
             <span className="text-base font-medium text-slate-600">{t('login.recordarCorreo')}</span>
