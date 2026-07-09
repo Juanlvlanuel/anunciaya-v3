@@ -2013,6 +2013,53 @@ function reproducirSonidoNotificacion(): void {
   }
 }
 
+/** Preview corto del mensaje según su tipo (para la notificación local). */
+function previewMensajeLocal(tipo: string, contenido: string): string {
+  switch (tipo) {
+    case 'texto': return contenido.length > 140 ? `${contenido.slice(0, 140)}…` : contenido;
+    case 'imagen': return '📷 Foto';
+    case 'audio': return '🎤 Mensaje de voz';
+    case 'ubicacion': return '📍 Ubicación';
+    default: return 'Nuevo mensaje';
+  }
+}
+
+/**
+ * Muestra una notificación del SISTEMA cuando llega un mensaje con la app en
+ * segundo plano (minimizada u otra pestaña). Necesaria porque:
+ *   - El `Audio.play()` de reproducirSonidoNotificacion se bloquea sin foco.
+ *   - El push del servidor NO llega si el socket sigue vivo (app minimizada).
+ * Requiere permiso de notificaciones. Reutiliza el Service Worker
+ * (showNotification + notificationclick → abre /inicio?chat=<id>).
+ */
+function mostrarNotificacionLocal(
+  conversacionId: string,
+  mensaje: { tipo: string; contenido: string },
+  state: ReturnType<typeof useChatYAStore.getState>,
+): void {
+  try {
+    if (typeof Notification === 'undefined' || Notification.permission !== 'granted') return;
+    if (!('serviceWorker' in navigator)) return;
+    const conv = [...state.conversaciones, ...state.conversacionesArchivadas]
+      .find((c) => c.id === conversacionId);
+    const titulo = conv?.otroParticipante?.negocioNombre
+      || conv?.otroParticipante?.nombre
+      || 'Nuevo mensaje';
+    const cuerpo = previewMensajeLocal(mensaje.tipo, mensaje.contenido);
+    navigator.serviceWorker.ready
+      .then((reg) => reg.showNotification(titulo, {
+        body: cuerpo,
+        icon: '/icons/anunciaya-192.png',
+        badge: '/icons/anunciaya-badge.png',
+        tag: conversacionId,
+        data: { url: `/inicio?chat=${conversacionId}` },
+      }))
+      .catch(() => { /* silencioso */ });
+  } catch {
+    /* silencioso */
+  }
+}
+
 // =============================================================================
 // LISTENERS SOCKET.IO — Tiempo real
 // =============================================================================
@@ -2112,7 +2159,15 @@ escucharEvento<EventoMensajeNuevo>('chatya:mensaje-nuevo', ({ conversacionId, me
     const convSilenciada = [...state.conversaciones, ...state.conversacionesArchivadas]
       .find((c) => c.id === conversacionId)?.silenciada;
     if (!esActiva && !convSilenciada) {
-      reproducirSonidoNotificacion();
+      if (pestanaVisible) {
+        // App a la vista: sonido interno (el Audio sí reproduce con foco).
+        reproducirSonidoNotificacion();
+      } else {
+        // App en 2º plano (minimizada/otra pestaña): el Audio se bloquea sin
+        // foco y el push del server no llega si el socket sigue vivo → mostramos
+        // una notificación del sistema (sonido confiable del SO).
+        mostrarNotificacionLocal(conversacionId, mensaje, state);
+      }
     }
   }
 
