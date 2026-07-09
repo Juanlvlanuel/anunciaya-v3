@@ -1060,7 +1060,7 @@ export async function anularPagoMembresia(
         await tx.execute(sql`
             UPDATE eventos_pago
             SET monto = NULL,
-                metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ anulado: true, motivo, anuladoAt: ahora })}::jsonb
+                metadata = COALESCE(metadata, '{}'::jsonb) || ${JSON.stringify({ anulado: true, motivo, anuladoAt: ahora, montoAnulado: pago.monto })}::jsonb
             WHERE referencia_id = ${pagoId} AND tipo = 'pago_manual'
         `);
 

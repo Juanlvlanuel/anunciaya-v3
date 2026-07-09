@@ -120,8 +120,11 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
   const esManual = e.origen === 'manual';
   const entradasMeta = e.metadata ? Object.entries(e.metadata) : [];
   // `concepto`/`meses`/`hasta` se muestran arriba (Movimiento); `metodoCobro` se oculta (confunde:
-  // es cómo cobra el negocio, no la forma de ESTE pago). El resto va a "Detalles técnicos".
-  const entradasTecnicas = entradasMeta.filter(([k]) => !['concepto', 'meses', 'hasta', 'metodoCobro'].includes(k));
+  // es cómo cobra el negocio, no la forma de ESTE pago); los campos de anulación (motivo/anulado/
+  // anuladoAt/montoAnulado) van al banner de anulación. El resto va a "Detalles técnicos".
+  const entradasTecnicas = entradasMeta.filter(
+    ([k]) => !['concepto', 'meses', 'hasta', 'metodoCobro', 'motivo', 'anulado', 'anuladoAt', 'montoAnulado'].includes(k),
+  );
 
   // Deep-link a la ficha del negocio en el módulo Negocios: salta a esa sección y resalta su fila
   // (mismo patrón que Métricas → "Negocios en riesgo"). Cierra esta ficha al saltar. Super y gerente
@@ -140,6 +143,14 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
   const anulado = metaObj.anulado === true;
   const esCortesia = metaObj.concepto === 'cortesia';
   const montoGrande = e.monto != null ? montoTexto(e.monto) : (esCortesia ? 'Cortesía' : '—');
+  // En un pago anulado el evento ya no lleva monto (se puso a NULL para salir de KPIs); el monto
+  // original queda en metadata.montoAnulado para mostrarlo tachado. Anulados viejos (sin ese dato)
+  // caen a "—" sin tachar.
+  const montoAnuladoMeta = metaObj.montoAnulado != null ? montoTexto(String(metaObj.montoAnulado)) : null;
+  const montoMostrado = anulado ? (montoAnuladoMeta ?? montoGrande) : montoGrande;
+  const montoClase = anulado
+    ? (montoAnuladoMeta ? 'text-texto-3 line-through' : 'text-texto-3')
+    : (e.monto != null ? 'text-ok' : 'text-texto-3');
   const accionable = e.tipo === 'pago_manual' && !!e.referenciaId && !!e.negocioId && puedeActuar;
   const reenviar = useReenviarRecibo();
   const editar = useEditarPago();
@@ -245,10 +256,17 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
               ) : (
                 <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
               )}
-              <BadgeTipoEvento tipo={e.tipo} small />
+              <span className="flex shrink-0 items-center gap-1.5">
+                {anulado && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-peligro-suave px-2 py-0.5 text-[11px] font-semibold text-peligro">
+                    <Ban size={11} /> Anulado
+                  </span>
+                )}
+                <BadgeTipoEvento tipo={e.tipo} small />
+              </span>
             </div>
-            <div className={`text-[28px] font-semibold leading-none tracking-tight ${e.monto != null ? 'text-ok' : 'text-texto-3'}`}>
-              {montoGrande}
+            <div className={`text-[28px] font-semibold leading-none tracking-tight ${montoClase}`}>
+              {montoMostrado}
             </div>
             {metaObj.concepto != null && (
               <div className="mt-2 text-[12.5px] text-texto-3">
@@ -269,6 +287,23 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
             ))}
           </div>
         </div>
+
+        {anulado && (
+          <div className="flex items-start gap-2 rounded-[11px] border border-[color-mix(in_srgb,var(--panel-danger)_30%,transparent)] bg-peligro-suave p-3" data-testid="evento-anulado-banner">
+            <Ban size={16} className="mt-0.5 shrink-0 text-peligro" />
+            <div className="min-w-0 flex-1">
+              <p className="text-[13px] font-semibold text-peligro">Pago anulado</p>
+              {metaObj.motivo != null && metaObj.motivo !== '' && (
+                <p className="mt-1 text-[12.5px] text-texto-2">
+                  Motivo: <span className="font-medium text-texto">{String(metaObj.motivo)}</span>
+                </p>
+              )}
+              {metaObj.anuladoAt != null && (
+                <p className="mt-0.5 text-[12px] text-texto-3">Anulado el {fechaHora(String(metaObj.anuladoAt))}</p>
+              )}
+            </div>
+          </div>
+        )}
 
         {editando && (
           <DialogoEditarPago
