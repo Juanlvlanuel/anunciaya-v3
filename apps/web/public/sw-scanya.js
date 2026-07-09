@@ -1,7 +1,12 @@
 // Service Worker de ScanYA PWA
 // Maneja cache de assets y funcionalidad offline
 
-const CACHE_NAME = 'scanya-v5';
+// BUILD_ID lo reemplaza Vite en cada build (plugin `estamparBuildIdEnSW` en
+// vite.config.ts). Al cambiar en cada deploy, el navegador ve un SW "nuevo" y
+// la PWA de ScanYA se auto-actualiza con cualquier cambio publicado, igual que
+// AnunciaYA — sin tener que reinstalar la app.
+const BUILD_ID = 'dev';
+const CACHE_NAME = `scanya-${BUILD_ID}`;
 const STATIC_ASSETS = [
   '/scanya/login',
   '/icons/scanya-192.png',

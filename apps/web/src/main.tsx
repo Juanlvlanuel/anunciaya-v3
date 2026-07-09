@@ -83,10 +83,14 @@ if ('serviceWorker' in navigator) {
         .then((registration) => {
           console.log('[PWA ScanYA] Service Worker registrado:', registration.scope);
 
-          // Verificar actualizaciones cada 1 hora
-          setInterval(() => {
-            registration.update();
-          }, 60 * 60 * 1000);
+          // Buscar versión nueva del SW: cada 30 min y cada vez que la PWA vuelve
+          // al primer plano (igual que AnunciaYA), para que la última versión se
+          // aplique pronto sin reinstalar la app.
+          const buscarActualizacion = () => registration.update().catch(() => {});
+          setInterval(buscarActualizacion, 30 * 60 * 1000);
+          document.addEventListener('visibilitychange', () => {
+            if (document.visibilityState === 'visible') buscarActualizacion();
+          });
         })
         .catch((error) => {
           console.error('[PWA ScanYA] Error registrando Service Worker:', error);

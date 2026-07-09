@@ -23,26 +23,30 @@ const subirSourceMapsSentry = process.env.SENTRY_AUTH_TOKEN && process.env.SENTR
     ]
   : [];
 
-// Estampa un ID de build en el service worker de AnunciaYA para que su contenido
-// cambie en cada deploy. Así el navegador detecta un SW "nuevo" y la PWA se
-// auto-actualiza con CUALQUIER cambio publicado (no solo al tocar el propio SW).
+// Estampa un ID de build en los service workers (AnunciaYA y ScanYA) para que su
+// contenido cambie en cada deploy. Así el navegador detecta un SW "nuevo" y la
+// PWA se auto-actualiza con CUALQUIER cambio publicado (no solo al tocar el
+// propio SW), sin necesidad de reinstalar la app.
 function estamparBuildIdEnSW(): Plugin {
   return {
     name: 'estampar-build-id-sw',
     apply: 'build',
     closeBundle() {
       const buildId = Date.now().toString(36);
-      const swPath = path.resolve(__dirname, 'dist/sw-anunciaya.js');
-      try {
-        const original = fs.readFileSync(swPath, 'utf8');
-        const marcado = original.replace(
-          /const BUILD_ID = '[^']*';/,
-          `const BUILD_ID = '${buildId}';`,
-        );
-        fs.writeFileSync(swPath, marcado);
-        console.log(`[sw] BUILD_ID estampado: ${buildId}`);
-      } catch {
-        /* si dist/sw-anunciaya.js no existe, no hacer nada */
+      const archivos = ['dist/sw-anunciaya.js', 'dist/sw-scanya.js'];
+      for (const rel of archivos) {
+        const swPath = path.resolve(__dirname, rel);
+        try {
+          const original = fs.readFileSync(swPath, 'utf8');
+          const marcado = original.replace(
+            /const BUILD_ID = '[^']*';/,
+            `const BUILD_ID = '${buildId}';`,
+          );
+          fs.writeFileSync(swPath, marcado);
+          console.log(`[sw] BUILD_ID estampado en ${rel}: ${buildId}`);
+        } catch {
+          /* si el archivo no existe en dist, no hacer nada */
+        }
       }
     },
   };
