@@ -336,6 +336,11 @@ export async function obtenerRecompensasDisponibles(
     const condiciones = [
       eq(recompensas.activa, true),
       eq(negocios.activo, true),
+      // Ocultar del catálogo las recompensas de negocios DEMO de Business Studio (maestro + copias).
+      // Mismo criterio es_demo que el directorio público y el Panel Admin
+      // (ver docs/reportes/Exclusion_Demo_Panel_Admin.md). Las billeteras/puntos del cliente NO se
+      // tocan: reflejan su actividad real (aquí no hay billetera en el demo).
+      eq(negocios.esDemo, false),
     ];
     if (filtros?.negocioId) {
       condiciones.push(eq(recompensas.negocioId, filtros.negocioId));

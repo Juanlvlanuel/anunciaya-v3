@@ -145,6 +145,15 @@ sobre NULL daría NULL (los ocultaría a todos). Puntos tocados:
 > vendedores (que tienen `rol_equipo` no nulo) **siguen apareciendo**. Si se quisiera ocultar a todo
 > el equipo interno, bastaría cambiar la 2ª línea por `AND u.rol_equipo IS NULL`.
 
+### `apps/api/src/services/cardya.service.ts` (añadido tras hallazgo en QA)
+La pestaña **Recompensas** de CardYA (lado cliente) mostraba las recompensas del negocio demo
+("Mariscos El Capitán") porque `obtenerRecompensasDisponibles` lista un **catálogo** (join a
+`negocios`) filtrado solo por `recompensas.activa = true` y `negocios.activo = true`. Fix: se añadió
+`eq(negocios.esDemo, false)` al array de condiciones.
+- **No** se tocaron billeteras / puntos / "N negocios" ni Vouchers / Historial: reflejan la actividad
+  **real** del cliente (en el caso de la captura, su billetera Oro en "Imprenta Find US"); el cliente
+  no tiene billetera en el demo, así que esas vistas ya salían correctas.
+
 ---
 
 ## 6. Decisiones de producto
