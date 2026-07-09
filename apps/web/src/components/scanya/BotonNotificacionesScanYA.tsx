@@ -65,17 +65,14 @@ export function BotonNotificacionesScanYA() {
 
       {abierto && (
         <div
-          className="absolute right-0 mt-2 w-64 rounded-xl border border-white/15 shadow-2xl p-3.5 z-[60]"
+          className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-24px)] rounded-xl border border-white/15 shadow-2xl p-3.5 z-[60]"
           style={{ background: 'linear-gradient(180deg, #0A1120 0%, #0B1526 100%)' }}
           data-testid="scanya-popover-notificaciones"
         >
           <div className="flex items-center justify-between gap-3">
-            <div className="flex items-center gap-2.5 min-w-0">
-              <Bell className="w-5 h-5 shrink-0" strokeWidth={2} style={{ color }} />
-              <div className="min-w-0">
-                <p className="text-sm font-semibold text-white">Notificaciones de ChatYA</p>
-                <p className="text-xs text-white/60 truncate">{subtitulo}</p>
-              </div>
+            <div className="min-w-0">
+              <p className="text-sm font-semibold text-white whitespace-nowrap">Notificaciones de ChatYA</p>
+              <p className="text-xs text-white/60 mt-0.5">{subtitulo}</p>
             </div>
             <button
               type="button"
