@@ -2047,6 +2047,10 @@ function mostrarNotificacionLocal(
       || conv?.otroParticipante?.nombre
       || 'Nuevo mensaje';
     const cuerpo = previewMensajeLocal(mensaje.tipo, mensaje.contenido);
+    // En ScanYA (dominio propio) la notificación abre /scanya; en AnunciaYA, /inicio.
+    const base = typeof window !== 'undefined' && window.location.pathname.startsWith('/scanya')
+      ? '/scanya'
+      : '/inicio';
     navigator.serviceWorker.ready
       .then(async (reg) => {
         // Respetar el interruptor: si el usuario desactivó las notificaciones (no
@@ -2063,7 +2067,7 @@ function mostrarNotificacionLocal(
           // notificación EN SILENCIO (ni toast ni sonido). Con renotify, cada
           // mensaje nuevo vuelve a alertar aunque comparta tag.
           renotify: true,
-          data: { url: `/inicio?chat=${conversacionId}` },
+          data: { url: `${base}?chat=${conversacionId}` },
         } as NotificationOptions);
       })
       .catch(() => { /* silencioso */ });

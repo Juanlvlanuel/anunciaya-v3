@@ -21,6 +21,7 @@ import { useUiStore } from '@/stores/useUiStore';
 import { conectarSocket } from '@/services/socketService';
 import { useOnlineStatus } from '@/hooks/useOnlineStatus';
 import { useTituloPagina } from '@/hooks/useTituloPagina';
+import { usePushAppShell } from '@/hooks/usePushAppShell';
 import { notificar } from '@/utils/notificaciones';
 import scanyaService from '@/services/scanyaService';
 import {
@@ -54,6 +55,9 @@ export default function PaginaScanYA() {
   const navigate = useNavigate();
   const { usuario, turnoActivo, setTurnoActivo, eliminarRecordatorioOffline, sincronizarRecordatorios } = useScanYAStore();
   const online = useOnlineStatus();
+
+  // Push: abrir la conversación exacta al tocar la notificación (?chat= / PUSH_CLICK).
+  usePushAppShell();
   const contadorRecordatorios = useScanYAStore(selectContadorRecordatorios);
   const prevOnlineRef = useRef(online);
   const chatYAInicializadoRef = useRef(false);

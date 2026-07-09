@@ -198,9 +198,9 @@ self.addEventListener('push', (event) => {
     badge: '/icons/anunciaya-badge.png',
     tag: payload.tag || undefined,
     renotify: Boolean(payload.tag),
-    // ScanYA abre siempre su propia pantalla (ChatYA es flotante ahí), no la
-    // url de AnunciaYA (/inicio?chat=...) que trae el payload.
-    data: { url: '/scanya' },
+    // ScanYA abre su propia pantalla con el chat (payload.tag = conversacionId);
+    // NO la url de AnunciaYA (/inicio?chat=...) que trae el payload.
+    data: { url: payload.tag ? `/scanya?chat=${payload.tag}` : '/scanya' },
     vibrate: [150, 75, 150],
   };
 
@@ -223,11 +223,21 @@ self.addEventListener('push', (event) => {
 // NOTIFICATION CLICK
 // ==========================================
 self.addEventListener('notificationclick', (event) => {
-  console.log('[ScanYA SW] Notificación clickeada');
   event.notification.close();
-  
+  const url = (event.notification.data && event.notification.data.url) || '/scanya';
   event.waitUntil(
-    clients.openWindow('/scanya')
+    (async () => {
+      const clientes = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+      for (const cliente of clientes) {
+        if (cliente.url.includes('/scanya') && 'focus' in cliente) {
+          await cliente.focus();
+          // La app escucha esto para abrir ChatYA en la conversación (usePushAppShell).
+          cliente.postMessage({ type: 'PUSH_CLICK', url });
+          return;
+        }
+      }
+      if (self.clients.openWindow) await self.clients.openWindow(url);
+    })()
   );
 });
 
