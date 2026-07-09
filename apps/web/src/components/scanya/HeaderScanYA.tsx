@@ -165,7 +165,7 @@ export default function HeaderScanYA({ className = '', onCambioSucursal, onAbrir
                 aria-label="Centro de Ayuda"
                 data-testid="scanya-btn-ayuda"
               >
-                <HelpCircle className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
+                <HelpCircle className="w-6 h-6 text-[#3B82F6]" strokeWidth={2} />
               </button>
             )}
 
@@ -336,7 +336,7 @@ export default function HeaderScanYA({ className = '', onCambioSucursal, onAbrir
                 aria-label="Centro de Ayuda"
                 data-testid="scanya-btn-ayuda-desktop"
               >
-                <HelpCircle className="w-5 h-5 text-[#3B82F6]" strokeWidth={2} />
+                <HelpCircle className="w-6 h-6 text-[#3B82F6]" strokeWidth={2} />
               </button>
             )}
 

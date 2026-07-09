@@ -55,7 +55,7 @@ export function BotonNotificacionesScanYA() {
         aria-label="Notificaciones de ChatYA"
         data-testid="scanya-btn-notificaciones"
       >
-        <Bell className="w-5 h-5" strokeWidth={2} style={{ color }} />
+        <Bell className="w-6 h-6" strokeWidth={2} style={{ color }} />
         {/* LED de estado (esquina) */}
         <span
           className="absolute bottom-1.5 right-1.5 w-2 h-2 rounded-full ring-2 ring-black"
