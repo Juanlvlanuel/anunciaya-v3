@@ -40,7 +40,12 @@ export type TipoNotificacion =
   // ── Sprint 2.B' — A los interesados ("Yo también quiero saber") ────
   /** A los vecinos que marcaron "Yo también quiero saber" en una
    *  pregunta, cuando otro vecino responde a esa pregunta. */
-  | 'pregunta_comunidad_seguida_respondida';
+  | 'pregunta_comunidad_seguida_respondida'
+  // ── Estatus de pago de membresía (avisos personales al dueño) ──────────
+  | 'membresia_en_gracia'
+  | 'pago_rechazado'
+  | 'pago_aprobado'
+  | 'pago_anulado';
 
 export type ReferenciaTipo =
   | 'transaccion'

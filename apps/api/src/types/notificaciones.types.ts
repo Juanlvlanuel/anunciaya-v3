@@ -29,6 +29,12 @@ export type TipoNotificacion =
   | 'negocio_fuera_circulacion'
   /** Al DUEÑO cuando su negocio MANUAL entra en gracia (membresía venció, ponerse al día). */
   | 'membresia_en_gracia'
+  /** Al DUEÑO: su comprobante de pago manual fue RECHAZADO por un admin. */
+  | 'pago_rechazado'
+  /** Al DUEÑO: su pago manual fue APROBADO (membresía activada). */
+  | 'pago_aprobado'
+  /** Al DUEÑO: un pago suyo fue ANULADO por un admin (afecta su vigencia). */
+  | 'pago_anulado'
   | 'nuevo_marketplace'
   | 'nuevo_servicio'
   | 'alerta_seguridad'

@@ -25,6 +25,7 @@ import { registrarAuditoria } from './auditoria.service.js';
 import { resetearCacheConfig } from '../configuracion.service.js';
 import { CLAVE_DATOS_COBRO, DATOS_COBRO_DEFAULT, obtenerDatosCobro } from '../membresia.service.js';
 import type { DatosCobro } from '../membresia.service.js';
+import { notificarPagoRechazado, notificarPagoAprobado } from '../notificaciones.service.js';
 
 // =============================================================================
 // ALCANCE POR ROL (sobre el negocio de la solicitud)
@@ -221,6 +222,9 @@ export async function aprobarSolicitud(
         motivo: null,
     });
 
+    // Aviso in-app al dueño (personal, best-effort): su pago fue aprobado y la membresía quedó activa.
+    await notificarPagoAprobado(sol.negocioId, hasta);
+
     return { ok: true };
 }
 
@@ -255,6 +259,9 @@ export async function rechazarSolicitud(
         datosNuevos: { solicitudId, motivo: motivo.trim().slice(0, 500) },
         motivo: null,
     });
+
+    // Aviso in-app al dueño (personal, best-effort): su comprobante fue rechazado.
+    await notificarPagoRechazado(sol.negocioId, motivo);
 
     return { ok: true };
 }

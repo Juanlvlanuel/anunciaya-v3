@@ -497,6 +497,23 @@ ni las personales del cliente.
 
 > **Patrón:** Usan tipo `sistema` pero con `actorImagenUrl` (logo del negocio) y `actorNombre` (nombre del negocio). Se envían a **todos los clientes con billetera activa** en ese negocio. Sin `referenciaId` ni `referenciaTipo` — no navegan a ninguna página (se expanden inline al hacer click). Se disparan dentro de `actualizarConfigPuntos()` solo cuando `nivelesActivos` cambia de valor.
 
+#### Estatus de pago de membresía (avisos al DUEÑO)
+
+Avisos **personales** al dueño sobre el ciclo de su pago manual de membresía. Van en `modo: 'personal'` (no comercial) porque: (1) son un asunto de la cuenta del dueño, no una operación del negocio, y (2) las comerciales se cortan cuando el negocio está fuera de circulación — justo cuando un rechazo/anulación necesita avisarse.
+
+| # | Tipo | Título | Mensaje | Servicio | Contexto |
+|---|------|--------|---------|----------|----------|
+| 22 | `pago_rechazado` | `Comprobante rechazado` | `Motivo: {motivo}. Revisa y vuelve a enviar tu comprobante.` | admin/pagos-manuales-cola (`rechazarSolicitud`) | Admin rechazó el comprobante |
+| 23 | `pago_aprobado` | `Pago aprobado` | `Tu membresía quedó activa hasta el {fecha}.` | admin/pagos-manuales-cola (`aprobarSolicitud`) | Admin aprobó el pago |
+| 24 | `pago_anulado` | `Pago anulado` | `Se anuló un pago de {monto}. Motivo: {motivo}` | admin/negocios-acciones (`anularPagoMembresia`) | Admin anuló un pago ya aprobado |
+| 25 | `membresia_en_gracia` | `Tu membresía venció` | `Tu membresía… tienes unos días para ponerte al día…` | pago.service (`manejarCobroFallido`) | Cobro de renovación falló → `en_gracia` |
+
+> **Sin `actorNombre`** (se renderizan en modo personal sin actor: título + mensaje). **Deep-link:** los 4 navegan a `/perfil?tab=pagos` (Mi Perfil · Membresía y Pagos) — resuelto por `tipo` en `obtenerRutaDestino()`, ANTES del `if (!referenciaTipo) return null`. `referenciaId = negocioId`. Helpers en `notificaciones.service.ts`: `notificarPagoRechazado/Aprobado/Anulado` (nuevos) y `notificarMembresiaEnGracia` (ya existía, ahora enganchado en `manejarCobroFallido`).
+>
+> **Refresco en vivo:** el listener de Socket.io (`registrarListenerNotificaciones` en `useNotificacionesStore.ts`) invalida `queryKeys.membresia.mi()` al recibir una de estas notificaciones, así "Membresía y Pagos" se actualiza sin navegar y volver.
+>
+> **Familia visual:** `membresia` (tile índigo `#4f46e5→#4338ca` + glifo dinero). Migración del CHECK: `docs/migraciones/2026-07-09-notificaciones-tipos-pago-membresia.sql` (agrega `pago_rechazado/aprobado/anulado`; `membresia_en_gracia` ya estaba).
+
 ---
 
 ### Comerciales (al dueño/empleado)

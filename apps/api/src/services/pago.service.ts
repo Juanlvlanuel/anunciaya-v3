@@ -33,6 +33,7 @@ import { guardarSesion } from '../utils/tokenStore.js'; // ← CORREGIDO
 import { obtenerConfigNumero, obtenerConfigTexto } from './configuracion.service.js';
 import { crearNegocioConDueno } from './negocioManagement.service.js';
 import { registrarEventoPago } from './suscripciones/eventos-pago.js';
+import { notificarMembresiaEnGracia } from './notificaciones.service.js';
 import { empujarCobroSuscripcion } from './suscripciones/acciones-stripe.js';
 import { eq, and, sql } from 'drizzle-orm';
 
@@ -1759,6 +1760,8 @@ async function manejarCobroFallido(invoice: Stripe.Invoice, eventId?: string): P
                 })
                 .where(eq(negocios.id, res.negocio.id));
             console.log(`⚠️ Cobro fallido → en_gracia hasta ${limite.toISOString()} (reintento ${proximoReintento ?? 'sin más'}): ${res.negocio.nombre}`);
+            // Aviso in-app al dueño (personal, best-effort): membresía venció → periodo de gracia.
+            await notificarMembresiaEnGracia(res.negocio.id);
             return;
         }
 

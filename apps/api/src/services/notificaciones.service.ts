@@ -250,6 +250,101 @@ export async function notificarNegocioFueraDeCirculacion(negocioId: string): Pro
     }
 }
 
+// =============================================================================
+// ESTATUS DE PAGO DE MEMBRESÍA (avisos personales al DUEÑO)
+// =============================================================================
+// Van en modo 'personal': (1) son un asunto de la cuenta del dueño, no una
+// operación del negocio, y (2) las comerciales se cortan cuando el negocio está
+// fuera de circulación — justo cuando un rechazo/anulación necesita avisarse.
+
+const FMT_MONTO_MXN = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
+
+/** Fecha legible es-MX ("22 de julio de 2026") en la zona horaria del negocio. */
+function fechaLegibleMX(iso: string): string {
+    try {
+        return new Intl.DateTimeFormat('es-MX', {
+            day: '2-digit', month: 'long', year: 'numeric', timeZone: 'America/Hermosillo',
+        }).format(new Date(iso));
+    } catch {
+        return iso;
+    }
+}
+
+/** usuario_id del dueño de un negocio (destinatario de los avisos de membresía). */
+async function usuarioDuenoDeNegocio(negocioId: string): Promise<string | null> {
+    const [neg] = await db
+        .select({ usuarioId: negocios.usuarioId })
+        .from(negocios)
+        .where(eq(negocios.id, negocioId))
+        .limit(1);
+    return neg?.usuarioId ?? null;
+}
+
+/** Aviso al dueño: su comprobante de pago manual fue RECHAZADO. */
+export async function notificarPagoRechazado(negocioId: string, motivo: string | null): Promise<void> {
+    try {
+        const usuarioId = await usuarioDuenoDeNegocio(negocioId);
+        if (!usuarioId) return;
+        const m = motivo?.trim();
+        await crearNotificacion({
+            usuarioId,
+            modo: 'personal',
+            tipo: 'pago_rechazado',
+            titulo: 'Comprobante rechazado',
+            mensaje: m ? `Motivo: ${m}. Revisa y vuelve a enviar tu comprobante.` : 'Revisa el motivo y vuelve a enviar tu comprobante.',
+            negocioId,
+            referenciaId: negocioId,
+        });
+    } catch (error) {
+        console.error('Error en notificarPagoRechazado:', error);
+    }
+}
+
+/** Aviso al dueño: su pago manual fue APROBADO y la membresía quedó activa. */
+export async function notificarPagoAprobado(negocioId: string, vigenciaHastaISO: string): Promise<void> {
+    try {
+        const usuarioId = await usuarioDuenoDeNegocio(negocioId);
+        if (!usuarioId) return;
+        await crearNotificacion({
+            usuarioId,
+            modo: 'personal',
+            tipo: 'pago_aprobado',
+            titulo: 'Pago aprobado',
+            mensaje: `Tu membresía quedó activa hasta el ${fechaLegibleMX(vigenciaHastaISO)}.`,
+            negocioId,
+            referenciaId: negocioId,
+        });
+    } catch (error) {
+        console.error('Error en notificarPagoAprobado:', error);
+    }
+}
+
+/** Aviso al dueño: un pago suyo fue ANULADO (su vigencia pudo retroceder). */
+export async function notificarPagoAnulado(
+    negocioId: string,
+    monto: string | number | null,
+    motivo: string,
+): Promise<void> {
+    try {
+        const usuarioId = await usuarioDuenoDeNegocio(negocioId);
+        if (!usuarioId) return;
+        const montoNum = monto != null ? Number(monto) : NaN;
+        const montoTxt = Number.isFinite(montoNum) ? ` de ${FMT_MONTO_MXN.format(montoNum)}` : '';
+        const m = motivo?.trim();
+        await crearNotificacion({
+            usuarioId,
+            modo: 'personal',
+            tipo: 'pago_anulado',
+            titulo: 'Pago anulado',
+            mensaje: `Se anuló un pago${montoTxt}.${m ? ` Motivo: ${m}` : ''}`,
+            negocioId,
+            referenciaId: negocioId,
+        });
+    } catch (error) {
+        console.error('Error en notificarPagoAnulado:', error);
+    }
+}
+
 /**
  * Borra la notificación de "negocio fuera de circulación" cuando el negocio se
  * reactiva (reactivación manual del Panel, o un pago que lo hace reaparecer).

@@ -37,7 +37,7 @@ import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { EditarPagoInput } from '../../validations/admin/editarPago.schema.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { resolverEmbajadorId } from './negocios.service.js';
-import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion } from '../notificaciones.service.js';
+import { notificarNegocioFueraDeCirculacion, limpiarNotificacionNegocioFueraDeCirculacion, notificarPagoAnulado } from '../notificaciones.service.js';
 import { pausarCobroSuscripcion, reanudarCobroSuscripcion, cancelarSuscripcion, empujarCobroSuscripcion, leerProximoCobroStripe } from '../suscripciones/acciones-stripe.js';
 import { randomInt } from 'crypto';
 import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
@@ -1124,6 +1124,9 @@ export async function anularPagoMembresia(
         datosNuevos: { anulado: true },
         motivo,
     });
+
+    // Aviso in-app al dueño (personal, best-effort): un pago suyo fue anulado.
+    await notificarPagoAnulado(negocioId, pago.monto, motivo);
 
     // Aviso al dueño (best-effort): correo de cancelación del recibo.
     try {

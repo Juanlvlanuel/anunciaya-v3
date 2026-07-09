@@ -28,6 +28,8 @@ import type {
   Notificacion,
   ModoNotificacion,
 } from '../types/notificaciones';
+import { queryClient } from '../config/queryClient';
+import { queryKeys } from '../config/queryKeys';
 
 // =============================================================================
 // CONSTANTES
@@ -304,6 +306,16 @@ export function registrarListenerNotificaciones(): void {
     'notificacion:nueva',
     (notificacion) => {
       useNotificacionesStore.getState().agregarNotificacion(notificacion);
+      // Estatus de pago/membresía: refresca "Mi Perfil · Membresía y Pagos" en vivo,
+      // sin que el dueño tenga que navegar y volver para ver el cambio.
+      if (
+        notificacion.tipo === 'pago_rechazado' ||
+        notificacion.tipo === 'pago_aprobado' ||
+        notificacion.tipo === 'pago_anulado' ||
+        notificacion.tipo === 'membresia_en_gracia'
+      ) {
+        queryClient.invalidateQueries({ queryKey: queryKeys.membresia.mi() });
+      }
     }
   );
 

@@ -70,7 +70,9 @@ type FamiliaNotificacion =
   /** Vecino respondió tu pregunta del Home. Tile azul + glifo de chat. */
   | 'comunidad'
   /** Coyo te puso en sus resultados. Tile violeta + glifo Sparkle. */
-  | 'coyo';
+  | 'coyo'
+  /** Estatus de pago de membresía (rechazado/aprobado/anulado/gracia). Tile índigo + glifo dinero. */
+  | 'membresia';
 
 interface FamiliaConfig {
   tile: string;
@@ -109,6 +111,11 @@ const TIPO_A_FAMILIA: Record<TipoNotificacion, FamiliaNotificacion> = {
   // porque ambas significan lo mismo: "hay actividad nueva en una
   // pregunta donde te importa".
   pregunta_comunidad_seguida_respondida: 'comunidad',
+  // ── Estatus de pago de membresía ──────────────────────────────────────
+  membresia_en_gracia: 'membresia',
+  pago_rechazado: 'membresia',
+  pago_aprobado: 'membresia',
+  pago_anulado: 'membresia',
 };
 
 const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
@@ -151,6 +158,11 @@ const FAMILIA_CONFIG: Record<FamiliaNotificacion, FamiliaConfig> = {
     tile: 'linear-gradient(135deg, #a855f7, #6366f1)', // violet→indigo — Coyo / IA
     badge: { bg: '#a855f7', Glifo: IcoSparkle },
     TileGlifo: IcoSparkle,
+  },
+  membresia: {
+    tile: 'linear-gradient(135deg, #4f46e5, #4338ca)', // indigo — cuenta / pagos de membresía
+    badge: { bg: '#4338ca', Glifo: IcoCoin },
+    TileGlifo: IcoCoin,
   },
 };
 
@@ -235,6 +247,10 @@ function limpiarMensajeComercial(mensaje: string, actorNombre: string): string {
 
 function obtenerRutaDestino(n: Notificacion): string | null {
   const { modo, referenciaTipo, referenciaId, tipo } = n;
+  // Estatus de pago / membresía → Mi Perfil · Membresía y Pagos (no dependen de referenciaTipo).
+  if (tipo === 'pago_rechazado' || tipo === 'pago_aprobado' || tipo === 'pago_anulado' || tipo === 'membresia_en_gracia') {
+    return '/perfil?tab=pagos';
+  }
   if (!referenciaTipo) return null;
 
   // ── Sprint 1.D — Notificaciones del Home / Coyo ────────────────────────
