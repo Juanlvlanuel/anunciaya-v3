@@ -1,6 +1,13 @@
 # 💬 ChatYA - Documento Maestro Completo
 
-> **Versión:** v7.6 — Actualizado 2026-07-02 — **MÓDULO COMPLETADO ✅** (+ Directorio comercial por ciudad, §4.9.1)
+> **Versión:** v7.7 — Actualizado 9 de julio de 2026 — **MÓDULO COMPLETADO ✅** (+ Notificaciones push web de ChatYA, §4.15.1)
+>
+> **Cambios v7.7 (9 jul 2026):** **notificaciones push web (Web Push + claves VAPID)** — cuando la
+> PWA está cerrada o en segundo plano, ChatYA reproduce el **sonido del sistema**, muestra un
+> **badge (contador)** sobre el ícono de la app vía la **Badging API** y, al tocar la notificación,
+> **abre ChatYA directo en esa conversación** (el service worker maneja `notificationclick`). Es
+> **opt-in** desde Mi Perfil → Seguridad (en ScanYA, campana en el header). Solo ChatYA v1. El
+> backend de Web Push (suscripciones + envío VAPID) es la "Fase 1", ya implementada. Ver §4.15.1.
 >
 > **Cambios v7.5 (5 Jun 2026):** candado de "negocio fuera de circulación" — si la conversación
 > involucra un negocio con `activo=false`, se bloquea el ENVÍO por **ambos lados** (`enviarMensaje`)
@@ -733,6 +740,44 @@ La card es clickeable. El handler depende del subtipo:
 - ✅ Badge reactivo a sucursal activa (modo comercial)
 - 🔲 Sonido de notificación cuando llega mensaje nuevo (activado por defecto, silenciable)
 - ✅ NO integrado con panel de notificaciones (campanita). Solo badge + sonido en logo ChatYA
+- ✅ Notificaciones **push web** (Web Push + VAPID) con la PWA cerrada o en segundo plano — ver §4.15.1
+
+### 4.15.1 Notificaciones push web (Web Push) — jul 2026
+
+Además del badge + sonido **dentro** de la app (§4.15), ChatYA envía **notificaciones push web**
+(Web Push con claves **VAPID**) cuando la PWA está **cerrada o en segundo plano**. Es la capa que
+permite enterarte de un mensaje nuevo sin tener la app abierta.
+
+**Qué hace al llegar un mensaje con la app minimizada:**
+- Reproduce el **sonido del sistema** (notificación nativa del SO).
+- Muestra un **badge (contador)** sobre el ícono de la app vía la **Badging API**
+  (`setAppBadge` / `clearAppBadge`).
+- Al **tocar la notificación**, abre ChatYA directo en **esa conversación** — el service worker
+  maneja el evento `notificationclick` y enfoca/abre la ruta del chat.
+
+**Ícono monocromo:** el badge/ícono de la notificación es una **silueta monocroma del apretón de
+manos de la marca** — requisito de Android para íconos de notificación.
+
+**Opt-in (el usuario decide):** el usuario lo activa/desactiva con un **interruptor en Mi Perfil →
+Seguridad** (en la app **ScanYA** el control equivalente es una **campana en el header**). Solo
+aplica a **ChatYA v1**.
+
+**Service worker (`push` + `renotify`):** el SW maneja el evento `push`, **parsea el payload JSON**
+y usa **`renotify: true`** para que **cada mensaje nuevo vuelva a sonar**. Sin esto, solo sonaba el
+primer mensaje.
+
+**Piezas de código (frontend):**
+
+| Archivo | Ubicación | Función |
+|---------|-----------|---------|
+| `pushService.ts` | `services/` | `activar` / `desactivar` / `estaSuscrito`. Usa `navigator.serviceWorker.getRegistrations()` para cubrir **todos** los service workers, no solo el del scope actual |
+| `usePushNotificaciones.ts` | `hooks/` | Expone un flag **`listo`** — true cuando ya se comprobó la suscripción |
+| `useChatYAStore.ts` | `stores/` | `mostrarNotificacionLocal` **respeta el interruptor**: no notifica si el usuario desactivó el push (verifica `estaSuscrito()`) |
+
+**Errores → Sentry:** los errores del flujo de push se reportan a **Sentry** con `tags area: 'push'`.
+
+**Backend (Fase 1, ya implementada):** el backend de Web Push —registro de **suscripciones** + envío
+con **VAPID**— es la "Fase 1" y ya está construido.
 
 ### 4.16 Imágenes — Detalle Específico
 
@@ -2331,4 +2376,4 @@ Las reacciones son especialmente propensas a duplicación visual por el cruce de
 
 **Estado actual:** Sprints 1-7 COMPLETADOS. Módulo ChatYA cerrado (20 Mar 2026). 41 API tests + 10 E2E tests.
 **Backend:** 34 endpoints + 13 eventos Socket.io + 1 evento consulta estado + cron job activo.
-**Última actualización:** 20 Abril 2026.
+**Última actualización:** 9 de julio de 2026.

@@ -1,7 +1,7 @@
 # 📱 ScanYA - Sistema de Punto de Venta
 
-**Última actualización:** 28 Abril 2026  
-**Versión:** 1.6 (Auto-cierre de turnos colgados con límite inteligente por horario de sucursal)  
+**Última actualización:** 9 de julio de 2026  
+**Versión:** 1.7 (Notificaciones push del servidor + campana en el header + splash negro + auto-actualización de la PWA)  
 **Estado:** ✅ 100% Operativo (16/16 fases) + Multi-sucursal completo (frontend cerrado)
 
 ---
@@ -905,8 +905,8 @@ Response: {
   "start_url": "/scanya/login?source=pwa",
   "scope": "/scanya/",
   "display": "standalone",
-  "theme_color": "#10B981",
-  "background_color": "#1F2937",
+  "theme_color": "#000000",
+  "background_color": "#000000",
   "icons": [
     {
       "src": "/icons/scanya-192.webp",
@@ -933,6 +933,8 @@ Response: {
   ]
 }
 ```
+
+> **Splash negro (9 jul 2026):** el splash screen de la PWA se genera a partir de `background_color` + `theme_color` del manifest. Antes salía **blanco** porque a `manifest.scanya.json` le faltaba `background_color`; se agregaron `background_color` y `theme_color` en `"#000000"` para que el splash sea **negro**. El splash se "hornea" al instalar la PWA, así que hay que **reinstalar** la app para verlo.
 
 ---
 
@@ -996,6 +998,29 @@ self.addEventListener('fetch', (event) => {
 });
 ```
 
+> El código de arriba es ilustrativo. En producción el nombre de caché ya **no** es `scanya-v1` fijo, sino `scanya-${BUILD_ID}` (ver abajo).
+
+---
+
+### Auto-actualización en cada deploy (BUILD_ID)
+
+Igual que AnunciaYA, `sw-scanya.js` **se auto-actualiza en cada deploy** (sin banner, con auto-reload):
+
+- Durante el build, el plugin **`estamparBuildIdEnSW`** (`vite.config.ts`) estampa un **`BUILD_ID`** único dentro del Service Worker.
+- El nombre de la caché incluye ese id (**`scanya-${BUILD_ID}`**), así que cambia en cada deploy y el `activate` limpia las cachés viejas.
+- Se dispara **`registration.update()` en `visibilitychange`** (al volver la app a primer plano): como el contenido del SW cambió, el navegador instala la versión nueva y hace auto-reload.
+
+> Como el SW cambia siempre, la PWA queda al día sola. Para verlo: sacar la PWA a segundo plano y volver.
+
+---
+
+### Manejo de `push` y `notificationclick`
+
+`sw-scanya.js` también atiende las notificaciones push del servidor (ver sección **Notificaciones Push del Servidor**):
+
+- **`push`:** parsea el payload de la notificación y la muestra al usuario.
+- **`notificationclick`:** al tocar la notificación, abre **`/scanya?chat=<id>`**, enfocando la ventana/pestaña de ScanYA si ya está abierta o abriéndola si no, y entrando directo a esa conversación de ChatYA.
+
 ---
 
 ### Redirección Automática PWA
@@ -1052,6 +1077,32 @@ export function RootLayout() {
   return <Outlet />;
 }
 ```
+
+---
+
+## 🔔 Notificaciones Push del Servidor
+
+ScanYA recibe **notificaciones push del servidor**: avisa de **mensajes de ChatYA** aun con la app **cerrada o congelada** (no solo con la app abierta). Es **opt-in** — el usuario decide activarlas.
+
+- **Permiso por dominio propio:** ScanYA corre en el subdominio **`s.anunciaya.mx`** como PWA aparte de AnunciaYA, así que el permiso de notificaciones del navegador se pide **por su propio dominio** (independiente del permiso de AnunciaYA).
+- **Entrega:** el Service Worker `sw-scanya.js` atiende el evento `push` (parsea el payload) y, al tocar la notificación, `notificationclick` abre **`/scanya?chat=<id>`** enfocando o abriendo esa conversación de ChatYA (ver sección [Manejo de `push` y `notificationclick`](#manejo-de-push-y-notificationclick)).
+
+### Campana de notificaciones en el header
+
+El control de notificaciones vive en una **campana en el header** — es **configuración, no una acción**, por eso va en el header y no en la pantalla principal. Reemplazó el **banner grande + toggle** que antes estaban en el dashboard.
+
+- **Componente:** `apps/web/src/components/scanya/BotonNotificacionesScanYA.tsx`, montado en `HeaderScanYA.tsx`.
+- **Estado por color del ícono + un LED:**
+
+| Estado | Color |
+|--------|-------|
+| Activadas (suscrito) | 🟢 Verde |
+| Desactivadas | 🔵 Azul |
+| Bloqueadas en el navegador | 🟠 Ámbar |
+
+- **Popover:** al tocar la campana abre un popover con el **interruptor** para activar/desactivar la suscripción.
+  - **Móvil:** popover **centrado horizontalmente** (top fijo).
+  - **Desktop:** anclado a la **derecha** de la campana.
 
 ---
 
@@ -2096,8 +2147,8 @@ El token ScanYA lleva `negocioUsuarioId` (UUID del dueño del negocio). Al llega
 
 ---
 
-**Última actualización:** 7 Marzo 2026  
+**Última actualización:** 9 de julio de 2026  
 **Autor:** Equipo AnunciaYA  
-**Versión:** 1.2 (Incluye integración ChatYA)
+**Versión:** 1.7 (Notificaciones push del servidor + campana en el header + splash negro + auto-actualización de la PWA)
 
 **Progreso:** 16/16 fases completadas (100%)

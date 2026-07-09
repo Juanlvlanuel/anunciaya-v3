@@ -1,12 +1,13 @@
 # 💳 CardYA - Sistema de Lealtad para Clientes
 
-**Última actualización:** 5 Junio 2026
-**Versión:** 2.2
+**Última actualización:** 9 de julio de 2026
+**Versión:** 2.3
 **Estado:** ✅ 100% Operacional
 
 > **DATOS DEL SERVIDOR (React Query):**
 > - Hooks en `hooks/queries/useCardYA.ts`: useCardYABilleteras, useCardYARecompensas, useCardYAVouchers, useCardYAHistorialCompras, useCardYAHistorialCanjes, useCanjearRecompensa (optimista), useCancelarVoucher (optimista)
 > - Socket `recompensa:stock-actualizado` vía `useCardYASocket()`
+> - Refresco en vivo al registrar una compra: se invalidan las queries de CardYA al detectar la compra (sin recargar).
 > - Caché evita llamadas duplicadas; revisitas usan caché.
 
 ---
@@ -209,6 +210,10 @@ function calcularNivel(puntosAcumuladosTotal: number, config: ConfigNiveles): Ni
 ### Concepto
 
 Cada negocio crea su propio catálogo de recompensas canjeables con puntos.
+
+> **Recompensas de negocios demo ocultas:** el catálogo de CardYA **oculta las recompensas de
+> negocios demo** (negocios con `es_demo = true`), en línea con la regla general del proyecto de
+> excluir contenido demo de las vistas públicas.
 
 ### Estructura de Recompensa
 
@@ -571,6 +576,14 @@ useCardYASocket()              // Socket: recompensa:stock-actualizado → inval
 2. Backend procesa
 3. Si error: Voucher vuelve a estado anterior
 
+### Refresco en vivo al registrar una compra
+
+Cuando se registra una compra (venta con puntos otorgados vía ScanYA), CardYA se **actualiza al
+instante**: al detectar la compra se **invalidan las queries de React Query** correspondientes
+(billeteras, historial de compras y datos relacionados), de modo que el usuario ve la compra
+reflejada sin recargar la vista. Antes el usuario tenía que refrescar manualmente para ver la
+compra reflejada.
+
 ---
 
 ## 🔗 Integración con ScanYA
@@ -816,7 +829,7 @@ vuelve, o se le devuelven, pero **siempre ve su saldo**.
 |--------|----------------|
 | **Mis Puntos / billeteras** (`obtenerBilleterasPorUsuario`) | El saldo SIEMPRE se ve. Expone `estadoCirculacion`; la card pinta un badge (amber = suspendido, rojo = cancelado). |
 | **Detalle de billetera** (`obtenerDetalleNegocioBilletera`) | Banner de aviso amber/rojo, sin ocultar saldo ni historial. |
-| **Catálogo de recompensas** (`obtenerRecompensasDisponibles`) | OCULTA las recompensas de negocios fuera (`... AND negocios.activo = true`). |
+| **Catálogo de recompensas** (`obtenerRecompensasDisponibles`) | OCULTA las recompensas de negocios fuera (`... AND negocios.activo = true`) y las de negocios demo (`... AND negocios.es_demo = false`). |
 | **Generar canje** (`generarVoucher`) | Se bloquea ANTES de descontar puntos si el negocio está fuera (mensaje según motivo). |
 | **Lista / detalle de vouchers** (`obtenerVouchersPorUsuario`) | Un voucher pendiente de negocio suspendido se marca "No disponible" (lista + badge del header del modal). |
 | **ScanYA** | El negocio fuera no puede entrar ni otorgar puntos (candado de `activo` en login, refresh de token y `otorgarPuntos`). |

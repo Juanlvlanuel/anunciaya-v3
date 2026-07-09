@@ -1,6 +1,6 @@
 # 🏗️ AnunciaYA v3.0 - Arquitectura del Sistema
 
-**Última actualización:** 16 Junio 2026  
+**Última actualización:** 9 de julio de 2026  
 **Versión:** 9.1 (+ Panel Admin como tercer ámbito operativo)
 
 Este documento describe la arquitectura técnica base, decisiones de diseño fundamentales y requisitos transversales del sistema.
@@ -706,6 +706,29 @@ Usuario Final
 | **Pagos** | Stripe | Test | N/A | Test mode | $0 |
 
 **Total Infraestructura: $0/mes**
+
+---
+
+### 🔄 Auto-actualización de las PWAs
+
+Las **tres PWAs** del proyecto se auto-actualizan en cada deploy, **sin banner ni intervención del usuario**:
+
+| PWA | App | Host |
+|-----|-----|------|
+| **AnunciaYA** | `apps/web` | `anunciaya.mx` |
+| **ScanYA** | `apps/web` (manifest/SW propios) | `s.anunciaya.mx` |
+| **Panel Admin** | `apps/admin` | `admin.anunciaya.mx` |
+
+**Mecanismo:**
+
+1. Durante el build se estampa un identificador único **`BUILD_ID`** dentro del service worker, mediante el plugin `estamparBuildIdEnSW` en los `vite.config.ts` de `apps/web` y `apps/admin`.
+2. El nombre de la caché incluye ese `BUILD_ID`, por lo que el contenido del SW **cambia en cada build**.
+3. Como el SW cambia, el navegador detecta un service worker nuevo.
+4. Un listener de `controllerchange` + `registration.update()` en `visibilitychange` hace que la app **haga auto-reload** a la versión nueva.
+
+El SW usa estrategia **network-first**.
+
+> **Cómo verlo en una PWA instalada:** mandarla a segundo plano y volver.
 
 ---
 

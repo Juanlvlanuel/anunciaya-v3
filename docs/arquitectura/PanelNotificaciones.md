@@ -9,7 +9,7 @@
 >
 > **Documento hermano (backend):** `docs/arquitectura/Notificaciones.md` — modelo de datos, filtrado por sucursal, Socket.io en tiempo real.
 >
-> **Última actualización:** 2026-05-15.
+> **Última actualización:** 9 de julio de 2026.
 
 ---
 
@@ -300,6 +300,12 @@ Todas las animaciones se cortan con `@media (prefers-reduced-motion: reduce)`.
 | `Esc` | Cerrar (ambas variantes) |
 | Click en una fila con `referenciaTipo` mapeada | Marca como leída + navega + cierra |
 | Click en una fila sin ruta | Solo marca como leída (no expande, no cierra) |
+
+### Ruta de destino (`obtenerRutaDestino`)
+
+La función `obtenerRutaDestino` resuelve a qué ruta navega cada notificación al hacer click, según su `referenciaTipo` y `referenciaId`. En **modo comercial**, `referenciaTipo === 'alerta'` navega a `/business-studio/alertas?alertaId=<referenciaId>`; la página de Alertas (`PaginaAlertas.tsx`) lee ese `?alertaId=` y abre el modal de detalle de esa alerta. Esto aplica a las **notificaciones de alertas de seguridad de severidad alta** (cliente frecuente, monto inusual, empleado con incidencias, caída de ventas, racha de reseñas negativas).
+
+> El tipo `ReferenciaTipo` en `apps/web/src/types/notificaciones.ts` incluye el valor `'alerta'` (el backend ya lo enviaba).
 
 ### Marcar todas como leídas
 

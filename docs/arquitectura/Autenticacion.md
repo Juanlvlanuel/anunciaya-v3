@@ -1,7 +1,7 @@
 # 🔐 AnunciaYA v3.0 - Sistema de Autenticación
 
-**Última actualización:** 19 Junio 2026  
-**Versión:** 5.5 (Ciudad OBLIGATORIA en el registro → `ciudad_id`)
+**Última actualización:** 9 Julio 2026  
+**Versión:** 5.6 ("Recordar correo" guarda/olvida en tiempo real)
 
 ---
 
@@ -368,6 +368,18 @@ sincroniza credenciales entre dispositivos):
 
 `new-password` es el estándar W3C para registros: le dice al navegador *"este
 es un campo de creación, no rellenes con la contraseña guardada"*.
+
+#### "Recordar correo" en tiempo real
+
+La casilla **"Recordar correo"** del formulario de login guarda y olvida el
+correo **en el momento en que se marca/desmarca la casilla**, sin depender de
+que el inicio de sesión sea exitoso. Antes el correo solo se guardaba al iniciar
+sesión correctamente; ahora:
+
+- **Marcar** la casilla → guarda el correo de inmediato.
+- **Desmarcar** la casilla → lo olvida de inmediato.
+
+Aplica por igual a **AnunciaYA** y a **ScanYA**.
 
 ---
 

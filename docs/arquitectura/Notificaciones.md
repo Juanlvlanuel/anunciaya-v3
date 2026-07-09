@@ -1,10 +1,21 @@
 # Notificaciones — AnunciaYA v3.0
 
 > Sistema de notificaciones en tiempo real vía Socket.io + persistencia en BD.
+> Además, un **canal Web Push (VAPID)** entrega avisos de ChatYA con la PWA cerrada o en segundo plano (ver sección "Canal Web Push (VAPID)").
 >
 > **UBICACIÓN:** `apps/api/src/services/notificaciones.service.ts` (función `crearNotificacion`)
 >
 > **Documento hermano (UI):** `docs/arquitectura/PanelNotificaciones.md` — el popover/side sheet que renderiza las notificaciones en el cliente (tabs Todas/No leídas, bucketing por antigüedad, mapeo de tipos a familias visuales, motion).
+
+---
+
+## Canal Web Push (VAPID)
+
+Además del canal in-app (Socket.io + persistencia en BD) descrito en el resto de este documento, existe un **canal de notificaciones push web** (Web Push con claves VAPID) para avisar de **mensajes de ChatYA** cuando la PWA está **cerrada o en segundo plano** (sonido del sistema + badge en el ícono de la app).
+
+- **Alcance:** solo ChatYA por ahora — aplica tanto a `apps/web` como a **ScanYA**.
+- **Backend:** gestiona las **suscripciones push** de cada dispositivo y el **envío** de los mensajes push. **Fase 1 (backend) implementada.**
+- **Relación con el canal in-app:** es complementario. Las notificaciones del panel siguen viviendo en la tabla `notificaciones` + Socket.io; el push solo cubre el aviso al sistema operativo cuando la PWA no está en primer plano.
 
 ---
 
@@ -523,7 +534,9 @@ ni las personales del cliente.
 |---|------|--------|---------|-------|----------|----------|
 | 21 | `alerta_seguridad` | `{titulo alerta}` | `{descripcion alerta}` | ⚠️ | alertas | Solo severidad `alta`: monto_inusual, cliente_frecuente, empleado_destacado, caida_ventas, racha_resenas_negativas |
 
-> Modo `comercial`. Sin `actorNombre`. Se envía al dueño + `notificarNegocioCompleto()` para empleados. `referenciaTipo: 'alerta'`. Socket.io emite `alerta:nueva`. `sucursalId` se toma de `alerta.sucursalId` cuando la alerta es específica de una sucursal; `null` si es a nivel negocio.
+> Modo `comercial`. Sin `actorNombre`. La emite `notificarAlertaAlta()` (en `apps/api/src/services/alertas.service.ts`) cuando se crea una alerta de seguridad de severidad **ALTA**: crea la notificación `alerta_seguridad` con `referenciaTipo: 'alerta'` y `referenciaId` = id de la alerta, tanto para el dueño como para el negocio completo (`notificarNegocioCompleto()` para empleados). Socket.io emite `alerta:nueva`. `sucursalId` se toma de `alerta.sucursalId` cuando la alerta es específica de una sucursal; `null` si es a nivel negocio.
+>
+> **Deep-link:** al hacer click en el frontend navega a `/business-studio/alertas?alertaId=<id>` y abre el modal de detalle de esa alerta.
 
 ---
 
@@ -593,7 +606,7 @@ El frontend aplica transformaciones automáticas para notificaciones existentes 
 | `apps/api/src/services/puntos.service.ts` | 4 | Nueva recompensa, recompensa desbloqueada (compras frecuentes), sistema de niveles desactivado/activado |
 | `apps/api/src/services/cardya.service.ts` | 4 | Voucher generado, voucher pendiente (dueño + todos los gerentes + empleados vía `notificarNegocioCompleto`), stock bajo/agotado (`sucursal_id=null`, evento de negocio) |
 | `apps/api/src/services/resenas.service.ts` | 2 | Nueva reseña (dueño + gerente de la sucursal), respuesta reseña (al cliente) |
-| `apps/api/src/services/alertas.service.ts` | 1 | Alerta de seguridad (dueño + empleados de la sucursal vía `notificarNegocioCompleto`) |
+| `apps/api/src/services/alertas.service.ts` | 1 | Alerta de seguridad — `notificarAlertaAlta()`: severidad ALTA → notif `alerta_seguridad` con `referenciaTipo: 'alerta'` (dueño + empleados vía `notificarNegocioCompleto`) |
 | `apps/api/src/services/marketplace/preguntas.ts` | 2 | Nueva pregunta (al vendedor) + pregunta respondida (al comprador) — `referenciaTipo: 'marketplace'`, `.catch()` silencioso |
 | `apps/api/src/services/servicios/preguntas.ts` | 2 | Nueva pregunta (al oferente/prestador) + pregunta respondida (al usuario) — `referenciaTipo: 'servicio'`, `.catch()` silencioso |
 | `apps/web/src/components/layout/PanelNotificaciones.tsx` | — | Renderizado frontend (IconoNotificacion, ContenidoItem, 5 modos, expansión inline) |

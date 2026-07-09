@@ -1,6 +1,6 @@
 # Alertas — Arquitectura
 
-> **Última actualización:** 22 Abril 2026
+> **Última actualización:** 9 Julio 2026
 > **Estado:** ✅ Completo
 
 ---
@@ -34,6 +34,8 @@ Ver sección [Modelo de estados](#modelo-de-estados).
 | `empleado_destacado` | Alta | Cada venta | 3+ alertas/mes mismo empleado |
 
 > `montos_redondos` desactivado por defecto (muchos falsos positivos).
+>
+> `fuera_horario`: compara contra el horario en la **zona horaria de la sucursal**, genera **una alerta por cada venta** (no 1 por sucursal/día) y **excluye al dueño** (solo gerentes/empleados).
 
 ### Operativa (4) — Cron diario 4:00 AM
 
@@ -121,7 +123,8 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 **Tiempo real (ScanYA hook):**
 - `scanya.service.ts` llama `detectarAlertasSeguridad()` fire-and-forget tras cada transacción
 - Import dinámico para no bloquear respuesta de ScanYA
-- `Promise.allSettled` ejecuta las 5 detecciones en paralelo
+- `Promise.allSettled` ejecuta las 5 detecciones en paralelo. Un fallo en una detección no tumba a las demás, pero **se loguea con `console.error`** (los `rejected` de `allSettled`) para que un error no quede invisible
+- La transacción incluye `registradoPorTipo` (`'dueno' | 'gerente' | 'empleado'`), que `scanya.service.ts` pasa al motor; algunas detecciones lo usan (ej. `fuera_horario` excluye al dueño)
 
 **Cron:**
 - `inicializarCronAlertas()` registrado en `index.ts`
@@ -131,18 +134,22 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 **Anti-duplicado:**
 - `existeAlertaReciente(negocioId, tipo, contextoId?)` — verifica JSONB `datos->>'contextoId'`
 - Ventana: 24 horas
-- `fuera_horario` y `montos_redondos` usan `sucursalId` como contexto (1 por sucursal/día)
+- `montos_redondos` usa `sucursalId` como contexto (1 por sucursal/día)
+- `fuera_horario` usa el **`transaccionId`** como contexto → **una alerta por cada venta** fuera de horario (antes era 1 por sucursal/día). Además retorna temprano si `registradoPorTipo === 'dueno'`: solo alerta de gerentes/empleados
 
 **Nombres completos:**
-- `obtenerNombreUsuario()` y `obtenerNombreEmpleado()` traen `nombre + apellidos`
+- `obtenerNombreUsuario()` trae `nombre + apellidos` de `usuarios`
+- `obtenerNombreEmpleado()` trae `nombre` de la tabla `empleados` (que guarda el nombre completo en esa columna)
 - Se guardan en `datos` JSONB para mostrar en el modal
 
 **Notificaciones push:**
-- Solo para severidad `alta`
+- Solo para severidad `alta` (`notificarAlertaAlta`): `monto_inusual`, `cliente_frecuente`, `empleado_destacado`, `caida_ventas`, `racha_resenas_negativas`
 - `crearNotificacion()` + `notificarNegocioCompleto()` + Socket.io `alerta:nueva`
+- La notificación lleva `referenciaTipo: 'alerta'` + `referenciaId` = id de la alerta → al hacer click abre el modal de detalle en `/business-studio/alertas?alertaId=` (ver Frontend)
+- La severidad **no** es configurable desde la UI (solo activar/desactivar + umbrales); está fija en `SEVERIDAD_DEFAULT`
 
 **Sync real-time (Socket.io):**
-- `marcarAlertaResuelta` llama `broadcastAlertaActualizada(negocioId, alertaId)` tras el UPDATE global
+- Tanto `crearAlerta` (al crear una alerta nueva) como `marcarAlertaResuelta` (tras el UPDATE global) llaman `broadcastAlertaActualizada(negocioId, alertaId)`. Sin el broadcast al **crear**, la alerta nueva no aparecía hasta recargar o cambiar un filtro; ahora la lista y los KPIs se refrescan en vivo también al generarse
 - Esa función busca el `usuario_id` del dueño del negocio y emite `emitirAUsuario(duenoId, 'alerta:actualizada', { alertaId, negocioId })`
 - Los gerentes en modo comercial están unidos al room del dueño (`socketService.ts` línea 163), así que una sola emisión alcanza a dueño + todos los gerentes conectados
 - Frontend: hook `useAlertasRealtimeSync()` montado en `MenuBusinessStudio.tsx` escucha el evento e invalida `queryKeys.alertas.all()` + `['dashboard', 'alertas']`
@@ -159,6 +166,8 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 - **Estado compartido entre usuarios (22 Abril):** `leida`/`resuelta` globales provocaban que la acción de un gerente afectara al dueño. Fix: modelo híbrido (leída/ocultada por usuario + resuelta global) — ver sección [Modelo de estados](#modelo-de-estados-22-abril-2026).
 - **Invalidación de caché solo de sucursal activa (22 Abril):** `useMarcarAlertaResuelta` invalidaba solo `['alertas', 'lista', sucursalId]` pero `resuelta` es global → la otra sucursal no se actualizaba. Fix: invalidar con `queryKeys.alertas.all()` y usar `['alertas', 'lista']` (sin sucursalId) en el optimistic update.
 - **Usuarios en sesiones distintas no se sincronizan (22 Abril):** la caché vive en el navegador del cliente; otra sesión no se enteraba del cambio hasta refresh. Fix: Socket.io broadcast (ver arriba).
+- **Falsos positivos de `fuera_horario` por zona horaria (9 Jul):** la detección comparaba `NOW()` contra el horario en UTC → una venta a las 11:21 local (Sonora) se veía como 18:21 UTC y disparaba la alerta estando dentro de horario. Fix: comparar con `NOW() AT TIME ZONE <zona>` usando la zona horaria de la sucursal (`obtenerZonaHorariaSucursal` + `zonaHorariaSQL`).
+- **Alertas de ventas de empleados morían en silencio (9 Jul):** `obtenerNombreEmpleado` consultaba la tabla inexistente `negocio_empleados` (+ JOIN a `usuarios`) → lanzaba "relation does not exist" solo cuando la venta era de un empleado (con `empleadoId`). Como corre dentro de `Promise.allSettled`, el error se tragaba: `fuera_horario`, `monto_inusual` y `empleado_destacado` nunca se creaban en ventas de empleados (sí con el dueño, que no tiene `empleadoId`). Fix: usar la tabla real `empleados` (columna `nombre`) + loguear los `rejected` de `allSettled`.
 
 ---
 
@@ -186,6 +195,7 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 - **Desktop**: Tabla con header dark gradient, 6 columnas (Alerta, Severidad, Categoría, Fecha, Estado, Eliminar)
 - **Móvil**: Cards con `h-28`, icono 56px, badge severidad + categoría
 - **Paginación**: Scroll infinito móvil (IntersectionObserver) + "Cargar más" desktop
+- **Deep-link**: `PaginaAlertas` lee `?alertaId=` (cuando se llega desde una notificación de alerta) y abre el modal de detalle de esa alerta al cargar, limpiando luego el parámetro de la URL
 
 ### Modal Detalle
 
@@ -194,7 +204,7 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 - Descripción en box con icono
 - Datos del evento en chips (inline o KPI-style según tipo)
 - Listas de clientes/reseñas cuando aplica
-- Botón "Ver transacciones/clientes/promociones" → navega al módulo
+- Botón contextual → navega al módulo relacionado. Para alertas de UNA transacción (monto inusual, fuera de horario…) el botón dice **"Ver transacción"** (singular) y enlaza a `/business-studio/transacciones?transaccionId=` → abre el modal de esa venta; el resto conserva el enlace genérico plural ("Ver clientes", "Ver promociones", etc.)
 - Acciones sugeridas en box ámbar
 - Botón "Marcar como resuelta" (slate oscuro) + "Eliminar" (rojo, ahora oculta del feed del usuario sin borrar)
 - Marca leída automáticamente al abrir (sin botón)
@@ -250,7 +260,7 @@ DELETE /:id                  → Ocultar alerta del feed del usuario (la alerta 
 - Motor real: 16/16 tipos generados con datos reales en BD
 - ScanYA: `monto_inusual`, `fuera_horario`, `montos_redondos` verificados
 - Notificaciones push: alertas alta generan notificación
-- Anti-duplicado: `fuera_horario` 1 por sucursal/día verificado
+- Anti-duplicado: `montos_redondos` 1 por sucursal/día verificado; `fuera_horario` una alerta por venta verificado (9 Jul)
 - Configuración: activar/desactivar `montos_redondos` verificado
 - Eliminar individual y masivo verificado
 
