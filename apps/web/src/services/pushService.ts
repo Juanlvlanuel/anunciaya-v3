@@ -69,15 +69,18 @@ async function obtenerRegistration(): Promise<ServiceWorkerRegistration | null> 
 export async function estaSuscrito(): Promise<boolean> {
     if (!pushSoportado()) return false;
     try {
-        // getRegistration() (NO serviceWorker.ready): devuelve el registration
-        // sin esperar a que el SW esté "activo/controlando". Al abrir la app
-        // desde una notificación, `ready` puede tardar más que el timeout y hacía
-        // creer que NO había suscripción → el banner reaparecía pese a estar
-        // suscrito. getSubscription() funciona en cualquier estado del SW.
-        const reg = await navigator.serviceWorker.getRegistration();
-        if (!reg) return false;
-        const sub = await reg.pushManager.getSubscription();
-        return sub !== null;
+        // getRegistrations() (TODOS los SW del origen), NO getRegistration() ni
+        // `ready`: en ScanYA el SW tiene scope `/scanya/` y `getRegistration()`
+        // sin argumento (o `ready`) no siempre lo devuelve desde la URL actual
+        // → estaSuscrito daba false y el banner reaparecía pese a haber
+        // suscripción (por eso las notificaciones SÍ llegaban). Iteramos todos
+        // los registrations y buscamos cualquiera con suscripción.
+        const regs = await navigator.serviceWorker.getRegistrations();
+        for (const reg of regs) {
+            const sub = await reg.pushManager.getSubscription();
+            if (sub) return true;
+        }
+        return false;
     } catch {
         return false;
     }
