@@ -30,13 +30,32 @@ silenciarRuidoMapLibre('error');
 // para evitar un parpadeo claro→oscuro.
 aplicarTemaInicial();
 
-// PWA: registrar el service worker para que el Panel sea instalable (standalone).
+// PWA: registrar el service worker para que el Panel sea instalable (standalone)
+// y se auto-actualice en cada deploy sin reinstalar (mismo mecanismo que apps/web).
 if ('serviceWorker' in navigator && location.protocol === 'https:') {
+  // Cuando un SW NUEVO toma el control (tras publicar cambios), recargar UNA sola
+  // vez. Solo si ya había un SW controlando (no en la primera instalación).
+  if (navigator.serviceWorker.controller) {
+    let recargando = false;
+    navigator.serviceWorker.addEventListener('controllerchange', () => {
+      if (recargando) return;
+      recargando = true;
+      window.location.reload();
+    });
+  }
+
   window.addEventListener('load', () => {
     navigator.serviceWorker
       .register('/sw-panel.js', { scope: '/' })
       .then((registration) => {
         console.log('[PWA Panel] Service Worker registrado:', registration.scope);
+        // Buscar versión nueva del SW: cada 30 min y al volver al primer plano,
+        // para que la última versión se aplique pronto.
+        const buscarActualizacion = () => registration.update().catch(() => {});
+        setInterval(buscarActualizacion, 30 * 60 * 1000);
+        document.addEventListener('visibilitychange', () => {
+          if (document.visibilityState === 'visible') buscarActualizacion();
+        });
       })
       .catch((error) => {
         console.error('[PWA Panel] Error registrando Service Worker:', error);
