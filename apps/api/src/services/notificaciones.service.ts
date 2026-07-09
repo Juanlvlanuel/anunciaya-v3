@@ -281,7 +281,7 @@ async function usuarioDuenoDeNegocio(negocioId: string): Promise<string | null> 
 }
 
 /** Aviso al dueño: su comprobante de pago manual fue RECHAZADO. */
-export async function notificarPagoRechazado(negocioId: string, motivo: string | null): Promise<void> {
+export async function notificarPagoRechazado(negocioId: string, motivo: string | null, solicitudId?: string): Promise<void> {
     try {
         const usuarioId = await usuarioDuenoDeNegocio(negocioId);
         if (!usuarioId) return;
@@ -293,7 +293,8 @@ export async function notificarPagoRechazado(negocioId: string, motivo: string |
             titulo: 'Comprobante rechazado',
             mensaje: m ? `Motivo: ${m}. Revisa y vuelve a enviar tu comprobante.` : 'Revisa el motivo y vuelve a enviar tu comprobante.',
             negocioId,
-            referenciaId: negocioId,
+            // referenciaId = id del movimiento en el historial del dueño (para resaltarlo al abrir Pagos).
+            referenciaId: solicitudId ?? negocioId,
         });
     } catch (error) {
         console.error('Error en notificarPagoRechazado:', error);
@@ -301,7 +302,7 @@ export async function notificarPagoRechazado(negocioId: string, motivo: string |
 }
 
 /** Aviso al dueño: su pago manual fue APROBADO y la membresía quedó activa. */
-export async function notificarPagoAprobado(negocioId: string, vigenciaHastaISO: string): Promise<void> {
+export async function notificarPagoAprobado(negocioId: string, vigenciaHastaISO: string, reciboId?: string): Promise<void> {
     try {
         const usuarioId = await usuarioDuenoDeNegocio(negocioId);
         if (!usuarioId) return;
@@ -312,7 +313,8 @@ export async function notificarPagoAprobado(negocioId: string, vigenciaHastaISO:
             titulo: 'Pago aprobado',
             mensaje: `Tu membresía quedó activa hasta el ${fechaLegibleMX(vigenciaHastaISO)}.`,
             negocioId,
-            referenciaId: negocioId,
+            // referenciaId = recibo generado (para resaltarlo al abrir Pagos).
+            referenciaId: reciboId ?? negocioId,
         });
     } catch (error) {
         console.error('Error en notificarPagoAprobado:', error);
@@ -324,6 +326,7 @@ export async function notificarPagoAnulado(
     negocioId: string,
     monto: string | number | null,
     motivo: string,
+    pagoId?: string,
 ): Promise<void> {
     try {
         const usuarioId = await usuarioDuenoDeNegocio(negocioId);
@@ -338,7 +341,8 @@ export async function notificarPagoAnulado(
             titulo: 'Pago anulado',
             mensaje: `Se anuló un pago${montoTxt}.${m ? ` Motivo: ${m}` : ''}`,
             negocioId,
-            referenciaId: negocioId,
+            // referenciaId = pago anulado (para resaltarlo al abrir Pagos).
+            referenciaId: pagoId ?? negocioId,
         });
     } catch (error) {
         console.error('Error en notificarPagoAnulado:', error);

@@ -14,7 +14,7 @@
  * Ubicación: apps/web/src/pages/private/perfil/PaginaPerfilPersonal.tsx
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
@@ -127,6 +127,22 @@ export default function PaginaPerfilPersonal() {
     // Acordeón del historial: id del movimiento (rechazo o pago anulado) cuyo motivo está desplegado;
     // uno a la vez, mantiene la lista limpia.
     const [detalleHistorialId, setDetalleHistorialId] = useState<string | null>(null);
+
+    // Resaltado del historial: al llegar desde una notificación de pago (?movId=), se resalta ese
+    // movimiento unos segundos y se hace scroll hacia él. Se limpia solo (no ensucia la vista).
+    const [movResaltado, setMovResaltado] = useState<string | null>(null);
+    useEffect(() => {
+        const movId = searchParams.get('movId');
+        if (!movId || isPending) return;
+        setMovResaltado(movId);
+        const tScroll = setTimeout(() => {
+            document
+                .querySelector(`[data-testid="recibo-${movId}"], [data-testid="rechazo-${movId}"]`)
+                ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 150);
+        const tLimpiar = setTimeout(() => setMovResaltado(null), 3500);
+        return () => { clearTimeout(tScroll); clearTimeout(tLimpiar); };
+    }, [searchParams, isPending]);
     const [abriendoPortal, setAbriendoPortal] = useState(false);
     const [confirmarManual, setConfirmarManual] = useState(false);
     const [confirmarTarjeta, setConfirmarTarjeta] = useState(false);
@@ -600,7 +616,7 @@ export default function PaginaPerfilPersonal() {
                                                                 <li
                                                                     key={`r-${it.recibo.id}`}
                                                                     data-testid={`recibo-${it.recibo.id}`}
-                                                                    className="px-4 py-3"
+                                                                    className={`px-4 py-3 transition-colors ${movResaltado === it.recibo.id ? 'bg-amber-50 ring-2 ring-inset ring-amber-300' : ''}`}
                                                                 >
                                                                     <div className="flex items-center gap-3">
                                                                         <div className="min-w-0 flex-1">
@@ -668,7 +684,7 @@ export default function PaginaPerfilPersonal() {
                                                                 <li
                                                                     key={`x-${it.rechazo.id}`}
                                                                     data-testid={`rechazo-${it.rechazo.id}`}
-                                                                    className="px-4 py-3"
+                                                                    className={`px-4 py-3 transition-colors ${movResaltado === it.rechazo.id ? 'bg-amber-50 ring-2 ring-inset ring-amber-300' : ''}`}
                                                                 >
                                                                     <div className="flex items-start gap-3">
                                                                         <div className="min-w-0 flex-1">

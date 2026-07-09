@@ -247,8 +247,12 @@ function limpiarMensajeComercial(mensaje: string, actorNombre: string): string {
 
 function obtenerRutaDestino(n: Notificacion): string | null {
   const { modo, referenciaTipo, referenciaId, tipo } = n;
-  // Estatus de pago / membresía → Mi Perfil · Membresía y Pagos (no dependen de referenciaTipo).
-  if (tipo === 'pago_rechazado' || tipo === 'pago_aprobado' || tipo === 'pago_anulado' || tipo === 'membresia_en_gracia') {
+  // Estatus de pago → Mi Perfil · Membresía y Pagos, resaltando el movimiento (referenciaId).
+  if (tipo === 'pago_rechazado' || tipo === 'pago_aprobado' || tipo === 'pago_anulado') {
+    return referenciaId ? `/perfil?tab=pagos&movId=${referenciaId}` : '/perfil?tab=pagos';
+  }
+  // Gracia: no apunta a un movimiento específico del historial.
+  if (tipo === 'membresia_en_gracia') {
     return '/perfil?tab=pagos';
   }
   if (!referenciaTipo) return null;

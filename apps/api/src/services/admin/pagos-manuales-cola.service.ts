@@ -223,7 +223,7 @@ export async function aprobarSolicitud(
     });
 
     // Aviso in-app al dueño (personal, best-effort): su pago fue aprobado y la membresía quedó activa.
-    await notificarPagoAprobado(sol.negocioId, hasta);
+    await notificarPagoAprobado(sol.negocioId, hasta, reciboReciente?.id);
 
     return { ok: true };
 }
@@ -261,7 +261,7 @@ export async function rechazarSolicitud(
     });
 
     // Aviso in-app al dueño (personal, best-effort): su comprobante fue rechazado.
-    await notificarPagoRechazado(sol.negocioId, motivo);
+    await notificarPagoRechazado(sol.negocioId, motivo, solicitudId);
 
     return { ok: true };
 }

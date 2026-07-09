@@ -1126,7 +1126,7 @@ export async function anularPagoMembresia(
     });
 
     // Aviso in-app al dueño (personal, best-effort): un pago suyo fue anulado.
-    await notificarPagoAnulado(negocioId, pago.monto, motivo);
+    await notificarPagoAnulado(negocioId, pago.monto, motivo, pagoId);
 
     // Aviso al dueño (best-effort): correo de cancelación del recibo.
     try {
