@@ -13,13 +13,12 @@
  */
 
 import { useState } from 'react';
-import { History, Layers, Check, X, Mail, ChevronRight } from 'lucide-react';
+import { History, Check, X, Mail, ChevronRight } from 'lucide-react';
 import { useSolicitudesProcesadas } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { SolicitudProcesada } from '../../services/suscripcionesService';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { AvatarNegocio } from '../negocios/avatares';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
-import { TabsSegmento } from '../ui/TabsSegmento';
 import { FichaSolicitud } from './FichaSolicitud';
 
 const POR_PAGINA = 20;
@@ -30,6 +29,13 @@ const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'sho
 const COLS = 'minmax(200px,2.4fr) 1fr 1.1fr 1.2fr 28px';
 
 type FiltroId = 'todos' | 'aprobado' | 'rechazado';
+
+// Chips de filtro con punto de color + conteo (mismo patrón que Negocios/Usuarios).
+const FILTROS: { id: FiltroId; label: string; color: string }[] = [
+  { id: 'todos', label: 'Todos', color: 'var(--panel-brand)' },
+  { id: 'aprobado', label: 'Aprobados', color: 'var(--panel-ok)' },
+  { id: 'rechazado', label: 'Rechazados', color: 'var(--panel-danger)' },
+];
 
 export function fechaCorta(iso: string | null): string {
   if (!iso) return '—';
@@ -78,18 +84,46 @@ export function PestanaHistorial() {
     setPagina(1);
   };
 
+  const conteoDe = (id: FiltroId) =>
+    id === 'todos' ? conteos.todos : id === 'aprobado' ? conteos.aprobados : conteos.rechazados;
+
   const chips = (
-    <TabsSegmento
-      tabs={[
-        { id: 'todos', label: 'Todos', icono: <Layers size={14} />, badge: conteos.todos },
-        { id: 'aprobado', label: 'Aprobados', icono: <Check size={14} />, badge: conteos.aprobados },
-        { id: 'rechazado', label: 'Rechazados', icono: <X size={14} />, badge: conteos.rechazados },
-      ]}
-      valor={filtroId}
-      onCambiar={cambiarFiltro}
-      testidPrefijo="historial-filtro"
-      className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
-    />
+    <div className="flex flex-wrap items-center gap-2">
+      {FILTROS.map((f) => {
+        const activo = filtroId === f.id;
+        return (
+          <button
+            key={f.id}
+            type="button"
+            data-testid={`historial-filtro-${f.id}`}
+            onClick={() => cambiarFiltro(f.id)}
+            className="inline-flex items-center gap-1.5 whitespace-nowrap rounded-full border border-borde bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave"
+            style={
+              activo
+                ? {
+                    background: `color-mix(in srgb, ${f.color} 12%, transparent)`,
+                    borderColor: `color-mix(in srgb, ${f.color} 34%, transparent)`,
+                    color: f.color,
+                  }
+                : undefined
+            }
+          >
+            <span className="h-[7px] w-[7px] shrink-0 rounded-full" style={{ background: f.color }} />
+            {f.label}
+            <span
+              className="txt-badge min-w-[18px] rounded-full px-1.5 text-center text-[11px] font-semibold"
+              style={
+                activo
+                  ? { background: `color-mix(in srgb, ${f.color} 22%, transparent)`, color: f.color }
+                  : { background: 'color-mix(in srgb, var(--panel-text) 8%, transparent)', color: 'var(--panel-text-3)' }
+              }
+            >
+              {conteoDe(f.id)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 
   const ficha = seleccionada ? <FichaSolicitud s={seleccionada} onCerrar={() => setSeleccionada(null)} /> : null;

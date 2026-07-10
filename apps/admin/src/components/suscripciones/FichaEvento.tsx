@@ -23,6 +23,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { useAuthPanelStore } from '../../stores/useAuthPanelStore';
 import { useNavegacionPanel } from '../../stores/useNavegacionPanel';
 import { metaTipoEvento, BadgeTipoEvento } from './estadoEvento';
+import { AvatarNegocio } from '../negocios/avatares';
 
 interface FichaEventoProps {
   /** Fila que se abrió: placeholder para mostrar la ficha al instante. */
@@ -241,21 +242,24 @@ export function FichaEvento({ previo, onCerrar }: FichaEventoProps) {
         <div className="overflow-hidden rounded-[12px] border border-borde bg-superficie-2">
           <div className="border-b border-borde px-4 py-3.5">
             <div className="mb-2 flex items-center justify-between gap-2">
-              {e.negocioId ? (
-                <Tooltip text="Ver en Negocios" position="bottom" className="min-w-0">
-                  <button
-                    type="button"
-                    data-testid="evento-ir-negocio"
-                    onClick={irANegocio}
-                    className="group/neg flex min-w-0 items-center gap-1 text-[13px] font-medium text-marca transition hover:underline"
-                  >
-                    <span className="min-w-0 truncate">{e.negocioNombre ?? '—'}</span>
-                    <ChevronRight size={13} className="shrink-0 opacity-70 transition group-hover/neg:translate-x-0.5 group-hover/neg:opacity-100" />
-                  </button>
-                </Tooltip>
-              ) : (
-                <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
-              )}
+              <div className="flex min-w-0 items-center gap-2.5">
+                <AvatarNegocio nombre={e.negocioNombre ?? '—'} logoUrl={previo.logoUrl} tam={30} />
+                {e.negocioId ? (
+                  <Tooltip text="Ver en Negocios" position="bottom" className="min-w-0">
+                    <button
+                      type="button"
+                      data-testid="evento-ir-negocio"
+                      onClick={irANegocio}
+                      className="group/neg flex min-w-0 items-center gap-1 text-[13px] font-medium text-marca transition hover:underline"
+                    >
+                      <span className="min-w-0 truncate">{e.negocioNombre ?? '—'}</span>
+                      <ChevronRight size={13} className="shrink-0 opacity-70 transition group-hover/neg:translate-x-0.5 group-hover/neg:opacity-100" />
+                    </button>
+                  </Tooltip>
+                ) : (
+                  <span className="min-w-0 truncate text-[13px] text-texto-3">{e.negocioNombre ?? '—'}</span>
+                )}
+              </div>
               <span className="flex shrink-0 items-center gap-1.5">
                 {anulado && (
                   <span className="inline-flex items-center gap-1 rounded-full bg-peligro-suave px-2 py-0.5 text-[11px] font-semibold text-peligro">
