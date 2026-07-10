@@ -50,6 +50,7 @@ import scanyaService, { type PeriodoHistorial } from '@/services/scanyaService';
 import type { TransaccionScanYA } from '@/types/scanya';
 import { TarjetaTransaccion } from './TarjetaTransaccion';
 import { useIniciarChatDirectoPersona } from '@/hooks/useIniciarChatDirectoPersona';
+import { obtenerSucursalesNegocio } from '@/services/negociosService';
 
 // =============================================================================
 // TIPOS
@@ -263,6 +264,18 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   const tipoUsuario = usuario?.tipo || 'empleado';
   const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
+  // Nº de sucursales del negocio (misma lógica que el header): con 1 sola sucursal NO se muestra
+  // "Matriz" en el subtítulo; con 2+ sí (Matriz o el nombre de la sucursal activa).
+  const [totalSucursales, setTotalSucursales] = useState<number>(0);
+  useEffect(() => {
+    if (!abierto || !usuario?.negocioId) return;
+    obtenerSucursalesNegocio(usuario.negocioId)
+      .then((r) => {
+        if (r.success && r.data) setTotalSucursales(r.data.length);
+      })
+      .catch(() => { /* silencioso: si falla, se comporta como 1 sucursal (no muestra Matriz) */ });
+  }, [abierto, usuario?.negocioId]);
+
   // ---------------------------------------------------------------------------
   // Estado - Filtros
   // ---------------------------------------------------------------------------
@@ -317,9 +330,13 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     }
   };
 
-  const getSubtitulo = (): string => {
-    // Coherencia A: el subtítulo refleja la sucursal activa del token
+  const getSubtitulo = (): string | null => {
+    // Coherencia A: el subtítulo refleja la sucursal activa del token. Misma regla que el header:
+    // el dueño con UNA sola sucursal no ve etiqueta de sucursal (no aplica "Matriz").
     if (tipoUsuario === 'empleado') return 'Mis ventas registradas';
+    if (tipoUsuario === 'gerente') return usuario?.nombreSucursal || 'Tu sucursal';
+    // Dueño: solo con 2+ sucursales tiene sentido distinguir (Matriz / nombre de la sucursal).
+    if (totalSucursales <= 1) return null;
     return usuario?.esSucursalPrincipal ? 'Matriz' : (usuario?.nombreSucursal || 'Tu sucursal');
   };
 
@@ -980,7 +997,9 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
 
           <div className="flex-1">
             <h1 className="text-white font-bold text-lg lg:text-base 2xl:text-lg">{getTitulo()}</h1>
-            <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">{getSubtitulo()}</p>
+            {getSubtitulo() && (
+              <p className="text-[#94A3B8] text-sm lg:text-xs 2xl:text-sm">{getSubtitulo()}</p>
+            )}
           </div>
 
           {/* Botón Refresh */}

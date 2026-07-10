@@ -2645,26 +2645,18 @@ export async function obtenerHistorial(
         // Paso 1: Calcular fecha de inicio según periodo
         // -------------------------------------------------------------------------
         const ahora = new Date();
-        let fechaInicio: Date;
 
-        switch (periodo) {
-            case 'hoy':
-                fechaInicio = new Date(ahora.getFullYear(), ahora.getMonth(), ahora.getDate());
-                break;
-            case 'semana':
-                fechaInicio = new Date(ahora.getTime() - 7 * 24 * 60 * 60 * 1000);
-                break;
-            case 'mes':
-                fechaInicio = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
-                break;
-            case '3meses':
-                fechaInicio = new Date(ahora.getTime() - 90 * 24 * 60 * 60 * 1000);
-                break;
-            case 'ano':
-                fechaInicio = new Date(ahora.getTime() - 365 * 24 * 60 * 60 * 1000);
-                break;
-            default:
-                fechaInicio = new Date(ahora.getTime() - 30 * 24 * 60 * 60 * 1000);
+        // Condición de fecha. "Hoy" = día CALENDARIO de la zona de operación (Hermosillo, UTC-7 sin
+        // DST): se compara con SQL AT TIME ZONE para que sea robusto ante la zona del servidor (en
+        // prod corre en UTC; con el cálculo JS anterior "hoy" caía fuera de rango y salía vacío).
+        // Los demás periodos son una ventana de N días hacia atrás desde ahora.
+        let condicionFecha;
+        if (periodo === 'hoy') {
+            condicionFecha = sql`(${puntosTransacciones.createdAt} AT TIME ZONE 'America/Hermosillo')::date = (NOW() AT TIME ZONE 'America/Hermosillo')::date`;
+        } else {
+            const dias = periodo === 'semana' ? 7 : periodo === '3meses' ? 90 : periodo === 'ano' ? 365 : 30;
+            const fechaInicio = new Date(ahora.getTime() - dias * 24 * 60 * 60 * 1000);
+            condicionFecha = gte(puntosTransacciones.createdAt, fechaInicio.toISOString());
         }
 
         // -------------------------------------------------------------------------
@@ -2672,7 +2664,7 @@ export async function obtenerHistorial(
         // -------------------------------------------------------------------------
         const condicionesBase = [
             eq(puntosTransacciones.negocioId, payload.negocioId),
-            gte(puntosTransacciones.createdAt, fechaInicio.toISOString()),
+            condicionFecha,
         ];
 
         // Filtrar según tipo de usuario.
