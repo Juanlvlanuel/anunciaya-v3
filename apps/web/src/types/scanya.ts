@@ -402,6 +402,8 @@ export interface VoucherCompleto {
   expiraAt: string;
   usadoAt: string | null;
   usadoPorEmpleadoNombre: string | null;
+  /** Puesto de quien entregó el voucher (empleado / gerente / dueño). */
+  usadoPorTipo?: 'empleado' | 'gerente' | 'dueno' | null;
   sucursalNombre: string;
   sucursalEsPrincipal?: boolean;
 }

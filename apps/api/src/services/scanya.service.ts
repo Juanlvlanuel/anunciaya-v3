@@ -3449,6 +3449,7 @@ export async function obtenerVouchers(
         expiraAt: string;
         usadoAt: string | null;
         usadoPorEmpleadoNombre: string | null;
+        usadoPorTipo: 'empleado' | 'gerente' | 'dueno' | null;
         sucursalNombre: string;
         sucursalEsPrincipal: boolean;
     }>;
@@ -3557,6 +3558,9 @@ export async function obtenerVouchers(
         const vouchersConEmpleado = await Promise.all(
             vouchers.map(async (v) => {
                 let usadoPorEmpleadoNombre = null;
+                // Puesto de quien entregó el voucher: empleado, o gerente/dueño (se distingue por
+                // `sucursal_asignada`: el dueño NO la tiene, el gerente sí — misma regla del login).
+                let usadoPorTipo: 'empleado' | 'gerente' | 'dueno' | null = null;
 
                 if (v.usadoPorEmpleadoId) {
                     // Canjeado por empleado - buscar en tabla empleados
@@ -3567,15 +3571,17 @@ export async function obtenerVouchers(
                         .limit(1);
 
                     usadoPorEmpleadoNombre = empleado?.nick || null;
+                    usadoPorTipo = 'empleado';
                 } else if (v.usadoPorUsuarioId) {
                     // Canjeado por gerente/dueño - buscar en tabla usuarios
                     const [usuario] = await db
-                        .select({ nombre: usuarios.nombre })
+                        .select({ nombre: usuarios.nombre, sucursalAsignada: usuarios.sucursalAsignada })
                         .from(usuarios)
                         .where(eq(usuarios.id, v.usadoPorUsuarioId))
                         .limit(1);
 
                     usadoPorEmpleadoNombre = usuario?.nombre || null;
+                    usadoPorTipo = usuario ? (usuario.sucursalAsignada ? 'gerente' : 'dueno') : null;
                 }
 
                 return {
@@ -3592,6 +3598,7 @@ export async function obtenerVouchers(
                     expiraAt: v.expiraAt,
                     usadoAt: v.usadoAt,
                     usadoPorEmpleadoNombre,
+                    usadoPorTipo,
                     sucursalNombre: v.sucursalNombre || 'Sin asignar',
                     sucursalEsPrincipal: v.sucursalEsPrincipal ?? false,
                 };

@@ -45,6 +45,7 @@ import {
 import scanyaService from '@/services/scanyaService';
 import { useScanYAStore } from '@/stores/useScanYAStore';
 import { useIniciarChatDirectoPersona } from '@/hooks/useIniciarChatDirectoPersona';
+import { obtenerSucursalesNegocio } from '@/services/negociosService';
 import { TarjetaVoucher } from './TarjetaVoucher';
 import type { VoucherCompleto, ClienteConVouchers } from '@/types/scanya';
 import { Coins } from 'lucide-react';
@@ -58,6 +59,13 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
+
+/** Etiqueta del puesto de quien entregó un voucher. */
+const PUESTO_LABEL: Record<'empleado' | 'gerente' | 'dueno', string> = {
+  empleado: 'Empleado',
+  gerente: 'Gerente',
+  dueno: 'Dueño',
+};
 
 // =============================================================================
 // TIPOS
@@ -321,6 +329,17 @@ export function ModalVouchers({
     const tipoUsuario = usuario?.tipo || 'empleado';
     const iniciarChatDirectoPersona = useIniciarChatDirectoPersona();
 
+    // Nº de sucursales del negocio (misma regla que el header): con 1 sola NO se muestra "Matriz".
+    const [totalSucursales, setTotalSucursales] = useState<number>(0);
+    useEffect(() => {
+        if (!usuario?.negocioId) return;
+        obtenerSucursalesNegocio(usuario.negocioId)
+            .then((r) => {
+                if (r.success && r.data) setTotalSucursales(r.data.length);
+            })
+            .catch(() => { /* silencioso: si falla, se comporta como 1 sucursal (no muestra Matriz) */ });
+    }, [usuario?.negocioId]);
+
     // Buscador
     const [buscadorAbierto, setBuscadorAbierto] = useState(false);
     const [lada, setLada] = useState('+52');
@@ -352,6 +371,9 @@ export function ModalVouchers({
 
     // Refs para detectar cambios
     const prevFiltroOperador = useRef(filtroOperadorId);
+    // Caché por filtro (página 1) para pintar al instante al volver a un tab ya visto y evitar el
+    // "salto" del contador. Se invalida al cambiar de operador/sucursal o cuando hay cambios externos.
+    const cacheTabsRef = useRef<Partial<Record<EstadoVoucher, { vouchers: VoucherCompleto[]; total: number; totalPaginas: number }>>>({});
 
     // ---------------------------------------------------------------------------
     // Permisos de filtros según rol
@@ -412,6 +434,7 @@ export function ModalVouchers({
         if (abierto && yaCargo && !clienteBuscado) {
             if (filtroOperadorId !== prevFiltroOperador.current) {
                 setPaginaActual(1);
+                cacheTabsRef.current = {}; // el filtro de operador cambia los resultados
                 // No limpiamos `vouchers` aquí — keepPreviousData mantiene la
                 // lista vieja visible mientras llegan los nuevos datos. El
                 // reemplazo es en un solo render, sin parpadeo.
@@ -425,6 +448,7 @@ export function ModalVouchers({
     useEffect(() => {
         if (cambiosVouchers && cambiosVouchers > 0 && yaCargo) {
             setPaginaActual(1);
+            cacheTabsRef.current = {}; // hubo cambios (venta/canje): invalidar el caché
             cargarVouchers(tabActiva, 1);
         }
     }, [cambiosVouchers]);
@@ -457,6 +481,7 @@ export function ModalVouchers({
         if (abierto && yaCargo && !clienteBuscado) {
             setFiltroOperadorId(undefined);
             setPaginaActual(1);
+            cacheTabsRef.current = {}; // cambió la sucursal: el caché anterior ya no aplica
             cargarVouchers(tabActiva, 1);
             cargarListas();
         }
@@ -493,6 +518,14 @@ export function ModalVouchers({
                 setTotal(respuesta.data.total);
                 setPaginaActual(respuesta.data.pagina);
                 setTotalPaginas(respuesta.data.totalPaginas);
+                // Caché por filtro (solo página 1) para pintar al instante al volver a este tab.
+                if (respuesta.data.pagina === 1) {
+                    cacheTabsRef.current[estado] = {
+                        vouchers: respuesta.data.vouchers,
+                        total: respuesta.data.total,
+                        totalPaginas: respuesta.data.totalPaginas,
+                    };
+                }
             } else {
                 setError(respuesta.message || 'Error al cargar vouchers');
             }
@@ -543,6 +576,14 @@ export function ModalVouchers({
         setTabActiva(estado);
         setPaginaActual(1);
         setClienteBuscado(null);
+        // Si el filtro ya está cacheado, lo pintamos al instante (lista + contador, sin "salto")
+        // y revalidamos en segundo plano.
+        const cache = cacheTabsRef.current[estado];
+        if (cache) {
+            setVouchers(cache.vouchers);
+            setTotal(cache.total);
+            setTotalPaginas(cache.totalPaginas);
+        }
         cargarVouchers(estado, 1);
     };
 
@@ -828,7 +869,7 @@ export function ModalVouchers({
                         </div>
 
                         {/* ── METADATA ── */}
-                        {(v.usadoPorEmpleadoNombre || v.sucursalNombre) && (
+                        {((v.estado === 'usado' && v.usadoPorEmpleadoNombre) || totalSucursales > 1) && (
                             <div className="mt-4 lg:mt-3 2xl:mt-4 pt-3 lg:pt-2 2xl:pt-3" style={{ borderTop: '1px solid rgba(255,255,255,0.08)' }}>
                                 {/* Atendido por */}
                                 {v.estado === 'usado' && v.usadoPorEmpleadoNombre && (
@@ -837,17 +878,24 @@ export function ModalVouchers({
                                         <div className="flex items-center gap-2 mt-0.5">
                                             <User className="w-4 h-4" style={{ color: '#94A3B8' }} />
                                             <span className="text-sm lg:text-[11px] 2xl:text-sm font-bold" style={{ color: '#F1F5F9' }}>{v.usadoPorEmpleadoNombre}</span>
+                                            {v.usadoPorTipo && (
+                                                <span className="text-xs lg:text-[10px] 2xl:text-xs font-semibold px-1.5 py-0.5 rounded-full" style={{ background: 'rgba(59,130,246,0.15)', color: '#93C5FD' }}>
+                                                    {PUESTO_LABEL[v.usadoPorTipo]}
+                                                </span>
+                                            )}
                                         </div>
                                     </div>
                                 )}
 
-                                {/* Sucursal */}
-                                <div className="flex items-center gap-2">
-                                    <MapPin className="w-4 h-4" style={{ color: '#64748B' }} />
-                                    <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>
-                                        {v.sucursalEsPrincipal ? 'Matriz' : v.sucursalNombre}
-                                    </span>
-                                </div>
+                                {/* Sucursal — solo con 2+ sucursales (misma regla que el header) */}
+                                {totalSucursales > 1 && (
+                                    <div className="flex items-center gap-2">
+                                        <MapPin className="w-4 h-4" style={{ color: '#64748B' }} />
+                                        <span className="text-sm lg:text-[11px] 2xl:text-sm font-medium" style={{ color: '#94A3B8' }}>
+                                            {v.sucursalEsPrincipal ? 'Matriz' : v.sucursalNombre}
+                                        </span>
+                                    </div>
+                                )}
                             </div>
                         )}
 
