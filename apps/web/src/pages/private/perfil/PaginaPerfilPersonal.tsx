@@ -26,6 +26,7 @@ import { useUiStore } from '@/stores/useUiStore';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useMiMembresia } from '../../../hooks/queries/useMiMembresia';
 import { cambiarAPagoManual, cambiarATarjeta, crearSesionPortal, obtenerUrlReciboMembresia } from '../../../services/membresiaService';
 import type { EstadoMembresia, ReciboMembresia, SolicitudRechazada } from '../../../services/membresiaService';
@@ -113,6 +114,7 @@ function Dato({ label, valor, acento }: { label: string; valor: string; acento?:
 
 export default function PaginaPerfilPersonal() {
     const handleVolver = useVolverAtras('/inicio');
+    const cuerpoRef = useScrollAppShell();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
@@ -244,9 +246,10 @@ export default function PaginaPerfilPersonal() {
     }
 
     return (
-        <div className="min-h-full bg-transparent">
-            {/* ── Header sticky — patrón CardYA / Mis Guardados / Mis Publicaciones ── */}
-            <div className="sticky top-0 z-20">
+        <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
+            {/* ── Header — en móvil bloque fijo (shrink-0) FUERA del scroll (app-shell propio, como
+                 BS); en desktop sticky arriba de la columna central. ── */}
+            <div className="shrink-0 z-20 lg:sticky lg:top-0">
                 <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
@@ -265,6 +268,16 @@ export default function PaginaPerfilPersonal() {
                                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                              repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                             }}
+                        />
+                        {/* Línea de acento superior (blue) */}
+                        <div
+                            className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
+                        />
+                        {/* Línea de acento inferior (blue) */}
+                        <div
+                            className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
                         />
 
                         <div className="relative z-10">
@@ -407,8 +420,9 @@ export default function PaginaPerfilPersonal() {
                 </div>
             </div>
 
-            {/* ── Contenido ── */}
-            <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-5xl lg:mx-auto">
+            {/* ── Contenido — en móvil contenedor con scroll propio (flex-1 + overflow); en desktop
+                 bloque normal (scroll en la columna central del layout). ── */}
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-24 lg:flex-none lg:overflow-visible lg:p-6 2xl:p-8 lg:max-w-5xl lg:mx-auto">
                 {tabActivoEfectivo === 'membresia' && (
                 <section data-testid="seccion-membresia">
                     {/* Loading */}

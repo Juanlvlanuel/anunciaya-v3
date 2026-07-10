@@ -14,12 +14,9 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
   Search,
   ChevronDown,
-  ChevronLeft,
-  ChevronRight,
   Store,
   ShoppingCart,
   Tag,
@@ -32,20 +29,17 @@ import { ICONOS } from '../../config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
-const Eye = (p: IconoWrapperProps) => <Icon icon={ICONOS.vistas} {...p} />;
 const Wrench = (p: IconoWrapperProps) => <Icon icon={ICONOS.servicios} hFlip {...p} />;
 
 // Stores
 import { useAuthStore } from '../../stores/useAuthStore';
 import { useSearchStore, detectarSeccion, placeholderSeccion } from '../../stores/useSearchStore';
-import Tooltip from '../ui/Tooltip';
 import { useUiStore } from '../../stores/useUiStore';
 import { useGpsStore } from '../../stores/useGpsStore';
 import { useNotificacionesStore } from '../../stores/useNotificacionesStore';
 import { useChatYAStore } from '../../stores/useChatYAStore';
 import { useNegocioPrefetch } from '../../hooks/queries/useNegocios';
 import { useEsCiudadUnica } from '../../hooks/queries/useCiudades';
-import SelectorSucursalesInline from './SelectorSucursalesInline';
 import { DrawerDesktop } from './DrawerDesktop';
 
 // =============================================================================
@@ -127,33 +121,6 @@ const NAV_ITEMS_BASE = [
   { id: 'servicios', label: 'Servicios', path: '/servicios', icon: Wrench },
 ];
 
-// =============================================================================
-// MÓDULOS DEL BUSINESS STUDIO (en orden)
-// =============================================================================
-
-const MODULOS_BS = [
-  { nombre: 'Dashboard', ruta: '/business-studio' },
-  { nombre: 'Transacciones', ruta: '/business-studio/transacciones' },
-  { nombre: 'Clientes', ruta: '/business-studio/clientes' },
-  { nombre: 'Opiniones', ruta: '/business-studio/opiniones' },
-  { nombre: 'Alertas', ruta: '/business-studio/alertas' },
-  { nombre: 'Catálogo', ruta: '/business-studio/catalogo' },
-  { nombre: 'Promociones', ruta: '/business-studio/ofertas' },
-  { nombre: 'Puntos y Recompensas', ruta: '/business-studio/puntos' },
-  { nombre: 'Empleados', ruta: '/business-studio/empleados' },
-  { nombre: 'Vacantes', ruta: '/business-studio/vacantes' },
-  { nombre: 'Reportes', ruta: '/business-studio/reportes' },
-  { nombre: 'Sucursales', ruta: '/business-studio/sucursales' },
-  { nombre: 'Mi Perfil', ruta: '/business-studio/perfil' },
-];
-
-// Rutas bloqueadas para el gerente — se omiten al navegar con las flechas del header
-// (Puntos: solo lectura, Sucursales: acceso restringido)
-const RUTAS_OCULTAS_GERENTE = [
-  '/business-studio/puntos',
-  '/business-studio/sucursales',
-];
-
 const NAV_ITEM_MARKET = { id: 'market', label: 'Marketplace', path: '/marketplace', icon: ShoppingCart };
 
 // =============================================================================
@@ -162,9 +129,6 @@ const NAV_ITEM_MARKET = { id: 'market', label: 'Marketplace', path: '/marketplac
 
 export const Navbar = () => {
   const location = useLocation();
-  // Navegación entre secciones top-level: usa replace cuando NO venimos
-  // de /inicio para evitar acumular historial entre secciones hermanas.
-  const navegarASeccion = useNavegarASeccion();
 
   // ─────────────────────────────────────────────────────────────────────────────
   // ESTADO LOCAL Y REFS
@@ -251,70 +215,6 @@ export const Navbar = () => {
 
   const abrirModalUbicacion = useUiStore((state) => state.abrirModalUbicacion);
   const toggleChatYA = useUiStore((state) => state.toggleChatYA);
-  const previewNegocioAbierto = useUiStore((state) => state.previewNegocioAbierto);
-  const togglePreviewNegocio = useUiStore((state) => state.togglePreviewNegocio);
-
-  // ─────────────────────────────────────────────────────────────────────────────
-  // NAVEGACIÓN ENTRE MÓDULOS DEL BUSINESS STUDIO
-  // ─────────────────────────────────────────────────────────────────────────────
-
-  // Lista de módulos según el rol y la sucursal activa — para gerentes (o dueño
-  // viendo una sucursal no principal) se omiten los módulos que son exclusivos
-  // de la Matriz (Puntos en modo lectura y Sucursales bloqueada).
-  // Misma lógica que MobileHeader para mantener consistencia.
-  const esGerente = !!usuario?.sucursalAsignada;
-  const esSucursalPrincipal = useAuthStore((s) => s.esSucursalPrincipal);
-  const vistaComoGerente = esGerente || (!esSucursalPrincipal && !esGerente);
-  const modulosNavegables = vistaComoGerente
-    ? MODULOS_BS.filter((m) => !RUTAS_OCULTAS_GERENTE.includes(m.ruta))
-    : MODULOS_BS;
-
-  const obtenerIndiceModuloActual = () => {
-    const indiceExacto = modulosNavegables.findIndex(modulo => location.pathname === modulo.ruta);
-    if (indiceExacto !== -1) return indiceExacto;
-
-    return modulosNavegables.findIndex(modulo =>
-      modulo.ruta !== '/business-studio' && location.pathname.startsWith(modulo.ruta)
-    );
-  };
-
-  const obtenerNombreModuloActual = () => {
-    if (location.pathname === '/business-studio') return 'Dashboard';
-    if (location.pathname.includes('/transacciones')) return 'Transacciones';
-    if (location.pathname.includes('/clientes')) return 'Clientes';
-    if (location.pathname.includes('/opiniones')) return 'Opiniones';
-    if (location.pathname.includes('/alertas')) return 'Alertas';
-    if (location.pathname.includes('/catalogo')) return 'Catálogo';
-    if (location.pathname.includes('/ofertas')) return 'Promociones';
-    if (location.pathname.includes('/puntos')) return 'Puntos';
-    if (location.pathname.includes('/empleados')) return 'Empleados';
-    if (location.pathname.includes('/vacantes')) return 'Vacantes';
-    if (location.pathname.includes('/reportes')) return 'Reportes';
-    if (location.pathname.includes('/sucursales')) return 'Sucursales';
-    if (location.pathname.includes('/perfil')) return 'Mi Perfil';
-    return 'Dashboard';
-  };
-
-  const navegarModuloAnterior = () => {
-    const indiceActual = obtenerIndiceModuloActual();
-    if (indiceActual > 0) {
-      // Replace entre módulos hermanos de BS para que el back nativo
-      // regrese a /inicio en lugar de saltar al módulo previo.
-      navegarASeccion(modulosNavegables[indiceActual - 1].ruta);
-    }
-  };
-
-  const navegarModuloSiguiente = () => {
-    const indiceActual = obtenerIndiceModuloActual();
-    if (indiceActual >= 0 && indiceActual < modulosNavegables.length - 1) {
-      navegarASeccion(modulosNavegables[indiceActual + 1].ruta);
-    }
-  };
-
-  const indiceModuloActual = obtenerIndiceModuloActual();
-  const hayModuloAnterior = indiceModuloActual > 0;
-  const hayModuloSiguiente = indiceModuloActual >= 0 && indiceModuloActual < modulosNavegables.length - 1;
-
   // GPS Store
   const ciudad = useGpsStore((state) => state.ciudad);
   const obtenerUbicacion = useGpsStore((state) => state.obtenerUbicacion);
@@ -728,116 +628,11 @@ export const Navbar = () => {
                 </nav>
               </>
             ) : (
-              /* ===== HEADER BUSINESS STUDIO (Nombre negocio + Breadcrumb) ===== */
-              <>
-                {/* Separador + Nombre del negocio */}
-                <div className="flex items-center gap-2 lg:gap-2 2xl:gap-4 ml-4 lg:ml-4 2xl:ml-8">
-                  <div className="w-px h-8 lg:h-6 2xl:h-10 bg-white/30" />
-
-                  <div className="flex items-center gap-2 lg:gap-1.5 2xl:gap-3">
-                    <div className="w-8 h-8 lg:w-7 lg:h-7 2xl:w-10 2xl:h-10 bg-linear-to-br from-orange-400 to-orange-500 rounded-lg lg:rounded-lg 2xl:rounded-xl flex items-center justify-center shadow-md overflow-hidden">
-                      {usuario?.logoNegocio ? (
-                        <img
-                          src={usuario.logoNegocio}
-                          alt={usuario?.nombreNegocio || 'Negocio'}
-                          className="w-full h-full object-cover"
-                        />
-                      ) : (
-                        <Store className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white" />
-                      )}
-                    </div>
-                    <div className="min-w-0">
-                      <SelectorSucursalesInline />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Breadcrumb centrado con navegación */}
-                <div className="flex items-center gap-2 lg:gap-2 2xl:gap-4 flex-1 justify-center">
-                  <img
-                    src="/BusinessStudio.webp"
-                    alt="Business Studio"
-                    className="h-5 lg:h-5 2xl:h-7 w-auto object-contain"
-                  />
-
-                  {/* Flecha izquierda - Módulo anterior */}
-                  {hayModuloAnterior ? (
-                    <Tooltip text="Módulo anterior" position="bottom">
-                      <button
-                        onClick={navegarModuloAnterior}
-                        className="p-1 rounded transition-colors text-blue-200 hover:text-white hover:bg-white/15 active:scale-95 cursor-pointer"
-                      >
-                        <ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6" />
-                      </button>
-                    </Tooltip>
-                  ) : (
-                    <button
-                      disabled
-                      className="p-1 rounded transition-colors text-white/30 cursor-not-allowed"
-                    >
-                      <ChevronLeft className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6" />
-                    </button>
-                  )}
-
-                  {/* Nombre del módulo actual */}
-                  <span className="text-sm lg:text-sm 2xl:text-lg font-bold text-white min-w-20 lg:min-w-20 2xl:min-w-[100px] text-center">
-                    {obtenerNombreModuloActual()}
-                  </span>
-
-                  {/* Flecha derecha - Módulo siguiente */}
-                  {hayModuloSiguiente ? (
-                    <Tooltip text="Módulo siguiente" position="bottom">
-                      <button
-                        onClick={navegarModuloSiguiente}
-                        className="p-1 rounded transition-colors text-blue-200 hover:text-white hover:bg-white/15 active:scale-95 cursor-pointer"
-                      >
-                        <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6" />
-                      </button>
-                    </Tooltip>
-                  ) : (
-                    <button
-                      disabled
-                      className="p-1 rounded transition-colors text-white/30 cursor-not-allowed"
-                    >
-                      <ChevronRight className="w-4 h-4 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6" />
-                    </button>
-                  )}
-                </div>
-
-                {/* Botón Vista previa — glassmorphism moderno
-                    - Estado inactivo: glass sobre navbar azul (bg-white/10 + border + backdrop-blur).
-                    - Estado activo (preview abierto): glass rojo sutil, mismo tamaño. */}
-                <button
-                  onClick={togglePreviewNegocio}
-                  className={`
-                    group flex items-center gap-2
-                    px-3.5 lg:px-3 2xl:px-4
-                    py-1.5 lg:py-1.5 2xl:py-2
-                    rounded-full
-                    text-xs lg:text-[11px] 2xl:text-sm
-                    font-semibold text-white
-                    border backdrop-blur-md
-                    transition-all duration-200
-                    cursor-pointer mr-4
-                    ${previewNegocioAbierto
-                      ? 'bg-red-500/25 border-red-300/50 hover:bg-red-500/35 hover:border-red-300/70'
-                      : 'bg-white/10 border-white/25 hover:bg-white/20 hover:border-white/40'
-                    }
-                  `}
-                >
-                  {previewNegocioAbierto ? (
-                    <>
-                      <X className="w-3.5 h-3.5 2xl:w-4 2xl:h-4" strokeWidth={2.5} />
-                      <span>Cerrar</span>
-                    </>
-                  ) : (
-                    <>
-                      <Eye className="w-3.5 h-3.5 2xl:w-4 2xl:h-4 transition-transform group-hover:scale-110" strokeWidth={2.5} />
-                      <span>Vista previa</span>
-                    </>
-                  )}
-                </button>
-              </>
+              /* En Business Studio el Navbar queda como header de AnunciaYA
+                 (marca + acciones globales). La identidad de BS — negocio,
+                 sucursal, navegación de módulo y vista previa — vive en la
+                 FranjaBusinessStudio, montada debajo del Navbar. */
+              null
             )}
 
             {/* ===== ACCIONES ===== */}

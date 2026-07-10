@@ -10,6 +10,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { Ticket, ChevronLeft } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../../config/iconos';
@@ -98,6 +99,7 @@ export function PaginaCardYA() {
     const navigate = useNavigate();
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
+    const cuerpoRef = useScrollAppShell();
     const [searchParams, setSearchParams] = useSearchParams();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
@@ -483,24 +485,24 @@ export function PaginaCardYA() {
     );
 
     return (
-        <div className="min-h-full bg-transparent">
+        <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
 
             {/* ===================================================================
                 HEADER — CardYA Compact (Dark + Amber brand / Blue tabs)
-                Sticky: se mantiene fijo al hacer scroll
+                Móvil: bloque fijo (shrink-0) FUERA del scroll; desktop: sticky arriba.
             =================================================================== */}
-            <div ref={headerRef} className="sticky top-0 z-20">
+            <div ref={headerRef} className="shrink-0 z-20 lg:sticky lg:top-0">
                 {/* Móvil: full-width sin márgenes | Desktop: contenido centrado */}
                 <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow sutil amber arriba-derecha */}
+                        {/* Glow amber arriba-derecha */}
                         <div
                             className="absolute inset-0 pointer-events-none"
                             style={{
-                                background: 'radial-gradient(ellipse at 85% 20%, rgba(245,158,11,0.07) 0%, transparent 50%)',
+                                background: 'radial-gradient(ellipse at 85% 20%, rgba(245,158,11,0.10) 0%, transparent 55%)',
                             }}
                         />
                         {/* Grid pattern sutil */}
@@ -511,6 +513,16 @@ export function PaginaCardYA() {
                                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                              repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                             }}
+                        />
+                        {/* Línea de acento superior (amber) */}
+                        <div
+                            className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #f59e0b 40%, #fbbf24 60%, transparent)' }}
+                        />
+                        {/* Línea de acento inferior (amber) */}
+                        <div
+                            className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #f59e0b 40%, #fbbf24 60%, transparent)' }}
                         />
 
                         <div className="relative z-10">
@@ -714,9 +726,9 @@ export function PaginaCardYA() {
             </div>
 
             {/* =========================================================================
-                CONTENIDO
+                CONTENIDO — móvil: contenedor con scroll propio; desktop: normal
             ========================================================================= */}
-            <div className="max-w-7xl mx-auto px-4 lg:px-6 2xl:px-8 py-4 lg:py-6">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain max-w-7xl mx-auto px-4 py-4 pb-24 lg:flex-none lg:overflow-visible lg:px-6 lg:py-6 2xl:px-8">
                 {tabActiva === 'billeteras' && seccionBilleteras}
                 {tabActiva === 'recompensas' && seccionRecompensas}
                 {tabActiva === 'vouchers' && seccionVouchers}

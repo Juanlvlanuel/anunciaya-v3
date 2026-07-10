@@ -852,22 +852,27 @@ export function ChatOverlay() {
       {/* Sin overlay oscuro en móvil — el chat es fullscreen */}
 
       {/* Panel principal */}
-      {/* X flotante esquina superior derecha — solo desktop y sin chat activo */}
+      {/* X flotante esquina superior derecha — solo desktop y sin chat activo.
+          z-45: por encima del panel del chat (z-41) y por debajo del navbar AY
+          (z-50). `top` = justo debajo del navbar (var publicada por MainLayout). */}
       {esDesktop && !conversacionActivaId && (
         <button
           onClick={cerrarChatYA}
-          className="fixed z-40 right-4 top-[91px] w-8 h-8 bg-white rounded-full shadow-md flex items-center justify-center hover:bg-red-50 text-gray-400 hover:text-red-500 cursor-pointer transition-colors"
+          aria-label="Cerrar ChatYA"
+          style={{ top: 'calc(var(--ay-navbar-h, 83px) + 12px)' }}
+          className="fixed z-45 right-4 w-9 h-9 bg-white rounded-full shadow-lg flex items-center justify-center hover:bg-red-50 text-gray-500 hover:text-red-500 cursor-pointer transition-colors"
         >
-          <X className="w-4 h-4" />
+          <X className="w-5 h-5" />
         </button>
       )}
 
       <div
         ref={panelRef}
+        style={esDesktop ? { top: 'var(--ay-navbar-h, 83px)' } : undefined}
         className={`
           fixed bg-black lg:bg-blue-100 overflow-hidden flex
           ${esDesktop
-            ? `z-41 top-[83px] bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
+            ? `z-41 bottom-0 left-0 right-0 shadow-[0_-4px_24px_rgba(15,29,58,0.15)] flex-row`
             : `z-50 top-0 left-0 w-full h-dvh flex-col`
           }
         `}
@@ -1041,13 +1046,7 @@ export function ChatOverlay() {
               <div className={enChat ? 'hidden' : 'flex-1 flex flex-col'}>
                 {/* Estado vacío: ningún chat seleccionado */}
                 <div className="flex-1 flex flex-col items-center justify-center px-6 relative overflow-hidden bg-linear-to-br from-blue-200/80 via-indigo-200/60 to-sky-200/70">
-                  {/* Botón cerrar ChatYA — esquina superior derecha */}
-                  <button
-                    onClick={cerrarChatYA}
-                    className="absolute top-3 right-3 z-10 w-9 h-9 rounded-lg hover:bg-white/40 flex items-center justify-center text-gray-400 hover:text-red-400 cursor-pointer"
-                  >
-                    <X className="w-5 h-5" />
-                  </button>
+                  {/* Cerrar ChatYA: X flotante fija arriba-derecha (ver arriba). */}
                   {/* Burbujas decorativas animadas */}
                   <div className="absolute inset-0 pointer-events-none">
                     <div className="absolute top-[15%] left-[12%] w-20 h-20 bg-blue-300/70 rounded-full animate-[float_6s_ease-in-out_infinite]" />

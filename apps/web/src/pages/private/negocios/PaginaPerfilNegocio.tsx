@@ -20,6 +20,7 @@ import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useRef, useState, useEffect } from 'react';
 import {
     ArrowLeft,
+    Store,
     AlertCircle,
     ChevronRight,
     ChevronDown,
@@ -53,6 +54,7 @@ const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 const Truck = (p: IconoWrapperProps) => <Icon icon={ICONOS.envio} {...p} />;
 const ThumbsUp = (p: IconoWrapperProps) => <Icon icon={ICONOS.like} {...p} />;
 const Bookmark = (p: IconoWrapperProps) => <Icon icon={ICONOS.guardar} {...p} />;
+const Bell = (p: IconoWrapperProps) => <Icon icon={ICONOS.notificaciones} {...p} />;
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '../../../config/queryKeys';
 import { useNegocioPerfil, useNegocioOfertas, useNegocioCatalogo, useNegocioResenas } from '../../../hooks/queries/useNegocios';
@@ -69,6 +71,10 @@ import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useDragScroll } from '../../../hooks/useDragScroll';
 import { useGpsStore } from '../../../stores/useGpsStore';
 import { useAuthStore } from '../../../stores/useAuthStore';
+import { useUiStore } from '../../../stores/useUiStore';
+import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
+import { IconoMenuMorph } from '../../../components/ui/IconoMenuMorph';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 // useNegociosCacheStore eliminado — React Query maneja caché
 import { useIniciarChatNegocio } from '../../../hooks/useIniciarChatNegocio';
 import { notificar } from '../../../utils/notificaciones';
@@ -505,6 +511,14 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
 
     // Detectar si es ruta pública (/p/negocio/:id)
     const esRutaPublica = location.pathname.startsWith('/p/negocio');
+
+    // Full-page privada (/negocios/:id vía MainLayout): NO embebido (ChatYA/preview)
+    // ni público. Solo aquí se arma el header fijo estilo Negocios + app-shell propio.
+    const esFullPage = !esRutaPublica && !sucursalIdOverride && !esModoPreview;
+    const cuerpoRef = useScrollAppShell(esFullPage);
+    const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
+    const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
+    const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
 
     // Modal de auth requerido
     const [modalAuthAbierto, setModalAuthAbierto] = useState(false);
@@ -1014,9 +1028,9 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
                             Patrón unificado cross-módulo. */}
                         {saveBubble}
 
-                        {/* Botón Volver (oculto en modo preview) — pill 38px
-                            uniforme con los botones de la derecha + zoom hover. */}
-                        {!esModoPreview && (
+                        {/* Botón Volver (oculto en modo preview, y en full-page móvil donde el
+                            header fijo estilo Negocios ya trae su propia flecha). */}
+                        {!esModoPreview && !(esFullPage && esMobileGaleria) && (
                             <div className="pointer-events-auto absolute top-14 @5xl:top-4 left-5 @[96rem]:left-7.5">
                                 <Tooltip text="Volver" position="bottom">
                                     <button
@@ -2340,12 +2354,84 @@ export function PaginaPerfilNegocio({ sucursalIdOverride, modoPreviewOverride }:
         </div>
     );
 
-    // Si es ruta pública, envolver con LayoutPublico (que ya maneja márgenes)
-    // Si NO es ruta pública, MainLayout ya maneja el layout
+    // Header fijo estilo Negocios (solo full-page privada, móvil) — es el "handle"
+    // FUERA del scroll que permite ocultar la barra del navegador (app-shell, como BS).
+    // Sin filtros: back + identidad + campana + menú.
+    const headerFijoNegocios = (
+        <div className="relative overflow-hidden" style={{ background: '#000000' }}>
+            {/* Glow azul */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(59,130,246,0.10) 0%, transparent 55%)' }} />
+            {/* Grid pattern */}
+            <div
+                className="absolute inset-0 pointer-events-none"
+                style={{
+                    opacity: 0.08,
+                    backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
+                                     repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
+                }}
+            />
+            {/* Línea de acento superior (blue) */}
+            <div className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20" style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }} />
+            {/* Línea de acento inferior (blue) */}
+            <div className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20" style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }} />
+
+            <div className="relative z-10 flex items-center justify-between gap-1 px-2 pt-4 pb-2.5">
+                <div className="flex items-center gap-1 min-w-0 flex-1">
+                    <button
+                        onClick={handleVolver}
+                        aria-label="Volver"
+                        className="w-8 h-8 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                        <ArrowLeft className="w-5 h-5" strokeWidth={2.5} />
+                    </button>
+                    <div className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0" style={{ background: 'linear-gradient(135deg, #3b82f6, #2563eb)' }}>
+                        <Store className="w-4.5 h-4.5 text-white" strokeWidth={2.5} />
+                    </div>
+                    <span className="flex flex-col leading-none min-w-0 ml-1.5">
+                        <span className="text-2xl font-extrabold text-white tracking-tight">Negocios</span>
+                        <span className="text-xs font-bold uppercase tracking-[0.16em] text-blue-400">Locales</span>
+                    </span>
+                </div>
+                <div className="flex items-center gap-0 -mr-1 shrink-0">
+                    <button
+                        onClick={(e) => { e.currentTarget.blur(); togglePanelNotificaciones(); }}
+                        aria-label="Notificaciones"
+                        className="relative w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                        <Bell className="w-6 h-6 animate-bell-ring" strokeWidth={2.5} />
+                        {cantidadNoLeidas > 0 && (
+                            <span className="absolute top-1 right-1 min-w-[18px] h-[18px] bg-red-500 text-white text-[11px] rounded-full flex items-center justify-center font-bold ring-2 ring-black px-1 leading-none">
+                                {cantidadNoLeidas > 9 ? '9+' : cantidadNoLeidas}
+                            </span>
+                        )}
+                    </button>
+                    <button
+                        onClick={abrirMenuDrawer}
+                        aria-label="Menú"
+                        className="w-10 h-10 rounded-lg flex items-center justify-center text-white/50 hover:text-white hover:bg-white/10 cursor-pointer shrink-0"
+                    >
+                        <IconoMenuMorph />
+                    </button>
+                </div>
+            </div>
+        </div>
+    );
+
+    // Ruta pública → LayoutPublico. Full-page privada → app-shell móvil (header fijo
+    // + scroll interno). Embebido (ChatYA/preview) → Fragment sin app-shell.
     return esRutaPublica ? (
         <LayoutPublico>
             {contenidoPrincipal}
         </LayoutPublico>
+    ) : esFullPage ? (
+        <div className="flex flex-col h-full lg:block lg:h-auto lg:min-h-full">
+            {/* Header fijo estilo Negocios — solo móvil (lg:hidden). */}
+            <div className="shrink-0 lg:hidden">{headerFijoNegocios}</div>
+            {/* Hero + contenido en su propio contenedor con scroll (móvil). */}
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-20 lg:flex-none lg:overflow-visible lg:pb-0">
+                {contenidoPrincipal}
+            </div>
+        </div>
     ) : (
         <>
             {contenidoPrincipal}

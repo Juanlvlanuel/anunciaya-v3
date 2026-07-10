@@ -19,6 +19,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import {
   BarChart3,
+  ChartNoAxesCombined,
   ChevronRight,
   ChevronLeft,
   Store,
@@ -100,30 +101,31 @@ export interface TemaColumna {
 }
 
 const TEMAS_COLUMNA: Record<string, TemaColumna> = {
-  // ── Tema por defecto: Claro con gradiente gris → blanco ──
+  // ── Tema por defecto: Dark con gradiente de azules (unificado — mismo dark que
+  //    CardYA / Cupones / etc.). Se usa en todas las secciones sin tema propio. ──
   default: {
-    background: 'linear-gradient(to bottom, #ffffff 25%, #cbd5e1 55%, #94a3b8 100%)',
-    borderColor: 'border-slate-200',
-    widgetWrapperBg: '',
-    textPrimary: 'text-black',
-    textSecondary: 'text-slate-800',
-    textMuted: 'text-slate-800',
-    chevronColor: 'text-slate-600',
-    listHoverBg: 'hover:bg-blue-50',
+    background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)',
+    borderColor: 'border-white/5',
+    widgetWrapperBg: 'bg-slate-200',
+    textPrimary: 'text-white',
+    textSecondary: 'text-white/50',
+    textMuted: 'text-white/50',
+    chevronColor: 'text-white',
+    listHoverBg: 'hover:bg-white/5',
     listHoverBorder: 'hover:border-l-blue-500',
-    cuponesIconBg: 'bg-blue-100',
-    cuponesIconColor: 'text-blue-600',
-    cuponesAccent: 'text-blue-600',
-    vencerIconBg: 'bg-orange-100',
-    vencerIconColor: 'text-orange-600',
-    vencerAccent: 'text-orange-600',
+    cuponesIconBg: 'bg-blue-400/10',
+    cuponesIconColor: 'text-blue-400',
+    cuponesAccent: 'text-blue-400/70',
+    vencerIconBg: 'bg-blue-400/10',
+    vencerIconColor: 'text-blue-400',
+    vencerAccent: 'text-blue-400/70',
     ctaBg: '',
-    ctaBorder: 'border-slate-200',
+    ctaBorder: 'border-white/5',
     ctaIconBg: '',
-    ctaPriceColor: 'text-black',
-    ctaHighlight: 'text-blue-600',
+    ctaPriceColor: 'text-white',
+    ctaHighlight: 'text-blue-400',
     ctaButtonClass: '',
-    widgetDark: false,
+    widgetDark: true,
   },
 
   // ── Tema CardYA: Dark con acentos amber ──
@@ -243,9 +245,9 @@ function detectarTema(pathname: string): TemaColumna {
   if (pathname.startsWith('/mis-cupones')) return TEMAS_COLUMNA.cupones;
   if (pathname.startsWith('/guardados')) return TEMAS_COLUMNA.guardados;
   if (pathname.startsWith('/mis-publicaciones')) return TEMAS_COLUMNA.misPublicaciones;
-  // `/negocios` cae al tema `default` (claro/slate) para hacer juego con
-  // Ofertas / MarketPlace / Servicios — todas las secciones públicas
-  // comparten la misma estética de columna lateral.
+  // Todas las demás secciones (Negocios / Ofertas / MarketPlace / Servicios /
+  // Inicio…) caen al tema `default`, ahora DARK (gradiente de azules) — la
+  // columna lateral es dark en toda la app.
   return TEMAS_COLUMNA.default;
 }
 
@@ -398,33 +400,33 @@ export function ColumnaIzquierda() {
   }
 
   return esComercial ? (
-    <div className="absolute inset-0 bg-white overflow-y-auto overflow-x-hidden flex flex-col">
+    <div className="absolute inset-0 overflow-y-auto overflow-x-hidden flex flex-col" style={{ background: 'linear-gradient(to bottom, #0B358F 30%, #000000 70%)' }}>
       {/* ===== NEGOCIO ACTIVO - Header mejorado ===== */}
-      <div className="bg-linear-to-r from-slate-200 to-slate-100">
+      <div className="border-b-[1.5px] border-white/10">
         <button
           onClick={() => onboardingCompletado ? navigate(`/negocios/${sucursalParaPerfil}`) : navigate('/business/onboarding')}
-          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-4 lg:py-2.5 2xl:py-4 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
+          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-4 lg:py-2.5 2xl:py-4 cursor-pointer text-left hover:bg-white/5 border-l-4 border-l-transparent hover:border-l-blue-400"
         >
           {/* Logo */}
           {logoNegocio ? (
-            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg overflow-hidden shadow-lg ring-2 ring-slate-200 shrink-0">
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg overflow-hidden shadow-lg ring-2 ring-white/10 shrink-0">
               <img src={logoNegocio} alt={nombreNegocio} className="w-full h-full object-cover" />
             </div>
           ) : (
-            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-linear-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-slate-200 shrink-0">
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 bg-linear-to-br from-orange-400 to-orange-500 rounded-lg flex items-center justify-center shadow-lg ring-2 ring-white/10 shrink-0">
               <Store className="w-6 h-6 lg:w-4 lg:h-4 2xl:w-6 2xl:h-6 text-white" />
             </div>
           )}
 
           {/* Nombre y subtítulo */}
           <div className="flex-1 min-w-0">
-            <p className="font-bold text-black text-sm lg:text-xs 2xl:text-base truncate">{nombreNegocio}</p>
-            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 -mt-0.5 block">
+            <p className="font-bold text-white text-sm lg:text-xs 2xl:text-base truncate">{nombreNegocio}</p>
+            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">
               {onboardingCompletado ? 'Ver Perfil' : 'Pendiente de configurar'}
             </span>
           </div>
 
-          <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
+          <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/50 shrink-0" />
         </button>
       </div>
 
@@ -442,53 +444,58 @@ export function ColumnaIzquierda() {
         {/* Business Studio */}
         <button
           onClick={() => navigate(onboardingCompletado ? '/business-studio' : '/business/onboarding')}
-          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
+          className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:bg-white/5 border-b-[1.5px] border-white/10 border-l-4 border-l-transparent hover:border-l-blue-400"
         >
-          <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 float-icon shrink-0">
-            <img src="/IconoBS.webp" alt="Business Studio" className="w-full h-full object-contain" />
+          <div
+            className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg flex items-center justify-center shrink-0 float-icon"
+            style={{ background: 'linear-gradient(135deg, #3b82f6, #1e40af)', boxShadow: '0 6px 16px rgba(37,99,235,0.4)' }}
+          >
+            <ChartNoAxesCombined className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-white" strokeWidth={2.2} />
           </div>
           <div className="flex-1 min-w-0 leading-tight">
-            <span className="font-bold text-black text-sm lg:text-xs 2xl:text-base block">
+            <span className="font-bold text-white text-sm lg:text-xs 2xl:text-base block">
               {onboardingCompletado ? 'Business Studio' : 'Configura tu Negocio'}
             </span>
-            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 -mt-0.5 block">
+            <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">
               {onboardingCompletado ? 'Gestionar Negocio' : 'Completar registro'}
             </span>
           </div>
-          <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
+          <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/50 shrink-0" />
         </button>
 
         {/* ScanYA - Habilitado solo con CardYA activa Y onboarding terminado (alineado al backend) */}
         {scanyaHabilitado ? (
           <button
             onClick={() => abrirScanYA(() => navigate('/scanya'))}
-            className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
+            className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3 cursor-pointer text-left hover:bg-white/5 border-l-4 border-l-transparent hover:border-l-blue-400"
           >
-            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 float-icon shrink-0" style={{ animationDelay: '0.5s' }}>
-              <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-contain" />
+            <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 rounded-lg overflow-hidden bg-black float-icon shrink-0" style={{ animationDelay: '0.5s' }}>
+              <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-cover scale-[1]" />
             </div>
             <div className="flex-1 min-w-0 leading-tight">
-              <span className="font-bold text-black text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-slate-600 -mt-0.5 block">Registrar Ventas</span>
+              <span className="font-bold text-white text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
+              <span className="text-xs lg:text-[11px] 2xl:text-sm font-semibold text-white/50 -mt-0.5 block">Registrar Ventas</span>
             </div>
-            <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 shrink-0" />
+            <ChevronRight className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/50 shrink-0" />
           </button>
         ) : (
           <div
             className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-4 lg:px-3 2xl:px-4 py-3 lg:py-2 2xl:py-3
-                     bg-slate-50 border-l-4 border-l-slate-300 opacity-60 cursor-not-allowed"
+                     bg-white/5 border-l-4 border-l-white/10 opacity-60 cursor-not-allowed"
           >
             <div className="w-10 h-10 lg:w-8 lg:h-8 2xl:w-10 2xl:h-10 relative shrink-0">
-              <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-contain grayscale" />
+              <div className="w-full h-full rounded-lg overflow-hidden bg-black">
+                <img src="/IconoScanYA.webp" alt="ScanYA" className="w-full h-full object-cover scale-[1] grayscale" />
+              </div>
               <div className="absolute -bottom-1 -right-1 w-4 h-4 lg:w-3.5 lg:h-3.5 bg-slate-400 rounded-full flex items-center justify-center">
                 <Lock className="w-2.5 h-2.5 lg:w-2 lg:h-2 text-white" />
               </div>
             </div>
             <div className="flex-1 min-w-0 leading-tight text-left">
-              <span className="font-bold text-slate-500 text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
-              <span className="text-xs lg:text-[11px] 2xl:text-xs text-slate-400 -mt-0.5 block">{hintScanyaBloqueado}</span>
+              <span className="font-bold text-white/40 text-sm lg:text-xs 2xl:text-base block">ScanYA</span>
+              <span className="text-xs lg:text-[11px] 2xl:text-xs text-white/30 -mt-0.5 block">{hintScanyaBloqueado}</span>
             </div>
-            <Lock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500" />
+            <Lock className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-white/40" />
           </div>
         )}
       </nav>
@@ -669,7 +676,7 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
       {participaPuntos ? (
         <>
           {/* Card */}
-          <div className="mx-3 lg:mx-2 2xl:mx-3 mb-2 lg:mb-1.5 2xl:mb-2 rounded-xl border-2 border-slate-300 bg-white shadow-md overflow-hidden">
+          <div className="mx-3 lg:mx-2 2xl:mx-3 mb-2 lg:mb-1.5 2xl:mb-2 rounded-xl border-2 border-white/15 bg-white/5 shadow-md overflow-hidden">
           {/* Header */}
           <div className="px-3 lg:px-2.5 2xl:px-3 py-2 lg:py-1.5 2xl:py-2 flex items-center gap-2" style={{ background: 'linear-gradient(135deg, #0f172a, #1e293b)' }}>
             <BarChart3 className="w-4 h-4 text-white shrink-0" />
@@ -700,25 +707,25 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
           </div>
           {/* Nombre de sucursal (solo con 2+) */}
           {tieneMuchasSuc && sucActual && (
-            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 border-b-[1.5px] border-slate-300">
-              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-200 rounded-lg flex items-center justify-center shrink-0">
-                <MapPin className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-700" />
+            <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 border-b-2 border-white/15">
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <MapPin className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black truncate">
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white truncate">
                 {sucActual.esPrincipal ? 'Matriz' : sucActual.nombre}
               </p>
             </div>
           )}
 
           {/* Métricas */}
-          <div className="divide-y-[1.5px] divide-slate-300">
+          <div className="divide-y-2 divide-white/15">
             {/* Ventas */}
             <div className="flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5">
-              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-emerald-200 rounded-lg flex items-center justify-center shrink-0">
-                <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-emerald-700" />
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-emerald-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <TrendingUp className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-emerald-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black flex-1">Ventas</p>
-              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-600 mr-1">${ventasTotales.toLocaleString()}</p>
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white flex-1">Ventas</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-400 mr-1">${ventasTotales.toLocaleString()}</p>
               <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 shrink-0" />
             </div>
 
@@ -727,12 +734,12 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
               onClick={() => navigate('/business-studio/clientes')}
               className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
             >
-              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-200 rounded-lg flex items-center justify-center shrink-0">
-                <Users className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-700" />
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-blue-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <Users className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-blue-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black flex-1">Clientes</p>
-              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-600 mr-1">{clientes}</p>
-              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-500 shrink-0" />
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white flex-1">Clientes</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-400 mr-1">{clientes}</p>
+              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white/50 shrink-0" />
             </button>
 
             {/* Transacciones */}
@@ -740,12 +747,12 @@ function ContenidoComercial({ participaPuntos }: { participaPuntos: boolean }) {
               onClick={() => navigate('/business-studio/transacciones')}
               className="w-full flex items-center gap-3 lg:gap-2 2xl:gap-3 px-3 lg:px-2.5 2xl:px-3 py-2.5 lg:py-2 2xl:py-2.5 cursor-pointer text-left hover:translate-x-1 transition-transform duration-200"
             >
-              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-indigo-200 rounded-lg flex items-center justify-center shrink-0">
-                <Receipt className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-indigo-700" />
+              <div className="w-7 h-7 lg:w-6 lg:h-6 2xl:w-7 2xl:h-7 bg-indigo-500/20 rounded-lg flex items-center justify-center shrink-0">
+                <Receipt className="w-4 h-4 lg:w-3 lg:h-3 2xl:w-4 2xl:h-4 text-indigo-400" />
               </div>
-              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-black flex-1">Transacciones</p>
-              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-600 mr-1">{transacciones}</p>
-              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-blue-500 shrink-0" />
+              <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white flex-1">Transacciones</p>
+              <p className="text-base lg:text-sm 2xl:text-base font-black text-emerald-400 mr-1">{transacciones}</p>
+              <ChevronRight className="w-4 h-4 lg:w-3.5 lg:h-3.5 2xl:w-4 2xl:h-4 text-white/50 shrink-0" />
             </button>
           </div>
           </div>

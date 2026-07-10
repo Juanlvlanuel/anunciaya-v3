@@ -156,7 +156,7 @@ function NavbarLanding({
     const { abrirModalLogin } = useUiStore();
 
     return (
-        <nav className="fixed top-0 left-0 right-0 z-50 px-3 lg:px-7 2xl:px-10 py-2 lg:py-1.5 2xl:py-2.5 flex items-center justify-between bg-white/60 backdrop-blur-md border-b-2 border-slate-300 lg:sticky lg:left-auto lg:right-auto">
+        <nav className="relative z-50 px-3 lg:px-7 2xl:px-10 py-2 lg:py-1.5 2xl:py-2.5 flex items-center justify-between bg-white/35 lg:bg-white/60 backdrop-blur-xl border-b border-white/25 lg:border-b-2 lg:border-slate-300">
             {/* Logo — más grande en móvil */}
             <img
                 src="/logo-anunciaya-blanco.webp"
@@ -439,7 +439,7 @@ function HeroSection({ abrirModalLogin }: { abrirModalLogin: () => void }) {
 
             {/* Carrusel móvil — single-item con autoplay (visión v3, edge-to-edge).
                 z-0 explícito para que el título del hero (z-20) quede por encima. */}
-            <div ref={refCarrusel} className="absolute top-18 left-0 right-0 h-60 overflow-hidden lg:hidden z-0">
+            <div ref={refCarrusel} className="absolute top-0 left-0 right-0 h-60 overflow-hidden lg:hidden z-0">
                 {/* Desvanecido inferior para fundir con el fondo azul */}
                 <div className="absolute bottom-0 left-0 right-0 h-20 z-30 pointer-events-none" style={{ background: 'linear-gradient(to top, #0B358F, transparent)' }} />
                 <CarruselMovilSingleItem activo={carruselVisible} />
@@ -745,8 +745,7 @@ function FooterLanding() {
             {/* Volver arriba */}
             <button
                 onClick={() => {
-                    // Desktop: scroll del contenedor fijo. Móvil: scroll del window.
-                    document.querySelector('.fixed.overflow-y-auto')?.scrollTo({ top: 0, behavior: 'smooth' });
+                    document.getElementById('landing-scroll')?.scrollTo({ top: 0, behavior: 'smooth' });
                 }}
                 className="absolute -top-4 left-1/2 -translate-x-1/2 flex items-center gap-1 px-3 py-1 lg:px-4 lg:py-1 2xl:px-3.5 2xl:py-1 bg-slate-800 rounded-full border-2 border-slate-700 hover:bg-slate-600 lg:cursor-pointer shadow-md"
             >
@@ -781,13 +780,13 @@ function FooterLanding() {
             <div className="flex flex-col items-center gap-4">
                 <div className="flex items-center gap-6">
                     <a href="https://www.facebook.com/profile.php?id=61578901306800" target="_blank" rel="noopener noreferrer" className="active:scale-95" aria-label="Facebook">
-                        <img src="/facebook.webp" alt="Facebook" className="w-7 h-7" />
+                        <img src="/facebook.webp" alt="Facebook" className="w-9 h-9" />
                     </a>
                     <a href="https://www.instagram.com/anunciaya.mx/" target="_blank" rel="noopener noreferrer" className="active:scale-95" aria-label="Instagram">
-                        <img src="/instagram.webp" alt="Instagram" className="w-7 h-7" />
+                        <img src="/instagram.webp" alt="Instagram" className="w-9 h-9" />
                     </a>
                     <a href="https://www.tiktok.com/@anunciaya.mx" target="_blank" rel="noopener noreferrer" className="active:scale-95" aria-label="TikTok">
-                        <img src="/tiktok.webp" alt="TikTok" className="w-7 h-7" />
+                        <img src="/tiktok.webp" alt="TikTok" className="w-9 h-9" />
                     </a>
                 </div>
                 <p className="text-xs font-medium text-white/70 text-center">
@@ -887,15 +886,23 @@ export default function PaginaLanding() {
 
     return (
         <div
-            className="min-h-screen"
+            className="fixed inset-0 flex flex-col"
             style={{ background: 'linear-gradient(to left, #b1c6dd 0%, #eff6ff 25%, #eff6ff 75%, #b1c6dd 100%)' }}
         >
-            <NavbarLanding onGoogleCode={handleGoogleSuccess} />
+            {/* Header FUERA del scroll (shrink-0): arrastrarlo oculta la barra del navegador y,
+                como el contenido va DEBAJO (no llena el viewport), el navegador no lo trata como
+                scroller principal → la barra se queda oculta al scrollear (mismo patrón que BS).
+                El glassmorphism del navbar se conserva con una franja del azul del hero detrás,
+                para que el `bg-white/60` siga viéndose translúcido sobre oscuro. */}
+            <div className="shrink-0 relative z-50">
+                <div className="absolute inset-0 lg:hidden" style={{ background: 'linear-gradient(135deg, #cadcf7, #a3b2c9)' }} />
+                <NavbarLanding onGoogleCode={handleGoogleSuccess} />
+            </div>
 
-            {/* Contenedor scrolleable — móvil: desde top-0, desktop: desde top-10/12 */}
-            <main className="fixed top-0 lg:top-10 2xl:top-12 left-0 right-0 bottom-0 overflow-y-auto">
-                {/* Primera pantalla: hero + strip = exactamente la altura visible */}
-                <div className="flex flex-col h-(--altura-visible) lg:h-auto">
+            {/* Contenedor scrolleable INTERNO — no llena el viewport (el header está arriba). */}
+            <main id="landing-scroll" className="flex-1 min-h-0 overflow-y-auto overscroll-contain">
+                {/* Primera pantalla: hero + strip = altura visible (el flex-1 del main) */}
+                <div className="flex flex-col h-full lg:h-auto">
                     <HeroSection abrirModalLogin={abrirModalLogin} />
                     <StripCategorias />
                 </div>

@@ -48,6 +48,8 @@ import {
     Wrench,
 } from 'lucide-react';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { useBreakpoint } from '../../../hooks/useBreakpoint';
 import { useHideOnScroll } from '../../../hooks/useHideOnScroll';
 import { BotonIrArriba } from '../../../components/ui/BotonIrArriba';
@@ -105,6 +107,8 @@ function modoComposerPorTab(t: TabServicios): ModoServicio | null {
 export function PaginaServicios() {
     const navigate = useNavigate();
     const handleVolver = useVolverAtras('/inicio');
+    const cuerpoRef = useScrollAppShell();
+    const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
 
     // ─── Stores ────────────────────────────────────────────────────────────
     // CRÍTICO: la ciudad se lee del mismo store que usa el Navbar global
@@ -422,7 +426,8 @@ export function PaginaServicios() {
      *  expande con el modo correcto. Hace scroll al top para asegurar
      *  que el composer entre en viewport. */
     function expandirComposer(modo: ModoServicio | null) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // App-shell: scroll en el contenedor interno (móvil) o el <main> (desktop).
+        (mainScrollRef?.current ?? window).scrollTo({ top: 0, behavior: 'smooth' });
         const qs = modo ? `?crear=${modo}` : '?crear=ofrezco';
         navigate(`/servicios${qs}`, { replace: true });
     }
@@ -488,8 +493,9 @@ export function PaginaServicios() {
                     : null;
 
     return (
-        <div className="min-h-full bg-transparent">
+        <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
             <ServiciosHeader
+                appShell
                 stickyRef={headerRef}
                 onBack={handleVolver}
                 ciudad={ciudad}
@@ -499,8 +505,8 @@ export function PaginaServicios() {
                 conteosPorTab={conteosPorTab}
             />
 
-            {/* ── Contenido ── */}
-            <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
+            {/* ── Contenido — móvil: contenedor con scroll propio; desktop: normal ── */}
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[920px] lg:px-4">
                 {/* Composer inline — pill colapsada que se expande
                     in-place al tap. Solo en modo Personal y en tabs
                     donde el usuario puede publicar (Todos / Servicios /

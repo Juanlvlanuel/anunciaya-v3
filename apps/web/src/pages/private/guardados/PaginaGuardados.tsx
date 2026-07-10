@@ -49,6 +49,7 @@ import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { OfertaCard, ModalOfertaDetalle } from '@/components/negocios';
 import { CardNegocioCompacto } from '@/components/negocios/CardNegocioCompacto';
@@ -134,6 +135,7 @@ export function PaginaGuardados() {
     const navigate = useNavigate();
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
+    const cuerpoRef = useScrollAppShell();
     const qc = useQueryClient();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
@@ -422,19 +424,20 @@ export function PaginaGuardados() {
     };
 
     return (
-        <div className="min-h-full bg-transparent">
+        <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
 
-            {/* ── Header sticky — estilo CardYA/MisCupones ── */}
-            <div className="sticky top-0 z-20">
+            {/* ── Header — móvil: bloque fijo (shrink-0) FUERA del scroll (app-shell propio, como
+                 BS); desktop: sticky arriba de la columna central. ── */}
+            <div className="shrink-0 z-20 lg:sticky lg:top-0">
                 <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow sutil rose */}
+                        {/* Glow rose */}
                         <div
                             className="absolute inset-0 pointer-events-none"
-                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(244,63,94,0.07) 0%, transparent 50%)' }}
+                            style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(244,63,94,0.10) 0%, transparent 55%)' }}
                         />
                         {/* Grid pattern */}
                         <div
@@ -444,6 +447,16 @@ export function PaginaGuardados() {
                                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                              repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                             }}
+                        />
+                        {/* Línea de acento superior (rose) */}
+                        <div
+                            className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #f43f5e 40%, #fb7185 60%, transparent)' }}
+                        />
+                        {/* Línea de acento inferior (rose) */}
+                        <div
+                            className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #f43f5e 40%, #fb7185 60%, transparent)' }}
                         />
 
                         <div className="relative z-10">
@@ -642,7 +655,7 @@ export function PaginaGuardados() {
                 animaciones del badge de OfertaCard (animate-float con rotate
                 5° + ripple scale 2x) que sobresalen del card y, en móvil con
                 cards al borde, generaban scroll horizontal del viewport. */}
-            <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto overflow-x-hidden">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-4 pb-24 lg:flex-none lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
                     {/* Contenido según tab activo */}
                     {tabActivo === 'ofertas' && (
                         <div className="animate-fade-in">

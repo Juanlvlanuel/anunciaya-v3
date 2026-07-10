@@ -110,7 +110,7 @@ export default function CarouselCupones({ tema }: { tema: TemaColumna }) {
                 data-testid="btn-mis-cupones"
                 onClick={() => navegarASeccion('/mis-cupones')}
                 className={`w-full flex items-center gap-3 px-4 py-3 lg:py-2.5 2xl:py-3 cursor-pointer
-                         border-l-4 border-l-transparent ${tema.listHoverBg} ${tema.listHoverBorder}`}
+                         border-l-4 border-l-transparent ${tema.listHoverBg} hover:border-l-blue-400`}
             >
                 <div className="w-9 h-9 lg:w-8 lg:h-8 2xl:w-9 2xl:h-9 rounded-full flex items-center justify-center shrink-0"
                     style={{ background: 'linear-gradient(135deg, #10b981, #059669)' }}>

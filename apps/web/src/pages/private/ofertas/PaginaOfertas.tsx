@@ -36,6 +36,7 @@ import {
 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
+import { useScrollAppShell } from '@/hooks/useScrollAppShell';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -96,6 +97,7 @@ export default function PaginaOfertas() {
   // Stores
   const { latitud, longitud, ciudad } = useGpsStore();
   const obtenerUbicacion = useGpsStore((s) => s.obtenerUbicacion);
+  const cuerpoRef = useScrollAppShell();
   const chipActivo = useFiltrosOfertasStore((s) => s.chipActivo);
   const setChipActivo = useFiltrosOfertasStore((s) => s.setChipActivo);
 
@@ -363,13 +365,13 @@ export default function PaginaOfertas() {
 
   return (
     // SIN bg propio — hereda el gradient azul del MainLayout.
-    <div data-testid="pagina-ofertas" className="min-h-full">
+    <div data-testid="pagina-ofertas" className="flex flex-col h-full lg:block lg:h-auto lg:min-h-full">
       {/* ══════════════════════════════════════════════════════════════════ */}
       {/* STICKY: HeaderOfertas + Buscador + Chips                           */}
       {/* Mismo patrón de ancho que PaginaNegocios / PaginaGuardados:       */}
       {/* `lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8`.                        */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="sticky top-0 z-30">
+      <div className="shrink-0 z-30 lg:sticky lg:top-0">
         <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
           {/* Capa intermedia: aplica `lg:rounded-b-3xl overflow-hidden`   */}
           {/* al header (que ya incluye los chips). Igual a PaginaNegocios. */}
@@ -391,7 +393,7 @@ export default function PaginaOfertas() {
       {/* feed de MP, Servicios y Negocios para coherencia visual entre     */}
       {/* secciones). El header sticky de arriba mantiene `max-w-7xl`.      */}
       {/* ══════════════════════════════════════════════════════════════════ */}
-      <div className="px-4 lg:px-4 lg:max-w-[920px] lg:mx-auto pt-6 lg:pt-8 pb-16">
+      <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-6 pb-24 lg:flex-none lg:overflow-visible lg:px-4 lg:max-w-[920px] lg:mx-auto lg:pt-8 lg:pb-16">
         {cargaInicial ? (
           // Un solo spinner centrado, idéntico a Servicios/MarketPlace.
           <div className="flex items-center justify-center py-20">

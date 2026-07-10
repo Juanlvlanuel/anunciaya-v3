@@ -47,6 +47,7 @@ import { Icon } from '@iconify/react';
 import { ICONOS } from '../../../config/iconos';
 import { useAuthStore } from '../../../stores/useAuthStore';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useNavegarASeccion } from '../../../hooks/useNavegarASeccion';
 import { useGuardados } from '../../../hooks/useGuardados';
 import { useSaveBubble } from '../../../hooks/useSaveBubble';
@@ -80,6 +81,7 @@ export function PaginaServicio() {
     const navigate = useNavigate();
     const navegarASeccion = useNavegarASeccion();
     const handleVolver = useVolverAtras('/servicios');
+    const cuerpoRef = useScrollAppShell();
     const usuarioActualId = useAuthStore((s) => s.usuario?.id ?? null);
 
     const { data: publicacion, isPending, isError } = usePublicacionServicio(id);
@@ -135,8 +137,8 @@ export function PaginaServicio() {
     if (isPending) {
         return (
             <>
-                <ServiciosHeader variante="pagina" onBack={handleVolver} />
-                <div className="min-h-full bg-transparent flex items-center justify-center py-20">
+                <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
+                <div className="flex-1 min-h-0 bg-transparent flex items-center justify-center py-20 lg:flex-none lg:min-h-full">
                     <Spinner tamanio="lg" />
                 </div>
             </>
@@ -146,8 +148,8 @@ export function PaginaServicio() {
     if (isError || !publicacion) {
         return (
             <>
-                <ServiciosHeader variante="pagina" onBack={handleVolver} />
-                <div className="min-h-full bg-transparent">
+                <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent lg:flex-none lg:overflow-visible lg:min-h-full">
                     <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                         <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                             <div className="w-16 h-16 rounded-full bg-amber-50 grid place-items-center mb-4">
@@ -468,17 +470,17 @@ export function PaginaServicio() {
                 completo. El contenido de abajo vive en su propio wrapper
                 `max-w-[920px]`.
             ════════════════════════════════════════════════════════════════ */}
-            <div className="sticky top-0 z-30 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
+            <div className="shrink-0 z-30 lg:sticky lg:top-0 lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                 <div
                     className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                     style={{ background: '#000000' }}
                 >
-                    {/* Glow sutil sky arriba-derecha */}
+                    {/* Glow sky arriba-derecha */}
                     <div
                         className="pointer-events-none absolute inset-0"
                         style={{
                             background:
-                                'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 50%)',
+                                'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 55%)',
                         }}
                     />
                     {/* Grid pattern sutil */}
@@ -489,6 +491,16 @@ export function PaginaServicio() {
                             backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                               repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                         }}
+                    />
+                    {/* Línea de acento superior (sky) */}
+                    <div
+                        className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                    />
+                    {/* Línea de acento inferior (sky) */}
+                    <div
+                        className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
                     />
 
                     {/* Contenido del header */}
@@ -590,7 +602,7 @@ export function PaginaServicio() {
                     </div>
                 </div>
             </div>
-            <div className="min-h-full bg-transparent pb-32 lg:pb-8">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent pb-32 lg:flex-none lg:overflow-visible lg:pb-8">
                 <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
                     <div className="px-4 lg:px-0 space-y-3 lg:space-y-4">
                         {/* Hero ancho completo — edge-to-edge mobile, card en desktop.

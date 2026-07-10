@@ -25,7 +25,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { Icon, type IconProps } from '@iconify/react';
-import { Lock, LogOut, Ticket, User, Download, HelpCircle, Megaphone } from 'lucide-react';
+import { Lock, LogOut, Ticket, User, Download, HelpCircle, Megaphone, ChartNoAxesCombined } from 'lucide-react';
 import { ICONOS } from '../../config/iconos';
 import {
   PALETAS_DRAWER,
@@ -66,6 +66,9 @@ interface ItemMenuDrawer {
   icon?: React.ElementType;
   /** Logo de marca (webp). Mutuamente excluyente con `icon`. */
   iconoImagen?: string;
+  /** Renderiza la imagen llenando el tile (object-cover) sobre el fondo `tile`,
+   *  en vez del modo transparente/contain. Para logos con fondo propio (ScanYA). */
+  iconoFill?: boolean;
   /** Texto alternativo para la imagen / aria-label adicional. */
   alt?: string;
   onClick: () => void;
@@ -276,6 +279,8 @@ const menuDrawerCss = `
   }
   .md4-tile.is-image { background: transparent !important; box-shadow: none; }
   .md4-tile.is-image img { width: 100%; height: 100%; object-fit: contain; }
+  .md4-tile.is-image-fill { overflow: hidden; box-shadow: none; }
+  .md4-tile.is-image-fill img { width: 100%; height: 100%; object-fit: cover; }
   .md4-tile.is-locked { background: #94A3B8 !important; }
   .md4-tile.is-locked img { filter: grayscale(1); opacity: 0.7; }
   .md4-tile-lock-badge {
@@ -671,8 +676,9 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
         {
           id: 'scn',
           label: 'ScanYA',
-          tile: TILE.scanya,
+          tile: '#000000',
           iconoImagen: '/IconoScanYA.webp',
+          iconoFill: true,
           alt: 'ScanYA',
           onClick: scanyaHabilitado
             // En prod salta al subdominio de ScanYA (otro origen); en dev navega interno.
@@ -685,8 +691,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           id: 'biz',
           label: 'Business Studio',
           tile: TILE.businessStudio,
-          iconoImagen: '/IconoBS.webp',
-          alt: 'Business Studio',
+          icon: ChartNoAxesCombined,
           onClick: () => handleNavegar('/business-studio'),
         },
         guardadosItem,
@@ -711,7 +716,8 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // controla el stagger de entrada; se pasa continuo entre grupos.
   const renderFila = (it: ItemMenuDrawer, i: number) => {
     const tileClasses = ['md4-tile'];
-    if (it.iconoImagen) tileClasses.push('is-image');
+    if (it.iconoFill) tileClasses.push('is-image-fill');
+    else if (it.iconoImagen) tileClasses.push('is-image');
     if (it.bloqueado) tileClasses.push('is-locked');
     const tileStyle: React.CSSProperties = { background: it.bloqueado ? undefined : it.tile };
     const IconoFila = it.icon;
@@ -732,7 +738,7 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
           {it.iconoImagen ? (
             <img src={it.iconoImagen} alt={it.alt || it.label} />
           ) : IconoFila ? (
-            <IconoFila width={17} height={17} strokeWidth={1.85} />
+            <IconoFila width={21} height={21} strokeWidth={1.85} />
           ) : null}
           {it.bloqueado && (
             <span className="md4-tile-lock-badge" aria-hidden="true">

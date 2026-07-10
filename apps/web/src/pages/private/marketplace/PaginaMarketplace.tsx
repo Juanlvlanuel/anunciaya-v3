@@ -27,6 +27,8 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
+import { useMainScrollStore } from '../../../stores/useMainScrollStore';
 import { ShoppingCart, Plus, AlertCircle, ChevronLeft, ChevronDown, Search, Tag, Menu, X, CornerRightDown, Loader2 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -230,12 +232,16 @@ export function PaginaMarketplace() {
         buscadorAbiertoPrevRef.current = buscadorAbierto;
     }, [buscadorAbierto]);
 
+    const cuerpoRef = useScrollAppShell();
+    const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
     const handlePublicar = () => {
         // Composer inline: scroll arriba + expandir vía query param, pasando el
         // modo del feed activo (`vendo`/`busco`) para preseleccionar el toggle
         // Vendo/Busco del composer. El orquestador <ComposerSection> lo detecta.
         // El FAB se oculta en modo comercial — los negocios no publican P2P.
-        window.scrollTo({ top: 0, behavior: 'smooth' });
+        // App-shell propio: el scroll vive en el contenedor interno (móvil) o en el
+        // <main> del layout (desktop), no en window. Usa el ref registrado.
+        (mainScrollRef?.current ?? window).scrollTo({ top: 0, behavior: 'smooth' });
         navigate(`/marketplace?crear=${modoFeed}`, { replace: true });
     };
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
@@ -326,22 +332,22 @@ export function PaginaMarketplace() {
     void isErrorLegacy;
 
     return (
-        <div className="min-h-full bg-transparent">
+        <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
             {/* ════════════════════════════════════════════════════════════════
-                HEADER DARK STICKY — Identidad teal del MarketPlace
+                HEADER — móvil: bloque fijo (shrink-0) FUERA del scroll; desktop: sticky
             ════════════════════════════════════════════════════════════════ */}
-            <div ref={headerRef} className="sticky top-0 z-20">
+            <div ref={headerRef} className="shrink-0 z-20 lg:sticky lg:top-0">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow sutil teal arriba-derecha */}
+                        {/* Glow teal arriba-derecha */}
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
                                 background:
-                                    'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.07) 0%, transparent 50%)',
+                                    'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.10) 0%, transparent 55%)',
                             }}
                         />
                         {/* Grid pattern sutil */}
@@ -352,6 +358,16 @@ export function PaginaMarketplace() {
                                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                             }}
+                        />
+                        {/* Línea de acento superior (teal) */}
+                        <div
+                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                        />
+                        {/* Línea de acento inferior (teal) */}
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
                         />
 
                         <div className="relative z-10">
@@ -365,8 +381,8 @@ export function PaginaMarketplace() {
                                     sugerencias/populares/recientes. */}
                             <div className="lg:hidden">
                                 {!buscadorMovilAbierto ? (
-                                    <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
-                                        <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                                    <div className="flex items-center justify-between gap-1 px-2 pt-4 pb-5">
+                                        <div className="flex min-w-0 flex-1 items-center gap-1">
                                             <button
                                                 data-testid="btn-volver-marketplace"
                                                 onClick={handleVolver}
@@ -383,15 +399,19 @@ export function PaginaMarketplace() {
                                                 }}
                                             >
                                                 <ShoppingCart
-                                                    className="h-4.5 w-4.5 text-black"
+                                                    className="h-4.5 w-4.5 text-white"
                                                     strokeWidth={2.5}
                                                 />
                                             </div>
-                                            <span className="truncate text-2xl font-extrabold tracking-tight text-white ml-1.5">
-                                                Market<span className="text-teal-400">Place</span>
+                                            {/* Alto fijo (= alto del título de 2 líneas de los otros) + centrado, para
+                                                igualar el alto del header y que "MarketPlace" quede centrado con el icono. */}
+                                            <span className="flex flex-col justify-center min-h-9 leading-none min-w-0 ml-1.5">
+                                                <span className="truncate text-2xl font-extrabold tracking-tight text-white">Market<span className="text-teal-400">Place</span></span>
+                                                {/* Segunda línea invisible: iguala el alto del header a los que sí llevan "Locales" debajo. */}
+                                                <span aria-hidden="true" className="text-xs font-bold uppercase tracking-[0.16em] text-transparent select-none hidden">{' '}</span>
                                             </span>
                                         </div>
-                                        <div className="flex shrink-0 items-center gap-1">
+                                        <div className="flex shrink-0 items-center gap-0 -mr-1">
                                             <button
                                                 data-testid="btn-buscar-marketplace"
                                                 onClick={handleAbrirBuscadorMovil}
@@ -512,7 +532,7 @@ export function PaginaMarketplace() {
                                             }}
                                         >
                                             <ShoppingCart
-                                                className="h-6 w-6 text-black 2xl:h-6.5 2xl:w-6.5"
+                                                className="h-6 w-6 text-white 2xl:h-6.5 2xl:w-6.5"
                                                 strokeWidth={2.5}
                                             />
                                         </div>
@@ -580,7 +600,7 @@ export function PaginaMarketplace() {
                 Reels, composer y feed heredan este ancho del padre — los
                 wrappers internos `max-w-[920px]` se eliminaron por redundantes.
             ════════════════════════════════════════════════════════════════ */}
-            <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[920px] lg:px-4">
                 {/* La barra de filtros + Publicar (desktop) ahora vive dentro
                     del header dark como segunda fila — así se mueve sticky con
                     el resto del header sin sentirse desconectada. Ver bloque

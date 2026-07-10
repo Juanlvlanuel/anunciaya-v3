@@ -36,6 +36,7 @@ import { ChatOverlay } from './ChatOverlay';
 import { BannerActivarPush } from './BannerActivarPush';
 import { ColumnaIzquierda } from './ColumnaIzquierda';
 import { ColumnaDerecha } from './ColumnaDerecha';
+import { FranjaBusinessStudio } from './FranjaBusinessStudio';
 import { PanelNotificaciones } from './PanelNotificaciones';
 import { ModalPagoPublicidad } from './ModalPagoPublicidad';
 import { PanelPreviewNegocio } from './PanelPreviewNegocio';
@@ -70,8 +71,12 @@ export function MainLayout() {
     typeof window !== 'undefined' ? window.innerWidth >= DESKTOP_BREAKPOINT : false
   );
   const [tieneScroll, setTieneScroll] = useState(false);
+  const [navbarH, setNavbarH] = useState(77);
+  const [franjaH, setFranjaH] = useState(56);
   const mainRef = useRef<HTMLElement>(null);
   const mobileMainRef = useRef<HTMLElement>(null);
+  const navbarRef = useRef<HTMLDivElement>(null);
+  const franjaRef = useRef<HTMLDivElement>(null);
   const navigate = useNavigate();
   const location = useLocation();
   const esBusinessStudio = location.pathname.startsWith('/business-studio');
@@ -87,6 +92,11 @@ export function MainLayout() {
   const esAnunciate = location.pathname === '/anunciate';
   const esAyuda = location.pathname === '/ayuda';
   const esPerfil = location.pathname === '/perfil';
+
+  // En Business Studio (escritorio) la FranjaBusinessStudio va debajo del Navbar
+  // (barra AY). Medimos ambos: el menú/contenido arrancan pegados a la franja
+  // (navbar + franja, sin gap) y el ChatYA usa `--ay-navbar-h` para taparla.
+  const columnsTop = esBusinessStudio ? `${navbarH + franjaH}px` : COLUMNS_TOP;
 
   // Swipe horizontal entre módulos BS (solo móvil)
   useSwipeNavegacionBS(mobileMainRef);
@@ -118,16 +128,30 @@ export function MainLayout() {
   // (para que useScrollDirection, useHideOnScroll, etc. funcionen)
   // ---------------------------------------------------------------------------
   const esPaginaConHeaderPropio = esCardYA || esMisCupones || esGuardados || esNegocios || esPerfilNegocio || esMarketplace || esOfertas || esMisPublicaciones || esServicios || esPerfil || esAnunciate || esAyuda;
+  // Páginas que replican EXACTO el patrón de BS: el header vive FUERA del
+  // contenedor con scroll (hermano `shrink-0`, vía useScrollAppShell). El layout
+  // solo aporta el shell fijo; la propia página provee su header + su contenedor
+  // con scroll como hermanos. Así, arrastrar el header mueve el documento (oculta
+  // la barra del navegador) y el scroll del contenido es interno (no reaparece).
+  // MarketPlace y Servicios: TODAS sus rutas ya migradas (feed + detalle +
+  // perfil de vendedor/prestador), así que va el prefijo completo.
+  const esAppShellPropio =
+    esAnunciate || esPerfil || esAyuda || esMisCupones || esMisPublicaciones || esGuardados ||
+    esMarketplace || esOfertas || esServicios || esCardYA || esNegocios || esPerfilNegocio;
   useEffect(() => {
     if (esDesktop) {
       setMainScrollRef(mainRef);
+    } else if (esAppShellPropio) {
+      // App-shell propio: la propia página registra su contenedor de scroll
+      // interno vía useScrollAppShell. No lo pisamos aquí.
     } else if (esPaginaConHeaderPropio) {
       // Páginas con scroll en body: limpiar ref para que hooks usen window
       setMainScrollRef(null as unknown as React.RefObject<HTMLElement | null>);
     } else {
+      // BS, /inicio: scroll en el contenedor interno (mobileMainRef)
       setMainScrollRef(mobileMainRef);
     }
-  }, [esDesktop, esPaginaConHeaderPropio, setMainScrollRef]);
+  }, [esDesktop, esAppShellPropio, esPaginaConHeaderPropio, setMainScrollRef]);
 
   // ---------------------------------------------------------------------------
   // Reasegurar fondo negro absoluto (html, body, theme-color) en rutas
@@ -167,6 +191,37 @@ export function MainLayout() {
     window.addEventListener('resize', handleResize);
     return () => window.removeEventListener('resize', handleResize);
   }, []);
+
+  // ---------------------------------------------------------------------------
+  // Medir alto del Navbar (barra AY) → publica `--ay-navbar-h`, que usa el
+  // ChatYA para arrancar justo debajo del navbar y tapar la franja de BS.
+  // ---------------------------------------------------------------------------
+  useEffect(() => {
+    if (!esDesktop) return;
+    const el = navbarRef.current;
+    if (!el) return;
+    const medir = () => {
+      const h = el.offsetHeight;
+      setNavbarH(h);
+      document.documentElement.style.setProperty('--ay-navbar-h', `${h}px`);
+    };
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [esDesktop]);
+
+  // Medir alto de la Franja de BS → el menú/contenido arrancan pegados a ella.
+  useEffect(() => {
+    if (!esDesktop || !esBusinessStudio) return;
+    const el = franjaRef.current;
+    if (!el) return;
+    const medir = () => setFranjaH(el.offsetHeight);
+    medir();
+    const ro = new ResizeObserver(medir);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [esDesktop, esBusinessStudio]);
 
   // ---------------------------------------------------------------------------
   // Recargar notificaciones al entrar/salir de Business Studio
@@ -310,10 +365,24 @@ export function MainLayout() {
         <>
           {/* ===== HEADER (Desktop) ===== */}
           {esDesktop && (
-            <div className="fixed left-0 right-0 top-0 z-50">
-              <Navbar />
-              <BannerRateLimit />
-            </div>
+            <>
+              {/* Barra principal de AnunciaYA — siempre por encima del ChatYA (z-50) */}
+              <div className="fixed left-0 right-0 top-0 z-50" ref={navbarRef}>
+                <Navbar />
+                <BannerRateLimit />
+              </div>
+              {/* Franja de Business Studio — bajo el navbar y DEBAJO del ChatYA
+                  (z-30), para que el chat la tape por completo al abrirse. */}
+              {esBusinessStudio && (
+                <div
+                  className="fixed left-0 right-0 z-30"
+                  style={{ top: `${navbarH}px` }}
+                  ref={franjaRef}
+                >
+                  <FranjaBusinessStudio />
+                </div>
+              )}
+            </>
           )}
 
           {/* ===== CONTENIDO PRINCIPAL ===== */}
@@ -323,9 +392,9 @@ export function MainLayout() {
               <aside
                 className="fixed lg:w-56 2xl:w-72 shadow-lg overflow-hidden z-30"
                 style={{
-                  top: COLUMNS_TOP,
+                  top: columnsTop,
                   left: '0',
-                  height: `calc(100vh - ${COLUMNS_TOP})`,
+                  height: `calc(100vh - ${columnsTop})`,
                 }}
               >
                 <ColumnaIzquierda />
@@ -334,7 +403,7 @@ export function MainLayout() {
               {/* Columna Central - Scroll en borde derecho de ventana */}
               <main
                 ref={mainRef}
-                className={`fixed left-0 right-0 overflow-y-auto transition-all z-20 lg:pl-56 ${esPerfilNegocio ? '2xl:pl-80' : '2xl:pl-[287px]'
+                className={`fixed left-0 right-0 overflow-y-auto transition-[padding] duration-200 z-20 lg:pl-56 ${esPerfilNegocio ? '2xl:pl-80' : '2xl:pl-[287px]'
                   } ${esBusinessStudio
                     ? previewNegocioAbierto
                       ? 'lg:pr-[400px] 2xl:pr-[480px]'
@@ -348,8 +417,8 @@ export function MainLayout() {
                         : 'lg:pr-64 2xl:pr-80'
                   }`}
                 style={{
-                  top: COLUMNS_TOP,
-                  height: `calc(100vh - ${COLUMNS_TOP})`,
+                  top: columnsTop,
+                  height: `calc(100vh - ${columnsTop})`,
                 }}
               >
                 <Outlet />
@@ -360,8 +429,8 @@ export function MainLayout() {
                 <aside
                   className="fixed right-0 lg:w-[400px] 2xl:w-[480px] bg-white border-l-4 border-black shadow-2xl overflow-hidden z-30"
                   style={{
-                    top: COLUMNS_TOP,
-                    height: `calc(100vh - ${COLUMNS_TOP})`,
+                    top: columnsTop,
+                    height: `calc(100vh - ${columnsTop})`,
                   }}
                 >
                   <PanelPreviewNegocio />
@@ -373,15 +442,24 @@ export function MainLayout() {
                 <aside
                   className="fixed lg:w-64 2xl:w-80 bg-white shadow-lg overflow-y-auto z-30 transition-all"
                   style={{
-                    top: COLUMNS_TOP,
+                    top: columnsTop,
                     right: tieneScroll ? '14px' : '0',
-                    height: `calc(100vh - ${COLUMNS_TOP})`,
+                    height: `calc(100vh - ${columnsTop})`,
                   }}
                 >
                   <ColumnaDerecha />
                 </aside>
               )}
             </>
+          ) : esAppShellPropio ? (
+            /* App-shell EXACTO como BS: el shell fijo es solo el contenedor flex;
+               la página provee su header (shrink-0) y su propio contenedor con
+               scroll como HERMANOS. Al estar el header fuera del scroll,
+               arrastrarlo mueve el documento (oculta la barra del navegador) y el
+               scroll del contenido es interno (la barra ya no reaparece). */
+            <div className="fixed inset-0 flex flex-col z-0">
+              <Outlet />
+            </div>
           ) : esPaginaConHeaderPropio ? (
             /* Páginas con header propio: scroll en body para que el navegador oculte su barra */
             <main className="min-h-screen pb-20">

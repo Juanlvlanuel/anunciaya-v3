@@ -45,6 +45,7 @@ import {
 } from 'lucide-react';
 import Tooltip from '../../../components/ui/Tooltip';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import {
     usePerfilPrestador,
     usePublicacionesDelPrestador,
@@ -74,6 +75,7 @@ export function PaginaPerfilPrestador() {
     const { usuarioId } = useParams<{ usuarioId: string }>();
     const navigate = useNavigate();
     const handleVolver = useVolverAtras('/servicios');
+    const cuerpoRef = useScrollAppShell();
     const usuarioActual = useAuthStore((s) => s.usuario);
 
     // ChatYA: hook centralizado para "Enviar mensaje" + store para
@@ -172,8 +174,8 @@ export function PaginaPerfilPrestador() {
     if (cargandoPerfil) {
         return (
             <>
-                <ServiciosHeader variante="pagina" onBack={handleVolver} />
-                <div className="min-h-full bg-transparent flex items-center justify-center py-20">
+                <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
+                <div className="flex-1 min-h-0 bg-transparent flex items-center justify-center py-20 lg:flex-none lg:min-h-full">
                     <Spinner tamanio="lg" />
                 </div>
             </>
@@ -183,8 +185,8 @@ export function PaginaPerfilPrestador() {
     if (errorPerfil || !perfil) {
         return (
             <>
-                <ServiciosHeader variante="pagina" onBack={handleVolver} />
-                <div className="min-h-full bg-transparent">
+                <ServiciosHeader variante="pagina" appShell onBack={handleVolver} />
+                <div className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent lg:flex-none lg:overflow-visible lg:min-h-full">
                     <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
                         <div className="px-6 py-12 flex flex-col items-center text-center max-w-md mx-auto">
                             <div className="w-16 h-16 rounded-full bg-amber-50 grid place-items-center mb-4">
@@ -221,6 +223,7 @@ export function PaginaPerfilPrestador() {
         <>
             <ServiciosHeader
                 variante="pagina"
+                appShell
                 onBack={handleVolver}
                 slotDerecho={
                     <span className="inline-flex items-center gap-1.5 rounded-full bg-sky-500/15 px-3 py-1.5 text-[12px] font-bold text-sky-300 ring-1 ring-sky-400/30">
@@ -230,7 +233,7 @@ export function PaginaPerfilPrestador() {
                 subtituloMobile={nombreCorto}
             />
 
-            <div className="min-h-full bg-transparent pb-32">
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain bg-transparent pb-32 lg:flex-none lg:overflow-visible">
                 {/* Contenedor max 920px para igualar al feed de Servicios. */}
                 <div className="lg:mx-auto lg:max-w-[920px] lg:px-4 lg:py-6">
                     <div className="px-3 py-5 lg:px-0 lg:py-2">

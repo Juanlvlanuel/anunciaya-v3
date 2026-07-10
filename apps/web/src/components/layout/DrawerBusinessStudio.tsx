@@ -16,6 +16,7 @@ import { useLocation } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
     X,
+    ChartNoAxesCombined,
     LayoutDashboard,
     HelpCircle,
     User,
@@ -133,17 +134,28 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                 onClick={onCerrar}
             />
 
-            {/* Panel */}
-            <div className="fixed top-0 left-0 bottom-0 w-[60%] bg-white shadow-2xl overflow-y-auto animate-slide-in-left" style={{ zIndex: 1002 }}>
-                {/* Header del drawer */}
-                <div className="bg-linear-to-r from-gray-900 to-blue-600 text-white px-4 py-4">
+            {/* Panel — mismo tono que la lista de ChatYA (azul royal → negro) */}
+            <div
+                className="fixed top-0 left-0 bottom-0 w-[68%] max-w-[300px] shadow-2xl overflow-y-auto animate-slide-in-left"
+                style={{ zIndex: 1002, background: 'linear-gradient(to bottom, #0B358F, #000000)' }}
+            >
+                {/* Header del drawer — ícono + Business Studio */}
+                <div className="relative px-4 py-4">
                     <div className="flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <img src="/BusinessStudio.webp" alt="Business Studio" className="h-7 w-auto object-contain" />
+                        <div className="flex items-center gap-2.5">
+                            <div
+                                className="w-9 h-9 rounded-lg flex items-center justify-center shrink-0"
+                                style={{ background: 'linear-gradient(135deg, #3b82f6, #1e40af)', boxShadow: '0 6px 16px rgba(37,99,235,0.4)' }}
+                            >
+                                <ChartNoAxesCombined className="w-5 h-5 text-white" strokeWidth={2.2} />
+                            </div>
+                            <span className="text-xl font-extrabold text-white tracking-tight">
+                                Business<span className="text-blue-400">Studio</span>
+                            </span>
                         </div>
                         <button
                             onClick={onCerrar}
-                            className="p-1.5 hover:bg-white/20 rounded-full"
+                            className="p-1.5 text-white/60 hover:text-white hover:bg-white/10 rounded-lg cursor-pointer"
                         >
                             <X className="w-5 h-5" />
                         </button>
@@ -151,7 +163,7 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                 </div>
 
                 {/* Opciones del menú */}
-                <div className="py-2">
+                <div className="relative py-2">
                     {opcionesFiltradas.map((opcion) => {
                         const Icono = opcion.icono;
                         const esActivo =
@@ -162,21 +174,22 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                             <button
                                 key={opcion.id}
                                 onClick={() => handleNavegar(opcion.ruta)}
-                                className={`w-full flex items-center gap-3 px-4 py-2.5 ${esActivo
-                                        ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-500'
-                                        : 'text-gray-700 hover:bg-gray-50'
+                                style={esActivo ? { background: 'linear-gradient(135deg, #1d4ed8, #1e40af)' } : undefined}
+                                className={`w-full flex items-center gap-3 px-4 py-2.5 border-r-4 ${esActivo
+                                        ? 'text-white border-blue-300'
+                                        : 'text-slate-300 border-transparent hover:bg-white/5 hover:text-white'
                                     }`}
                             >
-                                <Icono className={`w-5 h-5 ${esActivo ? 'text-blue-500' : 'text-gray-400'}`} />
-                                <span className={`font-medium whitespace-nowrap flex items-center gap-2 ${esActivo ? 'text-blue-600' : ''}`}>
+                                <Icono className={`w-5 h-5 ${esActivo ? 'text-white' : 'text-slate-400'}`} />
+                                <span className={`font-medium whitespace-nowrap flex items-center gap-2 ${esActivo ? 'text-white' : ''}`}>
                                     {opcion.label}
                                     {opcion.id === 'alertas' && alertasNoLeidas > 0 && (
-                                        <span className="text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold bg-red-500 text-white">
+                                        <span className={`text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold ${esActivo ? 'bg-white/25 text-white' : 'bg-red-500 text-white'}`}>
                                             {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
                                         </span>
                                     )}
                                     {opcion.id === 'opiniones' && opinionesPendientes > 0 && (
-                                        <span className="text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold bg-red-500 text-white">
+                                        <span className={`text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold ${esActivo ? 'bg-white/25 text-white' : 'bg-red-500 text-white'}`}>
                                             {opinionesPendientes > 99 ? '99+' : opinionesPendientes}
                                         </span>
                                     )}
@@ -190,13 +203,14 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
                         regrese a /inicio, consistente con Guardados/Mi Perfil del menú. */}
                     <button
                         onClick={() => handleNavegar('/ayuda')}
-                        className={`w-full flex items-center gap-3 px-4 py-2.5 ${location.pathname === '/ayuda'
-                                ? 'bg-blue-50 text-blue-600 border-r-4 border-blue-500'
-                                : 'text-gray-700 hover:bg-gray-50'
+                        style={location.pathname === '/ayuda' ? { background: 'linear-gradient(135deg, #1d4ed8, #1e40af)' } : undefined}
+                        className={`w-full flex items-center gap-3 px-4 py-2.5 border-r-4 ${location.pathname === '/ayuda'
+                                ? 'text-white border-blue-300'
+                                : 'text-slate-300 border-transparent hover:bg-white/5 hover:text-white'
                             }`}
                     >
-                        <HelpCircle className={`w-5 h-5 ${location.pathname === '/ayuda' ? 'text-blue-500' : 'text-gray-400'}`} />
-                        <span className={`font-medium whitespace-nowrap ${location.pathname === '/ayuda' ? 'text-blue-600' : ''}`}>
+                        <HelpCircle className={`w-5 h-5 ${location.pathname === '/ayuda' ? 'text-white' : 'text-slate-400'}`} />
+                        <span className={`font-medium whitespace-nowrap ${location.pathname === '/ayuda' ? 'text-white' : ''}`}>
                             Ayuda
                         </span>
                     </button>

@@ -130,7 +130,7 @@ export default function HeaderOfertas({
         className="absolute inset-0 pointer-events-none"
         style={{
           background:
-            'radial-gradient(ellipse at 85% 20%, rgba(245,158,11,0.10) 0%, transparent 50%)',
+            'radial-gradient(ellipse at 85% 20%, rgba(245,158,11,0.10) 0%, transparent 55%)',
         }}
       />
       {/* Grid pattern sutil */}
@@ -141,6 +141,16 @@ export default function HeaderOfertas({
           backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                             repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
         }}
+      />
+      {/* Línea de acento superior (amber) */}
+      <div
+        className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+        style={{ background: 'linear-gradient(90deg, transparent, #f59e0b 40%, #fbbf24 60%, transparent)' }}
+      />
+      {/* Línea de acento inferior (amber) */}
+      <div
+        className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+        style={{ background: 'linear-gradient(90deg, transparent, #f59e0b 40%, #fbbf24 60%, transparent)' }}
       />
 
       <div className="relative z-10">
@@ -176,7 +186,7 @@ export default function HeaderOfertas({
                   </span>
                 </span>
               </div>
-              <div className="flex items-center gap-1 shrink-0">
+              <div className="flex items-center gap-0 -mr-1 shrink-0">
                 <button
                   data-testid="btn-buscar-ofertas"
                   onClick={handleAbrirBuscadorMovil}

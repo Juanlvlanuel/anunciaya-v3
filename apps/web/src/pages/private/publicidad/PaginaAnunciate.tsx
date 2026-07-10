@@ -20,6 +20,7 @@ import { ChevronLeft, Upload, Check, MapPin, Search, Loader2, CreditCard, Shield
 import { Icon, type IconProps } from '@iconify/react';
 import { useCiudades } from '../../../hooks/queries/useCiudades';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { LogoStripe } from '../../../components/ui/LogoStripe';
 import { ICONOS } from '../../../config/iconos';
 import { useNotificacionesStore } from '../../../stores/useNotificacionesStore';
@@ -92,6 +93,7 @@ const TXT_BADGE = 'text-xs lg:text-[11px] 2xl:text-xs';          // chips inform
 
 export default function PaginaAnunciate() {
   const volver = useVolverAtras('/inicio');
+  const cuerpoRef = useScrollAppShell();
   const location = useLocation();
   const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
   const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
@@ -305,15 +307,19 @@ export default function PaginaAnunciate() {
   const labelHeader = renovarId ? 'Renovación' : 'Espacio publicitario';
 
   return (
-    <div className="min-h-full bg-transparent">
-      {/* ── Header con identidad — calca Mis Cupones/CardYA (acento cyan). Sticky en móvil
-             (igual que las demás páginas); en desktop vuelve a relative para no solaparse con
+    // Móvil: app-shell propio (como BS) — columna flex que llena el shell fijo, con el header
+    // FUERA del scroll (hermano shrink-0) y el cuerpo como contenedor con scroll propio. Así,
+    // arrastrar el header oculta la barra del navegador y el scroll interno la mantiene oculta.
+    // Desktop: vuelve a bloque normal (scroll en la columna central del layout).
+    <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
+      {/* ── Header con identidad — calca Mis Cupones/CardYA (acento cyan). En móvil es un bloque
+             fijo (shrink-0) fuera del scroll; en desktop vuelve a relative para no solaparse con
              el resumen sticky (aside) del checkout. ── */}
-      <div className="sticky top-0 z-20 lg:relative">
+      <div className="shrink-0 z-20 lg:relative">
         <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
           <div className="relative overflow-hidden rounded-none lg:rounded-b-3xl" style={{ background: '#000000' }}>
-            {/* Glow sutil indigo */}
-            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(6,182,212,0.09) 0%, transparent 50%)' }} />
+            {/* Glow cyan */}
+            <div className="absolute inset-0 pointer-events-none" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(6,182,212,0.10) 0%, transparent 55%)' }} />
             {/* Grid pattern sutil */}
             <div
               className="absolute inset-0 pointer-events-none"
@@ -322,6 +328,16 @@ export default function PaginaAnunciate() {
                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
               }}
+            />
+            {/* Línea de acento superior (cyan) */}
+            <div
+              className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+              style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
+            />
+            {/* Línea de acento inferior (cyan) */}
+            <div
+              className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+              style={{ background: 'linear-gradient(90deg, transparent, #06b6d4 40%, #22d3ee 60%, transparent)' }}
             />
 
             <div className="relative z-10">
@@ -419,8 +435,9 @@ export default function PaginaAnunciate() {
         </div>
       </div>
 
-      {/* Cuerpo del checkout */}
-      <div className="px-4 py-5 lg:px-6 lg:py-7 2xl:px-8 lg:max-w-7xl lg:mx-auto">
+      {/* Cuerpo del checkout — en móvil es el contenedor con scroll propio (flex-1 + overflow);
+          en desktop vuelve a bloque normal (scroll en la columna central del layout). */}
+      <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain px-4 pt-5 pb-24 lg:flex-none lg:overflow-visible lg:px-6 lg:pt-7 lg:pb-7 2xl:px-8 lg:max-w-7xl lg:mx-auto">
       <div className="grid gap-6 lg:grid-cols-3">
         {/* Pasos (2/3) */}
         <div className="flex flex-col gap-6 lg:col-span-2">

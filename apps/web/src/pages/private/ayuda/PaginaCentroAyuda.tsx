@@ -10,6 +10,7 @@ import { TabsAudiencia, type TabAudiencia } from '@/components/ayuda/TabsAudienc
 import { VistaArticulo } from '@/components/ayuda/VistaArticulo';
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useVolverAtras } from '@/hooks/useVolverAtras';
+import { useScrollAppShell } from '@/hooks/useScrollAppShell';
 import type { AppAyuda, AudienciaAyuda, AyudaArticulo, AyudaCategoria } from '@/types/ayuda';
 
 // Ícono de notificaciones migrado a Iconify (mismo patrón que Mis Cupones).
@@ -39,6 +40,8 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
   // Flecha ← del encabezado (solo en la página /ayuda, no embebida). Usa el
   // historial real; si se entró por URL directa, cae al fallback /inicio.
   const volver = useVolverAtras('/inicio');
+  // App-shell propio solo en la página /ayuda (no cuando va embebida en un drawer de ScanYA).
+  const cuerpoRef = useScrollAppShell(!embebido);
   const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
   const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
   const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
@@ -227,13 +230,14 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
   // ── Página completa: header con identidad (acento sky) ──
   const totalTutoriales = categorias.reduce((n, c) => n + c.articulos.length, 0);
   return (
-    <div data-testid="pagina-centro-ayuda" className="min-h-full">
-      {/* ── Header con identidad — calca Mis Cupones/CardYA (acento sky). Sticky arriba. ── */}
-      <div className="sticky top-0 z-20">
+    <div data-testid="pagina-centro-ayuda" className="flex flex-col h-full lg:block lg:h-auto lg:min-h-full">
+      {/* ── Header con identidad (acento sky) — en móvil bloque fijo (shrink-0) FUERA del scroll
+           (app-shell propio, como BS); en desktop sticky arriba. ── */}
+      <div className="shrink-0 z-20 lg:sticky lg:top-0">
         <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
           <div className="relative overflow-hidden rounded-none lg:rounded-b-3xl" style={{ background: '#000000' }}>
-            {/* Glow sutil sky */}
-            <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(14,165,233,0.09) 0%, transparent 50%)' }} />
+            {/* Glow sky */}
+            <div className="pointer-events-none absolute inset-0" style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(14,165,233,0.10) 0%, transparent 55%)' }} />
             {/* Grid pattern sutil */}
             <div
               className="pointer-events-none absolute inset-0"
@@ -242,6 +246,16 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
               }}
+            />
+            {/* Línea de acento superior (sky) */}
+            <div
+              className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+              style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+            />
+            {/* Línea de acento inferior (sky) */}
+            <div
+              className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+              style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
             />
 
             <div className="relative z-10">
@@ -261,7 +275,7 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
                     <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg" style={{ background: 'linear-gradient(135deg, #0284c7, #0369a1)' }}>
                       <HelpCircle className="h-[18px] w-[18px] text-white" strokeWidth={2.4} />
                     </div>
-                    <span className="truncate text-lg font-extrabold tracking-tight text-white">
+                    <span className="truncate text-2xl font-extrabold tracking-tight text-white">
                       Ayuda y <span className="text-sky-400">Tutoriales</span>
                     </span>
                   </div>
@@ -371,8 +385,9 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
         </div>
       </div>
 
-      {/* ── Cuerpo ── */}
-      <div className="p-4 lg:mx-auto lg:max-w-7xl lg:p-6 2xl:p-8">
+      {/* ── Cuerpo — en móvil contenedor con scroll propio (flex-1 + overflow); en desktop
+           bloque normal (scroll en la columna central del layout). ── */}
+      <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-24 lg:flex-none lg:overflow-visible lg:mx-auto lg:max-w-7xl lg:p-6 2xl:p-8">
         <div className="mb-5">{buscador}</div>
         {contenido}
       </div>

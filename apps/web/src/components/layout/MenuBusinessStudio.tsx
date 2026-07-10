@@ -216,8 +216,13 @@ export function MenuBusinessStudio() {
   }, [location.pathname]);
 
   return (
-    <div className="h-full flex flex-col bg-white z-0" ref={menuRef}>
-      {/* Opciones del menú - Franjas */}
+    <div
+      className="h-full flex flex-col overflow-hidden z-0"
+      style={{ background: 'linear-gradient(to bottom, #0B358F, #000000)' }}
+      ref={menuRef}
+    >
+      {/* Opciones del menú - Franjas — mismo tono que la lista de ChatYA
+          (azul royal → negro, gradiente limpio sin glow ni cuadrícula). */}
       <nav className="flex-1 overflow-y-auto py-2 lg:py-1.5 2xl:py-2" role="menu">
         {opcionesFiltradas.map((opcion, index) => {
           const Icono = opcion.icono;
@@ -233,42 +238,43 @@ export function MenuBusinessStudio() {
               onMouseEnter={() => setIndiceFocused(index)}
               role="menuitem"
               tabIndex={esActivo || esFocused ? 0 : -1}
+              style={esActivo ? { background: 'linear-gradient(135deg, #1d4ed8, #1e40af)', boxShadow: '0 4px 14px rgba(30,64,175,0.4)' } : undefined}
               className={`
                 w-full flex items-center gap-3 lg:gap-2.5 2xl:gap-3
                 px-4 py-3 lg:px-3 lg:py-2 2xl:px-4 2xl:py-3
                 border-l-2
                 outline-none cursor-pointer
                 ${esActivo
-                  ? 'bg-blue-500 text-white border-blue-300'
+                  ? 'text-white border-blue-300'
                   : esFocused
-                    ? 'bg-slate-200 border-blue-500'
-                    : 'text-slate-600 border-transparent hover:bg-slate-200 hover:border-blue-500'
+                    ? 'bg-white/5 text-white border-blue-400'
+                    : 'text-slate-300 border-transparent hover:bg-white/5 hover:text-white hover:border-blue-400'
                 }
               `}
             >
               <Icono
                 className={`
                   w-4 h-4 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 shrink-0
-                  ${esActivo ? 'text-white' : esFocused ? 'text-blue-500' : 'text-slate-400'}
+                  ${esActivo ? 'text-white' : esFocused ? 'text-blue-300' : 'text-slate-400'}
                   ${!esActivo ? 'float-icon-bs' : ''}
                 `}
                 style={{ animationDelay: `${index * 0.15}s` }}
               />
               <span className={`
                 text-sm lg:text-[13px] 2xl:text-base font-medium flex-1 text-left flex items-center gap-1.5
-                ${esActivo ? 'text-white' : esFocused ? 'text-blue-600' : ''}
+                ${esActivo ? 'text-white' : esFocused ? 'text-white' : ''}
               `}>
                 {opcion.label}
                 {opcion.id === 'alertas' && alertasNoLeidas > 0 && (
                   <span className={`text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold ${
-                    esActivo ? 'bg-white/20 text-white' : 'bg-red-500 text-white'
+                    esActivo ? 'bg-white/25 text-white' : 'bg-red-500 text-white'
                   }`} data-testid="badge-alertas-menu">
                     {alertasNoLeidas > 99 ? '99+' : alertasNoLeidas}
                   </span>
                 )}
                 {opcion.id === 'opiniones' && opinionesPendientes > 0 && (
                   <span className={`text-[10px] min-w-5 h-5 px-1 flex items-center justify-center rounded-full font-bold ${
-                    esActivo ? 'bg-white/20 text-white' : 'bg-red-500 text-white'
+                    esActivo ? 'bg-white/25 text-white' : 'bg-red-500 text-white'
                   }`} data-testid="badge-opiniones-menu">
                     {opinionesPendientes > 99 ? '99+' : opinionesPendientes}
                   </span>
@@ -282,10 +288,10 @@ export function MenuBusinessStudio() {
                   />
                 ) : esFocused ? (
                   <ChevronRight
-                    className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-500 dot-to-arrow"
+                    className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-blue-300 dot-to-arrow"
                   />
                 ) : (
-                  <span className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 rounded-full bg-slate-300 dot-to-arrow" />
+                  <span className="w-2 h-2 lg:w-1.5 lg:h-1.5 2xl:w-2 2xl:h-2 rounded-full bg-white/30 dot-to-arrow" />
                 )}
               </div>
             </button>

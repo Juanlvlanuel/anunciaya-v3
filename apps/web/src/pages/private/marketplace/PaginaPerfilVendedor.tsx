@@ -48,6 +48,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import {
     ChevronLeft,
     UserPlus,
@@ -229,6 +230,7 @@ export function PaginaPerfilVendedor() {
     // interno (idéntico a flecha nativa) con fallback a `/marketplace`
     // cuando se entra por URL directa.
     const handleVolver = useVolverAtras('/marketplace');
+    const cuerpoRef = useScrollAppShell();
 
     const handleToggleBloqueo = async () => {
         if (!perfil || !usuarioActual || accionBloqueoEnCurso) return;
@@ -339,7 +341,7 @@ export function PaginaPerfilVendedor() {
     const estadoPresencia = estadoUsuario?.estado;
 
     return (
-        <div data-testid="pagina-perfil-vendedor" className="min-h-full">
+        <div data-testid="pagina-perfil-vendedor" className="flex flex-col h-full lg:block lg:h-auto lg:min-h-full">
             {/* ════════════════════════════════════════════════════════════════
                 HEADER DARK STICKY — Identidad teal del MarketPlace
                 Replica patrón de PaginaMarketplace: fondo negro + glow teal
@@ -351,18 +353,18 @@ export function PaginaPerfilVendedor() {
                 patrón que el detalle de MP — `PaginaArticuloMarketplace`).
                 El body del perfil vive en su propio wrapper más compacto
                 `max-w-[920px]` más abajo. */}
-            <div className="sticky top-0 z-30">
+            <div className="shrink-0 z-30 lg:sticky lg:top-0">
                 <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                     <div
                         className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                         style={{ background: '#000000' }}
                     >
-                        {/* Glow sutil teal arriba-derecha */}
+                        {/* Glow teal arriba-derecha */}
                         <div
                             className="pointer-events-none absolute inset-0"
                             style={{
                                 background:
-                                    'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.07) 0%, transparent 50%)',
+                                    'radial-gradient(ellipse at 85% 20%, rgba(20,184,166,0.10) 0%, transparent 55%)',
                             }}
                         />
                         {/* Grid pattern sutil */}
@@ -373,6 +375,16 @@ export function PaginaPerfilVendedor() {
                                 backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                                   repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                             }}
+                        />
+                        {/* Línea de acento superior (teal) */}
+                        <div
+                            className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
+                        />
+                        {/* Línea de acento inferior (teal) */}
+                        <div
+                            className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                            style={{ background: 'linear-gradient(90deg, transparent, #14b8a6 40%, #2dd4bf 60%, transparent)' }}
                         />
 
                         {/* Contenido del header — patrón MP:
@@ -464,8 +476,8 @@ export function PaginaPerfilVendedor() {
                 </div>
             </div>
 
-            {/* CONTENEDOR — max 920px para igualar al feed de MP */}
-            <div className="lg:mx-auto lg:max-w-[920px] lg:px-4">
+            {/* CONTENEDOR — max 920px para igualar al feed de MP. Móvil: contenedor con scroll propio. */}
+            <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain pb-24 lg:flex-none lg:overflow-visible lg:pb-0 lg:mx-auto lg:max-w-[920px] lg:px-4">
                 <div className="px-3 py-5 lg:px-0 lg:py-8">
 
                     <HeroCard

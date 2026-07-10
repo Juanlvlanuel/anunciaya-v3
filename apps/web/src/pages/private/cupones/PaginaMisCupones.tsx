@@ -12,6 +12,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { Ticket, CheckCircle, ChevronLeft } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../../config/iconos';
@@ -63,6 +64,7 @@ export default function PaginaMisCupones() {
     const navigate = useNavigate();
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
+    const cuerpoRef = useScrollAppShell();
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
@@ -120,19 +122,20 @@ export default function PaginaMisCupones() {
     return (
         <>
             <style>{ESTILOS}</style>
-            <div className="min-h-full bg-transparent">
+            <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full">
 
-                {/* ── Header sticky — mismo patrón que CardYA ── */}
-                <div ref={headerRef} className="sticky top-0 z-20">
+                {/* ── Header — móvil: bloque fijo (shrink-0) FUERA del scroll (app-shell propio, como
+                     BS); desktop: sticky arriba de la columna central. ── */}
+                <div ref={headerRef} className="shrink-0 z-20 lg:sticky lg:top-0">
                     <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
                         <div
                             className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
                             style={{ background: '#000000' }}
                         >
-                            {/* Glow sutil emerald */}
+                            {/* Glow emerald */}
                             <div
                                 className="absolute inset-0 pointer-events-none"
-                                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(16,185,129,0.07) 0%, transparent 50%)' }}
+                                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(16,185,129,0.10) 0%, transparent 55%)' }}
                             />
                             {/* Grid pattern sutil */}
                             <div
@@ -142,6 +145,16 @@ export default function PaginaMisCupones() {
                                     backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                                  repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                                 }}
+                            />
+                            {/* Línea de acento superior (emerald) */}
+                            <div
+                                className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #10b981 40%, #34d399 60%, transparent)' }}
+                            />
+                            {/* Línea de acento inferior (emerald) */}
+                            <div
+                                className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                                style={{ background: 'linear-gradient(90deg, transparent, #10b981 40%, #34d399 60%, transparent)' }}
                             />
 
                             <div className="relative z-10">
@@ -320,8 +333,8 @@ export default function PaginaMisCupones() {
                     </div>
                 </div>
 
-                {/* ── Body ── */}
-                <div className="p-4 lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
+                {/* ── Body — móvil: contenedor con scroll propio; desktop: normal ── */}
+                <div ref={cuerpoRef} className="flex-1 min-h-0 overflow-y-auto overscroll-contain p-4 pb-24 lg:flex-none lg:overflow-visible lg:p-6 2xl:p-8 lg:max-w-7xl lg:mx-auto">
                     {cargando ? (
                         <div className="flex items-center justify-center py-20">
                             <Spinner tamanio="lg" />

@@ -39,6 +39,10 @@ interface ServiciosHeaderProps {
     onBack?: () => void;
     /** Variante del header. Default = 'feed'. */
     variante?: 'feed' | 'pagina';
+    /** App-shell propio (feed migrado): en móvil el header es un bloque `shrink-0`
+     *  FUERA del scroll (en vez de `sticky` dentro). En desktop sigue sticky.
+     *  El detalle (variante='pagina') lo omite → conserva `sticky`. Default false. */
+    appShell?: boolean;
     /** Ref al contenedor sticky del header (para medir su altura desde la
      *  página, ej. anclar el FAB Publicar justo debajo). */
     stickyRef?: Ref<HTMLDivElement>;
@@ -71,6 +75,7 @@ interface ServiciosHeaderProps {
 export function ServiciosHeader({
     onBack,
     variante = 'feed',
+    appShell = false,
     stickyRef,
     ciudad = null,
     totalPublicaciones = null,
@@ -120,7 +125,7 @@ export function ServiciosHeader({
     const esFeed = variante === 'feed';
     return (
         <>
-        <div ref={stickyRef} className="sticky top-0 z-20">
+        <div ref={stickyRef} className={appShell ? 'shrink-0 z-20 lg:sticky lg:top-0' : 'sticky top-0 z-20'}>
             <div className="lg:mx-auto lg:max-w-7xl lg:px-6 2xl:px-8">
                 <div
                     className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
@@ -131,7 +136,7 @@ export function ServiciosHeader({
                         className="pointer-events-none absolute inset-0"
                         style={{
                             background:
-                                'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 50%)',
+                                'radial-gradient(ellipse at 85% 20%, rgba(2,132,199,0.10) 0%, transparent 55%)',
                         }}
                     />
                     {/* Grid pattern sutil */}
@@ -143,13 +148,23 @@ export function ServiciosHeader({
                                               repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                         }}
                     />
+                    {/* Línea de acento superior (sky) */}
+                    <div
+                        className="pointer-events-none absolute top-0 left-0 right-0 h-[3px] z-20"
+                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                    />
+                    {/* Línea de acento inferior (sky) */}
+                    <div
+                        className="pointer-events-none absolute bottom-0 left-0 right-0 h-[3px] z-20"
+                        style={{ background: 'linear-gradient(90deg, transparent, #0ea5e9 40%, #38bdf8 60%, transparent)' }}
+                    />
 
                     <div className="relative z-10">
                         {/* ═══ MOBILE HEADER (<lg) ═══ */}
                         <div className="lg:hidden">
                             {!buscadorMovilAbierto ? (
-                                <div className="flex items-center justify-between px-3 pt-4 pb-2.5">
-                                    <div className="flex min-w-0 shrink-0 items-center gap-1.5">
+                                <div className="flex items-center justify-between gap-1 px-2 pt-4 pb-2.5">
+                                    <div className="flex min-w-0 flex-1 items-center gap-1">
                                         <button
                                             data-testid="btn-volver-servicios"
                                             onClick={onBack}
@@ -170,11 +185,12 @@ export function ServiciosHeader({
                                                 strokeWidth={2.5}
                                             />
                                         </div>
-                                        <span className="truncate text-2xl font-extrabold tracking-tight text-white ml-1.5">
-                                            Servi<span className="text-sky-400">cios</span>
+                                        <span className="flex flex-col leading-none min-w-0 ml-1.5">
+                                            <span className="truncate text-2xl font-extrabold tracking-tight text-white">Servicios</span>
+                                            <span className="text-xs font-bold uppercase tracking-[0.16em] text-sky-400">Locales</span>
                                         </span>
                                     </div>
-                                    <div className="flex shrink-0 items-center gap-1">
+                                    <div className="flex shrink-0 items-center gap-0 -mr-1">
                                         <button
                                             data-testid="btn-buscar-servicios"
                                             onClick={handleAbrirBuscadorMovil}
@@ -311,12 +327,8 @@ export function ServiciosHeader({
                                         />
                                     </div>
                                     <div className="flex items-baseline">
-                                        <span className="text-2xl font-extrabold tracking-tight text-white 2xl:text-3xl">
-                                            Servi
-                                        </span>
-                                        <span className="text-2xl font-extrabold tracking-tight text-sky-400 2xl:text-3xl">
-                                            cios
-                                        </span>
+                                        <span className="text-2xl 2xl:text-3xl font-extrabold text-white tracking-tight">Servicios</span>
+                                        <span className="text-2xl 2xl:text-3xl font-extrabold text-sky-400 tracking-tight">Locales</span>
                                     </div>
                                     {/* Breadcrumb desktop — solo variante='pagina'. */}
                                     {!esFeed && breadcrumb && (

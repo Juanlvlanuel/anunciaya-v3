@@ -18,6 +18,7 @@ import { useState, useEffect, useRef, useMemo, useCallback, useDeferredValue, ty
 import { createPortal } from 'react-dom';
 import { useNavigate } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { normalizarTexto } from '../../../utils/normalizarTexto';
 import { Mapa, Marker, Popup, useMap, type MapRef, type MarkerEvent } from '../../../components/mapa/Mapa';
 import { ChipsFiltros } from '../../../components/negocios/ChipsFiltros';
@@ -509,6 +510,7 @@ export function PaginaNegocios() {
   const navigate = useNavigate();
   // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
   const handleVolver = useVolverAtras('/inicio');
+  const cuerpoRef = useScrollAppShell();
   const mapRef = useRef<MapRef | null>(null);
   const btnCategoriaRef = useRef<HTMLButtonElement>(null);
   const btnSubcategoriaRef = useRef<HTMLButtonElement>(null);
@@ -865,21 +867,21 @@ export function PaginaNegocios() {
     <>
       <style>{POPUP_STYLES}</style>
 
-      <div className="min-h-full bg-transparent" data-testid="pagina-negocios">
+      <div className="flex flex-col h-full bg-transparent lg:block lg:h-auto lg:min-h-full" data-testid="pagina-negocios">
 
         {/* ══════════════════════════════════════════════════════════════════ */}
         {/* HEADER STICKY — Patrón estándar con glow azul                   */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        <div ref={headerRef} className="sticky top-0 z-20">
+        <div ref={headerRef} className="shrink-0 z-20 lg:sticky lg:top-0">
           <div className="lg:max-w-7xl lg:mx-auto lg:px-6 2xl:px-8">
             <div
               className="relative overflow-hidden rounded-none lg:rounded-b-3xl"
               style={{ background: '#000000' }}
             >
-              {/* Glow sutil azul */}
+              {/* Glow azul */}
               <div
                 className="absolute inset-0 pointer-events-none"
-                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(59,130,246,0.07) 0%, transparent 50%)' }}
+                style={{ background: 'radial-gradient(ellipse at 85% 20%, rgba(59,130,246,0.10) 0%, transparent 55%)' }}
               />
               {/* Grid pattern */}
               <div
@@ -889,6 +891,16 @@ export function PaginaNegocios() {
                   backgroundImage: `repeating-linear-gradient(0deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px),
                                    repeating-linear-gradient(90deg, #fff 0px, #fff 1px, transparent 1px, transparent 40px)`,
                 }}
+              />
+              {/* Línea de acento superior (blue) */}
+              <div
+                className="absolute top-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
+              />
+              {/* Línea de acento inferior (blue) */}
+              <div
+                className="absolute bottom-0 left-0 right-0 h-[3px] pointer-events-none z-20"
+                style={{ background: 'linear-gradient(90deg, transparent, #3b82f6 40%, #60a5fa 60%, transparent)' }}
               />
 
               <div className="relative z-10">
@@ -1208,7 +1220,7 @@ export function PaginaNegocios() {
         {/* para que el ancho coincida exacto con cards+gaps (sin "sobra"    */}
         {/* que reordene el centrado). El header arriba mantiene max-w-7xl.  */}
         {/* ══════════════════════════════════════════════════════════════════ */}
-        <div className={`relative z-0 lg:mx-auto p-4 lg:px-0 lg:max-w-[940px] 2xl:max-w-[1068px] ${
+        <div ref={cuerpoRef} className={`relative z-0 flex-1 min-h-0 overflow-y-auto overscroll-contain lg:flex-none lg:overflow-visible lg:mx-auto p-4 pb-24 lg:px-0 lg:max-w-[940px] 2xl:max-w-[1068px] ${
           tabActiva === 'mapa' ? 'lg:py-3 2xl:py-3' : 'lg:py-6 2xl:py-8'
         }`}>
 
