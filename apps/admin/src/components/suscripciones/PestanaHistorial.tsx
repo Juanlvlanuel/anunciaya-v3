@@ -13,7 +13,7 @@
  */
 
 import { useState, type ReactNode } from 'react';
-import { History, Check, X, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
+import { History, Check, X, Mail, Ban, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSolicitudesProcesadas } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { SolicitudProcesada } from '../../services/suscripcionesService';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
@@ -247,8 +247,13 @@ function FilaHistorial({ s, onAbrir }: { s: SolicitudProcesada; onAbrir: () => v
         </span>
       </span>
       <span className="text-[13.5px] font-semibold text-texto">{montoTexto(s.monto)}</span>
-      <span>
+      <span className="flex flex-col items-start gap-1">
         <BadgeEstado estado={s.estado} />
+        {s.estado === 'aprobado' && s.pagoAnulado && (
+          <span className="inline-flex items-center gap-1 text-[11px] font-medium text-peligro">
+            <Ban size={10} className="shrink-0" /> Pago anulado
+          </span>
+        )}
       </span>
       <span className="text-[13px] text-texto-2">{fechaCorta(s.revisadoAt)}</span>
       <span className="flex justify-end text-texto-4">
@@ -280,6 +285,11 @@ function CardHistorial({ s, onAbrir }: { s: SolicitudProcesada; onAbrir: () => v
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1.5">
         <BadgeEstado estado={s.estado} small />
+        {s.estado === 'aprobado' && s.pagoAnulado && (
+          <span className="inline-flex items-center gap-1 text-[10.5px] font-medium text-peligro">
+            <Ban size={10} className="shrink-0" /> Pago anulado
+          </span>
+        )}
         <span className="text-[13.5px] font-bold text-texto">{montoTexto(s.monto)}</span>
       </span>
     </div>

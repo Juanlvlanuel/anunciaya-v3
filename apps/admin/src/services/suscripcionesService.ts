@@ -180,6 +180,8 @@ export interface SolicitudProcesada {
   revisadoAt: string | null;
   motivoRechazo: string | null;
   revisadoPorNombre: string | null;
+  /** La solicitud fue aprobada pero su pago se anuló después (no borrado). Solo informativo. */
+  pagoAnulado: boolean;
 }
 
 export interface HistorialSolicitudes {

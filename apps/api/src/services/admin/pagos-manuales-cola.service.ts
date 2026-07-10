@@ -117,6 +117,8 @@ export interface SolicitudProcesada {
     revisadoAt: string | null;
     motivoRechazo: string | null;
     revisadoPorNombre: string | null;
+    /** La solicitud fue aprobada pero su pago después se anuló (no borrado; el FK es SET NULL). Informativo. */
+    pagoAnulado: boolean;
 }
 
 export interface HistorialSolicitudes {
@@ -145,6 +147,9 @@ export async function listarSolicitudesProcesadas(
 
     // `revisor` = usuario admin que aprobó/rechazó (revisado_por). LEFT: pudo quedar null (set null).
     const revisor = alias(usuarios, 'revisor');
+    // `pago` = el pago generado al aprobar (pago_membresia_id). LEFT: null si se rechazó o si el
+    // pago se borró luego (el FK es ON DELETE SET NULL) → en ese caso NO marcamos "anulado".
+    const pago = alias(pagosMembresia, 'pago');
 
     const filas = await db
         .select({
@@ -163,11 +168,13 @@ export async function listarSolicitudesProcesadas(
             revisadoAt: pagosManualesSolicitudes.revisadoAt,
             motivoRechazo: pagosManualesSolicitudes.motivoRechazo,
             revisadoPorNombre: revisor.nombre,
+            pagoAnuladoRaw: pago.anulado,
         })
         .from(pagosManualesSolicitudes)
         .innerJoin(negocios, eq(negocios.id, pagosManualesSolicitudes.negocioId))
         .innerJoin(usuarios, eq(usuarios.id, negocios.usuarioId))
         .leftJoin(revisor, eq(revisor.id, pagosManualesSolicitudes.revisadoPor))
+        .leftJoin(pago, eq(pago.id, pagosManualesSolicitudes.pagoMembresiaId))
         .where(where)
         .orderBy(desc(pagosManualesSolicitudes.revisadoAt))
         .limit(porPagina)
@@ -184,7 +191,7 @@ export async function listarSolicitudesProcesadas(
 
     return {
         conteos: { todos: aprobados + rechazados, aprobados, rechazados },
-        solicitudes: filas.map((f) => ({
+        solicitudes: filas.map(({ pagoAnuladoRaw, ...f }) => ({
             ...f,
             estado: f.estado as 'aprobado' | 'rechazado',
             logoUrl: f.logoUrl ?? null,
@@ -194,6 +201,8 @@ export async function listarSolicitudesProcesadas(
             revisadoAt: f.revisadoAt ?? null,
             motivoRechazo: f.motivoRechazo ?? null,
             revisadoPorNombre: f.revisadoPorNombre ?? null,
+            // Solo aplica a aprobadas: pago presente y anulado. Rechazadas o pago borrado → false.
+            pagoAnulado: f.estado === 'aprobado' && pagoAnuladoRaw === true,
         })),
     };
 }
