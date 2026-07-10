@@ -101,6 +101,19 @@ export function useSolicitudesPendientes(habilitado = true) {
   });
 }
 
+/** Historial de solicitudes procesadas (aprobadas/rechazadas), paginado + filtro por estado. */
+export function useSolicitudesProcesadas(
+  filtros: { estado?: 'aprobado' | 'rechazado'; pagina?: number; porPagina?: number },
+  habilitado = true,
+) {
+  return useQuery({
+    queryKey: queryKeys.suscripciones.historial(filtros),
+    queryFn: () => suscripcionesService.listarSolicitudesProcesadas(filtros),
+    enabled: habilitado,
+    placeholderData: keepPreviousData,
+  });
+}
+
 /** Aprueba una solicitud (monto/meses opcionales; si faltan, se usan los declarados). */
 export function useAprobarSolicitud() {
   const qc = useQueryClient();

@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin, ScrollText, FileCheck2, Landmark, CircleDot, type LucideIcon } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin, ScrollText, FileCheck2, Landmark, CircleDot, History, type LucideIcon } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -28,6 +28,7 @@ import { AvatarNegocio } from '../negocios/avatares';
 import { FichaEvento } from './FichaEvento';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { PestanaPorVerificar } from './PestanaPorVerificar';
+import { PestanaHistorial } from './PestanaHistorial';
 import { PestanaDatosCobro } from './PestanaDatosCobro';
 
 const POR_PAGINA = 20;
@@ -562,11 +563,12 @@ function Paginacion({
 // WRAPPER CON PESTAÑAS
 // =============================================================================
 
-type TabSuscripciones = 'bitacora' | 'por-verificar' | 'datos-cobro';
+type TabSuscripciones = 'bitacora' | 'por-verificar' | 'historial' | 'datos-cobro';
 
 const TABS_SUSCRIPCIONES: { id: TabSuscripciones; etiqueta: string; etiquetaCorta?: string; Icono: LucideIcon }[] = [
   { id: 'bitacora', etiqueta: 'Bitácora', Icono: ScrollText },
   { id: 'por-verificar', etiqueta: 'Por verificar', etiquetaCorta: 'Verificar', Icono: FileCheck2 },
+  { id: 'historial', etiqueta: 'Historial', Icono: History },
   { id: 'datos-cobro', etiqueta: 'Datos de depósito', etiquetaCorta: 'Depósito', Icono: Landmark },
 ];
 
@@ -637,7 +639,7 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
             <TabsNavSuscripciones tab={tab} setTab={setTab} />
           </div>
           <div className="min-h-0 flex-1 overflow-y-auto">
-            {tab === 'por-verificar' ? <PestanaPorVerificar /> : <PestanaDatosCobro />}
+            {tab === 'por-verificar' ? <PestanaPorVerificar /> : tab === 'historial' ? <PestanaHistorial /> : <PestanaDatosCobro />}
           </div>
         </div>
       )}

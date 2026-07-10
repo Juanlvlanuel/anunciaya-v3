@@ -12,6 +12,7 @@ import {
     aprobarSolicitud,
     guardarDatosCobro,
     listarSolicitudesPendientes,
+    listarSolicitudesProcesadas,
     obtenerDatosCobroAdmin,
     rechazarSolicitud,
 } from '../../services/admin/pagos-manuales-cola.service.js';
@@ -29,6 +30,27 @@ export async function listarSolicitudesController(req: Request, res: Response): 
     } catch (error) {
         console.error('Error en listarSolicitudesController:', error);
         res.status(500).json({ success: false, message: 'Error al listar las solicitudes' });
+    }
+}
+
+// =============================================================================
+// HISTORIAL (solicitudes procesadas: aprobadas / rechazadas)
+// =============================================================================
+
+export async function listarSolicitudesProcesadasController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const estadoRaw = typeof req.query.estado === 'string' ? req.query.estado : '';
+        const estado = estadoRaw === 'aprobado' || estadoRaw === 'rechazado' ? estadoRaw : undefined;
+        const paginaN = Number(req.query.pagina);
+        const porPaginaN = Number(req.query.porPagina);
+        const pagina = Number.isFinite(paginaN) && paginaN >= 1 ? Math.floor(paginaN) : 1;
+        const porPagina = Number.isFinite(porPaginaN) && porPaginaN >= 1 ? Math.min(100, Math.floor(porPaginaN)) : 20;
+        const data = await listarSolicitudesProcesadas(panel, { estado, pagina, porPagina });
+        res.status(200).json({ success: true, data });
+    } catch (error) {
+        console.error('Error en listarSolicitudesProcesadasController:', error);
+        res.status(500).json({ success: false, message: 'Error al listar el historial de solicitudes' });
     }
 }
 

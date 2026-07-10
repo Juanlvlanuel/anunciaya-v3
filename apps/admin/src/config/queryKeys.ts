@@ -146,6 +146,7 @@ export const queryKeys = {
     lista: (filtros: FiltrosSuscripcionesKey) => ['suscripciones', 'lista', filtros] as const,
     detalle: (id: string) => ['suscripciones', 'detalle', id] as const,
     solicitudes: () => ['suscripciones', 'solicitudes'] as const,
+    historial: (filtros: { estado?: string; pagina?: number }) => ['suscripciones', 'historial', filtros] as const,
     datosCobro: () => ['suscripciones', 'datos-cobro'] as const,
   },
   recibos: {

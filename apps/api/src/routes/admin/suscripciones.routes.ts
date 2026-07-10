@@ -24,6 +24,7 @@ import {
 } from '../../controllers/admin/suscripciones.controller.js';
 import {
     listarSolicitudesController,
+    listarSolicitudesProcesadasController,
     aprobarSolicitudController,
     rechazarSolicitudController,
     obtenerDatosCobroController,
@@ -39,6 +40,8 @@ router.get('/conteo-activas', requierePanel(['superadmin', 'gerente']), contarSu
 // ─── Cola "Por verificar" (pago manual con comprobante) ──────────────────────
 // Rutas específicas ANTES de '/:id' para que no las capture el comodín.
 router.get('/solicitudes', requierePanel(['superadmin', 'gerente']), listarSolicitudesController);
+// Historial de procesadas (aprobadas/rechazadas). Ruta específica ANTES de las de ':solicitudId'.
+router.get('/solicitudes/historial', requierePanel(['superadmin', 'gerente']), listarSolicitudesProcesadasController);
 router.post('/solicitudes/:solicitudId/aprobar', requierePanel(['superadmin', 'gerente']), aprobarSolicitudController);
 router.post('/solicitudes/:solicitudId/rechazar', requierePanel(['superadmin', 'gerente']), rechazarSolicitudController);
 

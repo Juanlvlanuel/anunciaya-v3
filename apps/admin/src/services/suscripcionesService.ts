@@ -160,6 +160,43 @@ export async function listarSolicitudes(): Promise<SolicitudCola[]> {
   return data.data ?? [];
 }
 
+/** Una solicitud de pago manual YA procesada (aprobada o rechazada) — historial de verificación. */
+export interface SolicitudProcesada {
+  id: string;
+  negocioId: string;
+  negocioNombre: string;
+  logoUrl: string | null;
+  correoDueno: string | null;
+  monto: string;
+  mesesDeclarados: number;
+  referencia: string | null;
+  nota: string | null;
+  comprobanteUrl: string;
+  creadoAt: string;
+  estado: 'aprobado' | 'rechazado';
+  revisadoAt: string | null;
+  motivoRechazo: string | null;
+  revisadoPorNombre: string | null;
+}
+
+export interface HistorialSolicitudes {
+  solicitudes: SolicitudProcesada[];
+  total: number;
+}
+
+/** Historial de solicitudes procesadas (aprobadas/rechazadas), paginado y con filtro por estado. */
+export async function listarSolicitudesProcesadas(params: {
+  estado?: 'aprobado' | 'rechazado';
+  pagina?: number;
+  porPagina?: number;
+}): Promise<HistorialSolicitudes> {
+  const { data } = await api.get<RespuestaAPI<HistorialSolicitudes>>(
+    '/admin/suscripciones/solicitudes/historial',
+    { params },
+  );
+  return data.data ?? { solicitudes: [], total: 0 };
+}
+
 /** Aprueba una solicitud. Si no se pasan monto/meses, el backend usa los DECLARADOS por el dueño. */
 export async function aprobarSolicitud(
   solicitudId: string,

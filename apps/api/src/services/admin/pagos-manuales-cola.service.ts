@@ -16,7 +16,8 @@
  * Ubicación: apps/api/src/services/admin/pagos-manuales-cola.service.ts
  */
 
-import { and, desc, eq, sql } from 'drizzle-orm';
+import { and, desc, eq, inArray, sql } from 'drizzle-orm';
+import { alias } from 'drizzle-orm/pg-core';
 import { db } from '../../db/index.js';
 import { configuracionSistema, negocios, pagosManualesSolicitudes, pagosMembresia, usuarios } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
@@ -91,6 +92,103 @@ export async function listarSolicitudesPendientes(panel: UsuarioPanel): Promise<
         referencia: f.referencia ?? null,
         nota: f.nota ?? null,
     }));
+}
+
+// =============================================================================
+// HISTORIAL (solicitudes YA procesadas: aprobadas / rechazadas)
+// =============================================================================
+// Trazabilidad de la VERIFICACIÓN de comprobantes del comerciante. NO incluye los pagos que el
+// admin registra desde el Panel ("Registrar pago") — esos no pasan por comprobante ni por esta cola;
+// viven en la Bitácora + en la ficha del negocio. Aquí solo el ciclo de las solicitudes con comprobante.
+
+export interface SolicitudProcesada {
+    id: string;
+    negocioId: string;
+    negocioNombre: string;
+    logoUrl: string | null;
+    correoDueno: string | null;
+    monto: string;
+    mesesDeclarados: number;
+    referencia: string | null;
+    nota: string | null;
+    comprobanteUrl: string;
+    creadoAt: string;
+    estado: 'aprobado' | 'rechazado';
+    revisadoAt: string | null;
+    motivoRechazo: string | null;
+    revisadoPorNombre: string | null;
+}
+
+export interface HistorialSolicitudes {
+    solicitudes: SolicitudProcesada[];
+    total: number;
+}
+
+export async function listarSolicitudesProcesadas(
+    panel: UsuarioPanel,
+    opciones: { estado?: 'aprobado' | 'rechazado'; pagina?: number; porPagina?: number },
+): Promise<HistorialSolicitudes> {
+    // Gerente sin región → no ve nada.
+    if (panel.rolEquipo === 'gerente' && !panel.regionId) return { solicitudes: [], total: 0 };
+
+    const pagina = Math.max(1, opciones.pagina ?? 1);
+    const porPagina = Math.min(100, Math.max(1, opciones.porPagina ?? 20));
+    const offset = (pagina - 1) * porPagina;
+
+    const filtroEstado = opciones.estado
+        ? eq(pagosManualesSolicitudes.estado, opciones.estado)
+        : inArray(pagosManualesSolicitudes.estado, ['aprobado', 'rechazado']);
+    const where = and(filtroEstado, alcanceRegion(panel));
+
+    // `revisor` = usuario admin que aprobó/rechazó (revisado_por). LEFT: pudo quedar null (set null).
+    const revisor = alias(usuarios, 'revisor');
+
+    const filas = await db
+        .select({
+            id: pagosManualesSolicitudes.id,
+            negocioId: pagosManualesSolicitudes.negocioId,
+            negocioNombre: negocios.nombre,
+            logoUrl: negocios.logoUrl,
+            correoDueno: usuarios.correo,
+            monto: pagosManualesSolicitudes.monto,
+            mesesDeclarados: pagosManualesSolicitudes.mesesDeclarados,
+            referencia: pagosManualesSolicitudes.referencia,
+            nota: pagosManualesSolicitudes.nota,
+            comprobanteUrl: pagosManualesSolicitudes.comprobanteUrl,
+            creadoAt: pagosManualesSolicitudes.creadoAt,
+            estado: pagosManualesSolicitudes.estado,
+            revisadoAt: pagosManualesSolicitudes.revisadoAt,
+            motivoRechazo: pagosManualesSolicitudes.motivoRechazo,
+            revisadoPorNombre: revisor.nombre,
+        })
+        .from(pagosManualesSolicitudes)
+        .innerJoin(negocios, eq(negocios.id, pagosManualesSolicitudes.negocioId))
+        .innerJoin(usuarios, eq(usuarios.id, negocios.usuarioId))
+        .leftJoin(revisor, eq(revisor.id, pagosManualesSolicitudes.revisadoPor))
+        .where(where)
+        .orderBy(desc(pagosManualesSolicitudes.revisadoAt))
+        .limit(porPagina)
+        .offset(offset);
+
+    const [conteo] = await db
+        .select({ total: sql<number>`count(*)::int` })
+        .from(pagosManualesSolicitudes)
+        .where(where);
+
+    return {
+        total: conteo?.total ?? 0,
+        solicitudes: filas.map((f) => ({
+            ...f,
+            estado: f.estado as 'aprobado' | 'rechazado',
+            logoUrl: f.logoUrl ?? null,
+            correoDueno: f.correoDueno ?? null,
+            referencia: f.referencia ?? null,
+            nota: f.nota ?? null,
+            revisadoAt: f.revisadoAt ?? null,
+            motivoRechazo: f.motivoRechazo ?? null,
+            revisadoPorNombre: f.revisadoPorNombre ?? null,
+        })),
+    };
 }
 
 // =============================================================================
