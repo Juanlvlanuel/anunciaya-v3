@@ -14,7 +14,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
 	Building2,
 	Search,
@@ -72,7 +72,7 @@ const ESTILO_ICONO_HEADER = `
 
 export default function PaginaSucursales() {
 	const { usuario } = useAuthStore();
-	const navigate = useNavigate();
+	const navegar = useNavegarASeccion();
 
 	const [modalCrearAbierto, setModalCrearAbierto] = useState(false);
 	const [modalDetalleAbierto, setModalDetalleAbierto] = useState(false);
@@ -120,8 +120,8 @@ export default function PaginaSucursales() {
 	const handleEditar = useCallback((suc: SucursalResumen) => {
 		// Cambiar sucursal activa y navegar a Mi Perfil
 		useAuthStore.getState().setSucursalActiva(suc.id);
-		navigate('/business-studio/perfil');
-	}, [navigate]);
+		navegar('/business-studio/perfil');
+	}, [navegar]);
 
 	const handleToggleActiva = useCallback(async (suc: SucursalResumen, e: React.MouseEvent) => {
 		e.stopPropagation();
@@ -526,7 +526,7 @@ export default function PaginaSucursales() {
 				<ModalDetalleSucursal
 					sucursal={sucursalSeleccionada}
 					onCerrar={() => { setModalDetalleAbierto(false); setSucursalSeleccionada(null); }}
-					onEditar={() => { setModalDetalleAbierto(false); handleEditar(sucursalSeleccionada); }}
+					onEditar={() => { const suc = sucursalSeleccionada; setModalDetalleAbierto(false); setTimeout(() => handleEditar(suc), 130); }}
 				/>
 			)}
 		</div>

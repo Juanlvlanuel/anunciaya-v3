@@ -37,6 +37,7 @@ import {
 import { Icon, type IconProps } from '@iconify/react';
 import type { ComponentType } from 'react';
 import { ICONOS } from '@/config/iconos';
+import { useBackNativo } from '@/hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -456,6 +457,9 @@ export default function PaginaPuntos() {
   const [tipoRecompensaFiltro, setTipoRecompensaFiltro] = useState<'basica' | 'compras_frecuentes'>('basica');
   const [contextoRecompensas, setContextoRecompensas] = useState(false);
   const [popupSellosVisible, setPopupSellosVisible] = useState(false);
+  // El popup de sellos (móvil, fixed inset-0) debe cerrarse con el back nativo
+  // en vez de sacar del módulo.
+  useBackNativo({ abierto: popupSellosVisible, onCerrar: () => setPopupSellosVisible(false), discriminador: '_popupSellos' });
   const [filtroRecompensas, setFiltroRecompensas] = useState<'todas' | 'activas' | 'inactivas' | 'agotadas'>('todas');
   const [dropdownFiltroAbierto, setDropdownFiltroAbierto] = useState(false);
   const dropdownFiltroRef = useRef<HTMLDivElement>(null);

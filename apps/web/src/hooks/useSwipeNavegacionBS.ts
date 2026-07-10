@@ -10,7 +10,7 @@
  */
 
 import { useEffect, useRef, useCallback } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useAuthStore } from '../stores/useAuthStore';
 import { useNavegarASeccion } from './useNavegarASeccion';
 
@@ -49,7 +49,6 @@ const BOUNCE_DURATION = 300;     // ms de la animación bounce
 
 export function useSwipeNavegacionBS(elementRef: React.RefObject<HTMLElement | null>) {
   const location = useLocation();
-  const navigate = useNavigate();
   // Swipe entre módulos hermanos de BS: replace para que back nativo
   // regrese a /inicio en lugar de saltar al módulo previo.
   const navegarASeccion = useNavegarASeccion();

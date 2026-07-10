@@ -24,6 +24,7 @@ const Navigation = (p: IconoWrapperProps) => <Icon icon={ICONOS.distancia} {...p
 import { ModalUbicacion } from '../../../../../components/layout/ModalUbicacion';
 import { ModalBottom } from '../../../../../components/ui/ModalBottom';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useBackNativo } from '@/hooks/useBackNativo';
 import { useGpsStore } from '@/stores/useGpsStore';
 import { buscarCiudades, buscarCiudadCercana, type CiudadConNombreCompleto } from '@/data/ciudadesPopulares';
 import { notificar } from '@/utils/notificaciones';
@@ -90,6 +91,11 @@ export default function TabUbicacion({
   const [forzarCentrado, setForzarCentrado] = useState(0);
   const [mapaFullscreen, setMapaFullscreen] = useState(false);
   const { esMobile } = useBreakpoint();
+
+  // El mapa fullscreen de escritorio es overlay propio sin base; el back nativo/
+  // flecha del navegador debe cerrarlo. En móvil usa ModalBottom (ya cierra con
+  // back), por eso se limita a !esMobile.
+  useBackNativo({ abierto: mapaFullscreen && !esMobile, onCerrar: () => setMapaFullscreen(false), discriminador: '_mapaUbicacion' });
 
   const latitudActual = datosUbicacion.latitud ?? 31.3122;
   const longitudActual = datosUbicacion.longitud ?? -113.5465;

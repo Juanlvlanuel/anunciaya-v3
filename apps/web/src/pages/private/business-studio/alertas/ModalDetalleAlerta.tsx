@@ -7,7 +7,7 @@
  * Ubicación: apps/web/src/pages/private/business-studio/alertas/ModalDetalleAlerta.tsx
  */
 
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
 	Shield,
 	Heart,
@@ -108,7 +108,7 @@ interface Props {
 }
 
 export function ModalDetalleAlerta({ alerta, onCerrar, onMarcarResuelta, onEliminar }: Props) {
-	const navigate = useNavigate();
+	const navegar = useNavegarASeccion();
 	const colores = GRADIENTES_SEVERIDAD[alerta.severidad];
 	const IconoCat = ICONO_CATEGORIA[alerta.categoria];
 	const enlace = ENLACE_ALERTA[alerta.tipo];
@@ -267,7 +267,7 @@ export function ModalDetalleAlerta({ alerta, onCerrar, onMarcarResuelta, onElimi
 					{enlace && (
 						<div className="px-4 lg:px-3 2xl:px-4 py-2">
 							<button
-								onClick={() => { onCerrar(); navigate(rutaEnlace!); }}
+								onClick={() => { onCerrar(); setTimeout(() => navegar(rutaEnlace!), 130); }}
 								className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-slate-200 border-2 border-slate-300 text-sm lg:text-xs 2xl:text-sm font-bold text-slate-700 hover:bg-slate-300 cursor-pointer"
 								data-testid="btn-ver-contexto-alerta"
 							>

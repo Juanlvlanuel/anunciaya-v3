@@ -229,26 +229,19 @@ export default function ModalDetalleCliente({
     onCerrar();
   };
 
-  // Navegar a transacciones filtradas.
-  //
-  // Trade-off conocido: el back nativo desde /transacciones regresa
-  // primero a /clientes (la entrada del módulo padre que abrió el modal)
-  // y luego a /inicio. Es decir, requiere 2 backs en lugar de 1. Aceptado
-  // como UX viable porque:
-  //  - Es un flujo edge poco frecuente (solo desde "Ver historial completo"
-  //    estando dentro de un modal de cliente).
-  //  - La navegación "esperada" intuitivamente desde /transacciones también
-  //    podría ser regresar a /clientes (donde estaba el modal abierto).
-  //  - Solucionarlo robustamente requiere coordinar el cleanup del modal
-  //    con el navigate posterior — implementaciones intentadas con
-  //    setTimeout / requestAnimationFrame no funcionaron consistente.
+  // Navegar a transacciones filtradas, cerrando PRIMERO el modal y navegando
+  // 130ms después (patrón cerrar-primero): el modal base consume su entrada de
+  // history antes del push del destino, así el back desde /transacciones regresa
+  // limpio a /inicio (sin el back-extra que antes se aceptaba). Mismo patrón que
+  // DrawerBusinessStudio.handleNavegar.
   const handleVerHistorial = () => {
     if (clienteDetalle?.nombre) {
       if (onVerHistorial) {
         onVerHistorial(clienteDetalle.nombre);
       } else {
+        const busqueda = clienteDetalle.nombre;
         handleCerrar();
-        navegarASeccion(`/business-studio/transacciones?busqueda=${encodeURIComponent(clienteDetalle.nombre)}`);
+        setTimeout(() => navegarASeccion(`/business-studio/transacciones?busqueda=${encodeURIComponent(busqueda)}`), 130);
       }
     }
   };

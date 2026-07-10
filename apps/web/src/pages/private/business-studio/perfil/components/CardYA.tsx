@@ -10,7 +10,7 @@
  */
 
 import { useState, useRef, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { Check, ChevronRight, Settings2 } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -161,7 +161,7 @@ function PopoverConfirmacion({ onCancelar, onConfirmar }: PopoverConfirmacionPro
 // ============================================================================
 
 export default function CardYA({ participaCardYA, onToggle }: CardYAProps) {
-  const navigate = useNavigate();
+  const navegar = useNavegarASeccion();
 
   const usuario = useAuthStore((s) => s.usuario);
   const setUsuario = useAuthStore((s) => s.setUsuario);
@@ -315,7 +315,7 @@ export default function CardYA({ participaCardYA, onToggle }: CardYAProps) {
                 </div>
               ))}
               <button
-                onClick={() => navigate('/business-studio/puntos')}
+                onClick={() => navegar('/business-studio/puntos')}
                 className="mt-1 flex items-center justify-center gap-2 w-full h-10 rounded-lg text-black font-bold text-sm cursor-pointer"
                 style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
               >
@@ -409,7 +409,7 @@ export default function CardYA({ participaCardYA, onToggle }: CardYAProps) {
               </div>
               {participaCardYA ? (
                 <button
-                  onClick={() => navigate('/business-studio/puntos')}
+                  onClick={() => navegar('/business-studio/puntos')}
                   className="flex items-center gap-1.5 h-10 lg:h-9 2xl:h-10 px-3.5 rounded-lg text-black font-bold text-[11px] 2xl:text-sm cursor-pointer whitespace-nowrap"
                   style={{ background: 'linear-gradient(135deg, #f59e0b, #d97706)' }}
                 >

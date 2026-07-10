@@ -3,7 +3,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { Users, ShoppingBag, AlertTriangle, UserX } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -27,18 +27,18 @@ interface TabClientesProps {
 
 export function TabClientes({ fechaInicio, fechaFin, solo = 'body' }: TabClientesProps) {
   const { data, isPending } = useReporteClientes(fechaInicio, fechaFin);
-  const navigate = useNavigate();
+  const navegar = useNavegarASeccion();
   const [modalAbierto, setModalAbierto] = useState<'riesgo' | 'inactivos' | null>(null);
 
   // Navegar al módulo Clientes con filtro por nombre
   const abrirClienteEnModulo = (nombre: string, apellidos: string) => {
     const nombreCompleto = [nombre, apellidos].filter(Boolean).join(' ').trim();
-    navigate(`/business-studio/clientes?busqueda=${encodeURIComponent(nombreCompleto)}`);
+    navegar(`/business-studio/clientes?busqueda=${encodeURIComponent(nombreCompleto)}`);
   };
 
   // Navegar al módulo Clientes sin filtro
   const abrirModuloClientes = () => {
-    navigate('/business-studio/clientes');
+    navegar('/business-studio/clientes');
   };
 
   if (isPending) {

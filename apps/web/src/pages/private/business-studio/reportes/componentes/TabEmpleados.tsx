@@ -3,7 +3,7 @@
  */
 
 import { useState, useMemo } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { UserCog, AlertTriangle, ArrowUp, ArrowDown, Users, ShieldAlert } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -29,7 +29,7 @@ type DireccionOrden = 'asc' | 'desc';
 
 export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmpleadosProps) {
   const { data, isPending } = useReporteEmpleados(fechaInicio, fechaFin);
-  const navigate = useNavigate();
+  const navegar = useNavegarASeccion();
 
   const [campoOrden, setCampoOrden] = useState<CampoOrden>('montoTotal');
   const [direccionOrden, setDireccionOrden] = useState<DireccionOrden>('desc');
@@ -44,7 +44,7 @@ export function TabEmpleados({ fechaInicio, fechaFin, solo = 'body' }: TabEmplea
   };
 
   const abrirEmpleadoEnModulo = (nombre: string) => {
-    navigate(`/business-studio/empleados?busqueda=${encodeURIComponent(nombre)}`);
+    navegar(`/business-studio/empleados?busqueda=${encodeURIComponent(nombre)}`);
   };
 
   // Empleados ordenados según el criterio seleccionado

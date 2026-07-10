@@ -37,6 +37,7 @@ import {
     X,
 } from 'lucide-react';
 import { useAuthStore } from '../../../../../stores/useAuthStore';
+import { useBackNativo } from '../../../../../hooks/useBackNativo';
 import { CustomSelect } from '../../../../../components/ui/CustomSelect';
 import { HorarioYDias } from './HorarioYDias';
 import {
@@ -477,6 +478,12 @@ export function SlideoverNuevaVacante({
     // ===========================================================================
     // EFECTOS — ESC + body scroll + focus inicial
     // ===========================================================================
+
+    // Back nativo del celular / flecha del navegador → cierra el slideover (es
+    // un overlay full-screen hecho a mano). Se monta siempre con la prop
+    // `abierto`, así que el hook reacciona a ella. Se apila sobre el detalle
+    // inline de la vacante (discriminador propio) → el back cierra capa por capa.
+    useBackNativo({ abierto, onCerrar: onClose, discriminador: '_slideoverVacante' });
 
     useEffect(() => {
         if (!abierto) return;

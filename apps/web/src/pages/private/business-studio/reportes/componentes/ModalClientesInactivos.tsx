@@ -15,7 +15,7 @@ const Phone = (p: IconoWrapperProps) => <Icon icon={ICONOS.telefono} {...p} />;
 const Mail = (p: IconoWrapperProps) => <Icon icon={ICONOS.email} {...p} />;
 const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { ModalAdaptativo } from '../../../../../components/ui/ModalAdaptativo';
 import { Spinner } from '../../../../../components/ui/Spinner';
 import { useClientesInactivos } from '../../../../../hooks/queries/useReportes';
@@ -41,7 +41,7 @@ function formatearFechaLarga(fecha: string | null): string {
 
 export function ModalClientesInactivos({ abierto, onCerrar, tipo }: Props) {
   const { data, isPending } = useClientesInactivos(tipo, abierto);
-  const navigate = useNavigate();
+  const navegar = useNavegarASeccion();
 
   const titulo = tipo === 'riesgo' ? 'Clientes en riesgo' : 'Clientes inactivos';
   const descripcion = tipo === 'riesgo'
@@ -51,9 +51,11 @@ export function ModalClientesInactivos({ abierto, onCerrar, tipo }: Props) {
 
   const handleAbrirCliente = (nombre: string, apellidos: string) => {
     const nombreCompleto = [nombre, apellidos].filter(Boolean).join(' ').trim();
+    // Cerrar PRIMERO y navegar 130ms después (cerrar-primero): el modal base
+    // consume su entrada de history antes del push → back limpio a /inicio.
+    // La búsqueda va como query param (sobrevive a React Strict Mode).
     onCerrar();
-    // Pasa la búsqueda como query param (sobrevive a React Strict Mode)
-    navigate(`/business-studio/clientes?busqueda=${encodeURIComponent(nombreCompleto)}`);
+    setTimeout(() => navegar(`/business-studio/clientes?busqueda=${encodeURIComponent(nombreCompleto)}`), 130);
   };
 
   return (

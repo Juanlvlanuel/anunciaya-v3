@@ -45,6 +45,7 @@ import {
     useEliminarVacanteBS,
 } from '../../../../hooks/queries/useVacantesBS';
 import { usePerfilSucursales } from '../../../../hooks/queries/usePerfil';
+import { useBackNativo } from '../../../../hooks/useBackNativo';
 import { notificar } from '../../../../utils/notificaciones';
 import { Input } from '../../../../components/ui/Input';
 import { Spinner } from '../../../../components/ui/Spinner';
@@ -120,6 +121,16 @@ export default function PaginaVacantes() {
     const [slideoverAbierto, setSlideoverAbierto] = useState(false);
     const [modoSlideover, setModoSlideover] =
         useState<ModoSlideover>('crear');
+
+    // El detalle de vacante es una sub-vista inline que reemplaza la lista sin
+    // cambiar la URL. Con useBackNativo el back nativo regresa de detalle→lista
+    // (además de las flechas ← manuales), en vez de salir del módulo. El
+    // slideover de alta/edición se apila encima con su propio discriminador.
+    useBackNativo({
+        abierto: vacanteSeleccionada !== null,
+        onCerrar: () => setVacanteSeleccionada(null),
+        discriminador: '_vacanteDetalle',
+    });
 
     // ---------------------------------------------------------------------------
     // Borrador del wizard de Vacantes (Sprint 9.3) — namespaced por sucursal

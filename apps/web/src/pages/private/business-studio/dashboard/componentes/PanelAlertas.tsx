@@ -6,7 +6,7 @@
  * UBICACIÓN: apps/web/src/pages/private/business-studio/dashboard/componentes/PanelAlertas.tsx
  */
 
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { AlertTriangle, Info, CheckCircle, XCircle } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -123,7 +123,7 @@ function ItemAlerta({ alerta, onClick }: { alerta: Alerta; onClick: () => void }
 // =============================================================================
 
 export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlertasProps) {
-	const navigate = useNavigate();
+	const navegar = useNavegarASeccion();
 	const listaAlertas = alertas?.alertas ?? [];
 	const noLeidas = alertas?.noLeidas ?? 0;
 
@@ -156,7 +156,7 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
 					</div>
 				) : (
 					<button
-						onClick={() => navigate('/business-studio/alertas')}
+						onClick={() => navegar('/business-studio/alertas')}
 						className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-white/60 hover:text-white cursor-pointer"
 					>
 						Ver todas →
@@ -171,7 +171,7 @@ export default function PanelAlertas({ alertas, vistaMobil = false }: PanelAlert
 						<ItemAlerta
 							key={alerta.id}
 							alerta={alerta}
-							onClick={() => navigate('/business-studio/alertas')}
+							onClick={() => navegar('/business-studio/alertas')}
 						/>
 					))
 				) : (

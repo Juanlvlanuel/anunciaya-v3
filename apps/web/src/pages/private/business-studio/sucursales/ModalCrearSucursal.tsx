@@ -28,6 +28,7 @@ import { PinMapa } from '@/components/mapa/MarcadorPopup';
 import { ModalAdaptativo } from '../../../../components/ui/ModalAdaptativo';
 import { ModalBottom } from '../../../../components/ui/ModalBottom';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useBackNativo } from '@/hooks/useBackNativo';
 import { useCrearSucursal, useSucursalesLista } from '../../../../hooks/queries/useSucursales';
 import { notificar } from '../../../../utils/notificaciones';
 import { buscarCiudades, type CiudadConNombreCompleto } from '../../../../data/ciudadesPopulares';
@@ -362,6 +363,9 @@ export function ModalCrearSucursal({ onCerrar }: Props) {
 
 	// Popup fullscreen del mapa — permite ajustar el marcador con mucho más espacio
 	const [mapaFullscreen, setMapaFullscreen] = useState(false);
+	// El mapa fullscreen de escritorio es overlay propio sin base; el back debe
+	// cerrarlo. En móvil usa ModalBottom (ya cierra con back), por eso !esMobile.
+	useBackNativo({ abierto: mapaFullscreen && !esMobile, onCerrar: () => setMapaFullscreen(false), discriminador: '_mapaCrearSucursal' });
 
 	// Validación en vivo: ¿el nombre ya existe en otra sucursal del negocio?
 	// Comparación case-insensitive + trim, activa recién cuando el usuario escribe algo.

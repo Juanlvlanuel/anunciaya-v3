@@ -23,6 +23,7 @@ import { createPortal } from 'react-dom';
 import { Coffee, Copy, Check, X, ChevronDown } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
+import { useBackNativo } from '@/hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -446,6 +447,10 @@ function TimePicker({ hora, onChange }: TimePickerProps) {
     const [tempH, setTempH] = useState(1);
     const [tempM, setTempM] = useState(0);
     const [tempP, setTempP] = useState('AM');
+
+    // El reloj móvil (fixed inset-0) debe cerrarse con el back nativo en vez de
+    // salir de la pantalla de horarios.
+    useBackNativo({ abierto: pickerMovilAbierto, onCerrar: () => setPickerMovilAbierto(false), discriminador: '_timePickerReloj' });
 
     useEffect(() => {
         const handleResize = () => setIsMobile(window.innerWidth < 1024);
