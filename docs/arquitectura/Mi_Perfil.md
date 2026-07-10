@@ -9,7 +9,7 @@
 > - **Membresía / Pagos** — construido + QA E2E cerrado **28 jun 2026** (commit `d6f8acb`). Era el último hueco funcional de cara a la beta. QA: cobro inmediato al activar tarjeta, vigencia futura, cambio bidireccional, no-duplicado, pago sin vendedor (sin comisión), datos de depósito vacíos, permisos de la cola (gerente/vendedor), descargar recibo y anti-huérfanas R2.
 > - **Datos Personales + Seguridad** — construidos **29 jun 2026** (commits `23efa53` y `0738fbe`); UI refinada en `13736c3`. **QA E2E (Juan): Datos Personales ✅ y Seguridad ✅ completos** (probado a mano, sin issues).
 >
-> **Última actualización:** 29 Junio 2026.
+> **Última actualización:** 10 Julio 2026 — rediseño del layout de "Membresía y Pagos" (sub-navegación Membresía/Publicidad, historial acotado + modal, rejilla de publicidad). Ver §"Layout del tab".
 
 ---
 
@@ -79,13 +79,29 @@ Edita avatar, nombre, apellidos, teléfono (**lada editable** + 10 dígitos, reu
 > - **Sin negocio pero con publicidad** → solo **"Tu publicidad"** (en vez del aviso "registra tu negocio").
 > - **Sin nada** → el tab no aparece.
 >
-> El **nombre del tab** también es dinámico: **"Membresía y Pagos"** para cuentas con negocio comercial, y solo **"Pagos"** para cuentas personales que únicamente tienen publicidad (`tabsVisibles` reescribe el label cuando `!data.tieneNegocio`).
+> El **nombre del tab** también es dinámico: **"Membresía y Pagos"** para cuentas con negocio comercial, y solo **"Pagos"** para cuentas personales que únicamente tienen publicidad.
+>
+> **Sin parpadeo al entrar (jul 2026):** que el usuario sea **dueño** de un negocio se decide al instante desde el store de auth (`useAuthStore` → `negocioId && !sucursalAsignada`, hidratado de localStorage), **sin esperar** a `useMiMembresia`. Así el tab —y su label "Membresía y Pagos"— ya está desde el primer render (antes aparecía recién cuando resolvía la query); la query solo refina el contenido. Cubre dueños **suspendidos/cancelados** (conservan `negocioId`) y **excluye gerentes** (tienen `sucursalAsignada`). Las cuentas **solo-publicidad** (sin negocio) sí esperan la query — caso raro.
 >
 > `SeccionMiPublicidad.tsx` (`components/`) renderiza cada campaña: **tamaño** (Grande = `patrocinadores`, Chico = `anuncios`), **ciudades**, **vigencia** (Activa/Vencida según `expira_at`), botón **"Anunciar más"** → `/anunciate` (anuncio nuevo) y, por anuncio, botón **"Renovar"** → `/anunciate` en **modo renovación** (extiende la vigencia; ver `Panel_Admin/Publicidad.md` §Renovación).
 >
 > **Historial de pagos por anuncio (29-jun):** cada campaña lista **todos sus pagos** — el **inicial** + cada **renovación** — con su **folio, fecha, monto y recibo** (PDF público en R2) y un **thumbnail** de la creatividad de ese pago que abre un **lightbox** (porteado a `document.body` para tapar columnas/navbar). El backend los trae en `recibos[]` (`membresia.service.obtenerPublicidadDelUsuario`). La cortesía no genera recibo → muestra "Importe: Cortesía".
 >
 > **Resultado del pago:** al volver de Stripe (pagar/renovar) aterriza en esta pestaña (`?tab=pagos`) y un **modal global** (`ModalPagoPublicidad`, en `MainLayout`) confirma el pago (éxito/renovada) o avisa la cancelación, y refresca la lista.
+
+### Layout del tab (rediseño 10 jul 2026)
+
+El tab separa sus **dos dominios de pago** para que no se revuelvan (antes membresía y publicidad se apilaban en la misma columna):
+
+- **Sub-navegación interna** `[ Membresía ] [ Publicidad ]` (segmented control **full-rounded** sobre `bg-slate-200`, activo `bg-slate-800 text-white`), que **solo aparece cuando el usuario tiene negocio + publicidad**. Con un solo dominio se entra directo, sin selector. Al volver de Stripe tras pagar/renovar un anuncio (`?publicidad=`), la sub-vista **arranca en Publicidad** (initializer de `subVista` lee el query param).
+- **Vista Membresía** — grid 2 columnas de **misma altura** (`lg:grid-cols-5`, `items-stretch` + `lg:min-h-[26rem]`): estado + acciones + pago manual (col-span-3) · **Historial de pagos** que llena la altura con scroll interno (col-span-2).
+- **Vista Publicidad** — **espeja a Membresía**: grid 2 columnas (`SeccionMiPublicidad`, `lg:grid-cols-5`), **sin** el título "Tu publicidad". Izquierda: panel compacto **"Tus anuncios"** (filas densas — espacio + estado · ciudades · vigencia · Renovar) con **"Anunciar más"** en el header (ya no cards grandes, era redundante con el historial). Derecha: **Historial de pagos** de publicidad (llena la altura, scroll interno).
+
+**Historial de pagos** (`components/HistorialPagosMembresia.tsx`, nuevo): la card **llena la altura de su columna** (`lg:h-full` con el grid en `items-stretch`) y hace **scroll interno** (`flex-1 min-h-0 overflow-y-auto`; en móvil se acota con `max-h-[26rem]`) para mostrar **todos** los pagos sin desfasar el layout ni crecer de más. Filas limpias: estado en texto plano (`#folio · Pagado` / `Anulado` / `Rechazado`, sin pastillas), iconos de descarga/comprobante sutiles, y acordeón inline "Ver detalles" para el motivo de anulación/rechazo. El resaltado por notificación (`?movId=`) lo maneja la página (scroll al `data-testid`).
+
+**Pago manual** (`SeccionPagoManual`): la card disparadora ("Pagar por transferencia o depósito", ícono `Landmark` + subtítulo "Adelanta meses…") abre el formulario en un **`ModalAdaptativo`** (bottom sheet en móvil, centrado en desktop) en vez de expandirse inline; así la columna izquierda mantiene su altura estable. `onCerrar` y "Cancelar" hacen `reset()` (anti-huérfanas del comprobante en R2).
+
+**Historial de pagos de publicidad** (`SeccionMiPublicidad`): la columna derecha aplana **todos** los pagos de todas las campañas (inicial + renovaciones) ordenados por fecha desc, con scroll interno que llena la altura (igual que el de membresía). Cada fila (thumbnail + concepto/espacio/fecha/monto) abre un **`ModalAdaptativo`** con el detalle del pago: creatividad(es), concepto, espacio, ciudades, folio, fecha, monto y botón **"Ver recibo (PDF)"** (`data-testid="pub-pago-{id}"` en la fila · `pub-detalle-pago` en el modal). Las campañas de **cortesía** (sin recibos) no aparecen en el historial → muestran "Importe: Cortesía" en su card izquierda.
 
 **Caché entre cuentas:** `useMiMembresia` incluye el `usuarioId` en su query key (`queryKeys.membresia.mi(usuarioId)`) para que al **cambiar de cuenta** NO se sirva el caché del usuario anterior — de eso depende que el tab aparezca/desaparezca sin tener que refrescar. Como **blindaje global**, `useAuthStore` además llama `queryClient.clear()` en `logout` y al inicio de `loginExitoso`, así ninguna sección de la app sirve datos cacheados entre cuentas (cubre también el login directo sin logout previo). Detalle del patrón en [`PATRON_REACT_QUERY.md`](../estandares/PATRON_REACT_QUERY.md).
 

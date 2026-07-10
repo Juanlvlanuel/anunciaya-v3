@@ -18,21 +18,23 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { queryKeys } from '@/config/queryKeys';
-import { ArrowRightLeft, Ban, Banknote, CalendarCheck, CheckCircle, ChevronDown, ChevronLeft, CreditCard, Download, ExternalLink, FileText, IdCard, Landmark, Loader2, Shield, User, XCircle, type LucideIcon } from 'lucide-react';
+import { ArrowRightLeft, Ban, Banknote, CalendarCheck, ChevronLeft, CreditCard, IdCard, Landmark, Loader2, Megaphone, Shield, User, type LucideIcon } from 'lucide-react';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
 import { useUiStore } from '@/stores/useUiStore';
 import { useNotificacionesStore } from '@/stores/useNotificacionesStore';
+import { useAuthStore } from '@/stores/useAuthStore';
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { useMiMembresia } from '../../../hooks/queries/useMiMembresia';
 import { cambiarAPagoManual, cambiarATarjeta, crearSesionPortal, obtenerUrlReciboMembresia } from '../../../services/membresiaService';
-import type { EstadoMembresia, ReciboMembresia, SolicitudRechazada } from '../../../services/membresiaService';
+import type { EstadoMembresia, ReciboMembresia } from '../../../services/membresiaService';
 import notificar from '../../../utils/notificaciones';
 import SeccionPagoManual from './components/SeccionPagoManual';
 import SeccionMiPublicidad from './components/SeccionMiPublicidad';
+import HistorialPagosMembresia from './components/HistorialPagosMembresia';
 import TabDatosPersonales from './components/TabDatosPersonales';
 import TabSeguridad from './components/TabSeguridad';
 import Tooltip from '@/components/ui/Tooltip';
@@ -67,13 +69,6 @@ const ESTADO_INFO: Record<EstadoMembresia, { texto: string; clase: string }> = {
     cancelado: { texto: 'Cancelado', clase: 'bg-slate-200 text-slate-600' },
 };
 
-const CONCEPTO_TEXTO: Record<ReciboMembresia['concepto'], string> = {
-    efectivo: 'Efectivo',
-    transferencia: 'Transferencia',
-    cortesia: 'Cortesía',
-    tarjeta: 'Tarjeta',
-};
-
 const MESES_LARGOS = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
 
 // Formato estándar de tokens (regla 12): "DD Mes AAAA" con mes completo en mayúscula.
@@ -82,18 +77,6 @@ function formatearFecha(iso: string | null): string {
     const d = new Date(iso);
     if (Number.isNaN(d.getTime())) return '—';
     return `${String(d.getDate()).padStart(2, '0')} ${MESES_LARGOS[d.getMonth()]} ${d.getFullYear()}`;
-}
-
-function formatearMonto(monto: string | null): string {
-    if (monto === null) return '—';
-    const n = Number(monto);
-    if (Number.isNaN(n)) return '—';
-    return new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' }).format(n);
-}
-
-function formatearFolio(folio: number | null): string {
-    if (folio === null) return 'S/F';
-    return `#${String(folio).padStart(5, '0')}`;
 }
 
 /** Fila "Etiqueta — valor" en una sola línea para la tarjeta de estado. Título con mayor peso. */
@@ -118,6 +101,7 @@ export default function PaginaPerfilPersonal() {
     const abrirMenuDrawer = useUiStore((s) => s.abrirMenuDrawer);
     const cantidadNoLeidas = useNotificacionesStore((s) => s.totalNoLeidas);
     const togglePanelNotificaciones = useNotificacionesStore((s) => s.togglePanel);
+    const usuario = useAuthStore((s) => s.usuario);
 
     const queryClient = useQueryClient();
     const { data, isPending, isError, refetch } = useMiMembresia();
@@ -126,9 +110,11 @@ export default function PaginaPerfilPersonal() {
     // publicidad → ?tab=pagos abre "Membresía y Pagos", donde está "Tu publicidad").
     const [tabActivo, setTabActivo] = useState<TabPerfil>(() => (searchParams.get('tab') === 'pagos' ? 'membresia' : 'datos'));
     const [descargandoId, setDescargandoId] = useState<string | null>(null);
-    // Acordeón del historial: id del movimiento (rechazo o pago anulado) cuyo motivo está desplegado;
-    // uno a la vez, mantiene la lista limpia.
-    const [detalleHistorialId, setDetalleHistorialId] = useState<string | null>(null);
+    // Sub-navegación interna del tab cuando hay negocio + publicidad: separa "Membresía" de "Publicidad".
+    // Al volver de Stripe tras pagar/renovar un anuncio (?publicidad=), arranca en "Publicidad".
+    const [subVista, setSubVista] = useState<'membresia' | 'publicidad'>(
+        () => (searchParams.get('publicidad') ? 'publicidad' : 'membresia'),
+    );
 
     // Resaltado del historial: al llegar desde una notificación de pago (?movId=), se resalta ese
     // movimiento y se hace scroll hacia él. El param se limpia enseguida para que re-abrir la MISMA
@@ -164,14 +150,21 @@ export default function PaginaPerfilPersonal() {
     const [procesandoCobro, setProcesandoCobro] = useState(false);
 
     // El tab "Membresía y Pagos" solo aparece si el usuario tiene negocio comercial o
-    // publicidad pagada/vigente; un usuario puramente personal no lo ve. Mientras carga
-    // (data aún undefined) se oculta hasta confirmarlo.
-    const mostrarMembresia = !!data && (data.tieneNegocio || data.publicidad.length > 0);
+    // publicidad pagada/vigente; un usuario puramente personal no lo ve.
+    //
+    // Para que el tab NO "parpadee" al entrar (antes aparecía recién cuando resolvía useMiMembresia),
+    // decidimos si es DUEÑO de un negocio directo del store de auth (hidratado de localStorage →
+    // disponible al instante, sin esperar la query): un dueño tiene `negocioId` y NO `sucursalAsignada`
+    // (los gerentes sí la tienen), y conserva `negocioId` aun suspendido/cancelado. La query solo
+    // refina el CONTENIDO (estado, recibos), no la existencia del tab.
+    const esDuenoNegocio = !!usuario?.negocioId && !usuario?.sucursalAsignada;
+    const esComercial = esDuenoNegocio || !!data?.tieneNegocio;
+    const mostrarMembresia = esComercial || (!!data && data.publicidad.length > 0);
     // El label del tab cambia según el tipo de cuenta: "Membresía y Pagos" para cuentas
     // comerciales (con negocio); solo "Pagos" para cuentas personales que únicamente anuncian.
     const tabsVisibles = TABS_PERFIL
         .filter((t) => t.id !== 'membresia' || mostrarMembresia)
-        .map((t) => (t.id === 'membresia' && !data?.tieneNegocio ? { ...t, label: 'Pagos' } : t));
+        .map((t) => (t.id === 'membresia' && !esComercial ? { ...t, label: 'Pagos' } : t));
     const tabActivoEfectivo: TabPerfil = tabActivo === 'membresia' && !mostrarMembresia ? 'datos' : tabActivo;
 
     async function activarTarjeta() {
@@ -462,9 +455,36 @@ export default function PaginaPerfilPersonal() {
                         )
                     )}
 
-                    {/* Con negocio — layout de 2 columnas en desktop (estado+acciones / recibos) */}
+                    {/* Con negocio — sub-navegación Membresía/Publicidad cuando hay ambos; si no, directo. */}
                     {!isPending && !isError && data?.tieneNegocio && data.negocio && (
-                        <div className="lg:grid lg:grid-cols-5 lg:gap-6 space-y-4 lg:space-y-0">
+                        <div className="space-y-4">
+                            {data.publicidad.length > 0 && (
+                                <div className="inline-flex items-center gap-1 rounded-full bg-slate-200 p-1" data-testid="subnav-membresia-pagos">
+                                    {([
+                                        { id: 'membresia' as const, label: 'Membresía', Icono: CreditCard },
+                                        { id: 'publicidad' as const, label: 'Publicidad', Icono: Megaphone },
+                                    ]).map(({ id, label, Icono }) => {
+                                        const activo = subVista === id;
+                                        return (
+                                            <button
+                                                key={id}
+                                                data-testid={`subnav-${id}`}
+                                                onClick={() => setSubVista(id)}
+                                                className={[
+                                                    'flex items-center gap-1.5 rounded-full px-4 py-1.5 text-sm font-semibold cursor-pointer',
+                                                    activo ? 'bg-slate-800 text-white shadow-sm' : 'text-slate-600 lg:hover:text-slate-800',
+                                                ].join(' ')}
+                                            >
+                                                <Icono className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2.5} />
+                                                {label}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            )}
+
+                            {(data.publicidad.length === 0 || subVista === 'membresia') && (
+                            <div className="lg:grid lg:grid-cols-5 lg:gap-6 space-y-4 lg:space-y-0 lg:min-h-[26rem]">
                             {/* ── Columna principal ── */}
                             <div className="lg:col-span-3 space-y-4">
                                 {/* Tarjeta de estado */}
@@ -609,167 +629,22 @@ export default function PaginaPerfilPersonal() {
                                 )}
                             </div>
 
-                            {/* ── Columna lateral: historial de pagos (recibos + rechazos) ── */}
+                            {/* ── Columna lateral: historial de pagos (acotado + modal "ver todos") ── */}
                             <div className="lg:col-span-2">
-                                <div className="rounded-xl bg-white border border-slate-300 shadow-sm overflow-hidden">
-                                    <div className="px-4 py-3 border-b border-slate-200 flex items-center gap-2">
-                                        <FileText className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-500" strokeWidth={2} />
-                                        <p className="text-sm font-bold text-slate-800">Historial de pagos</p>
-                                    </div>
-                                    {(() => {
-                                        type ItemHist =
-                                            | { kind: 'recibo'; fecha: string | null; recibo: ReciboMembresia }
-                                            | { kind: 'rechazo'; fecha: string | null; rechazo: SolicitudRechazada };
-                                        const items: ItemHist[] = [
-                                            ...data.recibos.map((r) => ({ kind: 'recibo' as const, fecha: r.fechaPago, recibo: r })),
-                                            ...data.solicitudesRechazadas.map((s) => ({ kind: 'rechazo' as const, fecha: s.fecha, rechazo: s })),
-                                        ].sort((a, b) => new Date(b.fecha ?? 0).getTime() - new Date(a.fecha ?? 0).getTime());
-
-                                        if (items.length === 0) {
-                                            return (
-                                                <div className="p-6 text-center text-sm font-medium text-slate-600">
-                                                    Aún no tienes pagos.
-                                                </div>
-                                            );
-                                        }
-                                        return (
-                                            <ul className="divide-y divide-slate-200 max-h-[38rem] overflow-y-auto">
-                                                {items.map((it) =>
-                                                    it.kind === 'recibo' ? (
-                                                        (() => {
-                                                            const mostrarDetalle = it.recibo.anulado && !!it.recibo.motivoAnulacion;
-                                                            const expandido = detalleHistorialId === it.recibo.id;
-                                                            return (
-                                                                <li
-                                                                    key={`r-${it.recibo.id}`}
-                                                                    data-testid={`recibo-${it.recibo.id}`}
-                                                                    className={`px-4 py-3 transition-colors ${movResaltado === it.recibo.id ? 'bg-amber-50 ring-2 ring-inset ring-amber-300' : ''}`}
-                                                                >
-                                                                    <div className="flex items-center gap-3">
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <div className="flex items-center gap-2">
-                                                                                <span className="text-sm font-semibold text-slate-800">
-                                                                                    {formatearFolio(it.recibo.folio)}
-                                                                                </span>
-                                                                                {it.recibo.anulado ? (
-                                                                                    <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
-                                                                                        Anulado
-                                                                                    </span>
-                                                                                ) : (
-                                                                                    <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-emerald-700 bg-emerald-100 rounded-full px-2 py-0.5">
-                                                                                        <CheckCircle className="w-3 h-3" strokeWidth={2.5} /> Pagado
-                                                                                    </span>
-                                                                                )}
-                                                                            </div>
-                                                                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600">
-                                                                                {CONCEPTO_TEXTO[it.recibo.concepto] ?? it.recibo.concepto} ·{' '}
-                                                                                {formatearFecha(it.recibo.fechaPago)}
-                                                                            </p>
-                                                                            {mostrarDetalle && (
-                                                                                <button
-                                                                                    data-testid={`recibo-detalles-${it.recibo.id}`}
-                                                                                    onClick={() => setDetalleHistorialId(expandido ? null : it.recibo.id)}
-                                                                                    aria-expanded={expandido}
-                                                                                    className="inline-flex items-center gap-1 mt-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 lg:hover:text-red-800 cursor-pointer"
-                                                                                >
-                                                                                    {expandido ? 'Ocultar detalles' : 'Ver detalles'}
-                                                                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandido ? 'rotate-180' : ''}`} strokeWidth={2.5} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-                                                                        <span className="text-sm font-semibold text-slate-700 shrink-0">
-                                                                            {formatearMonto(it.recibo.monto)}
-                                                                        </span>
-                                                                        <Tooltip text="Descargar recibo" position="top">
-                                                                            <button
-                                                                                data-testid={`recibo-descargar-${it.recibo.id}`}
-                                                                                onClick={() => descargarRecibo(it.recibo)}
-                                                                                disabled={descargandoId === it.recibo.id}
-                                                                                aria-label="Descargar recibo"
-                                                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer disabled:opacity-50 disabled:cursor-default shrink-0"
-                                                                            >
-                                                                                {descargandoId === it.recibo.id ? (
-                                                                                    <Loader2 className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 animate-spin" />
-                                                                                ) : (
-                                                                                    <Download className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                                                                                )}
-                                                                            </button>
-                                                                        </Tooltip>
-                                                                    </div>
-                                                                    {mostrarDetalle && expandido && (
-                                                                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-2 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5">
-                                                                            Motivo: {it.recibo.motivoAnulacion}
-                                                                        </p>
-                                                                    )}
-                                                                </li>
-                                                            );
-                                                        })()
-                                                    ) : (
-                                                        (() => {
-                                                            const expandido = detalleHistorialId === it.rechazo.id;
-                                                            return (
-                                                                <li
-                                                                    key={`x-${it.rechazo.id}`}
-                                                                    data-testid={`rechazo-${it.rechazo.id}`}
-                                                                    className={`px-4 py-3 transition-colors ${movResaltado === it.rechazo.id ? 'bg-amber-50 ring-2 ring-inset ring-amber-300' : ''}`}
-                                                                >
-                                                                    <div className="flex items-start gap-3">
-                                                                        <div className="min-w-0 flex-1">
-                                                                            <span className="inline-flex items-center gap-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 bg-red-100 rounded-full px-2 py-0.5">
-                                                                                <XCircle className="w-3 h-3" strokeWidth={2.5} /> Rechazado
-                                                                            </span>
-                                                                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-600 mt-1">
-                                                                                Transferencia · {formatearFecha(it.rechazo.fecha)}
-                                                                            </p>
-                                                                            {it.rechazo.motivo && (
-                                                                                <button
-                                                                                    data-testid={`rechazo-detalles-${it.rechazo.id}`}
-                                                                                    onClick={() => setDetalleHistorialId(expandido ? null : it.rechazo.id)}
-                                                                                    aria-expanded={expandido}
-                                                                                    className="inline-flex items-center gap-1 mt-1 text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 lg:hover:text-red-800 cursor-pointer"
-                                                                                >
-                                                                                    {expandido ? 'Ocultar detalles' : 'Ver detalles'}
-                                                                                    <ChevronDown className={`w-3.5 h-3.5 transition-transform ${expandido ? 'rotate-180' : ''}`} strokeWidth={2.5} />
-                                                                                </button>
-                                                                            )}
-                                                                        </div>
-                                                                        <span className="text-sm font-semibold text-slate-500 line-through shrink-0">
-                                                                            {formatearMonto(it.rechazo.monto)}
-                                                                        </span>
-                                                                        <Tooltip text="Ver comprobante" position="top">
-                                                                            <a
-                                                                                href={it.rechazo.comprobanteUrl}
-                                                                                target="_blank"
-                                                                                rel="noopener noreferrer"
-                                                                                aria-label="Ver comprobante"
-                                                                                className="w-8 h-8 rounded-lg flex items-center justify-center text-slate-500 lg:hover:text-slate-700 lg:hover:bg-slate-200 cursor-pointer shrink-0"
-                                                                            >
-                                                                                <ExternalLink className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                                                                            </a>
-                                                                        </Tooltip>
-                                                                    </div>
-                                                                    {it.rechazo.motivo && expandido && (
-                                                                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-red-700 mt-2 rounded-lg bg-red-50 border border-red-200 px-2.5 py-1.5">
-                                                                            Motivo: {it.rechazo.motivo}
-                                                                        </p>
-                                                                    )}
-                                                                </li>
-                                                            );
-                                                        })()
-                                                    ),
-                                                )}
-                                            </ul>
-                                        );
-                                    })()}
-                                </div>
+                                <HistorialPagosMembresia
+                                    recibos={data.recibos}
+                                    solicitudesRechazadas={data.solicitudesRechazadas}
+                                    movResaltado={movResaltado}
+                                    descargandoId={descargandoId}
+                                    onDescargar={descargarRecibo}
+                                />
                             </div>
-                        </div>
-                    )}
+                            </div>
+                            )}
 
-                    {/* Publicidad del usuario, además de su membresía (si compró anuncios) */}
-                    {!isPending && !isError && data?.tieneNegocio && data.publicidad.length > 0 && (
-                        <div className="mt-6">
-                            <SeccionMiPublicidad publicidad={data.publicidad} />
+                            {data.publicidad.length > 0 && subVista === 'publicidad' && (
+                                <SeccionMiPublicidad publicidad={data.publicidad} />
+                            )}
                         </div>
                     )}
                 </section>

@@ -14,7 +14,8 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { Banknote, Check, Clock, ExternalLink, Info, Loader2, Upload, X, XCircle } from 'lucide-react';
+import { Check, Clock, ExternalLink, Info, Landmark, Loader2, Upload, X, XCircle } from 'lucide-react';
+import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
 import { queryKeys } from '@/config/queryKeys';
 import {
     crearSolicitudPagoManual,
@@ -35,7 +36,7 @@ const CLAVE_RECHAZO_VISTO = 'ay_rechazo_visto';
 const GRADIENTE_MARCA = 'linear-gradient(135deg, #1e293b, #334155)';
 
 const INPUT_CLASES =
-    'w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 focus:outline-none focus:border-blue-500';
+    'w-full rounded-lg border-2 border-slate-300 px-3 py-2 text-base lg:text-sm 2xl:text-base font-medium text-slate-800 placeholder:text-slate-500 focus:outline-none focus:border-blue-600';
 
 function formatearFecha(iso: string | null): string {
     if (!iso) return '—';
@@ -189,54 +190,57 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
         );
     }
 
-    // ── Colapsado (con aviso sutil si el último comprobante fue rechazado) ──
-    if (!abierto) {
-        return (
-            <div className="space-y-2">
-                {mostrarAvisoRechazo && (
-                    <div
-                        data-testid="pago-manual-rechazado-aviso"
-                        className="rounded-xl bg-red-100 border border-red-300 p-4 lg:p-5 flex items-start gap-2.5"
-                    >
-                        <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-200 shrink-0">
-                            <XCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-700" strokeWidth={2.5} />
-                        </span>
-                        <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-red-900 leading-tight">Tu último comprobante fue rechazado</p>
-                            <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 mt-0.5">
-                                Revisa el motivo en el historial y vuelve a enviarlo.
-                            </p>
-                        </div>
-                        <button
-                            data-testid="cerrar-aviso-rechazo"
-                            onClick={cerrarAvisoRechazo}
-                            aria-label="Cerrar aviso"
-                            className="shrink-0 text-red-600 lg:hover:text-red-800 cursor-pointer"
-                        >
-                            <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                        </button>
-                    </div>
-                )}
-                <button
-                    data-testid="btn-abrir-pago-manual"
-                    onClick={() => setAbierto(true)}
-                    className="w-full flex items-center justify-center gap-2 rounded-lg px-4 py-2.5 text-sm font-semibold cursor-pointer bg-white text-slate-700 border border-slate-300 shadow-sm lg:hover:bg-slate-200"
-                >
-                    <Banknote className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
-                    Pagar por transferencia o depósito
-                </button>
-            </div>
-        );
-    }
-
-    // ── Formulario ──
+    // ── Card disparador (siempre visible salvo revisión) + formulario en ModalAdaptativo ──
     return (
-        <div data-testid="pago-manual-form" className="rounded-xl bg-white border border-slate-300 shadow-sm p-4 lg:p-5 space-y-4">
-            <div className="flex items-center gap-2">
-                <Banknote className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600" strokeWidth={2} />
-                <p className="text-sm font-bold text-slate-800">Pagar por transferencia o depósito</p>
-            </div>
+        <div className="space-y-2">
+            {mostrarAvisoRechazo && (
+                <div
+                    data-testid="pago-manual-rechazado-aviso"
+                    className="rounded-xl bg-red-100 border border-red-300 p-4 lg:p-5 flex items-start gap-2.5"
+                >
+                    <span className="flex h-7 w-7 items-center justify-center rounded-lg bg-red-200 shrink-0">
+                        <XCircle className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5 text-red-700" strokeWidth={2.5} />
+                    </span>
+                    <div className="flex-1 min-w-0">
+                        <p className="text-sm font-bold text-red-900 leading-tight">Tu último comprobante fue rechazado</p>
+                        <p className="text-sm lg:text-[11px] 2xl:text-sm font-semibold text-red-700 mt-0.5">
+                            Revisa el motivo en el historial y vuelve a enviarlo.
+                        </p>
+                    </div>
+                    <button
+                        data-testid="cerrar-aviso-rechazo"
+                        onClick={cerrarAvisoRechazo}
+                        aria-label="Cerrar aviso"
+                        className="shrink-0 text-red-600 lg:hover:text-red-800 cursor-pointer"
+                    >
+                        <X className="w-5 h-5 lg:w-4 lg:h-4 2xl:w-5 2xl:h-5" strokeWidth={2} />
+                    </button>
+                </div>
+            )}
 
+            <button
+                data-testid="btn-abrir-pago-manual"
+                onClick={() => setAbierto(true)}
+                className="w-full flex items-center gap-3 rounded-xl bg-white border border-slate-300 shadow-sm px-4 py-3.5 text-left cursor-pointer lg:hover:bg-slate-200"
+            >
+                <Landmark className="w-6 h-6 lg:w-5 lg:h-5 2xl:w-6 2xl:h-6 text-slate-600 shrink-0" strokeWidth={2} />
+                <div className="min-w-0">
+                    <p className="text-sm font-bold text-slate-800">Pagar por transferencia o depósito</p>
+                    <p className="text-sm lg:text-[11px] 2xl:text-sm font-medium text-slate-500 mt-0.5">
+                        Adelanta meses con comprobante — se suma a tu vigencia.
+                    </p>
+                </div>
+            </button>
+
+            {/* Formulario en modal adaptativo (bottom sheet en móvil, centrado en desktop) */}
+            <ModalAdaptativo
+                abierto={abierto}
+                onCerrar={() => { reset(); setAbierto(false); }}
+                titulo="Pagar por transferencia o depósito"
+                iconoTitulo={<Landmark className="w-5 h-5 text-slate-600" strokeWidth={2} />}
+                ancho="lg"
+            >
+                <div data-testid="pago-manual-form" className="space-y-4">
             {/* Datos de cobro */}
             {datosCobroQuery.isPending ? (
                 <div className="flex justify-center py-4 text-slate-500">
@@ -244,7 +248,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                 </div>
             ) : hayDatos ? (
                 <div className="space-y-2">
-                    <div className="rounded-lg bg-slate-100 border border-slate-300 p-3 text-sm space-y-1">
+                    <div className="rounded-lg bg-slate-200 border border-slate-300 p-3 text-sm space-y-1">
                         {datos!.banco && (
                             <div className="flex justify-between gap-3">
                                 <span className="text-slate-600 font-medium">Banco</span>
@@ -279,14 +283,14 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                         )}
                     </div>
                     {datos!.instrucciones && (
-                        <div className="flex gap-2 rounded-lg bg-blue-50 border border-blue-200 p-3">
-                            <Info className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" strokeWidth={2} />
-                            <p className="text-sm text-slate-600 leading-relaxed whitespace-pre-line">{datos!.instrucciones}</p>
+                        <div className="flex gap-2 rounded-lg bg-blue-100 border border-blue-300 p-3">
+                            <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" strokeWidth={2} />
+                            <p className="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-line">{datos!.instrucciones}</p>
                         </div>
                     )}
                 </div>
             ) : (
-                <p className="text-sm font-medium text-slate-600 rounded-lg bg-slate-100 border border-slate-300 p-3">
+                <p className="text-sm font-medium text-slate-600 rounded-lg bg-slate-200 border border-slate-300 p-3">
                     Aún no hay datos de depósito disponibles. Contacta a soporte.
                 </p>
             )}
@@ -314,7 +318,7 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
             </div>
 
             {/* 2) Total a depositar (auto) */}
-            <div className="flex items-center justify-between rounded-lg bg-slate-100 border border-slate-300 px-3 py-3">
+            <div className="flex items-center justify-between rounded-lg bg-slate-200 border border-slate-300 px-3 py-3">
                 <span className="text-sm font-medium text-slate-600">
                     {meses
                         ? usaPrecioAnual
@@ -405,6 +409,8 @@ export default function SeccionPagoManual({ solicitudPendiente, ultimoRechazo }:
                     Enviar
                 </button>
             </div>
+                </div>
+            </ModalAdaptativo>
         </div>
     );
 }
