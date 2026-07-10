@@ -5,15 +5,15 @@
  * que YA se resolvieron (aprobadas / rechazadas). Es la trazabilidad de la VERIFICACIÓN de
  * comprobantes. NO incluye los "Registrar pago" del Panel (esos viven en la Bitácora + ficha).
  *
- * Estilo tabla (calcado de la Bitácora): header de columnas + filas clickeables en escritorio,
- * cards en móvil. El detalle completo (comprobante, motivo, referencia, revisor…) vive en un modal
- * (FichaSolicitud, ModalAdaptativo). Filtro por estado con chips (TabsSegmento) + badge de conteo.
+ * Estilo tabla (calcado de la Bitácora): alto FIJO (llena el espacio) con header de columnas +
+ * filas scrolleables en escritorio, cards en móvil, y paginación fija abajo. El detalle completo
+ * vive en un modal (FichaSolicitud). Filtro por estado con chips (punto de color + conteo).
  *
  * Ubicación: apps/admin/src/components/suscripciones/PestanaHistorial.tsx
  */
 
-import { useState } from 'react';
-import { History, Check, X, Mail, ChevronRight } from 'lucide-react';
+import { useState, type ReactNode } from 'react';
+import { History, Check, X, Mail, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useSolicitudesProcesadas } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { SolicitudProcesada } from '../../services/suscripcionesService';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
@@ -73,11 +73,13 @@ export function PestanaHistorial() {
   const [seleccionada, setSeleccionada] = useState<SolicitudProcesada | null>(null);
 
   const estado = filtroId === 'todos' ? undefined : filtroId;
-  const { data, isLoading, isError, isFetching } = useSolicitudesProcesadas({ estado, pagina, porPagina: POR_PAGINA });
+  const { data, isLoading, isError } = useSolicitudesProcesadas({ estado, pagina, porPagina: POR_PAGINA });
   const solicitudes = data?.solicitudes ?? [];
   const conteos = data?.conteos ?? { todos: 0, aprobados: 0, rechazados: 0 };
   const totalFiltro = filtroId === 'todos' ? conteos.todos : filtroId === 'aprobado' ? conteos.aprobados : conteos.rechazados;
   const totalPaginas = Math.max(1, Math.ceil(totalFiltro / POR_PAGINA));
+  const desde = totalFiltro === 0 ? 0 : (pagina - 1) * POR_PAGINA + 1;
+  const hasta = Math.min(pagina * POR_PAGINA, totalFiltro);
 
   const cambiarFiltro = (id: FiltroId) => {
     setFiltroId(id);
@@ -128,93 +130,85 @@ export function PestanaHistorial() {
 
   const ficha = seleccionada ? <FichaSolicitud s={seleccionada} onCerrar={() => setSeleccionada(null)} /> : null;
 
-  const paginacion =
-    totalPaginas > 1 ? (
-      <div className="mt-3 flex items-center justify-end gap-2 text-[12.5px] text-texto-3">
-        <button
-          type="button"
-          data-testid="historial-anterior"
-          disabled={pagina <= 1 || isFetching}
-          onClick={() => setPagina((p) => Math.max(1, p - 1))}
-          className="rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Anterior
-        </button>
-        <span className="tabular-nums">
-          {pagina} / {totalPaginas}
-        </span>
-        <button
-          type="button"
-          data-testid="historial-siguiente"
-          disabled={pagina >= totalPaginas || isFetching}
-          onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-          className="rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Siguiente
-        </button>
-      </div>
-    ) : null;
-
-  // ── Estados vacíos / carga / error ──────────────────────────────────────────
-  if (isLoading || isError || solicitudes.length === 0) {
-    return (
-      <div data-testid="suscripciones-historial">
-        <div className="mb-3">{chips}</div>
-        {isLoading ? (
-          <EstadoSeccion variante="cargando" icono={History} titulo="Cargando historial…" />
-        ) : isError ? (
-          <EstadoSeccion
-            variante="error"
-            icono={History}
-            titulo="No se pudo cargar el historial."
-            descripcion="Revisa tu conexión e inténtalo de nuevo."
-          />
-        ) : (
-          <EstadoSeccion
-            icono={History}
-            titulo="Sin solicitudes procesadas"
-            descripcion="Aquí aparecerán los comprobantes que apruebes o rechaces."
-          />
-        )}
-        {ficha}
-      </div>
+  // Estado no-lista (carga / error / vacío) centrado dentro del área de tabla.
+  let vacio: ReactNode = null;
+  if (isLoading) {
+    vacio = <EstadoSeccion variante="cargando" icono={History} titulo="Cargando historial…" />;
+  } else if (isError) {
+    vacio = (
+      <EstadoSeccion
+        variante="error"
+        icono={History}
+        titulo="No se pudo cargar el historial."
+        descripcion="Revisa tu conexión e inténtalo de nuevo."
+      />
+    );
+  } else if (solicitudes.length === 0) {
+    vacio = (
+      <EstadoSeccion
+        icono={History}
+        titulo="Sin solicitudes procesadas"
+        descripcion="Aquí aparecerán los comprobantes que apruebes o rechaces."
+      />
     );
   }
 
-  // ── Móvil: cards ────────────────────────────────────────────────────────────
+  const paginacion =
+    totalFiltro > 0 ? (
+      <Paginacion
+        desde={desde}
+        hasta={hasta}
+        total={totalFiltro}
+        pagina={pagina}
+        totalPaginas={totalPaginas}
+        setPagina={setPagina}
+      />
+    ) : null;
+
+  // ── Móvil: cards, scroll heredado del contenedor de la sección (oculta la barra inferior) ──
   if (!esEscritorio) {
     return (
       <div data-testid="suscripciones-historial">
         <div className="mb-3">{chips}</div>
-        <div className="flex flex-col gap-2.5">
-          {solicitudes.map((s) => (
-            <CardHistorial key={s.id} s={s} onAbrir={() => setSeleccionada(s)} />
-          ))}
-        </div>
+        {vacio ?? (
+          <div className="flex flex-col gap-2.5">
+            {solicitudes.map((s) => (
+              <CardHistorial key={s.id} s={s} onAbrir={() => setSeleccionada(s)} />
+            ))}
+          </div>
+        )}
         {paginacion}
         {ficha}
       </div>
     );
   }
 
-  // ── Escritorio: tabla ───────────────────────────────────────────────────────
+  // ── Escritorio: tabla de alto FIJO (llena el espacio) + scroll interno + paginación fija ──
   return (
-    <div data-testid="suscripciones-historial">
-      <div className="mb-3">{chips}</div>
-      <div className="overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
-        <div
-          className="grid items-center gap-3.5 border-b border-borde bg-superficie px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4"
-          style={{ gridTemplateColumns: COLS }}
-        >
-          <span>Negocio</span>
-          <span>Monto</span>
-          <span>Estado</span>
-          <span>Revisado</span>
-          <span />
-        </div>
-        {solicitudes.map((s) => (
-          <FilaHistorial key={s.id} s={s} onAbrir={() => setSeleccionada(s)} />
-        ))}
+    <div className="flex h-full min-h-0 flex-col" data-testid="suscripciones-historial">
+      <div className="mb-3 shrink-0">{chips}</div>
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
+        {vacio ? (
+          <div className="flex min-h-0 flex-1 items-center justify-center p-6">{vacio}</div>
+        ) : (
+          <>
+            <div
+              className="grid shrink-0 items-center gap-3.5 border-b border-borde bg-superficie px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4"
+              style={{ gridTemplateColumns: COLS }}
+            >
+              <span>Negocio</span>
+              <span>Monto</span>
+              <span>Estado</span>
+              <span>Revisado</span>
+              <span />
+            </div>
+            <div className="min-h-0 flex-1 overflow-y-auto">
+              {solicitudes.map((s) => (
+                <FilaHistorial key={s.id} s={s} onAbrir={() => setSeleccionada(s)} />
+              ))}
+            </div>
+          </>
+        )}
       </div>
       {paginacion}
       {ficha}
@@ -288,6 +282,57 @@ function CardHistorial({ s, onAbrir }: { s: SolicitudProcesada; onAbrir: () => v
         <BadgeEstado estado={s.estado} small />
         <span className="text-[13.5px] font-bold text-texto">{montoTexto(s.monto)}</span>
       </span>
+    </div>
+  );
+}
+
+// =============================================================================
+// PAGINACIÓN (mismo patrón que las demás secciones del Panel)
+// =============================================================================
+
+function Paginacion({
+  desde,
+  hasta,
+  total,
+  pagina,
+  totalPaginas,
+  setPagina,
+}: {
+  desde: number;
+  hasta: number;
+  total: number;
+  pagina: number;
+  totalPaginas: number;
+  setPagina: (fn: (p: number) => number) => void;
+}) {
+  return (
+    <div className="mt-3 flex shrink-0 items-center justify-between text-[12.5px] text-texto-3 lg:pt-1">
+      <span data-testid="historial-rango">
+        {desde}–{hasta} de {total}
+      </span>
+      <div className="flex items-center gap-1.5">
+        <button
+          type="button"
+          data-testid="historial-anterior"
+          onClick={() => setPagina((p) => Math.max(1, p - 1))}
+          disabled={pagina <= 1}
+          className="inline-flex items-center gap-1 rounded-full bg-marca-suave px-4 py-2.5 font-semibold lg:px-2.5 lg:py-1.5 text-marca transition hover:bg-marca hover:text-marca-contraste disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          <ChevronLeft size={14} /> Anterior
+        </button>
+        <span className="px-1.5 text-texto-3">
+          {pagina} / {totalPaginas}
+        </span>
+        <button
+          type="button"
+          data-testid="historial-siguiente"
+          onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+          disabled={pagina >= totalPaginas}
+          className="inline-flex items-center gap-1 rounded-full bg-marca-suave px-4 py-2.5 font-semibold lg:px-2.5 lg:py-1.5 text-marca transition hover:bg-marca hover:text-marca-contraste disabled:cursor-not-allowed disabled:opacity-45"
+        >
+          Siguiente <ChevronRight size={14} />
+        </button>
+      </div>
     </div>
   );
 }
