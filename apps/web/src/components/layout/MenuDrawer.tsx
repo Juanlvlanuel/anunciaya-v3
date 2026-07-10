@@ -538,8 +538,17 @@ export function MenuDrawer({ onClose }: MenuDrawerProps) {
   // Handlers
   // ---------------------------------------------------------------------------
   const handleNavegar = (ruta: string) => {
-    navegarASeccion(ruta);
+    // Cerramos el drawer PRIMERO y navegamos un instante después. El drawer
+    // limpia la entrada que empujó al history con un history.back() diferido
+    // (useBackNativo, setTimeout 0). Si navegáramos en el mismo gesto —con la
+    // entrada del drawer aún en el stack— el `replace` de useNavegarASeccion
+    // reemplazaría ESA entrada en vez de la de la página actual, dejando la
+    // sección hermana en el historial (el back iría a la hermana en lugar de a
+    // /inicio). Con el drawer ya cerrado, la navegación opera sobre el stack
+    // limpio y toda sección queda como hija directa de /inicio. Mismo patrón
+    // que handleAbrirUbicacion.
     onClose();
+    window.setTimeout(() => navegarASeccion(ruta), 130);
   };
 
   const handleAbrirUbicacion = () => {

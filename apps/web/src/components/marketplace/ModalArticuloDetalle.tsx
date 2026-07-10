@@ -110,7 +110,7 @@ export function ModalArticuloDetalle({ articulo, onClose }: ModalArticuloDetalle
                     className="mx-auto my-4 flex flex-col h-[calc(100vh-2rem)] w-full max-w-[620px] px-3 lg:my-6 lg:h-[calc(100vh-3rem)] lg:max-h-[900px] lg:px-0 animate-in fade-in zoom-in-95 duration-200"
                     onClick={(e) => e.stopPropagation()}
                 >
-                    <CardArticuloFeed articulo={articulo} modoModal />
+                    <CardArticuloFeed articulo={articulo} modoModal onAntesDeNavegar={onClose} />
                 </div>
             </div>
         </>,

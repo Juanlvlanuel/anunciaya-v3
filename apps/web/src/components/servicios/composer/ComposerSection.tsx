@@ -19,6 +19,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useBackNativo } from '../../../hooks/useBackNativo';
 import { ComposerColapsado } from './ComposerColapsado';
 import { ComposerServicios } from './ComposerServicios';
 import type { ModoServicio } from '../../../types/servicios';
@@ -91,6 +92,12 @@ export function ComposerSection({
         setModoOverride(null);
         setRefreshKey((k) => k + 1);
     }
+
+    // El composer expandido reemplaza el feed sin cambiar la URL (el ?crear/
+    // ?editar se limpia con replace). Sin esto el back nativo no lo cerraba:
+    // salía de /servicios y perdía el borrador. Con useBackNativo el back
+    // cierra el composer (colapsar conserva el borrador) y revela el feed.
+    useBackNativo({ abierto: expandido, onCerrar: colapsar, discriminador: '_composerServicios' });
 
     if (expandido) {
         return (

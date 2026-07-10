@@ -17,7 +17,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { AlertTriangle, PauseCircle, PlayCircle, Plus, Trash2 } from 'lucide-react';
 import {
     useCambiarEstadoPublicacionServicio,
@@ -42,7 +42,7 @@ export function MisPublicacionesServiciosSection({
     tabActivo,
     onConteos,
 }: MisPublicacionesServiciosSectionProps) {
-    const navigate = useNavigate();
+    const navegar = useNavegarASeccion();
 
     // Cargar las 2 listas en paralelo para tener conteos.
     const queryActiva = useMisPublicacionesServicio('activa', {
@@ -81,7 +81,7 @@ export function MisPublicacionesServiciosSection({
         // El composer vive inline en /servicios. Redirigimos al feed
         // con ?editar=<id>; ComposerSection lo detecta y expande el
         // composer con los datos hidratados.
-        navigate(`/servicios?editar=${p.id}`);
+        navegar(`/servicios?editar=${p.id}`);
     }
 
     async function handlePausar(p: PublicacionServicio) {
@@ -141,7 +141,7 @@ export function MisPublicacionesServiciosSection({
     function irAPublicar() {
         // Composer inline vive en /servicios — redirigimos con
         // ?crear=ofrezco para que se expanda al cargar.
-        navigate('/servicios?crear=ofrezco');
+        navegar('/servicios?crear=ofrezco');
     }
 
     // ─── Render ───────────────────────────────────────────────────────

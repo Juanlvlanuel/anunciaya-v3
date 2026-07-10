@@ -33,6 +33,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
     Camera,
     Check,
@@ -127,6 +128,7 @@ export function ComposerMarketplace({
     onColapsar,
 }: ComposerMarketplaceProps) {
     const navigate = useNavigate();
+    const navegar = useNavegarASeccion();
     const esEdicion = modo === 'editar' && !!articuloId;
 
     // ─── Datos de usuario para el header (avatar/nombre) ──────────────
@@ -499,7 +501,7 @@ export function ComposerMarketplace({
                                     modo={draft.modo}
                                     onIrServicios={() => {
                                         onColapsar();
-                                        navigate('/servicios?crear=ofrezco');
+                                        navegar('/servicios?crear=ofrezco');
                                     }}
                                     onCambiarABusco={() => {
                                         actualizar({ modo: 'busco' });

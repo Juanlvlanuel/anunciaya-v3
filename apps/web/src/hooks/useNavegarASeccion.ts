@@ -76,9 +76,12 @@ const RUTAS_TOP_LEVEL = new Set<string>([
     '/anunciate',
 ]);
 
-/** True si la ruta corresponde a una sección top-level (no subruta). */
+/** True si la ruta corresponde a una sección top-level (no subruta). Ignora el
+ *  query/hash: `/servicios?crear=ofrezco` cuenta como la top-level `/servicios`
+ *  (deep-links a composers y similares deben tratarse como salto de sección). */
 export function esRutaTopLevel(ruta: string): boolean {
-    return RUTAS_TOP_LEVEL.has(ruta);
+    const soloPath = ruta.split(/[?#]/)[0];
+    return RUTAS_TOP_LEVEL.has(soloPath);
 }
 
 /**

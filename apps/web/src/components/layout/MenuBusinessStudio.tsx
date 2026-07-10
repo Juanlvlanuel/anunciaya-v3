@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
 import {
   LayoutDashboard,
@@ -108,7 +108,6 @@ const opcionesMenu = [
 
 export function MenuBusinessStudio() {
   const location = useLocation();
-  const navigate = useNavigate();
   // Navegación entre módulos hermanos de BS: aplica replace para que el
   // back nativo desde cualquier módulo regrese a /inicio (no a otro
   // módulo). Ver useNavegarASeccion.

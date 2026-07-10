@@ -273,8 +273,13 @@ export function ModalOfertaDetalle({ oferta, whatsapp, negocioNombre, negocioUsu
     // público compartible. La ruta usa `sucursalId` como identificador.
     const handleClickNegocio = () => {
         if (!oferta?.sucursalId) return;
+        const sucursalId = oferta.sucursalId;
+        // Cerrar PRIMERO y navegar un instante después: el Modal empuja una
+        // entrada al history (useBackNativo); si navegáramos en el mismo gesto
+        // quedaría una entrada fantasma y el back al volver del perfil caería en
+        // una pantalla muerta. Mismo patrón que MenuDrawer.handleNavegar.
         onClose();
-        navigate(`/negocios/${oferta.sucursalId}`);
+        setTimeout(() => navigate(`/negocios/${sucursalId}`), 130);
     };
 
     // Etiqueta de sucursal a mostrar bajo el nombre del negocio.

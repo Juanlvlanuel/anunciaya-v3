@@ -25,7 +25,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
     ArrowRight,
     Camera,
@@ -312,7 +312,7 @@ export function ComposerColapsado({
  * (evita ruido visual hasta que tenga al menos una publicación).
  */
 function MisPublicacionesChip({ total }: { total: number }) {
-    const navigate = useNavigate();
+    const navegar = useNavegarASeccion();
     if (total === 0) return null;
     return (
         <button
@@ -323,7 +323,7 @@ function MisPublicacionesChip({ total }: { total: number }) {
                 e.stopPropagation();
                 // `?tipo=marketplace` pre-selecciona el toggle de MP al
                 // llegar (PaginaMisPublicaciones lo lee y limpia el param).
-                navigate('/mis-publicaciones?tipo=marketplace');
+                navegar('/mis-publicaciones?tipo=marketplace');
             }}
             className="inline-flex items-center gap-1.5 h-9 lg:h-10 px-2.5 lg:px-3.5 rounded-full bg-teal-50 border-2 border-teal-200 text-teal-800 text-[13px] lg:text-[14px] font-semibold hover:bg-teal-100 hover:border-teal-300 lg:cursor-pointer shrink-0"
         >

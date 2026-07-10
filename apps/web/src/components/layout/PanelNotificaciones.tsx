@@ -1061,15 +1061,23 @@ function PanelContenido({ onClose, conBotonCerrarHeader }: PanelContenidoProps) 
   const handleClickNotif = (n: Notificacion) => {
     if (!n.leida) marcarLeidaPorId(n.id);
     const ruta = obtenerRutaDestino(n);
-    if (ruta) {
-      cerrarPanel();
-      const [rutaBase, query] = ruta.split('?');
-      if (location.pathname === rutaBase && query) {
+    if (!ruta) return;
+    // Cerramos el panel PRIMERO y navegamos un instante después. En móvil el
+    // PanelMovil empuja una entrada al history (useBackNativo) que se limpia con
+    // un history.back() diferido al cerrar; si navegáramos en el mismo gesto esa
+    // entrada quedaría enterrada y el back posterior caería en una pantalla
+    // "muerta". Con el panel ya cerrado la navegación opera sobre el stack
+    // limpio. Mismo patrón que MenuDrawer.handleNavegar.
+    cerrarPanel();
+    const [rutaBase, query] = ruta.split('?');
+    const reemplazarEnMismaRuta = location.pathname === rutaBase && !!query;
+    window.setTimeout(() => {
+      if (reemplazarEnMismaRuta) {
         navigate(`${rutaBase}?${query}`, { replace: true });
       } else {
         navigate(ruta);
       }
-    }
+    }, 130);
   };
 
   const handleMarcarTodas = () => {

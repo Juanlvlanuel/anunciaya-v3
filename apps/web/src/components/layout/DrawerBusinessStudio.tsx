@@ -14,6 +14,7 @@
 import { createPortal } from 'react-dom';
 import { useLocation } from 'react-router-dom';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import {
     X,
     ChartNoAxesCombined,
@@ -96,6 +97,13 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
     // nativo regrese a /inicio en lugar de saltar entre módulos.
     const navegarASeccion = useNavegarASeccion();
 
+    // Back nativo del celular / flecha del navegador → cierra el drawer (es un
+    // overlay móvil deslizante). Sin esto el back no lo cerraba y sacaba al
+    // usuario de Business Studio. El componente se monta SIEMPRE con la prop
+    // `abierto`, así que el hook reacciona a ella (empuja al abrir, limpia al
+    // cerrar). Discriminador propio para no chocar con otros overlays.
+    useBackNativo({ abierto, onCerrar, discriminador: '_drawerBS' });
+
     // Detectar si es gerente
     const usuario = useAuthStore((s) => s.usuario);
     const esGerente = !!usuario?.sucursalAsignada;
@@ -115,10 +123,15 @@ export function DrawerBusinessStudio({ abierto, onCerrar }: DrawerBusinessStudio
         ? opcionesMenu.filter((opcion) => opcion.id !== 'sucursales' && opcion.id !== 'puntos')
         : opcionesMenu;
 
-    // Handler de navegación
+    // Handler de navegación. Cerramos el drawer PRIMERO y navegamos un instante
+    // después: con useBackNativo el drawer empuja una entrada al history que se
+    // limpia con un history.back() diferido al cerrar; si navegáramos en el
+    // mismo gesto, el `replace` de navegarASeccion pisaría esa entrada y dejaría
+    // el módulo hermano en el historial (back a la hermana en vez de a /inicio).
+    // Mismo patrón que MenuDrawer.handleNavegar.
     const handleNavegar = (ruta: string) => {
-        navegarASeccion(ruta);
         onCerrar();
+        window.setTimeout(() => navegarASeccion(ruta), 130);
     };
 
     // No renderizar si está cerrado

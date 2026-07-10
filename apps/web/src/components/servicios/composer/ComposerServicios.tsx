@@ -29,7 +29,7 @@
  */
 
 import { useEffect, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
     Camera,
     Check,
@@ -134,7 +134,7 @@ export function ComposerServicios({
     modoInicial,
     onColapsar,
 }: ComposerServiciosProps) {
-    const navigate = useNavigate();
+    const navegar = useNavegarASeccion();
     const esEdicion = modo === 'editar' && !!publicacionId;
 
     // ─── Datos de usuario para el header (avatar/nombre) ──────────────
@@ -434,7 +434,7 @@ export function ComposerServicios({
                                     // query param (réplica del flujo de
                                     // Servicios). Reemplaza al wizard
                                     // antiguo /marketplace/publicar.
-                                    navigate('/marketplace?crear=1');
+                                    navegar('/marketplace?crear=1');
                                 }}
                             />
                         </div>

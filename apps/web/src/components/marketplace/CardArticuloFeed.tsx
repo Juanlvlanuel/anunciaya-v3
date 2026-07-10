@@ -82,6 +82,13 @@ interface CardArticuloFeedProps {
      */
     modoModal?: boolean;
     /**
+     * Callback opcional: si se provee, se llama ANTES de navegar (para cerrar
+     * el modal contenedor) y la navegación se difiere 130ms — así el modal
+     * consume su entrada de history antes del push del destino y el back no
+     * queda con una pantalla muerta. Lo pasa ModalArticuloDetalle.
+     */
+    onAntesDeNavegar?: () => void;
+    /**
      * Cuando true, NO se renderiza el sidebar de thumbnails laterales en
      * desktop, ni se reserva el espacio `lg:mr-24` para él en la galería
      * principal. Útil para previsualizaciones en contenedores estrechos
@@ -150,6 +157,7 @@ export function CardArticuloFeed({
     onAuthRequerido,
     onAbrirDetalle,
     modoModal = false,
+    onAntesDeNavegar,
     ocultarThumbnailsLaterales = false,
     claseAspectoGaleria,
 }: CardArticuloFeedProps) {
@@ -272,13 +280,26 @@ export function CardArticuloFeed({
     })();
 
     // ─── Handlers ────────────────────────────────────────────────────────────
+    // Si la card vive dentro de un modal (onAntesDeNavegar provisto), cerramos
+    // ese modal PRIMERO y navegamos 130ms después: así el modal consume su
+    // entrada de history antes del push del destino y el back no queda con una
+    // pantalla muerta. En el feed normal (sin callback) navega directo.
+    const irConCierre = useCallback((ruta: string) => {
+        if (onAntesDeNavegar) {
+            onAntesDeNavegar();
+            setTimeout(() => navigate(ruta), 130);
+        } else {
+            navigate(ruta);
+        }
+    }, [navigate, onAntesDeNavegar]);
+
     const irAlPerfilVendedor = useCallback(() => {
-        navigate(`/marketplace/usuario/${articulo.vendedor.id}`);
-    }, [navigate, articulo.vendedor.id]);
+        irConCierre(`/marketplace/usuario/${articulo.vendedor.id}`);
+    }, [irConCierre, articulo.vendedor.id]);
 
     const irAlDetalle = useCallback(() => {
-        navigate(`/marketplace/articulo/${articulo.id}`);
-    }, [navigate, articulo.id]);
+        irConCierre(`/marketplace/articulo/${articulo.id}`);
+    }, [irConCierre, articulo.id]);
 
     const fotoAnterior = useCallback((e: React.MouseEvent) => {
         e.stopPropagation();

@@ -17,6 +17,7 @@
 
 import { useParams, useNavigate, useLocation } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
+import { useBackNativo } from '../../../hooks/useBackNativo';
 import { useRef, useState, useEffect } from 'react';
 import {
     ArrowLeft,
@@ -205,6 +206,10 @@ interface ModalMapaProps {
 function ModalMapa({ negocio, userLat, userLng, onClose, onChat }: ModalMapaProps) {
 
     const mapRef = useRef<MapRef | null>(null);
+
+    // Back nativo / flecha del navegador → cierra el mapa expandido (overlay
+    // full-screen desktop). Se monta solo cuando está abierto → abierto: true.
+    useBackNativo({ abierto: true, onCerrar: onClose, discriminador: '_modalMapaNegocio' });
 
     useEffect(() => {
         const handleKeyDown = (e: KeyboardEvent) => {
