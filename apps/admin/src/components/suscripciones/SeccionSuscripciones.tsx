@@ -625,6 +625,16 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
     }
   }, [filtroSusc, consumirFiltroSuscripciones]);
 
+  // Scroll de las pestañas no-bitácora (móvil) → ocultar la barra inferior. Bitácora registra el suyo.
+  const esEscritorioTabs = useEsEscritorio();
+  const listaTabsRef = useRef<HTMLDivElement>(null);
+  const setScrollElTabs = useScrollPanel((s) => s.setScrollEl);
+  useEffect(() => {
+    if (tab === 'bitacora') return;
+    setScrollElTabs(esEscritorioTabs ? null : listaTabsRef.current);
+    return () => setScrollElTabs(null);
+  }, [tab, esEscritorioTabs, setScrollElTabs]);
+
   return (
     <div className="flex h-full min-h-0 flex-col">
       {/* Vista activa. Los chips de navegación (TabsNavSuscripciones) viven junto al
@@ -638,7 +648,7 @@ export function SeccionSuscripciones({ rol: _rol }: { rol: RolPanel }) {
           <div className="mb-3 shrink-0">
             <TabsNavSuscripciones tab={tab} setTab={setTab} />
           </div>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div ref={listaTabsRef} className="min-h-0 flex-1 overflow-y-auto">
             {tab === 'por-verificar' ? <PestanaPorVerificar /> : tab === 'historial' ? <PestanaHistorial /> : <PestanaDatosCobro />}
           </div>
         </div>

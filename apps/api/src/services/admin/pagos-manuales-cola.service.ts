@@ -121,7 +121,8 @@ export interface SolicitudProcesada {
 
 export interface HistorialSolicitudes {
     solicitudes: SolicitudProcesada[];
-    total: number;
+    /** Conteos por estado (independientes del filtro) — alimentan los badges de los chips. */
+    conteos: { todos: number; aprobados: number; rechazados: number };
 }
 
 export async function listarSolicitudesProcesadas(
@@ -129,7 +130,9 @@ export async function listarSolicitudesProcesadas(
     opciones: { estado?: 'aprobado' | 'rechazado'; pagina?: number; porPagina?: number },
 ): Promise<HistorialSolicitudes> {
     // Gerente sin región → no ve nada.
-    if (panel.rolEquipo === 'gerente' && !panel.regionId) return { solicitudes: [], total: 0 };
+    if (panel.rolEquipo === 'gerente' && !panel.regionId) {
+        return { solicitudes: [], conteos: { todos: 0, aprobados: 0, rechazados: 0 } };
+    }
 
     const pagina = Math.max(1, opciones.pagina ?? 1);
     const porPagina = Math.min(100, Math.max(1, opciones.porPagina ?? 20));
@@ -170,13 +173,17 @@ export async function listarSolicitudesProcesadas(
         .limit(porPagina)
         .offset(offset);
 
-    const [conteo] = await db
-        .select({ total: sql<number>`count(*)::int` })
+    // Conteos por estado (SIN el filtro de estado, solo alcance) → badges estables de los chips.
+    const filasConteo = await db
+        .select({ estado: pagosManualesSolicitudes.estado, n: sql<number>`count(*)::int` })
         .from(pagosManualesSolicitudes)
-        .where(where);
+        .where(and(inArray(pagosManualesSolicitudes.estado, ['aprobado', 'rechazado']), alcanceRegion(panel)))
+        .groupBy(pagosManualesSolicitudes.estado);
+    const aprobados = filasConteo.find((c) => c.estado === 'aprobado')?.n ?? 0;
+    const rechazados = filasConteo.find((c) => c.estado === 'rechazado')?.n ?? 0;
 
     return {
-        total: conteo?.total ?? 0,
+        conteos: { todos: aprobados + rechazados, aprobados, rechazados },
         solicitudes: filas.map((f) => ({
             ...f,
             estado: f.estado as 'aprobado' | 'rechazado',

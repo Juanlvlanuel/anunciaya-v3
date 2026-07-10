@@ -3,235 +3,52 @@
  * ====================
  * Pestaña "Historial" del módulo Suscripciones: las solicitudes de pago manual del comerciante
  * que YA se resolvieron (aprobadas / rechazadas). Es la trazabilidad de la VERIFICACIÓN de
- * comprobantes: por cada solicitud muestra negocio, correo, monto/meses declarados, fechas
- * (enviado / revisado + quién), el motivo del rechazo y el botón "Ver comprobante".
+ * comprobantes. NO incluye los "Registrar pago" del Panel (esos viven en la Bitácora + ficha).
  *
- * NO incluye los pagos que el admin registra desde el Panel ("Registrar pago") — esos no pasan por
- * comprobante ni por esta cola; viven en la Bitácora + en la ficha del negocio.
- *
- * Lista densa (filas), neutro + un acento (Tokens_Panel.md). Alcance por rol/región lo aplica el
- * backend. Filtro por estado (Todos / Aprobados / Rechazados) + paginación en servidor.
+ * Estilo tabla (calcado de la Bitácora): header de columnas + filas clickeables en escritorio,
+ * cards en móvil. El detalle completo (comprobante, motivo, referencia, revisor…) vive en un modal
+ * (FichaSolicitud, ModalAdaptativo). Filtro por estado con chips (TabsSegmento) + badge de conteo.
  *
  * Ubicación: apps/admin/src/components/suscripciones/PestanaHistorial.tsx
  */
 
-import { useState, type ReactNode } from 'react';
-import { History, ExternalLink, Hash, StickyNote, Mail, Check, X, Ban, ChevronLeft, ChevronRight } from 'lucide-react';
+import { useState } from 'react';
+import { History, Layers, Check, X, Mail, ChevronRight } from 'lucide-react';
 import { useSolicitudesProcesadas } from '../../hooks/queries/useSuscripcionesAdmin';
 import type { SolicitudProcesada } from '../../services/suscripcionesService';
+import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { AvatarNegocio } from '../negocios/avatares';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
+import { TabsSegmento } from '../ui/TabsSegmento';
+import { FichaSolicitud } from './FichaSolicitud';
 
 const POR_PAGINA = 20;
 const FMT_MONTO = new Intl.NumberFormat('es-MX', { style: 'currency', currency: 'MXN' });
 const FMT_FECHA = new Intl.DateTimeFormat('es-MX', { day: '2-digit', month: 'short', year: 'numeric' });
 
-type FiltroEstado = 'aprobado' | 'rechazado' | undefined;
+// 4 columnas alineadas header↔filas: negocio · monto · estado · revisado (+ chevron).
+const COLS = 'minmax(200px,2.4fr) 1fr 1.1fr 1.2fr 28px';
 
-const FILTROS: { id: FiltroEstado; label: string }[] = [
-  { id: undefined, label: 'Todos' },
-  { id: 'aprobado', label: 'Aprobados' },
-  { id: 'rechazado', label: 'Rechazados' },
-];
+type FiltroId = 'todos' | 'aprobado' | 'rechazado';
 
-function fechaCorta(iso: string | null): string {
+export function fechaCorta(iso: string | null): string {
   if (!iso) return '—';
   const d = new Date(iso);
   return Number.isNaN(d.getTime()) ? '—' : FMT_FECHA.format(d).replace('.', '');
 }
 
-function montoTexto(m: string): string {
+export function montoTexto(m: string): string {
   const n = Number(m);
   return Number.isFinite(n) ? FMT_MONTO.format(n) : '—';
 }
 
-export function PestanaHistorial() {
-  const [estado, setEstado] = useState<FiltroEstado>(undefined);
-  const [pagina, setPagina] = useState(1);
-
-  const { data, isLoading, isError, isFetching } = useSolicitudesProcesadas({ estado, pagina, porPagina: POR_PAGINA });
-  const solicitudes = data?.solicitudes ?? [];
-  const total = data?.total ?? 0;
-  const totalPaginas = Math.max(1, Math.ceil(total / POR_PAGINA));
-
-  const cambiarFiltro = (id: FiltroEstado) => {
-    setEstado(id);
-    setPagina(1);
-  };
-
-  let cuerpo: ReactNode;
-  if (isLoading) {
-    cuerpo = <EstadoSeccion variante="cargando" icono={History} titulo="Cargando historial…" />;
-  } else if (isError) {
-    cuerpo = (
-      <EstadoSeccion
-        variante="error"
-        icono={History}
-        titulo="No se pudo cargar el historial."
-        descripcion="Revisa tu conexión e inténtalo de nuevo."
-      />
-    );
-  } else if (solicitudes.length === 0) {
-    cuerpo = (
-      <EstadoSeccion
-        icono={History}
-        titulo="Sin solicitudes procesadas"
-        descripcion="Aquí aparecerán los comprobantes que apruebes o rechaces."
-      />
-    );
-  } else {
-    cuerpo = (
-      <div className="flex flex-col divide-y divide-borde overflow-hidden rounded-[12px] border border-borde">
-        {solicitudes.map((s) => (
-          <FilaProcesada key={s.id} s={s} />
-        ))}
-      </div>
-    );
-  }
-
-  return (
-    <div data-testid="suscripciones-historial">
-      {/* Filtro por estado */}
-      <div className="mb-3 flex flex-wrap items-center gap-2">
-        {FILTROS.map((f) => {
-          const activo = estado === f.id;
-          return (
-            <button
-              key={f.label}
-              type="button"
-              data-testid={`historial-filtro-${f.id ?? 'todos'}`}
-              onClick={() => cambiarFiltro(f.id)}
-              className={`rounded-full border px-3.5 py-1.5 text-[12.5px] font-semibold transition ${
-                activo
-                  ? 'border-marca bg-marca-suave text-marca'
-                  : 'border-borde bg-superficie text-texto-2 hover:bg-marca-suave'
-              }`}
-            >
-              {f.label}
-            </button>
-          );
-        })}
-        {total > 0 && (
-          <span className="ml-auto text-[12.5px] text-texto-3" data-testid="historial-total">
-            <b className="font-semibold text-texto">{total}</b> en total
-          </span>
-        )}
-      </div>
-
-      {cuerpo}
-
-      {/* Paginación */}
-      {totalPaginas > 1 && (
-        <div className="mt-3 flex items-center justify-end gap-2 text-[12.5px] text-texto-3">
-          <button
-            type="button"
-            data-testid="historial-anterior"
-            disabled={pagina <= 1 || isFetching}
-            onClick={() => setPagina((p) => Math.max(1, p - 1))}
-            className="inline-flex items-center gap-1 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            <ChevronLeft size={14} />
-            Anterior
-          </button>
-          <span className="tabular-nums">
-            {pagina} / {totalPaginas}
-          </span>
-          <button
-            type="button"
-            data-testid="historial-siguiente"
-            disabled={pagina >= totalPaginas || isFetching}
-            onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
-            className="inline-flex items-center gap-1 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            Siguiente
-            <ChevronRight size={14} />
-          </button>
-        </div>
-      )}
-    </div>
-  );
-}
-
-// =============================================================================
-// FILA
-// =============================================================================
-
-function FilaProcesada({ s }: { s: SolicitudProcesada }) {
-  const esAprobado = s.estado === 'aprobado';
-  return (
-    <div className="flex flex-col gap-3 bg-superficie p-3.5 lg:flex-row lg:items-start lg:gap-4" data-testid={`historial-fila-${s.id}`}>
-      {/* Identidad + estado + motivo */}
-      <div className="flex min-w-0 flex-1 items-start gap-3">
-        <AvatarNegocio nombre={s.negocioNombre} logoUrl={s.logoUrl} tam={40} />
-        <div className="flex min-w-0 flex-col gap-0.5">
-          <div className="flex flex-wrap items-center gap-2">
-            <span className="truncate text-[14px] font-semibold text-texto">{s.negocioNombre}</span>
-            <BadgeEstado estado={s.estado} />
-          </div>
-          <span className={`inline-flex items-center gap-1 text-[12.5px] ${s.correoDueno ? 'text-texto-3' : 'text-texto-4'}`}>
-            <Mail size={12} className="shrink-0" />
-            <span className="truncate">{s.correoDueno ?? 'Sin correo'}</span>
-          </span>
-          {!esAprobado && s.motivoRechazo && (
-            <span className="mt-0.5 inline-flex items-start gap-1 text-[12px] text-peligro">
-              <Ban size={11} className="mt-0.5 shrink-0" />
-              <span className="min-w-0">Motivo: {s.motivoRechazo}</span>
-            </span>
-          )}
-          {(s.referencia || s.nota) && (
-            <span className="mt-0.5 flex flex-wrap items-center gap-x-3 gap-y-0.5 text-[12px] text-texto-4">
-              {s.referencia && (
-                <span className="inline-flex items-center gap-1">
-                  <Hash size={11} className="shrink-0" />
-                  <span className="truncate">{s.referencia}</span>
-                </span>
-              )}
-              {s.nota && (
-                <span className="inline-flex min-w-0 items-center gap-1">
-                  <StickyNote size={11} className="shrink-0" />
-                  <span className="truncate">{s.nota}</span>
-                </span>
-              )}
-            </span>
-          )}
-        </div>
-      </div>
-
-      {/* Monto + meses + fechas + revisor */}
-      <div className="flex shrink-0 flex-col leading-tight lg:items-end lg:text-right">
-        <span className="text-[14px] font-bold text-texto">{montoTexto(s.monto)}</span>
-        <span className="text-[11.5px] text-texto-4">
-          {s.mesesDeclarados} {s.mesesDeclarados === 1 ? 'mes' : 'meses'} · Enviado {fechaCorta(s.creadoAt)}
-        </span>
-        <span className="text-[11.5px] text-texto-4">
-          {esAprobado ? 'Aprobado' : 'Rechazado'} {fechaCorta(s.revisadoAt)}
-          {s.revisadoPorNombre ? ` · ${s.revisadoPorNombre}` : ''}
-        </span>
-      </div>
-
-      {/* Comprobante */}
-      <div className="flex shrink-0 items-center gap-2">
-        <a
-          href={s.comprobanteUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          data-testid={`historial-comprobante-${s.id}`}
-          className="inline-flex items-center gap-1.5 rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 text-[12.5px] font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca"
-        >
-          <ExternalLink size={14} />
-          <span className="lg:hidden">Comprobante</span>
-          <span className="hidden lg:inline">Ver comprobante</span>
-        </a>
-      </div>
-    </div>
-  );
-}
-
-function BadgeEstado({ estado }: { estado: 'aprobado' | 'rechazado' }) {
+export function BadgeEstado({ estado, small }: { estado: 'aprobado' | 'rechazado'; small?: boolean }) {
   const esAprobado = estado === 'aprobado';
   return (
     <span
-      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 text-[11px] font-semibold ${
+      className={`inline-flex shrink-0 items-center gap-1 rounded-full px-2 py-0.5 font-semibold ${
+        small ? 'text-[10.5px]' : 'text-[11px]'
+      } ${
         esAprobado
           ? 'bg-[color-mix(in_srgb,var(--panel-ok)_14%,transparent)] text-ok'
           : 'bg-peligro-suave text-peligro'
@@ -240,6 +57,204 @@ function BadgeEstado({ estado }: { estado: 'aprobado' | 'rechazado' }) {
       {esAprobado ? <Check size={11} /> : <X size={11} />}
       {esAprobado ? 'Aprobado' : 'Rechazado'}
     </span>
+  );
+}
+
+export function PestanaHistorial() {
+  const esEscritorio = useEsEscritorio();
+  const [filtroId, setFiltroId] = useState<FiltroId>('todos');
+  const [pagina, setPagina] = useState(1);
+  const [seleccionada, setSeleccionada] = useState<SolicitudProcesada | null>(null);
+
+  const estado = filtroId === 'todos' ? undefined : filtroId;
+  const { data, isLoading, isError, isFetching } = useSolicitudesProcesadas({ estado, pagina, porPagina: POR_PAGINA });
+  const solicitudes = data?.solicitudes ?? [];
+  const conteos = data?.conteos ?? { todos: 0, aprobados: 0, rechazados: 0 };
+  const totalFiltro = filtroId === 'todos' ? conteos.todos : filtroId === 'aprobado' ? conteos.aprobados : conteos.rechazados;
+  const totalPaginas = Math.max(1, Math.ceil(totalFiltro / POR_PAGINA));
+
+  const cambiarFiltro = (id: FiltroId) => {
+    setFiltroId(id);
+    setPagina(1);
+  };
+
+  const chips = (
+    <TabsSegmento
+      tabs={[
+        { id: 'todos', label: 'Todos', icono: <Layers size={14} />, badge: conteos.todos },
+        { id: 'aprobado', label: 'Aprobados', icono: <Check size={14} />, badge: conteos.aprobados },
+        { id: 'rechazado', label: 'Rechazados', icono: <X size={14} />, badge: conteos.rechazados },
+      ]}
+      valor={filtroId}
+      onCambiar={cambiarFiltro}
+      testidPrefijo="historial-filtro"
+      className="max-w-full overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+    />
+  );
+
+  const ficha = seleccionada ? <FichaSolicitud s={seleccionada} onCerrar={() => setSeleccionada(null)} /> : null;
+
+  const paginacion =
+    totalPaginas > 1 ? (
+      <div className="mt-3 flex items-center justify-end gap-2 text-[12.5px] text-texto-3">
+        <button
+          type="button"
+          data-testid="historial-anterior"
+          disabled={pagina <= 1 || isFetching}
+          onClick={() => setPagina((p) => Math.max(1, p - 1))}
+          className="rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Anterior
+        </button>
+        <span className="tabular-nums">
+          {pagina} / {totalPaginas}
+        </span>
+        <button
+          type="button"
+          data-testid="historial-siguiente"
+          disabled={pagina >= totalPaginas || isFetching}
+          onClick={() => setPagina((p) => Math.min(totalPaginas, p + 1))}
+          className="rounded-[9px] border border-borde-fuerte bg-superficie px-2.5 py-1.5 font-semibold text-texto-2 transition hover:bg-marca-suave hover:text-marca disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          Siguiente
+        </button>
+      </div>
+    ) : null;
+
+  // ── Estados vacíos / carga / error ──────────────────────────────────────────
+  if (isLoading || isError || solicitudes.length === 0) {
+    return (
+      <div data-testid="suscripciones-historial">
+        <div className="mb-3">{chips}</div>
+        {isLoading ? (
+          <EstadoSeccion variante="cargando" icono={History} titulo="Cargando historial…" />
+        ) : isError ? (
+          <EstadoSeccion
+            variante="error"
+            icono={History}
+            titulo="No se pudo cargar el historial."
+            descripcion="Revisa tu conexión e inténtalo de nuevo."
+          />
+        ) : (
+          <EstadoSeccion
+            icono={History}
+            titulo="Sin solicitudes procesadas"
+            descripcion="Aquí aparecerán los comprobantes que apruebes o rechaces."
+          />
+        )}
+        {ficha}
+      </div>
+    );
+  }
+
+  // ── Móvil: cards ────────────────────────────────────────────────────────────
+  if (!esEscritorio) {
+    return (
+      <div data-testid="suscripciones-historial">
+        <div className="mb-3">{chips}</div>
+        <div className="flex flex-col gap-2.5">
+          {solicitudes.map((s) => (
+            <CardHistorial key={s.id} s={s} onAbrir={() => setSeleccionada(s)} />
+          ))}
+        </div>
+        {paginacion}
+        {ficha}
+      </div>
+    );
+  }
+
+  // ── Escritorio: tabla ───────────────────────────────────────────────────────
+  return (
+    <div data-testid="suscripciones-historial">
+      <div className="mb-3">{chips}</div>
+      <div className="overflow-hidden rounded-[12px] border border-borde shadow-tarjeta-panel">
+        <div
+          className="grid items-center gap-3.5 border-b border-borde bg-superficie px-3 py-2.5 text-[11px] font-semibold uppercase tracking-wide text-texto-4"
+          style={{ gridTemplateColumns: COLS }}
+        >
+          <span>Negocio</span>
+          <span>Monto</span>
+          <span>Estado</span>
+          <span>Revisado</span>
+          <span />
+        </div>
+        {solicitudes.map((s) => (
+          <FilaHistorial key={s.id} s={s} onAbrir={() => setSeleccionada(s)} />
+        ))}
+      </div>
+      {paginacion}
+      {ficha}
+    </div>
+  );
+}
+
+// =============================================================================
+// FILA (escritorio) / CARD (móvil)
+// =============================================================================
+
+function FilaHistorial({ s, onAbrir }: { s: SolicitudProcesada; onAbrir: () => void }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid={`historial-fila-${s.id}`}
+      onClick={onAbrir}
+      onKeyDown={(ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          onAbrir();
+        }
+      }}
+      className="grid w-full cursor-pointer items-center gap-3.5 border-b border-borde px-3 py-3 text-left transition last:border-b-0 hover:bg-marca-suave focus:bg-marca-suave focus:outline-none"
+      style={{ gridTemplateColumns: COLS }}
+    >
+      <span className="flex min-w-0 items-center gap-2.5">
+        <AvatarNegocio nombre={s.negocioNombre} logoUrl={s.logoUrl} tam={38} />
+        <span className="flex min-w-0 flex-col">
+          <span className="truncate text-[14px] font-semibold text-texto">{s.negocioNombre}</span>
+          <span className={`inline-flex items-center gap-1 text-[13px] ${s.correoDueno ? 'text-texto-3' : 'text-texto-4'}`}>
+            <Mail size={12} className="shrink-0" />
+            <span className="truncate">{s.correoDueno ?? 'Sin correo'}</span>
+          </span>
+        </span>
+      </span>
+      <span className="text-[13.5px] font-semibold text-texto">{montoTexto(s.monto)}</span>
+      <span>
+        <BadgeEstado estado={s.estado} />
+      </span>
+      <span className="text-[13px] text-texto-2">{fechaCorta(s.revisadoAt)}</span>
+      <span className="flex justify-end text-texto-4">
+        <ChevronRight size={17} />
+      </span>
+    </div>
+  );
+}
+
+function CardHistorial({ s, onAbrir }: { s: SolicitudProcesada; onAbrir: () => void }) {
+  return (
+    <div
+      role="button"
+      tabIndex={0}
+      data-testid={`historial-card-${s.id}`}
+      onClick={onAbrir}
+      onKeyDown={(ev) => {
+        if (ev.key === 'Enter' || ev.key === ' ') {
+          ev.preventDefault();
+          onAbrir();
+        }
+      }}
+      className="flex items-center gap-3 rounded-[14px] border border-borde bg-superficie p-3 text-left transition active:bg-marca-suave"
+    >
+      <AvatarNegocio nombre={s.negocioNombre} logoUrl={s.logoUrl} tam={42} />
+      <span className="flex min-w-0 flex-1 flex-col gap-1.5">
+        <span className="truncate text-[14.5px] font-semibold text-texto">{s.negocioNombre}</span>
+        <span className="text-[12px] text-texto-3">Revisado {fechaCorta(s.revisadoAt)}</span>
+      </span>
+      <span className="flex shrink-0 flex-col items-end gap-1.5">
+        <BadgeEstado estado={s.estado} small />
+        <span className="text-[13.5px] font-bold text-texto">{montoTexto(s.monto)}</span>
+      </span>
+    </div>
   );
 }
 

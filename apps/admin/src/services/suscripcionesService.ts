@@ -181,7 +181,8 @@ export interface SolicitudProcesada {
 
 export interface HistorialSolicitudes {
   solicitudes: SolicitudProcesada[];
-  total: number;
+  /** Conteos por estado (independientes del filtro) — alimentan los badges de los chips. */
+  conteos: { todos: number; aprobados: number; rechazados: number };
 }
 
 /** Historial de solicitudes procesadas (aprobadas/rechazadas), paginado y con filtro por estado. */
@@ -194,7 +195,7 @@ export async function listarSolicitudesProcesadas(params: {
     '/admin/suscripciones/solicitudes/historial',
     { params },
   );
-  return data.data ?? { solicitudes: [], total: 0 };
+  return data.data ?? { solicitudes: [], conteos: { todos: 0, aprobados: 0, rechazados: 0 } };
 }
 
 /** Aprueba una solicitud. Si no se pasan monto/meses, el backend usa los DECLARADOS por el dueño. */
