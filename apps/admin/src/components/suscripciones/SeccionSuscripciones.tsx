@@ -14,7 +14,7 @@
  */
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin, ScrollText, FileCheck2, Landmark, CircleDot, History, type LucideIcon } from 'lucide-react';
+import { Search, X, ChevronLeft, ChevronRight, ArrowUpDown, Calendar, Layers, MapPin, ScrollText, FileCheck2, Landmark, CircleDot, History, Ban, type LucideIcon } from 'lucide-react';
 import type { RolPanel } from '../../data/menuPanel';
 import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
@@ -72,6 +72,25 @@ function montoTexto(m: string | null): string {
   if (m == null) return '—';
   const n = Number(m);
   return Number.isFinite(n) ? FMT_MONTO.format(n) : '—';
+}
+
+/** Monto a mostrar en la tabla: si el pago está ANULADO, el monto original tachado (o "—" si no se
+ *  guardó); si no, el monto normal. El KPI de ingresos ya excluye los anulados por separado. */
+function montoAnuladoInfo(e: EventoFila): { texto: string; clase: string } {
+  if (e.anulado) {
+    const orig = e.montoAnulado != null ? montoTexto(e.montoAnulado) : null;
+    return { texto: orig ?? montoTexto(e.monto), clase: orig ? 'text-texto-4 line-through' : 'text-texto-4' };
+  }
+  return { texto: montoTexto(e.monto), clase: e.monto != null ? 'text-texto' : 'text-texto-4' };
+}
+
+/** Chip "Anulado" para la columna Estado de la Bitácora (mismo look que el chip del detalle). */
+function BadgeAnulado() {
+  return (
+    <span className="inline-flex items-center gap-1 rounded-full bg-peligro-suave px-2 py-0.5 text-[11px] font-semibold text-peligro">
+      <Ban size={11} /> Anulado
+    </span>
+  );
 }
 
 /** Traduce el preset de periodo a `desde` (ISO de inicio del día → estable entre renders,
@@ -313,7 +332,7 @@ function PestanaBitacora({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: T
   }
 
   // ── Vista ESCRITORIO ────────────────────────────────────────────────────────
-  const cols = 'minmax(200px,2.4fr) 1fr 1.1fr 1.3fr 28px';
+  const cols = 'minmax(200px,2.4fr) 1fr 1.1fr 1.3fr 1fr 28px';
 
   return (
     <div className="flex h-full min-h-0 flex-col p-4 lg:p-5">
@@ -382,6 +401,7 @@ function PestanaBitacora({ tab, setTab }: { tab: TabSuscripciones; setTab: (t: T
           <span>Monto</span>
           <span>Fecha</span>
           <span>Tipo</span>
+          <span>Estado</span>
           <span />
         </div>
 
@@ -450,6 +470,7 @@ function KpiInline({ etiqueta, valor, acento, testid }: { etiqueta: string; valo
 }
 
 function FilaEvento({ e, cols, onAbrir, onPrefetch }: { e: EventoFila; cols: string; onAbrir: () => void; onPrefetch: () => void }) {
+  const montoInfo = montoAnuladoInfo(e);
   return (
     <div
       role="button"
@@ -477,15 +498,17 @@ function FilaEvento({ e, cols, onAbrir, onPrefetch }: { e: EventoFila; cols: str
           </span>
         </span>
       </span>
-      <span className={`text-[13.5px] font-semibold ${e.monto != null ? 'text-texto' : 'text-texto-4'}`}>{montoTexto(e.monto)}</span>
+      <span className={`text-[13.5px] font-semibold ${montoInfo.clase}`}>{montoInfo.texto}</span>
       <span className="text-[13px] text-texto-2">{fechaCorta(e.fecha)}</span>
       <span><BadgeTipoEvento tipo={e.tipo} /></span>
+      <span>{e.anulado ? <BadgeAnulado /> : null}</span>
       <span className="flex justify-end text-texto-4"><ChevronRight size={17} /></span>
     </div>
   );
 }
 
 function CardEvento({ e, onAbrir, onPrefetch }: { e: EventoFila; onAbrir: () => void; onPrefetch: () => void }) {
+  const montoInfo = montoAnuladoInfo(e);
   return (
     <div
       role="button"
@@ -507,8 +530,9 @@ function CardEvento({ e, onAbrir, onPrefetch }: { e: EventoFila; onAbrir: () => 
         <span className="text-[12px] text-texto-3">{fechaCorta(e.fecha)}</span>
       </span>
       <span className="flex shrink-0 flex-col items-end gap-1.5">
+        {e.anulado && <BadgeAnulado />}
         <BadgeTipoEvento tipo={e.tipo} small />
-        <span className={`text-[13.5px] font-bold ${e.monto != null ? 'text-texto' : 'text-texto-4'}`}>{montoTexto(e.monto)}</span>
+        <span className={`text-[13.5px] font-bold ${montoInfo.clase}`}>{montoInfo.texto}</span>
       </span>
     </div>
   );

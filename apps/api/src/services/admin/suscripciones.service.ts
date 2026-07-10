@@ -300,6 +300,7 @@ export async function listarEventos(
             origen: eventosPago.origen,
             monto: eventosPago.monto,
             moneda: eventosPago.moneda,
+            metadata: eventosPago.metadata,
             actorNombre: usuarios.nombre,
             actorApellidos: usuarios.apellidos,
             stripeEventId: eventosPago.stripeEventId,
@@ -314,20 +315,27 @@ export async function listarEventos(
         .limit(filtros.porPagina)
         .offset(offset);
 
-    const items: EventoFila[] = filas.map((f) => ({
-        id: f.id,
-        fecha: f.fecha ?? null,
-        negocioId: f.negocioId,
-        negocioNombre: f.negocioNombre ?? null,
-        logoUrl: f.logoUrl ?? null,
-        ciudad: f.ciudad ?? null,
-        tipo: f.tipo,
-        origen: f.origen,
-        monto: f.monto ?? null,
-        moneda: f.moneda,
-        actorNombre: f.actorNombre ? `${f.actorNombre} ${f.actorApellidos ?? ''}`.trim() : null,
-        stripeEventId: f.stripeEventId ?? null,
-    }));
+    const items: EventoFila[] = filas.map((f) => {
+        // Estado anulado (pago manual): el evento anulado tiene monto NULL; el monto original queda en
+        // metadata.montoAnulado para mostrarlo tachado en la tabla (el KPI de ingresos ya lo excluye).
+        const meta = (f.metadata ?? {}) as Record<string, unknown>;
+        return {
+            id: f.id,
+            fecha: f.fecha ?? null,
+            negocioId: f.negocioId,
+            negocioNombre: f.negocioNombre ?? null,
+            logoUrl: f.logoUrl ?? null,
+            ciudad: f.ciudad ?? null,
+            tipo: f.tipo,
+            origen: f.origen,
+            monto: f.monto ?? null,
+            moneda: f.moneda,
+            anulado: meta.anulado === true,
+            montoAnulado: meta.montoAnulado != null ? String(meta.montoAnulado) : null,
+            actorNombre: f.actorNombre ? `${f.actorNombre} ${f.actorApellidos ?? ''}`.trim() : null,
+            stripeEventId: f.stripeEventId ?? null,
+        };
+    });
 
     return { items, total: Number(total), pagina: filtros.pagina, porPagina: filtros.porPagina, conteos };
 }

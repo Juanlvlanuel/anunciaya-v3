@@ -47,6 +47,9 @@ export interface EventoFila {
   /** numeric → string; el front formatea en MXN. NULL en fallido/cancelación/cortesía. */
   monto: string | null;
   moneda: string;
+  /** Pago manual ANULADO. `montoAnulado` = monto original (metadata) para mostrarlo tachado. */
+  anulado: boolean;
+  montoAnulado: string | null;
   actorNombre: string | null;
   stripeEventId: string | null;
 }
