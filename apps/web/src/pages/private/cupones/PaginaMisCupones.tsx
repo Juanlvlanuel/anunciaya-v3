@@ -10,7 +10,7 @@
  */
 
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import { useVolverAtras } from '../../../hooks/useVolverAtras';
 import { useScrollAppShell } from '../../../hooks/useScrollAppShell';
 import { Ticket, CheckCircle, ChevronLeft } from 'lucide-react';
@@ -61,7 +61,6 @@ const ESTILOS = `
 // =============================================================================
 
 export default function PaginaMisCupones() {
-    const navigate = useNavigate();
     // Botón ← respeta historial (flecha nativa móvil) con fallback a /inicio.
     const handleVolver = useVolverAtras('/inicio');
     const cuerpoRef = useScrollAppShell();

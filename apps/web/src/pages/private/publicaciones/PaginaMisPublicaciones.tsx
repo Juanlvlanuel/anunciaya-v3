@@ -24,6 +24,7 @@
 
 import { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import {
     ChevronLeft,
     Plus,
@@ -141,6 +142,7 @@ const COMPOSER_DRAFT_KEY = 'aya:composer:marketplace:draft-v1';
 
 export function PaginaMisPublicaciones() {
     const navigate = useNavigate();
+    const navegar = useNavegarASeccion();
     const location = useLocation();
     const handleVolver = useVolverAtras('/inicio');
     const cuerpoRef = useScrollAppShell();
@@ -274,12 +276,12 @@ export function PaginaMisPublicaciones() {
     // ─── Handlers de navegación / CTAs ───────────────────────────────────────
     // Composer inline en /marketplace: `?crear=1` lo expande para crear,
     // `?editar={id}` lo expande para editar. Reemplaza al wizard antiguo.
-    const irAPublicar = () => navigate('/marketplace?crear=1');
-    const continuarBorrador = () => navigate('/marketplace?crear=1');
+    const irAPublicar = () => navegar('/marketplace?crear=1');
+    const continuarBorrador = () => navegar('/marketplace?crear=1');
 
     // ─── Handlers de acciones por artículo ───────────────────────────────────
     const handleEditar = (articulo: ArticuloMarketplace) => {
-        navigate(`/marketplace?editar=${articulo.id}`);
+        navegar(`/marketplace?editar=${articulo.id}`);
     };
 
     const handlePausar = async (articulo: ArticuloMarketplace) => {
@@ -642,7 +644,7 @@ export function PaginaMisPublicaciones() {
                                         onClick={
                                             tipoActivo === 'marketplace'
                                                 ? irAPublicar
-                                                : () => navigate('/servicios?crear=ofrezco')
+                                                : () => navegar('/servicios?crear=ofrezco')
                                         }
                                         aria-label={
                                             tipoActivo === 'marketplace'
@@ -885,7 +887,7 @@ export function PaginaMisPublicaciones() {
                 onClick={
                     tipoActivo === 'marketplace'
                         ? irAPublicar
-                        : () => navigate('/servicios?crear=ofrezco')
+                        : () => navegar('/servicios?crear=ofrezco')
                 }
                 aria-label={
                     tipoActivo === 'marketplace'
