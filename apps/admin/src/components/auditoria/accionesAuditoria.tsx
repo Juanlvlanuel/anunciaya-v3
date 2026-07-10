@@ -15,10 +15,12 @@ import {
   Store,
   Users,
   MapPin,
+  MapPinned,
   ShieldCheck,
   CircleDollarSign,
   SlidersHorizontal,
   CreditCard,
+  Wallet,
   Receipt,
   Megaphone,
   ScrollText,
@@ -48,6 +50,10 @@ const MODULO_POR_PREFIJO: Record<string, MetaModulo> = {
   recibo: { etiqueta: 'Recibos', icono: Receipt },
   publicidad: { etiqueta: 'Publicidad', icono: Megaphone },
   mantenimiento: { etiqueta: 'Mantenimiento', icono: Wrench },
+  territorio: { etiqueta: 'Territorios', icono: MapPinned },
+  // Acciones de la sección Suscripciones (pagos manuales + datos de depósito).
+  pago: { etiqueta: 'Suscripciones', icono: Wallet },
+  datos: { etiqueta: 'Suscripciones', icono: Wallet },
 };
 
 /** Etiqueta legible por acción (verbo en pasado, "quién hizo qué"). */
@@ -95,6 +101,12 @@ export const ACCION_LABEL: Record<string, string> = {
   subcategoria_desactivar: 'Desactivó una subcategoría',
   subcategoria_reordenar: 'Reordenó subcategorías',
   subcategoria_asignar_ciudades: 'Cambió las ciudades de una subcategoría',
+  // Categorías de MarketPlace
+  categoria_marketplace_crear: 'Creó una categoría de MarketPlace',
+  categoria_marketplace_editar: 'Editó una categoría de MarketPlace',
+  categoria_marketplace_activar: 'Activó una categoría de MarketPlace',
+  categoria_marketplace_desactivar: 'Desactivó una categoría de MarketPlace',
+  categoria_marketplace_reordenar: 'Reordenó categorías de MarketPlace',
   // Equipo
   equipo_alta_gerente: 'Dio de alta un gerente',
   equipo_promover_gerente: 'Promovió a gerente',
@@ -111,6 +123,11 @@ export const ACCION_LABEL: Record<string, string> = {
   vendedor_efectivo_cobro: 'Registró cobro de efectivo',
   vendedor_efectivo_entrega: 'Registró entrega de efectivo',
   comisiones_recalcular: 'Recalculó comisiones',
+  // Territorios (zonas del gerente)
+  territorio_crear_zona: 'Creó una zona',
+  territorio_editar_zona: 'Editó una zona',
+  territorio_asignar_zona: 'Asignó una zona',
+  territorio_borrar_zona: 'Borró una zona',
   // Membresía (precio / plan)
   precio_mensual_cambiar: 'Cambió el precio mensual',
   plan_anual_activar: 'Activó el plan anual',
@@ -119,6 +136,10 @@ export const ACCION_LABEL: Record<string, string> = {
   config_actualizar: 'Cambió una configuración',
   // Recibos
   recibo_reenviar: 'Reenvió un recibo',
+  // Suscripciones (pagos manuales con comprobante + datos de depósito)
+  pago_manual_aprobar: 'Aprobó un pago manual',
+  pago_manual_rechazar: 'Rechazó un pago manual',
+  datos_cobro_actualizar: 'Actualizó los datos de depósito',
   // Publicidad
   publicidad_alta_manual: 'Registró un anuncio',
   publicidad_editar: 'Editó un anuncio',
@@ -140,6 +161,8 @@ export const ENTIDAD_TIPO_LABEL: Record<string, string> = {
   region: 'Región',
   categoria: 'Categoría',
   subcategoria: 'Subcategoría',
+  categoria_marketplace: 'Categoría de MarketPlace',
+  territorio_zona: 'Zona',
   embajador: 'Vendedor',
   configuracion: 'Configuración',
   comisiones: 'Comisiones',
