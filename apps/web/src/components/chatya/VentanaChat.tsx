@@ -36,6 +36,7 @@ import { ModalImagenes } from '../ui/ModalImagenes';
 // Virtuoso eliminado — scroll nativo con IntersectionObserver para paginación
 import Tooltip from '../ui/Tooltip';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
 import { getDetalleCliente } from '../../services/clientesService';
 
@@ -853,6 +854,10 @@ function VentanaChatInner() {
   const [fijadoIndice, setFijadoIndice] = useState(0);
   /** Menú contextual del banner de fijados (long press) */
   const [menuFijadoPos, setMenuFijadoPos] = useState<{ x: number; y: number } | null>(null);
+  // El menú del banner de fijados es un overlay fixed inset-0; useBackNativo
+  // hereda la marca `chatya` de la capa de abajo, así que el back lo cierra sin
+  // cerrar el chat (el guard del ChatOverlay respeta la entrada `chatya`).
+  useBackNativo({ abierto: menuFijadoPos !== null, onCerrar: () => setMenuFijadoPos(null), discriminador: '_menuFijado' });
   const menuFijadoRef = useRef<HTMLDivElement>(null);
 
 

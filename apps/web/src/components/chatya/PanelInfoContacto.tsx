@@ -30,6 +30,7 @@ const Award = (p: IconoWrapperProps) => <Icon icon={ICONOS.logro} {...p} />;
 const Calendar = (p: IconoWrapperProps) => <Icon icon={ICONOS.fechas} {...p} />;
 const MapPin = (p: IconoWrapperProps) => <Icon icon={ICONOS.ubicacion} {...p} />;
 import { useChatYAStore } from '../../stores/useChatYAStore';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import { useChatYASession } from '../../hooks/useChatYASession';
 import { usePuntosConfiguracion } from '../../hooks/queries/usePuntos';
 import { obtenerPerfilSucursal } from '../../services/negociosService';
@@ -259,6 +260,12 @@ export function PanelInfoContacto({ conversacion, esTemporal, onCerrar, onAbrirI
   const [cargando, setCargando] = useState(false);
   const [galeriaAbierta, setGaleriaAbierta] = useState(false);
   const [vistaPerfilAbierta, setVistaPerfilAbierta] = useState(false);
+
+  // La galería de archivos es una sub-vista que reemplaza el panel sin cambiar
+  // la URL. useBackNativo hereda la marca `panelInfo` de la capa de abajo, así
+  // que el back cierra primero la galería y el guard del ChatOverlay respeta el
+  // panel (mismo objetivo que la hermana "Ver perfil" con su pushState manual).
+  useBackNativo({ abierto: galeriaAbierta, onCerrar: () => setGaleriaAbierta(false), discriminador: '_galeriaChat' });
 
   // Portal target para contener los modales del perfil al panel de ChatYA.
   // Sin esto, los modales escaparían al viewport del PC y romperían la metáfora del panel lateral.
