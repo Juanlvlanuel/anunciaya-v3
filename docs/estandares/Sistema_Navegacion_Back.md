@@ -42,6 +42,20 @@ La app tiene una **jerarquía conceptual fija** que el back debe respetar SIEMPR
 
 ---
 
+## Las 5 Reglas de Verificación
+
+Marco usado en la auditoría cross-app (Fases 1-8, jul-2026). Toda superficie nueva se revisa contra estas 5:
+
+| # | Regla | Cómo se cumple |
+|---|-------|----------------|
+| **1** | Flecha ←/back de una **página** | `useVolverAtras(fallback)` — nunca `navigate(-1)` ni `navigate('/x')` directo |
+| **2** | Saltar **entre secciones** top-level (o entre módulos hermanos de BS) | `useNavegarASeccion()` (aplica `replace`) o `<Link replace={location.pathname !== '/inicio'}>`. Las subrutas de la misma sección usan `push` (correcto) |
+| **3** | Modales / overlays / drawers full-screen | cierran con back nativo: base (`Modal`/`ModalBottom`/`ModalAdaptativo`/`ModalImagenes`/`DropdownCompartir`/`OverlayBuscadorContainer`) o `useBackNativo` propio. Un `fixed inset-0` sin nada de eso = ❌ |
+| **4** | Un overlay (con `useBackNativo`/base) que **además navega** a una ruta | cerrar PRIMERO y navegar un instante después: `onCerrar(); setTimeout(() => navegar(ruta), 130)`. Si navega en el mismo gesto, el `replace` pisa la entrada del overlay o deja "back muerto". Ver **Receta 7** |
+| **5** | Sub-vista con estado interno que **cambia la pantalla sin cambiar la URL** (list↔detalle, composer, galería) | el back debe revertirla con `useBackNativo`. Ver **Receta 8**. **Excepción:** los tabs/filtros internos NO se enganchan (decisión de producto) |
+
+---
+
 ## Los 4 Hooks Centralizados
 
 ### 1. `useVolverAtras(fallback)`
@@ -116,6 +130,8 @@ const debeReemplazar =
   // Caso 2: salto entre módulos hermanos de BS
   || (esModuloBS(rutaActual) && esModuloBS(rutaDestino) && rutaActual !== rutaDestino);
 ```
+
+> **`esRutaTopLevel` ignora el query/hash** (jul-2026): `/servicios?crear=ofrezco` cuenta como la top-level `/servicios`. Necesario para los deep-links a composers (`?crear`/`?editar`), que igual deben tratarse como salto de sección hermana.
 
 **Aplicado en:**
 - `Navbar.tsx` — flechas de navegación BS, dropdown "Más" (Perfil, Mis Publicaciones, Guardados)
@@ -746,6 +762,51 @@ Todo lo gestiona `abrirChatYA`. Solo llama `abrirChatTemporal` (para crear la co
 
 ---
 
+### Receta 7 — Overlay/modal que navega a otra ruta (cerrar-primero)
+
+**El patrón más usado en la auditoría (Fases 1-8).** Cuando un componente que empuja una entrada al history (`useBackNativo`, o una base como `Modal`/`ModalBottom`) navega a una ruta en el mismo handler, hay que **cerrarlo PRIMERO y navegar 130 ms después**:
+
+```tsx
+const handleIr = () => {
+  onCerrar();                              // 1. cierra el overlay
+  setTimeout(() => navegar(ruta), 130);    // 2. navega sobre el stack limpio
+};
+```
+
+**Por qué:** el cleanup de `useBackNativo` (y el de las bases) hace su `history.back()` de forma diferida. Si navegas en el mismo gesto:
+- con `push`, la entrada del overlay queda enterrada → **back muerto** al volver.
+- con `replace` (`useNavegarASeccion` entre hermanas), el replace pisa la entrada **del overlay** en vez de la de la página → la hermana queda en el historial y el back va a ella en vez de a `/inicio`.
+
+Cerrar primero deja que el overlay consuma su entrada antes del `navigate`, así el stack queda `[inicio, destino]`.
+
+**Variante — card renderizada dentro de un modal** (la card no tiene el `onCerrar`): pásale un callback `onAntesDeNavegar` que el modal cablea a su cierre; la card hace `onAntesDeNavegar(); setTimeout(() => navigate(ruta), 130)`. Ver `ModalArticuloDetalle` → `CardArticuloFeed`.
+
+**Alternativa válida (buscadores):** navegar con `navigate(ruta, { replace: true })` **sin** `setTimeout`. El `replace` sobrescribe la entrada del overlay (le quita su marca), así el cleanup no ejecuta el back. Es lo que usan los `OverlayBuscador*`.
+
+**Aplicado en:** `MenuDrawer.handleNavegar`, `DrawerBusinessStudio.handleNavegar`, `PanelNotificaciones.handleClickNotif`, `ModalOfertaDetalle.handleClickNegocio` (Ofertas+Negocios), `CardArticuloFeed` (vía `onAntesDeNavegar`), `ModalDetalleAlerta`, `ModalDetalleCliente`, `ModalClientesInactivos`, `PaginaSucursales` (onEditar del modal), `ModalPausar` (onboarding), `VistaLogin`/`Vista2FA` (post-login).
+
+---
+
+### Receta 8 — Sub-vista con estado interno (sin cambiar la URL)
+
+Cuando un componente cambia **toda la pantalla** con estado local sin tocar la URL (list↔detalle, un composer que reemplaza el feed, una galería que tapa el panel), el back nativo por defecto NO la revierte — sale de la ruta. Engánchalo con `useBackNativo` usando el flag de la sub-vista como `abierto`:
+
+```tsx
+useBackNativo({
+  abierto: detalleAbierto,                 // el estado que muestra la sub-vista
+  onCerrar: () => setDetalleAbierto(false),
+  discriminador: '_miSubvista',
+});
+```
+
+**Truco de anidación (clave):** `useBackNativo` empuja `{ ...prev, _miSubvista }`, **heredando** la marca de la capa de abajo. Si la sub-vista vive dentro de otra capa con su propio back manual (ej. el `panelInfo`/`chatya` del ChatOverlay), al consumir el back la entrada de abajo conserva su marca y el guard de esa capa la respeta — **no hace falta tocar el sistema manual**. Así se engancharon la galería de archivos y el menú de fijados de ChatYA sin modificar el `ChatOverlay`.
+
+**Excepción — tabs/filtros:** los tabs internos (Productos/Servicios, Activas/Pausadas, toggle lista↔mapa, etc.) NO se enganchan al back — es decisión de producto (el back sale de la sección, no revierte el tab).
+
+**Aplicado en:** composer inline de MarketPlace y Servicios (`ComposerSection`), directorio de ChatYA (`ListaConversaciones`, `_chatyaContactos`), detalle inline de Vacantes (`PaginaVacantes`), galería de archivos (`PanelInfoContacto`), menú de fijados (`VentanaChat`).
+
+---
+
 ## Lista Completa de Archivos del Sistema
 
 ### Hooks
@@ -1109,10 +1170,22 @@ En táctil no existe `mouseenter`/`mouseleave`, solo `touchstart`. Si el tooltip
 
 ## Pendientes / Backlog
 
-Ninguno conocido. Todos los flujos críticos (A-G + BS + D + E + F) están cubiertos en la matriz de tests. Si surge un nuevo escenario, agregarlo a la sección correspondiente y mantener el patrón:
-- Modales nuevos → usar `useBackNativo` con discriminador propio si pueden anidarse sobre otros.
-- Componentes con sub-vistas (dropdowns, popovers) que tapen al padre → también deben usar `useBackNativo` para que el back consuma capa por capa.
-- ChatYA: si se agrega una 5ª capa, mantener el patrón manual del `ChatOverlay.tsx` (no migrar a `useBackNativo` por los casos especiales documentados).
+**Auditoría cross-app completa (Fases 1-8, jul-2026).** Se revisó toda la app contra las 5 reglas: chrome de navegación, las 4 secciones públicas, Home/Coyo, los 13 módulos de Business Studio, ChatYA, ScanYA, wizards y overlays globales. Todo enganchado salvo lo de abajo.
+
+**Pendientes (menores, diferidos a propósito):**
+- **`ScanYA/ModalHistorial` — visor de foto del ticket:** overlay `fixed inset-0` que abre desde el detalle (transición detalle→foto dentro del sistema multinivel manual `scanyaModal`). Requiere integrarse con ese sistema con cuidado, no `useBackNativo` suelto. Severidad baja.
+- **Mi Perfil (Modo Personal):** diferido mientras había trabajo de pagos sin commitear; auditar cuando se estabilice.
+
+**Excepciones intencionales (NO enganchar):**
+- `ModalInactividad` — modal de seguridad bloqueante a propósito (Escape y click-fuera bloqueados). Cerrarlo con back sería anti-patrón.
+- `ModalBienvenida` (post-registro) — modal de decisión de flujo, sin "cerrar neutro".
+- Sub-vistas internas de `ModalLogin` (login/2FA/recuperar) — tienen su propio botón "Volver"; el modal completo sí cierra con back.
+- Tabs/filtros internos en toda la app — decisión de producto (ver Receta 8).
+
+Al agregar superficies nuevas: seguir las 5 Reglas + las Recetas (1-8). Reglas base que siguen vigentes:
+- Modales nuevos → `useBackNativo` con discriminador propio si pueden anidarse sobre otros.
+- Sub-vistas que tapen al padre → `useBackNativo` (Receta 8) para que el back consuma capa por capa.
+- ChatYA: el sistema de 4 capas del `ChatOverlay.tsx` es manual a propósito (no migrar). Las sub-vistas nuevas dentro de una capa se enganchan con `useBackNativo` heredando la marca (Receta 8), sin tocar el ChatOverlay.
 
 ---
 
