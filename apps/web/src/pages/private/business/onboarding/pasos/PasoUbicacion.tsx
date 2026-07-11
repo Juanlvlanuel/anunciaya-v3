@@ -34,6 +34,7 @@ import { buscarCiudades, buscarCiudadCercana, type CiudadConNombreCompleto } fro
 import { ModalUbicacion } from '@/components/layout/ModalUbicacion';
 import { ModalBottom } from '@/components/ui/ModalBottom';
 import { useBreakpoint } from '@/hooks/useBreakpoint';
+import { useBackNativo } from '@/hooks/useBackNativo';
 import { detectarZonaHoraria } from '@/utils/zonaHoraria';
 import { CargandoPaso } from '../componentes';
 
@@ -116,6 +117,10 @@ export function PasoUbicacion() {
     const [modalCiudadAbierto, setModalCiudadAbierto] = useState(false);
     const [mapaFullscreen, setMapaFullscreen] = useState(false);
     const { esMobile } = useBreakpoint();
+
+    // El mapa fullscreen de escritorio es overlay propio sin base; el back debe
+    // cerrarlo. En móvil usa ModalBottom (ya cierra con back), por eso !esMobile.
+    useBackNativo({ abierto: mapaFullscreen && !esMobile, onCerrar: () => setMapaFullscreen(false), discriminador: '_mapaOnboarding' });
 
     // (Estado se auto-rellena desde ciudad/GPS — no necesita autocomplete)
 

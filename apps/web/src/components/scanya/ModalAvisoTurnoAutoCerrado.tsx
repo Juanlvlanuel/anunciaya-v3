@@ -26,6 +26,7 @@ const Clock = (p: IconoWrapperProps) => <Icon icon={ICONOS.horario} {...p} />;
 import { createPortal } from 'react-dom';
 import { useScanYAStore } from '../../stores/useScanYAStore';
 import { useBreakpoint } from '../../hooks/useBreakpoint';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 function formatearFechaHora(iso: string): string {
 	try {
@@ -49,6 +50,9 @@ export function ModalAvisoTurnoAutoCerrado() {
 	const aviso = useScanYAStore((s) => s.avisoTurnoAutoCerrado);
 	const setAviso = useScanYAStore((s) => s.setAvisoTurnoAutoCerrado);
 	const { esMobile } = useBreakpoint();
+
+	// Overlay informativo de ScanYA → cerrar con el back nativo del celular.
+	useBackNativo({ abierto: aviso !== null, onCerrar: () => setAviso(null), discriminador: '_scanyaAvisoTurno' });
 
 	if (!aviso) return null;
 

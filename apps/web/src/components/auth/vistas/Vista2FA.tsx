@@ -72,9 +72,9 @@ export function Vista2FA({
       const rutaPendiente = sessionStorage.getItem('ay_ruta_pendiente');
       if (rutaPendiente) {
         sessionStorage.removeItem('ay_ruta_pendiente');
-        navigate(rutaPendiente);
+        setTimeout(() => navigate(rutaPendiente), 130);
       } else {
-        navigate('/inicio');
+        setTimeout(() => navigate('/inicio'), 130);
       }
     },
     [setTokens, setUsuario, onCerrarModal, navigate, t]

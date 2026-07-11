@@ -27,6 +27,7 @@ import { ICONOS } from '../../config/iconos';
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
 const Star = (p: IconoWrapperProps) => <Icon icon={ICONOS.rating} {...p} />;
 import { useScanYAStore } from '../../stores/useScanYAStore';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import scanyaService from '../../services/scanyaService';
 import { notificar } from '../../utils/notificaciones';
 
@@ -195,6 +196,9 @@ export default function ModalCambiarSucursalScanYA({ abierto, onCerrar, onCambio
   // ---------------------------------------------------------------------------
   // Render
   // ---------------------------------------------------------------------------
+  // Overlay de ScanYA (bottom-sheet móvil / panel desktop) → cerrar con back nativo.
+  useBackNativo({ abierto, onCerrar, discriminador: '_scanyaCambiarSucursal' });
+
   if (!abierto) return null;
 
   const sucursalesParaListar = sucursales.filter((s) => s.activa);

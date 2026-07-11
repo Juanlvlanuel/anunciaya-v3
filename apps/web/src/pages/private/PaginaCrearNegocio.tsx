@@ -11,6 +11,7 @@
 
 import { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useVolverAtras } from '@/hooks/useVolverAtras';
 import { Building2, Check, ArrowRight, X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
@@ -107,9 +108,10 @@ export function PaginaCrearNegocio() {
     setAceptaTerminos((prev) => !prev);
   }, []);
 
+  const volver = useVolverAtras('/inicio');
   const handleCancelar = useCallback(() => {
-    navigate('/inicio');
-  }, [navigate]);
+    volver();
+  }, [volver]);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {

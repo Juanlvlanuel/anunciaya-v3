@@ -127,9 +127,9 @@ export function VistaLogin({
             const rutaPendiente = sessionStorage.getItem('ay_ruta_pendiente');
             if (rutaPendiente) {
               sessionStorage.removeItem('ay_ruta_pendiente');
-              navigate(rutaPendiente);
+              setTimeout(() => navigate(rutaPendiente), 130);
             } else {
-              navigate('/inicio');
+              setTimeout(() => navigate('/inicio'), 130);
             }
           }
         } else {
@@ -157,7 +157,7 @@ export function VistaLogin({
   const handleIrARegistro = useCallback(
     (correoPrellenado?: string) => {
       onCerrarModal();
-      navigate('/registro', correoPrellenado ? { state: { correo: correoPrellenado } } : undefined);
+      setTimeout(() => navigate('/registro', correoPrellenado ? { state: { correo: correoPrellenado } } : undefined), 130);
     },
     [onCerrarModal, navigate]
   );

@@ -20,6 +20,7 @@ import { useEffect, useState } from 'react';
 import { X } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '../../config/iconos';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -214,6 +215,9 @@ export function ModalRateLimit() {
   useEffect(() => {
     if (activo) setVisible(true);
   }, [activo]);
+
+  // Overlay full-screen descartable → cerrar con el back nativo del celular.
+  useBackNativo({ abierto: visible && activo, onCerrar: () => setVisible(false), discriminador: '_rateLimitModal' });
 
   if (!visible || !activo) return null;
 

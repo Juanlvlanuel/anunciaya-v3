@@ -17,6 +17,7 @@ import { useState } from 'react';
 import { X, ChevronRight, Check } from 'lucide-react';
 import { Icon, type IconProps } from '@iconify/react';
 import { ICONOS } from '@/config/iconos';
+import { useBackNativo } from '@/hooks/useBackNativo';
 
 // Wrappers locales: íconos migrados a Iconify manteniendo nombres familiares.
 type IconoWrapperProps = Omit<IconProps, 'icon'>;
@@ -118,6 +119,9 @@ export default function ModalCerrarTurno({
   // ---------------------------------------------------------------------------
   // SI NO ESTÁ ABIERTO, NO RENDERIZAR
   // ---------------------------------------------------------------------------
+  // Overlay full-screen de ScanYA → cerrar con el back nativo del celular.
+  useBackNativo({ abierto, onCerrar: onClose, discriminador: '_scanyaCerrarTurno' });
+
   if (!abierto) return null;
 
   // ---------------------------------------------------------------------------

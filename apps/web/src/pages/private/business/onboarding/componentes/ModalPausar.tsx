@@ -7,7 +7,7 @@
  */
 
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavegarASeccion } from '@/hooks/useNavegarASeccion';
 import { Pause, Loader2, LogOut, CheckCircle, RotateCcw, AlertTriangle } from 'lucide-react';
 import { ModalAdaptativo } from '@/components/ui/ModalAdaptativo';
 import { Boton } from '@/components/ui';
@@ -28,7 +28,7 @@ interface ModalPausarProps {
 // =============================================================================
 
 export function ModalPausar({ abierto, onCerrar }: ModalPausarProps) {
-  const navigate = useNavigate();
+  const navegar = useNavegarASeccion();
   const [guardando, setGuardando] = useState(false);
   const { pasoActual } = useOnboardingStore();
 
@@ -53,11 +53,15 @@ export function ModalPausar({ abierto, onCerrar }: ModalPausarProps) {
       notificar.exito('Progreso guardado correctamente');
       await new Promise(resolve => setTimeout(resolve, 500));
       onCerrar();
-      navigate('/inicio');
+      // Cerrar-primero + replace: el modal base consume su entrada de history y
+      // navegarASeccion reemplaza el onboarding, así el back no re-monta el wizard.
+      setTimeout(() => navegar('/inicio'), 130);
     } catch {
       notificar.error('Error al guardar. Tu progreso podría no haberse guardado.');
       onCerrar();
-      navigate('/inicio');
+      // Cerrar-primero + replace: el modal base consume su entrada de history y
+      // navegarASeccion reemplaza el onboarding, así el back no re-monta el wizard.
+      setTimeout(() => navegar('/inicio'), 130);
     } finally {
       setGuardando(false);
     }

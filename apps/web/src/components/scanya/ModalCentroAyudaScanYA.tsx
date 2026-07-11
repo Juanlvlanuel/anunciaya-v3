@@ -1,5 +1,6 @@
 import { X, HelpCircle } from 'lucide-react';
 import { PaginaCentroAyuda } from '../../pages/private/ayuda/PaginaCentroAyuda';
+import { useBackNativo } from '../../hooks/useBackNativo';
 
 interface ModalCentroAyudaScanYAProps {
   abierto: boolean;
@@ -12,6 +13,9 @@ interface ModalCentroAyudaScanYAProps {
  * de ScanYA. No saca al comerciante de su caja.
  */
 export function ModalCentroAyudaScanYA({ abierto, onClose }: ModalCentroAyudaScanYAProps) {
+  // Drawer full-screen de ScanYA → cerrar con el back nativo del celular.
+  useBackNativo({ abierto, onCerrar: onClose, discriminador: '_scanyaCentroAyuda' });
+
   if (!abierto) return null;
 
   return (
