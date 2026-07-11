@@ -506,7 +506,11 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
   };
 
   const handleCerrarFoto = () => {
-    setFotoUrl(null);
+    // La foto vive en el nivel 2 (reutiliza la entrada del detalle en el
+    // history). Cerrar con history.back() consume esa entrada y dispara
+    // handlePopState, que baja a nivel 1 y limpia la foto — mismo camino que
+    // el back nativo, así X / backdrop y el botón atrás quedan sincronizados.
+    history.back();
   };
 
   const handleRefresh = () => {
@@ -529,6 +533,7 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
       nivelRef.current = 0;
       pushCountRef.current = 0;
       setTransaccionDetalle(null);
+      setFotoUrl(null);
       return;
     }
 
@@ -541,8 +546,12 @@ export function ModalHistorial({ abierto, onClose, cambiosHistorial }: ModalHist
     const handlePopState = () => {
       pushCountRef.current = Math.max(0, pushCountRef.current - 1);
       if (nivelRef.current >= 2) {
+        // Nivel 2 = detalle o su foto ampliada (la foto reutiliza la entrada
+        // del detalle: reemplaza su vista sin pushear otra). Un solo back
+        // cierra la capa que esté visible y regresa a la lista.
         nivelRef.current = 1;
         setTransaccionDetalle(null);
+        setFotoUrl(null);
       } else {
         cerradoPorBack = true;
         nivelRef.current = 0;

@@ -18,6 +18,7 @@ import { useState, useEffect, type ReactElement, type CSSProperties } from 'reac
 import { createPortal } from 'react-dom';
 import { Megaphone, X } from 'lucide-react';
 import { useNavegarASeccion } from '../../hooks/useNavegarASeccion';
+import { useBackNativo } from '../../hooks/useBackNativo';
 import { usePublicidad } from '../../hooks/queries/usePublicidad';
 import { usePortalTarget } from '../../hooks/usePortalTarget';
 import { registrarClickPublicidad, type AnuncioPublico } from '../../services/publicidadService';
@@ -255,6 +256,12 @@ function PuntosFlotantes({ total, actual, onSel }: { total: number; actual: numb
 function Lightbox({ imagenUrl, onCerrar }: { imagenUrl: string; onCerrar: () => void }) {
   const target = usePortalTarget();
   const esContenido = target !== document.body;
+
+  // Back nativo (Android / swipe iOS / flecha del navegador) cierra el
+  // lightbox, igual que ESC/X/backdrop. El padre lo monta condicionalmente
+  // (`{ampliada && <Lightbox/>}`), por eso `abierto: true` fijo: al
+  // desmontar, el cleanup del hook limpia su propia entrada del history.
+  useBackNativo({ abierto: true, onCerrar, discriminador: '_lightboxPublicidad' });
 
   useEffect(() => {
     const onEsc = (e: KeyboardEvent) => {

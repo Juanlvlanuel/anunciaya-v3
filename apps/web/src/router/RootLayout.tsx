@@ -54,6 +54,16 @@ function leerCiudadDeStorage(): {
   }
 }
 
+/**
+ * Keys "base" del history.state que NO son marcas de overlay: las de React
+ * Router (`usr`, `key`, `idx`) y la fantasma. Cualquier otra key presente
+ * significa que hay un overlay activo (modal / ChatYA / panel) con su marca
+ * en el state → el buffer fantasma debe ABSTENERSE de re-sembrar, para no
+ * propagar esa marca hacia adelante y volverla inmortal (el back deja de
+ * cerrar el overlay: "back muerto" tras navegación intensa). Ver effects abajo.
+ */
+const KEYS_BASE = new Set(['usr', 'key', 'idx', '_anunciayaFantasma']);
+
 export function RootLayout() {
   // ⚠️ Detectar si estamos dentro del iframe de preview (Business Studio)
   // En modo preview, NO se inicializa auth/socket/GPS para evitar ping-pong con localStorage
@@ -177,14 +187,21 @@ export function RootLayout() {
     if (esPreviewIframe) return;
     if (pathname !== '/inicio') return;
 
-    const stateActual = window.history.state as { _anunciayaFantasma?: boolean } | null;
+    const stateActual = window.history.state as Record<string, unknown> | null;
+
+    // Si hay un overlay activo (marca que no es base), NO sembrar fantasmas:
+    // las copiarían con `{...base}` y heredarían la marca del overlay,
+    // volviéndola inmortal. Cuando el overlay cierre, el state vuelve a
+    // limpio y el buffer retoma.
+    const hayOverlay =
+      !!stateActual && Object.keys(stateActual).some((k) => !KEYS_BASE.has(k));
+    if (hayOverlay) return;
+
     // Solo push si NO hay fantasma encima. Evita acumular fantasmas en
     // re-renders, HMR de Vite, y vueltas al /inicio desde otras rutas.
     if (!stateActual?._anunciayaFantasma) {
-      // Propagar state previo para no borrar marcas de modales abiertos
-      // (`_modalUI`, `_modalBottom`, etc.). Sin esto, abrir un modal en
-      // /inicio + cualquier re-render que dispare este effect podría
-      // borrar la marca del modal y hacer que useBackNativo lo cierre.
+      // Propagar state previo (solo base: usr/key/idx) para no romper el
+      // cursor de React Router.
       const base = (stateActual ?? {}) as Record<string, unknown>;
       window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
       window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
@@ -200,13 +217,23 @@ export function RootLayout() {
       // legítimo que el usuario espera).
       if (window.location.pathname !== '/inicio') return;
 
-      const state = window.history.state as { _anunciayaFantasma?: boolean } | null;
+      const state = window.history.state as Record<string, unknown> | null;
+
+      // Si hay un overlay activo (modal / ChatYA / panel con su marca en el
+      // state), NO re-sembrar. Re-sembrar copiaría esa marca (`{...base}`) a
+      // una entrada nueva ENCIMA, volviéndola inmortal: el back nunca la
+      // elimina y el overlay deja de cerrarse ("back muerto"). El overlay
+      // maneja su propio back; cuando cierra, el state vuelve a limpio y el
+      // buffer retoma en el siguiente popstate.
+      const hayOverlay =
+        !!state && Object.keys(state).some((k) => !KEYS_BASE.has(k));
+      if (hayOverlay) return;
+
       if (state?._anunciayaFantasma) {
-        // Aterrizamos en fantasma desde /inicio. Push otra para mantener
-        // el invariante "siempre hay fantasma encima". Esto evita que un
-        // back más adelante caiga en /inicio_router (sin fantasma) y luego
-        // saque al usuario del SPA.
-        // Propagar el state previo para no borrar marcas de modales abiertos.
+        // Aterrizamos en fantasma LIMPIA desde /inicio. Push otra para
+        // mantener el invariante "siempre hay fantasma encima". Esto evita
+        // que un back más adelante caiga en /inicio_router (sin fantasma) y
+        // luego saque al usuario del SPA.
         const base = (state ?? {}) as Record<string, unknown>;
         window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
       }

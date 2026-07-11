@@ -276,13 +276,20 @@ Click "Descartar y salir":
 Para que el back nativo del celular en `/inicio` NUNCA desloguee al usuario:
 
 ```ts
+// Keys "base" del state (React Router + fantasma). Cualquier otra key = overlay activo.
+const KEYS_BASE = new Set(['usr', 'key', 'idx', '_anunciayaFantasma']);
+
 // useEffect 1: push 2 fantasmas al aterrizar en /inicio
 useEffect(() => {
   if (esPreviewIframe || pathname !== '/inicio') return;
-  const stateActual = window.history.state as { _anunciayaFantasma?: boolean } | null;
+  const stateActual = window.history.state as Record<string, unknown> | null;
+  // Guard: si hay overlay activo (marca que no es base), NO sembrar.
+  const hayOverlay = !!stateActual && Object.keys(stateActual).some((k) => !KEYS_BASE.has(k));
+  if (hayOverlay) return;
   if (!stateActual?._anunciayaFantasma) {
-    window.history.pushState({ _anunciayaFantasma: true }, '');
-    window.history.pushState({ _anunciayaFantasma: true }, '');
+    const base = (stateActual ?? {}) as Record<string, unknown>;
+    window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
+    window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
   }
 }, [pathname, esPreviewIframe]);
 
@@ -290,9 +297,13 @@ useEffect(() => {
 useEffect(() => {
   const handler = () => {
     if (window.location.pathname !== '/inicio') return;
-    const state = window.history.state as { _anunciayaFantasma?: boolean } | null;
+    const state = window.history.state as Record<string, unknown> | null;
+    // Mismo guard: con overlay activo el buffer se abstiene (el overlay maneja su back).
+    const hayOverlay = !!state && Object.keys(state).some((k) => !KEYS_BASE.has(k));
+    if (hayOverlay) return;
     if (state?._anunciayaFantasma) {
-      window.history.pushState({ _anunciayaFantasma: true }, '');
+      const base = (state ?? {}) as Record<string, unknown>;
+      window.history.pushState({ ...base, _anunciayaFantasma: true }, '');
     }
   };
   window.addEventListener('popstate', handler);
@@ -306,6 +317,8 @@ useEffect(() => {
 - El usuario NO se desloguea ni sale del SPA por accidente.
 
 **Solo aplica en `/inicio`.** En otras rutas el back funciona normal hacia la ruta padre.
+
+> ⚠️ **Colisión buffer fantasma × overlay — bug "back muerto" (corregido jul-2026).** Ambos effects copian el state previo (`{...base}`) al re-sembrar, para no borrar la marca de un modal abierto en `/inicio`. Pero sin el guard `hayOverlay` eso propagaba la marca del overlay **hacia adelante**: cada back sobre una zona fantasma re-sembraba una entrada nueva que heredaba `_modalOfertaDetalle` / `chatya` / `_lightboxPublicidad` / etc., volviéndola **inmortal**. Como `useBackNativo` (y el sistema manual de ChatYA) cierran sólo cuando su marca **desaparece** del state, y el buffer la re-sembraba sin fin, el overlay dejaba de cerrarse con back tras navegación intensa en el Home. **Fix:** el guard `hayOverlay` — con cualquier marca de overlay presente, el buffer fantasma **se abstiene por completo**; cuando el overlay cierra y el state vuelve a limpio, retoma en el siguiente `popstate`. Diagnosticado con un log de `pushState`/`popstate` que mostró 3 entradas `{...,_anunciayaFantasma,_modalOfertaDetalle}` apiladas sin que el back las limpiara. Agrava el síntoma que `history.length` viva clavado en el tope del navegador (~50): el buffer, al sembrar de más, satura el stack y descarta entradas por el frente, desincronizando el conteo de `abrirChatYA` (`go(-N)`).
 
 ---
 
@@ -855,6 +868,7 @@ Móvil + desktop:
 - `apps/web/src/components/ui/ModalBottom.tsx` — implementación propia con discriminador `'_modalBottom'`. Listener para `chatya:cerrar-modales` que llama `onCerrar` directo (sin animación) para no tapar al ChatYA en móvil.
 - `apps/web/src/components/layout/ChatOverlay.tsx` — 4 capas con popstate manual (overlay, chat, panelInfo, visorImagenes). Implementa `chatAbiertoDesdeModal` + `fantasmasModalCount` para limpiar entradas residuales al cerrar.
 - `apps/web/src/components/marketplace/ModalArticuloDetalle.tsx`, `apps/web/src/components/chatya/PanelInfoContacto.tsx`, `apps/web/src/components/layout/PanelPreviewNegocio.tsx` — implementaciones propias previas (probadas, sin bug D8 conocido).
+- `apps/web/src/components/layout/ColumnaDerecha.tsx` — `Lightbox` de publicidad (banners grande/chico + logos de fundadores). Usa `useBackNativo` con discriminador `'_lightboxPublicidad'`; el padre lo monta condicionalmente (`{ampliada && <Lightbox/>}`) con `abierto: true` fijo — al desmontar, el cleanup del hook limpia su entrada del history.
 - `apps/web/src/stores/useUiStore.ts` — orquesta `abrirChatYA`: limpia marcas con `replaceState`, dispara `chatya:cerrar-modales`, registra `chatAbiertoDesdeModal` y `fantasmasModalCount`.
 
 ---
@@ -1172,8 +1186,14 @@ En táctil no existe `mouseenter`/`mouseleave`, solo `touchstart`. Si el tooltip
 
 **Auditoría cross-app completa (Fases 1-8, jul-2026).** Se revisó toda la app contra las 5 reglas: chrome de navegación, las 4 secciones públicas, Home/Coyo, los 13 módulos de Business Studio, ChatYA, ScanYA, wizards y overlays globales. Todo enganchado salvo lo de abajo.
 
+**Post-auditoría (jul-2026), tras QA en dispositivo:**
+- **Colisión buffer fantasma × overlay ("back muerto"):** corregida con el guard `hayOverlay` en `RootLayout.tsx` (ver §"Componentes Clave → RootLayout"). El back dejaba de cerrar modales/ChatYA en el Home tras navegación intensa.
+- **`ColumnaDerecha/Lightbox` (publicidad):** visor de imagen de banners y logos de fundadores — estaba suelto (solo ESC/X/backdrop); enganchado a `useBackNativo` (`'_lightboxPublicidad'`).
+- **`ScanYA/ModalHistorial` — visor de foto del ticket:** enganchado al sistema multinivel manual `scanyaModal` como capa del **nivel 2** (reutiliza la entrada del detalle, sin pushear otra). Back / X / backdrop cierran la foto y regresan a la lista, sincronizados.
+
+**Barrido de visores de imagen (jul-2026):** se rastreó toda `apps/web/src` buscando lightboxes/visores sueltos. Cobertura completa: todo lo que amplía imágenes desemboca en `ModalImagenes` (`_modalImagenes`), el visor de ChatYA (`visorImagenes` manual) o el `Lightbox` de `ColumnaDerecha` (`_lightboxPublicidad`). Falsos positivos descartados: video de tutoriales (fullscreen nativo del navegador), imagen a pestaña nueva en `ModalDetalleTransaccionBS`, miniaturas dentro de modales, y mapas full-screen (ya enganchados). Cero `<dialog>` nativos.
+
 **Pendientes (menores, diferidos a propósito):**
-- **`ScanYA/ModalHistorial` — visor de foto del ticket:** overlay `fixed inset-0` que abre desde el detalle (transición detalle→foto dentro del sistema multinivel manual `scanyaModal`). Requiere integrarse con ese sistema con cuidado, no `useBackNativo` suelto. Severidad baja.
 - **Mi Perfil (Modo Personal):** diferido mientras había trabajo de pagos sin commitear; auditar cuando se estabilice.
 
 **Excepciones intencionales (NO enganchar):**
