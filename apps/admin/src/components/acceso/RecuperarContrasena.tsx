@@ -10,7 +10,7 @@
 
 import { useState } from 'react';
 import { AxiosError } from 'axios';
-import { ArrowLeft, Mail, Lock, KeyRound, Eye, EyeOff } from 'lucide-react';
+import { ArrowLeft, Mail, Lock, KeyRound, Eye, EyeOff, Check, RefreshCw } from 'lucide-react';
 import { solicitarCodigo, restablecerConCodigo } from '../../services/recuperacionService';
 
 interface RecuperarContrasenaProps {
@@ -28,8 +28,21 @@ interface RecuperarContrasenaProps {
 
 type Paso = 'correo' | 'codigo' | 'exito';
 
-const CLASE_INPUT =
-  'w-full rounded-[11px] border border-campo-borde bg-campo py-3 pl-10 pr-3 text-base lg:text-sm 2xl:text-base font-medium text-texto placeholder:text-texto-4 outline-none transition focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_4px_var(--panel-ring)]';
+type EstadoCampo = 'neutro' | 'ok' | 'error';
+
+/** Input del Panel con el borde según validación (neutro / ok / error), conservando el focus-ring. */
+const claseInput = (estado: EstadoCampo = 'neutro') =>
+  `w-full rounded-[11px] border bg-campo py-3 pl-10 pr-3 text-base lg:text-sm 2xl:text-base font-medium text-texto placeholder:text-texto-4 outline-none transition focus:bg-superficie focus:[box-shadow:0_0_0_4px_var(--panel-ring)] ${
+    estado === 'ok'
+      ? 'border-ok focus:border-ok'
+      : estado === 'error'
+        ? 'border-peligro focus:border-peligro'
+        : 'border-campo-borde focus:border-marca'
+  }`;
+
+/** neutro si el campo está vacío; ok/error según su validez (para el color del borde). */
+const estadoDe = (valor: string, valido: boolean): EstadoCampo =>
+  valor.length === 0 ? 'neutro' : valido ? 'ok' : 'error';
 
 export function RecuperarContrasena({
   onVolver,
@@ -41,11 +54,22 @@ export function RecuperarContrasena({
   const [correo, setCorreo] = useState(correoInicial);
   const [codigo, setCodigo] = useState('');
   const [contrasena, setContrasena] = useState('');
+  const [confirmar, setConfirmar] = useState('');
   const [mostrar, setMostrar] = useState(false);
+  const [mostrarConfirmar, setMostrarConfirmar] = useState(false);
   const [error, setError] = useState<string>();
+  const [avisoReenvio, setAvisoReenvio] = useState<string>();
   const [cargando, setCargando] = useState(false);
 
+  // Validaciones en vivo (mismos requisitos que la app pública AnunciaYA).
+  const emailValido = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo);
+  const codigoValido = /^\d{6}$/.test(codigo);
+  const passwordValida = contrasena.length >= 8 && /[A-Z]/.test(contrasena) && /[0-9]/.test(contrasena);
+  const passwordsCoinciden = contrasena === confirmar && confirmar.length > 0;
+  const paso2Valido = codigoValido && passwordValida && passwordsCoinciden;
+
   async function enviarCorreo() {
+    if (!emailValido || cargando) return;
     setError(undefined);
     setCargando(true);
     try {
@@ -60,6 +84,7 @@ export function RecuperarContrasena({
   }
 
   async function restablecer() {
+    if (!paso2Valido || cargando) return;
     setError(undefined);
     setCargando(true);
     try {
@@ -72,6 +97,22 @@ export function RecuperarContrasena({
     } catch (e) {
       const err = e as AxiosError<{ message?: string }>;
       setError(err.response?.data?.message || 'No se pudo restablecer. Inténtalo de nuevo.');
+    } finally {
+      setCargando(false);
+    }
+  }
+
+  // Reenvía un código nuevo al correo (mismo endpoint que el paso 1). Best-effort con aviso inline.
+  async function reenviar() {
+    if (cargando) return;
+    setError(undefined);
+    setAvisoReenvio(undefined);
+    setCargando(true);
+    try {
+      await solicitarCodigo(correo);
+      setAvisoReenvio('Te enviamos un código nuevo a tu correo.');
+    } catch {
+      setError('No se pudo reenviar el código. Inténtalo de nuevo.');
     } finally {
       setCargando(false);
     }
@@ -148,7 +189,7 @@ export function RecuperarContrasena({
               placeholder="tucorreo@anunciaya.mx"
               value={correo}
               onChange={(e) => setCorreo(e.target.value)}
-              className={CLASE_INPUT}
+              className={claseInput(estadoDe(correo, emailValido))}
             />
           </div>
         </div>
@@ -157,9 +198,20 @@ export function RecuperarContrasena({
       {paso === 'codigo' && (
         <>
           <div className="mb-4">
-            <label htmlFor="codigo-recuperar" className="mb-1.5 block text-sm font-semibold text-texto-2">
-              Código de 6 dígitos
-            </label>
+            <div className="mb-1.5 flex items-center justify-between">
+              <label htmlFor="codigo-recuperar" className="block text-sm font-semibold text-texto-2">
+                Código de 6 dígitos
+              </label>
+              <button
+                type="button"
+                data-testid="recuperar-reenviar"
+                onClick={reenviar}
+                disabled={cargando}
+                className="flex items-center gap-1 text-[13px] font-semibold text-marca transition hover:brightness-110 disabled:cursor-not-allowed disabled:opacity-60"
+              >
+                <RefreshCw size={13} /> Reenviar código
+              </button>
+            </div>
             <div className="relative">
               <KeyRound size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-3" />
               <input
@@ -169,10 +221,18 @@ export function RecuperarContrasena({
                 maxLength={6}
                 placeholder="000000"
                 value={codigo}
-                onChange={(e) => setCodigo(e.target.value.replace(/\D/g, ''))}
-                className={`${CLASE_INPUT} tracking-[0.3em]`}
+                onChange={(e) => {
+                  setCodigo(e.target.value.replace(/\D/g, ''));
+                  setAvisoReenvio(undefined);
+                }}
+                className={`${claseInput(estadoDe(codigo, codigoValido))} tracking-[0.3em]`}
               />
             </div>
+            {avisoReenvio && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-[13px] font-medium text-ok">
+                <Check size={13} /> {avisoReenvio}
+              </p>
+            )}
           </div>
 
           <div className="mb-4">
@@ -189,7 +249,7 @@ export function RecuperarContrasena({
                 placeholder="••••••••"
                 value={contrasena}
                 onChange={(e) => setContrasena(e.target.value)}
-                className={`${CLASE_INPUT} pr-11`}
+                className={`${claseInput(estadoDe(contrasena, passwordValida))} pr-11`}
               />
               <button
                 type="button"
@@ -200,6 +260,51 @@ export function RecuperarContrasena({
                 {mostrar ? <EyeOff size={18} /> : <Eye size={18} />}
               </button>
             </div>
+            {/* Requisitos de contraseña — validación en vivo (igual que AnunciaYA, con estilo del Panel). */}
+            <div
+              className={`mt-2.5 flex items-center gap-2 text-[13px] font-medium ${
+                passwordValida ? 'text-ok' : 'text-texto-3'
+              }`}
+            >
+              <span
+                className={`grid h-[18px] w-[18px] shrink-0 place-items-center rounded-full border transition ${
+                  passwordValida ? 'border-ok bg-ok text-white' : 'border-campo-borde text-transparent'
+                }`}
+              >
+                <Check size={11} />
+              </span>
+              Mínimo 8 caracteres: 1 mayúscula y 1 número
+            </div>
+          </div>
+
+          <div className="mb-4">
+            <label htmlFor="confirmar-contrasena" className="mb-1.5 block text-sm font-semibold text-texto-2">
+              Confirmar contraseña
+            </label>
+            <div className="relative">
+              <Lock size={18} className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 text-texto-3" />
+              <input
+                id="confirmar-contrasena"
+                data-testid="recuperar-confirmar-contrasena"
+                type={mostrarConfirmar ? 'text' : 'password'}
+                autoComplete="new-password"
+                placeholder="••••••••"
+                value={confirmar}
+                onChange={(e) => setConfirmar(e.target.value)}
+                className={`${claseInput(estadoDe(confirmar, passwordsCoinciden))} pr-11`}
+              />
+              <button
+                type="button"
+                onClick={() => setMostrarConfirmar((v) => !v)}
+                aria-label={mostrarConfirmar ? 'Ocultar contraseña' : 'Mostrar contraseña'}
+                className="absolute right-2 top-1/2 grid h-8 w-8 -translate-y-1/2 place-items-center rounded-lg text-texto-3 transition hover:bg-marca-suave hover:text-marca"
+              >
+                {mostrarConfirmar ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            {confirmar.length > 0 && !passwordsCoinciden && (
+              <p className="mt-1.5 text-[13px] font-medium text-peligro">Las contraseñas no coinciden.</p>
+            )}
           </div>
         </>
       )}
@@ -207,8 +312,8 @@ export function RecuperarContrasena({
       <button
         type="submit"
         data-testid="recuperar-enviar"
-        disabled={cargando}
-        className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-marca py-3 text-sm font-semibold text-marca-contraste shadow-[0_6px_16px_-6px_var(--panel-brand)] transition hover:brightness-105 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-85"
+        disabled={cargando || (paso === 'correo' ? !emailValido : !paso2Valido)}
+        className="flex w-full items-center justify-center gap-2 rounded-[12px] bg-marca py-3 text-sm font-semibold text-marca-contraste shadow-[0_6px_16px_-6px_var(--panel-brand)] transition hover:brightness-105 active:translate-y-px disabled:cursor-not-allowed disabled:opacity-60"
       >
         {cargando ? (
           <>
