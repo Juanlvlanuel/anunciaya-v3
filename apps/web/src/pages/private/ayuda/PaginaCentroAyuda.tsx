@@ -10,6 +10,8 @@ import { TabsAudiencia, type TabAudiencia } from '@/components/ayuda/TabsAudienc
 import { VistaArticulo } from '@/components/ayuda/VistaArticulo';
 import { IconoMenuMorph } from '@/components/ui/IconoMenuMorph';
 import { useVolverAtras } from '@/hooks/useVolverAtras';
+import { useBackNativo } from '@/hooks/useBackNativo';
+import { useBreakpoint } from '@/hooks/useBreakpoint';
 import { useScrollAppShell } from '@/hooks/useScrollAppShell';
 import type { AppAyuda, AudienciaAyuda, AyudaArticulo, AyudaCategoria } from '@/types/ayuda';
 
@@ -51,6 +53,29 @@ export function PaginaCentroAyuda({ soloAudiencia, embebido = false }: PaginaCen
   const [categoriaSelId, setCategoriaSelId] = useState<string | null>(null);
   const [articuloSelId, setArticuloSelId] = useState<string | null>(null);
   const [busqueda, setBusqueda] = useState('');
+
+  // ── Back nativo por niveles (solo móvil · Receta 8) ─────────────────────
+  // En móvil la sección es una pila de sub-vistas SIN cambiar la URL:
+  //   categorías → lista de la categoría → artículo (video).
+  // Cada nivel engancha una entrada al history para que el back del celular
+  // (y la flecha ← del header, que hace navigate(-1)) cierre UNA capa a la
+  // vez: video → lista de la categoría → categorías → salir a /inicio.
+  // El artículo hereda la marca `_ayudaCategoria` (pushState conserva el
+  // prevState), así que el back consume artículo → categoría en orden.
+  // Inerte en desktop (2 columnas, sin capas que tapen) y embebido (ScanYA
+  // ya maneja su propio back en el drawer).
+  const { esMobile } = useBreakpoint();
+  const backPorNiveles = esMobile && !embebido;
+  useBackNativo({
+    abierto: backPorNiveles && categoriaSelId !== null,
+    onCerrar: () => setCategoriaSelId(null),
+    discriminador: '_ayudaCategoria',
+  });
+  useBackNativo({
+    abierto: backPorNiveles && articuloSelId !== null,
+    onCerrar: () => setArticuloSelId(null),
+    discriminador: '_ayudaArticulo',
+  });
 
   const tabActual = TABS.find((t) => t.key === tab) ?? TABS[0];
   const { data: categorias = [], isLoading } = useCentroAyuda(tabActual.app, tabActual.audiencia);
