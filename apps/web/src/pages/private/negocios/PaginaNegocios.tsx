@@ -1049,8 +1049,13 @@ export function PaginaNegocios() {
                     {/* Derecha: chips de filtros (junto al KPI).
                         Las tabs Mapa/Lista ya NO viven aquí — para liberar espacio
                         ahora son un toggle pill flotante (ver fixed bottom-right). */}
-                    <div className="min-w-0 shrink-0 overflow-hidden">
-                      <div className="flex items-center gap-2 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+                    {/* min-w-0 SIN shrink-0: el bloque puede encogerse cuando los
+                        chips no caben, activando el scroll-x interno (red de
+                        seguridad) en vez de desbordar y quedar recortado tras el
+                        KPI. El spacer flex-1 previo sigue empujándolos a la
+                        derecha mientras haya espacio. */}
+                    <div className="min-w-0 overflow-hidden">
+                      <div className="flex items-center gap-1.5 overflow-x-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
                         <ChipsFiltros variante="inline" {...chipsFiltrosProps} />
                       </div>
                     </div>

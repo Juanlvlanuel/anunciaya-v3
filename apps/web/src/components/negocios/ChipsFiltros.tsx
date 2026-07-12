@@ -169,9 +169,14 @@ export function ChipsFiltros({
         className={`shrink-0 ${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 whitespace-nowrap ${cercaDeMi ? chipActivo : chipInactivo
           }`}
         data-testid="chip-cerca-de-ti"
+        title="Cerca de ti"
       >
-        <Locate className="w-4 h-4" strokeWidth={2.5} />
-        Cerca de ti
+        <Locate className="w-4 h-4 shrink-0" strokeWidth={2.5} />
+        {/* Al activarse aparece el chip "N km" adyacente. En desktop (lg y 2xl)
+            colapsamos esta etiqueta a solo el ícono para no forzar scroll; el
+            estado azul + el chip "N km" ya comunican que el filtro está activo.
+            En móvil se mantiene el texto (ahí el scroll horizontal es natural). */}
+        <span className={cercaDeMi ? 'lg:hidden' : ''}>Cerca de ti</span>
       </button>
 
       {/* Chip secundario: ajuste del radio. Solo aparece cuando "Cerca de ti"
@@ -284,7 +289,7 @@ export function ChipsFiltros({
             setDropdownSubcategoria(false);
             setDropdownCategoria(!dropdownCategoria);
           }}
-          className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 w-[140px] ${
+          className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 w-[140px] lg:w-[124px] 2xl:w-[140px] ${
             categoria ? chipActivo : chipInactivo
           }`}
           data-testid="chip-categoria"
@@ -312,7 +317,7 @@ export function ChipsFiltros({
               setDropdownCategoria(false);
               setDropdownSubcategoria(!dropdownSubcategoria);
             }}
-            className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 w-[140px] ${
+            className={`${chipBase} flex items-center gap-1.5 font-medium transition-all cursor-pointer border-2 w-[140px] lg:w-[124px] 2xl:w-[140px] ${
               subcategoriasSeleccionadas.length > 0 ? chipActivo : chipInactivo
             }`}
             data-testid="chip-subcategoria"
