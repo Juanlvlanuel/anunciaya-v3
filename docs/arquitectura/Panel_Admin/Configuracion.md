@@ -7,8 +7,8 @@
 > **Cómo leer este documento:** dos capas. La primera (§1–§7) explica el módulo **en lenguaje de persona**.
 > La segunda (**Apéndice técnico**) es la referencia para tocar el código.
 >
-> **Estado:** construido y en uso. Última actualización: 22 Junio 2026 (rediseño a pestañas + grupos de
-> Membresía y Publicidad).
+> **Estado:** construido y en uso. Última actualización: 12 Julio 2026 (paquetes de apertura en Promociones;
+> rediseño a pestañas + grupos de Membresía y Publicidad, 22 Jun).
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) (el Panel completo) · decisiones y pendientes de
 > construcción en [`Configuracion_Pendientes.md`](Configuracion_Pendientes.md).
@@ -41,6 +41,7 @@ No es un cajón de ajustes técnicos. Es deliberadamente chico: **solo las palan
 | **Escalera de comisiones** | Cuánto gana el vendedor: tramos por nº de negocios activos → monto fijo por activo/mes | tramos (JSON) |
 | **Duración del trial** | Días de prueba gratis de un negocio nuevo antes del primer cobro | número (0–90) |
 | **Periodo de gracia de cobro** | Días que un negocio sigue activo tras un cobro fallido antes de suspenderse | número (0–60) |
+| **Paquetes de apertura** | Promos que otorgan N meses cobrando 1 (3x1, 2x1…); gerentes/vendedores las aplican al afiliar. Activar/desactivar/ajustar meses | paquetes (JSON) |
 
 > **Lo que NO entra aquí** (a propósito): el **precio de la membresía** (vive en Stripe; cambiarlo +
 > las promos de lanzamiento son un **sprint aparte** en Suscripciones), datos de **un** negocio
@@ -51,8 +52,8 @@ No es un cajón de ajustes técnicos. Es deliberadamente chico: **solo las palan
 Una pantalla de "ajustes" en **dos pestañas** (mismo patrón de pestañas que Métricas):
 
 - **Membresía** — el modelo de suscripción del comercio: el **Precio de la membresía** (mensual + plan
-  anual), **Pagos y comisiones** (escalera + comisión de alta) y **Prueba y gracia** (trial + periodo de
-  gracia). Los dos últimos grupos van lado a lado.
+  anual), **Pagos y comisiones** (escalera + comisión de alta), **Prueba y gracia** (trial + periodo de
+  gracia) y **Promociones** (los paquetes de apertura, apilado bajo la columna del Precio).
 - **Publicidad** — los **Precios de los carruseles** (Anuncios · Patrocinadores · Fundadores, en una fila
   de tarjetas) y **Reglas y límites** (multiplicador por ciudades, descuento del combo, máximos, vigencia
   y periodos de pago por adelantado).

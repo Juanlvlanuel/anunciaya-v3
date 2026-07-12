@@ -9,7 +9,7 @@
 > sin contexto. La segunda (el **Apéndice técnico** al final) es la referencia para quien
 > va a tocar el código: archivos, endpoints, permisos y detalles internos.
 >
-> **Estado:** desplegado y en uso. Última actualización: 15 Junio 2026.
+> **Estado:** desplegado y en uso. Última actualización: 12 Julio 2026 (promoción de apertura: paquetes + altas anticipadas).
 >
 > Documento hermano: [`Panel_Admin.md`](Panel_Admin.md) describe el Panel **completo**
 > (el "caparazón": login, roles, regiones, las demás secciones). Este documento es solo
@@ -350,6 +350,35 @@ Probablemente su sucursal principal está en una ciudad **fuera de tu región**.
 negocios cuya sede cae en tu territorio.
 
 ---
+
+---
+
+## Promoción de apertura (paquetes + altas anticipadas)
+
+Para captar los negocios piloto (Peñasco), el equipo maneja una **promoción de apertura**: paquetes tipo
+**3x1** o **2x1** (N meses de membresía por el pago de 1). El SuperAdmin los define/activa en
+**Configuración → Membresía → Promociones**; gerentes y vendedores los **aplican con 1 clic** al dar de alta
+un negocio (no es cortesía: hay cobro real de 1 mes, así que los tres roles pueden usarlos).
+
+Dos formas de dar de alta con paquete, desde el mismo formulario (paso "Cobro"):
+
+- **Iniciar ahora** — se cobra 1 mes y la vigencia (los N meses) corre desde hoy, como un alta normal.
+- **Alta anticipada (activar después)** — el negocio se **crea sin cobrar ni publicar** (queda oculto).
+  Sirve para pre-cargar negocios que ya se conocen (clientes de la imprenta) con sus datos reales antes de
+  que confirmen. Su ficha muestra **"Pendiente de activación"** y un botón **"Activar promoción"**: al
+  pulsarlo se cobra 1 mes, la vigencia corre **desde ese momento** y el negocio **se publica**.
+
+Mientras está pendiente, el equipo puede entrar con las **credenciales del negocio** (crea su contraseña con
+"¿Olvidaste tu contraseña?") y **completar el onboarding sin publicarlo** — sigue oculto hasta "Activar
+promoción". Cada negocio puede llevar además una **nota de contraprestación** (qué producto/servicio ofrece
+durante la promo), editable en su ficha.
+
+> **Técnico:** el estado "pendiente" NO toca el CHECK de `estado_membresia`; es `estado_membresia='al_corriente'`
+> + **`activo=false`** + **`promo_pendiente=true`** (la consulta pública ya filtra por `activo`). Se guarda
+> **snapshot** de `promo_meses_otorgados/cobrados` en el negocio. Endpoints: `GET /negocios/paquetes-promocion`,
+> `POST /:id/activar-promocion` (`activarPromocionNegocio`, mirror de `marcarPagado`), `PATCH /:id/contraprestacion`.
+> `altaManualNegocio` acepta `promoPaqueteId`/`contraprestacion`/`altaAnticipada`. Migraciones
+> `2026-07-12-promo-paquetes.sql` + `2026-07-12-negocios-promo-columns.sql`.
 
 ---
 

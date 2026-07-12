@@ -7,6 +7,14 @@
 > **Estado:** lógica completa y validada en DEV (9 Jun 2026). Incluye el rediseño de
 > **"Registrar pago"** (Opción A: empuja el cobro N meses con `trial_end` y la tarjeta retoma
 > sola; ver §9.1). Falta infraestructura de producción (ver §12).
+> **Versión 1.8 (12 Jul 2026):** **promoción de apertura + altas anticipadas.** Un negocio puede afiliarse con un
+> **paquete** (3x1/2x1: N meses de membresía por el pago de 1) desde el alta manual, o darse de alta **anticipada**
+> (creado con `activo=false` + **`promo_pendiente=true`**, sin cobro): NO aparece en el público aunque complete su
+> onboarding. Desde la ficha, **"Activar promoción"** (`activarPromocionNegocio`, mirror de `marcarPagado`) cobra
+> `mesesCobrados × precio` vigente, sella la vigencia desde hoy, publica (`activo=true`) y limpia `promo_pendiente`.
+> El estado "pendiente de activación" NO toca el CHECK de `estado_membresia` (= `al_corriente` + `activo=false` +
+> `promo_pendiente`). Migraciones `2026-07-12-promo-paquetes.sql` + `2026-07-12-negocios-promo-columns.sql`. Detalle
+> en [`Panel_Admin/Negocios.md`](Panel_Admin/Negocios.md) §Promoción de apertura.
 > **Versión 1.7 (20 Jun 2026):** el **registro del cobro "día 1" se desacopló del reintento del webhook**. Antes
 > lo registraba SOLO `invoice.payment_succeeded`; si llegaba antes del negocio se lanzaba para que Stripe
 > reintentara, pero en local el Stripe CLI **no reintenta** los 500 → el cobro quedaba cobrado en Stripe pero
