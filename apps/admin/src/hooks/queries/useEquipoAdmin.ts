@@ -143,7 +143,8 @@ export function useAltaGerente() {
     mutationFn: (datos: DatosAltaGerente) => equipoService.altaGerente(datos),
     onSuccess: (res) => {
       refrescar();
-      toast.exito(res?.promovido ? 'Cuenta promovida a gerente' : 'Gerente dado de alta');
+      const base = res?.promovido ? 'Cuenta promovida a gerente' : 'Gerente dado de alta';
+      toast.exito(res && !res.promovido && !res.correoEnviado ? `${base} (el correo no se pudo enviar)` : base);
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo dar de alta al gerente')),
   });
