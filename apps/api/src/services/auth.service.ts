@@ -1351,6 +1351,7 @@ export async function solicitarRecuperacion(
         estado: usuarios.estado,
         contrasenaHash: usuarios.contrasenaHash,
         autenticadoPorGoogle: usuarios.autenticadoPorGoogle,
+        rolEquipo: usuarios.rolEquipo,
       })
       .from(usuarios)
       .where(eq(usuarios.correo, datos.correo))
@@ -1422,9 +1423,13 @@ export async function solicitarRecuperacion(
     // (En este punto, sin hash sólo puede ser una cuenta no-Google: las de Google se cortan
     //  en el Paso 3.)
     // -------------------------------------------------------------------------
+    // El destino del enlace "Activar mi cuenta" depende de a qué app pertenece la cuenta:
+    // miembro del equipo (rol_equipo) → Panel Admin (PANEL_URL); usuario/dueño → app pública.
+    // Así, si el trámite se hizo desde el login del Panel, el botón abre el Panel, no AnunciaYA.
+    const destino = usuario.rolEquipo ? 'panel' : 'web';
     const resultadoEmail = usuario.contrasenaHash
       ? await enviarCodigoRecuperacion(datos.correo, usuario.nombre, codigo)
-      : await enviarCodigoCrearContrasena(datos.correo, usuario.nombre, codigo);
+      : await enviarCodigoCrearContrasena(datos.correo, usuario.nombre, codigo, destino);
 
     if (!resultadoEmail.success) {
       console.warn('Error al enviar email de recuperación:', datos.correo);
