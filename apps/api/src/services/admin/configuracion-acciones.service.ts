@@ -21,7 +21,7 @@ import { configuracionSistema } from '../../db/schemas/schema.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import { registrarAuditoria } from './auditoria.service.js';
 import { resetearCacheConfig } from '../configuracion.service.js';
-import { CONFIG_EDITABLE, type TramoEscalera, type TramoCiudades, type TramoPeriodo } from './configuracion.service.js';
+import { CONFIG_EDITABLE, type TramoEscalera, type TramoCiudades, type TramoPeriodo, type PaquetePromocion } from './configuracion.service.js';
 
 export type ResultadoAccionConfig =
     | { ok: true; clave: string; etiqueta: string; valor: string }
@@ -220,6 +220,57 @@ export function validarPeriodos(crudo: string): Validacion {
     return { ok: true, valor: JSON.stringify(periodos) };
 }
 
+/**
+ * Valida los paquetes promocionales de apertura. Cada uno: { id (slug único, minúsculas/números/_),
+ * nombre no vacío, mesesOtorgados entero 1–36, mesesCobrados entero 1..mesesOtorgados, activo boolean }.
+ * Debe haber al menos uno. Reserializa limpio (sin campos extra).
+ */
+export function validarPaquetes(crudo: string): Validacion {
+    let datos: unknown;
+    try {
+        datos = JSON.parse(crudo);
+    } catch {
+        return { ok: false, mensaje: 'Los paquetes no tienen un formato válido.' };
+    }
+    if (!Array.isArray(datos) || datos.length === 0) {
+        return { ok: false, mensaje: 'Debe haber al menos un paquete.' };
+    }
+
+    const paquetes: PaquetePromocion[] = [];
+    const ids = new Set<string>();
+    for (const p of datos) {
+        if (typeof p !== 'object' || p === null) {
+            return { ok: false, mensaje: 'Cada paquete debe tener nombre, meses y estado.' };
+        }
+        const r = p as Record<string, unknown>;
+        const id = typeof r.id === 'string' ? r.id.trim() : '';
+        const nombre = typeof r.nombre === 'string' ? r.nombre.trim() : '';
+        const otorgados = r.mesesOtorgados;
+        const cobrados = r.mesesCobrados;
+        if (id === '' || !/^[a-z0-9_]+$/.test(id)) {
+            return { ok: false, mensaje: 'Cada paquete necesita un identificador (minúsculas, números o guion bajo).' };
+        }
+        if (ids.has(id)) return { ok: false, mensaje: 'No repitas el identificador de un paquete.' };
+        ids.add(id);
+        if (nombre === '') return { ok: false, mensaje: 'Cada paquete necesita un nombre.' };
+        if (!Number.isInteger(otorgados) || (otorgados as number) < 1 || (otorgados as number) > 36) {
+            return { ok: false, mensaje: 'Los meses otorgados deben ser un entero entre 1 y 36.' };
+        }
+        if (!Number.isInteger(cobrados) || (cobrados as number) < 1 || (cobrados as number) > (otorgados as number)) {
+            return { ok: false, mensaje: 'Los meses cobrados deben ser un entero entre 1 y los meses otorgados.' };
+        }
+        paquetes.push({
+            id,
+            nombre,
+            mesesOtorgados: otorgados as number,
+            mesesCobrados: cobrados as number,
+            activo: r.activo === true,
+        });
+    }
+
+    return { ok: true, valor: JSON.stringify(paquetes) };
+}
+
 // =============================================================================
 // ACTUALIZAR UN VALOR
 // =============================================================================
@@ -249,6 +300,7 @@ export async function actualizarConfig(
         : cat.tipo === 'texto' ? validarTexto(cat.max, valorCrudo)
         : cat.tipo === 'tramos_ciudades' ? validarTramosCiudades(valorCrudo)
         : cat.tipo === 'periodos_meses' ? validarPeriodos(valorCrudo)
+        : cat.tipo === 'paquetes_promocion' ? validarPaquetes(valorCrudo)
         : validarEscalera(valorCrudo);
     if (!v.ok) return { ok: false, status: 400, mensaje: v.mensaje };
     const valorNuevo = v.valor;

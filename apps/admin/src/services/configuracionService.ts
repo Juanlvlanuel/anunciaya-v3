@@ -33,7 +33,16 @@ export interface TramoPeriodo {
   descuento: number; // % de descuento por pagar ese periodo
 }
 
-export type TipoConfig = 'numero' | 'texto' | 'json' | 'tramos_ciudades' | 'periodos_meses';
+/** Un paquete promocional de apertura: otorga N meses cobrando M (ej. 3x1). */
+export interface PaquetePromocion {
+  id: string;
+  nombre: string;
+  mesesOtorgados: number;
+  mesesCobrados: number;
+  activo: boolean;
+}
+
+export type TipoConfig = 'numero' | 'texto' | 'json' | 'tramos_ciudades' | 'periodos_meses' | 'paquetes_promocion';
 
 /** Una fila editable de Configuración (catálogo + valor actual). El `valor` es crudo (string). */
 export interface ConfigFila {
@@ -89,6 +98,16 @@ export function parsearPeriodos(valor: string): TramoPeriodo[] {
   try {
     const arr = JSON.parse(valor);
     return Array.isArray(arr) ? (arr as TramoPeriodo[]) : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Parsea el valor JSON de los paquetes promocionales; [] si no es válido. */
+export function parsearPaquetes(valor: string): PaquetePromocion[] {
+  try {
+    const arr = JSON.parse(valor);
+    return Array.isArray(arr) ? (arr as PaquetePromocion[]) : [];
   } catch {
     return [];
   }

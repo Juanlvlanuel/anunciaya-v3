@@ -244,6 +244,15 @@ export const negocios = pgTable("negocios", {
 	demoTipo: varchar("demo_tipo", { length: 10 }),
 	demoVendedorId: uuid("demo_vendedor_id").references((): AnyPgColumn => usuarios.id, { onDelete: 'cascade' }),
 	demoMaestroId: uuid("demo_maestro_id").references((): AnyPgColumn => negocios.id, { onDelete: 'set null' }),
+	// Promoción de apertura: mientras `promo_pendiente=true` el negocio está afiliado a un paquete pero
+	// SIN membresía iniciada (nace `activo=false`); al "Activar promoción" corren los meses desde ese
+	// momento y se publica. Se guarda SNAPSHOT de los meses del paquete (no se depende del catálogo vivo).
+	// `contraprestacion` = nota libre de lo que el negocio ofrece durante la promo (editable en la ficha).
+	promoPendiente: boolean("promo_pendiente").default(false).notNull(),
+	promoPaqueteId: varchar("promo_paquete_id", { length: 60 }),
+	promoMesesOtorgados: integer("promo_meses_otorgados"),
+	promoMesesCobrados: integer("promo_meses_cobrados"),
+	contraprestacion: varchar({ length: 500 }),
 }, (table) => [
 	index("idx_negocios_activo").using("btree", table.activo.asc().nullsLast()),
 	index("idx_negocios_embajador").using("btree", table.embajadorId.asc().nullsLast()).where(sql`(embajador_id IS NOT NULL)`),
@@ -270,6 +279,7 @@ export const negocios = pgTable("negocios", {
 	check("negocios_demo_tipo_check", sql`demo_tipo IS NULL OR demo_tipo IN ('maestro', 'copia')`),
 	index("idx_negocios_es_demo").using("btree", table.esDemo.asc().nullsLast()).where(sql`(es_demo = true)`),
 	uniqueIndex("uniq_negocios_demo_vendedor").using("btree", table.demoVendedorId.asc().nullsLast()).where(sql`(demo_tipo = 'copia')`),
+	index("idx_negocios_promo_pendiente").using("btree", table.promoPendiente.asc().nullsLast()).where(sql`(promo_pendiente = true)`),
 ]);
 
 // Bitácora de acciones sensibles del Panel Admin (suspender, reactivar, reasignar,
@@ -935,7 +945,7 @@ export const configuracionSistema = pgTable("configuracion_sistema", {
 	}).onDelete("set null"),
 	unique("configuracion_sistema_clave_key").on(table.clave),
 	check("configuracion_categoria_check", sql`(categoria)::text = ANY (ARRAY[('transacciones'::character varying)::text, ('notificaciones'::character varying)::text, ('seguridad'::character varying)::text, ('pagos'::character varying)::text, ('promociones'::character varying)::text, ('trials'::character varying)::text, ('general'::character varying)::text, ('publicidad'::character varying)::text])`),
-	check("configuracion_tipo_check", sql`(tipo)::text = ANY ((ARRAY['numero'::character varying, 'texto'::character varying, 'booleano'::character varying, 'json'::character varying, 'tramos_ciudades'::character varying, 'periodos_meses'::character varying])::text[])`),
+	check("configuracion_tipo_check", sql`(tipo)::text = ANY ((ARRAY['numero'::character varying, 'texto'::character varying, 'booleano'::character varying, 'json'::character varying, 'tramos_ciudades'::character varying, 'periodos_meses'::character varying, 'paquetes_promocion'::character varying])::text[])`),
 ]);
 
 // =============================================================================

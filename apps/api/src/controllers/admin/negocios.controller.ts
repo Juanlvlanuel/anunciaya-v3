@@ -38,11 +38,14 @@ import {
     reenviarReciboPago,
     anularPagoMembresia,
     marcarDesmarcarFundador,
+    editarContraprestacion,
+    activarPromocionNegocio,
 } from '../../services/admin/negocios-acciones.service.js';
 import {
     altaManualNegocio,
     listarCatalogoCiudades,
     existeCorreo,
+    listarPaquetesPromoActivos,
 } from '../../services/admin/altaManualNegocio.service.js';
 import {
     altaManualNegocioSchema,
@@ -352,6 +355,54 @@ export async function marcarDesmarcarFundadorController(req: Request, res: Respo
     } catch (error) {
         console.error('Error en marcarDesmarcarFundadorController:', error);
         res.status(500).json({ success: false, message: 'Error al cambiar el estado de fundador', error: error instanceof Error ? error.message : String(error) });
+    }
+}
+
+export async function activarPromocionController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const concepto = req.body?.concepto === 'transferencia' ? 'transferencia' : 'efectivo';
+        const r = await activarPromocionNegocio(panel, id, concepto);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Promoción activada', data: r.negocio });
+    } catch (error) {
+        console.error('Error en activarPromocionController:', error);
+        res.status(500).json({ success: false, message: 'Error al activar la promoción', error: error instanceof Error ? error.message : String(error) });
+    }
+}
+
+export async function listarPaquetesPromoController(_req: Request, res: Response): Promise<void> {
+    try {
+        const paquetes = await listarPaquetesPromoActivos();
+        res.status(200).json({ success: true, message: 'Paquetes obtenidos', data: paquetes });
+    } catch (error) {
+        console.error('Error en listarPaquetesPromoController:', error);
+        res.status(500).json({ success: false, message: 'Error al obtener los paquetes', error: error instanceof Error ? error.message : String(error) });
+    }
+}
+
+export async function editarContraprestacionController(req: Request, res: Response): Promise<void> {
+    try {
+        const panel = req.usuarioPanel!;
+        const { id } = req.params;
+        const texto = typeof req.body?.contraprestacion === 'string' ? req.body.contraprestacion : '';
+        if (texto.length > 500) {
+            res.status(400).json({ success: false, message: 'La nota no puede exceder 500 caracteres.' });
+            return;
+        }
+        const r = await editarContraprestacion(panel, id, texto);
+        if (!r.ok) {
+            res.status(r.status).json({ success: false, message: r.mensaje });
+            return;
+        }
+        res.status(200).json({ success: true, message: 'Contraprestación guardada', data: r.negocio });
+    } catch (error) {
+        console.error('Error en editarContraprestacionController:', error);
+        res.status(500).json({ success: false, message: 'Error al guardar la contraprestación', error: error instanceof Error ? error.message : String(error) });
     }
 }
 

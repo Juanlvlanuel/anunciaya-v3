@@ -21,7 +21,7 @@ import { SelectorFecha } from '../ui/SelectorFecha';
 import { SelectorBuscable } from '../ui/SelectorBuscable';
 import { precioPorMeses } from './membresia';
 import { usePrecioMembresia } from '../../hooks/queries/usePrecioMembresia';
-import { useCatalogoCiudades, useVendedoresFiltro, useAltaManualNegocio } from '../../hooks/queries/useNegociosAdmin';
+import { useCatalogoCiudades, useVendedoresFiltro, useAltaManualNegocio, usePaquetesPromo } from '../../hooks/queries/useNegociosAdmin';
 import { existeCorreo } from '../../services/negociosService';
 import type { ConceptoAlta, DatosAltaManual } from '../../services/negociosService';
 import type { RolPanel } from '../../data/menuPanel';
@@ -123,6 +123,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const { data: vendedores } = useVendedoresFiltro(mostrarVendedor);
   const alta = useAltaManualNegocio();
   const precioBase = usePrecioMembresia();
+  const { data: paquetes } = usePaquetesPromo(abierto);
   const opcionesCiudad = useMemo(
     () => (ciudades ?? []).map((c) => ({ id: c.id, etiqueta: `${c.nombre}, ${c.estado}` })),
     [ciudades],
@@ -147,12 +148,22 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const [mesesOtro, setMesesOtro] = useState('');
   const [modoPlazo, setModoPlazo] = useState<'meses' | 'fecha'>('meses');
   const [fechaManual, setFechaManual] = useState('');
+  // Promoción de apertura: paquete elegido (define meses + monto) y nota de contraprestación.
+  const [paqueteId, setPaqueteId] = useState('');
+  const [contraprestacion, setContraprestacion] = useState('');
+  // Alta anticipada: crear ahora sin cobrar ni publicar (se activa después con 1 clic). Requiere paquete.
+  const [altaAnticipada, setAltaAnticipada] = useState(false);
   // Vendedor
   const [vendedorSel, setVendedorSel] = useState('');
   // Chequeo de correo en vivo (aviso temprano de duplicado)
   const [verificandoCorreo, setVerificandoCorreo] = useState(false);
   const [correoDuplicado, setCorreoDuplicado] = useState(false);
   const correoRef = useRef('');
+
+  // Paquete promocional seleccionado (define la vigencia y el monto). Con paquete no hay cortesía (cobro real).
+  const paqueteSel = (paquetes ?? []).find((p) => p.id === paqueteId) ?? null;
+  const montoPaquete = paqueteSel ? paqueteSel.mesesCobrados * precioBase : 0;
+  const conceptosVisibles = paqueteSel ? conceptosDisponibles.filter((c) => c.valor !== 'cortesia') : conceptosDisponibles;
 
   // ── Validación derivada por campo ──
   const nombreNegocioValido = nombreNegocio.trim().length >= 2 && nombreNegocio.trim().length <= 120;
@@ -179,7 +190,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   // se regalan DIAS_CORTESIA_VENDEDOR encima del plazo pagado (igual que en tarjeta). Se muestra explícito
   // para que la fecha que ve el admin coincida con la que aplica el backend.
   const hayVendedor = esVendedor || (mostrarVendedor && vendedorSel !== '');
-  const aplicaCortesiaVendedor = hayVendedor && concepto !== 'cortesia' && modoPlazo === 'meses' && mesesValido;
+  const aplicaCortesiaVendedor = !paqueteSel && hayVendedor && concepto !== 'cortesia' && modoPlazo === 'meses' && mesesValido;
   const fechaConCortesia = useMemo(() => {
     const d = new Date();
     d.setMonth(d.getMonth() + mesesEfectivo);
@@ -195,7 +206,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
   const paso1Valido = nombreNegocioValido && ciudadValida;
   const paso2Valido =
     nombreValido && apellidosValido && correoValido && correosCoinciden && telValido && !correoDuplicado && !verificandoCorreo;
-  const paso3Valido = montoValido && plazoValido;
+  const paso3Valido = paqueteSel ? true : montoValido && plazoValido;
   const pasoValido = (p: number) => (p === 1 ? paso1Valido : p === 2 ? paso2Valido : paso3Valido);
 
   const siguiente = () => {
@@ -236,6 +247,19 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
       setMonto(prop > 0 ? String(prop) : '');
     }
   };
+  // Elegir un paquete fija el periodo (meses otorgados) y el monto (mesesCobrados × precio). "" = sin paquete.
+  const aplicarPaquete = (id: string) => {
+    setPaqueteId(id);
+    if (!id) setAltaAnticipada(false); // sin paquete no hay alta anticipada
+    const paq = (paquetes ?? []).find((p) => p.id === id);
+    if (paq) {
+      setModoPlazo('meses');
+      setModoOtro(false);
+      setMesChip(paq.mesesOtorgados);
+      if (concepto === 'cortesia') setConcepto('efectivo'); // el paquete cobra, no es cortesía
+      setMonto(String(paq.mesesCobrados * precioBase));
+    }
+  };
 
   const puedeEnviar = paso1Valido && paso2Valido && paso3Valido && !alta.isPending;
 
@@ -271,6 +295,9 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
         ? { hasta: new Date(`${fechaManual}T23:59:59`).toISOString() }
         : { meses: mesesEfectivo }),
       ...(mostrarVendedor ? { embajadorId: vendedorSel || null } : {}),
+      ...(paqueteId ? { promoPaqueteId: paqueteId } : {}),
+      ...(paqueteSel && contraprestacion.trim() ? { contraprestacion: contraprestacion.trim() } : {}),
+      ...(altaAnticipada ? { altaAnticipada: true } : {}),
     };
     alta.mutate(datos, { onSuccess: onCerrar });
   };
@@ -456,7 +483,46 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
             <div data-testid="alta-paso-cobro">
               <PasoHeader icono={CreditCard} titulo="Cobro" desc="Periodo, monto y forma de pago" />
 
-              {/* Periodo cubierto (primero: el monto se sugiere a partir de él) */}
+              {/* Paquete promocional (arriba): al elegirlo, define los meses y el monto. */}
+              {(paquetes ?? []).length > 0 && (
+                <div className="mb-4">
+                  <label className={LABEL}>Paquete promocional</label>
+                  <div className="flex flex-wrap gap-2" data-testid="alta-paquete">
+                    <button type="button" data-testid="alta-paquete-ninguno" onClick={() => aplicarPaquete('')} className={chip(paqueteId === '')}>
+                      Sin paquete
+                    </button>
+                    {(paquetes ?? []).map((p) => (
+                      <button key={p.id} type="button" data-testid={`alta-paquete-${p.id}`} onClick={() => aplicarPaquete(p.id)} className={chip(paqueteId === p.id)}>
+                        {p.nombre}
+                      </button>
+                    ))}
+                  </div>
+                  {paqueteSel && (
+                    <>
+                      <p className="mt-2 rounded-[8px] bg-marca-suave px-3 py-2 text-[11.5px] font-medium text-marca" data-testid="alta-paquete-resumen">
+                        Otorga {paqueteSel.mesesOtorgados} meses cobrando {paqueteSel.mesesCobrados} (${montoPaquete}).
+                      </p>
+                      {/* Iniciar la membresía ahora, o crear sin activar (activación diferida). */}
+                      <div className="mt-2 flex rounded-[10px] border border-borde p-0.5" data-testid="alta-anticipada-toggle">
+                        <button type="button" data-testid="alta-modo-ahora" onClick={() => setAltaAnticipada(false)} className={segmento(!altaAnticipada)}>
+                          Iniciar ahora
+                        </button>
+                        <button type="button" data-testid="alta-modo-anticipada" onClick={() => setAltaAnticipada(true)} className={segmento(altaAnticipada)}>
+                          Activar después
+                        </button>
+                      </div>
+                      <p className="mt-1 text-[11px] text-texto-4">
+                        {altaAnticipada
+                          ? 'Se crea sin cobrar ni publicar; lo activas con 1 clic desde su ficha cuando el negocio apruebe.'
+                          : 'Se cobra ahora y la vigencia corre desde hoy.'}
+                      </p>
+                    </>
+                  )}
+                </div>
+              )}
+
+              {/* Periodo cubierto — oculto con paquete (el paquete define meses y monto). */}
+              {!paqueteSel && (
               <div className="mb-4">
                 <label className={LABEL}>Periodo cubierto</label>
                 {/* Toggle: por meses cerrados o por una fecha exacta de vencimiento */}
@@ -547,6 +613,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                   </>
                 )}
               </div>
+              )}
 
               {/* Cortesía por venta de vendedor (Pieza 2): +N días encima del plazo pagado (igual que tarjeta). */}
               {aplicaCortesiaVendedor && (
@@ -559,7 +626,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
               )}
 
               {/* Monto (modo "por meses"; en "fecha exacta" va junto al campo de fecha, arriba) */}
-              {pideMonto && modoPlazo === 'meses' && (
+              {!paqueteSel && pideMonto && modoPlazo === 'meses' && (
                 <div className="mb-4">
                   <label className={LABEL}>Monto</label>
                   <div className="relative">
@@ -579,11 +646,12 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                 </div>
               )}
 
-              {/* ¿Cómo pagó? (la cortesía oculta el monto) */}
+              {/* ¿Cómo pagó? — se omite en alta anticipada (aún no hay cobro). */}
+              {!altaAnticipada && (
               <div className={mostrarVendedor ? 'mb-4' : ''}>
                 <label className={LABEL}>¿Cómo pagó?</label>
                 <div className="flex flex-wrap gap-2" data-testid="alta-concepto">
-                  {conceptosDisponibles.map((c) => (
+                  {conceptosVisibles.map((c) => (
                     <button
                       key={c.valor}
                       type="button"
@@ -596,6 +664,22 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
                   ))}
                 </div>
               </div>
+              )}
+
+              {/* Contraprestación (solo con paquete): lo que el negocio ofrece durante la promo. */}
+              {paqueteSel && (
+                <div className={mostrarVendedor ? 'mb-4' : ''}>
+                  <label className={LABEL}>Contraprestación <span className="font-normal text-texto-4">(opcional)</span></label>
+                  <textarea
+                    data-testid="alta-contraprestacion"
+                    value={contraprestacion}
+                    onChange={(e) => setContraprestacion(e.target.value.slice(0, 500))}
+                    rows={2}
+                    placeholder="Ej. Un corte de cabello gratis al mes durante la promo."
+                    className={`${CLASE_CAMPO} resize-none`}
+                  />
+                </div>
+              )}
 
               {/* Vendedor (solo superadmin/gerente) */}
               {mostrarVendedor && (
@@ -659,7 +743,7 @@ export function DialogoRegistrarNegocio({ abierto, onCerrar, rol }: DialogoRegis
               disabled={!puedeEnviar}
               className="inline-flex items-center gap-1.5 rounded-[10px] bg-marca px-3.5 py-2 text-[13px] font-semibold text-marca-contraste transition disabled:cursor-not-allowed disabled:opacity-50"
             >
-              {alta.isPending ? 'Registrando…' : 'Registrar negocio'}
+              {alta.isPending ? 'Registrando…' : altaAnticipada ? 'Dar de alta (sin activar)' : 'Registrar negocio'}
             </button>
           )}
         </div>

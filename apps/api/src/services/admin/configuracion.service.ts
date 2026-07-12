@@ -36,7 +36,7 @@ export interface TramoEscalera {
  *  'numero' = entero con rango · 'texto' = string libre (ej. teléfono de contacto) · 'json' = escalera de
  *  comisiones · 'tramos_ciudades' = multiplicador por #ciudades · 'periodos_meses' = meses pagables por
  *  adelantado + descuento, ambos de Publicidad. */
-export type TipoConfig = 'numero' | 'texto' | 'json' | 'tramos_ciudades' | 'periodos_meses';
+export type TipoConfig = 'numero' | 'texto' | 'json' | 'tramos_ciudades' | 'periodos_meses' | 'paquetes_promocion';
 
 /** Meta de una clave editable (el "catálogo"). */
 interface ClaveCatalogo {
@@ -108,6 +108,23 @@ export const PERIODOS_DEFAULT: TramoPeriodo[] = [
     { meses: 12, descuento: 25 },
 ];
 
+/** Un paquete promocional de apertura: otorga N meses de membresía cobrando M (ej. 3x1 = 3 meses por el
+ *  precio de 1). El super los define/activa desde "Promociones" en Configuración; gerentes y vendedores
+ *  los aplican con 1 clic al dar de alta un negocio. El monto = mesesCobrados × precio_membresia_mxn. */
+export interface PaquetePromocion {
+    id: string;             // slug único y estable (ej. 'apertura_3x1'); se guarda como snapshot en el negocio
+    nombre: string;         // etiqueta visible (ej. 'Apertura 3x1')
+    mesesOtorgados: number; // meses de vigencia que otorga (1–36)
+    mesesCobrados: number;  // meses que se cobran (1..mesesOtorgados)
+    activo: boolean;        // si aparece como opción al afiliar
+}
+
+/** Paquetes por defecto (el super los ajusta/activa desde "Promociones" en Configuración). */
+export const PAQUETES_DEFAULT: PaquetePromocion[] = [
+    { id: 'apertura_3x1', nombre: 'Apertura 3x1', mesesOtorgados: 3, mesesCobrados: 1, activo: true },
+    { id: 'apertura_2x1', nombre: 'Apertura 2x1', mesesOtorgados: 2, mesesCobrados: 1, activo: true },
+];
+
 /** Allow-list de lo que la pantalla puede editar en v1. Las claves se sirven en este orden. */
 export const CONFIG_EDITABLE: ClaveCatalogo[] = [
     {
@@ -153,6 +170,18 @@ export const CONFIG_EDITABLE: ClaveCatalogo[] = [
         min: 0,
         max: 60,
         porDefecto: '14',
+    },
+    // ─── Promociones — paquetes de apertura (3x1, 2x1…) que aplican gerentes/vendedores ───────
+    {
+        clave: 'promo_paquetes',
+        etiqueta: 'Paquetes de apertura',
+        descripcion: 'Promos que otorgan varios meses cobrando 1 (ej. 3x1). Gerentes y vendedores las aplican al afiliar un negocio.',
+        tipo: 'paquetes_promocion',
+        categoria: 'promociones',
+        unidad: null,
+        min: null,
+        max: null,
+        porDefecto: JSON.stringify(PAQUETES_DEFAULT),
     },
     // ─── Publicidad (módulo 7) — el super fija precios y reglas de la pauta ───────
     {

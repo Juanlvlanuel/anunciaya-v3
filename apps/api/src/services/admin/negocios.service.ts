@@ -117,6 +117,12 @@ export interface NegocioDetalle {
     verificado: boolean | null;
     esFundador: boolean;
     onboardingCompletado: boolean;
+    // Promoción de apertura (snapshot en el negocio) + nota de contraprestación.
+    promoPendiente: boolean;
+    promoPaqueteId: string | null;
+    promoMesesOtorgados: number | null;
+    promoMesesCobrados: number | null;
+    contraprestacion: string | null;
     creadoEn: string | null;
     fechaPrimerPago: string | null;
     // Estado de pago (Stripe/cron)
@@ -556,6 +562,11 @@ export async function obtenerDetalleNegocio(
             verificado: negocios.verificado,
             esFundador: negocios.esFundador,
             onboardingCompletado: negocios.onboardingCompletado,
+            promoPendiente: negocios.promoPendiente,
+            promoPaqueteId: negocios.promoPaqueteId,
+            promoMesesOtorgados: negocios.promoMesesOtorgados,
+            promoMesesCobrados: negocios.promoMesesCobrados,
+            contraprestacion: negocios.contraprestacion,
             creadoEn: negocios.createdAt,
             fechaPrimerPago: negocios.fechaPrimerPago,
             estadoPago: negocios.estadoMembresia,
@@ -648,6 +659,11 @@ export async function obtenerDetalleNegocio(
         verificado: fila.verificado,
         esFundador: fila.esFundador,
         onboardingCompletado: fila.onboardingCompletado,
+        promoPendiente: fila.promoPendiente ?? false,
+        promoPaqueteId: fila.promoPaqueteId ?? null,
+        promoMesesOtorgados: fila.promoMesesOtorgados ?? null,
+        promoMesesCobrados: fila.promoMesesCobrados ?? null,
+        contraprestacion: fila.contraprestacion ?? null,
         creadoEn: fila.creadoEn ?? null,
         fechaPrimerPago: fila.fechaPrimerPago ?? null,
         estadoPago: fila.estadoPago,

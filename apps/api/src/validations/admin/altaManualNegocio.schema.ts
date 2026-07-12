@@ -78,20 +78,34 @@ export const altaManualNegocioSchema = z
     // Atribución del vendedor: gerente/superadmin lo eligen de la lista; el vendedor se
     // auto-atribuye en el backend (este campo se ignora para el rol vendedor).
     embajadorId: z.string().uuid('El vendedor seleccionado es inválido').nullable().optional(),
+
+    // Promoción de apertura aplicada (opcional). El monto/meses ya vienen calculados por el front;
+    // el backend re-resuelve el paquete del catálogo para guardar el snapshot.
+    promoPaqueteId: z.string().trim().max(60).optional(),
+    // Nota de contraprestación (lo que el negocio ofrece durante la promo).
+    contraprestacion: z.string().trim().max(500).optional(),
+    // Alta anticipada: crea el negocio SIN iniciar la membresía (se activa después con 1 clic).
+    // Requiere un paquete; el cobro/periodo se omiten (se calculan al activar).
+    altaAnticipada: z.boolean().optional(),
   })
   .refine((d) => d.correo === d.confirmarCorreo, {
     message: 'Los correos no coinciden',
     path: ['confirmarCorreo'],
   })
-  // El monto es obligatorio (mayor a 0) salvo en cortesía (gratis).
-  .refine((d) => d.concepto === 'cortesia' || (typeof d.monto === 'number' && d.monto > 0), {
+  // El monto es obligatorio (mayor a 0) salvo en cortesía (gratis) o alta anticipada (aún sin cobro).
+  .refine((d) => d.altaAnticipada || d.concepto === 'cortesia' || (typeof d.monto === 'number' && d.monto > 0), {
     message: 'El monto es obligatorio y mayor a 0 (salvo cortesía)',
     path: ['monto'],
   })
-  // Debe venir el periodo: meses O una fecha exacta.
-  .refine((d) => typeof d.meses === 'number' || (typeof d.hasta === 'string' && d.hasta.length > 0), {
+  // Debe venir el periodo: meses O una fecha exacta (salvo alta anticipada, que lo calcula al activar).
+  .refine((d) => d.altaAnticipada || typeof d.meses === 'number' || (typeof d.hasta === 'string' && d.hasta.length > 0), {
     message: 'Indica el periodo cubierto: meses o una fecha exacta',
     path: ['meses'],
+  })
+  // El alta anticipada exige un paquete promocional (define los meses que correrán al activar).
+  .refine((d) => !d.altaAnticipada || !!d.promoPaqueteId, {
+    message: 'El alta anticipada requiere un paquete promocional',
+    path: ['promoPaqueteId'],
   })
   // Si es fecha exacta: válida, futura y dentro de 2 años (tope de Stripe a futuro).
   .refine(

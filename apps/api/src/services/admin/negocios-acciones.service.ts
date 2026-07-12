@@ -44,6 +44,7 @@ import { guardarCodigoRecuperacion } from '../../utils/tokenStore.js';
 import { enviarCodigoCrearContrasena, enviarCodigoRecuperacion, enviarComprobantePagoMembresia, enviarReciboCancelado } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
 import { registrarPagoManual } from './pagos-manuales.service.js';
+import { obtenerConfigNumero } from '../configuracion.service.js';
 
 // =============================================================================
 // TIPOS
@@ -84,6 +85,10 @@ type NegocioCargado = {
     correoDueno: string | null;
     /** Nombre del DUEÑO (saludo del comprobante). */
     nombreDueno: string | null;
+    /** Promoción de apertura pendiente de activar + snapshot de sus meses (para "Activar promoción"). */
+    promoPendiente: boolean | null;
+    promoMesesOtorgados: number | null;
+    promoMesesCobrados: number | null;
 };
 
 /** Carga el negocio y valida el alcance del actor. Devuelve el negocio, o un
@@ -109,6 +114,9 @@ async function cargarNegocioConAlcance(
             stripeSubscriptionId: usuarios.stripeSubscriptionId,
             correoDueno: usuarios.correo,
             nombreDueno: usuarios.nombre,
+            promoPendiente: negocios.promoPendiente,
+            promoMesesOtorgados: negocios.promoMesesOtorgados,
+            promoMesesCobrados: negocios.promoMesesCobrados,
         })
         .from(negocios)
         .leftJoin(usuarios, eq(usuarios.id, negocios.usuarioId))
@@ -291,6 +299,37 @@ export async function marcarDesmarcarFundador(
         entidadId: negocioId,
         datosPrevios: null,
         datosNuevos: { esFundador },
+        motivo: null,
+    });
+
+    return { ok: true, negocio: { id: neg.id, estadoAdmin: neg.estadoAdmin, activo: neg.activo, embajadorId: neg.embajadorId } };
+}
+
+// =============================================================================
+// EDITAR CONTRAPRESTACIÓN (nota de lo que el negocio ofrece durante la promo)
+// =============================================================================
+
+/** Guarda/limpia la nota de contraprestación de un negocio. Super + gerente (su región) + vendedor
+ *  (su cartera), acotado por `cargarNegocioConAlcance`. Cadena vacía → NULL. */
+export async function editarContraprestacion(
+    panel: UsuarioPanel,
+    negocioId: string,
+    texto: string,
+): Promise<ResultadoAccion> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+    const neg = cargado.negocio;
+
+    const limpio = texto.trim().slice(0, 500);
+    const ahora = new Date().toISOString();
+    await db.update(negocios).set({ contraprestacion: limpio || null, updatedAt: ahora }).where(eq(negocios.id, negocioId));
+
+    await registrarAuditoria(panel, {
+        accion: 'negocio_editar_contraprestacion',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: null,
+        datosNuevos: { contraprestacion: limpio || null },
         motivo: null,
     });
 
@@ -687,6 +726,120 @@ export async function marcarPagado(
         await registrarCobroEfectivo(act.embajadorId, negocioId, Number(montoRegistrado), panel.usuarioId);
     }
     return { ok: true, negocio: act, advertenciaStripe };
+}
+
+// =============================================================================
+// ACTIVAR PROMOCIÓN (negocio dado de alta anticipada) — inicia la membresía y publica
+// =============================================================================
+
+/**
+ * Activa un negocio "pendiente de activación" (alta anticipada con paquete): cobra el paquete
+ * (mesesCobrados × precio vigente), sella la vigencia desde HOY (hoy + mesesOtorgados, sin cortesía),
+ * lo pone `activo=true` (se publica si el onboarding está completo) y limpia `promo_pendiente`.
+ * Es manual (sin Stripe), calco de `marcarPagado`. Super + gerente (su región) + vendedor (su cartera).
+ */
+export async function activarPromocionNegocio(
+    panel: UsuarioPanel,
+    negocioId: string,
+    concepto: 'efectivo' | 'transferencia',
+): Promise<ResultadoAccion> {
+    const cargado = await cargarNegocioConAlcance(panel, negocioId);
+    if (!cargado.ok) return cargado;
+    const neg = cargado.negocio;
+
+    if (!neg.promoPendiente) {
+        return { ok: false, status: 409, mensaje: 'Este negocio no está pendiente de activación.' };
+    }
+    if (neg.estadoAdmin === 'archivado') {
+        return { ok: false, status: 409, mensaje: 'El negocio está cancelado/archivado.' };
+    }
+
+    // Monto = mesesCobrados × precio de membresía VIGENTE al activar. Vigencia = hoy + mesesOtorgados
+    // (meses exactos del paquete, sin la cortesía de vendedor).
+    const otorgados = neg.promoMesesOtorgados ?? 1;
+    const cobrados = neg.promoMesesCobrados ?? 1;
+    const precio = await obtenerConfigNumero('precio_membresia_mxn', 849);
+    const monto = cobrados * precio;
+    const venc = new Date();
+    venc.setMonth(venc.getMonth() + otorgados);
+    const hastaISO = venc.toISOString();
+    const hoyFecha = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Hermosillo' }).format(new Date());
+    const ahora = new Date().toISOString();
+
+    const { negocio: act, pagoId } = await db.transaction(async (tx) => {
+        const [actualizado] = await tx
+            .update(negocios)
+            .set({
+                estadoAdmin: 'activo',
+                activo: true,
+                estadoMembresia: 'al_corriente',
+                metodoCobro: 'manual',
+                fechaVencimiento: hastaISO,
+                fechaProximoCobro: hastaISO,
+                fechaPrimerPago: hoyFecha,
+                promoPendiente: false,
+                updatedAt: ahora,
+            })
+            .where(eq(negocios.id, negocioId))
+            .returning({
+                id: negocios.id,
+                estadoAdmin: negocios.estadoAdmin,
+                activo: negocios.activo,
+                embajadorId: negocios.embajadorId,
+            });
+
+        const { pagoId: pagoManualId } = await registrarPagoManual(tx, {
+            negocioId,
+            monto,
+            concepto,
+            meses: otorgados,
+            hasta: hastaISO,
+            registradoPor: panel.usuarioId,
+            metodoCobro: 'manual',
+            fechaEvento: ahora,
+        });
+        return { negocio: actualizado, pagoId: pagoManualId };
+    });
+
+    await registrarAuditoria(panel, {
+        accion: 'negocio_activar_promocion',
+        entidadTipo: 'negocio',
+        entidadId: negocioId,
+        datosPrevios: { promoPendiente: true, activo: neg.activo },
+        datosNuevos: { activo: true, estadoMembresia: 'al_corriente', hasta: hastaISO, concepto, monto, mesesOtorgados: otorgados, mesesCobrados: cobrados },
+        motivo: null,
+    });
+
+    await limpiarNotificacionNegocioFueraDeCirculacion(negocioId);
+
+    // Comprobante al dueño (best-effort).
+    if (pagoId) {
+        try {
+            const rec = await prepararReciboPago(pagoId);
+            if (rec?.correoDueno) {
+                await enviarComprobantePagoMembresia(rec.correoDueno, rec.nombreDueno ?? '', {
+                    nombreNegocio: rec.nombreNegocio,
+                    concepto: rec.concepto,
+                    monto: rec.monto,
+                    hasta: rec.hasta,
+                    reciboUrl: rec.reciboUrl,
+                });
+            }
+        } catch {
+            console.error('Error al emitir el comprobante de pago (activarPromocion)');
+        }
+    }
+
+    // Comisiones: alta + recurrente al cobro (sobre el dinero cobrado). Efectivo del vendedor.
+    await devengarComisionAlta(negocioId);
+    if (monto > 0) {
+        await devengarComisionRecurrenteAlCobro(negocioId, hastaISO, monto);
+    }
+    if (panel.rolEquipo === 'vendedor' && concepto === 'efectivo' && act.embajadorId) {
+        await registrarCobroEfectivo(act.embajadorId, negocioId, monto, panel.usuarioId);
+    }
+
+    return { ok: true, negocio: act };
 }
 
 // =============================================================================

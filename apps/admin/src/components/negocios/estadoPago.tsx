@@ -19,6 +19,8 @@ export const ESTADO_PAGO_META: Record<string, MetaEstado> = {
   en_gracia: { etiqueta: 'En gracia', color: '#d9920a' },
   suspendido: { etiqueta: 'Suspendido', color: 'var(--panel-danger)' },
   cancelado: { etiqueta: 'Cancelado', color: 'var(--panel-text-4)' },
+  // Alta anticipada: negocio afiliado a un paquete pero con la membresía sin iniciar (activo=false).
+  promo_pendiente: { etiqueta: 'Pendiente de activación', color: '#d9920a' },
 };
 
 /** Estados para el filtro (incluye "Todos" como opción vacía en el componente). */

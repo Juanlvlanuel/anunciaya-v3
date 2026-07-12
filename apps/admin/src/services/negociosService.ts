@@ -77,6 +77,12 @@ export interface NegocioDetalle {
   verificado: boolean | null;
   esFundador: boolean;
   onboardingCompletado: boolean;
+  // Promoción de apertura (snapshot) + nota de contraprestación.
+  promoPendiente: boolean;
+  promoPaqueteId: string | null;
+  promoMesesOtorgados: number | null;
+  promoMesesCobrados: number | null;
+  contraprestacion: string | null;
   creadoEn: string | null;
   fechaPrimerPago: string | null;
   estadoPago: string;
@@ -221,6 +227,16 @@ export async function marcarDesmarcarFundador(id: string, esFundador: boolean): 
   await api.post(`/admin/negocios/${id}/marcar-fundador`, { esFundador });
 }
 
+/** Guarda la nota de contraprestación del negocio (lo que ofrece durante la promo). Vacío = la borra. */
+export async function editarContraprestacion(id: string, contraprestacion: string): Promise<void> {
+  await api.patch(`/admin/negocios/${id}/contraprestacion`, { contraprestacion });
+}
+
+/** Activa la promoción de un negocio dado de alta anticipada (cobra 1 mes, inicia vigencia, publica). */
+export async function activarPromocion(id: string, concepto: 'efectivo' | 'transferencia'): Promise<void> {
+  await api.post(`/admin/negocios/${id}/activar-promocion`, { concepto });
+}
+
 /** Reactiva (des-pausa) — además reanuda el cobro en Stripe si hay suscripción. */
 export async function reactivarNegocio(id: string, motivo?: string): Promise<ResultadoAccionAdmin> {
   const { data } = await api.post<RespuestaAccion>(`/admin/negocios/${id}/reactivar`, { motivo });
@@ -301,6 +317,20 @@ export async function cambiarCorreoDueno(id: string, correoNuevo: string): Promi
 }
 
 /** Concepto del alta manual: ingreso (efectivo/transferencia) o cortesía (sin monto). */
+/** Un paquete promocional ACTIVO (para el selector del alta). */
+export interface PaquetePromo {
+  id: string;
+  nombre: string;
+  mesesOtorgados: number;
+  mesesCobrados: number;
+}
+
+/** Paquetes promocionales activos para el selector del alta. */
+export async function listarPaquetesPromo(): Promise<PaquetePromo[]> {
+  const { data } = await api.get<RespuestaAPI<PaquetePromo[]>>('/admin/negocios/paquetes-promocion');
+  return data.data ?? [];
+}
+
 export type ConceptoAlta = 'efectivo' | 'transferencia' | 'cortesia';
 
 /** Payload del alta manual de un negocio en efectivo/transferencia (sin Stripe). */
@@ -322,6 +352,12 @@ export interface DatosAltaManual {
   hasta?: string;
   /** Vendedor elegido (gerente/superadmin). El vendedor se auto-atribuye → no lo manda. */
   embajadorId?: string | null;
+  /** Paquete promocional aplicado (id del catálogo). El monto/meses ya van calculados. */
+  promoPaqueteId?: string;
+  /** Nota de contraprestación (lo que el negocio ofrece durante la promo). */
+  contraprestacion?: string;
+  /** Alta anticipada: crea el negocio sin iniciar la membresía (se activa después). Requiere paquete. */
+  altaAnticipada?: boolean;
 }
 
 /** Alta manual (superadmin/gerente/vendedor). Devuelve el negocio y dueño creados. */

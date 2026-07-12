@@ -21,11 +21,12 @@ import { useEsEscritorio } from '../../hooks/useEsEscritorio';
 import { useScrollPanel } from '../../stores/useScrollPanel';
 import { useConfiguracion } from '../../hooks/queries/useConfiguracionAdmin';
 import { TabsSegmento } from '../ui/TabsSegmento';
-import { parsearEscalera, parsearTramosCiudades, parsearPeriodos, type ConfigFila, type TramoEscalera, type TramoCiudades } from '../../services/configuracionService';
+import { parsearEscalera, parsearTramosCiudades, parsearPeriodos, parsearPaquetes, type ConfigFila, type TramoEscalera, type TramoCiudades } from '../../services/configuracionService';
 import { EstadoSeccion } from '../ui/EstadoSeccion';
 import { DialogoEditarNumero, DialogoEditarTexto, DialogoEditarEscalera } from './DialogosConfig';
 import { DialogoEditarTramosCiudades } from './DialogoTramosCiudades';
 import { DialogoEditarPeriodos } from './DialogoPeriodos';
+import { DialogoEditarPaquetes } from './DialogoPaquetes';
 import { TarjetaPrecioMembresia } from './TarjetaPrecioMembresia';
 
 /** Etiqueta legible de cada categoría de `configuracion_sistema`. */
@@ -53,6 +54,7 @@ const ICONO_CLAVE: Record<string, ComponentType<LucideProps>> = {
   comision_escalera: Layers,
   periodo_gracia_cobro_dias: Clock,
   trial_duracion_dias: Gift,
+  promo_paquetes: Gift,
   publicidad_periodos: CalendarClock,
   contacto_whatsapp_numero: MessageCircle,
 };
@@ -72,6 +74,7 @@ const ACENTO_CLAVE: Record<string, string> = {
   comision_escalera: GRIS,
   comision_alta_monto: GRIS,
   trial_duracion_dias: GRIS,
+  promo_paquetes: GRIS,
   periodo_gracia_cobro_dias: GRIS,
   publicidad_tramos_ciudades: GRIS,
   publicidad_combo_descuento: GRIS,
@@ -162,6 +165,27 @@ function TablaPeriodos({ valor }: { valor: string }) {
   );
 }
 
+/** Paquetes promocionales de apertura, apilados (modo lectura en la tarjeta). */
+function TablaPaquetes({ valor }: { valor: string }) {
+  const paquetes = parsearPaquetes(valor);
+  if (paquetes.length === 0) return <p className="text-[13px] text-texto-4">Sin paquetes.</p>;
+  return (
+    <div className="flex flex-col gap-2">
+      {paquetes.map((p, i) => (
+        <div key={i} className="flex items-center justify-between gap-2 rounded-[10px] border border-borde bg-superficie-2 px-3.5 py-2">
+          <span className="flex min-w-0 items-center gap-2 text-[13px]">
+            <span className="truncate font-semibold text-texto">{p.nombre}</span>
+            <span className="shrink-0 tabular-nums text-texto-3">{p.mesesOtorgados} meses × pago de {p.mesesCobrados}</span>
+          </span>
+          <span className="shrink-0 text-[12px] font-semibold" style={{ color: p.activo ? 'var(--panel-ok)' : 'var(--panel-text-4)' }}>
+            {p.activo ? 'Activo' : 'Inactivo'}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 /** Botón "Editar" compartido (secundario sobrio del Panel). */
 function BotonEditar({ clave, onEditar }: { clave: string; onEditar: () => void }) {
   return (
@@ -190,7 +214,7 @@ function BadgePorDefecto() {
  */
 function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void }) {
   const Icono = ICONO_CLAVE[c.clave] ?? SlidersHorizontal;
-  const esTabla = c.tipo === 'json' || c.tipo === 'tramos_ciudades' || c.tipo === 'periodos_meses';
+  const esTabla = c.tipo === 'json' || c.tipo === 'tramos_ciudades' || c.tipo === 'periodos_meses' || c.tipo === 'paquetes_promocion';
   const tieneRango = c.min !== null || c.max !== null;
 
   if (esTabla) {
@@ -212,7 +236,7 @@ function TarjetaConfig({ c, onEditar }: { c: ConfigFila; onEditar: () => void })
           </div>
         </div>
         <div className="mt-3">
-          {c.tipo === 'json' ? <TablaEscalera valor={c.valor} /> : c.tipo === 'tramos_ciudades' ? <TablaTramosCiudades valor={c.valor} /> : <TablaPeriodos valor={c.valor} />}
+          {c.tipo === 'json' ? <TablaEscalera valor={c.valor} /> : c.tipo === 'tramos_ciudades' ? <TablaTramosCiudades valor={c.valor} /> : c.tipo === 'paquetes_promocion' ? <TablaPaquetes valor={c.valor} /> : <TablaPeriodos valor={c.valor} />}
         </div>
       </div>
     );
@@ -283,16 +307,17 @@ function PilaConfig({ filas, onEditar }: { filas: ConfigFila[]; onEditar: (c: Co
   );
 }
 
-/** Identidad visual de cada carrusel — mismo ícono y acento que el wizard del anunciante (apps/web,
- *  PaginaAnunciate.tsx) para que el super reconozca el espacio que está poniendo precio. */
+/** Identidad visual de cada carrusel — mismo ícono que el wizard del anunciante (apps/web,
+ *  PaginaAnunciate.tsx) para que el super reconozca el espacio que está poniendo precio. El acento va en
+ *  gris neutro, igual que las demás tarjetas de Configuración (Regla 13: color neutro, jerarquía por peso). */
 // Orden por PARES: cada tamaño seguido de su precio de lanzamiento (el grid de 2 columnas los empareja
 // en la misma fila → base a la izquierda, su lanzamiento a la derecha).
 const META_CARRUSEL: Record<string, { nombre: string; Icono: typeof Megaphone; acento: string }> = {
-  publicidad_precio_anuncios: { nombre: 'Chico', Icono: Megaphone, acento: 'bg-amber-500' },
-  publicidad_precio_lanzamiento_anuncios: { nombre: 'Lanzamiento · Chico', Icono: Tag, acento: 'bg-emerald-500' },
-  publicidad_precio_patrocinadores: { nombre: 'Grande', Icono: Star, acento: 'bg-blue-600' },
-  publicidad_precio_lanzamiento_patrocinadores: { nombre: 'Lanzamiento · Grande', Icono: Tag, acento: 'bg-emerald-500' },
-  publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: 'bg-violet-600' },
+  publicidad_precio_anuncios: { nombre: 'Chico', Icono: Megaphone, acento: GRIS },
+  publicidad_precio_lanzamiento_anuncios: { nombre: 'Lanzamiento · Chico', Icono: Tag, acento: GRIS },
+  publicidad_precio_patrocinadores: { nombre: 'Grande', Icono: Star, acento: GRIS },
+  publicidad_precio_lanzamiento_patrocinadores: { nombre: 'Lanzamiento · Grande', Icono: Tag, acento: GRIS },
+  publicidad_precio_fundadores: { nombre: 'Fundadores', Icono: Award, acento: GRIS },
 };
 
 const CLAVES_PRECIO_CARRUSEL = Object.keys(META_CARRUSEL);
@@ -306,7 +331,7 @@ function TarjetaPrecioCarrusel({ c, onEditar }: { c: ConfigFila; onEditar: () =>
     <div className="flex flex-col rounded-[12px] border border-borde bg-superficie px-3.5 py-3 shadow-tarjeta-panel" data-testid={`config-${c.clave}`}>
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
         <span className="flex items-center gap-2">
-          <CajaIcono Icono={Icono} tam={28} color={meta?.acento ?? 'bg-slate-400'} />
+          <CajaIcono Icono={Icono} tam={32} color={meta?.acento ?? 'bg-slate-400'} />
           <h4 className="text-[14px] font-semibold text-texto">{meta?.nombre ?? c.etiqueta}</h4>
         </span>
         {!c.sembrado && <BadgePorDefecto />}
@@ -363,6 +388,7 @@ export function SeccionConfiguracion() {
   }
   const pagos = porCategoria.get('pagos') ?? [];
   const trials = porCategoria.get('trials') ?? [];
+  const promociones = porCategoria.get('promociones') ?? [];
   const publicidad = porCategoria.get('publicidad') ?? [];
   const general = porCategoria.get('general') ?? [];
   // Los 3 precios de carrusel van en su propia fila de tarjetas compactas; el resto, en la rejilla normal.
@@ -372,7 +398,7 @@ export function SeccionConfiguracion() {
   const reglasPublicidad = publicidad.filter((c) => !CLAVES_PRECIO_CARRUSEL.includes(c.clave));
   // Divide las reglas en dos columnas: ajustes simples ("Reglas y límites") y las tablas de escalado
   // (multiplicador por ciudades + pago por adelantado → "Multiplicadores y descuentos").
-  const esTablaConfig = (t: ConfigFila['tipo']) => t === 'json' || t === 'tramos_ciudades' || t === 'periodos_meses';
+  const esTablaConfig = (t: ConfigFila['tipo']) => t === 'json' || t === 'tramos_ciudades' || t === 'periodos_meses' || t === 'paquetes_promocion';
   const reglasSimples = reglasPublicidad.filter((c) => !esTablaConfig(c.tipo));
   const reglasTablas = reglasPublicidad.filter((c) => esTablaConfig(c.tipo));
 
@@ -401,14 +427,23 @@ export function SeccionConfiguracion() {
           className="max-w-full self-start overflow-x-auto [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
         />
 
-        {/* MEMBRESÍA: precio (Stripe) + pagos y comisiones + prueba y gracia. */}
+        {/* MEMBRESÍA: precio (Stripe) + promociones (misma columna) · pagos y comisiones · prueba y gracia. */}
         {tab === 'membresia' && (
           <div data-testid="config-vista-membresia">
             <div className="grid grid-cols-1 items-start gap-x-6 gap-y-7 lg:grid-cols-3">
-              <section>
-                <EncabezadoGrupo Icono={Tag} titulo="Precio de la membresía" color={ACENTO_GRUPO.precio} />
-                <TarjetaPrecioMembresia />
-              </section>
+              {/* Columna 1: Precio y, justo debajo, Promociones (sin hueco de columnas). */}
+              <div className="flex flex-col gap-7">
+                <section>
+                  <EncabezadoGrupo Icono={Tag} titulo="Precio de la membresía" color={ACENTO_GRUPO.precio} />
+                  <TarjetaPrecioMembresia />
+                </section>
+                {promociones.length > 0 && (
+                  <section>
+                    <EncabezadoGrupo Icono={Gift} titulo={ETIQUETA_CATEGORIA.promociones} color={AZUL} />
+                    <PilaConfig filas={promociones} onEditar={setFilaEditando} />
+                  </section>
+                )}
+              </div>
               {estadoDatos ?? (
                 <>
                   {pagos.length > 0 && (
@@ -487,6 +522,8 @@ export function SeccionConfiguracion() {
           <DialogoEditarTramosCiudades fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
         ) : filaEditando.tipo === 'periodos_meses' ? (
           <DialogoEditarPeriodos fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
+        ) : filaEditando.tipo === 'paquetes_promocion' ? (
+          <DialogoEditarPaquetes fila={filaEditando} onCerrar={() => setFilaEditando(null)} />
         ) : filaEditando.tipo === 'texto' ? (
           <DialogoEditarTexto
             fila={filaEditando}

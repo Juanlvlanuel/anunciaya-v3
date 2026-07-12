@@ -27,13 +27,26 @@ import { enviarEmailBienvenida } from '../../utils/email.js';
 import { prepararReciboPago } from './recibo-pago.service.js';
 import { devengarComisionAlta, devengarComisionRecurrenteAlCobro } from './comisiones-devengo.service.js';
 import { registrarCobroEfectivo } from './comisiones-efectivo.service.js';
-import { obtenerConfigNumero } from '../configuracion.service.js';
+import { obtenerConfigNumero, obtenerConfigJson } from '../configuracion.service.js';
+import { PAQUETES_DEFAULT, type PaquetePromocion } from './configuracion.service.js';
 import type { UsuarioPanel } from '../../middleware/panel.middleware.js';
 import type { AltaManualNegocioInput } from '../../validations/admin/altaManualNegocio.schema.js';
 
 export type ResultadoAlta =
     | { ok: true; negocioId: string; usuarioId: string }
     | { ok: false; status: number; mensaje: string };
+
+// =============================================================================
+// PAQUETES PROMOCIONALES (selector del alta)
+// =============================================================================
+
+/** Paquetes promocionales ACTIVOS (solo lo que el selector del alta necesita). */
+export async function listarPaquetesPromoActivos(): Promise<Array<{ id: string; nombre: string; mesesOtorgados: number; mesesCobrados: number }>> {
+    const paquetes = await obtenerConfigJson<PaquetePromocion[]>('promo_paquetes', PAQUETES_DEFAULT);
+    return paquetes
+        .filter((p) => p.activo)
+        .map((p) => ({ id: p.id, nombre: p.nombre, mesesOtorgados: p.mesesOtorgados, mesesCobrados: p.mesesCobrados }));
+}
 
 // =============================================================================
 // CATÁLOGO DE CIUDADES (selector del formulario de alta)
@@ -157,6 +170,71 @@ export async function altaManualNegocio(
     }
 
     // -------------------------------------------------------------------------
+    // 3.5) Promoción de apertura: si se aplicó un paquete, re-resolverlo del catálogo (no confiar en el
+    //      front) para guardar el snapshot en el negocio. El monto y los meses ya llegan calculados.
+    // -------------------------------------------------------------------------
+    let promoSnapshot: { id: string; otorgados: number; cobrados: number } | null = null;
+    if (datos.promoPaqueteId) {
+        const paquetes = await obtenerConfigJson<PaquetePromocion[]>('promo_paquetes', PAQUETES_DEFAULT);
+        const paq = paquetes.find((p) => p.id === datos.promoPaqueteId && p.activo);
+        if (!paq) {
+            return { ok: false, status: 409, mensaje: 'El paquete promocional no existe o está inactivo.' };
+        }
+        promoSnapshot = { id: paq.id, otorgados: paq.mesesOtorgados, cobrados: paq.mesesCobrados };
+    }
+
+    // -------------------------------------------------------------------------
+    // 3.6) ALTA ANTICIPADA: crea el negocio afiliado al paquete pero SIN iniciar la membresía
+    //      (activo=false, promo_pendiente=true). No hay cobro ni comisiones; se activa después con 1 clic
+    //      desde la ficha ("Activar promoción"). No se manda correo: el equipo carga los datos entrando
+    //      con las credenciales del negocio (crea su contraseña con "¿Olvidaste tu contraseña?").
+    // -------------------------------------------------------------------------
+    if (datos.altaAnticipada) {
+        const creado = await db.transaction(async (tx) => {
+            const { negocio } = await crearNegocioConDueno(tx, {
+                nombre: datos.nombre,
+                apellidos: datos.apellidos,
+                correo: datos.correo,
+                telefono: datos.telefono,
+                contrasenaHash: null,
+                correoVerificado: false,
+                autenticadoPorGoogle: false,
+                stripeCustomerId: null,
+                stripeSubscriptionId: null,
+                embajadorId,
+                nombreNegocio: datos.nombreNegocio,
+                metodoCobro: 'manual',
+                ciudad: ciudad.nombre,
+                ciudadId: ciudad.id,
+            });
+            await tx
+                .update(negocios)
+                .set({
+                    activo: false,
+                    promoPendiente: true,
+                    promoPaqueteId: promoSnapshot?.id ?? null,
+                    promoMesesOtorgados: promoSnapshot?.otorgados ?? null,
+                    promoMesesCobrados: promoSnapshot?.cobrados ?? null,
+                    contraprestacion: datos.contraprestacion?.trim() || null,
+                    updatedAt: new Date().toISOString(),
+                })
+                .where(eq(negocios.id, negocio.id));
+            return { negocioId: negocio.id, usuarioId: negocio.usuarioId };
+        });
+
+        await registrarAuditoria(panel, {
+            accion: 'negocio_alta_anticipada',
+            entidadTipo: 'negocio',
+            entidadId: creado.negocioId,
+            datosPrevios: null,
+            datosNuevos: { promoPaqueteId: promoSnapshot?.id ?? null, activo: false, promoPendiente: true },
+            motivo: null,
+        });
+
+        return { ok: true, negocioId: creado.negocioId, usuarioId: creado.usuarioId };
+    }
+
+    // -------------------------------------------------------------------------
     // 4) Fechas: el periodo en MESES define el vencimiento. fechaProximoCobro = vencimiento
     //    (igual que marcarPagado); fechaPrimerPago = hoy. El cron de Fase 3 vigilará fecha_vencimiento.
     // -------------------------------------------------------------------------
@@ -170,7 +248,9 @@ export async function altaManualNegocio(
         // Cobro "día 1" (Pieza 2): paridad con la venta por tarjeta — si hay VENDEDOR y NO es cortesía, se
         // regalan los días de cortesía (config, default 14) ENCIMA del plazo pagado. Solo en modo "por
         // meses" (en "fecha exacta" el admin ya fijó la vigencia a mano). El modal lo muestra explícito.
-        if (embajadorId && datos.concepto !== 'cortesia') {
+        // Con un PAQUETE promocional, la vigencia la definen sus meses exactos (sin sumar la cortesía
+        // de vendedor); "3x1" = 3 meses justos.
+        if (embajadorId && datos.concepto !== 'cortesia' && !datos.promoPaqueteId) {
             const diasCortesia = await obtenerConfigNumero('dias_cortesia_vendedor', 14);
             venc.setDate(venc.getDate() + diasCortesia);
         }
@@ -211,6 +291,10 @@ export async function altaManualNegocio(
                 fechaVencimiento: vencISO,
                 fechaProximoCobro: vencISO,
                 fechaPrimerPago: esCortesia ? null : hoyFecha,
+                promoPaqueteId: promoSnapshot?.id ?? null,
+                promoMesesOtorgados: promoSnapshot?.otorgados ?? null,
+                promoMesesCobrados: promoSnapshot?.cobrados ?? null,
+                contraprestacion: datos.contraprestacion?.trim() || null,
                 updatedAt: new Date().toISOString(),
             })
             .where(eq(negocios.id, negocio.id));

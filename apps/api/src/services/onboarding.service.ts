@@ -221,7 +221,10 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
             throw new Error('Debes agregar al menos 3 productos/servicios');
         }
 
-        // Si todas las validaciones pasaron, publicar el negocio
+        // Completa el onboarding. IMPORTANTE: NO tocar `activo`. Un negocio en ALTA ANTICIPADA nace
+        // `activo=false` (promo_pendiente) y debe seguir OCULTO aunque termine su onboarding — se publica
+        // al "Activar promoción" desde el Panel. Los negocios normales ya nacen `activo=true`, así que
+        // completar el onboarding (es_borrador=false + onboarding_completado=true) los saca al público.
         await db
             .update(negocios)
             .set({
@@ -293,7 +296,10 @@ export const finalizarOnboarding = async (negocioId: string, usuarioId: string) 
 
         return {
             success: true,
-            message: 'Onboarding completado. ¡Tu negocio ya está publicado!',
+            // En alta anticipada el negocio sigue oculto hasta que el Panel "Active la promoción".
+            message: negocio.promoPendiente
+                ? 'Datos guardados. Tu negocio se publicará cuando se active tu promoción.'
+                : 'Onboarding completado. ¡Tu negocio ya está publicado!',
         };
     } catch (error) {
         console.error('Error al finalizar onboarding:', error);

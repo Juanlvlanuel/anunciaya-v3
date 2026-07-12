@@ -49,6 +49,9 @@ import {
     anularPagoController,
     contarNegociosController,
     marcarDesmarcarFundadorController,
+    editarContraprestacionController,
+    listarPaquetesPromoController,
+    activarPromocionController,
 } from '../../controllers/admin/negocios.controller.js';
 
 const router: Router = Router();
@@ -70,6 +73,9 @@ router.get('/existe-correo', requierePanel(['superadmin', 'gerente', 'vendedor']
 // Total de negocios del alcance (contador del menú). Antes de /:id para que "conteo" no caiga en el comodín.
 router.get('/conteo', requierePanel(['superadmin', 'gerente', 'vendedor']), contarNegociosController);
 
+// Paquetes promocionales ACTIVOS para el selector del alta. Antes de /:id para no caer en el comodín.
+router.get('/paquetes-promocion', requierePanel(['superadmin', 'gerente', 'vendedor']), listarPaquetesPromoController);
+
 router.get('/:id', requierePanel(['superadmin', 'gerente', 'vendedor']), obtenerDetalleNegocioController);
 
 // Sucursales del negocio (lista para expandir la fila + detalle para el modal).
@@ -87,10 +93,16 @@ router.post('/:id/reactivar', requierePanel(['superadmin', 'gerente']), reactiva
 router.post('/:id/reasignar-vendedor', requierePanel(['superadmin', 'gerente']), reasignarVendedorController);
 // Marcar/quitar Fundador (regalo de Publicidad): superadmin + gerente (alcance de región en el service).
 router.post('/:id/marcar-fundador', requierePanel(['superadmin', 'gerente']), marcarDesmarcarFundadorController);
+// Editar la nota de contraprestación (lo que el negocio ofrece durante la promo): los 3 roles (vendedor
+// acotado a su cartera por cargarNegocioConAlcance).
+router.patch('/:id/contraprestacion', requierePanel(['superadmin', 'gerente', 'vendedor']), editarContraprestacionController);
 // Marcar pagado: superadmin + gerente (alcance de region en el service). Cancelar: SOLO superadmin (Parada 2).
 // Registrar pago: super + gerente (cualquier negocio de su alcance). El VENDEDOR también, pero
 // SOLO en sus negocios MANUALES (sin tarjeta) y sin cortesía — el service lo blinda.
 router.post('/:id/marcar-pagado', requierePanel(['superadmin', 'gerente', 'vendedor']), marcarPagadoController);
+// Activar la promoción de un negocio dado de alta anticipada (cobra 1 mes, inicia la vigencia y publica):
+// super + gerente + vendedor (acotado a su cartera por cargarNegocioConAlcance).
+router.post('/:id/activar-promocion', requierePanel(['superadmin', 'gerente', 'vendedor']), activarPromocionController);
 router.post('/:id/cancelar', requierePanel(['superadmin']), cancelarNegocioController);
 // Editar el correo del dueño (rescate de alta manual): superadmin + gerente (alcance en el service).
 router.patch('/:id/correo-dueno', requierePanel(['superadmin', 'gerente']), cambiarCorreoDuenoController);

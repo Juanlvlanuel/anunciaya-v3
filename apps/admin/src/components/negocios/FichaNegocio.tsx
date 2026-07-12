@@ -31,6 +31,8 @@ import {
   Send,
   Star,
   Banknote,
+  Handshake,
+  Rocket,
 } from 'lucide-react';
 import {
   useNegocioDetalle,
@@ -45,6 +47,8 @@ import {
   useEditarPago,
   useReenviarRecibo,
   useAnularPago,
+  useEditarContraprestacion,
+  useActivarPromocion,
   PAGOS_INICIAL_FICHA,
 } from '../../hooks/queries/useNegociosAdmin';
 import type { NegocioFila, NegocioDetalle, PagoMembresia } from '../../services/negociosService';
@@ -55,6 +59,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { AccionesFicha, type AccionFicha } from '../ui/AccionesFicha';
 import { DialogoReasignar } from './DialogoReasignar';
 import { DialogoMarcarPagado } from './DialogoMarcarPagado';
+import { DialogoActivarPromocion } from './DialogoActivarPromocion';
 import { DialogoEditarPago } from './DialogoEditarPago';
 import { DialogoEditarCorreo } from './DialogoEditarCorreo';
 import { estadoEfectivo, metaEstado } from './estadoPago';
@@ -81,6 +86,11 @@ function placeholderDesdeFila(f: NegocioFila): NegocioDetalle {
     verificado: null,
     esFundador: false,
     onboardingCompletado: false,
+    promoPendiente: false,
+    promoPaqueteId: null,
+    promoMesesOtorgados: null,
+    promoMesesCobrados: null,
+    contraprestacion: null,
     creadoEn: f.alta,
     fechaPrimerPago: null,
     estadoPago: f.estadoPago,
@@ -302,12 +312,80 @@ function HistorialPagos({ negocioId, puedeActuar, puedeReenviar, esManual, permi
   );
 }
 
+/** Nota de contraprestación (lo que el negocio ofrece durante la promo). Lectura para todos; edición para
+ *  quien puede actuar sobre la ficha (super/gerente) o el vendedor de su cartera. Vacío = borra la nota. */
+function SeccionContraprestacion({ negocioId, valor, puedeEditar }: { negocioId: string; valor: string | null; puedeEditar: boolean }) {
+  const [editando, setEditando] = useState(false);
+  const [texto, setTexto] = useState('');
+  const guardar = useEditarContraprestacion();
+
+  const abrir = () => { setTexto(valor ?? ''); setEditando(true); };
+  const enviar = () => guardar.mutate({ id: negocioId, contraprestacion: texto.trim() }, { onSuccess: () => setEditando(false) });
+
+  return (
+    <Seccion titulo="Contraprestación" icono={Handshake}>
+      {!editando ? (
+        <div className="flex items-start justify-between gap-3">
+          <p className="whitespace-pre-line text-[13px] leading-relaxed text-texto-2">
+            {valor?.trim() ? valor : <span className="text-texto-4">Sin nota — qué producto o servicio ofrece durante la promo.</span>}
+          </p>
+          {puedeEditar && (
+            <Tooltip text={valor?.trim() ? 'Editar nota' : 'Agregar nota'}>
+              <button
+                type="button"
+                data-testid="ficha-contraprestacion-editar"
+                onClick={abrir}
+                aria-label="Editar contraprestación"
+                className="grid h-7 w-7 shrink-0 place-items-center rounded-[8px] text-[#d97706] transition hover:bg-[#d977061f]"
+              >
+                <Pencil size={14} />
+              </button>
+            </Tooltip>
+          )}
+        </div>
+      ) : (
+        <div className="flex flex-col gap-2">
+          <textarea
+            data-testid="ficha-contraprestacion"
+            value={texto}
+            onChange={(e) => setTexto(e.target.value.slice(0, 500))}
+            rows={3}
+            placeholder="Ej. Un corte de cabello gratis al mes durante los 3 meses de la promo."
+            className="w-full resize-none rounded-[8px] border border-campo-borde bg-campo px-3 py-2 text-[13px] text-texto outline-none transition placeholder:text-texto-4 focus:border-marca focus:bg-superficie focus:[box-shadow:0_0_0_3px_var(--panel-hover)]"
+          />
+          <div className="flex items-center gap-2">
+            <span className="mr-auto text-[11px] tabular-nums text-texto-4">{texto.length}/500</span>
+            <button
+              type="button"
+              data-testid="ficha-contraprestacion-cancelar"
+              onClick={() => setEditando(false)}
+              disabled={guardar.isPending}
+              className="rounded-[9px] border border-borde-fuerte bg-superficie px-3 py-1.5 text-[12.5px] font-semibold text-texto transition hover:bg-marca-suave disabled:opacity-50"
+            >
+              Cancelar
+            </button>
+            <button
+              type="button"
+              data-testid="ficha-contraprestacion-guardar"
+              onClick={enviar}
+              disabled={guardar.isPending}
+              className="rounded-[9px] bg-marca px-3.5 py-1.5 text-[12.5px] font-semibold text-marca-contraste transition disabled:opacity-50"
+            >
+              {guardar.isPending ? 'Guardando…' : 'Guardar'}
+            </button>
+          </div>
+        </div>
+      )}
+    </Seccion>
+  );
+}
+
 export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const { data, isError } = useNegocioDetalle(previo.id, placeholderDesdeFila(previo));
   // `data` siempre existe (placeholder de la fila o datos reales) → ficha al instante.
   const n = data ?? placeholderDesdeFila(previo);
 
-  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar' | 'editar-correo' | 'fundador'>(null);
+  const [dialogo, setDialogo] = useState<null | 'suspender' | 'reactivar' | 'reasignar' | 'marcar-pagado' | 'cancelar' | 'editar-correo' | 'fundador' | 'activar-promo'>(null);
   const [verLogo, setVerLogo] = useState(false);
   const suspender = useSuspenderNegocio();
   const reactivar = useReactivarNegocio();
@@ -316,11 +394,14 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const marcarPagado = useMarcarPagado();
   const cancelar = useCancelarNegocio();
   const cambiarCorreo = useCambiarCorreoDueno();
+  const activarPromo = useActivarPromocion();
   const cerrarDialogo = () => setDialogo(null);
 
   const suspendido = n.estadoAdmin === 'suspendido';
   const archivado = n.estadoAdmin === 'archivado';
   const esManual = n.metodoCobro === 'manual';
+  // Alta anticipada: negocio afiliado a un paquete pero con la membresía sin iniciar (activo=false).
+  const pendienteActivar = n.promoPendiente === true;
   // Chip de método de cobro: tarjeta → "Pago con tarjeta"; manual → el último concepto registrado
   // (transferencia/efectivo/depósito), con fallback genérico si aún no hay pagos. Reusa la MISMA query del
   // historial (misma key → sin doble fetch).
@@ -337,7 +418,7 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   // Espejo del guard 409 del backend: con suscripción, "Marcar pagado" solo si está al corriente
   // (en gracia/suspendido hay un cobro pendiente en Stripe que regularizar primero).
   const cobroPendiente = n.tieneSuscripcionStripe && n.estadoPago !== 'al_corriente';
-  const metaEf = metaEstado(estadoEfectivo(n.estadoAdmin, n.estadoPago));
+  const metaEf = metaEstado(pendienteActivar ? 'promo_pendiente' : estadoEfectivo(n.estadoAdmin, n.estadoPago));
 
   // SuperAdmin y Gerente actúan sobre toda la ficha. El vendedor solo puede "Registrar pago" en
   // SUS negocios MANUALES (su cartera); el resto de la ficha es de lectura para él. El backend lo blinda.
@@ -347,24 +428,39 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
   const puedeRegistrarPago = puedeActuar || (rol === 'vendedor' && esManual);
   // El vendedor puede REENVIAR el comprobante de cualquier pago de su cartera (no editar ni anular).
   const puedeReenviar = puedeActuar || rol === 'vendedor';
+  // La nota de contraprestación la edita quien actúa (super/gerente) o el vendedor de su cartera.
+  const puedeEditarNota = puedeActuar || rol === 'vendedor';
 
   // Acciones del encabezado según rol. Desktop → íconos con tooltip; móvil → menú "⋯" con texto.
   const motivoArchivado = 'No disponible para un negocio cancelado';
   const acciones: AccionFicha[] = [];
   if (puedeRegistrarPago) {
-    acciones.push({
-      icono: CheckCircle2,
-      etiqueta: 'Registrar pago',
-      color: 'marca',
-      testid: 'ficha-accion-registrar-pago',
-      onClick: () => setDialogo('marcar-pagado'),
-      disabled: archivado || cobroPendiente,
-      motivoDisabled: archivado
-        ? motivoArchivado
-        : cobroPendiente
-          ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.'
-          : undefined,
-    });
+    if (pendienteActivar) {
+      // Alta anticipada: en vez de "Registrar pago", un botón que inicia la membresía y publica.
+      acciones.push({
+        icono: Rocket,
+        etiqueta: 'Activar promoción',
+        color: 'ok',
+        testid: 'ficha-accion-activar-promo',
+        onClick: () => setDialogo('activar-promo'),
+        disabled: archivado,
+        motivoDisabled: archivado ? motivoArchivado : undefined,
+      });
+    } else {
+      acciones.push({
+        icono: CheckCircle2,
+        etiqueta: 'Registrar pago',
+        color: 'marca',
+        testid: 'ficha-accion-registrar-pago',
+        onClick: () => setDialogo('marcar-pagado'),
+        disabled: archivado || cobroPendiente,
+        motivoDisabled: archivado
+          ? motivoArchivado
+          : cobroPendiente
+            ? 'Tiene un cobro pendiente en Stripe; primero regulariza su pago.'
+            : undefined,
+      });
+    }
   }
   if (puedeActuar) {
     acciones.push({
@@ -537,6 +633,11 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
               </div>
             </div>
 
+            {/* Contraprestación: nota de lo que el negocio ofrece durante la promo (editable). */}
+            <div className="lg:shrink-0">
+              <SeccionContraprestacion negocioId={previo.id} valor={n.contraprestacion} puedeEditar={puedeEditarNota} />
+            </div>
+
             {/* Historial de pagos manuales. Siempre en manual; en tarjeta, solo si hay pagos. */}
             <HistorialPagos negocioId={previo.id} puedeActuar={puedeActuar} puedeReenviar={puedeReenviar} esManual={esManual} permiteCortesia={esSuperadmin} />
           </div>
@@ -595,6 +696,17 @@ export function FichaNegocio({ previo, onCerrar }: FichaNegocioProps) {
         onConfirmar={(hasta, datos) =>
           marcarPagado.mutate({ id: previo.id, hasta, ...datos }, { onSuccess: cerrarDialogo })
         }
+      />
+    )}
+    {dialogo === 'activar-promo' && (
+      <DialogoActivarPromocion
+        abierto
+        onCerrar={cerrarDialogo}
+        nombreNegocio={n.nombre}
+        mesesOtorgados={n.promoMesesOtorgados ?? 1}
+        mesesCobrados={n.promoMesesCobrados ?? 1}
+        cargando={activarPromo.isPending}
+        onConfirmar={(concepto) => activarPromo.mutate({ id: previo.id, concepto }, { onSuccess: cerrarDialogo })}
       />
     )}
     {dialogo === 'cancelar' && (

@@ -132,6 +132,16 @@ export function useCatalogoCiudades(habilitado: boolean) {
   });
 }
 
+/** Paquetes promocionales ACTIVOS para el selector del alta. */
+export function usePaquetesPromo(habilitado: boolean) {
+  return useQuery({
+    queryKey: queryKeys.negocios.paquetesPromo(),
+    queryFn: () => negociosService.listarPaquetesPromo(),
+    enabled: habilitado,
+    staleTime: 1000 * 60 * 5,
+  });
+}
+
 /** Historial de pagos de un negocio. `limite` acota a los N más recientes (para "ver todos");
  *  la key incluye el límite, pero invalidar `pagos(id)` (prefijo) refresca todas las variantes. */
 export function usePagosNegocio(id: string, habilitado: boolean, limite?: number) {
@@ -206,6 +216,36 @@ export function useMarcarDesmarcarFundador() {
       toast.exito(esFundador ? 'Negocio marcado como Fundador' : 'Fundador removido');
     },
     onError: (e) => toast.error(mensajeError(e, 'No se pudo cambiar el Fundador')),
+  });
+}
+
+export function useEditarContraprestacion() {
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ id, contraprestacion }: { id: string; contraprestacion: string }) =>
+      negociosService.editarContraprestacion(id, contraprestacion),
+    onSuccess: (_d, { id }) => {
+      refrescar(id);
+      toast.exito('Contraprestación guardada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo guardar la contraprestación')),
+  });
+}
+
+/** Activa la promoción de un negocio dado de alta anticipada (cobra 1 mes, inicia vigencia, publica). */
+export function useActivarPromocion() {
+  const qc = useQueryClient();
+  const refrescar = useRefrescarNegocio();
+  return useMutation({
+    mutationFn: ({ id, concepto }: { id: string; concepto: 'efectivo' | 'transferencia' }) =>
+      negociosService.activarPromocion(id, concepto),
+    onSuccess: (_d, { id }) => {
+      refrescar(id);
+      qc.invalidateQueries({ queryKey: queryKeys.negocios.pagos(id) });
+      qc.invalidateQueries({ queryKey: queryKeys.suscripciones.all() });
+      toast.exito('Promoción activada');
+    },
+    onError: (e) => toast.error(mensajeError(e, 'No se pudo activar la promoción')),
   });
 }
 
