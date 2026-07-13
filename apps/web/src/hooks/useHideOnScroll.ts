@@ -21,7 +21,6 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { useMainScrollStore } from '../stores/useMainScrollStore';
 
 // =============================================================================
 // TIPOS
@@ -67,8 +66,6 @@ export function useHideOnScroll({
     return () => window.removeEventListener('resize', handleResize);
   }, [desktopBreakpoint]);
 
-  const mainScrollRef = useMainScrollStore((s) => s.mainScrollRef);
-
   const [shouldShow, setShouldShow] = useState(true);
 
   // Refs para tracking interno
@@ -77,14 +74,7 @@ export function useHideOnScroll({
   const lockUntilRef = useRef(0);
   const rafRef = useRef(0);
 
-  const handleScroll = useCallback(() => {
-    const el = mainScrollRef?.current;
-    // Tomamos el scroll del que efectivamente se mueve: el contenedor
-    // registrado (app-shell propio) O `window`/body. En algunas páginas
-    // app-shell el scroll real termina ocurriendo en el documento y no en
-    // el contenedor interno; escuchar ambos y usar el máximo garantiza que
-    // el auto-hide funcione sin depender de cuál sea el scroller real.
-    const scrollTop = Math.max(el?.scrollTop ?? 0, window.scrollY);
+  const handleScroll = useCallback((scrollTop: number) => {
     const now = Date.now();
 
     // En top → siempre visible
@@ -134,7 +124,7 @@ export function useHideOnScroll({
       });
       accumulatedDeltaRef.current = 0;
     }
-  }, [mainScrollRef, scrollDelta, transitionDuration]);
+  }, [scrollDelta, transitionDuration]);
 
   useEffect(() => {
     if (!isMobile || disabled) {
@@ -142,23 +132,39 @@ export function useHideOnScroll({
       return;
     }
 
-    const el = mainScrollRef?.current;
-    // Escuchamos el contenedor registrado Y `window`: solo uno scrollea de
-    // verdad por página, pero así el auto-hide no depende de acertar cuál.
-    const targets: Array<HTMLElement | Window> = el ? [el, window] : [window];
-
-    const onScroll = () => {
-      cancelAnimationFrame(rafRef.current);
-      rafRef.current = requestAnimationFrame(handleScroll);
+    // Los eventos `scroll` NO burbujean, pero SÍ se propagan en fase de
+    // captura. Escuchamos en `document` con `capture: true` para enterarnos
+    // del scroll de CUALQUIER contenedor (el <main> del layout, el contenedor
+    // interno de una página app-shell, o el documento), sin depender de
+    // acertar cuál es el scroller real de cada página.
+    const leerScrollTop = (target: EventTarget | null): number | null => {
+      if (!target || target === document || target === window ||
+          target === document.documentElement || target === document.body) {
+        return window.scrollY || document.documentElement.scrollTop || 0;
+      }
+      if (target instanceof HTMLElement) {
+        // Ignorar scrollers puramente horizontales (carruseles nativos):
+        // no aportan dirección vertical para ocultar/mostrar el navbar.
+        if (target.scrollHeight <= target.clientHeight) return null;
+        return target.scrollTop;
+      }
+      return null;
     };
 
-    targets.forEach((t) => t.addEventListener('scroll', onScroll, { passive: true }));
+    const onScroll = (e: Event) => {
+      const scrollTop = leerScrollTop(e.target);
+      if (scrollTop === null) return;
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = requestAnimationFrame(() => handleScroll(scrollTop));
+    };
+
+    document.addEventListener('scroll', onScroll, { passive: true, capture: true });
 
     return () => {
-      targets.forEach((t) => t.removeEventListener('scroll', onScroll));
+      document.removeEventListener('scroll', onScroll, { capture: true } as EventListenerOptions);
       cancelAnimationFrame(rafRef.current);
     };
-  }, [isMobile, disabled, mainScrollRef, handleScroll]);
+  }, [isMobile, disabled, handleScroll]);
 
   // Transform
   const getTransform = (): string => {
