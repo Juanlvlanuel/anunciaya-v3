@@ -150,6 +150,7 @@ export const verificarNegocio = async (
                 activo: negocios.activo,
                 estadoMembresia: negocios.estadoMembresia,
                 estadoAdmin: negocios.estadoAdmin,
+                promoPendiente: negocios.promoPendiente,
             })
             .from(negocios)
             .where(eq(negocios.usuarioId, usuarioId))
@@ -159,7 +160,9 @@ export const verificarNegocio = async (
         if (negocio) {
             // Candado de circulación: un negocio fuera de circulación no puede
             // operar el modo comercial (cierra todo Business Studio de golpe).
-            if (estaFueraDeCirculacion(negocio)) {
+            // EXCEPCIÓN: alta anticipada (promo_pendiente) — está activo=false a propósito y el
+            // equipo debe poder cargarle los datos (onboarding) antes de activarlo.
+            if (!negocio.promoPendiente && estaFueraDeCirculacion(negocio)) {
                 return res.status(403).json({
                     success: false,
                     message: 'Tu negocio está fuera de servicio.',
@@ -194,12 +197,13 @@ export const verificarNegocio = async (
                 activo: negocios.activo,
                 estadoMembresia: negocios.estadoMembresia,
                 estadoAdmin: negocios.estadoAdmin,
+                promoPendiente: negocios.promoPendiente,
             })
             .from(negocios)
             .where(eq(negocios.id, negocioIdGerente))
             .limit(1);
 
-        if (negGerente && estaFueraDeCirculacion(negGerente)) {
+        if (negGerente && !negGerente.promoPendiente && estaFueraDeCirculacion(negGerente)) {
             return res.status(403).json({
                 success: false,
                 message: 'Tu negocio está fuera de servicio.',
