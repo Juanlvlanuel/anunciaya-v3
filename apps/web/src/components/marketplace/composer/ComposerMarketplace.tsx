@@ -58,7 +58,6 @@ import { CustomSelect } from '../../ui/CustomSelect';
 import { ModalSugerenciaModeracion } from '../ModalSugerenciaModeracion';
 import {
     useComposerMarketplace,
-    parseEnteroPositivo,
     type ComposerMarketplaceDraft,
 } from '../../../hooks/useComposerMarketplace';
 import {
@@ -1765,7 +1764,11 @@ function tituloPorSeccion(s: SeccionAbierta): string {
 function articuloAlDraft(
     a: ArticuloMarketplaceDetalle,
 ): Partial<ComposerMarketplaceDraft> {
-    const precioNum = a.precio !== null ? parseEnteroPositivo(a.precio) : null;
+    // El backend devuelve el precio como numeric ("25.00"). Redondeamos el valor
+    // decimal — NO usar parseEnteroPositivo, que elimina el punto y convertiría
+    // "25.00" en 2500.
+    const precioNum =
+        a.precio !== null && a.precio !== '' ? Math.round(Number(a.precio)) : null;
     return {
         modo: a.modo,
         categoriaId: a.categoriaId,
